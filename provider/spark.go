@@ -664,12 +664,14 @@ type SparkGenericExecutor struct {
 }
 
 func (s *SparkGenericExecutor) InitializeExecutor(store FileStore) error {
-	s.logger.Info("uploading pyspark script to filestore")
+	s.logger.Info("Uploading PySpark script to filestore")
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
-	err := readAndUploadFile(sparkScriptPath, store.PathWithPrefix(sparkScriptPath, false), store)
-	sparkExists, _ := store.Exists(store.PathWithPrefix(sparkScriptPath, false))
-	if err != nil && !sparkExists {
-		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", store.PathWithPrefix(sparkScriptPath, false), err)
+	sparkScriptPathWithPrefix := store.PathWithPrefix(sparkScriptPath, false)
+
+	err := readAndUploadFile(sparkScriptPath, sparkScriptPathWithPrefix, store)
+	scriptExists, _ := store.Exists(sparkScriptPathWithPrefix)
+	if err != nil && !scriptExists {
+		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", sparkScriptPathWithPrefix, err)
 	}
 	return nil
 }
@@ -755,7 +757,7 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 		"--output_uri",
 		fmt.Sprintf("\"%s\"", outputURI),
 		"--code",
-		code, // TODO: Need to use the prefix
+		code,
 	}
 
 	var remoteConnectionArgs []string
@@ -991,7 +993,6 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 
-	// TODO: fix the path to include the prefix
 	transformationFilePath := GetTransformationFileLocation(config.TargetTableID)
 	fileName := "transformation.pkl"
 	transformationFileLocation := fmt.Sprintf("%s/%s", transformationFilePath, fileName)
@@ -1141,7 +1142,7 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 		"--output_uri",
 		outputURI,
 		"--code",
-		code, // TODO: Need to use the prefix
+		code,
 	}
 	var remoteConnectionArgs []string
 	azureStore := store.AsAzureStore()

@@ -21,6 +21,11 @@ from featureform.format import *
 NameVariant = Tuple[str, str]
 
 
+# Constants for Pyspark Versions
+MAJOR_VERSION = "3"
+MINOR_VERSIONS = ["7", "8", "9", "10"]
+
+
 class ColumnTypes(Enum):
     NIL = ""
     INT = "int"
@@ -1423,7 +1428,7 @@ class SparkCredentials:
         else:
             raise Exception("Please specify your Python version on the Spark cluster. Accepted formats: Major.Minor or Major.Minor.Patch; ex. '3.7' or '3.7.16")
 
-        if major != "3" or minor not in ["7", "8", "9", "10"]:
+        if major != MAJOR_VERSION or minor not in MINOR_VERSIONS:
             raise Exception(f"The Python version {version} is not supported. Currently, supported versions are 3.7-3.10.")
         
         if minor == "10":

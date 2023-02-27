@@ -29,6 +29,8 @@ import (
 	"github.com/featureform/metadata"
 )
 
+const azureBlobStorePrefix = "abfss://"
+
 type pandasOfflineQueries struct {
 	defaultPythonOfflineQueries
 }
@@ -523,7 +525,7 @@ func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
 		}
 	}
 	if remote {
-		if path[:len("abfss://")] == "abfss://" {
+		if path[:len(azureBlobStorePrefix)] == azureBlobStorePrefix {
 			return path
 		}
 		prefix := ""

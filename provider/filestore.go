@@ -427,7 +427,7 @@ func (fs *HDFSFileStore) createFile(key string) (*hdfs.FileWriter, error) {
 		}
 	}
 	fmt.Println("Before replaced dir", parsedPath)
-	path := strings.ReplaceAll(key, parsedPath[len(parsedPath)-1], "")
+	path := strings.TrimSuffix(key, parsedPath[len(parsedPath)-1])
 	fmt.Println("old string", parsedPath[len(parsedPath)-1])
 	fmt.Println("Making Dir", path)
 	err := fs.Client.MkdirAll(path, os.ModeDir)

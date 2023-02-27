@@ -451,6 +451,9 @@ func (fs *HDFSFileStore) Write(key string, data []byte) error {
 	if err != nil {
 		return fmt.Errorf("could not write: %v", err)
 	}
+	if err := file.Flush(); err != nil {
+		return fmt.Errorf("flush: %v", err)
+	}
 	file.Close()
 	return nil
 }

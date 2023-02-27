@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-
+from os.path import exists 
 from datetime import timedelta
 from multiprocessing.sharedctypes import Value
 from typeguard import typechecked, check_type
@@ -1251,6 +1251,23 @@ class Registrar:
         fakeConfig = S3StoreConfig(bucket_path="", bucket_region="", credentials=fake_creds)
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineK8sProvider(self, fakeProvider)
+    
+    def get_gcs(self, name):
+        get = ProviderReference(name=name, provider_type="GCS", obj=None)
+        self.__resources.append(get)
+
+        filename = "fake_secrets.json"
+        if not exists(filename):
+            self._create_mock_creds_file(filename, {"test": "creds"})
+
+        fake_creds = GCPCredentials("id", filename)
+        fakeConfig = GCSStoreConfig(bucket_name="", bucket_path="", credentials=fake_creds)
+        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        return OfflineK8sProvider(self, fakeProvider)
+    
+    def _create_mock_creds_file(self, filename, json_data):
+        with open(filename, "w") as f:
+            json.dumps(json_data, f)
 
     def get_entity(self, name, local=False):
         """Get an entity. The returned object can be used to register additional resources.
@@ -1412,6 +1429,51 @@ class Registrar:
                             config=s3_config)
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, s3_config, s3_config.type())
+
+    def register_gcs(self,
+                    name: str,
+                    credentials: GCPCredentials,
+                    bucket_name: str,
+                    bucket_path: str = "",
+                    description: str = "",
+                    team: str = "", ):
+        """Register a GCS store provider.
+
+        This has the functionality of an offline store and can be used as a parameter
+        to a k8s or spark provider
+
+        **Examples**:
+        ```
+        gcs = ff.register_gcs(
+            name="gcs-quickstart",
+            credentials=gcp_creds,
+            bucket_name="bucket_name",
+            bucket_path="featureform/path/",
+            description="An gcs store provider to store offline"
+        )
+        ```
+        Args:
+            name (str): Name of GCS store to be registered
+            credentials (GCPCredentials): GCP credentials to access the bucket
+            bucket_name (str): the bucket name
+            bucket_path (str): custom path to be used by featureform
+            description (str): Description of Redis provider to be registered
+            team (str): team with permission to this storage layer
+        Returns:
+            gcs (FileStoreProvider): Provider
+                has all the functionality of OfflineProvider
+        """
+
+        gcs_config = S3StoreConfig(bucket_name=bucket_name, bucket_path=bucket_path, credentials=credentials)
+
+        provider = Provider(name=name,
+                            function="OFFLINE",
+                            description=description,
+                            team=team,
+                            config=gcs_config)
+        self.__resources.append(provider)
+        return FileStoreProvider(self, provider, gcs_config, gcs_config.type())
+
 
     def register_firestore(self,
                            name: str,
@@ -3601,4 +3663,5 @@ get_spark = global_registrar.get_spark
 get_kubernetes = global_registrar.get_kubernetes
 get_blob_store = global_registrar.get_blob_store
 get_s3 = global_registrar.get_s3
+get_gcs = global_registrar.get_gcs
 ResourceStatus = ResourceStatus

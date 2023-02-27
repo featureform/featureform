@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/credentials"
 
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
@@ -53,6 +54,11 @@ const TIMESTAMP_INDEX = 2
 type AWSCredentials struct {
 	AWSAccessKeyId string
 	AWSSecretKey   string
+}
+
+type GCPCredentials struct {
+	ProjectId   string
+	Credentials []byte
 }
 
 type SparkExecutorConfig interface {

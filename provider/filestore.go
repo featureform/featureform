@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsv2cfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -14,7 +16,6 @@ import (
 	"gocloud.dev/blob/s3blob"
 	"gocloud.dev/gcp"
 	"golang.org/x/oauth2/google"
-	"os"
 )
 
 const (
@@ -272,7 +273,7 @@ type GCSFileStore struct {
 type GCSFileStoreConfig struct {
 	BucketName  string
 	BucketPath  string
-	Credentials []byte
+	Credentials GCPCredentials
 }
 
 func (s *GCSFileStoreConfig) Deserialize(config SerializedConfig) error {
@@ -299,7 +300,7 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 		return nil, fmt.Errorf("could not deserialize config: %v", err)
 	}
 
-	creds, err := google.CredentialsFromJSON(context.TODO(), GCSConfig.Credentials, "https://www.googleapis.com/auth/cloud-platform")
+	creds, err := google.CredentialsFromJSON(context.TODO(), GCSConfig.Credentials.Credentials, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
 		return nil, fmt.Errorf("could not get credentials from JSON: %v", err)
 	}

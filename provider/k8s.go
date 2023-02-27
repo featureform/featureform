@@ -376,7 +376,7 @@ type FileStore interface {
 	Close() error
 	Upload(sourcePath string, destPath string) error
 	Download(sourcePath string, destPath string) error
-	Type() string
+	FilestoreType() string
 }
 
 type Iterator interface {
@@ -539,6 +539,10 @@ func (store genericFileStore) Download(sourcePath string, destPath string) error
 	f.Write(content)
 
 	return nil
+}
+
+func (store genericFileStore) FilestoreType() string {
+	return ""
 }
 
 func convertToParquetBytes(list []any) ([]byte, error) {

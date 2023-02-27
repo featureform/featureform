@@ -76,7 +76,7 @@ func NewLocalFileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
-func (fs LocalFileStore) Type() string {
+func (fs LocalFileStore) FilestoreType() string {
 	return "local"
 }
 
@@ -126,7 +126,7 @@ func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
 	return path
 }
 
-func (store AzureFileStore) Type() string {
+func (store AzureFileStore) FilestoreType() string {
 	return "azure_blob_store"
 }
 
@@ -246,7 +246,7 @@ func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
 	}
 }
 
-func (s3 S3FileStore) Type() string {
+func (s3 S3FileStore) FilestoreType() string {
 	return "s3"
 }
 
@@ -270,7 +270,7 @@ func (gs *GCSFileStore) PathWithPrefix(path string, remote bool) string {
 	}
 }
 
-func (g GCSFileStore) Type() string {
+func (g GCSFileStore) FilestoreType() string {
 	return "gcs"
 }
 
@@ -580,6 +580,6 @@ func (fs *HDFSFileStore) AsAzureStore() *AzureFileStore {
 	return nil
 }
 
-func (fs HDFSFileStore) Type() string {
+func (fs HDFSFileStore) FilestoreType() string {
 	return "hdfs"
 }

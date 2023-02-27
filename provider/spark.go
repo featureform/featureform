@@ -582,7 +582,7 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 		"client",
 		store.PathWithPrefix(filePath, true),
 		"--store_type",
-		store.Type(),
+		store.FilestoreType(),
 		"sql",
 		"--output_uri",
 		store.PathWithPrefix(destPath, true),
@@ -606,7 +606,7 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string,
 		"--job_type",
 		string(jobType),
 		"--store_type",
-		store.Type(),
+		store.FilestoreType(),
 	}
 	var remoteConnectionArgs []string
 	azureStore := store.(*AzureFileStore)

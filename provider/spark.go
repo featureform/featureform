@@ -582,7 +582,7 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	}
 	logger.Info("Uploading Spark script to store")
 
-	logger.Debugf("Store type: %s, Store config: %v", sc.StoreType, sc.StoreConfig)
+	logger.Debugf("Store type: %s", sc.StoreType)
 	if err := exec.InitializeExecutor(store); err != nil {
 		logger.Errorw("Failure initializing executor", "error", err)
 		return nil, err
@@ -680,7 +680,7 @@ func (s *SparkGenericExecutor) RunSparkJob(args *[]string, store FileStore) erro
 	sparkArgsString := strings.Join(sparkArgs, " ")
 	bashCommandArgs := []string{"-c", fmt.Sprintf("pyenv global %s && pyenv exec %s", s.pythonVersion, sparkArgsString)}
 
-	s.logger.Infow("Executing the command", bashCommand, bashCommandArgs)
+	s.logger.Infow("Executing the", bashCommand, "command")
 	cmd := exec.Command(bashCommand, bashCommandArgs...)
 	cmd.Env = append(os.Environ(), "FEATUREFORM_LOCAL_MODE=true")
 

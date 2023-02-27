@@ -335,6 +335,7 @@ func (fs *HDFSFileStore) addPrefix(key string) string {
 }
 
 func (fs *HDFSFileStore) getFile(key string) (*hdfs.FileWriter, error) {
+	fmt.Println("Getting file", key)
 	if w, err := fs.Client.Create(key); err != nil && strings.Contains(err.Error(), "file already exists") {
 		err := fs.Client.Remove(key)
 		if err != nil && strings.Contains(err.Error(), "file does not exist") {
@@ -360,6 +361,7 @@ func (fs *HDFSFileStore) createFile(key string) (*hdfs.FileWriter, error) {
 		}
 	}
 	path := strings.ReplaceAll(key, parsedPath[len(parsedPath)-1], "")
+	fmt.Println("Making Dir", path)
 	err := fs.Client.MkdirAll(path, os.ModeDir)
 	if err != nil {
 		return nil, fmt.Errorf("could not create all: %v", err)
@@ -373,6 +375,7 @@ func (fs *HDFSFileStore) createFile(key string) (*hdfs.FileWriter, error) {
 
 func (fs *HDFSFileStore) Write(key string, data []byte) error {
 	file, err := fs.createFile(fs.addPrefix(key))
+	fmt.Println("Creating file", key)
 	if err != nil {
 		return fmt.Errorf("could not create file: %v", err)
 	}

@@ -1,6 +1,10 @@
 package provider_config
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	ss "github.com/featureform/helpers/string_set"
+)
 
 type S3FileStoreConfig struct {
 	Credentials  AWSCredentials
@@ -27,4 +31,14 @@ func (s *S3FileStoreConfig) Serialize() ([]byte, error) {
 
 func (s *S3FileStoreConfig) IsFileStoreConfig() bool {
 	return true
+}
+
+func (s S3FileStoreConfig) MutableFields() ss.StringSet {
+	return ss.StringSet{
+		"Credentials": true,
+	}
+}
+
+func (a S3FileStoreConfig) DifferingFields(b S3FileStoreConfig) (ss.StringSet, error) {
+	return differingFields(a, b)
 }

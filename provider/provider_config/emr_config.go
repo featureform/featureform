@@ -1,6 +1,10 @@
 package provider_config
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	ss "github.com/featureform/helpers/string_set"
+)
 
 type EMRConfig struct {
 	Credentials   AWSCredentials
@@ -26,4 +30,14 @@ func (e *EMRConfig) Serialize() ([]byte, error) {
 
 func (e *EMRConfig) IsExecutorConfig() bool {
 	return true
+}
+
+func (e EMRConfig) MutableFields() ss.StringSet {
+	return ss.StringSet{
+		"Credentials": true,
+	}
+}
+
+func (a EMRConfig) DifferingFields(b EMRConfig) (ss.StringSet, error) {
+	return differingFields(a, b)
 }

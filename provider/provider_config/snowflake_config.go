@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	ss "github.com/featureform/helpers/string_set"
 	sr "github.com/featureform/helpers/struct_iterator"
 )
 
@@ -33,6 +34,30 @@ func (sf *SnowflakeConfig) Serialize() []byte {
 		panic(err)
 	}
 	return conf
+}
+
+func (pg SnowflakeConfig) MutableFields() ss.StringSet {
+	return ss.StringSet{
+		"Username": true,
+		"Password": true,
+		"Role":     true,
+	}
+}
+
+func (a SnowflakeConfig) DifferingFields(b SnowflakeConfig) (ss.StringSet, error) {
+	return differingFields(a, b)
+}
+
+func (sf *SnowflakeConfig) HasLegacyCredentials() bool {
+	return sf.AccountLocator != ""
+}
+
+func (sf *SnowflakeConfig) HasCurrentCredentials() (bool, error) {
+	if (sf.Account != "" && sf.Organization == "") || (sf.Account == "" && sf.Organization != "") {
+		return false, fmt.Errorf("credentials must include both Account and Organization")
+	} else {
+		return sf.Account != "" && sf.Organization != "", nil
+	}
 }
 
 func (sf *SnowflakeConfig) ConnectionString() (string, error) {
@@ -105,18 +130,6 @@ func (sf *SnowflakeConfig) getBaseConnection() (string, error) {
 		return fmt.Sprintf("%s:%s@%s-%s/%s/%s", sf.Username, sf.Password, sf.Organization, sf.Account, sf.Database, sf.schema()), nil
 	} else {
 		return "", fmt.Errorf("credentials not found")
-	}
-}
-
-func (sf *SnowflakeConfig) HasLegacyCredentials() bool {
-	return sf.AccountLocator != ""
-}
-
-func (sf *SnowflakeConfig) HasCurrentCredentials() (bool, error) {
-	if (sf.Account != "" && sf.Organization == "") || (sf.Account == "" && sf.Organization != "") {
-		return false, fmt.Errorf("credentials must include both Account and Organization")
-	} else {
-		return sf.Account != "" && sf.Organization != "", nil
 	}
 }
 

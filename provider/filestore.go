@@ -337,10 +337,13 @@ func (fs *HDFSFileStore) addPrefix(key string) string {
 func (fs *HDFSFileStore) getFile(key string) (*hdfs.FileWriter, error) {
 	if w, err := fs.Client.Create(key); err != nil && strings.Contains(err.Error(), "file already exists") {
 		err := fs.Client.Remove(key)
-		if err != nil {
+		if err != nil && strings.Contains(err.Error(), "file does not exist") {
+			return fs.getFile(key)
+		} else if err != nil {
 			return nil, fmt.Errorf("could not remove file %s: %v", key, err)
 		}
 		return fs.getFile(key)
+
 	} else if err != nil {
 		return nil, fmt.Errorf("could not get file: %v", err)
 	} else {

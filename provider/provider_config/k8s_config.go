@@ -3,6 +3,8 @@ package provider_config
 import (
 	"encoding/json"
 	"fmt"
+
+	ss "github.com/featureform/helpers/string_set"
 )
 
 type FileStoreConfig []byte
@@ -18,30 +20,43 @@ type K8sConfig struct {
 	StoreConfig    AzureFileStoreConfig
 }
 
-func (config *K8sConfig) Serialize() ([]byte, error) {
-	data, err := json.Marshal(config)
+func (k8s *K8sConfig) Serialize() ([]byte, error) {
+	data, err := json.Marshal(k8s)
 	if err != nil {
 		return nil, err
 	}
 	return data, nil
 }
 
-func (config *K8sConfig) Deserialize(data []byte) error {
-	err := json.Unmarshal(data, config)
+func (k8s *K8sConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, k8s)
 	if err != nil {
 		return fmt.Errorf("deserialize k8s config: %w", err)
 	}
-	if config.ExecutorConfig == "" {
-		config.ExecutorConfig = ExecutorConfig{}
+	if k8s.ExecutorConfig == "" {
+		k8s.ExecutorConfig = ExecutorConfig{}
 	} else {
-		return config.executorConfigFromMap()
+		return k8s.executorConfigFromMap()
 	}
 	return nil
 }
 
+func (k8s K8sConfig) MutableFields() ss.StringSet {
+	return ss.StringSet{
+		"ExecutorType":   true,
+		"ExecutorConfig": true,
+		"StoreType":      true,
+		"StoreConfig":    true,
+	}
+}
+
+func (a K8sConfig) DifferingFields(b K8sConfig) (ss.StringSet, error) {
+	return differingFields(a, b)
+}
+
 const (
 	GoProc ExecutorType = "GO_PROCESS"
-	K8s                 = "K8S"
+	K8s    ExecutorType = "K8S"
 )
 
 func (config *K8sConfig) executorConfigFromMap() error {

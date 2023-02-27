@@ -155,9 +155,9 @@ class GCPCredentials:
 @typechecked
 @dataclass
 class GCSFileStoreConfig:
+    credentials: GCPCredentials
     bucket_name: str
     bucket_path: str = ""
-    credentials: GCPCredentials
 
     def software(self) -> str:
         return "gcs"

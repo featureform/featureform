@@ -3,14 +3,16 @@ package provider_config
 import (
 	"encoding/json"
 	"fmt"
+
+	ss "github.com/featureform/helpers/string_set"
 )
 
 const (
 	Memory     FileStoreType = "MEMORY"
-	FileSystem               = "LOCAL_FILESYSTEM"
-	Azure                    = "AZURE"
-	S3                       = "S3"
-	GCS                      = "GCS"
+	FileSystem FileStoreType = "LOCAL_FILESYSTEM"
+	Azure      FileStoreType = "AZURE"
+	S3         FileStoreType = "S3"
+	GCS        FileStoreType = "GCS"
 )
 
 type AzureFileStoreConfig struct {
@@ -38,4 +40,15 @@ func (config *AzureFileStoreConfig) Deserialize(data SerializedConfig) error {
 		return fmt.Errorf("deserialize file blob store config: %w", err)
 	}
 	return nil
+}
+
+func (pg AzureFileStoreConfig) MutableFields() ss.StringSet {
+	return ss.StringSet{
+		"AccountName": true,
+		"AccountKey":  true,
+	}
+}
+
+func (a AzureFileStoreConfig) DifferingFields(b AzureFileStoreConfig) (ss.StringSet, error) {
+	return differingFields(a, b)
 }

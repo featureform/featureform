@@ -530,7 +530,7 @@ func (hdfs *HDFSFileStore) NewestFileOfType(prefix string, fileType FileType) (s
 		if strings.Contains(path, prefix) {
 			if (info.ModTime().After(lastModTime) || info.ModTime().Equal(lastModTime)) && fileType.Matches(path) {
 				lastModTime = info.ModTime()
-				lastModName = info.Name()
+				lastModName = path
 			}
 		}
 		return nil
@@ -541,7 +541,7 @@ func (hdfs *HDFSFileStore) NewestFileOfType(prefix string, fileType FileType) (s
 	if lastModName == "" {
 		return lastModName, nil
 	}
-	return fmt.Sprintf("%s/%s", prefix, lastModName), nil
+	return lastModName, nil
 }
 
 func (fs *HDFSFileStore) PathWithPrefix(path string, remote bool) string {

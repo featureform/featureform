@@ -580,8 +580,6 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 		"--deploy-mode",
 		"client",
 		store.PathWithPrefix("featureform/scripts/offline_store_spark_runner.py", true),
-		"--store_type",
-		store.FilestoreType(),
 		"sql",
 		"--store_type",
 		store.FilestoreType(),

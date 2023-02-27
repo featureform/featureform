@@ -399,10 +399,24 @@ func (fs *HDFSFileStore) addPrefix(key string) string {
 	return fmt.Sprintf("/%s", key)
 }
 
+func (fs *HDFSFileStore) getFile(key string) (*hdfs.FileWriter, error) {
+	if w, err := fs.Client.Create(key); err != nil && strings.Contains(err.Error(), "file already exists") {
+		err := fs.Client.Remove(key)
+		if err != nil {
+			return nil, fmt.Errorf("could not remove file %s: %v", key, err)
+		}
+		return fs.getFile(key)
+	} else if err != nil {
+		return nil, fmt.Errorf("could not get file: %v", err)
+	} else {
+		return w, nil
+	}
+}
+
 func (fs *HDFSFileStore) createFile(key string) (*hdfs.FileWriter, error) {
 	parsedPath := strings.Split(key, "/")
 	if len(parsedPath) == 1 {
-		if w, err := fs.Client.Create(key); err != nil {
+		if w, err := fs.getFile(key); err != nil {
 			return nil, fmt.Errorf("could not create single file: %v", err)
 		} else {
 			return w, nil
@@ -413,7 +427,7 @@ func (fs *HDFSFileStore) createFile(key string) (*hdfs.FileWriter, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not create all: %v", err)
 	}
-	if w, err := fs.Client.Create(key); err != nil {
+	if w, err := fs.getFile(key); err != nil {
 		return nil, fmt.Errorf("could not create directory file: %v", err)
 	} else {
 		return w, nil

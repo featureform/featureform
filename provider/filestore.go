@@ -553,7 +553,7 @@ func (fs *HDFSFileStore) PathWithPrefix(path string, remote bool) string {
 		if fs.Path != "" {
 			fsPath = fmt.Sprintf("/%s", fs.Path)
 		}
-		return fmt.Sprintf("s3://%s/%s", fsPath, path)
+		return fmt.Sprintf("hdfs://%s/%s", fsPath, path)
 	} else {
 		return path
 	}

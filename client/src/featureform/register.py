@@ -3713,6 +3713,7 @@ register_redshift = global_registrar.register_redshift
 register_spark = global_registrar.register_spark
 register_k8s = global_registrar.register_k8s
 register_s3 = global_registrar.register_s3
+register_hdfs = global_registrar.register_hdfs
 register_local = global_registrar.register_local
 register_entity = global_registrar.register_entity
 register_column_resources = global_registrar.register_column_resources

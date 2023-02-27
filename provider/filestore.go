@@ -330,6 +330,7 @@ type HDFSFileStore struct {
 }
 
 func (fs *HDFSFileStore) addPrefix(key string) string {
+	key = strings.TrimPrefix(key, "/")
 	return fmt.Sprintf("/%s", key)
 }
 

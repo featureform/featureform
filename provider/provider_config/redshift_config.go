@@ -1,6 +1,10 @@
 package provider_config
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	ss "github.com/featureform/helpers/string_set"
+)
 
 type RedshiftConfig struct {
 	Endpoint string
@@ -24,4 +28,16 @@ func (rs *RedshiftConfig) Serialize() []byte {
 		panic(err)
 	}
 	return conf
+}
+
+func (rs RedshiftConfig) MutableFields() ss.StringSet {
+	return ss.StringSet{
+		"Username": true,
+		"Password": true,
+		"Port":     true,
+	}
+}
+
+func (a RedshiftConfig) DifferingFields(b RedshiftConfig) (ss.StringSet, error) {
+	return differingFields(a, b)
 }

@@ -376,6 +376,7 @@ type FileStore interface {
 	Close() error
 	Upload(sourcePath string, destPath string) error
 	Download(sourcePath string, destPath string) error
+	Type() string
 }
 
 type Iterator interface {

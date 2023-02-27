@@ -93,12 +93,13 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         func_parameters.append(spark.read.option("recursiveFileLookup", "true").parquet(location))
     
     try:
-        code = get_code_from_file(code, store_type, credentials)
+        code = get_code_from_file(code,spark, store_type, credentials)
         func = types.FunctionType(code, globals(), "df_transformation")
         output_df = func(*func_parameters)
 
         dt = datetime.now()
-        output_uri_with_timestamp = f"{output_uri}{dt}" if output_uri[-1] == "/" else f"{output_uri}/{dt}"
+        safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
+        output_uri_with_timestamp = f"{output_uri}{safe_datetime}" if output_uri[-1] == "/" else f"{output_uri}/{safe_datetime}"
         output_df.write.mode("overwrite").parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
@@ -106,7 +107,7 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         raise e
 
 
-def get_code_from_file(file_path, store_type=None, credentials=None):
+def get_code_from_file(file_path, spark, store_type=None, credentials=None):
     # Reads the code from a pkl file into a python code object.
     # Then this object will be used to execute the transformation. 
     
@@ -147,9 +148,10 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
         # the split below separates the bucket name and the key that is
         # used to read the object in the bucket.
 
-        with open(file_path) as f:
-            f.seek(0)
-            code = dill.loads(f.read())
+        import subprocess
+        output = subprocess.check_output(f"hdfs dfs -cat {file_path}", shell=True)
+        code = dill.loads(bytes(output))
+
 
     elif store_type == "azure_blob_store":
         connection_string = credentials.get("azure_connection_string")

@@ -575,11 +575,14 @@ func (e *EMRExecutor) RunSparkJob(args []string, store FileStore) error {
 }
 
 func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
+	filePath := helpers.GetEnv("SPARK_SCRIPT_PATH", "featureform/scripts/offline_store_spark_runner.py")
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
 		"client",
-		store.PathWithPrefix("featureform/scripts/offline_store_spark_runner.py", true),
+		store.PathWithPrefix(filePath, true),
+		"--store_type",
+		store.Type(),
 		"sql",
 		"--output_uri",
 		store.PathWithPrefix(destPath, true),
@@ -602,6 +605,8 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string,
 		cleanQuery,
 		"--job_type",
 		string(jobType),
+		"--store_type",
+		store.Type(),
 	}
 	var remoteConnectionArgs []string
 	azureStore := store.(*AzureFileStore)

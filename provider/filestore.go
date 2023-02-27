@@ -76,6 +76,10 @@ func NewLocalFileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
+func (fs LocalFileStore) Type() string {
+	return "local"
+}
+
 type AzureFileStore struct {
 	AccountName      string
 	AccountKey       string
@@ -120,6 +124,37 @@ func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
 		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s%s", store.ContainerName, store.AccountName, prefix, path)
 	}
 	return path
+}
+
+func (store AzureFileStore) Type() string {
+	return "azure_blob_store"
+}
+
+type AzureFileStoreConfig struct {
+	AccountName   string
+	AccountKey    string
+	ContainerName string
+	Path          string
+}
+
+func (config *AzureFileStoreConfig) IsFileStoreConfig() bool {
+	return true
+}
+
+func (config *AzureFileStoreConfig) Serialize() ([]byte, error) {
+	data, err := json.Marshal(config)
+	if err != nil {
+		panic(err)
+	}
+	return data, nil
+}
+
+func (config *AzureFileStoreConfig) Deserialize(data SerializedConfig) error {
+	err := json.Unmarshal(data, config)
+	if err != nil {
+		return fmt.Errorf("deserialize file blob store config: %w", err)
+	}
+	return nil
 }
 
 func NewAzureFileStore(config Config) (FileStore, error) {
@@ -211,6 +246,10 @@ func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
 	}
 }
 
+func (s3 S3FileStore) Type() string {
+	return "s3"
+}
+
 type GCSFileStore struct {
 	Bucket string
 	Path   string
@@ -229,6 +268,32 @@ func (gs *GCSFileStore) PathWithPrefix(path string, remote bool) string {
 	} else {
 		return path
 	}
+}
+
+func (g GCSFileStore) Type() string {
+	return "gcs"
+}
+
+type GCSFileStoreConfig struct {
+	BucketName  string
+	BucketPath  string
+	Credentials GCPCredentials
+}
+
+func (s *GCSFileStoreConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, s)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GCSFileStoreConfig) Serialize() []byte {
+	conf, err := json.Marshal(s)
+	if err != nil {
+		panic(err)
+	}
+	return conf
 }
 
 func NewGCSFileStore(config Config) (FileStore, error) {
@@ -513,4 +578,8 @@ func (fs *HDFSFileStore) Download(sourcePath string, destPath string) error {
 }
 func (fs *HDFSFileStore) AsAzureStore() *AzureFileStore {
 	return nil
+}
+
+func (fs HDFSFileStore) Type() string {
+	return "hdfs"
 }

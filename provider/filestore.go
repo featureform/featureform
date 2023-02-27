@@ -270,7 +270,7 @@ func (gs *GCSFileStore) PathWithPrefix(path string, remote bool) string {
 }
 
 func (g GCSFileStore) FilestoreType() string {
-	return "gcs"
+	return "google_cloud_storage"
 }
 
 type GCSFileStoreConfig struct {

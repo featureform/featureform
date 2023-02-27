@@ -582,7 +582,7 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 		"client",
 		store.PathWithPrefix(filePath, true),
 		"--store_type",
-		store.Type(),
+		store.FilestoreType(),
 		"sql",
 		"--store_type",
 		store.FilestoreType(),

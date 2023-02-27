@@ -352,6 +352,7 @@ func (fs *HDFSFileStore) getFile(key string) (*hdfs.FileWriter, error) {
 }
 
 func (fs *HDFSFileStore) createFile(key string) (*hdfs.FileWriter, error) {
+	fmt.Println("Original key", key)
 	parsedPath := strings.Split(key, "/")
 	if len(parsedPath) == 1 {
 		if w, err := fs.getFile(key); err != nil {
@@ -360,7 +361,9 @@ func (fs *HDFSFileStore) createFile(key string) (*hdfs.FileWriter, error) {
 			return w, nil
 		}
 	}
+	fmt.Println("Before replaced dir", parsedPath)
 	path := strings.ReplaceAll(key, parsedPath[len(parsedPath)-1], "")
+	fmt.Println("old string", parsedPath[len(parsedPath)-1])
 	fmt.Println("Making Dir", path)
 	err := fs.Client.MkdirAll(path, os.ModeDir)
 	if err != nil {

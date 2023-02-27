@@ -1,6 +1,10 @@
 package provider_config
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	ss "github.com/featureform/helpers/string_set"
+)
 
 type DatabricksConfig struct {
 	Username string
@@ -28,4 +32,16 @@ func (d *DatabricksConfig) Serialize() ([]byte, error) {
 
 func (d *DatabricksConfig) IsExecutorConfig() bool {
 	return true
+}
+
+func (pg DatabricksConfig) MutableFields() ss.StringSet {
+	return ss.StringSet{
+		"Username": true,
+		"Password": true,
+		"Token":    true,
+	}
+}
+
+func (a DatabricksConfig) DifferingFields(b DatabricksConfig) (ss.StringSet, error) {
+	return differingFields(a, b)
 }

@@ -13,23 +13,23 @@ type DynamodbConfig struct {
 	SecretKey string
 }
 
-func (r DynamodbConfig) Serialized() SerializedConfig {
-	config, err := json.Marshal(r)
+func (d DynamodbConfig) Serialized() SerializedConfig {
+	config, err := json.Marshal(d)
 	if err != nil {
 		panic(err)
 	}
 	return config
 }
 
-func (r *DynamodbConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, r)
+func (d *DynamodbConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, d)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (pg DynamodbConfig) MutableFields() ss.StringSet {
+func (d DynamodbConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
 		"Region":    true,
 		"AccessKey": true,

@@ -15,23 +15,23 @@ type CassandraConfig struct {
 	Replication int
 }
 
-func (r CassandraConfig) Serialized() SerializedConfig {
-	config, err := json.Marshal(r)
+func (cass CassandraConfig) Serialized() SerializedConfig {
+	config, err := json.Marshal(cass)
 	if err != nil {
 		panic(err)
 	}
 	return config
 }
 
-func (r *CassandraConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, r)
+func (cass *CassandraConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, cass)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (pg CassandraConfig) MutableFields() ss.StringSet {
+func (cass CassandraConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
 		"Username":    true,
 		"Password":    true,

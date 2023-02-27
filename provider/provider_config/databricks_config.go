@@ -34,7 +34,7 @@ func (d *DatabricksConfig) IsExecutorConfig() bool {
 	return true
 }
 
-func (pg DatabricksConfig) MutableFields() ss.StringSet {
+func (d DatabricksConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
 		"Username": true,
 		"Password": true,

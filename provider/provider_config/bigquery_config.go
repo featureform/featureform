@@ -28,7 +28,7 @@ func (bq *BigQueryConfig) Serialize() []byte {
 	return conf
 }
 
-func (pg BigQueryConfig) MutableFields() ss.StringSet {
+func (bq BigQueryConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
 		"Credentials": true,
 	}

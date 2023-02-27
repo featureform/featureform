@@ -22,27 +22,27 @@ type AzureFileStoreConfig struct {
 	Path          string
 }
 
-func (config *AzureFileStoreConfig) IsFileStoreConfig() bool {
+func (store *AzureFileStoreConfig) IsFileStoreConfig() bool {
 	return true
 }
 
-func (config *AzureFileStoreConfig) Serialize() ([]byte, error) {
-	data, err := json.Marshal(config)
+func (store *AzureFileStoreConfig) Serialize() ([]byte, error) {
+	data, err := json.Marshal(store)
 	if err != nil {
 		panic(err)
 	}
 	return data, nil
 }
 
-func (config *AzureFileStoreConfig) Deserialize(data SerializedConfig) error {
-	err := json.Unmarshal(data, config)
+func (store *AzureFileStoreConfig) Deserialize(data SerializedConfig) error {
+	err := json.Unmarshal(data, store)
 	if err != nil {
 		return fmt.Errorf("deserialize file blob store config: %w", err)
 	}
 	return nil
 }
 
-func (pg AzureFileStoreConfig) MutableFields() ss.StringSet {
+func (store AzureFileStoreConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
 		"AccountName": true,
 		"AccountKey":  true,

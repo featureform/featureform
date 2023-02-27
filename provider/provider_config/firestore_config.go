@@ -12,23 +12,23 @@ type FirestoreConfig struct {
 	Credentials map[string]interface{}
 }
 
-func (r FirestoreConfig) Serialize() SerializedConfig {
-	config, err := json.Marshal(r)
+func (fs FirestoreConfig) Serialize() SerializedConfig {
+	config, err := json.Marshal(fs)
 	if err != nil {
 		panic(err)
 	}
 	return config
 }
 
-func (r *FirestoreConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, r)
+func (fs *FirestoreConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, fs)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (pg FirestoreConfig) MutableFields() ss.StringSet {
+func (fs FirestoreConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
 		"Credentials": true,
 	}

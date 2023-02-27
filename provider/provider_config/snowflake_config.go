@@ -36,7 +36,7 @@ func (sf *SnowflakeConfig) Serialize() []byte {
 	return conf
 }
 
-func (pg SnowflakeConfig) MutableFields() ss.StringSet {
+func (sf SnowflakeConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
 		"Username": true,
 		"Password": true,

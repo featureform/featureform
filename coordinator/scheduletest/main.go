@@ -12,6 +12,7 @@ import (
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	pc "github.com/featureform/provider/provider_config"
 
 	"github.com/google/uuid"
 	db "github.com/jackc/pgx/v4"
@@ -49,7 +50,7 @@ var testOfflineTableUpdateValues = []provider.ResourceRecord{
 
 var finalUpdatedTableValues = append(testOfflineTableValues, testOfflineTableUpdateValues...)
 
-var postgresConfig = provider.PostgresConfig{
+var postgresConfig = pc.PostgresConfig{
 	Host:     os.Getenv("POSTGRES_HOST"),
 	Port:     os.Getenv("POSTGRES_PORT"),
 	Database: os.Getenv("POSTGRES_DB"),
@@ -137,7 +138,7 @@ func initializeTestingEnvironment() error {
 		return fmt.Errorf("Could not convert provider to offline store: %v", err)
 	}
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
-	redisConfig := &provider.RedisConfig{
+	redisConfig := &pc.RedisConfig{
 		Addr: liveAddr,
 	}
 	serialRedisConfig = redisConfig.Serialized()

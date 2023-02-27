@@ -7,6 +7,7 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+
 	"go.uber.org/zap"
 
 	cfg "github.com/featureform/config"
@@ -15,6 +16,7 @@ import (
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	pc "github.com/featureform/provider/provider_config"
 	"github.com/featureform/types"
 )
 
@@ -205,8 +207,8 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 type MaterializedRunnerConfig struct {
 	OnlineType    provider.Type
 	OfflineType   provider.Type
-	OnlineConfig  provider.SerializedConfig
-	OfflineConfig provider.SerializedConfig
+	OnlineConfig  pc.SerializedConfig
+	OfflineConfig pc.SerializedConfig
 	ResourceID    provider.ResourceID
 	VType         provider.ValueType
 	Cloud         JobCloud

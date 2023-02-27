@@ -7,8 +7,10 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	pc "github.com/featureform/provider/provider_config"
 	"github.com/featureform/types"
 )
 
@@ -30,7 +32,7 @@ func (m *RegisterSourceRunner) Run() (types.CompletionWatcher, error) {
 
 type RegisterSourceConfig struct {
 	OfflineType     provider.Type
-	OfflineConfig   provider.SerializedConfig
+	OfflineConfig   pc.SerializedConfig
 	ResourceID      provider.ResourceID
 	SourceTableName string
 }

@@ -7,9 +7,12 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/types"
+
+	pc "github.com/featureform/provider/provider_config"
 )
 
 func (c *CreateTransformationRunner) Run() (types.CompletionWatcher, error) {
@@ -37,7 +40,7 @@ func (c *CreateTransformationRunner) Run() (types.CompletionWatcher, error) {
 
 type CreateTransformationConfig struct {
 	OfflineType          provider.Type
-	OfflineConfig        provider.SerializedConfig
+	OfflineConfig        pc.SerializedConfig
 	TransformationConfig provider.TransformationConfig
 	IsUpdate             bool
 }

@@ -21,12 +21,12 @@ import (
 
 const (
 	MemoryOffline    Type = "MEMORY_OFFLINE"
-	PostgresOffline       = "POSTGRES_OFFLINE"
-	SnowflakeOffline      = "SNOWFLAKE_OFFLINE"
-	RedshiftOffline       = "REDSHIFT_OFFLINE"
-	SparkOffline          = "SPARK_OFFLINE"
-	BigQueryOffline       = "BIGQUERY_OFFLINE"
-	K8sOffline            = "K8S_OFFLINE"
+	PostgresOffline  Type = "POSTGRES_OFFLINE"
+	SnowflakeOffline Type = "SNOWFLAKE_OFFLINE"
+	RedshiftOffline  Type = "REDSHIFT_OFFLINE"
+	SparkOffline     Type = "SPARK_OFFLINE"
+	BigQueryOffline  Type = "BIGQUERY_OFFLINE"
+	K8sOffline       Type = "K8S_OFFLINE"
 )
 
 type ValueType string

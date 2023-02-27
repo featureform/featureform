@@ -7,11 +7,13 @@ package runner
 import (
 	"errors"
 	"fmt"
-	"github.com/featureform/provider"
-	"github.com/google/uuid"
 	"reflect"
 	"sync"
 	"testing"
+
+	"github.com/featureform/provider"
+	pc "github.com/featureform/provider/provider_config"
+	"github.com/google/uuid"
 )
 
 type MockMaterializedFeatures struct {
@@ -312,11 +314,11 @@ func testErrorConfigsFactory(config Config) error {
 	return err
 }
 
-func brokenNumRowsOfflineFactory(provider.SerializedConfig) (provider.Provider, error) {
+func brokenNumRowsOfflineFactory(pc.SerializedConfig) (provider.Provider, error) {
 	return &BrokenNumRowsOfflineStore{}, nil
 }
 
-func brokenGetTableOnlineFactory(provider.SerializedConfig) (provider.Provider, error) {
+func brokenGetTableOnlineFactory(pc.SerializedConfig) (provider.Provider, error) {
 	return &BrokenGetTableOnlineStore{}, nil
 }
 
@@ -820,11 +822,11 @@ func (m MockIterator) Close() error {
 	return nil
 }
 
-func mockOnlineStoreFactory(provider.SerializedConfig) (provider.Provider, error) {
+func mockOnlineStoreFactory(pc.SerializedConfig) (provider.Provider, error) {
 	return NewMockOnlineStore(), nil
 }
 
-func mockOfflineStoreFactory(provider.SerializedConfig) (provider.Provider, error) {
+func mockOfflineStoreFactory(pc.SerializedConfig) (provider.Provider, error) {
 	return NewMockOfflineStore(), nil
 }
 

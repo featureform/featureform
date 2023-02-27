@@ -6,10 +6,11 @@ package runner
 
 import (
 	"fmt"
-	"github.com/featureform/metadata"
-	"github.com/featureform/provider"
 	"reflect"
 	"testing"
+
+	"github.com/featureform/metadata"
+	"github.com/featureform/provider"
 )
 
 type MockOfflineCreateTransformationFail struct {
@@ -190,7 +191,7 @@ func TestTransformationFactory(t *testing.T) {
 
 func TestCreateTransformationConfigDeserializeInterface(t *testing.T) {
 	config := CreateTransformationConfig{
-		OfflineType:   provider.K8s,
+		OfflineType:   provider.K8sOffline,
 		OfflineConfig: []byte("My config"),
 		TransformationConfig: provider.TransformationConfig{
 			Type: provider.DFTransformation,
@@ -201,7 +202,7 @@ func TestCreateTransformationConfigDeserializeInterface(t *testing.T) {
 			},
 			Code: []byte("My code"),
 			SourceMapping: []provider.SourceMapping{
-				{"template", "source"},
+				{Template: "template", Source: "source"},
 			},
 			Args: metadata.KubernetesArgs{
 				DockerImage: "my_image",
@@ -213,7 +214,7 @@ func TestCreateTransformationConfigDeserializeInterface(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 	configEmpty := CreateTransformationConfig{
-		OfflineType:   provider.K8s,
+		OfflineType:   provider.K8sOffline,
 		OfflineConfig: []byte{},
 		TransformationConfig: provider.TransformationConfig{
 			Type: 1,

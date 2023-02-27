@@ -19,6 +19,7 @@ import (
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	pc "github.com/featureform/provider/provider_config"
 	"github.com/featureform/runner"
 	"github.com/featureform/types"
 )
@@ -49,7 +50,7 @@ func templateReplace(template string, replacements map[string]string, offlineSto
 		}
 
 		if offlineStore.Type() == provider.BigQueryOffline {
-			bqConfig := provider.BigQueryConfig{}
+			bqConfig := pc.BigQueryConfig{}
 			bqConfig.Deserialize(offlineStore.Config())
 			replacement = fmt.Sprintf("`%s.%s.%s`", bqConfig.ProjectId, bqConfig.DatasetId, replacement)
 		} else {

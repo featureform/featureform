@@ -11,6 +11,7 @@ import (
 
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	pc "github.com/featureform/provider/provider_config"
 	"github.com/featureform/types"
 	"go.uber.org/zap"
 )
@@ -163,8 +164,8 @@ func (m *SyncWatcher) String() string {
 type MaterializedChunkRunnerConfig struct {
 	OnlineType     provider.Type
 	OfflineType    provider.Type
-	OnlineConfig   provider.SerializedConfig
-	OfflineConfig  provider.SerializedConfig
+	OnlineConfig   pc.SerializedConfig
+	OfflineConfig  pc.SerializedConfig
 	MaterializedID provider.MaterializationID
 	ResourceID     provider.ResourceID
 	ChunkSize      int64

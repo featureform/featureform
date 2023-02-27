@@ -13,12 +13,12 @@ import (
 
 const (
 	LocalOnline     Type = "LOCAL_ONLINE"
-	RedisOnline          = "REDIS_ONLINE"
-	CassandraOnline      = "CASSANDRA_ONLINE"
-	FirestoreOnline      = "FIRESTORE_ONLINE"
-	DynamoDBOnline       = "DYNAMODB_ONLINE"
-	BlobOnline           = "BLOB_ONLINE"
-	MongoDBOnline        = "MONGODB_ONLINE"
+	RedisOnline     Type = "REDIS_ONLINE"
+	CassandraOnline Type = "CASSANDRA_ONLINE"
+	FirestoreOnline Type = "FIRESTORE_ONLINE"
+	DynamoDBOnline  Type = "DYNAMODB_ONLINE"
+	BlobOnline      Type = "BLOB_ONLINE"
+	MongoDBOnline   Type = "MONGODB_ONLINE"
 )
 
 var cassandraTypeMap = map[string]string{

@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	help "github.com/featureform/helpers"
-	"github.com/google/uuid"
 	"io/ioutil"
 	"net"
 	"os"
@@ -14,8 +12,12 @@ import (
 	"testing"
 	"time"
 
+	help "github.com/featureform/helpers"
+	"github.com/google/uuid"
+
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	pc "github.com/featureform/provider/provider_config"
 	"github.com/featureform/runner"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/joho/godotenv"
@@ -35,7 +37,7 @@ var testOfflineTableValues = [...]provider.ResourceRecord{
 	provider.ResourceRecord{Entity: "e", Value: 5, TS: time.UnixMilli(0).UTC()},
 }
 
-var postgresConfig = provider.PostgresConfig{
+var postgresConfig = pc.PostgresConfig{
 	Host:     "localhost",
 	Port:     "5432",
 	Database: help.GetEnv("POSTGRES_DB", "postgres"),
@@ -220,7 +222,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 		t.Fatalf("did not catch error when trying to materialize nonexistent feature")
 	}
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
-	redisConfig := &provider.RedisConfig{
+	redisConfig := &pc.RedisConfig{
 		Addr: liveAddr,
 	}
 	featureName := createSafeUUID()
@@ -537,7 +539,7 @@ func TestTrainingSetJobError(t *testing.T) {
 	featureName = createSafeUUID()
 	tsName = createSafeUUID()
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
-	redisConfig := &provider.RedisConfig{
+	redisConfig := &pc.RedisConfig{
 		Addr: liveAddr,
 	}
 	defs = []metadata.ResourceDef{
@@ -833,7 +835,7 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 	newTableName := createSafeUUID()
 	newUserName := createSafeUUID()
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
-	redisConfig := &provider.RedisConfig{
+	redisConfig := &pc.RedisConfig{
 		Addr: liveAddr,
 	}
 	serialRedisConfig := redisConfig.Serialized()
@@ -887,7 +889,7 @@ func TestTemplateReplace(t *testing.T) {
 	cases := []struct {
 		name            string
 		provider        provider.Type
-		config          provider.SerializedConfig
+		config          pc.SerializedConfig
 		templateString  string
 		replacements    map[string]string
 		expectedResults string
@@ -945,7 +947,7 @@ func TestTemplateReplace(t *testing.T) {
 	}
 }
 
-func getOfflineStore(t *testing.T, providerName provider.Type, config provider.SerializedConfig) provider.OfflineStore {
+func getOfflineStore(t *testing.T, providerName provider.Type, config pc.SerializedConfig) provider.OfflineStore {
 	provider, err := provider.Get(providerName, config)
 	if err != nil {
 		t.Fatalf("could not get provider: %v", err)
@@ -957,7 +959,7 @@ func getOfflineStore(t *testing.T, providerName provider.Type, config provider.S
 	return offlineProvider
 }
 
-func getBigQueryConfig(t *testing.T) provider.BigQueryConfig {
+func getBigQueryConfig(t *testing.T) pc.BigQueryConfig {
 	bigqueryCredentials := os.Getenv("BIGQUERY_CREDENTIALS")
 	JSONCredentials, err := ioutil.ReadFile(bigqueryCredentials)
 	if err != nil {
@@ -974,7 +976,7 @@ func getBigQueryConfig(t *testing.T) provider.BigQueryConfig {
 		panic(fmt.Errorf("cannot deserialize big query credentials: %v", err))
 	}
 
-	var bigQueryConfig = provider.BigQueryConfig{
+	var bigQueryConfig = pc.BigQueryConfig{
 		ProjectId:   os.Getenv("BIGQUERY_PROJECT_ID"),
 		DatasetId:   os.Getenv("BIGQUERY_DATASET_ID"),
 		Credentials: serializedCreds,
@@ -1018,7 +1020,7 @@ func TestCoordinatorCalls(t *testing.T) {
 	// }
 }
 
-func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provider.SerializedConfig, onlineConfig provider.SerializedConfig, featureName string, sourceName string, originalTableName string, schedule string) error {
+func materializeFeatureWithProvider(client *metadata.Client, offlineConfig pc.SerializedConfig, onlineConfig pc.SerializedConfig, featureName string, sourceName string, originalTableName string, schedule string) error {
 	offlineProviderName := createSafeUUID()
 	onlineProviderName := createSafeUUID()
 	userName := createSafeUUID()
@@ -1083,7 +1085,7 @@ func materializeFeatureWithProvider(client *metadata.Client, offlineConfig provi
 	return nil
 }
 
-func createSourceWithProvider(client *metadata.Client, config provider.SerializedConfig, sourceName string, tableName string) error {
+func createSourceWithProvider(client *metadata.Client, config pc.SerializedConfig, sourceName string, tableName string) error {
 	userName := createSafeUUID()
 	providerName := createSafeUUID()
 	defs := []metadata.ResourceDef{
@@ -1117,7 +1119,7 @@ func createSourceWithProvider(client *metadata.Client, config provider.Serialize
 	return nil
 }
 
-func createTransformationWithProvider(client *metadata.Client, config provider.SerializedConfig, sourceName string, transformationQuery string, sources []metadata.NameVariant, schedule string) error {
+func createTransformationWithProvider(client *metadata.Client, config pc.SerializedConfig, sourceName string, transformationQuery string, sources []metadata.NameVariant, schedule string) error {
 	userName := createSafeUUID()
 	providerName := createSafeUUID()
 	defs := []metadata.ResourceDef{
@@ -1153,7 +1155,7 @@ func createTransformationWithProvider(client *metadata.Client, config provider.S
 	return nil
 }
 
-func createTrainingSetWithProvider(client *metadata.Client, config provider.SerializedConfig, sourceName string, featureName string, labelName string, tsName string, originalTableName string, schedule string) error {
+func createTrainingSetWithProvider(client *metadata.Client, config pc.SerializedConfig, sourceName string, featureName string, labelName string, tsName string, originalTableName string, schedule string) error {
 	providerName := createSafeUUID()
 	userName := createSafeUUID()
 	entityName := createSafeUUID()
@@ -1381,7 +1383,7 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	defer cli.Close()
 	serialPGConfig := postgresConfig.Serialize()
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
-	redisConfig := &provider.RedisConfig{
+	redisConfig := &pc.RedisConfig{
 		Addr: liveAddr,
 	}
 	serialRedisConfig := redisConfig.Serialized()
@@ -1505,7 +1507,7 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 		return fmt.Errorf("Could not create non-featureform source table: %v", err)
 	}
 	sourceName := createSafeUUID()
-	if err := createSourceWithProvider(client, provider.SerializedConfig(serialPGConfig), sourceName, tableName); err != nil {
+	if err := createSourceWithProvider(client, pc.SerializedConfig(serialPGConfig), sourceName, tableName); err != nil {
 		return fmt.Errorf("could not register source in metadata: %v", err)
 	}
 	sourceCreated, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: sourceName, Variant: ""})
@@ -1614,7 +1616,7 @@ func testRegisterTransformationFromSource(addr string) error {
 		return fmt.Errorf("Could not create non-featureform source table: %v", err)
 	}
 	sourceName := strings.Replace(createSafeUUID(), "-", "", -1)
-	if err := createSourceWithProvider(client, provider.SerializedConfig(serialPGConfig), sourceName, tableName); err != nil {
+	if err := createSourceWithProvider(client, pc.SerializedConfig(serialPGConfig), sourceName, tableName); err != nil {
 		return fmt.Errorf("could not register source in metadata: %v", err)
 	}
 	sourceCreated, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: sourceName, Variant: ""})

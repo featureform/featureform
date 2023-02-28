@@ -700,6 +700,7 @@ func (s *SparkGenericExecutor) RunSparkJob(args *[]string, store FileStore) erro
 }
 
 func (s *SparkGenericExecutor) PythonFileURI(store FileStore) string {
+	// not used for Spark Generic Executor
 	return ""
 }
 
@@ -712,8 +713,8 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 		s.master,
 		"--deploy-mode",
 		s.deployMode,
-		"--packages",
-		"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
+	}
+	scriptArgs := []string{
 		sparkScriptPath,
 		"sql",
 		"--output_uri",
@@ -724,15 +725,25 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 		fmt.Sprintf("\"%s\"", string(jobType)),
 	}
 
-	var remoteConnectionArgs []string
+	var packageArgs []string
 	azureStore := store.AsAzureStore()
+
 	if azureStore != nil {
-		remoteConnectionArgs = []string{
+		packageArgs = []string{
+			"--packages",
+			"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
+		}
+
+		remoteConnectionArgs := []string{
 			"--spark_config",
 			fmt.Sprintf("\"%s\"", azureStore.configString()),
 		}
+
+		scriptArgs = append(scriptArgs, remoteConnectionArgs...)
 	}
-	argList = append(argList, remoteConnectionArgs...)
+
+	argList = append(argList, packageArgs...) // adding any packages needed for filestores
+	argList = append(argList, scriptArgs...)  // adding pyspark arguments
 
 	argList = append(argList, "--source_list")
 	for _, source := range sourceList {
@@ -750,8 +761,9 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 		s.master,
 		"--deploy-mode",
 		s.deployMode,
-		"--packages",
-		"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
+	}
+
+	scriptArgs := []string{
 		sparkScriptPath,
 		"df",
 		"--output_uri",
@@ -760,11 +772,16 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 		code,
 	}
 
-	var remoteConnectionArgs []string
+	var packageArgs []string
 	azureStore := store.AsAzureStore()
 
 	if azureStore != nil {
-		remoteConnectionArgs = []string{
+		packageArgs = []string{
+			"--packages",
+			"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
+		}
+
+		remoteConnectionArgs := []string{
 			"--store_type",
 			"azure_blob_store",
 			"--spark_config",
@@ -774,8 +791,12 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 			"--credential",
 			fmt.Sprintf("\"azure_container_name=%s\"", azureStore.containerName()),
 		}
+
+		scriptArgs = append(scriptArgs, remoteConnectionArgs...)
 	}
-	argList = append(argList, remoteConnectionArgs...)
+
+	argList = append(argList, packageArgs...) // adding any packages needed for filestores
+	argList = append(argList, scriptArgs...)  // adding pyspark script arguments
 
 	argList = append(argList, "--source")
 	for _, source := range sources {

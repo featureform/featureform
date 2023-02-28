@@ -24,6 +24,7 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"google.golang.org/api/option"
@@ -32,7 +33,7 @@ import (
 var provider = flag.String("provider", "all", "provider to perform test on")
 
 type testMember struct {
-	t               Type
+	t               pt.Type
 	c               pc.SerializedConfig
 	integrationTest bool
 }
@@ -143,28 +144,28 @@ func TestOfflineStores(t *testing.T) {
 	testList := []testMember{}
 
 	if *provider == "memory" || *provider == "" {
-		testList = append(testList, testMember{MemoryOffline, []byte{}, false})
+		testList = append(testList, testMember{pt.MemoryOffline, []byte{}, false})
 	}
 	if *provider == "bigquery" || *provider == "" {
 		serialBQConfig, bigQueryConfig := bqInit()
-		testList = append(testList, testMember{BigQueryOffline, serialBQConfig, true})
+		testList = append(testList, testMember{pt.BigQueryOffline, serialBQConfig, true})
 		t.Cleanup(func() {
 			destroyBigQueryDataset(bigQueryConfig)
 		})
 	}
 	if *provider == "postgres" || *provider == "" {
-		testList = append(testList, testMember{PostgresOffline, postgresInit(), true})
+		testList = append(testList, testMember{pt.PostgresOffline, postgresInit(), true})
 	}
 	if *provider == "snowflake" || *provider == "" {
 		serialSFConfig, snowflakeConfig := snowflakeInit()
-		testList = append(testList, testMember{SnowflakeOffline, serialSFConfig, true})
+		testList = append(testList, testMember{pt.SnowflakeOffline, serialSFConfig, true})
 		t.Cleanup(func() {
 			destroySnowflakeDatabase(snowflakeConfig)
 		})
 	}
 	if *provider == "redshift" || *provider == "" {
 		serialRSConfig, redshiftConfig := redshiftInit()
-		testList = append(testList, testMember{RedshiftOffline, serialRSConfig, true})
+		testList = append(testList, testMember{pt.RedshiftOffline, serialRSConfig, true})
 		t.Cleanup(func() {
 			destroyRedshiftDatabase(redshiftConfig)
 		})
@@ -226,7 +227,7 @@ func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func
 		return
 	}
 	var connections_start, connections_end int
-	if testItem.t == PostgresOffline {
+	if testItem.t == pt.PostgresOffline {
 		err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_start)
 		if err != nil {
 			panic(err)
@@ -249,7 +250,7 @@ func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func
 		})
 	}
 	for name, fn := range testSQLFns {
-		if testItem.t == MemoryOffline {
+		if testItem.t == pt.MemoryOffline {
 			continue
 		}
 		nameConst := name
@@ -266,7 +267,7 @@ func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func
 		}
 	})
 
-	if testItem.t == PostgresOffline {
+	if testItem.t == pt.PostgresOffline {
 		t.Cleanup(func() {
 			err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_end)
 			if err != nil {
@@ -684,7 +685,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
-			if store.Type() != MemoryOffline {
+			if store.Type() != pt.MemoryOffline {
 				t.Parallel()
 			}
 			runTestCase(t, testConst)
@@ -1000,7 +1001,7 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
-			if store.Type() != MemoryOffline {
+			if store.Type() != pt.MemoryOffline {
 				t.Parallel()
 			}
 			runTestCase(t, testConst)
@@ -1356,7 +1357,7 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
-			if store.Type() != MemoryOffline {
+			if store.Type() != pt.MemoryOffline {
 				t.Parallel()
 			}
 			runTestCase(t, testConst)
@@ -1766,7 +1767,7 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
-			if store.Type() != MemoryOffline {
+			if store.Type() != pt.MemoryOffline {
 				t.Parallel()
 			}
 			runTestCase(t, testConst)
@@ -1832,7 +1833,7 @@ func testInvalidTrainingSetDefs(t *testing.T, store OfflineStore) {
 		nameConst := name
 		defConst := def
 		t.Run(nameConst, func(t *testing.T) {
-			if store.Type() != MemoryOffline {
+			if store.Type() != pt.MemoryOffline {
 				t.Parallel()
 			}
 			if err := store.CreateTrainingSet(defConst); err == nil {
@@ -2005,7 +2006,7 @@ func testPrimaryCreateTable(t *testing.T, store OfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
-			if store.Type() != MemoryOffline {
+			if store.Type() != pt.MemoryOffline {
 				t.Parallel()
 			}
 			testPrimary(t, testConst, store)
@@ -3650,7 +3651,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
-			if store.Type() != MemoryOffline {
+			if store.Type() != pt.MemoryOffline {
 				t.Parallel()
 			}
 			runTestCase(t, testConst)

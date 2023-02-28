@@ -19,6 +19,7 @@ import (
 
 	"github.com/alicebob/miniredis"
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 )
@@ -161,7 +162,7 @@ func TestOnlineStores(t *testing.T) {
 	}
 
 	type testMember struct {
-		t               Type
+		t               pt.Type
 		subType         string
 		c               pc.SerializedConfig
 		integrationTest bool
@@ -170,33 +171,33 @@ func TestOnlineStores(t *testing.T) {
 	testList := []testMember{}
 
 	if *provider == "memory" || *provider == "" {
-		testList = append(testList, testMember{LocalOnline, "", []byte{}, false})
+		testList = append(testList, testMember{pt.LocalOnline, "", []byte{}, false})
 	}
 	if *provider == "redis_mock" || *provider == "" {
 		miniRedis := mockRedis()
 		defer miniRedis.Close()
-		testList = append(testList, testMember{RedisOnline, "_MOCK", redisMockInit(miniRedis).Serialized(), false})
+		testList = append(testList, testMember{pt.RedisOnline, "_MOCK", redisMockInit(miniRedis).Serialized(), false})
 	}
 	if *provider == "redis_insecure" || *provider == "" {
-		testList = append(testList, testMember{RedisOnline, "_INSECURE", redisInsecureInit().Serialized(), true})
+		testList = append(testList, testMember{pt.RedisOnline, "_INSECURE", redisInsecureInit().Serialized(), true})
 	}
 	if *provider == "redis_secure" || *provider == "" {
-		testList = append(testList, testMember{RedisOnline, "_SECURE", redisSecureInit().Serialized(), true})
+		testList = append(testList, testMember{pt.RedisOnline, "_SECURE", redisSecureInit().Serialized(), true})
 	}
 	if *provider == "cassandra" || *provider == "" {
-		testList = append(testList, testMember{CassandraOnline, "", cassandraInit().Serialized(), true})
+		testList = append(testList, testMember{pt.CassandraOnline, "", cassandraInit().Serialized(), true})
 	}
 	if *provider == "firestore" || *provider == "" {
-		testList = append(testList, testMember{FirestoreOnline, "", firestoreInit().Serialize(), true})
+		testList = append(testList, testMember{pt.FirestoreOnline, "", firestoreInit().Serialize(), true})
 	}
 	if *provider == "dynamo" || *provider == "" {
-		testList = append(testList, testMember{DynamoDBOnline, "", dynamoInit().Serialized(), true})
+		testList = append(testList, testMember{pt.DynamoDBOnline, "", dynamoInit().Serialized(), true})
 	}
 	if *provider == "azure_blob" || *provider == "" {
-		testList = append(testList, testMember{BlobOnline, "_AZURE", blobAzureInit().Serialized(), true})
+		testList = append(testList, testMember{pt.BlobOnline, "_AZURE", blobAzureInit().Serialized(), true})
 	}
 	if *provider == "mongodb" || *provider == "" {
-		testList = append(testList, testMember{MongoDBOnline, "", mongoDBInit().Serialized(), true})
+		testList = append(testList, testMember{pt.MongoDBOnline, "", mongoDBInit().Serialized(), true})
 	}
 
 	for _, testItem := range testList {

@@ -33,7 +33,7 @@ func retryWithDelays(name string, retries int, delay time.Duration, idempotentFu
 		}
 		time.Sleep(delay)
 	}
-	return fmt.Errorf("retried %s %d times unsuccesfully: Latest error message: %v", name, retries, err)
+	return fmt.Errorf("retried %s %d times unsuccessfully: Latest error message: %v", name, retries, err)
 }
 
 type Config []byte

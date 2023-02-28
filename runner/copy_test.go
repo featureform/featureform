@@ -13,6 +13,7 @@ import (
 
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
 )
 
@@ -445,7 +446,7 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 		{
 			Name: "cannot configure offline provider",
 			ErrorConfig: serializeMaterializeConfig(MaterializedChunkRunnerConfig{
-				OnlineType:   provider.LocalOnline,
+				OnlineType:   pt.LocalOnline,
 				OnlineConfig: []byte{},
 				OfflineType:  "Invalid_Offline_type",
 			}),
@@ -453,27 +454,27 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 		{
 			Name: "cannot convert online provider to online store",
 			ErrorConfig: serializeMaterializeConfig(MaterializedChunkRunnerConfig{
-				OnlineType:    provider.MemoryOffline,
+				OnlineType:    pt.MemoryOffline,
 				OnlineConfig:  []byte{},
-				OfflineType:   provider.MemoryOffline,
+				OfflineType:   pt.MemoryOffline,
 				OfflineConfig: []byte{},
 			}),
 		},
 		{
 			Name: "cannot convert offline provider to offline store",
 			ErrorConfig: serializeMaterializeConfig(MaterializedChunkRunnerConfig{
-				OnlineType:    provider.LocalOnline,
+				OnlineType:    pt.LocalOnline,
 				OnlineConfig:  []byte{},
-				OfflineType:   provider.LocalOnline,
+				OfflineType:   pt.LocalOnline,
 				OfflineConfig: []byte{},
 			}),
 		},
 		{
 			Name: "cannot get materialization",
 			ErrorConfig: serializeMaterializeConfig(MaterializedChunkRunnerConfig{
-				OnlineType:     provider.LocalOnline,
+				OnlineType:     pt.LocalOnline,
 				OnlineConfig:   []byte{},
-				OfflineType:    provider.MemoryOffline,
+				OfflineType:    pt.MemoryOffline,
 				OfflineConfig:  []byte{},
 				MaterializedID: "",
 			}),

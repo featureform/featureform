@@ -9,6 +9,7 @@ package provider
 import (
 	"fmt"
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"reflect"
 	"testing"
 )
@@ -23,7 +24,7 @@ func mockFactory(c pc.SerializedConfig) (Provider, error) {
 }
 
 func TestFactory(t *testing.T) {
-	mockType := Type("mock")
+	mockType := pt.Type("mock")
 	if err := RegisterFactory(mockType, mockFactory); err != nil {
 		t.Fatalf("Failed to register factory: %s", err)
 	}
@@ -34,7 +35,7 @@ func TestFactory(t *testing.T) {
 }
 
 func TestFactoryExists(t *testing.T) {
-	mockType := Type("already exists")
+	mockType := pt.Type("already exists")
 	if err := RegisterFactory(mockType, mockFactory); err != nil {
 		t.Fatalf("Failed to register factory: %s", err)
 	}
@@ -44,7 +45,7 @@ func TestFactoryExists(t *testing.T) {
 }
 
 func TestFactoryDoesntExists(t *testing.T) {
-	if provider, err := Get(Type("Doesnt exist"), mockConfig); err == nil {
+	if provider, err := Get(pt.Type("Doesnt exist"), mockConfig); err == nil {
 		t.Fatalf("Succeeded in getting unregistered provider: %v", provider)
 	}
 }
@@ -53,7 +54,7 @@ func TestBaseProvider(t *testing.T) {
 	type MockProvider struct {
 		BaseProvider
 	}
-	mockType := Type("mock")
+	mockType := pt.Type("mock")
 	var mock Provider = &MockProvider{
 		BaseProvider{
 			ProviderType:   mockType,

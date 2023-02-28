@@ -18,6 +18,7 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/runner"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/joho/godotenv"
@@ -193,7 +194,7 @@ func TestRunSQLJobError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not fetch provider entry in metadata, provider entry not set: %v", err)
 	}
-	provider, err := provider.Get(provider.PostgresOffline, postgresConfig.Serialize())
+	provider, err := provider.Get(pt.PostgresOffline, postgresConfig.Serialize())
 	if err != nil {
 		t.Fatalf("could not get provider: %v", err)
 	}
@@ -668,7 +669,7 @@ func TestRunPrimaryTableJobError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not fetch created source variant: %v", err)
 	}
-	provider, err := provider.Get(provider.PostgresOffline, postgresConfig.Serialize())
+	provider, err := provider.Get(pt.PostgresOffline, postgresConfig.Serialize())
 	if err != nil {
 		t.Fatalf("could not get provider: %v", err)
 	}
@@ -888,7 +889,7 @@ func TestTemplateReplace(t *testing.T) {
 
 	cases := []struct {
 		name            string
-		provider        provider.Type
+		provider        pt.Type
 		config          pc.SerializedConfig
 		templateString  string
 		replacements    map[string]string
@@ -897,7 +898,7 @@ func TestTemplateReplace(t *testing.T) {
 	}{
 		{
 			"PostgresSuccess",
-			provider.PostgresOffline,
+			pt.PostgresOffline,
 			postgresConfig.Serialize(),
 			"Some example text {{name1.variant1}} and more {{name2.variant2}}",
 			map[string]string{"name1.variant1": "replacement1", "name2.variant2": "replacement2"},
@@ -906,7 +907,7 @@ func TestTemplateReplace(t *testing.T) {
 		},
 		{
 			"PostgresFailure",
-			provider.PostgresOffline,
+			pt.PostgresOffline,
 			postgresConfig.Serialize(),
 			"Some example text {{name1.variant1}} and more {{name2.variant2}}",
 			map[string]string{"name1.variant1": "replacement1", "name3.variant3": "replacement2"},
@@ -915,7 +916,7 @@ func TestTemplateReplace(t *testing.T) {
 		},
 		{
 			"BigQuerySuccess",
-			provider.BigQueryOffline,
+			pt.BigQueryOffline,
 			bigQueryConfig.Serialize(),
 			"Some example text {{name1.variant1}} and more {{name2.variant2}}",
 			map[string]string{"name1.variant1": "replacement1", "name2.variant2": "replacement2"},
@@ -924,7 +925,7 @@ func TestTemplateReplace(t *testing.T) {
 		},
 		{
 			"BigQueryFailure",
-			provider.BigQueryOffline,
+			pt.BigQueryOffline,
 			bigQueryConfig.Serialize(),
 			"Some example text {{name1.variant1}} and more {{name2.variant2}}",
 			map[string]string{"name1.variant1": "replacement1", "name3.variant3": "replacement2"},
@@ -947,7 +948,7 @@ func TestTemplateReplace(t *testing.T) {
 	}
 }
 
-func getOfflineStore(t *testing.T, providerName provider.Type, config pc.SerializedConfig) provider.OfflineStore {
+func getOfflineStore(t *testing.T, providerName pt.Type, config pc.SerializedConfig) provider.OfflineStore {
 	provider, err := provider.Get(providerName, config)
 	if err != nil {
 		t.Fatalf("could not get provider: %v", err)
@@ -1255,7 +1256,7 @@ func testCoordinatorTrainingSet(addr string) error {
 	labelName := createSafeUUID()
 	tsName := createSafeUUID()
 	serialPGConfig := postgresConfig.Serialize()
-	my_provider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
+	my_provider, err := provider.Get(pt.PostgresOffline, serialPGConfig)
 	if err != nil {
 		return fmt.Errorf("could not get provider: %v", err)
 	}
@@ -1387,7 +1388,7 @@ func testCoordinatorMaterializeFeature(addr string) error {
 		Addr: liveAddr,
 	}
 	serialRedisConfig := redisConfig.Serialized()
-	p, err := provider.Get(provider.RedisOnline, serialRedisConfig)
+	p, err := provider.Get(pt.RedisOnline, serialRedisConfig)
 	if err != nil {
 		return fmt.Errorf("could not get online provider: %v", err)
 	}
@@ -1495,7 +1496,7 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 	defer cli.Close()
 	tableName := createSafeUUID()
 	serialPGConfig := postgresConfig.Serialize()
-	myProvider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
+	myProvider, err := provider.Get(pt.PostgresOffline, serialPGConfig)
 	if err != nil {
 		return fmt.Errorf("could not get provider: %v", err)
 	}
@@ -1604,7 +1605,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	defer cli.Close()
 	tableName := createSafeUUID()
 	serialPGConfig := postgresConfig.Serialize()
-	myProvider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
+	myProvider, err := provider.Get(pt.PostgresOffline, serialPGConfig)
 	if err != nil {
 		return fmt.Errorf("could not get provider: %v", err)
 	}

@@ -33,7 +33,7 @@ COPY runner/worker/main/main.go ./runner/worker/main/main.go
 ENV CGO_ENABLED=0
 RUN go build -o worker ./runner/worker/main
 
-FROM ubuntu:latest
+FROM ubuntu:22.04
 
 COPY --from=0 ./app/worker ./worker
 COPY ./provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py

@@ -28,7 +28,7 @@ COPY ./coordinator/main/main.go ./coordinator/main/main.go
 ENV CGO_ENABLED=0
 RUN go build ./coordinator/main/main.go
 
-FROM ubuntu:latest
+FROM ubuntu:22.04
 
 COPY --from=0 ./app/main /app/main
 COPY ./provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py

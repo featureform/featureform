@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsv2cfg "github.com/aws/aws-sdk-go-v2/config"
@@ -274,14 +275,14 @@ type GCSFileStore struct {
 
 func (gs *GCSFileStore) PathWithPrefix(path string, remote bool) string {
 	gsPrefix := "gs://"
-	noGSPrefix := path[:len(gsPrefix)] != gsPrefix
+	noGSPrefix := !strings.HasPrefix(path, gsPrefix)
 
 	if remote && noGSPrefix {
-		gsPath := ""
+		gsPathPrefix := ""
 		if gs.Path != "" {
-			gsPath = fmt.Sprintf("/%s", gs.Path)
+			gsPathPrefix = fmt.Sprintf("/%s", gs.Path)
 		}
-		return fmt.Sprintf("gs://%s%s/%s", gs.Bucket, gsPath, path)
+		return fmt.Sprintf("gs://%s%s/%s", gs.Bucket, gsPathPrefix, path)
 	} else {
 		return path
 	}

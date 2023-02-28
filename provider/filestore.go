@@ -371,16 +371,15 @@ func NewHDFSFileStore(config Config) (FileStore, error) {
 	} else {
 		username = HDFSConfig.Username
 	}
-	fmt.Println("Connecting HDFS to", address)
+
 	ops := hdfs.ClientOptions{
 		Addresses:           []string{address},
 		User:                username,
 		UseDatanodeHostname: true,
 	}
 	client, err := hdfs.NewClient(ops)
-	//client, err := hdfs.New(address)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("could not create hdfs client: %v", err)
 	}
 
 	return &HDFSFileStore{
@@ -394,13 +393,14 @@ type HDFSFileStore struct {
 	Path   string
 }
 
+// addPrefix ads a required "/" to the start of the filepath. It first attempts to remove any existing
+// ones to avoid adding a double slash
 func (fs *HDFSFileStore) addPrefix(key string) string {
 	key = strings.TrimPrefix(key, "/")
 	return fmt.Sprintf("/%s", key)
 }
 
 func (fs *HDFSFileStore) getFile(key string) (*hdfs.FileWriter, error) {
-	fmt.Println("Getting file", key)
 	if w, err := fs.Client.Create(key); err != nil && strings.Contains(err.Error(), "file already exists") {
 		err := fs.Client.Remove(key)
 		if err != nil && strings.Contains(err.Error(), "file does not exist") {
@@ -417,7 +417,6 @@ func (fs *HDFSFileStore) getFile(key string) (*hdfs.FileWriter, error) {
 }
 
 func (fs *HDFSFileStore) createFile(key string) (*hdfs.FileWriter, error) {
-	fmt.Println("Original key", key)
 	parsedPath := strings.Split(key, "/")
 	if len(parsedPath) == 1 {
 		if w, err := fs.getFile(key); err != nil {
@@ -426,10 +425,7 @@ func (fs *HDFSFileStore) createFile(key string) (*hdfs.FileWriter, error) {
 			return w, nil
 		}
 	}
-	fmt.Println("Before replaced dir", parsedPath)
 	path := strings.TrimSuffix(key, parsedPath[len(parsedPath)-1])
-	fmt.Println("old string", parsedPath[len(parsedPath)-1])
-	fmt.Println("Making Dir", path)
 	err := fs.Client.MkdirAll(path, os.ModeDir)
 	if err != nil {
 		return nil, fmt.Errorf("could not create all: %v", err)
@@ -520,10 +516,6 @@ func (hdfs *HDFSFileStore) NewestFileOfType(prefix string, fileType FileType) (s
 	var lastModTime time.Time
 	var lastModName string
 	err := hdfs.Client.Walk("/", func(path string, info fs.FileInfo, err error) error {
-		//if !strings.Contains(path, prefix) && !strings.Contains(prefix, path) && path != "/" && !info.IsDir() {
-		//	return fs.SkipDir
-		//}
-		//// prefix: /abc/123 path: /abc
 		if strings.Contains(prefix, path) {
 			return nil
 		}

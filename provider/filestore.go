@@ -267,7 +267,24 @@ func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
 }
 
 type GCSFileStore struct {
+	Bucket string
+	Path   string
 	genericFileStore
+}
+
+func (gs *GCSFileStore) PathWithPrefix(path string, remote bool) string {
+	gsPrefix := "gs://"
+	noGSPrefix := path[:len(gsPrefix)] != gsPrefix
+
+	if remote && noGSPrefix {
+		gsPath := ""
+		if gs.Path != "" {
+			gsPath = fmt.Sprintf("/%s", gs.Path)
+		}
+		return fmt.Sprintf("gs://%s%s/%s", gs.Bucket, gsPath, path)
+	} else {
+		return path
+	}
 }
 
 type GCSFileStoreConfig struct {
@@ -317,9 +334,10 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 		return nil, fmt.Errorf("could not open bucket: %v", err)
 	}
 	return &GCSFileStore{
-		genericFileStore{
+		Bucket: GCSConfig.BucketName,
+		Path:   GCSConfig.BucketPath,
+		genericFileStore: genericFileStore{
 			bucket: bucket,
-			path:   GCSConfig.BucketPath,
 		},
 	}, nil
 }

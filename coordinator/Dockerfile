@@ -28,7 +28,7 @@ COPY ./coordinator/main/main.go ./coordinator/main/main.go
 ENV CGO_ENABLED=0
 RUN go build ./coordinator/main/main.go
 
-FROM ibmjava:8
+FROM ubuntu:latest
 
 COPY --from=0 ./app/main /app/main
 COPY ./provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
@@ -39,7 +39,6 @@ COPY ./provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requi
 RUN apt-get update && apt-get install -y \
     build-essential \
     checkinstall \
-    libreadline-gplv2-dev \
     libncursesw5-dev \
     libssl-dev \
     libsqlite3-dev \
@@ -49,6 +48,7 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     zlib1g-dev \
     liblzma-dev \
+    openjdk-8-jdk \
     curl \
     git \
     && rm -rf /var/lib/apt/lists/*

@@ -33,7 +33,7 @@ COPY runner/worker/main/main.go ./runner/worker/main/main.go
 ENV CGO_ENABLED=0
 RUN go build -o worker ./runner/worker/main
 
-FROM ibmjava:8
+FROM ubuntu:latest
 
 COPY --from=0 ./app/worker ./worker
 COPY ./provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
@@ -44,7 +44,6 @@ COPY ./provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requi
 RUN apt-get update && apt-get install -y \
     build-essential \
     checkinstall \
-    libreadline-gplv2-dev \
     libncursesw5-dev \
     libssl-dev \
     libsqlite3-dev \
@@ -56,6 +55,7 @@ RUN apt-get update && apt-get install -y \
     liblzma-dev \
     curl \
     git \
+    openjdk-8-jdk \
     && rm -rf /var/lib/apt/lists/*
 
 ENV ENV="/root/.bashrc"

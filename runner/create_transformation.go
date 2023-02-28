@@ -13,6 +13,7 @@ import (
 	"github.com/featureform/types"
 
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 )
 
 func (c *CreateTransformationRunner) Run() (types.CompletionWatcher, error) {
@@ -39,7 +40,7 @@ func (c *CreateTransformationRunner) Run() (types.CompletionWatcher, error) {
 }
 
 type CreateTransformationConfig struct {
-	OfflineType          provider.Type
+	OfflineType          pt.Type
 	OfflineConfig        pc.SerializedConfig
 	TransformationConfig provider.TransformationConfig
 	IsUpdate             bool

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 )
 
 const STORE_PREFIX = ".featureform/inferencestore"
@@ -38,7 +39,7 @@ func NewOnlineFileStore(config *pc.OnlineBlobConfig) (*OnlineFileStore, error) {
 		FileStore,
 		config.Config.Path,
 		BaseProvider{
-			ProviderType:   BlobOnline,
+			ProviderType:   pt.BlobOnline,
 			ProviderConfig: config.Serialized(),
 		},
 	}, nil

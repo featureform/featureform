@@ -8,24 +8,25 @@ import (
 	"fmt"
 
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 )
 
 func init() {
-	unregisteredFactories := map[Type]Factory{
-		LocalOnline:      localOnlineStoreFactory,
-		RedisOnline:      redisOnlineStoreFactory,
-		CassandraOnline:  cassandraOnlineStoreFactory,
-		FirestoreOnline:  firestoreOnlineStoreFactory,
-		DynamoDBOnline:   dynamodbOnlineStoreFactory,
-		MemoryOffline:    memoryOfflineStoreFactory,
-		PostgresOffline:  postgresOfflineStoreFactory,
-		SnowflakeOffline: snowflakeOfflineStoreFactory,
-		RedshiftOffline:  redshiftOfflineStoreFactory,
-		BigQueryOffline:  bigQueryOfflineStoreFactory,
-		SparkOffline:     sparkOfflineStoreFactory,
-		K8sOffline:       k8sOfflineStoreFactory,
-		BlobOnline:       blobOnlineStoreFactory,
-		MongoDBOnline:    mongoOnlineStoreFactory,
+	unregisteredFactories := map[pt.Type]Factory{
+		pt.LocalOnline:      localOnlineStoreFactory,
+		pt.RedisOnline:      redisOnlineStoreFactory,
+		pt.CassandraOnline:  cassandraOnlineStoreFactory,
+		pt.FirestoreOnline:  firestoreOnlineStoreFactory,
+		pt.DynamoDBOnline:   dynamodbOnlineStoreFactory,
+		pt.MemoryOffline:    memoryOfflineStoreFactory,
+		pt.PostgresOffline:  postgresOfflineStoreFactory,
+		pt.SnowflakeOffline: snowflakeOfflineStoreFactory,
+		pt.RedshiftOffline:  redshiftOfflineStoreFactory,
+		pt.BigQueryOffline:  bigQueryOfflineStoreFactory,
+		pt.SparkOffline:     sparkOfflineStoreFactory,
+		pt.K8sOffline:       k8sOfflineStoreFactory,
+		pt.BlobOnline:       blobOnlineStoreFactory,
+		pt.MongoDBOnline:    mongoOnlineStoreFactory,
 	}
 	for name, factory := range unregisteredFactories {
 		if err := RegisterFactory(name, factory); err != nil {
@@ -39,12 +40,12 @@ type SerializedTableSchema []byte
 type Provider interface {
 	AsOnlineStore() (OnlineStore, error)
 	AsOfflineStore() (OfflineStore, error)
-	Type() Type
+	Type() pt.Type
 	Config() pc.SerializedConfig
 }
 
 type BaseProvider struct {
-	ProviderType   Type
+	ProviderType   pt.Type
 	ProviderConfig pc.SerializedConfig
 }
 
@@ -56,7 +57,7 @@ func (provider BaseProvider) AsOfflineStore() (OfflineStore, error) {
 	return nil, fmt.Errorf("%T cannot be used as an OfflineStore", provider)
 }
 
-func (provider BaseProvider) Type() Type {
+func (provider BaseProvider) Type() pt.Type {
 	return provider.ProviderType
 }
 
@@ -66,11 +67,9 @@ func (provider BaseProvider) Config() pc.SerializedConfig {
 
 type Factory func(pc.SerializedConfig) (Provider, error)
 
-type Type string
+var factories map[pt.Type]Factory = make(map[pt.Type]Factory)
 
-var factories map[Type]Factory = make(map[Type]Factory)
-
-func RegisterFactory(t Type, f Factory) error {
+func RegisterFactory(t pt.Type, f Factory) error {
 	if _, has := factories[t]; has {
 		return fmt.Errorf("%s provider factory already exists", t)
 	}
@@ -78,7 +77,7 @@ func RegisterFactory(t Type, f Factory) error {
 	return nil
 }
 
-func Get(t Type, config pc.SerializedConfig) (Provider, error) {
+func Get(t pt.Type, config pc.SerializedConfig) (Provider, error) {
 	f, has := factories[t]
 	if !has {
 		return nil, fmt.Errorf("no provider of type: %s", t)

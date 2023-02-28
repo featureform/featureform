@@ -10,6 +10,7 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	_ "github.com/lib/pq"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -31,7 +32,7 @@ const (
 type BQOfflineStoreConfig struct {
 	Config       pc.SerializedConfig
 	ProjectId    string
-	ProviderType Type
+	ProviderType pt.Type
 	QueryImpl    BQOfflineTableQueries
 }
 
@@ -724,7 +725,7 @@ func bigQueryOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sgConfig := BQOfflineStoreConfig{
 		Config:       config,
 		ProjectId:    sc.ProjectId,
-		ProviderType: BigQueryOffline,
+		ProviderType: pt.BigQueryOffline,
 		QueryImpl:    &queries,
 	}
 

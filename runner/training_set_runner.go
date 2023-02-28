@@ -11,6 +11,7 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/types"
 )
 
@@ -44,7 +45,7 @@ func (m TrainingSetRunner) Run() (types.CompletionWatcher, error) {
 }
 
 type TrainingSetRunnerConfig struct {
-	OfflineType   provider.Type
+	OfflineType   pt.Type
 	OfflineConfig pc.SerializedConfig
 	Def           provider.TrainingSetDef
 	IsUpdate      bool

@@ -8,17 +8,8 @@ import (
 	"fmt"
 
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/go-redis/redis/v8"
-)
-
-const (
-	LocalOnline     Type = "LOCAL_ONLINE"
-	RedisOnline     Type = "REDIS_ONLINE"
-	CassandraOnline Type = "CASSANDRA_ONLINE"
-	FirestoreOnline Type = "FIRESTORE_ONLINE"
-	DynamoDBOnline  Type = "DYNAMODB_ONLINE"
-	BlobOnline      Type = "BLOB_ONLINE"
-	MongoDBOnline   Type = "MONGODB_ONLINE"
 )
 
 var cassandraTypeMap = map[string]string{
@@ -92,7 +83,7 @@ func NewLocalOnlineStore() *localOnlineStore {
 	return &localOnlineStore{
 		make(map[tableKey]localOnlineTable),
 		BaseProvider{
-			ProviderType:   LocalOnline,
+			ProviderType:   pt.LocalOnline,
 			ProviderConfig: []byte{},
 		},
 	}

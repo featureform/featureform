@@ -11,6 +11,7 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/types"
 )
 
@@ -31,7 +32,7 @@ func (m *RegisterSourceRunner) Run() (types.CompletionWatcher, error) {
 }
 
 type RegisterSourceConfig struct {
-	OfflineType     provider.Type
+	OfflineType     pt.Type
 	OfflineConfig   pc.SerializedConfig
 	ResourceID      provider.ResourceID
 	SourceTableName string

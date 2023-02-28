@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/gocql/gocql"
 	sn "github.com/mrz1836/go-sanitize"
 )
@@ -79,7 +80,7 @@ func NewCassandraOnlineStore(options *pc.CassandraConfig) (*cassandraOnlineStore
 	}
 
 	return &cassandraOnlineStore{newSession, options.Keyspace, BaseProvider{
-		ProviderType:   CassandraOnline,
+		ProviderType:   pt.CassandraOnline,
 		ProviderConfig: options.Serialized(),
 	},
 	}, nil

@@ -13,6 +13,7 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 
 	"github.com/google/uuid"
 	db "github.com/jackc/pgx/v4"
@@ -129,7 +130,7 @@ func initializeTestingEnvironment() error {
 		return fmt.Errorf("Could not connect to etcd: %v", err)
 	}
 	serialPGConfig = postgresConfig.Serialize()
-	offlineProvider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
+	offlineProvider, err := provider.Get(pt.PostgresOffline, serialPGConfig)
 	if err != nil {
 		return fmt.Errorf("Could not get provider: %v", err)
 	}
@@ -142,7 +143,7 @@ func initializeTestingEnvironment() error {
 		Addr: liveAddr,
 	}
 	serialRedisConfig = redisConfig.Serialized()
-	onlineProvider, err := provider.Get(provider.RedisOnline, serialRedisConfig)
+	onlineProvider, err := provider.Get(pt.RedisOnline, serialRedisConfig)
 	if err != nil {
 		return fmt.Errorf("Could not get online provider: %v", err)
 	}

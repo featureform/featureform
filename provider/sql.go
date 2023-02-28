@@ -14,6 +14,7 @@ import (
 	"time"
 
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	db "github.com/jackc/pgx/v4"
 	sf "github.com/snowflakedb/gosnowflake"
 )
@@ -26,7 +27,7 @@ type SQLOfflineStoreConfig struct {
 	Config        pc.SerializedConfig
 	ConnectionURL string
 	Driver        string
-	ProviderType  Type
+	ProviderType  pt.Type
 	QueryImpl     OfflineTableQueries
 }
 

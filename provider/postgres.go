@@ -7,6 +7,7 @@ import (
 	"time"
 
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	_ "github.com/lib/pq"
 )
 
@@ -32,7 +33,7 @@ func postgresOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		Config:        config,
 		ConnectionURL: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", sc.Username, sc.Password, sc.Host, sc.Port, sc.Database),
 		Driver:        "postgres",
-		ProviderType:  PostgresOffline,
+		ProviderType:  pt.PostgresOffline,
 		QueryImpl:     &queries,
 	}
 

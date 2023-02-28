@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	sn "github.com/mrz1836/go-sanitize"
 )
 
@@ -71,7 +72,7 @@ func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, e
 		return nil, fmt.Errorf("could not create metadata table: %v", err)
 	}
 	return &dynamodbOnlineStore{dynamodbClient, options.Prefix, BaseProvider{
-		ProviderType:   DynamoDBOnline,
+		ProviderType:   pt.DynamoDBOnline,
 		ProviderConfig: options.Serialized(),
 	}, 360,
 	}, nil

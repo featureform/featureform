@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	_ "github.com/snowflakedb/gosnowflake"
 )
 
@@ -39,7 +40,7 @@ func snowflakeOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) 
 		Config:        config,
 		ConnectionURL: connectionString,
 		Driver:        "snowflake",
-		ProviderType:  SnowflakeOffline,
+		ProviderType:  pt.SnowflakeOffline,
 		QueryImpl:     &queries,
 	}
 

@@ -16,17 +16,8 @@ import (
 
 	"github.com/featureform/metadata"
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
-)
-
-const (
-	MemoryOffline    Type = "MEMORY_OFFLINE"
-	PostgresOffline  Type = "POSTGRES_OFFLINE"
-	SnowflakeOffline Type = "SNOWFLAKE_OFFLINE"
-	RedshiftOffline  Type = "REDSHIFT_OFFLINE"
-	SparkOffline     Type = "SPARK_OFFLINE"
-	BigQueryOffline  Type = "BIGQUERY_OFFLINE"
-	K8sOffline       Type = "K8S_OFFLINE"
 )
 
 type ValueType string
@@ -381,7 +372,7 @@ func NewMemoryOfflineStore() *memoryOfflineStore {
 		materializations: make(map[MaterializationID]*memoryMaterialization),
 		trainingSets:     make(map[ResourceID]trainingRows),
 		BaseProvider: BaseProvider{
-			ProviderType:   MemoryOffline,
+			ProviderType:   pt.MemoryOffline,
 			ProviderConfig: []byte{},
 		},
 	}

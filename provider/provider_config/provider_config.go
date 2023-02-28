@@ -20,6 +20,16 @@ const EXAMPLE_GCP_CREDENTIALS = `{
 	"client_x509_cert_url": ""
 }`
 
+type ProviderConfig interface {
+	Serialize() []byte
+	Deserialize(config SerializedConfig) error
+}
+
+type MutableConfig interface {
+	MutableFields() ss.StringSet
+	DifferingFields(b MutableConfig) (ss.StringSet, error)
+}
+
 type SerializedConfig []byte
 
 func differingFields(a, b interface{}) (ss.StringSet, error) {

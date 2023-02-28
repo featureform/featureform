@@ -17,6 +17,7 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/types"
 )
 
@@ -205,8 +206,8 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 }
 
 type MaterializedRunnerConfig struct {
-	OnlineType    provider.Type
-	OfflineType   provider.Type
+	OnlineType    pt.Type
+	OfflineType   pt.Type
 	OnlineConfig  pc.SerializedConfig
 	OfflineConfig pc.SerializedConfig
 	ResourceID    provider.ResourceID

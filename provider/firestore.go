@@ -13,6 +13,7 @@ import (
 
 	"cloud.google.com/go/firestore"
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
 )
@@ -64,7 +65,7 @@ func NewFirestoreOnlineStore(options *pc.FirestoreConfig) (*firestoreOnlineStore
 	return &firestoreOnlineStore{
 		firestoreClient,
 		firestoreCollection, BaseProvider{
-			ProviderType:   FirestoreOnline,
+			ProviderType:   pt.FirestoreOnline,
 			ProviderConfig: options.Serialize(),
 		},
 	}, nil

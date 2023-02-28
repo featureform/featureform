@@ -8,6 +8,7 @@ import (
 	"time"
 
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	_ "github.com/lib/pq"
 )
 
@@ -33,7 +34,7 @@ func redshiftOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		Config:        config,
 		ConnectionURL: fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", sc.Username, sc.Password, sc.Endpoint, sc.Port, sc.Database),
 		Driver:        "postgres",
-		ProviderType:  RedshiftOffline,
+		ProviderType:  pt.RedshiftOffline,
 		QueryImpl:     &queries,
 	}
 

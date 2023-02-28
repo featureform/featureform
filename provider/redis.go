@@ -7,6 +7,7 @@ import (
 	"time"
 
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/go-redis/redis/v8"
 )
 
@@ -44,7 +45,7 @@ func NewRedisOnlineStore(options *pc.RedisConfig) *redisOnlineStore {
 	}
 	redisClient := redis.NewClient(redisOptions)
 	return &redisOnlineStore{redisClient, options.Prefix, BaseProvider{
-		ProviderType:   RedisOnline,
+		ProviderType:   pt.RedisOnline,
 		ProviderConfig: options.Serialized(),
 	},
 	}

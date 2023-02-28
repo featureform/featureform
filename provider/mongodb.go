@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	sn "github.com/mrz1836/go-sanitize"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -77,7 +78,7 @@ func NewMongoDBOnlineStore(config *pc.MongoDBConfig) (*mongoDBOnlineStore, error
 		database:        config.Database,
 		tableThroughput: config.Throughput,
 		BaseProvider: BaseProvider{
-			ProviderType:   MongoDBOnline,
+			ProviderType:   pt.MongoDBOnline,
 			ProviderConfig: config.Serialized(),
 		},
 	}, nil

@@ -165,9 +165,9 @@ func TestBlobInterfaces(t *testing.T) {
 	//	Port: "9000",
 	//}
 	hdfsConfig := HDFSFileStoreConfig{
-		Host:     "ec2-3-237-232-146.compute-1.amazonaws.com",
-		Port:     "8020",
-		Username: "hadoop",
+		Host:     "localhost",
+		Port:     "9000",
+		Username: "hduser",
 	}
 
 	serializedHDFSConfig, err := hdfsConfig.Serialize()

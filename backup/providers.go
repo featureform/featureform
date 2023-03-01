@@ -171,7 +171,10 @@ func (g *GCS) Init() error {
 		BucketPath:  g.BucketPath,
 		Credentials: credentials,
 	}
-	config := filestoreConfig.Serialize()
+	config, err := filestoreConfig.Serialize()
+	if err != nil {
+		return err
+	}
 
 	filestore, err := provider.NewGCSFileStore(config)
 	if err != nil {

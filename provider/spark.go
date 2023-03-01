@@ -329,14 +329,14 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store FileStore) error 
 		},
 	})
 	if err != nil {
-		fmt.Errorf("error creating job: %v", err)
+		return fmt.Errorf("error creating job: %v", err)
 	}
 
-	runningJOb, err := db.client.Jobs.RunNowAndWait(ctx, jobs.RunNow{
+	_, err = db.client.Jobs.RunNowAndWait(ctx, jobs.RunNow{
 		JobId: jobToRun.JobId,
 	})
 	if err != nil {
-		return fmt.Errorf("the '%s' job failed: %v", jobToRun.JobId, err)
+		return fmt.Errorf("the '%v' job failed: %v", jobToRun.JobId, err)
 	}
 
 	return nil

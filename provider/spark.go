@@ -322,9 +322,9 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store FileStore) error 
 		Name: fmt.Sprintf("featureform-job-%s", id),
 		Tasks: []jobs.JobTaskSettings{
 			{
-				TaskKey:         fmt.Sprintf("featureform-task-%s", id),
-				ExistingCluster: db.cluster,
-				SparkPythonTask: &pythonTask,
+				TaskKey:           fmt.Sprintf("featureform-task-%s", id),
+				ExistingClusterId: db.cluster,
+				SparkPythonTask:   &pythonTask,
 			},
 		},
 	})

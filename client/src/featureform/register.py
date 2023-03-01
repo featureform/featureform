@@ -1464,7 +1464,7 @@ class Registrar:
                 has all the functionality of OfflineProvider
         """
 
-        gcs_config = S3StoreConfig(bucket_name=bucket_name, bucket_path=bucket_path, credentials=credentials)
+        gcs_config = GCSFileStoreConfig(bucket_name=bucket_name, bucket_path=bucket_path, credentials=credentials)
 
         provider = Provider(name=name,
                             function="OFFLINE",

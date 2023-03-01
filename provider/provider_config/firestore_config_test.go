@@ -40,12 +40,12 @@ func TestFirestoreConfigDifferingFields(t *testing.T) {
 	var credentialsDictA map[string]interface{}
 	err = json.Unmarshal(gcpCredsBytes, &credentialsDictA)
 	if err != nil {
-		t.Errorf("failed to unmarshal big query credentials: %v", err)
+		t.Errorf("failed to unmarshal GCP credentials: %v", err)
 	}
 	var credentialsDictB map[string]interface{}
 	err = json.Unmarshal([]byte(gcpCredsBytes), &credentialsDictB)
 	if err != nil {
-		t.Errorf("failed to unmarshal big query credentials: %v", err)
+		t.Errorf("failed to unmarshal GCP credentials: %v", err)
 	}
 	credentialsDictB["client_email"] = "test@featureform.com"
 

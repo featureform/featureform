@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	cfg "github.com/featureform/config"
+	ss "github.com/featureform/helpers/string_set"
 )
 
 type ExecutorConfig struct {
@@ -33,4 +34,14 @@ func (c *ExecutorConfig) GetImage() string {
 	} else {
 		return c.DockerImage
 	}
+}
+
+func (c ExecutorConfig) MutableFields() ss.StringSet {
+	return ss.StringSet{
+		"DockerImage": true,
+	}
+}
+
+func (a ExecutorConfig) DifferingFields(b ExecutorConfig) (ss.StringSet, error) {
+	return differingFields(a, b)
 }

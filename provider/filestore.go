@@ -19,14 +19,6 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
-// const (
-// 	Memory     FileStoreType = "MEMORY"
-// 	FileSystem                  = "LOCAL_FILESYSTEM"
-// 	Azure                       = "AZURE"
-// 	S3                          = "S3"
-// 	GCS                         = "GCS"
-// )
-
 type FileType string
 
 const (

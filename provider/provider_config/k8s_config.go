@@ -7,12 +7,6 @@ import (
 	ss "github.com/featureform/helpers/string_set"
 )
 
-type FileStoreConfig []byte
-
-type ExecutorType string
-
-type FileStoreType string
-
 type K8sConfig struct {
 	ExecutorType   ExecutorType
 	ExecutorConfig interface{}

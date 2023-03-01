@@ -9,15 +9,15 @@ import (
 	ss "github.com/featureform/helpers/string_set"
 )
 
-func TestBigQueryConfigMutableFields(t *testing.T) {
+func TestGCSFileStoreConfigMutableFields(t *testing.T) {
 	expected := ss.StringSet{
 		"Credentials": true,
 	}
 
-	config := BigQueryConfig{
-		ProjectId:   "ff-gcp-proj-id",
-		DatasetId:   "transactions-ds",
-		Credentials: map[string]interface{}{},
+	config := GCSFileStoreConfig{
+		BucketName:  "transactions-ds",
+		BucketPath:  "gs://transactions-ds",
+		Credentials: []byte{},
 	}
 	actual := config.MutableFields()
 
@@ -26,10 +26,10 @@ func TestBigQueryConfigMutableFields(t *testing.T) {
 	}
 }
 
-func TestBigQueryConfigDifferingFields(t *testing.T) {
+func TestGCSFileStoreDifferingFields(t *testing.T) {
 	type args struct {
-		a BigQueryConfig
-		b BigQueryConfig
+		a GCSFileStoreConfig
+		b GCSFileStoreConfig
 	}
 
 	gcpCredsBytes, err := ioutil.ReadFile("../test_files/gcp_creds.json")
@@ -37,17 +37,16 @@ func TestBigQueryConfigDifferingFields(t *testing.T) {
 		t.Errorf("failed to read gcp_creds.json due to %v", err)
 	}
 
-	var credentialsDictA map[string]interface{}
-	err = json.Unmarshal(gcpCredsBytes, &credentialsDictA)
+	var credentialsDict map[string]interface{}
+	err = json.Unmarshal(gcpCredsBytes, &credentialsDict)
 	if err != nil {
 		t.Errorf("failed to unmarshal GCP credentials: %v", err)
 	}
-	var credentialsDictB map[string]interface{}
-	err = json.Unmarshal([]byte(gcpCredsBytes), &credentialsDictB)
+	credentialsDict["client_email"] = "test@featureform.com"
+	gcpCredsBytesB, err := json.Marshal(credentialsDict)
 	if err != nil {
-		t.Errorf("failed to unmarshal GCP credentials: %v", err)
+		t.Errorf("failed to marshal GCP credentials: %v", err)
 	}
-	credentialsDictB["client_email"] = "test@featureform.com"
 
 	tests := []struct {
 		name     string
@@ -55,30 +54,31 @@ func TestBigQueryConfigDifferingFields(t *testing.T) {
 		expected ss.StringSet
 	}{
 		{"No Differing Fields", args{
-			a: BigQueryConfig{
-				ProjectId:   "ff-gcp-proj-id",
-				DatasetId:   "transactions-ds",
-				Credentials: map[string]interface{}{},
+			a: GCSFileStoreConfig{
+				BucketName:  "transactions-ds",
+				BucketPath:  "gs://transactions-ds",
+				Credentials: gcpCredsBytes,
 			},
-			b: BigQueryConfig{
-				ProjectId:   "ff-gcp-proj-id",
-				DatasetId:   "transactions-ds",
-				Credentials: map[string]interface{}{},
+			b: GCSFileStoreConfig{
+				BucketName:  "transactions-ds",
+				BucketPath:  "gs://transactions-ds",
+				Credentials: gcpCredsBytes,
 			},
 		}, ss.StringSet{}},
 		{"Differing Fields", args{
-			a: BigQueryConfig{
-				ProjectId:   "ff-gcp-proj-id",
-				DatasetId:   "transactions-ds",
-				Credentials: credentialsDictA,
+			a: GCSFileStoreConfig{
+				BucketName:  "transactions-ds",
+				BucketPath:  "gs://transactions-ds",
+				Credentials: gcpCredsBytes,
 			},
-			b: BigQueryConfig{
-				ProjectId:   "ff-gcp-proj-v2-id",
-				DatasetId:   "transactions-ds",
-				Credentials: credentialsDictB,
+			b: GCSFileStoreConfig{
+				BucketName:  "transactions-ds2",
+				BucketPath:  "gs://transactions-ds2",
+				Credentials: gcpCredsBytesB,
 			},
 		}, ss.StringSet{
-			"ProjectId":   true,
+			"BucketName":  true,
+			"BucketPath":  true,
 			"Credentials": true,
 		}},
 	}

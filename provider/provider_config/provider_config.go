@@ -6,14 +6,23 @@ import (
 	sm "github.com/featureform/helpers/struct_map"
 )
 
+type FileStoreConfig []byte
+
+type ExecutorType string
+
+type FileStoreType string
+
+const (
+	Memory     FileStoreType = "MEMORY"
+	FileSystem FileStoreType = "LOCAL_FILESYSTEM"
+	Azure      FileStoreType = "AZURE"
+	S3         FileStoreType = "S3"
+	GCS        FileStoreType = "GCS"
+)
+
 type ProviderConfig interface {
 	Serialize() []byte
 	Deserialize(config SerializedConfig) error
-}
-
-type MutableConfig interface {
-	MutableFields() ss.StringSet
-	DifferingFields(b MutableConfig) (ss.StringSet, error)
 }
 
 type SerializedConfig []byte

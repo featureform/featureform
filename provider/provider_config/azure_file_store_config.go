@@ -7,14 +7,6 @@ import (
 	ss "github.com/featureform/helpers/string_set"
 )
 
-const (
-	Memory     FileStoreType = "MEMORY"
-	FileSystem FileStoreType = "LOCAL_FILESYSTEM"
-	Azure      FileStoreType = "AZURE"
-	S3         FileStoreType = "S3"
-	GCS        FileStoreType = "GCS"
-)
-
 type AzureFileStoreConfig struct {
 	AccountName   string
 	AccountKey    string

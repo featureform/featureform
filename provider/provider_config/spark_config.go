@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	ss "github.com/featureform/helpers/string_set"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -83,6 +84,99 @@ func (s *SparkConfig) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+func (s SparkConfig) MutableFields() ss.StringSet {
+	result := ss.StringSet{}
+	var executor ss.StringSet
+	var store ss.StringSet
+
+	switch s.ExecutorType {
+	case EMR:
+		executor = s.ExecutorConfig.(*EMRConfig).MutableFields()
+	case Databricks:
+		executor = s.ExecutorConfig.(*DatabricksConfig).MutableFields()
+	}
+
+	switch s.StoreType {
+	case Azure:
+		store = s.StoreConfig.(*AzureFileStoreConfig).MutableFields()
+	case S3:
+		store = s.StoreConfig.(*S3FileStoreConfig).MutableFields()
+	case GCS:
+		store = s.StoreConfig.(*GCSFileStoreConfig).MutableFields()
+	}
+
+	for field, val := range executor {
+		result["Executor."+field] = val
+	}
+
+	for field, val := range store {
+		result["Store."+field] = val
+	}
+
+	return result
+}
+
+func (a SparkConfig) DifferingFields(b SparkConfig) (ss.StringSet, error) {
+	result := ss.StringSet{}
+	var executor ss.StringSet
+	var store ss.StringSet
+	var err error
+
+	switch a.ExecutorType {
+	case EMR:
+		if b.ExecutorType != EMR {
+			err = fmt.Errorf("executor config mismatch: a = %v; b = %v", a.ExecutorType, b.ExecutorType)
+		} else {
+			executor, err = a.ExecutorConfig.(*EMRConfig).DifferingFields(*b.ExecutorConfig.(*EMRConfig))
+		}
+	case Databricks:
+		if b.ExecutorType != Databricks {
+			err = fmt.Errorf("executor config mismatch: a = %v; b = %v", a.ExecutorType, b.ExecutorType)
+		} else {
+			executor, err = a.ExecutorConfig.(*DatabricksConfig).DifferingFields(*b.ExecutorConfig.(*DatabricksConfig))
+		}
+	}
+
+	if err != nil {
+		return result, err
+	}
+
+	switch a.StoreType {
+	case Azure:
+		if b.StoreType != Azure {
+			err = fmt.Errorf("store config mismatch: a = %v; b = %v", a.StoreType, b.StoreType)
+		} else {
+			store, err = a.StoreConfig.(*AzureFileStoreConfig).DifferingFields(*b.StoreConfig.(*AzureFileStoreConfig))
+		}
+	case S3:
+		if b.StoreType != S3 {
+			err = fmt.Errorf("store config mismatch: a = %v; b = %v", a.StoreType, b.StoreType)
+		} else {
+			store, err = a.StoreConfig.(*S3FileStoreConfig).DifferingFields(*b.StoreConfig.(*S3FileStoreConfig))
+		}
+	case GCS:
+		if b.StoreType != GCS {
+			err = fmt.Errorf("store config mismatch: a = %v; b = %v", a.StoreType, b.StoreType)
+		} else {
+			store, err = a.StoreConfig.(*GCSFileStoreConfig).DifferingFields(*b.StoreConfig.(*GCSFileStoreConfig))
+		}
+	}
+
+	if err != nil {
+		return result, err
+	}
+
+	for field, val := range executor {
+		result["Executor."+field] = val
+	}
+
+	for field, val := range store {
+		result["Store."+field] = val
+	}
+
+	return result, err
 }
 
 func (s *SparkConfig) decodeExecutor(executorType SparkExecutorType, configMap map[string]interface{}) error {

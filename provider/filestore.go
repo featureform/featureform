@@ -508,6 +508,23 @@ func (fs *HDFSFileStore) Delete(key string) error {
 }
 
 func (fs *HDFSFileStore) DeleteAll(dir string) error {
+	files, err := fs.Client.ReadDir(fs.addPrefix(dir))
+	if err != nil {
+		return err
+	}
+	for _, file := range files {
+		if file.IsDir() {
+			err := fs.DeleteAll(fmt.Sprintf("%s/%s", dir, file.Name()))
+			if err != nil {
+				return err
+			}
+		} else {
+			err := fs.Delete(fmt.Sprintf("%s/%s", dir, file.Name()))
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return fs.Client.Remove(fs.addPrefix(dir))
 }
 
@@ -521,7 +538,7 @@ func (hdfs *HDFSFileStore) NewestFileOfType(prefix string, fileType FileType) (s
 		if strings.Contains(path, prefix) {
 			if (info.ModTime().After(lastModTime) || info.ModTime().Equal(lastModTime)) && fileType.Matches(path) {
 				lastModTime = info.ModTime()
-				lastModName = path
+				lastModName = strings.TrimPrefix(path, "/")
 			}
 		}
 		return nil

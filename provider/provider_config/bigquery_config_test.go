@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"reflect"
 	"testing"
 
@@ -31,13 +32,18 @@ func TestBigQueryConfigDifferingFields(t *testing.T) {
 		b BigQueryConfig
 	}
 
+	gcpCredsBytes, err := ioutil.ReadFile("../test_files/gcp_creds.json")
+	if err != nil {
+		t.Errorf("failed to read gcp_creds.json due to %v", err)
+	}
+
 	var credentialsDictA map[string]interface{}
-	err := json.Unmarshal([]byte(EXAMPLE_GCP_CREDENTIALS), &credentialsDictA)
+	err = json.Unmarshal(gcpCredsBytes, &credentialsDictA)
 	if err != nil {
 		t.Errorf("failed to unmarshal big query credentials: %v", err)
 	}
 	var credentialsDictB map[string]interface{}
-	err = json.Unmarshal([]byte(EXAMPLE_GCP_CREDENTIALS), &credentialsDictB)
+	err = json.Unmarshal([]byte(gcpCredsBytes), &credentialsDictB)
 	if err != nil {
 		t.Errorf("failed to unmarshal big query credentials: %v", err)
 	}

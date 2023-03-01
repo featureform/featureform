@@ -31,7 +31,6 @@ func (d *DynamodbConfig) Deserialize(config SerializedConfig) error {
 
 func (d DynamodbConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
-		"Region":    true,
 		"AccessKey": true,
 		"SecretKey": true,
 	}

@@ -9,7 +9,6 @@ import (
 
 func TestDynamoConfigMutableFields(t *testing.T) {
 	expected := ss.StringSet{
-		"Region":    true,
 		"AccessKey": true,
 		"SecretKey": true,
 	}

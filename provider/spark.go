@@ -682,7 +682,7 @@ func (s *SparkGenericExecutor) RunSparkJob(args *[]string, store FileStore) erro
 	sparkArgsString := strings.Join(sparkArgs, " ")
 	bashCommandArgs := []string{"-c", fmt.Sprintf("pyenv global %s && pyenv exec %s", s.pythonVersion, sparkArgsString)}
 
-	s.logger.Infow("Executing the", bashCommand, "command")
+	s.logger.Info("Executing spark-submit")
 	cmd := exec.Command(bashCommand, bashCommandArgs...)
 	cmd.Env = append(os.Environ(), "FEATUREFORM_LOCAL_MODE=true")
 

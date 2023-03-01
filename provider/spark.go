@@ -4,26 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/credentials"
-	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/credentials"
 
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/mitchellh/mapstructure"
 
-	databricks "github.com/Azure/databricks-sdk-golang"
-	dbAzure "github.com/Azure/databricks-sdk-golang/azure"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/emr"
+	databricks "github.com/databricks/databricks-sdk-go"
+	"github.com/databricks/databricks-sdk-go/service/jobs"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
-
-	// clusterHTTPModels "github.com/Azure/databricks-sdk-golang/azure/clusters/httpmodels"
-	// clusterModels "github.com/Azure/databricks-sdk-golang/azure/clusters/models"
-	azureHTTPModels "github.com/Azure/databricks-sdk-golang/azure/jobs/httpmodels"
-	azureModels "github.com/Azure/databricks-sdk-golang/azure/jobs/models"
 
 	"golang.org/x/exp/slices"
 
@@ -226,7 +222,7 @@ func (d *DatabricksConfig) IsExecutorConfig() bool {
 }
 
 type DatabricksExecutor struct {
-	client  *dbAzure.DBClient
+	client  *databricks.WorkspaceClient
 	cluster string
 	config  DatabricksConfig
 }
@@ -286,20 +282,13 @@ func (db *DatabricksExecutor) InitializeExecutor(store FileStore) error {
 }
 
 func NewDatabricksExecutor(databricksConfig DatabricksConfig) (SparkExecutor, error) {
-	// databricksConfig := DatabricksConfig{}
-	// if err := databricksConfig.Deserialize(SerializedConfig(config)); err != nil {
-	// 	return nil, fmt.Errorf("could not deserialize s3 store config: %v", err)
-	// }
-	opt := databricks.NewDBClientOption(
-		databricksConfig.Username,
-		databricksConfig.Password,
-		databricksConfig.Host,
-		databricksConfig.Token,
-		nil,
-		false,
-		0,
-	)
-	client := dbAzure.NewDBClient(opt)
+	client := databricks.Must(
+		databricks.NewWorkspaceClient(&databricks.Config{
+			Host:     databricksConfig.Host,
+			Token:    databricksConfig.Token,
+			Username: databricksConfig.Username,
+			Password: databricksConfig.Password,
+		}))
 	return &DatabricksExecutor{
 		client:  client,
 		cluster: databricksConfig.Cluster,
@@ -307,7 +296,7 @@ func NewDatabricksExecutor(databricksConfig DatabricksConfig) (SparkExecutor, er
 	}, nil
 }
 
-func (db *DatabricksExecutor) RunSparkJob(args *[]string, store FileStore) error {
+func (db *DatabricksExecutor) RunSparkJob(args []string, store FileStore) error {
 	//set spark configuration
 	// clusterClient := db.client.Clusters()
 	// setConfigReq := clusterHTTPModels.EditReq{
@@ -322,53 +311,34 @@ func (db *DatabricksExecutor) RunSparkJob(args *[]string, store FileStore) error
 	// if err := clusterClient.Edit(setConfigReq); err != nil {
 	// 	return fmt.Errorf("Could not modify cluster to accept spark configs; %v", err)
 	// }
-	jobsClient := db.client.Jobs()
-	pythonTask := azureModels.SparkPythonTask{
+	pythonTask := jobs.SparkPythonTask{
 		PythonFile: db.PythonFileURI(store),
 		Parameters: args,
 	}
-	type CustomCreateReq struct {
-		ExistingCluster string                       `json:"existing_cluster_id,omitempty" url:"existing_cluster_id,omitempty"`
-		SparkPythonTask *azureModels.SparkPythonTask `json:"spark_python_task,omitempty" url:"spark_python_task,omitempty"`
-		Name            string                       `json:"name,omitempty" url:"name,omitempty"`
-	}
-	createJobRequest := CustomCreateReq{
-		ExistingCluster: db.cluster,
-		SparkPythonTask: &pythonTask,
-		Name:            "Databricks spark submit job 2",
-	}
-	jsonResp, err := databricks.PerformQuery(jobsClient.Client.Option, http.MethodPost, "/jobs/create", createJobRequest, nil)
+	ctx := context.Background()
+	id := uuid.New().String()
+
+	jobToRun, err := db.client.Jobs.Create(ctx, jobs.CreateJob{
+		Name: fmt.Sprintf("featureform-job-%s", id),
+		Tasks: []jobs.JobTaskSettings{
+			{
+				TaskKey:         fmt.Sprintf("featureform-task-%s", id),
+				ExistingCluster: db.cluster,
+				SparkPythonTask: &pythonTask,
+			},
+		},
+	})
 	if err != nil {
-		return fmt.Errorf("could not create job: %w", err)
+		fmt.Errorf("error creating job: %v", err)
 	}
-	var resp azureHTTPModels.CreateResp
-	err = json.Unmarshal(jsonResp, &resp)
+
+	runningJOb, err := db.client.Jobs.RunNowAndWait(ctx, jobs.RunNow{
+		JobId: jobToRun.JobId,
+	})
 	if err != nil {
-		return fmt.Errorf("could not unmarshal job response: %w", err)
+		return fmt.Errorf("the '%s' job failed: %v", jobToRun.JobId, err)
 	}
-	runJobRequest := azureHTTPModels.RunNowReq{
-		JobID: resp.JobID,
-	}
-	runNowResp, err := jobsClient.RunNow(runJobRequest)
-	if err != nil {
-		return fmt.Errorf("could not run job request: %w", err)
-	}
-	runGetRequest := azureHTTPModels.RunsGetReq{
-		RunID: runNowResp.RunID,
-	}
-	for {
-		runsGetResp, err := jobsClient.RunsGet(runGetRequest)
-		if err != nil {
-			return fmt.Errorf("could not get run: %w", err)
-		}
-		if runsGetResp.EndTime != int64(0) {
-			if string(runsGetResp.State.ResultState) != string(Success) {
-				return fmt.Errorf("could not execute databricks spark job: %s", runsGetResp.State.StateMessage)
-			}
-			break
-		}
-		time.Sleep(1 * time.Second)
-	}
+
 	return nil
 }
 
@@ -518,7 +488,7 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 }
 
 type SparkExecutor interface {
-	RunSparkJob(args *[]string, store FileStore) error
+	RunSparkJob(args []string, store FileStore) error
 	InitializeExecutor(store FileStore) error
 	PythonFileURI(store FileStore) string
 	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string
@@ -579,7 +549,7 @@ func NewEMRExecutor(emrConfig EMRConfig, logger *zap.SugaredLogger) (SparkExecut
 	return &emrExecutor, nil
 }
 
-func (e *EMRExecutor) RunSparkJob(args *[]string, store FileStore) error {
+func (e *EMRExecutor) RunSparkJob(args []string, store FileStore) error {
 	params := &emr.AddJobFlowStepsInput{
 		JobFlowId: aws.String(e.clusterName), //returned by listclusters
 		Steps: []emrTypes.StepConfig{
@@ -587,7 +557,7 @@ func (e *EMRExecutor) RunSparkJob(args *[]string, store FileStore) error {
 				Name: aws.String("Featureform execution step"),
 				HadoopJarStep: &emrTypes.HadoopJarStepConfig{
 					Jar:  aws.String("command-runner.jar"), //jar file for running pyspark scripts
-					Args: *args,
+					Args: args,
 				},
 				ActionOnFailure: emrTypes.ActionOnFailureContinue,
 			},
@@ -709,7 +679,7 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 
 	spark.Logger.Debugw("Running SQL transformation", config)
 	sparkArgs := spark.Executor.SparkSubmitArgs(transformationDestination, updatedQuery, sources, JobType(Transform), spark.Store)
-	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
+	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("spark submit job for transformation failed to run", config.TargetTableID, err)
 		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
@@ -757,7 +727,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fmt.Errorf("error with getting df arguments %v", sparkArgs)
 	}
 	spark.Logger.Debugw("Running DF transformation")
-	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
+	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Error running Spark dataframe job", err)
 		return fmt.Errorf("spark submit job for transformation failed to run: (name: %s variant:%s) %v", config.TargetTableID.Name, config.TargetTableID.Variant, err)
 	}
@@ -977,7 +947,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	sourcePath := spark.Store.PathWithPrefix(sparkResourceTable.schema.SourceTable, true)
 	sparkArgs := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize, spark.Store)
 	spark.Logger.Debugw("Creating materialization", "id", id)
-	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
+	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Spark submit job failed to run", "error", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
 	}
@@ -1061,7 +1031,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
 	sparkArgs := spark.Executor.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet, spark.Store)
 	spark.Logger.Debugw("Creating training set", "definition", def)
-	if err := spark.Executor.RunSparkJob(&sparkArgs, spark.Store); err != nil {
+	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Spark submit training set job failed to run", "definition", def.ID, "error", err)
 		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
 	}

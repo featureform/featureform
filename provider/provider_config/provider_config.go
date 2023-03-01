@@ -1,10 +1,9 @@
 package provider_config
 
 import (
-	"reflect"
-
 	ss "github.com/featureform/helpers/string_set"
 	si "github.com/featureform/helpers/struct_iterator"
+	sm "github.com/featureform/helpers/struct_map"
 )
 
 const EXAMPLE_GCP_CREDENTIALS = `{
@@ -39,13 +38,16 @@ func differingFields(a, b interface{}) (ss.StringSet, error) {
 		return nil, err
 	}
 
-	bv := reflect.ValueOf(b)
+	bMap, err := sm.NewStructMap(b)
+
+	if err != nil {
+		return nil, err
+	}
 
 	for aIter.Next() {
 		key := aIter.Key()
 		aVal := aIter.Value()
-		bVal := bv.FieldByName(key).Interface()
-		if !reflect.DeepEqual(aVal, bVal) {
+		if !bMap.Has(key, aVal) {
 			diff[key] = true
 		}
 	}

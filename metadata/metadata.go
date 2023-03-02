@@ -1086,7 +1086,7 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 		return nil, fmt.Errorf("could not configure storage provider: %v", err)
 	}
 	if config.SearchParams != nil {
-		searcher, errInitializeSearch := search.NewMeilisearch(config.TypeSenseParams)
+		searcher, errInitializeSearch := search.NewMeilisearch(config.SearchParams)
 		if errInitializeSearch != nil {
 			return nil, errInitializeSearch
 		}

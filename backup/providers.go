@@ -169,7 +169,6 @@ func (g *GCS) Init() error {
 		BucketName: g.BucketName,
 		BucketPath: g.BucketPath,
 		Credentials: provider.GCPCredentials{
-			ProjectId:   "projectId",
 			Credentials: credentials,
 		},
 	}

@@ -54,8 +54,8 @@ type AWSCredentials struct {
 }
 
 type GCPCredentials struct {
-	ProjectId   string
-	Credentials []byte
+	ProjectId      string
+	SerializedFile []byte
 }
 
 type SparkExecutorConfig interface {

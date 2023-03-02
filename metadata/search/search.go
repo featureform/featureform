@@ -58,7 +58,6 @@ func healthCheck(client *ms.Client) error {
 				if strings.Contains(errRetr.Error(), "connection refused") {
 					fmt.Printf("could not connect to search. retrying...\n")
 				} else {
-					fmt.Println("FAILED")
 					return re.Unrecoverable(errRetr)
 				}
 				return errRetr

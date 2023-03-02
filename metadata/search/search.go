@@ -29,7 +29,7 @@ type Search struct {
 }
 
 func NewMeilisearch(params *MeilisearchParams) (Searcher, error) {
-	address := fmt.Sprintf("https://%s:%s", params.Host, params.Port)
+	address := fmt.Sprintf("http://%s:%s", params.Host, params.Port)
 	client := ms.NewClient(ms.ClientConfig{
 		Host:   address,
 		APIKey: params.ApiKey,

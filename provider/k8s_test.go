@@ -144,25 +144,16 @@ func TestBlobInterfaces(t *testing.T) {
 		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
 		Path:          "testdirectory/testpath",
-	//azureStoreConfig := AzureFileStoreConfig{
-	//	AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
-	//	AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
-	//	ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
-	//	Path:          "testdirectory/testpath",
-	//}
-	//serializedAzureConfig, err := azureStoreConfig.Serialize()
-	//if err != nil {
-	//	t.Fatalf("failed to serialize azure store config: %v", err)
-	//}
-	//azureFileStore, err := NewAzureFileStore(serializedAzureConfig)
-	//if err != nil {
-	//	t.Fatalf("failed to create new azure blob store: %v", err)
-	//}
+	}
+	serializedAzureConfig, err := azureStoreConfig.Serialize()
+	if err != nil {
+		t.Fatalf("failed to serialize azure store config: %v", err)
+	}
+	azureFileStore, err := NewAzureFileStore(serializedAzureConfig)
+	if err != nil {
+		t.Fatalf("failed to create new azure blob store: %v", err)
+	}
 
-	//hdfsConfig := HDFSFileStoreConfig{
-	//	Host: "localhost",
-	//	Port: "9000",
-	//}
 	hdfsConfig := HDFSFileStoreConfig{
 		Host:     "localhost",
 		Port:     "9000",

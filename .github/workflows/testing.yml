@@ -894,6 +894,13 @@ jobs:
       - name: Install Packages
         run: pip install -r ./provider/scripts/k8s/requirements.txt
 
+      - name: Build and Run HDFS
+        run: |
+          git clone https://github.com/rancavil/hadoop-single-node-cluster.git
+          cd hadoop-single-node-cluster
+          docker build -t hadoop .
+          docker run -d -p 9864:9864 -p 9870:9870 -p 8088:8088 -p 9000:9000 -p 9866:9866 --hostname localhost hadoop
+
       - name: Testing Go
         env:
           AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}

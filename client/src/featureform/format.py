@@ -4,7 +4,10 @@ four_row_spacing = "{:<30} {:<30} {:<30} {:<30}"
 divider = "-----------------------------------------------"
 
 def format_rows(format_obj, format_obj_2=None, format_obj_3=None, format_obj_4=None):
-    if format_obj_2 is None:
+    # Base case for when `format_obj` is a string
+    if format_obj_2 is None and type(format_obj) == str:
+        print(format_obj)
+    elif format_obj_2 is None:
         for s in format_obj:
             format_rows(*s)
     elif format_obj_2 is not None and format_obj_3 is None:

@@ -13,8 +13,13 @@ service Feature {
   rpc FeatureServe(FeatureServeRequest) returns (FeatureRow) {}
 }
 
+message Model {
+  string name = 1;
+}
+
 message TrainingDataRequest {
   TrainingDataID id = 1;
+  Model model = 2;
 }
 
 message TrainingDataID {
@@ -30,6 +35,7 @@ message TrainingDataRow {
 message FeatureServeRequest {
     repeated FeatureID features = 1;
     repeated Entity entities = 2;
+    Model model = 3;
 }
 
 message FeatureRow {

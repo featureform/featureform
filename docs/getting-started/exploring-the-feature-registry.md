@@ -62,7 +62,7 @@ Click on the providers to pull up the sources, features, labels, and training se
 
 ## Models
 
-The models page shows all model names, with the corresponding description. Model names are provided by the user at serving time. Featureform tracks which features and training sets are associated with which model names. However, **models are not stored.**
+The models page shows all model names, which the user can optionally provide at serving time (see [example](serving-for-inference-and-training.md#model-registration)). Featureform tracks which features and training sets are associated with which model names. However, **models are not stored.**
 
 ![Models page of the Feature Registry](<../.gitbook/assets/image (8).png>)
 

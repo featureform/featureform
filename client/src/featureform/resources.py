@@ -5,10 +5,9 @@
 import sys
 import json
 import time
+import datetime
 from enum import Enum
-from base64 import b64encode
 from typeguard import typechecked
-from dataclasses import dataclass
 from typing import List, Tuple, Union
 
 import grpc
@@ -17,7 +16,7 @@ from google.protobuf.duration_pb2 import Duration
 
 from featureform.proto import metadata_pb2 as pb
 from dataclasses import dataclass, field
-from featureform.format import *
+from .version import check_up_to_date
 
 NameVariant = Tuple[str, str]
 
@@ -361,6 +360,8 @@ class SnowflakeConfig:
     organization: str = ""
     database: str = ""
     account_locator: str = ""
+    warehouse: str = ""
+    role: str = ""
 
     def __post_init__(self):
         if self.__has_legacy_credentials() and self.__has_current_credentials():
@@ -395,6 +396,8 @@ class SnowflakeConfig:
             "Account": self.account,
             "Schema": self.schema,
             "Database": self.database,
+            "Warehouse": self.warehouse,
+            "Role": self.role
         }
         return bytes(json.dumps(config), "utf-8")
 
@@ -1245,8 +1248,37 @@ class TrainingSet:
         return True
 
 
+@typechecked
+@dataclass
+class Model:
+    name: str
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    def type(self) -> str:
+        return "model"
+
+    def _create(self, stub) -> None:
+        serialized = pb.Model(name=self.name)
+        stub.CreateModel(serialized)
+
+    def _create_local(self, db) -> None:
+        db.insert("models",
+                  self.name,
+                  "Model",
+                  )
+
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
+
+
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
-                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference]
+                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference, Model]
 
 
 class ResourceRedefinedError(Exception):
@@ -1313,6 +1345,7 @@ class ResourceState:
 
     def create_all_local(self) -> None:
         db = SQLiteMetadata()
+        check_up_to_date(True, "register")
         for resource in self.__create_list:
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name)
@@ -1324,6 +1357,7 @@ class ResourceState:
         return
 
     def create_all(self, stub) -> None:
+        check_up_to_date(False, "register")
         for resource in self.__create_list:
             if resource.type() == "provider" and resource.name == "local-mode":
                 continue

@@ -10,12 +10,12 @@ from featureform.resources import DatabricksCredentials, EMRCredentials
         ("a", "b", "", "","c"),
         ("", "", "a", "b","c"),
         pytest.param("a", "b", "a","b","c", marks=pytest.mark.xfail),
-        pytest.param("", "", "", "","c", marks=pytest.mark.xfail)
+        pytest.param("", "", "", "","c", marks=pytest.mark.xfail),
         pytest.param("a", "b", "","","", marks=pytest.mark.xfail)
 
     ]
 )
-def test_databricks_credentials(username, password, host, token):
+def test_databricks_credentials(username, password, host, token, cluster_id):
     databricks = DatabricksCredentials(username=username, password=password, host=host, token=token, cluster_id=cluster_id)
 
     expected_config = {

@@ -2,11 +2,12 @@ import os
 import shutil
 import stat
 import sys
+import featureform as ff
 
 sys.path.insert(0, 'client/src/')
 import pytest
 from featureform.register import LocalProvider, Provider, Registrar, LocalConfig, SQLTransformationDecorator, \
-    DFTransformationDecorator, SnowflakeConfig
+    DFTransformationDecorator, SnowflakeConfig, Model
 
 
 @pytest.mark.parametrize(
@@ -89,6 +90,20 @@ def test_df_transformation_empty_description(registrar):
 
     # Checks that Transformation definition does not error when converting to source
     dec.to_source()
+
+
+def test_valid_model_registration():
+    model_name = "model_a"
+
+    model = ff.register_model(model_name)
+
+    assert isinstance(model, Model) and model.name == model_name
+
+
+def test_invalid_model_registration():
+
+    with pytest.raises(TypeError, match="missing 1 required positional argument: 'name'"):
+        model = ff.register_model()
 
 
 def del_rw(action, name, exc):

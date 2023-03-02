@@ -62,14 +62,17 @@ def get_resource_info(stub, resource_type, name):
     searchName = metadata_pb2.Name(name=name)
     try:
         for x in stub_get_functions[resource_type](iter([searchName])):
-            format_rows([("NAME: ", x.name),
-            ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
-            format_pg("VARIANTS:")
-            format_rows(x.default_variant, 'default')
-            for v in x.variants:
-                if v != x.default_variant:
-                    format_rows(v, '')
-            format_pg()
+            rows = [("NAME: ", x.name)]
+            if hasattr(x, '"status'):
+                rows.append(("STATUS: ", x.status.Status._enum_type.values[x.status.status].name))
+            format_rows(rows)
+            if hasattr(x, "default_variant"):
+                format_pg("VARIANTS:")
+                format_rows(x.default_variant, 'default')
+                for v in x.variants:
+                    if v != x.default_variant:
+                        format_rows(v, '')
+                format_pg()
             return x
     except grpc._channel._MultiThreadedRendezvous:
         print(f"{resource_type} not found.")

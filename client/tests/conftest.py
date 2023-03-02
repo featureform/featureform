@@ -1,8 +1,36 @@
+import csv
+import os
 import pytest
 import sys
+import shutil
+import stat
+from tempfile import NamedTemporaryFile
 sys.path.insert(0, 'client/src/')
-from featureform.register import Registrar, OfflineSparkProvider
-from featureform.resources import SparkConfig, Provider, DatabricksCredentials, AzureFileStoreConfig, AWSCredentials, S3StoreConfig, EMRCredentials, SparkCredentials
+
+
+from featureform.register import (
+    Registrar,
+    OfflineSparkProvider,
+    LocalProvider,
+    OfflineSQLProvider,
+    ResourceClient,
+)
+from featureform.resources import (
+    AWSCredentials,
+    AzureFileStoreConfig,
+    DatabricksCredentials,
+    EMRCredentials,
+    LocalConfig,
+    S3StoreConfig,
+    SparkConfig,
+    SparkCredentials,
+    PostgresConfig,
+    Provider,
+)
+import featureform as ff
+
+real_path = os.path.realpath(__file__)
+dir_path = os.path.dirname(real_path)
 
 pytest_plugins = [
     'connection_test',
@@ -155,3 +183,77 @@ def azure_blob():
 @pytest.fixture(scope="module")
 def s3(aws_credentials):
     return S3StoreConfig("bucket_path", "bucket_region", aws_credentials)
+
+
+@pytest.fixture(scope="module")
+def local_provider_source():
+    def get_local(_):
+        ff.register_user("test_user").make_default_owner()
+        provider = ff.register_local()
+        source = provider.register_file(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions.",
+            path=f"{dir_path}/test_files/input_files/transactions.csv"
+        )
+        return (provider, source, None)
+    
+    return get_local
+
+
+@pytest.fixture(scope="module")
+def serving_client():
+    def get_clients_for_context(is_local, is_insecure):
+            return ff.ServingClient(local=is_local, insecure=is_insecure)
+    
+    return get_clients_for_context
+
+
+@pytest.fixture(scope="module")
+def setup_teardown():
+    def clear_state_and_reset():
+        ff.clear_state()
+        shutil.rmtree('.featureform', onerror=del_rw)
+
+    return clear_state_and_reset
+
+def del_rw(action, name, exc):
+    if os.path.exists(name):
+        os.chmod(name, stat.S_IWRITE)
+        os.remove(name)
+
+@pytest.fixture(scope="module")
+def hosted_sql_provider_and_source():
+    def get_hosted(custom_marks):
+        ff.register_user("test_user").make_default_owner()
+
+        postgres_host = "host.docker.internal" if "docker" in custom_marks else "quickstart-postgres"
+        redis_host = "host.docker.internal" if "docker" in custom_marks else "quickstart-redis"
+
+        provider = ff.register_postgres(
+            name = "postgres-quickstart",
+            # The host name for postgres is different between Docker and Minikube
+            host= "host.docker.internal" if "docker" in custom_marks else "quickstart-postgres",
+            port="5432",
+            user="postgres",
+            password="password",
+            database="postgres",
+            description = "A Postgres deployment we created for the Featureform quickstart"
+        )
+
+        redis = ff.register_redis(
+            name = "redis-quickstart",
+            # The host name for postgres is different between Docker and Minikube
+            host="host.docker.internal" if "docker" in custom_marks else "quickstart-redis",
+            port=6379,
+        )
+
+        source = provider.register_table(
+            name = "transactions",
+            table = "Transactions", # This is the table's name in Postgres
+            variant="quickstart"
+        )
+
+        return (provider, source, redis)
+
+    return get_hosted

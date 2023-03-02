@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	sr "github.com/featureform/helpers/struct_iterator"
 	_ "github.com/snowflakedb/gosnowflake"
 )
 
@@ -27,6 +28,8 @@ type SnowflakeConfig struct {
 	Account        string
 	Database       string
 	Schema         string
+	Warehouse      string `snowflake:"warehouse"`
+	Role           string `snowflake:"role"`
 }
 
 func (sf *SnowflakeConfig) Deserialize(config SerializedConfig) error {
@@ -46,6 +49,62 @@ func (sf *SnowflakeConfig) Serialize() []byte {
 }
 
 func (sf *SnowflakeConfig) ConnectionString() (string, error) {
+	connString, err := sf.buildConnectionString()
+	if err != nil {
+		return "", fmt.Errorf("could not build connecting string: %v", err)
+	}
+	return connString, nil
+}
+
+func (sf *SnowflakeConfig) buildConnectionString() (string, error) {
+	base, err := sf.getBaseConnection()
+	if err != nil {
+		return "", err
+	}
+	parameters, err := sf.getConnectionParameters()
+	if err != nil {
+		return "", fmt.Errorf("could not build parameters: %v", err)
+	}
+	return sf.makeFullConnection(base, parameters), nil
+}
+
+func (sf *SnowflakeConfig) makeFullConnection(base, parameters string) string {
+	return fmt.Sprintf("%s%s", base, parameters)
+}
+
+const emptyParameters = "?"
+
+func (sf *SnowflakeConfig) getConnectionParameters() (string, error) {
+	base := emptyParameters
+
+	iter, err := sr.NewStructIterator(*sf)
+	if err != nil {
+		return "", err
+	}
+	for iter.Next() {
+		if tag := iter.Tag("snowflake"); tag != "" {
+			base = sf.addParameter(base, tag, iter.Value())
+		}
+	}
+
+	if base == emptyParameters {
+		return "", nil
+	}
+	return base, nil
+}
+
+func (sf *SnowflakeConfig) addParameter(base, key string, val interface{}) string {
+	if val == "" {
+		return base
+	}
+	if base != emptyParameters {
+		base += "&"
+	}
+	base += fmt.Sprintf("%s=%s", key, val)
+	return base
+}
+
+func (sf *SnowflakeConfig) getBaseConnection() (string, error) {
 	isLegacy := sf.hasLegacyCredentials()
 	isCurrent, err := sf.hasCurrentCredentials()
 	if err != nil {

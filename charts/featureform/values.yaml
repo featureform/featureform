@@ -97,6 +97,10 @@ metadata:
   grpc:
     port: 8080
 
+backup:
+  enabled: false
+  schedule: "0 * * * *"
+
 
 etcd:
   fullnameOverride: featureform-etcd

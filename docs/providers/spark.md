@@ -14,7 +14,18 @@ Common use cases of Featureform with Spark include:
 [spark_databricks.md](../providers/spark_databricks.md)
 {% endcontent-ref %}
 
-## Spark Architecture <a href="#implementation" id="implementation"></a>
+## Understanding The Different Flavors of Spark <a href="#implementation" id="implementation"></a>
+
+### Spark versus Databricks versus Hosted Databricks 
+Spark is a powerful, open-source general computing framework developed for large-scale data processing.
+
+Databricks is a managed data and analytics platform developed on top of Spark.
+
+Both Spark and Databricks can be self-hosted in Kubernetes and other non-cloud implementations, as well as hosted with popular cloud providers such as AWS, Azure, GCP and on Databricks.
+
+
+### Supported Spark Providers Matrix
+
 
 
 ### Transformation Sources

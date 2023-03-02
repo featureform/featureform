@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -29,8 +30,9 @@ import (
 type SparkExecutorType string
 
 const (
-	EMR        SparkExecutorType = "EMR"
-	Databricks                   = "DATABRICKS"
+	EMR          SparkExecutorType = "EMR"
+	Databricks                     = "DATABRICKS"
+	SparkGeneric                   = "SPARK"
 )
 
 type JobType string
@@ -123,6 +125,8 @@ func (s *SparkConfig) decodeExecutor(executorType SparkExecutorType, configMap m
 		executorConfig = &EMRConfig{}
 	case Databricks:
 		executorConfig = &DatabricksConfig{}
+	case SparkGeneric:
+		executorConfig = &SparkGenericConfig{}
 	default:
 		return fmt.Errorf("the executor type '%s' is not supported ", executorType)
 	}
@@ -515,8 +519,192 @@ func (e EMRExecutor) InitializeExecutor(store FileStore) error {
 	return store.Write(sparkScriptPath, buff)
 }
 
-func NewSparkExecutor(execType SparkExecutorType, config SparkExecutorConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+type SparkGenericConfig struct {
+	Master        string
+	DeployMode    string
+	PythonVersion string
+}
 
+func (sc *SparkGenericConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, sc)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (sc *SparkGenericConfig) Serialize() ([]byte, error) {
+	conf, err := json.Marshal(sc)
+	if err != nil {
+		return nil, err
+	}
+	return conf, nil
+}
+
+func (sc *SparkGenericConfig) IsExecutorConfig() bool {
+	return true
+}
+
+type SparkGenericExecutor struct {
+	master        string
+	deployMode    string
+	pythonVersion string
+	logger        *zap.SugaredLogger
+}
+
+func (s *SparkGenericExecutor) InitializeExecutor(store FileStore) error {
+	s.logger.Info("Uploading PySpark script to filestore")
+	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
+	sparkScriptPathWithPrefix := store.PathWithPrefix(sparkScriptPath, false)
+
+	err := readAndUploadFile(sparkScriptPath, sparkScriptPathWithPrefix, store)
+	scriptExists, _ := store.Exists(sparkScriptPathWithPrefix)
+	if err != nil && !scriptExists {
+		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", sparkScriptPathWithPrefix, err)
+	}
+	return nil
+}
+
+func (s *SparkGenericExecutor) RunSparkJob(args []string, store FileStore) error {
+	bashCommand := "bash"
+	sparkArgsString := strings.Join(args, " ")
+	bashCommandArgs := []string{"-c", fmt.Sprintf("pyenv global %s && pyenv exec %s", s.pythonVersion, sparkArgsString)}
+
+	s.logger.Info("Executing spark-submit")
+	cmd := exec.Command(bashCommand, bashCommandArgs...)
+	cmd.Env = append(os.Environ(), "FEATUREFORM_LOCAL_MODE=true")
+
+	err := cmd.Start()
+	if err != nil {
+		return fmt.Errorf("could not run spark job: %v", err)
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		return fmt.Errorf("spark job failed: %v", err)
+	}
+
+	return nil
+}
+
+func (s *SparkGenericExecutor) PythonFileURI(store FileStore) string {
+	// not used for Spark Generic Executor
+	return ""
+}
+
+func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
+	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
+
+	argList := []string{
+		"spark-submit",
+		"--master",
+		s.master,
+		"--deploy-mode",
+		s.deployMode,
+	}
+	scriptArgs := []string{
+		sparkScriptPath,
+		"sql",
+		"--output_uri",
+		fmt.Sprintf("\"%s\"", destPath),
+		"--sql_query",
+		fmt.Sprintf("\"%s\"", cleanQuery),
+		"--job_type",
+		fmt.Sprintf("\"%s\"", string(jobType)),
+	}
+
+	var packageArgs []string
+	azureStore := store.AsAzureStore()
+
+	if azureStore != nil {
+		packageArgs = []string{
+			"--packages",
+			"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
+		}
+
+		remoteConnectionArgs := []string{
+			"--spark_config",
+			fmt.Sprintf("\"%s\"", azureStore.configString()),
+		}
+
+		scriptArgs = append(scriptArgs, remoteConnectionArgs...)
+	}
+
+	argList = append(argList, packageArgs...) // adding any packages needed for filestores
+	argList = append(argList, scriptArgs...)  // adding pyspark arguments
+
+	argList = append(argList, "--source_list")
+	for _, source := range sourceList {
+		argList = append(argList, fmt.Sprintf("\"%s\"", source))
+	}
+	return argList
+}
+
+func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error) {
+	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
+
+	argList := []string{
+		"spark-submit",
+		"--master",
+		s.master,
+		"--deploy-mode",
+		s.deployMode,
+	}
+
+	scriptArgs := []string{
+		sparkScriptPath,
+		"df",
+		"--output_uri",
+		fmt.Sprintf("\"%s\"", outputURI),
+		"--code",
+		code,
+	}
+
+	var packageArgs []string
+	azureStore := store.AsAzureStore()
+
+	if azureStore != nil {
+		packageArgs = []string{
+			"--packages",
+			"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
+		}
+
+		remoteConnectionArgs := []string{
+			"--store_type",
+			"azure_blob_store",
+			"--spark_config",
+			fmt.Sprintf("\"%s\"", azureStore.configString()),
+			"--credential",
+			fmt.Sprintf("\"azure_connection_string=%s\"", azureStore.connectionString()),
+			"--credential",
+			fmt.Sprintf("\"azure_container_name=%s\"", azureStore.containerName()),
+		}
+
+		scriptArgs = append(scriptArgs, remoteConnectionArgs...)
+	}
+
+	argList = append(argList, packageArgs...) // adding any packages needed for filestores
+	argList = append(argList, scriptArgs...)  // adding pyspark script arguments
+
+	argList = append(argList, "--source")
+	for _, source := range sources {
+		argList = append(argList, fmt.Sprintf("\"%s\"", source))
+	}
+
+	return argList, nil
+}
+
+func NewSparkGenericExecutor(sparkGenericConfig SparkGenericConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+	sparkGenericExecutor := SparkGenericExecutor{
+		master:        sparkGenericConfig.Master,
+		deployMode:    sparkGenericConfig.DeployMode,
+		pythonVersion: sparkGenericConfig.PythonVersion,
+		logger:        logger,
+	}
+	return &sparkGenericExecutor, nil
+}
+
+func NewSparkExecutor(execType SparkExecutorType, config SparkExecutorConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
 	switch execType {
 	case EMR:
 		emrConfig, ok := config.(*EMRConfig)
@@ -530,6 +718,12 @@ func NewSparkExecutor(execType SparkExecutorType, config SparkExecutorConfig, lo
 			return nil, fmt.Errorf("cannot convert config into 'DatabricksConfig'")
 		}
 		return NewDatabricksExecutor(*databricksConfig)
+	case SparkGeneric:
+		sparkGenericConfig, ok := config.(*SparkGenericConfig)
+		if !ok {
+			return nil, fmt.Errorf("cannot convert config into 'SparkGenericConfig'")
+		}
+		return NewSparkGenericExecutor(*sparkGenericConfig, logger)
 	default:
 		return nil, fmt.Errorf("the executor type ('%s') is not supported", execType)
 	}

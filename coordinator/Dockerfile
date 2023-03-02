@@ -24,16 +24,50 @@ COPY ./kubernetes ./kubernetes
 COPY ./types ./types
 COPY ./coordinator/main/main.go ./coordinator/main/main.go
 
+# CGD_ENABLED=0 is used to avoid the libc differences in alpine and ubuntu
+ENV CGO_ENABLED=0
 RUN go build ./coordinator/main/main.go
 
-FROM alpine
+FROM ubuntu:22.04
 
-COPY --from=0 ./app/main ./main
-COPY --from=0 ./app/provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
-COPY --from=0 ./app/provider/scripts/spark/python_packages.sh /app/provider/scripts/spark/python_packages.sh
+COPY --from=0 ./app/main /app/main
+COPY ./provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
+COPY ./provider/scripts/spark/python_packages.sh /app/provider/scripts/spark/python_packages.sh
+COPY ./provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
+
+# Installing pyenv
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    checkinstall \
+    libncursesw5-dev \
+    libssl-dev \
+    libsqlite3-dev \
+    libgdbm-dev \
+    libc6-dev \
+    libbz2-dev \
+    libffi-dev \
+    zlib1g-dev \
+    liblzma-dev \
+    openjdk-8-jdk \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV ENV="/root/.bashrc"
+ENV PYENV_ROOT="/.pyenv"
+ENV PATH="$PYENV_ROOT/bin:$PATH"
+RUN echo "PATH=${PATH}" > "${ENV}"
+
+RUN curl https://pyenv.run | bash
+
+# Install Python versions
+RUN pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
+RUN pyenv install 3.8.16 && pyenv global 3.8.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
+RUN pyenv install 3.9.16 && pyenv global 3.9.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
+RUN pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
 
 ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
 ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
 
 EXPOSE 8080
-ENTRYPOINT ["./main"]
+ENTRYPOINT ["/app/main"]

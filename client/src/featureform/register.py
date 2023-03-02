@@ -1525,16 +1525,15 @@ class Registrar:
         )
         ```
         Args:
-            name (str): Name of S3 store to be registered
-            host (str):
-            port (str):
-            path (str):
-            username (str):
-            description (str): Description of Redis provider to be registered
-            team (str): team with permission to this storage layer
+            name (str): Name of HDFS store to be registered
+            host (str): The hostname for HDFS
+            port (str): The port for the namenode for HDFS
+            path (str): A storage path within HDFS
+            username (str): A Username for HDFS
+            description (str): Description of HDFS provider to be registered
+            team (str): The name of the team registering HDFS
         Returns:
             hdfs (FileStoreProvider): Provider
-                has all the functionality of OfflineProvider
         """
 
         hdfs_config = HDFSConfig(host=host, port=port, path=path, username=username)

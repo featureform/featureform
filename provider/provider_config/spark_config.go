@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	ss "github.com/featureform/helpers/string_set"
@@ -88,30 +89,30 @@ func (s *SparkConfig) UnmarshalJSON(data []byte) error {
 
 func (s SparkConfig) MutableFields() ss.StringSet {
 	result := ss.StringSet{}
-	var executor ss.StringSet
-	var store ss.StringSet
+	var executorFields ss.StringSet
+	var storeFields ss.StringSet
 
 	switch s.ExecutorType {
 	case EMR:
-		executor = s.ExecutorConfig.(*EMRConfig).MutableFields()
+		executorFields = s.ExecutorConfig.(*EMRConfig).MutableFields()
 	case Databricks:
-		executor = s.ExecutorConfig.(*DatabricksConfig).MutableFields()
+		executorFields = s.ExecutorConfig.(*DatabricksConfig).MutableFields()
 	}
 
 	switch s.StoreType {
 	case Azure:
-		store = s.StoreConfig.(*AzureFileStoreConfig).MutableFields()
+		storeFields = s.StoreConfig.(*AzureFileStoreConfig).MutableFields()
 	case S3:
-		store = s.StoreConfig.(*S3FileStoreConfig).MutableFields()
+		storeFields = s.StoreConfig.(*S3FileStoreConfig).MutableFields()
 	case GCS:
-		store = s.StoreConfig.(*GCSFileStoreConfig).MutableFields()
+		storeFields = s.StoreConfig.(*GCSFileStoreConfig).MutableFields()
 	}
 
-	for field, val := range executor {
+	for field, val := range executorFields {
 		result["Executor."+field] = val
 	}
 
-	for field, val := range store {
+	for field, val := range storeFields {
 		result["Store."+field] = val
 	}
 
@@ -120,23 +121,25 @@ func (s SparkConfig) MutableFields() ss.StringSet {
 
 func (a SparkConfig) DifferingFields(b SparkConfig) (ss.StringSet, error) {
 	result := ss.StringSet{}
-	var executor ss.StringSet
-	var store ss.StringSet
+	var executorFields ss.StringSet
+	var storeFields ss.StringSet
 	var err error
+
+	if a.ExecutorType != b.ExecutorType {
+		return result, fmt.Errorf("executor config mismatch: a = %v; b = %v", a.ExecutorType, b.ExecutorType)
+	}
+
+	if a.StoreType != b.StoreType {
+		return result, fmt.Errorf("store config mismatch: a = %v; b = %v", a.StoreType, b.StoreType)
+	}
 
 	switch a.ExecutorType {
 	case EMR:
-		if b.ExecutorType != EMR {
-			err = fmt.Errorf("executor config mismatch: a = %v; b = %v", a.ExecutorType, b.ExecutorType)
-		} else {
-			executor, err = a.ExecutorConfig.(*EMRConfig).DifferingFields(*b.ExecutorConfig.(*EMRConfig))
-		}
+		executorFields, err = a.ExecutorConfig.(*EMRConfig).DifferingFields(*b.ExecutorConfig.(*EMRConfig))
 	case Databricks:
-		if b.ExecutorType != Databricks {
-			err = fmt.Errorf("executor config mismatch: a = %v; b = %v", a.ExecutorType, b.ExecutorType)
-		} else {
-			executor, err = a.ExecutorConfig.(*DatabricksConfig).DifferingFields(*b.ExecutorConfig.(*DatabricksConfig))
-		}
+		executorFields, err = a.ExecutorConfig.(*DatabricksConfig).DifferingFields(*b.ExecutorConfig.(*DatabricksConfig))
+	default:
+		return nil, errors.New("")
 	}
 
 	if err != nil {
@@ -145,34 +148,22 @@ func (a SparkConfig) DifferingFields(b SparkConfig) (ss.StringSet, error) {
 
 	switch a.StoreType {
 	case Azure:
-		if b.StoreType != Azure {
-			err = fmt.Errorf("store config mismatch: a = %v; b = %v", a.StoreType, b.StoreType)
-		} else {
-			store, err = a.StoreConfig.(*AzureFileStoreConfig).DifferingFields(*b.StoreConfig.(*AzureFileStoreConfig))
-		}
+		storeFields, err = a.StoreConfig.(*AzureFileStoreConfig).DifferingFields(*b.StoreConfig.(*AzureFileStoreConfig))
 	case S3:
-		if b.StoreType != S3 {
-			err = fmt.Errorf("store config mismatch: a = %v; b = %v", a.StoreType, b.StoreType)
-		} else {
-			store, err = a.StoreConfig.(*S3FileStoreConfig).DifferingFields(*b.StoreConfig.(*S3FileStoreConfig))
-		}
+		storeFields, err = a.StoreConfig.(*S3FileStoreConfig).DifferingFields(*b.StoreConfig.(*S3FileStoreConfig))
 	case GCS:
-		if b.StoreType != GCS {
-			err = fmt.Errorf("store config mismatch: a = %v; b = %v", a.StoreType, b.StoreType)
-		} else {
-			store, err = a.StoreConfig.(*GCSFileStoreConfig).DifferingFields(*b.StoreConfig.(*GCSFileStoreConfig))
-		}
+		storeFields, err = a.StoreConfig.(*GCSFileStoreConfig).DifferingFields(*b.StoreConfig.(*GCSFileStoreConfig))
 	}
 
 	if err != nil {
 		return result, err
 	}
 
-	for field, val := range executor {
+	for field, val := range executorFields {
 		result["Executor."+field] = val
 	}
 
-	for field, val := range store {
+	for field, val := range storeFields {
 		result["Store."+field] = val
 	}
 

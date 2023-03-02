@@ -1478,10 +1478,10 @@ class Registrar:
         Args:
             name (str): Name of GCS store to be registered
             credentials (GCPCredentials): GCP credentials to access the bucket
-            bucket_name (str): the bucket name
-            bucket_path (str): custom path to be used by featureform
+            bucket_name (str): The bucket name
+            bucket_path (str): Custom path to be used by featureform
             description (str): Description of GCS provider to be registered
-            team (str): the name of the team registering the filestore
+            team (str): The name of the team registering the filestore
         Returns:
             gcs (FileStoreProvider): Provider
                 has all the functionality of OfflineProvider

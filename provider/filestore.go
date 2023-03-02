@@ -35,6 +35,12 @@ const (
 	DB               = "db"
 )
 
+const (
+	gsPrefix    = "gs://"
+	s3Prefix    = "s3://"
+	azurePrefix = "abfss://"
+)
+
 type LocalFileStoreConfig struct {
 	DirPath string
 }
@@ -274,7 +280,6 @@ type GCSFileStore struct {
 }
 
 func (gs *GCSFileStore) PathWithPrefix(path string, remote bool) string {
-	gsPrefix := "gs://"
 	noGSPrefix := !strings.HasPrefix(path, gsPrefix)
 
 	if remote && noGSPrefix {

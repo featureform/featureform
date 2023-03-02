@@ -37,16 +37,16 @@ def test_create_provider(executor_fixture, filestore_fixture, request):
         ("file", "test_files/input/transaction", True),
     ]
 )
-def test_register_parquet_file(test_name, file_path, default_variant, spark_provider):
+def test_register_file(test_name, file_path, default_variant, spark_provider):
     if default_variant:
         variant = "default"
-        s = spark_provider.register_parquet_file(
+        s = spark_provider.register_file(
             name=test_name,
             file_path=file_path,
         )
     else:
         variant = "test_variant"
-        s = spark_provider.register_parquet_file(
+        s = spark_provider.register_file(
             name=test_name,
             variant=variant,
             file_path=file_path,

@@ -118,7 +118,7 @@ class OfflineSparkProvider(OfflineProvider):
         self.__registrar = registrar
         self.__provider = provider
 
-    def register_parquet_file(self,
+    def register_file(self,
                               name: str,
                               file_path: str,
                               variant: str = "default",
@@ -965,7 +965,7 @@ class Registrar:
 
         **Examples**:
         ``` py
-        transactions = get_source("transactions","kaggle")
+        transactions = ff.get_source("transactions","kaggle")
         transactions.register_resources(
             entity=user,
             entity_column="customerid",
@@ -1014,7 +1014,7 @@ class Registrar:
 
         **Examples**:
         ``` py
-        redis = get_redis("redis-quickstart")
+        redis = ff.get_redis("redis-quickstart")
         // Defining a new transformation source with retrieved Redis provider
         average_user_transaction.register_resources(
             entity=user,
@@ -1042,7 +1042,7 @@ class Registrar:
 
         **Examples**:
         ``` py
-        mongodb = get_mongodb("mongodb-quickstart")
+        mongodb = ff.get_mongodb("mongodb-quickstart")
         // Defining a new transformation source with retrieved MongoDB provider
         average_user_transaction.register_resources(
             entity=user,
@@ -1070,7 +1070,7 @@ class Registrar:
 
         **Examples**:
         ``` py
-        azure_blob = get_blob_store("azure-blob-quickstart")
+        azure_blob = ff.get_blob_store("azure-blob-quickstart")
         // Defining a new transformation source with retrieved Azure blob provider
         average_user_transaction.register_resources(
             entity=user,
@@ -1099,7 +1099,7 @@ class Registrar:
 
         **Examples**:
         ``` py
-        postgres = get_postgres("postgres-quickstart")
+        postgres = ff.get_postgres("postgres-quickstart")
         transactions = postgres.register_table(
             name="transactions",
             variant="kaggle",
@@ -1124,7 +1124,7 @@ class Registrar:
 
         **Examples**:
         ``` py
-        snowflake = get_snowflake("snowflake-quickstart")
+        snowflake = ff.get_snowflake("snowflake-quickstart")
         transactions = snowflake.register_table(
             name="transactions",
             variant="kaggle",
@@ -1149,7 +1149,7 @@ class Registrar:
 
         **Examples**:
         ``` py
-        redshift = get_redshift("redshift-quickstart")
+        redshift = ff.get_redshift("redshift-quickstart")
         transactions = redshift.register_table(
             name="transactions",
             variant="kaggle",
@@ -1174,12 +1174,12 @@ class Registrar:
 
         **Examples**:
         ``` py
-        bigquery = get_bigquery("bigquery-quickstart")
+        bigquery = ff.get_bigquery("bigquery-quickstart")
         transactions = bigquery.register_table(
             name="transactions",
             variant="kaggle",
             description="Fraud Dataset From Kaggle",
-            table="Transactions",  # This is the table's name in Postgres
+            table="Transactions",  # This is the table's name in BigQuery
         )
         ```
         Args:
@@ -1198,12 +1198,12 @@ class Registrar:
         """Get a Spark provider. The returned object can be used to register additional resources.
         **Examples**:
         ``` py
-        spark = get_spark("spark-quickstart")
-        transactions = spark.register_table(
+        spark = ff.get_spark("spark-quickstart")
+        transactions = spark.register_file(
             name="transactions",
             variant="kaggle",
             description="Fraud Dataset From Kaggle",
-            table="Transactions",  # This is the table's name in Postgres
+            file_path="s3://bucket/path/to/file/transactions.parquet",  # This is the path to file
         )
         ```
         Args:
@@ -1223,7 +1223,7 @@ class Registrar:
         **Examples**:
         ``` py
 
-        k8s_azure = get_kubernetes("k8s-azure-quickstart")
+        k8s_azure = ff.get_kubernetes("k8s-azure-quickstart")
         transactions = k8s_azure.register_file(
             name="transactions",
             variant="kaggle",
@@ -1244,13 +1244,36 @@ class Registrar:
         return OfflineK8sProvider(self, fakeProvider)
 
     def get_s3(self, name):
+        """
+        Get a S3 provider. The returned object can be used with other providers such as Spark and Databricks.
+        **Examples**:
+        ``` py
+
+        s3 = ff.get_s3("s3-quickstart")
+        spark = ff.register_spark(
+            name=f"spark-emr-s3",
+            description="A Spark deployment we created for the Featureform quickstart",
+            team="featureform-team",
+            executor=emr,
+            filestore=s3,
+        )
+        ```
+        Args:
+            name (str): Name of S3 to be retrieved
+        Returns:
+            s3 (FileStore): Provider
+        """
         get = ProviderReference(name=name, provider_type="S3", obj=None)
         self.__resources.append(get)
 
         fake_creds = AWSCredentials("id", "secret")
         fakeConfig = S3StoreConfig(bucket_path="", bucket_region="", credentials=fake_creds)
-        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
-        return OfflineK8sProvider(self, fakeProvider)
+        provider = Provider(name=name,
+                            function="OFFLINE",
+                            description=description,
+                            team=team,
+                            config=s3_config)
+        return FileStoreProvider(provider, s3_config, s3_config.type())
     
     def get_gcs(self, name):
         get = ProviderReference(name=name, provider_type="GCS", obj=None)
@@ -1364,8 +1387,8 @@ class Registrar:
             name (str): Name of Azure blob store to be registered
             container_name (str): Azure container name
             root_path (str): custom path in container to store data
-            description (str): Description of Redis provider to be registered
-            team (str): team with permission to this storage layer
+            description (str): Description of Azure Blob provider to be registered
+            team (str): the name of the team registering the filestore
             account_name (str): Azure account name
             account_key (str): Secret azure account key
             config (AzureConfig): an azure config object (can be used in place of container name and account name)
@@ -1413,8 +1436,8 @@ class Registrar:
             credentials (AWSCredentials): AWS credentials to access the bucket
             bucket_path (str): custom path including the bucket name
             bucket_region (str): aws region the bucket is located in
-            description (str): Description of Redis provider to be registered
-            team (str): team with permission to this storage layer
+            description (str): Description of S3 provider to be registered
+            team (str): the name of the team registering the filestore
         Returns:
             s3 (FileStoreProvider): Provider
                 has all the functionality of OfflineProvider
@@ -1457,8 +1480,8 @@ class Registrar:
             credentials (GCPCredentials): GCP credentials to access the bucket
             bucket_name (str): the bucket name
             bucket_path (str): custom path to be used by featureform
-            description (str): Description of Redis provider to be registered
-            team (str): team with permission to this storage layer
+            description (str): Description of GCS provider to be registered
+            team (str): the name of the team registering the filestore
         Returns:
             gcs (FileStoreProvider): Provider
                 has all the functionality of OfflineProvider
@@ -1497,7 +1520,7 @@ class Registrar:
         Args:
             name (str): Name of Firestore provider to be registered
             description (str): Description of Firestore provider to be registered
-            team (str): Name of team
+            team (str): The name of the team registering the filestore
             project_id (str): The Project name in GCP
             collection (str): The Collection name in Firestore under the given project ID
             credentials_path (str): A path to a Google Credentials file with access permissions for Firestore

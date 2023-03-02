@@ -12,6 +12,8 @@ from pyspark.sql import SparkSession
 from azure.storage.blob import BlobServiceClient
 
 
+FILESTORES = ["local", "s3", "azure_blob_store", "google_cloud_storage"]
+
 if os.getenv("FEATUREFORM_LOCAL_MODE"):
     real_path = os.path.realpath(__file__)
     dir_path = os.path.dirname(real_path)
@@ -148,6 +150,8 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
         transformation_path = download_blobs_to_local(container_client, file_path, "transformation.pkl") 
         with open(transformation_path, "rb") as f:
             code = dill.load(f)
+    elif store_type == "google_cloud_storage":
+        pass
     else:
         with open(file_path, "rb") as f:
             code = dill.load(f)
@@ -207,27 +211,27 @@ def parse_args(args=None):
     sql_parser.add_argument(
         "--job_type", choices=["Transformation", "Materialization", "Training Set"], help="type of job being run on spark") 
     sql_parser.add_argument(
-        '--output_uri', help="output S3 file location; eg. s3://featureform/{type}/{name}/{variant}")
+        '--output_uri', help="output file location; eg. s3://featureform/{type}/{name}/{variant}")
     sql_parser.add_argument(
         '--sql_query', help="The SQL query you would like to run on the data source. eg. SELECT * FROM source_1 INNER JOIN source_2 ON source_1.id = source_2.id")
     sql_parser.add_argument(
         "--source_list", nargs="+", help="list of sources in the transformation string")
-    sql_parser.add_argument("--store_type", choices=["local", "s3", "azure_blob_store"])
-    sql_parser.add_argument("--spark_config", action="append", default=[], help="spark config thats will be set by default")
-    sql_parser.add_argument("--credential", action="append", default=[], help="any credentials that would be need to used")
+    sql_parser.add_argument("--store_type", choices=FILESTORES)
+    sql_parser.add_argument("--spark_config", "-sc", action="append", default=[], help="spark config thats will be set by default")
+    sql_parser.add_argument("--credential", "-c", action="append", default=[], help="any credentials that would be need to used")
 
     df_parser = subparser.add_parser("df")
     df_parser.add_argument(
-        '--output_uri', required=True, help="output S3 file location")
+        '--output_uri', required=True, help="output file location; eg. s3://featureform/{type}/{name}/{variant}")
     df_parser.add_argument(
         "--code", required=True, help="the path to transformation code file"
     )
     df_parser.add_argument(
         "--source", required=True, nargs='*', help="""Add a number of sources"""
     )
-    df_parser.add_argument("--store_type", choices=["local", "s3", "azure_blob_store"])
-    df_parser.add_argument("--spark_config", "-sc", action="append", default=[])
-    df_parser.add_argument("--credential", "-c", action="append", default=[])
+    df_parser.add_argument("--store_type", choices=FILESTORES)
+    df_parser.add_argument("--spark_config", "-sc", action="append", default=[], help="spark config thats will be set by default")
+    df_parser.add_argument("--credential", "-c", action="append", default=[], help="any credentials that would be need to used")
     
     arguments = parser.parse_args(args)
 

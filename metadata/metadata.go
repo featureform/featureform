@@ -1086,7 +1086,7 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 		return nil, fmt.Errorf("could not configure storage provider: %v", err)
 	}
 	if config.TypeSenseParams != nil {
-		searcher, errInitializeSearch := search.NewTypesenseSearch(config.TypeSenseParams)
+		searcher, errInitializeSearch := search.NewMeilisearch(config.TypeSenseParams)
 		if errInitializeSearch != nil {
 			return nil, errInitializeSearch
 		}
@@ -1174,7 +1174,7 @@ func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 
 type Config struct {
 	Logger          *zap.SugaredLogger
-	TypeSenseParams *search.TypeSenseParams
+	TypeSenseParams *search.MeilisearchParams
 	StorageProvider StorageProvider
 	Address         string
 }

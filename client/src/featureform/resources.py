@@ -2,6 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import sys
 import json
 import time
 from enum import Enum
@@ -19,6 +20,11 @@ from dataclasses import dataclass, field
 from featureform.format import *
 
 NameVariant = Tuple[str, str]
+
+
+# Constants for Pyspark Versions
+MAJOR_VERSION = "3"
+MINOR_VERSIONS = ["7", "8", "9", "10"]
 
 
 class ColumnTypes(Enum):
@@ -1403,13 +1409,50 @@ class SparkCredentials:
     def __init__(self,
                  master: str,
                  deploy_mode: str,
+                 python_version: str = "",
                 ):
+        
+        self.master = master.lower()
+        self.deploy_mode = deploy_mode.lower()
 
-        if deploy_mode != "cluster" and deploy_mode != "client":
-            raise Exception(f"Spark does not support '{deploy_mode}' deploy mode. It only supports 'cluster' and 'client'.")
+        if self.deploy_mode != "cluster" and self.deploy_mode != "client":
+            raise Exception(f"Spark does not support '{self.deploy_mode}' deploy mode. It only supports 'cluster' and 'client'.")
 
-        self.master = master
-        self.deploy_mode = deploy_mode
+        self.python_version = self._verify_python_version(self.deploy_mode, python_version)
+    
+    def _verify_python_version(self, deploy_mode, version):
+        if deploy_mode == "cluster" and version == "":
+            client_python_version = sys.version_info
+            client_major = str(client_python_version.major)
+            client_minor = str(client_python_version.minor)
+
+            if client_major != MAJOR_VERSION:
+                client_major = "3"
+            if minor not in MINOR_VERSIONS:
+                client_minor = "7"
+
+            version = f"{client_major}.{client_minor}"
+
+        if version.count(".") == 2:
+            major, minor, _ = version.split(".")
+        elif version.count(".") == 1:
+            major, minor = version.split(".")    
+        else:
+            raise Exception("Please specify your Python version on the Spark cluster. Accepted formats: Major.Minor or Major.Minor.Patch; ex. '3.7' or '3.7.16")
+
+        if major != MAJOR_VERSION or minor not in MINOR_VERSIONS:
+            raise Exception(f"The Python version {version} is not supported. Currently, supported versions are 3.7-3.10.")
+        
+        """
+        The Python versions on the Docker image are 3.7.16, 3.8.16, 3.9.16, and 3.10.10. 
+        This conditional statement sets the patch number based on the minor version. 
+        """
+        if minor == "10":
+            patch = "10"
+        else:
+            patch = "16"
+        
+        return f"{major}.{minor}.{patch}"
 
     def type(self):
         return "SPARK"
@@ -1418,6 +1461,7 @@ class SparkCredentials:
         return {
             "Master": self.master,
             "DeployMode": self.deploy_mode,
+            "PythonVersion": self.python_version
         }
 
 ExecutorCredentials = Union[EMRCredentials, DatabricksCredentials, SparkCredentials]

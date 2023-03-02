@@ -1,6 +1,6 @@
 from .register import *
 from .serving import ServingClient
-from .resources import DatabricksCredentials, EMRCredentials, AWSCredentials
+from .resources import DatabricksCredentials, EMRCredentials, AWSCredentials, SparkCredentials
 
 ServingClient = ServingClient
 ResourceClient = ResourceClient
@@ -9,6 +9,7 @@ ResourceClient = ResourceClient
 # Executor Credentials
 DatabricksCredentials = DatabricksCredentials
 EMRCredentials = EMRCredentials
+SparkCredentials = SparkCredentials
 
 # Cloud Provider Credentials
 AWSCredentials = AWSCredentials

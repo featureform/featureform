@@ -6,6 +6,8 @@ import shutil
 import stat
 from tempfile import NamedTemporaryFile
 sys.path.insert(0, 'client/src/')
+
+
 from featureform.register import (
     Registrar,
     OfflineSparkProvider,
@@ -21,6 +23,7 @@ from featureform.resources import (
     LocalConfig,
     S3StoreConfig,
     SparkConfig,
+    SparkCredentials,
     PostgresConfig,
     Provider,
 )
@@ -127,6 +130,41 @@ def emr_config(aws_credentials):
     }
 
     return config, expected_config
+
+
+@pytest.fixture(scope="module")
+def spark_executor():
+    master = "local"
+    deploy_mode = "cluster"
+    python_version = "3.7.16"
+
+    config = SparkCredentials(master, deploy_mode, python_version)
+
+    expected_config = {
+        "Master": master,
+        "DeployMode": deploy_mode,
+        "PythonVersion": python_version,
+    }
+
+    return config, expected_config
+
+
+@pytest.fixture(scope="module")
+def spark_executor_incorrect_deploy_mode():
+    master = "local"
+    deploy_mode = "featureform"
+    python_version = "3.7.16"
+
+    config = SparkCredentials(master, deploy_mode, python_version)
+
+    expected_config = {
+        "Master": master,
+        "DeployMode": deploy_mode,
+        "PythonVersion": python_version,
+    }
+
+    return config, expected_config
+
 
 @pytest.fixture(scope="module")
 def databricks():

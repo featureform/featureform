@@ -4,14 +4,12 @@ go 1.18
 
 require (
 	cloud.google.com/go/bigquery v1.44.0
-	github.com/Azure/databricks-sdk-golang v0.0.0-20210608055520-4eb3722bd3ea
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/avast/retry-go/v4 v4.0.3
 	github.com/aws/aws-sdk-go v1.44.68
 	github.com/aws/aws-sdk-go-v2/config v1.15.15
-	github.com/databricks/databricks-sdk-go v0.3.3
-	github.com/colinmarc/hdfs v1.1.3
 	github.com/colinmarc/hdfs/v2 v2.3.0
+	github.com/databricks/databricks-sdk-go v0.3.3
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-redis/redis/v8 v8.11.5

@@ -567,8 +567,7 @@ func (s *SparkGenericExecutor) InitializeExecutor(store FileStore) error {
 
 func (s *SparkGenericExecutor) RunSparkJob(args []string, store FileStore) error {
 	bashCommand := "bash"
-	sparkArgs := *args
-	sparkArgsString := strings.Join(sparkArgs, " ")
+	sparkArgsString := strings.Join(args, " ")
 	bashCommandArgs := []string{"-c", fmt.Sprintf("pyenv global %s && pyenv exec %s", s.pythonVersion, sparkArgsString)}
 
 	s.logger.Info("Executing spark-submit")

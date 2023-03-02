@@ -25,6 +25,7 @@ from .resources import Model, ResourceState, Provider, RedisConfig, FirestoreCon
     K8sArgs, AWSCredentials
 
 from .proto import metadata_pb2_grpc as ff_grpc
+from .search_local import search_local
 
 
 NameVariant = Tuple[str, str]
@@ -3561,6 +3562,32 @@ class ResourceClient(Registrar):
         if local:
             return list_local("provider", [ColumnName.NAME, ColumnName.STATUS, ColumnName.DESCRIPTION])
         return list_name_status_desc(self._stub, "provider")
+
+    def search(self, raw_query, local=False):
+        """Search for registered resources. Prints a list of results.
+
+        **Examples:**
+        ``` py title="Input"
+        providers_list = rc.search("transact")
+        ```
+
+        ``` json title="Output"
+        // search prints out formatted information on all matches
+
+        RESOURCE TYPE                  NAME                           VARIANT                        DESCRIPTION                    STATUS
+        source                         transactions                   quickstart                     A dataset of fraudulent t...   ready
+        source                         average_user_transaction       quickstart                                                    ready
+        feature                        avg_transactions               quickstart                                                    ready
+        label                          fraudulent                     quickstart                                                    ready
+        ```
+        """
+        if type(raw_query) != str or len(raw_query) == 0:
+            raise Exception("query must be string and cannot be empty")
+        processed_query = raw_query.translate({ ord(i): None for i in '.,-@!*#'})
+        if local:
+            return search_local(processed_query)
+        else:
+            raise NotImplementedError("Hosted search not yet implemented")
 
 
 global_registrar = Registrar()

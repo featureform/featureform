@@ -4,9 +4,6 @@ from featureform.resources import Model
 import os
 import pytest
 
-real_path = os.path.realpath(__file__)
-dir_path = os.path.dirname(real_path)
-
 @pytest.mark.parametrize(
     "provider_source_fxt,serving_client_fxt,is_local,is_insecure",
     [

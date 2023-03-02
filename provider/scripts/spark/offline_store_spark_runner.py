@@ -1,6 +1,8 @@
 import io
 import os 
+import json
 import types
+import base64
 import argparse
 from typing import List
 from datetime import datetime
@@ -8,7 +10,9 @@ from datetime import datetime
 
 import dill
 import boto3
+from google.cloud import storage
 from pyspark.sql import SparkSession
+from google.oauth2 import service_account
 from azure.storage.blob import BlobServiceClient
 
 
@@ -108,7 +112,8 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
     
     # Parameters:
     #     file_path: string (path to file)
-    #     aws_region: string (aws region where s3 bucket is located)
+    #     store_type: string ("s3" | "azure_blob_store" | "google_cloud_storage")
+    #     credentials: dict 
     # Return:
     #     code: code object that could be executed
     
@@ -150,8 +155,23 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
         transformation_path = download_blobs_to_local(container_client, file_path, "transformation.pkl") 
         with open(transformation_path, "rb") as f:
             code = dill.load(f)
+
     elif store_type == "google_cloud_storage":
-        pass
+        transformation_path = "transformation.pkl"
+        bucket_name = credentials.get("gcp_bucket_name")
+        project_id = credentials.get("gcp_project_id")
+        gcp_credentials = get_credentials_dict(credentials.get("gcp_credentials"))
+
+        credentials = service_account.Credentials.from_service_account_info(credentials_dict)
+        client = storage.Client(project=project_id, credentials=credentials)
+
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(file_path)
+        blob.download_to_filename(transformation_path)
+
+        with open(transformation_path, "rb") as f:
+            code = dill.load(f)
+
     else:
         with open(file_path, "rb") as f:
             code = dill.load(f)
@@ -192,6 +212,21 @@ def set_spark_configs(spark, configs):
 
     for key, value in configs.items():
         spark.conf.set(key, value)
+
+
+def get_credentials_dict(base64_creds):
+    # Takes a base64 creds and converts it into 
+    # Python dictionary.
+    # Input: 
+    #   - base64_creds: string
+    # Output:
+    #   - creds: dict
+
+    base64_bytes = base64_creds.encode("ascii")
+    creds_bytes = base64.b64decode(base64_bytes)
+    creds_string = creds_bytes.decode("ascii")
+    creds = json.loads(creds_string)
+    return creds
 
 
 def split_key_value(values):

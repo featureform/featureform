@@ -169,7 +169,7 @@ func (g *GCS) Init() error {
 		BucketName: g.BucketName,
 		BucketPath: g.BucketPath,
 		Credentials: provider.GCPCredentials{
-			Credentials: credentials,
+			SerializedFile: credentials,
 		},
 	}
 	config := filestoreConfig.Serialize()

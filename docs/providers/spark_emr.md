@@ -13,13 +13,7 @@ Features registered on the Spark Offline Store can be materialized to an Inferen
 * [AWS S3 Bucket](https://docs.aws.amazon.com/s3/?icmpid=docs_homepage_featuredsvcs)
 * [AWS EMR Cluster running Spark >=2.4.8](https://docs.aws.amazon.com/emr/index.html)
 
-### Transformation Sources
 
-Using Spark as an Offline Store, you can [define new transformations](../getting-started/transforming-data.md) via [SQL and DataFrames](https://spark.apache.org/docs/latest/sql-programming-guide.html). Using either these transformations or preexisting tables in S3, a user can chain transformations and register columns in the resulting tables as new features and labels.
-
-### Training Sets and Inference Store Materialization
-
-Any column in a preexisting table or user-created transformation can be registered as a feature or label. These features and labels can be used, as with any other Offline Store, for [creating training sets and inference serving.](../getting-started/defining-features-labels-and-training-sets.md)
 
 ## Configuration <a href="#configuration" id="configuration"></a>
 
@@ -62,35 +56,11 @@ spark = ff.register_spark(
 ```
 {% endcode %}
 
-### Dataframe Transformations
-Using Spark with Featureform, a user can define transformations in SQL like with other offline providers.
+## Dataframe Transformations
+Because Featureform supports the generic implementation of Spark, transformations written in SQL and Dataframe operations for the different Spark providers will be very similar except for the file_path or table name. 
 
-{% code title="spark_quickstart.py" %}
-```python
-transactions = spark.register_parquet_file(
-    name="transactions",
-    variant="kaggle",
-    owner="featureformer",
-    file_path="s3://my-spark-bucket/source_datasets/transaction_short/",
-)
+Examples of Dataframe transformations for both SQL and Dataframe operations can be found in the Spark providers page.
 
-@spark.sql_transformation()
-def max_transaction_amount():
-    """the average transaction amount for a user """
-    return "SELECT CustomerID as user_id, max(TransactionAmount) " \
-        "as max_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
-```
-{% endcode %}
-
-In addition, registering a provider via Spark allows you to perform DataFrame transformations using your source tables as inputs.
-
-{% code title="spark_quickstart.py" %}
-```python
-@spark.df_transformation(
-    inputs=[("transactions", "kaggle")], variant="default")
-def average_user_transaction(df):
-    from pyspark.sql.functions import avg
-    df.groupBy("CustomerID").agg(avg("TransactionAmount").alias("average_user_transaction"))
-    return df
-```
-{% endcode %}
+{% content-ref url="../providers/spark.md" %}
+[spark.md](../providers/spark.md)
+{% endcontent-ref %}

@@ -28,12 +28,6 @@ type Search struct {
 	client *ms.Client
 }
 
-type ConnectionRefusedError struct{}
-
-func (e ConnectionRefusedError) Error() string {
-	return "could not connect"
-}
-
 func NewMeilisearch(params *MeilisearchParams) (Searcher, error) {
 	address := fmt.Sprintf("http://%s:%s", params.Host, params.Port)
 	client := ms.NewClient(ms.ClientConfig{

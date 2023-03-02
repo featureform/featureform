@@ -20,11 +20,6 @@ const (
 	GCS        FileStoreType = "GCS"
 )
 
-type ProviderConfig interface {
-	Serialize() []byte
-	Deserialize(config SerializedConfig) error
-}
-
 type SerializedConfig []byte
 
 func differingFields(a, b interface{}) (ss.StringSet, error) {

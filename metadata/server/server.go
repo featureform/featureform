@@ -35,7 +35,7 @@ func main() {
 	}
 	if enableSearch == "true" {
 		logger.Infow("Connecting to search", "host", os.Getenv("MEILISEARCH_HOST"), "port", os.Getenv("MEILISEARCH_PORT"))
-		config.TypeSenseParams = &search.MeilisearchParams{
+		config.SearchParams = &search.MeilisearchParams{
 			Port:   help.GetEnv("MEILISEARCH_PORT", "7700"),
 			Host:   help.GetEnv("MEILISEARCH_HOST", "localhost"),
 			ApiKey: help.GetEnv("MEILISEARCH_APIKEY", "xyz"),

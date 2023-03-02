@@ -9,18 +9,17 @@ import (
 
 func TestK8sConfigMutableFields(t *testing.T) {
 	expected := ss.StringSet{
-		"ExecutorType":   true,
-		"ExecutorConfig": true,
-		"StoreType":      true,
-		"StoreConfig":    true,
+		"ExecutorConfig":    true,
+		"Store.AccountName": true,
+		"Store.AccountKey":  true,
 	}
 
 	config := K8sConfig{
-		ExecutorType: "K8S",
+		ExecutorType: K8s,
 		ExecutorConfig: ExecutorConfig{
 			DockerImage: "container",
 		},
-		StoreType: "blob",
+		StoreType: Azure,
 		StoreConfig: AzureFileStoreConfig{
 			AccountName:   "account name",
 			AccountKey:    "account key",
@@ -102,8 +101,9 @@ func TestK8sConfigDifferingFields(t *testing.T) {
 				},
 			},
 		}, ss.StringSet{
-			"ExecutorConfig": true,
-			"StoreConfig":    true,
+			"ExecutorConfig":    true,
+			"Store.AccountName": true,
+			"Store.AccountKey":  true,
 		}},
 	}
 

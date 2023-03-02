@@ -36,16 +36,43 @@ func (k8s *K8sConfig) Deserialize(config SerializedConfig) error {
 }
 
 func (k8s K8sConfig) MutableFields() ss.StringSet {
-	return ss.StringSet{
-		"ExecutorType":   true,
+	result := ss.StringSet{
 		"ExecutorConfig": true,
-		"StoreType":      true,
-		"StoreConfig":    true,
 	}
+	storeFields := k8s.StoreConfig.MutableFields()
+
+	for field, val := range storeFields {
+		result["Store."+field] = val
+	}
+
+	return result
 }
 
 func (a K8sConfig) DifferingFields(b K8sConfig) (ss.StringSet, error) {
-	return differingFields(a, b)
+	result := ss.StringSet{}
+
+	if a.StoreType != b.StoreType {
+		return result, fmt.Errorf("store config mismatch: a = %v; b = %v", a.StoreType, b.StoreType)
+	}
+
+	executorFields, err := differingFields(a.ExecutorConfig, b.ExecutorConfig)
+	if err != nil {
+		return result, err
+	}
+	storeFields, err := a.StoreConfig.DifferingFields(b.StoreConfig)
+	if err != nil {
+		return result, err
+	}
+
+	if len(executorFields) > 0 {
+		result["ExecutorConfig"] = true
+	}
+
+	for field, val := range storeFields {
+		result["Store."+field] = val
+	}
+
+	return result, err
 }
 
 const (

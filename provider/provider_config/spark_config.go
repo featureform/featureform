@@ -2,7 +2,6 @@ package provider_config
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	ss "github.com/featureform/helpers/string_set"
@@ -139,7 +138,7 @@ func (a SparkConfig) DifferingFields(b SparkConfig) (ss.StringSet, error) {
 	case Databricks:
 		executorFields, err = a.ExecutorConfig.(*DatabricksConfig).DifferingFields(*b.ExecutorConfig.(*DatabricksConfig))
 	default:
-		return nil, errors.New("")
+		return nil, fmt.Errorf("unknown executor type: %v", a.ExecutorType)
 	}
 
 	if err != nil {
@@ -153,6 +152,8 @@ func (a SparkConfig) DifferingFields(b SparkConfig) (ss.StringSet, error) {
 		storeFields, err = a.StoreConfig.(*S3FileStoreConfig).DifferingFields(*b.StoreConfig.(*S3FileStoreConfig))
 	case GCS:
 		storeFields, err = a.StoreConfig.(*GCSFileStoreConfig).DifferingFields(*b.StoreConfig.(*GCSFileStoreConfig))
+	default:
+		return nil, fmt.Errorf("unknown store type: %v", a.StoreType)
 	}
 
 	if err != nil {

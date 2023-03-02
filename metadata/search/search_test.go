@@ -5,22 +5,16 @@
 package search
 
 import (
-	"os"
+	help "github.com/featureform/helpers"
 	"testing"
 )
 
 func getPort() string {
-	if value, ok := os.LookupEnv("MEILISEARCH_PORT"); ok {
-		return value
-	}
-	return "7700"
+	return help.GetEnv("MEILISEARCH_PORT", "7700")
 }
 
 func getApikey() string {
-	if value, ok := os.LookupEnv("MEILISEARCH_API_KEY"); ok {
-		return value
-	}
-	return ""
+	return help.GetEnv("MEILISEARCH_API_KEY", "")
 }
 
 func TestFullSearch(t *testing.T) {

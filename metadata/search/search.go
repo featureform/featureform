@@ -37,7 +37,8 @@ func (e ConnectionRefusedError) Error() string {
 func NewMeilisearch(params *MeilisearchParams) (Searcher, error) {
 	address := fmt.Sprintf("http://%s:%s", params.Host, params.Port)
 	client := ms.NewClient(ms.ClientConfig{
-		Host: address,
+		Host:   address,
+		APIKey: params.ApiKey,
 	})
 
 	search := Search{

@@ -17,10 +17,10 @@ func getPort() string {
 }
 
 func getApikey() string {
-	if value, ok := os.LookupEnv("TYPESENSE_API_KEY"); ok {
+	if value, ok := os.LookupEnv("MEILISEARCH_API_KEY"); ok {
 		return value
 	}
-	return "xyz"
+	return ""
 }
 
 func TestFullSearch(t *testing.T) {

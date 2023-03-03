@@ -28,6 +28,7 @@
     "immer": "^9.0.15",
     "jest-canvas-mock": "^2.2.0",
     "material-table": "^1.69.3",
+    "meilisearch": "^0.31.1",
     "moment": "^2.29.2",
     "momentjs": "^2.0.0",
     "next": "^12.2.4-canary.8",

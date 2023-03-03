@@ -5,34 +5,28 @@
 package search
 
 import (
-	"os"
+	help "github.com/featureform/helpers"
 	"testing"
 )
 
 func getPort() string {
-	if value, ok := os.LookupEnv("TYPESENSE_PORT"); ok {
-		return value
-	}
-	return "8108"
+	return help.GetEnv("MEILISEARCH_PORT", "7700")
 }
 
 func getApikey() string {
-	if value, ok := os.LookupEnv("TYPESENSE_API_KEY"); ok {
-		return value
-	}
-	return "xyz"
+	return help.GetEnv("MEILISEARCH_API_KEY", "")
 }
 
 func TestFullSearch(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	params := TypeSenseParams{
+	params := MeilisearchParams{
 		Host:   "localhost",
 		Port:   getPort(),
 		ApiKey: getApikey(),
 	}
-	searcher, err := NewTypesenseSearch(&params)
+	searcher, err := NewMeilisearch(&params)
 	if err != nil {
 		t.Fatalf("Failed to Initialize Search %s", err)
 	}
@@ -56,12 +50,12 @@ func TestCharacters(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	params := TypeSenseParams{
+	params := MeilisearchParams{
 		Host:   "localhost",
 		Port:   getPort(),
 		ApiKey: getApikey(),
 	}
-	searcher, errSearcher := NewTypesenseSearch(&params)
+	searcher, errSearcher := NewMeilisearch(&params)
 	if errSearcher != nil {
 		t.Fatalf("Failed to initialize %s", errSearcher)
 	}
@@ -136,14 +130,17 @@ func TestOrder(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	params := TypeSenseParams{
+	params := MeilisearchParams{
 		Host:   "localhost",
 		Port:   getPort(),
 		ApiKey: getApikey(),
 	}
-	searcher, err := NewTypesenseSearch(&params)
+	searcher, err := NewMeilisearch(&params)
 	if err != nil {
 		t.Fatalf("Failed to initialize %s", err)
+	}
+	if err := searcher.DeleteAll(); err != nil {
+		t.Fatalf("Failed to Delete %s", err)
 	}
 	resources := []ResourceDoc{
 		{
@@ -178,9 +175,10 @@ func TestOrder(t *testing.T) {
 		t.Fatalf("Failed to start search %s", errRunsearch)
 	}
 	names := []string{
-		"Hero",
 		"hero",
+		"Hero",
 		"heroic",
+		"her o",
 	}
 	for i, hit := range results {
 		if hit.Name != names[i] {

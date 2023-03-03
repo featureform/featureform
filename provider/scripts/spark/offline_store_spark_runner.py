@@ -93,7 +93,7 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         func_parameters.append(spark.read.option("recursiveFileLookup", "true").parquet(location))
     
     try:
-        code = get_code_from_file(code,spark, store_type, credentials)
+        code = get_code_from_file(code, store_type, credentials)
         func = types.FunctionType(code, globals(), "df_transformation")
         output_df = func(*func_parameters)
 
@@ -107,7 +107,7 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         raise e
 
 
-def get_code_from_file(file_path, spark, store_type=None, credentials=None):
+def get_code_from_file(file_path, store_type=None, credentials=None):
     # Reads the code from a pkl file into a python code object.
     # Then this object will be used to execute the transformation. 
     

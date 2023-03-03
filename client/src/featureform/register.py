@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-
+from os.path import exists 
 from datetime import timedelta
 from multiprocessing.sharedctypes import Value
 from typeguard import typechecked, check_type
@@ -19,10 +19,10 @@ from .sqlite_metadata import SQLiteMetadata
 from .tls import insecure_channel, secure_channel
 from .resources import Model, ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
     MongoDBConfig, PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkConfig, \
-    AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, S3StoreConfig, User, Location, Source, PrimaryData, SQLTable, \
+    AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, S3StoreConfig, GCSFileStoreConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation, \
-    K8sArgs, AWSCredentials
+    K8sArgs, AWSCredentials, GCPCredentials
 
 from .proto import metadata_pb2_grpc as ff_grpc
 
@@ -118,12 +118,12 @@ class OfflineSparkProvider(OfflineProvider):
         self.__registrar = registrar
         self.__provider = provider
 
-    def register_parquet_file(self,
-                              name: str,
-                              file_path: str,
-                              variant: str = "default",
-                              owner: Union[str, UserRegistrar] = "",
-                              description: str = ""):
+    def register_file(self,
+                        name: str,
+                        file_path: str,
+                        variant: str = "default",
+                        owner: Union[str, UserRegistrar] = "",
+                        description: str = ""):
         """Register a Spark data source as a primary data source.
 
         Args:
@@ -142,6 +142,14 @@ class OfflineSparkProvider(OfflineProvider):
                                                       owner=owner,
                                                       provider=self.name(),
                                                       description=description)
+    
+    def register_parquet_file(self,
+                              name: str,
+                              file_path: str,
+                              variant: str = "default",
+                              owner: Union[str, UserRegistrar] = "",
+                              description: str = "", ):
+        return self.register_file(name, file_path, variant, owner, description)
 
     def sql_transformation(self,
                            variant: str,
@@ -965,7 +973,7 @@ class Registrar:
 
         **Examples**:
         ``` py
-        transactions = get_source("transactions","kaggle")
+        transactions = ff.get_source("transactions","kaggle")
         transactions.register_resources(
             entity=user,
             entity_column="customerid",
@@ -1014,7 +1022,7 @@ class Registrar:
 
         **Examples**:
         ``` py
-        redis = get_redis("redis-quickstart")
+        redis = ff.get_redis("redis-quickstart")
         // Defining a new transformation source with retrieved Redis provider
         average_user_transaction.register_resources(
             entity=user,
@@ -1042,7 +1050,7 @@ class Registrar:
 
         **Examples**:
         ``` py
-        mongodb = get_mongodb("mongodb-quickstart")
+        mongodb = ff.get_mongodb("mongodb-quickstart")
         // Defining a new transformation source with retrieved MongoDB provider
         average_user_transaction.register_resources(
             entity=user,
@@ -1070,7 +1078,7 @@ class Registrar:
 
         **Examples**:
         ``` py
-        azure_blob = get_blob_store("azure-blob-quickstart")
+        azure_blob = ff.get_blob_store("azure-blob-quickstart")
         // Defining a new transformation source with retrieved Azure blob provider
         average_user_transaction.register_resources(
             entity=user,
@@ -1099,7 +1107,7 @@ class Registrar:
 
         **Examples**:
         ``` py
-        postgres = get_postgres("postgres-quickstart")
+        postgres = ff.get_postgres("postgres-quickstart")
         transactions = postgres.register_table(
             name="transactions",
             variant="kaggle",
@@ -1124,7 +1132,7 @@ class Registrar:
 
         **Examples**:
         ``` py
-        snowflake = get_snowflake("snowflake-quickstart")
+        snowflake = ff.get_snowflake("snowflake-quickstart")
         transactions = snowflake.register_table(
             name="transactions",
             variant="kaggle",
@@ -1149,7 +1157,7 @@ class Registrar:
 
         **Examples**:
         ``` py
-        redshift = get_redshift("redshift-quickstart")
+        redshift = ff.get_redshift("redshift-quickstart")
         transactions = redshift.register_table(
             name="transactions",
             variant="kaggle",
@@ -1174,12 +1182,12 @@ class Registrar:
 
         **Examples**:
         ``` py
-        bigquery = get_bigquery("bigquery-quickstart")
+        bigquery = ff.get_bigquery("bigquery-quickstart")
         transactions = bigquery.register_table(
             name="transactions",
             variant="kaggle",
             description="Fraud Dataset From Kaggle",
-            table="Transactions",  # This is the table's name in Postgres
+            table="Transactions",  # This is the table's name in BigQuery
         )
         ```
         Args:
@@ -1198,12 +1206,12 @@ class Registrar:
         """Get a Spark provider. The returned object can be used to register additional resources.
         **Examples**:
         ``` py
-        spark = get_spark("spark-quickstart")
-        transactions = spark.register_table(
+        spark = ff.get_spark("spark-quickstart")
+        transactions = spark.register_file(
             name="transactions",
             variant="kaggle",
             description="Fraud Dataset From Kaggle",
-            table="Transactions",  # This is the table's name in Postgres
+            file_path="s3://bucket/path/to/file/transactions.parquet",  # This is the path to file
         )
         ```
         Args:
@@ -1223,7 +1231,7 @@ class Registrar:
         **Examples**:
         ``` py
 
-        k8s_azure = get_kubernetes("k8s-azure-quickstart")
+        k8s_azure = ff.get_kubernetes("k8s-azure-quickstart")
         transactions = k8s_azure.register_file(
             name="transactions",
             variant="kaggle",
@@ -1244,13 +1252,53 @@ class Registrar:
         return OfflineK8sProvider(self, fakeProvider)
 
     def get_s3(self, name):
+        """
+        Get a S3 provider. The returned object can be used with other providers such as Spark and Databricks.
+        **Examples**:
+        ``` py
+
+        s3 = ff.get_s3("s3-quickstart")
+        spark = ff.register_spark(
+            name=f"spark-emr-s3",
+            description="A Spark deployment we created for the Featureform quickstart",
+            team="featureform-team",
+            executor=emr,
+            filestore=s3,
+        )
+        ```
+        Args:
+            name (str): Name of S3 to be retrieved
+        Returns:
+            s3 (FileStore): Provider
+        """
         get = ProviderReference(name=name, provider_type="S3", obj=None)
         self.__resources.append(get)
 
         fake_creds = AWSCredentials("id", "secret")
         fakeConfig = S3StoreConfig(bucket_path="", bucket_region="", credentials=fake_creds)
+        provider = Provider(name=name,
+                            function="OFFLINE",
+                            description=description,
+                            team=team,
+                            config=s3_config)
+        return FileStoreProvider(provider, s3_config, s3_config.type())
+    
+    def get_gcs(self, name):
+        get = ProviderReference(name=name, provider_type="GCS", obj=None)
+        self.__resources.append(get)
+
+        filename = "fake_secrets.json"
+        if not exists(filename):
+            self._create_mock_creds_file(filename, {"test": "creds"})
+
+        fake_creds = GCPCredentials("id", filename)
+        fakeConfig = GCSStoreConfig(bucket_name="", bucket_path="", credentials=fake_creds)
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineK8sProvider(self, fakeProvider)
+    
+    def _create_mock_creds_file(self, filename, json_data):
+        with open(filename, "w") as f:
+            json.dumps(json_data, f)
 
     def get_entity(self, name, local=False):
         """Get an entity. The returned object can be used to register additional resources.
@@ -1347,8 +1395,8 @@ class Registrar:
             name (str): Name of Azure blob store to be registered
             container_name (str): Azure container name
             root_path (str): custom path in container to store data
-            description (str): Description of Redis provider to be registered
-            team (str): team with permission to this storage layer
+            description (str): Description of Azure Blob provider to be registered
+            team (str): the name of the team registering the filestore
             account_name (str): Azure account name
             account_key (str): Secret azure account key
             config (AzureConfig): an azure config object (can be used in place of container name and account name)
@@ -1396,8 +1444,8 @@ class Registrar:
             credentials (AWSCredentials): AWS credentials to access the bucket
             bucket_path (str): custom path including the bucket name
             bucket_region (str): aws region the bucket is located in
-            description (str): Description of Redis provider to be registered
-            team (str): team with permission to this storage layer
+            description (str): Description of S3 provider to be registered
+            team (str): the name of the team registering the filestore
         Returns:
             s3 (FileStoreProvider): Provider
                 has all the functionality of OfflineProvider
@@ -1412,6 +1460,51 @@ class Registrar:
                             config=s3_config)
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, s3_config, s3_config.type())
+
+    def register_gcs(self,
+                    name: str,
+                    credentials: GCPCredentials,
+                    bucket_name: str,
+                    bucket_path: str = "",
+                    description: str = "",
+                    team: str = "", ):
+        """Register a GCS store provider.
+
+        This has the functionality of an offline store and can be used as a parameter
+        to a k8s or spark provider
+
+        **Examples**:
+        ```
+        gcs = ff.register_gcs(
+            name="gcs-quickstart",
+            credentials=gcp_creds,
+            bucket_name="bucket_name",
+            bucket_path="featureform/path/",
+            description="An gcs store provider to store offline"
+        )
+        ```
+        Args:
+            name (str): Name of GCS store to be registered
+            credentials (GCPCredentials): GCP credentials to access the bucket
+            bucket_name (str): The bucket name
+            bucket_path (str): Custom path to be used by featureform
+            description (str): Description of GCS provider to be registered
+            team (str): The name of the team registering the filestore
+        Returns:
+            gcs (FileStoreProvider): Provider
+                has all the functionality of OfflineProvider
+        """
+
+        gcs_config = GCSFileStoreConfig(bucket_name=bucket_name, bucket_path=bucket_path, credentials=credentials)
+
+        provider = Provider(name=name,
+                            function="OFFLINE",
+                            description=description,
+                            team=team,
+                            config=gcs_config)
+        self.__resources.append(provider)
+        return FileStoreProvider(self, provider, gcs_config, gcs_config.type())
+
 
     def register_firestore(self,
                            name: str,
@@ -1435,7 +1528,7 @@ class Registrar:
         Args:
             name (str): Name of Firestore provider to be registered
             description (str): Description of Firestore provider to be registered
-            team (str): Name of team
+            team (str): The name of the team registering the filestore
             project_id (str): The Project name in GCP
             collection (str): The Collection name in Firestore under the given project ID
             credentials_path (str): A path to a Google Credentials file with access permissions for Firestore
@@ -3601,4 +3694,5 @@ get_spark = global_registrar.get_spark
 get_kubernetes = global_registrar.get_kubernetes
 get_blob_store = global_registrar.get_blob_store
 get_s3 = global_registrar.get_s3
+get_gcs = global_registrar.get_gcs
 ResourceStatus = ResourceStatus

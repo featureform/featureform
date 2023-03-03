@@ -58,7 +58,7 @@ Using your Spark with Azure and Databricks as a provider, a user can define tran
 
 {% code title="databricks_definition.py" %}
 ```python
-transactions = spark.register_parquet_file(
+transactions = spark.register_file(
     name="transactions",
     variant="kaggle",
     owner="featureformer",

@@ -48,7 +48,7 @@ Using your Kubernetes as a provider, a user can define transformations in SQL li
 
 {% code title="k8s_quickstart.py" %}
 ```python
-transactions = k8s_store.register_parquet_file(
+transactions = k8s_store.register_file(
     name="transactions",
     variant="kaggle",
     owner="featureformer",

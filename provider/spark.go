@@ -53,6 +53,11 @@ type AWSCredentials struct {
 	AWSSecretKey   string
 }
 
+type GCPCredentials struct {
+	ProjectId      string
+	SerializedFile []byte
+}
+
 type SparkExecutorConfig interface {
 	Serialize() ([]byte, error)
 	Deserialize(config SerializedConfig) error

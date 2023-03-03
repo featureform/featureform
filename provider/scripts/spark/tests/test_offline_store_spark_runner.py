@@ -5,7 +5,16 @@ sys.path.insert(0, 'provider/scripts/spark')
 
 import pytest
 
-from offline_store_spark_runner import main, parse_args, execute_sql_query, execute_df_job, set_spark_configs, download_blobs_to_local, split_key_value
+from offline_store_spark_runner import (
+    main, 
+    parse_args, 
+    execute_sql_query, 
+    execute_df_job, 
+    set_spark_configs, 
+    download_blobs_to_local, 
+    split_key_value,
+    get_credentials_dict,
+)
 
 
 real_path = os.path.realpath(__file__)
@@ -95,6 +104,15 @@ def test_download_blobs_to_local(container_client):
     output_file = download_blobs_to_local(container_client, blob, local_filename)
 
     assert os.path.exists(output_file)
+
+
+def test_get_credentials_dict():
+    input_base64_creds = "eyJ0ZXN0aW5nIjogImZpbGUifQ=="
+    expected_output = {"testing": "file"}
+
+    creds = get_credentials_dict(input_base64_creds)
+
+    assert creds == expected_output
 
 
 def test_split_key_value():

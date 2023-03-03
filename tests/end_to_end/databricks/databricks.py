@@ -67,49 +67,49 @@ mongo = ff.register_mongodb(
     throughput=10000
 )
 
-payments = spark.register_parquet_file(
+payments = spark.register_file(
     name="payments",
     variant="default",
     description="This dataset includes data about the orders payment options.",
     file_path="abfss://databricksdemo@testingstoragegen.dfs.core.windows.net/ecommerce_order_payments_dataset.parquet",
 )
 
-orders = spark.register_parquet_file(
+orders = spark.register_file(
     name="orders",
     variant="default",
     description="This is the core dataset. From each order you might find all other information.",
     file_path="abfss://databricksdemo@testingstoragegen.dfs.core.windows.net/ecommerce_orders_dataset.parquet",
 )
 
-customers = spark.register_parquet_file(
+customers = spark.register_file(
     name="customers",
     variant="default",
     description="This dataset has information about the customer and its location. Use it to identify unique customers in the orders dataset and to find the orders delivery location.",
     file_path="abfss://databricksdemo@testingstoragegen.dfs.core.windows.net/ecommerce_customers_dataset.parquet",
 )
 
-reviews = spark.register_parquet_file(
+reviews = spark.register_file(
     name="reviews",
     variant="default",
     description="This dataset includes data about the reviews made by the customers.",
     file_path="abfss://databricksdemo@testingstoragegen.dfs.core.windows.net/ecommerce_order_reviews_dataset.parquet",
 )
 
-order_items = spark.register_parquet_file(
+order_items = spark.register_file(
     name="order_items",
     variant="default",
     description="This dataset includes data about the items purchased within each order.",
     file_path="abfss://databricksdemo@testingstoragegen.dfs.core.windows.net/ecommerce_order_items_dataset.parquet",
 )
 
-product_category_translation = spark.register_parquet_file(
+product_category_translation = spark.register_file(
     name="product_category_translation",
     variant="default",
     description="Translates the productcategoryname to english.",
     file_path="abfss://databricksdemo@testingstoragegen.dfs.core.windows.net/ecommerce_product_category_name_translation.parquet",
 )
 
-products = spark.register_parquet_file(
+products = spark.register_file(
     name="products",
     variant="default",
     description="This dataset includes data about the products sold by Olist.",

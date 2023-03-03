@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
 	"github.com/featureform/provider"
 	"gocloud.dev/gcp"
 )
@@ -165,9 +166,11 @@ func (g *GCS) Init() error {
 	}
 
 	filestoreConfig := provider.GCSFileStoreConfig{
-		BucketName:  g.BucketName,
-		BucketPath:  g.BucketPath,
-		Credentials: credentials,
+		BucketName: g.BucketName,
+		BucketPath: g.BucketPath,
+		Credentials: provider.GCPCredentials{
+			SerializedFile: credentials,
+		},
 	}
 	config := filestoreConfig.Serialize()
 

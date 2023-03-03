@@ -1,6 +1,6 @@
 from .register import *
 from .serving import ServingClient
-from .resources import DatabricksCredentials, EMRCredentials, AWSCredentials, SparkCredentials
+from .resources import DatabricksCredentials, EMRCredentials, AWSCredentials, GCPCredentials, SparkCredentials
 
 ServingClient = ServingClient
 ResourceClient = ResourceClient
@@ -13,6 +13,7 @@ SparkCredentials = SparkCredentials
 
 # Cloud Provider Credentials
 AWSCredentials = AWSCredentials
+GCPCredentials = GCPCredentials
 
 local = register_local()
 register_user("default_user").make_default_owner()

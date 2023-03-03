@@ -107,16 +107,8 @@ featureform apply providers.py
 [bigquery.md](../providers/bigquery.md)
 {% endcontent-ref %}
 
-{% content-ref url="../providers/spark_databricks.md" %}
-[spark_databricks.md](../providers/spark_databricks.md)
-{% endcontent-ref %}
-
 {% content-ref url="../providers/spark.md" %}
 [spark.md](../providers/spark.md)
-{% endcontent-ref %}
-
-{% content-ref url="../providers/spark_emr.md" %}
-[spark_emr.md](../providers/spark_emr.md)
 {% endcontent-ref %}
 
 {% content-ref url="../providers/kubernetes.md" %}

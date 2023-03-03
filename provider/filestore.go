@@ -548,7 +548,9 @@ func (fs *HDFSFileStore) DeleteAll(dir string) error {
 		return err
 	}
 	for _, file := range files {
-		return fs.deleteFile(file, dir)
+		if err := fs.deleteFile(file, dir); err != nil {
+			return fmt.Errorf("could not delete: %v", err)
+		}
 	}
 	return fs.Client.Remove(fs.addPrefix(dir))
 }

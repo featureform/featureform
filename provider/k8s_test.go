@@ -585,7 +585,7 @@ func testDeleteAll(t *testing.T, store FileStore) {
 			t.Fatalf("Could not check that key exists in filestore: %v", err)
 		}
 		if exists {
-			t.Fatalf("Key deleted from filestore does exist")
+			t.Errorf("Key %s still exists", randomPath)
 		}
 	}
 

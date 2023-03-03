@@ -326,7 +326,11 @@ jobs:
           ./get_helm.sh
 
       - name: Build and Run HDFS
+        env:
+          HDFSCLI_CONFIG: "./tests/end_to_end/hdfs/hdfscli.cfg"
         run: |
+          pip install hdfs
+          hdfscli upload --alias=dev ./tests/end_to_end/hdfs/ice_cream.parquet /ice_cream.parquet
           git clone https://github.com/rancavil/hadoop-single-node-cluster.git
           cd hadoop-single-node-cluster
           docker build -t hadoop .

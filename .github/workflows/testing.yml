@@ -896,6 +896,8 @@ jobs:
 
       - name: Build and Run HDFS
         run: |
+          pip install hdfs
+          hdfscli upload --alias=dev ~/Downloads/ice_cream_large.csv /
           git clone https://github.com/rancavil/hadoop-single-node-cluster.git
           cd hadoop-single-node-cluster
           docker build -t hadoop .

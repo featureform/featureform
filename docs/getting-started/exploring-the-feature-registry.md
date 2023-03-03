@@ -17,7 +17,7 @@ The homepage contains links to:
   * e.g.  The **is\_fraud label** is true if the transaction is fraudulent, and false if the transaction is not fraudulent.
 * [**Training Sets**](overview.md#training-set): Sets of features matched with the respective labels. To be [served for training](serving-for-inference-and-training.md#serving-for-training).&#x20;
   * e.g. The _**is\_fraud training set**_ contains a set of features __ (amt\_spent, avg\_transaction\_amt, number\_of\_fraud, etc.) and labels.
-* [**Models**](overview.md#model) : Programs that can make predictions on a previously unseen dataset, after being trained with training sets.&#x20;
+* [**Models**](overview.md#model): Programs that can make predictions on a previously unseen dataset, after being trained with training sets.&#x20;
   * e.g. The **user\_fraud\_random\_forest model** is a classifier, predicting whether a user committed fraud.
 * [**Providers**](overview.md#provider): Data infrastructure used for storage or computation.
 * **Users:** Individual data scientists who create, share, or reuse features and models.

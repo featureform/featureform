@@ -119,11 +119,11 @@ class OfflineSparkProvider(OfflineProvider):
         self.__provider = provider
 
     def register_file(self,
-                              name: str,
-                              file_path: str,
-                              variant: str = "default",
-                              owner: Union[str, UserRegistrar] = "",
-                              description: str = ""):
+                        name: str,
+                        file_path: str,
+                        variant: str = "default",
+                        owner: Union[str, UserRegistrar] = "",
+                        description: str = ""):
         """Register a Spark data source as a primary data source.
 
         Args:
@@ -142,6 +142,14 @@ class OfflineSparkProvider(OfflineProvider):
                                                       owner=owner,
                                                       provider=self.name(),
                                                       description=description)
+    
+    def register_parquet_file(self,
+                              name: str,
+                              file_path: str,
+                              variant: str = "default",
+                              owner: Union[str, UserRegistrar] = "",
+                              description: str = "", ):
+        return self.register_file(name, file_path, variant, owner, description)
 
     def sql_transformation(self,
                            variant: str,

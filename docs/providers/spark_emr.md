@@ -39,19 +39,19 @@ emr = EMRCredentials(
     emr_cluster_region="<emr_cluster_id>"
 )
 
-azure_blob = ff.register_blob_store(
-    name="azure-quickstart",
-    description="An azure blob store provider to store offline and inference data" # Optional
-    container_name="my_company_container"
-    root_path="custom/path/in/container"
-    account_name="<azure_account_name>"
-    account_key="<azure_account_key>" 
+s3 = ff.register_s3(
+    name="s3",
+    credentials="<aws_creds>",
+    bucket_path="<s3_bucket_path>",
+    bucket_region="<s3_bucket_region>"
 )
 
 spark = ff.register_spark(
-    name="spark_provider",
+    name="<spark-emr-s3>",
+    description="A Spark deployment we created for the Featureform quickstart",
+    team="<team_name>",
     executor=emr,
-    filestore=azure_blob
+    filestore=s3,
 )
 ```
 {% endcode %}

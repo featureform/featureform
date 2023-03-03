@@ -10,6 +10,7 @@ import (
 	awsv2cfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
+	hdfs "github.com/colinmarc/hdfs/v2"
 	pc "github.com/featureform/provider/provider_config"
 
 	"gocloud.dev/blob"
@@ -40,8 +41,6 @@ const (
 	DB      FileType = "db"
 )
 
-const HDFSPrefix = "hdfs://"
-
 func (ft FileType) Matches(file string) bool {
 	ext := filepath.Ext(file)
 	ext = strings.ReplaceAll(ext, ".", "")
@@ -52,6 +51,7 @@ const (
 	gsPrefix        = "gs://"
 	s3Prefix        = "s3://"
 	azureBlobPrefix = "abfss://"
+	HDFSPrefix      = "hdfs://"
 )
 
 type LocalFileStore struct {
@@ -233,15 +233,15 @@ func NewS3FileStore(config Config) (FileStore, error) {
 }
 
 func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
-	s3PrefixLength := len("s3://")
-	noS3Prefix := path[:s3PrefixLength] != "s3://"
+	s3PrefixLength := len(s3Prefix)
+	noS3Prefix := path[:s3PrefixLength] != s3Prefix
 
 	if remote && noS3Prefix {
 		s3Path := ""
 		if s3.Path != "" {
 			s3Path = fmt.Sprintf("/%s", s3.Path)
 		}
-		return fmt.Sprintf("s3://%s%s/%s", s3.Bucket, s3Path, path)
+		return fmt.Sprintf("%s%s%s/%s", s3Prefix, s3.Bucket, s3Path, path)
 	} else {
 		return path
 	}

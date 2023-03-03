@@ -411,9 +411,7 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 	}
 
 	var packageArgs []string
-	azureStore := store.(*AzureFileStore)
-
-	if azureStore != nil {
+	if azureStore, ok := store.(*AzureFileStore); ok {
 		packageArgs = []string{
 			"--packages",
 			"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
@@ -458,9 +456,8 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 	}
 
 	var packageArgs []string
-	azureStore := store.(*AzureFileStore)
+	if azureStore, ok := store.(*AzureFileStore); ok {
 
-	if azureStore != nil {
 		packageArgs = []string{
 			"--packages",
 			"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
@@ -608,8 +605,7 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string,
 		store.FilestoreType(),
 	}
 	var remoteConnectionArgs []string
-	azureStore := store.(*AzureFileStore)
-	if azureStore != nil {
+	if azureStore, ok := store.(*AzureFileStore); ok {
 		remoteConnectionArgs = []string{
 			"--spark_config",
 			azureStore.configString(),
@@ -865,9 +861,8 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 		code,
 	}
 	var remoteConnectionArgs []string
-	azureStore := store.(*AzureFileStore)
+	if azureStore, ok := store.(*AzureFileStore); ok {
 
-	if azureStore != nil {
 		remoteConnectionArgs = []string{
 			"--store_type",
 			"azure_blob_store",

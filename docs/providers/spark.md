@@ -45,7 +45,7 @@ Using Spark with Featureform, a user can define transformations in SQL like with
 
 {% code title="spark_quickstart.py" %}
 ```python
-transactions = spark.register_parquet_file(
+transactions = spark.register_file(
    name="transactions",
    variant="kaggle",
    owner="featureformer",

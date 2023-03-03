@@ -165,6 +165,7 @@ func init() {
 		FileSystem: NewLocalFileStore,
 		Azure:      NewAzureFileStore,
 		S3:         NewS3FileStore,
+		GCS:        NewGCSFileStore,
 	}
 	executorFactoryMap := map[ExecutorType]ExecutorFactory{
 		GoProc: NewLocalExecutor,
@@ -483,7 +484,6 @@ func (store genericFileStore) PathWithPrefix(path string, remote bool) string {
 		return path
 	}
 }
-
 
 func (store genericFileStore) NewestFileOfType(prefix string, fileType FileType) (string, error) {
 	opts := blob.ListOptions{

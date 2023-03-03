@@ -59,7 +59,8 @@ spark = ff.register_spark(
 ## Dataframe Transformations
 Because Featureform supports the generic implementation of Spark, transformations written in SQL and Dataframe operations for the different Spark providers will be very similar except for the file_path or table name. 
 
-Examples of [Dataframe transformations]() for both SQL and Dataframe operations can be found in the main Spark providers page.
+
+Examples of Dataframe transformations for both SQL and Dataframe operations can be found in the main Spark providers page.
 
 {% content-ref url="../providers/spark.md" %}
 [spark.md](../providers/spark.md)

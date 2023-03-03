@@ -44,7 +44,7 @@ def step_impl(context):
 @when("a Spark parquet file is registered")
 def step_impl(context):
     file_name = f"transaction_short_1"
-    context.file = context.spark.register_parquet_file(
+    context.file = context.spark.register_file(
         name=file_name,
         variant="e2e_testing",
         owner="featureformer",

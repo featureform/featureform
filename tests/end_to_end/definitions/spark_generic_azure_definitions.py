@@ -66,7 +66,7 @@ spark = ff.register_spark(
             filestore=azure_blob,
         )
 
-ice_cream_dataset = spark.register_parquet_file(
+ice_cream_dataset = spark.register_file(
     name=f"ice_cream_{VERSION}",
     variant=VERSION,
     description="A dataset of ice cream",

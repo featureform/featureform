@@ -136,6 +136,63 @@ class AWSCredentials:
 
 @typechecked
 @dataclass
+class GCPCredentials:
+    def __init__(self,
+                 project_id: str,
+                 credentials_path: str,):
+
+        self.project_id = project_id
+        self.credentials = self._read_and_serialize_file(credentials_path)
+
+    def type(self):
+        return "GCPCredentials"
+
+    def config(self):
+        return {
+            "ProjectId": self.project_id,
+            "Credentials": self.credentials,
+        }
+    
+    def _read_and_serialize_file(self, filename):
+        with open(filename, "r") as f:
+            creds = json.loads(f)
+            return bytes(json.dumps(creds), "utf-8")
+
+
+@typechecked
+@dataclass
+class GCSFileStoreConfig:
+    credentials: GCPCredentials
+    bucket_name: str
+    bucket_path: str = ""
+
+    def software(self) -> str:
+        return "gcs"
+
+    def type(self) -> str:
+        return "GCS"
+
+    def serialize(self) -> bytes:
+        config = {
+            "BucketName": self.bucket_name,
+            "BucketPath": self.account_key,
+            "Credentials": self.credentials.config(),
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+    def config(self):
+        return {
+            "BucketName": self.bucket_name,
+            "BucketPath": self.account_key,
+            "Credentials": self.credentials.config(),
+        }
+
+    def store_type(self):
+        return self.type()
+
+
+@typechecked
+@dataclass
 class AzureFileStoreConfig:
     account_name: str
     account_key: str

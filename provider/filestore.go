@@ -258,7 +258,7 @@ func NewS3FileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
-func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
+func (s3 S3FileStore) PathWithPrefix(path string, remote bool) string {
 	s3PrefixLength := len("s3://")
 	noS3Prefix := path[:s3PrefixLength] != "s3://"
 

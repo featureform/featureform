@@ -71,6 +71,38 @@ type SparkFileStore interface {
 	FileStore
 }
 
+type SparkFileStoreFactory func(config Config) (SparkFileStore, error)
+
+var sparkFileStoreMap = map[string]SparkFileStoreFactory{
+	"LOCAL_FILESYSTEM": NewSparkLocalFileStore,
+	"AZURE":            NewSparkAzureFileStore,
+	"S3":               NewSparkS3FileStore,
+	"GCS":              NewSparkGCSFileStore,
+	"HDFS":             NewSparkHDFSFileStore,
+}
+
+func CreateSparkFileStore(name string, config Config) (SparkFileStore, error) {
+	factory, exists := sparkFileStoreMap[name]
+	if !exists {
+		return nil, fmt.Errorf("factory does not exist: %s", name)
+	}
+	FileStore, err := factory(config)
+	if err != nil {
+		return nil, err
+	}
+	return FileStore, nil
+}
+
+func NewSparkS3FileStore(config Config) (SparkFileStore, error) {
+	fileStore, err := NewS3FileStore(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not create s3 file store: %v", err)
+	}
+	s3 := fileStore.(S3FileStore)
+
+	return &SparkS3FileStore{s3}, nil
+}
+
 type SparkS3FileStore struct {
 	S3FileStore
 }
@@ -87,8 +119,22 @@ func (s3 *SparkS3FileStore) Packages() []string {
 	return []string{}
 }
 
+func NewSparkAzureFileStore(config Config) (SparkFileStore, error) {
+	fileStore, err := NewAzureFileStore(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not create auzre blob file store: %v", err)
+	}
+	azure := fileStore.(AzureFileStore)
+
+	return &SparkAzureFileStore{azure}, nil
+}
+
 type SparkAzureFileStore struct {
 	AzureFileStore
+}
+
+func (store *SparkAzureFileStore) configString() string {
+	return fmt.Sprintf("fs.azure.account.key.%s.dfs.core.windows.net=%s", store.AccountName, store.AccountKey)
 }
 
 func (azureStore *SparkAzureFileStore) SparkConfig() []string {
@@ -114,6 +160,16 @@ func (azureStore *SparkAzureFileStore) Packages() []string {
 	}
 }
 
+func NewSparkGCSFileStore(config Config) (SparkFileStore, error) {
+	fileStore, err := NewGCSFileStore(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not create gcs file store: %v", err)
+	}
+	gcs := fileStore.(GCSFileStore)
+
+	return &SparkGCSFileStore{gcs}, nil
+}
+
 type SparkGCSFileStore struct {
 	GCSFileStore
 }
@@ -127,7 +183,20 @@ func (gcs *SparkGCSFileStore) CredentialsConfig() []string {
 }
 
 func (gcs *SparkGCSFileStore) Packages() []string {
-	return []string{}
+	return []string{
+		"--packages",
+		"",
+	}
+}
+
+func NewSparkHDFSFileStore(config Config) (SparkFileStore, error) {
+	fileStore, err := NewHDFSFileStore(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not create hdfs file store: %v", err)
+	}
+	hdfs := fileStore.(HDFSFileStore)
+
+	return &SparkHDFSFileStore{hdfs}, nil
 }
 
 type SparkHDFSFileStore struct {
@@ -144,6 +213,16 @@ func (hdfs *SparkHDFSFileStore) CredentialsConfig() []string {
 
 func (hdfs *SparkHDFSFileStore) Packages() []string {
 	return []string{}
+}
+
+func NewSparkLocalFileStore(config Config) (SparkFileStore, error) {
+	fileStore, err := NewLocalFileStore(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not create local file store: %v", err)
+	}
+	local := fileStore.(LocalFileStore)
+
+	return &SparkLocalFileStore{local}, nil
 }
 
 type SparkLocalFileStore struct {
@@ -567,7 +646,7 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize databricks Config, %v", err)
 	}
-	store, err := CreateFileStore(string(sc.StoreType), Config(serializedFilestoreConfig))
+	store, err := CreateSparkFileStore(string(sc.StoreType), Config(serializedFilestoreConfig))
 	if err != nil {
 		logger.Errorw("Failure initializing blob store", "type", sc.StoreType, "error", err)
 		return nil, err

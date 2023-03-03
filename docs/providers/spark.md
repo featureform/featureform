@@ -26,14 +26,14 @@ Both Spark and Databricks can be self-hosted in Kubernetes and other non-cloud i
 |---|---|
 | Types of Spark  | Spark, Databricks  |
 | Specific Cloud Offerings  | EMR |
-| Filestores  | S3, GCS, Azure Blobs, HDFS  |
+| File stores  | S3, GCS, Azure Blobs, HDFS  |
 
 
 ## Transforming Data
 
 ### Transformation Sources
 
-Using Spark and a filestore (GCS, Azure Blob Storage, S3, HDFS) as an Offline Store, you can [define new transformations](../getting-started/transforming-data.md) via [SQL and Spark DataFrames](https://spark.apache.org/docs/latest/sql-programming-guide.html). Using either these transformations or pre-existing files in your filestore, a user can chain transformations and register columns in the resulting tables as new features and labels.
+Using Spark and a file store (GCS, Azure Blob Storage, S3, HDFS) as an Offline Store, you can [define new transformations](../getting-started/transforming-data.md) via [SQL and Spark DataFrames](https://spark.apache.org/docs/latest/sql-programming-guide.html). Using either these transformations or pre-existing files in your file store, a user can chain transformations and register columns in the resulting tables as new features and labels.
 
 ### Training Sets and Inference Store Materialization
 

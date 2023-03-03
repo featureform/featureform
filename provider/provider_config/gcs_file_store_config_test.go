@@ -15,9 +15,12 @@ func TestGCSFileStoreConfigMutableFields(t *testing.T) {
 	}
 
 	config := GCSFileStoreConfig{
-		BucketName:  "transactions-ds",
-		BucketPath:  "gs://transactions-ds",
-		Credentials: []byte{},
+		BucketName: "transactions-ds",
+		BucketPath: "gs://transactions-ds",
+		Credentials: GCPCredentials{
+			ProjectId:      "ff-gcp-proj-id",
+			SerializedFile: []byte{},
+		},
 	}
 	actual := config.MutableFields()
 
@@ -55,26 +58,38 @@ func TestGCSFileStoreDifferingFields(t *testing.T) {
 	}{
 		{"No Differing Fields", args{
 			a: GCSFileStoreConfig{
-				BucketName:  "transactions-ds",
-				BucketPath:  "gs://transactions-ds",
-				Credentials: gcpCredsBytes,
+				BucketName: "transactions-ds",
+				BucketPath: "gs://transactions-ds",
+				Credentials: GCPCredentials{
+					ProjectId:      "ff-gcp-proj-id",
+					SerializedFile: gcpCredsBytes,
+				},
 			},
 			b: GCSFileStoreConfig{
-				BucketName:  "transactions-ds",
-				BucketPath:  "gs://transactions-ds",
-				Credentials: gcpCredsBytes,
+				BucketName: "transactions-ds",
+				BucketPath: "gs://transactions-ds",
+				Credentials: GCPCredentials{
+					ProjectId:      "ff-gcp-proj-id",
+					SerializedFile: gcpCredsBytes,
+				},
 			},
 		}, ss.StringSet{}},
 		{"Differing Fields", args{
 			a: GCSFileStoreConfig{
-				BucketName:  "transactions-ds",
-				BucketPath:  "gs://transactions-ds",
-				Credentials: gcpCredsBytes,
+				BucketName: "transactions-ds",
+				BucketPath: "gs://transactions-ds",
+				Credentials: GCPCredentials{
+					ProjectId:      "ff-gcp-proj-id",
+					SerializedFile: gcpCredsBytes,
+				},
 			},
 			b: GCSFileStoreConfig{
-				BucketName:  "transactions-ds2",
-				BucketPath:  "gs://transactions-ds2",
-				Credentials: gcpCredsBytesB,
+				BucketName: "transactions-ds2",
+				BucketPath: "gs://transactions-ds2",
+				Credentials: GCPCredentials{
+					ProjectId:      "ff-gcp-proj-id",
+					SerializedFile: gcpCredsBytesB,
+				},
 			},
 		}, ss.StringSet{
 			"BucketName":  true,

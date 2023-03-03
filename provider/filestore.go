@@ -36,9 +36,9 @@ const (
 )
 
 const (
-	gsPrefix    = "gs://"
-	s3Prefix    = "s3://"
-	azurePrefix = "abfss://"
+	gsPrefix        = "gs://"
+	s3Prefix        = "s3://"
+	azureBlobPrefix = "abfss://"
 )
 
 type LocalFileStoreConfig struct {

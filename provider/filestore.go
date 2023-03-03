@@ -539,6 +539,7 @@ func (fs *HDFSFileStore) deleteFile(file os.FileInfo, dir string) error {
 			return fmt.Errorf("could not delete file: %v", err)
 		}
 	}
+	return nil
 }
 
 func (fs *HDFSFileStore) DeleteAll(dir string) error {

@@ -609,7 +609,6 @@ func (p *ParquetIteratorMultipleFiles) Next() (map[string]interface{}, error) {
 		}
 		p.currentFile += 1
 		b, err := p.store.Read(p.fileList[p.currentFile])
-		//b, err := p.store.bucket.ReadAll(context.TODO(), p.fileList[p.currentFile])
 		if err != nil {
 			return nil, err
 		}
@@ -1123,8 +1122,8 @@ func (k8s *K8sOfflineStore) getResourceInformationFromFilePath(path string) (str
 			return "", "", ""
 		}
 		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
-	} else if path[:5] == "hdfs://" {
-		filePaths := strings.Split(path[len("hdfs://"):], "/")
+	} else if path[:5] == HDFSPrefix {
+		filePaths := strings.Split(path[len(HDFSPrefix):], "/")
 		if len(filePaths) <= 4 {
 			return "", "", ""
 		}

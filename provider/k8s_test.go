@@ -139,6 +139,7 @@ func TestBlobInterfaces(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create new file blob store: %v", err)
 	}
+
 	azureStoreConfig := pc.AzureFileStoreConfig{
 		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
@@ -171,9 +172,9 @@ func TestBlobInterfaces(t *testing.T) {
 	}
 
 	blobProviders := map[string]FileStore{
-		"File": fileFileStore,
-		//"Azure": azureFileStore,
-		"HDFS": hdfsFileStore,
+		"File":  fileFileStore,
+		"Azure": azureFileStore,
+		"HDFS":  hdfsFileStore,
 	}
 	for testName, fileTest := range fileStoreTests {
 		fileTest = fileTest

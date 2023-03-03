@@ -411,7 +411,7 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 	}
 
 	var packageArgs []string
-	azureStore := store.AsAzureStore()
+	azureStore := store.(*AzureFileStore)
 
 	if azureStore != nil {
 		packageArgs = []string{
@@ -458,7 +458,7 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 	}
 
 	var packageArgs []string
-	azureStore := store.AsAzureStore()
+	azureStore := store.(*AzureFileStore)
 
 	if azureStore != nil {
 		packageArgs = []string{

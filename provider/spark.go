@@ -64,6 +64,104 @@ type SparkExecutorConfig interface {
 	IsExecutorConfig() bool
 }
 
+type SparkFileStore interface {
+	SparkConfig() []string
+	CredentialsConfig() []string
+	Packages() []string
+	FileStore
+}
+
+type SparkS3FileStore struct {
+	S3FileStore
+}
+
+func (s3 *SparkS3FileStore) SparkConfig() []string {
+	return []string{}
+}
+
+func (s3 *SparkS3FileStore) CredentialsConfig() []string {
+	return []string{}
+}
+
+func (s3 *SparkS3FileStore) Packages() []string {
+	return []string{}
+}
+
+type SparkAzureFileStore struct {
+	AzureFileStore
+}
+
+func (azureStore *SparkAzureFileStore) SparkConfig() []string {
+	return []string{
+		"--spark_config",
+		fmt.Sprintf("\"%s\"", azureStore.configString()),
+	}
+}
+
+func (azureStore *SparkAzureFileStore) CredentialsConfig() []string {
+	return []string{
+		"--credential",
+		fmt.Sprintf("\"azure_connection_string=%s\"", azureStore.connectionString()),
+		"--credential",
+		fmt.Sprintf("\"azure_container_name=%s\"", azureStore.containerName()),
+	}
+}
+
+func (azureStore *SparkAzureFileStore) Packages() []string {
+	return []string{
+		"--packages",
+		"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
+	}
+}
+
+type SparkGCSFileStore struct {
+	GCSFileStore
+}
+
+func (gcs *SparkGCSFileStore) SparkConfig() []string {
+	return []string{}
+}
+
+func (gcs *SparkGCSFileStore) CredentialsConfig() []string {
+	return []string{}
+}
+
+func (gcs *SparkGCSFileStore) Packages() []string {
+	return []string{}
+}
+
+type SparkHDFSFileStore struct {
+	HDFSFileStore
+}
+
+func (hdfs *SparkHDFSFileStore) SparkConfig() []string {
+	return []string{}
+}
+
+func (hdfs *SparkHDFSFileStore) CredentialsConfig() []string {
+	return []string{}
+}
+
+func (hdfs *SparkHDFSFileStore) Packages() []string {
+	return []string{}
+}
+
+type SparkLocalFileStore struct {
+	LocalFileStore
+}
+
+func (local *SparkLocalFileStore) SparkConfig() []string {
+	return []string{}
+}
+
+func (local *SparkLocalFileStore) CredentialsConfig() []string {
+	return []string{}
+}
+
+func (local *SparkLocalFileStore) Packages() []string {
+	return []string{}
+}
+
 type SparkFileStoreConfig interface {
 	Serialize() ([]byte, error)
 	Deserialize(config SerializedConfig) error
@@ -236,16 +334,16 @@ type DatabricksExecutor struct {
 	config  DatabricksConfig
 }
 
-func (e *EMRExecutor) PythonFileURI(store FileStore) string {
+func (e *EMRExecutor) PythonFileURI(store SparkFileStore) string {
 	return ""
 }
 
-func (db *DatabricksExecutor) PythonFileURI(store FileStore) string {
+func (db *DatabricksExecutor) PythonFileURI(store SparkFileStore) string {
 	filePath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/spark/offline_store_spark_runner.py")
 	return store.PathWithPrefix(filePath[1:], true)
 }
 
-func readAndUploadFile(filePath string, storePath string, store FileStore) error {
+func readAndUploadFile(filePath string, storePath string, store SparkFileStore) error {
 	fileExists, _ := store.Exists(storePath)
 	if fileExists {
 		return nil
@@ -272,7 +370,7 @@ func readAndUploadFile(filePath string, storePath string, store FileStore) error
 	return nil
 }
 
-func (db *DatabricksExecutor) InitializeExecutor(store FileStore) error {
+func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/spark/offline_store_spark_runner.py")[1:]
 	pythonInitScriptPath := helpers.GetEnv("PYTHON_INIT_PATH", "/scripts/spark/python_packages.sh")[1:]
 
@@ -305,7 +403,7 @@ func NewDatabricksExecutor(databricksConfig DatabricksConfig) (SparkExecutor, er
 	}, nil
 }
 
-func (db *DatabricksExecutor) RunSparkJob(args []string, store FileStore) error {
+func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) error {
 	//set spark configuration
 	// clusterClient := db.client.Clusters()
 	// setConfigReq := clusterHTTPModels.EditReq{
@@ -436,7 +534,7 @@ func (q defaultPythonOfflineQueries) trainingSetCreate(def TrainingSetDef, featu
 
 type SparkOfflineStore struct {
 	Executor SparkExecutor
-	Store    FileStore
+	Store    SparkFileStore
 	Logger   *zap.SugaredLogger
 	query    *defaultPythonOfflineQueries
 	BaseProvider
@@ -497,11 +595,11 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 }
 
 type SparkExecutor interface {
-	RunSparkJob(args []string, store FileStore) error
-	InitializeExecutor(store FileStore) error
-	PythonFileURI(store FileStore) string
-	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string
-	GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error)
+	RunSparkJob(args []string, store SparkFileStore) error
+	InitializeExecutor(store SparkFileStore) error
+	PythonFileURI(store SparkFileStore) string
+	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string
+	GetDFArgs(outputURI string, code string, sources []string, store SparkFileStore) ([]string, error)
 }
 
 type EMRExecutor struct {
@@ -510,7 +608,7 @@ type EMRExecutor struct {
 	logger      *zap.SugaredLogger
 }
 
-func (e EMRExecutor) InitializeExecutor(store FileStore) error {
+func (e EMRExecutor) InitializeExecutor(store SparkFileStore) error {
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
 	scriptFile, err := os.Open(sparkScriptPath)
 	if err != nil {
@@ -557,7 +655,7 @@ type SparkGenericExecutor struct {
 	logger        *zap.SugaredLogger
 }
 
-func (s *SparkGenericExecutor) InitializeExecutor(store FileStore) error {
+func (s *SparkGenericExecutor) InitializeExecutor(store SparkFileStore) error {
 	s.logger.Info("Uploading PySpark script to filestore")
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
 	sparkScriptPathWithPrefix := store.PathWithPrefix(sparkScriptPath, false)
@@ -570,7 +668,7 @@ func (s *SparkGenericExecutor) InitializeExecutor(store FileStore) error {
 	return nil
 }
 
-func (s *SparkGenericExecutor) RunSparkJob(args []string, store FileStore) error {
+func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore) error {
 	bashCommand := "bash"
 	sparkArgsString := strings.Join(args, " ")
 	bashCommandArgs := []string{"-c", fmt.Sprintf("pyenv global %s && pyenv exec %s", s.pythonVersion, sparkArgsString)}
@@ -592,12 +690,12 @@ func (s *SparkGenericExecutor) RunSparkJob(args []string, store FileStore) error
 	return nil
 }
 
-func (s *SparkGenericExecutor) PythonFileURI(store FileStore) string {
+func (s *SparkGenericExecutor) PythonFileURI(store SparkFileStore) string {
 	// not used for Spark Generic Executor
 	return ""
 }
 
-func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
+func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
 
 	argList := []string{
@@ -645,7 +743,7 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 	return argList
 }
 
-func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error) {
+func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources []string, store SparkFileStore) ([]string, error) {
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
 
 	argList := []string{
@@ -748,7 +846,7 @@ func NewEMRExecutor(emrConfig EMRConfig, logger *zap.SugaredLogger) (SparkExecut
 	return &emrExecutor, nil
 }
 
-func (e *EMRExecutor) RunSparkJob(args []string, store FileStore) error {
+func (e *EMRExecutor) RunSparkJob(args []string, store SparkFileStore) error {
 	params := &emr.AddJobFlowStepsInput{
 		JobFlowId: aws.String(e.clusterName), //returned by listclusters
 		Steps: []emrTypes.StepConfig{
@@ -782,7 +880,7 @@ func (e *EMRExecutor) RunSparkJob(args []string, store FileStore) error {
 	return nil
 }
 
-func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
+func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
@@ -801,7 +899,7 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 	return argList
 }
 
-func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
+func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
 	argList := []string{
 		"sql",
 		"--output_uri",
@@ -1031,7 +1129,7 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 	return fileType, fileName, fileVariant
 }
 
-func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error) {
+func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string, store SparkFileStore) ([]string, error) {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
@@ -1050,7 +1148,7 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string,
 	return argList, nil
 }
 
-func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error) {
+func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []string, store SparkFileStore) ([]string, error) {
 	argList := []string{
 		"df",
 		"--output_uri",

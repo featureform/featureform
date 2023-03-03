@@ -325,6 +325,13 @@ jobs:
           chmod 700 get_helm.sh
           ./get_helm.sh
 
+      - name: Build and Run HDFS
+        run: |
+          git clone https://github.com/rancavil/hadoop-single-node-cluster.git
+          cd hadoop-single-node-cluster
+          docker build -t hadoop .
+          docker run -d -p 9864:9864 -p 9870:9870 -p 8088:8088 -p 9000:9000 -p 9866:9866 --hostname localhost hadoop
+
       - name: Configure Docker Socket
         run: |
           minikube start --kubernetes-version=v1.23.12

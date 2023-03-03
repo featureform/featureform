@@ -29,6 +29,8 @@ import (
 	"github.com/featureform/metadata"
 )
 
+const azureBlobStorePrefix = "abfss://"
+
 type pandasOfflineQueries struct {
 	defaultPythonOfflineQueries
 }
@@ -481,6 +483,7 @@ func (store genericFileStore) PathWithPrefix(path string, remote bool) string {
 		return path
 	}
 }
+
 
 func (store genericFileStore) NewestFileOfType(prefix string, fileType FileType) (string, error) {
 	opts := blob.ListOptions{

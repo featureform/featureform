@@ -3,7 +3,7 @@ import dill
 import pytest
 
 from featureform.register import ColumnSourceRegistrar, OfflineSparkProvider, Registrar
-from featureform.resources import DFTransformation, Provider, Source, SparkConfig, SQLTransformation, DatabricksCredentials, AzureFileStoreConfig
+from featureform.resources import DFTransformation, Provider, Source, SparkConfig, SQLTransformation, DatabricksCredentials, AzureFileStoreConfig, SparkCredentials
 
 
 @pytest.mark.parametrize(
@@ -138,9 +138,35 @@ def test_store_config(store_config, request):
     [
         "databricks_config",
         "emr_config",
+        "spark_executor",
+        pytest.param("spark_executor_incorrect_deploy_mode", marks=pytest.mark.xfail),
     ]
 )
 def test_executor_config(executor_config, request):
     executor, expected_config = request.getfixturevalue(executor_config)
 
     assert executor.config() == expected_config
+
+
+@pytest.mark.parametrize(
+    "version,expected_version",
+    [
+        ("3.7","3.7.16"),
+        ("3.8","3.8.16"),
+        ("3.9","3.9.16"),
+        ("3.10","3.10.10"),
+        ("3.7.10","3.7.16"),
+        ("3.7.1","3.7.16"),
+        ("3.8.16","3.8.16"),
+        ("3.9.11","3.9.16"),
+        ("3.10.10","3.10.10"),
+        pytest.param("3","", marks=pytest.mark.xfail),
+        pytest.param("3.","", marks=pytest.mark.xfail),
+        pytest.param("2.10","", marks=pytest.mark.xfail),
+        pytest.param("3.10.10.0","", marks=pytest.mark.xfail),
+    ]
+)
+def test__verify_python_version(version, expected_version):
+    spark = SparkCredentials("local", "client", version)
+
+    assert spark.python_version == expected_version

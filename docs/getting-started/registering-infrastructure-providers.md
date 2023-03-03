@@ -73,6 +73,22 @@ featureform apply providers.py
 [cassandra.md](../providers/cassandra.md)
 {% endcontent-ref %}
 
+{% content-ref url="../providers/dynamodb.md" %}
+[dynamodb.md](../providers/dynamodb.md)
+{% endcontent-ref %}
+
+{% content-ref url="../providers/firestore.md" %}
+[firestore.md](../providers/firestore.md)
+{% endcontent-ref %}
+
+{% content-ref url="../providers/mongodb.md" %}
+[mongodb.md](../providers/mongodb.md)
+{% endcontent-ref %}
+
+{% content-ref url="../providers/azure.md" %}
+[azure.md](../providers/azure.md)
+{% endcontent-ref %}
+
 ### Offline Stores
 
 {% content-ref url="../providers/snowflake.md" %}
@@ -81,4 +97,20 @@ featureform apply providers.py
 
 {% content-ref url="../providers/postgres.md" %}
 [postgres.md](../providers/postgres.md)
+{% endcontent-ref %}
+
+{% content-ref url="../providers/redshift.md" %}
+[redshift.md](../providers/redshift.md)
+{% endcontent-ref %}
+
+{% content-ref url="../providers/bigquery.md" %}
+[bigquery.md](../providers/bigquery.md)
+{% endcontent-ref %}
+
+{% content-ref url="../providers/spark.md" %}
+[spark.md](../providers/spark.md)
+{% endcontent-ref %}
+
+{% content-ref url="../providers/kubernetes.md" %}
+[kubernetes.md](../providers/kubernetes.md)
 {% endcontent-ref %}

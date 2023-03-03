@@ -53,35 +53,9 @@ spark = ff.register_spark(
 ```
 {% endcode %}
 
-### Dataframe Transformations
-Using your Spark with Azure and Databricks as a provider, a user can define transformations in SQL and Dataframes like with other offline providers.
+## Dataframe Transformations
+Because Featureform supports the generic implementation of Spark, transformations written in SQL and Dataframe operations for the different Spark providers will be very similar except for the file_path or table name. 
 
-{% code title="databricks_definition.py" %}
-```python
-transactions = spark.register_file(
-    name="transactions",
-    variant="kaggle",
-    owner="featureformer",
-    file_path="abfss://<CONTAINER>@<STORAGE_ACCOUNT>.dfs.core.windows.net/source_datasets/transaction_short.csv",
-)
-
-@spark.sql_transformation()
-def max_transaction_amount():
-    """the average transaction amount for a user """
-    return "SELECT CustomerID as user_id, max(TransactionAmount) " \
-        "as max_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
-```
-{% endcode %}
-
-In addition, registering a provider via Spark with Azure & Databricks allows you to perform DataFrame transformations using your source tables as inputs.
-
-{% code title="databricks_definition.py" %}
-```python
-@spark.df_transformation(
-    inputs=[("transactions", "kaggle")], variant="default")
-def average_user_transaction(transactions):
-    from pyspark.sql.functions import mean
-    transactions = transactions.select("CustomerID","TransactionAmount","Timestamp").groupBy("CustomerID").agg(mean("TransactionAmount"))
-    return transactions
-```
-{% endcode %}
+{% content-ref url="../providers/spark.md" %}
+[spark.md](../providers/spark.md)
+{% endcontent-ref %}

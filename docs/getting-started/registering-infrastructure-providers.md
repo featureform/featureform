@@ -107,6 +107,10 @@ featureform apply providers.py
 [spark_databricks.md](../providers/spark_databricks.md)
 {% endcontent-ref %}
 
+{% content-ref url="../providers/spark.md" %}
+[spark.md](../providers/spark.md)
+{% endcontent-ref %}
+
 {% content-ref url="../providers/spark_emr.md" %}
 [spark_emr.md](../providers/spark_emr.md)
 {% endcontent-ref %}

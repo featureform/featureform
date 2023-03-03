@@ -275,6 +275,9 @@ def parse_args(args=None):
     df_parser.add_argument(
         "--source", required=True, nargs='*', help="""Add a number of sources"""
     )
+    df_parser.add_argument("--store_type", choices=FILESTORES)
+    df_parser.add_argument("--spark_config", "-sc", action="append", default=[], help="spark config thats will be set by default")
+    df_parser.add_argument("--credential", "-c", action="append", default=[], help="any credentials that would be need to used")
     
     arguments = parser.parse_args(args)
 

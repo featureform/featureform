@@ -40,10 +40,7 @@ jobs:
           docker build -t hadoop .
           docker run -d --name hadoop -p 9864:9864 -p 9870:9870 -p 8088:8088 -p 9000:9000 -p 9866:9866 --hostname localhost hadoop
           cd ..
-          echo $HDFSCLI_CONFIG
-          ls
-          ls ./tests/end_to_end/hdfs/
-          hdfscli upload --alias=dev ./tests/end_to_end/hdfs/ice_cream.parquet /ice_cream.parquet
+          while ! hdfscli upload --alias=dev ./tests/end_to_end/hdfs/ice_cream.parquet /ice_cream.parquet
 
       - name: Cleanup Hadoop
         if: always()

@@ -1324,7 +1324,7 @@ func testGetResourceInformationFromFilePath(t *testing.T, store *SparkOfflineSto
 }
 
 func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
-	azureStore := store.Store.AsAzureStore()
+	azureStore := store.Store.(*AzureFileStore)
 
 	cases := []struct {
 		name            string

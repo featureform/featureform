@@ -27,6 +27,7 @@
 ### Training/Offline Stores
 * [BigQuery](providers/bigquery.md)
 * [Postgres](providers/postgres.md)
+* [Redshift](providers/redshift.md)
 * [Snowflake](providers/snowflake.md)
 * [Spark](providers/spark.md)
 * [Spark with Databricks](providers/spark_databricks.md)

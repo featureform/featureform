@@ -99,6 +99,10 @@ featureform apply providers.py
 [postgres.md](../providers/postgres.md)
 {% endcontent-ref %}
 
+{% content-ref url="../providers/redshift.md" %}
+[redshift.md](../providers/redshift.md)
+{% endcontent-ref %}
+
 {% content-ref url="../providers/bigquery.md" %}
 [bigquery.md](../providers/bigquery.md)
 {% endcontent-ref %}

@@ -327,7 +327,7 @@ jobs:
 
       - name: Build and Run HDFS
         env:
-          HDFSCLI_CONFIG: "./tests/end_to_end/hdfs/hdfscli.cfg"
+          HDFSCLI_CONFIG: tests/end_to_end/hdfs/hdfscli.cfg
         run: |
           pip install hdfs
           git clone https://github.com/rancavil/hadoop-single-node-cluster.git

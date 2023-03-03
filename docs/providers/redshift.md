@@ -1,4 +1,4 @@
-# Postgres
+# Redshift
 
 Featureform supports [Redshift](https://aws.amazon.com/redshift/) as an Offline Store.
 

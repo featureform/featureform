@@ -327,13 +327,15 @@ jobs:
 
       - name: Build and Run HDFS
         env:
-          HDFSCLI_CONFIG: tests/end_to_end/hdfs/hdfscli.cfg
+          HDFSCLI_CONFIG: ./tests/end_to_end/hdfs/hdfscli.cfg
         run: |
           pip install hdfs
           git clone https://github.com/rancavil/hadoop-single-node-cluster.git
           cd hadoop-single-node-cluster
           docker build -t hadoop .
-          docker run -d -p 9864:9864 -p 9870:9870 -p 8088:8088 -p 9000:9000 -p 9866:9866 --hostname localhost hadoop
+          docker run -d --name hadoop -p 9864:9864 -p 9870:9870 -p 8088:8088 -p 9000:9000 -p 9866:9866 --hostname localhost hadoop
+          echo $HDFSCLI_CONFIG
+          ls ./tests/end_to_end/hdfs/
           hdfscli upload --alias=dev ./tests/end_to_end/hdfs/ice_cream.parquet /ice_cream.parquet
 
       - name: Configure Docker Socket
@@ -586,6 +588,11 @@ jobs:
         if: always()
         continue-on-error: true
         run: helm uninstall quickstart
+
+      - name: Cleanup Hadoop
+        if: always()
+        continue-on-error: true
+        run: docker rm hadoop
 
       - name: Cleanup Docker
         if: always()

@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -24,8 +23,8 @@ type FileType string
 
 const (
 	Parquet FileType = "parquet"
-	CSV              = "csv"
-	DB               = "db"
+	CSV     FileType = "csv"
+	DB      FileType = "db"
 )
 
 const (
@@ -34,33 +33,13 @@ const (
 	azureBlobPrefix = "abfss://"
 )
 
-type LocalFileStoreConfig struct {
-	DirPath string
-}
-
-func (config *LocalFileStoreConfig) Serialize() ([]byte, error) {
-	data, err := json.Marshal(config)
-	if err != nil {
-		panic(err)
-	}
-	return data, nil
-}
-
-func (config *LocalFileStoreConfig) Deserialize(data []byte) error {
-	err := json.Unmarshal(data, config)
-	if err != nil {
-		return fmt.Errorf("deserialize file blob store config: %w", err)
-	}
-	return nil
-}
-
 type LocalFileStore struct {
 	DirPath string
 	genericFileStore
 }
 
 func NewLocalFileStore(config Config) (FileStore, error) {
-	fileStoreConfig := LocalFileStoreConfig{}
+	fileStoreConfig := pc.LocalFileStoreConfig{}
 	if err := fileStoreConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("could not deserialize file store config: %v", err)
 	}

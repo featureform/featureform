@@ -40,6 +40,8 @@ const (
 	DB      FileType = "db"
 )
 
+const HDFSPrefix = "hdfs://"
+
 func (ft FileType) Matches(file string) bool {
 	ext := filepath.Ext(file)
 	ext = strings.ReplaceAll(ext, ".", "")
@@ -399,15 +401,26 @@ func (fs *HDFSFileStore) addPrefix(key string) string {
 	return fmt.Sprintf("/%s", key)
 }
 
-func (fs *HDFSFileStore) getFile(key string) (*hdfs.FileWriter, error) {
-	if w, err := fs.Client.Create(key); err != nil && strings.Contains(err.Error(), "file already exists") {
-		err := fs.Client.Remove(key)
-		if err != nil && strings.Contains(err.Error(), "file does not exist") {
-			return fs.getFile(key)
-		} else if err != nil {
-			return nil, fmt.Errorf("could not remove file %s: %v", key, err)
-		}
+func (fs *HDFSFileStore) alreadyExistsError(err error) bool {
+	return strings.Contains(err.Error(), "file already exists")
+}
+
+func (fs *HDFSFileStore) doesNotExistsError(err error) bool {
+	return strings.Contains(err.Error(), "file does not exist")
+}
+
+func (fs *HDFSFileStore) removeFile(key string) (*hdfs.FileWriter, error) {
+	if err := fs.Client.Remove(key); err != nil && fs.doesNotExistsError(err) {
 		return fs.getFile(key)
+	} else if err != nil {
+		return nil, fmt.Errorf("could not remove file %s: %v", key, err)
+	}
+	return fs.getFile(key)
+}
+
+func (fs *HDFSFileStore) getFile(key string) (*hdfs.FileWriter, error) {
+	if w, err := fs.Client.Create(key); err != nil && fs.alreadyExistsError(err) {
+		return fs.removeFile(key)
 	} else if err != nil {
 		return nil, fmt.Errorf("could not get file: %v", err)
 	} else {
@@ -415,30 +428,38 @@ func (fs *HDFSFileStore) getFile(key string) (*hdfs.FileWriter, error) {
 	}
 }
 
-func (fs *HDFSFileStore) createFile(key string) (*hdfs.FileWriter, error) {
+func (fs *HDFSFileStore) isFile(key string) bool {
 	parsedPath := strings.Split(key, "/")
-	if len(parsedPath) == 1 {
-		if w, err := fs.getFile(key); err != nil {
-			return nil, fmt.Errorf("could not create single file: %v", err)
-		} else {
-			return w, nil
-		}
-	}
-	path := strings.TrimSuffix(key, parsedPath[len(parsedPath)-1])
-	err := fs.Client.MkdirAll(path, os.ModeDir)
-	if err != nil {
-		return nil, fmt.Errorf("could not create all: %v", err)
-	}
+	return len(parsedPath) == 1
+}
+
+func (fs *HDFSFileStore) getParentDirectories(key string) string {
+	parsedPath := strings.Split(key, "/")
+	return strings.TrimSuffix(key, parsedPath[len(parsedPath)-1])
+}
+
+func (fs *HDFSFileStore) getFileWriter(key string) (*hdfs.FileWriter, error) {
 	if w, err := fs.getFile(key); err != nil {
-		return nil, fmt.Errorf("could not create directory file: %v", err)
+		return nil, fmt.Errorf("could get writer: %v", err)
 	} else {
 		return w, nil
 	}
 }
 
+func (fs *HDFSFileStore) createFile(key string) (*hdfs.FileWriter, error) {
+	if fs.isFile(key) {
+		return fs.getFileWriter(key)
+	}
+	path := fs.getParentDirectories(key)
+	err := fs.Client.MkdirAll(path, os.ModeDir)
+	if err != nil {
+		return nil, fmt.Errorf("could not create all: %v", err)
+	}
+	return fs.getFileWriter(key)
+}
+
 func (fs *HDFSFileStore) Write(key string, data []byte) error {
 	file, err := fs.createFile(fs.addPrefix(key))
-	fmt.Println("Creating file", key)
 	if err != nil {
 		return fmt.Errorf("could not create file: %v", err)
 	}
@@ -475,7 +496,6 @@ func (fs *HDFSFileStore) ServeDirectory(dir string) (Iterator, error) {
 }
 
 func (fs *HDFSFileStore) Serve(key string) (Iterator, error) {
-	//Why?
 	keyParts := strings.Split(key, ".")
 	if len(keyParts) == 1 {
 		return fs.ServeDirectory(fs.addPrefix(key))
@@ -507,39 +527,53 @@ func (fs *HDFSFileStore) Delete(key string) error {
 	return fs.Client.Remove(fs.addPrefix(key))
 }
 
+func (fs *HDFSFileStore) deleteFile(file os.FileInfo, dir string) error {
+	if file.IsDir() {
+		err := fs.DeleteAll(fmt.Sprintf("%s/%s", dir, file.Name()))
+		if err != nil {
+			return fmt.Errorf("could not delete directory: %v", err)
+		}
+	} else {
+		err := fs.Delete(fmt.Sprintf("%s/%s", dir, file.Name()))
+		if err != nil {
+			return fmt.Errorf("could not delete file: %v", err)
+		}
+	}
+}
+
 func (fs *HDFSFileStore) DeleteAll(dir string) error {
 	files, err := fs.Client.ReadDir(fs.addPrefix(dir))
 	if err != nil {
 		return err
 	}
 	for _, file := range files {
-		if file.IsDir() {
-			err := fs.DeleteAll(fmt.Sprintf("%s/%s", dir, file.Name()))
-			if err != nil {
-				return err
-			}
-		} else {
-			err := fs.Delete(fmt.Sprintf("%s/%s", dir, file.Name()))
-			if err != nil {
-				return err
-			}
-		}
+		return fs.deleteFile(file, dir)
 	}
 	return fs.Client.Remove(fs.addPrefix(dir))
+}
+
+func (fs *HDFSFileStore) isPartialPath(prefix, path string) bool {
+	return strings.Contains(prefix, path)
+}
+
+func (fs *HDFSFileStore) containsPrefix(prefix, path string) bool {
+	return strings.Contains(path, prefix)
+}
+
+func (fs *HDFSFileStore) isMoreRecentFile(newFileTime, oldFileTime time.Time, fileType FileType, path string) bool {
+	return (newFileTime.After(oldFileTime) || newFileTime.Equal(oldFileTime)) && fileType.Matches(path)
 }
 
 func (hdfs *HDFSFileStore) NewestFileOfType(prefix string, fileType FileType) (string, error) {
 	var lastModTime time.Time
 	var lastModName string
 	err := hdfs.Client.Walk("/", func(path string, info fs.FileInfo, err error) error {
-		if strings.Contains(prefix, path) {
+		if hdfs.isPartialPath(prefix, path) {
 			return nil
 		}
-		if strings.Contains(path, prefix) {
-			if (info.ModTime().After(lastModTime) || info.ModTime().Equal(lastModTime)) && fileType.Matches(path) {
-				lastModTime = info.ModTime()
-				lastModName = strings.TrimPrefix(path, "/")
-			}
+		if hdfs.containsPrefix(prefix, path) && hdfs.isMoreRecentFile(info.ModTime(), lastModTime, fileType, path) {
+			lastModTime = info.ModTime()
+			lastModName = strings.TrimPrefix(path, "/")
 		}
 		return nil
 	})
@@ -553,15 +587,15 @@ func (hdfs *HDFSFileStore) NewestFileOfType(prefix string, fileType FileType) (s
 }
 
 func (fs *HDFSFileStore) PathWithPrefix(path string, remote bool) string {
-	s3PrefixLength := len("hdfs://")
-	nofsPrefix := path[:s3PrefixLength] != "hdfs://"
+	hdfsPrefixLength := len(HDFSPrefix)
+	nofsPrefix := path[:hdfsPrefixLength] != HDFSPrefix
 
 	if remote && nofsPrefix {
 		fsPath := ""
 		if fs.Path != "" {
 			fsPath = fmt.Sprintf("/%s", fs.Path)
 		}
-		return fmt.Sprintf("hdfs://%s/%s", fsPath, path)
+		return fmt.Sprintf("%s%s/%s", HDFSPrefix, fsPath, path)
 	} else {
 		return path
 	}

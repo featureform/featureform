@@ -22,8 +22,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/mitchellh/mapstructure"
-	"github.com/segmentio/parquet-go"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
 )
 
 func uuidWithoutDashes() string {

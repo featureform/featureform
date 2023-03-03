@@ -96,6 +96,10 @@ func (s SparkConfig) MutableFields() ss.StringSet {
 		executorFields = s.ExecutorConfig.(*EMRConfig).MutableFields()
 	case Databricks:
 		executorFields = s.ExecutorConfig.(*DatabricksConfig).MutableFields()
+	case SparkGeneric:
+		executorFields = s.ExecutorConfig.(*SparkGenericConfig).MutableFields()
+	default:
+		executorFields = ss.StringSet{}
 	}
 
 	switch s.StoreType {
@@ -105,6 +109,8 @@ func (s SparkConfig) MutableFields() ss.StringSet {
 		storeFields = s.StoreConfig.(*S3FileStoreConfig).MutableFields()
 	case GCS:
 		storeFields = s.StoreConfig.(*GCSFileStoreConfig).MutableFields()
+	default:
+		storeFields = ss.StringSet{}
 	}
 
 	for field, val := range executorFields {
@@ -233,4 +239,13 @@ func (sc *SparkGenericConfig) Serialize() ([]byte, error) {
 
 func (sc *SparkGenericConfig) IsExecutorConfig() bool {
 	return true
+}
+
+func (sc SparkGenericConfig) MutableFields() ss.StringSet {
+	// Generic Spark config is not open to update once registered
+	return ss.StringSet{}
+}
+
+func (a SparkGenericConfig) DifferingFields(b SparkGenericConfig) (ss.StringSet, error) {
+	return differingFields(a, b)
 }

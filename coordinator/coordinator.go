@@ -19,6 +19,8 @@ import (
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/runner"
 	"github.com/featureform/types"
 )
@@ -31,7 +33,7 @@ func retryWithDelays(name string, retries int, delay time.Duration, idempotentFu
 		}
 		time.Sleep(delay)
 	}
-	return fmt.Errorf("retried %s %d times unsuccesfully: Latest error message: %v", name, retries, err)
+	return fmt.Errorf("retried %s %d times unsuccessfully: Latest error message: %v", name, retries, err)
 }
 
 type Config []byte
@@ -48,8 +50,8 @@ func templateReplace(template string, replacements map[string]string, offlineSto
 			return "", fmt.Errorf("no key set")
 		}
 
-		if offlineStore.Type() == provider.BigQueryOffline {
-			bqConfig := provider.BigQueryConfig{}
+		if offlineStore.Type() == pt.BigQueryOffline {
+			bqConfig := pc.BigQueryConfig{}
 			bqConfig.Deserialize(offlineStore.Config())
 			replacement = fmt.Sprintf("`%s.%s.%s`", bqConfig.ProjectId, bqConfig.DatasetId, replacement)
 		} else {
@@ -409,7 +411,7 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 	}
 
 	createTransformationConfig := runner.CreateTransformationConfig{
-		OfflineType:          provider.Type(sourceProvider.Type()),
+		OfflineType:          pt.Type(sourceProvider.Type()),
 		OfflineConfig:        sourceProvider.SerializedConfig(),
 		TransformationConfig: transformationConfig,
 		IsUpdate:             false,
@@ -440,7 +442,7 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 	c.Logger.Debugw("Transformation Complete")
 	if schedule != "" {
 		scheduleCreateTransformationConfig := runner.CreateTransformationConfig{
-			OfflineType:          provider.Type(sourceProvider.Type()),
+			OfflineType:          pt.Type(sourceProvider.Type()),
 			OfflineConfig:        sourceProvider.SerializedConfig(),
 			TransformationConfig: transformationConfig,
 			IsUpdate:             true,
@@ -574,7 +576,7 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule s
 	if err != nil {
 		return fmt.Errorf("fetch source's dependent provider in metadata: %v", err)
 	}
-	p, err := provider.Get(provider.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
+	p, err := provider.Get(pt.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
 	if err != nil {
 		return fmt.Errorf("get source's dependent provider in offline store: %v", err)
 	}
@@ -631,7 +633,7 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 	if err != nil {
 		return fmt.Errorf("could not fetch online provider: %v", err)
 	}
-	p, err := provider.Get(provider.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
+	p, err := provider.Get(pt.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
 	if err != nil {
 		return fmt.Errorf("could not get offline provider config: %v", err)
 	}
@@ -720,7 +722,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if err != nil {
 		return fmt.Errorf("could not fetch online provider: %v", err)
 	}
-	p, err := provider.Get(provider.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
+	p, err := provider.Get(pt.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
 	if err != nil {
 		return err
 	}
@@ -739,8 +741,8 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		return fmt.Errorf("could not fetch  onlineprovider: %v", err)
 	}
 	materializedRunnerConfig := runner.MaterializedRunnerConfig{
-		OnlineType:    provider.Type(featureProvider.Type()),
-		OfflineType:   provider.Type(sourceProvider.Type()),
+		OnlineType:    pt.Type(featureProvider.Type()),
+		OfflineType:   pt.Type(sourceProvider.Type()),
 		OnlineConfig:  featureProvider.SerializedConfig(),
 		OfflineConfig: sourceProvider.SerializedConfig(),
 		ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
@@ -807,8 +809,8 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	}
 	if schedule != "" && needsOnlineMaterialization {
 		scheduleMaterializeRunnerConfig := runner.MaterializedRunnerConfig{
-			OnlineType:    provider.Type(featureProvider.Type()),
-			OfflineType:   provider.Type(sourceProvider.Type()),
+			OnlineType:    pt.Type(featureProvider.Type()),
+			OfflineType:   pt.Type(sourceProvider.Type()),
 			OnlineConfig:  featureProvider.SerializedConfig(),
 			OfflineConfig: sourceProvider.SerializedConfig(),
 			ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
@@ -862,7 +864,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	if err != nil {
 		return fmt.Errorf("fetch training set variant offline provider: %v", err)
 	}
-	p, err := provider.Get(provider.Type(providerEntry.Type()), providerEntry.SerializedConfig())
+	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
 		return fmt.Errorf("fetch offline store interface of training set provider: %v", err)
 	}
@@ -931,7 +933,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		LagFeatures: lagFeaturesList,
 	}
 	tsRunnerConfig := runner.TrainingSetRunnerConfig{
-		OfflineType:   provider.Type(providerEntry.Type()),
+		OfflineType:   pt.Type(providerEntry.Type()),
 		OfflineConfig: providerEntry.SerializedConfig(),
 		Def:           trainingSetDef,
 		IsUpdate:      false,
@@ -953,7 +955,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	}
 	if schedule != "" {
 		scheduleTrainingSetRunnerConfig := runner.TrainingSetRunnerConfig{
-			OfflineType:   provider.Type(providerEntry.Type()),
+			OfflineType:   pt.Type(providerEntry.Type()),
 			OfflineConfig: providerEntry.SerializedConfig(),
 			Def:           trainingSetDef,
 			IsUpdate:      true,

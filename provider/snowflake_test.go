@@ -8,6 +8,7 @@ package provider
 
 import (
 	"encoding/json"
+	pc "github.com/featureform/provider/provider_config"
 	"reflect"
 	"testing"
 )
@@ -33,7 +34,7 @@ func TestSnowflakeConfigHasLegacyCredentials(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sf := &SnowflakeConfig{
+			sf := &pc.SnowflakeConfig{
 				Username:       tt.fields.Username,
 				Password:       tt.fields.Password,
 				AccountLocator: tt.fields.AccountLocator,
@@ -42,8 +43,8 @@ func TestSnowflakeConfigHasLegacyCredentials(t *testing.T) {
 				Database:       tt.fields.Database,
 				Schema:         tt.fields.Schema,
 			}
-			if got := sf.hasLegacyCredentials(); got != tt.want {
-				t.Errorf("hasLegacyCredentials() = %v, want %v", got, tt.want)
+			if got := sf.HasLegacyCredentials(); got != tt.want {
+				t.Errorf("HasLegacyCredentials() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -73,7 +74,7 @@ func TestSnowflakeConfigHasCurrentCredentials(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sf := &SnowflakeConfig{
+			sf := &pc.SnowflakeConfig{
 				Username:       tt.fields.Username,
 				Password:       tt.fields.Password,
 				AccountLocator: tt.fields.AccountLocator,
@@ -82,13 +83,13 @@ func TestSnowflakeConfigHasCurrentCredentials(t *testing.T) {
 				Database:       tt.fields.Database,
 				Schema:         tt.fields.Schema,
 			}
-			got, err := sf.hasCurrentCredentials()
+			got, err := sf.HasCurrentCredentials()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("hasCurrentCredentials() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("HasCurrentCredentials() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("hasCurrentCredentials() got = %v, want %v", got, tt.want)
+				t.Errorf("HasCurrentCredentials() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -170,7 +171,7 @@ func TestSnowflakeConfigConnectionString(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sf := &SnowflakeConfig{
+			sf := &pc.SnowflakeConfig{
 				Username:       tt.fields.Username,
 				Password:       tt.fields.Password,
 				AccountLocator: tt.fields.AccountLocator,
@@ -194,7 +195,7 @@ func TestSnowflakeConfigConnectionString(t *testing.T) {
 }
 
 func TestSnowflakeDeserializeCurrentCredentials(t *testing.T) {
-	expected := SnowflakeConfig{
+	expected := pc.SnowflakeConfig{
 		Username:     "username",
 		Password:     "password",
 		Organization: "org",
@@ -213,8 +214,8 @@ func TestSnowflakeDeserializeCurrentCredentials(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not marshal test data: %s", err.Error())
 	}
-	config := SnowflakeConfig{}
-	if err := config.Deserialize(SerializedConfig(b)); err != nil {
+	config := pc.SnowflakeConfig{}
+	if err := config.Deserialize(pc.SerializedConfig(b)); err != nil {
 		t.Fatalf("could not deserialize config: %s", err.Error())
 	}
 	if !reflect.DeepEqual(expected, config) {
@@ -223,7 +224,7 @@ func TestSnowflakeDeserializeCurrentCredentials(t *testing.T) {
 }
 
 func TestSnowflakeDeserializeLegacyCredentials(t *testing.T) {
-	expected := SnowflakeConfig{
+	expected := pc.SnowflakeConfig{
 		Username:       "username",
 		Password:       "password",
 		AccountLocator: "accountlocator",
@@ -240,8 +241,8 @@ func TestSnowflakeDeserializeLegacyCredentials(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not marshal test data: %s", err.Error())
 	}
-	config := SnowflakeConfig{}
-	if err := config.Deserialize(SerializedConfig(b)); err != nil {
+	config := pc.SnowflakeConfig{}
+	if err := config.Deserialize(pc.SerializedConfig(b)); err != nil {
 		t.Fatalf("could not deserialize config: %s", err.Error())
 	}
 	if !reflect.DeepEqual(expected, config) {

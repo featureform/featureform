@@ -6,8 +6,10 @@ package runner
 
 import (
 	"fmt"
-	"github.com/featureform/provider"
 	"testing"
+
+	"github.com/featureform/provider"
+	pt "github.com/featureform/provider/provider_type"
 )
 
 type MockOfflineRegisterSourceFail struct {
@@ -134,7 +136,7 @@ func TestRegisterSourceRunnerFactoryErrorCoverage(t *testing.T) {
 		{
 			Name: "cannot convert offline provider to offline store",
 			ErrorConfig: registerSourceSerialize(RegisterSourceConfig{
-				OfflineType:   provider.LocalOnline,
+				OfflineType:   pt.LocalOnline,
 				OfflineConfig: []byte{},
 			}),
 		},

@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/gocql/gocql"
 	sn "github.com/mrz1836/go-sanitize"
 )
@@ -37,8 +39,8 @@ type cassandraOnlineTable struct {
 	valueType ValueType
 }
 
-func cassandraOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
-	cassandraConfig := &CassandraConfig{}
+func cassandraOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
+	cassandraConfig := &pc.CassandraConfig{}
 	if err := cassandraConfig.Deserialize(serialized); err != nil {
 		return nil, err
 	}
@@ -49,7 +51,7 @@ func cassandraOnlineStoreFactory(serialized SerializedConfig) (Provider, error) 
 	return NewCassandraOnlineStore(cassandraConfig)
 }
 
-func NewCassandraOnlineStore(options *CassandraConfig) (*cassandraOnlineStore, error) {
+func NewCassandraOnlineStore(options *pc.CassandraConfig) (*cassandraOnlineStore, error) {
 	cassandraCluster := gocql.NewCluster(options.Addr)
 	cassandraCluster.Authenticator = gocql.PasswordAuthenticator{
 		Username: options.Username,
@@ -78,7 +80,7 @@ func NewCassandraOnlineStore(options *CassandraConfig) (*cassandraOnlineStore, e
 	}
 
 	return &cassandraOnlineStore{newSession, options.Keyspace, BaseProvider{
-		ProviderType:   CassandraOnline,
+		ProviderType:   pt.CassandraOnline,
 		ProviderConfig: options.Serialized(),
 	},
 	}, nil

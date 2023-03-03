@@ -23,6 +23,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"google.golang.org/api/option"
@@ -31,8 +33,8 @@ import (
 var provider = flag.String("provider", "all", "provider to perform test on")
 
 type testMember struct {
-	t               Type
-	c               SerializedConfig
+	t               pt.Type
+	c               pc.SerializedConfig
 	integrationTest bool
 }
 
@@ -55,11 +57,11 @@ func TestOfflineStores(t *testing.T) {
 		return value
 	}
 
-	postgresInit := func() SerializedConfig {
+	postgresInit := func() pc.SerializedConfig {
 		db := checkEnv("POSTGRES_DB")
 		user := checkEnv("POSTGRES_USER")
 		password := checkEnv("POSTGRES_PASSWORD")
-		var postgresConfig = PostgresConfig{
+		var postgresConfig = pc.PostgresConfig{
 			Host:     "localhost",
 			Port:     "5432",
 			Database: db,
@@ -69,14 +71,14 @@ func TestOfflineStores(t *testing.T) {
 		return postgresConfig.Serialize()
 	}
 
-	snowflakeInit := func() (SerializedConfig, SnowflakeConfig) {
+	snowflakeInit := func() (pc.SerializedConfig, pc.SnowflakeConfig) {
 		snowFlakeDatabase := strings.ToUpper(uuid.NewString())
 		t.Log("Snowflake Database: ", snowFlakeDatabase)
 		username := checkEnv("SNOWFLAKE_USERNAME")
 		password := checkEnv("SNOWFLAKE_PASSWORD")
 		org := checkEnv("SNOWFLAKE_ORG")
 		account := checkEnv("SNOWFLAKE_ACCOUNT")
-		var snowflakeConfig = SnowflakeConfig{
+		var snowflakeConfig = pc.SnowflakeConfig{
 			Username:     username,
 			Password:     password,
 			Organization: org,
@@ -89,13 +91,13 @@ func TestOfflineStores(t *testing.T) {
 		return snowflakeConfig.Serialize(), snowflakeConfig
 	}
 
-	redshiftInit := func() (SerializedConfig, RedshiftConfig) {
+	redshiftInit := func() (pc.SerializedConfig, pc.RedshiftConfig) {
 		redshiftDatabase := fmt.Sprintf("ff%s", strings.ToLower(uuid.NewString()))
 		endpoint := checkEnv("REDSHIFT_ENDPOINT")
 		port := checkEnv("REDSHIFT_PORT")
 		username := checkEnv("REDSHIFT_USERNAME")
 		password := checkEnv("REDSHIFT_PASSWORD")
-		var redshiftConfig = RedshiftConfig{
+		var redshiftConfig = pc.RedshiftConfig{
 			Endpoint: endpoint,
 			Port:     port,
 			Database: redshiftDatabase,
@@ -109,7 +111,7 @@ func TestOfflineStores(t *testing.T) {
 		return serialRSConfig, redshiftConfig
 	}
 
-	bqInit := func() (SerializedConfig, BigQueryConfig) {
+	bqInit := func() (pc.SerializedConfig, pc.BigQueryConfig) {
 		bigqueryCredentials := os.Getenv("BIGQUERY_CREDENTIALS")
 		JSONCredentials, err := ioutil.ReadFile(bigqueryCredentials)
 		if err != nil {
@@ -126,7 +128,7 @@ func TestOfflineStores(t *testing.T) {
 		os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
 		t.Log("BigQuery Dataset: ", bigQueryDatasetId)
 
-		var bigQueryConfig = BigQueryConfig{
+		var bigQueryConfig = pc.BigQueryConfig{
 			ProjectId:   os.Getenv("BIGQUERY_PROJECT_ID"),
 			DatasetId:   os.Getenv("BIGQUERY_DATASET_ID"),
 			Credentials: credentialsDict,
@@ -142,28 +144,28 @@ func TestOfflineStores(t *testing.T) {
 	testList := []testMember{}
 
 	if *provider == "memory" || *provider == "" {
-		testList = append(testList, testMember{MemoryOffline, []byte{}, false})
+		testList = append(testList, testMember{pt.MemoryOffline, []byte{}, false})
 	}
 	if *provider == "bigquery" || *provider == "" {
 		serialBQConfig, bigQueryConfig := bqInit()
-		testList = append(testList, testMember{BigQueryOffline, serialBQConfig, true})
+		testList = append(testList, testMember{pt.BigQueryOffline, serialBQConfig, true})
 		t.Cleanup(func() {
 			destroyBigQueryDataset(bigQueryConfig)
 		})
 	}
 	if *provider == "postgres" || *provider == "" {
-		testList = append(testList, testMember{PostgresOffline, postgresInit(), true})
+		testList = append(testList, testMember{pt.PostgresOffline, postgresInit(), true})
 	}
 	if *provider == "snowflake" || *provider == "" {
 		serialSFConfig, snowflakeConfig := snowflakeInit()
-		testList = append(testList, testMember{SnowflakeOffline, serialSFConfig, true})
+		testList = append(testList, testMember{pt.SnowflakeOffline, serialSFConfig, true})
 		t.Cleanup(func() {
 			destroySnowflakeDatabase(snowflakeConfig)
 		})
 	}
 	if *provider == "redshift" || *provider == "" {
 		serialRSConfig, redshiftConfig := redshiftInit()
-		testList = append(testList, testMember{RedshiftOffline, serialRSConfig, true})
+		testList = append(testList, testMember{pt.RedshiftOffline, serialRSConfig, true})
 		t.Cleanup(func() {
 			destroyRedshiftDatabase(redshiftConfig)
 		})
@@ -225,7 +227,7 @@ func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func
 		return
 	}
 	var connections_start, connections_end int
-	if testItem.t == PostgresOffline {
+	if testItem.t == pt.PostgresOffline {
 		err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_start)
 		if err != nil {
 			panic(err)
@@ -248,7 +250,7 @@ func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func
 		})
 	}
 	for name, fn := range testSQLFns {
-		if testItem.t == MemoryOffline {
+		if testItem.t == pt.MemoryOffline {
 			continue
 		}
 		nameConst := name
@@ -265,7 +267,7 @@ func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func
 		}
 	})
 
-	if testItem.t == PostgresOffline {
+	if testItem.t == pt.PostgresOffline {
 		t.Cleanup(func() {
 			err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_end)
 			if err != nil {
@@ -280,7 +282,7 @@ func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func
 	}
 }
 
-func createRedshiftDatabase(c RedshiftConfig) error {
+func createRedshiftDatabase(c pc.RedshiftConfig) error {
 	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Endpoint, c.Port, "dev")
 	db, err := sql.Open("postgres", url)
 	if err != nil {
@@ -294,7 +296,7 @@ func createRedshiftDatabase(c RedshiftConfig) error {
 	return nil
 }
 
-func destroyRedshiftDatabase(c RedshiftConfig) error {
+func destroyRedshiftDatabase(c pc.RedshiftConfig) error {
 	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Endpoint, c.Port, "dev")
 	db, err := sql.Open("postgres", url)
 	if err != nil {
@@ -326,7 +328,7 @@ func destroyRedshiftDatabase(c RedshiftConfig) error {
 	return nil
 }
 
-func createSnowflakeDatabase(c SnowflakeConfig) error {
+func createSnowflakeDatabase(c pc.SnowflakeConfig) error {
 	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
 	db, err := sql.Open("snowflake", url)
 	if err != nil {
@@ -339,7 +341,7 @@ func createSnowflakeDatabase(c SnowflakeConfig) error {
 	return nil
 }
 
-func destroySnowflakeDatabase(c SnowflakeConfig) error {
+func destroySnowflakeDatabase(c pc.SnowflakeConfig) error {
 	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
 	db, err := sql.Open("snowflake", url)
 	if err != nil {
@@ -354,7 +356,7 @@ func destroySnowflakeDatabase(c SnowflakeConfig) error {
 	return nil
 }
 
-func createBigQueryDataset(c BigQueryConfig) error {
+func createBigQueryDataset(c pc.BigQueryConfig) error {
 	sCreds, err := json.Marshal(c.Credentials)
 	if err != nil {
 		return err
@@ -375,7 +377,7 @@ func createBigQueryDataset(c BigQueryConfig) error {
 	return err
 }
 
-func destroyBigQueryDataset(c BigQueryConfig) error {
+func destroyBigQueryDataset(c pc.BigQueryConfig) error {
 	sCreds, err := json.Marshal(c.Credentials)
 	if err != nil {
 		return err
@@ -683,7 +685,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
-			if store.Type() != MemoryOffline {
+			if store.Type() != pt.MemoryOffline {
 				t.Parallel()
 			}
 			runTestCase(t, testConst)
@@ -999,7 +1001,7 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
-			if store.Type() != MemoryOffline {
+			if store.Type() != pt.MemoryOffline {
 				t.Parallel()
 			}
 			runTestCase(t, testConst)
@@ -1355,7 +1357,7 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
-			if store.Type() != MemoryOffline {
+			if store.Type() != pt.MemoryOffline {
 				t.Parallel()
 			}
 			runTestCase(t, testConst)
@@ -1765,7 +1767,7 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
-			if store.Type() != MemoryOffline {
+			if store.Type() != pt.MemoryOffline {
 				t.Parallel()
 			}
 			runTestCase(t, testConst)
@@ -1831,7 +1833,7 @@ func testInvalidTrainingSetDefs(t *testing.T, store OfflineStore) {
 		nameConst := name
 		defConst := def
 		t.Run(nameConst, func(t *testing.T) {
-			if store.Type() != MemoryOffline {
+			if store.Type() != pt.MemoryOffline {
 				t.Parallel()
 			}
 			if err := store.CreateTrainingSet(defConst); err == nil {
@@ -2004,7 +2006,7 @@ func testPrimaryCreateTable(t *testing.T, store OfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
-			if store.Type() != MemoryOffline {
+			if store.Type() != pt.MemoryOffline {
 				t.Parallel()
 			}
 			testPrimary(t, testConst, store)
@@ -3364,7 +3366,7 @@ func TestBigQueryConfig_Deserialize(t *testing.T) {
 	}
 	testConfig := payload["BigQuery"].(map[string]interface{})
 
-	bgconfig := BigQueryConfig{
+	bgconfig := pc.BigQueryConfig{
 		ProjectId:   testConfig["ProjectID"].(string),
 		DatasetId:   testConfig["DatasetID"].(string),
 		Credentials: testConfig["Credentials"].(map[string]interface{}),
@@ -3378,7 +3380,7 @@ func TestBigQueryConfig_Deserialize(t *testing.T) {
 		Credentials map[string]interface{}
 	}
 	type args struct {
-		config SerializedConfig
+		config pc.SerializedConfig
 	}
 	tests := []struct {
 		name    string
@@ -3401,7 +3403,7 @@ func TestBigQueryConfig_Deserialize(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bq := &BigQueryConfig{
+			bq := &pc.BigQueryConfig{
 				ProjectId:   tt.fields.ProjectId,
 				DatasetId:   tt.fields.DatasetId,
 				Credentials: tt.fields.Credentials,
@@ -3649,7 +3651,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 		nameConst := name
 		testConst := test
 		t.Run(nameConst, func(t *testing.T) {
-			if store.Type() != MemoryOffline {
+			if store.Type() != pt.MemoryOffline {
 				t.Parallel()
 			}
 			runTestCase(t, testConst)

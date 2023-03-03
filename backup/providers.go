@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/featureform/provider"
+	pc "github.com/featureform/provider/provider_config"
 	"gocloud.dev/gcp"
 )
 
@@ -25,7 +26,7 @@ type Azure struct {
 }
 
 func (az *Azure) Init() error {
-	filestoreConfig := provider.AzureFileStoreConfig{
+	filestoreConfig := pc.AzureFileStoreConfig{
 		AccountName:   az.AccountName,
 		AccountKey:    az.AccountKey,
 		ContainerName: az.ContainerName,
@@ -66,8 +67,8 @@ type S3 struct {
 }
 
 func (s3 *S3) Init() error {
-	filestoreConfig := provider.S3FileStoreConfig{
-		Credentials: provider.AWSCredentials{
+	filestoreConfig := pc.S3FileStoreConfig{
+		Credentials: pc.AWSCredentials{
 			AWSAccessKeyId: s3.AWSAccessKeyId,
 			AWSSecretKey:   s3.AWSSecretKey,
 		},
@@ -107,7 +108,7 @@ type Local struct {
 }
 
 func (fs *Local) Init() error {
-	filestoreConfig := provider.LocalFileStoreConfig{
+	filestoreConfig := pc.LocalFileStoreConfig{
 		DirPath: fs.Path,
 	}
 	config, err := filestoreConfig.Serialize()
@@ -165,14 +166,17 @@ func (g *GCS) Init() error {
 		return fmt.Errorf("failed to check credentials: %v", err)
 	}
 
-	filestoreConfig := provider.GCSFileStoreConfig{
+	filestoreConfig := pc.GCSFileStoreConfig{
 		BucketName: g.BucketName,
 		BucketPath: g.BucketPath,
 		Credentials: provider.GCPCredentials{
 			SerializedFile: credentials,
 		},
 	}
-	config := filestoreConfig.Serialize()
+	config, err := filestoreConfig.Serialize()
+	if err != nil {
+		return err
+	}
 
 	filestore, err := provider.NewGCSFileStore(config)
 	if err != nil {

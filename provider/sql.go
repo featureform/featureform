@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	db "github.com/jackc/pgx/v4"
 	sf "github.com/snowflakedb/gosnowflake"
 )
@@ -22,10 +24,10 @@ func sanitize(ident string) string {
 }
 
 type SQLOfflineStoreConfig struct {
-	Config        SerializedConfig
+	Config        pc.SerializedConfig
 	ConnectionURL string
 	Driver        string
-	ProviderType  Type
+	ProviderType  pt.Type
 	QueryImpl     OfflineTableQueries
 }
 

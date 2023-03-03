@@ -7,17 +7,9 @@ package provider
 import (
 	"fmt"
 
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/go-redis/redis/v8"
-)
-
-const (
-	LocalOnline     Type = "LOCAL_ONLINE"
-	RedisOnline          = "REDIS_ONLINE"
-	CassandraOnline      = "CASSANDRA_ONLINE"
-	FirestoreOnline      = "FIRESTORE_ONLINE"
-	DynamoDBOnline       = "DYNAMODB_ONLINE"
-	BlobOnline           = "BLOB_ONLINE"
-	MongoDBOnline        = "MONGODB_ONLINE"
 )
 
 var cassandraTypeMap = map[string]string{
@@ -78,7 +70,7 @@ func (err *CustomError) Error() string {
 	return err.ErrorMessage
 }
 
-func localOnlineStoreFactory(SerializedConfig) (Provider, error) {
+func localOnlineStoreFactory(pc.SerializedConfig) (Provider, error) {
 	return NewLocalOnlineStore(), nil
 }
 
@@ -91,7 +83,7 @@ func NewLocalOnlineStore() *localOnlineStore {
 	return &localOnlineStore{
 		make(map[tableKey]localOnlineTable),
 		BaseProvider{
-			ProviderType:   LocalOnline,
+			ProviderType:   pt.LocalOnline,
 			ProviderConfig: []byte{},
 		},
 	}

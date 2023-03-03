@@ -21,6 +21,8 @@ import (
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/provider"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 )
 
 func simpleFeatureRecords() map[provider.ResourceID][]provider.ResourceRecord {
@@ -379,7 +381,7 @@ func (ctx *onlineTestContext) Create(t *testing.T) *FeatureServer {
 	ctx.metaServ, addr = startMetadata()
 	providerType := uuid.NewString()
 	if ctx.FactoryFn != nil {
-		if err := provider.RegisterFactory(provider.Type(providerType), ctx.FactoryFn); err != nil {
+		if err := provider.RegisterFactory(pt.Type(providerType), ctx.FactoryFn); err != nil {
 			t.Fatalf("Failed to register factory: %s", err)
 		}
 	}
@@ -413,7 +415,7 @@ func randomMetricsId() string {
 }
 
 func createMockOnlineStoreFactory(recsMap map[provider.ResourceID][]provider.ResourceRecord) provider.Factory {
-	return func(cfg provider.SerializedConfig) (provider.Provider, error) {
+	return func(cfg pc.SerializedConfig) (provider.Provider, error) {
 		store := provider.NewLocalOnlineStore()
 		for id, recs := range recsMap {
 			if id.Type != provider.Feature {
@@ -434,7 +436,7 @@ func createMockOnlineStoreFactory(recsMap map[provider.ResourceID][]provider.Res
 }
 
 func createMockOfflineStoreFactory(recsMap map[provider.ResourceID][]provider.ResourceRecord, defs []provider.TrainingSetDef) provider.Factory {
-	return func(cfg provider.SerializedConfig) (provider.Provider, error) {
+	return func(cfg pc.SerializedConfig) (provider.Provider, error) {
 		store := provider.NewMemoryOfflineStore()
 		for id, recs := range recsMap {
 			table, err := store.CreateResourceTable(id, provider.TableSchema{})
@@ -456,7 +458,7 @@ func createMockOfflineStoreFactory(recsMap map[provider.ResourceID][]provider.Re
 	}
 }
 
-func onlineStoreNoTables(cfg provider.SerializedConfig) (provider.Provider, error) {
+func onlineStoreNoTables(cfg pc.SerializedConfig) (provider.Provider, error) {
 	store := provider.NewLocalOnlineStore()
 	return store, nil
 }

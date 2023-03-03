@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-redis/redis/v8"
 	"time"
+
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
+	"github.com/go-redis/redis/v8"
 )
 
 type redisTableKey struct {
@@ -23,8 +26,8 @@ type redisOnlineStore struct {
 	BaseProvider
 }
 
-func redisOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
-	redisConfig := &RedisConfig{}
+func redisOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
+	redisConfig := &pc.RedisConfig{}
 	if err := redisConfig.Deserialize(serialized); err != nil {
 		return nil, err
 	}
@@ -34,7 +37,7 @@ func redisOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
 	return NewRedisOnlineStore(redisConfig), nil
 }
 
-func NewRedisOnlineStore(options *RedisConfig) *redisOnlineStore {
+func NewRedisOnlineStore(options *pc.RedisConfig) *redisOnlineStore {
 	redisOptions := &redis.Options{
 		Addr:     options.Addr,
 		Password: options.Password,
@@ -42,7 +45,7 @@ func NewRedisOnlineStore(options *RedisConfig) *redisOnlineStore {
 	}
 	redisClient := redis.NewClient(redisOptions)
 	return &redisOnlineStore{redisClient, options.Prefix, BaseProvider{
-		ProviderType:   RedisOnline,
+		ProviderType:   pt.RedisOnline,
 		ProviderConfig: options.Serialized(),
 	},
 	}

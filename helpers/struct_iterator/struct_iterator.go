@@ -55,7 +55,8 @@ func (si *StructIterator) isPublic() bool {
 
 // NewStructIterator creates returns a new iterator for a struct.
 // This only works with struct types, not maps. It will only iterate
-// over public members of the struct.
+// over public members of the struct. Currently struct pointers will
+// result in an error
 func NewStructIterator(s interface{}) (*StructIterator, error) {
 	t := reflect.TypeOf(s).Kind()
 	if t != reflect.Struct {

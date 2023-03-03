@@ -11,6 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	sn "github.com/mrz1836/go-sanitize"
 )
 
@@ -48,8 +50,8 @@ type Metadata struct {
 
 const tableCreateTimeout = 120
 
-func dynamodbOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
-	dynamodbConfig := &DynamodbConfig{}
+func dynamodbOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
+	dynamodbConfig := &pc.DynamodbConfig{}
 	if err := dynamodbConfig.Deserialize(serialized); err != nil {
 		return nil, err
 	}
@@ -59,7 +61,7 @@ func dynamodbOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
 	return NewDynamodbOnlineStore(dynamodbConfig)
 }
 
-func NewDynamodbOnlineStore(options *DynamodbConfig) (*dynamodbOnlineStore, error) {
+func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, error) {
 	config := &aws.Config{
 		Region:      aws.String(options.Region),
 		Credentials: credentials.NewStaticCredentials(options.AccessKey, options.SecretKey, ""),
@@ -70,7 +72,7 @@ func NewDynamodbOnlineStore(options *DynamodbConfig) (*dynamodbOnlineStore, erro
 		return nil, fmt.Errorf("could not create metadata table: %v", err)
 	}
 	return &dynamodbOnlineStore{dynamodbClient, options.Prefix, BaseProvider{
-		ProviderType:   DynamoDBOnline,
+		ProviderType:   pt.DynamoDBOnline,
 		ProviderConfig: options.Serialized(),
 	}, 360,
 	}, nil

@@ -5,26 +5,28 @@
 package provider
 
 import (
-	"encoding/json"
 	"fmt"
+
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 )
 
 func init() {
-	unregisteredFactories := map[Type]Factory{
-		LocalOnline:      localOnlineStoreFactory,
-		RedisOnline:      redisOnlineStoreFactory,
-		CassandraOnline:  cassandraOnlineStoreFactory,
-		FirestoreOnline:  firestoreOnlineStoreFactory,
-		DynamoDBOnline:   dynamodbOnlineStoreFactory,
-		MemoryOffline:    memoryOfflineStoreFactory,
-		PostgresOffline:  postgresOfflineStoreFactory,
-		SnowflakeOffline: snowflakeOfflineStoreFactory,
-		RedshiftOffline:  redshiftOfflineStoreFactory,
-		BigQueryOffline:  bigQueryOfflineStoreFactory,
-		SparkOffline:     sparkOfflineStoreFactory,
-		K8sOffline:       k8sOfflineStoreFactory,
-		BlobOnline:       blobOnlineStoreFactory,
-		MongoDBOnline:    mongoOnlineStoreFactory,
+	unregisteredFactories := map[pt.Type]Factory{
+		pt.LocalOnline:      localOnlineStoreFactory,
+		pt.RedisOnline:      redisOnlineStoreFactory,
+		pt.CassandraOnline:  cassandraOnlineStoreFactory,
+		pt.FirestoreOnline:  firestoreOnlineStoreFactory,
+		pt.DynamoDBOnline:   dynamodbOnlineStoreFactory,
+		pt.MemoryOffline:    memoryOfflineStoreFactory,
+		pt.PostgresOffline:  postgresOfflineStoreFactory,
+		pt.SnowflakeOffline: snowflakeOfflineStoreFactory,
+		pt.RedshiftOffline:  redshiftOfflineStoreFactory,
+		pt.BigQueryOffline:  bigQueryOfflineStoreFactory,
+		pt.SparkOffline:     sparkOfflineStoreFactory,
+		pt.K8sOffline:       k8sOfflineStoreFactory,
+		pt.BlobOnline:       blobOnlineStoreFactory,
+		pt.MongoDBOnline:    mongoOnlineStoreFactory,
 	}
 	for name, factory := range unregisteredFactories {
 		if err := RegisterFactory(name, factory); err != nil {
@@ -33,138 +35,18 @@ func init() {
 	}
 }
 
-type SerializedConfig []byte
-
 type SerializedTableSchema []byte
-
-type RedisConfig struct {
-	Prefix   string
-	Addr     string
-	Password string
-	DB       int
-}
-
-func (r RedisConfig) Serialized() SerializedConfig {
-	config, err := json.Marshal(r)
-	if err != nil {
-		panic(err)
-	}
-	return config
-}
-
-func (r *RedisConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, r)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-type CassandraConfig struct {
-	Keyspace    string
-	Addr        string
-	Username    string
-	Password    string
-	Consistency string
-	Replication int
-}
-
-func (r CassandraConfig) Serialized() SerializedConfig {
-	config, err := json.Marshal(r)
-	if err != nil {
-		panic(err)
-	}
-	return config
-}
-
-func (r *CassandraConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, r)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-type MongoDBConfig struct {
-	Host       string
-	Port       string
-	Username   string
-	Password   string
-	Database   string
-	Throughput int
-}
-
-func (r MongoDBConfig) Serialized() SerializedConfig {
-	config, err := json.Marshal(r)
-	if err != nil {
-		panic(err)
-	}
-	return config
-}
-
-func (r *MongoDBConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, r)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-type DynamodbConfig struct {
-	Prefix    string
-	Region    string
-	AccessKey string
-	SecretKey string
-}
-
-func (r DynamodbConfig) Serialized() SerializedConfig {
-	config, err := json.Marshal(r)
-	if err != nil {
-		panic(err)
-	}
-	return config
-}
-
-func (r *DynamodbConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, r)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-type FirestoreConfig struct {
-	Collection  string
-	ProjectID   string
-	Credentials map[string]interface{}
-}
-
-func (r FirestoreConfig) Serialize() SerializedConfig {
-	config, err := json.Marshal(r)
-	if err != nil {
-		panic(err)
-	}
-	return config
-}
-
-func (r *FirestoreConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, r)
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 type Provider interface {
 	AsOnlineStore() (OnlineStore, error)
 	AsOfflineStore() (OfflineStore, error)
-	Type() Type
-	Config() SerializedConfig
+	Type() pt.Type
+	Config() pc.SerializedConfig
 }
 
 type BaseProvider struct {
-	ProviderType   Type
-	ProviderConfig SerializedConfig
+	ProviderType   pt.Type
+	ProviderConfig pc.SerializedConfig
 }
 
 func (provider BaseProvider) AsOnlineStore() (OnlineStore, error) {
@@ -175,21 +57,19 @@ func (provider BaseProvider) AsOfflineStore() (OfflineStore, error) {
 	return nil, fmt.Errorf("%T cannot be used as an OfflineStore", provider)
 }
 
-func (provider BaseProvider) Type() Type {
+func (provider BaseProvider) Type() pt.Type {
 	return provider.ProviderType
 }
 
-func (provider BaseProvider) Config() SerializedConfig {
+func (provider BaseProvider) Config() pc.SerializedConfig {
 	return provider.ProviderConfig
 }
 
-type Factory func(SerializedConfig) (Provider, error)
+type Factory func(pc.SerializedConfig) (Provider, error)
 
-type Type string
+var factories map[pt.Type]Factory = make(map[pt.Type]Factory)
 
-var factories map[Type]Factory = make(map[Type]Factory)
-
-func RegisterFactory(t Type, f Factory) error {
+func RegisterFactory(t pt.Type, f Factory) error {
 	if _, has := factories[t]; has {
 		return fmt.Errorf("%s provider factory already exists", t)
 	}
@@ -197,7 +77,7 @@ func RegisterFactory(t Type, f Factory) error {
 	return nil
 }
 
-func Get(t Type, config SerializedConfig) (Provider, error) {
+func Get(t pt.Type, config pc.SerializedConfig) (Provider, error) {
 	f, has := factories[t]
 	if !has {
 		return nil, fmt.Errorf("no provider of type: %s", t)

@@ -18,6 +18,7 @@ import (
 
 	"github.com/featureform/helpers"
 	"github.com/featureform/metadata"
+	pc "github.com/featureform/provider/provider_config"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/mitchellh/mapstructure"
@@ -32,13 +33,13 @@ func uuidWithoutDashes() string {
 
 // Tests that both Legacy and new ExecutorConfig can be properly deserialized
 func TestDeserializeExecutorConfig(t *testing.T) {
-	expectedConfig := K8sConfig{
+	expectedConfig := pc.K8sConfig{
 		ExecutorType: "k8s",
-		ExecutorConfig: ExecutorConfig{
+		ExecutorConfig: pc.ExecutorConfig{
 			DockerImage: "",
 		},
 		StoreType: "blob",
-		StoreConfig: AzureFileStoreConfig{
+		StoreConfig: pc.AzureFileStoreConfig{
 			AccountName:   "account name",
 			AccountKey:    "account key",
 			ContainerName: "container name",
@@ -59,13 +60,13 @@ func TestDeserializeExecutorConfig(t *testing.T) {
 
 	type testCase struct {
 		GivenExecutorConfig    interface{}
-		ExpectedExecutorConfig ExecutorConfig
+		ExpectedExecutorConfig pc.ExecutorConfig
 	}
 
 	testCases := map[string]testCase{
 		"Legacy Config": testCase{
 			"",
-			ExecutorConfig{
+			pc.ExecutorConfig{
 				DockerImage: "",
 			},
 		},
@@ -73,7 +74,7 @@ func TestDeserializeExecutorConfig(t *testing.T) {
 			map[string]interface{}{
 				"docker_image": "",
 			},
-			ExecutorConfig{
+			pc.ExecutorConfig{
 				DockerImage: "",
 			},
 		},
@@ -81,7 +82,7 @@ func TestDeserializeExecutorConfig(t *testing.T) {
 			map[string]interface{}{
 				"docker_image": "repo/image:tag",
 			},
-			ExecutorConfig{
+			pc.ExecutorConfig{
 				DockerImage: "repo/image:tag",
 			},
 		},
@@ -95,7 +96,7 @@ func TestDeserializeExecutorConfig(t *testing.T) {
 			if err != nil {
 				t.Errorf("Could not serialize config %s", err.Error())
 			}
-			receivedConfig := K8sConfig{}
+			receivedConfig := pc.K8sConfig{}
 			receivedConfig.Deserialize(serializedConfig)
 			if !reflect.DeepEqual(expectedConfig, receivedConfig) {
 				t.Errorf("\nExpected %#v\nGot %#v\n", expectedConfig, receivedConfig)
@@ -139,7 +140,7 @@ func TestBlobInterfaces(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create new file blob store: %v", err)
 	}
-	azureStoreConfig := AzureFileStoreConfig{
+	azureStoreConfig := pc.AzureFileStoreConfig{
 		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
@@ -279,11 +280,11 @@ func TestExecutorRunLocal(t *testing.T) {
 func TestNewConfig(t *testing.T) {
 	err := godotenv.Load("../.env")
 
-	k8sConfig := K8sConfig{
-		ExecutorType:   K8s,
-		ExecutorConfig: ExecutorConfig{},
-		StoreType:      Azure,
-		StoreConfig: AzureFileStoreConfig{
+	k8sConfig := pc.K8sConfig{
+		ExecutorType:   pc.K8s,
+		ExecutorConfig: pc.ExecutorConfig{},
+		StoreType:      pc.Azure,
+		StoreConfig: pc.AzureFileStoreConfig{
 			AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 			AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 			ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
@@ -294,7 +295,7 @@ func TestNewConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not serialize: %v", err)
 	}
-	provider, err := k8sOfflineStoreFactory(SerializedConfig(serialized))
+	provider, err := k8sOfflineStoreFactory(pc.SerializedConfig(serialized))
 	if err != nil {
 		t.Fatalf("could not get provider")
 	}
@@ -647,7 +648,7 @@ func testDatabricksInitialization(t *testing.T, store FileStore) {
 	host := helpers.GetEnv("DATABRICKS_HOST", "")
 	token := helpers.GetEnv("DATABRICKS_ACCESS_TOKEN", "")
 	cluster := helpers.GetEnv("DATABRICKS_CLUSTER", "")
-	databricksConfig := DatabricksConfig{
+	databricksConfig := pc.DatabricksConfig{
 		Host:    host,
 		Token:   token,
 		Cluster: cluster,
@@ -724,10 +725,10 @@ func TestKExecutorConfig_getImage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &ExecutorConfig{
+			c := &pc.ExecutorConfig{
 				DockerImage: tt.fields.DockerImage,
 			}
-			if got := c.getImage(); got != tt.want {
+			if got := c.GetImage(); got != tt.want {
 				t.Errorf("getImage() = %v, want %v", got, tt.want)
 			}
 		})

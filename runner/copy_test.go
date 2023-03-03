@@ -7,11 +7,14 @@ package runner
 import (
 	"errors"
 	"fmt"
-	"github.com/featureform/provider"
-	"github.com/google/uuid"
 	"reflect"
 	"sync"
 	"testing"
+
+	"github.com/featureform/provider"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
+	"github.com/google/uuid"
 )
 
 type MockMaterializedFeatures struct {
@@ -312,11 +315,11 @@ func testErrorConfigsFactory(config Config) error {
 	return err
 }
 
-func brokenNumRowsOfflineFactory(provider.SerializedConfig) (provider.Provider, error) {
+func brokenNumRowsOfflineFactory(pc.SerializedConfig) (provider.Provider, error) {
 	return &BrokenNumRowsOfflineStore{}, nil
 }
 
-func brokenGetTableOnlineFactory(provider.SerializedConfig) (provider.Provider, error) {
+func brokenGetTableOnlineFactory(pc.SerializedConfig) (provider.Provider, error) {
 	return &BrokenGetTableOnlineStore{}, nil
 }
 
@@ -443,7 +446,7 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 		{
 			Name: "cannot configure offline provider",
 			ErrorConfig: serializeMaterializeConfig(MaterializedChunkRunnerConfig{
-				OnlineType:   provider.LocalOnline,
+				OnlineType:   pt.LocalOnline,
 				OnlineConfig: []byte{},
 				OfflineType:  "Invalid_Offline_type",
 			}),
@@ -451,27 +454,27 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 		{
 			Name: "cannot convert online provider to online store",
 			ErrorConfig: serializeMaterializeConfig(MaterializedChunkRunnerConfig{
-				OnlineType:    provider.MemoryOffline,
+				OnlineType:    pt.MemoryOffline,
 				OnlineConfig:  []byte{},
-				OfflineType:   provider.MemoryOffline,
+				OfflineType:   pt.MemoryOffline,
 				OfflineConfig: []byte{},
 			}),
 		},
 		{
 			Name: "cannot convert offline provider to offline store",
 			ErrorConfig: serializeMaterializeConfig(MaterializedChunkRunnerConfig{
-				OnlineType:    provider.LocalOnline,
+				OnlineType:    pt.LocalOnline,
 				OnlineConfig:  []byte{},
-				OfflineType:   provider.LocalOnline,
+				OfflineType:   pt.LocalOnline,
 				OfflineConfig: []byte{},
 			}),
 		},
 		{
 			Name: "cannot get materialization",
 			ErrorConfig: serializeMaterializeConfig(MaterializedChunkRunnerConfig{
-				OnlineType:     provider.LocalOnline,
+				OnlineType:     pt.LocalOnline,
 				OnlineConfig:   []byte{},
-				OfflineType:    provider.MemoryOffline,
+				OfflineType:    pt.MemoryOffline,
 				OfflineConfig:  []byte{},
 				MaterializedID: "",
 			}),
@@ -820,11 +823,11 @@ func (m MockIterator) Close() error {
 	return nil
 }
 
-func mockOnlineStoreFactory(provider.SerializedConfig) (provider.Provider, error) {
+func mockOnlineStoreFactory(pc.SerializedConfig) (provider.Provider, error) {
 	return NewMockOnlineStore(), nil
 }
 
-func mockOfflineStoreFactory(provider.SerializedConfig) (provider.Provider, error) {
+func mockOfflineStoreFactory(pc.SerializedConfig) (provider.Provider, error) {
 	return NewMockOfflineStore(), nil
 }
 

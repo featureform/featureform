@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/featureform/logging"
-	"github.com/featureform/provider"
-	"github.com/joho/godotenv"
 	"os"
 	"time"
+
+	"github.com/featureform/logging"
+	pc "github.com/featureform/provider/provider_config"
+	"github.com/joho/godotenv"
 
 	"github.com/featureform/backup"
 	help "github.com/featureform/helpers"
@@ -34,24 +35,24 @@ func main() {
 		panic(err)
 	}
 
-	p := provider.FileStoreType(help.GetEnv("CLOUD_PROVIDER", provider.FileSystem))
+	p := pc.FileStoreType(help.GetEnv("CLOUD_PROVIDER", string(pc.FileSystem)))
 
 	var backupProvider backup.Provider
 	switch p {
-	case provider.Azure:
+	case pc.Azure:
 		backupProvider = &backup.Azure{
 			AccountName:   os.Getenv("AZURE_STORAGE_ACCOUNT"),
 			AccountKey:    os.Getenv("AZURE_STORAGE_KEY"),
 			ContainerName: os.Getenv("AZURE_CONTAINER_NAME"),
 			Path:          os.Getenv("AZURE_STORAGE_PATH"),
 		}
-	case provider.GCS:
+	case pc.GCS:
 		backupProvider = &backup.GCS{
 			BucketName:  os.Getenv("GCS_BUCKET_NAME"),
 			BucketPath:  os.Getenv("GCS_BUCKET_PATH"),
 			Credentials: []byte(help.GetEnv("GCS_CREDENTIALS", "")), // Uses local creds if empty
 		}
-	case provider.S3:
+	case pc.S3:
 		backupProvider = &backup.S3{
 			AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY"),
 			AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
@@ -59,7 +60,7 @@ func main() {
 			BucketName:     os.Getenv("AWS_BUCKET_NAME"),
 			BucketPath:     os.Getenv("AWS_BUCKET_PATH"),
 		}
-	case provider.FileSystem:
+	case pc.FileSystem:
 		backupProvider = &backup.Local{
 			Path: help.GetEnv("LOCAL_FILESTORE_PATH", "file://./"),
 		}

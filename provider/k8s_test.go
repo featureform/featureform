@@ -131,7 +131,7 @@ func TestBlobInterfaces(t *testing.T) {
 	directoryPath := fmt.Sprintf("%s/scripts/k8s/tests/test_files/output/go_tests", mydir)
 	_ = os.MkdirAll(directoryPath, os.ModePerm)
 
-	fileStoreConfig := LocalFileStoreConfig{DirPath: fmt.Sprintf(`file:///%s`, directoryPath)}
+	fileStoreConfig := pc.LocalFileStoreConfig{DirPath: fmt.Sprintf(`file:///%s`, directoryPath)}
 	serializedFileConfig, err := fileStoreConfig.Serialize()
 	if err != nil {
 		t.Fatalf("failed to serialize file store config: %v", err)

@@ -111,6 +111,9 @@ etcd:
       ttl: 100h
   replicaCount: 3
 
+meilisearch:
+  fullnameOverride: featureform-search
+
 
 # Logging:
 # For instructions to see the dashboard, check here:

@@ -16,9 +16,9 @@ nameOverride: metadata-server
 fullnameOverride: ""
 
 typesense:
-  host: featureform-typesense
-  port: 80
-  apikey: xyz
+  host: featureform-search
+  port: 7700
+  apikey: ""
 
 
 etcd:

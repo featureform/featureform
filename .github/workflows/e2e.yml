@@ -375,6 +375,13 @@ jobs:
           kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
           export FEATUREFORM_HOST=localhost:443
           export FEATUREFORM_CERT=tls.crt
+      
+      - name: create-json
+        id: create-json-2
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "./provider/gcp_credentials.json"
+          json: ${{ secrets.GCS_CREDENTIALS }}
 
       - name: Test End-to-End
         env:
@@ -397,6 +404,8 @@ jobs:
           K8S_RUNNER_SCIKIT: "local/k8s_runner:scikit-stable"
           S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
           S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_CREDENTIALS_FILE: "./provider/gcp_credentials.json"
           FEATUREFORM_HOST: localhost:8000
           FEATUREFORM_CERT: tls.crt
 

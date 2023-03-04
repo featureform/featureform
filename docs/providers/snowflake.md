@@ -31,7 +31,9 @@ Every registered feature and label is associated with a view table. That view co
 First we have to add a declarative Snowflake configuration in Python.
 
 ### Credentials with Account and Organization
+
 {% code title="snowflake_config.py" %}
+
 ```python
 import featureform as ff
 
@@ -47,6 +49,7 @@ ff.register_snowflake(
     schema: snowflake_schema,
 )
 ```
+
 {% endcode %}
 
 ### Legacy Credentials
@@ -56,6 +59,7 @@ an `account` and `organization` to connect. Featureform provides a separate regi
 function to support these credentials.
 
 {% code title="snowflake_config.py" %}
+
 ```python
 import featureform as ff
 
@@ -70,6 +74,7 @@ ff.register_snowflake_legacy(
     schema: snowflake_schema,
 )
 ```
+
 {% endcode %}
 
 Once our config file is complete, we can apply it to our Featureform deployment
@@ -79,3 +84,10 @@ featureform apply snowflake_config.py --host $FEATUREFORM_HOST
 ```
 
 We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry](../getting-started/exploring-the-feature-registry.md).
+
+### Updatable Configuration Fields
+
+* `description`
+* `username`
+* `password`
+* `role`

@@ -11,6 +11,7 @@ In this configuration, one Redis hash is created per feature. It maps entities t
 First we have to add a declarative Redis configuration in Python. In the following example, only name is required, but the other parameters are available.
 
 {% code title="redis_config.py" %}
+
 ```python
 import featureform as ff
 
@@ -24,6 +25,7 @@ ff.register_redis(
     db = 0,
 )
 ```
+
 {% endcode %}
 
 Once our config file is complete, we can apply it to our Featureform deployment
@@ -33,3 +35,8 @@ featureform apply redis_config.py --host $FEATUREFORM_HOST
 ```
 
 We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry](../getting-started/exploring-the-feature-registry.md).
+
+### Updatable Configuration Fields
+
+* `description`
+* `password`

@@ -27,6 +27,7 @@ Every registered feature and label is associated with a view table. That view co
 First we have to add a declarative BigQuery configuration in Python.
 
 {% code title="bigquery_config.py" %}
+
 ```python
 import featureform as ff
 
@@ -38,6 +39,7 @@ bigquery = ff.register_bigquery(
     credentials_path="<path-to-bigquery-credentials-file>"
 )
 ```
+
 {% endcode %}
 
 Once our config file is complete, we can apply it to our Featureform deployment
@@ -47,3 +49,8 @@ featureform apply bigquery_config.py --host $FEATUREFORM_HOST
 ```
 
 We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry](../getting-started/exploring-the-feature-registry.md).
+
+### Updatable Configuration Fields
+
+* `description`
+* `credentials`

@@ -29,6 +29,7 @@ In this example, we'll configure Featureform with [Postgres](../providers/postgr
 We'll begin by specifying our providers in a Python file
 
 {% code title="providers.py" %}
+
 ```python
 import featureform as ff
 
@@ -53,6 +54,7 @@ postgres = ff.register_postgres(
     database = "postgres",
 )
 ```
+
 {% endcode %}
 
 Then, we'll use the Featureform CLI to register them
@@ -60,6 +62,12 @@ Then, we'll use the Featureform CLI to register them
 ```bash
 featureform apply providers.py
 ```
+
+## Updating Providers
+
+In the event a provider's credentials change, Featureform supports updating previously registered providers' configurations. To update a provider, simply make the necessary changes to `providers.py`, for example, and register them again using the CLI command.
+
+The `description` field is updatable for all provider types; however, which configuration fields are valid of update varies by provider type. To check which fields are open for update, see the specific provider's page in the list below.
 
 ## Supported Providers
 

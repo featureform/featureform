@@ -27,6 +27,7 @@ Every registered feature and label is associated with a view table. That view co
 First we have to add a declarative Postgres configuration in Python.
 
 {% code title="postgres_config.py" %}
+
 ```python
 import featureform as ff
 
@@ -41,6 +42,7 @@ ff.register_postgres(
     database = "postgres",
 )
 ```
+
 {% endcode %}
 
 Once our config file is complete, we can apply it to our Featureform deployment
@@ -50,3 +52,10 @@ featureform apply postgres_config.py --host $FEATUREFORM_HOST
 ```
 
 We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry](../getting-started/exploring-the-feature-registry.md).
+
+### Updatable Configuration Fields
+
+* `description`
+* `username`
+* `password`
+* `port`

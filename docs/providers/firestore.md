@@ -11,6 +11,7 @@ A Firestore document is created for every feature,  within the same collection. 
 First we have to add a declarative Firestore configuration in Python. In the following example, only name and credentials are required, but the other parameters are available. Note: "credentials" refers to the file location of the Firestore Configuration (.json).&#x20;
 
 {% code title="firestore_config.py" %}
+
 ```python
 import featureform as ff
 ff.register_firestore(
@@ -22,6 +23,7 @@ ff.register_firestore(
     credentials = ""
 )
 ```
+
 {% endcode %}
 
 Once our config file is complete, we can apply it to our Featureform deployment
@@ -31,3 +33,8 @@ featureform apply firestore_config.py --host $FEATUREFORM_HOST
 ```
 
 We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry](../getting-started/exploring-the-feature-registry.md).
+
+### Updatable Configuration Fields
+
+* `description`
+* `credentials`

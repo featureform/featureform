@@ -11,6 +11,7 @@ An Azure Blob created for every feature. The data type is stored in an index, an
 First we have to add a declarative Azure Blob configuration in Python.
 
 {% code title="azure_blob_config.py" %}
+
 ```python
 import featureform as ff
 azure_blob = ff.register_blob_store(
@@ -22,6 +23,7 @@ azure_blob = ff.register_blob_store(
     account_key="<azure_account_key>" 
 )
 ```
+
 {% endcode %}
 
 Once our config file is complete, we can apply it to our Featureform deployment
@@ -32,11 +34,18 @@ featureform apply azure_blob_config.py --host $FEATUREFORM_HOST
 
 We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry](../getting-started/exploring-the-feature-registry.md).
 
+### Updatable Configuration Fields
+
+* `description`
+* `account_name`
+* `account_secret`
+
 ## Kubernetes Offline Store
 
 [Kubernetes serves as a compute layer](kubernetes.md) for generating training sets, SQL, and Dataframe transformations. To use Kubernetes, a storage layer to store the results of the computation needs to be specified.
 
 {% code title="azure_blob_config.py" %}
+
 ```python
 import featureform as ff
 k8s_store = ff.register_k8s(
@@ -46,4 +55,5 @@ k8s_store = ff.register_k8s(
     team="featureform-team"
 )
 ```
+
 {% endcode %}

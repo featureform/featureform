@@ -5,28 +5,34 @@
 package search
 
 import (
-	help "github.com/featureform/helpers"
+	"os"
 	"testing"
 )
 
 func getPort() string {
-	return help.GetEnv("MEILISEARCH_PORT", "7700")
+	if value, ok := os.LookupEnv("TYPESENSE_PORT"); ok {
+		return value
+	}
+	return "8108"
 }
 
 func getApikey() string {
-	return help.GetEnv("MEILISEARCH_API_KEY", "")
+	if value, ok := os.LookupEnv("TYPESENSE_API_KEY"); ok {
+		return value
+	}
+	return "xyz"
 }
 
 func TestFullSearch(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	params := MeilisearchParams{
+	params := TypeSenseParams{
 		Host:   "localhost",
 		Port:   getPort(),
 		ApiKey: getApikey(),
 	}
-	searcher, err := NewMeilisearch(&params)
+	searcher, err := NewTypesenseSearch(&params)
 	if err != nil {
 		t.Fatalf("Failed to Initialize Search %s", err)
 	}
@@ -50,12 +56,12 @@ func TestCharacters(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	params := MeilisearchParams{
+	params := TypeSenseParams{
 		Host:   "localhost",
 		Port:   getPort(),
 		ApiKey: getApikey(),
 	}
-	searcher, errSearcher := NewMeilisearch(&params)
+	searcher, errSearcher := NewTypesenseSearch(&params)
 	if errSearcher != nil {
 		t.Fatalf("Failed to initialize %s", errSearcher)
 	}
@@ -130,35 +136,32 @@ func TestOrder(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	params := MeilisearchParams{
+	params := TypeSenseParams{
 		Host:   "localhost",
 		Port:   getPort(),
 		ApiKey: getApikey(),
 	}
-	searcher, err := NewMeilisearch(&params)
+	searcher, err := NewTypesenseSearch(&params)
 	if err != nil {
 		t.Fatalf("Failed to initialize %s", err)
-	}
-	if err := searcher.DeleteAll(); err != nil {
-		t.Fatalf("Failed to Delete %s", err)
 	}
 	resources := []ResourceDoc{
 		{
 			Name:    "heroic",
 			Variant: "default",
-			Type:    "Feature",
+			Type:    "string",
 		}, {
 			Name:    "wine",
 			Variant: "second",
-			Type:    "Feature",
+			Type:    "general",
 		}, {
 			Name:    "hero",
 			Variant: "default-1",
-			Type:    "Trainingset",
+			Type:    "string",
 		}, {
 			Name:    "Hero",
 			Variant: "second",
-			Type:    "Label",
+			Type:    "Entity",
 		}, {
 			Name:    "her o",
 			Variant: "third",
@@ -175,10 +178,9 @@ func TestOrder(t *testing.T) {
 		t.Fatalf("Failed to start search %s", errRunsearch)
 	}
 	names := []string{
-		"hero",
 		"Hero",
+		"hero",
 		"heroic",
-		"her o",
 	}
 	for i, hit := range results {
 		if hit.Name != names[i] {
@@ -186,7 +188,7 @@ func TestOrder(t *testing.T) {
 				"Expected: %s, Got: %s\n", names[i], hit.Name)
 		}
 	}
-	//if err := searcher.DeleteAll(); err != nil {
-	//	t.Fatalf("Failed to Delete %s", err)
-	//}
+	if err := searcher.DeleteAll(); err != nil {
+		t.Fatalf("Failed to Delete %s", err)
+	}
 }

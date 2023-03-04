@@ -20,7 +20,7 @@ func main() {
 	etcdPort := help.GetEnv("ETCD_PORT", "2379")
 	logger := zap.NewExample().Sugar()
 	addr := help.GetEnv("METADATA_PORT", "8080")
-	enableSearch := help.GetEnv("ENABLE_SEARCH", "true")
+	enableTypesense := help.GetEnv("ENABLE_TYPESENSE", "true")
 	storageProvider := metadata.EtcdStorageProvider{
 		metadata.EtcdConfig{
 			Nodes: []metadata.EtcdNode{
@@ -33,12 +33,12 @@ func main() {
 		Address:         fmt.Sprintf(":%s", addr),
 		StorageProvider: storageProvider,
 	}
-	if enableSearch == "true" {
-		logger.Infow("Connecting to search", "host", os.Getenv("MEILISEARCH_HOST"), "port", os.Getenv("MEILISEARCH_PORT"))
-		config.SearchParams = &search.MeilisearchParams{
-			Port:   help.GetEnv("MEILISEARCH_PORT", "7700"),
-			Host:   help.GetEnv("MEILISEARCH_HOST", "localhost"),
-			ApiKey: help.GetEnv("MEILISEARCH_APIKEY", "xyz"),
+	if enableTypesense == "true" {
+		fmt.Println("TS Port", os.Getenv("TYPESENSE_PORT"), "TS HOST", os.Getenv("TYPESENSE_HOST"), "TS KEY", os.Getenv("TYPESENSE_APIKEY"))
+		config.TypeSenseParams = &search.TypeSenseParams{
+			Port:   help.GetEnv("TYPESENSE_PORT", "8108"),
+			Host:   help.GetEnv("TYPESENSE_HOST", "localhost"),
+			ApiKey: help.GetEnv("TYPESENSE_APIKEY", "xyz"),
 		}
 	}
 

@@ -57,7 +57,7 @@ spark = ff.register_spark(
 
 {% endcode %}
 
-### Updatable Configuration Fields
+### Mutable Configuration Fields
 
 * `description`
 * `aws_access_key_id` (Executor and File Store)

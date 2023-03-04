@@ -56,7 +56,7 @@ spark = ff.register_spark(
 
 {% endcode %}
 
-### Updatable Configuration Fields
+### Mutable Configuration Fields
 
 * `description`
 * `username` (Executor)

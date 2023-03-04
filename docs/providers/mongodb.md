@@ -40,7 +40,7 @@ featureform apply mongodb_config.py --host $FEATUREFORM_HOST
 
 We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry](../getting-started/exploring-the-feature-registry.md).
 
-### Updatable Configuration Fields
+### Mutable Configuration Fields
 
 * `description`
 * `username`

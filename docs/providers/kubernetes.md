@@ -46,11 +46,12 @@ k8s_store = ff.register_k8s(
 
 {% endcode %}
 
-### Updatable Configuration Fields
+### Mutable Configuration Fields
 
 * `description`
 * `docker_image`
-* File store updatable configuration fields
+
+For your file store provider documentation for its mutable fields.
 
 ### Dataframe Transformations
 

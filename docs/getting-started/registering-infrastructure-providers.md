@@ -65,9 +65,11 @@ featureform apply providers.py
 
 ## Updating Providers
 
-In the event a provider's credentials change, Featureform supports updating previously registered providers' configurations. To update a provider, simply make the necessary changes to `providers.py`, for example, and register them again using the CLI command.
+To update a previously registered provider's configuration, make the necessary changes to `providers.py` (for example) and register them again using the CLI command.
 
-The `description` field is updatable for all provider types; however, which configuration fields are valid of update varies by provider type. To check which fields are open for update, see the specific provider's page in the list below.
+The description field can always be updated, but which configuration fields are updatable depends on the provider type.
+
+You can find the list of valid fields for each provider type on their specific page below.
 
 ## Supported Providers
 

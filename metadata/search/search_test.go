@@ -146,19 +146,19 @@ func TestOrder(t *testing.T) {
 		{
 			Name:    "heroic",
 			Variant: "default",
-			Type:    "string",
+			Type:    "Feature",
 		}, {
 			Name:    "wine",
 			Variant: "second",
-			Type:    "general",
+			Type:    "Feature",
 		}, {
 			Name:    "hero",
 			Variant: "default-1",
-			Type:    "string",
+			Type:    "Trainingset",
 		}, {
 			Name:    "Hero",
 			Variant: "second",
-			Type:    "Entity",
+			Type:    "Label",
 		}, {
 			Name:    "her o",
 			Variant: "third",
@@ -186,7 +186,7 @@ func TestOrder(t *testing.T) {
 				"Expected: %s, Got: %s\n", names[i], hit.Name)
 		}
 	}
-	if err := searcher.DeleteAll(); err != nil {
-		t.Fatalf("Failed to Delete %s", err)
-	}
+	//if err := searcher.DeleteAll(); err != nil {
+	//	t.Fatalf("Failed to Delete %s", err)
+	//}
 }

@@ -224,6 +224,8 @@ export default class ResourcesAPI {
   fetchSearch(query) {
     let searchResults = this.constructor.searchClient.search(query);
     return searchResults.then((results) => {
+      console.log("RESUTLS")
+      console.log(results.results())
       return results.results();
     });
   }

@@ -3,22 +3,15 @@ const { MeiliSearch } = require('meilisearch')
 class MeiliSearchResults {
     constructor(meilisearchresponse) {
         this._rawresults = meilisearchresponse;
-        this._length = this._rawresults["found"];
-        let hits = this._rawresults["hits"];
-        let listofdocuments = [];
-        for (let i = 0; i < hits.length; i++) {
-            let doc = hits[i]["document"];
-            listofdocuments.push(doc);
-        }
-        this._listofresults = listofdocuments;
-        let results = this._listofresults;
+        this._length = this._rawresults["estimatedTotalHits"];
+        this._hits = this._rawresults["hits"];
         let dictionary = {};
-        for (let i = 0; i < results.length; i++) {
-            let type = results[i]["Type"];
+        for (let i = 0; i < this._hits.length; i++) {
+            let type = this._hits[i]["Type"];
             if (dictionary[type]) {
-                dictionary[type].push(results[i]);
+                dictionary[type].push(this._hits[i]);
             } else {
-                dictionary[type] = [results[i]];
+                dictionary[type] = [this._hits[i]];
             }
         }
         this._resultsByType = dictionary;
@@ -27,7 +20,7 @@ class MeiliSearchResults {
         return this._length;
     }
     results() {
-        return this._listofresults;
+        return this._hits;
     }
     resultsByType() {
         return this._resultsByType;
@@ -49,7 +42,7 @@ module.exports = class MeiliSearchClient {
         let client = new MeiliSearch({
             host: "http://"+this._host+":"+this._port,
         });
-        let response = client.index("resource").search(query);
+        let response = client.index("resources").search(query);
         return response.then(function (jsonResp) {
             return new MeiliSearchResults(jsonResp);
         });

@@ -221,6 +221,7 @@ pytest:
 	pytest client/tests/test_localmode_lag_features.py
 	pytest -m 'local' client/tests/test_serving_model.py
 	pytest -m 'local' client/tests/test_getting_model.py
+	pytest -m 'local' client/tests/test_search.py
 	-rm -r .featureform
 	-rm -f transactions.csv
 
@@ -368,6 +369,7 @@ test_e2e: update_python					## Runs End-to-End tests on minikube
 	pytest client/tests/e2e.py
 	pytest -m 'hosted' client/tests/test_serving_model.py
 	pytest -m 'hosted' client/tests/test_getting_model.py
+	pytest -m 'hosted' client/tests/test_search.py
 
 	 echo "Starting end to end tests"
 	 ./tests/end_to_end/end_to_end_tests.sh localhost:8000 ./tls.crt

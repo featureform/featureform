@@ -115,18 +115,19 @@ func (s Search) initializeCollection() error {
 }
 
 func (s Search) Upsert(doc ResourceDoc) error {
-	resp, err := s.client.Index("resources").UpdateDocuments(map[string]interface{}{
+	document := map[string]interface{}{
 		"ID":      strings.ReplaceAll(fmt.Sprintf("%s__%s__%s", doc.Type, doc.Name, doc.Variant), " ", ""),
 		"Parsed":  strings.ReplaceAll(fmt.Sprintf("%s__%s__%s", doc.Type, doc.Name, doc.Variant), "_", " "),
 		"Name":    doc.Name,
 		"Type":    doc.Type,
 		"Variant": doc.Variant,
-	})
+	}
+	resp, err := s.client.Index("resources").UpdateDocuments(document)
 	if err != nil {
 		return err
 	}
 	if err := s.waitForSync(resp.TaskUID); err != nil {
-		return fmt.Errorf("could not upsert: %v", err)
+		fmt.Printf("Could not Upsert %#v: %v", document, err)
 	}
 	return nil
 }

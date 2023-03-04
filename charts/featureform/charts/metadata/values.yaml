@@ -15,7 +15,7 @@ imagePullSecrets: []
 nameOverride: metadata-server
 fullnameOverride: ""
 
-typesense:
+search:
   host: featureform-search
   port: 7700
   apikey: ""

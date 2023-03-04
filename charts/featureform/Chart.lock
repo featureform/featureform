@@ -1,12 +1,15 @@
 dependencies:
 - name: etcd
   repository: https://charts.bitnami.com/bitnami
-  version: 8.0.1
+  version: 8.2.4
 - name: ingress-nginx
   repository: https://kubernetes.github.io/ingress-nginx
   version: 4.1.0
 - name: loki-stack
   repository: https://grafana.github.io/helm-charts
   version: 2.8.0
-digest: sha256:49e91debd9c47b3def20fd26a1bc7f418e62050197a74fb9b6b69f5e731c016c
-generated: "2022-11-08T15:18:31.058567-08:00"
+- name: meilisearch
+  repository: https://meilisearch.github.io/meilisearch-kubernetes
+  version: 0.1.49
+digest: sha256:e92e6d0d55ad21d24ebcbbb3e06ed9a0db26a38f9a8ce0b777656d093480eb06
+generated: "2023-03-04T11:08:43.374076-08:00"

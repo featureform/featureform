@@ -99,13 +99,16 @@ func NewSparkS3FileStore(config Config) (SparkFileStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not create s3 file store: %v", err)
 	}
-	s3 := fileStore.(S3FileStore)
+	s3, ok := fileStore.(*S3FileStore)
+	if !ok {
+		return nil, fmt.Errorf("could not cast file store to *S3FileStore")
+	}
 
 	return &SparkS3FileStore{s3}, nil
 }
 
 type SparkS3FileStore struct {
-	S3FileStore
+	*S3FileStore
 }
 
 func (s3 SparkS3FileStore) SparkConfig() []string {
@@ -146,13 +149,16 @@ func NewSparkAzureFileStore(config Config) (SparkFileStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not create auzre blob file store: %v", err)
 	}
-	azure := fileStore.(AzureFileStore)
+	azure, ok := fileStore.(*AzureFileStore)
+	if !ok {
+		return nil, fmt.Errorf("could not cast file store to *AzureFileStore")
+	}
 
 	return &SparkAzureFileStore{azure}, nil
 }
 
 type SparkAzureFileStore struct {
-	AzureFileStore
+	*AzureFileStore
 }
 
 func (store SparkAzureFileStore) configString() string {
@@ -187,13 +193,16 @@ func NewSparkGCSFileStore(config Config) (SparkFileStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not create gcs file store: %v", err)
 	}
-	gcs := fileStore.(GCSFileStore)
+	gcs, ok := fileStore.(*GCSFileStore)
+	if !ok {
+		return nil, fmt.Errorf("could not cast file store to *GCSFileStore")
+	}
 
 	return &SparkGCSFileStore{gcs}, nil
 }
 
 type SparkGCSFileStore struct {
-	GCSFileStore
+	*GCSFileStore
 }
 
 func (gcs SparkGCSFileStore) SparkConfig() []string {
@@ -233,24 +242,27 @@ func (gcs SparkGCSFileStore) Packages() []string {
 // 	if err != nil {
 // 		return nil, fmt.Errorf("could not create hdfs file store: %v", err)
 // 	}
-// 	hdfs := fileStore.(HDFSFileStore)
+// 	hdfs, ok := fileStore.(*HDFSFileStore)
+// if !ok {
+// 	return nil, fmt.Errorf("could not cast file store to *HDFSFileStore")
+// }
 
 // 	return &SparkHDFSFileStore{hdfs}, nil
 // }
 
 // type SparkHDFSFileStore struct {
-// 	HDFSFileStore
+// 	*HDFSFileStore
 // }
 
-// func (hdfs *SparkHDFSFileStore) SparkConfig() []string {
+// func (hdfs SparkHDFSFileStore) SparkConfig() []string {
 // 	return []string{}
 // }
 
-// func (hdfs *SparkHDFSFileStore) CredentialsConfig() []string {
+// func (hdfs SparkHDFSFileStore) CredentialsConfig() []string {
 // 	return []string{}
 // }
 
-// func (hdfs *SparkHDFSFileStore) Packages() []string {
+// func (hdfs SparkHDFSFileStore) Packages() []string {
 // 	return []string{}
 // }
 
@@ -259,24 +271,27 @@ func NewSparkLocalFileStore(config Config) (SparkFileStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not create local file store: %v", err)
 	}
-	local := fileStore.(LocalFileStore)
+	local, ok := fileStore.(LocalFileStore)
+	if !ok {
+		return nil, fmt.Errorf("could not cast file store to *LocalFileStore")
+	}
 
 	return &SparkLocalFileStore{local}, nil
 }
 
 type SparkLocalFileStore struct {
-	LocalFileStore
+	*LocalFileStore
 }
 
-func (local *SparkLocalFileStore) SparkConfig() []string {
+func (local SparkLocalFileStore) SparkConfig() []string {
 	return []string{}
 }
 
-func (local *SparkLocalFileStore) CredentialsConfig() []string {
+func (local SparkLocalFileStore) CredentialsConfig() []string {
 	return []string{}
 }
 
-func (local *SparkLocalFileStore) Packages() []string {
+func (local SparkLocalFileStore) Packages() []string {
 	return []string{}
 }
 

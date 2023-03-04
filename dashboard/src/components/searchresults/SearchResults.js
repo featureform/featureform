@@ -30,13 +30,18 @@ const SearchResults = ({ searchResults, api, setVariant, ...props }) => {
   return (
     <div>
       {searchResults.resources ? (
+          <div>
+            {console.log("blah", searchResults.resources)}
         <SearchResultsView
           results={searchResults.resources}
           search_query={search_query}
           setVariant={setVariant}
         />
+          </div>
       ) : (
-        <div></div>
+        <div>
+          No Results
+        </div>
       )}
     </div>
   );

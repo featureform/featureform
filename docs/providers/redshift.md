@@ -26,7 +26,7 @@ Every registered feature and label is associated with a view table. That view co
 
 First we have to add a declarative Redshift configuration in Python.
 
-You wiull use the Postgres registration to set up a connection to the target Redshift instance.
+You will use the Postgres registration to set up a connection to the target Redshift instance.
 
 {% code title="redshift_config.py" %}
 ```python

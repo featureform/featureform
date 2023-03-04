@@ -172,7 +172,10 @@ func (g *GCS) Init() error {
 			SerializedFile: credentials,
 		},
 	}
-	config := filestoreConfig.Serialize()
+	config, err := filestoreConfig.Serialize()
+	if err != nil {
+		return fmt.Errorf("cannot serialize GCS config: %v", err)
+	}
 
 	filestore, err := provider.NewGCSFileStore(config)
 	if err != nil {

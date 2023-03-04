@@ -271,7 +271,7 @@ func NewSparkLocalFileStore(config Config) (SparkFileStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not create local file store: %v", err)
 	}
-	local, ok := fileStore.(LocalFileStore)
+	local, ok := fileStore.(*LocalFileStore)
 	if !ok {
 		return nil, fmt.Errorf("could not cast file store to *LocalFileStore")
 	}

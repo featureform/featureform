@@ -26,6 +26,7 @@ from .resources import Model, ResourceState, Provider, RedisConfig, FirestoreCon
 
 from .proto import metadata_pb2_grpc as ff_grpc
 from .search_local import search_local
+from .search import search
 
 
 NameVariant = Tuple[str, str]
@@ -3587,7 +3588,7 @@ class ResourceClient(Registrar):
         if local:
             return search_local(processed_query)
         else:
-            raise NotImplementedError("Hosted search not yet implemented")
+            return search(processed_query)
 
 
 global_registrar = Registrar()

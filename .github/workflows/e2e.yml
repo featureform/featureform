@@ -328,10 +328,7 @@ jobs:
       - name: Configure Docker Socket
         run: |
           minikube start --kubernetes-version=v1.23.12
-          export SHELL=/bin/bash
-          eval $(minikube docker-env)
           docker build . -t local/coordinator:stable -f coordinator/Dockerfile
-          minikube image load local/coordinator:stable
 
       - name: Load image
         run: |
@@ -344,6 +341,7 @@ jobs:
           docker load --input /tmp/k8s_runner_scikit/k8s_runner_scikit.tar
           docker load --input /tmp/backup/backup.tar
           minikube image load local/api-server:stable
+          minikube image load local/coordinator:stable
           minikube image load local/dashboard:stable
           minikube image load local/metadata-dashboard:stable
           minikube image load local/metadata:stable

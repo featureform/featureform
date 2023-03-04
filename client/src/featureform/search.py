@@ -3,11 +3,7 @@ import requests
 from .format import *
 
 
-def search(phrase):
-    host = os.getenv('FEATUREFORM_HOST')
-    if host is None:
-        raise RuntimeError("Host not found.")
-    
+def search(phrase, host):
     response = requests.get(f"http://{host}/search?q={phrase}")
 
     if response.status_code is not 200:

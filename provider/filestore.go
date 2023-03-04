@@ -312,12 +312,12 @@ func (s *GCSFileStoreConfig) Deserialize(config SerializedConfig) error {
 	return nil
 }
 
-func (s *GCSFileStoreConfig) Serialize() []byte {
+func (s *GCSFileStoreConfig) Serialize() ([]byte, error) {
 	conf, err := json.Marshal(s)
 	if err != nil {
 		panic(err)
 	}
-	return conf
+	return conf, nil
 }
 
 func (config *GCSFileStoreConfig) IsFileStoreConfig() bool {

@@ -25,6 +25,8 @@ from .resources import Model, ResourceState, Provider, RedisConfig, FirestoreCon
     K8sArgs, AWSCredentials, GCPCredentials
 
 from .proto import metadata_pb2_grpc as ff_grpc
+from .search_local import search_local
+from .search import search
 
 
 NameVariant = Tuple[str, str]
@@ -2539,6 +2541,7 @@ class ResourceClient(Registrar):
             else:
                 channel = secure_channel(host, cert_path)
             self._stub = ff_grpc.ApiStub(channel)
+            self._host = host
 
     def apply(self):
         """Apply all definitions, creating and retrieving all specified resources.
@@ -3653,6 +3656,29 @@ class ResourceClient(Registrar):
         if local:
             return list_local("provider", [ColumnName.NAME, ColumnName.STATUS, ColumnName.DESCRIPTION])
         return list_name_status_desc(self._stub, "provider")
+
+    def search(self, raw_query, local=False):
+        """Search for registered resources. Prints a list of results.
+
+        **Examples:**
+        ``` py title="Input"
+        providers_list = rc.search("transact")
+        ```
+
+        ``` json title="Output"
+        // search prints out formatted information on all matches
+
+        NAME                           VARIANT            TYPE
+        avg_transactions               default            Source
+        ```
+        """
+        if type(raw_query) != str or len(raw_query) == 0:
+            raise Exception("query must be string and cannot be empty")
+        processed_query = raw_query.translate({ ord(i): None for i in '.,-@!*#'})
+        if local:
+            return search_local(processed_query)
+        else:
+            return search(processed_query, self._host)
 
 
 global_registrar = Registrar()

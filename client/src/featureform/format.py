@@ -1,9 +1,10 @@
 two_row_spacing = "{:<30} {:<25}"
 three_row_spacing = "{:<30} {:<30} {:<30}"
 four_row_spacing = "{:<30} {:<30} {:<30} {:<30}"
+five_row_spacing = "{:<30} {:<30} {:<30} {:<30} {:<30}"
 divider = "-----------------------------------------------"
 
-def format_rows(format_obj, format_obj_2=None, format_obj_3=None, format_obj_4=None):
+def format_rows(format_obj, format_obj_2=None, format_obj_3=None, format_obj_4=None, format_obj_5=None):
     # Base case for when `format_obj` is a string
     if format_obj_2 is None and type(format_obj) == str:
         print(format_obj)
@@ -14,8 +15,10 @@ def format_rows(format_obj, format_obj_2=None, format_obj_3=None, format_obj_4=N
         print(two_row_spacing.format(format_obj, format_obj_2))
     elif format_obj_2 is not None and format_obj_3 is not None and format_obj_4 is None:
         print(three_row_spacing.format(format_obj, format_obj_2, format_obj_3))
-    else:
+    elif format_obj_2 is not None and format_obj_3 is not None and format_obj_4 is not None and format_obj_5 is None:
         print(four_row_spacing.format(format_obj, format_obj_2, format_obj_3, format_obj_4))
+    else:
+        print(five_row_spacing.format(format_obj, format_obj_2, format_obj_3, format_obj_4, format_obj_5))
 
 def format_pg(s=""):
     print(divider)

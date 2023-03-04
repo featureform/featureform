@@ -9,8 +9,7 @@ import (
 
 func TestAzureFileStoreConfigMutableFields(t *testing.T) {
 	expected := ss.StringSet{
-		"AccountName": true,
-		"AccountKey":  true,
+		"AccountKey": true,
 	}
 
 	config := AzureFileStoreConfig{
@@ -59,15 +58,14 @@ func TestAzureFileStoreConfigDifferingFields(t *testing.T) {
 				Path:          "custom/path/in/container",
 			},
 			b: AzureFileStoreConfig{
-				AccountName:   "featureform-store-1",
+				AccountName:   "featureform-str",
 				AccountKey:    "secret-account-key-2",
 				ContainerName: "transactions_container",
 				Path:          "custom/path/in/transactions_container",
 			},
 		}, ss.StringSet{
-			"AccountName": true,
-			"AccountKey":  true,
-			"Path":        true,
+			"AccountKey": true,
+			"Path":       true,
 		}},
 	}
 

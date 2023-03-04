@@ -58,7 +58,6 @@ func TestSparkConfigMutableFields(t *testing.T) {
 				"Executor.Username": true,
 				"Executor.Password": true,
 				"Executor.Token":    true,
-				"Store.AccountName": true,
 				"Store.AccountKey":  true,
 			},
 		},

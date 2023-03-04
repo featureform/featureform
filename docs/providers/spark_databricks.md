@@ -3,9 +3,11 @@
 Featureform supports [Databricks](https://www.databricks.com) as an Offline Store.
 
 ## Implementation <a href="#implementation" id="implementation"></a>
-With Databricks, you can leverage your Databricks cluster to compute transformations and training sets. Featureform however does not handle storage in non-local mode, so it is necessary to seperately register a file store provider like [Azure](azure.md) to store the results of its computation.
 
-#### Requirements
+With Databricks, you can leverage your Databricks cluster to compute transformations and training sets. Featureform however does not handle storage in non-local mode, so it is necessary to separately register a file store provider like [Azure](azure.md) to store the results of its computation.
+
+## Requirements
+
 * Databricks Cluster
 * [Remote file storage (eg. Azure Blob Storage)](azure.md)
 
@@ -21,8 +23,8 @@ Any column in a preexisting table or user-created transformation can be register
 
 To configure a Databricks store as a provider, you need to have a Databricks cluster. Featureform automatically downloads and uploads the necessary files to handle all necessary functionality of a native offline store like Postgres or BigQuery.
 
-
 {% code title="databricks_definition.py" %}
+
 ```python
 import featureform as ff
 
@@ -51,10 +53,20 @@ spark = ff.register_spark(
 )
 
 ```
+
 {% endcode %}
 
+### Mutable Configuration Fields
+
+* `description`
+* `username` (Executor)
+* `password` (Executor)
+* `token` (Executor)
+* `account_key` (File Store)
+
 ## Dataframe Transformations
-Because Featureform supports the generic implementation of Spark, transformations written in SQL and Dataframe operations for the different Spark providers will be very similar except for the file_path or table name. 
+
+Because Featureform supports the generic implementation of Spark, transformations written in SQL and Dataframe operations for the different Spark providers will be very similar except for the file_path or table name.
 
 {% content-ref url="../providers/spark.md" %}
 [spark.md](../providers/spark.md)

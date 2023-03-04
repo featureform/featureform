@@ -3,9 +3,11 @@
 Featureform supports [Kubernetes](https://kubernetes.io/) as an Offline Store.
 
 ## Implementation <a href="#implementation" id="implementation"></a>
-Since featureform is deployed natively on a Kubernetes cluster, it can leverage its own cluster to compute transformations and training sets. Featureform however does not handle storage in non-local mode, so it is necessary to seperately register a file store provider like [Azure](azure.md) to store the results of its computation.
 
-#### Requirements
+Since featureform is deployed natively on a Kubernetes cluster, it can leverage its own cluster to compute transformations and training sets. Featureform however does not handle storage in non-local mode, so it is necessary to separately register a file store provider like [Azure](azure.md) to store the results of its computation.
+
+## Requirements
+
 * [Remote file storage (eg. Azure Blob Storage)](azure.md)
 
 ### Transformation Sources
@@ -18,10 +20,10 @@ Any column in a preexisting table or user-created transformation can be register
 
 ## Configuration <a href="#configuration" id="configuration"></a>
 
-To configure a Kubernetes store as a provider, you merely need to have featureform running in your Kubernetes cluster, and register a compatible file store to store the ouput of the computation. Featureform automatically downloads and uploads the necessary files to handle all necessary functionality of a native offline store like Postgres or BigQuery.
-
+To configure a Kubernetes store as a provider, you merely need to have featureform running in your Kubernetes cluster, and register a compatible file store to store the output of the computation. Featureform automatically downloads and uploads the necessary files to handle all necessary functionality of a native offline store like Postgres or BigQuery.
 
 {% code title="k8s_quickstart.py" %}
+
 ```python
 import featureform as ff
 
@@ -41,12 +43,22 @@ k8s_store = ff.register_k8s(
     team="featureform-team"
 )
 ```
+
 {% endcode %}
 
+### Mutable Configuration Fields
+
+* `description`
+* `docker_image`
+
+For your file store provider documentation for its mutable fields.
+
 ### Dataframe Transformations
+
 Using your Kubernetes as a provider, a user can define transformations in SQL like with other offline providers.
 
 {% code title="k8s_quickstart.py" %}
+
 ```python
 transactions = k8s_store.register_file(
     name="transactions",
@@ -61,11 +73,13 @@ def max_transaction_amount():
     return "SELECT CustomerID as user_id, max(TransactionAmount) " \
         "as max_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
 ```
+
 {% endcode %}
 
 In addition, registering a provider via Kubernetes allows you to perform DataFrame transformations using your source tables as inputs.
 
 {% code title="k8s_quickstart.py" %}
+
 ```python
 @k8s_store.df_transformation(
     inputs=[("transactions", "kaggle")], variant="default")
@@ -73,12 +87,12 @@ def average_user_transaction(transactions):
     user_tsc = transactions[["CustomerID","TransactionAmount","Timestamp"]]
     return user_tsc.groupby("CustomerID").agg({'TransactionAmount':'mean','Timestamp':'max'})
 ```
+
 {% endcode %}
 
 ## Custom Compute Images
 
-By default, the Docker image used to run compute for the transformations only has Pandas pre-installed. However, 
-custom images can be built using Featureforms base image to enable use of other 3rd party libraries. 
+By default, the Docker image used to run compute for the transformations only has Pandas pre-installed. However, custom images can be built using Featureform's base image to enable use of other 3rd party libraries.
 
 ### Building A Custom Image
 
@@ -88,19 +102,22 @@ that repository.
 You can install additional python packages on top of the base Featureform image.
 
 {% code title="Dockerfile" %}
+
 ```dockerfile
 FROM featureformcom/k8s_runner:latest
 RUN pip install scikit-learn
 ```
+
 {% endcode %}
 
 ### Using A Custom Image (Provider-Wide)
+
 Once you've built your custom image and pushed it to your docker repository, you can use it in your Featureform cluster.
 
-To use the custom-built image, you can add it to the Kubernetes Provider registration. This will override the default
-image for all jobs run with this provider. 
+To use the custom-built image, you can add it to the Kubernetes Provider registration. This will override the default image for all jobs run with this provider.
 
 {% code title="k8s_quickstart.py" %}
+
 ```python
 k8s_custom = ff.register_k8s(
     name="k8s-custom",
@@ -110,11 +127,13 @@ k8s_custom = ff.register_k8s(
     docker_image="my-repo/my-image:latest"
 )
 ```
+
 {% endcode %}
 
-To use these libraries in a transformation, you can import them within the transformation definition. 
+To use these libraries in a transformation, you can import them within the transformation definition.
 
 {% code title="k8s_quickstart.py" %}
+
 ```python
 @k8s_custom.df_transformation(inputs=[("encode_product_category", "default")])
 def add_kmeans_clustering(df):
@@ -124,13 +143,16 @@ def add_kmeans_clustering(df):
     df["Cluster"] = X["Cluster"].astype("category")
     return df
 ```
+
 {% endcode %}
 
 ### Using A Custom Image (Per-Transformation)
+
 Custom images can also be used per-transformation. The specified image will override the default image or provider-wide
 image for only the transformation it is specified in.
 
 {% code title="k8s_quickstart.py" %}
+
 ```python
 @k8s_custom.df_transformation(
     inputs=[("encode_product_category", "default")],
@@ -143,4 +165,5 @@ def add_kmeans_clustering(df):
     df["Cluster"] = X["Cluster"].astype("category")
     return df
 ```
+
 {% endcode %}

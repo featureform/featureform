@@ -149,6 +149,7 @@ func NewSparkAzureFileStore(config Config) (SparkFileStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not create auzre blob file store: %v", err)
 	}
+
 	azure, ok := fileStore.(*AzureFileStore)
 	if !ok {
 		return nil, fmt.Errorf("could not cast file store to *AzureFileStore")
@@ -700,7 +701,7 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	logger.Infow("Creating Spark store:", "type", sc.StoreType)
 	serializedFilestoreConfig, err := sc.StoreConfig.Serialize()
 	if err != nil {
-		return nil, fmt.Errorf("could not serialize databricks Config, %v", err)
+		return nil, fmt.Errorf("could not serialize Config, %v", err)
 	}
 	store, err := CreateSparkFileStore(string(sc.StoreType), Config(serializedFilestoreConfig))
 	if err != nil {

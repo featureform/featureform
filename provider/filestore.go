@@ -75,7 +75,7 @@ func NewLocalFileStore(config Config) (FileStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	return LocalFileStore{
+	return &LocalFileStore{
 		DirPath: fileStoreConfig.DirPath[len("file:///"):],
 		genericFileStore: genericFileStore{
 			bucket: bucket,
@@ -180,7 +180,7 @@ func NewAzureFileStore(config Config) (FileStore, error) {
 		return AzureFileStore{}, fmt.Errorf("could not open azure bucket: %v", err)
 	}
 	connectionString := fmt.Sprintf("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s", azureStoreConfig.AccountName, azureStoreConfig.AccountKey)
-	return AzureFileStore{
+	return &AzureFileStore{
 		AccountName:      azureStoreConfig.AccountName,
 		AccountKey:       azureStoreConfig.AccountKey,
 		ConnectionString: connectionString,

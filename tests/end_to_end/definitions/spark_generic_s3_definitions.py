@@ -50,6 +50,11 @@ spark_creds = ff.SparkCredentials(
     python_version="3.7.16",
 )
 
+aws_creds = ff.AWSCredentials(
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", None),
+    aws_secret_access_key=os.getenv("AWS_SECRET_KEY", None),
+)
+
 s3 = ff.register_s3(
     name=f"s3-quickstart_{VERSION}",
     credentials=aws_creds,

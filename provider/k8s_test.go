@@ -665,13 +665,6 @@ func testDatabricksInitialization(t *testing.T, store FileStore) {
 	// }
 }
 
-//tests for spark executor
-// RunSparkJob(args *[]string) error
-// InitializeExecutor(store FileStore) error
-// PythonFileURI() string
-// SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType) []string
-// GetDFArgs(outputURI string, code string, mapping []SourceMapping) ([]string, error)
-
 func TestKubernetesExecutor_isDefaultImage(t *testing.T) {
 	logger := zaptest.NewLogger(t).Sugar()
 	type fields struct {

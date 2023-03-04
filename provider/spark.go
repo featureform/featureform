@@ -823,6 +823,10 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 		"--deploy-mode",
 		s.deployMode,
 	}
+
+	packageArgs := store.Packages()
+	argList = append(argList, packageArgs...) // adding any packages needed for filestores
+
 	scriptArgs := []string{
 		sparkScriptPath,
 		"sql",
@@ -833,26 +837,13 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 		"--job_type",
 		fmt.Sprintf("\"%s\"", string(jobType)),
 	}
+	argList = append(argList, scriptArgs...)
 
-	var packageArgs []string
-	azureStore := store.AsAzureStore()
+	sparkConfigs := store.SparkConfig()
+	argList = append(argList, sparkConfigs...)
 
-	if azureStore != nil {
-		packageArgs = []string{
-			"--packages",
-			"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
-		}
-
-		remoteConnectionArgs := []string{
-			"--spark_config",
-			fmt.Sprintf("\"%s\"", azureStore.configString()),
-		}
-
-		scriptArgs = append(scriptArgs, remoteConnectionArgs...)
-	}
-
-	argList = append(argList, packageArgs...) // adding any packages needed for filestores
-	argList = append(argList, scriptArgs...)  // adding pyspark arguments
+	credentialConfigs := store.CredentialsConfig()
+	argList = append(argList, credentialConfigs...)
 
 	argList = append(argList, "--source_list")
 	for _, source := range sourceList {
@@ -872,6 +863,9 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 		s.deployMode,
 	}
 
+	packageArgs := store.Packages()
+	argList = append(argList, packageArgs...) // adding any packages needed for filestores
+
 	scriptArgs := []string{
 		sparkScriptPath,
 		"df",
@@ -880,32 +874,13 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 		"--code",
 		code,
 	}
+	argList = append(argList, scriptArgs...)
 
-	var packageArgs []string
-	azureStore := store.AsAzureStore()
+	sparkConfigs := store.SparkConfig()
+	argList = append(argList, sparkConfigs...)
 
-	if azureStore != nil {
-		packageArgs = []string{
-			"--packages",
-			"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
-		}
-
-		remoteConnectionArgs := []string{
-			"--store_type",
-			"azure_blob_store",
-			"--spark_config",
-			fmt.Sprintf("\"%s\"", azureStore.configString()),
-			"--credential",
-			fmt.Sprintf("\"azure_connection_string=%s\"", azureStore.connectionString()),
-			"--credential",
-			fmt.Sprintf("\"azure_container_name=%s\"", azureStore.containerName()),
-		}
-
-		scriptArgs = append(scriptArgs, remoteConnectionArgs...)
-	}
-
-	argList = append(argList, packageArgs...) // adding any packages needed for filestores
-	argList = append(argList, scriptArgs...)  // adding pyspark script arguments
+	credentialConfig := store.CredentialsConfig()
+	argList = append(argList, credentialConfig...)
 
 	argList = append(argList, "--source")
 	for _, source := range sources {
@@ -1003,7 +978,14 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 		"spark-submit",
 		"--deploy-mode",
 		"client",
-		store.PathWithPrefix("featureform/scripts/offline_store_spark_runner.py", true),
+	}
+
+	packageArgs := store.Packages()
+	argList = append(argList, packageArgs...) // adding any packages needed for filestores
+
+	sparkScriptPath := store.PathWithPrefix("featureform/scripts/offline_store_spark_runner.py", true)
+	scriptArgs := []string{
+		sparkScriptPath,
 		"sql",
 		"--output_uri",
 		store.PathWithPrefix(destPath, true),
@@ -1011,8 +993,15 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 		cleanQuery,
 		"--job_type",
 		string(jobType),
-		"--source_list",
 	}
+	argList = append(argList, scriptArgs...)
+
+	sparkConfigs := store.SparkConfig()
+	argList = append(argList, sparkConfigs...)
+
+	credentialConfigs := store.CredentialsConfig()
+	argList = append(argList, credentialConfigs...)
+
 	argList = append(argList, sourceList...)
 	return argList
 }
@@ -1027,15 +1016,11 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string,
 		"--job_type",
 		string(jobType),
 	}
-	var remoteConnectionArgs []string
-	azureStore := store.AsAzureStore()
-	if azureStore != nil {
-		remoteConnectionArgs = []string{
-			"--spark_config",
-			azureStore.configString(),
-		}
-	}
-	argList = append(argList, remoteConnectionArgs...)
+	sparkConfigs := store.SparkConfig()
+	argList = append(argList, sparkConfigs...)
+
+	credentialConfigs := store.CredentialsConfig()
+	argList = append(argList, credentialConfigs...)
 
 	argList = append(argList, "--source_list")
 	argList = append(argList, sourceList...)
@@ -1252,15 +1237,31 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string,
 		"spark-submit",
 		"--deploy-mode",
 		"client",
-		store.PathWithPrefix("featureform/scripts/offline_store_spark_runner.py", true),
-		"df",
-		"--output_uri",
-		outputURI,
-		"--code",
-		store.PathWithPrefix(code, true),
-		"--source",
 	}
 
+	packageArgs := store.Packages()
+	argList = append(argList, packageArgs...) // adding any packages needed for filestores
+
+	sparkScriptPath := store.PathWithPrefix("featureform/scripts/offline_store_spark_runner.py", true)
+	scriptArgs := []string{
+		sparkScriptPath,
+		"df",
+		"--output_uri",
+		fmt.Sprintf("\"%s\"", outputURI),
+		"--code",
+		fmt.Sprintf("\"%s\"", store.PathWithPrefix(code, true)),
+		"--job_type",
+		fmt.Sprintf("\"%s\"", string(jobType)),
+	}
+	argList = append(argList, scriptArgs...)
+
+	sparkConfigs := store.SparkConfig()
+	argList = append(argList, sparkConfigs...)
+
+	credentialConfigs := store.CredentialsConfig()
+	argList = append(argList, credentialConfigs...)
+
+	argList = append(argList, "--source")
 	argList = append(argList, sources...)
 
 	return argList, nil
@@ -1274,22 +1275,12 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 		"--code",
 		code,
 	}
-	var remoteConnectionArgs []string
-	azureStore := store.AsAzureStore()
 
-	if azureStore != nil {
-		remoteConnectionArgs = []string{
-			"--store_type",
-			"azure_blob_store",
-			"--spark_config",
-			azureStore.configString(),
-			"--credential",
-			fmt.Sprintf("azure_connection_string=%s", azureStore.connectionString()),
-			"--credential",
-			fmt.Sprintf("azure_container_name=%s", azureStore.containerName()),
-		}
-	}
-	argList = append(argList, remoteConnectionArgs...)
+	sparkConfigs := store.SparkConfig()
+	argList = append(argList, sparkConfigs...)
+
+	credentialConfigs := store.CredentialsConfig()
+	argList = append(argList, credentialConfigs...)
 
 	argList = append(argList, "--source")
 	argList = append(argList, sources...)

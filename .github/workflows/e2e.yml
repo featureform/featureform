@@ -62,31 +62,31 @@ jobs:
           name: backup
           path: /tmp/backup.tar
 
-  coordinator:
-    name: Build Coordinator
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./coordinator/Dockerfile
-          tags: local/coordinator:stable
-          push: false
-          outputs: type=docker,dest=/tmp/coordinator.tar
-      - name: Upload image
-        uses: actions/upload-artifact@v3
-        with:
-          name: coordinator
-          path: /tmp/coordinator.tar
+#  coordinator:
+#    name: Build Coordinator
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./coordinator/Dockerfile
+#          tags: local/coordinator:stable
+#          push: false
+#          outputs: type=docker,dest=/tmp/coordinator.tar
+#      - name: Upload image
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: coordinator
+#          path: /tmp/coordinator.tar
 
   dashboard:
     name: Build Dashboard
@@ -194,31 +194,31 @@ jobs:
           name: serving
           path: /tmp/serving.tar
 
-  worker:
-    name: Build Worker
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and export
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./runner/Dockerfile
-          tags: local/worker:stable
-          push: false
-          outputs: type=docker,dest=/tmp/worker.tar
-      - name: Upload image
-        uses: actions/upload-artifact@v3
-        with:
-          name: worker
-          path: /tmp/worker.tar
+#  worker:
+#    name: Build Worker
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Build and export
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./runner/Dockerfile
+#          tags: local/worker:stable
+#          push: false
+#          outputs: type=docker,dest=/tmp/worker.tar
+#      - name: Upload image
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: worker
+#          path: /tmp/worker.tar
 
   k8s_runner:
     name: Build K8s Runner
@@ -261,7 +261,7 @@ jobs:
   test:
     name: Run Tests
     environment: Integration testing
-    needs: [api-server, coordinator, dashboard, dashboard-metadata, metadata, serving, worker, k8s_runner, backup]
+    needs: [api-server, dashboard, dashboard-metadata, metadata, serving, k8s_runner, backup]
     defaults:
       run:
         working-directory: ./
@@ -271,7 +271,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v3
         with:
-          names: api-server coordinator dashboard dashboard-metadata metadata serving worker k8s_runner k8s_runner_scikit backup
+          names: api-server dashboard dashboard-metadata metadata serving k8s_runner k8s_runner_scikit backup
           path: /tmp
 
       - uses: actions/setup-python@v4
@@ -330,25 +330,24 @@ jobs:
           minikube start --kubernetes-version=v1.23.12
           eval $(minikube docker-env)
 
+      - name: Build Coordinator Image
+        run: docker build . -t coordinator:stable -f coordinator/Dockerfile
+
       - name: Load image
         run: |
           docker load --input /tmp/api-server/api-server.tar
-          docker load --input /tmp/coordinator/coordinator.tar
           docker load --input /tmp/dashboard/dashboard.tar
           docker load --input /tmp/metadata-dashboard/metadata-dashboard.tar
           docker load --input /tmp/metadata/metadata.tar
           docker load --input /tmp/serving/serving.tar
-          docker load --input /tmp/worker/worker.tar
           docker load --input /tmp/k8s_runner/k8s_runner.tar
           docker load --input /tmp/k8s_runner_scikit/k8s_runner_scikit.tar
           docker load --input /tmp/backup/backup.tar
           minikube image load local/api-server:stable
-          minikube image load local/coordinator:stable
           minikube image load local/dashboard:stable
           minikube image load local/metadata-dashboard:stable
           minikube image load local/metadata:stable
           minikube image load local/serving:stable
-          minikube image load local/worker:stable
           minikube image load local/k8s_runner:stable
           minikube image load local/k8s_runner:scikit-stable
           minikube image load local/backup:stable

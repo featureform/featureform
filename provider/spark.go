@@ -367,6 +367,8 @@ func (s *SparkConfig) decodeFileStore(fileStoreType FileStoreType, configMap map
 		fileStoreConfig = &AzureFileStoreConfig{}
 	case S3:
 		fileStoreConfig = &S3FileStoreConfig{}
+	case GCS:
+		fileStoreConfig = &GCSFileStoreConfig{}
 	default:
 		return fmt.Errorf("the file store type '%s' is not supported ", fileStoreType)
 	}
@@ -671,7 +673,7 @@ func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 	logger := logging.NewLogger("spark")
 	if err := sc.Deserialize(config); err != nil {
 		logger.Errorw("Invalid config to initialize spark offline store", err)
-		return nil, fmt.Errorf("invalid spark config: %v", config)
+		return nil, fmt.Errorf("invalid spark config")
 	}
 	logger.Infow("Creating Spark executor:", "type", sc.ExecutorType)
 	exec, err := NewSparkExecutor(sc.ExecutorType, sc.ExecutorConfig, logger)

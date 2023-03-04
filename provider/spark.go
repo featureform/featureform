@@ -1250,8 +1250,6 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string,
 		fmt.Sprintf("\"%s\"", outputURI),
 		"--code",
 		fmt.Sprintf("\"%s\"", store.PathWithPrefix(code, true)),
-		"--job_type",
-		fmt.Sprintf("\"%s\"", string(jobType)),
 	}
 	argList = append(argList, scriptArgs...)
 

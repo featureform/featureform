@@ -106,18 +106,17 @@ func TestDeserializeExecutorConfig(t *testing.T) {
 
 func TestBlobInterfaces(t *testing.T) {
 	fileStoreTests := map[string]func(*testing.T, FileStore){
-		"Test Filestore Read and Write":  testFilestoreReadAndWrite,
-		"Test Exists":                    testExists,
-		"Test Not Exists":                testNotExists,
-		"Test Serve":                     testServe,
-		"Test Serve Directory":           testServeDirectory,
-		"Test Delete":                    testDelete,
-		"Test Delete All":                testDeleteAll,
-		"Test Newest file":               testNewestFile,
-		"Test Path with prefix":          testPathWithPrefix,
-		"Test Num Rows":                  testNumRows,
-		"Test Databricks Initialization": testDatabricksInitialization,
-		"Test File Upload and Download":  testFileUploadAndDownload,
+		"Test Filestore Read and Write": testFilestoreReadAndWrite,
+		"Test Exists":                   testExists,
+		"Test Not Exists":               testNotExists,
+		"Test Serve":                    testServe,
+		"Test Serve Directory":          testServeDirectory,
+		"Test Delete":                   testDelete,
+		"Test Delete All":               testDeleteAll,
+		"Test Newest file":              testNewestFile,
+		"Test Path with prefix":         testPathWithPrefix,
+		"Test Num Rows":                 testNumRows,
+		"Test File Upload and Download": testFileUploadAndDownload,
 	}
 
 	err := godotenv.Load("../.env")
@@ -643,7 +642,7 @@ func testNumRows(t *testing.T, store FileStore) {
 	}
 }
 
-func testDatabricksInitialization(t *testing.T, store FileStore) {
+func TestDatabricksInitialization(t *testing.T) {
 	host := helpers.GetEnv("DATABRICKS_HOST", "")
 	token := helpers.GetEnv("DATABRICKS_ACCESS_TOKEN", "")
 	cluster := helpers.GetEnv("DATABRICKS_CLUSTER", "")
@@ -656,13 +655,25 @@ func testDatabricksInitialization(t *testing.T, store FileStore) {
 	if err != nil {
 		t.Fatalf("Could not create new databricks client: %v", err)
 	}
-	if err := executor.InitializeExecutor(store); err != nil {
+
+	azureStoreConfig := AzureFileStoreConfig{
+		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
+		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
+		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
+		Path:          "testdirectory/testpath",
+	}
+	serializedAzureConfig, err := azureStoreConfig.Serialize()
+	if err != nil {
+		t.Fatalf("failed to serialize azure store config: %v", err)
+	}
+	azureFileStore, err := NewSparkAzureFileStore(serializedAzureConfig)
+	if err != nil {
+		t.Fatalf("failed to create new azure blob store: %v", err)
+	}
+
+	if err := executor.InitializeExecutor(azureFileStore); err != nil {
 		t.Fatalf("Error initializing executor: %v", err)
 	}
-	// sparkArgs := []string{}
-	// if err := executor.RunSparkJob(&sparkArgs); err != nil {
-	// 	t.Fatalf("could not run spark job: %v", err)
-	// }
 }
 
 func TestKubernetesExecutor_isDefaultImage(t *testing.T) {

@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -108,15 +109,36 @@ type SparkS3FileStore struct {
 }
 
 func (s3 *SparkS3FileStore) SparkConfig() []string {
-	return []string{}
+	return []string{
+		"--spark_config",
+		"spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem",
+		"--spark_config",
+		"spark.hadoop.com.amazonaws.services.s3.enableV4=true",
+		"--spark_config",
+		fmt.Sprintf("fs.s3a.access.key=%s", s3.Credentials.AWSAccessKeyId),
+		"--spark_config",
+		fmt.Sprintf("\"fs.s3a.secret.key=%s\"", s3.Credentials.AWSSecretKey),
+		"--spark_config",
+		"fs.s3a.endpoint=s3.amazonaws.com",
+	}
 }
 
 func (s3 *SparkS3FileStore) CredentialsConfig() []string {
-	return []string{}
+	return []string{
+		"--credential",
+		fmt.Sprintf("\"aws_region=%s\"", s3.BucketRegion),
+		"--credential",
+		fmt.Sprintf("\"aws_access_key_id=%s\"", s3.Credentials.AWSAccessKeyId),
+		"--credential",
+		fmt.Sprintf("\"aws_secret_access_key=%s\"", s3.Credentials.AWSSecretKey),
+	}
 }
 
 func (s3 *SparkS3FileStore) Packages() []string {
-	return []string{}
+	return []string{
+		"--packages",
+		"org.apache.hadoop:hadoop-aws:3.2.0",
+	}
 }
 
 func NewSparkAzureFileStore(config Config) (SparkFileStore, error) {
@@ -175,17 +197,34 @@ type SparkGCSFileStore struct {
 }
 
 func (gcs *SparkGCSFileStore) SparkConfig() []string {
-	return []string{}
+	return []string{
+		"--spark_config",
+		"spark.hadoop.google.cloud.auth.service.account.enable=true",
+		"--spark_config",
+		"fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
+		"--spark_config",
+		"fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
+	}
 }
 
 func (gcs *SparkGCSFileStore) CredentialsConfig() []string {
-	return []string{}
+	serializedCredsFile := gcs.Credentials.SerializedFile
+	base64Credentials := base64.StdEncoding.EncodeToString(serializedCredsFile)
+
+	return []string{
+		"--credential",
+		fmt.Sprintf("\"gcp_project_id=%s\"", gcs.Credentials.ProjectId),
+		"--credential",
+		fmt.Sprintf("\"gcp_bucket_name=%s\"", gcs.BucketName),
+		"--credential",
+		fmt.Sprintf("\"gcp_credentials=%s\"", base64Credentials),
+	}
 }
 
 func (gcs *SparkGCSFileStore) Packages() []string {
 	return []string{
 		"--packages",
-		"",
+		"com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.0",
 	}
 }
 

@@ -5,8 +5,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MEILISEARCH_PORT: 7700
-  MEILISEARCH_API_KEY: ""
+  TYPESENSE_PORT: 8108
+  TYPESENSE_API_KEY: "xyz"
   REDIS_INSECURE_PORT: 6379
   REDIS_SECURE_PORT: 6378
   REDIS_PASSWORD: "password"
@@ -78,8 +78,8 @@ jobs:
       - name: Run Golang Unit Tests
         run: make test_go_unit
 
-  search:
-    name: Search Testing
+  typesense:
+    name: Typesense Testing
     needs: setup
     runs-on: ubuntu-latest
     steps:
@@ -93,12 +93,17 @@ jobs:
         with:
           go-version: 1.18
 
-      - name: Install Search Container
-        run: docker pull getmeili/meilisearch:v1.0
+      # Installing Typesense manually b/c the base container uses input arguments that
+      # Github Actions currently doesn't support (e.g. --data-dir, --api-key, --enable-cores).
+      # Can create a custom Typesense container in the future if desired
+      - name: Install Typesense Container
+        run: docker pull typesense/typesense:0.22.2
 
-      - name: Start Search
+      - name: Start Typesense
         run: |
-          docker run -d -p $MEILISEARCH_PORT:7700 getmeili/meilisearch:v1.0 
+          mkdir /tmp/typesense-data
+          docker run -d -p $TYPESENSE_PORT:8108 -v/tmp/typesense-data:/data typesense/typesense:0.22.2 \
+          --data-dir /data --api-key=$TYPESENSE_API_KEY --enable-cors
 
       - name: Make Coverage Directory
         working-directory: ./
@@ -119,14 +124,14 @@ jobs:
         if: always()
         with:
           files: ./coverage/cover.out
-          name: search-coverage
+          name: typesense-coverage
           verbose: true
 
       - name: Archive code coverage results
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: search-coverage-reports
+          name: typesense-coverage-reports
           path: ./coverage
 
   provider-online:
@@ -380,7 +385,7 @@ jobs:
           path: ./coverage
 
   metadata:
-    name: Metadata Testing (Excluding Search)
+    name: Metadata Testing (Excluding Typesense)
     needs: setup
     runs-on: ubuntu-latest
 

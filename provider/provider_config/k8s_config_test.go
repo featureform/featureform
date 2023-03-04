@@ -15,7 +15,7 @@ func TestK8sConfigMutableFields(t *testing.T) {
 
 	config := K8sConfig{
 		ExecutorType: K8s,
-		ExecutorConfig: ExecutorConfig{
+		ExecutorConfig: &ExecutorConfig{
 			DockerImage: "container",
 		},
 		StoreType: Azure,

@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"fmt"
 
 	ss "github.com/featureform/helpers/string_set"
 )
@@ -22,15 +23,15 @@ func (pg *PostgresConfig) Deserialize(config SerializedConfig) error {
 	return nil
 }
 
-func (pg *PostgresConfig) Serialize() []byte {
+func (pg *PostgresConfig) Serialize() ([]byte, error) {
 	conf, err := json.Marshal(pg)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return conf
+	return conf, nil
 }
 
-func (pg PostgresConfig) MutableFields() ss.StringSet {
+func (pg *PostgresConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
 		"Username": true,
 		"Password": true,
@@ -38,6 +39,9 @@ func (pg PostgresConfig) MutableFields() ss.StringSet {
 	}
 }
 
-func (a PostgresConfig) DifferingFields(b PostgresConfig) (ss.StringSet, error) {
+func (a *PostgresConfig) DifferingFields(b ProviderConfig) (ss.StringSet, error) {
+	if _, ok := b.(*PostgresConfig); !ok {
+		return nil, fmt.Errorf("cannot compare different config types")
+	}
 	return differingFields(a, b)
 }

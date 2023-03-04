@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"fmt"
 
 	ss "github.com/featureform/helpers/string_set"
 )
@@ -32,12 +33,15 @@ func (s *GCSFileStoreConfig) IsFileStoreConfig() bool {
 	return true
 }
 
-func (s GCSFileStoreConfig) MutableFields() ss.StringSet {
+func (s *GCSFileStoreConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
 		"Credentials": true,
 	}
 }
 
-func (a GCSFileStoreConfig) DifferingFields(b GCSFileStoreConfig) (ss.StringSet, error) {
+func (a *GCSFileStoreConfig) DifferingFields(b ProviderConfig) (ss.StringSet, error) {
+	if _, ok := b.(*GCSFileStoreConfig); !ok {
+		return nil, fmt.Errorf("cannot compare different config types")
+	}
 	return differingFields(a, b)
 }

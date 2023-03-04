@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"fmt"
 
 	ss "github.com/featureform/helpers/string_set"
 )
@@ -32,12 +33,15 @@ func (e *EMRConfig) IsExecutorConfig() bool {
 	return true
 }
 
-func (e EMRConfig) MutableFields() ss.StringSet {
+func (e *EMRConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
 		"Credentials": true,
 	}
 }
 
-func (a EMRConfig) DifferingFields(b EMRConfig) (ss.StringSet, error) {
+func (a *EMRConfig) DifferingFields(b ProviderConfig) (ss.StringSet, error) {
+	if _, ok := b.(*EMRConfig); !ok {
+		return nil, fmt.Errorf("cannot compare different config types")
+	}
 	return differingFields(a, b)
 }

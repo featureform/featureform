@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"fmt"
 
 	ss "github.com/featureform/helpers/string_set"
 )
@@ -15,12 +16,12 @@ type CassandraConfig struct {
 	Replication int
 }
 
-func (cass CassandraConfig) Serialized() SerializedConfig {
+func (cass CassandraConfig) Serialize() ([]byte, error) {
 	config, err := json.Marshal(cass)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return config
+	return config, nil
 }
 
 func (cass *CassandraConfig) Deserialize(config SerializedConfig) error {
@@ -31,7 +32,7 @@ func (cass *CassandraConfig) Deserialize(config SerializedConfig) error {
 	return nil
 }
 
-func (cass CassandraConfig) MutableFields() ss.StringSet {
+func (cass *CassandraConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
 		"Username":    true,
 		"Password":    true,
@@ -40,6 +41,9 @@ func (cass CassandraConfig) MutableFields() ss.StringSet {
 	}
 }
 
-func (a CassandraConfig) DifferingFields(b CassandraConfig) (ss.StringSet, error) {
+func (a *CassandraConfig) DifferingFields(b ProviderConfig) (ss.StringSet, error) {
+	if _, ok := b.(*CassandraConfig); !ok {
+		return nil, fmt.Errorf("cannot compare different config types")
+	}
 	return differingFields(a, b)
 }

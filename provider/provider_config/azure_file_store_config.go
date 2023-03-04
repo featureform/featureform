@@ -34,12 +34,15 @@ func (store *AzureFileStoreConfig) Deserialize(data SerializedConfig) error {
 	return nil
 }
 
-func (store AzureFileStoreConfig) MutableFields() ss.StringSet {
+func (store *AzureFileStoreConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
 		"AccountKey": true,
 	}
 }
 
-func (a AzureFileStoreConfig) DifferingFields(b AzureFileStoreConfig) (ss.StringSet, error) {
+func (a *AzureFileStoreConfig) DifferingFields(b ProviderConfig) (ss.StringSet, error) {
+	if _, ok := b.(*AzureFileStoreConfig); !ok {
+		return nil, fmt.Errorf("cannot compare different config types")
+	}
 	return differingFields(a, b)
 }

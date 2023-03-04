@@ -9,7 +9,7 @@ import (
 
 type K8sConfig struct {
 	ExecutorType   ExecutorType
-	ExecutorConfig interface{}
+	ExecutorConfig ProviderConfig
 	StoreType      FileStoreType
 	StoreConfig    AzureFileStoreConfig
 }
@@ -27,15 +27,15 @@ func (k8s *K8sConfig) Deserialize(config SerializedConfig) error {
 	if err != nil {
 		return fmt.Errorf("deserialize k8s config: %w", err)
 	}
-	if k8s.ExecutorConfig == "" {
-		k8s.ExecutorConfig = ExecutorConfig{}
+	if k8s.ExecutorConfig == nil {
+		k8s.ExecutorConfig = &ExecutorConfig{}
 	} else {
 		return k8s.executorConfigFromMap()
 	}
 	return nil
 }
 
-func (k8s K8sConfig) MutableFields() ss.StringSet {
+func (k8s *K8sConfig) MutableFields() ss.StringSet {
 	result := ss.StringSet{
 		"ExecutorConfig": true,
 	}
@@ -48,18 +48,21 @@ func (k8s K8sConfig) MutableFields() ss.StringSet {
 	return result
 }
 
-func (a K8sConfig) DifferingFields(b K8sConfig) (ss.StringSet, error) {
+func (a *K8sConfig) DifferingFields(b ProviderConfig) (ss.StringSet, error) {
+	if _, ok := b.(*K8sConfig); !ok {
+		return nil, fmt.Errorf("cannot compare different config types")
+	}
 	result := ss.StringSet{}
 
-	if a.StoreType != b.StoreType {
-		return result, fmt.Errorf("store config mismatch: a = %v; b = %v", a.StoreType, b.StoreType)
+	if a.StoreType != b.(*K8sConfig).StoreType {
+		return result, fmt.Errorf("store config mismatch: a = %v; b = %v", a.StoreType, b.(*K8sConfig).StoreType)
 	}
 
-	executorFields, err := differingFields(a.ExecutorConfig, b.ExecutorConfig)
+	executorFields, err := differingFields(a.ExecutorConfig, b.(*K8sConfig).ExecutorConfig)
 	if err != nil {
 		return result, err
 	}
-	storeFields, err := a.StoreConfig.DifferingFields(b.StoreConfig)
+	storeFields, err := a.StoreConfig.DifferingFields(&b.(*K8sConfig).StoreConfig)
 	if err != nil {
 		return result, err
 	}

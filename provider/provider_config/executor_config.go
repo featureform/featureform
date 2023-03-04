@@ -20,7 +20,7 @@ func (c *ExecutorConfig) Serialize() ([]byte, error) {
 	return serialized, nil
 }
 
-func (c *ExecutorConfig) Deserialize(config []byte) error {
+func (c *ExecutorConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, &c)
 	if err != nil {
 		return fmt.Errorf("could not deserialize K8s Executor Config: %w", err)
@@ -36,12 +36,15 @@ func (c *ExecutorConfig) GetImage() string {
 	}
 }
 
-func (c ExecutorConfig) MutableFields() ss.StringSet {
+func (c *ExecutorConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
 		"DockerImage": true,
 	}
 }
 
-func (a ExecutorConfig) DifferingFields(b ExecutorConfig) (ss.StringSet, error) {
+func (a *ExecutorConfig) DifferingFields(b ProviderConfig) (ss.StringSet, error) {
+	if _, ok := b.(*ExecutorConfig); !ok {
+		return nil, fmt.Errorf("cannot compare different config types")
+	}
 	return differingFields(a, b)
 }

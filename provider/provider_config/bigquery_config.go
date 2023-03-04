@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"fmt"
 
 	ss "github.com/featureform/helpers/string_set"
 )
@@ -20,20 +21,23 @@ func (bq *BigQueryConfig) Deserialize(config SerializedConfig) error {
 	return nil
 }
 
-func (bq *BigQueryConfig) Serialize() []byte {
+func (bq *BigQueryConfig) Serialize() ([]byte, error) {
 	conf, err := json.Marshal(bq)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return conf
+	return conf, nil
 }
 
-func (bq BigQueryConfig) MutableFields() ss.StringSet {
+func (bq *BigQueryConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
 		"Credentials": true,
 	}
 }
 
-func (a BigQueryConfig) DifferingFields(b BigQueryConfig) (ss.StringSet, error) {
+func (a *BigQueryConfig) DifferingFields(b ProviderConfig) (ss.StringSet, error) {
+	if _, ok := b.(*BigQueryConfig); !ok {
+		return nil, fmt.Errorf("cannot compare different config types")
+	}
 	return differingFields(a, b)
 }

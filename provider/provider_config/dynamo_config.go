@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"fmt"
 
 	ss "github.com/featureform/helpers/string_set"
 )
@@ -13,12 +14,12 @@ type DynamodbConfig struct {
 	SecretKey string
 }
 
-func (d DynamodbConfig) Serialized() SerializedConfig {
+func (d DynamodbConfig) Serialize() ([]byte, error) {
 	config, err := json.Marshal(d)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return config
+	return config, nil
 }
 
 func (d *DynamodbConfig) Deserialize(config SerializedConfig) error {
@@ -29,13 +30,16 @@ func (d *DynamodbConfig) Deserialize(config SerializedConfig) error {
 	return nil
 }
 
-func (d DynamodbConfig) MutableFields() ss.StringSet {
+func (d *DynamodbConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
 		"AccessKey": true,
 		"SecretKey": true,
 	}
 }
 
-func (a DynamodbConfig) DifferingFields(b DynamodbConfig) (ss.StringSet, error) {
+func (a *DynamodbConfig) DifferingFields(b ProviderConfig) (ss.StringSet, error) {
+	if _, ok := b.(*DynamodbConfig); !ok {
+		return nil, fmt.Errorf("cannot compare different config types")
+	}
 	return differingFields(a, b)
 }

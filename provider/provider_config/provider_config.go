@@ -23,7 +23,14 @@ const (
 
 type SerializedConfig []byte
 
-func differingFields(a, b interface{}) (ss.StringSet, error) {
+type ProviderConfig interface {
+	Deserialize(config SerializedConfig) error
+	Serialize() ([]byte, error)
+	MutableFields() ss.StringSet
+	DifferingFields(b ProviderConfig) (ss.StringSet, error)
+}
+
+func differingFields(a, b ProviderConfig) (ss.StringSet, error) {
 	diff := ss.StringSet{}
 	aIter, err := si.NewStructIterator(a)
 	if err != nil {

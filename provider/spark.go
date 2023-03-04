@@ -1338,17 +1338,17 @@ func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, e
 
 func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate bool) (Materialization, error) {
 	if id.Type != Feature {
-		spark.Logger.Errorw("Attempted to create a materialization of a non feature resource", id.Type)
+		spark.Logger.Errorw("Attempted to create a materialization of a non feature resource", "type", id.Type)
 		return nil, fmt.Errorf("only features can be materialized")
 	}
 	resourceTable, err := spark.GetResourceTable(id)
 	if err != nil {
-		spark.Logger.Errorw("Attempted to fetch resource table of non registered resource", err)
+		spark.Logger.Errorw("Attempted to fetch resource table of non registered resource", "error", err)
 		return nil, fmt.Errorf("resource not registered: %v", err)
 	}
 	sparkResourceTable, ok := resourceTable.(*BlobOfflineTable)
 	if !ok {
-		spark.Logger.Errorw("Could not convert resource table to S3 offline table", id)
+		spark.Logger.Errorw("Could not convert resource table to S3 offline table", "id", id)
 		return nil, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
 	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
@@ -1359,10 +1359,10 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	}
 	materializationExists := materializationNewestFile != ""
 	if materializationExists && !isUpdate {
-		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", id)
+		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", "id", id)
 		return nil, fmt.Errorf("materialization already exists")
 	} else if !materializationExists && isUpdate {
-		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", id)
+		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", "id", id)
 		return nil, fmt.Errorf("materialization already exists")
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
@@ -1401,12 +1401,12 @@ func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (Resourc
 	spark.Logger.Debugw("Getting resource schema", "id", id)
 	table, err := spark.GetResourceTable(id)
 	if err != nil {
-		spark.Logger.Errorw("Resource not registered in spark store", id, err)
+		spark.Logger.Errorw("Resource not registered in spark store", "id", id, "error", err)
 		return ResourceSchema{}, fmt.Errorf("resource not registered: %v", err)
 	}
 	sparkResourceTable, ok := table.(*BlobOfflineTable)
 	if !ok {
-		spark.Logger.Errorw("could not convert offline table to sparkResourceTable", id)
+		spark.Logger.Errorw("could not convert offline table to sparkResourceTable", "id", id)
 		return ResourceSchema{}, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
 	}
 	spark.Logger.Debugw("Succesfully retrieved resource schema", "id", id)
@@ -1415,7 +1415,7 @@ func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (Resourc
 
 func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate bool) error {
 	if err := def.check(); err != nil {
-		spark.Logger.Errorw("Training set definition not valid", def, err)
+		spark.Logger.Errorw("Training set definition not valid", "definition", def, "error", err)
 		return err
 	}
 	sourcePaths := make([]string, 0)
@@ -1435,7 +1435,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	}
 	labelSchema, err := spark.registeredResourceSchema(def.Label)
 	if err != nil {
-		spark.Logger.Errorw("Could not get schema of label in spark store", def.Label, err)
+		spark.Logger.Errorw("Could not get schema of label in spark store", "label", def.Label, "error", err)
 		return fmt.Errorf("could not get schema of label %s: %v", def.Label, err)
 	}
 	labelPath := spark.Store.PathWithPrefix(labelSchema.SourceTable, true)
@@ -1443,7 +1443,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	for _, feature := range def.Features {
 		featureSchema, err := spark.registeredResourceSchema(feature)
 		if err != nil {
-			spark.Logger.Errorw("Could not get schema of feature in spark store", feature, err)
+			spark.Logger.Errorw("Could not get schema of feature in spark store", "feature", feature, "error", err)
 			return fmt.Errorf("could not get schema of feature %s: %v", feature, err)
 		}
 		featurePath := spark.Store.PathWithPrefix(featureSchema.SourceTable, true)

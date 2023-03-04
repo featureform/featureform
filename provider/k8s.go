@@ -1549,7 +1549,7 @@ func (k8s *K8sOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, 
 
 func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.SugaredLogger) (TrainingSetIterator, error) {
 	if err := id.check(TrainingSet); err != nil {
-		logger.Errorw("id is not of type training set", err)
+		logger.Errorw("Resource is not of type training set", "error", err)
 		return nil, fmt.Errorf("resource is not training set: %w", err)
 	}
 	resourceKeyPrefix := store.PathWithPrefix(fileStoreResourcePath(id), false)

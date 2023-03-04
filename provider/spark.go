@@ -79,7 +79,7 @@ var sparkFileStoreMap = map[string]SparkFileStoreFactory{
 	"AZURE":            NewSparkAzureFileStore,
 	"S3":               NewSparkS3FileStore,
 	"GCS":              NewSparkGCSFileStore,
-	"HDFS":             NewSparkHDFSFileStore,
+	// "HDFS":             NewSparkHDFSFileStore,
 }
 
 func CreateSparkFileStore(name string, config Config) (SparkFileStore, error) {
@@ -108,7 +108,7 @@ type SparkS3FileStore struct {
 	S3FileStore
 }
 
-func (s3 *SparkS3FileStore) SparkConfig() []string {
+func (s3 SparkS3FileStore) SparkConfig() []string {
 	return []string{
 		"--spark_config",
 		"spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem",
@@ -123,7 +123,7 @@ func (s3 *SparkS3FileStore) SparkConfig() []string {
 	}
 }
 
-func (s3 *SparkS3FileStore) CredentialsConfig() []string {
+func (s3 SparkS3FileStore) CredentialsConfig() []string {
 	return []string{
 		"--credential",
 		fmt.Sprintf("\"aws_region=%s\"", s3.BucketRegion),
@@ -134,7 +134,7 @@ func (s3 *SparkS3FileStore) CredentialsConfig() []string {
 	}
 }
 
-func (s3 *SparkS3FileStore) Packages() []string {
+func (s3 SparkS3FileStore) Packages() []string {
 	return []string{
 		"--packages",
 		"org.apache.hadoop:hadoop-aws:3.2.0",
@@ -155,18 +155,18 @@ type SparkAzureFileStore struct {
 	AzureFileStore
 }
 
-func (store *SparkAzureFileStore) configString() string {
+func (store SparkAzureFileStore) configString() string {
 	return fmt.Sprintf("fs.azure.account.key.%s.dfs.core.windows.net=%s", store.AccountName, store.AccountKey)
 }
 
-func (azureStore *SparkAzureFileStore) SparkConfig() []string {
+func (azureStore SparkAzureFileStore) SparkConfig() []string {
 	return []string{
 		"--spark_config",
 		fmt.Sprintf("\"%s\"", azureStore.configString()),
 	}
 }
 
-func (azureStore *SparkAzureFileStore) CredentialsConfig() []string {
+func (azureStore SparkAzureFileStore) CredentialsConfig() []string {
 	return []string{
 		"--credential",
 		fmt.Sprintf("\"azure_connection_string=%s\"", azureStore.connectionString()),
@@ -175,7 +175,7 @@ func (azureStore *SparkAzureFileStore) CredentialsConfig() []string {
 	}
 }
 
-func (azureStore *SparkAzureFileStore) Packages() []string {
+func (azureStore SparkAzureFileStore) Packages() []string {
 	return []string{
 		"--packages",
 		"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
@@ -196,7 +196,7 @@ type SparkGCSFileStore struct {
 	GCSFileStore
 }
 
-func (gcs *SparkGCSFileStore) SparkConfig() []string {
+func (gcs SparkGCSFileStore) SparkConfig() []string {
 	return []string{
 		"--spark_config",
 		"spark.hadoop.google.cloud.auth.service.account.enable=true",
@@ -207,7 +207,7 @@ func (gcs *SparkGCSFileStore) SparkConfig() []string {
 	}
 }
 
-func (gcs *SparkGCSFileStore) CredentialsConfig() []string {
+func (gcs SparkGCSFileStore) CredentialsConfig() []string {
 	serializedCredsFile := gcs.Credentials.SerializedFile
 	base64Credentials := base64.StdEncoding.EncodeToString(serializedCredsFile)
 
@@ -215,44 +215,44 @@ func (gcs *SparkGCSFileStore) CredentialsConfig() []string {
 		"--credential",
 		fmt.Sprintf("\"gcp_project_id=%s\"", gcs.Credentials.ProjectId),
 		"--credential",
-		fmt.Sprintf("\"gcp_bucket_name=%s\"", gcs.BucketName),
+		fmt.Sprintf("\"gcp_bucket_name=%s\"", gcs.Bucket),
 		"--credential",
 		fmt.Sprintf("\"gcp_credentials=%s\"", base64Credentials),
 	}
 }
 
-func (gcs *SparkGCSFileStore) Packages() []string {
+func (gcs SparkGCSFileStore) Packages() []string {
 	return []string{
 		"--packages",
 		"com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.0",
 	}
 }
 
-func NewSparkHDFSFileStore(config Config) (SparkFileStore, error) {
-	fileStore, err := NewHDFSFileStore(config)
-	if err != nil {
-		return nil, fmt.Errorf("could not create hdfs file store: %v", err)
-	}
-	hdfs := fileStore.(HDFSFileStore)
+// func NewSparkHDFSFileStore(config Config) (SparkFileStore, error) {
+// 	fileStore, err := NewHDFSFileStore(config)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("could not create hdfs file store: %v", err)
+// 	}
+// 	hdfs := fileStore.(HDFSFileStore)
 
-	return &SparkHDFSFileStore{hdfs}, nil
-}
+// 	return &SparkHDFSFileStore{hdfs}, nil
+// }
 
-type SparkHDFSFileStore struct {
-	HDFSFileStore
-}
+// type SparkHDFSFileStore struct {
+// 	HDFSFileStore
+// }
 
-func (hdfs *SparkHDFSFileStore) SparkConfig() []string {
-	return []string{}
-}
+// func (hdfs *SparkHDFSFileStore) SparkConfig() []string {
+// 	return []string{}
+// }
 
-func (hdfs *SparkHDFSFileStore) CredentialsConfig() []string {
-	return []string{}
-}
+// func (hdfs *SparkHDFSFileStore) CredentialsConfig() []string {
+// 	return []string{}
+// }
 
-func (hdfs *SparkHDFSFileStore) Packages() []string {
-	return []string{}
-}
+// func (hdfs *SparkHDFSFileStore) Packages() []string {
+// 	return []string{}
+// }
 
 func NewSparkLocalFileStore(config Config) (SparkFileStore, error) {
 	fileStore, err := NewLocalFileStore(config)

@@ -220,8 +220,10 @@ func (s *S3FileStoreConfig) IsFileStoreConfig() bool {
 }
 
 type S3FileStore struct {
-	Bucket string
-	Path   string
+	Credentials  AWSCredentials
+	BucketRegion string
+	Bucket       string
+	Path         string
 	genericFileStore
 }
 
@@ -250,8 +252,10 @@ func NewS3FileStore(config Config) (FileStore, error) {
 		return nil, err
 	}
 	return &S3FileStore{
-		Bucket: s3StoreConfig.BucketPath,
-		Path:   s3StoreConfig.Path,
+		Bucket:       s3StoreConfig.BucketPath,
+		BucketRegion: s3StoreConfig.BucketRegion,
+		Credentials:  s3StoreConfig.Credentials,
+		Path:         s3StoreConfig.Path,
 		genericFileStore: genericFileStore{
 			bucket: bucket,
 		},
@@ -274,12 +278,13 @@ func (s3 S3FileStore) PathWithPrefix(path string, remote bool) string {
 }
 
 type GCSFileStore struct {
-	Bucket string
-	Path   string
+	Bucket      string
+	Path        string
+	Credentials GCPCredentials
 	genericFileStore
 }
 
-func (gs *GCSFileStore) PathWithPrefix(path string, remote bool) string {
+func (gs GCSFileStore) PathWithPrefix(path string, remote bool) string {
 	noGSPrefix := !strings.HasPrefix(path, gsPrefix)
 
 	if remote && noGSPrefix {
@@ -340,8 +345,9 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 		return nil, fmt.Errorf("could not open bucket: %v", err)
 	}
 	return &GCSFileStore{
-		Bucket: GCSConfig.BucketName,
-		Path:   GCSConfig.BucketPath,
+		Bucket:      GCSConfig.BucketName,
+		Path:        GCSConfig.BucketPath,
+		Credentials: GCSConfig.Credentials,
 		genericFileStore: genericFileStore{
 			bucket: bucket,
 		},

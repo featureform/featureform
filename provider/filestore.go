@@ -320,6 +320,10 @@ func (s *GCSFileStoreConfig) Serialize() []byte {
 	return conf
 }
 
+func (config *GCSFileStoreConfig) IsFileStoreConfig() bool {
+	return true
+}
+
 func NewGCSFileStore(config Config) (FileStore, error) {
 	GCSConfig := GCSFileStoreConfig{}
 

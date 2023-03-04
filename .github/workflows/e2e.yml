@@ -328,10 +328,9 @@ jobs:
       - name: Configure Docker Socket
         run: |
           minikube start --kubernetes-version=v1.23.12
+          export SHELL=/bin/bash
           eval $(minikube docker-env)
-
-      - name: Build Coordinator Image
-        run: docker build . -t coordinator:stable -f coordinator/Dockerfile
+          docker build . -t coordinator:stable -f coordinator/Dockerfile
 
       - name: Load image
         run: |

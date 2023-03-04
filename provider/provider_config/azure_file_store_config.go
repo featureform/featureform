@@ -36,8 +36,7 @@ func (store *AzureFileStoreConfig) Deserialize(data SerializedConfig) error {
 
 func (store AzureFileStoreConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
-		"AccountName": true,
-		"AccountKey":  true,
+		"AccountKey": true,
 	}
 }
 

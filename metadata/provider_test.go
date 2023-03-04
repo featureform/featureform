@@ -529,9 +529,9 @@ func testK8sConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 
 	if valid {
 		dockerImage += updateSuffix
-		accountName += updateSuffix
 		accountKey += updateSuffix
 	} else {
+		accountName += updateSuffix
 		containerName += updateSuffix
 		path += updateSuffix
 	}

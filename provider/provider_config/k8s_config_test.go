@@ -9,9 +9,8 @@ import (
 
 func TestK8sConfigMutableFields(t *testing.T) {
 	expected := ss.StringSet{
-		"ExecutorConfig":    true,
-		"Store.AccountName": true,
-		"Store.AccountKey":  true,
+		"ExecutorConfig":   true,
+		"Store.AccountKey": true,
 	}
 
 	config := K8sConfig{

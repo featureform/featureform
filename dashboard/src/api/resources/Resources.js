@@ -1,5 +1,5 @@
 import Resource from "./Resource.js";
-
+const SearchClient = require("./Search.js");
 // Set to true run locally
 const local = false;
 
@@ -121,6 +121,8 @@ export const providerLogos = Object.freeze({
   LOCALMODE: "static/Featureform_logo_pink.svg",
 });
 
+
+
 var hostname = "localhost";
 var port = 3000;
 
@@ -130,6 +132,11 @@ if (typeof window !== 'undefined') {
 }
 
 var API_URL = "//" + hostname + ":" + port;
+const SEARCH_URL = {
+  port: "7700",
+  host: hostname,
+  apiKey: "",
+};
 
 if (typeof process.env.REACT_APP_API_URL != "undefined") {
   API_URL = process.env.REACT_APP_API_URL.trim();
@@ -142,6 +149,11 @@ if (typeof process.env.REACT_APP_PROMETHEUS_URL != "undefined") {
 }
 
 export default class ResourcesAPI {
+  static searchClient = new SearchClient(
+      SEARCH_URL.port,
+      SEARCH_URL.host,
+      SEARCH_URL.apiKey
+  );
   checkStatus() {
     return fetch(API_URL, {
       headers: {
@@ -210,9 +222,12 @@ export default class ResourcesAPI {
   }
 
   fetchSearch(query) {
-    return new Promise(() => {
-       return {"hits":[]}
-    })
+    let searchResults = this.constructor.searchClient.search(query);
+    return searchResults.then((results) => {
+      console.log("RESUTLS")
+      console.log(results.results())
+      return results.results();
+    });
   }
 
   fetchVariantSearchStub(query) {

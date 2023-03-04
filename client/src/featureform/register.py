@@ -26,6 +26,7 @@ from .resources import Model, ResourceState, Provider, RedisConfig, FirestoreCon
 
 from .proto import metadata_pb2_grpc as ff_grpc
 from .search_local import search_local
+from .search import search
 
 
 NameVariant = Tuple[str, str]
@@ -2448,6 +2449,7 @@ class ResourceClient(Registrar):
             else:
                 channel = secure_channel(host, cert_path)
             self._stub = ff_grpc.ApiStub(channel)
+            self._host = host
 
     def apply(self):
         """Apply all definitions, creating and retrieving all specified resources.
@@ -3574,11 +3576,8 @@ class ResourceClient(Registrar):
         ``` json title="Output"
         // search prints out formatted information on all matches
 
-        RESOURCE TYPE                  NAME                           VARIANT                        DESCRIPTION                    STATUS
-        source                         transactions                   quickstart                     A dataset of fraudulent t...   ready
-        source                         average_user_transaction       quickstart                                                    ready
-        feature                        avg_transactions               quickstart                                                    ready
-        label                          fraudulent                     quickstart                                                    ready
+        NAME                           VARIANT            TYPE
+        avg_transactions               default            Source
         ```
         """
         if type(raw_query) != str or len(raw_query) == 0:
@@ -3587,7 +3586,7 @@ class ResourceClient(Registrar):
         if local:
             return search_local(processed_query)
         else:
-            raise NotImplementedError("Hosted search not yet implemented")
+            return search(processed_query, self._host)
 
 
 global_registrar = Registrar()

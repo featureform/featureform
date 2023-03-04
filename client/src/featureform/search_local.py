@@ -10,9 +10,9 @@ def search_local(phrase):
     if len(results) == 0:
         print(f"Search phrase {phrase} returned no results.")
     else:
-        format_rows("RESOURCE TYPE", "NAME", "VARIANT", "DESCRIPTION", "STATUS")
+        format_rows("NAME", "VARIANT", "TYPE")
         for r in results:
             desc = r["description"][:cutoff_length] + "..." if len(r["description"]) > 0 else "" 
-            format_rows(r["resource_type"], r["name"], r["variant"], desc, r["status"])
+            format_rows(r["name"], r["variant"], r["resource_type"])
     
     return results

@@ -62,7 +62,6 @@ spark = ff.register_spark(
 * `username` (Executor)
 * `password` (Executor)
 * `token` (Executor)
-* `account_name` (File Store)
 * `account_key` (File Store)
 
 ## Dataframe Transformations

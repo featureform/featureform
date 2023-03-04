@@ -37,7 +37,6 @@ We can re-verify that the provider is created by checking the [Providers tab of 
 ### Updatable Configuration Fields
 
 * `description`
-* `account_name`
 * `account_secret`
 
 ## Kubernetes Offline Store

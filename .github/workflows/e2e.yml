@@ -331,6 +331,7 @@ jobs:
           export SHELL=/bin/bash
           eval $(minikube docker-env)
           docker build . -t coordinator:stable -f coordinator/Dockerfile
+          minikube cache add coordinator:stable
 
       - name: Load image
         run: |

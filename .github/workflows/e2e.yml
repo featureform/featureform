@@ -330,8 +330,8 @@ jobs:
           minikube start --kubernetes-version=v1.23.12
           export SHELL=/bin/bash
           eval $(minikube docker-env)
-          docker build . -t coordinator:stable -f coordinator/Dockerfile
-          minikube cache add coordinator:stable
+          docker build . -t local/coordinator:stable -f coordinator/Dockerfile
+          minikube image load local/coordinator:stable
 
       - name: Load image
         run: |

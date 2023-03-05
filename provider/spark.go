@@ -69,6 +69,7 @@ type SparkFileStore interface {
 	SparkConfig() []string
 	CredentialsConfig() []string
 	Packages() []string
+	Type() string
 	FileStore
 }
 
@@ -144,6 +145,10 @@ func (s3 SparkS3FileStore) Packages() []string {
 	}
 }
 
+func (s3 SparkS3FileStore) Type() string {
+	return "s3"
+}
+
 func NewSparkAzureFileStore(config Config) (SparkFileStore, error) {
 	fileStore, err := NewAzureFileStore(config)
 	if err != nil {
@@ -187,6 +192,10 @@ func (azureStore SparkAzureFileStore) Packages() []string {
 		"--packages",
 		"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
 	}
+}
+
+func (azureStore SparkAzureFileStore) Type() string {
+	return "azure_blob_store"
 }
 
 func NewSparkGCSFileStore(config Config) (SparkFileStore, error) {
@@ -238,6 +247,10 @@ func (gcs SparkGCSFileStore) Packages() []string {
 	}
 }
 
+func (gcs SparkGCSFileStore) Type() string {
+	return "google_cloud_storage"
+}
+
 // func NewSparkHDFSFileStore(config Config) (SparkFileStore, error) {
 // 	fileStore, err := NewHDFSFileStore(config)
 // 	if err != nil {
@@ -267,6 +280,10 @@ func (gcs SparkGCSFileStore) Packages() []string {
 // 	return []string{}
 // }
 
+// func (hdfs SparkHDFSFileStore) Type() string {
+// 	return "hdfs"
+// }
+
 func NewSparkLocalFileStore(config Config) (SparkFileStore, error) {
 	fileStore, err := NewLocalFileStore(config)
 	if err != nil {
@@ -294,6 +311,10 @@ func (local SparkLocalFileStore) CredentialsConfig() []string {
 
 func (local SparkLocalFileStore) Packages() []string {
 	return []string{}
+}
+
+func (local SparkLocalFileStore) Type() string {
+	return "local"
 }
 
 type SparkFileStoreConfig interface {
@@ -854,6 +875,8 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 		fmt.Sprintf("\"%s\"", cleanQuery),
 		"--job_type",
 		fmt.Sprintf("\"%s\"", string(jobType)),
+		"--store_type",
+		store.Type(),
 	}
 	argList = append(argList, scriptArgs...)
 
@@ -891,6 +914,8 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 		fmt.Sprintf("\"%s\"", outputURI),
 		"--code",
 		code,
+		"--store_type",
+		store.Type(),
 	}
 	argList = append(argList, scriptArgs...)
 
@@ -1001,7 +1026,8 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 	packageArgs := store.Packages()
 	argList = append(argList, packageArgs...) // adding any packages needed for filestores
 
-	sparkScriptPath := store.PathWithPrefix("featureform/scripts/offline_store_spark_runner.py", true)
+	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
+	sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
 	scriptArgs := []string{
 		sparkScriptPath,
 		"sql",
@@ -1011,6 +1037,8 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 		cleanQuery,
 		"--job_type",
 		string(jobType),
+		"--store_type",
+		store.Type(),
 	}
 	argList = append(argList, scriptArgs...)
 
@@ -1033,6 +1061,8 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string,
 		cleanQuery,
 		"--job_type",
 		string(jobType),
+		"--store_type",
+		store.Type(),
 	}
 	sparkConfigs := store.SparkConfig()
 	argList = append(argList, sparkConfigs...)
@@ -1260,7 +1290,8 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string,
 	packageArgs := store.Packages()
 	argList = append(argList, packageArgs...) // adding any packages needed for filestores
 
-	sparkScriptPath := store.PathWithPrefix("featureform/scripts/offline_store_spark_runner.py", true)
+	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
+	sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
 	scriptArgs := []string{
 		sparkScriptPath,
 		"df",
@@ -1268,6 +1299,8 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string,
 		fmt.Sprintf("\"%s\"", outputURI),
 		"--code",
 		fmt.Sprintf("\"%s\"", store.PathWithPrefix(code, true)),
+		"--store_type",
+		store.Type(),
 	}
 	argList = append(argList, scriptArgs...)
 
@@ -1290,6 +1323,8 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 		outputURI,
 		"--code",
 		code,
+		"--store_type",
+		store.Type(),
 	}
 
 	sparkConfigs := store.SparkConfig()

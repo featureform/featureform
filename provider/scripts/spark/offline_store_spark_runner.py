@@ -88,6 +88,7 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
     spark = SparkSession.builder.appName("Dataframe Transformation").getOrCreate()
     set_spark_configs(spark, spark_configs)
     
+    print(f"reading {len(sources)} source files")
     func_parameters = []
     for location in sources:
         func_parameters.append(spark.read.option("recursiveFileLookup", "true").parquet(location))
@@ -216,6 +217,7 @@ def set_spark_configs(spark, configs):
     # This method is used to set configs for Spark. It will be mostly
     # used to set access credentials for Spark to the store. 
 
+    print("setting spark configs")
     for key, value in configs.items():
         spark.conf.set(key, value)
 

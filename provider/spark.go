@@ -772,107 +772,74 @@ func (s *SparkGenericExecutor) PythonFileURI(store SparkFileStore) string {
 }
 
 func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
-	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
-
 	argList := []string{
 		"spark-submit",
-		"--master",
-		s.master,
 		"--deploy-mode",
-		s.deployMode,
+		"client",
 	}
+
+	packageArgs := store.Packages()
+	argList = append(argList, packageArgs...) // adding any packages needed for filestores
+
+	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
+	sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
 	scriptArgs := []string{
 		sparkScriptPath,
 		"sql",
 		"--output_uri",
-		fmt.Sprintf("\"%s\"", destPath),
+		store.PathWithPrefix(destPath, true),
 		"--sql_query",
-		fmt.Sprintf("\"%s\"", cleanQuery),
+		cleanQuery,
 		"--job_type",
-		fmt.Sprintf("\"%s\"", string(jobType)),
+		string(jobType),
+		"--store_type",
+		store.Type(),
 	}
+	argList = append(argList, scriptArgs...)
 
-	var packageArgs []string
-	if azureStore, ok := store.(*SparkAzureFileStore); ok {
-		packageArgs = []string{
-			"--packages",
-			"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
-		}
+	sparkConfigs := store.SparkConfig()
+	argList = append(argList, sparkConfigs...)
 
-		remoteConnectionArgs := []string{
-			"--spark_config",
-			fmt.Sprintf("\"%s\"", azureStore.configString()),
-		}
-
-		scriptArgs = append(scriptArgs, remoteConnectionArgs...)
-	}
-
-	if _, ok := store.(SparkS3FileStore); ok {
-		packageArgs = []string{
-			"--packages",
-			"\"org.apache.hadoop:hadoop-aws:3.2.0\"",
-		}
-	}
-
-	argList = append(argList, packageArgs...) // adding any packages needed for filestores
-	argList = append(argList, scriptArgs...)  // adding pyspark arguments
+	credentialConfigs := store.CredentialsConfig()
+	argList = append(argList, credentialConfigs...)
 
 	argList = append(argList, "--source_list")
-	for _, source := range sourceList {
-		argList = append(argList, fmt.Sprintf("\"%s\"", source))
-	}
+	argList = append(argList, sourceList...)
 	return argList
 }
 
 func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources []string, store SparkFileStore) ([]string, error) {
-	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
-
 	argList := []string{
 		"spark-submit",
-		"--master",
-		s.master,
 		"--deploy-mode",
-		s.deployMode,
+		"client",
 	}
 
+	packageArgs := store.Packages()
+	argList = append(argList, packageArgs...) // adding any packages needed for filestores
+
+	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
+	sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
 	scriptArgs := []string{
 		sparkScriptPath,
 		"df",
 		"--output_uri",
-		fmt.Sprintf("\"%s\"", outputURI),
+		outputURI,
 		"--code",
-		code,
+		store.PathWithPrefix(code, true),
+		"--store_type",
+		store.Type(),
 	}
+	argList = append(argList, scriptArgs...)
 
-	var packageArgs []string
-	if azureStore, ok := store.(*SparkAzureFileStore); ok {
+	sparkConfigs := store.SparkConfig()
+	argList = append(argList, sparkConfigs...)
 
-		packageArgs = []string{
-			"--packages",
-			"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
-		}
-
-		remoteConnectionArgs := []string{
-			"--store_type",
-			"azure_blob_store",
-			"--spark_config",
-			fmt.Sprintf("\"%s\"", azureStore.configString()),
-			"--credential",
-			fmt.Sprintf("\"azure_connection_string=%s\"", azureStore.connectionString()),
-			"--credential",
-			fmt.Sprintf("\"azure_container_name=%s\"", azureStore.containerName()),
-		}
-
-		scriptArgs = append(scriptArgs, remoteConnectionArgs...)
-	}
-
-	argList = append(argList, packageArgs...) // adding any packages needed for filestores
-	argList = append(argList, scriptArgs...)  // adding pyspark script arguments
+	credentialConfigs := store.CredentialsConfig()
+	argList = append(argList, credentialConfigs...)
 
 	argList = append(argList, "--source")
-	for _, source := range sources {
-		argList = append(argList, fmt.Sprintf("\"%s\"", source))
-	}
+	argList = append(argList, sources...)
 
 	return argList, nil
 }

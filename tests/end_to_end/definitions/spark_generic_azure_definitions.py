@@ -8,7 +8,7 @@ import featureform as ff
 
 FILE_DIRECTORY = os.getenv("FEATUREFORM_TEST_PATH", "")
 featureform_location = os.path.dirname(os.path.dirname(FILE_DIRECTORY))
-env_file_path = os.path.join(featureform_location, "../../../.env")
+env_file_path = os.path.join(featureform_location, ".env")
 load_dotenv(env_file_path)
 
 def get_random_string():
@@ -49,7 +49,9 @@ spark_creds = ff.SparkCredentials(
     deploy_mode="client",
     python_version="3.7.16",
 )
-
+print(os.getenv("AZURE_ACCOUNT_NAME", None))
+print(os.getenv("AZURE_ACCOUNT_KEY", None))
+print(os.getenv("AZURE_CONTAINER_NAME", None))
 azure_blob = ff.register_blob_store(
     name=f"k8s_blob_store_{VERSION}",
     account_name=os.getenv("AZURE_ACCOUNT_NAME", None),

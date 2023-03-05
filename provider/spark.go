@@ -775,16 +775,18 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
-		"client",
+		s.deployMode,
+		"--master",
+		s.master,
 	}
 
 	packageArgs := store.Packages()
 	argList = append(argList, packageArgs...) // adding any packages needed for filestores
 
-	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
-	sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
+	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/app/provider/scripts/spark/offline_store_spark_runner.py")
+	//sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
 	scriptArgs := []string{
-		sparkScriptPath,
+		sparkScriptPathEnv,
 		"sql",
 		"--output_uri",
 		store.PathWithPrefix(destPath, true),
@@ -812,16 +814,18 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
-		"client",
+		s.deployMode,
+		"--master",
+		s.master,
 	}
 
 	packageArgs := store.Packages()
 	argList = append(argList, packageArgs...) // adding any packages needed for filestores
 
-	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
-	sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
+	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/app/provider/scripts/spark/offline_store_spark_runner.py")
+	//sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, false)
 	scriptArgs := []string{
-		sparkScriptPath,
+		sparkScriptPathEnv,
 		"df",
 		"--output_uri",
 		outputURI,

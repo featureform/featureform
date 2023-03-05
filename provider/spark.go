@@ -1072,7 +1072,8 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 
-	transformationFilePath := spark.Store.PathWithPrefix(GetTransformationFileLocation(config.TargetTableID), true)
+	relativePath := GetTransformationFileLocation(config.TargetTableID)
+	transformationFilePath := spark.Store.PathWithPrefix(relativePath, true)
 	fileName := "transformation.pkl"
 	transformationFileLocation := fmt.Sprintf("%s/%s", transformationFilePath, fileName)
 	spark.Logger.Infow("Uploading Transformation File", "location", transformationFileLocation)
@@ -1085,7 +1086,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fmt.Errorf("could not get sources for df transformation. Error: %v", err)
 	}
 
-	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestinationWithSlash, transformationFileLocation, sources, spark.Store)
+	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestinationWithSlash, relativePath, sources, spark.Store)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark dataframe arguments", err)
 		return fmt.Errorf("error with getting df arguments %v", sparkArgs)

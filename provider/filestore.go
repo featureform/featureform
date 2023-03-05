@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -138,7 +139,7 @@ func NewAzureFileStore(config Config) (FileStore, error) {
 }
 
 type S3FileStore struct {
-	Credentials  AWSCredentials
+	Credentials  pc.AWSCredentials
 	BucketRegion string
 	Bucket       string
 	Path         string
@@ -198,7 +199,7 @@ func (s3 S3FileStore) PathWithPrefix(path string, remote bool) string {
 type GCSFileStore struct {
 	Bucket      string
 	Path        string
-	Credentials GCPCredentials
+	Credentials pc.GCPCredentials
 	genericFileStore
 }
 
@@ -222,7 +223,7 @@ type GCSFileStoreConfig struct {
 	Credentials GCPCredentials
 }
 
-func (s *GCSFileStoreConfig) Deserialize(config SerializedConfig) error {
+func (s *GCSFileStoreConfig) Deserialize(config pc.SerializedConfig) error {
 	err := json.Unmarshal(config, s)
 	if err != nil {
 		return err

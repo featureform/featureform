@@ -44,15 +44,15 @@ const ENTITY_INDEX = 0
 const VALUE_INDEX = 1
 const TIMESTAMP_INDEX = 2
 
-type AWSCredentials struct {
-	AWSAccessKeyId string
-	AWSSecretKey   string
-}
+//type AWSCredentials struct {
+//	AWSAccessKeyId string
+//	AWSSecretKey   string
+//}
 
-type GCPCredentials struct {
-	ProjectId      string
-	SerializedFile []byte
-}
+//type GCPCredentials struct {
+//	ProjectId      string
+//	SerializedFile []byte
+//}
 
 type SparkExecutorConfig interface {
 	Serialize() ([]byte, error)

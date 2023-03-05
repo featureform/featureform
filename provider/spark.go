@@ -807,6 +807,13 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 		scriptArgs = append(scriptArgs, remoteConnectionArgs...)
 	}
 
+	if _, ok := store.(*SparkS3FileStore); ok {
+		packageArgs = []string{
+			"--packages",
+			"\"org.apache.hadoop:hadoop-aws:3.2.0\"",
+		}
+	}
+
 	argList = append(argList, packageArgs...) // adding any packages needed for filestores
 	argList = append(argList, scriptArgs...)  // adding pyspark arguments
 

@@ -160,6 +160,8 @@ jobs:
           file: ./coordinator/Dockerfile.old
           tags: featureformcom/coordinator:${{ env.TAG }}
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   dashboard:
     name: Build Dashboard

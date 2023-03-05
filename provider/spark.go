@@ -1056,7 +1056,7 @@ func GetTransformationFileLocation(id ResourceID) string {
 }
 
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
-	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
+	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false)
 	spark.Logger.Infow("Transformation Destination", "dest", transformationDestination)
 	transformationDestinationWithSlash := strings.Join([]string{transformationDestination, ""}, "/")
 	spark.Logger.Infow("Transformation Destination With Slash", "dest", transformationDestinationWithSlash)

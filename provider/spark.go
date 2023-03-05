@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -834,6 +835,10 @@ func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore) 
 	cmd := exec.Command(bashCommand, bashCommandArgs...)
 	cmd.Env = append(os.Environ(), "FEATUREFORM_LOCAL_MODE=true")
 
+	var outb, errb bytes.Buffer
+	cmd.Stdout = &outb
+	cmd.Stderr = &errb
+
 	err := cmd.Start()
 	if err != nil {
 		return fmt.Errorf("could not run spark job: %v", err)
@@ -841,7 +846,7 @@ func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore) 
 
 	err = cmd.Wait()
 	if err != nil {
-		return fmt.Errorf("spark job failed: %v", err)
+		return fmt.Errorf("spark job failed: %v : stdout %s : stderr %s", err, outb.String(), errb.String())
 	}
 
 	return nil
@@ -852,7 +857,7 @@ func (s *SparkGenericExecutor) PythonFileURI(store SparkFileStore) string {
 	return ""
 }
 
-func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
+func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
 
 	argList := []string{
@@ -862,10 +867,6 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 		"--deploy-mode",
 		s.deployMode,
 	}
-
-	packageArgs := store.Packages()
-	argList = append(argList, packageArgs...) // adding any packages needed for filestores
-
 	scriptArgs := []string{
 		sparkScriptPath,
 		"sql",
@@ -875,16 +876,25 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 		fmt.Sprintf("\"%s\"", cleanQuery),
 		"--job_type",
 		fmt.Sprintf("\"%s\"", string(jobType)),
-		"--store_type",
-		store.Type(),
 	}
-	argList = append(argList, scriptArgs...)
 
-	sparkConfigs := store.SparkConfig()
-	argList = append(argList, sparkConfigs...)
+	var packageArgs []string
+	if azureStore, ok := store.(*AzureFileStore); ok {
+		packageArgs = []string{
+			"--packages",
+			"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
+		}
 
-	credentialConfigs := store.CredentialsConfig()
-	argList = append(argList, credentialConfigs...)
+		remoteConnectionArgs := []string{
+			"--spark_config",
+			fmt.Sprintf("\"%s\"", azureStore.configString()),
+		}
+
+		scriptArgs = append(scriptArgs, remoteConnectionArgs...)
+	}
+
+	argList = append(argList, packageArgs...) // adding any packages needed for filestores
+	argList = append(argList, scriptArgs...)  // adding pyspark arguments
 
 	argList = append(argList, "--source_list")
 	for _, source := range sourceList {
@@ -904,9 +914,6 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 		s.deployMode,
 	}
 
-	packageArgs := store.Packages()
-	argList = append(argList, packageArgs...) // adding any packages needed for filestores
-
 	scriptArgs := []string{
 		sparkScriptPath,
 		"df",
@@ -914,16 +921,32 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 		fmt.Sprintf("\"%s\"", outputURI),
 		"--code",
 		code,
-		"--store_type",
-		store.Type(),
 	}
-	argList = append(argList, scriptArgs...)
 
-	sparkConfigs := store.SparkConfig()
-	argList = append(argList, sparkConfigs...)
+	var packageArgs []string
+	if azureStore, ok := store.(*SparkAzureFileStore); ok {
 
-	credentialConfig := store.CredentialsConfig()
-	argList = append(argList, credentialConfig...)
+		packageArgs = []string{
+			"--packages",
+			"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
+		}
+
+		remoteConnectionArgs := []string{
+			"--store_type",
+			"azure_blob_store",
+			"--spark_config",
+			fmt.Sprintf("\"%s\"", azureStore.configString()),
+			"--credential",
+			fmt.Sprintf("\"azure_connection_string=%s\"", azureStore.connectionString()),
+			"--credential",
+			fmt.Sprintf("\"azure_container_name=%s\"", azureStore.containerName()),
+		}
+
+		scriptArgs = append(scriptArgs, remoteConnectionArgs...)
+	}
+
+	argList = append(argList, packageArgs...) // adding any packages needed for filestores
+	argList = append(argList, scriptArgs...)  // adding pyspark script arguments
 
 	argList = append(argList, "--source")
 	for _, source := range sources {

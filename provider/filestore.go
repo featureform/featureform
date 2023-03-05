@@ -220,7 +220,7 @@ func (gs GCSFileStore) PathWithPrefix(path string, remote bool) string {
 type GCSFileStoreConfig struct {
 	BucketName  string
 	BucketPath  string
-	Credentials GCPCredentials
+	Credentials pc.GCPCredentials
 }
 
 func (s *GCSFileStoreConfig) Deserialize(config pc.SerializedConfig) error {

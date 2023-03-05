@@ -830,7 +830,7 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 		"--output_uri",
 		outputURI,
 		"--code",
-		store.PathWithPrefix(code, true),
+		code,
 		"--store_type",
 		store.Type(),
 	}
@@ -1056,7 +1056,7 @@ func GetTransformationFileLocation(id ResourceID) string {
 }
 
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
-	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false)
+	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
 	spark.Logger.Infow("Transformation Destination", "dest", transformationDestination)
 	transformationDestinationWithSlash := strings.Join([]string{transformationDestination, ""}, "/")
 	spark.Logger.Infow("Transformation Destination With Slash", "dest", transformationDestinationWithSlash)

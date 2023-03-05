@@ -132,33 +132,6 @@ func (store AzureFileStore) FilestoreType() string {
 	return "azure_blob_store"
 }
 
-type AzureFileStoreConfig struct {
-	AccountName   string
-	AccountKey    string
-	ContainerName string
-	Path          string
-}
-
-func (config *AzureFileStoreConfig) IsFileStoreConfig() bool {
-	return true
-}
-
-func (config *AzureFileStoreConfig) Serialize() ([]byte, error) {
-	data, err := json.Marshal(config)
-	if err != nil {
-		panic(err)
-	}
-	return data, nil
-}
-
-func (config *AzureFileStoreConfig) Deserialize(data pc.SerializedConfig) error {
-	err := json.Unmarshal(data, config)
-	if err != nil {
-		return fmt.Errorf("deserialize file blob store config: %w", err)
-	}
-	return nil
-}
-
 func NewAzureFileStore(config Config) (FileStore, error) {
 	azureStoreConfig := pc.AzureFileStoreConfig{}
 	if err := azureStoreConfig.Deserialize(pc.SerializedConfig(config)); err != nil {

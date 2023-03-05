@@ -650,7 +650,7 @@ func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.SparkConfig{}
 	logger := logging.NewLogger("spark")
 	if err := sc.Deserialize(config); err != nil {
-		logger.Errorw("Invalid config to initialize spark offline store", err)
+		logger.Errorw("Invalid config to initialize spark offline store", "error", err)
 		return nil, fmt.Errorf("invalid spark config")
 	}
 	logger.Infow("Creating Spark executor:", "type", sc.ExecutorType)

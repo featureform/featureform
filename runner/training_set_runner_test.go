@@ -6,8 +6,10 @@ package runner
 
 import (
 	"fmt"
-	"github.com/featureform/provider"
 	"testing"
+
+	"github.com/featureform/provider"
+	pt "github.com/featureform/provider/provider_type"
 )
 
 type MockOfflineCreateTrainingSetFail struct {
@@ -132,7 +134,7 @@ func TestTrainingSetRunnerFactoryErrorCoverage(t *testing.T) {
 		{
 			Name: "cannot convert offline provider to offline store",
 			ErrorConfig: trainingSetSerialize(TrainingSetRunnerConfig{
-				OfflineType:   provider.LocalOnline,
+				OfflineType:   pt.LocalOnline,
 				OfflineConfig: []byte{},
 			}),
 		},

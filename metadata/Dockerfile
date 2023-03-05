@@ -18,6 +18,9 @@ COPY ./metadata/proto/ ./metadata/proto/
 COPY ./helpers/ ./helpers/
 COPY ./metadata/search/ ./metadata/search/
 COPY ./metadata/server/server.go ./metadata/main/server.go
+COPY ./provider/provider_config/ ./provider/provider_config/
+COPY ./provider/provider_type/ ./provider/provider_type/
+COPY ./config/ ./config/
 
 RUN go build ./metadata/main/server.go
 

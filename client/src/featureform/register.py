@@ -1579,7 +1579,6 @@ class Registrar:
         ```
         dynamodb = ff.register_dynamodb(
             name="dynamodb-quickstart",
-            host="quickstart-dynamodb",  # The internal dns name for dynamodb
             description="A Dynamodb deployment we created for the Featureform quickstart",
             access_key="$ACCESS_KEY",
             secret_key="$SECRET_KEY",

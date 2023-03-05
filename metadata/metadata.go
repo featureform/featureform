@@ -16,6 +16,8 @@ import (
 
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/metadata/search"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -876,7 +878,7 @@ func (resource *modelResource) Update(lookup ResourceLookup, updateRes Resource)
 	return nil
 }
 
-func unionNameVariants(source, destination []*pb.NameVariant) []*pb.NameVariant {
+func unionNameVariants(destination, source []*pb.NameVariant) []*pb.NameVariant {
 	type nameVariantKey struct {
 		Name    string
 		Variant string
@@ -1013,8 +1015,50 @@ func (resource *providerResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (resource *providerResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExists{updateRes.ID()}
+func (resource *providerResource) Update(lookup ResourceLookup, resourceUpdate Resource) error {
+	deserialized, ok := resourceUpdate.Proto().(*pb.Provider)
+	if !ok {
+		return errors.New("failed to deserialize existing provider record")
+	}
+	isValid, err := resource.isValidConfigUpdate(deserialized.SerializedConfig)
+	if err != nil {
+		return err
+	}
+	if !isValid {
+		return &ResourceExists{resourceUpdate.ID()}
+	}
+	resource.serialized.SerializedConfig = deserialized.SerializedConfig
+	resource.serialized.Description = deserialized.Description
+	return nil
+}
+
+func (a providerResource) isValidConfigUpdate(configUpdate pc.SerializedConfig) (bool, error) {
+	switch pt.Type(a.serialized.Type) {
+	case pt.BigQueryOffline:
+		return isValidBigQueryConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+	case pt.CassandraOnline:
+		return isValidCassandraConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+	case pt.DynamoDBOnline:
+		return isValidDynamoConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+	case pt.FirestoreOnline:
+		return isValidFirestoreConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+	case pt.MongoDBOnline:
+		return isValidMongoConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+	case pt.PostgresOffline:
+		return isValidPostgresConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+	case pt.RedisOnline:
+		return isValidRedisConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+	case pt.SnowflakeOffline:
+		return isValidSnowflakeConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+	case pt.RedshiftOffline:
+		return isValidRedshiftConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+	case pt.K8sOffline:
+		return isValidK8sConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+	case pt.SparkOffline:
+		return isValidSparkConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+	default:
+		return false, fmt.Errorf("unrecognized provider type: %v", a.serialized.Type)
+	}
 }
 
 type entityResource struct {
@@ -1408,9 +1452,10 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 	if existing, err := serv.lookup.Lookup(id); err == nil {
-		if err := res.Update(serv.lookup, existing); err != nil {
+		if err := existing.Update(serv.lookup, res); err != nil {
 			return nil, err
 		}
+		res = existing
 	}
 	if err := serv.lookup.Set(id, res); err != nil {
 		return nil, err

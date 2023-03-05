@@ -6,10 +6,12 @@ package runner
 
 import (
 	"fmt"
-	"github.com/featureform/metadata"
-	"github.com/featureform/provider"
 	"reflect"
 	"testing"
+
+	"github.com/featureform/metadata"
+	"github.com/featureform/provider"
+	pt "github.com/featureform/provider/provider_type"
 )
 
 type MockOfflineCreateTransformationFail struct {
@@ -140,7 +142,7 @@ func TestCreateTransformationRunnerFactoryErrorCoverage(t *testing.T) {
 		{
 			Name: "cannot convert offline provider to offline store",
 			ErrorConfig: transformationSerialize(CreateTransformationConfig{
-				OfflineType:   provider.LocalOnline,
+				OfflineType:   pt.LocalOnline,
 				OfflineConfig: []byte{},
 			}),
 		},
@@ -190,7 +192,7 @@ func TestTransformationFactory(t *testing.T) {
 
 func TestCreateTransformationConfigDeserializeInterface(t *testing.T) {
 	config := CreateTransformationConfig{
-		OfflineType:   provider.K8s,
+		OfflineType:   pt.K8sOffline,
 		OfflineConfig: []byte("My config"),
 		TransformationConfig: provider.TransformationConfig{
 			Type: provider.DFTransformation,
@@ -201,7 +203,7 @@ func TestCreateTransformationConfigDeserializeInterface(t *testing.T) {
 			},
 			Code: []byte("My code"),
 			SourceMapping: []provider.SourceMapping{
-				{"template", "source"},
+				{Template: "template", Source: "source"},
 			},
 			Args: metadata.KubernetesArgs{
 				DockerImage: "my_image",
@@ -213,7 +215,7 @@ func TestCreateTransformationConfigDeserializeInterface(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 	configEmpty := CreateTransformationConfig{
-		OfflineType:   provider.K8s,
+		OfflineType:   pt.K8sOffline,
 		OfflineConfig: []byte{},
 		TransformationConfig: provider.TransformationConfig{
 			Type: 1,

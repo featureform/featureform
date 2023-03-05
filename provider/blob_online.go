@@ -1,34 +1,15 @@
 package provider
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
+
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 )
 
 const STORE_PREFIX = ".featureform/inferencestore"
-
-type OnlineBlobConfig struct {
-	Type   FileStoreType
-	Config AzureFileStoreConfig
-}
-
-func (online OnlineBlobConfig) Serialized() SerializedConfig {
-	config, err := json.Marshal(online)
-	if err != nil {
-		panic(err)
-	}
-	return config
-}
-
-func (online *OnlineBlobConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, online)
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 type OnlineFileStore struct {
 	FileStore
@@ -36,15 +17,15 @@ type OnlineFileStore struct {
 	BaseProvider
 }
 
-func blobOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
-	onlineBlobConfig := &OnlineBlobConfig{}
+func blobOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
+	onlineBlobConfig := &pc.OnlineBlobConfig{}
 	if err := onlineBlobConfig.Deserialize(serialized); err != nil {
 		return nil, err
 	}
 	return NewOnlineFileStore(onlineBlobConfig)
 }
 
-func NewOnlineFileStore(config *OnlineBlobConfig) (*OnlineFileStore, error) {
+func NewOnlineFileStore(config *pc.OnlineBlobConfig) (*OnlineFileStore, error) {
 	serializedBlob, err := config.Config.Serialize()
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize blob store config")
@@ -58,7 +39,7 @@ func NewOnlineFileStore(config *OnlineBlobConfig) (*OnlineFileStore, error) {
 		FileStore,
 		config.Config.Path,
 		BaseProvider{
-			ProviderType:   BlobOnline,
+			ProviderType:   pt.BlobOnline,
 			ProviderConfig: config.Serialized(),
 		},
 	}, nil

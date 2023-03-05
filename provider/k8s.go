@@ -27,6 +27,7 @@ import (
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
+	pc "github.com/featureform/provider/provider_config"
 )
 
 const azureBlobStorePrefix = "abfss://"
@@ -161,15 +162,15 @@ func CreateFileStore(name string, config Config) (FileStore, error) {
 }
 
 func init() {
-	FileStoreFactoryMap := map[FileStoreType]FileStoreFactory{
-		FileSystem: NewLocalFileStore,
-		Azure:      NewAzureFileStore,
-		S3:         NewS3FileStore,
-		GCS:        NewGCSFileStore,
+	FileStoreFactoryMap := map[pc.FileStoreType]FileStoreFactory{
+		pc.FileSystem: NewLocalFileStore,
+		pc.Azure:      NewAzureFileStore,
+		pc.S3:         NewS3FileStore,
+		pc.GCS:        NewGCSFileStore,
 	}
-	executorFactoryMap := map[ExecutorType]ExecutorFactory{
-		GoProc: NewLocalExecutor,
-		K8s:    NewKubernetesExecutor,
+	executorFactoryMap := map[pc.ExecutorType]ExecutorFactory{
+		pc.GoProc: NewLocalExecutor,
+		pc.K8s:    NewKubernetesExecutor,
 	}
 	for storeType, factory := range FileStoreFactoryMap {
 		err := RegisterFileStoreFactory(string(storeType), factory)
@@ -185,15 +186,15 @@ func init() {
 	}
 }
 
-func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
-	k8 := K8sConfig{}
+func k8sOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
+	k8 := pc.K8sConfig{}
 	logger := logging.NewLogger("kubernetes")
 	if err := k8.Deserialize(config); err != nil {
 		logger.Errorw("Invalid config to initialize k8s offline store", "error", err)
 		return nil, fmt.Errorf("invalid k8s config: %w", err)
 	}
 	logger.Info("Creating executor with type:", k8.ExecutorType)
-	execConfig := k8.ExecutorConfig.(ExecutorConfig)
+	execConfig := k8.ExecutorConfig.(pc.ExecutorConfig)
 	serializedExecutor, err := execConfig.Serialize()
 	if err != nil {
 		logger.Errorw("Failure serializing executor", "executor_type", k8.ExecutorType, "error", err)
@@ -229,91 +230,6 @@ func k8sOfflineStoreFactory(config SerializedConfig) (Provider, error) {
 		},
 	}
 	return &k8sOfflineStore, nil
-}
-
-type ExecutorConfig struct {
-	DockerImage string `json:"docker_image"`
-}
-
-func (c *ExecutorConfig) Serialize() ([]byte, error) {
-	serialized, err := json.Marshal(c)
-	if err != nil {
-		return nil, fmt.Errorf("could not serialize K8s Config: %w", err)
-	}
-	return serialized, nil
-}
-
-func (c *ExecutorConfig) Deserialize(config []byte) error {
-	err := json.Unmarshal(config, &c)
-	if err != nil {
-		return fmt.Errorf("could not deserialize K8s Executor Config: %w", err)
-	}
-	return nil
-}
-
-func (c *ExecutorConfig) getImage() string {
-	if c.DockerImage == "" {
-		return cfg.GetPandasRunnerImage()
-	} else {
-		return c.DockerImage
-	}
-}
-
-type FileStoreConfig []byte
-
-type ExecutorType string
-
-type FileStoreType string
-
-const (
-	GoProc ExecutorType = "GO_PROCESS"
-	K8s                 = "K8S"
-)
-
-type K8sConfig struct {
-	ExecutorType   ExecutorType
-	ExecutorConfig interface{}
-	StoreType      FileStoreType
-	StoreConfig    AzureFileStoreConfig
-}
-
-func (config *K8sConfig) Serialize() ([]byte, error) {
-	data, err := json.Marshal(config)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
-}
-
-func (config *K8sConfig) Deserialize(data []byte) error {
-	err := json.Unmarshal(data, config)
-	if err != nil {
-		return fmt.Errorf("deserialize k8s config: %w", err)
-	}
-	if config.ExecutorConfig == "" {
-		config.ExecutorConfig = ExecutorConfig{}
-	} else {
-		return config.executorConfigFromMap()
-	}
-	return nil
-}
-
-func (config *K8sConfig) executorConfigFromMap() error {
-	cfgMap, ok := config.ExecutorConfig.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("could not get ExecutorConfig values")
-	}
-	serializedExecutor, err := json.Marshal(cfgMap)
-	if err != nil {
-		return fmt.Errorf("could not marshal executor config: %w", err)
-	}
-	excConfig := ExecutorConfig{}
-	err = excConfig.Deserialize(serializedExecutor)
-	if err != nil {
-		return fmt.Errorf("could not deserialize config into ExecutorConfig: %w", err)
-	}
-	config.ExecutorConfig = excConfig
-	return nil
 }
 
 type Executor interface {
@@ -434,13 +350,13 @@ func (kube *KubernetesExecutor) ExecuteScript(envVars map[string]string, args *m
 }
 
 func NewKubernetesExecutor(config Config, logger *zap.SugaredLogger) (Executor, error) {
-	var c ExecutorConfig
+	var c pc.ExecutorConfig
 	err := c.Deserialize(config)
 	if err != nil {
 		return nil, fmt.Errorf("could not create Kubernetes Executor: %w", err)
 	}
 	return &KubernetesExecutor{
-		image:  c.getImage(),
+		image:  c.GetImage(),
 		logger: logger,
 	}, nil
 }

@@ -12,6 +12,8 @@ import (
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 
 	"github.com/google/uuid"
 	db "github.com/jackc/pgx/v4"
@@ -49,7 +51,7 @@ var testOfflineTableUpdateValues = []provider.ResourceRecord{
 
 var finalUpdatedTableValues = append(testOfflineTableValues, testOfflineTableUpdateValues...)
 
-var postgresConfig = provider.PostgresConfig{
+var postgresConfig = pc.PostgresConfig{
 	Host:     os.Getenv("POSTGRES_HOST"),
 	Port:     os.Getenv("POSTGRES_PORT"),
 	Database: os.Getenv("POSTGRES_DB"),
@@ -128,7 +130,7 @@ func initializeTestingEnvironment() error {
 		return fmt.Errorf("Could not connect to etcd: %v", err)
 	}
 	serialPGConfig = postgresConfig.Serialize()
-	offlineProvider, err := provider.Get(provider.PostgresOffline, serialPGConfig)
+	offlineProvider, err := provider.Get(pt.PostgresOffline, serialPGConfig)
 	if err != nil {
 		return fmt.Errorf("Could not get provider: %v", err)
 	}
@@ -137,11 +139,11 @@ func initializeTestingEnvironment() error {
 		return fmt.Errorf("Could not convert provider to offline store: %v", err)
 	}
 	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
-	redisConfig := &provider.RedisConfig{
+	redisConfig := &pc.RedisConfig{
 		Addr: liveAddr,
 	}
 	serialRedisConfig = redisConfig.Serialized()
-	onlineProvider, err := provider.Get(provider.RedisOnline, serialRedisConfig)
+	onlineProvider, err := provider.Get(pt.RedisOnline, serialRedisConfig)
 	if err != nil {
 		return fmt.Errorf("Could not get online provider: %v", err)
 	}

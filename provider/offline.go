@@ -8,38 +8,31 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/mitchellh/mapstructure"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/featureform/metadata"
-	"github.com/google/uuid"
-)
+	"github.com/mitchellh/mapstructure"
 
-const (
-	MemoryOffline    Type = "MEMORY_OFFLINE"
-	PostgresOffline       = "POSTGRES_OFFLINE"
-	SnowflakeOffline      = "SNOWFLAKE_OFFLINE"
-	RedshiftOffline       = "REDSHIFT_OFFLINE"
-	SparkOffline          = "SPARK_OFFLINE"
-	BigQueryOffline       = "BIGQUERY_OFFLINE"
-	K8sOffline            = "K8S_OFFLINE"
+	"github.com/featureform/metadata"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
+	"github.com/google/uuid"
 )
 
 type ValueType string
 
 const (
 	NilType   ValueType = ""
-	Int                 = "int"
-	Int32               = "int32"
-	Int64               = "int64"
-	Float32             = "float32"
-	Float64             = "float64"
-	String              = "string"
-	Bool                = "bool"
-	Timestamp           = "time.Time"
-	Datetime            = "datetime"
+	Int       ValueType = "int"
+	Int32     ValueType = "int32"
+	Int64     ValueType = "int64"
+	Float32   ValueType = "float32"
+	Float64   ValueType = "float64"
+	String    ValueType = "string"
+	Bool      ValueType = "bool"
+	Timestamp ValueType = "time.Time"
+	Datetime  ValueType = "datetime"
 )
 
 type OfflineResourceType int
@@ -369,7 +362,7 @@ type memoryOfflineStore struct {
 	BaseProvider
 }
 
-func memoryOfflineStoreFactory(serializedConfig SerializedConfig) (Provider, error) {
+func memoryOfflineStoreFactory(serializedConfig pc.SerializedConfig) (Provider, error) {
 	return NewMemoryOfflineStore(), nil
 }
 
@@ -379,7 +372,7 @@ func NewMemoryOfflineStore() *memoryOfflineStore {
 		materializations: make(map[MaterializationID]*memoryMaterialization),
 		trainingSets:     make(map[ResourceID]trainingRows),
 		BaseProvider: BaseProvider{
-			ProviderType:   MemoryOffline,
+			ProviderType:   pt.MemoryOffline,
 			ProviderConfig: []byte{},
 		},
 	}

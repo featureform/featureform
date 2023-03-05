@@ -462,6 +462,7 @@ func (fs *HDFSFileStore) Serve(key string) (Iterator, error) {
 }
 func (fs *HDFSFileStore) Exists(key string) (bool, error) {
 	_, err := fs.Client.Stat(fs.addPrefix(key))
+	fmt.Println("CHECKING EXISTS", err)
 	if err != nil && strings.Contains(err.Error(), "file does not exist") {
 		return false, nil
 	} else if err != nil {

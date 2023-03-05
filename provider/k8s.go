@@ -876,13 +876,14 @@ func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, source
 
 func blobRegisterPrimary(id ResourceID, sourceName string, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
+	logger.Errorw("Checking if resource key exists", "key", resourceKey)
 	primaryExists, err := store.Exists(resourceKey)
 	if err != nil {
 		logger.Errorw("Error checking if primary exists", "error", err)
 		return nil, fmt.Errorf("error checking if primary exists: %v", err)
 	}
 	if primaryExists {
-		logger.Errorw("Error checking if primary exists", "source", sourceName)
+		logger.Errorw("Primary table already exists", "source", sourceName)
 		return nil, fmt.Errorf("primary already exists")
 	}
 

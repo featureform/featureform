@@ -793,7 +793,7 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 		"--sql_query",
 		fmt.Sprintf("'%s'", cleanQuery),
 		"--job_type",
-		string(jobType),
+		fmt.Sprintf("'%s'", jobType),
 		"--store_type",
 		store.Type(),
 	}

@@ -333,11 +333,13 @@ func NewHDFSFileStore(config Config) (FileStore, error) {
 	return &HDFSFileStore{
 		Client: client,
 		Path:   HDFSConfig.Path,
+		Host:   address,
 	}, nil
 }
 
 type HDFSFileStore struct {
 	Client *hdfs.Client
+	Host   string
 	Path   string
 }
 
@@ -546,7 +548,7 @@ func (fs *HDFSFileStore) PathWithPrefix(path string, remote bool) string {
 		if fs.Path != "" {
 			fsPath = fmt.Sprintf("/%s", fs.Path)
 		}
-		return fmt.Sprintf("%s%s/%s", HDFSPrefix, fsPath, path)
+		return fmt.Sprintf("%s%s/%s/%s", HDFSPrefix, fs.Host, fsPath, path)
 	} else {
 		return path
 	}

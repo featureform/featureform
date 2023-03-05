@@ -928,7 +928,7 @@ func (k8s *K8sOfflineStore) pandasRunnerArgs(outputURI string, updatedQuery stri
 		"TRANSFORMATION_TYPE": "sql",
 		"TRANSFORMATION":      updatedQuery,
 	}
-	azureStore, ok := k8s.store.(AzureFileStore)
+	azureStore, ok := k8s.store.(*AzureFileStore)
 	if ok {
 		envVars = azureStore.addAzureVars(envVars)
 	}
@@ -946,7 +946,7 @@ func (k8s K8sOfflineStore) getDFArgs(outputURI string, code string, mapping []So
 	if _, ok := k8s.executor.(*KubernetesExecutor); ok {
 		envVars = addETCDVars(envVars)
 	}
-	if azureStore, ok := k8s.store.(AzureFileStore); ok {
+	if azureStore, ok := k8s.store.(*AzureFileStore); ok {
 		envVars = azureStore.addAzureVars(envVars)
 	}
 	return envVars

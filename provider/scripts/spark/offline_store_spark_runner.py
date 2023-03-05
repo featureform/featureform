@@ -99,7 +99,8 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         output_df = func(*func_parameters)
 
         dt = datetime.now()
-        output_uri_with_timestamp = f"{output_uri}{dt}" if output_uri[-1] == "/" else f"{output_uri}/{dt}"
+        safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
+        output_uri_with_timestamp = f"{output_uri}{safe_datetime}" if output_uri[-1] == "/" else f"{output_uri}/{safe_datetime}"
         output_df.write.mode("overwrite").parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp
     except (IOError, OSError) as e:

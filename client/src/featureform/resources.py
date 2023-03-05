@@ -170,7 +170,7 @@ class GCSFileStoreConfig:
         return "gcs"
 
     def type(self) -> str:
-        return "GCS"
+        return "GCS_OFFLINE"
 
     def serialize(self) -> bytes:
         config = {
@@ -203,7 +203,7 @@ class AzureFileStoreConfig:
         return "azure"
 
     def type(self) -> str:
-        return "AZURE"
+        return "AZURE_BLOB_OFFLINE"
 
     def serialize(self) -> bytes:
         config = {
@@ -246,7 +246,7 @@ class S3StoreConfig:
         return "S3"
 
     def type(self) -> str:
-        return "S3"
+        return "S3_OFFLINE"
 
     def serialize(self) -> bytes:
         config = {
@@ -288,7 +288,7 @@ class HDFSConfig:
         return "HDFS"
 
     def type(self) -> str:
-        return "HDFS"
+        return "HDFS_OFFLINE"
 
     def serialize(self) -> bytes:
         config = {

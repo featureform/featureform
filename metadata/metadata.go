@@ -1056,6 +1056,8 @@ func (a providerResource) isValidConfigUpdate(configUpdate pc.SerializedConfig) 
 		return isValidK8sConfigUpdate(a.serialized.SerializedConfig, configUpdate)
 	case pt.SparkOffline:
 		return isValidSparkConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+	case pt.S3, pt.HDFS, pt.GCS, pt.AZURE:
+		return true, nil
 	default:
 		return false, fmt.Errorf("unrecognized provider type: %v", a.serialized.Type)
 	}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/mitchellh/mapstructure"
 
 	"fmt"
 	"os"
@@ -55,7 +56,7 @@ type GCPCredentials struct {
 
 type SparkExecutorConfig interface {
 	Serialize() ([]byte, error)
-	Deserialize(config SerializedConfig) error
+	Deserialize(config pc.SerializedConfig) error
 	IsExecutorConfig() bool
 }
 
@@ -313,18 +314,18 @@ func (local SparkLocalFileStore) Type() string {
 
 type SparkFileStoreConfig interface {
 	Serialize() ([]byte, error)
-	Deserialize(config SerializedConfig) error
+	Deserialize(config pc.SerializedConfig) error
 	IsFileStoreConfig() bool
 }
 
 type SparkConfig struct {
-	ExecutorType   SparkExecutorType
+	ExecutorType   pc.SparkExecutorType
 	ExecutorConfig SparkExecutorConfig
-	StoreType      FileStoreType
+	StoreType      pc.FileStoreType
 	StoreConfig    SparkFileStoreConfig
 }
 
-func (s *SparkConfig) Deserialize(config SerializedConfig) error {
+func (s *SparkConfig) Deserialize(config pc.SerializedConfig) error {
 	err := json.Unmarshal(config, s)
 	if err != nil {
 		return err
@@ -342,9 +343,9 @@ func (s *SparkConfig) Serialize() ([]byte, error) {
 
 func (s *SparkConfig) UnmarshalJSON(data []byte) error {
 	type tempConfig struct {
-		ExecutorType   SparkExecutorType
+		ExecutorType   pc.SparkExecutorType
 		ExecutorConfig map[string]interface{}
-		StoreType      FileStoreType
+		StoreType      pc.FileStoreType
 		StoreConfig    map[string]interface{}
 	}
 
@@ -370,15 +371,15 @@ func (s *SparkConfig) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (s *SparkConfig) decodeExecutor(executorType SparkExecutorType, configMap map[string]interface{}) error {
+func (s *SparkConfig) decodeExecutor(executorType pc.SparkExecutorType, configMap map[string]interface{}) error {
 	var executorConfig SparkExecutorConfig
 	switch executorType {
-	case EMR:
-		executorConfig = &EMRConfig{}
-	case Databricks:
-		executorConfig = &DatabricksConfig{}
-	case SparkGeneric:
-		executorConfig = &SparkGenericConfig{}
+	case pc.EMR:
+		executorConfig = &pc.EMRConfig{}
+	case pc.Databricks:
+		executorConfig = &pc.DatabricksConfig{}
+	case pc.SparkGeneric:
+		executorConfig = &pc.SparkGenericConfig{}
 	default:
 		return fmt.Errorf("the executor type '%s' is not supported ", executorType)
 	}
@@ -391,14 +392,14 @@ func (s *SparkConfig) decodeExecutor(executorType SparkExecutorType, configMap m
 	return nil
 }
 
-func (s *SparkConfig) decodeFileStore(fileStoreType FileStoreType, configMap map[string]interface{}) error {
+func (s *SparkConfig) decodeFileStore(fileStoreType pc.FileStoreType, configMap map[string]interface{}) error {
 	var fileStoreConfig SparkFileStoreConfig
 	switch fileStoreType {
-	case Azure:
-		fileStoreConfig = &AzureFileStoreConfig{}
-	case S3:
-		fileStoreConfig = &S3FileStoreConfig{}
-	case GCS:
+	case pc.Azure:
+		fileStoreConfig = &pc.AzureFileStoreConfig{}
+	case pc.S3:
+		fileStoreConfig = &pc.S3FileStoreConfig{}
+	case pc.GCS:
 		fileStoreConfig = &GCSFileStoreConfig{}
 	default:
 		return fmt.Errorf("the file store type '%s' is not supported ", fileStoreType)
@@ -414,32 +415,6 @@ func (s *SparkConfig) decodeFileStore(fileStoreType FileStoreType, configMap map
 
 func ResourcePath(id ResourceID) string {
 	return fmt.Sprintf("%s/%s/%s", id.Type, id.Name, id.Variant)
-}
-
-type EMRConfig struct {
-	Credentials   AWSCredentials
-	ClusterRegion string
-	ClusterName   string
-}
-
-func (e *EMRConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, e)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (e *EMRConfig) Serialize() ([]byte, error) {
-	conf, err := json.Marshal(e)
-	if err != nil {
-		return nil, err
-	}
-	return conf, nil
-}
-
-func (e *EMRConfig) IsExecutorConfig() bool {
-	return true
 }
 
 type DatabricksResultState string
@@ -1482,8 +1457,4 @@ func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterat
 
 func sanitizeSparkSQL(name string) string {
 	return name
-}
-
-func ResourcePath(id ResourceID) string {
-	return fmt.Sprintf("%s/%s/%s", id.Type, id.Name, id.Variant)
 }

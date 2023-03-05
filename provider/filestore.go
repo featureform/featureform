@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -25,12 +26,12 @@ import (
 )
 
 const (
-	Memory     FileStoreType = "MEMORY"
-	FileSystem               = "LOCAL_FILESYSTEM"
-	Azure                    = "AZURE"
-	S3                       = "S3"
-	GCS                      = "GCS"
-	HDFS                     = "HDFS"
+	Memory     pc.FileStoreType = "MEMORY"
+	FileSystem                  = "LOCAL_FILESYSTEM"
+	Azure                       = "AZURE"
+	S3                          = "S3"
+	GCS                         = "GCS"
+	HDFS                        = "HDFS"
 )
 
 type FileType string
@@ -150,7 +151,7 @@ func (config *AzureFileStoreConfig) Serialize() ([]byte, error) {
 	return data, nil
 }
 
-func (config *AzureFileStoreConfig) Deserialize(data SerializedConfig) error {
+func (config *AzureFileStoreConfig) Deserialize(data pc.SerializedConfig) error {
 	err := json.Unmarshal(data, config)
 	if err != nil {
 		return fmt.Errorf("deserialize file blob store config: %w", err)
@@ -278,10 +279,10 @@ func (g GCSFileStore) FilestoreType() string {
 type GCSFileStoreConfig struct {
 	BucketName  string
 	BucketPath  string
-	Credentials GCPCredentials
+	Credentials pc.GCPCredentials
 }
 
-func (s *GCSFileStoreConfig) Deserialize(config SerializedConfig) error {
+func (s *GCSFileStoreConfig) Deserialize(config pc.SerializedConfig) error {
 	err := json.Unmarshal(config, s)
 	if err != nil {
 		return err
@@ -337,7 +338,7 @@ type HDFSFileStoreConfig struct {
 	Username string
 }
 
-func (s *HDFSFileStoreConfig) Deserialize(config SerializedConfig) error {
+func (s *HDFSFileStoreConfig) Deserialize(config pc.SerializedConfig) error {
 	err := json.Unmarshal(config, s)
 	if err != nil {
 		return err
@@ -360,7 +361,7 @@ func (s *HDFSFileStoreConfig) IsFileStoreConfig() bool {
 func NewHDFSFileStore(config Config) (FileStore, error) {
 	HDFSConfig := HDFSFileStoreConfig{}
 
-	err := HDFSConfig.Deserialize(SerializedConfig(config))
+	err := HDFSConfig.Deserialize(pc.SerializedConfig(config))
 	if err != nil {
 		return nil, fmt.Errorf("could not deserialize config: %v", err)
 	}

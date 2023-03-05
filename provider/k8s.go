@@ -167,7 +167,7 @@ func init() {
 		pc.Azure:      NewAzureFileStore,
 		pc.S3:         NewS3FileStore,
 		pc.GCS:        NewGCSFileStore,
-		ps.HDFS:       NewHDFSFileStore,
+		pc.HDFS:       NewHDFSFileStore,
 	}
 	executorFactoryMap := map[pc.ExecutorType]ExecutorFactory{
 		pc.GoProc: NewLocalExecutor,

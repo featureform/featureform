@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -370,6 +371,9 @@ func (s *SparkGenericExecutor) RunSparkJob(args []string, store FileStore) error
 	s.logger.Info("Executing spark-submit")
 	cmd := exec.Command(bashCommand, bashCommandArgs...)
 	cmd.Env = append(os.Environ(), "FEATUREFORM_LOCAL_MODE=true")
+	var outb, errb bytes.Buffer
+	cmd.Stdout = &outb
+	cmd.Stderr = &errb
 
 	err := cmd.Start()
 	if err != nil {
@@ -378,7 +382,7 @@ func (s *SparkGenericExecutor) RunSparkJob(args []string, store FileStore) error
 
 	err = cmd.Wait()
 	if err != nil {
-		return fmt.Errorf("spark job failed: %v", err)
+		return fmt.Errorf("spark job failed: %v : stdout %s : stderr %s", err, outb.String(), errb.String())
 	}
 
 	return nil
@@ -719,7 +723,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	}
 	spark.Logger.Debugw("Running DF transformation")
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
-		spark.Logger.Errorw("Error running Spark dataframe job", err)
+		spark.Logger.Errorw("Error running Spark dataframe job", "error", err)
 		return fmt.Errorf("spark submit job for transformation failed to run: (name: %s variant:%s) %v", config.TargetTableID.Name, config.TargetTableID.Variant, err)
 	}
 	spark.Logger.Debugw("Successfully ran transformation", "type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)

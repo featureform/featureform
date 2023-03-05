@@ -1072,7 +1072,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 
-	transformationFilePath := GetTransformationFileLocation(config.TargetTableID)
+	transformationFilePath := spark.Store.PathWithPrefix(GetTransformationFileLocation(config.TargetTableID), true)
 	fileName := "transformation.pkl"
 	transformationFileLocation := fmt.Sprintf("%s/%s", transformationFilePath, fileName)
 	spark.Logger.Infow("Uploading Transformation File", "location", transformationFileLocation)

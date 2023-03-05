@@ -49,9 +49,7 @@ spark_creds = ff.SparkCredentials(
     deploy_mode="client",
     python_version="3.7.16",
 )
-print(os.getenv("AZURE_ACCOUNT_NAME", None))
-print(os.getenv("AZURE_ACCOUNT_KEY", None))
-print(os.getenv("AZURE_CONTAINER_NAME", None))
+
 azure_blob = ff.register_blob_store(
     name=f"k8s_blob_store_{VERSION}",
     account_name=os.getenv("AZURE_ACCOUNT_NAME", None),

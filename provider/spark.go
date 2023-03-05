@@ -1075,7 +1075,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	transformationFilePath := GetTransformationFileLocation(config.TargetTableID)
 	fileName := "transformation.pkl"
 	transformationFileLocation := fmt.Sprintf("%s/%s", transformationFilePath, fileName)
-
+	spark.Logger.Infow("Uploading Transformation File", "location", transformationFileLocation)
 	if err := spark.Store.Write(transformationFileLocation, config.Code); err != nil {
 		return fmt.Errorf("could not upload file: %s", err)
 	}

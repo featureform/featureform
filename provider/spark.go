@@ -857,7 +857,7 @@ func (s *SparkGenericExecutor) PythonFileURI(store SparkFileStore) string {
 	return ""
 }
 
-func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
+func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
 
 	argList := []string{
@@ -879,7 +879,7 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 	}
 
 	var packageArgs []string
-	if azureStore, ok := store.(*AzureFileStore); ok {
+	if azureStore, ok := store.(*SparkAzureFileStore); ok {
 		packageArgs = []string{
 			"--packages",
 			"\"org.apache.hadoop:hadoop-azure:3.2.0\"",

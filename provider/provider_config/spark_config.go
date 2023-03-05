@@ -3,7 +3,6 @@ package provider_config
 import (
 	"encoding/json"
 	"fmt"
-
 	ss "github.com/featureform/helpers/string_set"
 	"github.com/mitchellh/mapstructure"
 )
@@ -189,6 +188,8 @@ func (s *SparkConfig) decodeExecutor(executorType SparkExecutorType, configMap m
 		executorConfig = &EMRConfig{}
 	case Databricks:
 		executorConfig = &DatabricksConfig{}
+	case SparkGeneric:
+		executorConfig = &SparkGenericConfig{}
 	default:
 		return fmt.Errorf("the executor type '%s' is not supported ", executorType)
 	}
@@ -208,6 +209,8 @@ func (s *SparkConfig) decodeFileStore(fileStoreType FileStoreType, configMap map
 		fileStoreConfig = &AzureFileStoreConfig{}
 	case S3:
 		fileStoreConfig = &S3FileStoreConfig{}
+	case HDFS:
+		fileStoreConfig = &HDFSFileStoreConfig{}
 	default:
 		return fmt.Errorf("the file store type '%s' is not supported ", fileStoreType)
 	}

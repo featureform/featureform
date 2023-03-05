@@ -42,3 +42,30 @@ func (s S3FileStoreConfig) MutableFields() ss.StringSet {
 func (a S3FileStoreConfig) DifferingFields(b S3FileStoreConfig) (ss.StringSet, error) {
 	return differingFields(a, b)
 }
+
+type HDFSFileStoreConfig struct {
+	Host     string
+	Port     string
+	Path     string
+	Username string
+}
+
+func (s *HDFSFileStoreConfig) Deserialize(config SerializedConfig) error {
+	err := json.Unmarshal(config, s)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HDFSFileStoreConfig) Serialize() ([]byte, error) {
+	conf, err := json.Marshal(s)
+	if err != nil {
+		return nil, err
+	}
+	return conf, nil
+}
+
+func (s *HDFSFileStoreConfig) IsFileStoreConfig() bool {
+	return true
+}

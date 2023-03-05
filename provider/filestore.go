@@ -331,35 +331,8 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
-type HDFSFileStoreConfig struct {
-	Host     string
-	Port     string
-	Path     string
-	Username string
-}
-
-func (s *HDFSFileStoreConfig) Deserialize(config pc.SerializedConfig) error {
-	err := json.Unmarshal(config, s)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *HDFSFileStoreConfig) Serialize() ([]byte, error) {
-	conf, err := json.Marshal(s)
-	if err != nil {
-		return nil, err
-	}
-	return conf, nil
-}
-
-func (s *HDFSFileStoreConfig) IsFileStoreConfig() bool {
-	return true
-}
-
 func NewHDFSFileStore(config Config) (FileStore, error) {
-	HDFSConfig := HDFSFileStoreConfig{}
+	HDFSConfig := pc.HDFSFileStoreConfig{}
 
 	err := HDFSConfig.Deserialize(pc.SerializedConfig(config))
 	if err != nil {

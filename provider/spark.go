@@ -121,7 +121,7 @@ func (s3 SparkS3FileStore) SparkConfig() []string {
 		"--spark_config",
 		fmt.Sprintf("fs.s3a.access.key=%s", s3.Credentials.AWSAccessKeyId),
 		"--spark_config",
-		fmt.Sprintf("\"fs.s3a.secret.key=%s\"", s3.Credentials.AWSSecretKey),
+		fmt.Sprintf("fs.s3a.secret.key=%s", s3.Credentials.AWSSecretKey),
 		"--spark_config",
 		"fs.s3a.endpoint=s3.amazonaws.com",
 	}
@@ -130,11 +130,11 @@ func (s3 SparkS3FileStore) SparkConfig() []string {
 func (s3 SparkS3FileStore) CredentialsConfig() []string {
 	return []string{
 		"--credential",
-		fmt.Sprintf("\"aws_region=%s\"", s3.BucketRegion),
+		fmt.Sprintf("aws_region=%s", s3.BucketRegion),
 		"--credential",
-		fmt.Sprintf("\"aws_access_key_id=%s\"", s3.Credentials.AWSAccessKeyId),
+		fmt.Sprintf("aws_access_key_id=%s", s3.Credentials.AWSAccessKeyId),
 		"--credential",
-		fmt.Sprintf("\"aws_secret_access_key=%s\"", s3.Credentials.AWSSecretKey),
+		fmt.Sprintf("aws_secret_access_key=%s", s3.Credentials.AWSSecretKey),
 	}
 }
 
@@ -1136,7 +1136,7 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 }
 
 func GetTransformationFileLocation(id ResourceID) string {
-	return fmt.Sprintf("featureform/DFTranformations/%s/%s", id.Name, id.Variant)
+	return fmt.Sprintf("featureform/DFTransformations/%s/%s", id.Name, id.Variant)
 }
 
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {

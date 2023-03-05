@@ -131,7 +131,7 @@ func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
 						Name:            containerID,
 						Image:           config.Image,
 						Env:             envVars,
-						ImagePullPolicy: v1.PullIfNotPresent,
+						ImagePullPolicy: v1.PullAlways,
 					},
 				},
 				RestartPolicy: v1.RestartPolicyNever,

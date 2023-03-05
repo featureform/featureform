@@ -830,7 +830,7 @@ func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore) 
 	sparkArgsString := strings.Join(args, " ")
 	bashCommandArgs := []string{"-c", fmt.Sprintf("pyenv global %s && pyenv exec %s", s.pythonVersion, sparkArgsString)}
 
-	s.logger.Info("Executing spark-submit")
+	s.logger.Info("Executing spark-submit", bashCommandArgs)
 	cmd := exec.Command(bashCommand, bashCommandArgs...)
 	cmd.Env = append(os.Environ(), "FEATUREFORM_LOCAL_MODE=true")
 
@@ -1048,7 +1048,7 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 	credentialConfigs := store.CredentialsConfig()
 	argList = append(argList, credentialConfigs...)
 
-	argList = append(argList, "--source")
+	argList = append(argList, "--source_list")
 	argList = append(argList, sourceList...)
 	return argList
 }

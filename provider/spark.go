@@ -1057,12 +1057,14 @@ func GetTransformationFileLocation(id ResourceID) string {
 
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
 	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
+	spark.Logger.Infow("Transformation Destination", "dest", transformationDestination)
 	transformationDestinationWithSlash := strings.Join([]string{transformationDestination, ""}, "/")
-
+	spark.Logger.Infow("Transformation Destination With Slash", "dest", transformationDestinationWithSlash)
 	transformationFile, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false), Parquet)
 	if err != nil {
 		return fmt.Errorf("error checking if transformation file exists")
 	}
+	spark.Logger.Infow("Transformation file", "dest", transformationFile)
 	transformationExists := transformationFile != ""
 	if !isUpdate && transformationExists {
 		spark.Logger.Errorw("Transformation already exists", config.TargetTableID, transformationDestination)
@@ -1072,8 +1074,8 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 
-	relativePath := GetTransformationFileLocation(config.TargetTableID)
-	transformationFilePath := spark.Store.PathWithPrefix(relativePath, true)
+	transformationFilePath := spark.Store.PathWithPrefix(GetTransformationFileLocation(config.TargetTableID), false)
+	spark.Logger.Infow("Transformation file path", "dest", transformationFilePath)
 	fileName := "transformation.pkl"
 	transformationFileLocation := fmt.Sprintf("%s/%s", transformationFilePath, fileName)
 	spark.Logger.Infow("Uploading Transformation File", "location", transformationFileLocation)
@@ -1086,7 +1088,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fmt.Errorf("could not get sources for df transformation. Error: %v", err)
 	}
 
-	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestinationWithSlash, relativePath, sources, spark.Store)
+	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestinationWithSlash, transformationFileLocation, sources, spark.Store)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark dataframe arguments", err)
 		return fmt.Errorf("error with getting df arguments %v", sparkArgs)

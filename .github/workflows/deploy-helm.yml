@@ -157,7 +157,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: ./coordinator/Dockerfile
+          file: ./coordinator/Dockerfile.old
           tags: featureformcom/coordinator:${{ env.TAG }}
           push: true
 

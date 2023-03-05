@@ -745,7 +745,7 @@ func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore) 
 	sparkArgsString := strings.Join(args, " ")
 	bashCommandArgs := []string{"-c", fmt.Sprintf("pyenv global %s && pyenv exec %s", s.pythonVersion, sparkArgsString)}
 
-	s.logger.Info("Executing spark-submit", len(bashCommandArgs), bashCommandArgs)
+	s.logger.Info("Executing spark-submit ", len(bashCommandArgs), bashCommandArgs)
 	cmd := exec.Command(bashCommand, bashCommandArgs...)
 	cmd.Env = append(os.Environ(), "FEATUREFORM_LOCAL_MODE=true")
 
@@ -1114,7 +1114,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	}
 	spark.Logger.Debugw("Running DF transformation")
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
-		spark.Logger.Errorw("Error running Spark dataframe job", err)
+		spark.Logger.Errorw("Error running Spark dataframe job", "error", err)
 		return fmt.Errorf("spark submit job for transformation failed to run: (name: %s variant:%s) %v", config.TargetTableID.Name, config.TargetTableID.Variant, err)
 	}
 	spark.Logger.Debugw("Successfully ran transformation", "type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)
@@ -1127,7 +1127,7 @@ func (spark *SparkOfflineStore) getSources(mapping []SourceMapping) ([]string, e
 	for _, m := range mapping {
 		sourcePath, err := spark.getSourcePath(m.Source)
 		if err != nil {
-			spark.Logger.Errorw("Error getting source path for spark source", m.Source, err)
+			spark.Logger.Errorw("Error getting source path for spark source", "source", m.Source, "error", err)
 			return nil, fmt.Errorf("issue with retreiving the source path for %s because %s", m.Source, err)
 		}
 

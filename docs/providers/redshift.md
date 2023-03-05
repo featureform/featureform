@@ -29,6 +29,7 @@ First we have to add a declarative Redshift configuration in Python.
 You will use the Postgres registration to set up a connection to the target Redshift instance.
 
 {% code title="redshift_config.py" %}
+
 ```python
 import featureform as ff
 
@@ -43,6 +44,7 @@ ff.register_postgres(
     database = "redshift",
 )
 ```
+
 {% endcode %}
 
 Once our config file is complete, we can apply it to our Featureform deployment
@@ -52,3 +54,10 @@ featureform apply redshift_config.py --host $FEATUREFORM_HOST
 ```
 
 We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry](../getting-started/exploring-the-feature-registry.md).
+
+### Mutable Configuration Fields
+
+* `description`
+* `username`
+* `password`
+* `port`

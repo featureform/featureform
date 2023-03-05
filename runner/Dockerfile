@@ -10,7 +10,7 @@ WORKDIR /app
 
 COPY go.mod ./
 COPY go.sum ./
-RUN go mod download
+#RUN go mod download
 
 COPY ./metadata/proto/metadata.proto ./metadata/proto/metadata.proto
 RUN apk update && apk add protobuf-dev && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest && go install google.golang.org/protobuf/cmd/protoc-gen-go@latest

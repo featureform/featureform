@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
 	"go.uber.org/zap/zaptest"
 )
@@ -31,6 +33,21 @@ func TestResourceTypes(t *testing.T) {
 }
 
 func filledResourceDefs() []ResourceDef {
+	redisConfig := pc.RedisConfig{
+		Addr:     "0.0.0.0",
+		Password: "root",
+		DB:       0,
+	}
+	snowflakeConfig := pc.SnowflakeConfig{
+		Username:     "featureformer",
+		Password:     "password",
+		Organization: "featureform",
+		Account:      "featureform-test",
+		Database:     "transactions_db",
+		Schema:       "fraud",
+		Warehouse:    "ff_wh_xs",
+		Role:         "sysadmin",
+	}
 	return []ResourceDef{
 		UserDef{
 			Name: "Featureform",
@@ -41,18 +58,18 @@ func filledResourceDefs() []ResourceDef {
 		ProviderDef{
 			Name:             "mockOnline",
 			Description:      "A mock online provider",
-			Type:             "REDIS-ONLINE",
+			Type:             string(pt.RedisOnline),
 			Software:         "redis",
 			Team:             "fraud",
-			SerializedConfig: []byte("ONLINE CONFIG"),
+			SerializedConfig: redisConfig.Serialized(),
 		},
 		ProviderDef{
 			Name:             "mockOffline",
 			Description:      "A mock offline provider",
-			Type:             "SNOWFLAKE-OFFLINE",
+			Type:             string(pt.SnowflakeOffline),
 			Software:         "snowflake",
 			Team:             "recommendations",
-			SerializedConfig: []byte("OFFLINE CONFIG"),
+			SerializedConfig: snowflakeConfig.Serialize(),
 		},
 		EntityDef{
 			Name:        "user",
@@ -473,7 +490,7 @@ func TestResourceExists(t *testing.T) {
 			ProviderDef{
 				Name:             "mockOffline",
 				Description:      "A mock offline provider",
-				Type:             "SNOWFLAKE-OFFLINE",
+				Type:             string(pt.SnowflakeOffline),
 				Software:         "snowflake",
 				Team:             "recommendations",
 				SerializedConfig: []byte("OFFLINE CONFIG"),
@@ -639,14 +656,29 @@ func (test ProviderTest) Test(t *testing.T, client *Client, res interface{}, sho
 }
 
 func expectedProviders() ResourceTests {
+	redisConfig := pc.RedisConfig{
+		Addr:     "0.0.0.0",
+		Password: "root",
+		DB:       0,
+	}
+	snowflakeConfig := pc.SnowflakeConfig{
+		Username:     "featureformer",
+		Password:     "password",
+		Organization: "featureform",
+		Account:      "featureform-test",
+		Database:     "transactions_db",
+		Schema:       "fraud",
+		Warehouse:    "ff_wh_xs",
+		Role:         "sysadmin",
+	}
 	return ResourceTests{
 		ProviderTest{
 			Name:             "mockOnline",
 			Description:      "A mock online provider",
-			Type:             "REDIS-ONLINE",
+			Type:             string(pt.RedisOnline),
 			Software:         "redis",
 			Team:             "fraud",
-			SerializedConfig: []byte("ONLINE CONFIG"),
+			SerializedConfig: redisConfig.Serialized(),
 			Labels:           []NameVariant{},
 			Features: []NameVariant{
 				{"feature", "variant"},
@@ -659,10 +691,102 @@ func expectedProviders() ResourceTests {
 		ProviderTest{
 			Name:             "mockOffline",
 			Description:      "A mock offline provider",
-			Type:             "SNOWFLAKE-OFFLINE",
+			Type:             string(pt.SnowflakeOffline),
 			Software:         "snowflake",
 			Team:             "recommendations",
-			SerializedConfig: []byte("OFFLINE CONFIG"),
+			SerializedConfig: snowflakeConfig.Serialize(),
+			Labels: []NameVariant{
+				{"label", "variant"},
+			},
+			Features: []NameVariant{},
+			Sources: []NameVariant{
+				{"mockSource", "var"},
+				{"mockSource", "var2"},
+			},
+			TrainingSets: []NameVariant{
+				{"training-set", "variant"},
+				{"training-set", "variant2"},
+			},
+		},
+	}
+}
+
+func providerUpdates() []ResourceDef {
+	redisConfig := pc.RedisConfig{
+		Addr:     "0.0.0.0",
+		Password: "root123",
+		DB:       0,
+	}
+	snowflakeConfig := pc.SnowflakeConfig{
+		Username:     "feature-former",
+		Password:     "password123",
+		Organization: "featureform",
+		Account:      "featureform-test",
+		Database:     "transactions_db",
+		Schema:       "fraud",
+		Warehouse:    "ff_wh_xs",
+		Role:         "ff-user",
+	}
+	return []ResourceDef{
+		ProviderDef{
+			Name:             "mockOnline",
+			Description:      "An updated mock online provider",
+			Type:             string(pt.RedisOnline),
+			Software:         "redis",
+			Team:             "fraud",
+			SerializedConfig: redisConfig.Serialized(),
+		},
+		ProviderDef{
+			Name:             "mockOffline",
+			Description:      "An updated mock offline provider",
+			Type:             string(pt.SnowflakeOffline),
+			Software:         "snowflake",
+			Team:             "recommendations",
+			SerializedConfig: snowflakeConfig.Serialize(),
+		},
+	}
+}
+
+func expectedUpdatedProviders() ResourceTests {
+	redisConfig := pc.RedisConfig{
+		Addr:     "0.0.0.0",
+		Password: "root123",
+		DB:       0,
+	}
+	snowflakeConfig := pc.SnowflakeConfig{
+		Username:     "feature-former",
+		Password:     "password123",
+		Organization: "featureform",
+		Account:      "featureform-test",
+		Database:     "transactions_db",
+		Schema:       "fraud",
+		Warehouse:    "ff_wh_xs",
+		Role:         "ff-user",
+	}
+	return ResourceTests{
+		ProviderTest{
+			Name:             "mockOnline",
+			Description:      "An updated mock online provider",
+			Type:             string(pt.RedisOnline),
+			Software:         "redis",
+			Team:             "fraud",
+			SerializedConfig: redisConfig.Serialized(),
+			Labels:           []NameVariant{},
+			Features: []NameVariant{
+				{"feature", "variant"},
+				{"feature2", "variant"},
+				{"feature", "variant2"},
+			},
+			Sources:      []NameVariant{},
+			TrainingSets: []NameVariant{},
+		},
+		ProviderTest{
+			Name:             "mockOffline",
+			Description:      "An updated mock offline provider",
+			Type:             string(pt.SnowflakeOffline),
+			Software:         "snowflake",
+			Team:             "recommendations",
+			SerializedConfig: snowflakeConfig.Serialize(),
 			Labels: []NameVariant{
 				{"label", "variant"},
 			},
@@ -682,6 +806,7 @@ func expectedProviders() ResourceTests {
 func TestProvider(t *testing.T) {
 	testListResources(t, PROVIDER, expectedProviders())
 	testGetResources(t, PROVIDER, expectedProviders())
+	testResourceUpdates(t, PROVIDER, expectedProviders(), expectedUpdatedProviders(), providerUpdates())
 }
 
 type EntityTest struct {
@@ -1350,7 +1475,7 @@ func expectedUpdatedModels() ResourceTests {
 	}
 }
 
-func testModelUpdates(t *testing.T, typ ResourceType, tests ResourceTests, updates []ResourceDef) {
+func testResourceUpdates(t *testing.T, typ ResourceType, arranged, expected ResourceTests, updates []ResourceDef) {
 	ctx := testContext{
 		Defs: filledResourceDefs(),
 	}
@@ -1359,30 +1484,42 @@ func testModelUpdates(t *testing.T, typ ResourceType, tests ResourceTests, updat
 	if err != nil {
 		t.Fatalf("Failed to create resources: %s", err)
 	}
-	names := tests.NameVariants()
+	names := arranged.NameVariants()
 	resources, err := getAll(client, typ, names)
 	if err != nil {
 		t.Fatalf("Failed to get resources: %v", names)
 	}
-	tests.Test(t, client, resources, true)
+	arranged.Test(t, client, resources, true)
 
-	tests = expectedUpdatedModels()
 	for i, u := range updates {
 		if err := update(client, typ, u); err != nil {
 			t.Fatalf("Failed to update resource: %v", err)
 		}
-		resource, err := get(client, typ, names[0])
-		if err != nil {
-			t.Fatalf("Failed to get resource: %v", names[0])
+		var nameVariant NameVariant
+		switch typ {
+		case MODEL:
+			nameVariant = NameVariant{
+				Name: u.(ModelDef).Name,
+			}
+		case PROVIDER:
+			nameVariant = NameVariant{
+				Name: u.(ProviderDef).Name,
+			}
+		default:
+			t.Errorf("Unrecognized resource type: %v", typ)
 		}
-		tests[i].Test(t, client, resource, true)
+		actual, err := get(client, typ, nameVariant)
+		if err != nil {
+			t.Fatalf("Failed to get resource: %v", names[i])
+		}
+		expected[i].Test(t, client, actual, true)
 	}
 }
 
 func TestModel(t *testing.T) {
 	testListResources(t, MODEL, expectedModels())
 	testGetResources(t, MODEL, expectedModels())
-	testModelUpdates(t, MODEL, expectedModels(), modelUpdates())
+	testResourceUpdates(t, MODEL, expectedModels(), expectedUpdatedModels(), modelUpdates())
 }
 
 type ParentResourceTest struct {

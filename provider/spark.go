@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,7 +12,6 @@ import (
 
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
-	"github.com/mitchellh/mapstructure"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/emr"
@@ -25,22 +23,15 @@ import (
 	"golang.org/x/exp/slices"
 
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
-)
-
-type SparkExecutorType string
-
-const (
-	EMR          SparkExecutorType = "EMR"
-	Databricks                     = "DATABRICKS"
-	SparkGeneric                   = "SPARK"
+	pc "github.com/featureform/provider/provider_config"
 )
 
 type JobType string
 
 const (
 	Materialize       JobType = "Materialization"
-	Transform                 = "Transformation"
-	CreateTrainingSet         = "Training Set"
+	Transform         JobType = "Transformation"
+	CreateTrainingSet JobType = "Training Set"
 )
 
 const MATERIALIZATION_ID_SEGMENTS = 3
@@ -48,192 +39,19 @@ const ENTITY_INDEX = 0
 const VALUE_INDEX = 1
 const TIMESTAMP_INDEX = 2
 
-type AWSCredentials struct {
-	AWSAccessKeyId string
-	AWSSecretKey   string
-}
-
-type GCPCredentials struct {
-	ProjectId      string
-	SerializedFile []byte
-}
-
-type SparkExecutorConfig interface {
-	Serialize() ([]byte, error)
-	Deserialize(config SerializedConfig) error
-	IsExecutorConfig() bool
-}
-
-type SparkFileStoreConfig interface {
-	Serialize() ([]byte, error)
-	Deserialize(config SerializedConfig) error
-	IsFileStoreConfig() bool
-}
-
-type SparkConfig struct {
-	ExecutorType   SparkExecutorType
-	ExecutorConfig SparkExecutorConfig
-	StoreType      FileStoreType
-	StoreConfig    SparkFileStoreConfig
-}
-
-func (s *SparkConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, s)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *SparkConfig) Serialize() ([]byte, error) {
-	conf, err := json.Marshal(s)
-	if err != nil {
-		return nil, err
-	}
-	return conf, nil
-}
-
-func (s *SparkConfig) UnmarshalJSON(data []byte) error {
-	type tempConfig struct {
-		ExecutorType   SparkExecutorType
-		ExecutorConfig map[string]interface{}
-		StoreType      FileStoreType
-		StoreConfig    map[string]interface{}
-	}
-
-	var temp tempConfig
-	err := json.Unmarshal(data, &temp)
-	if err != nil {
-		return fmt.Errorf("unmarshal: %w", err)
-	}
-
-	s.ExecutorType = temp.ExecutorType
-	s.StoreType = temp.StoreType
-
-	err = s.decodeExecutor(temp.ExecutorType, temp.ExecutorConfig)
-	if err != nil {
-		return fmt.Errorf("could not decode executor: %w", err)
-	}
-
-	err = s.decodeFileStore(temp.StoreType, temp.StoreConfig)
-	if err != nil {
-		return fmt.Errorf("could not decode filestore: %w", err)
-	}
-
-	return nil
-}
-
-func (s *SparkConfig) decodeExecutor(executorType SparkExecutorType, configMap map[string]interface{}) error {
-	var executorConfig SparkExecutorConfig
-	switch executorType {
-	case EMR:
-		executorConfig = &EMRConfig{}
-	case Databricks:
-		executorConfig = &DatabricksConfig{}
-	case SparkGeneric:
-		executorConfig = &SparkGenericConfig{}
-	default:
-		return fmt.Errorf("the executor type '%s' is not supported ", executorType)
-	}
-
-	err := mapstructure.Decode(configMap, executorConfig)
-	if err != nil {
-		return fmt.Errorf("could not decode executor map: %w", err)
-	}
-	s.ExecutorConfig = executorConfig
-	return nil
-}
-
-func (s *SparkConfig) decodeFileStore(fileStoreType FileStoreType, configMap map[string]interface{}) error {
-	var fileStoreConfig SparkFileStoreConfig
-	switch fileStoreType {
-	case Azure:
-		fileStoreConfig = &AzureFileStoreConfig{}
-	case S3:
-		fileStoreConfig = &S3FileStoreConfig{}
-	default:
-		return fmt.Errorf("the file store type '%s' is not supported ", fileStoreType)
-	}
-
-	err := mapstructure.Decode(configMap, fileStoreConfig)
-	if err != nil {
-		return fmt.Errorf("could not decode file store map: %w", err)
-	}
-	s.StoreConfig = fileStoreConfig
-	return nil
-}
-
-func ResourcePath(id ResourceID) string {
-	return fmt.Sprintf("%s/%s/%s", id.Type, id.Name, id.Variant)
-}
-
-type EMRConfig struct {
-	Credentials   AWSCredentials
-	ClusterRegion string
-	ClusterName   string
-}
-
-func (e *EMRConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, e)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (e *EMRConfig) Serialize() ([]byte, error) {
-	conf, err := json.Marshal(e)
-	if err != nil {
-		return nil, err
-	}
-	return conf, nil
-}
-
-func (e *EMRConfig) IsExecutorConfig() bool {
-	return true
-}
-
 type DatabricksResultState string
 
 const (
 	Success   DatabricksResultState = "SUCCESS"
-	Failed                          = "FAILED"
-	Timeout                         = "TIMEOUT"
-	Cancelled                       = "CANCELLED"
+	Failed    DatabricksResultState = "FAILED"
+	Timeout   DatabricksResultState = "TIMEOUT"
+	Cancelled DatabricksResultState = "CANCELLED"
 )
-
-type DatabricksConfig struct {
-	Username string
-	Password string
-	Host     string
-	Token    string
-	Cluster  string
-}
-
-func (d *DatabricksConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, d)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (d *DatabricksConfig) Serialize() ([]byte, error) {
-	conf, err := json.Marshal(d)
-	if err != nil {
-		return nil, err
-	}
-	return conf, nil
-}
-
-func (d *DatabricksConfig) IsExecutorConfig() bool {
-	return true
-}
 
 type DatabricksExecutor struct {
 	client  *databricks.WorkspaceClient
 	cluster string
-	config  DatabricksConfig
+	config  pc.DatabricksConfig
 }
 
 func (e *EMRExecutor) PythonFileURI(store FileStore) string {
@@ -290,7 +108,7 @@ func (db *DatabricksExecutor) InitializeExecutor(store FileStore) error {
 	return nil
 }
 
-func NewDatabricksExecutor(databricksConfig DatabricksConfig) (SparkExecutor, error) {
+func NewDatabricksExecutor(databricksConfig pc.DatabricksConfig) (SparkExecutor, error) {
 	client := databricks.Must(
 		databricks.NewWorkspaceClient(&databricks.Config{
 			Host:     databricksConfig.Host,
@@ -450,8 +268,8 @@ func (store *SparkOfflineStore) Close() error {
 	return nil
 }
 
-func sparkOfflineStoreFactory(config SerializedConfig) (Provider, error) {
-	sc := SparkConfig{}
+func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
+	sc := pc.SparkConfig{}
 	logger := logging.NewLogger("spark")
 	if err := sc.Deserialize(config); err != nil {
 		logger.Errorw("Invalid config to initialize spark offline store", err)
@@ -522,32 +340,6 @@ func (e EMRExecutor) InitializeExecutor(store FileStore) error {
 		return err
 	}
 	return store.Write(sparkScriptPath, buff)
-}
-
-type SparkGenericConfig struct {
-	Master        string
-	DeployMode    string
-	PythonVersion string
-}
-
-func (sc *SparkGenericConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, sc)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (sc *SparkGenericConfig) Serialize() ([]byte, error) {
-	conf, err := json.Marshal(sc)
-	if err != nil {
-		return nil, err
-	}
-	return conf, nil
-}
-
-func (sc *SparkGenericConfig) IsExecutorConfig() bool {
-	return true
 }
 
 type SparkGenericExecutor struct {
@@ -699,7 +491,7 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 	return argList, nil
 }
 
-func NewSparkGenericExecutor(sparkGenericConfig SparkGenericConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+func NewSparkGenericExecutor(sparkGenericConfig pc.SparkGenericConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
 	sparkGenericExecutor := SparkGenericExecutor{
 		master:        sparkGenericConfig.Master,
 		deployMode:    sparkGenericConfig.DeployMode,
@@ -709,22 +501,22 @@ func NewSparkGenericExecutor(sparkGenericConfig SparkGenericConfig, logger *zap.
 	return &sparkGenericExecutor, nil
 }
 
-func NewSparkExecutor(execType SparkExecutorType, config SparkExecutorConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+func NewSparkExecutor(execType pc.SparkExecutorType, config pc.SparkExecutorConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
 	switch execType {
-	case EMR:
-		emrConfig, ok := config.(*EMRConfig)
+	case pc.EMR:
+		emrConfig, ok := config.(*pc.EMRConfig)
 		if !ok {
 			return nil, fmt.Errorf("cannot convert config into 'EMRConfig'")
 		}
 		return NewEMRExecutor(*emrConfig, logger)
-	case Databricks:
-		databricksConfig, ok := config.(*DatabricksConfig)
+	case pc.Databricks:
+		databricksConfig, ok := config.(*pc.DatabricksConfig)
 		if !ok {
 			return nil, fmt.Errorf("cannot convert config into 'DatabricksConfig'")
 		}
 		return NewDatabricksExecutor(*databricksConfig)
-	case SparkGeneric:
-		sparkGenericConfig, ok := config.(*SparkGenericConfig)
+	case pc.SparkGeneric:
+		sparkGenericConfig, ok := config.(*pc.SparkGenericConfig)
 		if !ok {
 			return nil, fmt.Errorf("cannot convert config into 'SparkGenericConfig'")
 		}
@@ -734,7 +526,7 @@ func NewSparkExecutor(execType SparkExecutorType, config SparkExecutorConfig, lo
 	}
 }
 
-func NewEMRExecutor(emrConfig EMRConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+func NewEMRExecutor(emrConfig pc.EMRConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
 	client := emr.New(emr.Options{
 		Region:      emrConfig.ClusterRegion,
 		Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(emrConfig.Credentials.AWSAccessKeyId, emrConfig.Credentials.AWSSecretKey, "")),
@@ -1261,4 +1053,8 @@ func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterat
 
 func sanitizeSparkSQL(name string) string {
 	return name
+}
+
+func ResourcePath(id ResourceID) string {
+	return fmt.Sprintf("%s/%s/%s", id.Type, id.Name, id.Variant)
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/provider"
+	pt "github.com/featureform/provider/provider_type"
 
 	"go.uber.org/zap"
 )
@@ -86,7 +87,7 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get fetch provider")
 	}
-	p, err := provider.Get(provider.Type(providerEntry.Type()), providerEntry.SerializedConfig())
+	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get provider")
 	}
@@ -156,7 +157,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 		obs.SetError()
 		return nil, err
 	}
-	p, err := provider.Get(provider.Type(providerEntry.Type()), providerEntry.SerializedConfig())
+	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
 		logger.Errorw("failed to get provider", "Error", err)
 		obs.SetError()

@@ -7,6 +7,9 @@ package provider
 import (
 	"context"
 	"fmt"
+
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	sn "github.com/mrz1836/go-sanitize"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -34,8 +37,8 @@ type mongoDBOnlineTable struct {
 	valueType ValueType
 }
 
-func mongoOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
-	mongoConfig := &MongoDBConfig{}
+func mongoOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
+	mongoConfig := &pc.MongoDBConfig{}
 	if err := mongoConfig.Deserialize(serialized); err != nil {
 		return nil, err
 	}
@@ -43,7 +46,7 @@ func mongoOnlineStoreFactory(serialized SerializedConfig) (Provider, error) {
 	return NewMongoDBOnlineStore(mongoConfig)
 }
 
-func NewMongoDBOnlineStore(config *MongoDBConfig) (*mongoDBOnlineStore, error) {
+func NewMongoDBOnlineStore(config *pc.MongoDBConfig) (*mongoDBOnlineStore, error) {
 	uri := fmt.Sprintf("mongodb://%s:%s@%s:%s/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000", config.Username, config.Password, config.Host, config.Port)
 	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(uri))
 	if err != nil {
@@ -75,7 +78,7 @@ func NewMongoDBOnlineStore(config *MongoDBConfig) (*mongoDBOnlineStore, error) {
 		database:        config.Database,
 		tableThroughput: config.Throughput,
 		BaseProvider: BaseProvider{
-			ProviderType:   MongoDBOnline,
+			ProviderType:   pt.MongoDBOnline,
 			ProviderConfig: config.Serialized(),
 		},
 	}, nil

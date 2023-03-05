@@ -26,6 +26,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/featureform/helpers"
+	pc "github.com/featureform/provider/provider_config"
 )
 
 // will replace all the upload parquet table functions
@@ -1527,23 +1528,23 @@ func getDatabricksOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	databricksConfig := DatabricksConfig{
+	databricksConfig := pc.DatabricksConfig{
 		Username: helpers.GetEnv("DATABRICKS_USERNAME", ""),
 		Password: helpers.GetEnv("DATABRICKS_PASSWORD", ""),
 		Host:     helpers.GetEnv("DATABRICKS_HOST", ""),
 		Token:    helpers.GetEnv("DATABRICKS_TOKEN", ""),
 		Cluster:  helpers.GetEnv("DATABRICKS_CLUSTER", ""),
 	}
-	azureConfig := AzureFileStoreConfig{
+	azureConfig := pc.AzureFileStoreConfig{
 		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
 		Path:          helpers.GetEnv("AZURE_CONTAINER_PATH", ""),
 	}
-	SparkOfflineConfig := SparkConfig{
-		ExecutorType:   Databricks,
+	SparkOfflineConfig := pc.SparkConfig{
+		ExecutorType:   pc.Databricks,
 		ExecutorConfig: &databricksConfig,
-		StoreType:      Azure,
+		StoreType:      pc.Azure,
 		StoreConfig:    &azureConfig,
 	}
 
@@ -2653,14 +2654,14 @@ func TestExecutors(t *testing.T) {
 
 	testCases := []struct {
 		name             string
-		executorType     SparkExecutorType
-		executorConfig   SparkExecutorConfig
+		executorType     pc.SparkExecutorType
+		executorConfig   pc.SparkExecutorConfig
 		expectedExecutor SparkExecutor
 	}{
 		{
 			"SparkGenericExecutor",
-			SparkGeneric,
-			&SparkGenericConfig{
+			pc.SparkGeneric,
+			&pc.SparkGenericConfig{
 				Master:        "local",
 				DeployMode:    "client",
 				PythonVersion: "3.7.16",

@@ -789,7 +789,7 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 		sparkScriptPathEnv,
 		"sql",
 		"--output_uri",
-		store.PathWithPrefix(destPath, true),
+		destPath,
 		"--sql_query",
 		fmt.Sprintf("'%s'", cleanQuery),
 		"--job_type",

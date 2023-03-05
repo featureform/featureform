@@ -9,6 +9,7 @@ import ListItemText from "@material-ui/core/ListItemText";
 import Container from "@material-ui/core/Container";
 import Icon from "@material-ui/core/Icon";
 import Resource from "../../api/resources/Resource.js";
+import { useRouter } from 'next/router'
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -59,18 +60,6 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-//resolution between proto labeling of different types (resolves them to unicode values) and the actual names of the resource types
-var searchTypeMap = {
-  '\u0004': "Feature", //feature variant
-  '\u0005': "Label",
-  '\u0006': "TrainingSet",
-  '\u0007': "Source",
-  '\u0008': "Provider",
-  '\u0009': "Entity",
-  '\u000a': "Model",
-  '\u000b': "User",
-}
-
 const SearchResultsView = ({ results, search_query, setVariant }) => {
   const classes = useStyles();
   return (
@@ -97,15 +86,12 @@ const SearchResultsView = ({ results, search_query, setVariant }) => {
 
 const SearchResultsList = ({ type, contents, setVariant }) => {
   const classes = useStyles();
-  let filteredContents = contents.filter(
-    (content) => searchTypeMap[content.Type]
-  );
   let filteredContentHits = {};
-  let moreFilteredContents = filteredContents.filter((content) => {
-    if (content.Name + "." + content.Variant + "." + searchTypeMap[content.Type] in filteredContentHits) {
+  let moreFilteredContents = contents.filter((content) => {
+    if (content.Name + "." + content.Variant + "." + content.Type in filteredContentHits) {
       return false;
     }
-    filteredContentHits[content.Name + "." + content.Variant + "." + searchTypeMap[content.Type]] = content.Variant;
+    filteredContentHits[content.Name + "." + content.Variant + "." + content.Type] = content.Variant;
     return true;
   });
   return (
@@ -126,15 +112,15 @@ const SearchResultsList = ({ type, contents, setVariant }) => {
 
 const SearchResultsItem = ({ type, content, setVariant }) => {
   const classes = useStyles();
-  let history = useHistory();
+  const router = useRouter()
 
-  const resourceType = Resource[searchTypeMap[content.Type]];
+  const resourceType = Resource[content.Type];
   const resourceIcon = resourceType.materialIcon;
   function handleClick(content) {
     if (resourceType.hasVariants) {
-      setVariant(searchTypeMap[content.Type], content.Name, content.Variant);
+      setVariant(content.Type, content.Name, content.Variant);
     }
-    history.push(resourceType.urlPathResource(content.Name));
+    router.push(resourceType.urlPathResource(content.Name));
   }
 
   return (

@@ -210,9 +210,11 @@ export default class ResourcesAPI {
   }
 
   fetchSearch(query) {
-    return new Promise(() => {
-       return {"hits":[]}
-    })
+    return query === null ? {} : fetch(`${API_URL}/data/search?q=${query}`)
+    .then((res) => res.json())
+    .catch((error) => {
+      console.error(error);
+    });
   }
 
   fetchVariantSearchStub(query) {

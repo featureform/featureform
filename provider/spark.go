@@ -1048,6 +1048,7 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 	credentialConfigs := store.CredentialsConfig()
 	argList = append(argList, credentialConfigs...)
 
+	argList = append(argList, "--source")
 	argList = append(argList, sourceList...)
 	return argList
 }

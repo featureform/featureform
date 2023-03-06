@@ -155,7 +155,7 @@ func TestBlobInterfaces(t *testing.T) {
 		t.Fatalf("failed to create new azure blob store: %v", err)
 	}
 
-	hdfsConfig := HDFSFileStoreConfig{
+	hdfsConfig := pc.HDFSFileStoreConfig{
 		Host:     "localhost",
 		Port:     "9000",
 		Username: "hduser",
@@ -682,7 +682,7 @@ func TestDatabricksInitialization(t *testing.T) {
 		t.Fatalf("Could not create new databricks client: %v", err)
 	}
 
-	azureStoreConfig := AzureFileStoreConfig{
+	azureStoreConfig := pc.AzureFileStoreConfig{
 		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),

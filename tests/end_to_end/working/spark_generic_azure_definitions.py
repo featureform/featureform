@@ -1,5 +1,5 @@
 import os
-from datetime import timedelta
+from datetime import timedelta 
 
 from dotenv import load_dotenv
 
@@ -25,9 +25,9 @@ VERSION=get_random_string()
 os.environ["TEST_CASE_VERSION"]=VERSION
 
 FEATURE_NAME = f"spark_e2e_{VERSION}"
-FEATURE_VARIANT = "databricks_azure"
+FEATURE_VARIANT = "generic_azure"
 TRAININGSET_NAME = f"spark_e2e_training_{VERSION}"
-TRAININGSET_VARIANT = "databricks_azure"
+TRAININGSET_VARIANT = "generic_azure"
 
 FEATURE_SERVING = f"farm:farm1"
 VERSIONS = f"{FEATURE_NAME},{FEATURE_VARIANT}:{TRAININGSET_NAME},{TRAININGSET_VARIANT}"
@@ -38,16 +38,16 @@ save_to_file("version.txt", VERSIONS)
 
 # Start of Featureform Definitions
 redis = ff.register_redis(
-    name = f"redis-spark-e2e_{VERSION}",
+    name=f"redis-spark-e2e_{VERSION}",
     host="quickstart-redis", # The internal dns name for redis
     port=6379,
-    description = "A Redis deployment we created for the Featureform quickstart"
+    description="A Redis deployment we created for the Featureform quickstart"
 )
 
-databricks = ff.DatabricksCredentials(
-    host=os.getenv("DATABRICKS_HOST", None),
-    token=os.getenv("DATABRICKS_TOKEN", None),
-    cluster_id=os.getenv("DATABRICKS_CLUSTER", None)
+spark_creds = ff.SparkCredentials(
+    master=os.getenv("SPARK_MASTER", "local"),
+    deploy_mode="client",
+    python_version="3.7.16",
 )
 
 azure_blob = ff.register_blob_store(
@@ -59,12 +59,12 @@ azure_blob = ff.register_blob_store(
 )
 
 spark = ff.register_spark(
-    name=f"spark-databricks-azure_{VERSION}",
-    description="A Spark deployment we created for the Featureform quickstart",
-    team="featureform-team",
-    executor=databricks,
-    filestore=azure_blob,
-)
+            name=f"spark-generic-azure_{VERSION}",
+            description="A Spark deployment we created for the Featureform quickstart",
+            team="featureform-team",
+            executor=spark_creds,
+            filestore=azure_blob,
+        )
 
 ice_cream_dataset = spark.register_file(
     name=f"ice_cream_{VERSION}",
@@ -73,10 +73,9 @@ ice_cream_dataset = spark.register_file(
     file_path="abfss://test@testingstoragegen.dfs.core.windows.net/featureform/tests/ice_cream.parquet"
 )
 
-
 @spark.df_transformation(name=f"ice_cream_transformation_{VERSION}",
-                         variant=VERSION,
-                         inputs=[(f"ice_cream_{VERSION}", VERSION)])
+                        variant=VERSION,
+                        inputs=[(f"ice_cream_{VERSION}", VERSION)])
 def ice_cream_transformation(df):
     """the ice cream dataset """
     return df

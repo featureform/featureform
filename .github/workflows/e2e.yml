@@ -340,10 +340,7 @@ jobs:
       - name: Configure Docker Socket
         run: |
           minikube start --kubernetes-version=v1.23.12
-          export SHELL=/bin/bash
-          eval $(minikube docker-env)
           docker build . -t local/coordinator:stable -f coordinator/Dockerfile
-          minikube image load local/coordinator:stable
 
       - name: Load image
         run: |
@@ -356,6 +353,7 @@ jobs:
           docker load --input /tmp/k8s_runner_scikit/k8s_runner_scikit.tar
           docker load --input /tmp/backup/backup.tar
           minikube image load local/api-server:stable
+          minikube image load local/coordinator:stable
           minikube image load local/dashboard:stable
           minikube image load local/metadata-dashboard:stable
           minikube image load local/metadata:stable
@@ -387,6 +385,13 @@ jobs:
           kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
           export FEATUREFORM_HOST=localhost:443
           export FEATUREFORM_CERT=tls.crt
+      
+      - name: create-json
+        id: create-json-2
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "./provider/gcp_credentials.json"
+          json: ${{ secrets.GCS_CREDENTIALS }}
 
       - name: Test End-to-End
         env:
@@ -409,6 +414,8 @@ jobs:
           K8S_RUNNER_SCIKIT: "local/k8s_runner:scikit-stable"
           S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
           S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_CREDENTIALS_FILE: "./provider/gcp_credentials.json"
           FEATUREFORM_HOST: localhost:8000
           FEATUREFORM_CERT: tls.crt
 

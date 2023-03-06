@@ -5,51 +5,39 @@ from dotenv import load_dotenv
 
 import featureform as ff
 
-
 FILE_DIRECTORY = os.getenv("FEATUREFORM_TEST_PATH", "")
 featureform_location = os.path.dirname(os.path.dirname(FILE_DIRECTORY))
 env_file_path = os.path.join(featureform_location, "../../../.env")
 load_dotenv(env_file_path)
+
 
 def get_random_string():
     import random
     import string
     return "".join(random.choice(string.ascii_lowercase) for _ in range(10))
 
+
 def save_to_file(filename, data):
     global FILE_DIRECTORY
     with open(f"{FILE_DIRECTORY}/{filename}", "w+") as f:
         f.write(data)
 
-VERSION=get_random_string()
-os.environ["TEST_CASE_VERSION"]=VERSION
 
-FEATURE_NAME = f"spark_e2e_{VERSION}"
-FEATURE_VARIANT = "databricks_azure"
-TRAININGSET_NAME = f"spark_e2e_training_{VERSION}"
-TRAININGSET_VARIANT = "databricks_azure"
+VERSION = get_random_string()
+os.environ["TEST_CASE_VERSION"] = VERSION
 
-FEATURE_SERVING = f"farm:farm1"
+FEATURE_NAME = f"ice_cream_feature_{VERSION}"
+FEATURE_VARIANT = "lag_features"
+TRAININGSET_NAME = f"ice_cream_training_{VERSION}"
+TRAININGSET_VARIANT = "lag_features"
+
+FEATURE_SERVING = f"farm:farm"
 VERSIONS = f"{FEATURE_NAME},{FEATURE_VARIANT}:{TRAININGSET_NAME},{TRAININGSET_VARIANT}"
 
 save_to_file("feature.txt", FEATURE_SERVING)
 save_to_file("version.txt", VERSIONS)
 
-
 # Start of Featureform Definitions
-redis = ff.register_redis(
-    name = f"redis-spark-e2e_{VERSION}",
-    host="quickstart-redis", # The internal dns name for redis
-    port=6379,
-    description = "A Redis deployment we created for the Featureform quickstart"
-)
-
-databricks = ff.DatabricksCredentials(
-    host=os.getenv("DATABRICKS_HOST", None),
-    token=os.getenv("DATABRICKS_TOKEN", None),
-    cluster_id=os.getenv("DATABRICKS_CLUSTER", None)
-)
-
 azure_blob = ff.register_blob_store(
     name=f"k8s_blob_store_{VERSION}",
     account_name=os.getenv("AZURE_ACCOUNT_NAME", None),
@@ -58,47 +46,65 @@ azure_blob = ff.register_blob_store(
     root_path="testing/ff",
 )
 
-spark = ff.register_spark(
-    name=f"spark-databricks-azure_{VERSION}",
-    description="A Spark deployment we created for the Featureform quickstart",
-    team="featureform-team",
-    executor=databricks,
-    filestore=azure_blob,
+redis = ff.register_redis(
+    name=f"redis-quickstart_{VERSION}",
+    host="quickstart-redis",  # The internal dns name for redis
+    port=6379,
+    description="A Redis deployment we created for the Featureform quickstart"
 )
 
-ice_cream_dataset = spark.register_file(
+k8s = ff.register_k8s(
+    name=f"k8s_{VERSION}",
+    store=azure_blob
+)
+
+ice_cream = k8s.register_file(
     name=f"ice_cream_{VERSION}",
     variant=VERSION,
     description="A dataset of ice cream",
-    file_path="abfss://test@testingstoragegen.dfs.core.windows.net/featureform/tests/ice_cream.parquet"
+    path="testing/ff/data/ice_cream_100rows.csv"
 )
 
 
-@spark.df_transformation(name=f"ice_cream_transformation_{VERSION}",
-                         variant=VERSION,
-                         inputs=[(f"ice_cream_{VERSION}", VERSION)])
+@k8s.df_transformation(name=f"ice_cream_entity_{VERSION}",
+                       variant=VERSION,
+                       inputs=[(f"ice_cream_{VERSION}", VERSION)],
+                       docker_image="featureformcom/k8s_runner:latest")
+def ice_cream_entity_transformation(df):
+    """ the ice cream dataset with entity """
+    df["entity"] = "farm"
+    return df
+
+
+@k8s.df_transformation(name=f"ice_cream_transformation_{VERSION}",
+                       variant=VERSION,
+                       inputs=[(f"ice_cream_entity_{VERSION}", VERSION)])
 def ice_cream_transformation(df):
     """the ice cream dataset """
     return df
+
 
 farm = ff.register_entity("farm")
 
 # Register a column from our transformation as a feature
 ice_cream_transformation.register_resources(
     entity=farm,
-    entity_column="strawberry_source",
-    inference_store=redis,
+    entity_column="entity",
+    timestamp_column="time_index",
+    inference_store=azure_blob,
     features=[
         {"name": FEATURE_NAME, "variant": FEATURE_VARIANT, "column": "dairy_flow_rate", "type": "float32"},
     ],
 )
 
 # Register label from our base Transactions table
-ice_cream_transformation.register_resources(
+ice_cream_entity_transformation.register_resources(
     entity=farm,
-    entity_column="strawberry_source",
+    entity_column="entity",
+    timestamp_column="time_index",
     labels=[
-        {"name": f"ice_cream_label_{VERSION}", "variant": FEATURE_VARIANT, "column": "quality_score", "type": "float32"},
+        {"name": f"ice_cream_label_{VERSION}", "variant": FEATURE_VARIANT, "column": "quality_score",
+         "type": "float32"},
     ],
 )
 
@@ -106,6 +112,6 @@ ff.register_training_set(
     TRAININGSET_NAME, TRAININGSET_VARIANT,
     label=(f"ice_cream_label_{VERSION}", FEATURE_VARIANT),
     features=[
-        (FEATURE_NAME, FEATURE_VARIANT),
+        (f"ice_cream_feature_{VERSION}", FEATURE_VARIANT),
     ],
 )

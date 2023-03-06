@@ -2688,3 +2688,40 @@ func TestExecutors(t *testing.T) {
 		})
 	}
 }
+
+func TestInitSparkS3(t *testing.T) {
+	config := S3FileStoreConfig{
+		Credentials: AWSCredentials{
+			AWSSecretKey:   "",
+			AWSAccessKeyId: "",
+		},
+		BucketRegion: "abc",
+		BucketPath:   "abc",
+		Path:         "abc",
+	}
+	serializedConfig, err := config.Serialize()
+	if err != nil {
+		fmt.Errorf("Could not serialize config: %v", err)
+	}
+	_, err = NewSparkS3FileStore(serializedConfig)
+	if err != nil {
+		t.Errorf("Could not initialize store: %v", err)
+	}
+}
+
+func TestInitSparkAzure(t *testing.T) {
+	config := AzureFileStoreConfig{
+		AccountName:   "",
+		AccountKey:    "asbc",
+		ContainerName: "asdf",
+		Path:          "/",
+	}
+	serializedConfig, err := config.Serialize()
+	if err != nil {
+		fmt.Errorf("Could not serialize config: %v", err)
+	}
+	_, err = NewAzureFileStore(serializedConfig)
+	if err != nil {
+		t.Errorf("Could not initialize store: %v", err)
+	}
+}

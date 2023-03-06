@@ -157,9 +157,11 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: ./coordinator/Dockerfile
+          file: ./coordinator/Dockerfile.old
           tags: featureformcom/coordinator:${{ env.TAG }}
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   dashboard:
     name: Build Dashboard

@@ -466,7 +466,7 @@ func readAndUploadFile(filePath string, storePath string, store SparkFileStore) 
 	if err := store.Write(storePath, pythonScriptBytes); err != nil {
 		return fmt.Errorf("could not write to python script: %v", err)
 	}
-	fmt.Printf("Uploaded %s to %s\n", filePath, storePath)
+	fmt.Println("Uploaded", filePath, "to", storePath)
 	return nil
 }
 
@@ -1246,7 +1246,7 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 		"--output_uri",
 		outputURI,
 		"--code",
-		store.PathWithPrefix(code, true),
+		store.PathWithPrefix(code, false),
 		"--store_type",
 		store.Type(),
 	}

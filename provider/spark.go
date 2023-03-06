@@ -1241,13 +1241,15 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string,
 
 	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
 	sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
+	codePath := strings.Replace(store.PathWithPrefix(code, true), "s3a://", "s3://", -1)
+
 	scriptArgs := []string{
 		sparkScriptPath,
 		"df",
 		"--output_uri",
 		outputURI,
 		"--code",
-		store.PathWithPrefix(code, false),
+		codePath,
 		"--store_type",
 		store.Type(),
 	}

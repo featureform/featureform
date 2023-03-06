@@ -4,7 +4,7 @@ from .format import *
 
 
 def search(phrase, host):
-    response = requests.get(f"http://{host}/search?q={phrase}")
+    response = requests.get(f"http://{host}/data/search?q={phrase}")
 
     if response.status_code is not 200:
         print(f"Search request for {phrase} resulted in HTTP status {response.status_code}")

@@ -123,7 +123,7 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
 
     code = None
     if store_type == "s3":
-        # S3 paths are the following path: 's3://{bucket}/key/to/file'.
+        # S3 paths are the following path: 's3a://{bucket}/key/to/file'.
         # the split below separates the bucket name and the key that is 
         # used to read the object in the bucket. 
         
@@ -133,7 +133,7 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
         if not (aws_region and aws_access_key_id and aws_secret_access_key):
             raise Exception("the values for 'aws_region', 'aws_access_key_id', 'aws_secret_access_key' need to be set as credential")
 
-        prefix_len = len("s3://")
+        prefix_len = len("s3a://")
         split_path = file_path[prefix_len:].split("/")
         bucket = split_path[0]
         key = '/'.join(split_path[1:])
@@ -256,7 +256,7 @@ def parse_args(args=None):
     sql_parser.add_argument(
         "--job_type", choices=["Transformation", "Materialization", "Training Set"], help="type of job being run on spark") 
     sql_parser.add_argument(
-        '--output_uri', help="output file location; eg. s3://featureform/{type}/{name}/{variant}")
+        '--output_uri', help="output file location; eg. s3a://featureform/{type}/{name}/{variant}")
     sql_parser.add_argument(
         '--sql_query', help="The SQL query you would like to run on the data source. eg. SELECT * FROM source_1 INNER JOIN source_2 ON source_1.id = source_2.id")
     sql_parser.add_argument(
@@ -267,7 +267,7 @@ def parse_args(args=None):
 
     df_parser = subparser.add_parser("df")
     df_parser.add_argument(
-        '--output_uri', required=True, help="output file location; eg. s3://featureform/{type}/{name}/{variant}")
+        '--output_uri', required=True, help="output file location; eg. s3a://featureform/{type}/{name}/{variant}")
     df_parser.add_argument(
         "--code", required=True, help="the path to transformation code file"
     )

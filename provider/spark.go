@@ -111,15 +111,13 @@ type SparkS3FileStore struct {
 func (s3 SparkS3FileStore) SparkConfig() []string {
 	return []string{
 		"--spark_config",
-		"\"spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\"",
-		"--spark_config",
-		"\"spark.hadoop.com.amazonaws.services.s3.enableV4=true\"",
-		"--spark_config",
 		fmt.Sprintf("\"fs.s3a.access.key=%s\"", s3.Credentials.AWSAccessKeyId),
 		"--spark_config",
 		fmt.Sprintf("\"fs.s3a.secret.key=%s\"", s3.Credentials.AWSSecretKey),
 		"--spark_config",
-		"\"fs.s3a.endpoint=s3.amazonaws.com\"",
+		"\"fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\"",
+		"--spark_config",
+		"\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\"",
 	}
 }
 
@@ -137,12 +135,28 @@ func (s3 SparkS3FileStore) CredentialsConfig() []string {
 func (s3 SparkS3FileStore) Packages() []string {
 	return []string{
 		"--packages",
-		"\"org.apache.hadoop:hadoop-aws:3.2.0\"",
+		"\"org.apache.spark:spark-hadoop-cloud_2.12:3.2.0\"",
+		"--exclude-packages",
+		"com.google.guava:guava",
 	}
 }
 
 func (s3 SparkS3FileStore) Type() string {
 	return "s3"
+}
+
+func (s3 SparkS3FileStore) PathWithPrefix(path string, remote bool) string {
+	noS3Prefix := !strings.HasPrefix(path, "s3a://")
+
+	if remote && noS3Prefix {
+		s3Path := ""
+		if s3.Path != "" {
+			s3Path = fmt.Sprintf("/%s", s3.Path)
+		}
+		return fmt.Sprintf("s3a://%s%s/%s", s3.Bucket, s3Path, path)
+	} else {
+		return path
+	}
 }
 
 func NewSparkAzureFileStore(config Config) (SparkFileStore, error) {

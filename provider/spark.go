@@ -137,7 +137,7 @@ func (s3 SparkS3FileStore) CredentialsConfig() []string {
 func (s3 SparkS3FileStore) Packages() []string {
 	return []string{
 		"--packages",
-		"\"org.apache.spark:spark-hadoop-cloud_2.12:3.2.0\"",
+		"org.apache.spark:spark-hadoop-cloud_2.12:3.2.0",
 		"--exclude-packages",
 		"com.google.guava:guava",
 	}

@@ -1,6 +1,6 @@
 export default class Resource {
   static Feature = new Resource({
-    type: "FEATURE",
+    type: "Feature",
     typePlural: "Features",
     urlPath: "features",
     hasVariants: true,
@@ -9,7 +9,7 @@ export default class Resource {
   });
 
   static Label = new Resource({
-    type: "LABEL",
+    type: "Label",
     typePlural: "Labels",
     urlPath: "labels",
     hasVariants: true,
@@ -17,7 +17,7 @@ export default class Resource {
     hasMetrics: false,
   });
   static TrainingSet = new Resource({
-    type: "TRAINING_SET",
+    type: "Training Set",
     typePlural: "Training Sets",
     urlPath: "training-sets",
     hasVariants: true,
@@ -25,7 +25,7 @@ export default class Resource {
     hasMetrics: true,
   });
   static Source = new Resource({
-    type: "SOURCE",
+    type: "Source",
     typePlural: "Sources",
     urlPath: "sources",
     hasVariants: true,
@@ -33,7 +33,7 @@ export default class Resource {
     hasMetrics: false,
   });
   static Entity = new Resource({
-    type: "ENTITY",
+    type: "Entity",
     typePlural: "Entities",
     urlPath: "entities",
     hasVariants: false,
@@ -41,7 +41,7 @@ export default class Resource {
     hasMetrics: false,
   });
   static Model = new Resource({
-    type: "MODEL",
+    type: "Model",
     typePlural: "Models",
     urlPath: "models",
     hasVariants: false,
@@ -49,7 +49,7 @@ export default class Resource {
     hasMetrics: false,
   });
   static Provider = new Resource({
-    type: "PROVIDER",
+    type: "Provider",
     typePlural: "Providers",
     urlPath: "providers",
     hasVariants: false,
@@ -57,7 +57,7 @@ export default class Resource {
     hasMetrics: false,
   });
   static User = new Resource({
-    type: "USER",
+    type: "User",
     typePlural: "Users",
     urlPath: "users",
     hasVariants: false,

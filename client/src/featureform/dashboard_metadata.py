@@ -18,6 +18,7 @@ from .type_objects import (
     LabelVariantResource,
     ProviderResource)
 import os
+from featureform import ResourceClient
 import sys
 
 path = os.path.join(os.path.dirname(__file__), 'dashboard')
@@ -389,6 +390,10 @@ def GetMetadata(type, resource):
 @cross_origin(allow_headers=['Content-Type'])
 def SearchMetadata():
     raw_query = request.args["q"]
-    # incorporate search method here
-    response = jsonify([])
-    return response
+    rc = ResourceClient(local=True)
+    results = rc.search(raw_query, True)
+    payload = []
+    for r in results:
+        payload.append({"Name":r["name"], "Variant":r["variant"],"Type":r["resource_type"]})
+
+    return json.dumps(payload)

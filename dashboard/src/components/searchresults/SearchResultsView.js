@@ -111,14 +111,26 @@ const SearchResultsList = ({ type, contents, setVariant }) => {
   );
 };
 
+var searchTypeMap = {
+  "FEATURE": "Feature", //feature variant
+  '\u0005': "Label",
+  '\u0006': "TrainingSet",
+  '\u0007': "Source",
+  '\u0008': "Provider",
+  '\u0009': "Entity",
+  '\u000a': "Model",
+  '\u000b': "User",
+}
+
 const SearchResultsItem = ({ type, content, setVariant }) => {
   const classes = useStyles();
   const router = useRouter()
   console.log("content", content)
   console.log("type", type)
-
-  const resourceType = Resource[content.Type];
-  const resourceIcon = resourceType.materialIcon;
+  // const resourceType = Resource[searchTypeMap[content.Type]];
+  console.log("found resource type")
+  // console.log(resourceType)
+  // const resourceIcon = resourceType.materialIcon;
   function handleClick(content) {
     if (resourceType.hasVariants) {
       setVariant(content.Type, content.Name, content.Variant);
@@ -134,7 +146,8 @@ const SearchResultsItem = ({ type, content, setVariant }) => {
                 <div>
                   <div>
                     <div className={classes.resultTitle}>
-                      <Icon>{resourceIcon}</Icon>
+                      {console.log("CLASS")}
+                      {/*<Icon>{resourceIcon}</Icon>*/}
                     </div>
                     <Typography className={classes.resultTitle} variant="h6">
                       {content.Name}

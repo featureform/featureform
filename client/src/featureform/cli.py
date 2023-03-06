@@ -208,7 +208,12 @@ def apply(host, cert, insecure, local, files, dry_run):
               help="Enable local mode")
 def search(query, host, cert, insecure, local):
     rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
-    rc.search(query, local)
+    results = rc.search(query, local)
+    if local:
+        format_rows("NAME", "VARIANT", "TYPE")
+        for r in results:
+            desc = r["description"][:cutoff_length] + "..." if len(r["description"]) > 0 else ""
+            format_rows(r["name"], r["variant"], r["resource_type"])
 
 
 def read_file(file):

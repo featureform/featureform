@@ -959,7 +959,7 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 		"client",
 	}
 
-	packageArgs := store.Packages()
+	packageArgs := removeEspaceCharacters(store.Packages())
 	argList = append(argList, packageArgs...) // adding any packages needed for filestores
 
 	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
@@ -978,15 +978,24 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 	}
 	argList = append(argList, scriptArgs...)
 
-	sparkConfigs := store.SparkConfig()
+	sparkConfigs := removeEspaceCharacters(store.SparkConfig())
 	argList = append(argList, sparkConfigs...)
 
-	credentialConfigs := store.CredentialsConfig()
+	credentialConfigs := removeEspaceCharacters(store.CredentialsConfig())
 	argList = append(argList, credentialConfigs...)
 
 	argList = append(argList, "--source_list")
 	argList = append(argList, sourceList...)
 	return argList
+}
+
+func removeEspaceCharacters(values []string) []string {
+	for i, v := range values {
+		v = strings.Replace(v, "\\", "", -1)
+		v = strings.Replace(v, "\"", "", -1)
+		values[i] = v
+	}
+	return values
 }
 
 func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
@@ -1227,7 +1236,7 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string,
 		"client",
 	}
 
-	packageArgs := store.Packages()
+	packageArgs := removeEspaceCharacters(store.Packages())
 	argList = append(argList, packageArgs...) // adding any packages needed for filestores
 
 	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
@@ -1244,10 +1253,10 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string,
 	}
 	argList = append(argList, scriptArgs...)
 
-	sparkConfigs := store.SparkConfig()
+	sparkConfigs := removeEspaceCharacters(store.SparkConfig())
 	argList = append(argList, sparkConfigs...)
 
-	credentialConfigs := store.CredentialsConfig()
+	credentialConfigs := removeEspaceCharacters(store.CredentialsConfig())
 	argList = append(argList, credentialConfigs...)
 
 	argList = append(argList, "--source")

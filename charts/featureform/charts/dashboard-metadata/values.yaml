@@ -15,10 +15,10 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-typesense:
-  host: featureform-typesense
-  port: 80
-  apikey: xyz
+search:
+  host: featureform-search
+  port: 7700
+  apikey: ""
 
 serviceAccount:
   # Specifies whether a service account should be created

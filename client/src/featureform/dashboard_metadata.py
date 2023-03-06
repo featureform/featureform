@@ -1,4 +1,4 @@
-from flask import Blueprint, Response
+from flask import Blueprint, Response, jsonify, request
 from flask_cors import CORS, cross_origin
 import json
 import importlib.resources as pkg_resources
@@ -18,6 +18,7 @@ from .type_objects import (
     LabelVariantResource,
     ProviderResource)
 import os
+from featureform import ResourceClient
 import sys
 
 path = os.path.join(os.path.dirname(__file__), 'dashboard')
@@ -38,6 +39,10 @@ def type(type):
 @dashboard_app.route('/<type>/<entity>')
 def entity(type, entity):
     return dashboard_app.send_static_file('[type]/[entity].html')
+
+@dashboard_app.route('/search')
+def search():
+    return dashboard_app.send_static_file('search.html')
 
 @dashboard_app.route('/static/<asset>')
 def deliver_static(asset):
@@ -380,4 +385,15 @@ def GetMetadata(type, resource):
             mimetype='application/json'
         )
         return response
-        
+
+@dashboard_app.route("/data/search", methods = ['GET'])
+@cross_origin(allow_headers=['Content-Type'])
+def SearchMetadata():
+    raw_query = request.args["q"]
+    rc = ResourceClient(local=True)
+    results = rc.search(raw_query, True)
+    payload = []
+    for r in results:
+        payload.append({"Name":r["name"], "Variant":r["variant"],"Type":r["resource_type"]})
+
+    return json.dumps(payload)

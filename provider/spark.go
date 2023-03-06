@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-
 	"github.com/mitchellh/mapstructure"
 
 	"fmt"

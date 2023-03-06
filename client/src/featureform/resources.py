@@ -600,14 +600,27 @@ class SparkConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+@typechecked
+@dataclass
+class K8sResourceSpecs:
+    cpu_request: str = ""
+    cpu_limit: str = ""
+    memory_request: str = ""
+    memory_limit: str = ""
 
 @typechecked
 @dataclass
 class K8sArgs:
     docker_image: str
+    specs: Union[K8sResourceSpecs, None] = None
 
     def apply(self, transformation: pb.Transformation):
         transformation.kubernetes_args.docker_image = self.docker_image
+        if self.specs is not None:
+            transformation.kubernetes_args.specs.cpu_request = self.specs.cpu_request
+            transformation.kubernetes_args.specs.cpu_limit = self.specs.cpu_limit
+            transformation.kubernetes_args.specs.memory_request = self.specs.memory_request
+            transformation.kubernetes_args.specs.memory_limit = self.specs.memory_limit
         return transformation
 
 

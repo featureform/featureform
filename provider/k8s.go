@@ -335,6 +335,7 @@ func (kube *KubernetesExecutor) ExecuteScript(envVars map[string]string, args *m
 			Variant: envVars["RESOURCE_VARIANT"],
 			Type:    ProviderToMetadataResourceType[OfflineResourceType(resourceType)],
 		},
+		Specs: args.Specs,
 	}
 	jobRunner, err := kubernetes.NewKubernetesRunner(config)
 	if err != nil {

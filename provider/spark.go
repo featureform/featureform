@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+
 	"github.com/mitchellh/mapstructure"
 
 	"fmt"
@@ -516,6 +517,9 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 	// if err := clusterClient.Edit(setConfigReq); err != nil {
 	// 	return fmt.Errorf("Could not modify cluster to accept spark configs; %v", err)
 	// }
+
+	fmt.Printf("running spark job, args: %v", args)
+
 	pythonTask := jobs.SparkPythonTask{
 		PythonFile: db.PythonFileURI(store),
 		Parameters: args,

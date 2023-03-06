@@ -130,20 +130,16 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
         aws_region = credentials.get("aws_region")
         aws_access_key_id = credentials.get("aws_access_key_id")
         aws_secret_access_key = credentials.get("aws_secret_access_key")
-        if not (aws_region and aws_access_key_id and aws_secret_access_key):
-            raise Exception("the values for 'aws_region', 'aws_access_key_id', 'aws_secret_access_key' need to be set as credential")
-
-        prefix_len = len("s3a://")
-        split_path = file_path[prefix_len:].split("/")
-        bucket = split_path[0]
-        key = '/'.join(split_path[1:])
+        bucket_name = credentials.get("aws_bucket_name")
+        if not (aws_region and aws_access_key_id and aws_secret_access_key and bucket_name):
+            raise Exception("the values for 'aws_region', 'aws_access_key_id', 'aws_secret_access_key', 'aws_bucket_name' need to be set as credential")
 
         session = boto3.Session(
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
         )
         s3_resource = session.resource("s3", region_name=aws_region)
-        s3_object = s3_resource.Object(bucket, key)
+        s3_object = s3_resource.Object(bucket_name, file_path)
 
         with io.BytesIO() as f:
             s3_object.download_fileobj(f)

@@ -124,6 +124,8 @@ func (s3 SparkS3FileStore) SparkConfig() []string {
 func (s3 SparkS3FileStore) CredentialsConfig() []string {
 	return []string{
 		"--credential",
+		fmt.Sprintf("\"aws_bucket_name=%s\"", s3.Bucket),
+		"--credential",
 		fmt.Sprintf("\"aws_region=%s\"", s3.BucketRegion),
 		"--credential",
 		fmt.Sprintf("\"aws_access_key_id=%s\"", s3.Credentials.AWSAccessKeyId),

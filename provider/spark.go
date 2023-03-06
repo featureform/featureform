@@ -1241,7 +1241,7 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 		"--output_uri",
 		outputURI,
 		"--code",
-		code,
+		store.PathWithPrefix(code, true),
 		"--store_type",
 		store.Type(),
 	}

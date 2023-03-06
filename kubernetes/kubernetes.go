@@ -20,6 +20,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	resource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	watch "k8s.io/apimachinery/pkg/watch"
 	kubernetes "k8s.io/client-go/kubernetes"
@@ -105,7 +106,36 @@ func generateKubernetesEnvVars(envVars map[string]string) []v1.EnvVar {
 	return kubeEnvVars
 }
 
-func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
+func validateJobLimits(specs metadata.KubernetesResourceSpecs) (v1.ResourceRequirements, error) {
+	rsrcReq := v1.ResourceRequirements{}
+	var parseErr error
+	if specs.CPURequest != "" {
+		qty, err := resource.ParseQuantity(specs.CPURequest)
+		rsrcReq.Requests[v1.ResourceCPU] = qty
+		parseErr = err
+	}
+	if specs.CPULimit != "" {
+		qty, err := resource.ParseQuantity(specs.CPULimit)
+		rsrcReq.Limits[v1.ResourceCPU] = qty
+		parseErr = err
+	}
+	if specs.MemoryRequest != "" {
+		qty, err := resource.ParseQuantity(specs.MemoryRequest)
+		rsrcReq.Requests[v1.ResourceMemory] = qty
+		parseErr = err
+	}
+	if specs.MemoryLimit != "" {
+		qty, err := resource.ParseQuantity(specs.MemoryLimit)
+		rsrcReq.Limits[v1.ResourceMemory] = qty
+		parseErr = err
+	}
+	if parseErr != nil {
+		return rsrcReq, parseErr
+	}
+	return rsrcReq, nil
+}
+
+func newJobSpec(config KubernetesRunnerConfig, rsrcReqs v1.ResourceRequirements) batchv1.JobSpec {
 	containerID := uuid.New().String()
 	envVars := generateKubernetesEnvVars(config.EnvVars)
 	//only indexed completion if copyRunner
@@ -132,6 +162,7 @@ func newJobSpec(config KubernetesRunnerConfig) batchv1.JobSpec {
 						Image:           config.Image,
 						Env:             envVars,
 						ImagePullPolicy: v1.PullIfNotPresent,
+						Resources:       rsrcReqs,
 					},
 				},
 				RestartPolicy: v1.RestartPolicyNever,
@@ -146,6 +177,7 @@ type KubernetesRunnerConfig struct {
 	Resource metadata.ResourceID
 	Image    string
 	NumTasks int32
+	Specs    metadata.KubernetesResourceSpecs
 }
 
 type JobClient interface {
@@ -299,7 +331,11 @@ func generateCleanRandomJobName() string {
 }
 
 func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
-	jobSpec := newJobSpec(config)
+	rsrcReqs, err := validateJobLimits(config.Specs)
+	if err != nil {
+		return nil, err
+	}
+	jobSpec := newJobSpec(config, rsrcReqs)
 	var jobName string
 	if config.Resource.Name != "" {
 		jobName = GetJobName(config.Resource, config.Image)

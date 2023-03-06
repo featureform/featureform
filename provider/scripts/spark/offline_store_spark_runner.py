@@ -242,6 +242,7 @@ def split_key_value(values):
     arguments = {}
     for value in values:
         # split it into key and value; parse the first value
+        value = value.replace('"', '')
         key, value = value.split('=', 1)
         # assign into dictionary
         arguments[key] = value

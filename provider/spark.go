@@ -76,7 +76,7 @@ var sparkFileStoreMap = map[string]SparkFileStoreFactory{
 	"AZURE":            NewSparkAzureFileStore,
 	"S3":               NewSparkS3FileStore,
 	"GCS":              NewSparkGCSFileStore,
-	// "HDFS":             NewSparkHDFSFileStore,
+	"HDFS":             NewSparkHDFSFileStore,
 }
 
 func CreateSparkFileStore(name string, config Config) (SparkFileStore, error) {
@@ -247,38 +247,38 @@ func (gcs SparkGCSFileStore) Type() string {
 	return "google_cloud_storage"
 }
 
-// func NewSparkHDFSFileStore(config Config) (SparkFileStore, error) {
-// 	fileStore, err := NewHDFSFileStore(config)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("could not create hdfs file store: %v", err)
-// 	}
-// 	hdfs, ok := fileStore.(*HDFSFileStore)
-// if !ok {
-// 	return nil, fmt.Errorf("could not cast file store to *HDFSFileStore")
-// }
+func NewSparkHDFSFileStore(config Config) (SparkFileStore, error) {
+	fileStore, err := NewHDFSFileStore(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not create hdfs file store: %v", err)
+	}
+	hdfs, ok := fileStore.(*HDFSFileStore)
+	if !ok {
+		return nil, fmt.Errorf("could not cast file store to *HDFSFileStore")
+	}
 
-// 	return &SparkHDFSFileStore{hdfs}, nil
-// }
+	return &SparkHDFSFileStore{hdfs}, nil
+}
 
-// type SparkHDFSFileStore struct {
-// 	*HDFSFileStore
-// }
+type SparkHDFSFileStore struct {
+	*HDFSFileStore
+}
 
-// func (hdfs SparkHDFSFileStore) SparkConfig() []string {
-// 	return []string{}
-// }
+func (hdfs SparkHDFSFileStore) SparkConfig() []string {
+	return []string{}
+}
 
-// func (hdfs SparkHDFSFileStore) CredentialsConfig() []string {
-// 	return []string{}
-// }
+func (hdfs SparkHDFSFileStore) CredentialsConfig() []string {
+	return []string{}
+}
 
-// func (hdfs SparkHDFSFileStore) Packages() []string {
-// 	return []string{}
-// }
+func (hdfs SparkHDFSFileStore) Packages() []string {
+	return []string{}
+}
 
-// func (hdfs SparkHDFSFileStore) Type() string {
-// 	return "hdfs"
-// }
+func (hdfs SparkHDFSFileStore) Type() string {
+	return "hdfs"
+}
 
 func NewSparkLocalFileStore(config Config) (SparkFileStore, error) {
 	fileStore, err := NewLocalFileStore(config)
@@ -402,6 +402,8 @@ func (s *SparkConfig) decodeFileStore(fileStoreType pc.FileStoreType, configMap 
 		fileStoreConfig = &pc.S3FileStoreConfig{}
 	case pc.GCS:
 		fileStoreConfig = &GCSFileStoreConfig{}
+	case pc.HDFS:
+		fileStoreConfig = &pc.HDFSFileStoreConfig{}
 	default:
 		return fmt.Errorf("the file store type '%s' is not supported ", fileStoreType)
 	}
@@ -753,9 +755,6 @@ func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore) 
 	s.logger.Info("Executing spark-submit ", len(bashCommandArgs), bashCommandArgs)
 	cmd := exec.Command(bashCommand, bashCommandArgs...)
 	cmd.Env = append(os.Environ(), "FEATUREFORM_LOCAL_MODE=true")
-	var outb, errb bytes.Buffer
-	cmd.Stdout = &outb
-	cmd.Stderr = &errb
 
 	var outb, errb bytes.Buffer
 	cmd.Stdout = &outb

@@ -466,6 +466,7 @@ func readAndUploadFile(filePath string, storePath string, store SparkFileStore) 
 	if err := store.Write(storePath, pythonScriptBytes); err != nil {
 		return fmt.Errorf("could not write to python script: %v", err)
 	}
+	fmt.Printf("Uploaded %s to %s\n", filePath, storePath)
 	return nil
 }
 
@@ -518,7 +519,7 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 	// 	return fmt.Errorf("Could not modify cluster to accept spark configs; %v", err)
 	// }
 
-	fmt.Println("running spark job, args:", args)
+	fmt.Println("running spark job, script:", db.PythonFileURI(store), "args:", args)
 
 	pythonTask := jobs.SparkPythonTask{
 		PythonFile: db.PythonFileURI(store),

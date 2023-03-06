@@ -5,8 +5,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  TYPESENSE_PORT: 8108
-  TYPESENSE_API_KEY: "xyz"
+  MEILISEARCH_PORT: 7700
+  MEILISEARCH_API_KEY: ""
   REDIS_INSECURE_PORT: 6379
   REDIS_SECURE_PORT: 6378
   REDIS_PASSWORD: "password"
@@ -78,8 +78,8 @@ jobs:
       - name: Run Golang Unit Tests
         run: make test_go_unit
 
-  typesense:
-    name: Typesense Testing
+  search:
+    name: Search Testing
     needs: setup
     runs-on: ubuntu-latest
     steps:
@@ -93,17 +93,12 @@ jobs:
         with:
           go-version: 1.18
 
-      # Installing Typesense manually b/c the base container uses input arguments that
-      # Github Actions currently doesn't support (e.g. --data-dir, --api-key, --enable-cores).
-      # Can create a custom Typesense container in the future if desired
-      - name: Install Typesense Container
-        run: docker pull typesense/typesense:0.22.2
+      - name: Install Search Container
+        run: docker pull getmeili/meilisearch:v1.0
 
-      - name: Start Typesense
+      - name: Start Search
         run: |
-          mkdir /tmp/typesense-data
-          docker run -d -p $TYPESENSE_PORT:8108 -v/tmp/typesense-data:/data typesense/typesense:0.22.2 \
-          --data-dir /data --api-key=$TYPESENSE_API_KEY --enable-cors
+          docker run -d -p $MEILISEARCH_PORT:7700 getmeili/meilisearch:v1.0 
 
       - name: Make Coverage Directory
         working-directory: ./
@@ -124,14 +119,14 @@ jobs:
         if: always()
         with:
           files: ./coverage/cover.out
-          name: typesense-coverage
+          name: search-coverage
           verbose: true
 
       - name: Archive code coverage results
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: typesense-coverage-reports
+          name: search-coverage-reports
           path: ./coverage
 
   provider-online:
@@ -385,7 +380,7 @@ jobs:
           path: ./coverage
 
   metadata:
-    name: Metadata Testing (Excluding Typesense)
+    name: Metadata Testing (Excluding Search)
     needs: setup
     runs-on: ubuntu-latest
 

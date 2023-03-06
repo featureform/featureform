@@ -3,7 +3,6 @@ import featureform as ff
 from featureform.resources import Model
 import pytest
 
-
 @pytest.mark.parametrize(
     "provider_source_fxt,serving_client_fxt,is_local,is_insecure",
     [

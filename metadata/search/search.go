@@ -7,8 +7,8 @@ package search
 import (
 	"fmt"
 	re "github.com/avast/retry-go/v4"
-	"github.com/typesense/typesense-go/typesense"
-	"github.com/typesense/typesense-go/typesense/api"
+	ms "github.com/meilisearch/meilisearch-go"
+	"strings"
 	"time"
 )
 
@@ -18,34 +18,47 @@ type Searcher interface {
 	DeleteAll() error
 }
 
-type TypeSenseParams struct {
+type MeilisearchParams struct {
 	Host   string
 	Port   string
 	ApiKey string
 }
 
 type Search struct {
-	client *typesense.Client
+	client *ms.Client
 }
 
-func NewTypesenseSearch(params *TypeSenseParams) (Searcher, error) {
-	client := typesense.NewClient(
-		typesense.WithServer(fmt.Sprintf("http://%s:%s", params.Host, params.Port)),
-		typesense.WithAPIKey(params.ApiKey))
+func NewMeilisearch(params *MeilisearchParams) (Searcher, error) {
+	address := fmt.Sprintf("http://%s:%s", params.Host, params.Port)
+	client := ms.NewClient(ms.ClientConfig{
+		Host:   address,
+		APIKey: params.ApiKey,
+	})
 
-	// Retries connection to typesense. If there is an error creating the schema
-	// it stops attempting, otherwise uses a backoff delay and retries.
+	search := Search{
+		client: client,
+	}
+
+	// Retries connection to meilisearch
+	err := healthCheck(client)
+	if err != nil {
+		return nil, fmt.Errorf("could not connect: %v", err)
+	}
+
+	if err := search.initializeCollection(); err != nil {
+		return nil, fmt.Errorf("could not initialize collection: %v", err)
+	}
+	return &search, nil
+}
+
+func healthCheck(client *ms.Client) error {
 	err := re.Do(
 		func() error {
-			if _, errRetr := client.Collection("resource").Retrieve(); errRetr != nil {
-				errHttp, isHttpErr := errRetr.(*typesense.HTTPError)
-				schemaNotFound := isHttpErr && errHttp.Status == 404
-				if schemaNotFound {
-					if err := makeSchema(client); err != nil {
-						return re.Unrecoverable(err)
-					}
+			if _, errRetr := client.Health(); errRetr != nil {
+				if strings.Contains(errRetr.Error(), "connection refused") {
+					fmt.Printf("could not connect to search. retrying...\n")
 				} else {
-					fmt.Printf("could not connect to typesense. retrying...\n")
+					return re.Unrecoverable(errRetr)
 				}
 				return errRetr
 			}
@@ -56,15 +69,7 @@ func NewTypesenseSearch(params *TypeSenseParams) (Searcher, error) {
 		}),
 		re.Attempts(10),
 	)
-	if err != nil {
-		return nil, err
-	}
-	if err := initializeCollection(client); err != nil {
-		return nil, err
-	}
-	return &Search{
-		client: client,
-	}, nil
+	return err
 }
 
 type ResourceDoc struct {
@@ -73,76 +78,84 @@ type ResourceDoc struct {
 	Type    string
 }
 
-func makeSchema(client *typesense.Client) error {
-	schema := &api.CollectionSchema{
-		Name: "resource",
-		Fields: []api.Field{
-			{
-				Name: "Name",
-				Type: "string",
-			},
-			{
-				Name: "Variant",
-				Type: "string",
-			},
-			{
-				Name: "Type",
-				Type: "string",
-			},
-		},
-		TokenSeparators: &[]string{
-			"-",
-			"_",
-		},
+func (s Search) waitForSync(taskUID int64) error {
+	task, err := s.client.GetTask(taskUID)
+	if err != nil {
+		return fmt.Errorf("could not get task: %v", err)
 	}
-	_, err := client.Collections().Create(schema)
-	return err
+	for task.Status != ms.TaskStatusSucceeded {
+		task, err = s.client.GetTask(taskUID)
+		if err != nil {
+			return fmt.Errorf("could not get task: %v", err)
+		}
+		if task.Status == ms.TaskStatusFailed {
+			return fmt.Errorf(task.Error.Code)
+		}
+	}
+	return nil
 }
 
-func initializeCollection(client *typesense.Client) error {
-	var resourceinitial []interface{}
-	var resourceempty ResourceDoc
-	resourceinitial = append(resourceinitial, resourceempty)
-	action := "create"
-	batchnum := 40
-	params := &api.ImportDocumentsParams{
-		Action:    &action,
-		BatchSize: &batchnum,
+func (s Search) initializeCollection() error {
+	resp, err := s.client.CreateIndex(&ms.IndexConfig{
+		Uid:        "resources",
+		PrimaryKey: "ID",
+	})
+	if err != nil {
+		return fmt.Errorf("index creation request failed: %v", err)
 	}
-	//initializing resource collection with empty struct so we can use upsert function
-	_, err := client.Collection("resource").Documents().Import(resourceinitial, params)
-	return err
+
+	err = s.waitForSync(resp.TaskUID)
+	if err != nil && err.Error() == "index_already_exists" {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("could not create index: %v", err)
+	}
+
+	return nil
 }
 
 func (s Search) Upsert(doc ResourceDoc) error {
-	_, err := s.client.Collection("resource").Documents().Upsert(doc)
-	return err
+	document := map[string]interface{}{
+		"ID":      strings.ReplaceAll(fmt.Sprintf("%s__%s__%s", doc.Type, doc.Name, doc.Variant), " ", ""),
+		"Parsed":  strings.ReplaceAll(fmt.Sprintf("%s__%s__%s", doc.Type, doc.Name, doc.Variant), "_", " "),
+		"Name":    doc.Name,
+		"Type":    doc.Type,
+		"Variant": doc.Variant,
+	}
+	resp, err := s.client.Index("resources").UpdateDocuments(document)
+	if err != nil {
+		return err
+	}
+	if err := s.waitForSync(resp.TaskUID); err != nil {
+		fmt.Printf("Could not Upsert %#v: %v", document, err)
+	}
+	return nil
 }
 
 func (s Search) DeleteAll() error {
-	if _, err := s.client.Collection("resource").Delete(); err != nil {
-		return err
+	_, err := s.client.DeleteIndex("resources")
+	if err != nil {
+		return fmt.Errorf("failed to delete index: %v", err)
 	}
-	return makeSchema(s.client)
+	return nil
 }
 
 func (s Search) RunSearch(q string) ([]ResourceDoc, error) {
-	searchParameters := &api.SearchCollectionParams{
-		Q:       q,
-		QueryBy: "Name",
+	results, err := s.client.Index("resources").Search(q, &ms.SearchRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to search: %v", err)
 	}
-	results, errGetResults := s.client.Collection("resource").Documents().Search(searchParameters)
-	if errGetResults != nil {
-		return nil, errGetResults
-	}
-	var searchresults []ResourceDoc
-	for _, hit := range *results.Hits {
-		doc := *hit.Document
-		searchresults = append(searchresults, ResourceDoc{
+
+	var searchResults []ResourceDoc
+
+	for _, hit := range results.Hits {
+		doc := hit.(map[string]interface{})
+		searchResults = append(searchResults, ResourceDoc{
 			Name:    doc["Name"].(string),
 			Type:    doc["Type"].(string),
 			Variant: doc["Variant"].(string),
 		})
+
 	}
-	return searchresults, nil
+	return searchResults, nil
 }

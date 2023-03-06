@@ -220,18 +220,18 @@ type ResourceLookup interface {
 	SetSchedule(ResourceID, string) error
 }
 
-type TypeSenseWrapper struct {
+type SearchWrapper struct {
 	Searcher search.Searcher
 	ResourceLookup
 }
 
-func (wrapper TypeSenseWrapper) Set(id ResourceID, res Resource) error {
+func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
 	if err := wrapper.ResourceLookup.Set(id, res); err != nil {
 		return err
 	}
 	doc := search.ResourceDoc{
 		Name:    id.Name,
-		Type:    string(id.Type),
+		Type:    id.Type.String(),
 		Variant: id.Variant,
 	}
 	return wrapper.Searcher.Upsert(doc)
@@ -1129,12 +1129,12 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not configure storage provider: %v", err)
 	}
-	if config.TypeSenseParams != nil {
-		searcher, errInitializeSearch := search.NewTypesenseSearch(config.TypeSenseParams)
+	if config.SearchParams != nil {
+		searcher, errInitializeSearch := search.NewMeilisearch(config.SearchParams)
 		if errInitializeSearch != nil {
 			return nil, errInitializeSearch
 		}
-		lookup = &TypeSenseWrapper{
+		lookup = &SearchWrapper{
 			Searcher:       searcher,
 			ResourceLookup: lookup,
 		}
@@ -1218,7 +1218,7 @@ func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 
 type Config struct {
 	Logger          *zap.SugaredLogger
-	TypeSenseParams *search.TypeSenseParams
+	SearchParams    *search.MeilisearchParams
 	StorageProvider StorageProvider
 	Address         string
 }

@@ -111,33 +111,33 @@ type SparkS3FileStore struct {
 func (s3 SparkS3FileStore) SparkConfig() []string {
 	return []string{
 		"--spark_config",
-		"spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem",
+		"\"spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\"",
 		"--spark_config",
-		"spark.hadoop.com.amazonaws.services.s3.enableV4=true",
+		"\"spark.hadoop.com.amazonaws.services.s3.enableV4=true\"",
 		"--spark_config",
-		fmt.Sprintf("fs.s3a.access.key=%s", s3.Credentials.AWSAccessKeyId),
+		fmt.Sprintf("\"fs.s3a.access.key=%s\"", s3.Credentials.AWSAccessKeyId),
 		"--spark_config",
-		fmt.Sprintf("fs.s3a.secret.key=%s", s3.Credentials.AWSSecretKey),
+		fmt.Sprintf("\"fs.s3a.secret.key=%s\"", s3.Credentials.AWSSecretKey),
 		"--spark_config",
-		"fs.s3a.endpoint=s3.amazonaws.com",
+		"\"fs.s3a.endpoint=s3.amazonaws.com\"",
 	}
 }
 
 func (s3 SparkS3FileStore) CredentialsConfig() []string {
 	return []string{
 		"--credential",
-		fmt.Sprintf("aws_region=%s", s3.BucketRegion),
+		fmt.Sprintf("\"aws_region=%s\"", s3.BucketRegion),
 		"--credential",
-		fmt.Sprintf("aws_access_key_id=%s", s3.Credentials.AWSAccessKeyId),
+		fmt.Sprintf("\"aws_access_key_id=%s\"", s3.Credentials.AWSAccessKeyId),
 		"--credential",
-		fmt.Sprintf("aws_secret_access_key=%s", s3.Credentials.AWSSecretKey),
+		fmt.Sprintf("\"aws_secret_access_key=%s\"", s3.Credentials.AWSSecretKey),
 	}
 }
 
 func (s3 SparkS3FileStore) Packages() []string {
 	return []string{
 		"--packages",
-		"org.apache.hadoop:hadoop-aws:3.2.0",
+		"\"org.apache.hadoop:hadoop-aws:3.2.0\"",
 	}
 }
 

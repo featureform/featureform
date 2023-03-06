@@ -266,6 +266,50 @@ class S3StoreConfig:
     def store_type(self):
         return self.type()
 
+@typechecked
+@dataclass
+class HDFSConfig:
+    def __init__(self,
+                 host: str,
+                 port: str,
+                 path: str,
+                 username: str):
+        bucket_path_ends_with_slash = len(path) != 0 and path[-1] == "/"
+
+        if bucket_path_ends_with_slash:
+            raise Exception("The 'bucket_path' cannot end with '/'.")
+
+        self.path = path
+        self.host = host
+        self.port = port
+        self.username = username
+
+    def software(self) -> str:
+        return "HDFS"
+
+    def type(self) -> str:
+        return "HDFS"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Host": self.host,
+            "Port": self.port,
+            "Path": self.path,
+            "Username": self.username
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+    def config(self):
+        return {
+            "Host": self.host,
+            "Port": self.port,
+            "Path": self.path,
+            "Username": self.username
+        }
+
+    def store_type(self):
+        return self.type()
+
 
 @typechecked
 @dataclass

@@ -75,7 +75,7 @@ var sparkFileStoreMap = map[string]SparkFileStoreFactory{
 	"AZURE":            NewSparkAzureFileStore,
 	"S3":               NewSparkS3FileStore,
 	"GCS":              NewSparkGCSFileStore,
-	// "HDFS":             NewSparkHDFSFileStore,
+	"HDFS":             NewSparkHDFSFileStore,
 }
 
 func CreateSparkFileStore(name string, config Config) (SparkFileStore, error) {
@@ -246,38 +246,38 @@ func (gcs SparkGCSFileStore) Type() string {
 	return "google_cloud_storage"
 }
 
-// func NewSparkHDFSFileStore(config Config) (SparkFileStore, error) {
-// 	fileStore, err := NewHDFSFileStore(config)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("could not create hdfs file store: %v", err)
-// 	}
-// 	hdfs, ok := fileStore.(*HDFSFileStore)
-// if !ok {
-// 	return nil, fmt.Errorf("could not cast file store to *HDFSFileStore")
-// }
+func NewSparkHDFSFileStore(config Config) (SparkFileStore, error) {
+	fileStore, err := NewHDFSFileStore(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not create hdfs file store: %v", err)
+	}
+	hdfs, ok := fileStore.(*HDFSFileStore)
+	if !ok {
+		return nil, fmt.Errorf("could not cast file store to *HDFSFileStore")
+	}
 
-// 	return &SparkHDFSFileStore{hdfs}, nil
-// }
+	return &SparkHDFSFileStore{hdfs}, nil
+}
 
-// type SparkHDFSFileStore struct {
-// 	*HDFSFileStore
-// }
+type SparkHDFSFileStore struct {
+	*HDFSFileStore
+}
 
-// func (hdfs SparkHDFSFileStore) SparkConfig() []string {
-// 	return []string{}
-// }
+func (hdfs SparkHDFSFileStore) SparkConfig() []string {
+	return []string{}
+}
 
-// func (hdfs SparkHDFSFileStore) CredentialsConfig() []string {
-// 	return []string{}
-// }
+func (hdfs SparkHDFSFileStore) CredentialsConfig() []string {
+	return []string{}
+}
 
-// func (hdfs SparkHDFSFileStore) Packages() []string {
-// 	return []string{}
-// }
+func (hdfs SparkHDFSFileStore) Packages() []string {
+	return []string{}
+}
 
-// func (hdfs SparkHDFSFileStore) Type() string {
-// 	return "hdfs"
-// }
+func (hdfs SparkHDFSFileStore) Type() string {
+	return "hdfs"
+}
 
 func NewSparkLocalFileStore(config Config) (SparkFileStore, error) {
 	fileStore, err := NewLocalFileStore(config)
@@ -401,6 +401,8 @@ func (s *SparkConfig) decodeFileStore(fileStoreType pc.FileStoreType, configMap 
 		fileStoreConfig = &pc.S3FileStoreConfig{}
 	case pc.GCS:
 		fileStoreConfig = &GCSFileStoreConfig{}
+	case pc.HDFS:
+		fileStoreConfig = &pc.HDFSFileStoreConfig{}
 	default:
 		return fmt.Errorf("the file store type '%s' is not supported ", fileStoreType)
 	}
@@ -465,6 +467,7 @@ func readAndUploadFile(filePath string, storePath string, store SparkFileStore) 
 	if err := store.Write(storePath, pythonScriptBytes); err != nil {
 		return fmt.Errorf("could not write to python script: %v", err)
 	}
+	fmt.Printf("Uploaded %s to %s\n", filePath, storePath)
 	return nil
 }
 
@@ -516,6 +519,9 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 	// if err := clusterClient.Edit(setConfigReq); err != nil {
 	// 	return fmt.Errorf("Could not modify cluster to accept spark configs; %v", err)
 	// }
+
+	fmt.Println("running spark job, script:", db.PythonFileURI(store), "args:", args)
+
 	pythonTask := jobs.SparkPythonTask{
 		PythonFile: db.PythonFileURI(store),
 		Parameters: args,
@@ -651,7 +657,7 @@ func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	logger := logging.NewLogger("spark")
 	if err := sc.Deserialize(config); err != nil {
 		logger.Errorw("Invalid config to initialize spark offline store", "error", err)
-		return nil, fmt.Errorf("invalid spark config")
+		return nil, fmt.Errorf("invalid spark config: %v", err)
 	}
 	logger.Infow("Creating Spark executor:", "type", sc.ExecutorType)
 	exec, err := NewSparkExecutor(sc.ExecutorType, sc.ExecutorConfig, logger)
@@ -978,7 +984,7 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string,
 		"--job_type",
 		string(jobType),
 		"--store_type",
-		store.Type(),
+		store.FilestoreType(),
 	}
 	sparkConfigs := store.SparkConfig()
 	argList = append(argList, sparkConfigs...)
@@ -1179,6 +1185,12 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 	containsSlashes := strings.Contains(path, "/")
 	if path[:5] == "s3://" {
 		filePaths := strings.Split(path[len("s3://"):], "/")
+		if len(filePaths) <= 4 {
+			return "", "", ""
+		}
+		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
+	} else if path[:5] == "hdfs://" {
+		filePaths := strings.Split(path[len("hdfs://"):], "/")
 		if len(filePaths) <= 4 {
 			return "", "", ""
 		}

@@ -19,4 +19,8 @@ const (
 	SparkOffline     Type = "SPARK_OFFLINE"
 	BigQueryOffline  Type = "BIGQUERY_OFFLINE"
 	K8sOffline       Type = "K8S_OFFLINE"
+	S3               Type = "S3"
+	GCS              Type = "GCS"
+	HDFS             Type = "HDFS"
+	AZURE            Type = "AZURE"
 )

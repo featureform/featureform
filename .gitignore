@@ -25,3 +25,5 @@ provider/scripts/tests/test_files/output*
 provider/scripts/k8s/tests/test_files/output/local_test/*
 client/src/featureform/proto/
 **backup_secret.yaml
+**fileUploadTest**
+**fileDownloadTest**

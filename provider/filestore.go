@@ -11,13 +11,27 @@ import (
 	awsv2cfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
+	hdfs "github.com/colinmarc/hdfs/v2"
 	pc "github.com/featureform/provider/provider_config"
+
 	"gocloud.dev/blob"
 	"gocloud.dev/blob/azureblob"
 	"gocloud.dev/blob/gcsblob"
 	"gocloud.dev/blob/s3blob"
 	"gocloud.dev/gcp"
 	"golang.org/x/oauth2/google"
+	"io/fs"
+	"path/filepath"
+	"time"
+)
+
+const (
+	Memory     pc.FileStoreType = "MEMORY"
+	FileSystem                  = "LOCAL_FILESYSTEM"
+	Azure                       = "AZURE"
+	S3                          = "S3"
+	GCS                         = "GCS"
+	HDFS                        = "HDFS"
 )
 
 type FileType string
@@ -28,10 +42,17 @@ const (
 	DB      FileType = "db"
 )
 
+func (ft FileType) Matches(file string) bool {
+	ext := filepath.Ext(file)
+	ext = strings.ReplaceAll(ext, ".", "")
+	return FileType(ext) == ft
+}
+
 const (
 	gsPrefix        = "gs://"
 	s3Prefix        = "s3://"
 	azureBlobPrefix = "abfss://"
+	HDFSPrefix      = "hdfs://"
 )
 
 type LocalFileStore struct {
@@ -55,6 +76,10 @@ func NewLocalFileStore(config Config) (FileStore, error) {
 			path:   fileStoreConfig.DirPath,
 		},
 	}, nil
+}
+
+func (fs LocalFileStore) FilestoreType() string {
+	return "local"
 }
 
 type AzureFileStore struct {
@@ -101,6 +126,10 @@ func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
 		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s%s", store.ContainerName, store.AccountName, prefix, path)
 	}
 	return path
+}
+
+func (store AzureFileStore) FilestoreType() string {
+	return "azure_blob_store"
 }
 
 func NewAzureFileStore(config Config) (FileStore, error) {
@@ -181,19 +210,22 @@ func NewS3FileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
-func (s3 S3FileStore) PathWithPrefix(path string, remote bool) string {
-	s3PrefixLength := len("s3://")
-	noS3Prefix := path[:s3PrefixLength] != "s3://"
-
+func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
+	s3PrefixLength := len(s3Prefix)
+	noS3Prefix := path[:s3PrefixLength] != s3Prefix
 	if remote && noS3Prefix {
 		s3Path := ""
 		if s3.Path != "" {
 			s3Path = fmt.Sprintf("/%s", s3.Path)
 		}
-		return fmt.Sprintf("s3://%s%s/%s", s3.Bucket, s3Path, path)
+		return fmt.Sprintf("%s%s%s/%s", s3Prefix, s3.Bucket, s3Path, path)
 	} else {
 		return path
 	}
+}
+
+func (s3 S3FileStore) FilestoreType() string {
+	return "s3"
 }
 
 type GCSFileStore struct {
@@ -217,6 +249,10 @@ func (gs GCSFileStore) PathWithPrefix(path string, remote bool) string {
 	}
 }
 
+func (g GCSFileStore) FilestoreType() string {
+	return "google_cloud_storage"
+}
+
 type GCSFileStoreConfig struct {
 	BucketName  string
 	BucketPath  string
@@ -234,7 +270,7 @@ func (s *GCSFileStoreConfig) Deserialize(config pc.SerializedConfig) error {
 func (s *GCSFileStoreConfig) Serialize() ([]byte, error) {
 	conf, err := json.Marshal(s)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("could not serialize GCS config: %v", err)
 	}
 	return conf, nil
 }
@@ -275,4 +311,282 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 			bucket: bucket,
 		},
 	}, nil
+}
+
+func NewHDFSFileStore(config Config) (FileStore, error) {
+	HDFSConfig := pc.HDFSFileStoreConfig{}
+
+	err := HDFSConfig.Deserialize(pc.SerializedConfig(config))
+	if err != nil {
+		return nil, fmt.Errorf("could not deserialize config: %v", err)
+	}
+
+	address := fmt.Sprintf("%s:%s", HDFSConfig.Host, HDFSConfig.Port)
+	var username string
+	if HDFSConfig.Username == "" {
+		username = "hduser"
+	} else {
+		username = HDFSConfig.Username
+	}
+
+	ops := hdfs.ClientOptions{
+		Addresses:           []string{address},
+		User:                username,
+		UseDatanodeHostname: true,
+	}
+	client, err := hdfs.NewClient(ops)
+	if err != nil {
+		return nil, fmt.Errorf("could not create hdfs client: %v", err)
+	}
+
+	return &HDFSFileStore{
+		Client: client,
+		Path:   HDFSConfig.Path,
+		Host:   address,
+	}, nil
+}
+
+type HDFSFileStore struct {
+	Client *hdfs.Client
+	Host   string
+	Path   string
+}
+
+// addPrefix ads a required "/" to the start of the filepath. It first attempts to remove any existing
+// ones to avoid adding a double slash
+func (fs *HDFSFileStore) addPrefix(key string) string {
+	key = strings.TrimPrefix(key, "/")
+	return fmt.Sprintf("/%s", key)
+}
+
+func (fs *HDFSFileStore) alreadyExistsError(err error) bool {
+	return strings.Contains(err.Error(), "file already exists")
+}
+
+func (fs *HDFSFileStore) doesNotExistsError(err error) bool {
+	return strings.Contains(err.Error(), "file does not exist")
+}
+
+func (fs *HDFSFileStore) removeFile(key string) (*hdfs.FileWriter, error) {
+	if err := fs.Client.Remove(key); err != nil && fs.doesNotExistsError(err) {
+		return fs.getFile(key)
+	} else if err != nil {
+		return nil, fmt.Errorf("could not remove file %s: %v", key, err)
+	}
+	return fs.getFile(key)
+}
+
+func (fs *HDFSFileStore) getFile(key string) (*hdfs.FileWriter, error) {
+	if w, err := fs.Client.Create(key); err != nil && fs.alreadyExistsError(err) {
+		return fs.removeFile(key)
+	} else if err != nil {
+		return nil, fmt.Errorf("could not get file: %v", err)
+	} else {
+		return w, nil
+	}
+}
+
+func (fs *HDFSFileStore) isFile(key string) bool {
+	parsedPath := strings.Split(key, "/")
+	return len(parsedPath) == 1
+}
+
+func (fs *HDFSFileStore) getParentDirectories(key string) string {
+	parsedPath := strings.Split(key, "/")
+	return strings.TrimSuffix(key, parsedPath[len(parsedPath)-1])
+}
+
+func (fs *HDFSFileStore) getFileWriter(key string) (*hdfs.FileWriter, error) {
+	if w, err := fs.getFile(key); err != nil {
+		return nil, fmt.Errorf("could get writer: %v", err)
+	} else {
+		return w, nil
+	}
+}
+
+func (fs *HDFSFileStore) createFile(key string) (*hdfs.FileWriter, error) {
+	if fs.isFile(key) {
+		return fs.getFileWriter(key)
+	}
+	path := fs.getParentDirectories(key)
+	err := fs.Client.MkdirAll(path, os.ModeDir)
+	if err != nil {
+		return nil, fmt.Errorf("could not create all: %v", err)
+	}
+	return fs.getFileWriter(key)
+}
+
+func (fs *HDFSFileStore) Write(key string, data []byte) error {
+	file, err := fs.createFile(fs.addPrefix(key))
+	if err != nil {
+		return fmt.Errorf("could not create file: %v", err)
+	}
+	_, err = file.Write(data)
+	if err != nil {
+		return fmt.Errorf("could not write: %v", err)
+	}
+	if err := file.Flush(); err != nil {
+		return fmt.Errorf("flush: %v", err)
+	}
+	file.Close()
+	return nil
+}
+
+func (fs *HDFSFileStore) Writer(key string) (*blob.Writer, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (fs *HDFSFileStore) Read(key string) ([]byte, error) {
+	return fs.Client.ReadFile(fs.addPrefix(key))
+}
+
+func (fs *HDFSFileStore) ServeDirectory(dir string) (Iterator, error) {
+	files, err := fs.Client.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var fileParts []string
+	for _, file := range files {
+		fileParts = append(fileParts, fmt.Sprintf("%s/%s", dir, file.Name()))
+	}
+	// assume file type is parquet
+	return parquetIteratorOverMultipleFiles(fileParts, fs)
+}
+
+func (fs *HDFSFileStore) Serve(key string) (Iterator, error) {
+	keyParts := strings.Split(key, ".")
+	if len(keyParts) == 1 {
+		return fs.ServeDirectory(fs.addPrefix(key))
+	}
+	b, err := fs.Client.ReadFile(fs.addPrefix(key))
+	if err != nil {
+		return nil, fmt.Errorf("could not read file: %w", err)
+	}
+	switch fileType := keyParts[len(keyParts)-1]; fileType {
+	case "parquet":
+		return parquetIteratorFromBytes(b)
+	case "csv":
+		return nil, fmt.Errorf("could not find CSV reader")
+	default:
+		return nil, fmt.Errorf("unsupported file type")
+	}
+}
+func (fs *HDFSFileStore) Exists(key string) (bool, error) {
+	_, err := fs.Client.Stat(fs.addPrefix(key))
+	fmt.Println("CHECKING EXISTS", err)
+	if err != nil && strings.Contains(err.Error(), "file does not exist") {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (fs *HDFSFileStore) Delete(key string) error {
+	return fs.Client.Remove(fs.addPrefix(key))
+}
+
+func (fs *HDFSFileStore) deleteFile(file os.FileInfo, dir string) error {
+	if file.IsDir() {
+		err := fs.DeleteAll(fmt.Sprintf("%s/%s", dir, file.Name()))
+		if err != nil {
+			return fmt.Errorf("could not delete directory: %v", err)
+		}
+	} else {
+		err := fs.Delete(fmt.Sprintf("%s/%s", dir, file.Name()))
+		if err != nil {
+			return fmt.Errorf("could not delete file: %v", err)
+		}
+	}
+	return nil
+}
+
+func (fs *HDFSFileStore) DeleteAll(dir string) error {
+	files, err := fs.Client.ReadDir(fs.addPrefix(dir))
+	if err != nil {
+		return err
+	}
+	for _, file := range files {
+		if err := fs.deleteFile(file, dir); err != nil {
+			return fmt.Errorf("could not delete: %v", err)
+		}
+	}
+	return fs.Client.Remove(fs.addPrefix(dir))
+}
+
+func (fs *HDFSFileStore) isPartialPath(prefix, path string) bool {
+	return strings.Contains(prefix, path)
+}
+
+func (fs *HDFSFileStore) containsPrefix(prefix, path string) bool {
+	return strings.Contains(path, prefix)
+}
+
+func (fs *HDFSFileStore) isMoreRecentFile(newFileTime, oldFileTime time.Time, fileType FileType, path string) bool {
+	return (newFileTime.After(oldFileTime) || newFileTime.Equal(oldFileTime)) && fileType.Matches(path)
+}
+
+func (hdfs *HDFSFileStore) NewestFileOfType(prefix string, fileType FileType) (string, error) {
+	var lastModTime time.Time
+	var lastModName string
+	err := hdfs.Client.Walk("/", func(path string, info fs.FileInfo, err error) error {
+		if hdfs.isPartialPath(prefix, path) {
+			return nil
+		}
+		if hdfs.containsPrefix(prefix, path) && hdfs.isMoreRecentFile(info.ModTime(), lastModTime, fileType, path) {
+			lastModTime = info.ModTime()
+			lastModName = strings.TrimPrefix(path, "/")
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	if lastModName == "" {
+		return lastModName, nil
+	}
+	return lastModName, nil
+}
+
+func (fs *HDFSFileStore) PathWithPrefix(path string, remote bool) string {
+	hdfsPrefixLength := len(HDFSPrefix)
+	nofsPrefix := path[:hdfsPrefixLength] != HDFSPrefix
+
+	if remote && nofsPrefix {
+		fsPath := ""
+		if fs.Path != "" {
+			fsPath = fmt.Sprintf("/%s", fs.Path)
+		}
+		return fmt.Sprintf("%s%s/%s/%s", HDFSPrefix, fs.Host, fsPath, path)
+	} else {
+		return path
+	}
+}
+
+func (fs *HDFSFileStore) NumRows(key string) (int64, error) {
+	file, err := fs.Read(key)
+	if err != nil {
+		return 0, err
+	}
+	rows, err := getParquetNumRows(file)
+	if err != nil {
+		return 0, err
+	}
+	return rows, nil
+}
+func (fs *HDFSFileStore) Close() error {
+	return fs.Client.Close()
+}
+func (fs *HDFSFileStore) Upload(sourcePath string, destPath string) error {
+	return fs.Client.CopyToRemote(sourcePath, fs.addPrefix(destPath))
+}
+func (fs *HDFSFileStore) Download(sourcePath string, destPath string) error {
+	return fs.Client.CopyToLocal(fs.addPrefix(sourcePath), destPath)
+}
+func (fs *HDFSFileStore) AsAzureStore() *AzureFileStore {
+	return nil
+}
+
+func (fs HDFSFileStore) FilestoreType() string {
+	return "hdfs"
 }

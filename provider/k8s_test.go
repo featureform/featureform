@@ -139,6 +139,7 @@ func TestBlobInterfaces(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create new file blob store: %v", err)
 	}
+
 	azureStoreConfig := pc.AzureFileStoreConfig{
 		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
@@ -154,9 +155,26 @@ func TestBlobInterfaces(t *testing.T) {
 		t.Fatalf("failed to create new azure blob store: %v", err)
 	}
 
+	hdfsConfig := HDFSFileStoreConfig{
+		Host:     "localhost",
+		Port:     "9000",
+		Username: "hduser",
+	}
+
+	serializedHDFSConfig, err := hdfsConfig.Serialize()
+	if err != nil {
+		t.Fatalf("failed to create serialize hdfs blob store: %v", err)
+	}
+
+	hdfsFileStore, err := NewHDFSFileStore(serializedHDFSConfig)
+	if err != nil {
+		t.Fatalf("failed to create new hdfs blob store: %v", err)
+	}
+
 	blobProviders := map[string]FileStore{
 		"File":  fileFileStore,
 		"Azure": azureFileStore,
+		"HDFS":  hdfsFileStore,
 	}
 	for testName, fileTest := range fileStoreTests {
 		fileTest = fileTest
@@ -567,7 +585,7 @@ func testDeleteAll(t *testing.T, store FileStore) {
 			t.Fatalf("Could not check that key exists in filestore: %v", err)
 		}
 		if exists {
-			t.Fatalf("Key deleted from filestore does exist")
+			t.Errorf("Key %s still exists", randomPath)
 		}
 	}
 
@@ -614,6 +632,13 @@ func testPathWithPrefix(t *testing.T, store FileStore) {
 	if ok {
 		filePathWithPrefix := fileFileStore.PathWithPrefix(randomKey, false)
 		if filePathWithPrefix != fmt.Sprintf("%s%s", fileFileStore.DirPath, randomKey) {
+			t.Fatalf("Incorrect path with prefix. Expected %s, got %s", fmt.Sprintf("%s%s", fileFileStore.DirPath, randomKey), filePathWithPrefix)
+		}
+	}
+	hdfsStore, ok := store.(*HDFSFileStore)
+	if ok {
+		filePathWithPrefix := hdfsStore.PathWithPrefix(randomKey, false)
+		if filePathWithPrefix != fmt.Sprintf("%s%s", hdfsStore.Path, randomKey) {
 			t.Fatalf("Incorrect path with prefix. Expected %s, got %s", fmt.Sprintf("%s%s", fileFileStore.DirPath, randomKey), filePathWithPrefix)
 		}
 	}

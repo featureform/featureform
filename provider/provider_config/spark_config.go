@@ -3,7 +3,6 @@ package provider_config
 import (
 	"encoding/json"
 	"fmt"
-
 	ss "github.com/featureform/helpers/string_set"
 	"github.com/mitchellh/mapstructure"
 )
@@ -210,6 +209,8 @@ func (s *SparkConfig) decodeFileStore(fileStoreType FileStoreType, configMap map
 		fileStoreConfig = &AzureFileStoreConfig{}
 	case S3:
 		fileStoreConfig = &S3FileStoreConfig{}
+	case HDFS:
+		fileStoreConfig = &HDFSFileStoreConfig{}
 	default:
 		return fmt.Errorf("the file store type '%s' is not supported ", fileStoreType)
 	}

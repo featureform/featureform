@@ -16,7 +16,7 @@ from google.oauth2 import service_account
 from azure.storage.blob import BlobServiceClient
 
 
-FILESTORES = ["local", "s3", "azure_blob_store", "google_cloud_storage"]
+FILESTORES = ["local", "s3", "azure_blob_store", "google_cloud_storage", "hdfs"]
 
 if os.getenv("FEATUREFORM_LOCAL_MODE"):
     real_path = os.path.realpath(__file__)
@@ -150,6 +150,16 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
 
             f.seek(0)
             code = dill.loads(f.read())
+    elif store_type == "hdfs":
+        # S3 paths are the following path: 's3://{bucket}/key/to/file'.
+        # the split below separates the bucket name and the key that is
+        # used to read the object in the bucket.
+
+        import subprocess
+        output = subprocess.check_output(f"hdfs dfs -cat {file_path}", shell=True)
+        code = dill.loads(bytes(output))
+
+
     elif store_type == "azure_blob_store":
         connection_string = credentials.get("azure_connection_string")
         container = credentials.get("azure_container_name")
@@ -242,6 +252,7 @@ def split_key_value(values):
     arguments = {}
     for value in values:
         # split it into key and value; parse the first value
+        value = value.replace('"', '')
         key, value = value.split('=', 1)
         # assign into dictionary
         arguments[key] = value

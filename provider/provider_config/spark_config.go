@@ -189,6 +189,8 @@ func (s *SparkConfig) decodeExecutor(executorType SparkExecutorType, configMap m
 		executorConfig = &EMRConfig{}
 	case Databricks:
 		executorConfig = &DatabricksConfig{}
+	case SparkGeneric:
+		executorConfig = &SparkGenericConfig{}
 	default:
 		return fmt.Errorf("the executor type '%s' is not supported ", executorType)
 	}

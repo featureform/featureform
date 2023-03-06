@@ -1,7 +1,12 @@
 package provider
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
+	"github.com/mitchellh/mapstructure"
+
 	"fmt"
 	"os"
 	"os/exec"
@@ -39,6 +44,379 @@ const ENTITY_INDEX = 0
 const VALUE_INDEX = 1
 const TIMESTAMP_INDEX = 2
 
+//type AWSCredentials struct {
+//	AWSAccessKeyId string
+//	AWSSecretKey   string
+//}
+
+//type GCPCredentials struct {
+//	ProjectId      string
+//	SerializedFile []byte
+//}
+
+type SparkExecutorConfig interface {
+	Serialize() ([]byte, error)
+	Deserialize(config pc.SerializedConfig) error
+	IsExecutorConfig() bool
+}
+
+type SparkFileStore interface {
+	SparkConfig() []string
+	CredentialsConfig() []string
+	Packages() []string
+	Type() string
+	FileStore
+}
+
+type SparkFileStoreFactory func(config Config) (SparkFileStore, error)
+
+var sparkFileStoreMap = map[string]SparkFileStoreFactory{
+	"LOCAL_FILESYSTEM": NewSparkLocalFileStore,
+	"AZURE":            NewSparkAzureFileStore,
+	"S3":               NewSparkS3FileStore,
+	"GCS":              NewSparkGCSFileStore,
+	// "HDFS":             NewSparkHDFSFileStore,
+}
+
+func CreateSparkFileStore(name string, config Config) (SparkFileStore, error) {
+	factory, exists := sparkFileStoreMap[name]
+	if !exists {
+		return nil, fmt.Errorf("factory does not exist: %s", name)
+	}
+	FileStore, err := factory(config)
+	if err != nil {
+		return nil, err
+	}
+	return FileStore, nil
+}
+
+func NewSparkS3FileStore(config Config) (SparkFileStore, error) {
+	fileStore, err := NewS3FileStore(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not create s3 file store: %v", err)
+	}
+	s3, ok := fileStore.(*S3FileStore)
+	if !ok {
+		return nil, fmt.Errorf("could not cast file store to *S3FileStore")
+	}
+
+	return &SparkS3FileStore{s3}, nil
+}
+
+type SparkS3FileStore struct {
+	*S3FileStore
+}
+
+func (s3 SparkS3FileStore) SparkConfig() []string {
+	return []string{
+		"--spark_config",
+		"spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem",
+		"--spark_config",
+		"spark.hadoop.com.amazonaws.services.s3.enableV4=true",
+		"--spark_config",
+		fmt.Sprintf("fs.s3a.access.key=%s", s3.Credentials.AWSAccessKeyId),
+		"--spark_config",
+		fmt.Sprintf("fs.s3a.secret.key=%s", s3.Credentials.AWSSecretKey),
+		"--spark_config",
+		"fs.s3a.endpoint=s3.amazonaws.com",
+	}
+}
+
+func (s3 SparkS3FileStore) CredentialsConfig() []string {
+	return []string{
+		"--credential",
+		fmt.Sprintf("aws_region=%s", s3.BucketRegion),
+		"--credential",
+		fmt.Sprintf("aws_access_key_id=%s", s3.Credentials.AWSAccessKeyId),
+		"--credential",
+		fmt.Sprintf("aws_secret_access_key=%s", s3.Credentials.AWSSecretKey),
+	}
+}
+
+func (s3 SparkS3FileStore) Packages() []string {
+	return []string{
+		"--packages",
+		"org.apache.hadoop:hadoop-aws:3.2.0",
+	}
+}
+
+func (s3 SparkS3FileStore) Type() string {
+	return "s3"
+}
+
+func NewSparkAzureFileStore(config Config) (SparkFileStore, error) {
+	fileStore, err := NewAzureFileStore(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not create auzre blob file store: %v", err)
+	}
+
+	azure, ok := fileStore.(*AzureFileStore)
+	if !ok {
+		return nil, fmt.Errorf("could not cast file store to *AzureFileStore")
+	}
+
+	return &SparkAzureFileStore{azure}, nil
+}
+
+type SparkAzureFileStore struct {
+	*AzureFileStore
+}
+
+func (store SparkAzureFileStore) configString() string {
+	return fmt.Sprintf("fs.azure.account.key.%s.dfs.core.windows.net=%s", store.AccountName, store.AccountKey)
+}
+
+func (azureStore SparkAzureFileStore) SparkConfig() []string {
+	return []string{
+		"--spark_config",
+		fmt.Sprintf("\"%s\"", azureStore.configString()),
+	}
+}
+
+func (azureStore SparkAzureFileStore) CredentialsConfig() []string {
+	return []string{
+		"--credential",
+		fmt.Sprintf("\"azure_connection_string=%s\"", azureStore.connectionString()),
+		"--credential",
+		fmt.Sprintf("\"azure_container_name=%s\"", azureStore.containerName()),
+	}
+}
+
+func (azureStore SparkAzureFileStore) Packages() []string {
+	return []string{
+		"--packages",
+		"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
+	}
+}
+
+func (azureStore SparkAzureFileStore) Type() string {
+	return "azure_blob_store"
+}
+
+func NewSparkGCSFileStore(config Config) (SparkFileStore, error) {
+	fileStore, err := NewGCSFileStore(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not create gcs file store: %v", err)
+	}
+	gcs, ok := fileStore.(*GCSFileStore)
+	if !ok {
+		return nil, fmt.Errorf("could not cast file store to *GCSFileStore")
+	}
+
+	return &SparkGCSFileStore{gcs}, nil
+}
+
+type SparkGCSFileStore struct {
+	*GCSFileStore
+}
+
+func (gcs SparkGCSFileStore) SparkConfig() []string {
+	return []string{
+		"--spark_config",
+		"spark.hadoop.google.cloud.auth.service.account.enable=true",
+		"--spark_config",
+		"fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
+		"--spark_config",
+		"fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
+	}
+}
+
+func (gcs SparkGCSFileStore) CredentialsConfig() []string {
+	serializedCredsFile := gcs.Credentials.SerializedFile
+	base64Credentials := base64.StdEncoding.EncodeToString(serializedCredsFile)
+
+	return []string{
+		"--credential",
+		fmt.Sprintf("\"gcp_project_id=%s\"", gcs.Credentials.ProjectId),
+		"--credential",
+		fmt.Sprintf("\"gcp_bucket_name=%s\"", gcs.Bucket),
+		"--credential",
+		fmt.Sprintf("\"gcp_credentials=%s\"", base64Credentials),
+	}
+}
+
+func (gcs SparkGCSFileStore) Packages() []string {
+	return []string{
+		"--packages",
+		"com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.0",
+	}
+}
+
+func (gcs SparkGCSFileStore) Type() string {
+	return "google_cloud_storage"
+}
+
+// func NewSparkHDFSFileStore(config Config) (SparkFileStore, error) {
+// 	fileStore, err := NewHDFSFileStore(config)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("could not create hdfs file store: %v", err)
+// 	}
+// 	hdfs, ok := fileStore.(*HDFSFileStore)
+// if !ok {
+// 	return nil, fmt.Errorf("could not cast file store to *HDFSFileStore")
+// }
+
+// 	return &SparkHDFSFileStore{hdfs}, nil
+// }
+
+// type SparkHDFSFileStore struct {
+// 	*HDFSFileStore
+// }
+
+// func (hdfs SparkHDFSFileStore) SparkConfig() []string {
+// 	return []string{}
+// }
+
+// func (hdfs SparkHDFSFileStore) CredentialsConfig() []string {
+// 	return []string{}
+// }
+
+// func (hdfs SparkHDFSFileStore) Packages() []string {
+// 	return []string{}
+// }
+
+// func (hdfs SparkHDFSFileStore) Type() string {
+// 	return "hdfs"
+// }
+
+func NewSparkLocalFileStore(config Config) (SparkFileStore, error) {
+	fileStore, err := NewLocalFileStore(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not create local file store: %v", err)
+	}
+	local, ok := fileStore.(*LocalFileStore)
+	if !ok {
+		return nil, fmt.Errorf("could not cast file store to *LocalFileStore")
+	}
+
+	return &SparkLocalFileStore{local}, nil
+}
+
+type SparkLocalFileStore struct {
+	*LocalFileStore
+}
+
+func (local SparkLocalFileStore) SparkConfig() []string {
+	return []string{}
+}
+
+func (local SparkLocalFileStore) CredentialsConfig() []string {
+	return []string{}
+}
+
+func (local SparkLocalFileStore) Packages() []string {
+	return []string{}
+}
+
+func (local SparkLocalFileStore) Type() string {
+	return "local"
+}
+
+type SparkFileStoreConfig interface {
+	Serialize() ([]byte, error)
+	Deserialize(config pc.SerializedConfig) error
+	IsFileStoreConfig() bool
+}
+
+type SparkConfig struct {
+	ExecutorType   pc.SparkExecutorType
+	ExecutorConfig SparkExecutorConfig
+	StoreType      pc.FileStoreType
+	StoreConfig    SparkFileStoreConfig
+}
+
+func (s *SparkConfig) Deserialize(config pc.SerializedConfig) error {
+	err := json.Unmarshal(config, s)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *SparkConfig) Serialize() ([]byte, error) {
+	conf, err := json.Marshal(s)
+	if err != nil {
+		return nil, err
+	}
+	return conf, nil
+}
+
+func (s *SparkConfig) UnmarshalJSON(data []byte) error {
+	type tempConfig struct {
+		ExecutorType   pc.SparkExecutorType
+		ExecutorConfig map[string]interface{}
+		StoreType      pc.FileStoreType
+		StoreConfig    map[string]interface{}
+	}
+
+	var temp tempConfig
+	err := json.Unmarshal(data, &temp)
+	if err != nil {
+		return fmt.Errorf("unmarshal: %w", err)
+	}
+
+	s.ExecutorType = temp.ExecutorType
+	s.StoreType = temp.StoreType
+
+	err = s.decodeExecutor(temp.ExecutorType, temp.ExecutorConfig)
+	if err != nil {
+		return fmt.Errorf("could not decode executor: %w", err)
+	}
+
+	err = s.decodeFileStore(temp.StoreType, temp.StoreConfig)
+	if err != nil {
+		return fmt.Errorf("could not decode filestore: %w", err)
+	}
+
+	return nil
+}
+
+func (s *SparkConfig) decodeExecutor(executorType pc.SparkExecutorType, configMap map[string]interface{}) error {
+	var executorConfig SparkExecutorConfig
+	switch executorType {
+	case pc.EMR:
+		executorConfig = &pc.EMRConfig{}
+	case pc.Databricks:
+		executorConfig = &pc.DatabricksConfig{}
+	case pc.SparkGeneric:
+		executorConfig = &pc.SparkGenericConfig{}
+	default:
+		return fmt.Errorf("the executor type '%s' is not supported ", executorType)
+	}
+
+	err := mapstructure.Decode(configMap, executorConfig)
+	if err != nil {
+		return fmt.Errorf("could not decode executor map: %w", err)
+	}
+	s.ExecutorConfig = executorConfig
+	return nil
+}
+
+func (s *SparkConfig) decodeFileStore(fileStoreType pc.FileStoreType, configMap map[string]interface{}) error {
+	var fileStoreConfig SparkFileStoreConfig
+	switch fileStoreType {
+	case pc.Azure:
+		fileStoreConfig = &pc.AzureFileStoreConfig{}
+	case pc.S3:
+		fileStoreConfig = &pc.S3FileStoreConfig{}
+	case pc.GCS:
+		fileStoreConfig = &GCSFileStoreConfig{}
+	default:
+		return fmt.Errorf("the file store type '%s' is not supported ", fileStoreType)
+	}
+
+	err := mapstructure.Decode(configMap, fileStoreConfig)
+	if err != nil {
+		return fmt.Errorf("could not decode file store map: %w", err)
+	}
+	s.StoreConfig = fileStoreConfig
+	return nil
+}
+
+func ResourcePath(id ResourceID) string {
+	return fmt.Sprintf("%s/%s/%s", id.Type, id.Name, id.Variant)
+}
+
 type DatabricksResultState string
 
 const (
@@ -54,16 +432,16 @@ type DatabricksExecutor struct {
 	config  pc.DatabricksConfig
 }
 
-func (e *EMRExecutor) PythonFileURI(store FileStore) string {
+func (e *EMRExecutor) PythonFileURI(store SparkFileStore) string {
 	return ""
 }
 
-func (db *DatabricksExecutor) PythonFileURI(store FileStore) string {
+func (db *DatabricksExecutor) PythonFileURI(store SparkFileStore) string {
 	filePath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/spark/offline_store_spark_runner.py")
 	return store.PathWithPrefix(filePath[1:], true)
 }
 
-func readAndUploadFile(filePath string, storePath string, store FileStore) error {
+func readAndUploadFile(filePath string, storePath string, store SparkFileStore) error {
 	fileExists, _ := store.Exists(storePath)
 	if fileExists {
 		return nil
@@ -90,7 +468,7 @@ func readAndUploadFile(filePath string, storePath string, store FileStore) error
 	return nil
 }
 
-func (db *DatabricksExecutor) InitializeExecutor(store FileStore) error {
+func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/spark/offline_store_spark_runner.py")[1:]
 	pythonInitScriptPath := helpers.GetEnv("PYTHON_INIT_PATH", "/scripts/spark/python_packages.sh")[1:]
 
@@ -123,7 +501,7 @@ func NewDatabricksExecutor(databricksConfig pc.DatabricksConfig) (SparkExecutor,
 	}, nil
 }
 
-func (db *DatabricksExecutor) RunSparkJob(args []string, store FileStore) error {
+func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) error {
 	//set spark configuration
 	// clusterClient := db.client.Clusters()
 	// setConfigReq := clusterHTTPModels.EditReq{
@@ -254,7 +632,7 @@ func (q defaultPythonOfflineQueries) trainingSetCreate(def TrainingSetDef, featu
 
 type SparkOfflineStore struct {
 	Executor SparkExecutor
-	Store    FileStore
+	Store    SparkFileStore
 	Logger   *zap.SugaredLogger
 	query    *defaultPythonOfflineQueries
 	BaseProvider
@@ -272,8 +650,8 @@ func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.SparkConfig{}
 	logger := logging.NewLogger("spark")
 	if err := sc.Deserialize(config); err != nil {
-		logger.Errorw("Invalid config to initialize spark offline store", err)
-		return nil, fmt.Errorf("invalid spark config: %v", config)
+		logger.Errorw("Invalid config to initialize spark offline store", "error", err)
+		return nil, fmt.Errorf("invalid spark config")
 	}
 	logger.Infow("Creating Spark executor:", "type", sc.ExecutorType)
 	exec, err := NewSparkExecutor(sc.ExecutorType, sc.ExecutorConfig, logger)
@@ -285,9 +663,9 @@ func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	logger.Infow("Creating Spark store:", "type", sc.StoreType)
 	serializedFilestoreConfig, err := sc.StoreConfig.Serialize()
 	if err != nil {
-		return nil, fmt.Errorf("could not serialize databricks Config, %v", err)
+		return nil, fmt.Errorf("could not serialize Config, %v", err)
 	}
-	store, err := CreateFileStore(string(sc.StoreType), Config(serializedFilestoreConfig))
+	store, err := CreateSparkFileStore(string(sc.StoreType), Config(serializedFilestoreConfig))
 	if err != nil {
 		logger.Errorw("Failure initializing blob store", "type", sc.StoreType, "error", err)
 		return nil, err
@@ -315,11 +693,11 @@ func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 }
 
 type SparkExecutor interface {
-	RunSparkJob(args []string, store FileStore) error
-	InitializeExecutor(store FileStore) error
-	PythonFileURI(store FileStore) string
-	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string
-	GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error)
+	RunSparkJob(args []string, store SparkFileStore) error
+	InitializeExecutor(store SparkFileStore) error
+	PythonFileURI(store SparkFileStore) string
+	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string
+	GetDFArgs(outputURI string, code string, sources []string, store SparkFileStore) ([]string, error)
 }
 
 type EMRExecutor struct {
@@ -328,7 +706,7 @@ type EMRExecutor struct {
 	logger      *zap.SugaredLogger
 }
 
-func (e EMRExecutor) InitializeExecutor(store FileStore) error {
+func (e EMRExecutor) InitializeExecutor(store SparkFileStore) error {
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
 	scriptFile, err := os.Open(sparkScriptPath)
 	if err != nil {
@@ -349,7 +727,7 @@ type SparkGenericExecutor struct {
 	logger        *zap.SugaredLogger
 }
 
-func (s *SparkGenericExecutor) InitializeExecutor(store FileStore) error {
+func (s *SparkGenericExecutor) InitializeExecutor(store SparkFileStore) error {
 	s.logger.Info("Uploading PySpark script to filestore")
 	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
 	sparkScriptPathWithPrefix := store.PathWithPrefix(sparkScriptPath, false)
@@ -362,14 +740,18 @@ func (s *SparkGenericExecutor) InitializeExecutor(store FileStore) error {
 	return nil
 }
 
-func (s *SparkGenericExecutor) RunSparkJob(args []string, store FileStore) error {
+func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore) error {
 	bashCommand := "bash"
 	sparkArgsString := strings.Join(args, " ")
 	bashCommandArgs := []string{"-c", fmt.Sprintf("pyenv global %s && pyenv exec %s", s.pythonVersion, sparkArgsString)}
 
-	s.logger.Info("Executing spark-submit")
+	s.logger.Info("Executing spark-submit ", len(bashCommandArgs), bashCommandArgs)
 	cmd := exec.Command(bashCommand, bashCommandArgs...)
 	cmd.Env = append(os.Environ(), "FEATUREFORM_LOCAL_MODE=true")
+
+	var outb, errb bytes.Buffer
+	cmd.Stdout = &outb
+	cmd.Stderr = &errb
 
 	err := cmd.Start()
 	if err != nil {
@@ -378,115 +760,90 @@ func (s *SparkGenericExecutor) RunSparkJob(args []string, store FileStore) error
 
 	err = cmd.Wait()
 	if err != nil {
-		return fmt.Errorf("spark job failed: %v", err)
+		return fmt.Errorf("spark job failed: %v : stdout %s : stderr %s", err, outb.String(), errb.String())
 	}
 
 	return nil
 }
 
-func (s *SparkGenericExecutor) PythonFileURI(store FileStore) string {
+func (s *SparkGenericExecutor) PythonFileURI(store SparkFileStore) string {
 	// not used for Spark Generic Executor
 	return ""
 }
 
-func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
-	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
-
+func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
 	argList := []string{
 		"spark-submit",
-		"--master",
-		s.master,
 		"--deploy-mode",
 		s.deployMode,
+		"--master",
+		s.master,
 	}
+
+	packageArgs := store.Packages()
+	argList = append(argList, packageArgs...) // adding any packages needed for filestores
+
+	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/app/provider/scripts/spark/offline_store_spark_runner.py")
+	//sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
 	scriptArgs := []string{
-		sparkScriptPath,
+		sparkScriptPathEnv,
 		"sql",
 		"--output_uri",
-		fmt.Sprintf("\"%s\"", destPath),
+		destPath,
 		"--sql_query",
-		fmt.Sprintf("\"%s\"", cleanQuery),
+		fmt.Sprintf("'%s'", cleanQuery),
 		"--job_type",
-		fmt.Sprintf("\"%s\"", string(jobType)),
+		fmt.Sprintf("'%s'", jobType),
+		"--store_type",
+		store.Type(),
 	}
+	argList = append(argList, scriptArgs...)
 
-	var packageArgs []string
-	azureStore := store.AsAzureStore()
+	sparkConfigs := store.SparkConfig()
+	argList = append(argList, sparkConfigs...)
 
-	if azureStore != nil {
-		packageArgs = []string{
-			"--packages",
-			"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
-		}
-
-		remoteConnectionArgs := []string{
-			"--spark_config",
-			fmt.Sprintf("\"%s\"", azureStore.configString()),
-		}
-
-		scriptArgs = append(scriptArgs, remoteConnectionArgs...)
-	}
-
-	argList = append(argList, packageArgs...) // adding any packages needed for filestores
-	argList = append(argList, scriptArgs...)  // adding pyspark arguments
+	credentialConfigs := store.CredentialsConfig()
+	argList = append(argList, credentialConfigs...)
 
 	argList = append(argList, "--source_list")
-	for _, source := range sourceList {
-		argList = append(argList, fmt.Sprintf("\"%s\"", source))
-	}
+	argList = append(argList, sourceList...)
 	return argList
 }
 
-func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error) {
-	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
-
+func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources []string, store SparkFileStore) ([]string, error) {
 	argList := []string{
 		"spark-submit",
-		"--master",
-		s.master,
 		"--deploy-mode",
 		s.deployMode,
+		"--master",
+		s.master,
 	}
 
+	packageArgs := store.Packages()
+	argList = append(argList, packageArgs...) // adding any packages needed for filestores
+
+	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/app/provider/scripts/spark/offline_store_spark_runner.py")
+	//sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, false)
 	scriptArgs := []string{
-		sparkScriptPath,
+		sparkScriptPathEnv,
 		"df",
 		"--output_uri",
-		fmt.Sprintf("\"%s\"", outputURI),
+		outputURI,
 		"--code",
 		code,
+		"--store_type",
+		store.Type(),
 	}
+	argList = append(argList, scriptArgs...)
 
-	var packageArgs []string
-	azureStore := store.AsAzureStore()
+	sparkConfigs := store.SparkConfig()
+	argList = append(argList, sparkConfigs...)
 
-	if azureStore != nil {
-		packageArgs = []string{
-			"--packages",
-			"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
-		}
-
-		remoteConnectionArgs := []string{
-			"--store_type",
-			"azure_blob_store",
-			"--spark_config",
-			fmt.Sprintf("\"%s\"", azureStore.configString()),
-			"--credential",
-			fmt.Sprintf("\"azure_connection_string=%s\"", azureStore.connectionString()),
-			"--credential",
-			fmt.Sprintf("\"azure_container_name=%s\"", azureStore.containerName()),
-		}
-
-		scriptArgs = append(scriptArgs, remoteConnectionArgs...)
-	}
-
-	argList = append(argList, packageArgs...) // adding any packages needed for filestores
-	argList = append(argList, scriptArgs...)  // adding pyspark script arguments
+	credentialConfigs := store.CredentialsConfig()
+	argList = append(argList, credentialConfigs...)
 
 	argList = append(argList, "--source")
-	for _, source := range sources {
-		argList = append(argList, fmt.Sprintf("\"%s\"", source))
-	}
+	argList = append(argList, sources...)
 
 	return argList, nil
 }
@@ -540,7 +897,7 @@ func NewEMRExecutor(emrConfig pc.EMRConfig, logger *zap.SugaredLogger) (SparkExe
 	return &emrExecutor, nil
 }
 
-func (e *EMRExecutor) RunSparkJob(args []string, store FileStore) error {
+func (e *EMRExecutor) RunSparkJob(args []string, store SparkFileStore) error {
 	params := &emr.AddJobFlowStepsInput{
 		JobFlowId: aws.String(e.clusterName), //returned by listclusters
 		Steps: []emrTypes.StepConfig{
@@ -574,12 +931,20 @@ func (e *EMRExecutor) RunSparkJob(args []string, store FileStore) error {
 	return nil
 }
 
-func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
+func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
 		"client",
-		store.PathWithPrefix("featureform/scripts/offline_store_spark_runner.py", true),
+	}
+
+	packageArgs := store.Packages()
+	argList = append(argList, packageArgs...) // adding any packages needed for filestores
+
+	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
+	sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
+	scriptArgs := []string{
+		sparkScriptPath,
 		"sql",
 		"--output_uri",
 		store.PathWithPrefix(destPath, true),
@@ -587,13 +952,23 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 		cleanQuery,
 		"--job_type",
 		string(jobType),
-		"--source_list",
+		"--store_type",
+		store.Type(),
 	}
+	argList = append(argList, scriptArgs...)
+
+	sparkConfigs := store.SparkConfig()
+	argList = append(argList, sparkConfigs...)
+
+	credentialConfigs := store.CredentialsConfig()
+	argList = append(argList, credentialConfigs...)
+
+	argList = append(argList, "--source_list")
 	argList = append(argList, sourceList...)
 	return argList
 }
 
-func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store FileStore) []string {
+func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
 	argList := []string{
 		"sql",
 		"--output_uri",
@@ -602,16 +977,14 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string,
 		cleanQuery,
 		"--job_type",
 		string(jobType),
+		"--store_type",
+		store.Type(),
 	}
-	var remoteConnectionArgs []string
-	azureStore := store.AsAzureStore()
-	if azureStore != nil {
-		remoteConnectionArgs = []string{
-			"--spark_config",
-			azureStore.configString(),
-		}
-	}
-	argList = append(argList, remoteConnectionArgs...)
+	sparkConfigs := store.SparkConfig()
+	argList = append(argList, sparkConfigs...)
+
+	credentialConfigs := store.CredentialsConfig()
+	argList = append(argList, credentialConfigs...)
 
 	argList = append(argList, "--source_list")
 	argList = append(argList, sourceList...)
@@ -679,17 +1052,19 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 }
 
 func GetTransformationFileLocation(id ResourceID) string {
-	return fmt.Sprintf("featureform/DFTranformations/%s/%s", id.Name, id.Variant)
+	return fmt.Sprintf("featureform/DFTransformations/%s/%s", id.Name, id.Variant)
 }
 
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
 	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
+	spark.Logger.Infow("Transformation Destination", "dest", transformationDestination)
 	transformationDestinationWithSlash := strings.Join([]string{transformationDestination, ""}, "/")
-
+	spark.Logger.Infow("Transformation Destination With Slash", "dest", transformationDestinationWithSlash)
 	transformationFile, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false), Parquet)
 	if err != nil {
 		return fmt.Errorf("error checking if transformation file exists")
 	}
+	spark.Logger.Infow("Transformation file", "dest", transformationFile)
 	transformationExists := transformationFile != ""
 	if !isUpdate && transformationExists {
 		spark.Logger.Errorw("Transformation already exists", config.TargetTableID, transformationDestination)
@@ -699,10 +1074,11 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 
-	transformationFilePath := GetTransformationFileLocation(config.TargetTableID)
+	transformationFilePath := spark.Store.PathWithPrefix(GetTransformationFileLocation(config.TargetTableID), false)
+	spark.Logger.Infow("Transformation file path", "dest", transformationFilePath)
 	fileName := "transformation.pkl"
 	transformationFileLocation := fmt.Sprintf("%s/%s", transformationFilePath, fileName)
-
+	spark.Logger.Infow("Uploading Transformation File", "location", transformationFileLocation)
 	if err := spark.Store.Write(transformationFileLocation, config.Code); err != nil {
 		return fmt.Errorf("could not upload file: %s", err)
 	}
@@ -719,7 +1095,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	}
 	spark.Logger.Debugw("Running DF transformation")
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
-		spark.Logger.Errorw("Error running Spark dataframe job", err)
+		spark.Logger.Errorw("Error running Spark dataframe job", "error", err)
 		return fmt.Errorf("spark submit job for transformation failed to run: (name: %s variant:%s) %v", config.TargetTableID.Name, config.TargetTableID.Variant, err)
 	}
 	spark.Logger.Debugw("Successfully ran transformation", "type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)
@@ -732,7 +1108,7 @@ func (spark *SparkOfflineStore) getSources(mapping []SourceMapping) ([]string, e
 	for _, m := range mapping {
 		sourcePath, err := spark.getSourcePath(m.Source)
 		if err != nil {
-			spark.Logger.Errorw("Error getting source path for spark source", m.Source, err)
+			spark.Logger.Errorw("Error getting source path for spark source", "source", m.Source, "error", err)
 			return nil, fmt.Errorf("issue with retreiving the source path for %s because %s", m.Source, err)
 		}
 
@@ -823,49 +1199,58 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 	return fileType, fileName, fileVariant
 }
 
-func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error) {
+func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string, store SparkFileStore) ([]string, error) {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
 		"client",
-		store.PathWithPrefix("featureform/scripts/offline_store_spark_runner.py", true),
+	}
+
+	packageArgs := store.Packages()
+	argList = append(argList, packageArgs...) // adding any packages needed for filestores
+
+	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
+	sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
+	scriptArgs := []string{
+		sparkScriptPath,
 		"df",
 		"--output_uri",
 		outputURI,
 		"--code",
 		store.PathWithPrefix(code, true),
-		"--source",
+		"--store_type",
+		store.Type(),
 	}
+	argList = append(argList, scriptArgs...)
 
+	sparkConfigs := store.SparkConfig()
+	argList = append(argList, sparkConfigs...)
+
+	credentialConfigs := store.CredentialsConfig()
+	argList = append(argList, credentialConfigs...)
+
+	argList = append(argList, "--source")
 	argList = append(argList, sources...)
 
 	return argList, nil
 }
 
-func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []string, store FileStore) ([]string, error) {
+func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []string, store SparkFileStore) ([]string, error) {
 	argList := []string{
 		"df",
 		"--output_uri",
 		outputURI,
 		"--code",
-		code,
+		store.PathWithPrefix(code, true),
+		"--store_type",
+		store.Type(),
 	}
-	var remoteConnectionArgs []string
-	azureStore := store.AsAzureStore()
 
-	if azureStore != nil {
-		remoteConnectionArgs = []string{
-			"--store_type",
-			"azure_blob_store",
-			"--spark_config",
-			azureStore.configString(),
-			"--credential",
-			fmt.Sprintf("azure_connection_string=%s", azureStore.connectionString()),
-			"--credential",
-			fmt.Sprintf("azure_container_name=%s", azureStore.containerName()),
-		}
-	}
-	argList = append(argList, remoteConnectionArgs...)
+	sparkConfigs := store.SparkConfig()
+	argList = append(argList, sparkConfigs...)
+
+	credentialConfigs := store.CredentialsConfig()
+	argList = append(argList, credentialConfigs...)
 
 	argList = append(argList, "--source")
 	argList = append(argList, sources...)
@@ -907,17 +1292,17 @@ func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, e
 
 func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate bool) (Materialization, error) {
 	if id.Type != Feature {
-		spark.Logger.Errorw("Attempted to create a materialization of a non feature resource", id.Type)
+		spark.Logger.Errorw("Attempted to create a materialization of a non feature resource", "type", id.Type)
 		return nil, fmt.Errorf("only features can be materialized")
 	}
 	resourceTable, err := spark.GetResourceTable(id)
 	if err != nil {
-		spark.Logger.Errorw("Attempted to fetch resource table of non registered resource", err)
+		spark.Logger.Errorw("Attempted to fetch resource table of non registered resource", "error", err)
 		return nil, fmt.Errorf("resource not registered: %v", err)
 	}
 	sparkResourceTable, ok := resourceTable.(*BlobOfflineTable)
 	if !ok {
-		spark.Logger.Errorw("Could not convert resource table to S3 offline table", id)
+		spark.Logger.Errorw("Could not convert resource table to S3 offline table", "id", id)
 		return nil, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
 	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
@@ -928,10 +1313,10 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	}
 	materializationExists := materializationNewestFile != ""
 	if materializationExists && !isUpdate {
-		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", id)
+		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", "id", id)
 		return nil, fmt.Errorf("materialization already exists")
 	} else if !materializationExists && isUpdate {
-		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", id)
+		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", "id", id)
 		return nil, fmt.Errorf("materialization already exists")
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
@@ -970,12 +1355,12 @@ func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (Resourc
 	spark.Logger.Debugw("Getting resource schema", "id", id)
 	table, err := spark.GetResourceTable(id)
 	if err != nil {
-		spark.Logger.Errorw("Resource not registered in spark store", id, err)
+		spark.Logger.Errorw("Resource not registered in spark store", "id", id, "error", err)
 		return ResourceSchema{}, fmt.Errorf("resource not registered: %v", err)
 	}
 	sparkResourceTable, ok := table.(*BlobOfflineTable)
 	if !ok {
-		spark.Logger.Errorw("could not convert offline table to sparkResourceTable", id)
+		spark.Logger.Errorw("could not convert offline table to sparkResourceTable", "id", id)
 		return ResourceSchema{}, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
 	}
 	spark.Logger.Debugw("Succesfully retrieved resource schema", "id", id)
@@ -984,7 +1369,7 @@ func (spark *SparkOfflineStore) registeredResourceSchema(id ResourceID) (Resourc
 
 func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate bool) error {
 	if err := def.check(); err != nil {
-		spark.Logger.Errorw("Training set definition not valid", def, err)
+		spark.Logger.Errorw("Training set definition not valid", "definition", def, "error", err)
 		return err
 	}
 	sourcePaths := make([]string, 0)
@@ -1004,7 +1389,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	}
 	labelSchema, err := spark.registeredResourceSchema(def.Label)
 	if err != nil {
-		spark.Logger.Errorw("Could not get schema of label in spark store", def.Label, err)
+		spark.Logger.Errorw("Could not get schema of label in spark store", "label", def.Label, "error", err)
 		return fmt.Errorf("could not get schema of label %s: %v", def.Label, err)
 	}
 	labelPath := spark.Store.PathWithPrefix(labelSchema.SourceTable, true)
@@ -1012,7 +1397,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	for _, feature := range def.Features {
 		featureSchema, err := spark.registeredResourceSchema(feature)
 		if err != nil {
-			spark.Logger.Errorw("Could not get schema of feature in spark store", feature, err)
+			spark.Logger.Errorw("Could not get schema of feature in spark store", "feature", feature, "error", err)
 			return fmt.Errorf("could not get schema of feature %s: %v", feature, err)
 		}
 		featurePath := spark.Store.PathWithPrefix(featureSchema.SourceTable, true)
@@ -1053,8 +1438,4 @@ func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterat
 
 func sanitizeSparkSQL(name string) string {
 	return name
-}
-
-func ResourcePath(id ResourceID) string {
-	return fmt.Sprintf("%s/%s/%s", id.Type, id.Name, id.Variant)
 }

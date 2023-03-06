@@ -88,6 +88,7 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
     spark = SparkSession.builder.appName("Dataframe Transformation").getOrCreate()
     set_spark_configs(spark, spark_configs)
     
+    print(f"reading {len(sources)} source files")
     func_parameters = []
     for location in sources:
         func_parameters.append(spark.read.option("recursiveFileLookup", "true").parquet(location))
@@ -98,7 +99,8 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         output_df = func(*func_parameters)
 
         dt = datetime.now()
-        output_uri_with_timestamp = f"{output_uri}{dt}" if output_uri[-1] == "/" else f"{output_uri}/{dt}"
+        safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
+        output_uri_with_timestamp = f"{output_uri}{safe_datetime}" if output_uri[-1] == "/" else f"{output_uri}/{safe_datetime}"
         output_df.write.mode("overwrite").parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
@@ -126,15 +128,21 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
         # used to read the object in the bucket. 
         
         aws_region = credentials.get("aws_region")
-        if aws_region == None:
-            raise Exception("the value for 'aws_region' need to be set in as credential")
+        aws_access_key_id = credentials.get("aws_access_key_id")
+        aws_secret_access_key = credentials.get("aws_secret_access_key")
+        if not (aws_region and aws_access_key_id and aws_secret_access_key):
+            raise Exception("the values for 'aws_region', 'aws_access_key_id', 'aws_secret_access_key' need to be set as credential")
 
         prefix_len = len("s3://")
         split_path = file_path[prefix_len:].split("/")
         bucket = split_path[0]
         key = '/'.join(split_path[1:])
 
-        s3_resource = boto3.resource("s3", region_name=aws_region)
+        session = boto3.Session(
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+        )
+        s3_resource = session.resource("s3", region_name=aws_region)
         s3_object = s3_resource.Object(bucket, key)
 
         with io.BytesIO() as f:
@@ -210,6 +218,7 @@ def set_spark_configs(spark, configs):
     # This method is used to set configs for Spark. It will be mostly
     # used to set access credentials for Spark to the store. 
 
+    print("setting spark configs")
     for key, value in configs.items():
         spark.conf.set(key, value)
 

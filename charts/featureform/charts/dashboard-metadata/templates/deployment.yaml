@@ -43,12 +43,12 @@ spec:
               value: "8080"
             - name: METADATA_HTTP_PORT
               value: "3001"
-            - name: TYPESENSE_PORT
-              value: {{ .Values.typesense.port | quote }}
-            - name: TYPESENSE_HOST
-              value: {{ .Values.typesense.host }}
-            - name: TYPESENSE_APIKEY
-              value: {{ .Values.typesense.apikey | quote }}
+            - name: MEILISEARCH_PORT
+              value: {{ .Values.search.port | quote }}
+            - name: MEILISEARCH_HOST
+              value: {{ .Values.search.host }}
+            - name: MEILISEARCH_APIKEY
+              value: {{ .Values.search.apikey | quote }}
           ports:
             - name: http
               containerPort: 3001

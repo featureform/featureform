@@ -186,6 +186,35 @@ def apply(host, cert, insecure, local, files, dry_run):
     rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert, dry_run=dry_run)
     rc.apply()
 
+@cli.command()
+@click.option("--query",
+              "-q",
+              "query",
+              required=True,
+              help="The phrase to search resources (e.g. 'quick').")
+@click.option("--host",
+              "host",
+              required=False,
+              help="The host address of the API server to connect to")
+@click.option("--cert",
+              "cert",
+              required=False,
+              help="Path to self-signed TLS certificate")
+@click.option("--insecure",
+              is_flag=True,
+              help="Disables TLS verification")
+@click.option("--local",
+              is_flag=True,
+              help="Enable local mode")
+def search(query, host, cert, insecure, local):
+    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
+    results = rc.search(query, local)
+    if local:
+        format_rows("NAME", "VARIANT", "TYPE")
+        for r in results:
+            desc = r["description"][:cutoff_length] + "..." if len(r["description"]) > 0 else ""
+            format_rows(r["name"], r["variant"], r["resource_type"])
+
 
 def read_file(file):
     with open(file, "r") as py:

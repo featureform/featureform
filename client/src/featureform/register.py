@@ -22,9 +22,11 @@ from .resources import Model, ResourceState, Provider, RedisConfig, FirestoreCon
     AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, S3StoreConfig, GCSFileStoreConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation, \
-    K8sArgs, AWSCredentials, GCPCredentials
+    K8sArgs, AWSCredentials, GCPCredentials, K8sResourceSpecs
 
 from .proto import metadata_pb2_grpc as ff_grpc
+from .search_local import search_local
+from .search import search
 
 
 NameVariant = Tuple[str, str]
@@ -267,7 +269,8 @@ class OfflineK8sProvider(OfflineProvider):
                            name: str = "",
                            schedule: str = "",
                            description: str = "",
-                           docker_image: str = ""
+                           docker_image: str = "",
+                           resource_specs: Union[K8sResourceSpecs, None] = None
                            ):
         """
         Register a SQL transformation source. The k8s.sql_transformation decorator takes the returned string in the
@@ -292,6 +295,7 @@ class OfflineK8sProvider(OfflineProvider):
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of primary data to be registered
             docker_image (str): A custom Docker image to run the transformation
+            resource_specs (K8sResourceSpecs): Custom resource requests and limits
 
 
         Returns:
@@ -303,7 +307,7 @@ class OfflineK8sProvider(OfflineProvider):
                                                    schedule=schedule,
                                                    provider=self.name(),
                                                    description=description,
-                                                   args=K8sArgs(docker_image=docker_image)
+                                                   args=K8sArgs(docker_image=docker_image, specs=resource_specs)
                                                    )
 
     def df_transformation(self,
@@ -312,7 +316,8 @@ class OfflineK8sProvider(OfflineProvider):
                           name: str = "",
                           description: str = "",
                           inputs: list = [],
-                          docker_image: str = ""
+                          docker_image: str = "",
+                          resource_specs: Union[K8sResourceSpecs, None] = None
                           ):
         """
         Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
@@ -336,6 +341,7 @@ class OfflineK8sProvider(OfflineProvider):
             description (str): Description of primary data to be registered
             inputs (list[Tuple(str, str)]): A list of Source NameVariant Tuples to input into the transformation
             docker_image (str): A custom Docker image to run the transformation
+            resource_specs (K8sResourceSpecs): Custom resource requests and limits
 
         Returns:
             source (ColumnSourceRegistrar): Source
@@ -346,7 +352,7 @@ class OfflineK8sProvider(OfflineProvider):
                                                   provider=self.name(),
                                                   description=description,
                                                   inputs=inputs,
-                                                  args=K8sArgs(docker_image=docker_image)
+                                                  args=K8sArgs(docker_image=docker_image, specs=resource_specs)
                                                   )
 
 
@@ -2539,6 +2545,7 @@ class ResourceClient(Registrar):
             else:
                 channel = secure_channel(host, cert_path)
             self._stub = ff_grpc.ApiStub(channel)
+            self._host = host
 
     def apply(self):
         """Apply all definitions, creating and retrieving all specified resources.
@@ -3653,6 +3660,29 @@ class ResourceClient(Registrar):
         if local:
             return list_local("provider", [ColumnName.NAME, ColumnName.STATUS, ColumnName.DESCRIPTION])
         return list_name_status_desc(self._stub, "provider")
+
+    def search(self, raw_query, local=False):
+        """Search for registered resources. Prints a list of results.
+
+        **Examples:**
+        ``` py title="Input"
+        providers_list = rc.search("transact")
+        ```
+
+        ``` json title="Output"
+        // search prints out formatted information on all matches
+
+        NAME                           VARIANT            TYPE
+        avg_transactions               default            Source
+        ```
+        """
+        if type(raw_query) != str or len(raw_query) == 0:
+            raise Exception("query must be string and cannot be empty")
+        processed_query = raw_query.translate({ ord(i): None for i in '.,-@!*#'})
+        if local:
+            return search_local(processed_query)
+        else:
+            return search(processed_query, self._host)
 
 
 global_registrar = Registrar()

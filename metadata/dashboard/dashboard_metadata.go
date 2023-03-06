@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	help "github.com/featureform/helpers"
+	"github.com/featureform/metadata/search"
 	"net/http"
 	"reflect"
 	"time"
@@ -15,13 +16,11 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/typesense/typesense-go/typesense"
-	api "github.com/typesense/typesense-go/typesense/api"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
-var typesenseClient *typesense.Client
+var searchClient search.Searcher
 
 type MetadataServer struct {
 	client *metadata.Client
@@ -947,12 +946,12 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 }
 
 func (m *MetadataServer) GetSearch(c *gin.Context) {
-	query := c.Param("query")
-	searchParameters := &api.SearchCollectionParams{
-		Q:       query,
-		QueryBy: "Name",
+	query, ok := c.GetQuery("q")
+	if !ok {
+		c.JSON(500, "Missing query")
 	}
-	result, err := typesenseClient.Collection("resource").Documents().Search(searchParameters)
+
+	result, err := searchClient.RunSearch(query)
 	if err != nil {
 		m.logger.Errorw("Failed to fetch resources", "error", err)
 		c.JSON(500, "Failed to fetch resources")
@@ -967,7 +966,7 @@ func (m *MetadataServer) Start(port string) {
 
 	router.GET("/data/:type", m.GetMetadataList)
 	router.GET("/data/:type/:resource", m.GetMetadata)
-	router.GET("/search/:query", m.GetSearch)
+	router.GET("/data/search", m.GetSearch)
 
 	router.Run(port)
 }
@@ -976,14 +975,17 @@ func main() {
 	logger := zap.NewExample().Sugar()
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")
-	typesenseHost := help.GetEnv("TYPESENSE_HOST", "localhost")
-	typesensePort := help.GetEnv("TYPESENSE_PORT", "8108")
-	typesenseEndpoint := fmt.Sprintf("http://%s:%s", typesenseHost, typesensePort)
-	typesenseApiKey := help.GetEnv("TYPESENSE_APIKEY", "xyz")
-	logger.Infof("Connecting to typesense at: %s\n", typesenseEndpoint)
-	typesenseClient = typesense.NewClient(
-		typesense.WithServer(typesenseEndpoint),
-		typesense.WithAPIKey(typesenseApiKey))
+	searchHost := help.GetEnv("MEILISEARCH_HOST", "localhost")
+	searchPort := help.GetEnv("MEILISEARCH_PORT", "7700")
+	searchEndpoint := fmt.Sprintf("http://%s:%s", searchHost, searchPort)
+	searchApiKey := help.GetEnv("MEILISEARCH_APIKEY", "xyz")
+	logger.Infof("Connecting to typesense at: %s\n", searchEndpoint)
+	sc, err := search.NewMeilisearch(&search.MeilisearchParams{
+		Host:   searchHost,
+		Port:   searchPort,
+		ApiKey: searchApiKey,
+	})
+	searchClient = sc
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	logger.Infof("Looking for metadata at: %s\n", metadataAddress)
 	client, err := metadata.NewClient(metadataAddress, logger)

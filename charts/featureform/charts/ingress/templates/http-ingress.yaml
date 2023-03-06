@@ -20,13 +20,6 @@ spec:
     - host: {{ .Values.global.hostname }}
       http:
         paths:
-          - path: /collections/
-            pathType: Prefix
-            backend:
-              service:
-                name: featureform-typesense
-                port:
-                  number: 80
           - path: /data/
             pathType: Prefix
             backend:

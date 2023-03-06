@@ -1,5 +1,5 @@
 import os
-from datetime import timedelta
+from datetime import timedelta 
 
 from dotenv import load_dotenv
 
@@ -25,9 +25,9 @@ VERSION=get_random_string()
 os.environ["TEST_CASE_VERSION"]=VERSION
 
 FEATURE_NAME = f"spark_e2e_{VERSION}"
-FEATURE_VARIANT = "emr_s3"
+FEATURE_VARIANT = "generic_hdfs"
 TRAININGSET_NAME = f"spark_e2e_training_{VERSION}"
-TRAININGSET_VARIANT = "emr_s3"
+TRAININGSET_VARIANT = "generic_hdfs"
 
 FEATURE_SERVING = f"farm:farm1"
 VERSIONS = f"{FEATURE_NAME},{FEATURE_VARIANT}:{TRAININGSET_NAME},{TRAININGSET_VARIANT}"
@@ -44,42 +44,37 @@ redis = ff.register_redis(
     description="A Redis deployment we created for the Featureform quickstart"
 )
 
-aws_creds = ff.AWSCredentials(
-    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", None),
-    aws_secret_access_key=os.getenv("AWS_SECRET_KEY", None),
+spark_creds = ff.SparkCredentials(
+    master=os.getenv("SPARK_MASTER", "local"),
+    deploy_mode="client",
+    python_version="3.7.16",
 )
 
-emr = ff.EMRCredentials(
-    emr_cluster_id=os.getenv("AWS_EMR_CLUSTER_ID", None),
-    emr_cluster_region=os.getenv("AWS_EMR_CLUSTER_REGION", None),
-    credentials=aws_creds,
-)
-
-s3 = ff.register_s3(
-    name=f"s3-quickstart_{VERSION}",
-    credentials=aws_creds,
-    bucket_path=os.getenv("S3_BUCKET_PATH", None),
-    bucket_region=os.getenv("S3_BUCKET_REGION", None),
+hdfs = ff.register_hdfs(
+    name="hdfs",
+    host="host.minikube.internal",
+    port="9000",
+    username="hduser"
 )
 
 spark = ff.register_spark(
-    name=f"spark-emr-s3_{VERSION}",
-    description="A Spark deployment we created for the Featureform quickstart",
-    team="featureform-team",
-    executor=emr,
-    filestore=s3,
-)
+            name=f"spark-generic-hdfs_{VERSION}",
+            description="A Spark deployment we created for the Featureform quickstart",
+            team="featureform-team",
+            executor=spark_creds,
+            filestore=hdfs,
+        )
 
-ice_cream_dataset = spark.register_file(
+ice_cream_dataset = spark.register_parquet_file(
     name=f"ice_cream_{VERSION}",
     variant=VERSION,
     description="A dataset of ice cream",
-    file_path="s3://featureform-spark-testing/featureform/tests/ice_cream.parquet"
+    file_path="hdfs://ice_cream.parquet"
 )
 
 @spark.df_transformation(name=f"ice_cream_transformation_{VERSION}",
-                         variant=VERSION,
-                         inputs=[(f"ice_cream_{VERSION}", VERSION)])
+                        variant=VERSION,
+                        inputs=[(f"ice_cream_{VERSION}", VERSION)])
 def ice_cream_transformation(df):
     """the ice cream dataset """
     return df

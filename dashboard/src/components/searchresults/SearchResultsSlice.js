@@ -4,7 +4,7 @@ export const fetchSearch = createAsyncThunk(
   "searchResults/fetchSearch",
   async ({ api, query }, { signal }) => {
     const response = await api.fetchSearch(query, signal);
-    console.log("got seach")
+    console.log("got search")
     console.log(response)
     return response;
   }

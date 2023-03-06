@@ -946,7 +946,10 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 }
 
 func (m *MetadataServer) GetSearch(c *gin.Context) {
-	query := c.Param("query")
+	query, ok := c.GetQuery("q")
+	if !ok {
+		c.JSON(500, "Missing query")
+	}
 
 	result, err := searchClient.RunSearch(query)
 	if err != nil {
@@ -963,7 +966,7 @@ func (m *MetadataServer) Start(port string) {
 
 	router.GET("/data/:type", m.GetMetadataList)
 	router.GET("/data/:type/:resource", m.GetMetadata)
-	router.GET("/search/:query", m.GetSearch)
+	router.GET("/data/search", m.GetSearch)
 
 	router.Run(port)
 }

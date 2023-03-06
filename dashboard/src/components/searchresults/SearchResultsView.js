@@ -87,6 +87,7 @@ const SearchResultsView = ({ results, search_query, setVariant }) => {
 const SearchResultsList = ({ type, contents, setVariant }) => {
   const classes = useStyles();
   let filteredContentHits = {};
+  console.log(contents)
   let moreFilteredContents = contents.filter((content) => {
     if (content.Name + "." + content.Variant + "." + content.Type in filteredContentHits) {
       return false;

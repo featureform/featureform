@@ -518,7 +518,7 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 	// 	return fmt.Errorf("Could not modify cluster to accept spark configs; %v", err)
 	// }
 
-	fmt.Printf("running spark job, args: %v", args)
+	fmt.Println("running spark job, args:", args)
 
 	pythonTask := jobs.SparkPythonTask{
 		PythonFile: db.PythonFileURI(store),

@@ -482,7 +482,6 @@ func readAndUploadFile(filePath string, storePath string, store SparkFileStore) 
 	if err := store.Write(storePath, pythonScriptBytes); err != nil {
 		return fmt.Errorf("could not write to python script: %v", err)
 	}
-	fmt.Println("Uploaded", filePath, "to", storePath)
 	return nil
 }
 
@@ -534,8 +533,6 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 	// if err := clusterClient.Edit(setConfigReq); err != nil {
 	// 	return fmt.Errorf("Could not modify cluster to accept spark configs; %v", err)
 	// }
-
-	fmt.Println("running spark job, script:", db.PythonFileURI(store), "args:", args)
 
 	pythonTask := jobs.SparkPythonTask{
 		PythonFile: db.PythonFileURI(store),
@@ -766,7 +763,7 @@ func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore) 
 	sparkArgsString := strings.Join(args, " ")
 	bashCommandArgs := []string{"-c", fmt.Sprintf("pyenv global %s && pyenv exec %s", s.pythonVersion, sparkArgsString)}
 
-	s.logger.Info("Executing spark-submit ", len(bashCommandArgs), bashCommandArgs)
+	s.logger.Info("Executing spark-submit")
 	cmd := exec.Command(bashCommand, bashCommandArgs...)
 	cmd.Env = append(os.Environ(), "FEATUREFORM_LOCAL_MODE=true")
 

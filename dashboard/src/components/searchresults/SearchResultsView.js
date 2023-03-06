@@ -114,6 +114,8 @@ const SearchResultsList = ({ type, contents, setVariant }) => {
 const SearchResultsItem = ({ type, content, setVariant }) => {
   const classes = useStyles();
   const router = useRouter()
+  console.log("content", content)
+  console.log("type", type)
 
   const resourceType = Resource[content.Type];
   const resourceIcon = resourceType.materialIcon;

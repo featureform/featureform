@@ -1247,7 +1247,7 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string,
 		"--output_uri",
 		outputURI,
 		"--code",
-		store.PathWithPrefix(code, true),
+		store.PathWithPrefix(code, false),
 		"--store_type",
 		store.Type(),
 	}

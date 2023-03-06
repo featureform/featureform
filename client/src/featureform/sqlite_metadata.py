@@ -183,7 +183,7 @@ class SQLiteMetadata:
           training_set_variant text NOT NULL,
           UNIQUE(model_name, training_set_name, training_set_variant));''')
 
-        # models training sets table
+        # models features sets table
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS model_features(
           model_name           text NOT NULL,
           feature_name    text NOT NULL,
@@ -201,6 +201,71 @@ class SQLiteMetadata:
           sources          text,
           status           text,
           serialized_config text)''')
+
+        # full-text search table
+        self.__conn.execute('''CREATE VIRTUAL TABLE IF NOT EXISTS resources_fts USING fts5(
+          resource_type, -- an "enum" column to filter with (e.g. feature, training_set, source, provider, entity, label, model, user)
+          name,
+          variant,
+          description,
+          status,
+        );''')
+
+        # resource table triggers to populate fts table
+        self.__conn.execute('''CREATE TRIGGER IF NOT EXISTS feature_variant_after_insert
+        AFTER INSERT ON feature_variant
+        BEGIN
+        INSERT INTO resources_fts(resource_type, name, variant, description, status)
+        VALUES ('feature', new.name, new.variant, new.description, new.status);
+        END;''')
+
+        self.__conn.execute('''CREATE TRIGGER IF NOT EXISTS training_set_variant_after_insert
+        AFTER INSERT ON training_set_variant
+        BEGIN
+        INSERT INTO resources_fts(resource_type, name, variant, description, status)
+        VALUES ('training_set', new.name, new.variant, new.description, new.status);
+        END;''')
+        self.__conn.execute('''CREATE TRIGGER IF NOT EXISTS source_variant_after_insert
+        AFTER INSERT ON source_variant
+        BEGIN
+        INSERT INTO resources_fts(resource_type, name, variant, description, status)
+        VALUES ('source', new.name, new.variant, new.description, new.status);
+        END;''')
+
+        self.__conn.execute('''CREATE TRIGGER IF NOT EXISTS label_variant_after_insert
+        AFTER INSERT ON label_variant
+        BEGIN
+        INSERT INTO resources_fts(resource_type, name, variant, description, status)
+        VALUES ('label', new.name, new.variant, new.description, new.status);
+        END;''')
+
+        self.__conn.execute('''CREATE TRIGGER IF NOT EXISTS entities_after_insert
+        AFTER INSERT ON entities
+        BEGIN
+        INSERT INTO resources_fts(resource_type, name, variant, description, status)
+        VALUES ('entity', new.name, '', new.description, new.status);
+        END;''')
+
+        self.__conn.execute('''CREATE TRIGGER IF NOT EXISTS users_after_insert
+        AFTER INSERT ON users
+        BEGIN
+        INSERT INTO resources_fts(resource_type, name, variant, description, status)
+        VALUES ('user', new.name, '', '', new.status);
+        END;''')
+
+        self.__conn.execute('''CREATE TRIGGER IF NOT EXISTS models_after_insert
+        AFTER INSERT ON models
+        BEGIN
+        INSERT INTO resources_fts(resource_type, name, variant, description, status)
+        VALUES ('model', new.name, '', new.description, new.status);
+        END;''')
+
+        self.__conn.execute('''CREATE TRIGGER IF NOT EXISTS provider_after_insert
+        AFTER INSERT ON providers
+        BEGIN
+        INSERT INTO resources_fts(resource_type, name, variant, description, status)
+        VALUES ('provider', new.name, '', new.description, new.status);
+        END;''')
 
         self.__conn.commit()
 
@@ -347,3 +412,15 @@ class SQLiteMetadata:
 
     def close(self):
         self.__conn.close()
+
+    def search(self, phrase, resource_type=None):
+        if resource_type is None:
+          query = f"SELECT * FROM resources_fts WHERE resources_fts match '{{name variant description status}} : {phrase}*';"
+        else:
+          query = f"SELECT * FROM resources_fts WHERE resources_fts match '{{name variant description status}} : {phrase}*' AND resource_type = '{resource_type}';"
+
+        search_results = self.__conn.execute(query)
+        self.__conn.commit()
+        results_list = search_results.fetchall()
+
+        return results_list

@@ -19,6 +19,7 @@ const (
 	S3         FileStoreType = "S3"
 	GCS        FileStoreType = "GCS"
 	DB         FileStoreType = "db"
+	HDFS       FileStoreType = "HDFS"
 )
 
 type SerializedConfig []byte

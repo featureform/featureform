@@ -29,12 +29,12 @@ spec:
             - containerPort: 8080
           resources: {}
           env:
-            - name: TYPESENSE_PORT
-              value: {{ .Values.typesense.port | quote }}
-            - name: TYPESENSE_HOST
-              value: {{ .Values.typesense.host }}
-            - name: TYPESENSE_APIKEY
-              value: {{ .Values.typesense.apikey | quote }}
+            - name: MEILISEARCH_PORT
+              value: {{ .Values.search.port | quote }}
+            - name: MEILISEARCH_HOST
+              value: {{ .Values.search.host }}
+            - name: MEILISEARCH_APIKEY
+              value: {{ .Values.search.apikey | quote }}
             - name: ETCD_HOST
               value: {{ .Values.etcd.host  }}
             - name: ETCD_PORT

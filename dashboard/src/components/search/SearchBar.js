@@ -78,7 +78,7 @@ const SearchBar = ({ input, setQuery, homePage }) => {
   const [searchText, setSearchText] = React.useState("");
 
   function handleSearch(event) {
-    let uri = "/search?q=:" + searchText;
+    let uri = "/search?q=" + searchText;
     Router.push(uri);
   }
 

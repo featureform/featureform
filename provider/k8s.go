@@ -167,6 +167,7 @@ func init() {
 		pc.Azure:      NewAzureFileStore,
 		pc.S3:         NewS3FileStore,
 		pc.GCS:        NewGCSFileStore,
+		pc.HDFS:       NewHDFSFileStore,
 	}
 	executorFactoryMap := map[pc.ExecutorType]ExecutorFactory{
 		pc.GoProc: NewLocalExecutor,
@@ -334,6 +335,7 @@ func (kube *KubernetesExecutor) ExecuteScript(envVars map[string]string, args *m
 			Variant: envVars["RESOURCE_VARIANT"],
 			Type:    ProviderToMetadataResourceType[OfflineResourceType(resourceType)],
 		},
+		Specs: args.Specs,
 	}
 	jobRunner, err := kubernetes.NewKubernetesRunner(config)
 	if err != nil {
@@ -375,7 +377,7 @@ type FileStore interface {
 	Close() error
 	Upload(sourcePath string, destPath string) error
 	Download(sourcePath string, destPath string) error
-	AsAzureStore() *AzureFileStore
+	FilestoreType() string
 }
 
 type Iterator interface {
@@ -389,11 +391,8 @@ type genericFileStore struct {
 	path   string
 }
 
-func (store genericFileStore) AsAzureStore() *AzureFileStore {
-	return nil
-}
-
 func (store genericFileStore) PathWithPrefix(path string, remote bool) string {
+	// What does this mean? Change this as check for local file
 	if len(store.path) > 4 && store.path[0:4] == "file" {
 		return fmt.Sprintf("%s%s", store.path[len("file:///"):], path)
 	} else {
@@ -543,6 +542,10 @@ func (store genericFileStore) Download(sourcePath string, destPath string) error
 	return nil
 }
 
+func (store genericFileStore) FilestoreType() string {
+	return ""
+}
+
 func convertToParquetBytes(list []any) ([]byte, error) {
 	// TODO possibly accepts single struct instead of list, have to be able to accept either, or another function
 	if len(list) == 0 {
@@ -567,11 +570,12 @@ type ParquetIteratorMultipleFiles struct {
 	fileIterator   Iterator
 	featureColumns []string
 	labelColumn    string
-	store          genericFileStore
+	store          FileStore
 }
 
-func parquetIteratorOverMultipleFiles(fileParts []string, store genericFileStore) (Iterator, error) {
-	b, err := store.bucket.ReadAll(context.TODO(), fileParts[0])
+func parquetIteratorOverMultipleFiles(fileParts []string, store FileStore) (Iterator, error) {
+	b, err := store.Read(fileParts[0])
+	//b, err := store.bucket.ReadAll(context.TODO(), fileParts[0])
 	if err != nil {
 		return nil, fmt.Errorf("could not read bucket: %w", err)
 	}
@@ -605,7 +609,7 @@ func (p *ParquetIteratorMultipleFiles) Next() (map[string]interface{}, error) {
 			return nil, nil
 		}
 		p.currentFile += 1
-		b, err := p.store.bucket.ReadAll(context.TODO(), p.fileList[p.currentFile])
+		b, err := p.store.Read(p.fileList[p.currentFile])
 		if err != nil {
 			return nil, err
 		}
@@ -873,19 +877,20 @@ func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, source
 
 func blobRegisterPrimary(id ResourceID, sourceName string, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
+	logger.Infow("Checking if resource key exists", "key", resourceKey)
 	primaryExists, err := store.Exists(resourceKey)
 	if err != nil {
 		logger.Errorw("Error checking if primary exists", "error", err)
 		return nil, fmt.Errorf("error checking if primary exists: %v", err)
 	}
 	if primaryExists {
-		logger.Errorw("Error checking if primary exists", "source", sourceName)
+		logger.Errorw("Primary table already exists", "source", sourceName)
 		return nil, fmt.Errorf("primary already exists")
 	}
 
 	logger.Debugw("Registering primary table", "id", id, "source", sourceName)
 	if err := store.Write(resourceKey, []byte(sourceName)); err != nil {
-		logger.Errorw("Could not write primary table", err)
+		logger.Errorw("Could not write primary table", "error", err)
 		return nil, err
 	}
 
@@ -1115,6 +1120,12 @@ func (k8s *K8sOfflineStore) getResourceInformationFromFilePath(path string) (str
 	var fileVariant string
 	if path[:5] == "s3://" {
 		filePaths := strings.Split(path[len("s3://"):], "/")
+		if len(filePaths) <= 4 {
+			return "", "", ""
+		}
+		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
+	} else if path[:5] == HDFSPrefix {
+		filePaths := strings.Split(path[len(HDFSPrefix):], "/")
 		if len(filePaths) <= 4 {
 			return "", "", ""
 		}

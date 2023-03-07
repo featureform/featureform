@@ -9,5 +9,6 @@ def search_local(phrase):
 
     if len(results) == 0:
         print(f"Search phrase {phrase} returned no results.")
+        return []
     else:
         return results

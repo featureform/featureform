@@ -123,33 +123,30 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
 
     code = None
     if store_type == "s3":
-        # S3 paths are the following path: 's3://{bucket}/key/to/file'.
+        # S3 paths are the following path: 's3a://{bucket}/key/to/file'.
         # the split below separates the bucket name and the key that is 
         # used to read the object in the bucket. 
-        
+
         aws_region = credentials.get("aws_region")
         aws_access_key_id = credentials.get("aws_access_key_id")
         aws_secret_access_key = credentials.get("aws_secret_access_key")
-        if not (aws_region and aws_access_key_id and aws_secret_access_key):
-            raise Exception("the values for 'aws_region', 'aws_access_key_id', 'aws_secret_access_key' need to be set as credential")
-
-        prefix_len = len("s3://")
-        split_path = file_path[prefix_len:].split("/")
-        bucket = split_path[0]
-        key = '/'.join(split_path[1:])
+        bucket_name = credentials.get("aws_bucket_name")
+        if not (aws_region and aws_access_key_id and aws_secret_access_key and bucket_name):
+            raise Exception("the values for 'aws_region', 'aws_access_key_id', 'aws_secret_access_key', 'aws_bucket_name' need to be set as credential")
 
         session = boto3.Session(
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
         )
         s3_resource = session.resource("s3", region_name=aws_region)
-        s3_object = s3_resource.Object(bucket, key)
+        s3_object = s3_resource.Object(bucket_name, file_path)
 
         with io.BytesIO() as f:
             s3_object.download_fileobj(f)
 
             f.seek(0)
             code = dill.loads(f.read())
+
     elif store_type == "hdfs":
         # S3 paths are the following path: 's3://{bucket}/key/to/file'.
         # the split below separates the bucket name and the key that is
@@ -253,6 +250,7 @@ def split_key_value(values):
     for value in values:
         # split it into key and value; parse the first value
         value = value.replace('"', '')
+        value = value.replace('\\', '')
         key, value = value.split('=', 1)
         # assign into dictionary
         arguments[key] = value
@@ -266,7 +264,7 @@ def parse_args(args=None):
     sql_parser.add_argument(
         "--job_type", choices=["Transformation", "Materialization", "Training Set"], help="type of job being run on spark") 
     sql_parser.add_argument(
-        '--output_uri', help="output file location; eg. s3://featureform/{type}/{name}/{variant}")
+        '--output_uri', help="output file location; eg. s3a://featureform/{type}/{name}/{variant}")
     sql_parser.add_argument(
         '--sql_query', help="The SQL query you would like to run on the data source. eg. SELECT * FROM source_1 INNER JOIN source_2 ON source_1.id = source_2.id")
     sql_parser.add_argument(
@@ -277,7 +275,7 @@ def parse_args(args=None):
 
     df_parser = subparser.add_parser("df")
     df_parser.add_argument(
-        '--output_uri', required=True, help="output file location; eg. s3://featureform/{type}/{name}/{variant}")
+        '--output_uri', required=True, help="output file location; eg. s3a://featureform/{type}/{name}/{variant}")
     df_parser.add_argument(
         "--code", required=True, help="the path to transformation code file"
     )

@@ -110,38 +110,54 @@ type SparkS3FileStore struct {
 func (s3 SparkS3FileStore) SparkConfig() []string {
 	return []string{
 		"--spark_config",
-		"spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem",
+		fmt.Sprintf("\"fs.s3a.access.key=%s\"", s3.Credentials.AWSAccessKeyId),
 		"--spark_config",
-		"spark.hadoop.com.amazonaws.services.s3.enableV4=true",
+		fmt.Sprintf("\"fs.s3a.secret.key=%s\"", s3.Credentials.AWSSecretKey),
 		"--spark_config",
-		fmt.Sprintf("fs.s3a.access.key=%s", s3.Credentials.AWSAccessKeyId),
+		"\"fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\"",
 		"--spark_config",
-		fmt.Sprintf("fs.s3a.secret.key=%s", s3.Credentials.AWSSecretKey),
-		"--spark_config",
-		"fs.s3a.endpoint=s3.amazonaws.com",
+		"\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\"",
 	}
 }
 
 func (s3 SparkS3FileStore) CredentialsConfig() []string {
 	return []string{
 		"--credential",
-		fmt.Sprintf("aws_region=%s", s3.BucketRegion),
+		fmt.Sprintf("\"aws_bucket_name=%s\"", s3.Bucket),
 		"--credential",
-		fmt.Sprintf("aws_access_key_id=%s", s3.Credentials.AWSAccessKeyId),
+		fmt.Sprintf("\"aws_region=%s\"", s3.BucketRegion),
 		"--credential",
-		fmt.Sprintf("aws_secret_access_key=%s", s3.Credentials.AWSSecretKey),
+		fmt.Sprintf("\"aws_access_key_id=%s\"", s3.Credentials.AWSAccessKeyId),
+		"--credential",
+		fmt.Sprintf("\"aws_secret_access_key=%s\"", s3.Credentials.AWSSecretKey),
 	}
 }
 
 func (s3 SparkS3FileStore) Packages() []string {
 	return []string{
 		"--packages",
-		"org.apache.hadoop:hadoop-aws:3.2.0",
+		"org.apache.spark:spark-hadoop-cloud_2.12:3.2.0",
+		"--exclude-packages",
+		"com.google.guava:guava",
 	}
 }
 
 func (s3 SparkS3FileStore) Type() string {
 	return "s3"
+}
+
+func (s3 SparkS3FileStore) PathWithPrefix(path string, remote bool) string {
+	noS3Prefix := !strings.HasPrefix(path, "s3a://")
+
+	if remote && noS3Prefix {
+		s3Path := ""
+		if s3.Path != "" {
+			s3Path = fmt.Sprintf("/%s", s3.Path)
+		}
+		return fmt.Sprintf("s3a://%s%s/%s", s3.Bucket, s3Path, path)
+	} else {
+		return path
+	}
 }
 
 func NewSparkAzureFileStore(config Config) (SparkFileStore, error) {
@@ -519,8 +535,6 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 	// if err := clusterClient.Edit(setConfigReq); err != nil {
 	// 	return fmt.Errorf("Could not modify cluster to accept spark configs; %v", err)
 	// }
-
-	fmt.Println("running spark job, script:", db.PythonFileURI(store), "args:", args)
 
 	pythonTask := jobs.SparkPythonTask{
 		PythonFile: db.PythonFileURI(store),
@@ -944,7 +958,7 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 		"client",
 	}
 
-	packageArgs := store.Packages()
+	packageArgs := removeEspaceCharacters(store.Packages())
 	argList = append(argList, packageArgs...) // adding any packages needed for filestores
 
 	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
@@ -963,15 +977,24 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 	}
 	argList = append(argList, scriptArgs...)
 
-	sparkConfigs := store.SparkConfig()
+	sparkConfigs := removeEspaceCharacters(store.SparkConfig())
 	argList = append(argList, sparkConfigs...)
 
-	credentialConfigs := store.CredentialsConfig()
+	credentialConfigs := removeEspaceCharacters(store.CredentialsConfig())
 	argList = append(argList, credentialConfigs...)
 
 	argList = append(argList, "--source_list")
 	argList = append(argList, sourceList...)
 	return argList
+}
+
+func removeEspaceCharacters(values []string) []string {
+	for i, v := range values {
+		v = strings.Replace(v, "\\", "", -1)
+		v = strings.Replace(v, "\"", "", -1)
+		values[i] = v
+	}
+	return values
 }
 
 func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
@@ -984,7 +1007,7 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string,
 		"--job_type",
 		string(jobType),
 		"--store_type",
-		store.FilestoreType(),
+		store.Type(),
 	}
 	sparkConfigs := store.SparkConfig()
 	argList = append(argList, sparkConfigs...)
@@ -1218,27 +1241,29 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string,
 		"client",
 	}
 
-	packageArgs := store.Packages()
+	packageArgs := removeEspaceCharacters(store.Packages())
 	argList = append(argList, packageArgs...) // adding any packages needed for filestores
 
 	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
 	sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
+	codePath := strings.Replace(store.PathWithPrefix(code, true), "s3a://", "s3://", -1)
+
 	scriptArgs := []string{
 		sparkScriptPath,
 		"df",
 		"--output_uri",
 		outputURI,
 		"--code",
-		store.PathWithPrefix(code, true),
+		codePath,
 		"--store_type",
 		store.Type(),
 	}
 	argList = append(argList, scriptArgs...)
 
-	sparkConfigs := store.SparkConfig()
+	sparkConfigs := removeEspaceCharacters(store.SparkConfig())
 	argList = append(argList, sparkConfigs...)
 
-	credentialConfigs := store.CredentialsConfig()
+	credentialConfigs := removeEspaceCharacters(store.CredentialsConfig())
 	argList = append(argList, credentialConfigs...)
 
 	argList = append(argList, "--source")
@@ -1253,7 +1278,7 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 		"--output_uri",
 		outputURI,
 		"--code",
-		store.PathWithPrefix(code, true),
+		store.PathWithPrefix(code, false),
 		"--store_type",
 		store.Type(),
 	}

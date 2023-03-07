@@ -1324,7 +1324,10 @@ func testGetResourceInformationFromFilePath(t *testing.T, store *SparkOfflineSto
 }
 
 func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
-	azureStore := store.Store.(*AzureFileStore)
+	azureStore, ok := store.Store.(*SparkAzureFileStore)
+	if !ok {
+		t.Fatalf("could not case azure store")
+	}
 
 	cases := []struct {
 		name            string
@@ -2690,8 +2693,8 @@ func TestExecutors(t *testing.T) {
 }
 
 func TestInitSparkS3(t *testing.T) {
-	config := S3FileStoreConfig{
-		Credentials: AWSCredentials{
+	config := pc.S3FileStoreConfig{
+		Credentials: pc.AWSCredentials{
 			AWSSecretKey:   "",
 			AWSAccessKeyId: "",
 		},
@@ -2710,7 +2713,7 @@ func TestInitSparkS3(t *testing.T) {
 }
 
 func TestInitSparkAzure(t *testing.T) {
-	config := AzureFileStoreConfig{
+	config := pc.AzureFileStoreConfig{
 		AccountName:   "",
 		AccountKey:    "asbc",
 		ContainerName: "asdf",

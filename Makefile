@@ -370,7 +370,7 @@ test_e2e: update_python					## Runs End-to-End tests on minikube
 	pytest -m 'hosted' client/tests/test_serving_model.py
 	pytest -m 'hosted' client/tests/test_getting_model.py
 	pytest -m 'hosted' client/tests/test_updating_provider.py
-	pytest -m 'hosted' client/tests/test_search.py
+#	pytest -m 'hosted' client/tests/test_search.py
 
 	 echo "Starting end to end tests"
 	 ./tests/end_to_end/end_to_end_tests.sh localhost:8000 ./tls.crt

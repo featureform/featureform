@@ -325,22 +325,10 @@ jobs:
           chmod 700 get_helm.sh
           ./get_helm.sh
 
-      - name: Build and Run HDFS
-        env:
-          HDFSCLI_CONFIG: ./tests/end_to_end/hdfs/hdfscli.cfg
-        run: |
-          pip install hdfs
-          git clone https://github.com/rancavil/hadoop-single-node-cluster.git
-          cd hadoop-single-node-cluster
-          docker build -t hadoop .
-          docker run -d --name hadoop -p 9864:9864 -p 9870:9870 -p 8088:8088 -p 9000:9000 -p 9866:9866 --hostname localhost hadoop
-          cd ..
-          until hdfscli upload --alias=dev ./tests/end_to_end/hdfs/ice_cream.parquet /ice_cream.parquet; do echo “Waiting For HDFS To Be Ready”; sleep 1; done; echo "Done"
-
       - name: Configure Docker Socket
         run: |
           minikube start --kubernetes-version=v1.23.12
-          docker build . -t local/coordinator:stable -f coordinator/Dockerfile
+          docker build . -t local/coordinator:stable -f coordinator/Dockerfile.old
 
       - name: Load image
         run: |

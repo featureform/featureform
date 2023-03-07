@@ -150,6 +150,9 @@ class OfflineSparkProvider(OfflineProvider):
                               variant: str = "default",
                               owner: Union[str, UserRegistrar] = "",
                               description: str = "", ):
+        if self.__provider.config.executor_type != "EMR" and file_path.startswith("s3://"):
+            file_path = file_path.replace("s3://", "s3a://")
+
         return self.register_file(name, file_path, variant, owner, description)
 
     def sql_transformation(self,

@@ -257,7 +257,7 @@ class SQLiteMetadata:
         AFTER INSERT ON models
         BEGIN
         INSERT INTO resources_fts(resource_type, name, variant, description, status)
-        VALUES ('model', new.name, '', new.description, new.status);
+        VALUES ('model', new.name, '', '', '');
         END;''')
 
         self.__conn.execute('''CREATE TRIGGER IF NOT EXISTS provider_after_insert

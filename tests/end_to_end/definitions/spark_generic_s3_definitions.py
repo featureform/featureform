@@ -74,7 +74,7 @@ ice_cream_dataset = spark.register_parquet_file(
     name=f"ice_cream_{VERSION}",
     variant=VERSION,
     description="A dataset of ice cream",
-    file_path="s3://featureform-spark-testing/featureform/tests/ice_cream.parquet"
+    file_path="s3a://featureform-spark-testing/featureform/tests/ice_cream.parquet"
 )
 
 @spark.df_transformation(name=f"ice_cream_transformation_{VERSION}",

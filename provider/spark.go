@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+
 	"github.com/mitchellh/mapstructure"
 
 	"fmt"
@@ -1206,13 +1207,19 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 	var fileName string
 	var fileVariant string
 	containsSlashes := strings.Contains(path, "/")
-	if path[:5] == "s3://" {
+	if strings.HasPrefix(path, "s3://") {
 		filePaths := strings.Split(path[len("s3://"):], "/")
 		if len(filePaths) <= 4 {
 			return "", "", ""
 		}
 		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
-	} else if path[:5] == "hdfs://" {
+	} else if strings.HasPrefix(path, "s3a://") {
+		filePaths := strings.Split(path[len("s3a://"):], "/")
+		if len(filePaths) <= 4 {
+			return "", "", ""
+		}
+		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
+	} else if strings.HasPrefix(path, "hdfs://") {
 		filePaths := strings.Split(path[len("hdfs://"):], "/")
 		if len(filePaths) <= 4 {
 			return "", "", ""

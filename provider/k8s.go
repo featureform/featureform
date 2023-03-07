@@ -313,8 +313,10 @@ func (kube *KubernetesExecutor) setCustomImage(image string) {
 }
 
 func (kube *KubernetesExecutor) ExecuteScript(envVars map[string]string, args *metadata.KubernetesArgs) error {
+	var specs metadata.KubernetesResourceSpecs
 	if args != nil {
 		kube.setCustomImage(args.DockerImage)
+		specs = args.Specs
 	}
 	if isDefault, err := kube.isDefaultImage(); err != nil {
 		return fmt.Errorf("image check failed: %w", err)
@@ -335,7 +337,7 @@ func (kube *KubernetesExecutor) ExecuteScript(envVars map[string]string, args *m
 			Variant: envVars["RESOURCE_VARIANT"],
 			Type:    ProviderToMetadataResourceType[OfflineResourceType(resourceType)],
 		},
-		Specs: args.Specs,
+		Specs: specs,
 	}
 	jobRunner, err := kubernetes.NewKubernetesRunner(config)
 	if err != nil {

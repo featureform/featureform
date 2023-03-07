@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/emr"
 	databricks "github.com/databricks/databricks-sdk-go"
 	"github.com/databricks/databricks-sdk-go/service/jobs"
+	"github.com/databricks/databricks-sdk-go/useragent"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
@@ -30,6 +31,10 @@ import (
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
 	pc "github.com/featureform/provider/provider_config"
 )
+
+func init() {
+	useragent.WithProduct("featureform", "0.0.0") // TODO: pick version of featureform
+}
 
 type JobType string
 

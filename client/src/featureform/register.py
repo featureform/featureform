@@ -22,7 +22,7 @@ from .resources import Model, ResourceState, Provider, RedisConfig, FirestoreCon
     AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, S3StoreConfig, GCSFileStoreConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation, \
-    K8sArgs, AWSCredentials, GCPCredentials, HDFSConfig, K8sResourceSpecs
+    K8sArgs, AWSCredentials, GCPCredentials, HDFSConfig, K8sResourceSpecs, FilePrefix
 
 from .proto import metadata_pb2_grpc as ff_grpc
 from .search_local import search_local
@@ -150,8 +150,8 @@ class OfflineSparkProvider(OfflineProvider):
                               variant: str = "default",
                               owner: Union[str, UserRegistrar] = "",
                               description: str = "", ):
-        if self.__provider.config.executor_type != "EMR" and file_path.startswith("s3://"):
-            file_path = file_path.replace("s3://", "s3a://")
+        if self.__provider.config.executor_type != "EMR" and file_path.startswith(FilePrefix.S3):
+            file_path = file_path.replace(FilePrefix.S3, FilePrefix.S3A)
 
         return self.register_file(name, file_path, variant, owner, description)
 

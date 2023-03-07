@@ -14,15 +14,16 @@ import (
 	hdfs "github.com/colinmarc/hdfs/v2"
 	pc "github.com/featureform/provider/provider_config"
 
+	"io/fs"
+	"path/filepath"
+	"time"
+
 	"gocloud.dev/blob"
 	"gocloud.dev/blob/azureblob"
 	"gocloud.dev/blob/gcsblob"
 	"gocloud.dev/blob/s3blob"
 	"gocloud.dev/gcp"
 	"golang.org/x/oauth2/google"
-	"io/fs"
-	"path/filepath"
-	"time"
 )
 
 const (
@@ -51,6 +52,7 @@ func (ft FileType) Matches(file string) bool {
 const (
 	gsPrefix        = "gs://"
 	s3Prefix        = "s3://"
+	s3aPrefix       = "s3a://"
 	azureBlobPrefix = "abfss://"
 	HDFSPrefix      = "hdfs://"
 )

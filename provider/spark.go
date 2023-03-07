@@ -1219,8 +1219,8 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 			return "", "", ""
 		}
 		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
-	} else if strings.HasPrefix(path, hdfsPrefix) {
-		filePaths := strings.Split(path[len(hdfsPrefix):], "/")
+	} else if strings.HasPrefix(path, HDFSPrefix) {
+		filePaths := strings.Split(path[len(HDFSPrefix):], "/")
 		if len(filePaths) <= 4 {
 			return "", "", ""
 		}

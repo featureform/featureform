@@ -170,7 +170,7 @@ transactions.register_resources(
 )
 ```
 
-Finally, we'll join together the feature and label intro a training set.
+Finally, we'll join together the feature and label into a training set.
 ```python
 ff.register_training_set(
 "fraud_training", "quickstart",

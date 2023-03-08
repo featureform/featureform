@@ -218,7 +218,7 @@ transactions.register_resources(
 ```
 {% endcode %}
 
-Finally, we'll join together the feature and label intro a training set.
+Finally, we'll join together the feature and label into a training set.
 
 {% code title="definitions.py" %}
 ```python

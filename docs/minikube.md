@@ -88,7 +88,7 @@ helm install quickstart featureform/quickstart
 
 ## Configure Featureform with Providers
 
-Now that all of our infrastructure is deployed, we can add Postgres and Redis as providers for Featureform using the Python API and Featureform CLI, which can be seen in our [Quickstart guide](../deployment/kubernetes.md#step-5-register-providers).
+Now that all of our infrastructure is deployed, we can add Postgres and Redis as providers for Featureform using the Python API and Featureform CLI, which can be seen in our [Quickstart guide](../getting-started/registering-infrastructure-providers.md).
 
 Since we're using a self-signed certificate, we can run the CLI using the certificate flag instead.
 

@@ -27,3 +27,7 @@ client/src/featureform/proto/
 **backup_secret.yaml
 **fileUploadTest**
 **fileDownloadTest**
+
+# End to End Tests ouput
+tests/end_to_end/feature.txt 
+tests/end_to_end/version.txt

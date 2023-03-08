@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+
 	"github.com/mitchellh/mapstructure"
 
 	"fmt"
@@ -1206,14 +1207,20 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 	var fileName string
 	var fileVariant string
 	containsSlashes := strings.Contains(path, "/")
-	if path[:5] == "s3://" {
-		filePaths := strings.Split(path[len("s3://"):], "/")
+	if strings.HasPrefix(path, s3Prefix) {
+		filePaths := strings.Split(path[len(s3Prefix):], "/")
 		if len(filePaths) <= 4 {
 			return "", "", ""
 		}
 		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
-	} else if path[:5] == "hdfs://" {
-		filePaths := strings.Split(path[len("hdfs://"):], "/")
+	} else if strings.HasPrefix(path, s3aPrefix) {
+		filePaths := strings.Split(path[len(s3aPrefix):], "/")
+		if len(filePaths) <= 4 {
+			return "", "", ""
+		}
+		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
+	} else if strings.HasPrefix(path, HDFSPrefix) {
+		filePaths := strings.Split(path[len(HDFSPrefix):], "/")
 		if len(filePaths) <= 4 {
 			return "", "", ""
 		}
@@ -1246,7 +1253,7 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string,
 
 	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
 	sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
-	codePath := strings.Replace(store.PathWithPrefix(code, true), "s3a://", "s3://", -1)
+	codePath := strings.Replace(store.PathWithPrefix(code, true), s3aPrefix, s3Prefix, -1)
 
 	scriptArgs := []string{
 		sparkScriptPath,

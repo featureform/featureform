@@ -6,7 +6,7 @@ In this deployment, we'll setup a simple Minikube cluster and deploy Postgres an
 
 ### Docker
 
-Docker is an open platform for developing, shipping, and running applications. We will run Docker containers for Postgres, Redis, and [all of the Featureform services](/system-architecture.md) on Minikube. It can be [downloaded here](https://docs.docker.com/get-docker/).
+Docker is an open platform for developing, shipping, and running applications. We will run Docker containers for Postgres, Redis, and [all of the Featureform services](system-architecture.md) on Minikube. It can be [downloaded here](https://docs.docker.com/get-docker/).
 
 ### Minikube
 

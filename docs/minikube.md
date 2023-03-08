@@ -1,4 +1,4 @@
-# Minikube
+# Quickstart (Minikube)
 
 In this deployment, we'll setup a simple Minikube cluster and deploy Postgres and Redis within it. Then we will deploy Featureform on the Minikube deployment and configure it with Postgres as an Offline Store and Redis as an Inference Store.
 
@@ -10,7 +10,7 @@ Docker is an open platform for developing, shipping, and running applications. W
 
 ### Minikube
 
-minikube is a local Kubernetes deployment made for testing and exploring Kubernetes. It is not made for production, but mimics most of the main functionality of a production Kubernetes cluster. [Follow their tutorial](https://minikube.sigs.k8s.io/docs/start/) to deploy and configure a local Minikube cluster.
+minikube is a local Kubernetes deployment made for testing and exploring Kubernetes. It is not made for production, but mimics most of the main functionality of a production Kubernetes cluster. [Follow their tutorial](https://minikube.sigs.k8s.io/docs/start/) to deploy and configure a local Minikube cluster. minikube is the only feature-complete version of our Quickstarts that can be run locally and used to test features (such as scheduling) that are unavailable for localmode or Docker.
 
 ### Helm
 

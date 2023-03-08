@@ -150,8 +150,8 @@ class OfflineSparkProvider(OfflineProvider):
                               variant: str = "default",
                               owner: Union[str, UserRegistrar] = "",
                               description: str = "", ):
-        if self.__provider.config.executor_type != "EMR" and file_path.startswith(FilePrefix.S3):
-            file_path = file_path.replace(FilePrefix.S3, FilePrefix.S3A)
+        if self.__provider.config.executor_type != "EMR" and file_path.startswith(FilePrefix.S3.value):
+            file_path = file_path.replace(FilePrefix.S3.value, FilePrefix.S3A.value)
 
         return self.register_file(name, file_path, variant, owner, description)
 

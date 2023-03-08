@@ -3,9 +3,7 @@
 * [What is Featureform](overview.md)
 * [Quickstart (Local)](quickstart-local.md)
 * [Quickstart (Docker)](quickstart-docker.md)
-* [Quickstart (AWS)](quickstart-aws.md)
-* [Quickstart (Azure)](quickstart-azure.md)
-* [Quickstart (Google Cloud)](quickstart-gcp.md)
+* [Quickstart (Minikube)](minikube.md)
 
 ## Reference
 
@@ -43,11 +41,11 @@
 * [Azure Blobs](providers/azure.md)
 
 ## Deployment
-
-* [Minikube](deployment/minikube.md)
-* [Kubernetes](deployment/kubernetes.md)
-* [AWS](deployment/aws.md)
 * [Local Mode](deployment/local-mode.md)
+* [Kubernetes](deployment/kubernetes.md)
+* [AWS](deployment/quickstart-aws.md)
+* [Azure](deployment/quickstart-azure.md)
+* [Google Cloud](deployment/quickstart-gcp.md)
 * [Backup and Restore](deployment/backup-and-restore.md)
 
 ***

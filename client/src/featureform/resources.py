@@ -62,6 +62,13 @@ class SourceType(Enum):
 
 
 @typechecked
+@dataclass
+class FilePrefix(Enum):
+    S3 = "s3://"
+    S3A = "s3a://"
+
+
+@typechecked
 def valid_name_variant(nvar: NameVariant) -> bool:
     return nvar[0] != "" and nvar[1] != ""
 

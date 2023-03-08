@@ -89,7 +89,7 @@ Featureform on Kubernetes can be used to connect to your existing cloud infrastr
 locally on Minikube. 
 
 To check out how to run it in the cloud,
-follow our [Kubernetes deployment](https://docs.featureform.com/kubernetes).
+follow our [Kubernetes deployment](https://docs.featureform.com/deployment/kubernetes).
 
 To try Featureform with Minikube, follow our [Minikube guide](https://docs.featureform.com/minikube)
 

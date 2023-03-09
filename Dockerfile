@@ -64,7 +64,7 @@ RUN apt-get install -y nginx --option=Dpkg::Options::=--force-confdef
 
 WORKDIR /app
 
-ENV ENABLE_TYPESENSE="false"
+ENV ENABLE_SEARCH="false"
 ENV SERVING_PORT="8082"
 ENV SERVING_HOST="0.0.0.0"
 ENV ETCD_ARCH=""

@@ -9,8 +9,8 @@ description: >-
 
 You can follow the instructions below to install Featureform locally and try out the dashboard. 
 
-You can also try local mode in Colab here: 
-https://colab.research.google.com/drive/1mlS10dPa32IiaLNpbHsqFcoeoyrAggTa?usp=sharing&utm_source=Featureform_Docs&utm_medium=EmbeddedLink&utm_campaign=NoAssociatedCampaign
+You can also try local mode in this example [📔 Google Colab notebook 📔](https://colab.research.google.com/drive/1mlS10dPa32IiaLNpbHsqFcoeoyrAggTa?usp=sharing&utm_source=Featureform_Docs&utm_medium=EmbeddedLink&utm_campaign=NoAssociatedCampaign) here.
+
 
 
 ## Step 1: Install Featureform

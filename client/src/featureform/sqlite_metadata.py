@@ -1,6 +1,6 @@
+import json
 import sqlite3
 from threading import Lock
-import sys
 import os
 
 
@@ -267,6 +267,19 @@ class SQLiteMetadata:
         VALUES ('provider', new.name, '', new.description, new.status);
         END;''')
 
+        # Tags and Properties tables
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS tags(
+          name text NOT NULL,
+          variant text,
+          type text,
+          tag_list text);''')
+
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS properties(
+          name text NOT NULL,
+          variant text,
+          type text,
+          property_list text);''')
+
         self.__conn.commit()
 
     def get_type_table(self, type):
@@ -275,15 +288,35 @@ class SQLiteMetadata:
         self.__conn.commit()
         return type_data.fetchall()
 
-    def query_resource(self, type, column, resource):
-        query = f"SELECT * FROM {type} WHERE {column}='{resource}';"
+    def query_resource(self, table, column, resource_name, should_fetch_tags_properties=False):
+        if should_fetch_tags_properties:
+           query = '''SELECT r.*, t.tag_list as tags, p.property_list as properties
+           FROM {0} r
+           LEFT JOIN tags t ON t.name = r.name
+           LEFT JOIN properties p ON p.name = r.name
+           WHERE r.{1} = '{2}';'''.format(table, column, resource_name)
+        else:
+          query = f"SELECT * FROM {table} WHERE {column}='{resource_name}';"
+        resource_data = self.__conn.execute(query)
+        self.__conn.commit()
+        resource_data_list = resource_data.fetchall()
+        if len(resource_data_list) == 0 and column != "owner":
+          raise ValueError(f"{table} with {column}: {resource_name} not found")
+        return resource_data_list
+
+    def query_resource_variant(self, table, column, resource_name):
+        query = '''SELECT r.*, t.tag_list as tags, p.property_list as properties
+           FROM {0} r
+           LEFT JOIN tags t ON t.name = r.name AND t.variant = r.variant
+           LEFT JOIN properties p ON p.name = r.name AND p.variant = r.variant
+           WHERE r.{1} = '{2}';'''.format(table, column, resource_name)
         variant_data = self.__conn.execute(query)
         self.__conn.commit()
         variant_data_list = variant_data.fetchall()
         if len(variant_data_list) == 0 and column != "owner":
-          raise ValueError(f"{type} with {column}: {resource} not found")
+          raise ValueError(f"{table} with {column}: {resource_name} not found")
         return variant_data_list
-  
+
     def fetch_data(self, query, type, name, variant):
         variant_data = self.__conn.execute(query)
         self.__conn.commit()
@@ -300,50 +333,58 @@ class SQLiteMetadata:
           return []
         return variant_data_list
 
-    def get_user(self, name):
-      return self.query_resource("users", "name", name)[0]
+    def get_user(self, name, should_fetch_tags_properties):
+      return self.query_resource("users", "name", name, should_fetch_tags_properties)[0]
 
-    def get_entity(self, name):
-      return self.query_resource("entities", "name", name)[0]
+    def get_entity(self, name, should_fetch_tags_properties):
+      return self.query_resource("entities", "name", name, should_fetch_tags_properties)[0]
 
-    def get_feature(self, name):
-      return self.query_resource("features", "name", name)[0]
+    def get_feature(self, name, should_fetch_tags_properties):
+      return self.query_resource("features", "name", name, should_fetch_tags_properties)[0]
     
-    def get_label(self, name):
-      return self.query_resource("labels", "name", name)[0]
+    def get_label(self, name, should_fetch_tags_properties):
+      return self.query_resource("labels", "name", name, should_fetch_tags_properties)[0]
     
-    def get_source(self, name):
-      return self.query_resource("sources", "name", name)[0]
+    def get_source(self, name, should_fetch_tags_properties):
+      return self.query_resource("sources", "name", name, should_fetch_tags_properties)[0]
 
-    def get_training_set(self, name):
-      return self.query_resource("training_sets", "name", name)[0]
+    def get_training_set(self, name, should_fetch_tags_properties):
+      return self.query_resource("training_sets", "name", name, should_fetch_tags_properties)[0]
     
-    def get_model(self, name):
-      return self.query_resource("models", "name", name)[0]
+    def get_model(self, name, should_fetch_tags_properties):
+      return self.query_resource("models", "name", name, should_fetch_tags_properties)[0]
     
-    def get_provider(self, name):
-      return self.query_resource("providers", "name", name)[0]
+    def get_provider(self, name, should_fetch_tags_properties):
+      return self.query_resource("providers", "name", name, should_fetch_tags_properties)[0]
 
     def get_feature_variant(self, name, variant):
-        query = f"SELECT * FROM feature_variant WHERE name = '{name}' AND variant = '{variant}';"
+        query = '''SELECT fv.*, t.tag_list as tags, p.property_list as properties
+        FROM feature_variant fv
+        LEFT JOIN tags t ON t.name = fv.name AND t.variant = fv.variant
+        LEFT JOIN properties p ON p.name = fv.name AND p.variant = fv.variant
+        WHERE fv.name = '{0}' AND fv.variant = '{1}';'''.format(name, variant)
         return self.fetch_data(query, "feature_variant", name, variant)[0]
 
     def get_feature_variants_from_provider(self, name):
-        return self.query_resource("feature_variant", "provider", name)
+        return self.query_resource_variant("feature_variant", "provider", name)
 
     def get_feature_variants_from_source(self, name, variant):
-        query = f"SELECT * FROM feature_variant WHERE source_name = '{name}' AND source_variant = '{variant}';"
+        query = '''SELECT fv.*, t.tag_list as tags, p.property_list as properties
+        FROM feature_variant fv
+        LEFT JOIN tags t ON t.name = fv.name AND t.variant = fv.variant
+        LEFT JOIN properties p ON p.name = fv.name AND p.variant = fv.variant
+        WHERE fv.source_name = '{0}' AND fv.source_variant = '{1}';'''.format(name, variant)
         return self.fetch_data_safe(query, "feature_variant", name, variant)
 
     def get_feature_variants_from_feature(self, name):
-      return self.query_resource("feature_variant", "name", name)
+      return self.query_resource_variant("feature_variant", "name", name)
 
     def get_training_set_variant(self, name, variant):
         query = f"SELECT * FROM training_set_variant WHERE name = '{name}' AND variant = '{variant}';"
         return self.fetch_data(query, "training_set_variant", name, variant)[0]
 
     def get_training_set_variant_from_training_set(self, name):
-        return self.query_resource("training_set_variant", "name", name)
+        return self.query_resource_variant("training_set_variant", "name", name)
     
     def get_training_set_variant_from_label(self, name, variant):
         query = f"SELECT * FROM training_set_variant WHERE label_name = '{name}' AND label_variant = '{variant}';"
@@ -354,11 +395,10 @@ class SQLiteMetadata:
         return self.fetch_data(query, "label_variant", name, variant)[0]
     
     def get_label_variants_from_label(self, name):
-        return self.query_resource("label_variant", "name", name)
+        return self.query_resource_variant("label_variant", "name", name)
 
     def get_label_variants_from_provider(self, name):
-        query = f"SELECT * FROM label_variant WHERE provider = '{name}';"
-        return self.query_resource("label_variant", "provider", name)
+        return self.query_resource_variant("label_variant", "provider", name)
     
     def get_label_variants_from_source(self, name, variant):
         query = f"SELECT * FROM label_variant WHERE source_name = '{name}' AND source_variant = '{variant}';"
@@ -369,7 +409,7 @@ class SQLiteMetadata:
         return self.fetch_data(query, "source_variant", name, variant)[0]
 
     def get_source_variants_from_source(self, name):
-        return self.query_resource("source_variant", "name", name)
+        return self.query_resource_variant("source_variant", "name", name)
 
     def get_training_set_from_features(self, name, variant):
         query = f"SELECT * FROM training_set_features WHERE feature_name = '{name}' AND feature_variant = '{variant}';"

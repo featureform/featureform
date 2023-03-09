@@ -607,6 +607,8 @@ class Provider:
     config: Config
     description: str
     team: str
+    tags: list
+    properties: dict
 
     def __post_init__(self):
         self.software = self.config.software()
@@ -642,6 +644,10 @@ class Provider:
                   "ready",
                   str(self.config.serialize(), 'utf-8')
                   )
+        if len(self.tags):
+            db.insert("tags", self.name, "", "providers", json.dumps(self.tags))
+        if len(self.properties):
+            db.insert("properties", self.name, "", "providers", json.dumps(self.properties))
 
     def __eq__(self, other):
         for attribute in vars(self):
@@ -654,6 +660,8 @@ class Provider:
 @dataclass
 class User:
     name: str
+    tags: list
+    properties: dict
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -672,6 +680,10 @@ class User:
                   "User",
                   "ready"
                   )
+        if len(self.tags):
+            db.insert("tags", self.name, "", "users", json.dumps(self.tags))
+        if len(self.properties):
+            db.insert("properties", self.name, "", "users", json.dumps(self.properties))
 
     def __eq__(self, other):
         for attribute in vars(self):
@@ -770,6 +782,8 @@ class Source:
     owner: str
     provider: str
     description: str
+    tags: list
+    properties: dict
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
@@ -826,6 +840,10 @@ class Source:
                          json.dumps(self.inputs),
                          self.definition
                          )
+        if len(self.tags):
+            db.insert("tags", self.name, self.variant, "source_variant", json.dumps(self.tags))
+        if len(self.properties):
+            db.insert("properties", self.name, self.variant, "source_variant", json.dumps(self.properties))
         self._create_source_resource(db)
 
     def _create_source_resource(self, db) -> None:
@@ -854,6 +872,8 @@ class Source:
 class Entity:
     name: str
     description: str
+    tags: list
+    properties: dict
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -877,6 +897,10 @@ class Entity:
                   self.description,
                   "ready"
                   )
+        if len(self.tags):
+            db.insert("tags", self.name, "", "entities", json.dumps(self.tags))
+        if len(self.properties):
+            db.insert("properties", self.name, "", "entities", json.dumps(self.properties))
 
     def __eq__(self, other):
         for attribute in vars(self):
@@ -914,6 +938,8 @@ class Feature:
     provider: str
     location: ResourceLocation
     description: str
+    tags: list
+    properties: dict
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
@@ -971,6 +997,10 @@ class Feature:
                   self.source[0],
                   self.source[1]
                   )
+        if len(self.tags):
+            db.insert("tags", self.name, self.variant, "feature_variant", json.dumps(self.tags))
+        if len(self.properties):
+            db.insert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
         self._create_feature_resource(db)
 
     def _create_feature_resource(self, db) -> None:
@@ -1004,6 +1034,8 @@ class Label:
     owner: str
     provider: str
     description: str
+    tags: list
+    properties: dict
     location: ResourceLocation
     variant: str = "default"
     status: str = "NO_STATUS"
@@ -1054,6 +1086,10 @@ class Label:
                   self.source[0],
                   self.source[1]
                   )
+        if len(self.tags):
+            db.insert("tags", self.name, self.variant, "label_variant", json.dumps(self.tags))
+        if len(self.properties):
+            db.insert("properties", self.name, self.variant, "label_variant", json.dumps(self.properties))
         self._create_label_resource(db)
 
     def _create_label_resource(self, db) -> None:
@@ -1174,6 +1210,8 @@ class TrainingSet:
     label: NameVariant
     features: List[NameVariant]
     description: str
+    tags: list
+    properties: dict
     feature_lags: list = field(default_factory=list)
     status: str = "NO_STATUS"
     variant: str = "default"
@@ -1241,6 +1279,10 @@ class TrainingSet:
                   self.label[1],
                   "ready"
                   )
+        if len(self.tags):
+            db.insert("tags", self.name, self.variant, "training_set_variant", json.dumps(self.tags))
+        if len(self.properties):
+            db.insert("properties", self.name, self.variant, "training_set_variant", json.dumps(self.properties))
         self._create_training_set_resource(db)
 
     def _create_training_set_resource(self, db) -> None:
@@ -1309,6 +1351,8 @@ class TrainingSet:
 @dataclass
 class Model:
     name: str
+    tags: list
+    properties: dict
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -1326,6 +1370,10 @@ class Model:
                   self.name,
                   "Model",
                   )
+        if len(self.tags):
+            db.insert("tags", self.name, "", "models", json.dumps(self.tags))
+        if len(self.properties):
+            db.insert("properties", self.name, "", "models", json.dumps(self.properties))
 
     def __eq__(self, other):
         for attribute in vars(self):

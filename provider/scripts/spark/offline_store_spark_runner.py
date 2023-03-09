@@ -89,7 +89,6 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
 
     spark = SparkSession.builder.appName("Dataframe Transformation").getOrCreate()
     set_spark_configs(spark, spark_configs)
-    spark.conf.set("spark.hadoop.dfs.client.use.datanode.hostname", "true")
 
     print(f"reading {len(sources)} source files")
     func_parameters = []
@@ -104,13 +103,7 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         dt = datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
         output_uri_with_timestamp = f"{output_uri}{safe_datetime}" if output_uri[-1] == "/" else f"{output_uri}/{safe_datetime}"
-        if store_type == "hdfs":
-            output_df.write.mode("overwrite").parquet("./output.parquet")
-            import subprocess
-            output = subprocess.check_output(f"hdfs dfs dfs.client.use.datanode.hostname=true -copyFromLocal ./output.parquet {output_uri_with_timestamp}", shell=True)
-            print(output)
-        else:
-            output_df.write.mode("overwrite").parquet(output_uri_with_timestamp)
+        output_df.write.mode("overwrite").parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
         print(f"Issue with execution of the transformation: {e}")
@@ -162,7 +155,7 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
         # used to read the object in the bucket.
 
         import subprocess
-        output = subprocess.check_output(f"hdfs dfs dfs.client.use.datanode.hostname=true -cat {file_path}", shell=True)
+        output = subprocess.check_output(f"hdfs dfs -cat {file_path}", shell=True)
         code = dill.loads(bytes(output))
 
 

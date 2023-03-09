@@ -332,7 +332,7 @@ func NewHDFSFileStore(config Config) (FileStore, error) {
 	ops := hdfs.ClientOptions{
 		Addresses:           []string{address},
 		User:                username,
-		UseDatanodeHostname: true,
+		UseDatanodeHostname: false,
 	}
 	client, err := hdfs.NewClient(ops)
 	if err != nil {

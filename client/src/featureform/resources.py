@@ -149,7 +149,7 @@ class GCPCredentials:
                  credentials_path: str,):
 
         self.project_id = project_id
-        self.credentials = json.load(open(self.credentials_path))
+        self.credentials = json.load(open(credentials_path))
 
     def type(self):
         return "GCPCredentials"
@@ -177,7 +177,7 @@ class GCSFileStoreConfig:
     def serialize(self) -> bytes:
         config = {
             "BucketName": self.bucket_name,
-            "BucketPath": self.account_key,
+            "BucketPath": self.bucket_path,
             "Credentials": self.credentials.config(),
         }
         return bytes(json.dumps(config), "utf-8")
@@ -185,7 +185,7 @@ class GCSFileStoreConfig:
     def config(self):
         return {
             "BucketName": self.bucket_name,
-            "BucketPath": self.account_key,
+            "BucketPath": self.bucket_path,
             "Credentials": self.credentials.config(),
         }
 
@@ -654,7 +654,7 @@ class K8sConfig:
 Config = Union[
     RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig,
     FirestoreConfig, SparkConfig, OnlineBlobConfig, AzureFileStoreConfig, S3StoreConfig, K8sConfig,
-    MongoDBConfig
+    MongoDBConfig, GCSFileStoreConfig
 ]
 
 

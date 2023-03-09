@@ -212,6 +212,8 @@ func (s *SparkConfig) decodeFileStore(fileStoreType FileStoreType, configMap map
 		fileStoreConfig = &S3FileStoreConfig{}
 	case HDFS:
 		fileStoreConfig = &HDFSFileStoreConfig{}
+	case GCS:
+		fileStoreConfig = &GCSFileStoreConfig{}
 	default:
 		return fmt.Errorf("the file store type '%s' is not supported ", fileStoreType)
 	}

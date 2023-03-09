@@ -97,6 +97,8 @@ def test_feature_status(mocker, status, expected, ready):
             location=ResourceColumnMapping("", "", ""),
             description="",
             status=get_pb_status(status),
+            tags=[],
+            properties={}
         ))
     client = ResourceClient("host")
     feature = client.get_feature("", "")
@@ -126,6 +128,8 @@ def test_label_status(mocker, status, expected, ready):
             location=ResourceColumnMapping("", "", ""),
             description="",
             status=get_pb_status(status),
+            tags=[],
+            properties={}
         ))
     client = ResourceClient("host")
     label = client.get_label("", "")
@@ -153,6 +157,8 @@ def test_training_set_status(mocker, status, expected, ready):
             feature_lags=[],
             description="",
             status=get_pb_status(status),
+            tags=[],
+            properties={}
         ))
     client = ResourceClient("host")
     ts = client.get_training_set("", "")
@@ -179,6 +185,8 @@ def test_source_status(mocker, status, expected, ready):
             provider="provider",
             description="",
             status=get_pb_status(status),
+            tags=[],
+            properties={}
         ))
     client = ResourceClient("host")
     source = client.get_source("", "")

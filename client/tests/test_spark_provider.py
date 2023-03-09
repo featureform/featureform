@@ -23,7 +23,7 @@ def test_create_provider(executor_fixture, filestore_fixture, request):
     r = Registrar() 
     
     config = SparkConfig(executor_type=executor.type(), executor_config=executor.config(), store_type=filestore.store_type(), store_config=filestore.config())
-    provider = Provider(name=provider_name, function="OFFLINE", description="", team="", config=config)
+    provider = Provider(name=provider_name, function="OFFLINE", description="", team="", config=config, tags=[], properties={})
     
     offline_spark_provider = OfflineSparkProvider(r, provider)
     assert type(offline_spark_provider) == OfflineSparkProvider
@@ -81,6 +81,8 @@ def test_sql_transformation(name, variant, sql, spark_provider):
         owner="tester",
         provider="spark",
         description="doc string",
+        tags=[],
+        properties={}
     )
 
 
@@ -107,6 +109,8 @@ def test_df_transformation(name, variant, transformation, spark_provider, reques
         owner="tester",
         provider="spark",
         description="doc string",
+        tags=[],
+        properties={}
     )
     
     assert decorator_src.name == expected_src.name

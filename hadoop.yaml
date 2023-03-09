@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hadoop
+spec:
+  selector:
+    app: hadoop
+  ports:
+    - name: a
+      protocol: TCP
+      port: 9864
+      targetPort: 9864
+    - name: b
+      protocol: TCP
+      port: 9870
+      targetPort: 9870
+    - name: c
+      protocol: TCP
+      port: 8088
+      targetPort: 8088
+    - name: d
+      protocol: TCP
+      port: 9000
+      targetPort: 9000
+    - name: e
+      protocol: TCP
+      port: 9866
+      targetPort: 9866
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hadoop
+  labels:
+    app: hadoop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hadoop
+  template:
+    metadata:
+      labels:
+        app: hadoop
+    spec:
+      containers:
+        - name: hadoop
+          image: featureformcom/hadoop:latest

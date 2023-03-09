@@ -153,7 +153,7 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
         # used to read the object in the bucket.
 
         import subprocess
-        output = subprocess.check_output(f"hdfs dfs -cat {file_path}", shell=True)
+        output = subprocess.check_output(f"hdfs dfs dfs.client.use.datanode.hostname=true -cat {file_path}", shell=True)
         code = dill.loads(bytes(output))
 
 

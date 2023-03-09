@@ -219,11 +219,16 @@ func NewSparkGCSFileStore(config Config) (SparkFileStore, error) {
 	if !ok {
 		return nil, fmt.Errorf("could not cast file store to *GCSFileStore")
 	}
+	serializedCredentials, err := json.Marshal(gcs.Credentials.SerializedFile)
+	if err != nil {
+		return nil, fmt.Errorf("could not serialize the credentials")
+	}
 
-	return &SparkGCSFileStore{gcs}, nil
+	return &SparkGCSFileStore{SerializedCredentials: serializedCredentials, GCSFileStore: gcs}, nil
 }
 
 type SparkGCSFileStore struct {
+	SerializedCredentials []byte
 	*GCSFileStore
 }
 
@@ -239,8 +244,7 @@ func (gcs SparkGCSFileStore) SparkConfig() []string {
 }
 
 func (gcs SparkGCSFileStore) CredentialsConfig() []string {
-	serializedCredsFile := gcs.Credentials.SerializedFile
-	base64Credentials := base64.StdEncoding.EncodeToString(serializedCredsFile)
+	base64Credentials := base64.StdEncoding.EncodeToString(gcs.SerializedCredentials)
 
 	return []string{
 		"--credential",

@@ -3,6 +3,7 @@ package provider_config
 import (
 	"encoding/json"
 	"fmt"
+
 	ss "github.com/featureform/helpers/string_set"
 	"github.com/mitchellh/mapstructure"
 )
@@ -22,7 +23,7 @@ type AWSCredentials struct {
 
 type GCPCredentials struct {
 	ProjectId      string
-	SerializedFile []byte
+	SerializedFile map[string]interface{}
 }
 
 type SparkExecutorConfig interface {

@@ -149,7 +149,7 @@ class GCPCredentials:
                  credentials_path: str,):
 
         self.project_id = project_id
-        self.credentials = self._read_and_serialize_file(credentials_path)
+        self.credentials = json.load(open(self.credentials_path))
 
     def type(self):
         return "GCPCredentials"
@@ -159,11 +159,6 @@ class GCPCredentials:
             "ProjectId": self.project_id,
             "Credentials": self.credentials,
         }
-    
-    def _read_and_serialize_file(self, filename):
-        with open(filename, "r") as f:
-            creds = json.loads(f)
-            return bytes(json.dumps(creds), "utf-8")
 
 
 @typechecked

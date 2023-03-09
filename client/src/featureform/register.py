@@ -79,7 +79,9 @@ class OfflineSQLProvider(OfflineProvider):
                        table: str,
                        variant: str = "default",
                        owner: Union[str, UserRegistrar] = "",
-                       description: str = ""):
+                       description: str = "",
+                       tags: List[str] = [],
+                       properties: dict = {}):
         """Register a SQL table as a primary data source.
 
         Args:
@@ -97,20 +99,26 @@ class OfflineSQLProvider(OfflineProvider):
                                                       location=SQLTable(table),
                                                       owner=owner,
                                                       provider=self.name(),
-                                                      description=description)
+                                                      description=description,
+                                                      tags=tags,
+                                                      properties=properties)
 
     def sql_transformation(self,
                            owner: Union[str, UserRegistrar] = "",
                            variant: str = "default",
                            name: str = "",
                            schedule: str = "",
-                           description: str = ""):
+                           description: str = "",
+                           tags: List[str] = [],
+                           properties: dict = {}):
         return self.__registrar.sql_transformation(name=name,
                                                    variant=variant,
                                                    owner=owner,
                                                    schedule=schedule,
                                                    provider=self.name(),
-                                                   description=description)
+                                                   description=description,
+                                                   tags=tags,
+                                                   properties=properties)
 
 
 class OfflineSparkProvider(OfflineProvider):
@@ -124,7 +132,9 @@ class OfflineSparkProvider(OfflineProvider):
                         file_path: str,
                         variant: str = "default",
                         owner: Union[str, UserRegistrar] = "",
-                        description: str = ""):
+                        description: str = "",
+                        tags: List[str] = [],
+                        properties: dict = {}):
         """Register a Spark data source as a primary data source.
 
         Args:
@@ -142,7 +152,9 @@ class OfflineSparkProvider(OfflineProvider):
                                                       location=SQLTable(file_path),
                                                       owner=owner,
                                                       provider=self.name(),
-                                                      description=description)
+                                                      description=description,
+                                                      tags=tags,
+                                                      properties=properties)
     
     def register_parquet_file(self,
                               name: str,
@@ -160,7 +172,9 @@ class OfflineSparkProvider(OfflineProvider):
                            owner: Union[str, UserRegistrar] = "",
                            name: str = "",
                            schedule: str = "",
-                           description: str = ""):
+                           description: str = "",
+                           tags: List[str] = [],
+                           properties: dict = {}):
         """
         Register a SQL transformation source. The spark.sql_transformation decorator takes the returned string in the
         following function and executes it as a SQL Query.
@@ -193,14 +207,18 @@ class OfflineSparkProvider(OfflineProvider):
                                                    owner=owner,
                                                    schedule=schedule,
                                                    provider=self.name(),
-                                                   description=description)
+                                                   description=description,
+                                                   tags=tags,
+                                                   properties=properties)
 
     def df_transformation(self,
                           variant: str = "default",
                           owner: Union[str, UserRegistrar] = "",
                           name: str = "",
                           description: str = "",
-                          inputs: list = []):
+                          inputs: list = [],
+                          tags: List[str] = [],
+                          properties: dict = {}):
         """
         Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
         of the following function and executes the code it contains at serving time.
@@ -231,7 +249,9 @@ class OfflineSparkProvider(OfflineProvider):
                                                   owner=owner,
                                                   provider=self.name(),
                                                   description=description,
-                                                  inputs=inputs)
+                                                  inputs=inputs,
+                                                  tags=tags,
+                                                  properties=properties)
 
 
 class OfflineK8sProvider(OfflineProvider):
@@ -245,7 +265,9 @@ class OfflineK8sProvider(OfflineProvider):
                       path: str,
                       variant: str = "default",
                       owner: Union[str, UserRegistrar] = "",
-                      description: str = ""):
+                      description: str = "",
+                      tags: List[str] = [],
+                      properties: dict = {}):
         """Register a blob data source path as a primary data source.
 
         Args:
@@ -263,7 +285,9 @@ class OfflineK8sProvider(OfflineProvider):
                                                       location=SQLTable(path),
                                                       owner=owner,
                                                       provider=self.name(),
-                                                      description=description)
+                                                      description=description,
+                                                      tags=tags,
+                                                      properties=properties)
 
     def sql_transformation(self,
                            variant: str = "",
@@ -272,8 +296,9 @@ class OfflineK8sProvider(OfflineProvider):
                            schedule: str = "",
                            description: str = "",
                            docker_image: str = "",
-                           resource_specs: Union[K8sResourceSpecs, None] = None
-                           ):
+                           resource_specs: Union[K8sResourceSpecs, None] = None,
+                           tags: List[str] = [],
+                           properties: dict = {}):
         """
         Register a SQL transformation source. The k8s.sql_transformation decorator takes the returned string in the
         following function and executes it as a SQL Query.
@@ -309,8 +334,9 @@ class OfflineK8sProvider(OfflineProvider):
                                                    schedule=schedule,
                                                    provider=self.name(),
                                                    description=description,
-                                                   args=K8sArgs(docker_image=docker_image, specs=resource_specs)
-                                                   )
+                                                   args=K8sArgs(docker_image=docker_image, specs=resource_specs,
+                                                   tags=tags,
+                                                   properties=properties)
 
     def df_transformation(self,
                           variant: str = "default",
@@ -319,8 +345,9 @@ class OfflineK8sProvider(OfflineProvider):
                           description: str = "",
                           inputs: list = [],
                           docker_image: str = "",
-                          resource_specs: Union[K8sResourceSpecs, None] = None
-                          ):
+                          resource_specs: Union[K8sResourceSpecs, None] = None,
+                          tags: List[str] = [],
+                          properties: dict = {}):
         """
         Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
         of the following function and executes the code it contains at serving time.
@@ -354,8 +381,9 @@ class OfflineK8sProvider(OfflineProvider):
                                                   provider=self.name(),
                                                   description=description,
                                                   inputs=inputs,
-                                                  args=K8sArgs(docker_image=docker_image, specs=resource_specs)
-                                                  )
+                                                  args=K8sArgs(docker_image=docker_image, specs=resource_specs,
+                                                  tags=tags,
+                                                  properties=properties)
 
 
 class OnlineProvider:
@@ -408,7 +436,7 @@ class LocalProvider:
     def name(self) -> str:
         return self.__provider.name
 
-    def register_file(self, name, description, path, variant="default", owner=""):
+    def register_file(self, name, description, path, variant="default", owner="", tags: List[str] = [], properties: dict = {}):
         """Register a local file.
 
         **Examples**:
@@ -433,7 +461,14 @@ class LocalProvider:
         if owner == "":
             owner = self.__registrar.must_get_default_owner()
         # Store the file as a source
-        self.__registrar.register_primary_data(name, variant, SQLTable(path), self.__provider.name, owner, description)
+        self.__registrar.register_primary_data(name=name,
+                                               variant=variant,
+                                               location=SQLTable(path),
+                                               provider=self.__provider.name,
+                                               owner=owner,
+                                               description=description,
+                                               tags=tags,
+                                               properties=properties)
         return LocalSource(self.__registrar, name, owner, variant, self.name(), path, description)
 
     def insert_provider(self):
@@ -457,7 +492,9 @@ class LocalProvider:
                           owner: Union[str, UserRegistrar] = "",
                           name: str = "",
                           description: str = "",
-                          inputs: list = []):
+                          inputs: list = [],
+                          tags: List[str] = [],
+                          properties: dict = {}):
         """
         Register a Dataframe transformation source. The local.df_transformation decorator takes the contents
         of the following function and executes the code it contains at serving time.
@@ -488,13 +525,17 @@ class LocalProvider:
                                                   owner=owner,
                                                   provider=self.name(),
                                                   description=description,
-                                                  inputs=inputs)
+                                                  inputs=inputs,
+                                                  tags=tags,
+                                                  properties=properties)
 
     def sql_transformation(self,
                            variant: str = "default",
                            owner: Union[str, UserRegistrar] = "",
                            name: str = "",
-                           description: str = ""):
+                           description: str = "",
+                           tags: List[str] = [],
+                           properties: dict = {}):
         """
         Register a SQL transformation source. The local.sql_transformation decorator takes the returned string in the
         following function and executes it as a SQL Query.
@@ -526,7 +567,9 @@ class LocalProvider:
                                                    variant=variant,
                                                    owner=owner,
                                                    provider=self.name(),
-                                                   description=description)
+                                                   description=description,
+                                                   tags=tags,
+                                                   properties=properties)
 
 
 class SourceRegistrar:
@@ -547,6 +590,8 @@ class ColumnMapping(dict):
     variant: str
     column: str
     resource_type: str
+    tags: List[str]
+    properties: dict
 
 
 class LocalSource:
@@ -599,7 +644,7 @@ class LocalSource:
             inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
             features: List[ColumnMapping] = None,
             labels: List[ColumnMapping] = None,
-            timestamp_column: str = ""
+            timestamp_column: str = "",
     ):
         """
         Registers a features and/or labels that can be used in training sets or served.
@@ -647,12 +692,14 @@ class SQLTransformationDecorator:
                  registrar,
                  owner: str,
                  provider: str,
+                 tags: List[str],
+                 properties: dict,
                  variant: str = "default",
                  name: str = "",
                  schedule: str = "",
                  description: str = "",
                  args: K8sArgs = None):
-        self.registrar = registrar,
+        self.registrar = registrar
         self.name = name
         self.variant = variant
         self.owner = owner
@@ -660,6 +707,8 @@ class SQLTransformationDecorator:
         self.provider = provider
         self.description = description
         self.args = args
+        self.tags = tags
+        self.properties = properties
 
     def __call__(self, fn: Callable[[], str]):
         if self.description == "" and fn.__doc__ is not None:
@@ -686,6 +735,8 @@ class SQLTransformationDecorator:
             schedule=self.schedule,
             provider=self.provider,
             description=self.description,
+            tags=self.tags,
+            properties=self.properties
         )
 
     def name_variant(self):
@@ -723,6 +774,8 @@ class DFTransformationDecorator:
                  registrar,
                  owner: str,
                  provider: str,
+                 tags: List[str],
+                 properties: dict,
                  variant: str = "default",
                  name: str = "",
                  description: str = "",
@@ -736,6 +789,8 @@ class DFTransformationDecorator:
         self.description = description
         self.inputs = inputs
         self.args = args
+        self.tags = tags
+        self.properties = properties
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:
@@ -759,6 +814,8 @@ class DFTransformationDecorator:
             owner=self.owner,
             provider=self.provider,
             description=self.description,
+            tags=self.tags,
+            properties=self.properties
         )
 
     def name_variant(self):
@@ -773,7 +830,7 @@ class DFTransformationDecorator:
             features: List[ColumnMapping] = None,
             labels: List[ColumnMapping] = None,
             timestamp_column: str = "",
-            description: str = "",
+            description: str = ""
     ):
         return self.registrar[0].register_column_resources(
             source=(self.name, self.variant),
@@ -945,7 +1002,7 @@ class Registrar:
     def get_resources(self):
         return self.__resources
 
-    def register_user(self, name: str) -> UserRegistrar:
+    def register_user(self, name: str, tags: List[str] = [], properties: dict = {}) -> UserRegistrar:
         """Register a user.
 
         Args:
@@ -954,7 +1011,7 @@ class Registrar:
         Returns:
             UserRegistrar: User
         """
-        user = User(name)
+        user = User(name, tags, properties)
         self.__resources.append(user)
         return UserRegistrar(self, user)
 
@@ -1341,7 +1398,9 @@ class Registrar:
                        host: str = "0.0.0.0",
                        port: int = 6379,
                        password: str = "",
-                       db: int = 0):
+                       db: int = 0,
+                       tags: List[str] = [],
+                       properties: dict = {}):
         """Register a Redis provider.
 
         **Examples**:
@@ -1361,6 +1420,8 @@ class Registrar:
             port (int): Redis port
             password (str): Redis password
             db (str): Redis database
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             redis (OnlineProvider): Provider
@@ -1370,7 +1431,9 @@ class Registrar:
                             function="ONLINE",
                             description=description,
                             team=team,
-                            config=config)
+                            config=config,
+                            tags=tags,
+                            properties=properties)
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
 
@@ -1381,7 +1444,9 @@ class Registrar:
                             container_name: str,
                             root_path: str,
                             description: str = "",
-                            team: str = "", ):
+                            team: str = "",
+                            tags: List[str] = [],
+                            properties: dict = {}):
 
         """Register an azure blob store provider.
 
@@ -1408,6 +1473,8 @@ class Registrar:
             account_name (str): Azure account name
             account_key (str): Secret azure account key
             config (AzureConfig): an azure config object (can be used in place of container name and account name)
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
         Returns:
             blob (StorageProvider): Provider
                 has all the functionality of OnlineProvider
@@ -1421,7 +1488,9 @@ class Registrar:
                             function="ONLINE",
                             description=description,
                             team=team,
-                            config=config)
+                            config=config,
+                            tags=tags,
+                            properties=properties)
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, azure_config, "AZURE")
 
@@ -1431,7 +1500,9 @@ class Registrar:
                     bucket_path: str,
                     bucket_region: str,
                     description: str = "",
-                    team: str = "", ):
+                    team: str = "",
+                    tags: List[str] = [],
+                    properties: dict = {}):
         """Register a S3 store provider.
 
         This has the functionality of an offline store and can be used as a parameter
@@ -1454,6 +1525,8 @@ class Registrar:
             bucket_region (str): aws region the bucket is located in
             description (str): Description of S3 provider to be registered
             team (str): the name of the team registering the filestore
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
         Returns:
             s3 (FileStoreProvider): Provider
                 has all the functionality of OfflineProvider
@@ -1465,7 +1538,9 @@ class Registrar:
                             function="OFFLINE",
                             description=description,
                             team=team,
-                            config=s3_config)
+                            config=s3_config,
+                            tags=tags,
+                            properties=properties)
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, s3_config, s3_config.type())
 
@@ -1476,7 +1551,9 @@ class Registrar:
                     bucket_name: str,
                     bucket_path: str = "",
                     description: str = "",
-                    team: str = "", ):
+                    team: str = "",
+                    tags: List[str] = [],
+                    properties: dict = {}):
         """Register a GCS store provider.
                 **Examples**:
         ```
@@ -1495,6 +1572,8 @@ class Registrar:
             bucket_path (str): Custom path to be used by featureform
             description (str): Description of GCS provider to be registered
             team (str): The name of the team registering the filestore
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
         Returns:
             gcs (FileStoreProvider): Provider
                 has all the functionality of OfflineProvider
@@ -1505,7 +1584,9 @@ class Registrar:
                             function="OFFLINE",
                             description=description,
                             team=team,
-                            config=gcs_config)
+                            config=gcs_config,
+                            tags=tags,
+                            properties=properties)
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, gcs_config, gcs_config.type())
 
@@ -1562,7 +1643,8 @@ class Registrar:
                            credentials_path: str,
                            description: str = "",
                            team: str = "",
-                           ):
+                           tags: List[str] = [],
+                           properties: dict = {}):
         """Register a Firestore provider.
 
         **Examples**:
@@ -1581,7 +1663,8 @@ class Registrar:
             project_id (str): The Project name in GCP
             collection (str): The Collection name in Firestore under the given project ID
             credentials_path (str): A path to a Google Credentials file with access permissions for Firestore
-
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
         Returns:
             firestore (OfflineSQLProvider): Provider
         """
@@ -1590,7 +1673,9 @@ class Registrar:
                             function="ONLINE",
                             description=description,
                             team=team,
-                            config=config)
+                            config=config,
+                            tags=tags,
+                            properties=properties)
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
 
@@ -1604,14 +1689,50 @@ class Registrar:
                            password: str = "cassandra",
                            keyspace: str = "",
                            consistency: str = "THREE",
-                           replication: int = 3):
+                           replication: int = 3,
+                           tags: List[str] = [],
+                           properties: dict = {}):
+        """Register a Cassandra provider.
+
+        **Examples**:
+        ```
+        cassandra = ff.register_cassandra(
+                name = "cassandra",
+                description = "Example inference store",
+                team = "Featureform",
+                host = "0.0.0.0",
+                port = 9042,
+                username = "cassandra",
+                password = "cassandra",
+                consistency = "THREE",
+                replication = 3
+            )
+        ```
+        Args:
+            name (str): Name of Cassandra provider to be registered
+            description (str): Description of Cassandra provider to be registered
+            team (str): Name of team
+            host (str): DNS name of Cassandra
+            port (str): Port
+            user (str): User
+            password (str): Password
+            consistency (str): Consistency
+            replication (int): Replication
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
+
+        Returns:
+            cassandra (OnlineProvider): Provider
+        """
         config = CassandraConfig(host=host, port=port, username=username, password=password, keyspace=keyspace,
                                  consistency=consistency, replication=replication)
         provider = Provider(name=name,
                             function="ONLINE",
                             description=description,
                             team=team,
-                            config=config)
+                            config=config,
+                            tags=tags,
+                            properties=properties)
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
 
@@ -1621,7 +1742,9 @@ class Registrar:
                           team: str = "",
                           access_key: str = None,
                           secret_key: str = None,
-                          region: str = None):
+                          region: str = None,
+                          tags: List[str] = [],
+                          properties: dict = {}):
         """Register a DynamoDB provider.
 
         **Examples**:
@@ -1641,6 +1764,8 @@ class Registrar:
             access_key (str): Access key
             secret_key (str): Secret key
             region (str): Region
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             dynamodb (OnlineProvider): Provider
@@ -1650,7 +1775,9 @@ class Registrar:
                             function="ONLINE",
                             description=description,
                             team=team,
-                            config=config)
+                            config=config,
+                            tags=tags,
+                            properties=properties)
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
 
@@ -1663,8 +1790,9 @@ class Registrar:
                          database: str = None,
                          host: str = None,
                          port: str = None,
-                         throughput: int = 1000
-
+                         throughput: int = 1000,
+                         tags: List[str] = [],
+                         properties: dict = {}
                          ):
         """Register a MongoDB provider.
 
@@ -1692,6 +1820,8 @@ class Registrar:
             host (str): MongoDB hostname
             port (str): MongoDB port
             throughput (int): The maximum RU limit for autoscaling
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             mongodb (OnlineProvider): Provider
@@ -1702,23 +1832,26 @@ class Registrar:
                             function="ONLINE",
                             description=description,
                             team=team,
-                            config=config)
+                            config=config,
+                            tags=tags,
+                            properties=properties)
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
 
     def register_snowflake_legacy(
-            self,
-            name: str,
-            username: str,
-            password: str,
-            account_locator: str,
-            database: str,
-            schema: str = "PUBLIC",
-            description: str = "",
-            team: str = "",
-            warehouse: str = "",
-            role: str = "",
-    ):
+                self,
+                name: str,
+                username: str,
+                password: str,
+                account_locator: str,
+                database: str,
+                schema: str = "PUBLIC",
+                description: str = "",
+                team: str = "",
+                warehouse: str = "",
+                role: str = "",
+                tags: List[str] = [],
+                properties: dict = {}):
         """Register a Snowflake provider using legacy credentials.
 
         **Examples**:
@@ -1744,6 +1877,8 @@ class Registrar:
             team (str): Name of team
             warehouse (str): Specifies the virtual warehouse to use by default for queries, loading, etc.
             role (str): Specifies the role to use by default for accessing Snowflake objects in the client session
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             snowflake (OfflineSQLProvider): Provider
@@ -1759,7 +1894,9 @@ class Registrar:
                             function="OFFLINE",
                             description=description,
                             team=team,
-                            config=config)
+                            config=config,
+                            tags=tags,
+                            properties=properties)
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
@@ -1776,8 +1913,8 @@ class Registrar:
             team: str = "",
             warehouse: str = "",
             role: str = "",
-
-    ):
+            tags: List[str] = [],
+            properties: dict = {}):
         """Register a Snowflake provider.
 
         **Examples**:
@@ -1805,6 +1942,8 @@ class Registrar:
             team (str): Name of team
             warehouse (str): Specifies the virtual warehouse to use by default for queries, loading, etc.
             role (str): Specifies the role to use by default for accessing Snowflake objects in the client session
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             snowflake (OfflineSQLProvider): Provider
@@ -1821,7 +1960,9 @@ class Registrar:
                             function="OFFLINE",
                             description=description,
                             team=team,
-                            config=config)
+                            config=config,
+                            tags=tags,
+                            properties=properties)
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
@@ -1833,7 +1974,9 @@ class Registrar:
                           port: str = "5432",
                           user: str = "postgres",
                           password: str = "password",
-                          database: str = "postgres"):
+                          database: str = "postgres",
+                          tags: List[str] = [],
+                          properties: dict = {}):
         """Register a Postgres provider.
 
         **Examples**:
@@ -1857,6 +2000,8 @@ class Registrar:
             user (str): User
             password (str): Password
             database (str): Database
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             postgres (OfflineSQLProvider): Provider
@@ -1870,7 +2015,9 @@ class Registrar:
                             function="OFFLINE",
                             description=description,
                             team=team,
-                            config=config)
+                            config=config,
+                            tags=tags,
+                            properties=properties)
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
@@ -1882,7 +2029,9 @@ class Registrar:
                           port: int = 5432,
                           user: str = "redshift",
                           password: str = "password",
-                          database: str = "dev"):
+                          database: str = "dev",
+                          tags: List[str] = [],
+                          properties: dict = {}):
         """Register a Redshift provider.
 
         **Examples**:
@@ -1906,6 +2055,8 @@ class Registrar:
             user (str): User
             password (str): Password
             database (str): Database
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             redshift (OfflineSQLProvider): Provider
@@ -1919,7 +2070,9 @@ class Registrar:
                             function="OFFLINE",
                             description=description,
                             team=team,
-                            config=config)
+                            config=config,
+                            tags=tags,
+                            properties=properties)
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
@@ -1929,7 +2082,9 @@ class Registrar:
                           team: str = "",
                           project_id: str = "",
                           dataset_id: str = "",
-                          credentials_path: str = ""):
+                          credentials_path: str = "",
+                          tags: List[str] = [],
+                          properties: dict = {}):
         """Register a BigQuery provider.
 
         **Examples**:
@@ -1948,6 +2103,8 @@ class Registrar:
             project_id (str): The Project name in GCP
             dataset_id (str): The Dataset name in GCP under the Project Id
             credentials_path (str): A path to a Google Credentials file with access permissions for BigQuery
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             bigquery (OfflineSQLProvider): Provider
@@ -1959,7 +2116,9 @@ class Registrar:
                             function="OFFLINE",
                             description=description,
                             team=team,
-                            config=config)
+                            config=config,
+                            tags=tags,
+                            properties=properties)
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
@@ -1969,7 +2128,8 @@ class Registrar:
                        filestore: FileStoreProvider,
                        description: str = "",
                        team: str = "",
-                       ):
+                       tags: List[str] = [],
+                       properties: dict = {}):
         """Register a Spark on Executor provider.
         **Examples**:
         ```
@@ -1987,6 +2147,8 @@ class Registrar:
             filestore: (FileStoreProvider): a FileStoreProvider used for storage of data
             description (str): Description of Spark provider to be registered
             team (str): Name of team
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             spark (OfflineSparkProvider): Provider
@@ -2002,7 +2164,9 @@ class Registrar:
                             function="OFFLINE",
                             description=description,
                             team=team,
-                            config=config)
+                            config=config,
+                            tags=tags,
+                            properties=properties)
         self.__resources.append(provider)
         return OfflineSparkProvider(self, provider)
 
@@ -2011,8 +2175,9 @@ class Registrar:
                      store: FileStoreProvider,
                      description: str = "",
                      team: str = "",
-                     docker_image: str = ""
-                     ):
+                     docker_image: str = "",
+                     tags: List[str] = [],
+                     properties: dict = {}):
         """
         Register an offline store provider to run on featureform's own k8s deployment
         
@@ -2022,6 +2187,8 @@ class Registrar:
             description (str): Description of primary data to be registered
             team (str): A string parameter describing the team that owns the provider
             docker_image (str): A custom docker image using the base image featureformcom/k8s_runner
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
         **Examples**:
         ```
         k8s = ff.register_k8s(
@@ -2043,7 +2210,9 @@ class Registrar:
                             function="OFFLINE",
                             description=description,
                             team=team,
-                            config=config)
+                            config=config,
+                            tags=tags,
+                            properties=properties)
         self.__resources.append(provider)
         return OfflineK8sProvider(self, provider)
 
@@ -2062,7 +2231,9 @@ class Registrar:
                             function="LOCAL_ONLINE",
                             description="This is local mode",
                             team="team",
-                            config=config)
+                            config=config,
+                            tags=['local-mode'],
+                            properties={type: "Provider"})
         self.__resources.append(provider)
         local_provider = LocalProvider(self, provider)
         local_provider.insert_provider()
@@ -2073,6 +2244,8 @@ class Registrar:
                               variant: str,
                               location: Location,
                               provider: Union[str, OfflineProvider],
+                              tags: List[str],
+                              properties: dict,
                               owner: Union[str, UserRegistrar] = "",
                               description: str = ""):
         """Register a primary data source.
@@ -2099,7 +2272,9 @@ class Registrar:
                         definition=PrimaryData(location=location),
                         owner=owner,
                         provider=provider,
-                        description=description)
+                        description=description,
+                        tags=tags,
+                        properties=properties)
         self.__resources.append(source)
         return ColumnSourceRegistrar(self, source)
 
@@ -2111,8 +2286,9 @@ class Registrar:
                                     owner: Union[str, UserRegistrar] = "",
                                     description: str = "",
                                     schedule: str = "",
-                                    args: K8sArgs = None
-                                    ):
+                                    args: K8sArgs = None,
+                                    tags: List[str] = [],
+                                    properties: dict = {}):
         """Register a SQL transformation source.
 
         Args:
@@ -2124,6 +2300,8 @@ class Registrar:
             description (str): Description of primary data to be registered
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
             args (K8sArgs): Additional transformation arguments
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             source (ColumnSourceRegistrar): Source
@@ -2142,6 +2320,8 @@ class Registrar:
             schedule=schedule,
             provider=provider,
             description=description,
+            tags=tags,
+            properties=properties
         )
         self.__resources.append(source)
         return ColumnSourceRegistrar(self, source)
@@ -2153,8 +2333,9 @@ class Registrar:
                            schedule: str = "",
                            owner: Union[str, UserRegistrar] = "",
                            description: str = "",
-                           args: K8sArgs = None
-                           ):
+                           args: K8sArgs = None,
+                           tags: List[str] = [],
+                           properties: dict = {}):
         """SQL transformation decorator.
 
         Args:
@@ -2165,6 +2346,8 @@ class Registrar:
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of SQL transformation
             args (K8sArgs): Additional transformation arguments
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             decorator (SQLTransformationDecorator): decorator
@@ -2184,6 +2367,8 @@ class Registrar:
             owner=owner,
             description=description,
             args=args,
+            tags=tags,
+            properties=properties
         )
         self.__resources.append(decorator)
         return decorator
@@ -2197,8 +2382,9 @@ class Registrar:
                                    description: str = "",
                                    inputs: list = [],
                                    schedule: str = "",
-                                   args: K8sArgs = None
-                                   ):
+                                   args: K8sArgs = None,
+                                   tags: List[str] = [],
+                                   properties: dict = {}):
         """Register a Dataframe transformation source.
 
         Args:
@@ -2212,6 +2398,8 @@ class Registrar:
             inputs (list): Inputs to transformation
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
             args (K8sArgs): Additional transformation arguments
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             source (ColumnSourceRegistrar): Source
@@ -2233,12 +2421,16 @@ class Registrar:
             schedule=schedule,
             provider=provider,
             description=description,
+            tags=tags,
+            properties=properties
         )
         self.__resources.append(source)
         return ColumnSourceRegistrar(self, source)
 
     def df_transformation(self,
                           provider: Union[str, OfflineProvider],
+                          tags: List[str],
+                          properties: dict,
                           variant: str = "default",
                           name: str = "",
                           owner: Union[str, UserRegistrar] = "",
@@ -2256,6 +2448,8 @@ class Registrar:
             description (str): Description of SQL transformation
             inputs (list): Inputs to transformation
             args (K8sArgs): Additional transformation arguments
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             decorator (DFTransformationDecorator): decorator
@@ -2278,7 +2472,9 @@ class Registrar:
             owner=owner,
             description=description,
             inputs=inputs,
-            args=args
+            args=args,
+            tags=tags,
+            properties=properties
         )
         self.__resources.append(decorator)
         return decorator
@@ -2300,7 +2496,7 @@ class Registrar:
     def clear_state(self):
         self.__state = ResourceState()
 
-    def register_entity(self, name: str, description: str = ""):
+    def register_entity(self, name: str, description: str = "", tags: List[str] = [], properties: dict = {}):
         """Register an entity.
 
         **Examples**:
@@ -2310,11 +2506,13 @@ class Registrar:
         Args:
             name (str): Name of entity to be registered
             description (str): Description of entity to be registered
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             entity (EntityRegistrar): Entity
         """
-        entity = Entity(name=name, description=description)
+        entity = Entity(name=name, description=description, tags=tags, properties=properties)
         self.__resources.append(entity)
         return EntityRegistrar(self, entity)
 
@@ -2329,8 +2527,7 @@ class Registrar:
             labels: List[ColumnMapping] = None,
             timestamp_column: str = "",
             description: str = "",
-            schedule: str = "",
-    ):
+            schedule: str = "",):
         """Create features and labels from a source. Used in the register_resources function.
 
         Args:
@@ -2343,6 +2540,8 @@ class Registrar:
             labels (List[ColumnMapping]): List of ColumnMapping objects (dictionaries containing the keys: name, variant, column, resource_type)
             description (str): Description
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             resource (ResourceRegistrar): resource
@@ -2375,6 +2574,8 @@ class Registrar:
         for feature in features:
             variant = feature.get("variant", "default")
             desc = feature.get("description", "")
+            feature_tags = feature.get("tags", [])
+            feature_properties = feature.get("properties", {})
             resource = Feature(
                 name=feature["name"],
                 variant=variant,
@@ -2390,6 +2591,8 @@ class Registrar:
                     value=feature["column"],
                     timestamp=timestamp_column,
                 ),
+                tags=feature_tags,
+                properties=feature_properties
             )
             self.__resources.append(resource)
             feature_resources.append(resource)
@@ -2397,6 +2600,8 @@ class Registrar:
         for label in labels:
             variant = label.get("variant", "default")
             desc = label.get("description", "")
+            label_tags = label.get("tags", [])
+            label_properties = label.get("properties", {})
             resource = Label(
                 name=label["name"],
                 variant=variant,
@@ -2411,6 +2616,8 @@ class Registrar:
                     value=label["column"],
                     timestamp=timestamp_column,
                 ),
+                tags=label_tags,
+                properties=label_properties
             )
             self.__resources.append(resource)
             label_resources.append(resource)
@@ -2468,7 +2675,9 @@ class Registrar:
                               resources: list = [],
                               owner: Union[str, UserRegistrar] = "",
                               description: str = "",
-                              schedule: str = ""):
+                              schedule: str = "",
+                              tags: List[str] = [],
+                              properties: dict = {}):
         """Register a training set.
 
         Args:
@@ -2480,6 +2689,8 @@ class Registrar:
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of training set to be registered
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             resource (ResourceRegistrar): resource
@@ -2523,20 +2734,24 @@ class Registrar:
             schedule=schedule,
             label=label,
             features=features,
-            feature_lags=feature_lags
+            feature_lags=feature_lags,
+            tags=tags,
+            properties=properties,
         )
         self.__resources.append(resource)
 
-    def register_model(self, name: str) -> Model:
+    def register_model(self, name: str, tags: List[str] = [], properties: dict = {}) -> Model:
         """Register a model.
 
         Args:
             name (str): Model to be registered
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             ModelRegistrar: Model
         """
-        model = Model(name)
+        model = Model(name, tags=tags, properties=properties)
         self.__resources.append(model)
         return model
 

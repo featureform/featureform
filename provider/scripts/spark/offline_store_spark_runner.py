@@ -51,6 +51,8 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
     try:
         spark = SparkSession.builder.appName("Execute SQL Query").getOrCreate()
         set_spark_configs(spark, spark_configs)
+        spark.conf.set("spark.hadoop.dfs.client.use.datanode.hostname", "true")
+        spark.sparkContext._jsc.hadoopConfiguration().set('my.mapreduce.setting', 'someVal')
 
         if job_type == "Transformation" or job_type == "Materialization" or job_type == "Training Set":
             for i, source in enumerate(source_list):
@@ -87,7 +89,8 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
 
     spark = SparkSession.builder.appName("Dataframe Transformation").getOrCreate()
     set_spark_configs(spark, spark_configs)
-    
+    spark.conf.set("spark.hadoop.dfs.client.use.datanode.hostname", "true")
+
     print(f"reading {len(sources)} source files")
     func_parameters = []
     for location in sources:
@@ -101,7 +104,13 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         dt = datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
         output_uri_with_timestamp = f"{output_uri}{safe_datetime}" if output_uri[-1] == "/" else f"{output_uri}/{safe_datetime}"
-        output_df.write.mode("overwrite").parquet(output_uri_with_timestamp)
+        if store_type == "hdfs":
+            output_df.write.mode("overwrite").parquet("./output.parquet")
+            import subprocess
+            output = subprocess.check_output(f"hdfs dfs dfs.client.use.datanode.hostname=true -copyFromLocal ./output.parquet {output_uri_with_timestamp}", shell=True)
+            print(output)
+        else:
+            output_df.write.mode("overwrite").parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
         print(f"Issue with execution of the transformation: {e}")

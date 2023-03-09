@@ -89,9 +89,9 @@ Featureform on Kubernetes can be used to connect to your existing cloud infrastr
 locally on Minikube. 
 
 To check out how to run it in the cloud,
-follow our [Kubernetes quickstart](https://docs.featureform.com/quickstart-kubernetes).
+follow our [Kubernetes deployment](https://docs.featureform.com/deployment/kubernetes).
 
-To try Featureform with Minikube, follow our [Minikube guide](https://docs.featureform.com/deployment/minikube)
+To try Featureform with Minikube, follow our [Minikube guide](https://docs.featureform.com/minikube)
 
 ## Local
 
@@ -170,7 +170,7 @@ transactions.register_resources(
 )
 ```
 
-Finally, we'll join together the feature and label intro a training set.
+Finally, we'll join together the feature and label into a training set.
 ```python
 ff.register_training_set(
 "fraud_training", "quickstart",

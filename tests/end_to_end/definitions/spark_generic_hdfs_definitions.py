@@ -8,7 +8,7 @@ import featureform as ff
 
 FILE_DIRECTORY = os.getenv("FEATUREFORM_TEST_PATH", "")
 featureform_location = os.path.dirname(os.path.dirname(FILE_DIRECTORY))
-env_file_path = os.path.join(featureform_location, "../../../.env")
+env_file_path = os.path.join(featureform_location, ".env")
 load_dotenv(env_file_path)
 
 def get_random_string():
@@ -52,7 +52,7 @@ spark_creds = ff.SparkCredentials(
 
 hdfs = ff.register_hdfs(
     name="hdfs",
-    host="host.minikube.internal",
+    host=os.getenv("HDFS_HOST"),
     port="9000",
     username="hduser"
 )
@@ -69,7 +69,7 @@ ice_cream_dataset = spark.register_parquet_file(
     name=f"ice_cream_{VERSION}",
     variant=VERSION,
     description="A dataset of ice cream",
-    file_path="hdfs://ice_cream.parquet"
+    file_path="hdfs:///ice_cream.parquet"
 )
 
 @spark.df_transformation(name=f"ice_cream_transformation_{VERSION}",

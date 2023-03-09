@@ -473,7 +473,6 @@ func (fs *HDFSFileStore) Serve(key string) (Iterator, error) {
 }
 func (fs *HDFSFileStore) Exists(key string) (bool, error) {
 	_, err := fs.Client.Stat(fs.addPrefix(key))
-	fmt.Println("CHECKING EXISTS", err)
 	if err != nil && strings.Contains(err.Error(), "file does not exist") {
 		return false, nil
 	} else if err != nil {
@@ -557,7 +556,7 @@ func (fs *HDFSFileStore) PathWithPrefix(path string, remote bool) string {
 		if fs.Path != "" {
 			fsPath = fmt.Sprintf("/%s", fs.Path)
 		}
-		return fmt.Sprintf("%s%s/%s/%s", HDFSPrefix, fs.Host, fsPath, path)
+		return fmt.Sprintf("%s%s%s/%s", HDFSPrefix, fs.Host, fsPath, path)
 	} else {
 		return path
 	}

@@ -704,9 +704,9 @@ class Provider:
                   str(self.config.serialize(), 'utf-8')
                   )
         if len(self.tags):
-            db.insert("tags", self.name, "", "providers", json.dumps(self.tags))
+            db.upsert("tags", self.name, "", "providers", json.dumps(self.tags))
         if len(self.properties):
-            db.insert("properties", self.name, "", "providers", json.dumps(self.properties))
+            db.upsert("properties", self.name, "", "providers", json.dumps(self.properties))
 
     def __eq__(self, other):
         for attribute in vars(self):
@@ -740,9 +740,9 @@ class User:
                   "ready"
                   )
         if len(self.tags):
-            db.insert("tags", self.name, "", "users", json.dumps(self.tags))
+            db.upsert("tags", self.name, "", "users", json.dumps(self.tags))
         if len(self.properties):
-            db.insert("properties", self.name, "", "users", json.dumps(self.properties))
+            db.upsert("properties", self.name, "", "users", json.dumps(self.properties))
 
     def __eq__(self, other):
         for attribute in vars(self):
@@ -900,9 +900,9 @@ class Source:
                          self.definition
                          )
         if len(self.tags):
-            db.insert("tags", self.name, self.variant, "source_variant", json.dumps(self.tags))
+            db.upsert("tags", self.name, self.variant, "source_variant", json.dumps(self.tags))
         if len(self.properties):
-            db.insert("properties", self.name, self.variant, "source_variant", json.dumps(self.properties))
+            db.upsert("properties", self.name, self.variant, "source_variant", json.dumps(self.properties))
         self._create_source_resource(db)
 
     def _create_source_resource(self, db) -> None:
@@ -957,9 +957,9 @@ class Entity:
                   "ready"
                   )
         if len(self.tags):
-            db.insert("tags", self.name, "", "entities", json.dumps(self.tags))
+            db.upsert("tags", self.name, "", "entities", json.dumps(self.tags))
         if len(self.properties):
-            db.insert("properties", self.name, "", "entities", json.dumps(self.properties))
+            db.upsert("properties", self.name, "", "entities", json.dumps(self.properties))
 
     def __eq__(self, other):
         for attribute in vars(self):
@@ -1057,9 +1057,9 @@ class Feature:
                   self.source[1]
                   )
         if len(self.tags):
-            db.insert("tags", self.name, self.variant, "feature_variant", json.dumps(self.tags))
+            db.upsert("tags", self.name, self.variant, "feature_variant", json.dumps(self.tags))
         if len(self.properties):
-            db.insert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
+            db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
         self._create_feature_resource(db)
 
     def _create_feature_resource(self, db) -> None:
@@ -1146,9 +1146,9 @@ class Label:
                   self.source[1]
                   )
         if len(self.tags):
-            db.insert("tags", self.name, self.variant, "label_variant", json.dumps(self.tags))
+            db.upsert("tags", self.name, self.variant, "label_variant", json.dumps(self.tags))
         if len(self.properties):
-            db.insert("properties", self.name, self.variant, "label_variant", json.dumps(self.properties))
+            db.upsert("properties", self.name, self.variant, "label_variant", json.dumps(self.properties))
         self._create_label_resource(db)
 
     def _create_label_resource(self, db) -> None:
@@ -1339,9 +1339,9 @@ class TrainingSet:
                   "ready"
                   )
         if len(self.tags):
-            db.insert("tags", self.name, self.variant, "training_set_variant", json.dumps(self.tags))
+            db.upsert("tags", self.name, self.variant, "training_set_variant", json.dumps(self.tags))
         if len(self.properties):
-            db.insert("properties", self.name, self.variant, "training_set_variant", json.dumps(self.properties))
+            db.upsert("properties", self.name, self.variant, "training_set_variant", json.dumps(self.properties))
         self._create_training_set_resource(db)
 
     def _create_training_set_resource(self, db) -> None:
@@ -1430,9 +1430,9 @@ class Model:
                   "Model",
                   )
         if len(self.tags):
-            db.insert("tags", self.name, "", "models", json.dumps(self.tags))
+            db.upsert("tags", self.name, "", "models", json.dumps(self.tags))
         if len(self.properties):
-            db.insert("properties", self.name, "", "models", json.dumps(self.properties))
+            db.upsert("properties", self.name, "", "models", json.dumps(self.properties))
 
     def __eq__(self, other):
         for attribute in vars(self):

@@ -272,13 +272,15 @@ class SQLiteMetadata:
           name text NOT NULL,
           variant text,
           type text,
-          tag_list text);''')
+          tag_list text,
+          UNIQUE(name,variant));''')
 
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS properties(
           name text NOT NULL,
           variant text,
           type text,
-          property_list text);''')
+          property_list text,
+          UNIQUE(name,variant));''')
 
         self.__conn.commit()
 
@@ -508,6 +510,20 @@ class SQLiteMetadata:
         self.__conn.execute(query)
         self.__conn.commit()
 
+    def upsert(self, tablename, *args):
+        query = ""
+        is_update = False
+        if tablename == "tags" or tablename == "properties":
+           query, is_update = self.upsert_tags_properties(tablename, *args)
+        else:
+           raise NotImplementedError(f"UPSERT not implemented for table {tablename}")
+
+        if is_update:
+          self.__conn.execute(query)
+          self.__conn.commit()
+        else:
+           self.insert(tablename, *args)
+
     def close(self):
         self.__conn.close()
 
@@ -522,3 +538,29 @@ class SQLiteMetadata:
         results_list = search_results.fetchall()
 
         return results_list
+
+    def upsert_tags_properties(self, tablename, *args):
+        query = ""
+        updatable_column = "tag_list" if tablename == "tags" else "property_list"
+        default_value = [] if tablename == "tags" else {}
+        is_update = False
+        name = args[0]
+        variant = args[1]
+
+        cursor = self.__conn.execute(f"SELECT * FROM {tablename} WHERE name = '{name}' AND variant = '{variant}';")
+        self.__conn.commit()
+        existing = cursor.fetchall()
+
+        if len(existing):
+          existing_val = json.loads(existing[0][updatable_column]) if existing[0][updatable_column] is not None else default_value
+          if tablename == "tags":
+            updated = json.dumps(list(set(existing_val + json.loads(args[-1]))))
+          else:
+             updated = json.dumps({**existing_val, **json.loads(args[-1])})
+          args = list(args)
+          args[-1] = updated
+          query = f"UPDATE {tablename} SET name = '{name}', variant = '{variant}', type = '{args[2]}', {updatable_column} = '{args[3]}'"
+          query += f"WHERE name = '{name}' AND variant = '{variant}';"
+          is_update = True
+
+        return (query, is_update)

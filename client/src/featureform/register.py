@@ -12,20 +12,20 @@ import dill
 import pyspark
 import pandas as pd
 
-from .get import *
-from .list import *
-from .get_local import *
-from .list_local import *
-from .sqlite_metadata import SQLiteMetadata
-from .tls import insecure_channel, secure_channel
-from .resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
+from get import *
+from list import *
+from get_local import *
+from list_local import *
+from sqlite_metadata import SQLiteMetadata
+from tls import insecure_channel, secure_channel
+from resources import ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
     MongoDBConfig, PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkConfig, \
     AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, S3StoreConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation, \
     K8sArgs, AWSCredentials
 
-from .proto import metadata_pb2_grpc as ff_grpc
+from proto import metadata_pb2_grpc as ff_grpc
 
 
 NameVariant = Tuple[str, str]

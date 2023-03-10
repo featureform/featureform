@@ -2,9 +2,9 @@ from flask import Blueprint, Response
 from flask_cors import CORS, cross_origin
 import json
 import importlib.resources as pkg_resources
-from .sqlite_metadata import SQLiteMetadata
-from .resources import SourceType
-from .type_objects import (
+from sqlite_metadata import SQLiteMetadata
+from resources import SourceType
+from type_objects import (
     FeatureResource, 
     FeatureVariantResource, 
     TrainingSetResource, 

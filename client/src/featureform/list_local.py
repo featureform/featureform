@@ -1,5 +1,5 @@
-from .sqlite_metadata import *
-from .format import *
+from sqlite_metadata import *
+from format import *
 from enum import Enum
 
 cutoff_length = 60

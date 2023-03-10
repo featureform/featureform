@@ -1,5 +1,5 @@
-from featureform.proto import metadata_pb2
-from .format import *
+from proto import metadata_pb2
+import format
 
 cutoff_length = 60
 

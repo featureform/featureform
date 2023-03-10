@@ -3,12 +3,12 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import click
-from featureform import ResourceClient
-from .list import *
-from .get import *
+from register import ResourceClient
+from list import *
+from get import *
 import os
 from flask import Flask
-from .dashboard_metadata import dashboard_app
+from dashboard_metadata import dashboard_app
 import validators
 import urllib.request
 

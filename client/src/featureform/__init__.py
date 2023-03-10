@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+from .proto import *
 from .register import *
 from .serving import ServingClient
 from .resources import DatabricksCredentials, EMRCredentials, AWSCredentials

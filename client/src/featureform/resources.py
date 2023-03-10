@@ -5,18 +5,15 @@
 import json
 import time
 from enum import Enum
-from base64 import b64encode
 from typeguard import typechecked
-from dataclasses import dataclass
 from typing import List, Tuple, Union
 
 import grpc
-from .sqlite_metadata import SQLiteMetadata
+from sqlite_metadata import SQLiteMetadata
 from google.protobuf.duration_pb2 import Duration
 
 from featureform.proto import metadata_pb2 as pb
 from dataclasses import dataclass, field
-from featureform.format import *
 
 NameVariant = Tuple[str, str]
 

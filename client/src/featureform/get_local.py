@@ -1,5 +1,5 @@
-from .format import *
-from .sqlite_metadata import *
+from format import *
+from sqlite_metadata import *
 
 def get_user_info_local(name):
     user = get_resource("user", name)

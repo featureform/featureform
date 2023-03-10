@@ -1,6 +1,6 @@
 import pytest
 import os
-from .cli import app
+from cli import app
 import json
 import shutil
 import stat

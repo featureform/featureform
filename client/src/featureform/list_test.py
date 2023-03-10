@@ -1,4 +1,4 @@
-from .register import Client
+from register import Client
 from io import StringIO
 from unittest.mock import patch
 import os

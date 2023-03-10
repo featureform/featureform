@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from pandasql import sqldf
 from featureform.proto import serving_pb2
-from .sqlite_metadata import SQLiteMetadata
+from sqlite_metadata import SQLiteMetadata
 from featureform.proto import serving_pb2_grpc
 
 from .resources import SourceType

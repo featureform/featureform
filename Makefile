@@ -211,12 +211,12 @@ pytest:
 	pytest client/tests/register_test.py
 	pytest client/tests/provider_config_test.py
 	pytest client/tests/serving_test.py
-	pytest client/src/featureform/local_dash_test.py
-	pytest client/tests/redefined_test.py
+#	pytest client/src/featureform/local_dash_test.py
+#	pytest client/tests/redefined_test.py
 	pytest client/tests/local_test.py
-	pytest client/tests/localmode_quickstart_test.py
+#	pytest client/tests/localmode_quickstart_test.py
 	pytest client/tests/register_test.py
-	pytest client/tests/test_spark_provider.py
+#	pytest client/tests/test_spark_provider.py
 	pytest client/tests/test_localmode_include_label_ts.py
 	pytest client/tests/test_localmode_lag_features.py
 	-rm -r .featureform

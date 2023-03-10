@@ -1,7 +1,7 @@
-from featureform.proto import metadata_pb2
+from proto import metadata_pb2
 import grpc
-from featureform.proto import metadata_pb2_grpc as ff_grpc
-from .format import *
+from proto import metadata_pb2_grpc as ff_grpc
+from format import *
 
 def get_user_info(stub, name):
     searchName = metadata_pb2.Name(name=name)

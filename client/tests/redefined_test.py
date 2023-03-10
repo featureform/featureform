@@ -1,6 +1,6 @@
 import featureform as ff
 import pytest
-from featureform.resources import ResourceRedefinedError
+from featureform import resources
 import shutil
 
 class TestResourcesRedefined:
@@ -102,7 +102,9 @@ class TestResourcesRedefined:
             path="transaction.csv"
         )
 
-        with pytest.raises(ResourceRedefinedError):
+        with pytest.raises(resources.ResourceRedefinedError) as e:
+       
+            print("REDEFINED")
             client.apply()
 
         user = ff.register_entity("user")

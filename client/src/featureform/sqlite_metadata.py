@@ -282,8 +282,15 @@ class SQLiteMetadata:
 
         self.__conn.commit()
 
-    def get_type_table(self, type):
-        query = f"SELECT * FROM {type}"
+    def get_type_table(self, tablename):
+        if tablename in ["entities", "models", "users", "providers"]:
+          query = '''SELECT r.*, t.tag_list as tags, p.property_list as properties
+          FROM {0} r
+          LEFT JOIN tags t ON t.name = r.name
+          LEFT JOIN properties p ON p.name = r.name     ;
+          '''.format(tablename)
+        else:
+          query = f"SELECT * FROM {tablename}"
         type_data = self.__conn.execute(query)
         self.__conn.commit()
         return type_data.fetchall()
@@ -381,17 +388,33 @@ class SQLiteMetadata:
 
     def get_training_set_variant(self, name, variant):
         query = f"SELECT * FROM training_set_variant WHERE name = '{name}' AND variant = '{variant}';"
+        query = '''SELECT v.*, t.tag_list as tags, p.property_list as properties
+        FROM training_set_variant v
+        LEFT JOIN tags t ON t.name = v.name AND t.variant = v.variant
+        LEFT JOIN properties p ON p.name = v.name AND p.variant = v.variant
+        WHERE v.name = '{0}' AND v.variant = '{1}';
+        '''.format(name, variant)
         return self.fetch_data(query, "training_set_variant", name, variant)[0]
 
     def get_training_set_variant_from_training_set(self, name):
         return self.query_resource_variant("training_set_variant", "name", name)
     
     def get_training_set_variant_from_label(self, name, variant):
-        query = f"SELECT * FROM training_set_variant WHERE label_name = '{name}' AND label_variant = '{variant}';"
+        query = '''SELECT v.*, t.tag_list as tags, p.property_list as properties
+        FROM training_set_variant v
+        LEFT JOIN tags t ON t.name = v.name AND t.variant = v.variant
+        LEFT JOIN properties p ON p.name = v.name AND p.variant = v.variant
+        WHERE v.label_name = '{0}' AND v.label_variant = '{1}';
+        '''.format(name, variant)
         return self.fetch_data_safe(query, "training_set_variant", name, variant)
     
     def get_label_variant(self, name, variant):
-        query = f"SELECT * FROM label_variant WHERE name = '{name}' AND variant = '{variant}';"
+        query = '''SELECT v.*, t.tag_list as tags, p.property_list as properties
+        FROM label_variant v
+        LEFT JOIN tags t ON t.name = v.name AND t.variant = v.variant
+        LEFT JOIN properties p ON p.name = v.name AND p.variant = v.variant
+        WHERE v.name = '{0}' AND v.variant = '{1}';
+        '''.format(name, variant)
         return self.fetch_data(query, "label_variant", name, variant)[0]
     
     def get_label_variants_from_label(self, name):
@@ -401,35 +424,70 @@ class SQLiteMetadata:
         return self.query_resource_variant("label_variant", "provider", name)
     
     def get_label_variants_from_source(self, name, variant):
-        query = f"SELECT * FROM label_variant WHERE source_name = '{name}' AND source_variant = '{variant}';"
+        query = '''SELECT v.*, t.tag_list as tags, p.property_list as properties
+        FROM label_variant v
+        LEFT JOIN tags t ON t.name = v.name AND t.variant = v.variant
+        LEFT JOIN properties p ON p.name = v.name AND p.variant = v.variant
+        WHERE v.source_name = '{0}' AND v.source_variant = '{1}';
+        '''.format(name, variant)
         return self.fetch_data_safe(query, "label_variant", name, variant)
 
     def get_source_variant(self, name, variant):
-        query = f"SELECT * FROM source_variant WHERE name = '{name}' AND variant = '{variant}';"
+        query = '''SELECT v.*, t.tag_list as tags, p.property_list as properties
+        FROM source_variant v
+        LEFT JOIN tags t ON t.name = v.name AND t.variant = v.variant
+        LEFT JOIN properties p ON p.name = v.name AND p.variant = v.variant
+        WHERE v.name = '{0}' AND v.variant = '{1}';
+        '''.format(name, variant)
         return self.fetch_data(query, "source_variant", name, variant)[0]
 
     def get_source_variants_from_source(self, name):
         return self.query_resource_variant("source_variant", "name", name)
 
     def get_training_set_from_features(self, name, variant):
-        query = f"SELECT * FROM training_set_features WHERE feature_name = '{name}' AND feature_variant = '{variant}';"
+        query = '''SELECT v.*, t.tag_list as tags, p.property_list as properties
+        FROM training_set_features v
+        LEFT JOIN tags t ON t.name = v.training_set_name AND t.variant = v.training_set_variant
+        LEFT JOIN properties p ON p.name = v.training_set_name AND p.variant = v.training_set_variant
+        WHERE v.feature_name = '{0}' AND v.feature_variant = '{1}';
+        '''.format(name, variant)
         return self.fetch_data_safe(query, "training_set_features", name, variant)
 
     def get_training_set_from_labels(self, name, variant):
-        query = f"SELECT * FROM training_set_variant WHERE label_name = '{name}' AND label_variant = '{variant}';"
+        query = '''SELECT v.*, t.tag_list as tags, p.property_list as properties
+        FROM training_set_variant v
+        LEFT JOIN tags t ON t.name = v.name AND t.variant = v.variant
+        LEFT JOIN properties p ON p.name = v.name AND p.variant = v.variant
+        WHERE v.label_name = '{0}' AND v.label_variant = '{1}';
+        '''.format(name, variant)
         return self.fetch_data_safe(query, "training_set_variant", name, variant)
 
     def get_training_set_features(self, name, variant):
-        query = f"SELECT * FROM training_set_features WHERE training_set_name = '{name}' AND training_set_variant = '{variant}'"
+        query = '''SELECT v.*, t.tag_list as tags, p.property_list as properties
+        FROM training_set_features v
+        LEFT JOIN tags t ON t.name = v.training_set_name AND t.variant = v.training_set_variant
+        LEFT JOIN properties p ON p.name = v.training_set_name AND p.variant = v.training_set_variant
+         WHERE v.training_set_name = '{0}' AND v.training_set_variant = '{1}';
+        '''.format(name, variant)
         return self.fetch_data(query, "training_set_features", name, variant)
       
     def get_training_set_lag_features(self, name, variant):
-        query = f"SELECT * FROM training_set_lag_features WHERE training_set_name = '{name}' AND training_set_variant = '{variant}'"
+        query = '''SELECT v.*, t.tag_list as tags, p.property_list as properties
+        FROM training_set_lag_features v
+        LEFT JOIN tags t ON t.name = v.training_set_name AND t.variant = v.training_set_variant
+        LEFT JOIN properties p ON p.name = v.training_set_name AND p.variant = v.training_set_variant
+         WHERE v.training_set_name = '{0}' AND v.training_set_variant = '{1}';
+        '''.format(name, variant)
         return self.fetch_data_safe(query, "training_set_lag_features", name, variant)
 
-    def get_resource_with_source(self, type, source_name, source_variant):
-        query = f"SELECT * FROM {type} WHERE source_name ='{source_name}' AND source_variant ='{source_variant}';"
-        return self.fetch_data(query, type, source_name, source_variant)
+    def get_resource_with_source(self, tablename, source_name, source_variant):
+        query = '''SELECT v.*, t.tag_list as tags, p.property_list as properties
+        FROM {0} v
+        LEFT JOIN tags t ON t.name = v.name AND t.variant = v.variant
+        LEFT JOIN properties p ON p.name = v.name AND p.variant = v.variant
+         WHERE v.source_name = '{1}' AND v.source_variant = '{2}';
+        '''.format(tablename, source_name, source_variant)
+        return self.fetch_data(query, tablename, source_name, source_variant)
 
     def is_transformation(self, name, variant):
         query = f"SELECT transformation FROM source_variant WHERE name='{name}' and variant='{variant}';"

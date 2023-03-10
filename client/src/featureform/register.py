@@ -334,7 +334,7 @@ class OfflineK8sProvider(OfflineProvider):
                                                    schedule=schedule,
                                                    provider=self.name(),
                                                    description=description,
-                                                   args=K8sArgs(docker_image=docker_image, specs=resource_specs,
+                                                   args=K8sArgs(docker_image=docker_image, specs=resource_specs),
                                                    tags=tags,
                                                    properties=properties)
 
@@ -381,7 +381,7 @@ class OfflineK8sProvider(OfflineProvider):
                                                   provider=self.name(),
                                                   description=description,
                                                   inputs=inputs,
-                                                  args=K8sArgs(docker_image=docker_image, specs=resource_specs,
+                                                  args=K8sArgs(docker_image=docker_image, specs=resource_specs),
                                                   tags=tags,
                                                   properties=properties)
 
@@ -2233,7 +2233,7 @@ class Registrar:
                             team="team",
                             config=config,
                             tags=['local-mode'],
-                            properties={type: "Provider"})
+                            properties={"resource_type": "Provider"})
         self.__resources.append(provider)
         local_provider = LocalProvider(self, provider)
         local_provider.insert_provider()

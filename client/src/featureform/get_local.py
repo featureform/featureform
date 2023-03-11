@@ -12,7 +12,7 @@ def get_user_info_local(name):
     tags = json.loads(user["tags"]) if user["tags"] is not None else []
     properties = json.loads(user["properties"]) if user["properties"] is not None else {}
     format_tags_and_properties(tags, properties)
-    return user
+    return {**user, "tags": tags, "properties": properties}
 
 def get_entity_info_local(name):
     db = SQLiteMetadata()

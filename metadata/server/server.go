@@ -38,7 +38,7 @@ func main() {
 		config.SearchParams = &search.MeilisearchParams{
 			Port:   help.GetEnv("MEILISEARCH_PORT", "7700"),
 			Host:   help.GetEnv("MEILISEARCH_HOST", "localhost"),
-			ApiKey: help.GetEnv("MEILISEARCH_APIKEY", "xyz"),
+			ApiKey: help.GetEnv("MEILISEARCH_APIKEY", ""),
 		}
 	}
 

@@ -540,6 +540,9 @@ class SQLiteMetadata:
         return results_list
 
     def upsert_tags_properties(self, tablename, *args):
+        result_idx = 0
+        type_idx = 2
+        updatable_column_idx = -1
         query = ""
         updatable_column = "tag_list" if tablename == "tags" else "property_list"
         default_value = [] if tablename == "tags" else {}
@@ -552,14 +555,14 @@ class SQLiteMetadata:
         existing = cursor.fetchall()
 
         if len(existing):
-          existing_val = json.loads(existing[0][updatable_column]) if existing[0][updatable_column] is not None else default_value
+          existing_val = json.loads(existing[result_idx][updatable_column]) if existing[result_idx][updatable_column] is not None else default_value
           if tablename == "tags":
-            updated = json.dumps(list(set(existing_val + json.loads(args[-1]))))
+            updated = json.dumps(list(set(existing_val + json.loads(args[updatable_column_idx]))))
           else:
-             updated = json.dumps({**existing_val, **json.loads(args[-1])})
+             updated = json.dumps({**existing_val, **json.loads(args[updatable_column_idx])})
           args = list(args)
-          args[-1] = updated
-          query = f"UPDATE {tablename} SET name = '{name}', variant = '{variant}', type = '{args[2]}', {updatable_column} = '{args[3]}'"
+          args[updatable_column_idx] = updated
+          query = f"UPDATE {tablename} SET name = '{name}', variant = '{variant}', type = '{args[type_idx]}', {updatable_column} = '{args[updatable_column_idx]}'"
           query += f"WHERE name = '{name}' AND variant = '{variant}';"
           is_update = True
 

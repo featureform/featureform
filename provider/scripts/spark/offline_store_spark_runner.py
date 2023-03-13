@@ -39,7 +39,9 @@ def main(args):
        
         print(f"Finished execution of {args.transformation_type}. Please check {output_location} for output file.")
     except Exception as e:
-        print(f"the {args.transformation_type} job failed. Error: {e}")
+        error_message = f"the {args.transformation_type} job failed. Error: {e}"
+        print(error_message)
+        raise Exception(error_message)
     finally:
         delete_file(file_path)
 

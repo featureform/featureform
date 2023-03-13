@@ -292,7 +292,6 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 		return nil, fmt.Errorf("could not deserialize config: %v", err)
 	}
 
-	fmt.Println("--->", GCSConfig)
 	serializedFile, err := json.Marshal(GCSConfig.Credentials.SerializedFile)
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize GCS config: %v", err)

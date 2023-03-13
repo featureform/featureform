@@ -82,7 +82,6 @@ func CreateSparkFileStore(name string, config Config) (SparkFileStore, error) {
 	if !exists {
 		return nil, fmt.Errorf("factory does not exist: %s", name)
 	}
-	fmt.Println("Filestore Factory Config", config)
 	FileStore, err := factory(config)
 	if err != nil {
 		return nil, err

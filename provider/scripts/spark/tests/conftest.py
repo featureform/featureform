@@ -19,7 +19,7 @@ def sql_all_arguments():
 
 @pytest.fixture(scope="module")
 def sql_local_all_arguments():
-    expected_args = Namespace(transformation_type="sql", job_type="Transformation", output_uri=f"{dir_path}/test_files/output/test_sql_transformation", sql_query="SELECT * FROM source_0", source_list=[f"{dir_path}/test_files/input/transaction"], store_type="local", spark_config={})
+    expected_args = Namespace(transformation_type="sql", job_type="Transformation", output_uri=f"{dir_path}/test_files/output/test_sql_transformation", sql_query="SELECT * FROM source_0", source_list=[f"{dir_path}/test_files/input/transaction"], store_type="local", spark_config={}, credential={})
     return expected_args
 
 @pytest.fixture(scope="module")

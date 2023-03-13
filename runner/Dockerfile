@@ -55,6 +55,7 @@ RUN apt-get update && apt-get install -y \
     liblzma-dev \
     curl \
     git \
+    wget \
     openjdk-8-jdk \
     && rm -rf /var/lib/apt/lists/*
 
@@ -73,5 +74,9 @@ RUN pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --up
 
 ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
 ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
+
+# Download Shaded Jar
+RUN mkdir /app/provider/scripts/spark/jars
+RUN wget https://github.com/GoogleCloudDataproc/hadoop-connectors/releases/download/v2.2.11/gcs-connector-hadoop2-2.2.11-shaded.jar -P /app/provider/scripts/spark/jars/
 
 CMD [ "./worker" ]

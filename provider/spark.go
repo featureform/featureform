@@ -82,6 +82,7 @@ func CreateSparkFileStore(name string, config Config) (SparkFileStore, error) {
 	if !exists {
 		return nil, fmt.Errorf("factory does not exist: %s", name)
 	}
+	fmt.Println("Filestore Factory Config", config)
 	FileStore, err := factory(config)
 	if err != nil {
 		return nil, err
@@ -233,11 +234,15 @@ type SparkGCSFileStore struct {
 func (gcs SparkGCSFileStore) SparkConfig() []string {
 	return []string{
 		"--spark_config",
-		"spark.hadoop.google.cloud.auth.service.account.enable=true",
+		"spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
 		"--spark_config",
-		"fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
+		"spark.hadoop.fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
 		"--spark_config",
-		"fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
+		"spark.hadoop.fs.gs.auth.service.account.enable=true",
+		"--conf",
+		"spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
+		"--conf",
+		"spark.hadoop.fs.gs.auth.type=SERVICE_ACCOUNT_JSON_KEYFILE",
 	}
 }
 
@@ -258,6 +263,8 @@ func (gcs SparkGCSFileStore) Packages() []string {
 	return []string{
 		"--packages",
 		"com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.0",
+		"--jars",
+		"/app/provider/scripts/spark/jars/gcs-connector-hadoop2-2.2.11-shaded.jar",
 	}
 }
 

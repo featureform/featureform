@@ -405,7 +405,7 @@ def get_model_info_local(name) -> Model:
     format_rows("MODEL NAME: ", model["name"])
     format_rows("TYPE: ", model["type"])
 
-    return Model(model["name"])
+    return Model(model["name"], tags=[], properties={})
 
 def format_tags_and_properties(tags, properties):
     if len(tags):

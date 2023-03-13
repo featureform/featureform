@@ -699,7 +699,7 @@ class SQLTransformationDecorator:
                  schedule: str = "",
                  description: str = "",
                  args: K8sArgs = None):
-        self.registrar = registrar
+        self.registrar = registrar,
         self.name = name
         self.variant = variant
         self.owner = owner
@@ -3840,7 +3840,7 @@ class ResourceClient(Registrar):
         models = []
         if local:
             rows = list_local("model", [ColumnName.NAME])
-            models = [Model(row["name"]) for row in rows]
+            models = [Model(row["name"], tags=[], properties={}) for row in rows]
         else:
             model_protos = list_name(self._stub, "model")
             models = [Model(proto.name) for proto in model_protos]

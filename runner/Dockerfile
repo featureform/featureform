@@ -76,7 +76,6 @@ ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py
 ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
 
 # Download Shaded Jar
-RUN mkdir /app/provider/scripts/spark/jars
-RUN wget https://github.com/GoogleCloudDataproc/hadoop-connectors/releases/download/v2.2.11/gcs-connector-hadoop2-2.2.11-shaded.jar -P /app/provider/scripts/spark/jars/
+RUN wget https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop2-2.2.11/gcs-connector-hadoop2-2.2.11-shaded.jar -P /app/provider/scripts/spark/jars/
 
 CMD [ "./worker" ]

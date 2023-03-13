@@ -30,12 +30,13 @@ def main(args):
     print(f"Starting execution of {args.transformation_type}")
     file_path = set_gcp_credential_file_path(args.store_type, args.spark_config, args.credential)
     
+    output_location = ""
     try:
         if args.transformation_type == "sql":
             output_location = execute_sql_query(args.job_type, args.output_uri, args.sql_query, args.spark_config, args.source_list)
         elif args.transformation_type == "df":
             output_location = execute_df_job(args.output_uri, args.code, args.store_type, args.spark_config, args.credential, args.source)
-        
+       
         print(f"Finished execution of {args.transformation_type}. Please check {output_location} for output file.")
     except Exception as e:
         print(f"the {args.transformation_type} job failed. Error: {e}")
@@ -188,7 +189,7 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
         project_id = credentials.get("gcp_project_id")
         gcp_credentials = get_credentials_dict(credentials.get("gcp_credentials"))
 
-        credentials = service_account.Credentials.from_service_account_info(credentials_dict)
+        credentials = service_account.Credentials.from_service_account_info(gcp_credentials)
         client = storage.Client(project=project_id, credentials=credentials)
 
         bucket = client.bucket(bucket_name)

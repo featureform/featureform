@@ -234,15 +234,15 @@ type SparkGCSFileStore struct {
 func (gcs SparkGCSFileStore) SparkConfig() []string {
 	return []string{
 		"--spark_config",
-		"spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
+		"fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
 		"--spark_config",
-		"spark.hadoop.fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
+		"fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
 		"--spark_config",
-		"spark.hadoop.fs.gs.auth.service.account.enable=true",
-		"--conf",
-		"spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
-		"--conf",
-		"spark.hadoop.fs.gs.auth.type=SERVICE_ACCOUNT_JSON_KEYFILE",
+		"fs.gs.auth.service.account.enable=true",
+		"--spark_config",
+		"fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
+		"--spark_config",
+		"fs.gs.auth.type=SERVICE_ACCOUNT_JSON_KEYFILE",
 	}
 }
 

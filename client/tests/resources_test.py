@@ -151,6 +151,8 @@ def postgres_provider(postgres_config):
         function="fn2",
         team="team2",
         config=postgres_config,
+        tags=[],
+        properties={}
     )
 
 
@@ -162,6 +164,8 @@ def snowflake_provider(snowflake_config):
         function="fn3",
         team="team3",
         config=snowflake_config,
+        tags=[],
+        properties={}
     )
 
 
@@ -173,6 +177,8 @@ def redis_provider(redis_config):
         function="fn3",
         team="team3",
         config=redis_config,
+        tags=[],
+        properties={}
     )
 
 
@@ -184,6 +190,8 @@ def redshift_provider(redshift_config):
         function="fn2",
         team="team2",
         config=redshift_config,
+        tags=[],
+        properties={}
     )
 
 
@@ -195,6 +203,8 @@ def bigquery_provider(bigquery_config):
         function="fn2",
         team="team2",
         config=bigquery_config,
+        tags=[],
+        properties={}
     )
 
 @pytest.mark.parametrize('image', ["", "my/docker_image:latest"])
@@ -257,7 +267,9 @@ def mock_provider(kubernetes_config):
         function="OFFLINE",
         description="provider-description",
         team="team",
-        config=kubernetes_config
+        config=kubernetes_config,
+        tags=[],
+        properties={}
     )
 
 
@@ -335,7 +347,9 @@ def init_feature(input):
                 value="def",
                 timestamp="ts",
             ),
-            provider="redis-name")
+            provider="redis-name",
+            tags=[],
+            properties={})
 
 
 @pytest.mark.parametrize("input,fail", [
@@ -363,7 +377,9 @@ def init_label(input):
               value="def",
               timestamp="ts",
           ),
-          provider="redis-name")
+          provider="redis-name", 
+          tags=[], 
+          properties={})
 
 
 @pytest.mark.parametrize("input,fail", [
@@ -382,14 +398,21 @@ def test_valid_label_column_types(input, fail):
 def all_resources_set(redis_provider):
     return [
         redis_provider,
-        User(name="Featureform"),
-        Entity(name="user", description="A user"),
+        User(name="Featureform",
+             tags=[],
+             properties={}),
+        Entity(name="user",
+               description="A user",
+               tags=[],
+               properties={}),
         Source(name="primary",
                variant="abc",
                definition=PrimaryData(location=SQLTable("table")),
                owner="someone",
                description="desc",
-               provider="redis-name"),
+               provider="redis-name",
+               tags=[],
+               properties={}),
         Feature(name="feature",
                 variant="v1",
                 source=("a", "b"),
@@ -402,7 +425,9 @@ def all_resources_set(redis_provider):
                     value="def",
                     timestamp="ts",
                 ),
-                provider="redis-name"),
+                provider="redis-name",
+                tags=[],
+                properties={}),
         Label(
             name="label",
             variant="v1",
@@ -416,7 +441,9 @@ def all_resources_set(redis_provider):
             ),
             entity="user",
             owner="Owner",
-            provider="redis-name"
+            provider="redis-name",
+            tags=[],
+            properties={}
         ),
         TrainingSet(name="training-set",
                     variant="v1",
@@ -424,7 +451,9 @@ def all_resources_set(redis_provider):
                     owner="featureform",
                     label=("label", "var"),
                     feature_lags=[],
-                    features=[("f1", "var")]),
+                    features=[("f1", "var")],
+                    tags=[],
+                    properties={})
     ]
 
 
@@ -437,7 +466,9 @@ def all_resources_strange_order(redis_provider):
                     owner="featureform",
                     feature_lags=[],
                     label=("label", "var"),
-                    features=[("f1", "var")]),
+                    features=[("f1", "var")],
+                    tags=[],
+                    properties={}),
         Label(
             name="label",
             variant="v1",
@@ -451,7 +482,9 @@ def all_resources_strange_order(redis_provider):
             value_type="float32",
             entity="user",
             owner="Owner",
-            provider="redis-name"
+            provider="redis-name",
+            tags=[],
+            properties={}
         ),
         Feature(name="feature",
                 variant="v1",
@@ -465,16 +498,23 @@ def all_resources_strange_order(redis_provider):
                     timestamp="ts",
                 ),
                 owner="Owner",
-                provider="redis-name"),
-        Entity(name="user", description="A user"),
+                provider="redis-name",
+                tags=[],
+                properties={}),
+        Entity(name="user",
+               description="A user",
+               tags=[],
+               properties={}),
         Source(name="primary",
                variant="abc",
                definition=PrimaryData(location=SQLTable("table")),
                owner="someone",
                description="desc",
-               provider="redis-name"),
+               provider="redis-name",
+               tags=[],
+               properties={}),
         redis_provider,
-        User(name="Featureform"),
+        User(name="Featureform", tags=[], properties={}),
     ]
 
 
@@ -498,12 +538,16 @@ def test_redefine_provider(redis_config, snowflake_config):
                  description="desc",
                  function="fn",
                  team="team",
-                 config=redis_config),
+                 config=redis_config,
+                 tags=[],
+                 properties={}),
         Provider(name="name",
                  description="desc2",
                  function="fn2",
                  team="team2",
-                 config=snowflake_config),
+                 config=snowflake_config,
+                 tags=[],
+                 properties={})
     ]
     state = ResourceState()
     state.add(providers[0])
@@ -516,21 +560,25 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
     for resource in all_resources_strange_order:
         state.add(resource)
     assert state.sorted_list() == [
-        User(name="Featureform"),
+        User(name="Featureform", tags=[], properties={}),
         Provider(
             name="redis",
             description="desc3",
             function="fn3",
             team="team3",
             config=redis_config,
+            tags=[],
+            properties={}
         ),
         Source(name="primary",
                variant="abc",
                definition=PrimaryData(location=SQLTable("table")),
                owner="someone",
                description="desc",
-               provider="redis-name"),
-        Entity(name="user", description="A user"),
+               provider="redis-name",
+               tags=[],
+               properties={}),
+        Entity(name="user", description="A user", tags=[], properties={}),
         Feature(name="feature",
                 variant="v1",
                 source=("a", "b"),
@@ -543,7 +591,9 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
                 ),
                 entity="user",
                 owner="Owner",
-                provider="redis-name"),
+                provider="redis-name",
+                tags=[],
+                properties={}),
         Label(
             name="label",
             variant="v1",
@@ -557,7 +607,9 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
             ),
             entity="user",
             owner="Owner",
-            provider="redis-name"
+            provider="redis-name",
+            tags=[],
+            properties={}
         ),
         TrainingSet(name="training-set",
                     variant="v1",
@@ -565,7 +617,9 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
                     owner="featureform",
                     label=("label", "var"),
                     features=[("f1", "var")],
-                    feature_lags=[]),
+                    feature_lags=[],
+                    tags=[],
+                    properties={}),
     ]
 
 
@@ -672,13 +726,15 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             resource.update_schedule("* * * * *")
         state.add(resource)
     assert state.sorted_list() == [
-        User(name="Featureform"),
+        User(name="Featureform", tags=[], properties={}),
         Provider(
             name="redis",
             description="desc3",
             function="fn3",
             team="team3",
             config=redis_config,
+            tags=[],
+            properties={}
         ),
         Source(name="primary",
                variant="abc",
@@ -687,8 +743,10 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
                description="desc",
                provider="redis-name",
                schedule="* * * * *",
-               schedule_obj=Schedule(name="primary", variant="abc", resource_type=7, schedule_string="* * * * *")),
-        Entity(name="user", description="A user"),
+               schedule_obj=Schedule(name="primary", variant="abc", resource_type=7, schedule_string="* * * * *"),
+               tags=[],
+               properties={}),
+        Entity(name="user", description="A user", tags=[], properties={}),
         Feature(name="feature",
                 variant="v1",
                 source=("a", "b"),
@@ -703,7 +761,9 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
                 owner="Owner",
                 provider="redis-name",
                 schedule="* * * * *",
-                schedule_obj=Schedule(name="feature", variant="v1", resource_type=4, schedule_string="* * * * *")),
+                schedule_obj=Schedule(name="feature", variant="v1", resource_type=4, schedule_string="* * * * *"),
+                tags=[],
+                properties={}),
         Label(
             name="label",
             variant="v1",
@@ -717,7 +777,9 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             ),
             entity="user",
             owner="Owner",
-            provider="redis-name"
+            provider="redis-name",
+            tags=[],
+            properties={}
         ),
         TrainingSet(name="training-set",
                     variant="v1",
@@ -728,7 +790,9 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
                     feature_lags=[],
                     schedule="* * * * *",
                     schedule_obj=Schedule(name="training-set", variant="v1", resource_type=6,
-                                          schedule_string="* * * * *")),
+                                          schedule_string="* * * * *"),
+                    tags=[],
+                    properties={}),
         Schedule(name="feature",
                  variant="v1",
                  resource_type=4,

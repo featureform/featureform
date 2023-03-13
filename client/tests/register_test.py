@@ -38,7 +38,9 @@ def local():
                         function="LOCAL_ONLINE",
                         description="This is local mode",
                         team="team",
-                        config=config)
+                        config=config,
+                        tags=[],
+                        properties={})
     return LocalProvider(Registrar(), provider)
 
 
@@ -74,7 +76,7 @@ def test_sql_transformation_empty_description(registrar):
     def my_function():
         return "SELECT * FROM X"
 
-    dec = SQLTransformationDecorator(registrar=registrar, owner="", provider="", variant="sql")
+    dec = SQLTransformationDecorator(registrar=registrar, owner="", provider="", variant="sql", tags=[], properties={})
     dec.__call__(my_function)
 
     # Checks that Transformation definition does not error when converting to source
@@ -85,7 +87,7 @@ def test_df_transformation_empty_description(registrar):
     def my_function(df):
         return df
 
-    dec = DFTransformationDecorator(registrar=registrar, owner="", provider="", variant="df")
+    dec = DFTransformationDecorator(registrar=registrar, owner="", provider="", variant="df", tags=[], properties={})
     dec.__call__(my_function)
 
     # Checks that Transformation definition does not error when converting to source

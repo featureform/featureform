@@ -240,15 +240,18 @@ type GCSFileStore struct {
 func (gs GCSFileStore) PathWithPrefix(path string, remote bool) string {
 	noGSPrefix := !strings.HasPrefix(path, gsPrefix)
 
-	if remote && noGSPrefix {
+	if !remote {
+		if len(path) != 0 && path[0:len(gs.Path)] != gs.Path && gs.Path != "" {
+			return fmt.Sprintf("%s/%s", gs.Path, path)
+		}
+	} else if remote && noGSPrefix {
 		gsPathPrefix := ""
 		if gs.Path != "" {
 			gsPathPrefix = fmt.Sprintf("/%s", gs.Path)
 		}
 		return fmt.Sprintf("gs://%s%s/%s", gs.Bucket, gsPathPrefix, path)
-	} else {
-		return path
 	}
+	return path
 }
 
 func (g GCSFileStore) FilestoreType() string {

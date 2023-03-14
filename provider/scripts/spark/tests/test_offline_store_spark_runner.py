@@ -57,7 +57,7 @@ def test_parse_args(arguments, request):
 @pytest.mark.parametrize(
     "arguments,expected_output",
     [
-        ("sql_local_all_arguments", f"{dir_path}/test_files/input/transaction"),
+        ("sql_local_all_arguments", f"{dir_path}/test_files/input/transaction.parquet"),
         pytest.param("sql_invalid_local_arguments", f"{dir_path}/test_files/expected/test_execute_sql_job_success", marks=pytest.mark.xfail),
     ]
 )
@@ -75,7 +75,7 @@ def test_execute_sql_query(arguments, expected_output, spark, request):
 @pytest.mark.parametrize(
     "arguments,expected_output",
     [
-        ("df_local_all_arguments", f"{dir_path}/test_files/input/transaction"),
+        ("df_local_all_arguments", f"{dir_path}/test_files/input/transaction.parquet"),
         pytest.param("df_local_pass_none_code_failure", f"{dir_path}/test_files/expected/test_execute_df_job_success", marks=pytest.mark.xfail),
     ]
 )

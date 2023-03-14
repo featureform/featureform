@@ -19,7 +19,7 @@ def sql_all_arguments():
 
 @pytest.fixture(scope="module")
 def sql_local_all_arguments():
-    expected_args = Namespace(transformation_type="sql", job_type="Transformation", output_uri=f"{dir_path}/test_files/output/test_sql_transformation", sql_query="SELECT * FROM source_0", source_list=[f"{dir_path}/test_files/input/transaction"], store_type="local", spark_config={}, credential={})
+    expected_args = Namespace(transformation_type="sql", job_type="Transformation", output_uri=f"{dir_path}/test_files/output/test_sql_transformation", sql_query="SELECT * FROM source_0", source_list=[f"{dir_path}/test_files/input/transaction.parquet"], store_type="local", spark_config={}, credential={})
     return expected_args
 
 @pytest.fixture(scope="module")
@@ -72,13 +72,13 @@ def invalid_arguments():
 
 @pytest.fixture(scope="module")
 def df_local_all_arguments(df_transformation):
-    expected_args = Namespace(transformation_type="df", output_uri=f"{dir_path}/test_files/output/test_df_transformation", code=df_transformation, source=[f"{dir_path}/test_files/input/transaction"], spark_config={}, credential={}, store_type="local")
+    expected_args = Namespace(transformation_type="df", output_uri=f"{dir_path}/test_files/output/test_df_transformation", code=df_transformation, source=[f"{dir_path}/test_files/input/transaction.parquet"], spark_config={}, credential={}, store_type="local")
     return expected_args
 
 
 @pytest.fixture(scope="module")
 def df_local_pass_none_code_failure():
-    expected_args = Namespace(transformation_type="df", output_uri=f"{dir_path}/test_files/output/test_transformation", code="s3://featureform-testing/fake-path/code", source=[f"{dir_path}/test_files/input/transaction"], spark_config={}, credential={})
+    expected_args = Namespace(transformation_type="df", output_uri=f"{dir_path}/test_files/output/test_transformation", code="s3://featureform-testing/fake-path/code", source=[f"{dir_path}/test_files/input/transaction.parquet"], spark_config={}, credential={})
     return expected_args
 
 

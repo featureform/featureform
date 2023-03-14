@@ -2945,7 +2945,8 @@ class ResourceClient(Registrar):
             if model_proto is None:
                 model = None
             else:
-                model = Model(model_proto.name)
+                # TODO: apply values from proto
+                model = Model(model_proto.name, tags=[], properties={})
 
         return model
 
@@ -3292,6 +3293,9 @@ class ResourceClient(Registrar):
             features=[(f.name, f.variant) for f in ts.features],
             feature_lags=[],
             provider=ts.provider,
+            # TODO: apply values from proto
+            tags=[],
+            properties={},
         )
 
     def print_training_set(self, name, variant=None, local=False):
@@ -3843,7 +3847,8 @@ class ResourceClient(Registrar):
             models = [Model(row["name"], tags=[], properties={}) for row in rows]
         else:
             model_protos = list_name(self._stub, "model")
-            models = [Model(proto.name) for proto in model_protos]
+            # TODO: apply values from proto
+            models = [Model(proto.name, tags=[], properties={}) for proto in model_protos]
 
         return models
 

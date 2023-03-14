@@ -298,7 +298,6 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize GCS config: %v", err)
 	}
-	fmt.Println("Serialized", serializedFile)
 
 	creds, err := google.CredentialsFromJSON(context.TODO(), serializedFile, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {

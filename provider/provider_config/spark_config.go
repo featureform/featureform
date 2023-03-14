@@ -22,8 +22,8 @@ type AWSCredentials struct {
 }
 
 type GCPCredentials struct {
-	ProjectId      string
-	SerializedFile map[string]interface{}
+	ProjectId string
+	JSON      map[string]interface{}
 }
 
 type SparkExecutorConfig interface {

@@ -239,15 +239,15 @@ type GCSFileStore struct {
 
 func (gs GCSFileStore) PathWithPrefix(path string, remote bool) string {
 	pathContainsGSPrefix := strings.HasPrefix(path, gsPrefix)
-	pathContainsUserPrefix := gs.Path != "" && strings.HasPrefix(path, gs.Path)
+	pathContainsPathPrefix := gs.Path != "" && strings.HasPrefix(path, gs.Path)
 
 	if !remote {
-		if len(path) != 0 && !pathContainsUserPrefix {
+		if len(path) != 0 && !pathContainsPathPrefix {
 			return fmt.Sprintf("%s/%s", gs.Path, path)
 		}
 	} else if remote && !pathContainsGSPrefix {
 		gsPathPrefix := ""
-		if !pathContainsUserPrefix {
+		if !pathContainsPathPrefix {
 			gsPathPrefix = fmt.Sprintf("/%s", gs.Path)
 		}
 		return fmt.Sprintf("gs://%s%s/%s", gs.Bucket, gsPathPrefix, path)
@@ -294,7 +294,7 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 		return nil, fmt.Errorf("could not deserialize config: %v", err)
 	}
 
-	serializedFile, err := json.Marshal(GCSConfig.Credentials.SerializedFile)
+	serializedFile, err := json.Marshal(GCSConfig.Credentials.JSON)
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize GCS config: %v", err)
 	}

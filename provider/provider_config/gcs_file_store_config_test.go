@@ -20,8 +20,8 @@ func TestGCSFileStoreConfigMutableFields(t *testing.T) {
 		BucketName: "transactions-ds",
 		BucketPath: "gs://transactions-ds",
 		Credentials: GCPCredentials{
-			ProjectId:      "ff-gcp-proj-id",
-			SerializedFile: credentialsDict,
+			ProjectId: "ff-gcp-proj-id",
+			JSON:      credentialsDict,
 		},
 	}
 	actual := config.MutableFields()
@@ -42,13 +42,13 @@ func TestGCSFileStoreDifferingFields(t *testing.T) {
 		t.Errorf("failed to read gcp_creds.json due to %v", err)
 	}
 
-	var credentialsDict map[string]interface{}
-	err = json.Unmarshal(gcpCredsBytes, &credentialsDict)
+	var oldCredentialsDict map[string]interface{}
+	err = json.Unmarshal(gcpCredsBytes, &oldCredentialsDict)
 	if err != nil {
 		t.Errorf("failed to unmarshal GCP credentials: %v", err)
 	}
-	credentialsDictB := createMapCopy(credentialsDict)
-	credentialsDictB["client_email"] = "test@featureform.com"
+	newCredentialsDict := createMapCopy(oldCredentialsDict)
+	newCredentialsDict["client_email"] = "test@featureform.com"
 	if err != nil {
 		t.Errorf("failed to marshal GCP credentials: %v", err)
 	}
@@ -63,16 +63,16 @@ func TestGCSFileStoreDifferingFields(t *testing.T) {
 				BucketName: "transactions-ds",
 				BucketPath: "gs://transactions-ds",
 				Credentials: GCPCredentials{
-					ProjectId:      "ff-gcp-proj-id",
-					SerializedFile: credentialsDict,
+					ProjectId: "ff-gcp-proj-id",
+					JSON:      oldCredentialsDict,
 				},
 			},
 			b: GCSFileStoreConfig{
 				BucketName: "transactions-ds",
 				BucketPath: "gs://transactions-ds",
 				Credentials: GCPCredentials{
-					ProjectId:      "ff-gcp-proj-id",
-					SerializedFile: credentialsDict,
+					ProjectId: "ff-gcp-proj-id",
+					JSON:      oldCredentialsDict,
 				},
 			},
 		}, ss.StringSet{}},
@@ -81,16 +81,16 @@ func TestGCSFileStoreDifferingFields(t *testing.T) {
 				BucketName: "transactions-ds",
 				BucketPath: "gs://transactions-ds",
 				Credentials: GCPCredentials{
-					ProjectId:      "ff-gcp-proj-id",
-					SerializedFile: credentialsDict,
+					ProjectId: "ff-gcp-proj-id",
+					JSON:      oldCredentialsDict,
 				},
 			},
 			b: GCSFileStoreConfig{
 				BucketName: "transactions-ds2",
 				BucketPath: "gs://transactions-ds2",
 				Credentials: GCPCredentials{
-					ProjectId:      "ff-gcp-proj-id",
-					SerializedFile: credentialsDictB,
+					ProjectId: "ff-gcp-proj-id",
+					JSON:      newCredentialsDict,
 				},
 			},
 		}, ss.StringSet{

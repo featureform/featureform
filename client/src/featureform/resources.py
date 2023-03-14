@@ -157,7 +157,7 @@ class GCPCredentials:
     def config(self):
         return {
             "ProjectId": self.project_id,
-            "SerializedFile": self.credentials,
+            "JSON": self.credentials,
         }
 
 

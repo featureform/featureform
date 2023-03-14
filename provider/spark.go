@@ -43,16 +43,6 @@ const ENTITY_INDEX = 0
 const VALUE_INDEX = 1
 const TIMESTAMP_INDEX = 2
 
-//type AWSCredentials struct {
-//	AWSAccessKeyId string
-//	AWSSecretKey   string
-//}
-
-//type GCPCredentials struct {
-//	ProjectId      string
-//	SerializedFile []byte
-//}
-
 type SparkExecutorConfig interface {
 	Serialize() ([]byte, error)
 	Deserialize(config pc.SerializedConfig) error
@@ -217,7 +207,7 @@ func NewSparkGCSFileStore(config Config) (SparkFileStore, error) {
 	if !ok {
 		return nil, fmt.Errorf("could not cast file store to *GCSFileStore")
 	}
-	serializedCredentials, err := json.Marshal(gcs.Credentials.SerializedFile)
+	serializedCredentials, err := json.Marshal(gcs.Credentials.JSON)
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize the credentials")
 	}

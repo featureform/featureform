@@ -114,10 +114,11 @@ export const testDetailsData = {
 
 export const providerLogos = Object.freeze({
   REDIS: "static/Redis_Logo.svg",
-  BIGQUERY: "static/google_bigquery-ar21.svg",
-  "APACHE SPARK": "static/Apache_Spark_logo.svg",
+  BIGQUERY: "static/bigquery.svg",
+  SPARK: "static/Apache_Spark_logo.svg",
   POSTGRES: "static/Postgresql_elephant.svg",
   SNOWFLAKE: "static/Snowflake_Logo.svg",
+  GCS: "static/google_cloud_storage.svg",
   LOCALMODE: "static/Featureform_logo_pink.svg",
 });
 

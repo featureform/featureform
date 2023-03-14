@@ -1,4 +1,4 @@
-# Minikube
+# Quickstart (Minikube)
 
 In this deployment, we'll setup a simple Minikube cluster and deploy Postgres and Redis within it. Then we will deploy Featureform on the Minikube deployment and configure it with Postgres as an Offline Store and Redis as an Inference Store.
 
@@ -6,11 +6,11 @@ In this deployment, we'll setup a simple Minikube cluster and deploy Postgres an
 
 ### Docker
 
-Docker is an open platform for developing, shipping, and running applications. We will run Docker containers for Postgres, Redis, and [all of the Featureform services](../system-architecture.md) on Minikube. It can be [downloaded here](https://docs.docker.com/get-docker/).
+Docker is an open platform for developing, shipping, and running applications. We will run Docker containers for Postgres, Redis, and [all of the Featureform services](system-architecture.md) on Minikube. It can be [downloaded here](https://docs.docker.com/get-docker/).
 
 ### Minikube
 
-minikube is a local Kubernetes deployment made for testing and exploring Kubernetes. It is not made for production, but mimics most of the main functionality of a production Kubernetes cluster. [Follow their tutorial](https://minikube.sigs.k8s.io/docs/start/) to deploy and configure a local Minikube cluster.
+minikube is a local Kubernetes deployment made for testing and exploring Kubernetes. It is not made for production, but mimics most of the main functionality of a production Kubernetes cluster. [Follow their tutorial](https://minikube.sigs.k8s.io/docs/start/) to deploy and configure a local Minikube cluster. minikube is the only feature-complete version of our Quickstarts that can be run locally and used to test features (such as scheduling) that are unavailable for localmode or Docker.
 
 ### Helm
 
@@ -88,7 +88,7 @@ helm install quickstart featureform/quickstart
 
 ## Configure Featureform with Providers
 
-Now that all of our infrastructure is deployed, we can add Postgres and Redis as providers for Featureform using the Python API and Featureform CLI, which can be seen in our [Quickstart guide](../quickstart-kubernetes.md#step-5-register-providers).
+Now that all of our infrastructure is deployed, we can add Postgres and Redis as providers for Featureform using the Python API and Featureform CLI, which can be seen in our [Quickstart guide](getting-started/registering-infrastructure-providers.md).
 
 Since we're using a self-signed certificate, we can run the CLI using the certificate flag instead.
 

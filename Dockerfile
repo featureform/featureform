@@ -1,4 +1,4 @@
-FROM node:16-alpine
+FROM node:16-alpine as dashboard-builder
 COPY ./dashboard ./dashboard
 WORKDIR ./dashboard
 RUN npm install --legacy-peer-deps
@@ -9,7 +9,7 @@ FROM golang:1.18
 
 WORKDIR /app
 
-COPY --from=0 ./dashboard ./dashboard
+COPY --from=dashboard-builder ./dashboard ./dashboard
 
 RUN apt-get update && apt-get install -y supervisor
 RUN mkdir -p /var/lock/apache2 /var/run/apache2 /var/run/sshd /var/log/supervisor
@@ -62,14 +62,14 @@ RUN ETCD_UNSUPPORTED_ARCH=arm64 ./etcd/bin/etcd --version
 RUN apt-get update
 RUN apt-get install -y nginx --option=Dpkg::Options::=--force-confdef
 
+# install meilisearch
+RUN curl -L https://install.meilisearch.com | sh
+
 WORKDIR /app
 
-ENV ENABLE_TYPESENSE="false"
 ENV SERVING_PORT="8082"
 ENV SERVING_HOST="0.0.0.0"
 ENV ETCD_ARCH=""
-ENV GRPC_GO_LOG_VERBOSITY_LEVEL=99
-ENV GRPC_GO_LOG_SEVERITY_LEVEL=info
 
 EXPOSE 7878
 CMD ["/usr/bin/supervisord"]

@@ -204,7 +204,6 @@ func (s *SparkConfig) decodeExecutor(executorType SparkExecutorType, configMap m
 }
 
 func (s *SparkConfig) decodeFileStore(fileStoreType FileStoreType, configMap map[string]interface{}) error {
-	fmt.Println("filestore type: ", fileStoreType, "config: ", configMap)
 	var fileStoreConfig SparkFileStoreConfig
 	switch fileStoreType {
 	case Azure:

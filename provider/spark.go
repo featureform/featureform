@@ -677,7 +677,7 @@ func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore) 
 	sparkArgsString := strings.Join(args, " ")
 	bashCommandArgs := []string{"-c", fmt.Sprintf("pyenv global %s && pyenv exec %s", s.pythonVersion, sparkArgsString)}
 
-	s.logger.Info("Executing spark-submit ", len(bashCommandArgs), bashCommandArgs)
+	s.logger.Info("Executing spark-submit")
 	cmd := exec.Command(bashCommand, bashCommandArgs...)
 	cmd.Env = append(os.Environ(), "FEATUREFORM_LOCAL_MODE=true")
 
@@ -1217,7 +1217,7 @@ func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (Transform
 	spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
 	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), false)
 	transformationExactPath, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(transformationPath, false), Parquet)
-	fmt.Println("GetTransformation", transformationPath, transformationExactPath)
+
 	if err != nil || transformationExactPath == "" {
 		return nil, fmt.Errorf("could not get transformation table: %v", err)
 	}

@@ -699,7 +699,7 @@ class SQLTransformationDecorator:
                  schedule: str = "",
                  description: str = "",
                  args: K8sArgs = None):
-        self.registrar = registrar,
+        self.registrar = registrar
         self.name = name
         self.variant = variant
         self.owner = owner
@@ -754,7 +754,7 @@ class SQLTransformationDecorator:
             description: str = "",
             schedule: str = "",
     ):
-        return self.registrar[0].register_column_resources(
+        return self.registrar.register_column_resources(
             source=(self.name, self.variant),
             entity=entity,
             entity_column=entity_column,
@@ -781,7 +781,7 @@ class DFTransformationDecorator:
                  description: str = "",
                  inputs: list = [],
                  args: K8sArgs = None):
-        self.registrar = registrar,
+        self.registrar = registrar
         self.name = name
         self.variant = variant
         self.owner = owner
@@ -832,7 +832,7 @@ class DFTransformationDecorator:
             timestamp_column: str = "",
             description: str = ""
     ):
-        return self.registrar[0].register_column_resources(
+        return self.registrar.register_column_resources(
             source=(self.name, self.variant),
             entity=entity,
             entity_column=entity_column,

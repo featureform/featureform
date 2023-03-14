@@ -14,12 +14,14 @@ func TestGCSFileStoreConfigMutableFields(t *testing.T) {
 		"Credentials": true,
 	}
 
+	var credentialsDict map[string]interface{}
+
 	config := GCSFileStoreConfig{
 		BucketName: "transactions-ds",
 		BucketPath: "gs://transactions-ds",
 		Credentials: GCPCredentials{
 			ProjectId:      "ff-gcp-proj-id",
-			SerializedFile: []byte{},
+			SerializedFile: credentialsDict,
 		},
 	}
 	actual := config.MutableFields()
@@ -45,8 +47,8 @@ func TestGCSFileStoreDifferingFields(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to unmarshal GCP credentials: %v", err)
 	}
-	credentialsDict["client_email"] = "test@featureform.com"
-	gcpCredsBytesB, err := json.Marshal(credentialsDict)
+	credentialsDictB := createMapCopy(credentialsDict)
+	credentialsDictB["client_email"] = "test@featureform.com"
 	if err != nil {
 		t.Errorf("failed to marshal GCP credentials: %v", err)
 	}
@@ -62,7 +64,7 @@ func TestGCSFileStoreDifferingFields(t *testing.T) {
 				BucketPath: "gs://transactions-ds",
 				Credentials: GCPCredentials{
 					ProjectId:      "ff-gcp-proj-id",
-					SerializedFile: gcpCredsBytes,
+					SerializedFile: credentialsDict,
 				},
 			},
 			b: GCSFileStoreConfig{
@@ -70,7 +72,7 @@ func TestGCSFileStoreDifferingFields(t *testing.T) {
 				BucketPath: "gs://transactions-ds",
 				Credentials: GCPCredentials{
 					ProjectId:      "ff-gcp-proj-id",
-					SerializedFile: gcpCredsBytes,
+					SerializedFile: credentialsDict,
 				},
 			},
 		}, ss.StringSet{}},
@@ -80,7 +82,7 @@ func TestGCSFileStoreDifferingFields(t *testing.T) {
 				BucketPath: "gs://transactions-ds",
 				Credentials: GCPCredentials{
 					ProjectId:      "ff-gcp-proj-id",
-					SerializedFile: gcpCredsBytes,
+					SerializedFile: credentialsDict,
 				},
 			},
 			b: GCSFileStoreConfig{
@@ -88,7 +90,7 @@ func TestGCSFileStoreDifferingFields(t *testing.T) {
 				BucketPath: "gs://transactions-ds2",
 				Credentials: GCPCredentials{
 					ProjectId:      "ff-gcp-proj-id",
-					SerializedFile: gcpCredsBytesB,
+					SerializedFile: credentialsDictB,
 				},
 			},
 		}, ss.StringSet{
@@ -112,5 +114,12 @@ func TestGCSFileStoreDifferingFields(t *testing.T) {
 
 		})
 	}
+}
 
+func createMapCopy(originalMap map[string]interface{}) map[string]interface{} {
+	copyMap := make(map[string]interface{})
+	for key, value := range originalMap {
+		copyMap[key] = value
+	}
+	return copyMap
 }

@@ -68,9 +68,11 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
                 if source.endswith(".csv"):
                     source_df = spark.read.option("header","true").option("recursiveFileLookup", "true").csv(source) 
                     source_df.createOrReplaceTempView(f'source_{i}')
-                else:
+                elif source.endswith(".parquet"):
                     source_df = spark.read.option("header","true").option("recursiveFileLookup", "true").parquet(source) 
                     source_df.createOrReplaceTempView(f'source_{i}')
+                else:
+                    raise Exception(f"the file type for '{location}' file is not supported.")
         else:
             raise Exception(f"the '{job_type}' is not supported. Supported types: 'Transformation', 'Materialization', 'Training Set'")
         
@@ -104,8 +106,10 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
     for location in sources:
         if location.endswith(".csv"):
             func_parameters.append(spark.read.option("recursiveFileLookup", "true").csv(location))
-        else:
+        elif location.endswith(".parquet"):
             func_parameters.append(spark.read.option("recursiveFileLookup", "true").parquet(location))
+        else:
+            raise Exception(f"the file type for '{location}' file is not supported.")
     
     try:
         code = get_code_from_file(code, store_type, credentials)

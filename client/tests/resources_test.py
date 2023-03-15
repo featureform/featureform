@@ -616,7 +616,7 @@ def test_invalid_users():
         "variant": "var",
         "owner": "featureform",
         "description": "abc",
-        "label": ("var"),
+        "label": ("var", ),
         "features": [("a", "var")],
     },
     {
@@ -640,7 +640,7 @@ def test_invalid_users():
         "variant": "var",
         "owner": "featureform",
         "label": ("a", "var"),
-        "features": [("a", "var"), ("var")],
+        "features": [("a", "var"), ("var",)],
         "description": "abc",
     },
     {

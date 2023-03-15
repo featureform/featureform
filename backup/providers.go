@@ -153,7 +153,7 @@ func (g *GCS) getDefaultCredentials() ([]byte, error) {
 	}
 }
 
-func (g *GCS) checkCredentials() (map[string]interface{}, error) {
+func (g *GCS) checkEmptyCredentials() (map[string]interface{}, error) {
 	var serializedCreds []byte
 	creds := make(map[string]interface{})
 
@@ -175,7 +175,7 @@ func (g *GCS) checkCredentials() (map[string]interface{}, error) {
 }
 
 func (g *GCS) Init() error {
-	credentials, err := g.checkCredentials()
+	credentials, err := g.checkEmptyCredentials()
 	if err != nil {
 		return fmt.Errorf("failed to check credentials: %v", err)
 	}

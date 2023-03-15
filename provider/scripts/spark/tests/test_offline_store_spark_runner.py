@@ -14,6 +14,7 @@ from offline_store_spark_runner import (
     download_blobs_to_local, 
     split_key_value,
     get_credentials_dict,
+    delete_file,
 )
 
 
@@ -56,7 +57,7 @@ def test_parse_args(arguments, request):
 @pytest.mark.parametrize(
     "arguments,expected_output",
     [
-        ("sql_local_all_arguments", f"{dir_path}/test_files/input/transaction"),
+        ("sql_local_all_arguments", f"{dir_path}/test_files/input/transaction.parquet"),
         pytest.param("sql_invalid_local_arguments", f"{dir_path}/test_files/expected/test_execute_sql_job_success", marks=pytest.mark.xfail),
     ]
 )
@@ -74,7 +75,7 @@ def test_execute_sql_query(arguments, expected_output, spark, request):
 @pytest.mark.parametrize(
     "arguments,expected_output",
     [
-        ("df_local_all_arguments", f"{dir_path}/test_files/input/transaction"),
+        ("df_local_all_arguments", f"{dir_path}/test_files/input/transaction.parquet"),
         pytest.param("df_local_pass_none_code_failure", f"{dir_path}/test_files/expected/test_execute_df_job_success", marks=pytest.mark.xfail),
     ]
 )
@@ -113,6 +114,18 @@ def test_get_credentials_dict():
     creds = get_credentials_dict(input_base64_creds)
 
     assert creds == expected_output
+
+def test_delete_file(tmp_path):
+    file_path = f"{tmp_path}/test.txt"
+    print(tmp_path, file_path)
+    with open(file_path, "w") as f:
+        f.write("hi.world\n")
+
+    assert os.path.isfile(file_path)
+    delete_file(file_path)
+    assert not os.path.isfile(file_path)
+    delete_file(file_path)
+    assert not os.path.isfile(file_path)
 
 
 def test_split_key_value():

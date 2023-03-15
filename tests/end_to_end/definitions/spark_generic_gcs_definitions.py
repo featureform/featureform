@@ -8,8 +8,9 @@ import featureform as ff
 
 FILE_DIRECTORY = os.getenv("FEATUREFORM_TEST_PATH", "")
 featureform_location = os.path.dirname(os.path.dirname(FILE_DIRECTORY))
-env_file_path = os.path.join(featureform_location, "../../../.env")
+env_file_path = os.path.join(featureform_location, ".env")
 load_dotenv(env_file_path)
+
 
 def get_random_string():
     import random
@@ -59,7 +60,7 @@ gcs = ff.register_gcs(
     name=f"gcs-quickstart_{VERSION}",
     credentials=gcp_creds,
     bucket_name=os.getenv("GCS_BUCKET_NAME", None),
-    bucket_path="end2end_tests/",
+    bucket_path="end2end_tests",
 )
 
 spark = ff.register_spark(
@@ -74,7 +75,7 @@ ice_cream_dataset = spark.register_parquet_file(
     name=f"ice_cream_{VERSION}",
     variant=VERSION,
     description="A dataset of ice cream",
-    file_path="gs://featureform-testing/ice_cream.parquet"
+    file_path="gs://featureform-test/ice_cream.parquet"
 )
 
 @spark.df_transformation(name=f"ice_cream_transformation_{VERSION}",

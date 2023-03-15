@@ -3,6 +3,7 @@ package provider_config
 import (
 	"encoding/json"
 	"fmt"
+
 	ss "github.com/featureform/helpers/string_set"
 	"github.com/mitchellh/mapstructure"
 )
@@ -21,8 +22,8 @@ type AWSCredentials struct {
 }
 
 type GCPCredentials struct {
-	ProjectId      string
-	SerializedFile []byte
+	ProjectId string
+	JSON      map[string]interface{}
 }
 
 type SparkExecutorConfig interface {
@@ -211,6 +212,8 @@ func (s *SparkConfig) decodeFileStore(fileStoreType FileStoreType, configMap map
 		fileStoreConfig = &S3FileStoreConfig{}
 	case HDFS:
 		fileStoreConfig = &HDFSFileStoreConfig{}
+	case GCS:
+		fileStoreConfig = &GCSFileStoreConfig{}
 	default:
 		return fmt.Errorf("the file store type '%s' is not supported ", fileStoreType)
 	}

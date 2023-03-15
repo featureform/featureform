@@ -69,6 +69,22 @@ func (variants NameVariants) Names() []string {
 	return names
 }
 
+type Tags []string
+
+type Properties map[string]string
+
+func (properties Properties) Serialize() *pb.Properties {
+	serialized := &pb.Properties{
+		Property: map[string]*pb.Property{},
+	}
+
+	for key, val := range properties {
+		serialized.Property[key] = &pb.Property{Value: &pb.Property_StringValue{StringValue: val}}
+	}
+
+	return serialized
+}
+
 type Client struct {
 	Logger   *zap.SugaredLogger
 	conn     *grpc.ClientConn
@@ -79,7 +95,7 @@ type ResourceDef interface {
 	ResourceType() ResourceType
 }
 
-//accesible to the frontend as it does not directly change status in metadata
+//accessible to the frontend as it does not directly change status in metadata
 func (client *Client) RequestScheduleChange(ctx context.Context, resID ResourceID, schedule string) error {
 	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
 	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
@@ -202,6 +218,8 @@ type FeatureDef struct {
 	Provider    string
 	Schedule    string
 	Location    interface{}
+	Tags        Tags
+	Properties  Properties
 }
 
 type ResourceVariantColumns struct {
@@ -247,6 +265,8 @@ func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) 
 		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
 		Provider:    def.Provider,
 		Schedule:    def.Schedule,
+		Tags:        &pb.Tags{Tag: def.Tags},
+		Properties:  def.Properties.Serialize(),
 	}
 	switch x := def.Location.(type) {
 	case ResourceVariantColumns:
@@ -339,6 +359,8 @@ type LabelDef struct {
 	Owner       string
 	Provider    string
 	Location    interface{}
+	Tags        Tags
+	Properties  Properties
 }
 
 func (def LabelDef) ResourceType() ResourceType {
@@ -356,6 +378,8 @@ func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) erro
 		Owner:       def.Owner,
 		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_NO_STATUS},
 		Provider:    def.Provider,
+		Tags:        &pb.Tags{Tag: def.Tags},
+		Properties:  def.Properties.Serialize(),
 	}
 	switch x := def.Location.(type) {
 	case ResourceVariantColumns:
@@ -472,6 +496,8 @@ type TrainingSetDef struct {
 	Schedule    string
 	Label       NameVariant
 	Features    NameVariants
+	Tags        Tags
+	Properties  Properties
 }
 
 func (def TrainingSetDef) ResourceType() ResourceType {
@@ -489,6 +515,8 @@ func (client *Client) CreateTrainingSetVariant(ctx context.Context, def Training
 		Label:       def.Label.Serialize(),
 		Features:    def.Features.Serialize(),
 		Schedule:    def.Schedule,
+		Tags:        &pb.Tags{Tag: def.Tags},
+		Properties:  def.Properties.Serialize(),
 	}
 	_, err := client.grpcConn.CreateTrainingSetVariant(ctx, serialized)
 	return err
@@ -596,6 +624,8 @@ type SourceDef struct {
 	Provider    string
 	Schedule    string
 	Definition  SourceType
+	Tags        Tags
+	Properties  Properties
 }
 
 type SourceType interface {
@@ -701,6 +731,8 @@ func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) er
 		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
 		Provider:    def.Provider,
 		Schedule:    def.Schedule,
+		Tags:        &pb.Tags{Tag: def.Tags},
+		Properties:  def.Properties.Serialize(),
 	}
 	var err error
 	switch x := def.Definition.(type) {
@@ -823,7 +855,9 @@ func (client *Client) GetUsers(ctx context.Context, users []string) ([]*User, er
 }
 
 type UserDef struct {
-	Name string
+	Name       string
+	Tags       Tags
+	Properties Properties
 }
 
 func (def UserDef) ResourceType() ResourceType {
@@ -832,7 +866,9 @@ func (def UserDef) ResourceType() ResourceType {
 
 func (client *Client) CreateUser(ctx context.Context, def UserDef) error {
 	serialized := &pb.User{
-		Name: def.Name,
+		Name:       def.Name,
+		Tags:       &pb.Tags{Tag: def.Tags},
+		Properties: def.Properties.Serialize(),
 	}
 	_, err := client.grpcConn.CreateUser(ctx, serialized)
 	return err
@@ -896,6 +932,8 @@ type ProviderDef struct {
 	Software         string
 	Team             string
 	SerializedConfig []byte
+	Tags             Tags
+	Properties       Properties
 }
 
 func (def ProviderDef) ResourceType() ResourceType {
@@ -911,6 +949,8 @@ func (client *Client) CreateProvider(ctx context.Context, def ProviderDef) error
 		Team:             def.Team,
 		Status:           &pb.ResourceStatus{Status: pb.ResourceStatus_NO_STATUS},
 		SerializedConfig: def.SerializedConfig,
+		Tags:             &pb.Tags{Tag: def.Tags},
+		Properties:       def.Properties.Serialize(),
 	}
 	_, err := client.grpcConn.CreateProvider(ctx, serialized)
 	return err
@@ -970,6 +1010,8 @@ func (client *Client) GetEntities(ctx context.Context, entities []string) ([]*En
 type EntityDef struct {
 	Name        string
 	Description string
+	Tags        Tags
+	Properties  Properties
 }
 
 func (def EntityDef) ResourceType() ResourceType {
@@ -981,6 +1023,8 @@ func (client *Client) CreateEntity(ctx context.Context, def EntityDef) error {
 		Name:        def.Name,
 		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_NO_STATUS},
 		Description: def.Description,
+		Tags:        &pb.Tags{Tag: def.Tags},
+		Properties:  def.Properties.Serialize(),
 	}
 	_, err := client.grpcConn.CreateEntity(ctx, serialized)
 	return err
@@ -1042,6 +1086,8 @@ type ModelDef struct {
 	Description  string
 	Features     NameVariants
 	Trainingsets NameVariants
+	Tags         Tags
+	Properties   Properties
 }
 
 func (def ModelDef) ResourceType() ResourceType {
@@ -1054,6 +1100,8 @@ func (client *Client) CreateModel(ctx context.Context, def ModelDef) error {
 		Description:  def.Description,
 		Features:     def.Features.Serialize(),
 		Trainingsets: def.Trainingsets.Serialize(),
+		Tags:         &pb.Tags{Tag: def.Tags},
+		Properties:   def.Properties.Serialize(),
 	}
 	_, err := client.grpcConn.CreateModel(ctx, serialized)
 	return err
@@ -1246,6 +1294,44 @@ func (fn fetchSourceFns) FetchSource(client *Client, ctx context.Context) (*Sour
 	return client.GetSourceVariant(ctx, fn.Source())
 }
 
+type tagsGetter interface {
+	GetTags() *pb.Tags
+}
+
+type fetchTagsFn struct {
+	getter tagsGetter
+}
+
+func (fn fetchTagsFn) Tags() Tags {
+	tags := Tags{}
+	proto := fn.getter.GetTags()
+	if proto == nil || proto.Tag == nil {
+		return tags
+	}
+	tags = append(tags, proto.Tag...)
+	return tags
+}
+
+type propertiesGetter interface {
+	GetProperties() *pb.Properties
+}
+
+type fetchPropertiesFn struct {
+	getter propertiesGetter
+}
+
+func (fn fetchPropertiesFn) Properties() Properties {
+	properties := Properties{}
+	proto := fn.getter.GetProperties()
+	if proto == nil || proto.Property == nil {
+		return properties
+	}
+	for k, v := range proto.Property {
+		properties[k] = v.GetStringValue()
+	}
+	return properties
+}
+
 type Feature struct {
 	serialized *pb.Feature
 	variantsFns
@@ -1272,6 +1358,8 @@ type FeatureVariant struct {
 	createdFn
 	lastUpdatedFn
 	protoStringer
+	fetchTagsFn
+	fetchPropertiesFn
 }
 
 func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
@@ -1283,6 +1371,8 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 		createdFn:            createdFn{serialized},
 		lastUpdatedFn:        lastUpdatedFn{serialized},
 		protoStringer:        protoStringer{serialized},
+		fetchTagsFn:          fetchTagsFn{serialized},
+		fetchPropertiesFn:    fetchPropertiesFn{serialized},
 	}
 }
 
@@ -1340,7 +1430,14 @@ func (variant *FeatureVariant) LocationColumns() interface{} {
 		TS:     src.Ts,
 	}
 	return columns
+}
 
+func (variant *FeatureVariant) Tags() Tags {
+	return variant.fetchTagsFn.Tags()
+}
+
+func (variant *FeatureVariant) Properties() Properties {
+	return variant.fetchPropertiesFn.Properties()
 }
 
 type User struct {
@@ -1350,6 +1447,8 @@ type User struct {
 	fetchLabelsFns
 	fetchSourcesFns
 	protoStringer
+	fetchTagsFn
+	fetchPropertiesFn
 }
 
 func wrapProtoUser(serialized *pb.User) *User {
@@ -1360,6 +1459,8 @@ func wrapProtoUser(serialized *pb.User) *User {
 		fetchLabelsFns:       fetchLabelsFns{serialized},
 		fetchSourcesFns:      fetchSourcesFns{serialized},
 		protoStringer:        protoStringer{serialized},
+		fetchTagsFn:          fetchTagsFn{serialized},
+		fetchPropertiesFn:    fetchPropertiesFn{serialized},
 	}
 }
 
@@ -1381,6 +1482,14 @@ func (user *User) Error() string {
 	return ""
 }
 
+func (user *User) Tags() Tags {
+	return user.fetchTagsFn.Tags()
+}
+
+func (user *User) Properties() Properties {
+	return user.fetchPropertiesFn.Properties()
+}
+
 type Provider struct {
 	serialized *pb.Provider
 	fetchTrainingSetsFns
@@ -1388,6 +1497,8 @@ type Provider struct {
 	fetchLabelsFns
 	fetchSourcesFns
 	protoStringer
+	fetchTagsFn
+	fetchPropertiesFn
 }
 
 func wrapProtoProvider(serialized *pb.Provider) *Provider {
@@ -1398,6 +1509,8 @@ func wrapProtoProvider(serialized *pb.Provider) *Provider {
 		fetchLabelsFns:       fetchLabelsFns{serialized},
 		fetchSourcesFns:      fetchSourcesFns{serialized},
 		protoStringer:        protoStringer{serialized},
+		fetchTagsFn:          fetchTagsFn{serialized},
+		fetchPropertiesFn:    fetchPropertiesFn{serialized},
 	}
 }
 
@@ -1439,12 +1552,22 @@ func (provider *Provider) Error() string {
 	return ""
 }
 
+func (provider *Provider) Tags() Tags {
+	return provider.fetchTagsFn.Tags()
+}
+
+func (provider *Provider) Properties() Properties {
+	return provider.fetchPropertiesFn.Properties()
+}
+
 type Model struct {
 	serialized *pb.Model
 	fetchTrainingSetsFns
 	fetchFeaturesFns
 	fetchLabelsFns
 	protoStringer
+	fetchTagsFn
+	fetchPropertiesFn
 }
 
 func wrapProtoModel(serialized *pb.Model) *Model {
@@ -1454,6 +1577,8 @@ func wrapProtoModel(serialized *pb.Model) *Model {
 		fetchFeaturesFns:     fetchFeaturesFns{serialized},
 		fetchLabelsFns:       fetchLabelsFns{serialized},
 		protoStringer:        protoStringer{serialized},
+		fetchTagsFn:          fetchTagsFn{serialized},
+		fetchPropertiesFn:    fetchPropertiesFn{serialized},
 	}
 }
 
@@ -1471,6 +1596,14 @@ func (model *Model) Status() ResourceStatus {
 
 func (model *Model) Error() string {
 	return ""
+}
+
+func (model *Model) Tags() Tags {
+	return model.fetchTagsFn.Tags()
+}
+
+func (model *Model) Properties() Properties {
+	return model.fetchPropertiesFn.Properties()
 }
 
 type Label struct {
@@ -1498,6 +1631,8 @@ type LabelVariant struct {
 	fetchSourceFns
 	createdFn
 	protoStringer
+	fetchTagsFn
+	fetchPropertiesFn
 }
 
 func wrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
@@ -1508,6 +1643,8 @@ func wrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
 		fetchSourceFns:       fetchSourceFns{serialized},
 		createdFn:            createdFn{serialized},
 		protoStringer:        protoStringer{serialized},
+		fetchTagsFn:          fetchTagsFn{serialized},
+		fetchPropertiesFn:    fetchPropertiesFn{serialized},
 	}
 }
 
@@ -1567,6 +1704,14 @@ func (variant *LabelVariant) LocationColumns() interface{} {
 	return columns
 }
 
+func (variant *LabelVariant) Tags() Tags {
+	return variant.fetchTagsFn.Tags()
+}
+
+func (variant *LabelVariant) Properties() Properties {
+	return variant.fetchPropertiesFn.Properties()
+}
+
 type TrainingSet struct {
 	serialized *pb.TrainingSet
 	variantsFns
@@ -1592,16 +1737,20 @@ type TrainingSetVariant struct {
 	createdFn
 	lastUpdatedFn
 	protoStringer
+	fetchTagsFn
+	fetchPropertiesFn
 }
 
 func wrapProtoTrainingSetVariant(serialized *pb.TrainingSetVariant) *TrainingSetVariant {
 	return &TrainingSetVariant{
-		serialized:       serialized,
-		fetchFeaturesFns: fetchFeaturesFns{serialized},
-		fetchProviderFns: fetchProviderFns{serialized},
-		createdFn:        createdFn{serialized},
-		lastUpdatedFn:    lastUpdatedFn{serialized},
-		protoStringer:    protoStringer{serialized},
+		serialized:        serialized,
+		fetchFeaturesFns:  fetchFeaturesFns{serialized},
+		fetchProviderFns:  fetchProviderFns{serialized},
+		createdFn:         createdFn{serialized},
+		lastUpdatedFn:     lastUpdatedFn{serialized},
+		protoStringer:     protoStringer{serialized},
+		fetchTagsFn:       fetchTagsFn{serialized},
+		fetchPropertiesFn: fetchPropertiesFn{serialized},
 	}
 }
 
@@ -1651,6 +1800,14 @@ func (variant *TrainingSetVariant) FetchLabel(client *Client, ctx context.Contex
 	return labelList[0], nil
 }
 
+func (variant *TrainingSetVariant) Tags() Tags {
+	return variant.fetchTagsFn.Tags()
+}
+
+func (variant *TrainingSetVariant) Properties() Properties {
+	return variant.fetchPropertiesFn.Properties()
+}
+
 type Source struct {
 	serialized *pb.Source
 	variantsFns
@@ -1678,13 +1835,15 @@ type SourceVariant struct {
 	createdFn
 	lastUpdatedFn
 	protoStringer
+	fetchTagsFn
+	fetchPropertiesFn
 }
 
 type TransformationArgType string
 
 const (
 	NoArgs  TransformationArgType = "NONE"
-	K8sArgs                       = "K8S"
+	K8sArgs TransformationArgType = "K8S"
 )
 
 type TransformationArgs interface {
@@ -1742,6 +1901,8 @@ func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
 		createdFn:            createdFn{serialized},
 		lastUpdatedFn:        lastUpdatedFn{serialized},
 		protoStringer:        protoStringer{serialized},
+		fetchTagsFn:          fetchTagsFn{serialized},
+		fetchPropertiesFn:    fetchPropertiesFn{serialized},
 	}
 }
 
@@ -1777,7 +1938,6 @@ func (variant *SourceVariant) Error() string {
 		return ""
 	}
 	return variant.serialized.GetStatus().ErrorMessage
-
 }
 
 func (variant *SourceVariant) IsTransformation() bool {
@@ -1870,12 +2030,22 @@ func (variant *SourceVariant) PrimaryDataSQLTableName() string {
 	return variant.serialized.GetPrimaryData().GetTable().GetName()
 }
 
+func (variant *SourceVariant) Tags() Tags {
+	return variant.fetchTagsFn.Tags()
+}
+
+func (variant *SourceVariant) Properties() Properties {
+	return variant.fetchPropertiesFn.Properties()
+}
+
 type Entity struct {
 	serialized *pb.Entity
 	fetchTrainingSetsFns
 	fetchFeaturesFns
 	fetchLabelsFns
 	protoStringer
+	fetchTagsFn
+	fetchPropertiesFn
 }
 
 func wrapProtoEntity(serialized *pb.Entity) *Entity {
@@ -1885,6 +2055,8 @@ func wrapProtoEntity(serialized *pb.Entity) *Entity {
 		fetchFeaturesFns:     fetchFeaturesFns{serialized},
 		fetchLabelsFns:       fetchLabelsFns{serialized},
 		protoStringer:        protoStringer{serialized},
+		fetchTagsFn:          fetchTagsFn{serialized},
+		fetchPropertiesFn:    fetchPropertiesFn{serialized},
 	}
 }
 
@@ -1908,6 +2080,14 @@ func (entity *Entity) Error() string {
 		return ""
 	}
 	return entity.serialized.GetStatus().ErrorMessage
+}
+
+func (entity *Entity) Tags() Tags {
+	return entity.serialized.Tags.GetTag()
+}
+
+func (entity *Entity) Properties() Properties {
+	return entity.fetchPropertiesFn.Properties()
 }
 
 func NewClient(host string, logger *zap.SugaredLogger) (*Client, error) {

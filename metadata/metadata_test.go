@@ -540,6 +540,8 @@ type UserTest struct {
 	Labels       []NameVariant
 	TrainingSets []NameVariant
 	Sources      []NameVariant
+	Tags         Tags
+	Properties   Properties
 }
 
 func (test UserTest) NameVariant() NameVariant {
@@ -593,9 +595,66 @@ func expectedUsers() ResourceTests {
 	}
 }
 
+func userUpdates() []ResourceDef {
+	return []ResourceDef{
+		UserDef{
+			Name:       "Featureform",
+			Tags:       Tags{"primary_user"},
+			Properties: Properties{"usr_key_1": "usr_val_1"},
+		},
+		UserDef{
+			Name:       "Featureform",
+			Tags:       Tags{"active"},
+			Properties: Properties{"usr_key_1": "user_value_1"},
+		},
+	}
+}
+
+func expectedUserUpdates() ResourceTests {
+	return ResourceTests{
+		UserTest{
+			Name:   "Featureform",
+			Labels: []NameVariant{},
+			Features: []NameVariant{
+				{"feature", "variant"},
+				{"feature2", "variant"},
+				{"feature", "variant2"},
+			},
+			Sources: []NameVariant{
+				{"mockSource", "var"},
+				{"mockSource", "var2"},
+			},
+			TrainingSets: []NameVariant{
+				{"training-set", "variant2"},
+			},
+			Tags:       Tags{"primary_user"},
+			Properties: Properties{"usr_key_1": "usr_val_1"},
+		},
+		UserTest{
+			Name:   "Featureform",
+			Labels: []NameVariant{},
+			Features: []NameVariant{
+				{"feature", "variant"},
+				{"feature2", "variant"},
+				{"feature", "variant2"},
+			},
+			Sources: []NameVariant{
+				{"mockSource", "var"},
+				{"mockSource", "var2"},
+			},
+			TrainingSets: []NameVariant{
+				{"training-set", "variant2"},
+			},
+			Tags:       Tags{"primary_user", "active"},
+			Properties: Properties{"usr_key_1": "user_value_1"},
+		},
+	}
+}
+
 func TestUser(t *testing.T) {
 	testListResources(t, USER, expectedUsers())
 	testGetResources(t, USER, expectedUsers())
+	testResourceUpdates(t, USER, expectedUsers(), expectedUserUpdates(), userUpdates())
 }
 
 type ProviderTest struct {
@@ -1507,16 +1566,14 @@ func testResourceUpdates(t *testing.T, typ ResourceType, arranged, expected Reso
 		if err := update(client, typ, u); err != nil {
 			t.Fatalf("Failed to update resource: %v", err)
 		}
-		var nameVariant NameVariant
+		nameVariant := NameVariant{}
 		switch typ {
+		case USER:
+			nameVariant.Name = u.(UserDef).Name
 		case MODEL:
-			nameVariant = NameVariant{
-				Name: u.(ModelDef).Name,
-			}
+			nameVariant.Name = u.(ModelDef).Name
 		case PROVIDER:
-			nameVariant = NameVariant{
-				Name: u.(ProviderDef).Name,
-			}
+			nameVariant.Name = u.(ProviderDef).Name
 		default:
 			t.Errorf("Unrecognized resource type: %v", typ)
 		}

@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     openjdk-8-jdk \
     curl \
     git \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 COPY ./provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
@@ -34,3 +35,6 @@ RUN pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgr
 RUN pyenv install 3.8.16 && pyenv global 3.8.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
 RUN pyenv install 3.9.16 && pyenv global 3.9.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
 RUN pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
+
+# Download Shaded Jar
+RUN wget https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop2-2.2.11/gcs-connector-hadoop2-2.2.11-shaded.jar -P /app/provider/scripts/spark/jars/

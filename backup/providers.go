@@ -3,6 +3,7 @@ package backup
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/featureform/provider"
@@ -152,16 +153,29 @@ func (g *GCS) getDefaultCredentials() ([]byte, error) {
 	}
 }
 
-func (g *GCS) checkCredentials() ([]byte, error) {
+func (g *GCS) checkEmptyCredentials() (map[string]interface{}, error) {
+	var serializedCreds []byte
+	creds := make(map[string]interface{})
+
 	if bytes.Equal(g.Credentials, []byte("")) {
-		return g.getDefaultCredentials()
+		var err error
+		serializedCreds, err = g.getDefaultCredentials()
+		if err != nil {
+			return nil, fmt.Errorf("could not get default credentials: %v", err)
+		}
 	} else {
-		return g.Credentials, nil
+		serializedCreds = g.Credentials
 	}
+
+	err := json.Unmarshal(serializedCreds, &creds)
+	if err != nil {
+		return nil, fmt.Errorf("could not deserialize credentials: %v", err)
+	}
+	return creds, nil
 }
 
 func (g *GCS) Init() error {
-	credentials, err := g.checkCredentials()
+	credentials, err := g.checkEmptyCredentials()
 	if err != nil {
 		return fmt.Errorf("failed to check credentials: %v", err)
 	}
@@ -170,7 +184,7 @@ func (g *GCS) Init() error {
 		BucketName: g.BucketName,
 		BucketPath: g.BucketPath,
 		Credentials: pc.GCPCredentials{
-			SerializedFile: credentials,
+			JSON: credentials,
 		},
 	}
 	config, err := filestoreConfig.Serialize()

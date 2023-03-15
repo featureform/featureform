@@ -30,7 +30,6 @@ require (
 	github.com/segmentio/parquet-go v0.0.0-20221005185849-771b3e358a03
 	github.com/snowflakedb/gosnowflake v1.6.8
 	github.com/stretchr/testify v1.8.1
-	github.com/typesense/typesense-go v0.4.0
 	go.etcd.io/etcd/api/v3 v3.5.6
 	go.etcd.io/etcd/client/v3 v3.5.6
 	go.mongodb.org/mongo-driver v1.8.3
@@ -44,7 +43,6 @@ require (
 	k8s.io/api v0.24.2
 	k8s.io/apimachinery v0.24.2
 	k8s.io/client-go v0.24.2
-	k8s.io/kubernetes v1.13.0
 )
 
 require (

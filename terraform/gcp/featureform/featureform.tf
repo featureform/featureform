@@ -37,12 +37,12 @@ resource "helm_release" "featureform" {
 
   set {
     name = "global.publicCert"
-    value = "true"
+    value = "false"
   }
 
   set {
     name = "global.localCert"
-    value = "false"
+    value = "true"
   }
 
   depends_on = [

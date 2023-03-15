@@ -867,16 +867,20 @@ class Source:
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
-        if type(self.definition) == DFTransformation:
-            self.is_transformation = SourceType.DF_TRANSFORMATION.value
-            self.inputs = self.definition.inputs
-            self.definition = self.definition.query
-        elif type(self.definition) == SQLTransformation:
-            self.is_transformation = SourceType.SQL_TRANSFORMATION.value
-            self.definition = self.definition.query
-        elif type(self.definition) == PrimaryData:
+
+        if isinstance(self.definition, Transformation):
+            if hasattr(self.definition, "inputs"):
+                self.is_transformation = SourceType.DF_TRANSFORMATION.value
+                self.inputs = self.definition.inputs
+                self.definition = self.definition.query
+            else:
+                self.is_transformation = SourceType.SQL_TRANSFORMATION.value
+                self.definition = self.definition.query
+        elif isinstance(self.definition, PrimaryData):
             self.definition = self.definition.name()
             self.is_transformation = SourceType.PRIMARY_SOURCE.value
+        else:
+            raise TypeError(f"Invalid source type: {type(self.definition)}")
         db.insert_source("source_variant",
                          str(time.time()),
                          self.description,

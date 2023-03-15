@@ -17,9 +17,8 @@ from featureform.register import OfflineK8sProvider, Registrar, FileStoreProvide
 
 from featureform.proto import metadata_pb2 as pb
 
-from typing import Union
 
-import typeguard
+from typeguard import TypeCheckError
 
 
 
@@ -667,7 +666,7 @@ def test_invalid_users():
     },
 ])
 def test_invalid_training_set(args):
-    with pytest.raises(Union[ValueError, TypeError]):
+    with pytest.raises((ValueError, TypeError, TypeCheckError)):
         TrainingSet(**args)
 
 

@@ -9,6 +9,8 @@ import pytest
 from featureform.register import LocalProvider, Provider, Registrar, LocalConfig, SQLTransformationDecorator, \
     DFTransformationDecorator, SnowflakeConfig, Model
 
+from typeguard import TypeCheckError
+
 
 @pytest.mark.parametrize(
     "account,organization,account_locator,should_error",
@@ -66,7 +68,7 @@ def test_sql_transformation_decorator_invalid_fn(local, fn):
         variant="var",
         owner="owner"
     )
-    with pytest.raises((TypeError, ValueError)):
+    with pytest.raises((TypeError, ValueError, TypeCheckError)):
         decorator(fn)
 
 

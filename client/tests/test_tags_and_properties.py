@@ -37,8 +37,7 @@ def test_adding_tags_and_properties_to_provider(is_local, is_insecure, request):
     resource_client.apply()
 
     postgres = resource_client.get_provider(name, is_local)
-
-    assert postgres["tags"] == tags and postgres["properties"] == properties
+    assert get_tags(postgres, is_local) == tags and get_properties(postgres, is_local) == properties
 
 
 @pytest.mark.parametrize(
@@ -90,7 +89,13 @@ def test_updating_tags_and_properties_for_provider(is_local, is_insecure, reques
     resource_client.apply()
     postgres = resource_client.get_provider(name, is_local)
 
-    assert set(postgres["tags"]) == set(tags + additional_tags) and postgres["properties"] == {**properties, **additional_properties}
+    expected_tags = set(tags + additional_tags)
+    expected_properties = {**properties, **additional_properties}
+
+    actual_tags = set(get_tags(postgres, is_local))
+    actual_properties = get_properties(postgres, is_local)
+
+    assert actual_tags == expected_tags and actual_properties == expected_properties
 
 
 @pytest.mark.parametrize(
@@ -113,7 +118,7 @@ def test_adding_tags_and_properties_to_user(is_local, is_insecure, request):
 
     user = resource_client.get_user(username, is_local)
 
-    assert user["tags"] == tags and user["properties"] == properties
+    assert get_tags(user, is_local) == tags and get_properties(user, is_local) == properties
 
 
 @pytest.mark.parametrize(
@@ -144,7 +149,13 @@ def test_updating_tags_and_properties_for_user(is_local, is_insecure, request):
 
     user = resource_client.get_user(username, is_local)
 
-    assert set(user["tags"]) == set(tags + additional_tags) and user["properties"] == {**properties, **additional_properties}
+    expected_tags = set(tags + additional_tags)
+    expected_properties = {**properties, **additional_properties}
+
+    actual_tags = set(get_tags(user, is_local))
+    actual_properties = get_properties(user, is_local)
+
+    assert actual_tags == expected_tags and actual_properties == expected_properties
 
 
 @pytest.mark.parametrize(
@@ -159,7 +170,7 @@ def test_adding_tags_and_properties_to_source(provider_source_fxt, is_local, is_
     custom_marks = [mark.name for mark in request.node.own_markers if mark.name != 'parametrize']
     provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(custom_marks)
 
-    name = "transactions"
+    name = "transactions_src"
     variant = "quickstart_v2"
     tags = ["fraud_project", "primary_source"]
     properties = {"project_type": "fraud_prediction"}
@@ -187,7 +198,7 @@ def test_adding_tags_and_properties_to_source(provider_source_fxt, is_local, is_
 
     source = resource_client.print_source(name, variant, is_local)
 
-    assert source["tags"] == tags and source["properties"] == properties
+    assert get_tags(source, is_local) == tags and get_properties(source, is_local) == properties
 
 
 @pytest.mark.parametrize(
@@ -202,8 +213,8 @@ def test_updating_tags_and_properties_for_source(provider_source_fxt, is_local, 
     custom_marks = [mark.name for mark in request.node.own_markers if mark.name != 'parametrize']
     provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(custom_marks)
 
-    name = "transactions"
-    variant = "quickstart_v2"
+    name = "transactions_src_2"
+    variant = "quickstart_v1"
     tags = ["fraud_project", "primary_source"]
     properties = {"project_type": "fraud_prediction"}
 
@@ -255,7 +266,13 @@ def test_updating_tags_and_properties_for_source(provider_source_fxt, is_local, 
 
     source = resource_client.print_source(name, variant, is_local)
 
-    assert set(source["tags"]) == set(tags + additional_tags) and source["properties"] == {**properties, **additional_properties}
+    expected_tags = set(tags + additional_tags)
+    expected_properties = {**properties, **additional_properties}
+
+    actual_tags = set(get_tags(source, is_local))
+    actual_properties = get_properties(source, is_local)
+
+    assert actual_tags == expected_tags and actual_properties == expected_properties
 
 
 @pytest.mark.parametrize(
@@ -274,19 +291,19 @@ def test_adding_tags_and_properties_to_transformation(provider_source_fxt, is_lo
     variant = "quickstart"
     if is_local:
         @provider.df_transformation(variant=variant, inputs=[("transactions", "quickstart")], tags=tags, properties=properties)
-        def average_user_transaction(transactions):
+        def average_user_transaction_v1(transactions):
             return transactions.groupby("CustomerID")["TransactionAmount"].mean()
     else:
         @provider.sql_transformation(variant=variant, tags=tags, properties=properties)
-        def average_user_transaction():
+        def average_user_transaction_v1():
             return "SELECT customerid as user_id, avg(transactionamount) as avg_transaction_amt from {{transactions.quickstart}} GROUP BY user_id"
 
     resource_client = ff.ResourceClient(local=is_local, insecure=is_insecure)
     resource_client.apply()
 
-    source = resource_client.print_source("average_user_transaction", variant, is_local)
+    source = resource_client.print_source("average_user_transaction_v1", variant, is_local)
 
-    assert source["tags"] == tags and source["properties"] == properties
+    assert get_tags(source, is_local) == tags and get_properties(source, is_local) == properties
 
 
 @pytest.mark.parametrize(
@@ -305,11 +322,11 @@ def test_updating_tags_and_properties_for_transformation(provider_source_fxt, is
     variant = "quickstart"
     if is_local:
         @provider.df_transformation(variant=variant, inputs=[("transactions", "quickstart")], tags=tags, properties=properties)
-        def average_user_transaction(transactions):
+        def average_user_transaction_v2(transactions):
             return transactions.groupby("CustomerID")["TransactionAmount"].mean()
     else:
         @provider.sql_transformation(variant=variant, tags=tags, properties=properties)
-        def average_user_transaction():
+        def average_user_transaction_v2():
             return "SELECT customerid as user_id, avg(transactionamount) as avg_transaction_amt from {{transactions.quickstart}} GROUP BY user_id"
 
     resource_client = ff.ResourceClient(local=is_local, insecure=is_insecure)
@@ -322,17 +339,23 @@ def test_updating_tags_and_properties_for_transformation(provider_source_fxt, is
 
     if is_local:
         @provider.df_transformation(variant=variant, inputs=[("transactions", "quickstart")], tags=additional_tags, properties=additional_properties)
-        def average_user_transaction(transactions):
+        def average_user_transaction_v2(transactions):
             return transactions.groupby("CustomerID")["TransactionAmount"].mean()
     else:
         @provider.sql_transformation(variant=variant, tags=additional_tags, properties=additional_properties)
-        def average_user_transaction():
+        def average_user_transaction_v2():
             return "SELECT customerid as user_id, avg(transactionamount) as avg_transaction_amt from {{transactions.quickstart}} GROUP BY user_id"
 
     resource_client.apply()
-    source = resource_client.print_source("average_user_transaction", variant, is_local)
+    source = resource_client.print_source("average_user_transaction_v2", variant, is_local)
 
-    assert set(source["tags"]) == set(tags + additional_tags) and source["properties"] == {**properties, **additional_properties}
+    expected_tags = set(tags + additional_tags)
+    expected_properties = {**properties, **additional_properties}
+
+    actual_tags = set(get_tags(source, is_local))
+    actual_properties = get_properties(source, is_local)
+
+    assert actual_tags == expected_tags and actual_properties == expected_properties
 
 
 @pytest.mark.parametrize(
@@ -354,7 +377,7 @@ def test_adding_tags_and_properties_to_entity(is_local, is_insecure, request):
 
     entity = resource_client.get_entity(name, is_local)
 
-    assert entity["tags"] == tags and entity["properties"] == properties
+    assert get_tags(entity, is_local) == tags and get_properties(entity, is_local) == properties
 
 
 @pytest.mark.parametrize(
@@ -366,7 +389,7 @@ def test_adding_tags_and_properties_to_entity(is_local, is_insecure, request):
     ]
 )
 def test_updating_tags_and_properties_for_entity(is_local, is_insecure, request):
-    name = "cc_user"
+    name = "cc_user_2"
     tags = ["customers", "user_ent"]
     properties = {"entity_name": "user", "is_user_data": "yes",}
 
@@ -384,7 +407,13 @@ def test_updating_tags_and_properties_for_entity(is_local, is_insecure, request)
 
     entity = resource_client.get_entity(name, is_local)
 
-    assert set(entity["tags"]) == set(tags + additional_tags) and entity["properties"] == {**properties, **additional_properties}
+    expected_tags = set(tags + additional_tags)
+    expected_properties = {**properties, **additional_properties}
+
+    actual_tags = set(get_tags(entity, is_local))
+    actual_properties = get_properties(entity, is_local)
+
+    assert actual_tags == expected_tags and actual_properties == expected_properties
 
 
 @pytest.mark.parametrize(
@@ -398,14 +427,14 @@ def test_updating_tags_and_properties_for_entity(is_local, is_insecure, request)
 def test_adding_tags_and_properties_to_feature(provider_source_fxt, is_local, is_insecure, request):
     custom_marks = [mark.name for mark in request.node.own_markers if mark.name != 'parametrize']
     provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(custom_marks)
-    tags = ["tag_1", "tag_2", "tag_3"]
-    properties = {"prop_key_1": "prop_val_1", "prop_key_2": "prop_val_2"}
+    tags = ["feat_1", "feat_2", "feat_3"]
+    properties = {"feat_prop_key_1": "feat_prop_val_1", "feat_prop_key_2": "feat_prop_val_2"}
     # Arranges the resources context following the Quickstart pattern
-    resource_client = arrange_resources(provider, source, inference_store, tags, properties, is_local, is_insecure)
+    resource_client = arrange_resources(provider, source, inference_store, tags, properties, "feature", is_local, is_insecure)
 
     feature = resource_client.print_feature("avg_transactions", "quickstart", is_local)
 
-    assert feature["tags"] == tags and feature["properties"] == properties
+    assert get_tags(feature, is_local) == tags and get_properties(feature, is_local) == properties
 
 
 @pytest.mark.parametrize(
@@ -419,21 +448,27 @@ def test_adding_tags_and_properties_to_feature(provider_source_fxt, is_local, is
 def test_updating_tags_and_properties_for_feature(provider_source_fxt, is_local, is_insecure, request):
     custom_marks = [mark.name for mark in request.node.own_markers if mark.name != 'parametrize']
     provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(custom_marks)
-    tags = ["tag_1", "tag_2", "tag_3"]
-    properties = {"prop_key_1": "prop_val_1", "prop_key_2": "prop_val_2"}
+    tags = ["feat_1", "feat_2", "feat_3"]
+    properties = {"feat_prop_key_1": "feat_prop_val_1", "feat_prop_key_2": "feat_prop_val_2"}
     # Arranges the resources context following the Quickstart pattern
-    resource_client = arrange_resources(provider, source, inference_store, tags, properties, is_local, is_insecure)
+    resource_client = arrange_resources(provider, source, inference_store, tags, properties, "feature", is_local, is_insecure)
 
     ff.clear_state()
 
-    additional_tags = ["tag_4", "tag_5"]
-    additional_properties = {"prop_key_3": "prop_val_3"}
+    additional_tags = ["feat_tag_4", "feat_tag_5"]
+    additional_properties = {"feat_prop_key_3": "feat_prop_val_3"}
 
-    resource_client = arrange_resources(provider, source, inference_store, additional_tags, additional_properties, is_local, is_insecure)
+    resource_client = arrange_resources(provider, source, inference_store, additional_tags, additional_properties, "feature", is_local, is_insecure)
 
     feature = resource_client.print_feature("avg_transactions", "quickstart", is_local)
 
-    assert set(feature["tags"]) == set(tags + additional_tags) and feature["properties"] == {**properties, **additional_properties}
+    expected_tags = set(tags + additional_tags)
+    expected_properties = {**properties, **additional_properties}
+
+    actual_tags = set(get_tags(feature, is_local))
+    actual_properties = get_properties(feature, is_local)
+
+    assert actual_tags == expected_tags and actual_properties == expected_properties
 
 
 @pytest.mark.parametrize(
@@ -447,14 +482,14 @@ def test_updating_tags_and_properties_for_feature(provider_source_fxt, is_local,
 def test_adding_tags_and_properties_to_label(provider_source_fxt, is_local, is_insecure, request):
     custom_marks = [mark.name for mark in request.node.own_markers if mark.name != 'parametrize']
     provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(custom_marks)
-    tags = ["tag_1", "tag_2", "tag_3"]
-    properties = {"prop_key_1": "prop_val_1", "prop_key_1": "prop_val_2"}
+    tags = ["lbl_tag_1", "lbl_tag_2", "lbl_tag_3"]
+    properties = {"lbl_prop_key_1": "lbl_prop_val_1", "lbl_prop_key_1": "lbl_prop_val_2"}
     # Arranges the resources context following the Quickstart pattern
-    resource_client = arrange_resources(provider, source, inference_store, tags, properties, is_local, is_insecure)
+    resource_client = arrange_resources(provider, source, inference_store, tags, properties, "label", is_local, is_insecure)
 
     label = resource_client.print_label("fraudulent", "quickstart", is_local)
 
-    assert label["tags"] == tags and label["properties"] == properties
+    assert get_tags(label, is_local) == tags and get_properties(label, is_local) == properties
 
 
 @pytest.mark.parametrize(
@@ -468,21 +503,27 @@ def test_adding_tags_and_properties_to_label(provider_source_fxt, is_local, is_i
 def test_updating_tags_and_properties_for_label(provider_source_fxt, is_local, is_insecure, request):
     custom_marks = [mark.name for mark in request.node.own_markers if mark.name != 'parametrize']
     provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(custom_marks)
-    tags = ["tag_1", "tag_2", "tag_3"]
-    properties = {"prop_key_1": "prop_val_1", "prop_key_1": "prop_val_2"}
+    tags = ["lbl_tag_1", "lbl_tag_2", "lbl_tag_3"]
+    properties = {"lbl_prop_key_1": "lbl_prop_val_1", "lbl_prop_key_1": "lbl_prop_val_2"}
     # Arranges the resources context following the Quickstart pattern
-    resource_client = arrange_resources(provider, source, inference_store, tags, properties, is_local, is_insecure)
+    resource_client = arrange_resources(provider, source, inference_store, tags, properties, "label", is_local, is_insecure)
 
     ff.clear_state()
 
-    additional_tags = ["tag_4", "tag_5"]
-    additional_properties = {"prop_key_3": "prop_val_3"}
+    additional_tags = ["lbl_tag_4", "lbl_tag_5"]
+    additional_properties = {"lbl_prop_key_3": "lbl_prop_val_3"}
 
-    resource_client = arrange_resources(provider, source, inference_store, additional_tags, additional_properties, is_local, is_insecure)
+    resource_client = arrange_resources(provider, source, inference_store, additional_tags, additional_properties, "label", is_local, is_insecure)
 
     label = resource_client.print_label("fraudulent", "quickstart", is_local)
 
-    assert set(label["tags"]) == set(tags + additional_tags) and label["properties"] == {**properties, **additional_properties}
+    expected_tags = set(tags + additional_tags)
+    expected_properties = {**properties, **additional_properties}
+
+    actual_tags = set(get_tags(label, is_local))
+    actual_properties = get_properties(label, is_local)
+
+    assert actual_tags == expected_tags and actual_properties == expected_properties
 
 
 @pytest.mark.parametrize(
@@ -496,14 +537,14 @@ def test_updating_tags_and_properties_for_label(provider_source_fxt, is_local, i
 def test_adding_tags_and_properties_to_training_set(provider_source_fxt, is_local, is_insecure, request):
     custom_marks = [mark.name for mark in request.node.own_markers if mark.name != 'parametrize']
     provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(custom_marks)
-    tags = ["tag_1", "tag_2", "tag_3"]
-    properties = {"prop_key_1": "prop_val_1", "prop_key_1": "prop_val_2"}
+    tags = ["ts_tag_1", "ts_tag_2", "ts_tag_3"]
+    properties = {"ts_prop_key_1": "ts_prop_val_1", "ts_prop_key_1": "ts_prop_val_2"}
     # Arranges the resources context following the Quickstart pattern
-    resource_client = arrange_resources(provider, source, inference_store, tags, properties, is_local, is_insecure, True)
+    resource_client = arrange_resources(provider, source, inference_store, tags, properties, "training-set", is_local, is_insecure)
 
     training_set = resource_client.print_training_set("fraud_training", "quickstart", is_local)
 
-    assert training_set["tags"] == tags and training_set["properties"] == properties
+    assert get_tags(training_set, is_local) == tags and get_properties(training_set, is_local) == properties
 
 
 @pytest.mark.parametrize(
@@ -517,21 +558,27 @@ def test_adding_tags_and_properties_to_training_set(provider_source_fxt, is_loca
 def test_updating_tags_and_properties_for_training_set(provider_source_fxt, is_local, is_insecure, request):
     custom_marks = [mark.name for mark in request.node.own_markers if mark.name != 'parametrize']
     provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(custom_marks)
-    tags = ["tag_1", "tag_2", "tag_3"]
-    properties = {"prop_key_1": "prop_val_1", "prop_key_1": "prop_val_2"}
+    tags = ["ts_tag_1", "ts_tag_2", "ts_tag_3"]
+    properties = {"ts_prop_key_1": "ts_prop_val_1", "ts_prop_key_1": "ts_prop_val_2"}
     # Arranges the resources context following the Quickstart pattern
-    resource_client = arrange_resources(provider, source, inference_store, tags, properties, is_local, is_insecure, True)
+    resource_client = arrange_resources(provider, source, inference_store, tags, properties, "training-set", is_local, is_insecure)
 
     ff.clear_state()
 
-    additional_tags = ["tag_4", "tag_5"]
-    additional_properties = {"prop_key_3": "prop_val_3"}
+    additional_tags = ["ts_tag_4", "ts_tag_5"]
+    additional_properties = {"ts_prop_key_3": "ts_prop_val_3"}
 
-    resource_client = arrange_resources(provider, source, inference_store, additional_tags, additional_properties, is_local, is_insecure, True)
+    resource_client = arrange_resources(provider, source, inference_store, additional_tags, additional_properties, "training-set", is_local, is_insecure)
 
     training_set = resource_client.print_training_set("fraud_training", "quickstart", is_local)
 
-    assert set(training_set["tags"]) == set(tags + additional_tags) and training_set["properties"] == {**properties, **additional_properties}
+    expected_tags = set(tags + additional_tags)
+    expected_properties = {**properties, **additional_properties}
+
+    actual_tags = set(get_tags(training_set, is_local))
+    actual_properties = get_properties(training_set, is_local)
+
+    assert actual_tags == expected_tags and actual_properties == expected_properties
 
 
 @pytest.fixture(autouse=True)
@@ -541,7 +588,7 @@ def before_and_after_each(setup_teardown):
     setup_teardown()
 
 
-def arrange_resources(provider, source, online_store, tags, properties, is_local, is_insecure, should_register_training_set=False):
+def arrange_resources(provider, source, online_store, tags, properties, resource_type, is_local, is_insecure):
     if is_local:
         @provider.df_transformation(variant="quickstart", inputs=[("transactions", "quickstart")])
         def average_user_transaction(transactions):
@@ -555,28 +602,34 @@ def arrange_resources(provider, source, online_store, tags, properties, is_local
     feature_column = "TransactionAmount" if is_local else "avg_transaction_amt"
     label_column = "IsFraud" if is_local else "isfraud"
     inference_store = provider if is_local else online_store
+    feature_tags = tags if resource_type == "feature" else []
+    feature_properties = properties if resource_type == "feature" else {}
+    label_tags = tags if resource_type == "label" else []
+    label_properties = properties if resource_type == "label" else {}
 
-    average_user_transaction.register_resources(
-        entity=user,
-        entity_column="CustomerID" if is_local else "user_id",
-        inference_store=inference_store,
-        features=[
-            {"name": "avg_transactions", "variant": "quickstart", "column": feature_column, "type": "float32", "tags": tags, "properties": properties},
-        ],
-    )
+    if resource_type != "label":
+        average_user_transaction.register_resources(
+            entity=user,
+            entity_column="CustomerID" if is_local else "user_id",
+            inference_store=inference_store,
+            features=[
+                {"name": "avg_transactions", "variant": "quickstart", "column": feature_column, "type": "float32", "tags": feature_tags, "properties": feature_properties},
+            ],
+        )
 
-    source.register_resources(
-        entity=user,
-        entity_column="CustomerID" if is_local else "customerid",
-        labels=[
-            {"name": "fraudulent", "variant": "quickstart", "column": label_column, "type": "bool", "tags": tags, "properties": properties},
-        ],
-    )
+    if resource_type != "feature":
+        source.register_resources(
+            entity=user,
+            entity_column="CustomerID" if is_local else "customerid",
+            labels=[
+                {"name": "fraudulent", "variant": "quickstart", "column": label_column, "type": "bool", "tags": label_tags, "properties": label_properties},
+            ],
+        )
 
     training_set_name = "fraud_training"
     training_set_variant = "quickstart"
 
-    if should_register_training_set:
+    if resource_type == "training-set":
         ff.register_training_set(
             training_set_name, training_set_variant,
             label=("fraudulent", "quickstart"),
@@ -588,7 +641,7 @@ def arrange_resources(provider, source, online_store, tags, properties, is_local
     resource_client = ff.ResourceClient(local=is_local, insecure=is_insecure)
     resource_client.apply()
 
-    if not is_local and should_register_training_set:
+    if not is_local and resource_type == "training-set":
         start = time.time()
         while True:
             time.sleep(3)
@@ -605,3 +658,11 @@ def arrange_resources(provider, source, online_store, tags, properties, is_local
                 continue
 
     return resource_client
+
+
+def get_tags(resource, is_local):
+    return resource["tags"] if is_local else resource.tags.tag
+
+
+def get_properties(resource, is_local):
+    return resource["properties"] if is_local else {k:v.string_value for (k, v) in resource.properties.property.items()}

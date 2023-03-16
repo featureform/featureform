@@ -1476,7 +1476,10 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if err := resourceNamedSafely(id); err != nil {
 		return nil, err
 	}
-	existing, _ := serv.lookup.Lookup(id)
+	existing, err := serv.lookup.Lookup(id)
+	if _, ok := err.(*ResourceNotFound); err != nil && !ok {
+		return nil, err
+	}
 	if existing != nil {
 		if err := existing.Update(serv.lookup, res); err != nil {
 			return nil, err

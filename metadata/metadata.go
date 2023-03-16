@@ -1476,7 +1476,8 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if err := resourceNamedSafely(id); err != nil {
 		return nil, err
 	}
-	if existing, err := serv.lookup.Lookup(id); err == nil {
+	existing, _ := serv.lookup.Lookup(id)
+	if existing != nil {
 		if err := existing.Update(serv.lookup, res); err != nil {
 			return nil, err
 		}
@@ -1485,7 +1486,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if err := serv.lookup.Set(id, res); err != nil {
 		return nil, err
 	}
-	if serv.needsJob(res) {
+	if serv.needsJob(res) && existing == nil {
 		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
 		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
 			return nil, fmt.Errorf("set job: %w", err)

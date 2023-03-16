@@ -328,7 +328,7 @@ jobs:
       - name: Configure Docker Socket
         run: |
           minikube start --kubernetes-version=v1.23.12
-          docker build . -t local/coordinator:stable -f coordinator/Dockerfile.old
+          docker build . -t local/coordinator:stable -f coordinator/Dockerfile.old --build-arg TESTING="True"
 
       - name: Load image
         run: |

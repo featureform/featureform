@@ -15,8 +15,8 @@ users = [
         "training-sets": None,
         "sources": None,
         "status": "NO_STATUS",
-        "tags": [],
-        "properties": {},
+        "tags": None,
+        "properties": None,
     }
 ]
 
@@ -34,8 +34,8 @@ providers = [
         "training-sets": None,
         "status": "NO_STATUS",
         "error": "",
-        "tags": [],
-        "properties": {},
+        "tags": None,
+        "properties": None,
     },
     {
         "name": "redis-quickstart",
@@ -50,8 +50,8 @@ providers = [
         "training-sets": None,
         "status": "NO_STATUS",
         "error": "",
-        "tags": [],
-        "properties": {},
+        "tags": None,
+        "properties": None,
     },
 ]
 
@@ -76,8 +76,8 @@ sources = [
                 "status": "READY",
                 "error": "",
                 "definition": "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id",
-                "tags": [],
-                "properties": {},
+                "tags": None,
+                "properties": None,
             }
         },
     },
@@ -101,8 +101,8 @@ sources = [
                 "status": "READY",
                 "error": "",
                 "definition": "Transactions",
-                "tags": [],
-                "properties": {},
+                "tags": None,
+                "properties": None,
             }
         },
     },
@@ -117,8 +117,8 @@ entities = [
         "labels": None,
         "training-sets": None,
         "status": "NO_STATUS",
-        "tags": [],
-        "properties": {},
+        "tags": None,
+        "properties": None,
     }
 ]
 
@@ -147,8 +147,8 @@ features = [
                 },
                 "source": {"Name": "average_user_transaction", "Variant": "quickstart"},
                 "training-sets": None,
-                "tags": [],
-                "properties": {},
+                "tags": None,
+                "properties": None,
             }
         },
     }
@@ -179,8 +179,8 @@ labels = [
                 "training-sets": None,
                 "status": "READY",
                 "error": "",
-                "tags": [],
-                "properties": {},
+                "tags": None,
+                "properties": None,
             }
         },
     }
@@ -203,8 +203,8 @@ training_sets = [
                 "features": None,
                 "status": "READY",
                 "error": "",
-                "tags": [],
-                "properties": {},
+                "tags": None,
+                "properties": None,
             }
         },
     }

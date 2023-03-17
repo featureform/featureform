@@ -1477,7 +1477,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 	existing, err := serv.lookup.Lookup(id)
-	if _, ok := err.(*ResourceNotFound); err != nil && !ok {
+	if _, isResourceError := err.(*ResourceNotFound); err != nil && !isResourceError {
 		return nil, err
 	}
 	if existing != nil {

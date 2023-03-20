@@ -2083,7 +2083,7 @@ func (entity *Entity) Error() string {
 }
 
 func (entity *Entity) Tags() Tags {
-	return entity.serialized.Tags.GetTag()
+	return entity.fetchTagsFn.Tags()
 }
 
 func (entity *Entity) Properties() Properties {

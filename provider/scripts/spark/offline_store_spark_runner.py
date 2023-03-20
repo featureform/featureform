@@ -105,9 +105,9 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
     func_parameters = []
     for location in sources:
         if location.endswith(".csv"):
-            func_parameters.append(spark.read.option("recursiveFileLookup", "true").csv(location))
+            func_parameters.append(spark.read.option("header","true").option("recursiveFileLookup", "true").csv(location))
         elif location.endswith(".parquet"):
-            func_parameters.append(spark.read.option("recursiveFileLookup", "true").parquet(location))
+            func_parameters.append(spark.read.option("header","true").option("recursiveFileLookup", "true").parquet(location))
         else:
             raise Exception(f"the file type for '{location}' file is not supported.")
     
@@ -119,7 +119,7 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         dt = datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
         output_uri_with_timestamp = f"{output_uri}{safe_datetime}" if output_uri[-1] == "/" else f"{output_uri}/{safe_datetime}"
-        output_df.write.mode("overwrite").parquet(output_uri_with_timestamp)
+        output_df.write.mode("overwrite").option("header","true").parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
         print(f"Issue with execution of the transformation: {e}")

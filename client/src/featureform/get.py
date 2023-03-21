@@ -8,6 +8,7 @@ def get_user_info(stub, name):
     try:
         for user in stub.GetUsers(iter([searchName])):
             format_rows("USER NAME: ", user.name)
+            format_tags_and_properties(user.tags, user.properties)
             format_pg()
             format_rows('NAME', 'VARIANT', 'TYPE')
             for f in user.features:
@@ -33,6 +34,7 @@ def get_entity_info(stub, name):
         for x in stub.GetEntities(iter([searchName])):
             format_rows([("ENTITY NAME: ", x.name),
             ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
+            format_tags_and_properties(x.tags, x.properties)
             format_pg()
             format_rows('NAME', 'VARIANT', 'TYPE')
             for f in x.features:
@@ -90,6 +92,7 @@ def get_feature_variant_info(stub, name, variant):
             ("PROVIDER:", x.provider),
             ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)
             ])
+            format_tags_and_properties(x.tags, x.properties)
             format_pg("SOURCE: ")
             format_rows([("NAME", "VARIANT"), (x.source.name, x.source.variant)])
             format_pg("TRAINING SETS:")
@@ -113,6 +116,7 @@ def get_label_variant_info(stub, name, variant):
             ("DESCRIPTION:", x.description),
             ("PROVIDER:", x.provider),
             ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
+            format_tags_and_properties(x.tags, x.properties)
             format_pg("SOURCE: ")
             format_rows([("NAME", "VARIANT"), (x.source.name, x.source.variant)])
             format_pg("TRAINING SETS:")
@@ -135,6 +139,7 @@ def get_source_variant_info(stub, name, variant):
             ("PROVIDER:", x.provider),
             ("TABLE:", x.table),
             ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
+            format_tags_and_properties(x.tags, x.properties)
             format_pg("DEFINITION:")
             print("TRANSFORMATION")
             print(x.transformation.SQLTransformation.query)
@@ -171,6 +176,7 @@ def get_training_set_variant_info(stub, name, variant):
             ("DESCRIPTION:", x.description),
             ("PROVIDER:", x.provider),
             ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
+            format_tags_and_properties(x.tags, x.properties)
             format_pg("LABEL: ")
             format_rows([("NAME", "VARIANT"), (x.label.name, x.label.variant)])
             format_pg("FEATURES:")
@@ -192,6 +198,7 @@ def get_provider_info(stub, name):
             ("SOFTWARE: ", x.software),
             ("TEAM: ", x.team),
             ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
+            format_tags_and_properties(x.tags, x.properties)
             format_pg("SOURCES:")
             format_rows("NAME", "VARIANT")
             for s in x.sources:
@@ -212,3 +219,10 @@ def get_provider_info(stub, name):
             return x
     except grpc._channel._MultiThreadedRendezvous:
         print("Provider not found.")
+
+
+def format_tags_and_properties(tags, properties):
+    if len(tags.tag):
+        format_rows("TAGS:", ", ".join(tags.tag))
+    if len(properties.property.items()):
+        format_rows("PROPERTIES:", ", ".join([f"{k}:{v.string_value}" for (k,v) in properties.property.items()]))

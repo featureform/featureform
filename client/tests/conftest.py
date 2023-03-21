@@ -45,7 +45,7 @@ def spark_provider():
     azure_blob = AzureFileStoreConfig(account_name="", account_key="", container_name="", root_path="")   
     
     config = SparkConfig(executor_type=databricks.type(), executor_config=databricks.config(), store_type=azure_blob.store_type(), store_config=azure_blob.config())
-    provider = Provider(name="spark", function="OFFLINE", description="", team="", config=config)
+    provider = Provider(name="spark", function="OFFLINE", description="", team="", config=config, tags=[], properties={})
     
     return OfflineSparkProvider(r, provider)
 

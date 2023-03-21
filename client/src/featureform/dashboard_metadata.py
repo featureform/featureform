@@ -80,7 +80,9 @@ def feature_variant(variantData):
                 "value": variantRow['source_value'], 
                 "timestamp": variantRow['source_timestamp']},
                 {"Name":variantRow['source_name'],
-                "Variant":variantRow['source_variant']} 
+                "Variant":variantRow['source_variant']},
+                json.loads(variantRow['tags']) if variantRow['tags'] is not None else [],
+                json.loads(variantRow['properties']) if variantRow['properties'] is not None else {}
             ).toDictionary()
 
         allVariantList.append(variantRow['variant'])
@@ -89,7 +91,7 @@ def feature_variant(variantData):
     return variantsDict, allVariantList, variants
 
 def features(featureRow):
-    variantData = feature_variant(sqlObject.query_resource("feature_variant", "name",featureRow['name']))
+    variantData = feature_variant(sqlObject.query_resource_variant("feature_variant", "name", featureRow['name']))
     
     return FeatureResource(
                 featureRow['name'], 
@@ -119,6 +121,8 @@ def training_set_variant(variantData):
                 "Variant":variantRow['label_variant']}, 
                 variantRow['status'], 
                 variant_organiser(feature_variant(getTrainingSetFeatures(feature_list))[2]),
+                json.loads(variantRow['tags']) if variantRow['tags'] is not None else [],
+                json.loads(variantRow['properties']) if variantRow['properties'] is not None else {}
             ).toDictionary()
         allVariantList.append(variantRow['variant'])
         variantDict[variantRow['variant']] = trainingSetVariant
@@ -133,7 +137,7 @@ def getTrainingSetFeatures(feature_list):
     return feature_variant_tuple
 
 def training_sets(rowData):
-    variantData = training_set_variant(sqlObject.query_resource("training_set_variant", "name", rowData['name']))
+    variantData = training_set_variant(sqlObject.query_resource_variant("training_set_variant", "name", rowData['name']))
     return TrainingSetResource( 
                 "TrainingSet", 
                 rowData['default_variant'], 
@@ -185,8 +189,10 @@ def source_variant(variantData):
                 variantRow['status'], 
                 definition, 
                 variant_organiser(label_variant(label_list)[2]), 
-                variant_organiser(feature_variant(feature_list)[2]), 
-                variant_organiser(training_set_variant(training_set_list)[2]) 
+                variant_organiser(feature_variant(feature_list)[2]),
+                variant_organiser(training_set_variant(training_set_list)[2]),
+                json.loads(variantRow['tags']) if variantRow['tags'] is not None else [],
+                json.loads(variantRow['properties']) if variantRow['properties'] is not None else {}
             ).toDictionary()
         allVariantList.append(variantRow['name'])
         variantDict[variantRow['variant']] = sourceVariant
@@ -195,7 +201,7 @@ def source_variant(variantData):
     return variantDict, allVariantList, variants
 
 def sources(rowData):
-    variantData = source_variant(sqlObject.query_resource("source_variant", "name", rowData['name']))
+    variantData = source_variant(sqlObject.query_resource_variant("source_variant", "name", rowData['name']))
     return SourceResource( 
                 "Source", 
                 rowData['default_variant'], 
@@ -226,7 +232,9 @@ def label_variant(variantData):
                 variantRow['status'], 
                 {"Name":variantRow['source_name'],
                 "Variant":variantRow['source_variant']}, 
-                variant_organiser(training_set_variant(sqlObject.get_training_set_variant_from_label(variantRow['name'], variantRow['variant']))[2]) 
+                variant_organiser(training_set_variant(sqlObject.get_training_set_variant_from_label(variantRow['name'], variantRow['variant']))[2]),
+                json.loads(variantRow['tags']) if variantRow['tags'] is not None else [],
+                json.loads(variantRow['properties']) if variantRow['properties'] is not None else {}
             ).toDictionary()
         
         allVariantList.append(variantRow['variant'])
@@ -235,7 +243,7 @@ def label_variant(variantData):
     return variantDict, allVariantList, variants
 
 def labels(rowData):
-    variantData = label_variant(sqlObject.query_resource("label_variant", "name", rowData['name']))
+    variantData = label_variant(sqlObject.query_resource_variant("label_variant", "name", rowData['name']))
     return LabelResource(
                 "Label", 
                 rowData['default_variant'], 
@@ -245,7 +253,7 @@ def labels(rowData):
             ).toDictionary()
 
 def entities(rowData):
-    label_list = sqlObject.query_resource( "label_variant", "entity", rowData['name'])
+    label_list = sqlObject.query_resource_variant( "label_variant", "entity", rowData['name'])
     training_set_list = set()
     for label in label_list:
         for training_set in sqlObject.get_training_set_variant_from_label(label["name"], label["variant"]):
@@ -255,9 +263,11 @@ def entities(rowData):
                 rowData['type'], 
                 rowData['description'], 
                 rowData['status'], 
-                variant_organiser(feature_variant(sqlObject.query_resource( "feature_variant", "entity", rowData['name']))[2]), 
+                variant_organiser(feature_variant(sqlObject.query_resource_variant( "feature_variant", "entity", rowData['name']))[2]),
                 variant_organiser(label_variant(label_list)[2]), 
-                variant_organiser(training_set_variant(training_set_list)[2]) 
+                variant_organiser(training_set_variant(training_set_list)[2]),
+                json.loads(rowData['tags']) if rowData['tags'] is not None else [],
+                json.loads(rowData['properties']) if rowData['properties'] is not None else {}
             ).toDictionary()
 
 def models(rowData):
@@ -266,9 +276,11 @@ def models(rowData):
                 "Model", 
                 rowData['description'], 
                 rowData['status'], 
-                variant_organiser(feature_variant(sqlObject.query_resource( "feature_variant", "name", rowData['name']))[2]), 
-                variant_organiser(label_variant(sqlObject.query_resource( "label_variant", "variant", rowData['name']))[2]), 
-                variant_organiser(training_set_variant(sqlObject.query_resource( "training_set_variant", "name", rowData['name']))[2]) 
+                variant_organiser(feature_variant(sqlObject.query_resource_variant( "feature_variant", "name", rowData['name']))[2]),
+                variant_organiser(label_variant(sqlObject.query_resource_variant( "label_variant", "variant", rowData['name']))[2]),
+                variant_organiser(training_set_variant(sqlObject.query_resource_variant( "training_set_variant", "name", rowData['name']))[2]),
+                json.loads(rowData['tags']) if rowData['tags'] is not None else [],
+                json.loads(rowData['properties']) if rowData['properties'] is not None else {}
             ).toDictionary()
 
 def users(rowData):
@@ -276,23 +288,25 @@ def users(rowData):
                 rowData['name'], 
                 rowData['type'], 
                 rowData['status'],  
-                variant_organiser(feature_variant(sqlObject.query_resource( "feature_variant", "owner", rowData['name']))[2]), 
-                variant_organiser(label_variant(sqlObject.query_resource( "label_variant", "owner", rowData['name']))[2]), 
-                variant_organiser(training_set_variant(sqlObject.query_resource( "training_set_variant", "owner", rowData['name']))[2]), 
-                variant_organiser(source_variant(sqlObject.query_resource( "source_variant", "owner", rowData['name']))[2]), 
+                variant_organiser(feature_variant(sqlObject.query_resource_variant( "feature_variant", "owner", rowData['name']))[2]),
+                variant_organiser(label_variant(sqlObject.query_resource_variant( "label_variant", "owner", rowData['name']))[2]),
+                variant_organiser(training_set_variant(sqlObject.query_resource_variant( "training_set_variant", "owner", rowData['name']))[2]),
+                variant_organiser(source_variant(sqlObject.query_resource_variant( "source_variant", "owner", rowData['name']))[2]),
+                json.loads(rowData['tags']) if rowData['tags'] is not None else [],
+                json.loads(rowData['properties']) if rowData['properties'] is not None else {}
             ).toDictionary()
 
 def providers(rowData):
     try:
-        source_list = sqlObject.query_resource( "source_variant", "provider", rowData['name'])
+        source_list = sqlObject.query_resource_variant( "source_variant", "provider", rowData['name'])
     except ValueError:
         source_list = []
     try:
-        feature_list = sqlObject.query_resource( "feature_variant", "provider", rowData['name'])
+        feature_list = sqlObject.query_resource_variant( "feature_variant", "provider", rowData['name'])
     except ValueError:
         feature_list = []
     try:
-        label_list = sqlObject.query_resource( "label_variant", "provider", rowData['name'])
+        label_list = sqlObject.query_resource_variant( "label_variant", "provider", rowData['name'])
     except ValueError:
         label_list = []
     return ProviderResource(
@@ -305,8 +319,10 @@ def providers(rowData):
                 variant_organiser(source_variant(source_list)[2]), 
                 rowData['status'], 
                 rowData['serialized_config'],
-                variant_organiser(feature_variant(feature_list)[2]), 
-                variant_organiser(label_variant(label_list)[2])
+                variant_organiser(feature_variant(feature_list)[2]),
+                variant_organiser(label_variant(label_list)[2]),
+                json.loads(rowData['tags']) if rowData['tags'] is not None else [],
+                json.loads(rowData['properties']) if rowData['properties'] is not None else {}
             ).toDictionary()
 
 @dashboard_app.route("/data/<type>", methods = ['POST', 'GET'])
@@ -360,7 +376,8 @@ def GetMetadata(type, resource):
             mimetype='application/json'
             )
             return response
-        row = sqlObject.query_resource(type, "name", "".join(resource))[0]
+        should_fetch_tags_and_properties = type in ["entities", "models", "users", "providers"]
+        row = sqlObject.query_resource(type, "name", "".join(resource), should_fetch_tags_and_properties)[0]
 
         if type == "features":
             dataAsList =  features(row)

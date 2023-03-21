@@ -15,6 +15,7 @@
 * [Registering Infrastructure Providers](getting-started/registering-infrastructure-providers.md)
 * [Transforming Data](getting-started/transforming-data.md)
 * [Defining Features, Labels, and Training Sets](getting-started/defining-features-labels-and-training-sets.md)
+* [Adding Metadata Tags to Resources](getting-started/metadata-tags.md)
 * [Scheduling Resources](getting-started/scheduling-resources.md)
 * [Serving for Inference and Training](getting-started/serving-for-inference-and-training.md)
 * [Interact with the CLI](getting-started/interact-with-the-cli.md)
@@ -23,6 +24,7 @@
 ## Providers
 
 ### Training/Offline Stores
+
 * [BigQuery](providers/bigquery.md)
 * [Postgres](providers/postgres.md)
 * [Redshift](providers/redshift.md)
@@ -33,6 +35,7 @@
 * [Kubernetes](providers/kubernetes.md)
 
 ### Inference/Online Stores
+
 * [Cassandra](providers/cassandra.md)
 * [DynamoDB](providers/dynamodb.md)
 * [Firestore](providers/firestore.md)
@@ -41,6 +44,7 @@
 * [Azure Blobs](providers/azure.md)
 
 ## Deployment
+
 * [Local Mode](deployment/local-mode.md)
 * [Kubernetes](deployment/kubernetes.md)
 * [AWS](deployment/quickstart-aws.md)

@@ -657,6 +657,15 @@ Config = Union[
     MongoDBConfig, GCSFileStoreConfig
 ]
 
+@typechecked
+@dataclass
+class Properties:
+    properties: dict
+
+    def __post_init__(self):
+        self.serialized = pb.Properties()
+        for key, val in self.properties.items():
+            self.serialized.property[key].string_value = val
 
 @typechecked
 @dataclass
@@ -666,6 +675,8 @@ class Provider:
     config: Config
     description: str
     team: str
+    tags: list
+    properties: dict
 
     def __post_init__(self):
         self.software = self.config.software()
@@ -686,6 +697,8 @@ class Provider:
             software=self.config.software(),
             team=self.team,
             serialized_config=self.config.serialize(),
+            tags=pb.Tags(tag=self.tags),
+            properties=Properties(self.properties).serialized,
         )
         stub.CreateProvider(serialized)
 
@@ -701,6 +714,10 @@ class Provider:
                   "ready",
                   str(self.config.serialize(), 'utf-8')
                   )
+        if len(self.tags):
+            db.upsert("tags", self.name, "", "providers", json.dumps(self.tags))
+        if len(self.properties):
+            db.upsert("properties", self.name, "", "providers", json.dumps(self.properties))
 
     def __eq__(self, other):
         for attribute in vars(self):
@@ -713,6 +730,8 @@ class Provider:
 @dataclass
 class User:
     name: str
+    tags: list
+    properties: dict
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -722,7 +741,11 @@ class User:
         return "user"
 
     def _create(self, stub) -> None:
-        serialized = pb.User(name=self.name)
+        serialized = pb.User(
+            name=self.name,
+            tags=pb.Tags(tag=self.tags),
+            properties=Properties(self.properties).serialized,
+        )
         stub.CreateUser(serialized)
 
     def _create_local(self, db) -> None:
@@ -731,6 +754,10 @@ class User:
                   "User",
                   "ready"
                   )
+        if len(self.tags):
+            db.upsert("tags", self.name, "", "users", json.dumps(self.tags))
+        if len(self.properties):
+            db.upsert("properties", self.name, "", "users", json.dumps(self.properties))
 
     def __eq__(self, other):
         for attribute in vars(self):
@@ -829,6 +856,8 @@ class Source:
     owner: str
     provider: str
     description: str
+    tags: list
+    properties: dict
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
@@ -857,6 +886,8 @@ class Source:
             description=self.description,
             schedule=self.schedule,
             provider=self.provider,
+            tags=pb.Tags(tag=self.tags),
+            properties=Properties(self.properties).serialized,
             **defArgs,
         )
         stub.CreateSourceVariant(serialized)
@@ -885,6 +916,10 @@ class Source:
                          json.dumps(self.inputs),
                          self.definition
                          )
+        if len(self.tags):
+            db.upsert("tags", self.name, self.variant, "source_variant", json.dumps(self.tags))
+        if len(self.properties):
+            db.upsert("properties", self.name, self.variant, "source_variant", json.dumps(self.properties))
         self._create_source_resource(db)
 
     def _create_source_resource(self, db) -> None:
@@ -913,6 +948,8 @@ class Source:
 class Entity:
     name: str
     description: str
+    tags: list
+    properties: dict
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -926,6 +963,8 @@ class Entity:
         serialized = pb.Entity(
             name=self.name,
             description=self.description,
+            tags=pb.Tags(tag=self.tags),
+            properties=Properties(self.properties).serialized,
         )
         stub.CreateEntity(serialized)
 
@@ -936,6 +975,10 @@ class Entity:
                   self.description,
                   "ready"
                   )
+        if len(self.tags):
+            db.upsert("tags", self.name, "", "entities", json.dumps(self.tags))
+        if len(self.properties):
+            db.upsert("properties", self.name, "", "entities", json.dumps(self.properties))
 
     def __eq__(self, other):
         for attribute in vars(self):
@@ -973,6 +1016,8 @@ class Feature:
     provider: str
     location: ResourceLocation
     description: str
+    tags: list
+    properties: dict
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
@@ -1010,6 +1055,8 @@ class Feature:
             schedule=self.schedule,
             provider=self.provider,
             columns=self.location.proto(),
+            tags=pb.Tags(tag=self.tags),
+            properties=Properties(self.properties).serialized,
         )
         stub.CreateFeatureVariant(serialized)
 
@@ -1030,6 +1077,10 @@ class Feature:
                   self.source[0],
                   self.source[1]
                   )
+        if len(self.tags):
+            db.upsert("tags", self.name, self.variant, "feature_variant", json.dumps(self.tags))
+        if len(self.properties):
+            db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
         self._create_feature_resource(db)
 
     def _create_feature_resource(self, db) -> None:
@@ -1063,6 +1114,8 @@ class Label:
     owner: str
     provider: str
     description: str
+    tags: list
+    properties: dict
     location: ResourceLocation
     variant: str = "default"
     status: str = "NO_STATUS"
@@ -1093,6 +1146,8 @@ class Label:
             owner=self.owner,
             description=self.description,
             columns=self.location.proto(),
+            tags=pb.Tags(tag=self.tags),
+            properties=Properties(self.properties).serialized,
         )
         stub.CreateLabelVariant(serialized)
 
@@ -1113,6 +1168,10 @@ class Label:
                   self.source[0],
                   self.source[1]
                   )
+        if len(self.tags):
+            db.upsert("tags", self.name, self.variant, "label_variant", json.dumps(self.tags))
+        if len(self.properties):
+            db.upsert("properties", self.name, self.variant, "label_variant", json.dumps(self.properties))
         self._create_label_resource(db)
 
     def _create_label_resource(self, db) -> None:
@@ -1233,6 +1292,8 @@ class TrainingSet:
     label: NameVariant
     features: List[NameVariant]
     description: str
+    tags: list
+    properties: dict
     feature_lags: list = field(default_factory=list)
     status: str = "NO_STATUS"
     variant: str = "default"
@@ -1284,7 +1345,9 @@ class TrainingSet:
                 pb.NameVariant(name=v[0], variant=v[1]) for v in self.features
             ],
             label=pb.NameVariant(name=self.label[0], variant=self.label[1]),
-            feature_lags=feature_lags
+            feature_lags=feature_lags,
+            tags=pb.Tags(tag=self.tags),
+            properties=Properties(self.properties).serialized,
         )
         stub.CreateTrainingSetVariant(serialized)
 
@@ -1300,6 +1363,10 @@ class TrainingSet:
                   self.label[1],
                   "ready"
                   )
+        if len(self.tags):
+            db.upsert("tags", self.name, self.variant, "training_set_variant", json.dumps(self.tags))
+        if len(self.properties):
+            db.upsert("properties", self.name, self.variant, "training_set_variant", json.dumps(self.properties))
         self._create_training_set_resource(db)
 
     def _create_training_set_resource(self, db) -> None:
@@ -1368,6 +1435,8 @@ class TrainingSet:
 @dataclass
 class Model:
     name: str
+    tags: list
+    properties: dict
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -1377,7 +1446,14 @@ class Model:
         return "model"
 
     def _create(self, stub) -> None:
-        serialized = pb.Model(name=self.name)
+        properties = pb.Properties(
+            property=self.properties
+        )
+        serialized = pb.Model(
+            name=self.name,
+            tags=pb.Tags(tag=self.tags),
+            properties=Properties(self.properties).serialized,
+        )
         stub.CreateModel(serialized)
 
     def _create_local(self, db) -> None:
@@ -1385,6 +1461,10 @@ class Model:
                   self.name,
                   "Model",
                   )
+        if len(self.tags):
+            db.upsert("tags", self.name, "", "models", json.dumps(self.tags))
+        if len(self.properties):
+            db.upsert("properties", self.name, "", "models", json.dumps(self.properties))
 
     def __eq__(self, other):
         for attribute in vars(self):

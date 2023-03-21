@@ -22,7 +22,7 @@ See grpc.io for instructions on installing the [protocol buffer compiler](https:
 You may create a Python virtual environment however you prefer, but the directory name `.venv` is ignored by Git for convenience, so you may choose to create your virtual environment in the root of the project.
 
 ```shell
-> python -m venv .venv && . ~/.venv/bin/activate
+> python -m venv .venv && . .venv/bin/activate
 (.venv) >
 ```
 

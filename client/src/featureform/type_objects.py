@@ -13,7 +13,9 @@ class FeatureVariantResource:
         variant="",
         status="",
         location=None,
-        source=None):
+        source=None,
+        tags=[],
+        properties={}):
 
           self.__dictionary = {
             "created": created,
@@ -26,7 +28,9 @@ class FeatureVariantResource:
             "variant": variant,
             "status": status,
             "location":location,
-            "source":source
+            "source":source,
+            "tags": tags,
+            "properties": properties,
             # Training Set[] is missing
         }
 
@@ -68,7 +72,9 @@ class TrainingSetVariantResource:
         variant="",
         label=None,
         status="",
-        features=None):
+        features=None,
+        tags=[],
+        properties={}):
 
           self.__dictionary = {
             "created" : created,
@@ -78,7 +84,9 @@ class TrainingSetVariantResource:
             "variant" : variant,
             "status" : status,
             "label" : label,
-            "features" : features
+            "features" : features,
+            "tags": tags,
+            "properties": properties,
         }
 
     def toDictionary(self):
@@ -122,7 +130,9 @@ class SourceVariantResource:
         definition="",
         labels=None,
         features=None,
-        trainingSets=None):
+        trainingSets=None,
+        tags=[],
+        properties={}):
 
         self.__dictionary = {
           "created":created,
@@ -136,7 +146,9 @@ class SourceVariantResource:
          "definition":definition,
          "labels":labels,
          "features":features,
-         "training-sets":trainingSets
+         "training-sets":trainingSets,
+         "tags": tags,
+         "properties": properties,
         }
 
     def toDictionary(self):
@@ -180,7 +192,9 @@ class LabelVariantResource:
         location=None,
         status="",
         source=None,
-        trainingSets=None):
+        trainingSets=None,
+        tags=[],
+        properties={}):
 
 
         self.__dictionary = {
@@ -195,7 +209,9 @@ class LabelVariantResource:
          "status":status,
          "location":location,
          "source":source,
-         "trainingSets":trainingSets
+         "trainingSets":trainingSets,
+         "tags": tags,
+         "properties": properties,
         #  source is missing
         }
 
@@ -235,7 +251,9 @@ class EntityResource:
         status="",
         features=None,
         labels=None,
-        trainingSets=None):
+        trainingSets=None,
+        tags=[],
+        properties={}):
 
         self.__dictionary = {
          "description":description,
@@ -244,7 +262,9 @@ class EntityResource:
          "features":features,
          "labels":labels,
          "training-sets":trainingSets,
-         "status":status
+         "status":status,
+         "tags": tags,
+         "properties": properties,
         }
 
     def toDictionary(self):
@@ -261,7 +281,9 @@ class UserResource:
         features=None,
         labels=None,
         trainingSets=None,
-        sources=None):
+        sources=None,
+        tags=[],
+        properties={}):
 
         self.__dictionary = {
          "name":name,
@@ -270,7 +292,9 @@ class UserResource:
          "labels":labels,
          "training-sets":trainingSets,
          "sources":sources,
-         "status":status
+         "status":status,
+         "tags": tags,
+         "properties": properties,
         }
 
     def toDictionary(self):
@@ -287,7 +311,9 @@ class ModelResource:
         status="",
         features=None,
         labels=None,
-        trainingSets=None):
+        trainingSets=None,
+        tags=[],
+        properties={}):
 
         self.__dictionary = {
          "name":name,
@@ -296,7 +322,9 @@ class ModelResource:
          "features":features,
          "labels":labels,
          "training-sets":trainingSets,
-         "status":status
+         "status":status,
+         "tags": tags,
+         "properties": properties,
         }
 
     def toDictionary(self):
@@ -317,7 +345,9 @@ class ProviderResource:
         status="",
         serializedConfig="",
         features=None,
-        labels=None
+        labels=None,
+        tags=[],
+        properties={}
         #trainingSets=None
         ):
 
@@ -334,7 +364,9 @@ class ProviderResource:
               #"training-sets":trainingSets,
               "status":status ,
             #   Seems like we dont need serialised config
-              "serializedConfig":serializedConfig
+              "serializedConfig":serializedConfig,
+              "tags": tags,
+              "properties": properties,
         }
 
     def toDictionary(self):

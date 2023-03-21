@@ -78,8 +78,8 @@ ice_cream_dataset = spark.register_file(
                         inputs=[(f"ice_cream_{VERSION}", VERSION)])
 def ice_cream_transformation(df):
     """the ice cream dataset """
-    df['dairy_flow_rate'] = df['dairy_flow_rate'].apply(lambda x: x*2)
-    return df
+    from pyspark.sql.functions import col
+    return df.withColumn("dairy_flow_rate",col("dairy_flow_rate")*2)
 
 farm = ff.register_entity("farm")
 

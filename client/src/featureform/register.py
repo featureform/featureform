@@ -686,6 +686,22 @@ class LocalSource:
         )
 
 
+class SubscriptableTransformation:
+
+    def __init__(self, fn, registrar, provider):
+        self.fn = fn
+        self.registrar = registrar
+        self.provider = provider
+        pass
+    
+    def __getitem__(self, columns):
+        if len(columns) < 2:
+            raise Exception("Missing entity and source columns")
+        return (self.registrar, self.name_variant(), columns)
+
+    def __call__(self, *args, **kwds):
+        return self.fn(*args, **kwds)
+
 class SQLTransformationDecorator:
 
     def __init__(self,
@@ -781,6 +797,7 @@ class DFTransformationDecorator:
                  description: str = "",
                  inputs: list = [],
                  args: K8sArgs = None):
+        # super().__init__(registrar, (name, variant), provider)
         self.registrar = registrar
         self.name = name
         self.variant = variant
@@ -802,9 +819,12 @@ class DFTransformationDecorator:
             if self.name is nv[0] and self.variant is nv[1]:
                 raise ValueError(f"Transformation cannot be input for itself: {self.name} {self.variant}")
         self.query = dill.dumps(fn.__code__)
-        fn.register_resources = self.register_resources
-        fn.name_variant = self.name_variant
-        return fn
+        subscriptable_fn = SubscriptableTransformation(fn, self.registrar, self.provider)
+        subscriptable_fn.register_resources = self.register_resources.__get__(subscriptable_fn)
+        subscriptable_fn.name_variant = self.name_variant.__get__(subscriptable_fn)
+        # fn.register_resources = self.register_resources
+        # fn.name_variant = self.name_variant
+        return subscriptable_fn
 
     def to_source(self) -> Source:
         return Source(
@@ -1072,7 +1092,9 @@ class Registrar:
                                 definition=fakeDefinition,
                                 owner="",
                                 provider="",
-                                description="")
+                                description="",
+                                tags=[],
+                                properties={})
             return ColumnSourceRegistrar(self, fakeSource)
 
     def get_local_provider(self, name="local-mode"):

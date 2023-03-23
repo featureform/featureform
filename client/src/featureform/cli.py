@@ -230,8 +230,9 @@ def read_url(url):
 
 
 def exec_file(file, name):
+    import featureform as ff
     code = compile(file.read(), name, "exec")
-    exec(code)
+    exec(code, {"ff": ff})
 
 
 if __name__ == '__main__':

@@ -624,6 +624,11 @@ class LocalSource:
         fn.register_resources = self.register_resources
         return fn
 
+    def __getitem__(self, columns: List[str]):
+        if len(columns) < 2:
+            raise Exception("Missing entity and source columns")
+        return (self.registrar, self.name_variant(), columns)
+
     def name_variant(self):
         return (self.name, self.variant)
 

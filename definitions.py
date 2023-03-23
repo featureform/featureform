@@ -8,16 +8,17 @@ transactions = local.register_file(
     name="transactions",
     variant="quickstart",
     description="A dataset of fraudulent transactions",
-    path="transactions.csv"
+    path="transactions.csv",
 )
 
-@local.df_transformation(variant="quickstart",
-                         inputs=[("transactions", "quickstart")])
+
+@local.df_transformation(variant="quickstart", inputs=[("transactions", "quickstart")])
 def average_user_transaction(transactions):
-    """the average transaction amount for a user """
+    """the average transaction amount for a user"""
     return transactions.groupby("CustomerID")["TransactionAmount"].mean()
 
-print(average_user_transaction[["CustomerID", "TransactionAmount"]]) 
+
+# print(average_user_transaction[["CustomerID", "TransactionAmount"]])
 # OUTPUT (<featureform.register.Registrar object at 0x120f12640>, ('average_user_transaction', 'quickstart'), ['CustomerID', 'TransactionAmount'])
 
 # print("***** VARS ******", vars(average_user_transaction))
@@ -39,12 +40,31 @@ print(average_user_transaction[["CustomerID", "TransactionAmount"]])
 #     ],
 # )
 
-# print(average_user_transaction[["CustomerID", "TransactionAmount"]])
 
 @ff.entity
 class User:
-    avg_transactions = ff.Feature(*average_user_transaction[["CustomerID", "TransactionAmount"]])
-
-
-
-print(vars(User))
+    # avg_transactions = ff.Feature(
+    #     average_user_transaction[["CustomerID", "TransactionAmount"]],
+    #     type="float32",
+    #     inference_store=local,
+    # )
+    fraudulent = ff.Label(
+        transactions[["CustomerID", "IsFraud"]],
+        type="bool",
+    )
+    avg_transactions = ff.Variants(
+        {
+            "quickstart": ff.Feature(
+                average_user_transaction[["CustomerID", "TransactionAmount"]],
+                variant="quickstart",
+                type=ff.Float32,
+                inference_store=local,
+            ),
+            "quickstart2": ff.Feature(
+                average_user_transaction[["CustomerID", "TransactionAmount"]],
+                variant="quickstart2",
+                type="float32",
+                inference_store=local,
+            ),
+        }
+    )

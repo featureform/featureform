@@ -231,7 +231,11 @@ def read_url(url):
 
 def exec_file(file, name):
     code = compile(file.read(), name, "exec")
-    exec(code)
+    # Create a new global namespace for each file to ensure that
+    # global variables, such as `ff`, are not undefined in the
+    # context of class attribute assignments (e.g. `label = ff.Label()`)
+    file_globals = {}
+    exec(code, file_globals)
 
 
 if __name__ == '__main__':

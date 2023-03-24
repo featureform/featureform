@@ -625,8 +625,9 @@ class LocalSource:
         return fn
 
     def __getitem__(self, columns: List[str]):
-        if len(columns) < 2:
-            raise Exception("Missing entity and source columns")
+        col_len = len(columns)
+        if col_len < 2:
+            raise Exception(f"Expected 2 columns, but found {col_len}. Missing entity and/or source columns")
         return (self.registrar, self.name_variant(), columns)
 
     def name_variant(self):
@@ -713,8 +714,9 @@ class SubscriptableTransformation:
         pass
 
     def __getitem__(self, columns):
-        if len(columns) < 2:
-            raise Exception("Missing entity and source columns")
+        col_len = len(columns)
+        if col_len < 2:
+            raise Exception(f"Expected 2 columns, but found {col_len}. Missing entity and/or source columns")
         return (self.registrar, self.name_variant(), columns)
 
     def __call__(self, *args, **kwds):
@@ -901,6 +903,12 @@ class DFTransformationDecorator:
 
 
 class ColumnSourceRegistrar(SourceRegistrar):
+
+    def __getitem__(self, columns: List[str]):
+        col_len = len(columns)
+        if col_len < 2:
+            raise Exception(f"Expected 2 columns, but found {col_len}. Missing entity and/or source columns")
+        return (self.registrar(), self.id(), columns)
 
     def register_resources(
             self,

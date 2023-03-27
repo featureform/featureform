@@ -4,8 +4,7 @@
 
 from os.path import exists 
 from datetime import timedelta
-from multiprocessing.sharedctypes import Value
-from typeguard import typechecked, check_type
+from typeguard import typechecked
 from typing import Dict, Tuple, Callable, List, Union
 
 import dill
@@ -705,12 +704,23 @@ class SubscriptableTransformation:
 
     feature = ff.Feature(average_user_transaction[["user_id", "avg_transaction_amt"]])
     ```
+
+    Given the function type does not implement __getitem__ we need to wrap it in a class that 
+    enables this behavior while still maintaining the original function signature and behavior.
     """
 
-    def __init__(self, fn, registrar, provider):
+    def __init__(self, fn, registrar, provider, decorator_register_resources_method, decorator_name_variant_method):
         self.fn = fn
         self.registrar = registrar
         self.provider = provider
+        # Binds the register_resources and name_variant methods to the subscriptable_fn
+        # using the descriptor protocol. This allows us to call the methods on the
+        # subscriptable_fn instance. **NOTE** the MethodType could also be used to bind
+        # the methods to the subscriptable_fn instance; however, the descriptor protocol
+        # produces the same result while also being compatible with `classmethod`
+        # and `staticmethod`.
+        self.register_resources = decorator_register_resources_method.__get__(self)
+        self.name_variant = decorator_name_variant_method.__get__(self)
         pass
 
     def __getitem__(self, columns):
@@ -753,19 +763,13 @@ class SQLTransformationDecorator:
         if self.name == "":
             self.name = fn.__name__
         self.__set_query(fn())
-        # Given the function type does not implement __getitem__ we need to wrap it
-        # in a class that enables this behavior while still maintaining the original
-        # function signature and behavior.
-        subscriptable_fn = SubscriptableTransformation(fn, self.registrar, self.provider)
-        # Binds the register_resources and name_variant methods to the subscriptable_fn
-        # using the descriptor protocol. This allows us to call the methods on the
-        # subscriptable_fn instance. **NOTE** the MethodType could also be used to bind
-        # the methods to the subscriptable_fn instance; however, the descriptor protocol
-        # produces the same result while also being compatible with `classmethod`
-        # and `staticmethod`.
-        subscriptable_fn.register_resources = self.register_resources.__get__(subscriptable_fn)
-        subscriptable_fn.name_variant = self.name_variant.__get__(subscriptable_fn)
-        return subscriptable_fn
+        return SubscriptableTransformation(
+            fn,
+            self.registrar,
+            self.provider,
+            self.register_resources,
+            self.name_variant
+        )
 
     @typechecked
     def __set_query(self, query: str):
@@ -849,19 +853,13 @@ class DFTransformationDecorator:
             if self.name is nv[0] and self.variant is nv[1]:
                 raise ValueError(f"Transformation cannot be input for itself: {self.name} {self.variant}")
         self.query = dill.dumps(fn.__code__)
-        # Given the function type does not implement __getitem__ we need to wrap it
-        # in a class that enables this behavior while still maintaining the original
-        # function signature and behavior.
-        subscriptable_fn = SubscriptableTransformation(fn, self.registrar, self.provider)
-        # Binds the register_resources and name_variant methods to the subscriptable_fn
-        # using the descriptor protocol. This allows us to call the methods on the
-        # subscriptable_fn instance. **NOTE** the MethodType could also be used to bind
-        # the methods to the subscriptable_fn instance; however, the descriptor protocol
-        # produces the same result while also being compatible with `classmethod`
-        # and `staticmethod`.
-        subscriptable_fn.register_resources = self.register_resources.__get__(subscriptable_fn)
-        subscriptable_fn.name_variant = self.name_variant.__get__(subscriptable_fn)
-        return subscriptable_fn
+        return SubscriptableTransformation(
+            fn,
+            self.registrar,
+            self.provider,
+            self.register_resources,
+            self.name_variant
+        )
 
     def to_source(self) -> Source:
         return Source(
@@ -4052,7 +4050,7 @@ class ColumnResource:
         self.properties = properties
 
     def register(self):
-        features, labels = self.get_features_and_labels()
+        features, labels = self.features_and_labels()
 
         self.registrar.register_column_resources(
             source=self.source,
@@ -4066,7 +4064,7 @@ class ColumnResource:
             schedule=self.schedule,
         )
     
-    def get_features_and_labels(self) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
+    def features_and_labels(self) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
         resources = [{
             "name": self.name,
             "variant": self.variant,
@@ -4105,7 +4103,7 @@ class Variants:
         for resource in self.resources.values():
             resource.register()
 
-# Class API
+
 class FeatureColumnResource(ColumnResource):
     def __init__(self,
                  transformation_args: tuple,

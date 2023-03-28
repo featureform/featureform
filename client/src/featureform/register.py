@@ -2568,7 +2568,6 @@ class Registrar:
             owner = self.must_get_default_owner()
     
         decorator = OnDemandFeatureDecorator(
-            registrar=self,
             name=name,
             variant=variant,
             owner=owner,

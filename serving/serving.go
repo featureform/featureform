@@ -145,43 +145,48 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 		obs.SetError()
 		return nil, err
 	}
-	entity, has := entityMap[meta.Entity()]
-	if !has {
-		logger.Errorw("Entity not found", "Entity", meta.Entity())
-		obs.SetError()
-		return nil, fmt.Errorf("No value for entity %s", meta.Entity())
-	}
-	providerEntry, err := meta.FetchProvider(serv.Metadata, ctx)
-	if err != nil {
-		logger.Errorw("fetching provider metadata failed", "Error", err)
-		obs.SetError()
-		return nil, err
-	}
-	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
-	if err != nil {
-		logger.Errorw("failed to get provider", "Error", err)
-		obs.SetError()
-		return nil, err
-	}
-	store, err := p.AsOnlineStore()
-	if err != nil {
-		logger.Errorw("failed to use provider as onlinestore for feature", "Error", err)
-		obs.SetError()
-		// This means that the provider of the feature isn't an online store.
-		// That shouldn't be possible.
-		return nil, err
-	}
-	table, err := store.GetTable(name, variant)
-	if err != nil {
-		logger.Errorw("feature not found", "Error", err)
-		obs.SetError()
-		return nil, err
-	}
-	val, err := table.Get(entity)
-	if err != nil {
-		logger.Errorw("entity not found", "Error", err)
-		obs.SetError()
-		return nil, err
+	var val interface{}
+	if meta.Category() == metadata.PRE_CALCULATED {
+		entity, has := entityMap[meta.Entity()]
+		if !has {
+			logger.Errorw("Entity not found", "Entity", meta.Entity())
+			obs.SetError()
+			return nil, fmt.Errorf("No value for entity %s", meta.Entity())
+		}
+		providerEntry, err := meta.FetchProvider(serv.Metadata, ctx)
+		if err != nil {
+			logger.Errorw("fetching provider metadata failed", "Error", err)
+			obs.SetError()
+			return nil, err
+		}
+		p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
+		if err != nil {
+			logger.Errorw("failed to get provider", "Error", err)
+			obs.SetError()
+			return nil, err
+		}
+		store, err := p.AsOnlineStore()
+		if err != nil {
+			logger.Errorw("failed to use provider as onlinestore for feature", "Error", err)
+			obs.SetError()
+			// This means that the provider of the feature isn't an online store.
+			// That shouldn't be possible.
+			return nil, err
+		}
+		table, err := store.GetTable(name, variant)
+		if err != nil {
+			logger.Errorw("feature not found", "Error", err)
+			obs.SetError()
+			return nil, err
+		}
+		val, err = table.Get(entity)
+		if err != nil {
+			logger.Errorw("entity not found", "Error", err)
+			obs.SetError()
+			return nil, err
+		}
+	} else {
+		val = meta.LocationFunction()
 	}
 	f, err := newFeature(val)
 	if err != nil {

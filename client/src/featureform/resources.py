@@ -1147,6 +1147,7 @@ class OnDemandFeatureDecorator:
         return "ondemand_feature"
 
     def _create(self, stub) -> None:
+        pb_status = pb.ResourceStatus.Status._enum_type.values[self.get_status()].name
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
@@ -1155,6 +1156,7 @@ class OnDemandFeatureDecorator:
             location=self.query,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            status=pb_status,
         )
         stub.CreateFeatureVariant(serialized)
 

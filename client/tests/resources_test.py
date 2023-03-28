@@ -5,13 +5,14 @@ import os.path
 import sys
 
 sys.path.insert(0, 'client/src/')
+import dill
 import pytest
 from featureform.resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, \
     FirestoreConfig, AzureFileStoreConfig, \
     SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, K8sConfig, \
     User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
     Source, ResourceColumnMapping, DynamodbConfig, Schedule, SQLTransformation, DFTransformation, K8sArgs, \
-    K8sResourceSpecs
+    K8sResourceSpecs, OnDemandFeatureDecorator, ResourceStatus
 
 from featureform.register import OfflineK8sProvider, Registrar, FileStoreProvider
 
@@ -806,3 +807,28 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
                  resource_type=6,
                  schedule_string="* * * * *"),
     ]
+
+
+def test_ondemand_feature_decorator_class():
+    name="test_ondemand_feature"
+    owner="ff_tester"
+
+    decorator = OnDemandFeatureDecorator(owner=owner, name=name)
+    decorator_2 = OnDemandFeatureDecorator(owner=owner, name=name)
+
+    assert decorator.name_variant() == (name, "default")
+    assert decorator.type() == "ondemand_feature"
+    assert decorator.get_status() == ResourceStatus.NO_STATUS
+    assert decorator.is_ready() == False
+    assert decorator == decorator_2
+
+def test_ondemand_decorator():
+    owner="ff_tester"
+    @OnDemandFeatureDecorator(owner=owner, status="READY")
+    def test_fn():
+        return 1+1
+    
+    expected_query = dill.dumps(test_fn.__code__)
+
+    assert test_fn.name_variant() == (test_fn.__name__, "default")
+    assert test_fn.query == expected_query

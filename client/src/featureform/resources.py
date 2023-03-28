@@ -1109,20 +1109,20 @@ class Feature:
 
 class OnDemandFeatureDecorator:
     def __init__(self,
-                 registrar,
                  owner: str,
-                 tags: List[str],
-                 properties: dict,
+                 tags: List[str] = [],
+                 properties: dict = {},
                  variant: str = "default",
                  name: str = "",
-                 description: str = ""):
-        self.registrar = registrar
+                 description: str = "",
+                 status: str = "NO_STATUS"):
         self.name = name
         self.variant = variant
         self.owner = owner
         self.description = description
         self.tags = tags
         self.properties = properties
+        self.status = status
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:
@@ -1132,6 +1132,7 @@ class OnDemandFeatureDecorator:
 
         self.query = dill.dumps(fn.__code__)
         fn.name_variant = self.name_variant
+        fn.query = self.query
         return fn
 
     def name_variant(self):
@@ -1146,7 +1147,7 @@ class OnDemandFeatureDecorator:
         return "ondemand_feature"
 
     def _create(self, stub) -> None:
-        serialized = pb.OnDemandFeatureVariant(
+        serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
             owner=self.owner,
@@ -1155,7 +1156,7 @@ class OnDemandFeatureDecorator:
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
-        stub.CreateOnDemandFeatureVariant(serialized) # TODO: need to add this method
+        stub.CreateFeatureVariant(serialized)
 
     def _create_local(self, db) -> None:
         db.insert("ondemand_feature_variant",

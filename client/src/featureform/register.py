@@ -22,7 +22,7 @@ from .resources import Model, ResourceState, Provider, RedisConfig, FirestoreCon
     AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, S3StoreConfig, GCSFileStoreConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation, \
-    K8sArgs, AWSCredentials, GCPCredentials, HDFSConfig, K8sResourceSpecs, FilePrefix
+    K8sArgs, AWSCredentials, GCPCredentials, HDFSConfig, K8sResourceSpecs, FilePrefix, OnDemandFeatureDecorator
 
 from .proto import metadata_pb2_grpc as ff_grpc
 from .search_local import search_local
@@ -2479,6 +2479,45 @@ class Registrar:
         self.__resources.append(decorator)
         return decorator
 
+    def ondemand_feature(self,
+                          tags: List[str],
+                          properties: dict,
+                          variant: str = "default",
+                          name: str = "",
+                          owner: Union[str, UserRegistrar] = "",
+                          description: str = "",
+                          ):
+        """On Demand Feature decorator.
+
+        Args:
+            variant (str): Name of variant
+            name (str): Name of source
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of on demand feature
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
+
+        Returns:
+            decorator (OnDemandFeatureDecorator): decorator
+        """
+
+        if not isinstance(owner, str):
+            owner = owner.name()
+        if owner == "":
+            owner = self.must_get_default_owner()
+    
+        decorator = OnDemandFeatureDecorator(
+            registrar=self,
+            name=name,
+            variant=variant,
+            owner=owner,
+            description=description,
+            tags=tags,
+            properties=properties
+        )
+        self.__resources.append(decorator)
+        return decorator
+
     def state(self):
         for resource in self.__resources:
             try:
@@ -3988,4 +4027,5 @@ get_kubernetes = global_registrar.get_kubernetes
 get_blob_store = global_registrar.get_blob_store
 get_s3 = global_registrar.get_s3
 get_gcs = global_registrar.get_gcs
+ondemand_feature = global_registrar.ondemand_feature
 ResourceStatus = ResourceStatus

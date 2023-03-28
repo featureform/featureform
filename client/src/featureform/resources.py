@@ -10,6 +10,7 @@ from enum import Enum
 from typeguard import typechecked
 from typing import List, Tuple, Union
 
+import dill
 import grpc
 from .sqlite_metadata import SQLiteMetadata
 from google.protobuf.duration_pb2 import Duration
@@ -59,6 +60,7 @@ class SourceType(Enum):
     PRIMARY_SOURCE = "PRIMARY"
     DF_TRANSFORMATION = "DF"
     SQL_TRANSFORMATION = "SQL"
+    ONDEMAND_FEATURE = "ONDEMAND_FEATURE"
 
 
 @typechecked
@@ -1089,6 +1091,94 @@ class Feature:
             self.name,
             self.variant,
             self.value_type
+        )
+
+    def get_status(self):
+        return ResourceStatus(self.status)
+
+    def is_ready(self):
+        return self.status == ResourceStatus.READY.value
+
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
+
+
+
+class OnDemandFeatureDecorator:
+    def __init__(self,
+                 registrar,
+                 owner: str,
+                 tags: List[str],
+                 properties: dict,
+                 variant: str = "default",
+                 name: str = "",
+                 description: str = ""):
+        self.registrar = registrar
+        self.name = name
+        self.variant = variant
+        self.owner = owner
+        self.description = description
+        self.tags = tags
+        self.properties = properties
+
+    def __call__(self, fn):
+        if self.description == "" and fn.__doc__ is not None:
+            self.description = fn.__doc__
+        if self.name == "":
+            self.name = fn.__name__
+
+        self.query = dill.dumps(fn.__code__)
+        fn.name_variant = self.name_variant
+        return fn
+
+    def name_variant(self):
+        return (self.name, self.variant)
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    @staticmethod
+    def type() -> str:
+        return "ondemand_feature"
+
+    def _create(self, stub) -> None:
+        serialized = pb.OnDemandFeatureVariant(
+            name=self.name,
+            variant=self.variant,
+            owner=self.owner,
+            description=self.description,
+            definition=self.query,
+            tags=pb.Tags(tag=self.tags),
+            properties=Properties(self.properties).serialized,
+        )
+        stub.CreateOnDemandFeatureVariant(serialized) # TODO: need to add this method
+
+    def _create_local(self, db) -> None:
+        db.insert("ondemand_feature_variant",
+                  str(time.time()),
+                  self.description,
+                  self.name,
+                  self.owner,
+                  self.variant,
+                  "ready",
+                  self.query,
+                  )
+        if len(self.tags):
+            db.upsert("tags", self.name, self.variant, "feature_variant", json.dumps(self.tags))
+        if len(self.properties):
+            db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
+        self._create_feature_resource(db) # TODO: is this needed? 
+
+    def _create_feature_resource(self, db) -> None:
+        db.insert(
+            "features",
+            self.name,
+            self.variant,
+            self.value_type,
         )
 
     def get_status(self):

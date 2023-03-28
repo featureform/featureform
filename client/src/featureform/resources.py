@@ -1152,7 +1152,7 @@ class OnDemandFeatureDecorator:
             variant=self.variant,
             owner=self.owner,
             description=self.description,
-            definition=self.query,
+            location=self.query,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )

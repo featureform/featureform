@@ -514,6 +514,8 @@ func unwrapVal(val *pb.Value) interface{} {
 		return casted.Int64Value
 	case *pb.Value_BoolValue:
 		return casted.BoolValue
+	case *pb.Value_OndemandFunction:
+		return casted.OndemandFunction
 	default:
 		panic(fmt.Sprintf("Unable to unwrap value: %T", val.Value))
 	}

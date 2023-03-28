@@ -103,6 +103,8 @@ func wrapValue(value interface{}) (proto *pb.Value, err error) {
 		proto = wrapInt64(typed)
 	case bool:
 		proto = wrapBool(typed)
+	case []byte:
+		proto = wrapByteArray(typed)
 	case *pb.Value:
 		proto = typed
 	case nil:
@@ -152,6 +154,12 @@ func wrapInt64(val int64) *pb.Value {
 func wrapBool(val bool) *pb.Value {
 	return &pb.Value{
 		Value: &pb.Value_BoolValue{val},
+	}
+}
+
+func wrapByteArray(val []byte) *pb.Value {
+	return &pb.Value{
+		Value: &pb.Value_OndemandFunction{val},
 	}
 }
 

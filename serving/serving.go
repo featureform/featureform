@@ -145,6 +145,15 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 		obs.SetError()
 		return nil, err
 	}
+
+	if meta.FeatureCategory() == pb.FeatureCategory.ON_DEMAND_CLIENT {
+		f, err := newFeature(meta.Location())
+		if err != nil {
+			return nil, fmt.Errorf("cannot convert location to feature struct: %s", err)
+		}
+		return f.Serialized(), nil
+	}
+
 	entity, has := entityMap[meta.Entity()]
 	if !has {
 		logger.Errorw("Entity not found", "Entity", meta.Entity())

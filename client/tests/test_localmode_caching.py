@@ -1,6 +1,7 @@
 import os.path
 import shutil
 import stat
+from typing import Tuple, Callable, Any
 
 import featureform as ff
 import pandas as pd
@@ -23,7 +24,7 @@ class SetupFixture:
 
 
 @pytest.fixture(scope="class")
-def setup(tmp_path_factory, before_after) -> SetupFixture:
+def setup(tmp_path_factory):
     temp_dir = tmp_path_factory.mktemp("test_inputs")
     temp_transactions = temp_dir / "transactions.csv"
     shutil.copy(SOURCE_FILE, temp_transactions)
@@ -86,31 +87,17 @@ def setup(tmp_path_factory, before_after) -> SetupFixture:
     serving_client = ff.ServingClient(local=True)
     serving_client.training_set("fraud_training", "quickstart")
 
-    return SetupFixture(
+    yield SetupFixture(
         transactions_file=str(temp_transactions), serving_client=serving_client
     )
 
-
-@pytest.fixture(scope="class")
-def before_after(clear_state):
-    clear_state()
-    yield
+    serving_client.impl.db.close()
     clear_state()
 
 
-@pytest.fixture(scope="class")
-def close_db(setup):
-    yield
-    setup.serving_client.impl.db.close()
-
-
-@pytest.fixture(scope="class")
 def clear_state():
-    def clear_state_and_reset():
-        ff.clear_state()
-        shutil.rmtree(".featureform", onerror=del_rw)
-
-    return clear_state_and_reset
+    ff.clear_state()
+    shutil.rmtree(".featureform", onerror=del_rw)
 
 
 def del_rw(action, name, exc):

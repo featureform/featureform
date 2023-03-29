@@ -43,17 +43,25 @@ def test_ondemand_decorator():
 
 
 @pytest.mark.local
-def test_serving_ondemand_precalculated_feature():
+@pytest.mark.parametrize(
+    "features,entity,expected_output",
+    [
+        ([("avg_transactions", "quickstart")], {"user": "C8837983"}, [1875.0]),
+        ([("pi", "default")], {"user": "C8837983"}, [3.141592653589793]),
+        ([("avg_transactions", "quickstart"), ("pi", "default")], {"user": "C8837983"}, [1875.0, 3.141592653589793]),
+        ([("pi", "default"), ("avg_transactions", "quickstart")], {"user": "C8837983"}, [3.141592653589793, 1875.0]),
+        ([("avg_transactions", "quickstart"), ("pi", "default"), ("avg_transactions", "quickstart")], {"user": "C8837983"}, [1875.0, 3.141592653589793, 1875.0]),
+        ([("avg_transactions", "quickstart"), ("pi", "default"), ("avg_transactions", "quickstart"), ("pi", "default")], {"user": "C8837983"}, [1875.0, 3.141592653589793, 1875.0, 3.141592653589793]),
+        pytest.param([], {}, [], marks=pytest.mark.xfail),
+        pytest.param([("pi", "default")], None, [], marks=pytest.mark.xfail),
+    ]
+)
+def test_serving_ondemand_precalculated_feature(features, entity, expected_output):
     register_resources()
     client = ff.ServingClient(local=True)
 
-    features_order_1 = client.features([("avg_transactions", "quickstart"), ("pi", "default")], {"user": "C8837983"})
-    features_order_2 = client.features([("pi", "default"), ("avg_transactions", "quickstart")], {"user": "C8837983"})
-    features_order_3 = client.features([("avg_transactions", "quickstart"), ("pi", "default"), ("avg_transactions", "quickstart")], {"user": "C8837983"})
-
-    assert features_order_1.tolist() == [1875.0, 3.141592653589793]
-    assert features_order_2.tolist() == [3.141592653589793, 1875.0]
-    assert features_order_3.tolist() == [1875.0, 3.141592653589793, 1875.0]
+    features = client.features(features, entity)
+    assert features.tolist() == expected_output
 
 def register_resources():
     ff.register_user("featureformer").make_default_owner()

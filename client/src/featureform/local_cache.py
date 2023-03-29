@@ -176,12 +176,8 @@ class LocalCache:
             self._file_has_changed(source_file["updated_at"], source_file["file_path"])
             for source_file in source_files_from_db
         ):
-            self._delete_cache_file(cache_file_path)
-
-    def _delete_cache_file(self, key):
-        file_path = f"{self.cache_dir}/{key}.pkl"
-        if os.path.exists(file_path):
-            os.remove(file_path)
+            if os.path.exists(cache_file_path):
+                os.remove(cache_file_path)
 
     def _cache_file_path(self, resource_type: str, name: str, variant: str):
         key = f"{resource_type}__{name}__{variant}"
@@ -194,6 +190,4 @@ class LocalCache:
         if this becomes a performance issue.
         """
         os_last_updated = os.path.getmtime(file_path)
-        if os_last_updated <= float(last_updated_at):
-            return False
-        return True
+        return os_last_updated > float(last_updated_at)

@@ -2,7 +2,6 @@ import os.path
 import shutil
 import stat
 
-import featureform as ff
 import pandas as pd
 import pytest
 from dataclasses import dataclass
@@ -22,9 +21,10 @@ class SetupFixture:
     serving_client: ServingClient
 
 
-@pytest.fixture()
-def setup(tmp_path, before_after) -> SetupFixture:
-    temp_transactions = tmp_path / "transactions.csv"
+@pytest.fixture(scope="class")
+def setup(tmp_path_factory, before_after) -> SetupFixture:
+    temp_dir = tmp_path_factory.mktemp("test_inputs")
+    temp_transactions = temp_dir / "transactions.csv"
     shutil.copy(SOURCE_FILE, temp_transactions)
     transactions = local.register_file(
         name="transactions",
@@ -90,14 +90,14 @@ def setup(tmp_path, before_after) -> SetupFixture:
     )
 
 
-@pytest.fixture()
+@pytest.fixture(scope="class")
 def before_after(clear_state):
     clear_state()
     yield
     clear_state()
 
 
-@pytest.fixture()
+@pytest.fixture(scope="class")
 def clear_state():
     def clear_state_and_reset():
         ff.clear_state()

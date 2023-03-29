@@ -84,6 +84,10 @@ const (
 	ON_DEMAND_CLIENT                        = FeatureVariantCategory(pb.FeatureVariantCategory_ON_DEMAND_CLIENT)
 )
 
+func (c FeatureVariantCategory) Equals(category pb.FeatureVariantCategory) bool {
+	return c == FeatureVariantCategory(category)
+}
+
 var parentMapping = map[ResourceType]ResourceType{
 	FEATURE_VARIANT:      FEATURE,
 	LABEL_VARIANT:        LABEL,
@@ -98,8 +102,12 @@ func (serv *MetadataServer) needsJob(res Resource) bool {
 		return true
 	}
 	if res.ID().Type == FEATURE_VARIANT {
-		fv := res.(*featureVariantResource)
-		return fv.serialized.Category == pb.FeatureVariantCategory(PRE_CALCULATED)
+		if fv, ok := res.(*featureVariantResource); !ok {
+			serv.Logger.Errorf("resource has type FEATURE VARIANT but failed to cast %s", res.ID())
+			return false
+		} else {
+			return PRE_CALCULATED.Equals(fv.serialized.Category)
+		}
 	}
 	return false
 }
@@ -530,7 +538,7 @@ func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (Res
 			Type: FEATURE,
 		},
 	}
-	if serialized.Category == pb.FeatureVariantCategory(PRE_CALCULATED) {
+	if PRE_CALCULATED.Equals(serialized.Category) {
 		depIds = append(depIds, ResourceID{
 			Name:    serialized.Source.Name,
 			Variant: serialized.Source.Variant,
@@ -557,7 +565,7 @@ func (resource *featureVariantResource) Proto() proto.Message {
 }
 
 func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	if this.serialized.Category != pb.FeatureVariantCategory(PRE_CALCULATED) {
+	if !PRE_CALCULATED.Equals(this.serialized.Category) {
 		return nil
 	}
 	id := that.ID()

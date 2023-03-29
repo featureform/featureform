@@ -129,7 +129,7 @@ class HostedClientImpl:
     def training_set(self, name, variation, include_label_timestamp, model: Union[str, Model] = None):
         return Dataset(self._stub).from_stub(name, variation, model)
 
-    def features(self, features, entities, model: Union[str, Model] = None, params: list = []):
+    def features(self, features, entities, model: Union[str, Model] = None, params: list = None):
         req = serving_pb2.FeatureServeRequest()
         for name, value in entities.items():
             entity_proto = req.entities.add()

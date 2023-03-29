@@ -1043,7 +1043,7 @@ class Feature:
         return "feature"
 
     def _create(self, stub) -> None:
-        pb_category = pb.FeatureVariantCategory.Category._enum_type.values["PRE_CALCULATED"].name
+        pb_category = pb.FeatureVariantCategory.PRE_CALCULATED
 
         serialized = pb.FeatureVariant(
             name=self.name,
@@ -1158,19 +1158,21 @@ class OnDemandFeatureDecorator:
         return "ondemand_feature"
 
     def _create(self, stub) -> None:
-        pb_status = pb.ResourceStatus.Status._enum_type.values[self.get_status()].name
-        pb_category = pb.FeatureVariantCategory.Category._enum_type.values["ON_DEMAND_CLIENT"].name
+        pb_status = pb.ResourceStatus.Status.READY
+        pb_category = pb.FeatureVariantCategory.ON_DEMAND_CLIENT
+
+        pb_function = pb.PythonFunction(query=self.query)
 
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
             owner=self.owner,
             description=self.description,
-            function=pb.PythonFunction(Query=self.query),
+            # function=pb_function,
             category=pb_category,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
-            status=pb_status,
+            # status=pb_status,
         )
         stub.CreateFeatureVariant(serialized)
 

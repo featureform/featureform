@@ -138,7 +138,7 @@ class LocalCache:
                     resource_name,
                     resource_variant,
                     source_file,
-                    os.path.getmtime(source_file),
+                    str(os.path.getmtime(source_file)),
                 )
             return df
 

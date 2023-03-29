@@ -2,6 +2,7 @@ import os.path
 import shutil
 import stat
 
+import featureform as ff
 import pandas as pd
 import pytest
 from dataclasses import dataclass

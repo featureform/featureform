@@ -158,12 +158,6 @@ func wrapBool(val bool) *pb.Value {
 	}
 }
 
-func wrapByteArray(val []byte) *pb.Value {
-	return &pb.Value{
-		Value: &pb.Value_OndemandFunction{val},
-	}
-}
-
 func wrapNil(val interface{}) *pb.Value {
 	return &pb.Value{
 		Value: &pb.Value_StrValue{""},

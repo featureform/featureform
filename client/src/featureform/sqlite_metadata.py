@@ -64,6 +64,20 @@ class SQLiteMetadata:
           FOREIGN KEY(entity) REFERENCES entities(name),
           FOREIGN KEY(provider) REFERENCES providers(name),
           FOREIGN KEY(source_name) REFERENCES sources(name))''')
+      
+        # OnDemand Features variant table
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS ondemand_feature_variant(
+          created text,
+          description text,
+          name text NOT NULL,
+          owner text,
+          variant text NOT NULL,
+          status text,
+          query text,
+
+          PRIMARY KEY(name, variant),
+
+          FOREIGN KEY(name) REFERENCES features(name))''')
 
         # Features table
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS features(
@@ -71,6 +85,14 @@ class SQLiteMetadata:
           default_variant text NOT NULL,
           type text,
           PRIMARY KEY (name));''')
+
+        # features type table
+        # this is used to determine if it is a pre-calculated or ondemand feature
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS feature_variant_category (
+          name text NOT NULL,
+          variant text NOT NULL,
+          category text,
+          PRIMARY KEY (name, variant));''')
 
         # training set variant
         self.__conn.execute('''CREATE TABLE IF NOT EXISTS training_set_variant(
@@ -387,6 +409,14 @@ class SQLiteMetadata:
 
     def get_feature_variants_from_feature(self, name):
       return self.query_resource_variant("feature_variant", "name", name)
+    
+    def get_feature_variant_category(self, name, variant):
+      query = f"SELECT category FROM feature_variant_category WHERE name='{name}' AND variant='{variant}'"
+      return self.fetch_data_safe(query, "feature_variant_category", name, variant)[0]["category"]
+    
+    def get_ondemand_feature_query(self, name, variant):
+      query = f"SELECT query FROM ondemand_feature_variant WHERE name='{name}' AND variant='{variant}'"
+      return self.fetch_data_safe(query, "ondemand_feature_variant", name, variant)[0]["query"]
 
     def get_training_set_variant(self, name, variant):
         query = f"SELECT * FROM training_set_variant WHERE name = '{name}' AND variant = '{variant}';"

@@ -5,6 +5,7 @@
 import sys
 import json
 import time
+import base64
 import datetime
 from enum import Enum
 from typeguard import typechecked
@@ -1086,6 +1087,7 @@ class Feature:
         if len(self.properties):
             db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
         self._create_feature_resource(db)
+        self._create_local_feature_type(db)
 
     def _create_feature_resource(self, db) -> None:
         db.insert(
@@ -1093,6 +1095,14 @@ class Feature:
             self.name,
             self.variant,
             self.value_type
+        )
+    
+    def _create_local_feature_type(self, db) -> None:
+        db.insert(
+            "feature_variant_category",
+            self.name,
+            self.variant,
+            "PRE_CALCULATED",
         )
 
     def get_status(self):
@@ -1165,6 +1175,8 @@ class OnDemandFeatureDecorator:
         stub.CreateFeatureVariant(serialized)
 
     def _create_local(self, db) -> None:
+        decode_query = base64.b64encode(self.query).decode("ascii")
+
         db.insert("ondemand_feature_variant",
                   str(time.time()),
                   self.description,
@@ -1172,20 +1184,29 @@ class OnDemandFeatureDecorator:
                   self.owner,
                   self.variant,
                   "ready",
-                  self.query,
+                  decode_query,
                   )
         if len(self.tags):
             db.upsert("tags", self.name, self.variant, "feature_variant", json.dumps(self.tags))
         if len(self.properties):
             db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
-        self._create_feature_resource(db) # TODO: is this needed? 
+        self._create_feature_resource(db)
+        self._create_local_feature_type(db)
 
     def _create_feature_resource(self, db) -> None:
         db.insert(
             "features",
             self.name,
             self.variant,
-            self.value_type,
+            "tbd",
+        )
+    
+    def _create_local_feature_type(self, db) -> None:
+        db.insert(
+            "feature_variant_category",
+            self.name,
+            self.variant,
+            "ON_DEMAND_CLIENT",
         )
 
     def get_status(self):
@@ -1571,7 +1592,7 @@ class Model:
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
-                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference, Model]
+                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference, Model, OnDemandFeatureDecorator]
 
 
 class ResourceRedefinedError(Exception):

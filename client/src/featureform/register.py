@@ -2541,8 +2541,8 @@ class Registrar:
         return decorator
 
     def ondemand_feature(self,
-                          tags: List[str],
-                          properties: dict,
+                          tags: List[str] = [],
+                          properties: dict = {},
                           variant: str = "default",
                           name: str = "",
                           owner: Union[str, UserRegistrar] = "",

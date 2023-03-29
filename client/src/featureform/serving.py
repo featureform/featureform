@@ -130,7 +130,7 @@ class HostedClientImpl:
     def training_set(self, name, variation, include_label_timestamp, model: Union[str, Model] = None):
         return Dataset(self._stub).from_stub(name, variation, model)
 
-    def features(self, features, entities, model: Union[str, Model] = None):
+    def features(self, features, entities, model: Union[str, Model] = None, params: list = None):
         req = serving_pb2.FeatureServeRequest()
         for name, value in entities.items():
             entity_proto = req.entities.add()
@@ -143,7 +143,20 @@ class HostedClientImpl:
         if model is not None:
             req.model.name = model if isinstance(model, str) else model.name
         resp = self._stub.FeatureServe(req)
-        return [parse_proto_value(val) for val in resp.values]
+
+        feature_values = []
+        for val in resp.values:
+            parsed_value = parse_proto_value(val)
+            
+            is_ondemand_feature = type(parsed_value) == bytes
+            if is_ondemand_feature:
+                code = dill.loads(bytearray(parsed_value))
+                func = types.FunctionType(code, globals(), "transformation")
+                parsed_value = func(self, params, entities)
+            
+            feature_values.append(parsed_value)
+
+        return feature_values
 
 
 class LocalClientImpl:

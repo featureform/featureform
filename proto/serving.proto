@@ -61,6 +61,6 @@ message Value {
         int64  int64_value = 5;
         int32  int32_value = 6;
         bool   bool_value = 7;
-        bytes  ondemand_function = 8;
+        bytes on_demand_function = 8;
     }
 }

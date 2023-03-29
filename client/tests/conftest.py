@@ -5,6 +5,7 @@ import sys
 import shutil
 import stat
 from tempfile import NamedTemporaryFile
+
 sys.path.insert(0, 'client/src/')
 
 
@@ -180,6 +181,7 @@ def emr(aws_credentials):
 def azure_blob():
     return AzureFileStoreConfig(account_name="", account_key="", container_name="", root_path="")
 
+
 @pytest.fixture(scope="module")
 def s3(aws_credentials):
     return S3StoreConfig("bucket_path", "bucket_region", aws_credentials)
@@ -187,6 +189,7 @@ def s3(aws_credentials):
 
 @pytest.fixture(scope="module")
 def local_provider_source():
+    # empty param to match the signature of the other fixtures
     def get_local(_):
         ff.register_user("test_user").make_default_owner()
         provider = ff.register_local()
@@ -204,8 +207,8 @@ def local_provider_source():
 @pytest.fixture(scope="module")
 def serving_client():
     def get_clients_for_context(is_local, is_insecure):
-            return ff.ServingClient(local=is_local, insecure=is_insecure)
-    
+        return ff.ServingClient(local=is_local, insecure=is_insecure)
+
     return get_clients_for_context
 
 
@@ -231,26 +234,26 @@ def hosted_sql_provider_and_source():
         redis_host = "host.docker.internal" if "docker" in custom_marks else "quickstart-redis"
 
         provider = ff.register_postgres(
-            name = "postgres-quickstart",
+            name="postgres-quickstart",
             # The host name for postgres is different between Docker and Minikube
-            host= "host.docker.internal" if "docker" in custom_marks else "quickstart-postgres",
+            host="host.docker.internal" if "docker" in custom_marks else "quickstart-postgres",
             port="5432",
             user="postgres",
             password="password",
             database="postgres",
-            description = "A Postgres deployment we created for the Featureform quickstart"
+            description="A Postgres deployment we created for the Featureform quickstart"
         )
 
         redis = ff.register_redis(
-            name = "redis-quickstart",
+            name="redis-quickstart",
             # The host name for postgres is different between Docker and Minikube
             host="host.docker.internal" if "docker" in custom_marks else "quickstart-redis",
             port=6379,
         )
 
         source = provider.register_table(
-            name = "transactions",
-            table = "Transactions", # This is the table's name in Postgres
+            name="transactions",
+            table="Transactions",  # This is the table's name in Postgres
             variant="quickstart"
         )
 

@@ -77,6 +77,17 @@ func (r ResourceStatus) Serialized() pb.ResourceStatus_Status {
 	return pb.ResourceStatus_Status(r)
 }
 
+type FeatureVariantCategory int32
+
+const (
+	PRE_CALCULATED   FeatureVariantCategory = FeatureVariantCategory(pb.FeatureVariantCategory_PRE_CALCULATED)
+	ON_DEMAND_CLIENT                        = FeatureVariantCategory(pb.FeatureVariantCategory_ON_DEMAND_CLIENT)
+)
+
+func (c FeatureVariantCategory) Equals(category pb.FeatureVariantCategory) bool {
+	return c == FeatureVariantCategory(category)
+}
+
 var parentMapping = map[ResourceType]ResourceType{
 	FEATURE_VARIANT:      FEATURE,
 	LABEL_VARIANT:        LABEL,
@@ -86,10 +97,17 @@ var parentMapping = map[ResourceType]ResourceType{
 
 func (serv *MetadataServer) needsJob(res Resource) bool {
 	if res.ID().Type == TRAINING_SET_VARIANT ||
-		res.ID().Type == FEATURE_VARIANT ||
 		res.ID().Type == SOURCE_VARIANT ||
 		res.ID().Type == LABEL_VARIANT {
 		return true
+	}
+	if res.ID().Type == FEATURE_VARIANT {
+		if fv, ok := res.(*featureVariantResource); !ok {
+			serv.Logger.Errorf("resource has type FEATURE VARIANT but failed to cast %s", res.ID())
+			return false
+		} else {
+			return PRE_CALCULATED.Equals(fv.serialized.Category)
+		}
 	}
 	return false
 }
@@ -512,26 +530,28 @@ func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (Res
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
-			Name:    serialized.Source.Name,
-			Variant: serialized.Source.Variant,
-			Type:    SOURCE_VARIANT,
-		},
-		{
-			Name: serialized.Entity,
-			Type: ENTITY,
-		},
-		{
 			Name: serialized.Owner,
 			Type: USER,
-		},
-		{
-			Name: serialized.Provider,
-			Type: PROVIDER,
 		},
 		{
 			Name: serialized.Name,
 			Type: FEATURE,
 		},
+	}
+	if PRE_CALCULATED.Equals(serialized.Category) {
+		depIds = append(depIds, ResourceID{
+			Name:    serialized.Source.Name,
+			Variant: serialized.Source.Variant,
+			Type:    SOURCE_VARIANT,
+		},
+			ResourceID{
+				Name: serialized.Entity,
+				Type: ENTITY,
+			},
+			ResourceID{
+				Name: serialized.Provider,
+				Type: PROVIDER,
+			})
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
@@ -545,9 +565,12 @@ func (resource *featureVariantResource) Proto() proto.Message {
 }
 
 func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+	if !PRE_CALCULATED.Equals(this.serialized.Category) {
+		return nil
+	}
 	id := that.ID()
-	releventOp := op == create_op && id.Type == TRAINING_SET_VARIANT
-	if !releventOp {
+	relevantOp := op == create_op && id.Type == TRAINING_SET_VARIANT
+	if !relevantOp {
 		return nil
 	}
 	key := id.Proto()
@@ -1278,7 +1301,7 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *p
 			&pb.Feature{
 				Name:           name,
 				DefaultVariant: variant,
-				// This will be set when the change is propogated to dependencies.
+				// This will be set when the change is propagated to dependencies.
 				Variants: []string{},
 			},
 		}
@@ -1310,7 +1333,7 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variant *pb.
 			&pb.Label{
 				Name:           name,
 				DefaultVariant: variant,
-				// This will be set when the change is propogated to dependencies.
+				// This will be set when the change is propagated to dependencies.
 				Variants: []string{},
 			},
 		}
@@ -1342,7 +1365,7 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, varian
 			&pb.TrainingSet{
 				Name:           name,
 				DefaultVariant: variant,
-				// This will be set when the change is propogated to dependencies.
+				// This will be set when the change is propagated to dependencies.
 				Variants: []string{},
 			},
 		}
@@ -1374,7 +1397,7 @@ func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variant *pb
 			&pb.Source{
 				Name:           name,
 				DefaultVariant: variant,
-				// This will be set when the change is propogated to dependencies.
+				// This will be set when the change is propagated to dependencies.
 				Variants: []string{},
 			},
 		}
@@ -1507,7 +1530,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 			}
 		}
 	}
-	if err := serv.propogateChange(res); err != nil {
+	if err := serv.propagateChange(res); err != nil {
 		err := errors.Wrap(err, fmt.Sprintf("could not propogate: %s", res))
 		serv.Logger.Error(errors.WithStack(err))
 		return nil, err
@@ -1515,11 +1538,11 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	return &pb.Empty{}, nil
 }
 
-func (serv *MetadataServer) propogateChange(newRes Resource) error {
+func (serv *MetadataServer) propagateChange(newRes Resource) error {
 	visited := make(map[ResourceID]struct{})
 	// We have to make it a var so that the anonymous function can call itself.
-	var propogateChange func(parent Resource) error
-	propogateChange = func(parent Resource) error {
+	var propagateChange func(parent Resource) error
+	propagateChange = func(parent Resource) error {
 		deps, err := parent.Dependencies(serv.lookup)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("could not get dependencies for parent: %s", parent))
@@ -1540,13 +1563,13 @@ func (serv *MetadataServer) propogateChange(newRes Resource) error {
 			if err := serv.lookup.Set(res.ID(), res); err != nil {
 				return nil
 			}
-			if err := propogateChange(res); err != nil {
+			if err := propagateChange(res); err != nil {
 				return err
 			}
 		}
 		return nil
 	}
-	return propogateChange(newRes)
+	return propagateChange(newRes)
 }
 
 func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send sendFn) error {

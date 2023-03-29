@@ -220,6 +220,7 @@ type FeatureDef struct {
 	Location    interface{}
 	Tags        Tags
 	Properties  Properties
+	Category    FeatureVariantCategory
 }
 
 type ResourceVariantColumns struct {
@@ -249,6 +250,18 @@ func (c ResourceVariantColumns) SerializeLabelColumns() *pb.LabelVariant_Columns
 	}
 }
 
+type PythonFunction struct {
+	Query []byte
+}
+
+func (p PythonFunction) SerializePythonFunction() *pb.FeatureVariant_Function {
+	return &pb.FeatureVariant_Function{
+		Function: &pb.PythonFunction{
+			Query: p.Query,
+		},
+	}
+}
+
 func (def FeatureDef) ResourceType() ResourceType {
 	return FEATURE_VARIANT
 }
@@ -267,10 +280,13 @@ func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) 
 		Schedule:    def.Schedule,
 		Tags:        &pb.Tags{Tag: def.Tags},
 		Properties:  def.Properties.Serialize(),
+		Category:    pb.FeatureVariantCategory(def.Category),
 	}
 	switch x := def.Location.(type) {
 	case ResourceVariantColumns:
 		serialized.Location = def.Location.(ResourceVariantColumns).SerializeFeatureColumns()
+	case PythonFunction:
+		serialized.Location = def.Location.(PythonFunction).SerializePythonFunction()
 	case nil:
 		return fmt.Errorf("FeatureDef Columns not set")
 	default:
@@ -1423,6 +1439,9 @@ func (variant *FeatureVariant) isTable() bool {
 }
 
 func (variant *FeatureVariant) LocationColumns() interface{} {
+	if variant.Category() != PRE_CALCULATED {
+		return nil
+	}
 	src := variant.serialized.GetColumns()
 	columns := ResourceVariantColumns{
 		Entity: src.Entity,
@@ -1432,12 +1451,27 @@ func (variant *FeatureVariant) LocationColumns() interface{} {
 	return columns
 }
 
+func (variant *FeatureVariant) LocationFunction() interface{} {
+	if variant.Category() != ON_DEMAND_CLIENT {
+		return nil
+	}
+	src := variant.serialized.GetFunction()
+	function := PythonFunction{
+		Query: src.Query,
+	}
+	return function
+}
+
 func (variant *FeatureVariant) Tags() Tags {
 	return variant.fetchTagsFn.Tags()
 }
 
 func (variant *FeatureVariant) Properties() Properties {
 	return variant.fetchPropertiesFn.Properties()
+}
+
+func (variant *FeatureVariant) Category() FeatureVariantCategory {
+	return FeatureVariantCategory(variant.serialized.GetCategory())
 }
 
 type User struct {

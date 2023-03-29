@@ -220,7 +220,7 @@ class TestLocalCache:
         )
         training_set_df = training_set.pandas()
 
-        assert training_set_df["fraudulent"].isnull().all()
+        assert training_set_df["label"].isnull().all()
 
     def test_transformation_cached_files_are_reset(self, setup):
         """

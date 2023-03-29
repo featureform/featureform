@@ -99,6 +99,12 @@ def before_after(clear_state):
 
 
 @pytest.fixture(scope="class")
+def close_db(setup):
+    yield
+    setup.serving_client.impl.db.close()
+
+
+@pytest.fixture(scope="class")
 def clear_state():
     def clear_state_and_reset():
         ff.clear_state()

@@ -225,6 +225,17 @@ class SQLiteMetadata:
           status           text,
           serialized_config text)''')
 
+        # source files for a resource
+        # tracks the source files that have been used to create a resource and contains the files last_updated
+        # this is used to determined if caches need to be invalidated
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS resource_source_files(
+            resource_type text NOT NULL,
+            name text NOT NULL,
+            variant text NOT NULL,
+            file_path text NOT NULL,
+            updated_at text NOT NULL,
+            PRIMARY KEY(resource_type, name, variant, file_path))''')
+
         # full-text search table
         self.__conn.execute('''CREATE VIRTUAL TABLE IF NOT EXISTS resources_fts USING fts5(
           resource_type, -- an "enum" column to filter with (e.g. feature, training_set, source, provider, entity, label, model, user)
@@ -373,19 +384,19 @@ class SQLiteMetadata:
 
     def get_feature(self, name, should_fetch_tags_properties):
       return self.query_resource("features", "name", name, should_fetch_tags_properties)[0]
-    
+
     def get_label(self, name, should_fetch_tags_properties):
       return self.query_resource("labels", "name", name, should_fetch_tags_properties)[0]
-    
+
     def get_source(self, name, should_fetch_tags_properties):
       return self.query_resource("sources", "name", name, should_fetch_tags_properties)[0]
 
     def get_training_set(self, name, should_fetch_tags_properties):
       return self.query_resource("training_sets", "name", name, should_fetch_tags_properties)[0]
-    
+
     def get_model(self, name, should_fetch_tags_properties):
       return self.query_resource("models", "name", name, should_fetch_tags_properties)[0]
-    
+
     def get_provider(self, name, should_fetch_tags_properties):
       return self.query_resource("providers", "name", name, should_fetch_tags_properties)[0]
 
@@ -535,6 +546,19 @@ class SQLiteMetadata:
             return 0
         return t[0][0]
 
+    def get_source_files_for_resource(self, resource_type, name, variant):
+        query = f"SELECT * FROM resource_source_files WHERE resource_type='{resource_type}' and name='{name}' and variant='{variant}';"
+        result = self.__conn.execute(query)
+        self.__conn.commit()
+        return result.fetchall()
+
+    def get_source_file_last_updated(self, resource_type, name, variant, file_path):
+        query = f"SELECT * FROM resource_source_files WHERE resource_type='{resource_type}' and name='{name}' and variant='{variant}' and file_path='{file_path}';"
+        result = self.__conn.execute(query)
+        self.__conn.commit()
+        res = result.fetchone()
+        return res[0] if res else None
+
     def insert_source(self, tablename, *args):
         stmt = f"INSERT OR IGNORE INTO {tablename} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         self.__conn.execute_stmt(stmt, args)
@@ -545,9 +569,20 @@ class SQLiteMetadata:
         self.__conn.execute(query)
         self.__conn.commit()
 
+    def insert_or_update(self, tablename, keys, cols, *args):
+        """
+        Upserts a row into the table. `keys` indicate columns that are unique
+        and `cols` are the columns that are updated.
+        """
+        query = (
+            f"INSERT INTO {tablename} VALUES {str(args)} "
+            f"ON CONFLICT ({','.join(keys)}) DO UPDATE SET {','.join([f'{col}=excluded.{col}' for col in cols])}"
+        )
+        self.__conn.execute(query)
+        self.__conn.commit()
+
+    # TODO get something generic working, possibly consider using the above insert or update
     def upsert(self, tablename, *args):
-        query = ""
-        is_update = False
         if tablename == "tags" or tablename == "properties":
            query, is_update = self.upsert_tags_properties(tablename, *args)
         else:

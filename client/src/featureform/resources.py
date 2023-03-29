@@ -60,7 +60,6 @@ class SourceType(Enum):
     PRIMARY_SOURCE = "PRIMARY"
     DF_TRANSFORMATION = "DF"
     SQL_TRANSFORMATION = "SQL"
-    ONDEMAND_FEATURE = "ONDEMAND_FEATURE"
 
 
 @typechecked
@@ -1043,6 +1042,8 @@ class Feature:
         return "feature"
 
     def _create(self, stub) -> None:
+        pb_category = pb.FeatureVariantCategory.Category._enum_type.values["PRE_CALCULATED"].name
+
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
@@ -1057,6 +1058,7 @@ class Feature:
             schedule=self.schedule,
             provider=self.provider,
             columns=self.location.proto(),
+            category=pb_category,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
@@ -1106,7 +1108,6 @@ class Feature:
         return True
 
 
-
 class OnDemandFeatureDecorator:
     def __init__(self,
                  owner: str,
@@ -1148,6 +1149,7 @@ class OnDemandFeatureDecorator:
 
     def _create(self, stub) -> None:
         pb_status = pb.ResourceStatus.Status._enum_type.values[self.get_status()].name
+        pb_category = pb.FeatureVariantCategory.Category._enum_type.values["ON_DEMAND_CLIENT"].name
 
         serialized = pb.FeatureVariant(
             name=self.name,
@@ -1155,6 +1157,7 @@ class OnDemandFeatureDecorator:
             owner=self.owner,
             description=self.description,
             function=pb.PythonFunction(Query=self.query),
+            category=pb_category,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
             status=pb_status,

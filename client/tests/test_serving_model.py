@@ -2,6 +2,8 @@ import time
 import featureform as ff
 from featureform.resources import Model
 import pytest
+from featureform.serving import LocalClientImpl
+
 
 @pytest.mark.parametrize(
     "provider_source_fxt,serving_client_fxt,is_local,is_insecure",
@@ -24,6 +26,10 @@ def test_no_models_registered_while_serving_training_set(provider_source_fxt,ser
     models = resource_client.list_models(is_local)
 
     assert len(models) == 0
+
+    # TODO: Shouldn't have to do this
+    if is_local:
+        serving_client.impl.db.close()
 
 
 @pytest.mark.parametrize(
@@ -50,6 +56,9 @@ def test_registering_model_while_serving_training_set(provider_source_fxt,servin
     model = resource_client.get_model(model_name_a, is_local)
 
     assert isinstance(model, Model) and model.name == model_name_a and model.type() == "model"
+
+    if is_local:
+        serving_client.impl.db.close()
 
 
 @pytest.mark.parametrize(
@@ -84,6 +93,9 @@ def test_registering_two_models_while_serving_training_set(provider_source_fxt,s
 
     assert contains_expected_names and are_models_instances
 
+    if is_local:
+        serving_client.impl.db.close()
+
 
 @pytest.mark.parametrize(
     "provider_source_fxt,serving_client_fxt,is_local,is_insecure",
@@ -113,6 +125,9 @@ def test_registering_same_model_twice_while_serving_training_set(provider_source
 
     assert model_name_d in expected and len(expected) == 1 and all([isinstance(model, Model) for model in models])
 
+    if is_local:
+        serving_client.impl.db.close()
+
 
 @pytest.mark.parametrize(
     "provider_source_fxt,serving_client_fxt,is_local,is_insecure",
@@ -137,6 +152,9 @@ def test_registering_model_while_serving_features(provider_source_fxt,serving_cl
     model = resource_client.get_model(model_name_e, is_local)
 
     assert isinstance(model, Model) and model.name == model_name_e and model.type() == "model"
+
+    if is_local:
+        serving_client.impl.db.close()
 
 
 @pytest.mark.parametrize(
@@ -169,6 +187,9 @@ def test_registering_two_models_while_serving_features(provider_source_fxt,servi
 
     assert contains_expected_names and are_models_instances
 
+    if is_local:
+        serving_client.impl.db.close()
+
 
 @pytest.mark.parametrize(
     "provider_source_fxt,serving_client_fxt,is_local,is_insecure",
@@ -195,6 +216,9 @@ def test_registering_same_model_twice_while_serving_features(provider_source_fxt
     expected = [model.name for model in models if model.name == model_name_h]
 
     assert model_name_h in expected and len(expected) == 1 and all([isinstance(model, Model) for model in models])
+
+    if is_local:
+        serving_client.impl.db.close()
 
 
 @pytest.fixture(autouse=True)

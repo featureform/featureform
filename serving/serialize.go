@@ -7,6 +7,7 @@ package serving
 import (
 	"fmt"
 
+	"github.com/featureform/metadata"
 	pb "github.com/featureform/proto"
 )
 
@@ -103,6 +104,8 @@ func wrapValue(value interface{}) (proto *pb.Value, err error) {
 		proto = wrapInt64(typed)
 	case bool:
 		proto = wrapBool(typed)
+	case metadata.PythonFunction:
+		proto = wrapBytes(typed.Query)
 	case *pb.Value:
 		proto = typed
 	case nil:
@@ -158,5 +161,11 @@ func wrapBool(val bool) *pb.Value {
 func wrapNil(val interface{}) *pb.Value {
 	return &pb.Value{
 		Value: &pb.Value_StrValue{""},
+	}
+}
+
+func wrapBytes(val []byte) *pb.Value {
+	return &pb.Value{
+		Value: &pb.Value_OnDemandFunction{val},
 	}
 }

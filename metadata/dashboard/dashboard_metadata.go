@@ -210,6 +210,12 @@ func columnsToMap(columns metadata.ResourceVariantColumns) map[string]string {
 }
 
 func featureShallowMap(variant *metadata.FeatureVariant) FeatureVariantResource {
+	var location map[string]string
+	if variant.Category() == metadata.PRE_CALCULATED {
+		location = columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns))
+	} else {
+		location = make(map[string]string)
+	}
 	return FeatureVariantResource{
 		Created:     variant.Created(),
 		Description: variant.Description(),
@@ -220,7 +226,7 @@ func featureShallowMap(variant *metadata.FeatureVariant) FeatureVariantResource 
 		Owner:       variant.Owner(),
 		Provider:    variant.Provider(),
 		Source:      variant.Source(),
-		Location:    columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns)),
+		Location:    location,
 		Status:      variant.Status().String(),
 		Error:       variant.Error(),
 		Tags:        variant.Tags(),

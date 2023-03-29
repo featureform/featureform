@@ -145,6 +145,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 		obs.SetError()
 		return nil, err
 	}
+
 	var val interface{}
 	switch meta.Category() {
 	case metadata.PRE_CALCULATED:

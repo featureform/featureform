@@ -72,40 +72,55 @@ class LocalCache:
         Caches the result of a training set to a local file. Difference between this one and the one above
         is how this needs to fetch all the source files for the training set.
         """
+        resource_type = "training_set"
+
         file_path = self._cache_file_path(
-            "training_set", training_set_name, training_set_variant
+            resource_type, training_set_name, training_set_variant
         )
+
+        # check db for source files
+        source_files_from_db = self.db.get_source_files_for_resource(
+            resource_type, training_set_name, training_set_variant
+        )
+
+        # Only check to invalidate the cache if we have source files in the db
+        if source_files_from_db:
+            self._invalidate_cache_if_source_files_changed(
+                source_files_from_db, file_path
+            )
 
         source_files = set()
-
-        ts_variant = self.db.get_training_set_variant(
-            training_set_name, training_set_variant
-        )
-        label_variant = self.db.get_label_variant(
-            ts_variant["label_name"], ts_variant["label_variant"]
-        )
-        source_files.update(
-            self.get_source_files_for_source(
-                label_variant["source_name"], label_variant["source_variant"]
+        if source_files_from_db:
+            source_files.update(set(map(lambda x: x["file_path"], source_files_from_db)))
+        else:
+            ts_variant = self.db.get_training_set_variant(
+                training_set_name, training_set_variant
             )
-        )
-
-        features = self.db.get_training_set_features(
-            training_set_name, training_set_variant
-        )
-        for feature in features:
-            feature_variant = self.db.get_feature_variant(
-                feature["feature_name"], feature["feature_variant"]
+            label_variant = self.db.get_label_variant(
+                ts_variant["label_name"], ts_variant["label_variant"]
             )
             source_files.update(
                 self.get_source_files_for_source(
-                    feature_variant["source_name"],
-                    feature_variant["source_variant"],
+                    label_variant["source_name"], label_variant["source_variant"]
                 )
             )
 
+            features = self.db.get_training_set_features(
+                training_set_name, training_set_variant
+            )
+            for feature in features:
+                feature_variant = self.db.get_feature_variant(
+                    feature["feature_name"], feature["feature_variant"]
+                )
+                source_files.update(
+                    self.get_source_files_for_source(
+                        feature_variant["source_name"],
+                        feature_variant["source_variant"],
+                    )
+                )
+
         return self._get_or_put(
-            "training_set",
+            resource_type,
             training_set_name,
             training_set_variant,
             file_path,

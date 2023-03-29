@@ -185,7 +185,7 @@ class TestLocalCache:
 
         assert training_set_df["fraudulent"].isnull().all()
 
-    def test_cached_files_are_reset(self, setup):
+    def test_label_cached_files_are_reset(self, setup):
         """
         Ensures all cached files are reset when the files are modified.
         """
@@ -203,3 +203,60 @@ class TestLocalCache:
 
         # ensure all values are null
         assert label_df["label"].isnull().all()
+
+    def test_training_set_cached_files_are_reset(self, setup):
+        """
+        Ensures all cached files are reset when the files are modified.
+        """
+        fixture = setup
+
+        # modify the file. This should reset the cache
+        transactions = pd.read_csv(fixture.transactions_file)
+        transactions["IsFraud"] = None
+        transactions.to_csv(fixture.transactions_file, index=False)
+
+        training_set = fixture.serving_client.training_set(
+            "fraud_training", "quickstart"
+        )
+        training_set_df = training_set.pandas()
+
+        assert training_set_df["fraudulent"].isnull().all()
+
+    def test_transformation_cached_files_are_reset(self, setup):
+        """
+        Ensures all cached files are reset when the files are modified.
+        """
+        fixture = setup
+
+        # modify the file. This should reset the cache
+        transactions = pd.read_csv(fixture.transactions_file)
+        transactions["TransactionAmount"] = 0
+        transactions.to_csv(fixture.transactions_file, index=False)
+
+        transformation_df = fixture.serving_client.impl.process_transformation(
+            "average_user_transaction", "quickstart"
+        )
+
+        # ensure all values are 0
+        assert transformation_df.sum() == 0
+
+    def test_feature_cached_files_are_reset(self, setup):
+        """
+        Ensures all cached files are reset when the files are modified.
+        """
+        fixture = setup
+
+        # modify the file. This should reset the cache
+        transactions = pd.read_csv(fixture.transactions_file)
+        transactions["TransactionAmount"] = 0
+        transactions.to_csv(fixture.transactions_file, index=False)
+
+        feature = fixture.serving_client.impl.db.get_feature_variant(
+            "avg_transactions", "quickstart"
+        )
+        feature_df = fixture.serving_client.impl.get_feature_dataframe(feature)
+
+        # ensure all values are 0
+        assert feature_df["avg_transactions.quickstart"].all() == 0
+
+

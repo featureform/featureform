@@ -1121,7 +1121,7 @@ class Feature:
 class OnDemandFeatureDecorator:
     def __init__(self,
                  owner: str,
-                 tags: List[str] = [],
+                 tags: List[str] = None,
                  properties: dict = {},
                  variant: str = "default",
                  name: str = "",
@@ -1186,7 +1186,7 @@ class OnDemandFeatureDecorator:
                   "ready",
                   decode_query,
                   )
-        if len(self.tags):
+        if self.tags and len(self.tags):
             db.upsert("tags", self.name, self.variant, "feature_variant", json.dumps(self.tags))
         if len(self.properties):
             db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))

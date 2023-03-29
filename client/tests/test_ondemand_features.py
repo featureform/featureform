@@ -47,9 +47,13 @@ def test_serving_ondemand_precalculated_feature():
     register_resources()
     client = ff.ServingClient(local=True)
 
-    fpf = client.features([("avg_transactions", "quickstart"), ("pi", "default")], {"user": "C8837983"})
+    features_order_1 = client.features([("avg_transactions", "quickstart"), ("pi", "default")], {"user": "C8837983"})
+    features_order_2 = client.features([("pi", "default"), ("avg_transactions", "quickstart")], {"user": "C8837983"})
+    features_order_3 = client.features([("avg_transactions", "quickstart"), ("pi", "default"), ("avg_transactions", "quickstart")], {"user": "C8837983"})
 
-    assert fpf.tolist() == [1875.0, 3.141592653589793]
+    assert features_order_1.tolist() == [1875.0, 3.141592653589793]
+    assert features_order_2.tolist() == [3.141592653589793, 1875.0]
+    assert features_order_3.tolist() == [1875.0, 3.141592653589793, 1875.0]
 
 def register_resources():
     ff.register_user("featureformer").make_default_owner()
@@ -101,6 +105,3 @@ def register_resources():
 
     resource_client = ff.ResourceClient(local=True)
     resource_client.apply()
-
-    return resource_client
-

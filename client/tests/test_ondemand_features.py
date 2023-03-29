@@ -1,0 +1,106 @@
+import dill
+import time
+
+import pytest
+import numpy as np
+
+import featureform as ff
+from featureform.resources import OnDemandFeatureDecorator, ResourceStatus
+
+
+@pytest.fixture(autouse=True)
+def before_and_after_each(setup_teardown):
+    setup_teardown()
+    yield
+    setup_teardown()
+
+@pytest.mark.local
+def test_ondemand_feature_decorator_class():
+    name="test_ondemand_feature"
+    owner="ff_tester"
+
+    decorator = OnDemandFeatureDecorator(owner=owner, name=name)
+    decorator_2 = OnDemandFeatureDecorator(owner=owner, name=name)
+
+    assert decorator.name_variant() == (name, "default")
+    assert decorator.type() == "ondemand_feature"
+    assert decorator.get_status() == ResourceStatus.NO_STATUS
+    assert decorator.is_ready() == False
+    assert decorator == decorator_2
+
+
+@pytest.mark.local
+def test_ondemand_decorator():
+    owner="ff_tester"
+    @OnDemandFeatureDecorator(owner=owner, status="READY")
+    def test_fn():
+        return 1+1
+    
+    expected_query = dill.dumps(test_fn.__code__)
+
+    assert test_fn.name_variant() == (test_fn.__name__, "default")
+    assert test_fn.query == expected_query
+
+
+@pytest.mark.local
+def test_serving_ondemand_precalculated_feature():
+    register_resources()
+    client = ff.ServingClient(local=True)
+
+    fpf = client.features([("avg_transactions", "quickstart"), ("pi", "default")], {"user": "C8837983"})
+
+    assert fpf.tolist() == [1875.0, 3.141592653589793]
+
+def register_resources():
+    ff.register_user("featureformer").make_default_owner()
+
+    local = ff.register_local()
+
+    transactions = local.register_file(
+        name="transactions",
+        variant="quickstart",
+        description="A dataset of fraudulent transactions",
+        path="transactions.csv"
+    )
+
+    @local.df_transformation(variant="quickstart",
+                            inputs=[("transactions", "quickstart")])
+    def average_user_transaction(transactions):
+        """the average transaction amount for a user """
+        return transactions.groupby("CustomerID")["TransactionAmount"].mean()
+
+    @ff.ondemand_feature()
+    def pi(serving_client, entities, params):
+        import math
+        return math.pi
+
+    user = ff.register_entity("user")
+    # Register a column from our transformation as a feature
+    average_user_transaction.register_resources(
+        entity=user,
+        entity_column="CustomerID",
+        inference_store=local,
+        features=[
+            {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
+        ],
+    )
+    # Register label from our base Transactions table
+    transactions.register_resources(
+        entity=user,
+        entity_column="CustomerID",
+        labels=[
+            {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
+        ],
+    )
+
+    ff.register_training_set(
+        "fraud_training", "quickstart",
+        label=("fraudulent", "quickstart"),
+        features=[("avg_transactions", "quickstart")],
+    )
+
+    resource_client = ff.ResourceClient(local=True)
+    resource_client.apply()
+
+    return resource_client
+

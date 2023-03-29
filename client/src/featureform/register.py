@@ -2480,7 +2480,7 @@ class Registrar:
         return decorator
 
     def ondemand_feature(self,
-                          tags: List[str] = [],
+                          tags: List[str] = None,
                           properties: dict = {},
                           variant: str = "default",
                           name: str = "",
@@ -2499,6 +2499,13 @@ class Registrar:
 
         Returns:
             decorator (OnDemandFeatureDecorator): decorator
+
+        **Examples**
+        ```python
+        @ff.ondemand_feature()
+        def avg_user_transactions():
+            pass
+        ```
         """
 
         if not isinstance(owner, str):

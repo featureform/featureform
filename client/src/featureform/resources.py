@@ -1124,15 +1124,14 @@ class OnDemandFeatureDecorator:
                  properties: dict = {},
                  variant: str = "default",
                  name: str = "",
-                 description: str = "",
-                 status: str = "NO_STATUS"):
+                 description: str = ""):
         self.name = name
         self.variant = variant
         self.owner = owner
         self.description = description
         self.tags = tags
         self.properties = properties
-        self.status = status
+        self.status = "READY"
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:

@@ -438,13 +438,13 @@ class LocalClientImpl:
             if f_category == "ON_DEMAND_CLIENT":
                 feature_df = self.calculate_ondemand_feature(f_name, f_variant, entity_id)
             else:
-                feature_df = self.calculate_precalculated_feature(f_name, f_variant, entity_id)
+                feature_df = self.get_precalculated_feature(f_name, f_variant, entity_id)
         
             feature_df_list.append(feature_df)
 
         return feature_df_list
 
-    def calculate_precalculated_feature(self, f_name, f_variant, entity_id):
+    def get_precalculated_feature(self, f_name, f_variant, entity_id):
         feature = self.db.get_feature_variant(f_name, f_variant)
         name_variant = f"{feature['name']}.{feature['variant']}"
         source_name, source_variant = feature['source_name'], feature['source_variant']

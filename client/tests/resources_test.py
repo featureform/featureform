@@ -12,7 +12,7 @@ from featureform.resources import ResourceRedefinedError, ResourceState, Provide
     SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, K8sConfig, \
     User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
     Source, ResourceColumnMapping, DynamodbConfig, Schedule, SQLTransformation, DFTransformation, K8sArgs, \
-    K8sResourceSpecs, OnDemandFeatureDecorator, ResourceStatus
+    K8sResourceSpecs
 
 from featureform.register import OfflineK8sProvider, Registrar, FileStoreProvider
 

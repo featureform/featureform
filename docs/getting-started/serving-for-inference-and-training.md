@@ -12,6 +12,25 @@ To serve a feature we initialize a serving client, specify the names and variant
 fpf = client.features([("fpf", "quickstart")], {"passenger": "1"})
 ```
 
+### On-Demand Features
+
+On-demand features do not require any materialization, they are calculated at serving time. You can define your on-demand features by simply adding the `ondemand_feature` decorator to your function. The function will need to have `serving_client`, `params`, `entities`, as part of it's definition.
+
+```python
+import featureform as ff
+
+@ff.ondemand_feature(name="pi", variant="ondemand_feature")
+def fn(serving_client, params, entities):
+    import math
+    return math.pi
+```
+
+At serving time, you can request on-demand features similar to pre-calculated features and alongside pre-calculated features. 
+
+```python
+features = client.features([("fpf", "quickstart"), ("pi", "ondemand_feature")], {"passenger": "1"})
+```
+
 ### Wait
 
 The `wait()` function can be used to wait until a feature table is fully materialized before attempting to lookup the feature.

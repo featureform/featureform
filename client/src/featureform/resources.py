@@ -1085,18 +1085,17 @@ class Feature:
             db.upsert("tags", self.name, self.variant, "feature_variant", json.dumps(self.tags))
         if len(self.properties):
             db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
-        self._create_feature_resource(db)
-        self._create_local_feature_type(db)
 
-    def _create_feature_resource(self, db) -> None:
+        self._write_feature_variant_and_category(db)
+
+    def _write_feature_variant_and_category(self, db) -> None:
         db.insert(
             "features",
             self.name,
             self.variant,
-            self.value_type
+            self.value_type,
         )
     
-    def _create_local_feature_type(self, db) -> None:
         db.insert(
             "feature_variant_category",
             self.name,
@@ -1185,10 +1184,10 @@ class OnDemandFeatureDecorator:
             db.upsert("tags", self.name, self.variant, "feature_variant", json.dumps(self.tags))
         if len(self.properties):
             db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
-        self._create_feature_resource(db)
-        self._create_local_feature_type(db)
 
-    def _create_feature_resource(self, db) -> None:
+        self._write_feature_variant_and_category(db)
+
+    def _write_feature_variant_and_category(self, db) -> None:
         db.insert(
             "features",
             self.name,
@@ -1196,7 +1195,6 @@ class OnDemandFeatureDecorator:
             "tbd",
         )
     
-    def _create_local_feature_type(self, db) -> None:
         db.insert(
             "feature_variant_category",
             self.name,

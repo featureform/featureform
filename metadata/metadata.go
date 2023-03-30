@@ -88,6 +88,10 @@ func (c FeatureVariantCategory) Equals(category pb.FeatureVariantCategory) bool 
 	return c == FeatureVariantCategory(category)
 }
 
+func (c FeatureVariantCategory) String() string {
+	return pb.FeatureVariantCategory_name[int32(c)]
+}
+
 var parentMapping = map[ResourceType]ResourceType{
 	FEATURE_VARIANT:      FEATURE,
 	LABEL_VARIANT:        LABEL,

@@ -1058,7 +1058,8 @@ class Feature:
             schedule=self.schedule,
             provider=self.provider,
             columns=self.location.proto(),
-            category=pb.FeatureVariantCategory.PRE_CALCULATED,
+            mode=pb.ComputationMode.PRECOMPUTED,
+            is_on_demand=False,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
@@ -1086,9 +1087,9 @@ class Feature:
         if len(self.properties):
             db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
 
-        self._write_feature_variant_and_category(db)
+        self._write_feature_variant_and_mode(db)
 
-    def _write_feature_variant_and_category(self, db) -> None:
+    def _write_feature_variant_and_mode(self, db) -> None:
         db.insert(
             "features",
             self.name,
@@ -1097,10 +1098,10 @@ class Feature:
         )
     
         db.insert(
-            "feature_variant_category",
+            "feature_computation_mode",
             self.name,
             self.variant,
-            "PRE_CALCULATED",
+            "PRECOMPUTED",
         )
 
     def get_status(self):
@@ -1161,7 +1162,8 @@ class OnDemandFeatureDecorator:
             owner=self.owner,
             description=self.description,
             function=pb.PythonFunction(query=self.query),
-            category=pb.FeatureVariantCategory.ON_DEMAND_CLIENT,
+            mode=pb.ComputationMode.CLIENT_COMPUTED,
+            is_on_demand=True,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
@@ -1185,9 +1187,9 @@ class OnDemandFeatureDecorator:
         if len(self.properties):
             db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
 
-        self._write_feature_variant_and_category(db)
+        self._write_feature_variant_and_mode(db)
 
-    def _write_feature_variant_and_category(self, db) -> None:
+    def _write_feature_variant_and_mode(self, db) -> None:
         db.insert(
             "features",
             self.name,
@@ -1196,10 +1198,10 @@ class OnDemandFeatureDecorator:
         )
     
         db.insert(
-            "feature_variant_category",
+            "feature_computation_mode",
             self.name,
             self.variant,
-            "ON_DEMAND_CLIENT",
+            "CLIENT_COMPUTED",
         )
 
     def get_status(self):
@@ -1496,10 +1498,10 @@ class TrainingSet:
 
         for feature_name, feature_variant in self.features:
             try:
-                category = db.get_feature_variant_category(feature_name, feature_variant)
-                if category == "ON_DEMAND_CLIENT":
-                    raise InvalidTrainingSetFeatureCategory(feature_name, feature_variant)
-            except InvalidTrainingSetFeatureCategory as e:
+                mode = db.get_feature_variant_mode(feature_name, feature_variant)
+                if mode == "CLIENT_COMPUTED":
+                    raise InvalidTrainingSetFeatureComputationMode(feature_name, feature_variant)
+            except InvalidTrainingSetFeatureComputationMode as e:
                 raise e
             except Exception as e:
                 raise Exception(f"{feature_name}:{feature_variant} does not exist. Failed to register training set. Error: {e}")

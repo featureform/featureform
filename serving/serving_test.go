@@ -210,6 +210,8 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -223,6 +225,8 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -236,6 +240,8 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -249,6 +255,8 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -262,6 +270,8 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -275,6 +285,8 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -288,6 +300,8 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -301,6 +315,8 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 	}
 }
@@ -340,6 +356,8 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		metadata.LabelDef{
 			Name:     "label",
@@ -398,7 +416,8 @@ func onDemandResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Location: metadata.PythonFunction{
 				Query: []byte(PythonFunc),
 			},
-			Category: metadata.ON_DEMAND_CLIENT,
+			Mode:       metadata.CLIENT_COMPUTED,
+			IsOnDemand: true,
 		},
 	}
 }

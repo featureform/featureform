@@ -142,6 +142,8 @@ func filledResourceDefs() []ResourceDef {
 			},
 			Tags:       Tags{},
 			Properties: Properties{},
+			Mode:       PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		FeatureDef{
 			Name:        "feature",
@@ -159,7 +161,8 @@ func filledResourceDefs() []ResourceDef {
 			},
 			Tags:       Tags{},
 			Properties: Properties{},
-			Category:   PRE_CALCULATED,
+			Mode:       PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		FeatureDef{
 			Name:        "feature2",
@@ -177,7 +180,8 @@ func filledResourceDefs() []ResourceDef {
 			},
 			Tags:       Tags{},
 			Properties: Properties{},
-			Category:   PRE_CALCULATED,
+			Mode:       PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		FeatureDef{
 			Name:        "feature3",
@@ -189,7 +193,8 @@ func filledResourceDefs() []ResourceDef {
 			},
 			Tags:       Tags{},
 			Properties: Properties{},
-			Category:   ON_DEMAND_CLIENT,
+			Mode:       CLIENT_COMPUTED,
+			IsOnDemand: true,
 		},
 		LabelDef{
 			Name:        "label",
@@ -1136,7 +1141,8 @@ type FeatureVariantTest struct {
 	TrainingSets []NameVariant
 	Location     interface{}
 	IsTable      bool
-	Category     FeatureVariantCategory
+	Mode         ComputationMode
+	IsOnDemand   bool
 }
 
 func (test FeatureVariantTest) NameVariant() NameVariant {
@@ -1150,7 +1156,7 @@ func (test FeatureVariantTest) Test(t *testing.T, client *Client, res interface{
 	assertEqual(t, feature.Variant(), test.Variant)
 	assertEqual(t, feature.Description(), test.Description)
 	assertEqual(t, feature.Owner(), test.Owner)
-	if feature.Category() == PRE_CALCULATED {
+	if feature.Mode() == PRECOMPUTED {
 		assertEqual(t, feature.Type(), test.Type)
 		assertEqual(t, feature.Provider(), test.Provider)
 		assertEqual(t, feature.Source(), test.Source)
@@ -1166,7 +1172,9 @@ func (test FeatureVariantTest) Test(t *testing.T, client *Client, res interface{
 	} else {
 		assertEqual(t, feature.LocationFunction(), test.Location)
 	}
-	assertEqual(t, feature.Category(), test.Category)
+	assertEqual(t, feature.Mode(), test.Mode)
+	assertEqual(t, feature.Mode(), test.Mode)
+	assertEqual(t, feature.IsOnDemand(), test.IsOnDemand)
 	if tm := feature.Created(); tm == (time.Time{}) {
 		t.Fatalf("Created time not set")
 	}
@@ -1240,7 +1248,8 @@ func expectedFeatureVariants() ResourceTests {
 			Location: PythonFunction{
 				Query: []byte(PythonFunc),
 			},
-			Category: ON_DEMAND_CLIENT,
+			Mode:       CLIENT_COMPUTED,
+			IsOnDemand: true,
 		},
 	}
 }

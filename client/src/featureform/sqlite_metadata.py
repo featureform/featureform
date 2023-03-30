@@ -87,11 +87,11 @@ class SQLiteMetadata:
           PRIMARY KEY (name));''')
 
         # features type table
-        # this is used to determine if it is a pre-calculated or ondemand feature
-        self.__conn.execute('''CREATE TABLE IF NOT EXISTS feature_variant_category (
+        # this is used to determine if it is a pre-calculated or client-calculated feature
+        self.__conn.execute('''CREATE TABLE IF NOT EXISTS feature_computation_mode (
           name text NOT NULL,
           variant text NOT NULL,
-          category text,
+          mode text,
           PRIMARY KEY (name, variant));''')
 
         # training set variant
@@ -410,9 +410,9 @@ class SQLiteMetadata:
     def get_feature_variants_from_feature(self, name):
       return self.query_resource_variant("feature_variant", "name", name)
     
-    def get_feature_variant_category(self, name, variant):
-      query = f"SELECT category FROM feature_variant_category WHERE name='{name}' AND variant='{variant}'"
-      return self.fetch_data_safe(query, "feature_variant_category", name, variant)[0]["category"]
+    def get_feature_variant_mode(self, name, variant):
+      query = f"SELECT mode FROM feature_computation_mode WHERE name='{name}' AND variant='{variant}'"
+      return self.fetch_data_safe(query, "feature_computation_mode", name, variant)[0]["mode"]
     
     def get_ondemand_feature_query(self, name, variant):
       query = f"SELECT query FROM ondemand_feature_variant WHERE name='{name}' AND variant='{variant}'"

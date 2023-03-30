@@ -147,8 +147,8 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 	}
 
 	var val interface{}
-	switch meta.Category() {
-	case metadata.PRE_CALCULATED:
+	switch meta.Mode() {
+	case metadata.PRECOMPUTED:
 		entity, has := entityMap[meta.Entity()]
 		if !has {
 			logger.Errorw("Entity not found", "Entity", meta.Entity())
@@ -187,10 +187,10 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 			obs.SetError()
 			return nil, err
 		}
-	case metadata.ON_DEMAND_CLIENT:
+	case metadata.CLIENT_COMPUTED:
 		val = meta.LocationFunction()
 	default:
-		return nil, fmt.Errorf("unknown feature category %v", meta.Category())
+		return nil, fmt.Errorf("unknown computation mode %v", meta.Mode())
 	}
 	f, err := newFeature(val)
 	if err != nil {

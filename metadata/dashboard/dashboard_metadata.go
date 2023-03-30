@@ -52,7 +52,8 @@ type FeatureVariantResource struct {
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
 	Tags         metadata.Tags                           `json:"tags"`
 	Properties   metadata.Properties                     `json:"properties"`
-	Category     string                                  `json:"category"`
+	Mode         string                                  `json:"mode"`
+	IsOnDemand   bool                                    `json:"is-on-demand"`
 }
 
 type FeatureResource struct {
@@ -212,8 +213,8 @@ func columnsToMap(columns metadata.ResourceVariantColumns) map[string]string {
 
 func featureShallowMap(variant *metadata.FeatureVariant) FeatureVariantResource {
 	fv := FeatureVariantResource{}
-	switch variant.Category() {
-	case metadata.PRE_CALCULATED:
+	switch variant.Mode() {
+	case metadata.PRECOMPUTED:
 		fv = FeatureVariantResource{
 			Created:     variant.Created(),
 			Description: variant.Description(),
@@ -229,9 +230,10 @@ func featureShallowMap(variant *metadata.FeatureVariant) FeatureVariantResource 
 			Error:       variant.Error(),
 			Tags:        variant.Tags(),
 			Properties:  variant.Properties(),
-			Category:    variant.Category().String(),
+			Mode:        variant.Mode().String(),
+			IsOnDemand:  variant.IsOnDemand(),
 		}
-	case metadata.ON_DEMAND_CLIENT:
+	case metadata.CLIENT_COMPUTED:
 		location := make(map[string]string)
 		if pyFunc, ok := variant.LocationFunction().(metadata.PythonFunction); ok {
 			location["query"] = string(pyFunc.Query)
@@ -247,10 +249,11 @@ func featureShallowMap(variant *metadata.FeatureVariant) FeatureVariantResource 
 			Error:       variant.Error(),
 			Tags:        variant.Tags(),
 			Properties:  variant.Properties(),
-			Category:    variant.Category().String(),
+			Mode:        variant.Mode().String(),
+			IsOnDemand:  variant.IsOnDemand(),
 		}
 	default:
-		fmt.Printf("Unknown feature category %v\n", variant.Category())
+		fmt.Printf("Unknown computation mode %v\n", variant.Mode())
 	}
 	return fv
 }

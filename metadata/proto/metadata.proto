@@ -147,9 +147,9 @@ message PythonFunction {
     bytes query = 1;
 }
 
-enum FeatureVariantCategory {
-    PRE_CALCULATED = 0;
-    ON_DEMAND_CLIENT = 1;
+enum ComputationMode {
+    PRECOMPUTED = 0;
+    CLIENT_COMPUTED = 1;
 }
 
 message FeatureVariant {
@@ -172,7 +172,8 @@ message FeatureVariant {
     string schedule = 14;
     Tags tags = 15;
     Properties properties = 16;
-    FeatureVariantCategory category = 18;
+    ComputationMode mode = 18;
+    bool is_on_demand = 19;
 }
 
 message FeatureLag {

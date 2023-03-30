@@ -19,16 +19,18 @@ On-demand features do not require any materialization, they are calculated at se
 ```python
 import featureform as ff
 
-@ff.ondemand_feature(name="pi", variant="ondemand_feature")
-def fn(serving_client, params, entities):
-    import math
-    return math.pi
+@ff.ondemand_feature(name="sex_as_int", variant="quickstart")
+def sex_as_int(serving_client, params, entities):
+    passenger_id = params[0]
+    df = params[1]
+    df['Sex'] = df['Sex'].map( {'female': 0, 'male': 1} ).astype(int)
+    return df.loc[df["PassengerId"] == passenger_id]["Sex"].values
 ```
 
 At serving time, you can request on-demand features similar to pre-calculated features and alongside pre-calculated features. 
 
 ```python
-features = client.features([("fpf", "quickstart"), ("pi", "ondemand_feature")], {"passenger": "1"})
+features = client.features([("fpf", "quickstart"), ("sex_as_int", "quickstart")], {"passenger": "1"}, params=["1", df])
 ```
 
 ### Wait

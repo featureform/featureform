@@ -223,6 +223,7 @@ pytest:
 	pytest -m 'local' client/tests/test_getting_model.py
 	pytest -m 'local' client/tests/test_search.py
 	pytest -m 'local' client/tests/test_tags_and_properties.py
+	pytest -m 'local' client/tests/test_ondemand_features.py
 	-rm -r .featureform
 	-rm -f transactions.csv
 

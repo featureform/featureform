@@ -402,12 +402,12 @@ class LocalClientImpl:
         trainingset_df = trainingset_df.assign(label=label_col)
         return Dataset.from_dataframe(trainingset_df, include_label_timestamp)
 
-    def features(self, feature_variant_list, entities, model: Union[str, Model] = None, params: list = []):
+    def features(self, feature_variant_list, entities, model: Union[str, Model] = None, params: list = None):
         if len(feature_variant_list) == 0:
             raise Exception("No features provided")
         
         self.entities = entities
-        self.params = params
+        self.params = params if params else []
 
         # This code assumes that the entities dictionary only has one entity
         entity_id = list(entities.keys())[0]

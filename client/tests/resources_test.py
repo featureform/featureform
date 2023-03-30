@@ -5,7 +5,6 @@ import os.path
 import sys
 
 sys.path.insert(0, 'client/src/')
-import dill
 import pytest
 from featureform.resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, \
     FirestoreConfig, AzureFileStoreConfig, \

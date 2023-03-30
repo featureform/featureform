@@ -1498,8 +1498,8 @@ class TrainingSet:
             try:
                 category = db.get_feature_variant_category(feature_name, feature_variant)
                 if category == "ON_DEMAND_CLIENT":
-                    raise InvalidTrainingSetFeatureType(feature_name, feature_variant)
-            except InvalidTrainingSetFeatureType as e:
+                    raise InvalidTrainingSetFeatureCategory(feature_name, feature_variant)
+            except InvalidTrainingSetFeatureCategory as e:
                 raise e
             except Exception as e:
                 raise Exception(f"{feature_name}:{feature_variant} does not exist. Failed to register training set. Error: {e}")

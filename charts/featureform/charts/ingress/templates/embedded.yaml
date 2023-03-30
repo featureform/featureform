@@ -1,0 +1,44 @@
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: http
+  annotations:
+    kots.io/exclude: {{ .Values.global.embeddedIngress.enabled | quote }}
+spec:
+  virtualhost:
+    fqdn: {{ .Values.global.hostname }}
+  routes:
+  - conditions:
+      - prefix: /featureform.serving.metadata.proto.Api/
+    services:
+      - name: featureform-api-server
+        port: 7878
+        protocol: h2c
+  - conditions:
+      - prefix: /featureform.serving.proto.Feature/
+    services:
+      - name: featureform-api-server
+        port: 7878
+        protocol: h2c
+  - conditions:
+    - prefix: /data/
+    services:
+      - name: featureform-dashboard-metadata
+        port: 3001
+  - conditions:
+    - prefix: /search/
+    services:
+      - name: featureform-dashboard-metadata
+        port: 3001
+  - conditions:
+      - prefix: /prometheus/
+    services:
+      - name: featureform-prometheus-service
+        port: 9090
+  - conditions:
+      - prefix: /
+    services:
+      - name: featureform-dashboard
+        port: 80
+
+

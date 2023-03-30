@@ -91,6 +91,9 @@ global:
   tlsSecretName: "featureform-ca-secret"
   logging:
     enabled: true
+  embeddedIngress:
+    disabled: true
+    enabled: false
 
 
 metadata:
@@ -100,6 +103,8 @@ metadata:
 backup:
   enabled: false
   schedule: "0 * * * *"
+
+
 
 
 etcd:

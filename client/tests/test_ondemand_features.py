@@ -24,15 +24,15 @@ def test_ondemand_feature_decorator_class():
 
     assert decorator.name_variant() == (name, "default")
     assert decorator.type() == "ondemand_feature"
-    assert decorator.get_status() == ResourceStatus.NO_STATUS
-    assert decorator.is_ready() == False
+    assert decorator.get_status() == ResourceStatus.READY
+    assert decorator.is_ready() == True
     assert decorator == decorator_2
 
 
 @pytest.mark.local
 def test_ondemand_decorator():
     owner="ff_tester"
-    @OnDemandFeatureDecorator(owner=owner, status="READY")
+    @OnDemandFeatureDecorator(owner=owner)
     def test_fn():
         return 1+1
     
@@ -62,6 +62,7 @@ def test_serving_ondemand_precalculated_feature(features, entity, expected_outpu
 
     features = client.features(features, entity)
     assert features.tolist() == expected_output
+
 
 def register_resources():
     ff.register_user("featureformer").make_default_owner()

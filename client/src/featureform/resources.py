@@ -1043,8 +1043,6 @@ class Feature:
         return "feature"
 
     def _create(self, stub) -> None:
-        pb_category = pb.FeatureVariantCategory.PRE_CALCULATED
-
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
@@ -1059,7 +1057,7 @@ class Feature:
             schedule=self.schedule,
             provider=self.provider,
             columns=self.location.proto(),
-            category=pb_category,
+            category=pb.FeatureVariantCategory.PRE_CALCULATED,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
@@ -1158,21 +1156,16 @@ class OnDemandFeatureDecorator:
         return "ondemand_feature"
 
     def _create(self, stub) -> None:
-        pb_status = pb.ResourceStatus.Status.READY
-        pb_category = pb.FeatureVariantCategory.ON_DEMAND_CLIENT
-
-        pb_function = pb.PythonFunction(query=self.query)
-
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
             owner=self.owner,
             description=self.description,
-            # function=pb_function,
-            category=pb_category,
+            function=pb.PythonFunction(query=self.query),
+            category=pb.FeatureVariantCategory.ON_DEMAND_CLIENT,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
-            # status=pb_status,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
         )
         stub.CreateFeatureVariant(serialized)
 

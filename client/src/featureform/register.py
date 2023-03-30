@@ -2520,7 +2520,6 @@ class Registrar:
             description=description,
             tags=tags,
             properties=properties,
-            status="READY",
         )
         self.__resources.append(decorator)
         return decorator

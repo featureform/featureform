@@ -130,6 +130,7 @@ features = [
         "name": "avg_transactions",
         "variants": {
             "quickstart": {
+                "category": "PRE_CALCULATED",
                 "description": "",
                 "entity": "user",
                 "name": "avg_transactions",

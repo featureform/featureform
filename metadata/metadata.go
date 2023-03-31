@@ -77,19 +77,19 @@ func (r ResourceStatus) Serialized() pb.ResourceStatus_Status {
 	return pb.ResourceStatus_Status(r)
 }
 
-type FeatureVariantCategory int32
+type ComputationMode int32
 
 const (
-	PRE_CALCULATED   FeatureVariantCategory = FeatureVariantCategory(pb.FeatureVariantCategory_PRE_CALCULATED)
-	ON_DEMAND_CLIENT                        = FeatureVariantCategory(pb.FeatureVariantCategory_ON_DEMAND_CLIENT)
+	PRECOMPUTED     ComputationMode = ComputationMode(pb.ComputationMode_PRECOMPUTED)
+	CLIENT_COMPUTED                 = ComputationMode(pb.ComputationMode_CLIENT_COMPUTED)
 )
 
-func (c FeatureVariantCategory) Equals(category pb.FeatureVariantCategory) bool {
-	return c == FeatureVariantCategory(category)
+func (cm ComputationMode) Equals(mode pb.ComputationMode) bool {
+	return cm == ComputationMode(mode)
 }
 
-func (c FeatureVariantCategory) String() string {
-	return pb.FeatureVariantCategory_name[int32(c)]
+func (cm ComputationMode) String() string {
+	return pb.ComputationMode_name[int32(cm)]
 }
 
 var parentMapping = map[ResourceType]ResourceType{
@@ -110,7 +110,7 @@ func (serv *MetadataServer) needsJob(res Resource) bool {
 			serv.Logger.Errorf("resource has type FEATURE VARIANT but failed to cast %s", res.ID())
 			return false
 		} else {
-			return PRE_CALCULATED.Equals(fv.serialized.Category)
+			return PRECOMPUTED.Equals(fv.serialized.Mode)
 		}
 	}
 	return false
@@ -542,7 +542,7 @@ func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (Res
 			Type: FEATURE,
 		},
 	}
-	if PRE_CALCULATED.Equals(serialized.Category) {
+	if PRECOMPUTED.Equals(serialized.Mode) {
 		depIds = append(depIds, ResourceID{
 			Name:    serialized.Source.Name,
 			Variant: serialized.Source.Variant,
@@ -569,7 +569,7 @@ func (resource *featureVariantResource) Proto() proto.Message {
 }
 
 func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	if !PRE_CALCULATED.Equals(this.serialized.Category) {
+	if !PRECOMPUTED.Equals(this.serialized.Mode) {
 		return nil
 	}
 	id := that.ID()

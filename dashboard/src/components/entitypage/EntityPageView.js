@@ -505,7 +505,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                     </div>
                   )}
 
-                  {metadata["location"] && metadata["category"] == "PRE_CALCULATED" && (
+                  {metadata["location"] && !metadata["is-on-demand"] && (
                     <div className={classes.linkBox}>
                       <Typography variant="body1" className={classes.typeTitle}>
                         <b>Columns:</b>{" "}
@@ -518,7 +518,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                     </div>
                   )}
 
-                  {metadata["location"] && metadata["category"] == "ON_DEMAND_CLIENT" && (
+                  {metadata["location"] && metadata["is-on-demand"] && (
                     <div className={classes.linkBox}>
                     <Typography variant="body1" className={classes.typeTitle}>
                       <b>Feature Variant Type:</b>{" "}

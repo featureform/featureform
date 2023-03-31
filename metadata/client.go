@@ -220,7 +220,8 @@ type FeatureDef struct {
 	Location    interface{}
 	Tags        Tags
 	Properties  Properties
-	Category    FeatureVariantCategory
+	Mode        ComputationMode
+	IsOnDemand  bool
 }
 
 type ResourceVariantColumns struct {
@@ -280,7 +281,7 @@ func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) 
 		Schedule:    def.Schedule,
 		Tags:        &pb.Tags{Tag: def.Tags},
 		Properties:  def.Properties.Serialize(),
-		Category:    pb.FeatureVariantCategory(def.Category),
+		Mode:        pb.ComputationMode(def.Mode),
 	}
 	switch x := def.Location.(type) {
 	case ResourceVariantColumns:
@@ -1439,7 +1440,7 @@ func (variant *FeatureVariant) isTable() bool {
 }
 
 func (variant *FeatureVariant) LocationColumns() interface{} {
-	if variant.Category() != PRE_CALCULATED {
+	if variant.Mode() != PRECOMPUTED {
 		return nil
 	}
 	src := variant.serialized.GetColumns()
@@ -1452,7 +1453,7 @@ func (variant *FeatureVariant) LocationColumns() interface{} {
 }
 
 func (variant *FeatureVariant) LocationFunction() interface{} {
-	if variant.Category() != ON_DEMAND_CLIENT {
+	if variant.Mode() != CLIENT_COMPUTED {
 		return nil
 	}
 	src := variant.serialized.GetFunction()
@@ -1470,8 +1471,20 @@ func (variant *FeatureVariant) Properties() Properties {
 	return variant.fetchPropertiesFn.Properties()
 }
 
-func (variant *FeatureVariant) Category() FeatureVariantCategory {
-	return FeatureVariantCategory(variant.serialized.GetCategory())
+func (variant *FeatureVariant) Mode() ComputationMode {
+	return ComputationMode(variant.serialized.GetMode())
+}
+
+func (variant *FeatureVariant) IsOnDemand() bool {
+	switch variant.Mode() {
+	case PRECOMPUTED:
+		return false
+	case CLIENT_COMPUTED:
+		return true
+	default:
+		fmt.Printf("Unknown computation mode: %v\n", variant.Mode())
+		return false
+	}
 }
 
 type User struct {

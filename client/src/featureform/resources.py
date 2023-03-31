@@ -6,7 +6,6 @@ import sys
 import json
 import time
 import base64
-import datetime
 from enum import Enum
 from typeguard import typechecked
 from typing import List, Tuple, Union
@@ -47,6 +46,19 @@ class ResourceStatus(Enum):
     PENDING = "PENDING"
     READY = "READY"
     FAILED = "FAILED"
+
+class ComputationMode(Enum):
+    PRECOMPUTED = "PRECOMPUTED"
+    CLIENT_COMPUTED = "CLIENT_COMPUTED"
+
+    def __eq__(self, other: str) -> bool:
+        return self.value == other
+
+    def proto(self) -> str:
+        if self == ComputationMode.PRECOMPUTED:
+            return pb.ComputationMode.PRECOMPUTED
+        elif self == ComputationMode.CLIENT_COMPUTED:
+            return pb.ComputationMode.CLIENT_COMPUTED
 
 
 @typechecked
@@ -1058,7 +1070,7 @@ class Feature:
             schedule=self.schedule,
             provider=self.provider,
             columns=self.location.proto(),
-            category=pb.FeatureVariantCategory.PRE_CALCULATED,
+            mode=ComputationMode.PRECOMPUTED.proto(),
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
@@ -1086,21 +1098,22 @@ class Feature:
         if len(self.properties):
             db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
 
-        self._write_feature_variant_and_category(db)
+        self._write_feature_variant_and_mode(db)
 
-    def _write_feature_variant_and_category(self, db) -> None:
+    def _write_feature_variant_and_mode(self, db) -> None:
         db.insert(
             "features",
             self.name,
             self.variant,
             self.value_type,
         )
-    
+        is_on_demand = 0
         db.insert(
-            "feature_variant_category",
+            "feature_computation_mode",
             self.name,
             self.variant,
-            "PRE_CALCULATED",
+            ComputationMode.PRECOMPUTED.value,
+            is_on_demand,
         )
 
     def get_status(self):
@@ -1161,7 +1174,7 @@ class OnDemandFeatureDecorator:
             owner=self.owner,
             description=self.description,
             function=pb.PythonFunction(query=self.query),
-            category=pb.FeatureVariantCategory.ON_DEMAND_CLIENT,
+            mode=ComputationMode.CLIENT_COMPUTED.proto(),
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
@@ -1185,21 +1198,23 @@ class OnDemandFeatureDecorator:
         if len(self.properties):
             db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
 
-        self._write_feature_variant_and_category(db)
+        self._write_feature_variant_and_mode(db)
 
-    def _write_feature_variant_and_category(self, db) -> None:
+    def _write_feature_variant_and_mode(self, db) -> None:
         db.insert(
             "features",
             self.name,
             self.variant,
             "tbd",
         )
+        is_on_demand = 1
     
         db.insert(
-            "feature_variant_category",
+            "feature_computation_mode",
             self.name,
             self.variant,
-            "ON_DEMAND_CLIENT",
+            ComputationMode.CLIENT_COMPUTED.value,
+            is_on_demand,
         )
 
     def get_status(self):
@@ -1496,10 +1511,10 @@ class TrainingSet:
 
         for feature_name, feature_variant in self.features:
             try:
-                category = db.get_feature_variant_category(feature_name, feature_variant)
-                if category == "ON_DEMAND_CLIENT":
-                    raise InvalidTrainingSetFeatureCategory(feature_name, feature_variant)
-            except InvalidTrainingSetFeatureCategory as e:
+                is_on_demand = db.get_feature_variant_on_demand(feature_name, feature_variant)
+                if is_on_demand:
+                    raise InvalidTrainingSetFeatureComputationMode(feature_name, feature_variant)
+            except InvalidTrainingSetFeatureComputationMode as e:
                 raise e
             except Exception as e:
                 raise Exception(f"{feature_name}:{feature_variant} does not exist. Failed to register training set. Error: {e}")

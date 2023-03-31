@@ -173,7 +173,6 @@ message FeatureVariant {
     Tags tags = 15;
     Properties properties = 16;
     ComputationMode mode = 18;
-    bool is_on_demand = 19;
 }
 
 message FeatureLag {

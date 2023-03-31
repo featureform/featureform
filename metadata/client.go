@@ -282,7 +282,6 @@ func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) 
 		Tags:        &pb.Tags{Tag: def.Tags},
 		Properties:  def.Properties.Serialize(),
 		Mode:        pb.ComputationMode(def.Mode),
-		IsOnDemand:  def.IsOnDemand,
 	}
 	switch x := def.Location.(type) {
 	case ResourceVariantColumns:
@@ -1476,7 +1475,7 @@ func (variant *FeatureVariant) Mode() ComputationMode {
 	return ComputationMode(variant.serialized.GetMode())
 }
 
-func (variant *FeatureVariant) GetIsOnDemand() bool {
+func (variant *FeatureVariant) IsOnDemand() bool {
 	switch variant.Mode() {
 	case PRECOMPUTED:
 		return false

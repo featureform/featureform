@@ -6,7 +6,6 @@ import sys
 import json
 import time
 import base64
-import datetime
 from enum import Enum
 from typeguard import typechecked
 from typing import List, Tuple, Union
@@ -47,6 +46,19 @@ class ResourceStatus(Enum):
     PENDING = "PENDING"
     READY = "READY"
     FAILED = "FAILED"
+
+class ComputationMode(Enum):
+    PRECOMPUTED = "PRECOMPUTED"
+    CLIENT_COMPUTED = "CLIENT_COMPUTED"
+
+    def __eq__(self, other: str) -> bool:
+        return self.value == other
+
+    def proto(self) -> str:
+        if self == ComputationMode.PRECOMPUTED:
+            return pb.ComputationMode.PRECOMPUTED
+        elif self == ComputationMode.CLIENT_COMPUTED:
+            return pb.ComputationMode.CLIENT_COMPUTED
 
 
 @typechecked
@@ -1058,8 +1070,7 @@ class Feature:
             schedule=self.schedule,
             provider=self.provider,
             columns=self.location.proto(),
-            mode=pb.ComputationMode.PRECOMPUTED,
-            is_on_demand=False,
+            mode=ComputationMode.PRECOMPUTED.proto(),
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
@@ -1101,7 +1112,7 @@ class Feature:
             "feature_computation_mode",
             self.name,
             self.variant,
-            "PRECOMPUTED",
+            ComputationMode.PRECOMPUTED.value,
             is_on_demand,
         )
 
@@ -1163,8 +1174,7 @@ class OnDemandFeatureDecorator:
             owner=self.owner,
             description=self.description,
             function=pb.PythonFunction(query=self.query),
-            mode=pb.ComputationMode.CLIENT_COMPUTED,
-            is_on_demand=True,
+            mode=ComputationMode.CLIENT_COMPUTED.proto(),
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
@@ -1203,7 +1213,7 @@ class OnDemandFeatureDecorator:
             "feature_computation_mode",
             self.name,
             self.variant,
-            "CLIENT_COMPUTED",
+            ComputationMode.CLIENT_COMPUTED.value,
             is_on_demand,
         )
 

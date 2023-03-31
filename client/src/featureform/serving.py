@@ -19,7 +19,7 @@ from featureform.proto import serving_pb2
 from .sqlite_metadata import SQLiteMetadata
 from featureform.proto import serving_pb2_grpc
 
-from .resources import Model, SourceType
+from .resources import Model, SourceType, ComputationMode
 from .tls import insecure_channel, secure_channel
 from .version import check_up_to_date
 
@@ -435,7 +435,7 @@ class LocalClientImpl:
             f_variant = feature_variant[1]
             f_mode = self.db.get_feature_variant_mode(f_name, f_variant)
 
-            if f_mode == "CLIENT_COMPUTED":
+            if f_mode == ComputationMode.CLIENT_COMPUTED:
                 feature_df = self.calculate_ondemand_feature(f_name, f_variant, entity_id)
             else:
                 feature_df = self.get_precomputed_feature(f_name, f_variant, entity_id)

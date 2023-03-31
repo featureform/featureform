@@ -231,7 +231,7 @@ func featureShallowMap(variant *metadata.FeatureVariant) FeatureVariantResource 
 			Tags:        variant.Tags(),
 			Properties:  variant.Properties(),
 			Mode:        variant.Mode().String(),
-			IsOnDemand:  variant.IsOnDemand(),
+			IsOnDemand:  variant.GetIsOnDemand(),
 		}
 	case metadata.CLIENT_COMPUTED:
 		location := make(map[string]string)
@@ -250,7 +250,7 @@ func featureShallowMap(variant *metadata.FeatureVariant) FeatureVariantResource 
 			Tags:        variant.Tags(),
 			Properties:  variant.Properties(),
 			Mode:        variant.Mode().String(),
-			IsOnDemand:  variant.IsOnDemand(),
+			IsOnDemand:  variant.GetIsOnDemand(),
 		}
 	default:
 		fmt.Printf("Unknown computation mode %v\n", variant.Mode())

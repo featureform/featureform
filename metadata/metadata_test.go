@@ -1174,7 +1174,7 @@ func (test FeatureVariantTest) Test(t *testing.T, client *Client, res interface{
 	}
 	assertEqual(t, feature.Mode(), test.Mode)
 	assertEqual(t, feature.Mode(), test.Mode)
-	assertEqual(t, feature.IsOnDemand(), test.IsOnDemand)
+	assertEqual(t, feature.GetIsOnDemand(), test.IsOnDemand)
 	if tm := feature.Created(); tm == (time.Time{}) {
 		t.Fatalf("Created time not set")
 	}

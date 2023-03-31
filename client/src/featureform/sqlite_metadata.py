@@ -92,6 +92,7 @@ class SQLiteMetadata:
           name text NOT NULL,
           variant text NOT NULL,
           mode text,
+          is_on_demand integer,
           PRIMARY KEY (name, variant));''')
 
         # training set variant
@@ -414,6 +415,10 @@ class SQLiteMetadata:
       query = f"SELECT mode FROM feature_computation_mode WHERE name='{name}' AND variant='{variant}'"
       return self.fetch_data_safe(query, "feature_computation_mode", name, variant)[0]["mode"]
     
+    def get_feature_variant_on_demand(self, name, variant):
+      query = f"SELECT is_on_demand FROM feature_computation_mode WHERE name='{name}' AND variant='{variant}'"
+      return bool(self.fetch_data_safe(query, "feature_computation_mode", name, variant)[0]["is_on_demand"])
+
     def get_ondemand_feature_query(self, name, variant):
       query = f"SELECT query FROM ondemand_feature_variant WHERE name='{name}' AND variant='{variant}'"
       return self.fetch_data_safe(query, "ondemand_feature_variant", name, variant)[0]["query"]

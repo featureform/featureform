@@ -1096,12 +1096,13 @@ class Feature:
             self.variant,
             self.value_type,
         )
-    
+        is_on_demand = 0
         db.insert(
             "feature_computation_mode",
             self.name,
             self.variant,
             "PRECOMPUTED",
+            is_on_demand,
         )
 
     def get_status(self):
@@ -1196,12 +1197,14 @@ class OnDemandFeatureDecorator:
             self.variant,
             "tbd",
         )
+        is_on_demand = 1
     
         db.insert(
             "feature_computation_mode",
             self.name,
             self.variant,
             "CLIENT_COMPUTED",
+            is_on_demand,
         )
 
     def get_status(self):
@@ -1498,8 +1501,8 @@ class TrainingSet:
 
         for feature_name, feature_variant in self.features:
             try:
-                mode = db.get_feature_variant_mode(feature_name, feature_variant)
-                if mode == "CLIENT_COMPUTED":
+                is_on_demand = db.get_feature_variant_on_demand(feature_name, feature_variant)
+                if is_on_demand:
                     raise InvalidTrainingSetFeatureComputationMode(feature_name, feature_variant)
             except InvalidTrainingSetFeatureComputationMode as e:
                 raise e

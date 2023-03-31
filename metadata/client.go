@@ -1476,7 +1476,7 @@ func (variant *FeatureVariant) Mode() ComputationMode {
 	return ComputationMode(variant.serialized.GetMode())
 }
 
-func (variant *FeatureVariant) IsOnDemand() bool {
+func (variant *FeatureVariant) GetIsOnDemand() bool {
 	switch variant.Mode() {
 	case PRECOMPUTED:
 		return false

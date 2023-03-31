@@ -52,6 +52,7 @@ def test_ondemand_decorator():
         ([("pi", "default"), ("avg_transactions", "quickstart")], {"user": "C8837983"}, [3.141592653589793, 1875.0]),
         ([("avg_transactions", "quickstart"), ("pi", "default"), ("avg_transactions", "quickstart")], {"user": "C8837983"}, [1875.0, 3.141592653589793, 1875.0]),
         ([("avg_transactions", "quickstart"), ("pi", "default"), ("avg_transactions", "quickstart"), ("pi", "default")], {"user": "C8837983"}, [1875.0, 3.141592653589793, 1875.0, 3.141592653589793]),
+        ([("avg_transactions", "quickstart"), ("pi", "default"), ("pi", "pi_named"), ("pi_called", "default")], {"user": "C8837983"}, [1875.0, 3.141592653589793, 3.141592653589793, 3.141592653589793]),
         pytest.param([], {}, [], marks=pytest.mark.xfail),
         pytest.param([("pi", "default")], None, [], marks=pytest.mark.xfail),
     ]
@@ -82,7 +83,17 @@ def register_resources():
         """the average transaction amount for a user """
         return transactions.groupby("CustomerID")["TransactionAmount"].mean()
 
+    @ff.ondemand_feature
+    def pi(serving_client, entities, params):
+        import math
+        return math.pi
+    
     @ff.ondemand_feature()
+    def pi_called(serving_client, entities, params):
+        import math
+        return math.pi
+
+    @ff.ondemand_feature(variant="pi_named")
     def pi(serving_client, entities, params):
         import math
         return math.pi

@@ -31,7 +31,7 @@ class ComputationMode(Enum):
     def __eq__(self, other: str) -> bool:
         return self.value == other
 
-    def proto(self) -> str:
+    def proto(self) -> int:
         if self == ComputationMode.PRECOMPUTED:
             return pb.ComputationMode.PRECOMPUTED
         elif self == ComputationMode.CLIENT_COMPUTED:

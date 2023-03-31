@@ -131,7 +131,7 @@ features = [
         "variants": {
             "quickstart": {
                 "mode": "PRECOMPUTED",
-                "is_on_demand": False,
+                "is-on-demand": False,
                 "description": "",
                 "entity": "user",
                 "name": "avg_transactions",

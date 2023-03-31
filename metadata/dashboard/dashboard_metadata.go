@@ -52,6 +52,7 @@ type FeatureVariantResource struct {
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
 	Tags         metadata.Tags                           `json:"tags"`
 	Properties   metadata.Properties                     `json:"properties"`
+	Category     string                                  `json:"category"`
 }
 
 type FeatureResource struct {
@@ -210,28 +211,48 @@ func columnsToMap(columns metadata.ResourceVariantColumns) map[string]string {
 }
 
 func featureShallowMap(variant *metadata.FeatureVariant) FeatureVariantResource {
-	var location map[string]string
-	if variant.Category() == metadata.PRE_CALCULATED {
-		location = columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns))
-	} else {
-		location = make(map[string]string)
+	fv := FeatureVariantResource{}
+	switch variant.Category() {
+	case metadata.PRE_CALCULATED:
+		fv = FeatureVariantResource{
+			Created:     variant.Created(),
+			Description: variant.Description(),
+			Entity:      variant.Entity(),
+			Name:        variant.Name(),
+			DataType:    variant.Type(),
+			Variant:     variant.Variant(),
+			Owner:       variant.Owner(),
+			Provider:    variant.Provider(),
+			Source:      variant.Source(),
+			Location:    columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns)),
+			Status:      variant.Status().String(),
+			Error:       variant.Error(),
+			Tags:        variant.Tags(),
+			Properties:  variant.Properties(),
+			Category:    variant.Category().String(),
+		}
+	case metadata.ON_DEMAND_CLIENT:
+		location := make(map[string]string)
+		if pyFunc, ok := variant.LocationFunction().(metadata.PythonFunction); ok {
+			location["query"] = string(pyFunc.Query)
+		}
+		fv = FeatureVariantResource{
+			Created:     variant.Created(),
+			Description: variant.Description(),
+			Name:        variant.Name(),
+			Variant:     variant.Variant(),
+			Owner:       variant.Owner(),
+			Location:    location,
+			Status:      variant.Status().String(),
+			Error:       variant.Error(),
+			Tags:        variant.Tags(),
+			Properties:  variant.Properties(),
+			Category:    variant.Category().String(),
+		}
+	default:
+		fmt.Printf("Unknown feature category %v\n", variant.Category())
 	}
-	return FeatureVariantResource{
-		Created:     variant.Created(),
-		Description: variant.Description(),
-		Entity:      variant.Entity(),
-		Name:        variant.Name(),
-		DataType:    variant.Type(),
-		Variant:     variant.Variant(),
-		Owner:       variant.Owner(),
-		Provider:    variant.Provider(),
-		Source:      variant.Source(),
-		Location:    location,
-		Status:      variant.Status().String(),
-		Error:       variant.Error(),
-		Tags:        variant.Tags(),
-		Properties:  variant.Properties(),
-	}
+	return fv
 }
 
 func labelShallowMap(variant *metadata.LabelVariant) LabelVariantResource {

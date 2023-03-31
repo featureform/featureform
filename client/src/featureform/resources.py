@@ -5,11 +5,13 @@
 import sys
 import json
 import time
+import base64
 import datetime
 from enum import Enum
 from typeguard import typechecked
 from typing import List, Tuple, Union
 
+import dill
 import grpc
 from .sqlite_metadata import SQLiteMetadata
 from google.protobuf.duration_pb2 import Duration
@@ -17,6 +19,7 @@ from google.protobuf.duration_pb2 import Duration
 from featureform.proto import metadata_pb2 as pb
 from dataclasses import dataclass, field
 from .version import check_up_to_date
+from .exceptions import *
 
 NameVariant = Tuple[str, str]
 
@@ -1055,6 +1058,7 @@ class Feature:
             schedule=self.schedule,
             provider=self.provider,
             columns=self.location.proto(),
+            category=pb.FeatureVariantCategory.PRE_CALCULATED,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
@@ -1081,14 +1085,121 @@ class Feature:
             db.upsert("tags", self.name, self.variant, "feature_variant", json.dumps(self.tags))
         if len(self.properties):
             db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
-        self._create_feature_resource(db)
 
-    def _create_feature_resource(self, db) -> None:
+        self._write_feature_variant_and_category(db)
+
+    def _write_feature_variant_and_category(self, db) -> None:
         db.insert(
             "features",
             self.name,
             self.variant,
-            self.value_type
+            self.value_type,
+        )
+    
+        db.insert(
+            "feature_variant_category",
+            self.name,
+            self.variant,
+            "PRE_CALCULATED",
+        )
+
+    def get_status(self):
+        return ResourceStatus(self.status)
+
+    def is_ready(self):
+        return self.status == ResourceStatus.READY.value
+
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
+
+
+class OnDemandFeatureDecorator:
+    def __init__(self,
+                 owner: str,
+                 tags: List[str] = None,
+                 properties: dict = {},
+                 variant: str = "default",
+                 name: str = "",
+                 description: str = ""):
+        self.name = name
+        self.variant = variant
+        self.owner = owner
+        self.description = description
+        self.tags = tags
+        self.properties = properties
+        self.status = "READY"
+
+    def __call__(self, fn):
+        if self.description == "" and fn.__doc__ is not None:
+            self.description = fn.__doc__
+        if self.name == "":
+            self.name = fn.__name__
+
+        self.query = dill.dumps(fn.__code__)
+        fn.name_variant = self.name_variant
+        fn.query = self.query
+        return fn
+
+    def name_variant(self):
+        return (self.name, self.variant)
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    @staticmethod
+    def type() -> str:
+        return "ondemand_feature"
+
+    def _create(self, stub) -> None:
+        serialized = pb.FeatureVariant(
+            name=self.name,
+            variant=self.variant,
+            owner=self.owner,
+            description=self.description,
+            function=pb.PythonFunction(query=self.query),
+            category=pb.FeatureVariantCategory.ON_DEMAND_CLIENT,
+            tags=pb.Tags(tag=self.tags),
+            properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
+        )
+        stub.CreateFeatureVariant(serialized)
+
+    def _create_local(self, db) -> None:
+        decode_query = base64.b64encode(self.query).decode("ascii")
+
+        db.insert("ondemand_feature_variant",
+                  str(time.time()),
+                  self.description,
+                  self.name,
+                  self.owner,
+                  self.variant,
+                  "ready",
+                  decode_query,
+                  )
+        if self.tags and len(self.tags):
+            db.upsert("tags", self.name, self.variant, "feature_variant", json.dumps(self.tags))
+        if len(self.properties):
+            db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
+
+        self._write_feature_variant_and_category(db)
+
+    def _write_feature_variant_and_category(self, db) -> None:
+        db.insert(
+            "features",
+            self.name,
+            self.variant,
+            "tbd",
+        )
+    
+        db.insert(
+            "feature_variant_category",
+            self.name,
+            self.variant,
+            "ON_DEMAND_CLIENT",
         )
 
     def get_status(self):
@@ -1385,9 +1496,13 @@ class TrainingSet:
 
         for feature_name, feature_variant in self.features:
             try:
-                db.get_feature_variant(feature_name, feature_variant)
+                category = db.get_feature_variant_category(feature_name, feature_variant)
+                if category == "ON_DEMAND_CLIENT":
+                    raise InvalidTrainingSetFeatureCategory(feature_name, feature_variant)
+            except InvalidTrainingSetFeatureCategory as e:
+                raise e
             except Exception as e:
-                raise Exception(f"{feature_name} does not exist. Failed to register training set. Error: {e}")
+                raise Exception(f"{feature_name}:{feature_variant} does not exist. Failed to register training set. Error: {e}")
 
             db.insert(
                 "training_set_features",
@@ -1474,7 +1589,7 @@ class Model:
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
-                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference, Model]
+                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference, Model, OnDemandFeatureDecorator]
 
 
 class ResourceRedefinedError(Exception):

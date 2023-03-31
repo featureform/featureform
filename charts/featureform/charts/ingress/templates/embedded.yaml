@@ -1,3 +1,4 @@
+{{ if .Values.global.embeddedIngress.enabled }}
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
@@ -40,5 +41,4 @@ spec:
     services:
       - name: featureform-dashboard
         port: 80
-
-
+{{ end }}

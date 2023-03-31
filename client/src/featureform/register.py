@@ -2479,7 +2479,8 @@ class Registrar:
         self.__resources.append(decorator)
         return decorator
 
-    def ondemand_feature(self,
+    def ondemand_feature(self, 
+                          fn=None, *,
                           tags: List[str] = None,
                           properties: dict = {},
                           variant: str = "default",
@@ -2522,7 +2523,11 @@ class Registrar:
             properties=properties,
         )
         self.__resources.append(decorator)
-        return decorator
+        
+        if fn is None:
+            return decorator
+        else:
+            return decorator(fn)
 
     def state(self):
         for resource in self.__resources:

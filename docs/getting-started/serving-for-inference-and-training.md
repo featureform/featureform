@@ -24,7 +24,7 @@ def gender_category(serving_client, params, entities):
     passenger_id = params[0]
     df = params[1]
     df['Sex'] = df['Sex'].map( {'female': 0, 'male': 1} ).astype(int)
-    return df.loc[df["PassengerId"] == passenger_id]["Sex"].values
+    return df.loc[df["PassengerId"] == passenger_id]["Sex"].values[0]
 ```
 
 At serving time, you can request on-demand features similar to pre-calculated features and alongside pre-calculated features. 

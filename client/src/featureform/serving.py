@@ -9,6 +9,7 @@ import dill
 import json
 import math
 import types
+import base64
 import random
 
 import numpy as np
@@ -18,7 +19,7 @@ from featureform.proto import serving_pb2
 from .sqlite_metadata import SQLiteMetadata
 from featureform.proto import serving_pb2_grpc
 
-from .resources import Model, SourceType
+from .resources import Model, SourceType, ComputationMode
 from .tls import insecure_channel, secure_channel
 from .version import check_up_to_date
 
@@ -129,7 +130,7 @@ class HostedClientImpl:
     def training_set(self, name, variation, include_label_timestamp, model: Union[str, Model] = None):
         return Dataset(self._stub).from_stub(name, variation, model)
 
-    def features(self, features, entities, model: Union[str, Model] = None):
+    def features(self, features, entities, model: Union[str, Model] = None, params: list = None):
         req = serving_pb2.FeatureServeRequest()
         for name, value in entities.items():
             entity_proto = req.entities.add()
@@ -142,7 +143,20 @@ class HostedClientImpl:
         if model is not None:
             req.model.name = model if isinstance(model, str) else model.name
         resp = self._stub.FeatureServe(req)
-        return [parse_proto_value(val) for val in resp.values]
+
+        feature_values = []
+        for val in resp.values:
+            parsed_value = parse_proto_value(val)
+            
+            is_ondemand_feature = type(parsed_value) == bytes
+            if is_ondemand_feature:
+                code = dill.loads(bytearray(parsed_value))
+                func = types.FunctionType(code, globals(), "transformation")
+                parsed_value = func(self, params, entities)
+            
+            feature_values.append(parsed_value)
+
+        return feature_values
 
 
 class LocalClientImpl:
@@ -388,9 +402,13 @@ class LocalClientImpl:
         trainingset_df = trainingset_df.assign(label=label_col)
         return Dataset.from_dataframe(trainingset_df, include_label_timestamp)
 
-    def features(self, feature_variant_list, entities, model: Union[str, Model] = None):
+    def features(self, feature_variant_list, entities, model: Union[str, Model] = None, params: list = None):
         if len(feature_variant_list) == 0:
             raise Exception("No features provided")
+        
+        self.entities = entities
+        self.params = params if params else []
+
         # This code assumes that the entities dictionary only has one entity
         entity_id = list(entities.keys())[0]
         entity_value = entities[entity_id]
@@ -411,34 +429,65 @@ class LocalClientImpl:
 
     def add_feature_dfs_to_list(self, feature_variant_list, entity_id):
         feature_df_list = []
+
         for feature_variant in feature_variant_list:
-            feature = self.db.get_feature_variant(feature_variant[0], feature_variant[1])
-            name_variant = f"{feature['name']}.{feature['variant']}"
-            source_name, source_variant = feature['source_name'], feature['source_variant']
-            if feature["entity"] != entity_id:
-                raise ValueError(
-                    f"Invalid entity {entity_id} for feature {source_name}-{source_variant}")
-            if self.db.is_transformation(source_name, source_variant) != SourceType.PRIMARY_SOURCE.value:
-                feature_df = self.process_transformation(source_name, source_variant)
-                if isinstance(feature_df, pd.Series):
-                    feature_df = feature_df.to_frame()
-                    feature_df.reset_index(inplace=True)
-                if not feature["source_entity"] in feature_df.columns:
-                    raise ValueError(
-                        f"Could not set entity column. No column name {feature['source_entity']} exists in {source_name}-{source_variant}")
-                if not feature['source_value'] in feature_df.columns:
-                    raise ValueError(
-                        f"Could not access feature value column. No column name {feature['source_value']} exists in {source_name}-{source_variant}")
-                feature_df = feature_df[[feature['source_entity'], feature['source_value']]]
-                feature_df.rename(columns={feature['source_entity']: entity_id, feature['source_value']: name_variant}, inplace=True)
-                feature_df.drop_duplicates(subset=[entity_id], keep="last", inplace=True)
-                feature_df.set_index(entity_id)
+            f_name = feature_variant[0]
+            f_variant = feature_variant[1]
+            f_mode = self.db.get_feature_variant_mode(f_name, f_variant)
+
+            if f_mode == ComputationMode.CLIENT_COMPUTED:
+                feature_df = self.calculate_ondemand_feature(f_name, f_variant, entity_id)
             else:
-                source = self.db.get_source_variant(source_name, source_variant)
-                feature_df = self.feature_df_with_entity(source['definition'], entity_id, feature)
+                feature_df = self.get_precomputed_feature(f_name, f_variant, entity_id)
+        
             feature_df_list.append(feature_df)
 
         return feature_df_list
+
+    def get_precomputed_feature(self, f_name, f_variant, entity_id):
+        feature = self.db.get_feature_variant(f_name, f_variant)
+        source_name, source_variant = feature['source_name'], feature['source_variant']
+        if feature["entity"] != entity_id:
+            raise ValueError(
+                f"Invalid entity {entity_id} for feature {source_name}-{source_variant}")
+        if self.db.is_transformation(source_name, source_variant) != SourceType.PRIMARY_SOURCE.value:
+            feature_df = self.process_non_primary_df_transformation(feature, source_name, source_variant, entity_id)
+        else:
+            source = self.db.get_source_variant(source_name, source_variant)
+            feature_df = self.feature_df_with_entity(source['definition'], entity_id, feature)
+
+        return feature_df
+    
+    def process_non_primary_df_transformation(self, feature, source_name, source_variant, entity_id):
+        name_variant = f"{feature['name']}.{feature['variant']}"
+        feature_df = self.process_transformation(source_name, source_variant)
+        if isinstance(feature_df, pd.Series):
+            feature_df = feature_df.to_frame()
+            feature_df.reset_index(inplace=True)
+        if not feature["source_entity"] in feature_df.columns:
+            raise ValueError(
+                f"Could not set entity column. No column name {feature['source_entity']} exists in {source_name}-{source_variant}")
+        if not feature['source_value'] in feature_df.columns:
+            raise ValueError(
+                f"Could not access feature value column. No column name {feature['source_value']} exists in {source_name}-{source_variant}")
+        feature_df = feature_df[[feature['source_entity'], feature['source_value']]]
+        feature_df.rename(columns={feature['source_entity']: entity_id, feature['source_value']: name_variant}, inplace=True)
+        feature_df.drop_duplicates(subset=[entity_id], keep="last", inplace=True)
+        feature_df.set_index(entity_id)
+        return feature_df
+
+    def calculate_ondemand_feature(self, f_name, f_variant, entity_id):
+        query = self.db.get_ondemand_feature_query(f_name, f_variant)
+        base64_bytes = query.encode("ascii")
+        query = base64.b64decode(base64_bytes)
+
+        code = dill.loads(bytearray(query))
+        func = types.FunctionType(code, globals(), "transformation")
+        output_value = func(self, self.params, self.entities)
+
+        feature_col_name = f"{f_name}.{f_variant}"
+        df = pd.DataFrame.from_dict({entity_id: [self.entities.get(entity_id, "")], feature_col_name: [output_value]})
+        return df
 
     def list_to_combined_df(self, features_list, entity_id):
         all_feature_df = None

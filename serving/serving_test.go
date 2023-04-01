@@ -5,6 +5,7 @@
 package serving
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math/rand"
@@ -24,6 +25,9 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 )
+
+const PythonFunc = `def average_user_transaction(transactions):
+	return transactions.groupby("CustomerID")["TransactionAmount"].mean()`
 
 func simpleFeatureRecords() map[provider.ResourceID][]provider.ResourceRecord {
 	featureId := provider.ResourceID{
@@ -47,6 +51,20 @@ func simpleFeatureRecords() map[provider.ResourceID][]provider.ResourceRecord {
 	return map[provider.ResourceID][]provider.ResourceRecord{
 		featureId: featureRecs,
 		labelId:   labelRecs,
+	}
+}
+
+func onDemandFeatureRecords() map[provider.ResourceID][]provider.ResourceRecord {
+	featureId := provider.ResourceID{
+		Name:    "feature-od",
+		Variant: "on-demand",
+		Type:    provider.Feature,
+	}
+	featureRecs := []provider.ResourceRecord{
+		{Value: []byte(PythonFunc)},
+	}
+	return map[provider.ResourceID][]provider.ResourceRecord{
+		featureId: featureRecs,
 	}
 }
 
@@ -192,6 +210,8 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -205,6 +225,8 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -218,6 +240,8 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -231,6 +255,8 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -244,6 +270,8 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -257,6 +285,8 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -270,6 +300,8 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		metadata.FeatureDef{
 			Name:     "feature",
@@ -283,6 +315,8 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 	}
 }
@@ -322,6 +356,8 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		metadata.LabelDef{
 			Name:     "label",
@@ -364,6 +400,24 @@ func simpleTrainingSetDefs() []provider.TrainingSetDef {
 					Variant: "variant",
 				},
 			},
+		},
+	}
+}
+
+func onDemandResourceDefsFn(providerType string) []metadata.ResourceDef {
+	return []metadata.ResourceDef{
+		metadata.UserDef{
+			Name: "Featureform",
+		},
+		metadata.FeatureDef{
+			Name:    "feature-od",
+			Variant: "on-demand",
+			Owner:   "Featureform",
+			Location: metadata.PythonFunction{
+				Query: []byte(PythonFunc),
+			},
+			Mode:       metadata.CLIENT_COMPUTED,
+			IsOnDemand: true,
 		},
 	}
 }
@@ -514,6 +568,8 @@ func unwrapVal(val *pb.Value) interface{} {
 		return casted.Int64Value
 	case *pb.Value_BoolValue:
 		return casted.BoolValue
+	case *pb.Value_OnDemandFunction:
+		return casted.OnDemandFunction
 	default:
 		panic(fmt.Sprintf("Unable to unwrap value: %T", val.Value))
 	}
@@ -546,11 +602,11 @@ func TestFeatureServe(t *testing.T) {
 	}
 	vals := resp.Values
 	if len(vals) != len(req.Features) {
-		t.Fatalf("Wrong number of values: %d\nExpcted: %d", len(vals), len(req.Features))
+		t.Fatalf("Wrong number of values: %d\nExpected: %d", len(vals), len(req.Features))
 	}
 	dblVal := unwrapVal(vals[0])
 	if dblVal != 12.5 {
-		t.Fatalf("Wrong feature value: %v\nExpcted: %v", dblVal, 12.5)
+		t.Fatalf("Wrong feature value: %v\nExpected: %v", dblVal, 12.5)
 	}
 }
 
@@ -794,7 +850,7 @@ func TestAllFeatureTypes(t *testing.T) {
 	}
 	vals := resp.Values
 	if len(vals) != len(req.Features) {
-		t.Fatalf("Wrong number of values: %d\nExpcted: %d", len(vals), len(req.Features))
+		t.Fatalf("Wrong number of values: %d\nExpected: %d", len(vals), len(req.Features))
 	}
 	for i, exp := range expected {
 		if unwrapVal(vals[i]) != exp {
@@ -851,6 +907,37 @@ func TestSimpleModelRegistrationFeatureServe(t *testing.T) {
 	modelFeature := modelResp.Features()[0]
 	if !(modelFeature.Name == feature.Name && modelFeature.Variant == feature.Version) {
 		t.Fatalf("Wrong feature associated with registered model: %v\nExpected %v", modelFeature, feature)
+	}
+}
+
+func TestOnDemandFeatureServe(t *testing.T) {
+	ctx := onlineTestContext{
+		ResourceDefsFn: onDemandResourceDefsFn,
+		FactoryFn:      createMockOnlineStoreFactory(onDemandFeatureRecords()),
+	}
+	serv := ctx.Create(t)
+	defer ctx.Destroy()
+	req := &pb.FeatureServeRequest{
+		Features: []*pb.FeatureID{
+			&pb.FeatureID{
+				Name:    "feature-od",
+				Version: "on-demand",
+			},
+		},
+	}
+	resp, err := serv.FeatureServe(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Failed to serve feature: %s", err)
+	}
+	vals := resp.Values
+	if len(vals) != len(req.Features) {
+		t.Fatalf("Wrong number of values: %d\nExpected: %d", len(vals), len(req.Features))
+	}
+	dblVal := unwrapVal(vals[0])
+	expected := []byte(PythonFunc)
+	areBytesEqual := bytes.Equal(dblVal.([]byte), expected)
+	if !areBytesEqual {
+		t.Fatalf("Wrong feature value: %v\nExpected: %v", dblVal, string(expected))
 	}
 }
 

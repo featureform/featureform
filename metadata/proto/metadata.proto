@@ -143,6 +143,15 @@ message Columns {
     string ts = 3;
 }
 
+message PythonFunction {
+    bytes query = 1;
+}
+
+enum ComputationMode {
+    PRECOMPUTED = 0;
+    CLIENT_COMPUTED = 1;
+}
+
 message FeatureVariant {
     string name = 1;
     string variant = 2;
@@ -157,11 +166,13 @@ message FeatureVariant {
     repeated NameVariant trainingsets = 11;
     oneof location {
         Columns columns = 12;
+        PythonFunction function = 17;
     }
     google.protobuf.Timestamp last_updated = 13;
     string schedule = 14;
     Tags tags = 15;
     Properties properties = 16;
+    ComputationMode mode = 18;
 }
 
 message FeatureLag {

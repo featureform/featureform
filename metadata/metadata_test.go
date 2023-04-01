@@ -14,6 +14,9 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
+const PythonFunc = `def average_user_transaction(transactions):
+	return transactions.groupby("CustomerID")["TransactionAmount"].mean()`
+
 func TestResourceTypes(t *testing.T) {
 	typeMapping := map[ResourceType]ResourceDef{
 		USER:                 UserDef{},
@@ -139,6 +142,8 @@ func filledResourceDefs() []ResourceDef {
 			},
 			Tags:       Tags{},
 			Properties: Properties{},
+			Mode:       PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		FeatureDef{
 			Name:        "feature",
@@ -156,6 +161,8 @@ func filledResourceDefs() []ResourceDef {
 			},
 			Tags:       Tags{},
 			Properties: Properties{},
+			Mode:       PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		FeatureDef{
 			Name:        "feature2",
@@ -173,6 +180,21 @@ func filledResourceDefs() []ResourceDef {
 			},
 			Tags:       Tags{},
 			Properties: Properties{},
+			Mode:       PRECOMPUTED,
+			IsOnDemand: false,
+		},
+		FeatureDef{
+			Name:        "feature3",
+			Variant:     "on-demand",
+			Description: "Feature3 on-demand",
+			Owner:       "Featureform",
+			Location: PythonFunction{
+				Query: []byte(PythonFunc),
+			},
+			Tags:       Tags{},
+			Properties: Properties{},
+			Mode:       CLIENT_COMPUTED,
+			IsOnDemand: true,
 		},
 		LabelDef{
 			Name:        "label",
@@ -446,7 +468,7 @@ func TestClosedServer(t *testing.T) {
 	}
 	for _, typ := range listTypes {
 		if _, err := list(client, typ); err == nil {
-			t.Fatalf("Succeded in listing from closed server")
+			t.Fatalf("Succeeded in listing from closed server")
 		}
 	}
 	types := []ResourceType{
@@ -465,10 +487,10 @@ func TestClosedServer(t *testing.T) {
 	}
 	for _, typ := range types {
 		if _, err := getAll(client, typ, []NameVariant{}); err == nil {
-			t.Fatalf("Succeded in getting all from closed server")
+			t.Fatalf("Succeeded in getting all from closed server")
 		}
 		if _, err := get(client, typ, NameVariant{}); err == nil {
-			t.Fatalf("Succeded in getting from closed server")
+			t.Fatalf("Succeeded in getting from closed server")
 		}
 	}
 }
@@ -482,7 +504,7 @@ func TestServeGracefulStop(t *testing.T) {
 	}
 	serv, err := NewMetadataServer(config)
 	if err != nil {
-		t.Fatalf("Failed to create metadat server: %s", err)
+		t.Fatalf("Failed to create metadata server: %s", err)
 	}
 	errChan := make(chan error)
 	go func() {
@@ -572,6 +594,7 @@ func expectedUsers() ResourceTests {
 				{"feature", "variant"},
 				{"feature2", "variant"},
 				{"feature", "variant2"},
+				{"feature3", "on-demand"},
 			},
 			Sources: []NameVariant{
 				{"mockSource", "var"},
@@ -619,6 +642,7 @@ func expectedUserUpdates() ResourceTests {
 				{"feature", "variant"},
 				{"feature2", "variant"},
 				{"feature", "variant2"},
+				{"feature3", "on-demand"},
 			},
 			Sources: []NameVariant{
 				{"mockSource", "var"},
@@ -637,6 +661,7 @@ func expectedUserUpdates() ResourceTests {
 				{"feature", "variant"},
 				{"feature2", "variant"},
 				{"feature", "variant2"},
+				{"feature3", "on-demand"},
 			},
 			Sources: []NameVariant{
 				{"mockSource", "var"},
@@ -1096,6 +1121,11 @@ func expectedFeatures() ResourceTests {
 			Variants: []string{"variant"},
 			Default:  "variant",
 		},
+		FeatureTest{
+			Name:     "feature3",
+			Variants: []string{"on-demand"},
+			Default:  "on-demand",
+		},
 	}
 }
 
@@ -1109,8 +1139,10 @@ type FeatureVariantTest struct {
 	Provider     string
 	Source       NameVariant
 	TrainingSets []NameVariant
-	Location     ResourceVariantColumns
+	Location     interface{}
 	IsTable      bool
+	Mode         ComputationMode
+	IsOnDemand   bool
 }
 
 func (test FeatureVariantTest) NameVariant() NameVariant {
@@ -1123,19 +1155,26 @@ func (test FeatureVariantTest) Test(t *testing.T, client *Client, res interface{
 	assertEqual(t, feature.Name(), test.Name)
 	assertEqual(t, feature.Variant(), test.Variant)
 	assertEqual(t, feature.Description(), test.Description)
-	assertEqual(t, feature.Type(), test.Type)
 	assertEqual(t, feature.Owner(), test.Owner)
-	assertEqual(t, feature.Provider(), test.Provider)
-	assertEqual(t, feature.Source(), test.Source)
-	assertEqual(t, feature.Entity(), test.Entity)
-	assertEqual(t, feature.LocationColumns(), test.Location)
-	assertEqual(t, feature.isTable(), test.IsTable)
-	assertEquivalentNameVariants(t, feature.TrainingSets(), test.TrainingSets)
-	if shouldFetch {
-		testFetchProvider(t, client, feature)
-		testFetchSource(t, client, feature)
-		testFetchTrainingSets(t, client, feature)
+	if feature.Mode() == PRECOMPUTED {
+		assertEqual(t, feature.Type(), test.Type)
+		assertEqual(t, feature.Provider(), test.Provider)
+		assertEqual(t, feature.Source(), test.Source)
+		assertEqual(t, feature.Entity(), test.Entity)
+		assertEqual(t, feature.isTable(), test.IsTable)
+		assertEqual(t, feature.LocationColumns(), test.Location)
+		if shouldFetch {
+			testFetchProvider(t, client, feature)
+			testFetchSource(t, client, feature)
+			testFetchTrainingSets(t, client, feature)
+		}
+		assertEquivalentNameVariants(t, feature.TrainingSets(), test.TrainingSets)
+	} else {
+		assertEqual(t, feature.LocationFunction(), test.Location)
 	}
+	assertEqual(t, feature.Mode(), test.Mode)
+	assertEqual(t, feature.Mode(), test.Mode)
+	assertEqual(t, feature.IsOnDemand(), test.IsOnDemand)
 	if tm := feature.Created(); tm == (time.Time{}) {
 		t.Fatalf("Created time not set")
 	}
@@ -1200,6 +1239,17 @@ func expectedFeatureVariants() ResourceTests {
 				TS:     "col3",
 			},
 			IsTable: true,
+		},
+		FeatureVariantTest{
+			Name:        "feature3",
+			Variant:     "on-demand",
+			Description: "Feature3 on-demand",
+			Owner:       "Featureform",
+			Location: PythonFunction{
+				Query: []byte(PythonFunc),
+			},
+			Mode:       CLIENT_COMPUTED,
+			IsOnDemand: true,
 		},
 	}
 }

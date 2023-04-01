@@ -5,11 +5,12 @@
 import sys
 import json
 import time
-import datetime
+import base64
 from enum import Enum
 from typeguard import typechecked
 from typing import List, Tuple, Union
 
+import dill
 import grpc
 from .sqlite_metadata import SQLiteMetadata
 from google.protobuf.duration_pb2 import Duration
@@ -17,6 +18,8 @@ from google.protobuf.duration_pb2 import Duration
 from featureform.proto import metadata_pb2 as pb
 from dataclasses import dataclass, field
 from .version import check_up_to_date
+from .exceptions import *
+from .enums import *
 
 NameVariant = Tuple[str, str]
 
@@ -24,48 +27,6 @@ NameVariant = Tuple[str, str]
 # Constants for Pyspark Versions
 MAJOR_VERSION = "3"
 MINOR_VERSIONS = ["7", "8", "9", "10"]
-
-
-class ColumnTypes(Enum):
-    NIL = ""
-    INT = "int"
-    INT32 = "int32"
-    INT64 = "int64"
-    FLOAT32 = "float32"
-    FLOAT64 = "float64"
-    STRING = "string"
-    BOOL = "bool"
-    DATETIME = "datetime"
-
-
-class ResourceStatus(Enum):
-    NO_STATUS = "NO_STATUS"
-    CREATED = "CREATED"
-    PENDING = "PENDING"
-    READY = "READY"
-    FAILED = "FAILED"
-
-
-@typechecked
-@dataclass
-class OperationType(Enum):
-    GET = 0
-    CREATE = 1
-
-
-@typechecked
-@dataclass
-class SourceType(Enum):
-    PRIMARY_SOURCE = "PRIMARY"
-    DF_TRANSFORMATION = "DF"
-    SQL_TRANSFORMATION = "SQL"
-
-
-@typechecked
-@dataclass
-class FilePrefix(Enum):
-    S3 = "s3://"
-    S3A = "s3a://"
 
 
 @typechecked
@@ -1055,6 +1016,7 @@ class Feature:
             schedule=self.schedule,
             provider=self.provider,
             columns=self.location.proto(),
+            mode=ComputationMode.PRECOMPUTED.proto(),
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
@@ -1081,14 +1043,124 @@ class Feature:
             db.upsert("tags", self.name, self.variant, "feature_variant", json.dumps(self.tags))
         if len(self.properties):
             db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
-        self._create_feature_resource(db)
 
-    def _create_feature_resource(self, db) -> None:
+        self._write_feature_variant_and_mode(db)
+
+    def _write_feature_variant_and_mode(self, db) -> None:
         db.insert(
             "features",
             self.name,
             self.variant,
-            self.value_type
+            self.value_type,
+        )
+        is_on_demand = 0
+        db.insert(
+            "feature_computation_mode",
+            self.name,
+            self.variant,
+            ComputationMode.PRECOMPUTED.value,
+            is_on_demand,
+        )
+
+    def get_status(self):
+        return ResourceStatus(self.status)
+
+    def is_ready(self):
+        return self.status == ResourceStatus.READY.value
+
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
+
+
+class OnDemandFeatureDecorator:
+    def __init__(self,
+                 owner: str,
+                 tags: List[str] = None,
+                 properties: dict = {},
+                 variant: str = "default",
+                 name: str = "",
+                 description: str = ""):
+        self.name = name
+        self.variant = variant
+        self.owner = owner
+        self.description = description
+        self.tags = tags
+        self.properties = properties
+        self.status = "READY"
+
+    def __call__(self, fn):
+        if self.description == "" and fn.__doc__ is not None:
+            self.description = fn.__doc__
+        if self.name == "":
+            self.name = fn.__name__
+
+        self.query = dill.dumps(fn.__code__)
+        fn.name_variant = self.name_variant
+        fn.query = self.query
+        return fn
+
+    def name_variant(self):
+        return (self.name, self.variant)
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    @staticmethod
+    def type() -> str:
+        return "ondemand_feature"
+
+    def _create(self, stub) -> None:
+        serialized = pb.FeatureVariant(
+            name=self.name,
+            variant=self.variant,
+            owner=self.owner,
+            description=self.description,
+            function=pb.PythonFunction(query=self.query),
+            mode=ComputationMode.CLIENT_COMPUTED.proto(),
+            tags=pb.Tags(tag=self.tags),
+            properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
+        )
+        stub.CreateFeatureVariant(serialized)
+
+    def _create_local(self, db) -> None:
+        decode_query = base64.b64encode(self.query).decode("ascii")
+
+        db.insert("ondemand_feature_variant",
+                  str(time.time()),
+                  self.description,
+                  self.name,
+                  self.owner,
+                  self.variant,
+                  "ready",
+                  decode_query,
+                  )
+        if self.tags and len(self.tags):
+            db.upsert("tags", self.name, self.variant, "feature_variant", json.dumps(self.tags))
+        if len(self.properties):
+            db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
+
+        self._write_feature_variant_and_mode(db)
+
+    def _write_feature_variant_and_mode(self, db) -> None:
+        db.insert(
+            "features",
+            self.name,
+            self.variant,
+            "tbd",
+        )
+        is_on_demand = 1
+    
+        db.insert(
+            "feature_computation_mode",
+            self.name,
+            self.variant,
+            ComputationMode.CLIENT_COMPUTED.value,
+            is_on_demand,
         )
 
     def get_status(self):
@@ -1385,9 +1457,13 @@ class TrainingSet:
 
         for feature_name, feature_variant in self.features:
             try:
-                db.get_feature_variant(feature_name, feature_variant)
+                is_on_demand = db.get_feature_variant_on_demand(feature_name, feature_variant)
+                if is_on_demand:
+                    raise InvalidTrainingSetFeatureComputationMode(feature_name, feature_variant)
+            except InvalidTrainingSetFeatureComputationMode as e:
+                raise e
             except Exception as e:
-                raise Exception(f"{feature_name} does not exist. Failed to register training set. Error: {e}")
+                raise Exception(f"{feature_name}:{feature_variant} does not exist. Failed to register training set. Error: {e}")
 
             db.insert(
                 "training_set_features",
@@ -1474,7 +1550,7 @@ class Model:
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
-                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference, Model]
+                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference, Model, OnDemandFeatureDecorator]
 
 
 class ResourceRedefinedError(Exception):

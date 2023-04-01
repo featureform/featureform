@@ -9,10 +9,11 @@ from featureform.resources import OnDemandFeatureDecorator, ResourceStatus
 
 
 @pytest.fixture(autouse=True)
-def before_and_after_each(setup_teardown):
+def before_and_after_each(setup_teardown, is_local):
     setup_teardown()
     yield
-    ff.ServingClient(local=True).impl.db.close()  # TODO automatically do this
+    if is_local:
+        ff.ServingClient(local=True).impl.db.close()  # TODO automatically do this
     setup_teardown()
 
 @pytest.mark.local

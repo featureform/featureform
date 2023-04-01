@@ -116,9 +116,11 @@ def test_indexing_with_fewer_than_two_columns(
 
 
 @pytest.fixture(autouse=True)
-def before_and_after_each(setup_teardown):
+def before_and_after_each(setup_teardown, is_local):
     setup_teardown()
     yield
+    if is_local:
+        ff.ServingClient(local=True).impl.db.close()
     setup_teardown()
 
 

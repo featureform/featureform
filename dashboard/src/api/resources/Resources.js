@@ -113,12 +113,26 @@ export const testDetailsData = {
 
 
 export const providerLogos = Object.freeze({
-  REDIS: "static/Redis_Logo.svg",
-  BIGQUERY: "static/google_bigquery-ar21.svg",
-  "APACHE SPARK": "static/Apache_Spark_logo.svg",
+  // Offline Stores
+  BIGQUERY: "static/google_bigquery.svg",
   POSTGRES: "static/Postgresql_elephant.svg",
+  REDSHIFT: "static/amazon_redshift.svg",
   SNOWFLAKE: "static/Snowflake_Logo.svg",
-  LOCALMODE: "static/Featureform_logo_pink.svg",
+  SPARK: "static/Apache_Spark_logo.svg",
+  KUBERNETES: "static/kubernetes_logo.svg",
+
+  // Filestores
+  AZURE: "static/azure_storage_accounts.svg",
+  GCS: "static/google_cloud_storage.svg",
+  S3: "static/amazon_s3.svg",
+  HDFS: "static/apache_hadoop.svg",
+
+  // Online Stores
+  REDIS: "static/Redis_Logo.svg",
+  CASSANDRA: "static/apache_cassandra.svg",
+  DYNAMODB: "static/amazon_dynamoDB.svg",
+  FIRESTORE: "static/google_firestore.svg",
+  MONGODB: "static/mongoDB.svg",
 });
 
 

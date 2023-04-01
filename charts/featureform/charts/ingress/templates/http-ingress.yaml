@@ -9,6 +9,7 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: 64ms
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     cert-manager.io/issuer: letsencrypt-prod
+    kots.io/exclude: {{ .Values.global.embeddedIngress.disabled | quote }}
   name: http-ingress
 spec:
   defaultBackend:

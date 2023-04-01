@@ -328,7 +328,7 @@ jobs:
       - name: Configure Docker Socket
         run: |
           minikube start --kubernetes-version=v1.23.12
-          docker build . -t local/coordinator:stable -f coordinator/Dockerfile.old
+          docker build . -t local/coordinator:stable -f coordinator/Dockerfile.old --build-arg TESTING="True"
 
       - name: Load image
         run: |
@@ -403,6 +403,7 @@ jobs:
           S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
           S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
           GCP_CREDENTIALS_FILE: "./provider/gcp_credentials.json"
           FEATUREFORM_HOST: localhost:8000
           FEATUREFORM_CERT: tls.crt

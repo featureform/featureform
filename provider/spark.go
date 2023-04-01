@@ -6,8 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 
-	"github.com/mitchellh/mapstructure"
-
 	"fmt"
 	"os"
 	"os/exec"
@@ -44,16 +42,6 @@ const MATERIALIZATION_ID_SEGMENTS = 3
 const ENTITY_INDEX = 0
 const VALUE_INDEX = 1
 const TIMESTAMP_INDEX = 2
-
-//type AWSCredentials struct {
-//	AWSAccessKeyId string
-//	AWSSecretKey   string
-//}
-
-//type GCPCredentials struct {
-//	ProjectId      string
-//	SerializedFile []byte
-//}
 
 type SparkExecutorConfig interface {
 	Serialize() ([]byte, error)
@@ -219,28 +207,36 @@ func NewSparkGCSFileStore(config Config) (SparkFileStore, error) {
 	if !ok {
 		return nil, fmt.Errorf("could not cast file store to *GCSFileStore")
 	}
+	serializedCredentials, err := json.Marshal(gcs.Credentials.JSON)
+	if err != nil {
+		return nil, fmt.Errorf("could not serialize the credentials")
+	}
 
-	return &SparkGCSFileStore{gcs}, nil
+	return &SparkGCSFileStore{SerializedCredentials: serializedCredentials, GCSFileStore: gcs}, nil
 }
 
 type SparkGCSFileStore struct {
+	SerializedCredentials []byte
 	*GCSFileStore
 }
 
 func (gcs SparkGCSFileStore) SparkConfig() []string {
 	return []string{
 		"--spark_config",
-		"spark.hadoop.google.cloud.auth.service.account.enable=true",
+		"fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
 		"--spark_config",
 		"fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
 		"--spark_config",
+		"fs.gs.auth.service.account.enable=true",
+		"--spark_config",
 		"fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
+		"--spark_config",
+		"fs.gs.auth.type=SERVICE_ACCOUNT_JSON_KEYFILE",
 	}
 }
 
 func (gcs SparkGCSFileStore) CredentialsConfig() []string {
-	serializedCredsFile := gcs.Credentials.SerializedFile
-	base64Credentials := base64.StdEncoding.EncodeToString(serializedCredsFile)
+	base64Credentials := base64.StdEncoding.EncodeToString(gcs.SerializedCredentials)
 
 	return []string{
 		"--credential",
@@ -256,6 +252,8 @@ func (gcs SparkGCSFileStore) Packages() []string {
 	return []string{
 		"--packages",
 		"com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.0",
+		"--jars",
+		"/app/provider/scripts/spark/jars/gcs-connector-hadoop2-2.2.11-shaded.jar",
 	}
 }
 
@@ -333,103 +331,6 @@ type SparkFileStoreConfig interface {
 	Serialize() ([]byte, error)
 	Deserialize(config pc.SerializedConfig) error
 	IsFileStoreConfig() bool
-}
-
-type SparkConfig struct {
-	ExecutorType   pc.SparkExecutorType
-	ExecutorConfig SparkExecutorConfig
-	StoreType      pc.FileStoreType
-	StoreConfig    SparkFileStoreConfig
-}
-
-func (s *SparkConfig) Deserialize(config pc.SerializedConfig) error {
-	err := json.Unmarshal(config, s)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *SparkConfig) Serialize() ([]byte, error) {
-	conf, err := json.Marshal(s)
-	if err != nil {
-		return nil, err
-	}
-	return conf, nil
-}
-
-func (s *SparkConfig) UnmarshalJSON(data []byte) error {
-	type tempConfig struct {
-		ExecutorType   pc.SparkExecutorType
-		ExecutorConfig map[string]interface{}
-		StoreType      pc.FileStoreType
-		StoreConfig    map[string]interface{}
-	}
-
-	var temp tempConfig
-	err := json.Unmarshal(data, &temp)
-	if err != nil {
-		return fmt.Errorf("unmarshal: %w", err)
-	}
-
-	s.ExecutorType = temp.ExecutorType
-	s.StoreType = temp.StoreType
-
-	err = s.decodeExecutor(temp.ExecutorType, temp.ExecutorConfig)
-	if err != nil {
-		return fmt.Errorf("could not decode executor: %w", err)
-	}
-
-	err = s.decodeFileStore(temp.StoreType, temp.StoreConfig)
-	if err != nil {
-		return fmt.Errorf("could not decode filestore: %w", err)
-	}
-
-	return nil
-}
-
-func (s *SparkConfig) decodeExecutor(executorType pc.SparkExecutorType, configMap map[string]interface{}) error {
-	var executorConfig SparkExecutorConfig
-	switch executorType {
-	case pc.EMR:
-		executorConfig = &pc.EMRConfig{}
-	case pc.Databricks:
-		executorConfig = &pc.DatabricksConfig{}
-	case pc.SparkGeneric:
-		executorConfig = &pc.SparkGenericConfig{}
-	default:
-		return fmt.Errorf("the executor type '%s' is not supported ", executorType)
-	}
-
-	err := mapstructure.Decode(configMap, executorConfig)
-	if err != nil {
-		return fmt.Errorf("could not decode executor map: %w", err)
-	}
-	s.ExecutorConfig = executorConfig
-	return nil
-}
-
-func (s *SparkConfig) decodeFileStore(fileStoreType pc.FileStoreType, configMap map[string]interface{}) error {
-	var fileStoreConfig SparkFileStoreConfig
-	switch fileStoreType {
-	case pc.Azure:
-		fileStoreConfig = &pc.AzureFileStoreConfig{}
-	case pc.S3:
-		fileStoreConfig = &pc.S3FileStoreConfig{}
-	case pc.GCS:
-		fileStoreConfig = &GCSFileStoreConfig{}
-	case pc.HDFS:
-		fileStoreConfig = &pc.HDFSFileStoreConfig{}
-	default:
-		return fmt.Errorf("the file store type '%s' is not supported ", fileStoreType)
-	}
-
-	err := mapstructure.Decode(configMap, fileStoreConfig)
-	if err != nil {
-		return fmt.Errorf("could not decode file store map: %w", err)
-	}
-	s.StoreConfig = fileStoreConfig
-	return nil
 }
 
 func ResourcePath(id ResourceID) string {
@@ -766,7 +667,7 @@ func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore) 
 	sparkArgsString := strings.Join(args, " ")
 	bashCommandArgs := []string{"-c", fmt.Sprintf("pyenv global %s && pyenv exec %s", s.pythonVersion, sparkArgsString)}
 
-	s.logger.Info("Executing spark-submit ", len(bashCommandArgs), bashCommandArgs)
+	s.logger.Info("Executing spark-submit")
 	cmd := exec.Command(bashCommand, bashCommandArgs...)
 	cmd.Env = append(os.Environ(), "FEATUREFORM_LOCAL_MODE=true")
 
@@ -1306,7 +1207,7 @@ func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (Transform
 	spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
 	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), false)
 	transformationExactPath, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(transformationPath, false), Parquet)
-	fmt.Println("GetTransformation", transformationPath, transformationExactPath)
+
 	if err != nil || transformationExactPath == "" {
 		return nil, fmt.Errorf("could not get transformation table: %v", err)
 	}

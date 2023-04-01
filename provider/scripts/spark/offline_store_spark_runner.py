@@ -1,6 +1,7 @@
 import io
 import os 
 import json
+import uuid
 import types
 import base64
 import argparse
@@ -27,13 +28,23 @@ else:
 
 def main(args):
     print(f"Starting execution of {args.transformation_type}")
+    file_path = set_gcp_credential_file_path(args.store_type, args.spark_config, args.credential)
     
-    if args.transformation_type == "sql":
-        output_location = execute_sql_query(args.job_type, args.output_uri, args.sql_query, args.spark_config, args.source_list)
-    elif args.transformation_type == "df":
-        output_location = execute_df_job(args.output_uri, args.code, args.store_type, args.spark_config, args.credential, args.source)
-    
-    print(f"Finished execution of {args.transformation_type}. Please check {output_location} for output file.")
+    output_location = ""
+    try:
+        if args.transformation_type == "sql":
+            output_location = execute_sql_query(args.job_type, args.output_uri, args.sql_query, args.spark_config, args.source_list)
+        elif args.transformation_type == "df":
+            output_location = execute_df_job(args.output_uri, args.code, args.store_type, args.spark_config, args.credential, args.source)
+       
+        print(f"Finished execution of {args.transformation_type}. Please check {output_location} for output file.")
+    except Exception as e:
+        error_message = f"the {args.transformation_type} job failed. Error: {e}"
+        print(error_message)
+        raise Exception(error_message)
+    finally:
+        delete_file(file_path)
+
     return output_location
 
 
@@ -54,12 +65,14 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
 
         if job_type == "Transformation" or job_type == "Materialization" or job_type == "Training Set":
             for i, source in enumerate(source_list):
-                if source.split(".")[-1] == "csv":
+                if source.endswith(".csv"):
                     source_df = spark.read.option("header","true").option("recursiveFileLookup", "true").csv(source) 
                     source_df.createOrReplaceTempView(f'source_{i}')
-                else:
+                elif source.endswith(".parquet"):
                     source_df = spark.read.option("header","true").option("recursiveFileLookup", "true").parquet(source) 
                     source_df.createOrReplaceTempView(f'source_{i}')
+                else:
+                    raise Exception(f"the file type for '{location}' file is not supported.")
         else:
             raise Exception(f"the '{job_type}' is not supported. Supported types: 'Transformation', 'Materialization', 'Training Set'")
         
@@ -91,7 +104,12 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
     print(f"reading {len(sources)} source files")
     func_parameters = []
     for location in sources:
-        func_parameters.append(spark.read.option("recursiveFileLookup", "true").parquet(location))
+        if location.endswith(".csv"):
+            func_parameters.append(spark.read.option("header","true").option("recursiveFileLookup", "true").csv(location))
+        elif location.endswith(".parquet"):
+            func_parameters.append(spark.read.option("header","true").option("recursiveFileLookup", "true").parquet(location))
+        else:
+            raise Exception(f"the file type for '{location}' file is not supported.")
     
     try:
         code = get_code_from_file(code, store_type, credentials)
@@ -101,7 +119,7 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         dt = datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
         output_uri_with_timestamp = f"{output_uri}{safe_datetime}" if output_uri[-1] == "/" else f"{output_uri}/{safe_datetime}"
-        output_df.write.mode("overwrite").parquet(output_uri_with_timestamp)
+        output_df.write.mode("overwrite").option("header","true").parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
         print(f"Issue with execution of the transformation: {e}")
@@ -177,7 +195,7 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
         project_id = credentials.get("gcp_project_id")
         gcp_credentials = get_credentials_dict(credentials.get("gcp_credentials"))
 
-        credentials = service_account.Credentials.from_service_account_info(credentials_dict)
+        credentials = service_account.Credentials.from_service_account_info(gcp_credentials)
         client = storage.Client(project=project_id, credentials=credentials)
 
         bucket = client.bucket(bucket_name)
@@ -230,6 +248,20 @@ def set_spark_configs(spark, configs):
         spark.conf.set(key, value)
 
 
+def set_gcp_credential_file_path(store_type, spark_args, creds):
+    file_path = f"/tmp/{uuid.uuid4()}.json"
+    if store_type == "google_cloud_storage":
+        base64_creds = creds.get("gcp_credentials", "")
+        creds = get_credentials_dict(base64_creds)
+
+        with open(file_path, "w") as f:
+            json.dump(creds, f)
+        
+        spark_args["google.cloud.auth.service.account.json.keyfile"] = file_path
+    
+    return file_path
+
+
 def get_credentials_dict(base64_creds):
     # Takes a base64 creds and converts it into 
     # Python dictionary.
@@ -244,6 +276,12 @@ def get_credentials_dict(base64_creds):
     creds = json.loads(creds_string)
     return creds
 
+def delete_file(file_path):
+    print(f"deleting {file_path} file")
+    if os.path.isfile(file_path):
+        os.remove(file_path)
+    else:
+        print(f"{file_path} does not exist.")
 
 def split_key_value(values):
     arguments = {}

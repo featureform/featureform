@@ -35,6 +35,16 @@ resource "helm_release" "featureform" {
     value = var.featureform_public_cert
   }
 
+  set {
+    name = "global.publicCert"
+    value = "false"
+  }
+
+  set {
+    name = "global.localCert"
+    value = "true"
+  }
+
   depends_on = [
     helm_release.certmgr
   ]

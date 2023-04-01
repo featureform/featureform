@@ -9,17 +9,16 @@ from featureform.resources import OnDemandFeatureDecorator, ResourceStatus
 
 
 @pytest.fixture(autouse=True)
-def before_and_after_each(setup_teardown, is_local):
+def before_and_after_each(setup_teardown):
     setup_teardown()
     yield
-    if is_local:
-        ff.ServingClient(local=True).impl.db.close()  # TODO automatically do this
     setup_teardown()
+
 
 @pytest.mark.local
 def test_ondemand_feature_decorator_class():
-    name="test_ondemand_feature"
-    owner="ff_tester"
+    name = "test_ondemand_feature"
+    owner = "ff_tester"
 
     decorator = OnDemandFeatureDecorator(owner=owner, name=name)
     decorator_2 = OnDemandFeatureDecorator(owner=owner, name=name)
@@ -27,17 +26,18 @@ def test_ondemand_feature_decorator_class():
     assert decorator.name_variant() == (name, "default")
     assert decorator.type() == "ondemand_feature"
     assert decorator.get_status() == ResourceStatus.READY
-    assert decorator.is_ready() == True
+    assert decorator.is_ready() is True
     assert decorator == decorator_2
 
 
 @pytest.mark.local
 def test_ondemand_decorator():
-    owner="ff_tester"
+    owner = "ff_tester"
+
     @OnDemandFeatureDecorator(owner=owner)
     def test_fn():
-        return 1+1
-    
+        return 1 + 1
+
     expected_query = dill.dumps(test_fn.__code__)
 
     assert test_fn.name_variant() == (test_fn.__name__, "default")
@@ -66,6 +66,8 @@ def test_serving_ondemand_precalculated_feature(features, entity, expected_outpu
     features = client.features(features, entity)
     assert features.tolist() == expected_output
 
+    client.impl.db.close()  # TODO automatically do this
+
 
 def register_resources():
     ff.register_user("featureformer").make_default_owner()
@@ -89,7 +91,7 @@ def register_resources():
     def pi(serving_client, entities, params):
         import math
         return math.pi
-    
+
     @ff.ondemand_feature()
     def pi_called(serving_client, entities, params):
         import math

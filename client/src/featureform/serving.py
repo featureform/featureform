@@ -482,7 +482,7 @@ class LocalClientImpl:
             feature_df = self.process_non_primary_df_transformation(feature, source_name, source_variant, entity_id)
         else:
             source = self.db.get_source_variant(source_name, source_variant)
-            feature_df = self.feature_df_with_entity(source['definition'], entity_id, feature)
+            feature_df = feature_df_with_entity(source['definition'], entity_id, feature)
 
         return feature_df
 

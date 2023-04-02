@@ -23,7 +23,7 @@ class SetupFixture:
     serving_client: ServingClient
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="function")
 def setup(tmp_path_factory):
     temp_dir = tmp_path_factory.mktemp("test_inputs")
     temp_transactions = temp_dir / "transactions.csv"

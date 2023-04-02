@@ -14,9 +14,6 @@ dir_path = os.path.dirname(real_path)
 SOURCE_FILE = f"{dir_path}/test_files/input_files/transactions.csv"
 
 
-# TODO Ali, create clean setup for local mode fixture that anyone can use
-
-
 @dataclass
 class SetupFixture:
     transactions_file: str

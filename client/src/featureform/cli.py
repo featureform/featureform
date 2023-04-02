@@ -173,6 +173,9 @@ def dash():
 @click.option("--dry-run",
               is_flag=True,
               help="Checks the definitions without applying them")
+@click.option("--poll-status",
+              is_flag=True,
+              help="Waits for all resources to finish applying before exiting")
 def apply(host, cert, insecure, local, files, dry_run):
     for file in files:
         if os.path.isfile(file):

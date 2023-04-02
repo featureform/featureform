@@ -270,7 +270,7 @@ def arrange_resources(provider, source, online_store, is_local, is_insecure):
     )
 
     resource_client = ff.ResourceClient(local=is_local, insecure=is_insecure)
-    resource_client.apply()
+    resource_client.apply(asynchronous=True)
 
     if not is_local:
         start = time.time()

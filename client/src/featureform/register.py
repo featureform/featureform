@@ -1,8 +1,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
-from os.path import exists 
+from os.path import exists
 from datetime import timedelta
 from typeguard import typechecked
 from typing import Dict, Tuple, Callable, List, Union
@@ -2036,8 +2035,8 @@ class Registrar:
                           user: str = "postgres",
                           password: str = "password",
                           database: str = "postgres",
-                          tags: List[str] = [],
-                          properties: dict = {}):
+                          tags: List[str] = None,
+                          properties: dict = None):
         """Register a Postgres provider.
 
         **Examples**:
@@ -2077,8 +2076,8 @@ class Registrar:
                             description=description,
                             team=team,
                             config=config,
-                            tags=tags,
-                            properties=properties)
+                            tags=tags or [],
+                            properties=properties or {})
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
@@ -2915,18 +2914,26 @@ class ResourceClient(Registrar):
             self._stub = ff_grpc.ApiStub(channel)
             self._host = host
 
-    def apply(self):
-        """Apply all definitions, creating and retrieving all specified resources.
+    def apply(self, asynchronous=True):
         """
+        Apply all definitions, creating and retrieving all specified resources.
 
+        @param asynchronous: Wait for all resources to be ready before returning.
+        """
+        resource_state = state()
         if self._dry_run:
-            print(state().sorted_list())
+            print(resource_state.sorted_list())
             return
 
         if self.local:
-            state().create_all_local()
+            resource_state.create_all_local()
         else:
-            state().create_all(self._stub)
+            resource_state.create_all(self._stub)
+
+        if not asynchronous and self._stub:
+            resources = resource_state.sorted_list()
+            display_statuses(self._stub, resources)
+
 
     def get_user(self, name, local=False):
         """Get a user. Prints out name of user, and all resources associated with the user.
@@ -3521,6 +3528,8 @@ class ResourceClient(Registrar):
             description=source.description,
             variant=source.variant,
             status=source.status.Status._enum_type.values[source.status.status].name,
+            tags=[],
+            properties={}
         )
 
     def _get_source_definition(self, source):
@@ -4142,7 +4151,7 @@ class Variants:
 
     def validate_variant_names(self):
         for variant_key, resource in self.resources.items():
-            if resource.variant is "default":
+            if resource.variant == "default":
                 resource.variant = variant_key
             if resource.variant != variant_key:
                 raise ValueError(

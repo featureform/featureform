@@ -68,6 +68,6 @@ def before_and_after_each(setup_teardown):
 def arrange_resources(model_name, is_local, is_insecure):
     ff.register_model(model_name)
     resource_client = ff.ResourceClient(local=is_local, insecure=is_insecure)
-    resource_client.apply()
+    resource_client.apply(asynchronous=True)
 
     return resource_client

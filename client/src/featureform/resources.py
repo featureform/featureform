@@ -8,7 +8,7 @@ import time
 import base64
 from enum import Enum
 from typeguard import typechecked
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 
 import dill
 import grpc
@@ -612,10 +612,23 @@ class K8sConfig:
         return bytes(json.dumps(config), "utf-8")
 
 
+@typechecked
+@dataclass
+class EmptyConfig:
+    def software(self) -> str:
+        return ""
+
+    def type(self) -> str:
+        return ""
+
+    def serialize(self) -> bytes:
+        return bytes("", "utf-8")
+
+
 Config = Union[
     RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig,
     FirestoreConfig, SparkConfig, OnlineBlobConfig, AzureFileStoreConfig, S3StoreConfig, K8sConfig,
-    MongoDBConfig, GCSFileStoreConfig
+    MongoDBConfig, GCSFileStoreConfig, EmptyConfig
 ]
 
 @typechecked
@@ -628,19 +641,22 @@ class Properties:
         for key, val in self.properties.items():
             self.serialized.property[key].string_value = val
 
+
 @typechecked
 @dataclass
 class Provider:
     name: str
-    function: str
-    config: Config
     description: str
     team: str
-    tags: list
-    properties: dict
+    config: Config
+    function: str
+    status: str = "NO_STATUS"
+    tags: list = None
+    properties: dict = None
+    error: Optional[str] = None
 
     def __post_init__(self):
-        self.software = self.config.software()
+        self.software = self.config.software() if self.config is not None else None
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -649,6 +665,22 @@ class Provider:
     @staticmethod
     def type() -> str:
         return "provider"
+
+    def get(self, stub) -> 'Provider':
+        name = pb.Name(name=self.name)
+        provider = next(stub.GetProviders(iter([name])))
+
+        return Provider(
+            name=provider.name,
+            description=provider.description,
+            function=provider.type,
+            team=provider.team,
+            config=EmptyConfig(),  # TODO add deserializer to configs
+            tags=list(provider.tags.tag),
+            properties={k: v for k, v in provider.properties.property.items()},
+            status=provider.status.Status._enum_type.values[provider.status.status].name,
+            error=provider.status.error_message
+        )
 
     def _create(self, stub) -> None:
         serialized = pb.Provider(
@@ -819,12 +851,13 @@ class Source:
     description: str
     tags: list
     properties: dict
+    status: str = "NO_STATUS"
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
     inputs = [],
-    status: str = "NO_STATUS"
+    error: Optional[str] = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
@@ -837,6 +870,52 @@ class Source:
     @staticmethod
     def type() -> str:
         return "source"
+
+    def get(self, stub):
+        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        source = None
+        for x in stub.GetSourceVariants(iter([name_variant])):
+            source = x
+            break
+
+        definition = self._get_source_definition(source)
+
+        return Source(
+            name=source.name,
+            definition=definition,
+            owner=source.owner,
+            provider=source.provider,
+            description=source.description,
+            variant=source.variant,
+            tags=list(source.tags.tag),
+            properties={k: v for k, v in source.properties.property.items()},
+            status=source.status.Status._enum_type.values[source.status.status].name,
+            error=source.status.error_message,
+        )
+
+    def _get_source_definition(self, source):
+        if source.primaryData.table.name:
+            return PrimaryData(
+                Location(source.primaryData.table.name)
+            )
+        elif source.transformation:
+            return self._get_transformation_definition(source)
+        else:
+            raise Exception(f"Invalid source type {source}")
+
+    def _get_transformation_definition(self, source):
+        if source.transformation.DFTransformation.query != bytes():
+            transformation = source.transformation.DFTransformation
+            return DFTransformation(
+                query=transformation.query,
+                inputs=[(input.name, input.variant) for input in transformation.inputs]
+            )
+        elif source.transformation.SQLTransformation.query != "":
+            return SQLTransformation(
+                source.transformation.SQLTransformation.query
+            )
+        else:
+            raise Exception(f"Invalid transformation type {source}")
 
     def _create(self, stub) -> None:
         defArgs = self.definition.kwargs()
@@ -977,12 +1056,13 @@ class Feature:
     provider: str
     location: ResourceLocation
     description: str
-    tags: list
-    properties: dict
+    tags: list = None
+    properties: dict = None
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
     status: str = "NO_STATUS"
+    error: Optional[str] = None
 
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]
@@ -1000,6 +1080,29 @@ class Feature:
     @staticmethod
     def type() -> str:
         return "feature"
+
+    def get(self, stub) -> "Feature":
+        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        feature = None
+        for x in stub.GetFeatureVariants(iter([name_variant])):
+            feature = x
+            break
+
+        return Feature(
+            name=feature.name,
+            variant=feature.variant,
+            source=(feature.source.name, feature.source.variant),
+            value_type=feature.type,
+            entity=feature.entity,
+            owner=feature.owner,
+            provider=feature.provider,
+            location=ResourceColumnMapping("", "", ""),
+            description=feature.description,
+            tags=list(feature.tags.tag),
+            properties={k: v for k, v in feature.properties.property.items()},
+            status=feature.status.Status._enum_type.values[feature.status.status].name,
+            error=feature.status.error_message,
+        )
 
     def _create(self, stub) -> None:
         serialized = pb.FeatureVariant(
@@ -1154,7 +1257,7 @@ class OnDemandFeatureDecorator:
             "tbd",
         )
         is_on_demand = 1
-    
+
         db.insert(
             "feature_computation_mode",
             self.name,
@@ -1189,8 +1292,9 @@ class Label:
     tags: list
     properties: dict
     location: ResourceLocation
-    variant: str = "default"
     status: str = "NO_STATUS"
+    variant: str = "default"
+    error: Optional[str] = None
 
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]
@@ -1204,6 +1308,29 @@ class Label:
     @staticmethod
     def type() -> str:
         return "label"
+
+    def get(self, stub) -> "Label":
+        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        label = None
+        for x in stub.GetLabelVariants(iter([name_variant])):
+            label = x
+            break
+
+        return Label(
+            name=label.name,
+            variant=label.variant,
+            source=(label.source.name, label.source.variant),
+            value_type=label.type,
+            entity=label.entity,
+            owner=label.owner,
+            provider=label.provider,
+            location=ResourceColumnMapping("", "", ""),
+            description=label.description,
+            tags=list(label.tags.tag),
+            properties={k: v for k, v in label.properties.property.items()},
+            status=label.status.Status._enum_type.values[label.status.status].name,
+            error=label.status.error_message
+        )
 
     def _create(self, stub) -> None:
         serialized = pb.LabelVariant(
@@ -1364,14 +1491,15 @@ class TrainingSet:
     label: NameVariant
     features: List[NameVariant]
     description: str
-    tags: list
-    properties: dict
     feature_lags: list = field(default_factory=list)
-    status: str = "NO_STATUS"
+    tags: list = None
+    properties: dict = None
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
     provider: str = ""
+    status: str = "NO_STATUS"
+    error: Optional[str] = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule_string=schedule)
@@ -1393,6 +1521,28 @@ class TrainingSet:
     @staticmethod
     def type() -> str:
         return "training-set"
+
+    def get(self, stub):
+        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        ts = None
+        for x in stub.GetTrainingSetVariants(iter([name_variant])):
+            ts = x
+            break
+
+        return TrainingSet(
+            name=ts.name,
+            variant=ts.variant,
+            owner=ts.owner,
+            description=ts.description,
+            status=ts.status.Status._enum_type.values[ts.status.status].name,
+            label=(ts.label.name, ts.label.variant),
+            features=[(f.name, f.variant) for f in ts.features],
+            feature_lags=[],
+            provider=ts.provider,
+            tags=list(ts.tags.tag),
+            properties={k: v for k, v in ts.properties.property.items()},
+            error=ts.status.error_message,
+        )
 
     def _create(self, stub) -> None:
         feature_lags = []
@@ -1568,7 +1718,6 @@ class ResourceState:
 
     def __init__(self):
         self.__state = {}
-        self.__create_list = []
 
     @typechecked
     def add(self, resource: Resource) -> None:
@@ -1582,12 +1731,10 @@ class ResourceState:
                 return
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
-        self.__create_list.append(resource)
         if hasattr(resource, 'schedule_obj') and resource.schedule_obj != None:
             my_schedule = resource.schedule_obj
             key = (my_schedule.type(), my_schedule.name)
             self.__state[key] = my_schedule
-            self.__create_list.append(my_schedule)
 
     def sorted_list(self) -> List[Resource]:
         resource_order = {
@@ -1599,6 +1746,7 @@ class ResourceState:
             "label": 5,
             "training-set": 6,
             "schedule": 7,
+            "model": 8
         }
 
         def to_sort_key(res):
@@ -1609,7 +1757,7 @@ class ResourceState:
         return sorted(self.__state.values(), key=to_sort_key)
 
     def create_all_dryrun(self) -> None:
-        for resource in self.__create_list:
+        for resource in self.__state.values():
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name)
             if resource.operation_type() is OperationType.CREATE:
@@ -1618,7 +1766,7 @@ class ResourceState:
     def create_all_local(self) -> None:
         db = SQLiteMetadata()
         check_up_to_date(True, "register")
-        for resource in self.__create_list:
+        for resource in self.__state.values():
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name)
                 resource._get_local(db)
@@ -1630,7 +1778,7 @@ class ResourceState:
 
     def create_all(self, stub) -> None:
         check_up_to_date(False, "register")
-        for resource in self.__create_list:
+        for resource in self.__state.values():
             if resource.type() == "provider" and resource.name == "local-mode":
                 continue
             try:
@@ -1734,7 +1882,7 @@ class SparkCredentials:
 
             if client_major != MAJOR_VERSION:
                 client_major = "3"
-            if minor not in MINOR_VERSIONS:
+            if client_minor not in MINOR_VERSIONS:
                 client_minor = "7"
 
             version = f"{client_major}.{client_minor}"

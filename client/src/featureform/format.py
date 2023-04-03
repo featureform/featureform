@@ -56,15 +56,16 @@ def display_statuses(stub, resources):
             if r.name == "local-mode":
                 continue
             resource = r.get(stub)
-            variant = getattr(resource, "variant", "")
-            status = Status(
-                resource_type=type(r),
-                name=resource.name,
-                variant=variant,
-                status=resource.status,
-                error=resource.error,
-            )
-            statuses.append(status)
+            if resource:
+                variant = getattr(resource, "variant", "")
+                status = Status(
+                    resource_type=type(r),
+                    name=resource.name,
+                    variant=variant,
+                    status=resource.status,
+                    error=resource.error,
+                )
+                statuses.append(status)
         return statuses
 
     def is_finished(statuses):

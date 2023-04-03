@@ -652,7 +652,7 @@ class Provider:
     function: str
     tags: list = None
     properties: dict = None
-    status: str = None,
+    status: str = None
     error: Optional[str] = None
 
     def __post_init__(self):

@@ -2914,11 +2914,11 @@ class ResourceClient(Registrar):
             self._stub = ff_grpc.ApiStub(channel)
             self._host = host
 
-    def apply(self, wait=True):
+    def apply(self, asynchronous=False):
         """
         Apply all definitions, creating and retrieving all specified resources.
 
-        @param wait: If true, wait for all resources to be ready before returning.
+        @param asynchronous: Wait for all resources to be ready before returning.
         """
         resource_state = state()
         if self._dry_run:
@@ -2930,7 +2930,7 @@ class ResourceClient(Registrar):
         else:
             resource_state.create_all(self._stub)
 
-        if wait and self._stub:
+        if not asynchronous and self._stub:
             resources = resource_state.sorted_list()
             display_statuses(self._stub, resources)
 

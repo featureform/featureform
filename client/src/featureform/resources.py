@@ -1746,6 +1746,7 @@ class ResourceState:
             "label": 5,
             "training-set": 6,
             "schedule": 7,
+            "model": 8
         }
 
         def to_sort_key(res):

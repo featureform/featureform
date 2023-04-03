@@ -1743,10 +1743,11 @@ class ResourceState:
             "source": 2,
             "entity": 3,
             "feature": 4,
-            "label": 5,
-            "training-set": 6,
-            "schedule": 7,
-            "model": 8
+            "ondemand_feature": 5,
+            "label": 6,
+            "training-set": 7,
+            "schedule": 8,
+            "model": 9
         }
 
         def to_sort_key(res):

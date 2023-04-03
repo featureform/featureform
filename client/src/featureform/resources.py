@@ -880,21 +880,18 @@ class Source:
 
         definition = self._get_source_definition(source)
 
-        try:
-            return Source(
-                name=source.name,
-                definition=definition,
-                owner=source.owner,
-                provider=source.provider,
-                description=source.description,
-                variant=source.variant,
-                tags=list(source.tags.tag),
-                properties={k: v for k, v in source.properties.property.items()},
-                status=source.status.Status._enum_type.values[source.status.status].name,
-                error=source.status.error_message,
-            )
-        except grpc._channel._MultiThreadedRendezvous:
-            print("Source variant not found.")
+        return Source(
+            name=source.name,
+            definition=definition,
+            owner=source.owner,
+            provider=source.provider,
+            description=source.description,
+            variant=source.variant,
+            tags=list(source.tags.tag),
+            properties={k: v for k, v in source.properties.property.items()},
+            status=source.status.Status._enum_type.values[source.status.status].name,
+            error=source.status.error_message,
+        )
 
     def _get_source_definition(self, source):
         if source.primaryData.table.name:

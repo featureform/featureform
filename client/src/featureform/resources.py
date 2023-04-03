@@ -675,8 +675,8 @@ class Provider:
             description=provider.description,
             function=provider.type,
             team=provider.team,
-            tags=list(provider.tags.tag),
             config=EmptyConfig(),  # TODO add deserializer to configs
+            tags=list(provider.tags.tag),
             properties={k: v for k, v in provider.properties.property.items()},
             status=provider.status.Status._enum_type.values[provider.status.status].name,
             error=provider.status.error_message
@@ -887,6 +887,8 @@ class Source:
             provider=source.provider,
             description=source.description,
             variant=source.variant,
+            tags=list(source.tags.tag),
+            properties={k: v for k, v in source.properties.property.items()},
             status=source.status.Status._enum_type.values[source.status.status].name,
             error=source.status.error_message,
         )
@@ -1096,6 +1098,8 @@ class Feature:
             provider=feature.provider,
             location=ResourceColumnMapping("", "", ""),
             description=feature.description,
+            tags=list(feature.tags.tag),
+            properties={k: v for k, v in feature.properties.property.items()},
             status=feature.status.Status._enum_type.values[feature.status.status].name,
             error=feature.status.error_message,
         )
@@ -1322,6 +1326,8 @@ class Label:
             provider=label.provider,
             location=ResourceColumnMapping("", "", ""),
             description=label.description,
+            tags=list(label.tags.tag),
+            properties={k: v for k, v in label.properties.property.items()},
             status=label.status.Status._enum_type.values[label.status.status].name,
             error=label.status.error_message
         )
@@ -1533,9 +1539,8 @@ class TrainingSet:
             features=[(f.name, f.variant) for f in ts.features],
             feature_lags=[],
             provider=ts.provider,
-            # TODO: apply values from proto
-            tags=[],
-            properties={},
+            tags=list(ts.tags.tag),
+            properties={k: v for k, v in ts.properties.property.items()},
             error=ts.status.error_message,
         )
 

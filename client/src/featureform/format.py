@@ -116,11 +116,12 @@ def display_statuses(stub, resources):
                     "FAILED": "red",
                 }
 
+                style = status_to_color[status_text]
                 table.add_row(
-                    resource_type,
-                    f"{name} ({status.variant})",
+                    Text(resource_type, style=style),
+                    Text(f"{name} ({status.variant})", style=style),
                     Text(status_text, style=status_to_color[status_text]),
-                    error,
+                    Text(error, style="red")
                 )
 
             live.update(table)

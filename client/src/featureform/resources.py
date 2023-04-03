@@ -650,9 +650,9 @@ class Provider:
     team: str
     config: Config
     function: str
+    status: str = "NO_STATUS"
     tags: list = None
     properties: dict = None
-    status: str = None
     error: Optional[str] = None
 
     def __post_init__(self):
@@ -851,12 +851,12 @@ class Source:
     description: str
     tags: list
     properties: dict
+    status: str = "NO_STATUS"
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
     inputs = [],
-    status: str = "NO_STATUS",
     error: Optional[str] = None
 
     def update_schedule(self, schedule) -> None:
@@ -1288,8 +1288,8 @@ class Label:
     tags: list
     properties: dict
     location: ResourceLocation
-    variant: str = "default"
     status: str = "NO_STATUS"
+    variant: str = "default"
     error: Optional[str] = None
 
     def __post_init__(self):

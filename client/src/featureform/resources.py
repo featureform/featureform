@@ -8,7 +8,7 @@ import time
 import base64
 from enum import Enum
 from typeguard import typechecked
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 
 import dill
 import grpc
@@ -612,10 +612,23 @@ class K8sConfig:
         return bytes(json.dumps(config), "utf-8")
 
 
+@typechecked
+@dataclass
+class EmptyConfig:
+    def software(self) -> str:
+        return ""
+
+    def type(self) -> str:
+        return ""
+
+    def serialize(self) -> bytes:
+        return bytes("", "utf-8")
+
+
 Config = Union[
     RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig,
     FirestoreConfig, SparkConfig, OnlineBlobConfig, AzureFileStoreConfig, S3StoreConfig, K8sConfig,
-    MongoDBConfig, GCSFileStoreConfig
+    MongoDBConfig, GCSFileStoreConfig, EmptyConfig
 ]
 
 @typechecked
@@ -635,8 +648,8 @@ class Provider:
     name: str
     description: str
     team: str
-    config: Optional[Config] = None  # TODO remove optional and add deserializer to configs
-    function: str = None
+    config: Config
+    function: str
     tags: list = None
     properties: dict = None
     status: str = None,
@@ -660,8 +673,10 @@ class Provider:
         return Provider(
             name=provider.name,
             description=provider.description,
+            function=provider.type,
             team=provider.team,
             tags=list(provider.tags.tag),
+            config=EmptyConfig(),  # TODO add deserializer to configs
             properties={k: v for k, v in provider.properties.property.items()},
             status=provider.status.Status._enum_type.values[provider.status.status].name,
             error=provider.status.error_message

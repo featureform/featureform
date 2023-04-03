@@ -2,7 +2,6 @@ import time
 from typing import Type, List
 
 from dataclasses import dataclass
-from featureform import Feature, TrainingSet, Label, Source, Provider
 from rich.console import Console
 from rich.live import Live
 from rich.table import Table
@@ -38,6 +37,9 @@ def format_pg(s=""):
 
 
 def display_statuses(stub, resources):
+
+    from featureform import Feature, TrainingSet, Label, Source, Provider
+
     @dataclass
     class Status:
         resource_type: Type
@@ -51,7 +53,7 @@ def display_statuses(stub, resources):
         resources_to_check = {Feature, TrainingSet, Label, Source, Provider}
         filtered_resources = filter(lambda r: type(r) in resources_to_check, resources)
         for r in filtered_resources:
-            if r.name == "local-model":
+            if r.name == "local-mode":
                 continue
             resource = r.get(stub)
             variant = getattr(resource, "variant", "")
@@ -66,6 +68,9 @@ def display_statuses(stub, resources):
         return statuses
 
     def is_finished(statuses):
+        """
+        Returns True if all statuses are either READY or FAILED
+        """
         return all(
             s.status == "READY"
             or s.status == "FAILED"
@@ -80,7 +85,9 @@ def display_statuses(stub, resources):
             statuses = get_statuses()
             finished_running = is_finished(statuses)
 
-            title = f"[green]COMPLETED[/]" if finished_running else f"[yellow]RUNNING...[/]"
+            title = (
+                f"[green]COMPLETED[/]" if finished_running else f"[yellow]RUNNING...[/]"
+            )
             table = Table(
                 title=title,
                 title_justify="left",
@@ -97,25 +104,22 @@ def display_statuses(stub, resources):
                 error = f" {status.error}" if status.error else ""
                 resource_type = status.resource_type.__name__
                 name = status.name
-                status_text = status.status
+                status_text = (
+                    status.status if status.resource_type is not Provider else "CREATED"
+                )
 
-                if status.resource_type is Provider:
-                    if status.status == "NO_STATUS":
-                        status_text = "CREATED"
-                        status_style = "green"
-                elif status.status == "READY":
-                    status_style = "green"
-                elif status.status == "PENDING":
-                    status_style = "yellow"
-                elif status.status == "NO_STATUS":
-                    status_style = "blue"
-                else:
-                    status_style = "red"
+                status_to_color = {
+                    "READY": "green",
+                    "CREATED": "green",
+                    "PENDING": "yellow",
+                    "NO_STATUS": "white",
+                    "FAILED": "red",
+                }
 
                 table.add_row(
                     resource_type,
                     f"{name} ({status.variant})",
-                    Text(status_text, style=status_style),
+                    Text(status_text, style=status_to_color[status_text]),
                     error,
                 )
 

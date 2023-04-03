@@ -187,7 +187,7 @@ def apply(host, cert, insecure, local, files, dry_run, no_wait):
                 f"Argument must be a path to a file or URL with a valid schema (http:// or https://): {file}")
 
     rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert, dry_run=dry_run)
-    asynchronous = not no_wait
+    asynchronous = no_wait
     rc.apply(asynchronous=asynchronous)
 
 

@@ -173,7 +173,10 @@ def dash():
 @click.option("--dry-run",
               is_flag=True,
               help="Checks the definitions without applying them")
-def apply(host, cert, insecure, local, files, dry_run):
+@click.option("--no-wait",
+              is_flag=True,
+              help="Applies the resources asynchronously")
+def apply(host, cert, insecure, local, files, dry_run, no_wait):
     for file in files:
         if os.path.isfile(file):
             read_file(file)
@@ -184,7 +187,9 @@ def apply(host, cert, insecure, local, files, dry_run):
                 f"Argument must be a path to a file or URL with a valid schema (http:// or https://): {file}")
 
     rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert, dry_run=dry_run)
-    rc.apply()
+    asynchronous = no_wait
+    rc.apply(asynchronous=asynchronous)
+
 
 @cli.command()
 @click.option("--query",

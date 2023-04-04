@@ -18,7 +18,7 @@ detection dataset using Postgres and Redis.
 ## Step 1: Install The Featureform CLI
 
 ```shell
-> pip install featureform
+pip install featureform
 ```
 
 ## Step 2: Pull Containers
@@ -30,15 +30,15 @@ we'll just be using a sample of it.
 We'll also run the Featureform container in the foreground so logs are available.
 
 ```shell
-> docker run -d -p 5432:5432 featureformcom/postgres
-> docker run -d -p 6379:6379 redis
-> docker run -p 7878:7878 -p 80:80 featureformcom/featureform
+docker run -d -p 5432:5432 featureformcom/postgres
+docker run -d -p 6379:6379 redis
+docker run -p 7878:7878 -p 80:80 featureformcom/featureform
 ```
 
 Note: If using an M1 Mac, run the following command instead for compatibility
 
 ```shell
-> docker run -p 7878:7878 -p 80:80 -e ETCD_ARCH="ETCD_UNSUPPORTED_ARCH=arm64" featureformcom/featureform
+docker run -p 7878:7878 -p 80:80 -e ETCD_ARCH="ETCD_UNSUPPORTED_ARCH=arm64" featureformcom/featureform
 ```
 
 Wait 30-60 seconds to allow the Postgres container to fully initialize the sample data.
@@ -48,7 +48,7 @@ Wait 30-60 seconds to allow the Postgres container to fully initialize the sampl
 We can store the address of our container endpoint for applying definitions and serving later.
 
 ```shell
-> export FEATUREFORM_HOST=localhost:7878 
+export FEATUREFORM_HOST=localhost:7878 
 ```
 
 ## Step 4: Apply Definitions
@@ -58,7 +58,7 @@ Featureform definitions can be stored as both a local file and URL. Multiple fil
 We'll set the `--insecure` flag since we're using an unencrypted endpoint on the container.
 
 ```shell
-> featureform apply https://featureform-demo-files.s3.amazonaws.com/definitions.py --insecure
+featureform apply https://featureform-demo-files.s3.amazonaws.com/definitions.py --insecure
 ```
 
 ## Step 5: Dashboard and Serving
@@ -70,14 +70,14 @@ In the dashboard you should be able to see that 2 Sources, 1 Feature, 1 Label, a
 You can check also check the status of the training set with:
 
 ```shell
-> featureform get training-set fraud_training default --insecure
+featureform get training-set fraud_training default --insecure
 ```
 
 When the status of these resources is READY, you can serve them with:
 
 ```shell
-> curl https://featureform-demo-files.s3.amazonaws.com/serving.py -o serving.py && python serving.py
-> curl https://featureform-demo-files.s3.amazonaws.com/training.py -o training.py && python training.py
+curl https://featureform-demo-files.s3.amazonaws.com/serving.py -o serving.py && python serving.py
+curl https://featureform-demo-files.s3.amazonaws.com/training.py -o training.py && python training.py
 ```
 
 This will download and run sample serving and training scripts, which will serve a single feature value and a sample
@@ -162,7 +162,7 @@ class User:
 
 ff.register_training_set(
     "fraud_training",
-    label="fraudulent",
+    label=("fraudulent", "quickstart"),
     features=["avg_transactions"],
 )
 ```

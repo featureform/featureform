@@ -37,8 +37,7 @@ def format_pg(s=""):
 
 
 def display_statuses(stub, resources):
-
-    from featureform import Feature, TrainingSet, Label, Source, Provider
+    from featureform.resources import Feature, TrainingSet, Label, Source, Provider
 
     @dataclass
     class Status:

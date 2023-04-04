@@ -16,7 +16,11 @@ do
     printf -- '-%.0s' $(seq 100); echo ""
     filename="${f##*/}"
     echo "Applying '$filename' definition"
-    featureform apply $f
+    if [ $# -eq 2 ]; then
+        featureform apply --no-wait $f
+    else
+        featureform apply $f
+    fi
 
     echo -e "\nNow serving '$filename'"
     python $TESTING_DIRECTORY/serving.py

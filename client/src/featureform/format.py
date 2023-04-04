@@ -37,7 +37,7 @@ def format_pg(s=""):
 
 
 def display_statuses(stub, resources):
-    from featureform.resources import Feature, TrainingSet, Label, Source, Provider
+    from featureform.resources import Feature, OnDemandFeature, TrainingSet, Label, Source, Provider
 
     @dataclass
     class Status:
@@ -49,7 +49,7 @@ def display_statuses(stub, resources):
 
     def get_statuses() -> List[Status]:
         statuses = []
-        resources_to_check = {Feature, TrainingSet, Label, Source, Provider}
+        resources_to_check = {Feature, OnDemandFeature, TrainingSet, Label, Source, Provider}
         filtered_resources = filter(lambda r: type(r) in resources_to_check, resources)
         for r in filtered_resources:
             if r.name == "local-mode":
@@ -94,7 +94,7 @@ def display_statuses(stub, resources):
                 header_style="bold",
                 box=None,
             )
-            table.add_column("Resource Type")
+            table.add_column("Resource Type", width=25)
             table.add_column("Name (Variant)", width=50, no_wrap=True)
             table.add_column("Status", width=10)
             table.add_column("Error", style="red")
@@ -117,8 +117,8 @@ def display_statuses(stub, resources):
 
                 style = status_to_color[status_text]
                 table.add_row(
-                    Text(resource_type, style=style),
-                    Text(f"{name} ({status.variant})", style=style),
+                    Text(resource_type),
+                    Text(f"{name} ({status.variant})"),
                     Text(status_text, style=status_to_color[status_text]),
                     Text(error, style="red")
                 )

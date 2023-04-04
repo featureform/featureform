@@ -1177,22 +1177,17 @@ class Feature:
                 return False
         return True
 
-
-class OnDemandFeatureDecorator:
-    def __init__(self,
-                 owner: str,
-                 tags: List[str] = None,
-                 properties: dict = {},
-                 variant: str = "default",
-                 name: str = "",
-                 description: str = ""):
-        self.name = name
-        self.variant = variant
-        self.owner = owner
-        self.description = description
-        self.tags = tags
-        self.properties = properties
-        self.status = "READY"
+@typechecked
+@dataclass
+class OnDemandFeature:
+    owner: str
+    tags: List[str] = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
+    variant: str = "default"
+    name: str = ""
+    description: str = ""
+    status: str = "READY"
+    error: Optional[str] = None
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:
@@ -1264,6 +1259,24 @@ class OnDemandFeatureDecorator:
             self.variant,
             ComputationMode.CLIENT_COMPUTED.value,
             is_on_demand,
+        )
+    
+    def get(self, stub) -> "OnDemandFeature":
+        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        ondemand_feature = None
+        for x in stub.GetFeatureVariants(iter([name_variant])):
+            ondemand_feature = x
+            break
+
+        return OnDemandFeature(
+            name=ondemand_feature.name,
+            variant=ondemand_feature.variant,
+            owner=ondemand_feature.owner,
+            description=ondemand_feature.description,
+            tags=list(ondemand_feature.tags.tag),
+            properties={k: v for k, v in ondemand_feature.properties.property.items()},
+            status=ondemand_feature.status.Status._enum_type.values[ondemand_feature.status.status].name,
+            error=ondemand_feature.status.error_message,
         )
 
     def get_status(self):
@@ -1700,7 +1713,7 @@ class Model:
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
-                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference, Model, OnDemandFeatureDecorator]
+                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference, Model, OnDemandFeature]
 
 
 class ResourceRedefinedError(Exception):

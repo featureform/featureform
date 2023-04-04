@@ -369,7 +369,7 @@ test_e2e: update_python					## Runs End-to-End tests on minikube
 	while ! echo exit | nc localhost 7000; do sleep 10; done
 	while ! echo exit | nc localhost 2379; do sleep 10; done
 
-	featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
+	featureform apply --no-wait client/examples/quickstart.py --host localhost:8000 --cert tls.crt
 	pytest client/tests/e2e.py
 	pytest -m 'hosted' client/tests/test_serving_model.py
 	pytest -m 'hosted' client/tests/test_getting_model.py

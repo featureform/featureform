@@ -873,11 +873,7 @@ class Source:
 
     def get(self, stub):
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
-        source = None
-        for x in stub.GetSourceVariants(iter([name_variant])):
-            source = x
-            break
-
+        source = next(stub.GetSourceVariants(iter([name_variant])))
         definition = self._get_source_definition(source)
 
         return Source(
@@ -1083,10 +1079,7 @@ class Feature:
 
     def get(self, stub) -> "Feature":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
-        feature = None
-        for x in stub.GetFeatureVariants(iter([name_variant])):
-            feature = x
-            break
+        feature = next(stub.GetFeatureVariants(iter([name_variant])))
 
         return Feature(
             name=feature.name,
@@ -1263,10 +1256,7 @@ class OnDemandFeature:
     
     def get(self, stub) -> "OnDemandFeature":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
-        ondemand_feature = None
-        for x in stub.GetFeatureVariants(iter([name_variant])):
-            ondemand_feature = x
-            break
+        ondemand_feature = next(stub.GetFeatureVariants(iter([name_variant])))
 
         return OnDemandFeature(
             name=ondemand_feature.name,
@@ -1324,10 +1314,7 @@ class Label:
 
     def get(self, stub) -> "Label":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
-        label = None
-        for x in stub.GetLabelVariants(iter([name_variant])):
-            label = x
-            break
+        label = next(stub.GetLabelVariants(iter([name_variant])))
 
         return Label(
             name=label.name,
@@ -1537,10 +1524,7 @@ class TrainingSet:
 
     def get(self, stub):
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
-        ts = None
-        for x in stub.GetTrainingSetVariants(iter([name_variant])):
-            ts = x
-            break
+        ts = next(stub.GetTrainingSetVariants(iter([name_variant])))
 
         return TrainingSet(
             name=ts.name,

@@ -17,6 +17,8 @@ do
     filename="${f##*/}"
     echo "Applying '$filename' definition"
     if [ $# -eq 2 ]; then
+        # we need to do this on Minikube in order to avoid the grpc failure because of the wait.
+        # this is a temporary fix until we can figure out why the wait is failing on Minikube.
         featureform apply --no-wait $f
     else
         featureform apply $f

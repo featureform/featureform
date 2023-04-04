@@ -873,11 +873,7 @@ class Source:
 
     def get(self, stub):
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
-        source = None
-        for x in stub.GetSourceVariants(iter([name_variant])):
-            source = x
-            break
-
+        source = next(stub.GetSourceVariants(iter([name_variant])))
         definition = self._get_source_definition(source)
 
         return Source(
@@ -1083,10 +1079,7 @@ class Feature:
 
     def get(self, stub) -> "Feature":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
-        feature = None
-        for x in stub.GetFeatureVariants(iter([name_variant])):
-            feature = x
-            break
+        feature = next(stub.GetFeatureVariants(iter([name_variant])))
 
         return Feature(
             name=feature.name,
@@ -1177,22 +1170,17 @@ class Feature:
                 return False
         return True
 
-
-class OnDemandFeatureDecorator:
-    def __init__(self,
-                 owner: str,
-                 tags: List[str] = None,
-                 properties: dict = {},
-                 variant: str = "default",
-                 name: str = "",
-                 description: str = ""):
-        self.name = name
-        self.variant = variant
-        self.owner = owner
-        self.description = description
-        self.tags = tags
-        self.properties = properties
-        self.status = "READY"
+@typechecked
+@dataclass
+class OnDemandFeature:
+    owner: str
+    tags: List[str] = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
+    variant: str = "default"
+    name: str = ""
+    description: str = ""
+    status: str = "READY"
+    error: Optional[str] = None
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:
@@ -1265,6 +1253,21 @@ class OnDemandFeatureDecorator:
             ComputationMode.CLIENT_COMPUTED.value,
             is_on_demand,
         )
+    
+    def get(self, stub) -> "OnDemandFeature":
+        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        ondemand_feature = next(stub.GetFeatureVariants(iter([name_variant])))
+
+        return OnDemandFeature(
+            name=ondemand_feature.name,
+            variant=ondemand_feature.variant,
+            owner=ondemand_feature.owner,
+            description=ondemand_feature.description,
+            tags=list(ondemand_feature.tags.tag),
+            properties={k: v for k, v in ondemand_feature.properties.property.items()},
+            status=ondemand_feature.status.Status._enum_type.values[ondemand_feature.status.status].name,
+            error=ondemand_feature.status.error_message,
+        )
 
     def get_status(self):
         return ResourceStatus(self.status)
@@ -1311,10 +1314,7 @@ class Label:
 
     def get(self, stub) -> "Label":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
-        label = None
-        for x in stub.GetLabelVariants(iter([name_variant])):
-            label = x
-            break
+        label = next(stub.GetLabelVariants(iter([name_variant])))
 
         return Label(
             name=label.name,
@@ -1524,10 +1524,7 @@ class TrainingSet:
 
     def get(self, stub):
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
-        ts = None
-        for x in stub.GetTrainingSetVariants(iter([name_variant])):
-            ts = x
-            break
+        ts = next(stub.GetTrainingSetVariants(iter([name_variant])))
 
         return TrainingSet(
             name=ts.name,
@@ -1700,7 +1697,7 @@ class Model:
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
-                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference, Model, OnDemandFeatureDecorator]
+                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference, Model, OnDemandFeature]
 
 
 class ResourceRedefinedError(Exception):

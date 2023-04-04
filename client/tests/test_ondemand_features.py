@@ -5,7 +5,7 @@ import pytest
 import numpy as np
 
 import featureform as ff
-from featureform.resources import OnDemandFeatureDecorator, ResourceStatus
+from featureform.resources import OnDemandFeature, ResourceStatus
 
 
 @pytest.fixture(autouse=True)
@@ -20,8 +20,8 @@ def test_ondemand_feature_decorator_class():
     name = "test_ondemand_feature"
     owner = "ff_tester"
 
-    decorator = OnDemandFeatureDecorator(owner=owner, name=name)
-    decorator_2 = OnDemandFeatureDecorator(owner=owner, name=name)
+    decorator = OnDemandFeature(owner=owner, name=name)
+    decorator_2 = OnDemandFeature(owner=owner, name=name)
 
     assert decorator.name_variant() == (name, "default")
     assert decorator.type() == "ondemand_feature"
@@ -34,7 +34,7 @@ def test_ondemand_feature_decorator_class():
 def test_ondemand_decorator():
     owner = "ff_tester"
 
-    @OnDemandFeatureDecorator(owner=owner)
+    @OnDemandFeature(owner=owner)
     def test_fn():
         return 1 + 1
 

@@ -16,7 +16,7 @@ description: >-
 Install the Featureform SDK via Pip.
 
 ```shell
-> pip install featureform
+pip install featureform
 ```
 
 ## Step 2: Download test data
@@ -142,7 +142,7 @@ ff.register_training_set(
 Now that our definitions are complete, we can apply it to our Featureform instance.
 
 ```shell
-> featureform apply definitions.py --local
+featureform apply definitions.py --local
 ```
 
 ## Step 4: Serve features for training and inference

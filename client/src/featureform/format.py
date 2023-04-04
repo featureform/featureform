@@ -129,4 +129,4 @@ def display_statuses(stub, resources):
             if finished_running:
                 break
 
-            time.sleep(1)
+            time.sleep(10)

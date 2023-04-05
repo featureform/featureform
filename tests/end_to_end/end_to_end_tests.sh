@@ -16,7 +16,13 @@ do
     printf -- '-%.0s' $(seq 100); echo ""
     filename="${f##*/}"
     echo "Applying '$filename' definition"
-    featureform apply $f
+    if [ $# -eq 2 ]; then
+        # we need to do this on Minikube in order to avoid the grpc failure because of the wait.
+        # this is a temporary fix until we can figure out why the wait is failing on Minikube.
+        featureform apply --no-wait $f
+    else
+        featureform apply $f
+    fi
 
     echo -e "\nNow serving '$filename'"
     python $TESTING_DIRECTORY/serving.py

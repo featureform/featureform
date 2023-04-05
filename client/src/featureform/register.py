@@ -20,7 +20,7 @@ from .resources import ColumnTypes, Model, ResourceState, Provider, RedisConfig,
     AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, S3StoreConfig, GCSFileStoreConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation, \
-    K8sArgs, AWSCredentials, GCPCredentials, HDFSConfig, K8sResourceSpecs, FilePrefix, OnDemandFeatureDecorator
+    K8sArgs, AWSCredentials, GCPCredentials, HDFSConfig, K8sResourceSpecs, FilePrefix, OnDemandFeature
 
 from .proto import metadata_pb2_grpc as ff_grpc
 from .search_local import search_local
@@ -2542,7 +2542,7 @@ class Registrar:
     def ondemand_feature(self, 
                           fn=None, *,
                           tags: List[str] = None,
-                          properties: dict = {},
+                          properties: dict = None,
                           variant: str = "default",
                           name: str = "",
                           owner: Union[str, UserRegistrar] = "",
@@ -2559,7 +2559,7 @@ class Registrar:
             properties (dict): Optional grouping mechanism for resources
 
         Returns:
-            decorator (OnDemandFeatureDecorator): decorator
+            decorator (OnDemandFeature): decorator
 
         **Examples**
         ```python
@@ -2574,13 +2574,13 @@ class Registrar:
         if owner == "":
             owner = self.must_get_default_owner()
     
-        decorator = OnDemandFeatureDecorator(
+        decorator = OnDemandFeature(
             name=name,
             variant=variant,
             owner=owner,
             description=description,
-            tags=tags,
-            properties=properties,
+            tags=tags or [],
+            properties=properties or {},
         )
         self.__resources.append(decorator)
         

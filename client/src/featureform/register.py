@@ -1273,7 +1273,7 @@ class Registrar:
         """
         get = ProviderReference(name=name, provider_type="snowflake", obj=None)
         self.__resources.append(get)
-        fakeConfig = SnowflakeConfig(account="", database="", organization="", username="", password="", schema="")
+        fakeConfig = SnowflakeConfig(account="ff_fake", database="ff_fake", organization="ff_fake", username="ff_fake", password="ff_fake", schema="ff_fake")
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSQLProvider(self, fakeProvider)
 

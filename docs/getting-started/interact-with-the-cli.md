@@ -9,7 +9,7 @@ The **apply** command submits resource definitions to the Featureform instance.&
 The argument can either be a path to a local file or the url of a hosted file. Multiple files can be included at a time.
 
 ```shell
-> featureform apply --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT <definitions.py>
+featureform apply --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT <definitions.py>
 ```
 
 Upon success, all definitions in the **definitions.py** (or whatever you choose to call it) file will be sent to the Featureform instance, logged in the metadata, and materialized with the registered providers.
@@ -19,7 +19,7 @@ After applying new resource definitions, you can use the **GET** command to see 
 ## DASH Command
 
 ```shell
-> featureform dash
+featureform dash
 ```
 
 The **DASH** command is used to access the featureform dashboard. It returns a URL to the locally hosted dashboard.
@@ -41,7 +41,7 @@ Each resource can then be clicked on to learn more.
 The **GET** command displays status, variants, and other metadata on a resource.
 
 ```shell
-> featureform get RESOURCE_TYPE NAME [VARIANT] --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
+featureform get RESOURCE_TYPE NAME [VARIANT] --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
 ```
 
 **RESOURCE\_TYPE** (required) can be:
@@ -66,8 +66,8 @@ The commands are both valid ways to retrieve information on the user **"featuref
 The first is with certification. The second without; the **--insecure** flag disables the need for the **--cert** flag
 
 ```shell
-> featureform get user featureformer --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
-> featureform get user featureformer --insecure --host $FEATUREFORM_HOST
+featureform get user featureformer --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
+featureform get user featureformer --insecure --host $FEATUREFORM_HOST
 ```
 
 Either command returns the following output.&#x20;
@@ -90,7 +90,7 @@ Listed below the user are all the resources registered to that user.
 The following command shows how to retrieve information on a specific resource, a **feature** named **"avg\_transactions"**.
 
 ```shell
-> featureform get feature avg_transactions --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
+featureform get feature avg_transactions --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
 
 NAME:  avg_transactions
 STATUS:  NO_STATUS
@@ -106,7 +106,7 @@ prodThis would be the output:
 The command below retrieves information on the specific variant of the **feature** "**avg\_transactions", "quickstart"**
 
 ```shell
-> featureform get feature avg_transactions quickstart --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
+featureform get feature avg_transactions quickstart --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
 
 NAME:                avg_transactions
 VARIANT:             quickstart     
@@ -133,7 +133,7 @@ Listed below are the metadata on that variant, as well as its source and the tra
 The **LIST** command displays the name, variant and status of all the resources of that resource type.
 
 ```shell
-> featureform list RESOURCE_TYPE --host $FEATUREFORM_HOST –cert $FEATUREFORM_CERT
+featureform list RESOURCE_TYPE --host $FEATUREFORM_HOST –cert $FEATUREFORM_CERT
 ```
 
 **RESOURCE\_TYPE** (required) can be:
@@ -161,7 +161,7 @@ The commands are both valid ways to retrieve a list of users. The first is when 
 The following uses the local flag to access resources created and stored in localmode:
 
 ``` shell
-> featureform list users –-local
+featureform list users –-local
 ```
 
 The above commands return the following list of users which have been registered:
@@ -175,14 +175,14 @@ featureformer      ready
 ### Example: Getting the list of resources of a given type
 
 ```shell
-> featureform list features --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
-> featureform list features --insecure --host $FEATUREFORM_HOST
+featureform list features --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
+featureform list features --insecure --host $FEATUREFORM_HOST
 ```
 
 In local mode:
 
 ```shell
-> featureform list features –-local
+featureform list features –-local
 ```
 
 The given commands return the list of registered features and their variants

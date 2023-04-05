@@ -152,7 +152,7 @@ A Training Set can be created by joining our feature and label together.
 @ff.entity
 class User:
     avg_transactions = ff.Feature(
-        average_user_transaction[["user_id", "avg_transaction_amt"]],
+        average_user_transaction[["user_id", "avg_transaction_amt"]], # We can optional include the `timestamp_column` "timestamp" here
         type=ff.Float32,
         inference_store=redis,
     )

@@ -83,7 +83,7 @@ Next, we'll register a passenger entity to associate with a feature and label.
 @ff.entity
 class User:
     avg_transactions = ff.Feature(
-        average_user_transaction[["CustomerID", "TransactionAmount"]],
+        average_user_transaction[["CustomerID", "TransactionAmount"]], # We can optional include the `timestamp_column` "Timestamp" here
         variant="quickstart",
         type=ff.Float32,
         inference_store=local,

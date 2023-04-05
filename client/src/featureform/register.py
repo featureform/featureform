@@ -2966,6 +2966,8 @@ class ResourceClient(Registrar):
             resources = resource_state.sorted_list()
             display_statuses(self._stub, resources)
 
+        self.clear_state()
+
 
     def get_user(self, name, local=False):
         """Get a user. Prints out name of user, and all resources associated with the user.

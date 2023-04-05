@@ -107,6 +107,16 @@ def test_invalid_model_registration():
     with pytest.raises(TypeError, match="missing 1 required positional argument: 'name'"):
         model = ff.register_model()
 
+@pytest.mark.parametrize(
+    "provider_name,func",
+    [
+        ("snowflake", ff.get_snowflake),
+        ("snowflake_legacy", ff.get_snowflake_legacy)
+    ]
+)
+def test_get_snowflake_functions(provider_name, func):
+    offlineSQLProvider = func(provider_name)
+    assert offlineSQLProvider.name() == provider_name
 
 def del_rw(action, name, exc):
     os.chmod(name, stat.S_IWRITE)

@@ -626,6 +626,8 @@ class LocalSource:
         col_len = len(columns)
         if col_len < 2:
             raise Exception(f"Expected 2 columns, but found {col_len}. Missing entity and/or source columns")
+        elif col_len > 3:
+            raise Exception(f"Found unrecognized columns {', '.join(columns[3:])}. Expected 2 required columns and an optional 3rd timestamp column")
         return (self.registrar, self.name_variant(), columns)
 
     def name_variant(self):
@@ -722,10 +724,12 @@ class SubscriptableTransformation:
         self.name_variant = decorator_name_variant_method.__get__(self)
         pass
 
-    def __getitem__(self, columns):
+    def __getitem__(self, columns: List[str]):
         col_len = len(columns)
         if col_len < 2:
             raise Exception(f"Expected 2 columns, but found {col_len}. Missing entity and/or source columns")
+        elif col_len > 3:
+            raise Exception(f"Found unrecognized columns {', '.join(columns[3:])}. Expected 2 required columns and an optional 3rd timestamp column")
         return (self.registrar, self.name_variant(), columns)
 
     def __call__(self, *args, **kwds):
@@ -905,6 +909,8 @@ class ColumnSourceRegistrar(SourceRegistrar):
         col_len = len(columns)
         if col_len < 2:
             raise Exception(f"Expected 2 columns, but found {col_len}. Missing entity and/or source columns")
+        elif col_len > 3:
+            raise Exception(f"Found unrecognized columns {', '.join(columns[3:])}. Expected 2 required columns and an optional 3rd timestamp column")
         return (self.registrar(), self.id(), columns)
 
     def register_resources(
@@ -4128,7 +4134,12 @@ class ColumnResource:
         self.variant = variant
         self.owner = owner
         self.inference_store = inference_store
-        self.timestamp_column = timestamp_column
+        if not timestamp_column and len(columns) == 3:
+            self.timestamp_column = columns[2]
+        elif timestamp_column and len(columns) == 3:
+            raise Exception("Timestamp column specified twice.")
+        else:
+            self.timestamp_column = timestamp_column
         self.description = description
         self.schedule = schedule
         self.tags = tags

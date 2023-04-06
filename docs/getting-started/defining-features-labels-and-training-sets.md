@@ -2,15 +2,15 @@
 
 Once we have our fully transformed sources, we can register their columns as features and labels. We can then join a label with a set of features to create a training set.
 
-## Registering Entities
+## Registering Entities, Features and Labels
 
 Every feature must describe an entity. An entity can be thought of as a primary key table, and every feature must have at least a single foreign key entity field. Common entities include users, items, and purchases. Entities can be anything that a feature can describe.
 
 ```python
-passenger = ff.register_entity("passenger")
+@ff.entity
+class Passenger:
+    # ...
 ```
-
-## Registering Features and Labels
 
 Once our entities are specified, we can begin to associate features and labels with them.
 Features and labels are each made up of at least two columns, an entity column and a value column.
@@ -23,23 +23,19 @@ or a [Transformation.](transforming-data.md#defining-transformations)
 ### Without Timestamp
 
 ```python
-# Register a column from a transformation as a feature
-fare_per_family_member.register_resources(
-    entity=passenger,
-    entity_column="PassengerID",
-    inference_store=redis,
-    features=[
-        {"name": "fpf", "variant": "quickstart", "column": "Fare / Parch", "type": "float64"},
-    ],
-)
-# Register label from the original file
-titanic.register_resources(
-    entity=passenger,
-    entity_column="PassengerID",
-    labels=[
-        {"name": "survived", "variant": "quickstart", "column": "Survived", "type": "int"},
-    ],
-)
+@ff.entity
+class Passenger:
+    # Register a column from a transformation as a feature
+    fpf = ff.Feature(
+        fare_per_family_member[["PassengerID", "Fare / Parch"]],
+        variant="quickstart",
+        type=ff.Float64,
+        inference_store=redis,
+    )
+    # Register label from the original file
+    survived = ff.Label(
+        titanic[["PassengerID", "Survived"]], variant="quickstart", type=ff.Int
+    )
 ```
 
 ### With Timestamp
@@ -47,16 +43,15 @@ titanic.register_resources(
 This example is based off of a fraud training set with a CustomerID, TransactionID, Amount, and Transaction Time.
 
 ```python
-# Register a column from a transformation as a feature
-transactions.register_resources(
-    entity=customer,
-    entity_column="CustomerID",
-    inference_store=redis,
-    features=[
-        {"name": "transaction_amount", "variant": "quickstart", "column": "amount", "type": "float64"},
-    ],
-    timestamp_column="transaction_time"
-)
+@ff.entity
+class Customer:
+    # Register a column from a transformation as a feature
+    transaction_amount = ff.Feature(
+        fare_per_family_member[["CustomerID", "Amount", "Transaction Time"]],
+        variant="quickstart",
+        type=ff.Float64,
+        inference_store=redis,
+    )
 ```
 
 ## Registering Training Sets

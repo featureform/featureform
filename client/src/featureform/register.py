@@ -20,7 +20,7 @@ from .resources import ColumnTypes, Model, ResourceState, Provider, RedisConfig,
     AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, S3StoreConfig, GCSFileStoreConfig, User, Location, Source, PrimaryData, SQLTable, \
     SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
     EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation, \
-    K8sArgs, AWSCredentials, GCPCredentials, HDFSConfig, K8sResourceSpecs, FilePrefix, OnDemandFeatureDecorator
+    K8sArgs, AWSCredentials, GCPCredentials, HDFSConfig, K8sResourceSpecs, FilePrefix, OnDemandFeature
 
 from .proto import metadata_pb2_grpc as ff_grpc
 from .search_local import search_local
@@ -626,6 +626,8 @@ class LocalSource:
         col_len = len(columns)
         if col_len < 2:
             raise Exception(f"Expected 2 columns, but found {col_len}. Missing entity and/or source columns")
+        elif col_len > 3:
+            raise Exception(f"Found unrecognized columns {', '.join(columns[3:])}. Expected 2 required columns and an optional 3rd timestamp column")
         return (self.registrar, self.name_variant(), columns)
 
     def name_variant(self):
@@ -722,10 +724,12 @@ class SubscriptableTransformation:
         self.name_variant = decorator_name_variant_method.__get__(self)
         pass
 
-    def __getitem__(self, columns):
+    def __getitem__(self, columns: List[str]):
         col_len = len(columns)
         if col_len < 2:
             raise Exception(f"Expected 2 columns, but found {col_len}. Missing entity and/or source columns")
+        elif col_len > 3:
+            raise Exception(f"Found unrecognized columns {', '.join(columns[3:])}. Expected 2 required columns and an optional 3rd timestamp column")
         return (self.registrar, self.name_variant(), columns)
 
     def __call__(self, *args, **kwds):
@@ -905,6 +909,8 @@ class ColumnSourceRegistrar(SourceRegistrar):
         col_len = len(columns)
         if col_len < 2:
             raise Exception(f"Expected 2 columns, but found {col_len}. Missing entity and/or source columns")
+        elif col_len > 3:
+            raise Exception(f"Found unrecognized columns {', '.join(columns[3:])}. Expected 2 required columns and an optional 3rd timestamp column")
         return (self.registrar(), self.id(), columns)
 
     def register_resources(
@@ -1273,7 +1279,33 @@ class Registrar:
         """
         get = ProviderReference(name=name, provider_type="snowflake", obj=None)
         self.__resources.append(get)
-        fakeConfig = SnowflakeConfig(account="", database="", organization="", username="", password="", schema="")
+        fakeConfig = SnowflakeConfig(account="ff_fake", database="ff_fake", organization="ff_fake", username="ff_fake", password="ff_fake", schema="ff_fake")
+        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        return OfflineSQLProvider(self, fakeProvider)
+    
+    def get_snowflake_legacy(self, name: str):
+        """Get a Snowflake provider. The returned object can be used to register additional resources.
+
+        **Examples**:
+        ``` py
+        snowflake = ff.get_snowflake_legacy("snowflake-quickstart")
+        transactions = snowflake.register_table(
+            name="transactions",
+            variant="kaggle",
+            description="Fraud Dataset From Kaggle",
+            table="Transactions",  # This is the table's name in Postgres
+        )
+        ```
+        Args:
+            name (str): Name of Snowflake provider to be retrieved
+
+        Returns:
+            snowflake_legacy (OfflineSQLProvider): Provider
+        """
+        get = ProviderReference(name=name, provider_type="snowflake", obj=None)
+        self.__resources.append(get)
+
+        fakeConfig = SnowflakeConfig(account_locator="ff_fake", database="ff_fake", username="ff_fake", password="ff_fake", schema="ff_fake", warehouse="ff_fake", role="ff_fake")
         fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
         return OfflineSQLProvider(self, fakeProvider)
 
@@ -2542,7 +2574,7 @@ class Registrar:
     def ondemand_feature(self, 
                           fn=None, *,
                           tags: List[str] = None,
-                          properties: dict = {},
+                          properties: dict = None,
                           variant: str = "default",
                           name: str = "",
                           owner: Union[str, UserRegistrar] = "",
@@ -2559,7 +2591,7 @@ class Registrar:
             properties (dict): Optional grouping mechanism for resources
 
         Returns:
-            decorator (OnDemandFeatureDecorator): decorator
+            decorator (OnDemandFeature): decorator
 
         **Examples**
         ```python
@@ -2574,13 +2606,13 @@ class Registrar:
         if owner == "":
             owner = self.must_get_default_owner()
     
-        decorator = OnDemandFeatureDecorator(
+        decorator = OnDemandFeature(
             name=name,
             variant=variant,
             owner=owner,
             description=description,
-            tags=tags,
-            properties=properties,
+            tags=tags or [],
+            properties=properties or {},
         )
         self.__resources.append(decorator)
         
@@ -2933,6 +2965,8 @@ class ResourceClient(Registrar):
         if not asynchronous and self._stub:
             resources = resource_state.sorted_list()
             display_statuses(self._stub, resources)
+
+        self.clear_state()
 
 
     def get_user(self, name, local=False):
@@ -4102,7 +4136,12 @@ class ColumnResource:
         self.variant = variant
         self.owner = owner
         self.inference_store = inference_store
-        self.timestamp_column = timestamp_column
+        if not timestamp_column and len(columns) == 3:
+            self.timestamp_column = columns[2]
+        elif timestamp_column and len(columns) == 3:
+            raise Exception("Timestamp column specified twice.")
+        else:
+            self.timestamp_column = timestamp_column
         self.description = description
         self.schedule = schedule
         self.tags = tags
@@ -4289,6 +4328,7 @@ get_redis = global_registrar.get_redis
 get_postgres = global_registrar.get_postgres
 get_mongodb = global_registrar.get_mongodb
 get_snowflake = global_registrar.get_snowflake
+get_snowflake_legacy = global_registrar.get_snowflake_legacy
 get_redshift = global_registrar.get_redshift
 get_bigquery = global_registrar.get_bigquery
 get_spark = global_registrar.get_spark

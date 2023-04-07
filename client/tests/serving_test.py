@@ -496,8 +496,8 @@ def test_row_to_numpy(proto_row):
     row = Row(proto_row)
     row_np = row.to_numpy()
     proto_row_np = proto_row.to_numpy()
-    
-    assert (row_np == proto_row_np).all()
+
+    assert np.array_equal(row_np, proto_row_np)
 
 
 def replace_nans(row):

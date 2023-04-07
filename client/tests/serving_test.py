@@ -486,8 +486,8 @@ def proto_row():
 
 def test_row_to_numpy(proto_row):
     def side_effect(value):
-        if value == proto_row.features:
-            return np.array(proto_row.features)
+        if value in proto_row.features:
+            return value
         else:
             return proto_row.label
 

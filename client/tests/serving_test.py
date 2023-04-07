@@ -494,7 +494,10 @@ def test_row_to_numpy(proto_row):
     ff.serving.parse_proto_value = MagicMock(side_effect = side_effect)
 
     row = Row(proto_row)
-    assert row.to_numpy().all() == proto_row.to_numpy().all()
+    row_np = row.to_numpy()
+    proto_row_np = proto_row.to_numpy()
+    
+    assert (row_np == proto_row_np).all()
 
 
 def replace_nans(row):

@@ -4,6 +4,7 @@ import sys
 import time
 from tempfile import NamedTemporaryFile
 from unittest import TestCase
+from unittest.mock import MagicMock
 import os, stat
 import numpy as np
 
@@ -15,7 +16,7 @@ sys.path.insert(0, 'client/src/')
 from featureform import ResourceClient, ServingClient
 import serving_cases as cases
 import featureform as ff
-from featureform.serving import LocalClientImpl, check_feature_type
+from featureform.serving import LocalClientImpl, check_feature_type, Row
 
 @pytest.mark.parametrize("test_input,expected",
                          [
@@ -467,6 +468,36 @@ class TestTrainingSet(TestCase):
                 except Exception as e:
                     print(f"Could Not Reset Database: {e}")
                 assert actual_len == expected_len
+
+
+@pytest.fixture
+def proto_row():
+    class ProtoRow:
+        def __init__(self):
+            self.features = [1, 2, 3]
+            self.label = 4
+        
+        def to_numpy(self):
+            row = np.array(self.features)
+            row = np.append(row, self.label)
+            return row
+
+    return ProtoRow()
+
+def test_row_to_numpy(proto_row):
+    def side_effect(value):
+        if value in proto_row.features:
+            return value
+        else:
+            return proto_row.label
+
+    ff.serving.parse_proto_value = MagicMock(side_effect = side_effect)
+
+    row = Row(proto_row)
+    row_np = row.to_numpy()
+    proto_row_np = proto_row.to_numpy()
+
+    assert np.array_equal(row_np, proto_row_np)
 
 
 def replace_nans(row):

@@ -1755,7 +1755,7 @@ class ResourceState:
         return sorted(self.__state.values(), key=to_sort_key)
 
     def create_all_dryrun(self) -> None:
-        for resource in self.__state.values():
+        for resource in self.sorted_list():
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name)
             if resource.operation_type() is OperationType.CREATE:
@@ -1764,7 +1764,7 @@ class ResourceState:
     def create_all_local(self) -> None:
         db = SQLiteMetadata()
         check_up_to_date(True, "register")
-        for resource in self.__state.values():
+        for resource in self.sorted_list():
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name)
                 resource._get_local(db)
@@ -1776,19 +1776,19 @@ class ResourceState:
 
     def create_all(self, stub) -> None:
         check_up_to_date(False, "register")
-        for resource in self.__state.values():
+        for resource in self.sorted_list():
             if resource.type() == "provider" and resource.name == "local-mode":
                 continue
             try:
                 if resource.operation_type() is OperationType.GET:
-                    print("Getting", resource.type(), resource.name)
+                    print(f"Getting {resource.type()} {resource.name}")
                     resource._get(stub)
                 if resource.operation_type() is OperationType.CREATE:
-                    print("Creating", resource.type(), resource.name)
+                    print(f"Creating {resource.type()} {resource.name}")
                     resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
-                    print(resource.name, "already exists.")
+                    print(f"{resource.name} already exists.")
                     continue
 
                 raise e

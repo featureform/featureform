@@ -4,7 +4,7 @@ Featureform supports [DynamoDB](https://aws.amazon.com/dynamodb/)as an Inference
 
 ## Implementation
 
-A DynamoDB table is created for every feature. Variants of features have separate documents. Each document maps entities to their feature value.  Each document maps entities to their feature value. A metadata table is stored in DynamoDB as well to allow the provider to keep track of its own state. Featureform's scheduler aims to achieve consistency between DynamoDB's internal state with the user's desired state as specified in the metadata service.
+A DynamoDB table is created for every feature. Variants of features have separate documents. Each document maps entities to their feature value. A metadata table is stored in DynamoDB as well to allow the provider to keep track of its own state. Featureform's scheduler aims to achieve consistency between DynamoDB's internal state with the user's desired state as specified in the metadata service.
 
 ## Configuration
 

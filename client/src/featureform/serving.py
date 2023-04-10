@@ -785,7 +785,7 @@ class Row:
         return [self._label]
 
     def to_numpy(self):
-        return self._row()
+        return self._row
 
     def __repr__(self):
         return "Features: {} , Label: {}".format(self.features(), self.label())

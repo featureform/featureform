@@ -226,6 +226,7 @@ pytest:
 	pytest -m 'local' client/tests/test_class_api.py
 	pytest -m 'local' client/tests/test_ondemand_features.py
 	pytest client/tests/test_localmode_caching.py
+	pytest -m 'local' client/tests/test_resource_registration.py
 	-rm -r .featureform
 	-rm -f transactions.csv
 
@@ -375,6 +376,7 @@ test_e2e: update_python					## Runs End-to-End tests on minikube
 	pytest -m 'hosted' client/tests/test_getting_model.py
 	pytest -m 'hosted' client/tests/test_updating_provider.py
 	pytest -m 'hosted' client/tests/test_class_api.py
+	pytest -m 'hosted' client/tests/test_resource_registration.py
 #	pytest -m 'hosted' client/tests/test_search.py
 
 	 echo "Starting end to end tests"

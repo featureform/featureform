@@ -14,7 +14,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/credentials"
 
-	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -27,6 +26,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
+	"github.com/featureform/config"
 	pc "github.com/featureform/provider/provider_config"
 )
 
@@ -357,8 +357,8 @@ func (e *EMRExecutor) PythonFileURI(store SparkFileStore) string {
 }
 
 func (db *DatabricksExecutor) PythonFileURI(store SparkFileStore) string {
-	filePath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/spark/offline_store_spark_runner.py")
-	return store.PathWithPrefix(filePath[1:], true)
+	filePath := config.GetSparkRemoteScriptPath()
+	return store.PathWithPrefix(filePath, true)
 }
 
 func readAndUploadFile(filePath string, storePath string, store SparkFileStore) error {
@@ -390,19 +390,22 @@ func readAndUploadFile(filePath string, storePath string, store SparkFileStore) 
 }
 
 func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
-	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/spark/offline_store_spark_runner.py")[1:]
-	pythonInitScriptPath := helpers.GetEnv("PYTHON_INIT_PATH", "/scripts/spark/python_packages.sh")[1:]
+	sparkLocalScriptPath := config.GetSparkLocalScriptPath()
+	sparkRemoteScriptPath := config.GetSparkRemoteScriptPath()
 
-	err := readAndUploadFile(sparkScriptPath, store.PathWithPrefix(sparkScriptPath, false), store)
-	sparkExists, _ := store.Exists(store.PathWithPrefix(sparkScriptPath, false))
+	pythonLocalInitScriptPath := config.GetPythonLocalInitPath()
+	pythonRemoteInitScriptPath := config.GetPythonRemoteInitPath()
+
+	err := readAndUploadFile(sparkLocalScriptPath, store.PathWithPrefix(sparkRemoteScriptPath, false), store)
+	sparkExists, _ := store.Exists(store.PathWithPrefix(sparkRemoteScriptPath, false))
 	if err != nil && !sparkExists {
-		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", store.PathWithPrefix(sparkScriptPath, false), err)
+		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", store.PathWithPrefix(sparkRemoteScriptPath, false), err)
 	}
 
-	err = readAndUploadFile(pythonInitScriptPath, store.PathWithPrefix(pythonInitScriptPath, false), store)
-	initExists, _ := store.Exists(store.PathWithPrefix(pythonInitScriptPath, false))
+	err = readAndUploadFile(pythonLocalInitScriptPath, store.PathWithPrefix(pythonRemoteInitScriptPath, false), store)
+	initExists, _ := store.Exists(store.PathWithPrefix(pythonRemoteInitScriptPath, false))
 	if err != nil && !initExists {
-		return fmt.Errorf("could not upload python initialization script: Path: %s, Error: %v", store.PathWithPrefix(pythonInitScriptPath, false), err)
+		return fmt.Errorf("could not upload python initialization script: Path: %s, Error: %v", store.PathWithPrefix(pythonRemoteInitScriptPath, false), err)
 	}
 	return nil
 }
@@ -629,17 +632,17 @@ type EMRExecutor struct {
 }
 
 func (e EMRExecutor) InitializeExecutor(store SparkFileStore) error {
-	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
-	scriptFile, err := os.Open(sparkScriptPath)
-	if err != nil {
-		return err
+	e.logger.Info("Uploading PySpark script to filestore")
+	sparkLocalScriptPath := config.GetSparkLocalScriptPath()
+	sparkRemoteScriptPath := config.GetSparkRemoteScriptPath()
+	sparkScriptPathWithPrefix := store.PathWithPrefix(sparkRemoteScriptPath, false)
+
+	err := readAndUploadFile(sparkLocalScriptPath, sparkScriptPathWithPrefix, store)
+	scriptExists, _ := store.Exists(sparkScriptPathWithPrefix)
+	if err != nil && !scriptExists {
+		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", sparkScriptPathWithPrefix, err)
 	}
-	buff := make([]byte, 4096)
-	_, err = scriptFile.Read(buff)
-	if err != nil {
-		return err
-	}
-	return store.Write(sparkScriptPath, buff)
+	return nil
 }
 
 type SparkGenericExecutor struct {
@@ -651,10 +654,11 @@ type SparkGenericExecutor struct {
 
 func (s *SparkGenericExecutor) InitializeExecutor(store SparkFileStore) error {
 	s.logger.Info("Uploading PySpark script to filestore")
-	sparkScriptPath := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
-	sparkScriptPathWithPrefix := store.PathWithPrefix(sparkScriptPath, false)
+	sparkLocalScriptPath := config.GetSparkLocalScriptPath()
+	sparkRemoteScriptPath := config.GetSparkRemoteScriptPath()
+	sparkScriptPathWithPrefix := store.PathWithPrefix(sparkRemoteScriptPath, false)
 
-	err := readAndUploadFile(sparkScriptPath, sparkScriptPathWithPrefix, store)
+	err := readAndUploadFile(sparkLocalScriptPath, sparkScriptPathWithPrefix, store)
 	scriptExists, _ := store.Exists(sparkScriptPathWithPrefix)
 	if err != nil && !scriptExists {
 		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", sparkScriptPathWithPrefix, err)
@@ -705,8 +709,7 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 	packageArgs := store.Packages()
 	argList = append(argList, packageArgs...) // adding any packages needed for filestores
 
-	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/app/provider/scripts/spark/offline_store_spark_runner.py")
-	//sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
+	sparkScriptPathEnv := config.GetSparkLocalScriptPath()
 	scriptArgs := []string{
 		sparkScriptPathEnv,
 		"sql",
@@ -744,8 +747,8 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 	packageArgs := store.Packages()
 	argList = append(argList, packageArgs...) // adding any packages needed for filestores
 
-	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/app/provider/scripts/spark/offline_store_spark_runner.py")
-	//sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, false)
+	sparkScriptPathEnv := config.GetSparkLocalScriptPath()
+
 	scriptArgs := []string{
 		sparkScriptPathEnv,
 		"df",
@@ -863,7 +866,7 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 	packageArgs := removeEspaceCharacters(store.Packages())
 	argList = append(argList, packageArgs...) // adding any packages needed for filestores
 
-	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
+	sparkScriptPathEnv := config.GetSparkRemoteScriptPath()
 	sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
 	scriptArgs := []string{
 		sparkScriptPath,
@@ -1152,7 +1155,7 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string,
 	packageArgs := removeEspaceCharacters(store.Packages())
 	argList = append(argList, packageArgs...) // adding any packages needed for filestores
 
-	sparkScriptPathEnv := helpers.GetEnv("SPARK_SCRIPT_PATH", "/scripts/offline_store_spark_runner.py")
+	sparkScriptPathEnv := config.GetSparkRemoteScriptPath()
 	sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
 	codePath := strings.Replace(store.PathWithPrefix(code, true), s3aPrefix, s3Prefix, -1)
 

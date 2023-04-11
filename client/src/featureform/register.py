@@ -434,7 +434,16 @@ class LocalProvider:
     def name(self) -> str:
         return self.__provider.name
 
-    def register_file(self, name, description, path, variant="default", owner="", tags: List[str] = [], properties: dict = {}):
+    def register_file(
+        self,
+        name,
+        path,
+        description="",
+        variant="default",
+        owner="",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a local file.
 
         **Examples**:
@@ -459,40 +468,47 @@ class LocalProvider:
         if owner == "":
             owner = self.__registrar.must_get_default_owner()
         # Store the file as a source
-        self.__registrar.register_primary_data(name=name,
-                                               variant=variant,
-                                               location=SQLTable(path),
-                                               provider=self.__provider.name,
-                                               owner=owner,
-                                               description=description,
-                                               tags=tags,
-                                               properties=properties)
-        return LocalSource(self.__registrar, name, owner, variant, self.name(), path, description)
+        self.__registrar.register_primary_data(
+            name=name,
+            variant=variant,
+            location=SQLTable(path),
+            provider=self.__provider.name,
+            owner=owner,
+            description=description,
+            tags=tags,
+            properties=properties,
+        )
+        return LocalSource(
+            self.__registrar, name, owner, variant, self.name(), path, description
+        )
 
     def insert_provider(self):
         sqldb = SQLiteMetadata()
         # Store a new provider row
-        sqldb.insert("providers",
-                     self.__provider.name,
-                     "Provider",
-                     self.__provider.description,
-                     self.__provider.config.type(),
-                     self.__provider.config.software(),
-                     self.__provider.team,
-                     "sources",
-                     "status",
-                     str(self.__provider.config.serialize(), 'utf-8')
-                     )
+        sqldb.insert(
+            "providers",
+            self.__provider.name,
+            "Provider",
+            self.__provider.description,
+            self.__provider.config.type(),
+            self.__provider.config.software(),
+            self.__provider.team,
+            "sources",
+            "status",
+            str(self.__provider.config.serialize(), "utf-8"),
+        )
         sqldb.close()
 
-    def df_transformation(self,
-                          variant: str = "default",
-                          owner: Union[str, UserRegistrar] = "",
-                          name: str = "",
-                          description: str = "",
-                          inputs: list = [],
-                          tags: List[str] = [],
-                          properties: dict = {}):
+    def df_transformation(
+        self,
+        variant: str = "default",
+        owner: Union[str, UserRegistrar] = "",
+        name: str = "",
+        description: str = "",
+        inputs: list = [],
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """
         Register a Dataframe transformation source. The local.df_transformation decorator takes the contents
         of the following function and executes the code it contains at serving time.
@@ -518,22 +534,26 @@ class LocalProvider:
         Returns:
             source (ColumnSourceRegistrar): Source
         """
-        return self.__registrar.df_transformation(name=name,
-                                                  variant=variant,
-                                                  owner=owner,
-                                                  provider=self.name(),
-                                                  description=description,
-                                                  inputs=inputs,
-                                                  tags=tags,
-                                                  properties=properties)
+        return self.__registrar.df_transformation(
+            name=name,
+            variant=variant,
+            owner=owner,
+            provider=self.name(),
+            description=description,
+            inputs=inputs,
+            tags=tags,
+            properties=properties,
+        )
 
-    def sql_transformation(self,
-                           variant: str = "default",
-                           owner: Union[str, UserRegistrar] = "",
-                           name: str = "",
-                           description: str = "",
-                           tags: List[str] = [],
-                           properties: dict = {}):
+    def sql_transformation(
+        self,
+        variant: str = "default",
+        owner: Union[str, UserRegistrar] = "",
+        name: str = "",
+        description: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """
         Register a SQL transformation source. The local.sql_transformation decorator takes the returned string in the
         following function and executes it as a SQL Query.
@@ -561,13 +581,15 @@ class LocalProvider:
         Returns:
             source (ColumnSourceRegistrar): Source
         """
-        return self.__registrar.sql_transformation(name=name,
-                                                   variant=variant,
-                                                   owner=owner,
-                                                   provider=self.name(),
-                                                   description=description,
-                                                   tags=tags,
-                                                   properties=properties)
+        return self.__registrar.sql_transformation(
+            name=name,
+            variant=variant,
+            owner=owner,
+            provider=self.name(),
+            description=description,
+            tags=tags,
+            properties=properties,
+        )
 
 
 class SourceRegistrar:

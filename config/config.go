@@ -6,7 +6,7 @@ const PandasBaseImage = "featureformcom/k8s_runner"
 
 const SparkLocalScriptPath = "/app/provider/scripts/spark/offline_store_spark_runner.py"
 const SparkRemoteScriptPath = "featureform/scripts/spark/offline_store_spark_runner.py"
-const PythonLocalInitPath = "/scripts/spark/python_packages.sh"
+const PythonLocalInitPath = "/app/provider/scripts/spark/python_packages.sh"
 const PythonRemoteInitPath = "featureform/scripts/spark/python_packages.sh"
 
 func GetPandasRunnerImage() string {

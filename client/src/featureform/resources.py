@@ -881,6 +881,7 @@ class Source:
     is_transformation = SourceType.PRIMARY_SOURCE.value
     inputs = ([],)
     error: Optional[str] = None
+    status: str = "NO_STATUS"
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1995,6 +1996,8 @@ class SparkCredentials:
         master: str,
         deploy_mode: str,
         python_version: str = "",
+        core_site_path: str = "",
+        yarn_site_path: str = "",
     ):
         self.master = master.lower()
         self.deploy_mode = deploy_mode.lower()
@@ -2007,6 +2010,8 @@ class SparkCredentials:
         self.python_version = self._verify_python_version(
             self.deploy_mode, python_version
         )
+
+        self._verify_yarn_config()
 
     def _verify_python_version(self, deploy_mode, version):
         if deploy_mode == "cluster" and version == "":
@@ -2048,6 +2053,16 @@ class SparkCredentials:
 
         return f"{major}.{minor}.{patch}"
 
+    def _verify_yarn_config(self):
+        if self.master == "yarn" and (
+            self.core_site_path == "" or self.yarn_site_path == ""
+        ):
+            raise Exception(
+                "Yarn requires core-site.xml and yarn-site.xml files."
+                "Please copy these files from your Spark instance to local, then provide the local path in "
+                "core_site_path and yarn_site_path. "
+            )
+
     def type(self):
         return "SPARK"
 
@@ -2056,6 +2071,8 @@ class SparkCredentials:
             "Master": self.master,
             "DeployMode": self.deploy_mode,
             "PythonVersion": self.python_version,
+            "CoreSite": open(self.core_site_path, "rb").read(),
+            "YarnSite": open(self.yarn_site_path, "rb").read(),
         }
 
 

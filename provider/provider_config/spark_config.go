@@ -230,6 +230,8 @@ type SparkGenericConfig struct {
 	Master        string
 	DeployMode    string
 	PythonVersion string
+	CoreSite      []byte
+	YarnSite      []byte
 }
 
 func (sc *SparkGenericConfig) Deserialize(config SerializedConfig) error {

@@ -219,7 +219,6 @@ func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
 			s3Path = fmt.Sprintf("/%s", s3.Path)
 		}
 		return fmt.Sprintf("%s%s%s/%s", s3Prefix, s3.Bucket, s3Path, path)
-
 	} else if !remote && s3.Path != "" {
 		return fmt.Sprintf("%s/%s", s3.Path, path)
 	} else {

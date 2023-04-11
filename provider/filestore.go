@@ -213,14 +213,15 @@ func NewS3FileStore(config Config) (FileStore, error) {
 }
 
 func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
-	s3PrefixLength := len(s3Prefix)
-	noS3Prefix := path[:s3PrefixLength] != s3Prefix
-	if remote && noS3Prefix {
+	if remote && !strings.HasPrefix(path, s3Prefix) {
 		s3Path := ""
 		if s3.Path != "" {
 			s3Path = fmt.Sprintf("/%s", s3.Path)
 		}
 		return fmt.Sprintf("%s%s%s/%s", s3Prefix, s3.Bucket, s3Path, path)
+
+	} else if !remote && s3.Path != "" {
+		return fmt.Sprintf("%s/%s", s3.Path, path)
 	} else {
 		return path
 	}

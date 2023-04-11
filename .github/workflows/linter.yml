@@ -47,3 +47,9 @@ jobs:
       - name: Run Linter
         continue-on-error: true
         run: golangci-lint run ./...
+
+  python-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: psf/black@stable

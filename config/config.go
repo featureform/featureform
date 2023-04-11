@@ -22,9 +22,9 @@ func GetSparkRemoteScriptPath() string {
 }
 
 func GetPythonLocalInitPath() string {
-	return helpers.GetEnv("PYTHON_INIT_PATH", PythonLocalInitPath)
+	return helpers.GetEnv("PYTHON_LOCAL_INIT_PATH", PythonLocalInitPath)
 }
 
 func GetPythonRemoteInitPath() string {
-	return helpers.GetEnv("PYTHON_INIT_PATH", PythonRemoteInitPath)
+	return helpers.GetEnv("PYTHON_REMOTE_INIT_PATH", PythonRemoteInitPath)
 }

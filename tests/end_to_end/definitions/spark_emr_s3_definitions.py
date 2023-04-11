@@ -55,10 +55,14 @@ emr = ff.EMRCredentials(
     credentials=aws_creds,
 )
 
+bucket_path = os.getenv("S3_BUCKET_PATH", None)
+if bucket_path:
+    bucket_path = f"{bucket_path}/end_to_end_tests/{VERSION}"
+
 s3 = ff.register_s3(
     name=f"s3-quickstart_{VERSION}",
     credentials=aws_creds,
-    bucket_path=os.getenv("S3_BUCKET_PATH", None),
+    bucket_path=bucket_path,
     bucket_region=os.getenv("S3_BUCKET_REGION", None),
 )
 

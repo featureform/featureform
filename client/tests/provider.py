@@ -9,6 +9,6 @@ def test_dynamo():
         description="Test of dynamo-db creation",
         team="featureform",
         access_key=os.getenv("DYNAMO_ACCESS_KEY"),
-        secret_key=os.getenv("DYNAMO_SECRET_KEY")
+        secret_key=os.getenv("DYNAMO_SECRET_KEY"),
     )
     client.apply()

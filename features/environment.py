@@ -18,7 +18,8 @@ import string
 
 from dotenv import load_dotenv
 
-import featureform as ff 
+import featureform as ff
+
 
 def before_all(context):
     load_dotenv("/Users/kempytoor/Documents/Featureform/e2e/featureform/.env")
@@ -26,9 +27,9 @@ def before_all(context):
     redis_provider = os.getenv("REDIS_PROVIDER_NAME")
     context.redis = ff.get_redis(redis_provider)
     context.name_suffix = get_random_string()
-    
+
     print(f"Starting tests for {context.name_suffix}")
+
 
 def get_random_string():
     return "".join(random.choice(string.ascii_lowercase) for _ in range(10))
-

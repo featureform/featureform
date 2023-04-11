@@ -14,7 +14,13 @@ five_row_spacing = "{:<30} {:<30} {:<30} {:<30} {:<30}"
 divider = "-----------------------------------------------"
 
 
-def format_rows(format_obj, format_obj_2=None, format_obj_3=None, format_obj_4=None, format_obj_5=None):
+def format_rows(
+    format_obj,
+    format_obj_2=None,
+    format_obj_3=None,
+    format_obj_4=None,
+    format_obj_5=None,
+):
     # Base case for when `format_obj` is a string
     if format_obj_2 is None and type(format_obj) == str:
         print(format_obj)
@@ -25,10 +31,23 @@ def format_rows(format_obj, format_obj_2=None, format_obj_3=None, format_obj_4=N
         print(two_row_spacing.format(format_obj, format_obj_2))
     elif format_obj_2 is not None and format_obj_3 is not None and format_obj_4 is None:
         print(three_row_spacing.format(format_obj, format_obj_2, format_obj_3))
-    elif format_obj_2 is not None and format_obj_3 is not None and format_obj_4 is not None and format_obj_5 is None:
-        print(four_row_spacing.format(format_obj, format_obj_2, format_obj_3, format_obj_4))
+    elif (
+        format_obj_2 is not None
+        and format_obj_3 is not None
+        and format_obj_4 is not None
+        and format_obj_5 is None
+    ):
+        print(
+            four_row_spacing.format(
+                format_obj, format_obj_2, format_obj_3, format_obj_4
+            )
+        )
     else:
-        print(five_row_spacing.format(format_obj, format_obj_2, format_obj_3, format_obj_4, format_obj_5))
+        print(
+            five_row_spacing.format(
+                format_obj, format_obj_2, format_obj_3, format_obj_4, format_obj_5
+            )
+        )
 
 
 def format_pg(s=""):
@@ -37,7 +56,14 @@ def format_pg(s=""):
 
 
 def display_statuses(stub, resources):
-    from featureform.resources import Feature, OnDemandFeature, TrainingSet, Label, Source, Provider
+    from featureform.resources import (
+        Feature,
+        OnDemandFeature,
+        TrainingSet,
+        Label,
+        Source,
+        Provider,
+    )
 
     @dataclass
     class Status:
@@ -49,7 +75,14 @@ def display_statuses(stub, resources):
 
     def get_statuses() -> List[Status]:
         statuses = []
-        resources_to_check = {Feature, OnDemandFeature, TrainingSet, Label, Source, Provider}
+        resources_to_check = {
+            Feature,
+            OnDemandFeature,
+            TrainingSet,
+            Label,
+            Source,
+            Provider,
+        }
         filtered_resources = filter(lambda r: type(r) in resources_to_check, resources)
         for r in filtered_resources:
             if r.name == "local-mode":
@@ -120,7 +153,7 @@ def display_statuses(stub, resources):
                     Text(resource_type),
                     Text(f"{name} ({status.variant})"),
                     Text(status_text, style=status_to_color[status_text]),
-                    Text(error, style="red")
+                    Text(error, style="red"),
                 )
 
             live.update(table)

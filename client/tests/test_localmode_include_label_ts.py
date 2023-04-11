@@ -9,13 +9,14 @@ def setup():
         name="transactions",
         variant="quickstart",
         description="A dataset of fraudulent transactions",
-        path="transactions.csv"
+        path="transactions.csv",
     )
 
-    @local.df_transformation(variant="quickstart",
-                                inputs=[("transactions", "quickstart")])
+    @local.df_transformation(
+        variant="quickstart", inputs=[("transactions", "quickstart")]
+    )
     def average_user_transaction(transactions):
-        """the average transaction amount for a user """
+        """the average transaction amount for a user"""
         return transactions.groupby("CustomerID")["TransactionAmount"].mean()
 
     user = ff.register_entity("user")
@@ -26,7 +27,12 @@ def setup():
         entity_column="CustomerID",
         inference_store=local,
         features=[
-            {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
+            {
+                "name": "avg_transactions",
+                "variant": "quickstart",
+                "column": "TransactionAmount",
+                "type": "float32",
+            },
         ],
     )
 
@@ -36,7 +42,12 @@ def setup():
         entity_column="CustomerID",
         timestamp_column="Timestamp",
         labels=[
-            {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
+            {
+                "name": "fraudulent",
+                "variant": "quickstart",
+                "column": "IsFraud",
+                "type": "bool",
+            },
         ],
     )
 
@@ -45,18 +56,25 @@ def setup():
         entity=user,
         entity_column="CustomerID",
         labels=[
-            {"name": "fraudulent", "variant": "quickstart-no-ts", "column": "IsFraud", "type": "bool"},
+            {
+                "name": "fraudulent",
+                "variant": "quickstart-no-ts",
+                "column": "IsFraud",
+                "type": "bool",
+            },
         ],
     )
 
     ff.register_training_set(
-        "fraud_training", "quickstart",
+        "fraud_training",
+        "quickstart",
         label=("fraudulent", "quickstart"),
         features=[("avg_transactions", "quickstart")],
     )
 
     ff.register_training_set(
-        "fraud_training", "quickstart-no-ts",
+        "fraud_training",
+        "quickstart-no-ts",
         label=("fraudulent", "quickstart-no-ts"),
         features=[("avg_transactions", "quickstart")],
     )
@@ -72,14 +90,19 @@ def setup():
         ("quickstart", False, False),
         ("quickstart-no-ts", True, False),
         ("quickstart-no-ts", False, False),
-    ]
+    ],
 )
-def test_include_label_timestamp(training_set_variant, include_label_timestamp, expected_in_keys):
-
+def test_include_label_timestamp(
+    training_set_variant, include_label_timestamp, expected_in_keys
+):
     serving_client = ff.ServingClient(local=True)
-    dataset = serving_client.training_set('fraud_training', training_set_variant, include_label_timestamp=include_label_timestamp)
+    dataset = serving_client.training_set(
+        "fraud_training",
+        training_set_variant,
+        include_label_timestamp=include_label_timestamp,
+    )
     dataset_pandas = dataset.pandas()
-    
+
     result = "label_timestamp" in dataset_pandas.keys()
 
     assert result == expected_in_keys

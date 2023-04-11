@@ -11,18 +11,22 @@ featureform_location = os.path.dirname(os.path.dirname(FILE_DIRECTORY))
 env_file_path = os.path.join(featureform_location, ".env")
 load_dotenv(env_file_path)
 
+
 def get_random_string():
     import random
     import string
+
     return "".join(random.choice(string.ascii_lowercase) for _ in range(10))
+
 
 def save_to_file(filename, data):
     global FILE_DIRECTORY
     with open(f"{FILE_DIRECTORY}/{filename}", "w+") as f:
         f.write(data)
 
-VERSION=get_random_string()
-os.environ["TEST_CASE_VERSION"]=VERSION
+
+VERSION = get_random_string()
+os.environ["TEST_CASE_VERSION"] = VERSION
 
 FEATURE_NAME = f"ice_cream_feature_{VERSION}"
 FEATURE_VARIANT = "lag_features"
@@ -39,50 +43,60 @@ save_to_file("version.txt", VERSIONS)
 # Start of Featureform Definitions
 azure_blob = ff.register_blob_store(
     name=f"k8s_blob_store_{VERSION}",
-    account_name= os.getenv("AZURE_ACCOUNT_NAME", None),
-    account_key= os.getenv("AZURE_ACCOUNT_KEY", None),
-    container_name= os.getenv("AZURE_CONTAINER_NAME", None),
+    account_name=os.getenv("AZURE_ACCOUNT_NAME", None),
+    account_key=os.getenv("AZURE_ACCOUNT_KEY", None),
+    container_name=os.getenv("AZURE_CONTAINER_NAME", None),
     root_path="testing/ff",
 )
 
 redis = ff.register_redis(
-    name = f"redis-quickstart_{VERSION}",
-    host="quickstart-redis", # The internal dns name for redis
+    name=f"redis-quickstart_{VERSION}",
+    host="quickstart-redis",  # The internal dns name for redis
     port=6379,
-    description = "A Redis deployment we created for the Featureform quickstart"
+    description="A Redis deployment we created for the Featureform quickstart",
 )
 
 k8s = ff.register_k8s(
     name=f"k8s_{VERSION}",
     store=azure_blob,
-    docker_image=os.getenv("K8S_RUNNER_BASE_IMAGE", "featureformcom/k8s_runner:latest")
+    docker_image=os.getenv("K8S_RUNNER_BASE_IMAGE", "featureformcom/k8s_runner:latest"),
 )
 
 ice_cream = k8s.register_file(
     name=f"ice_cream_{VERSION}",
     variant=VERSION,
     description="A dataset of ice cream",
-    path="testing/ff/data/ice_cream_100rows.csv"
+    path="testing/ff/data/ice_cream_100rows.csv",
 )
 
-@k8s.df_transformation(name=f"ice_cream_entity_{VERSION}",
-                       variant=VERSION,
-                       inputs=[(f"ice_cream_{VERSION}", VERSION)])
+
+@k8s.df_transformation(
+    name=f"ice_cream_entity_{VERSION}",
+    variant=VERSION,
+    inputs=[(f"ice_cream_{VERSION}", VERSION)],
+)
 def ice_cream_entity_transformation(df):
-    """ the ice cream dataset with entity """
+    """the ice cream dataset with entity"""
     df["entity"] = "farm"
     return df
 
-@k8s.df_transformation(name=f"ice_cream_transformation_{VERSION}",
-                       variant=VERSION,
-                       inputs=[(f"ice_cream_entity_{VERSION}", VERSION)],
-                       docker_image=os.getenv("K8S_RUNNER_SCIKIT", "featureformcom/k8s_runner:latest-scikit"))
+
+@k8s.df_transformation(
+    name=f"ice_cream_transformation_{VERSION}",
+    variant=VERSION,
+    inputs=[(f"ice_cream_entity_{VERSION}", VERSION)],
+    docker_image=os.getenv(
+        "K8S_RUNNER_SCIKIT", "featureformcom/k8s_runner:latest-scikit"
+    ),
+)
 def scikit_test(df):
-    """the ice cream dataset """
+    """the ice cream dataset"""
     from sklearn import datasets
+
     iris = datasets.load_iris()
     print(iris.items())
     return df
+
 
 farm = ff.register_entity("farm")
 
@@ -93,7 +107,12 @@ scikit_test.register_resources(
     timestamp_column="time_index",
     inference_store=azure_blob,
     features=[
-        {"name": FEATURE_NAME, "variant": FEATURE_VARIANT, "column": "dairy_flow_rate", "type": "float32"},
+        {
+            "name": FEATURE_NAME,
+            "variant": FEATURE_VARIANT,
+            "column": "dairy_flow_rate",
+            "type": "float32",
+        },
     ],
 )
 
@@ -103,12 +122,18 @@ ice_cream_entity_transformation.register_resources(
     entity_column="entity",
     timestamp_column="time_index",
     labels=[
-        {"name": f"ice_cream_label_{VERSION}", "variant": FEATURE_VARIANT, "column": "quality_score", "type": "float32"},
+        {
+            "name": f"ice_cream_label_{VERSION}",
+            "variant": FEATURE_VARIANT,
+            "column": "quality_score",
+            "type": "float32",
+        },
     ],
 )
 
 ff.register_training_set(
-    TRAININGSET_NAME, TRAININGSET_VARIANT,
+    TRAININGSET_NAME,
+    TRAININGSET_VARIANT,
     label=(f"ice_cream_label_{VERSION}", FEATURE_VARIANT),
     features=[
         (f"ice_cream_feature_{VERSION}", FEATURE_VARIANT),

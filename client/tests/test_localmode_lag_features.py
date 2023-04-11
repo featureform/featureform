@@ -11,6 +11,7 @@ real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
 SOURCE_FILE = f"{dir_path}/test_files/input_files/lag_features_testing.csv"
 
+
 def setup():
     ff.register_user("featureformer").make_default_owner()
 
@@ -20,20 +21,22 @@ def setup():
         name="source_file",
         variant="testing",
         description="source file",
-        path=SOURCE_FILE
+        path=SOURCE_FILE,
     )
 
-    @local.df_transformation(name=f"source_entity", 
-                            variant="testing",
-                            inputs=[(f"source_file", "testing")])
+    @local.df_transformation(
+        name=f"source_entity", variant="testing", inputs=[(f"source_file", "testing")]
+    )
     def source_entity_transformation(df):
-        """ the source dataset with entity """
+        """the source dataset with entity"""
         df["entity_1"] = "source_entity"
         return df
 
-    @local.df_transformation(name=f"source_transformation", 
-                            variant="testing",
-                            inputs=[(f"source_entity", "testing")])
+    @local.df_transformation(
+        name=f"source_transformation",
+        variant="testing",
+        inputs=[(f"source_entity", "testing")],
+    )
     def source_transformation(df):
         return df
 
@@ -46,7 +49,12 @@ def setup():
         timestamp_column="timestamp",
         inference_store=local,
         features=[
-            {"name": "testing_feature", "variant": "testing", "column": "value", "type": "float32"},
+            {
+                "name": "testing_feature",
+                "variant": "testing",
+                "column": "value",
+                "type": "float32",
+            },
         ],
     )
 
@@ -56,12 +64,18 @@ def setup():
         entity_column="entity_1",
         timestamp_column="timestamp",
         labels=[
-            {"name": f"testing_label", "variant": "testing", "column": "score", "type": "float32"},
+            {
+                "name": f"testing_label",
+                "variant": "testing",
+                "column": "score",
+                "type": "float32",
+            },
         ],
     )
 
     ff.register_training_set(
-        "testing_training", "no_lag_features",
+        "testing_training",
+        "no_lag_features",
         label=(f"testing_label", "testing"),
         features=[
             (f"testing_feature", "testing"),
@@ -69,32 +83,64 @@ def setup():
     )
 
     ff.register_training_set(
-        "testing_training", "one_lag_features",
+        "testing_training",
+        "one_lag_features",
         label=(f"testing_label", "testing"),
         features=[
             (f"testing_feature", "testing"),
-            {"feature": f"testing_feature", "variant": "testing", "name": "testing_feature_lag_1h", "lag": timedelta(hours=1)},
+            {
+                "feature": f"testing_feature",
+                "variant": "testing",
+                "name": "testing_feature_lag_1h",
+                "lag": timedelta(hours=1),
+            },
         ],
     )
 
     ff.register_training_set(
-        "testing_training", "two_lag_features",
+        "testing_training",
+        "two_lag_features",
         label=(f"testing_label", "testing"),
         features=[
             (f"testing_feature", "testing"),
-            {"feature": f"testing_feature", "variant": "testing", "name": "testing_feature_lag_1h", "lag": timedelta(hours=1)},
-            {"feature": f"testing_feature", "variant": "testing", "name": "testing_feature_lag_2h", "lag": timedelta(hours=2)},
+            {
+                "feature": f"testing_feature",
+                "variant": "testing",
+                "name": "testing_feature_lag_1h",
+                "lag": timedelta(hours=1),
+            },
+            {
+                "feature": f"testing_feature",
+                "variant": "testing",
+                "name": "testing_feature_lag_2h",
+                "lag": timedelta(hours=2),
+            },
         ],
     )
 
     ff.register_training_set(
-        "testing_training", "three_lag_features",
+        "testing_training",
+        "three_lag_features",
         label=(f"testing_label", "testing"),
         features=[
             (f"testing_feature", "testing"),
-            {"feature": f"testing_feature", "variant": "testing", "name": "testing_feature_lag_1h", "lag": timedelta(hours=1)},
-            {"feature": f"testing_feature", "variant": "testing", "name": "testing_feature_lag_2h", "lag": timedelta(hours=2)},
-            {"feature": f"testing_feature", "variant": "testing", "lag": timedelta(seconds=10800)},
+            {
+                "feature": f"testing_feature",
+                "variant": "testing",
+                "name": "testing_feature_lag_1h",
+                "lag": timedelta(hours=1),
+            },
+            {
+                "feature": f"testing_feature",
+                "variant": "testing",
+                "name": "testing_feature_lag_2h",
+                "lag": timedelta(hours=2),
+            },
+            {
+                "feature": f"testing_feature",
+                "variant": "testing",
+                "lag": timedelta(seconds=10800),
+            },
         ],
     )
 
@@ -102,32 +148,62 @@ def setup():
     resource_client.apply()
 
 
-
 @pytest.fixture()
 def source_df():
     df = pd.read_csv(SOURCE_FILE)
     df["timestamp"] = pd.to_datetime(df.timestamp)
-    df.rename(columns = {'value':'testing_feature.testing', 'timestamp':'label_timestamp', 'score': 'label'}, inplace=True)
+    df.rename(
+        columns={
+            "value": "testing_feature.testing",
+            "timestamp": "label_timestamp",
+            "score": "label",
+        },
+        inplace=True,
+    )
     return df
+
 
 @pytest.fixture()
 def df_no_lag(source_df):
-    return source_df[['testing_feature.testing', 'label_timestamp', 'label']]
+    return source_df[["testing_feature.testing", "label_timestamp", "label"]]
+
 
 @pytest.fixture()
 def df_one_lag(source_df):
     source_df.set_index("label_timestamp", inplace=True)
-    source_df["testing_feature_lag_1h"] = source_df["testing_feature.testing"].shift(freq=timedelta(hours=1))
+    source_df["testing_feature_lag_1h"] = source_df["testing_feature.testing"].shift(
+        freq=timedelta(hours=1)
+    )
     source_df.reset_index(inplace=True)
-    return source_df[['testing_feature.testing', 'testing_feature_lag_1h', 'label_timestamp', 'label']]
+    return source_df[
+        [
+            "testing_feature.testing",
+            "testing_feature_lag_1h",
+            "label_timestamp",
+            "label",
+        ]
+    ]
+
 
 @pytest.fixture()
 def df_two_lags(source_df):
     source_df.set_index("label_timestamp", inplace=True)
-    source_df["testing_feature_lag_1h"] = source_df["testing_feature.testing"].shift(freq=timedelta(hours=1))
-    source_df["testing_feature_lag_2h"] = source_df["testing_feature.testing"].shift(freq=timedelta(hours=2))
+    source_df["testing_feature_lag_1h"] = source_df["testing_feature.testing"].shift(
+        freq=timedelta(hours=1)
+    )
+    source_df["testing_feature_lag_2h"] = source_df["testing_feature.testing"].shift(
+        freq=timedelta(hours=2)
+    )
     source_df.reset_index(inplace=True)
-    return source_df[['testing_feature.testing', 'testing_feature_lag_1h', 'testing_feature_lag_2h', 'label_timestamp', 'label']]
+    return source_df[
+        [
+            "testing_feature.testing",
+            "testing_feature_lag_1h",
+            "testing_feature_lag_2h",
+            "label_timestamp",
+            "label",
+        ]
+    ]
 
 
 # @pytest.fixture()
@@ -139,6 +215,7 @@ def df_two_lags(source_df):
 #     source_df.reset_index(inplace=True)
 #     return source_df[['testing_feature.testing', 'testing_feature_lag_1h', 'testing_feature_lag_2h', 'testing_feature_testing_lag_3_00_00', 'label_timestamp', 'label']]
 
+
 @pytest.mark.parametrize(
     "training_set_variant, expected_df_name",
     [
@@ -146,22 +223,26 @@ def df_two_lags(source_df):
         ("one_lag_features", "df_one_lag"),
         ("two_lag_features", "df_two_lags"),
         # ("three_lag_features", "df_three_lags"),
-    ]
+    ],
 )
 def test_local_lag_features(training_set_variant, expected_df_name, request):
     expected_df = request.getfixturevalue(expected_df_name)
     serving_client = ff.ServingClient(local=True)
-    dataset = serving_client.training_set('testing_training', training_set_variant, include_label_timestamp=True)
+    dataset = serving_client.training_set(
+        "testing_training", training_set_variant, include_label_timestamp=True
+    )
     df = dataset.pandas()
     df["label_timestamp"] = pd.to_datetime(df.label_timestamp)
 
-    assert df.equals(expected_df), f"The dataframes do not match. Expected: {expected_df.head()}, Got: {df.head()}, Expected Info: {expected_df.info()} Got: {df.info()}"
-
+    assert df.equals(
+        expected_df
+    ), f"The dataframes do not match. Expected: {expected_df.head()}, Got: {df.head()}, Expected Info: {expected_df.info()} Got: {df.info()}"
 
 
 @pytest.fixture()
 def no_lag_feature_sql():
     return "SELECT * FROM source_0"
+
 
 @pytest.fixture()
 def one_lag_feature_sql():
@@ -171,6 +252,7 @@ def one_lag_feature_sql():
                          ORDER BY t0_ts ASC) t0
                          ON (t0_entity = entity_1 AND DATETIME(t0_ts, "+3600.0 seconds") <= timestamp)
                          ) tt ) WHERE row_number=1 ORDER BY timestamp ASC ))"""
+
 
 @pytest.fixture()
 def two_lag_feature_sql():
@@ -186,19 +268,58 @@ def two_lag_feature_sql():
                          ON (t1_entity = entity_1 AND DATETIME(t1_ts, "+7200.0 seconds") <= timestamp)
                          ) tt ) WHERE row_number=1 ORDER BY timestamp ASC ))"""
 
+
 @pytest.mark.parametrize(
     "lag_features, feature_columns, entity, label, ts, expected_sql_query",
     [
         ([], "", "", "", "", "no_lag_feature_sql"),
-        ([{"feature_name": "testing_feature", "feature_variant": "testing", "feature_lag": timedelta(hours=1).total_seconds(), "feature_new_name": "lag_1h"}], ["testing_feature.testing"], "entity_1", "label", "timestamp", "one_lag_feature_sql"),
-        ([{"feature_name": "testing_feature", "feature_variant": "testing", "feature_lag": timedelta(hours=1).total_seconds(), "feature_new_name": "lag_1h"}, {"feature_name": "testing_feature", "feature_variant": "testing", "feature_lag": timedelta(hours=2).total_seconds(), "feature_new_name": "lag_2h"}], ["testing_feature.testing"], "entity_1", "label", "timestamp", "two_lag_feature_sql"),
-    ]
+        (
+            [
+                {
+                    "feature_name": "testing_feature",
+                    "feature_variant": "testing",
+                    "feature_lag": timedelta(hours=1).total_seconds(),
+                    "feature_new_name": "lag_1h",
+                }
+            ],
+            ["testing_feature.testing"],
+            "entity_1",
+            "label",
+            "timestamp",
+            "one_lag_feature_sql",
+        ),
+        (
+            [
+                {
+                    "feature_name": "testing_feature",
+                    "feature_variant": "testing",
+                    "feature_lag": timedelta(hours=1).total_seconds(),
+                    "feature_new_name": "lag_1h",
+                },
+                {
+                    "feature_name": "testing_feature",
+                    "feature_variant": "testing",
+                    "feature_lag": timedelta(hours=2).total_seconds(),
+                    "feature_new_name": "lag_2h",
+                },
+            ],
+            ["testing_feature.testing"],
+            "entity_1",
+            "label",
+            "timestamp",
+            "two_lag_feature_sql",
+        ),
+    ],
 )
-def test_get_lag_features_sql_query(lag_features, feature_columns, entity, label, ts, expected_sql_query, request):
+def test_get_lag_features_sql_query(
+    lag_features, feature_columns, entity, label, ts, expected_sql_query, request
+):
     expected_sql_query = request.getfixturevalue(expected_sql_query)
 
     local_client = LocalClientImpl()
 
-    lag_sql_query = local_client.get_lag_features_sql_query(lag_features, feature_columns, entity, label, ts)
+    lag_sql_query = local_client.get_lag_features_sql_query(
+        lag_features, feature_columns, entity, label, ts
+    )
 
     assert lag_sql_query == expected_sql_query

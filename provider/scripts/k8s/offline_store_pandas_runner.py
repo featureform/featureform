@@ -29,14 +29,29 @@ def main(args):
     blob_credentials = get_blob_credentials(args)
     if args.transformation_type == "sql":
         print(f"starting execution for SQL Transformation in {args.mode} mode")
-        output_location = execute_sql_job(args.mode, args.output_uri, args.transformation, args.sources,
-                                          blob_credentials)
+        output_location = execute_sql_job(
+            args.mode,
+            args.output_uri,
+            args.transformation,
+            args.sources,
+            blob_credentials,
+        )
     elif args.transformation_type == "df":
         print(f"starting execution for DF Transformation in {args.mode} mode")
-        etcd_credentials = {"host": args.etcd_host, "ports": args.etcd_ports, "username": args.etcd_user,
-                            "password": args.etcd_password}
-        output_location = execute_df_job(args.mode, args.output_uri, args.transformation, args.sources,
-                                         etcd_credentials, blob_credentials)
+        etcd_credentials = {
+            "host": args.etcd_host,
+            "ports": args.etcd_ports,
+            "username": args.etcd_user,
+            "password": args.etcd_password,
+        }
+        output_location = execute_df_job(
+            args.mode,
+            args.output_uri,
+            args.transformation,
+            args.sources,
+            etcd_credentials,
+            blob_credentials,
+        )
     return output_location
 
 
@@ -67,14 +82,22 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
     """
     try:
         if blob_credentials.type == AZURE:
-            blob_service_client = BlobServiceClient.from_connection_string(blob_credentials.connection_string)
-            container_client = blob_service_client.get_container_client(blob_credentials.container)
+            blob_service_client = BlobServiceClient.from_connection_string(
+                blob_credentials.connection_string
+            )
+            container_client = blob_service_client.get_container_client(
+                blob_credentials.container
+            )
 
         for i, source in enumerate(source_list):
             if blob_credentials.type == AZURE:
                 # download blob to local & set source to local path
-                local_file = f"source_{i}.csv" if ".csv" == source[-4:] else f"source_{i}"
-                output_path = download_blobs_to_local(container_client, source, local_file)
+                local_file = (
+                    f"source_{i}.csv" if ".csv" == source[-4:] else f"source_{i}"
+                )
+                output_path = download_blobs_to_local(
+                    container_client, source, local_file
+                )
             else:
                 output_path = source
 
@@ -88,13 +111,15 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_credenti
         output_dataframe = set_bool_columns(transformation_df)
 
         dt = datetime.now()
-        output_uri_with_timestamp = f'{output_uri}/{dt}.parquet'
+        output_uri_with_timestamp = f"{output_uri}/{dt}.parquet"
 
         if blob_credentials.type == AZURE:
             local_output = f"{LOCAL_DATA_PATH}/output.parquet"
             output_dataframe.to_parquet(local_output)
             # upload blob to blob store
-            output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp)
+            output_uri = upload_blob_to_blob_store(
+                container_client, local_output, output_uri_with_timestamp
+            )
         elif blob_credentials.type == LOCAL:
             os.makedirs(output_uri, exist_ok=True)
             output_dataframe.to_parquet(output_uri_with_timestamp)
@@ -118,15 +143,21 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
         output_uri_with_timestamp: string (output s3 path)
     """
     if blob_credentials.type == AZURE:
-        blob_service_client = BlobServiceClient.from_connection_string(blob_credentials.connection_string)
-        container_client = blob_service_client.get_container_client(blob_credentials.container)
+        blob_service_client = BlobServiceClient.from_connection_string(
+            blob_credentials.connection_string
+        )
+        container_client = blob_service_client.get_container_client(
+            blob_credentials.container
+        )
 
     func_parameters = []
     for i, location in enumerate(sources):
         if blob_credentials.type == AZURE:
             # download blob to local & set source to local path
             local_file = f"source_{i}.csv" if ".csv" == location[-4:] else f"source_{i}"
-            output_path = download_blobs_to_local(container_client, location, local_file)
+            output_path = download_blobs_to_local(
+                container_client, location, local_file
+            )
         else:
             output_path = location
 
@@ -159,7 +190,9 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_crede
             local_output = f"{LOCAL_DATA_PATH}/output.parquet"
             output_df.to_parquet(local_output)
             # upload blob to blob store
-            output_uri = upload_blob_to_blob_store(container_client, local_output, output_uri_with_timestamp)
+            output_uri = upload_blob_to_blob_store(
+                container_client, local_output, output_uri_with_timestamp
+            )
 
         elif blob_credentials.type == LOCAL:
             os.makedirs(output_uri, exist_ok=True)
@@ -192,7 +225,11 @@ def download_blobs_to_local(container_client, blob, local_filename):
 
     blob_extension = blob.split(".")[-1]
     print("Blob Extension", blob_extension)
-    if blob_extension == "csv" or blob_extension == "parquet" or blob_extension == "pkl":
+    if (
+        blob_extension == "csv"
+        or blob_extension == "parquet"
+        or blob_extension == "pkl"
+    ):
         print("Running on CSV, parquet, or pkl")
         blob_client = container_client.get_blob_client(blob)
 
@@ -342,14 +379,21 @@ def get_args():
     azure_container_name = os.getenv("AZURE_CONTAINER_NAME")
 
     assert mode in (
-    LOCAL_MODE, K8S_MODE), f"the {mode} mode is not supported. supported modes are '{LOCAL_MODE}' and '{K8S_MODE}'."
-    assert transformation_type in ("sql",
-                                   "df"), f"the {transformation_type} transformation type is not supported. supported types are 'sql', and 'df'."
-    assert output_uri and sources != [""] and transformation, "the environment variables are not set properly"
+        LOCAL_MODE,
+        K8S_MODE,
+    ), f"the {mode} mode is not supported. supported modes are '{LOCAL_MODE}' and '{K8S_MODE}'."
+    assert transformation_type in (
+        "sql",
+        "df",
+    ), f"the {transformation_type} transformation type is not supported. supported types are 'sql', and 'df'."
+    assert (
+        output_uri and sources != [""] and transformation
+    ), "the environment variables are not set properly"
 
     if mode == K8S_MODE and transformation_type == "df":
-        assert etcd_host and etcd_ports != [
-            ""] and etcd_user and etcd_password, "for k8s mode, df transformations require etcd host, port, and credentials."
+        assert (
+            etcd_host and etcd_ports != [""] and etcd_user and etcd_password
+        ), "for k8s mode, df transformations require etcd host, port, and credentials."
 
     args = Namespace(
         mode=mode,

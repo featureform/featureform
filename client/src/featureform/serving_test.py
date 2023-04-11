@@ -1,7 +1,15 @@
 import featureform as ff
 
 client = ff.ServingClient(local=True)
-fpf = client.features([("SepalLength", "join"),("SepalWidth", "join"), ("PetalLength", "join"), ("PetalWidth", "join")],("Id", 2))
+fpf = client.features(
+    [
+        ("SepalLength", "join"),
+        ("SepalWidth", "join"),
+        ("PetalLength", "join"),
+        ("PetalWidth", "join"),
+    ],
+    ("Id", 2),
+)
 print("features")
 print(fpf)
 # # fpf = client.features([("SepalLength", "centimeters")], {"CustomerID": "1"})

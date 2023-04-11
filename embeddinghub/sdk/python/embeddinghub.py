@@ -21,11 +21,11 @@ from embeddinghub.sdk.python import embedding_store_pb2
 
 
 class EmbeddingHubClient:
-
     def grpc_channel(host="0.0.0.0", port=7462):
         connection_str = "{}:{}".format(host, port)
-        return grpc.insecure_channel(connection_str,
-                                     options=(('grpc.enable_http_proxy', 0),))
+        return grpc.insecure_channel(
+            connection_str, options=(("grpc.enable_http_proxy", 0),)
+        )
 
     def __init__(self, grpc_channel=None, host="0.0.0.0", port=7462):
         if grpc_channel is not None:
@@ -35,8 +35,7 @@ class EmbeddingHubClient:
         self._stub = embedding_store_pb2_grpc.EmbeddingHubStub(self._channel)
 
     def close(self):
-        """Closes the connection.
-        """
+        """Closes the connection."""
         return self._channel.close()
 
     def create_space(self, name, dims, wait=True):
@@ -93,7 +92,7 @@ class EmbeddingHubClient:
         Args:
             space: The name of the space to write to.
             key: The embedding index for retrieval.
-            embedding: A python list of the embedding vector to be stored. 
+            embedding: A python list of the embedding vector to be stored.
             wait: A bool which specifies if the call should be synchronous.
 
         Returns:
@@ -115,7 +114,7 @@ class EmbeddingHubClient:
 
     def get(self, space, key, wait=True):
         """Retrieves an embedding record from the server.
-    
+
         Args:
             space: The name of the space to write to.
             key: The embedding index for retrieval.
@@ -179,12 +178,11 @@ class EmbeddingHubClient:
             provided vector embedding. If wait is False, the value will
             be wrapped in a future.
         """
-        if (key is not None):
+        if key is not None:
             key = str(key)
-        req = embedding_store_pb2.NearestNeighborRequest(space=str(space),
-                                                         key=key,
-                                                         embedding=embedding,
-                                                         num=num)
+        req = embedding_store_pb2.NearestNeighborRequest(
+            space=str(space), key=key, embedding=embedding, num=num
+        )
         future = self._stub.NearestNeighbor.future(req)
         transform_fn = lambda res: res.keys
         wrapped_future = FutureTransformWrapper(future, transform_fn)
@@ -278,8 +276,7 @@ class FutureTransformWrapper:
         self._transform = transform_fn
 
     def __getattr__(self, attr):
-        """Pass all other attribute access to the inner _future object.
-        """
+        """Pass all other attribute access to the inner _future object."""
         return getattr(self._future, attr)
 
     def result(self, timeout=None):
@@ -287,7 +284,6 @@ class FutureTransformWrapper:
         return self._transform(raw_result)
 
     def add_done_callback(self, fn):
-
         def wrapped_callback_fn(fut):
             unwrapped_val = self._transform(fut.result())
             inner_fut = concurrent.futures.Future()

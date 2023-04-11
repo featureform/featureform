@@ -4,36 +4,43 @@ from unittest.mock import patch
 import re
 import os
 
-rc = Client("localhost:8000", False, False, './tls.crt')
+rc = Client("localhost:8000", False, False, "./tls.crt")
+
 
 def check_print_return(expected_print, expected_return, resource_type):
-  rc_get_functions = {
-    "provider": [rc.get_provider, "redis-quickstart"],
-    "entity": [rc.get_entity, "user"],
-    "feature": [rc.get_feature, "avg_transactions"],
-    "label": [rc.get_label, "fraudulent"],
-    "user": [rc.get_user, "featureformer"],
-    "source": [rc.get_source, "transactions"],
-    "training_set": [rc.get_training_set, "fraud_training"]
-  }
+    rc_get_functions = {
+        "provider": [rc.get_provider, "redis-quickstart"],
+        "entity": [rc.get_entity, "user"],
+        "feature": [rc.get_feature, "avg_transactions"],
+        "label": [rc.get_label, "fraudulent"],
+        "user": [rc.get_user, "featureformer"],
+        "source": [rc.get_source, "transactions"],
+        "training_set": [rc.get_training_set, "fraud_training"],
+    }
 
-  rc_get_functions_var = {
-    "source_var": [rc.get_source, "transactions", "kaggle"],
-    "feature_var": [rc.get_feature, "avg_transactions", "quickstart"],
-    "label_var": [rc.get_label, "fraudulent", "quickstart"],
-    "training_set_var": [rc.get_training_set, "fraud_training", "quickstart"]
-  }
+    rc_get_functions_var = {
+        "source_var": [rc.get_source, "transactions", "kaggle"],
+        "feature_var": [rc.get_feature, "avg_transactions", "quickstart"],
+        "label_var": [rc.get_label, "fraudulent", "quickstart"],
+        "training_set_var": [rc.get_training_set, "fraud_training", "quickstart"],
+    }
 
-  with patch('sys.stdout', new = StringIO()) as fake_out:
-    if resource_type in rc_get_functions:
-      value = rc_get_functions[resource_type][0](rc_get_functions[resource_type][1])
-    if resource_type in rc_get_functions_var:
-      value = rc_get_functions_var[resource_type][0](rc_get_functions_var[resource_type][1], rc_get_functions_var[resource_type][2])
-    assert (fake_out.getvalue().replace(" ","") == expected_print.replace(" ", ""))
-  assert re.match(expected_return.replace(" ", ""), str(value).replace(" ", ""))
+    with patch("sys.stdout", new=StringIO()) as fake_out:
+        if resource_type in rc_get_functions:
+            value = rc_get_functions[resource_type][0](
+                rc_get_functions[resource_type][1]
+            )
+        if resource_type in rc_get_functions_var:
+            value = rc_get_functions_var[resource_type][0](
+                rc_get_functions_var[resource_type][1],
+                rc_get_functions_var[resource_type][2],
+            )
+        assert fake_out.getvalue().replace(" ", "") == expected_print.replace(" ", "")
+    assert re.match(expected_return.replace(" ", ""), str(value).replace(" ", ""))
+
 
 def test_get_provider():
-  expected_print_provider = """NAME:                          redis-quickstart
+    expected_print_provider = """NAME:                          redis-quickstart
                               DESCRIPTION:                   A Redis deployment we created for the Featureform quickstart
                               TYPE:                          REDIS_ONLINE
                               SOFTWARE:                      redis
@@ -53,7 +60,7 @@ def test_get_provider():
                               NAME                           VARIANT
                               -----------------------------------------------\n
                               """
-  expected_return_provider = r"""name: "redis-quickstart"
+    expected_return_provider = r"""name: "redis-quickstart"
                                 description: "A Redis deployment we created for the Featureform quickstart"
                                 type: "REDIS_ONLINE"
                                 software: "redis"
@@ -63,11 +70,11 @@ def test_get_provider():
                                   variant: "quickstart"
                                 }
                                 """
-  check_print_return(expected_print_provider, expected_return_provider, "provider")
-  
+    check_print_return(expected_print_provider, expected_return_provider, "provider")
+
 
 def test_get_entity():
-  expected_print_entity = """ENTITY NAME:                   user
+    expected_print_entity = """ENTITY NAME:                   user
                           STATUS:                        NO_STATUS
                           -----------------------------------------------
 
@@ -77,7 +84,7 @@ def test_get_entity():
                           fraud_training                 quickstart                     training set
                           -----------------------------------------------\n
                           """
-  expected_return_entity = r"""name: "user"
+    expected_return_entity = r"""name: "user"
                             features {
                               name: "avg_transactions"
                               variant: "quickstart"
@@ -91,10 +98,11 @@ def test_get_entity():
                               variant: "quickstart"
                             }
                             """
-  check_print_return(expected_print_entity, expected_return_entity, "entity")
+    check_print_return(expected_print_entity, expected_return_entity, "entity")
+
 
 def test_get_user():
-  expected_print_user = """USER NAME:                     featureformer
+    expected_print_user = """USER NAME:                     featureformer
                           -----------------------------------------------
 
                           NAME                           VARIANT                        TYPE
@@ -105,7 +113,7 @@ def test_get_user():
                           average_user_transaction       quickstart                     source
                           -----------------------------------------------\n
                           """
-  expected_return_user = r"""name: "featureformer"
+    expected_return_user = r"""name: "featureformer"
                             features {
                               name: "avg_transactions"
                               variant: "quickstart"
@@ -126,24 +134,26 @@ def test_get_user():
                               name: "average_user_transaction"
                               variant: "quickstart"
                             }\n"""
-  check_print_return(expected_print_user, expected_return_user, "user")
+    check_print_return(expected_print_user, expected_return_user, "user")
+
 
 def test_get_source():
-  expected_print_source = """NAME:                          transactions
+    expected_print_source = """NAME:                          transactions
                           STATUS:                        NO_STATUS
                           -----------------------------------------------
                           VARIANTS:
                           kaggle                         default
                           -----------------------------------------------\n
                           """
-  expected_return_source = r"""name: "transactions"
+    expected_return_source = r"""name: "transactions"
                             default_variant: "kaggle"
                             variants: "kaggle"
                             """
-  check_print_return(expected_print_source, expected_return_source, "source")
+    check_print_return(expected_print_source, expected_return_source, "source")
+
 
 def test_get_source_var():
-  expected_print_source_var = """NAME:                          transactions
+    expected_print_source_var = """NAME:                          transactions
                                 VARIANT:                       kaggle
                                 OWNER:                         featureformer
                                 DESCRIPTION:                   Fraud Dataset From Kaggle
@@ -171,7 +181,7 @@ def test_get_source_var():
                                 fraud_training                 quickstart
                                 -----------------------------------------------\n
                                 """
-  expected_return_source_var = r"""name: "transactions"
+    expected_return_source_var = r"""name: "transactions"
                                   variant: "kaggle"
                                   owner: "featureformer"
                                   description: "Fraud Dataset From Kaggle"
@@ -194,24 +204,28 @@ def test_get_source_var():
                                     }
                                   }
                                   """
-  check_print_return(expected_print_source_var, expected_return_source_var, "source_var")
+    check_print_return(
+        expected_print_source_var, expected_return_source_var, "source_var"
+    )
+
 
 def test_get_feature():
-  expected_print_feature = """NAME:                          avg_transactions
+    expected_print_feature = """NAME:                          avg_transactions
                               STATUS:                        NO_STATUS
                               -----------------------------------------------
                               VARIANTS:
                               quickstart                     default
                               -----------------------------------------------\n
                           """
-  expected_return_feature = """name: "avg_transactions"
+    expected_return_feature = """name: "avg_transactions"
                               default_variant: "quickstart"
                               variants: "quickstart"
                               """
-  check_print_return(expected_print_feature, expected_return_feature, "feature")
+    check_print_return(expected_print_feature, expected_return_feature, "feature")
+
 
 def test_get_feature_var():
-  expected_print_feature_var = """NAME:                          avg_transactions
+    expected_print_feature_var = """NAME:                          avg_transactions
                                 VARIANT:                       quickstart
                                 TYPE:                          float32
                                 ENTITY:                        user
@@ -228,7 +242,7 @@ def test_get_feature_var():
                                 fraud_training                 quickstart
                                 -----------------------------------------------\n
                                 """
-  expected_return_feature_var = r"""name: "avg_transactions"
+    expected_return_feature_var = r"""name: "avg_transactions"
                                   variant: "quickstart"
                                   source {
                                     name: "average_user_transaction"
@@ -251,24 +265,28 @@ def test_get_feature_var():
                                     value: "avg_transaction_amt"
                                   }
                                   """
-  check_print_return(expected_print_feature_var, expected_return_feature_var, "feature_var")
+    check_print_return(
+        expected_print_feature_var, expected_return_feature_var, "feature_var"
+    )
+
 
 def test_get_label():
-  expected_print_label = """NAME:                          fraudulent
+    expected_print_label = """NAME:                          fraudulent
                             STATUS:                        NO_STATUS
                             -----------------------------------------------
                             VARIANTS:
                             quickstart                     default
                             -----------------------------------------------\n
                           """
-  expected_return_label = """name: "fraudulent"
+    expected_return_label = """name: "fraudulent"
                               default_variant: "quickstart"
                               variants: "quickstart"
                               """
-  check_print_return(expected_print_label, expected_return_label, "label")
+    check_print_return(expected_print_label, expected_return_label, "label")
+
 
 def test_get_label_var():
-  expected_print_label_var = """NAME:                          fraudulent
+    expected_print_label_var = """NAME:                          fraudulent
                                   VARIANT:                       quickstart
                                   TYPE:                          bool
                                   ENTITY:                        user
@@ -285,7 +303,7 @@ def test_get_label_var():
                                   fraud_training                 quickstart
                                   -----------------------------------------------\n
                                 """
-  expected_return_label_var = r"""name: "fraudulent"
+    expected_return_label_var = r"""name: "fraudulent"
                                   variant: "quickstart"
                                   type: "bool"
                                   source {
@@ -308,24 +326,28 @@ def test_get_label_var():
                                     value: "isfraud"
                                   }
                                   """
-  check_print_return(expected_print_label_var, expected_return_label_var, "label_var")
+    check_print_return(expected_print_label_var, expected_return_label_var, "label_var")
+
 
 def test_get_training_set():
-  expected_print_training_set = """NAME:                          fraud_training
+    expected_print_training_set = """NAME:                          fraud_training
                                   STATUS:                        NO_STATUS
                                   -----------------------------------------------
                                   VARIANTS:
                                   quickstart                     default
                                   -----------------------------------------------\n
                                   """
-  expected_return_training_set = """name: "fraud_training"
+    expected_return_training_set = """name: "fraud_training"
                                     default_variant: "quickstart"
                                     variants: "quickstart"
                                     """
-  check_print_return(expected_print_training_set, expected_return_training_set, "training_set")
+    check_print_return(
+        expected_print_training_set, expected_return_training_set, "training_set"
+    )
+
 
 def test_get_training_set_var():
-  expected_print_training_set_var = """NAME:                          fraud_training
+    expected_print_training_set_var = """NAME:                          fraud_training
                                       VARIANT:                       quickstart
                                       OWNER:                         featureformer
                                       PROVIDER:                      postgres-quickstart
@@ -340,7 +362,7 @@ def test_get_training_set_var():
                                       avg_transactions               quickstart
                                       -----------------------------------------------\n
                                 """
-  expected_return_training_set_var = r"""name: "fraud_training"
+    expected_return_training_set_var = r"""name: "fraud_training"
                                         variant: "quickstart"
                                         owner: "featureformer"
                                         created {
@@ -357,4 +379,8 @@ def test_get_training_set_var():
                                           variant: "quickstart"
                                         }
                                         """
-  check_print_return(expected_print_training_set_var, expected_return_training_set_var, "training_set_var")
+    check_print_return(
+        expected_print_training_set_var,
+        expected_return_training_set_var,
+        "training_set_var",
+    )

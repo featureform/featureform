@@ -49,6 +49,7 @@ jobs:
         run: golangci-lint run ./...
 
   python-lint:
+    name: Python Linter
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

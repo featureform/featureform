@@ -255,5 +255,3 @@ class TestLocalCache:
 
         # ensure all values are 0
         assert feature_df["avg_transactions.quickstart"].all() == 0
-
-

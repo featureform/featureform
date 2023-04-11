@@ -10,7 +10,6 @@ from abc import ABC, abstractmethod
 
 
 class Benchmark(ABC):
-
     @abstractmethod
     def name(self):
         pass
@@ -24,7 +23,6 @@ class Benchmark(ABC):
 
 
 class ThreadableBenchmark(Benchmark):
-
     def __init__(self):
         self.iter = self.next_args()
         self.channel = eh.EmbeddingHubClient.grpc_channel(port=port)
@@ -46,7 +44,6 @@ class ThreadableBenchmark(Benchmark):
 
 
 class CreateSpaceBenchmark(ThreadableBenchmark):
-
     def name(self):
         return "CreateSpaceBenchmark"
 
@@ -66,7 +63,6 @@ class CreateSpaceBenchmark(ThreadableBenchmark):
 
 
 class FreezeSpaceBenchmark(ThreadableBenchmark):
-
     def name(self):
         return "FreezeSpaceBenchmark"
 
@@ -88,7 +84,6 @@ class FreezeSpaceBenchmark(ThreadableBenchmark):
 
 
 class CreateSpaceBenchmark(ThreadableBenchmark):
-
     def name(self):
         return "CreateSpaceBenchmark"
 
@@ -108,7 +103,6 @@ class CreateSpaceBenchmark(ThreadableBenchmark):
 
 
 class NarrowKeysBenchmark(ThreadableBenchmark):
-
     def name(self):
         return "NarrowKeysBenchmark"
 
@@ -134,7 +128,7 @@ class NarrowKeysBenchmark(ThreadableBenchmark):
     def next_run(self, args):
         fn = args[0]
         key = args[1]
-        if (fn == "set"):
+        if fn == "set":
             self.client().set(self.space_name, key, self.emb)
         else:
             self.client().get(self.space_name, key)
@@ -144,7 +138,6 @@ class NarrowKeysBenchmark(ThreadableBenchmark):
 
 
 class SparseKeysBenchmark(ThreadableBenchmark):
-
     def name(self):
         return "SparseKeysBenchmark"
 
@@ -166,7 +159,7 @@ class SparseKeysBenchmark(ThreadableBenchmark):
     def next_run(self, args):
         fn = args[0]
         key = args[1]
-        if (fn == "set"):
+        if fn == "set":
             self.client().set(self.space_name, key, self.emb)
         else:
             self.client().get(self.space_name, key)
@@ -176,7 +169,6 @@ class SparseKeysBenchmark(ThreadableBenchmark):
 
 
 class BatchSparseKeysBenchmark(ThreadableBenchmark):
-
     def name(self):
         return "BatchSparseKeysBenchmark-batchsize-{}".format(self.batch_size)
 
@@ -191,7 +183,7 @@ class BatchSparseKeysBenchmark(ThreadableBenchmark):
         keys = [uuid.uuid4() for _ in range(self.num_runs() // 2 * batch_size)]
         self.batch_size = batch_size
         self.key_batches = [
-            keys[i:i + batch_size] for i in range(0, len(keys), batch_size)
+            keys[i : i + batch_size] for i in range(0, len(keys), batch_size)
         ]
         self.val_batches = [
             {key: self.emb for key in batch} for batch in self.key_batches
@@ -206,7 +198,7 @@ class BatchSparseKeysBenchmark(ThreadableBenchmark):
     def next_run(self, args):
         fn = args[0]
         batch = args[1]
-        if (fn == "multiset"):
+        if fn == "multiset":
             self.client().multiset(self.space_name, batch)
         else:
             self.client().get(self.space_name, batch)
@@ -216,7 +208,6 @@ class BatchSparseKeysBenchmark(ThreadableBenchmark):
 
 
 class ANNBenchmark(ThreadableBenchmark):
-
     def name(self):
         return "ANNBenchmark"
 
@@ -253,7 +244,6 @@ class ANNBenchmark(ThreadableBenchmark):
 
 
 class MultithreadBenchmark(Benchmark):
-
     def __init__(self, benchmark, max_workers=10):
         self.singlethreaded = benchmark
         self.max_workers = max_workers
@@ -262,13 +252,13 @@ class MultithreadBenchmark(Benchmark):
 
     def name(self):
         return "Multithreaded with {} workers: {}".format(
-            self.max_workers, self.singlethreaded.name())
+            self.max_workers, self.singlethreaded.name()
+        )
 
     def benchmark(self):
         with self.threadpool:
             # This forces any exceptions to fire.
-            for _ in self.threadpool.map(self.singlethreaded.next_run,
-                                         self.args_list):
+            for _ in self.threadpool.map(self.singlethreaded.next_run, self.args_list):
                 pass
 
     def num_runs(self):
@@ -276,10 +266,12 @@ class MultithreadBenchmark(Benchmark):
 
 
 port = random.randint(1000, 10000)
-proc = subprocess.Popen([
-    "{}/__main__/embeddingstore/main".format(os.environ["TEST_SRCDIR"]),
-    "0.0.0.0:{}".format(port)
-])
+proc = subprocess.Popen(
+    [
+        "{}/__main__/embeddingstore/main".format(os.environ["TEST_SRCDIR"]),
+        "0.0.0.0:{}".format(port),
+    ]
+)
 time.sleep(1)
 
 benchmark_classes = [
@@ -306,13 +298,16 @@ for benchmark_class in benchmark_classes:
         benchmarks.append(MultithreadBenchmark(cls()))
 
 import timeit
+
 for i, benchmark in enumerate(benchmarks):
     benchmark_str = "benchmarks[{}]".format(i)
     benchmark_fn = "{}.benchmark()".format(benchmark_str)
-    benchmark_time = timeit.timeit(benchmark_fn,
-                                   globals=globals(),
-                                   number=benchmark.num_runs())
-    print("Runs {}: {}: {:.2f} seconds".format(benchmark.num_runs(),
-                                               benchmark.name(),
-                                               benchmark_time),
-          flush=True)
+    benchmark_time = timeit.timeit(
+        benchmark_fn, globals=globals(), number=benchmark.num_runs()
+    )
+    print(
+        "Runs {}: {}: {:.2f} seconds".format(
+            benchmark.num_runs(), benchmark.name(), benchmark_time
+        ),
+        flush=True,
+    )

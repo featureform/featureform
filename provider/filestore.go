@@ -114,19 +114,21 @@ func (store AzureFileStore) AsAzureStore() *AzureFileStore {
 }
 
 func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
+	pathContainsAzureBlobPrefix := strings.HasPrefix(path, azureBlobPrefix)
+	pathContainsWorkingDirectory := store.Path != "" && strings.HasPrefix(path, store.Path)
+
 	if !remote {
-		if len(path) != 0 && path[0:len(store.Path)] != store.Path && store.Path != "" {
+		if len(path) != 0 && !pathContainsWorkingDirectory {
 			return fmt.Sprintf("%s/%s", store.Path, path)
 		}
-	}
-	if remote {
-		prefix := ""
-		pathContainsPrefix := path[:len(store.Path)] == store.Path
-		if store.Path != "" && !pathContainsPrefix {
-			prefix = fmt.Sprintf("%s/", store.Path)
+	} else if remote && !pathContainsAzureBlobPrefix {
+		azureBlobPathPrefix := ""
+		if !pathContainsWorkingDirectory {
+			azureBlobPathPrefix = fmt.Sprintf("/%s", store.Path)
 		}
-		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s%s", store.ContainerName, store.AccountName, prefix, path)
+		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s%s", store.ContainerName, store.AccountName, azureBlobPathPrefix, path)
 	}
+
 	return path
 }
 
@@ -215,11 +217,11 @@ func NewS3FileStore(config Config) (FileStore, error) {
 func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
 	if remote && !strings.HasPrefix(path, s3Prefix) {
 		s3Path := ""
-		if s3.Path != "" {
+		if s3.Path != "" && !strings.HasPrefix(path, s3.Path) {
 			s3Path = fmt.Sprintf("/%s", s3.Path)
 		}
 		return fmt.Sprintf("%s%s%s/%s", s3Prefix, s3.Bucket, s3Path, path)
-	} else if !remote && s3.Path != "" {
+	} else if !remote && s3.Path != "" && !strings.HasPrefix(path, s3.Path) {
 		return fmt.Sprintf("%s/%s", s3.Path, path)
 	} else {
 		return path
@@ -561,18 +563,21 @@ func (hdfs *HDFSFileStore) NewestFileOfType(prefix string, fileType FileType) (s
 }
 
 func (fs *HDFSFileStore) PathWithPrefix(path string, remote bool) string {
-	hdfsPrefixLength := len(HDFSPrefix)
-	nofsPrefix := path[:hdfsPrefixLength] != HDFSPrefix
+	pathContainsHDFSPrefix := strings.HasPrefix(path, HDFSPrefix)
+	pathContainsWorkingDirectory := fs.Path != "" && strings.HasPrefix(path, fs.Path)
 
-	if remote && nofsPrefix {
-		fsPath := ""
-		if fs.Path != "" {
-			fsPath = fmt.Sprintf("/%s", fs.Path)
+	if !remote {
+		if len(path) != 0 && !pathContainsWorkingDirectory {
+			return fmt.Sprintf("%s/%s", fs.Path, path)
 		}
-		return fmt.Sprintf("%s%s/%s/%s", HDFSPrefix, fs.Host, fsPath, path)
-	} else {
-		return path
+	} else if remote && !pathContainsHDFSPrefix {
+		hdfsPathPrefix := ""
+		if !pathContainsWorkingDirectory {
+			hdfsPathPrefix = fmt.Sprintf("/%s", fs.Path)
+		}
+		return fmt.Sprintf("%s%s%s/%s", HDFSPrefix, fs.Host, hdfsPathPrefix, path)
 	}
+	return path
 }
 
 func (fs *HDFSFileStore) NumRows(key string) (int64, error) {

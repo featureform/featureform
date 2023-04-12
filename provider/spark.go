@@ -136,17 +136,21 @@ func (s3 SparkS3FileStore) Type() string {
 }
 
 func (s3 SparkS3FileStore) PathWithPrefix(path string, remote bool) string {
-	if remote && !strings.HasPrefix(path, s3aPrefix) {
-		s3Path := ""
-		if s3.Path != "" {
-			s3Path = fmt.Sprintf("/%s", s3.Path)
+	pathContainsS3Prefix := strings.HasPrefix(path, s3aPrefix)
+	pathContainsWorkingDirectory := s3.Path != "" && strings.HasPrefix(path, s3.Path)
+
+	if !remote {
+		if len(path) != 0 && !pathContainsWorkingDirectory {
+			return fmt.Sprintf("%s/%s", s3.Path, path)
 		}
-		return fmt.Sprintf("%s%s%s/%s", s3aPrefix, s3.Bucket, s3Path, path)
-	} else if !remote && s3.Path != "" {
-		return fmt.Sprintf("%s/%s", s3.Path, path)
-	} else {
-		return path
+	} else if remote && !pathContainsS3Prefix {
+		s3PathPrefix := ""
+		if !pathContainsWorkingDirectory {
+			s3PathPrefix = fmt.Sprintf("/%s", s3.Path)
+		}
+		return fmt.Sprintf("%s%s%s/%s", s3aPrefix, s3.Bucket, s3PathPrefix, path)
 	}
+	return path
 }
 
 func NewSparkAzureFileStore(config Config) (SparkFileStore, error) {
@@ -396,16 +400,24 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 	pythonLocalInitScriptPath := config.GetPythonLocalInitPath()
 	pythonRemoteInitScriptPath := config.GetPythonRemoteInitPath()
 
-	err := readAndUploadFile(sparkLocalScriptPath, store.PathWithPrefix(sparkRemoteScriptPath, false), store)
-	sparkExists, _ := store.Exists(store.PathWithPrefix(sparkRemoteScriptPath, false))
-	if err != nil && !sparkExists {
-		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", store.PathWithPrefix(sparkRemoteScriptPath, false), err)
+	remoteScriptPathWithPrefix := store.PathWithPrefix(sparkRemoteScriptPath, false)
+	err := readAndUploadFile(sparkLocalScriptPath, remoteScriptPathWithPrefix, store)
+	if err != nil {
+		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath, remoteScriptPathWithPrefix, err)
+	}
+	sparkExists, err := store.Exists(remoteScriptPathWithPrefix)
+	if err != nil || !sparkExists {
+		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", remoteScriptPathWithPrefix, err)
 	}
 
-	err = readAndUploadFile(pythonLocalInitScriptPath, store.PathWithPrefix(pythonRemoteInitScriptPath, false), store)
-	initExists, _ := store.Exists(store.PathWithPrefix(pythonRemoteInitScriptPath, false))
-	if err != nil && !initExists {
-		return fmt.Errorf("could not upload python initialization script: Path: %s, Error: %v", store.PathWithPrefix(pythonRemoteInitScriptPath, false), err)
+	remoteInitScriptPathWithPrefix := store.PathWithPrefix(pythonRemoteInitScriptPath, false)
+	err = readAndUploadFile(pythonLocalInitScriptPath, remoteInitScriptPathWithPrefix, store)
+	if err != nil {
+		return fmt.Errorf("could not upload '%s' to '%s': %v", pythonLocalInitScriptPath, remoteInitScriptPathWithPrefix, err)
+	}
+	initExists, err := store.Exists(remoteInitScriptPathWithPrefix)
+	if err != nil || !initExists {
+		return fmt.Errorf("could not upload python initialization script: Path: %s, Error: %v", remoteInitScriptPathWithPrefix, err)
 	}
 	return nil
 }
@@ -638,8 +650,11 @@ func (e EMRExecutor) InitializeExecutor(store SparkFileStore) error {
 	sparkScriptPathWithPrefix := store.PathWithPrefix(sparkRemoteScriptPath, false)
 
 	err := readAndUploadFile(sparkLocalScriptPath, sparkScriptPathWithPrefix, store)
-	scriptExists, _ := store.Exists(sparkScriptPathWithPrefix)
-	if err != nil && !scriptExists {
+	if err != nil {
+		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath, sparkScriptPathWithPrefix, err)
+	}
+	scriptExists, err := store.Exists(sparkScriptPathWithPrefix)
+	if err != nil || !scriptExists {
 		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", sparkScriptPathWithPrefix, err)
 	}
 	return nil
@@ -659,8 +674,11 @@ func (s *SparkGenericExecutor) InitializeExecutor(store SparkFileStore) error {
 	sparkScriptPathWithPrefix := store.PathWithPrefix(sparkRemoteScriptPath, false)
 
 	err := readAndUploadFile(sparkLocalScriptPath, sparkScriptPathWithPrefix, store)
-	scriptExists, _ := store.Exists(sparkScriptPathWithPrefix)
-	if err != nil && !scriptExists {
+	if err != nil {
+		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath, sparkScriptPathWithPrefix, err)
+	}
+	scriptExists, err := store.Exists(sparkScriptPathWithPrefix)
+	if err != nil || !scriptExists {
 		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", sparkScriptPathWithPrefix, err)
 	}
 	return nil
@@ -1157,7 +1175,7 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string,
 
 	sparkScriptPathEnv := config.GetSparkRemoteScriptPath()
 	sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
-	codePath := strings.Replace(store.PathWithPrefix(code, true), s3aPrefix, s3Prefix, -1)
+	codePath := strings.Replace(code, s3aPrefix, s3Prefix, -1)
 
 	scriptArgs := []string{
 		sparkScriptPath,
@@ -1189,7 +1207,7 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 		"--output_uri",
 		outputURI,
 		"--code",
-		store.PathWithPrefix(code, false),
+		code,
 		"--store_type",
 		store.Type(),
 	}
@@ -1209,10 +1227,10 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
 	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), false)
-	transformationExactPath, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(transformationPath, false), Parquet)
+	transformationExactPath, err := spark.Store.NewestFileOfType(transformationPath, Parquet)
 
 	if err != nil || transformationExactPath == "" {
-		return nil, fmt.Errorf("could not get transformation table: %v", err)
+		return nil, fmt.Errorf("could not get transformation table at %s: %v", transformationPath, err)
 	}
 	spark.Logger.Debugw("Succesfully retrieved transformation table", "ResourceID", id)
 	return &FileStorePrimaryTable{spark.Store, transformationExactPath, true, id}, nil

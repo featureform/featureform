@@ -80,7 +80,7 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
 
         dt = datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
-        output_uri_with_timestamp = f'{output_uri}{safe_datetime}/'
+        output_uri_with_timestamp = f"{output_uri}{safe_datetime}" if output_uri[-1] == "/" else f"{output_uri}/{safe_datetime}"
 
         output_dataframe.write.option("header", "true").mode("overwrite").parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp

@@ -467,7 +467,7 @@ const NoDataMessage = ({ type }) => {
   const classes = useStyles();
 
   function redirect() {
-    window.location.href = "https://docs.featureform.com/quickstart";
+    window.location.href = "https://docs.featureform.com/getting-started/overview";
   }
   return (
     <Container>

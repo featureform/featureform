@@ -164,6 +164,7 @@ def test_executor_config(executor_config, request):
         ("3.8.16","3.8.16"),
         ("3.9.11","3.9.16"),
         ("3.10.10","3.10.10"),
+        ("3.11.2","3.11.2"),
         pytest.param("3","", marks=pytest.mark.xfail),
         pytest.param("3.","", marks=pytest.mark.xfail),
         pytest.param("2.10","", marks=pytest.mark.xfail),

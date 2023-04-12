@@ -136,14 +136,14 @@ func (s3 SparkS3FileStore) Type() string {
 }
 
 func (s3 SparkS3FileStore) PathWithPrefix(path string, remote bool) string {
-	noS3Prefix := !strings.HasPrefix(path, "s3a://")
-
-	if remote && noS3Prefix {
+	if remote && !strings.HasPrefix(path, s3aPrefix) {
 		s3Path := ""
 		if s3.Path != "" {
 			s3Path = fmt.Sprintf("/%s", s3.Path)
 		}
-		return fmt.Sprintf("s3a://%s%s/%s", s3.Bucket, s3Path, path)
+		return fmt.Sprintf("%s%s%s/%s", s3aPrefix, s3.Bucket, s3Path, path)
+	} else if !remote && s3.Path != "" {
+		return fmt.Sprintf("%s/%s", s3.Path, path)
 	} else {
 		return path
 	}

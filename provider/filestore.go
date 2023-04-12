@@ -124,7 +124,7 @@ func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
 	} else if remote && !pathContainsAzureBlobPrefix {
 		azureBlobPathPrefix := ""
 		if !pathContainsWorkingDirectory {
-			azureBlobPathPrefix = fmt.Sprintf("/%s", store.Path)
+			azureBlobPathPrefix = fmt.Sprintf("/%s/", strings.TrimSuffix(store.Path, "/"))
 		}
 		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s%s", store.ContainerName, store.AccountName, azureBlobPathPrefix, path)
 	}

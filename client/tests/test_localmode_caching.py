@@ -28,7 +28,6 @@ def setup(tmp_path_factory):
     transactions = local.register_file(
         name="transactions",
         variant="quickstart",
-        description="A dataset of fraudulent transactions",
         path=str(temp_transactions),
     )
 

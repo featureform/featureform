@@ -934,7 +934,7 @@ jobs:
           S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
           GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          GCP_CREDENTIALS_FILE: "./gcp_credentials.json"
+          GCP_CREDENTIALS_FILE: "./gcp_credentials.json" # this path needs to be relative to the test file location
         run: make test_filestore
 
       - name: Convert Coverage Test Results

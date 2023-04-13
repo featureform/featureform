@@ -233,6 +233,7 @@ pytest:
 	pytest -m 'local' client/tests/test_class_api.py
 	pytest -m 'local' client/tests/test_ondemand_features.py
 	pytest client/tests/test_localmode_caching.py
+	pytest -m 'local' client/tests/test_resource_registration.py
 	-rm -r .featureform
 	-rm -f transactions.csv
 

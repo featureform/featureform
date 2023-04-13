@@ -1976,8 +1976,12 @@ def check_objs(path, test_obj, client):
     assert response.status == "200 OK"
     json_resource = json.loads(response.data.decode())
     removed_created_json = remove_keys(json_resource, ["created", "definition"])
-    print("++++++++++ ACTUAL", removed_created_json)
-    assert removed_created_json == test_obj
+    if isinstance(removed_created_json, dict):
+        assert test_obj == removed_created_json
+    elif isinstance(removed_created_json, list):
+        actual = {obj["name"]: obj for obj in removed_created_json}
+        expected = {obj["name"]: obj for obj in test_obj}
+        assert actual == expected
 
 
 def test_features(client):

@@ -1759,7 +1759,7 @@ class ResourceState:
         return sorted(self.__state.values(), key=to_sort_key)
 
     def create_all_dryrun(self) -> None:
-        for resource in self.__state.values():
+        for resource in self.sorted_list():
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name)
             if resource.operation_type() is OperationType.CREATE:
@@ -1768,7 +1768,7 @@ class ResourceState:
     def create_all_local(self) -> None:
         db = SQLiteMetadata()
         check_up_to_date(True, "register")
-        for resource in self.__state.values():
+        for resource in self.sorted_list():
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name)
                 resource._get_local(db)
@@ -1780,19 +1780,23 @@ class ResourceState:
 
     def create_all(self, stub) -> None:
         check_up_to_date(False, "register")
-        for resource in self.__state.values():
+        for resource in self.sorted_list():
             if resource.type() == "provider" and resource.name == "local-mode":
                 continue
             try:
+                # NOTE: There is an extra space before the variant name to better handle the case
+                # where a resource has no variant; ultimately, we should separate data access and
+                # logging/CLI output to avoid this unnecessary coupling.
+                resource_variant = f" {resource.variant}" if hasattr(resource, "variant") else ""
                 if resource.operation_type() is OperationType.GET:
-                    print("Getting", resource.type(), resource.name)
+                    print(f"Getting {resource.type()} {resource.name}{resource_variant}")
                     resource._get(stub)
                 if resource.operation_type() is OperationType.CREATE:
-                    print("Creating", resource.type(), resource.name)
+                    print(f"Creating {resource.type()} {resource.name}{resource_variant}")
                     resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
-                    print(resource.name, "already exists.")
+                    print(f"{resource.name}{resource_variant} already exists.")
                     continue
 
                 raise e

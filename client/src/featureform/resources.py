@@ -1780,15 +1780,16 @@ class ResourceState:
             if resource.type() == "provider" and resource.name == "local-mode":
                 continue
             try:
+                resource_variant = resource.variant if hasattr(resource, 'variant') else ''
                 if resource.operation_type() is OperationType.GET:
-                    print(f"Getting {resource.type()} {resource.name}")
+                    print(f"Getting {resource.type()} {resource.name} {resource_variant}")
                     resource._get(stub)
                 if resource.operation_type() is OperationType.CREATE:
-                    print(f"Creating {resource.type()} {resource.name}")
+                    print(f"Creating {resource.type()} {resource.name} {resource_variant}")
                     resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
-                    print(f"{resource.name} already exists.")
+                    print(f"{resource.name} {resource_variant} already exists.")
                     continue
 
                 raise e

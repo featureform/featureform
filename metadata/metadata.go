@@ -1075,34 +1075,34 @@ func (resource *providerResource) Update(lookup ResourceLookup, resourceUpdate R
 	return nil
 }
 
-func (a providerResource) isValidConfigUpdate(configUpdate pc.SerializedConfig) (bool, error) {
-	switch pt.Type(a.serialized.Type) {
+func (resource *providerResource) isValidConfigUpdate(configUpdate pc.SerializedConfig) (bool, error) {
+	switch pt.Type(resource.serialized.Type) {
 	case pt.BigQueryOffline:
-		return isValidBigQueryConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidBigQueryConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.CassandraOnline:
-		return isValidCassandraConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidCassandraConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.DynamoDBOnline:
-		return isValidDynamoConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidDynamoConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.FirestoreOnline:
-		return isValidFirestoreConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidFirestoreConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.MongoDBOnline:
-		return isValidMongoConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidMongoConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.PostgresOffline:
-		return isValidPostgresConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidPostgresConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.RedisOnline:
-		return isValidRedisConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidRedisConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.SnowflakeOffline:
-		return isValidSnowflakeConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidSnowflakeConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.RedshiftOffline:
-		return isValidRedshiftConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidRedshiftConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.K8sOffline:
-		return isValidK8sConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidK8sConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.SparkOffline:
-		return isValidSparkConfigUpdate(a.serialized.SerializedConfig, configUpdate)
-	case pt.S3, pt.HDFS, pt.GCS, pt.AZURE:
+		return isValidSparkConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
+	case pt.S3, pt.HDFS, pt.GCS, pt.AZURE, pt.BlobOnline:
 		return true, nil
 	default:
-		return false, fmt.Errorf("unrecognized provider type: %v", a.serialized.Type)
+		return false, fmt.Errorf("unable to update config for provider. Provider type %s not found", resource.serialized.Type)
 	}
 }
 

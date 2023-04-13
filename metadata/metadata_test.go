@@ -3,6 +3,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	pb "github.com/featureform/metadata/proto"
 	"net"
 	"reflect"
 	"testing"
@@ -1948,5 +1949,23 @@ func TestBannedStrings(t *testing.T) {
 	validName := ResourceID{"name", "variant", FEATURE}
 	if err := resourceNamedSafely(validName); err != nil {
 		t.Fatalf("valid resource triggered an error")
+	}
+}
+
+func TestIsValidConfigUpdate(t *testing.T) {
+
+	for _, providerType := range pt.AllProviderTypes {
+		resource := &providerResource{
+			serialized: &pb.Provider{
+				Type: providerType.String(),
+			},
+		}
+
+		_, err := resource.isValidConfigUpdate(pc.SerializedConfig{})
+		if err != nil {
+			if err.Error() == "config update not supported for provider type: "+providerType.String() {
+				t.Fatalf("no support for provider type %s", providerType)
+			}
+		}
 	}
 }

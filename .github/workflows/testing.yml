@@ -915,6 +915,13 @@ jobs:
           AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
           AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
         run: make test_pandas
+
+      - name: Creating GCS Secret File
+        id: create-json-2
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "./provider/gcp_credentials.json"
+          json: ${{ secrets.GCS_CREDENTIALS }}
       
       - name: Testing Filestore
         env:
@@ -925,9 +932,9 @@ jobs:
           AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
           S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
           S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
-          GCP_CREDENTIALS_FILE: ${{ secrets.GCP_CREDENTIALS_FILE }}
           GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_CREDENTIALS_FILE: "./provider/gcp_credentials.json"
         run: make test_filestore
 
       - name: Convert Coverage Test Results

@@ -26,7 +26,7 @@ NameVariant = Tuple[str, str]
 
 # Constants for Pyspark Versions
 MAJOR_VERSION = "3"
-MINOR_VERSIONS = ["7", "8", "9", "10"]
+MINOR_VERSIONS = ["7", "8", "9", "10", "11"]
 
 
 @typechecked
@@ -1900,11 +1900,13 @@ class SparkCredentials:
             raise Exception(f"The Python version {version} is not supported. Currently, supported versions are 3.7-3.10.")
         
         """
-        The Python versions on the Docker image are 3.7.16, 3.8.16, 3.9.16, and 3.10.10. 
+        The Python versions on the Docker image are 3.7.16, 3.8.16, 3.9.16, 3.10.10, and 3.11.2.
         This conditional statement sets the patch number based on the minor version. 
         """
         if minor == "10":
             patch = "10"
+        elif minor == "11":
+            patch = "2"
         else:
             patch = "16"
         

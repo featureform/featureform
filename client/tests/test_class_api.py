@@ -1,6 +1,6 @@
 import featureform as ff
 import pytest
-
+from featureform.register import Registrar, DFTransformationDecorator, ResourceRegistrar
 from featureform.resources import Entity, Feature, Label
 
 
@@ -78,6 +78,32 @@ def test_variants_naming_consistency(provider_source_fxt, is_local, request):
                 ),
             }
         )
+
+@pytest.mark.local
+def test_subscriptable_transformation_decorator_method_call():
+    df_transformation_decorator = DFTransformationDecorator(
+        registrar=Registrar(),
+        provider="test_provider",
+        owner="test_owner",
+        tags=[],
+        properties={},
+    )
+
+    def test_function():
+        pass
+
+    df_transformation_decorator(test_function)
+
+    name_variant = df_transformation_decorator.name_variant()
+    column_resource = df_transformation_decorator.register_resources(
+        entity="user",
+        entity_column="user_id",
+        owner="test_owner",
+        inference_store="test_store",
+        features=[{"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"}],
+    )
+
+    assert name_variant == ("test_function", "default") and isinstance(column_resource, ResourceRegistrar)
 
 
 @pytest.mark.parametrize(

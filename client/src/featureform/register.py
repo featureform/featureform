@@ -2988,7 +2988,7 @@ class ResourceClient:
             resources = resource_state.sorted_list()
             display_statuses(self._stub, resources)
 
-        self.clear_state()
+        clear_state()
 
 
     def get_user(self, name, local=False):

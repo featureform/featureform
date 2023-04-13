@@ -2001,6 +2001,8 @@ class SparkCredentials:
     ):
         self.master = master.lower()
         self.deploy_mode = deploy_mode.lower()
+        self.core_site_path = core_site_path
+        self.yarn_site_path = yarn_site_path
 
         if self.deploy_mode != "cluster" and self.deploy_mode != "client":
             raise Exception(

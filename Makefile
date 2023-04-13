@@ -144,6 +144,13 @@ test_coordinator
 			Usage:
 				make test_metadata flags=ETCD_UNSUPPORTED_ARCH=arm64
 
+test_filestore
+	Requirements:
+		- Golang 1.18
+
+	Description:
+		Runs golang unit tests
+
 endef
 export HELP_BODY
 
@@ -256,6 +263,12 @@ test_offline_k8s:  					## Run k8s tests.
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage
 	go test -v -parallel 1000 -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=k8s
+
+test_filestore:
+	@echo "These tests require a .env file. Please Check .env-template for possible variables"
+	-mkdir coverage
+	go test -v -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=filestore
+
 
 test_online: gen_grpc 					## Run offline tests. Run with `make test_online provider=(memory | redis_mock | redis_insecure | redis_secure | cassandra | firestore | dynamo )`
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"

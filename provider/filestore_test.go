@@ -102,28 +102,6 @@ func testPathPrefix(t *testing.T, store FileStore, storeName string) {
 				ExpectedPath: fmt.Sprintf("s3://%s/featureform-unit-test/path_to_file/file.csv", s3BucketName),
 			},
 		},
-		// "hdfs": map[string]TestCase{
-		// 	"path_with_slash_not_remote": TestCase{
-		// 		Path:         "/path_to_file/file.csv",
-		// 		Remote:       false,
-		// 		ExpectedPath: "tmp/path_to_file/file.csv",
-		// 	},
-		// 	"path_without_slash_not_remote": TestCase{
-		// 		Path:         "path_to_file/file.csv",
-		// 		Remote:       false,
-		// 		ExpectedPath: "tmp/path_to_file/file.csv",
-		// 	},
-		// 	"path_with_slash_remote": TestCase{
-		// 		Path:         "/path_to_file/file.csv",
-		// 		Remote:       true,
-		// 		ExpectedPath: "tmp/path_to_file/file.csv",
-		// 	},
-		// 	"path_without_slash_remote": TestCase{
-		// 		Path:         "path_to_file/file.csv",
-		// 		Remote:       true,
-		// 		ExpectedPath: "tmp/path_to_file/file.csv",
-		// 	},
-		// },
 		"azure": map[string]TestCase{
 			"path_with_slash_not_remote": TestCase{
 				Path:         "/path_to_file/file.csv",
@@ -201,11 +179,6 @@ func getFileStores() (map[string]FileStore, error) {
 		return nil, fmt.Errorf("could not get s3 filestore: %v", err)
 	}
 
-	// hdfsFileStore, err := getHDFSFileStore()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("could not get hdfs filestore: %v", err)
-	// }
-
 	azureFileStore, err := getAzureFileStore()
 	if err != nil {
 		return nil, fmt.Errorf("could not get azure filestore: %v", err)
@@ -219,7 +192,6 @@ func getFileStores() (map[string]FileStore, error) {
 	fileStoresMap := map[string]FileStore{
 		"local": localFileStore,
 		"s3":    s3FileStore,
-		// "hdfs":  hdfsFileStore,
 		"azure": azureFileStore,
 		"gcs":   gcsFileStore,
 	}

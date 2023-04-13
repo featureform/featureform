@@ -915,6 +915,20 @@ jobs:
           AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
           AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
         run: make test_pandas
+      
+      - name: Testing Filestore
+        env:
+          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
+          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
+          GCP_CREDENTIALS_FILE: ${{ secrets.GCP_CREDENTIALS_FILE }}
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: make test_filestore
 
       - name: Convert Coverage Test Results
         if: always()

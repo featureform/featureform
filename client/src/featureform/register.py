@@ -1917,6 +1917,8 @@ class Registrar:
         path: str = "",
         description: str = "",
         team: str = "",
+        tags: List[str] = None,
+        properties: dict = None,
     ):
         """Register a HDFS store provider.
 
@@ -1954,6 +1956,8 @@ class Registrar:
             description=description,
             team=team,
             config=hdfs_config,
+            tags=tags,
+            properties=properties,
         )
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, hdfs_config, hdfs_config.type())
@@ -2386,6 +2390,7 @@ class Registrar:
             tags=tags or [],
             properties=properties or {},
         )
+
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 

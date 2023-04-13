@@ -1917,8 +1917,8 @@ class Registrar:
         path: str = "",
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a HDFS store provider.
 

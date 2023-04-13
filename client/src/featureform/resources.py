@@ -1780,16 +1780,19 @@ class ResourceState:
             if resource.type() == "provider" and resource.name == "local-mode":
                 continue
             try:
-                resource_variant = resource.variant if hasattr(resource, 'variant') else ''
+                # NOTE: There is an extra space before the variant name to better handle the case
+                # where a resource has no variant; ultimately, we should separate data access and
+                # logging/CLI output to avoid this unnecessary coupling.
+                resource_variant = f" {resource.variant}" if hasattr(resource, "variant") else ""
                 if resource.operation_type() is OperationType.GET:
-                    print(f"Getting {resource.type()} {resource.name} {resource_variant}")
+                    print(f"Getting {resource.type()} {resource.name}{resource_variant}")
                     resource._get(stub)
                 if resource.operation_type() is OperationType.CREATE:
-                    print(f"Creating {resource.type()} {resource.name} {resource_variant}")
+                    print(f"Creating {resource.type()} {resource.name}{resource_variant}")
                     resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
-                    print(f"{resource.name} {resource_variant} already exists.")
+                    print(f"{resource.name}{resource_variant} already exists.")
                     continue
 
                 raise e

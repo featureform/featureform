@@ -49,7 +49,7 @@ helm repo update
 ```
 
 ```
-helm install my-featureform featureform/featureform --set global.publicCert=false
+helm install featureform featureform/featureform
 ```
 
 This is starts a vanilla Featureform deployment, but it can be further configured using a set of Helm variables.

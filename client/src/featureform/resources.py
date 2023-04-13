@@ -652,6 +652,7 @@ Config = Union[
     MongoDBConfig,
     GCSFileStoreConfig,
     EmptyConfig,
+    HDFSConfig,
 ]
 
 

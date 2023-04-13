@@ -2920,7 +2920,7 @@ class Registrar:
         return model
 
 
-class ResourceClient(Registrar):
+class ResourceClient:
     """The resource client is used to retrieve information on specific resources (entities, providers, features, labels, training sets, models, users). If retrieved resources are needed to register additional resources (e.g. registering a feature from a source), use the [Client](client.md) functions instead.
 
     **Using the Resource Client:**

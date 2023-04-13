@@ -2074,8 +2074,8 @@ class SparkCredentials:
             "Master": self.master,
             "DeployMode": self.deploy_mode,
             "PythonVersion": self.python_version,
-            "CoreSite": open(self.core_site_path, "rb").read(),
-            "YarnSite": open(self.yarn_site_path, "rb").read(),
+            "CoreSite": open(self.core_site_path, "r").read(),
+            "YarnSite": open(self.yarn_site_path, "r").read(),
         }
 
 

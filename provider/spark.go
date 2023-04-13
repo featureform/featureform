@@ -713,8 +713,8 @@ type SparkGenericExecutor struct {
 	master        string
 	deployMode    string
 	pythonVersion string
-	coreSite      []byte
-	yarnSite      []byte
+	coreSite      string
+	yarnSite      string
 	logger        *zap.SugaredLogger
 }
 
@@ -742,11 +742,11 @@ func (s *SparkGenericExecutor) getYarnCommand(args string) (string, error) {
 	}
 	coreSitePath := filepath.Join(configDir, "core-site.xml")
 	yarnSitePath := filepath.Join(configDir, "yarn-site.xml")
-	err = os.WriteFile(coreSitePath, s.coreSite, 0644)
+	err = os.WriteFile(coreSitePath, []byte(s.coreSite), 0644)
 	if err != nil {
 		return "", fmt.Errorf("could not write core-site.xml: %v", err)
 	}
-	err = os.WriteFile(yarnSitePath, s.yarnSite, 0644)
+	err = os.WriteFile(yarnSitePath, []byte(s.yarnSite), 0644)
 	if err != nil {
 		return "", fmt.Errorf("could not write core-site.xml: %v", err)
 	}

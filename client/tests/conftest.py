@@ -1,10 +1,11 @@
-import csv
 import os
-import pytest
 import sys
-import shutil
 import stat
+import shutil
 from tempfile import NamedTemporaryFile
+
+import dill
+import pytest
 
 sys.path.insert(0, 'client/src/')
 
@@ -12,21 +13,22 @@ sys.path.insert(0, 'client/src/')
 from featureform.register import (
     Registrar,
     OfflineSparkProvider,
-    LocalProvider,
-    OfflineSQLProvider,
-    ResourceClient,
+    ColumnSourceRegistrar,
 )
 from featureform.resources import (
     AWSCredentials,
     AzureFileStoreConfig,
     DatabricksCredentials,
     EMRCredentials,
-    LocalConfig,
     S3StoreConfig,
     SparkConfig,
     SparkCredentials,
-    PostgresConfig,
     Provider,
+    PrimaryData,
+    Location,
+    Source,
+    SQLTransformation,
+    DFTransformation,
 )
 import featureform as ff
 
@@ -38,17 +40,14 @@ pytest_plugins = [
 ]
 
 @pytest.fixture(scope="module")
-def spark_provider():
-    r = Registrar()
-    r.set_default_owner("tester")
-
+def spark_provider(ff_registrar):
     databricks = DatabricksCredentials(username="a", password="b", cluster_id="c_id")
     azure_blob = AzureFileStoreConfig(account_name="", account_key="", container_name="", root_path="")   
     
     config = SparkConfig(executor_type=databricks.type(), executor_config=databricks.config(), store_type=azure_blob.store_type(), store_config=azure_blob.config())
     provider = Provider(name="spark", function="OFFLINE", description="", team="", config=config, tags=[], properties={})
     
-    return OfflineSparkProvider(r, provider)
+    return OfflineSparkProvider(ff_registrar, provider)
 
 @pytest.fixture(scope="module")
 def avg_user_transaction():
@@ -59,6 +58,67 @@ def avg_user_transaction():
         return df
     
     return average_user_transaction
+
+@pytest.fixture(scope="module")
+def ff_registrar():
+    r = Registrar()
+    r.set_default_owner("tester")
+    return r
+
+@pytest.fixture(scope="module")
+def primary_dataset(ff_registrar):
+    src = Source(
+        name="primary",
+        variant="default",
+        definition=PrimaryData(location=Location("tableName")),
+        owner="tester",
+        provider="spark",
+        description="doc string",
+        tags=[],
+        properties={}
+    )
+    colum_src = ColumnSourceRegistrar(ff_registrar, src)
+    return [colum_src]
+
+
+@pytest.fixture(scope="module")
+def sql_transformation_src(ff_registrar):
+    src = Source(
+        name="sql_transformation",
+        variant="default",
+        definition=SQLTransformation("SELECT * FROM {{ name.variant }}"),
+        owner="tester",
+        provider="spark",
+        description="doc string",
+        tags=[],
+        properties={}
+    )
+    colum_src = ColumnSourceRegistrar(ff_registrar, src)
+    return [colum_src]
+
+
+@pytest.fixture(scope="module")
+def tuple_inputs():
+    return [("name", "variant")]
+
+
+@pytest.fixture(scope="module")
+def df_transformation_src(ff_registrar,):
+    def test_func():
+        return True
+    query = dill.dumps(test_func.__code__)
+    src = Source(
+        name="sql_transformation",
+        variant="default",
+        definition=DFTransformation(query, inputs=[("name", "variant")]),
+        owner="tester",
+        provider="spark",
+        description="doc string",
+        tags=[],
+        properties={}
+    )
+    colum_src = ColumnSourceRegistrar(ff_registrar, src)
+    return [colum_src]
 
 
 @pytest.fixture(scope="module")

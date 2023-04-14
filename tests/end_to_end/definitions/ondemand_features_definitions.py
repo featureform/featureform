@@ -79,7 +79,7 @@ ice_cream_dataset = spark.register_parquet_file(
 
 @spark.df_transformation(name=f"ice_cream_transformation_{VERSION}",
                         variant=VERSION,
-                        inputs=[(f"ice_cream_{VERSION}", VERSION)])
+                        inputs=[ice_cream_dataset])
 def ice_cream_transformation(df):
     """the ice cream dataset """
     return df

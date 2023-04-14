@@ -67,10 +67,12 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
         if job_type == "Transformation" or job_type == "Materialization" or job_type == "Training Set":
             for i, source in enumerate(source_list):
                 file_extension = Path(source).suffix
+                is_directory = file_extension == ""
+
                 if file_extension == ".csv":
                     source_df = spark.read.option("header","true").option("recursiveFileLookup", "true").csv(source) 
                     source_df.createOrReplaceTempView(f'source_{i}')
-                elif file_extension == ".parquet" or file_extension == "":
+                elif file_extension == ".parquet" or is_directory:
                     source_df = spark.read.option("header","true").option("recursiveFileLookup", "true").parquet(source) 
                     source_df.createOrReplaceTempView(f'source_{i}')
                 else:
@@ -109,9 +111,11 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
     func_parameters = []
     for location in sources:
         file_extension = Path(location).suffix
+        is_directory = file_extension == ""
+        
         if file_extension == ".csv":
             func_parameters.append(spark.read.option("header","true").option("recursiveFileLookup", "true").csv(location))
-        elif file_extension == ".parquet" or file_extension == "":
+        elif file_extension == ".parquet" or is_directory:
             func_parameters.append(spark.read.option("header","true").option("recursiveFileLookup", "true").parquet(location))
         else:
             raise Exception(f"the file type for '{location}' file is not supported.")

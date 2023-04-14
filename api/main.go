@@ -637,6 +637,12 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, train 
 	if err != nil {
 		return nil, err
 	}
+	for _, protoFeature := range train.Features {
+		_, err := serv.client.GetFeatureVariant(ctx, metadata.NameVariant{protoFeature.Name, protoFeature.Variant})
+		if err != nil {
+			return nil, err
+		}
+	}
 	train.Provider = label.Provider()
 	return serv.meta.CreateTrainingSetVariant(ctx, train)
 }

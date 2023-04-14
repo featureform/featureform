@@ -1,4 +1,4 @@
-#from featureform import ServingClient, ResourceClient
+import featureform as ff
 import grpc
 import os
 import sys
@@ -12,7 +12,7 @@ def test_metadata_connection():
     metadata_host = os.getenv('METADATA_HOST')
     try:
         client = ResourceClient(host=host, insecure=True)
-        client.register_user("test")
+        ff.register_user("test")
         client.apply()
     # Expect error since metadata server behind api server is not running
     # Checks that the metadata server hostname failed to resolve

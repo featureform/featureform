@@ -87,6 +87,32 @@ def test_sql_transformation(name, variant, sql, spark_provider):
 
 
 @pytest.mark.parametrize(
+    "sql",
+    [
+        ("SELECT * FROM {{test_name.test_variant}}"),
+    ]
+)
+def test_sql_transformation_without_variant(sql, spark_provider):
+    def transformation():
+        """doc string"""
+        return sql
+
+    decorator = spark_provider.sql_transformation()
+    decorator(transformation)
+
+    assert decorator.to_source() == Source(
+        name=transformation.__name__,
+        variant="default",
+        definition=SQLTransformation(query=sql),
+        owner="tester",
+        provider="spark",
+        description="doc string",
+        tags=[],
+        properties={}
+    )
+
+
+@pytest.mark.parametrize(
     "name,variant,inputs,transformation",
     [
         ("test_input", "primary_dataset", "primary_dataset", "avg_user_transaction"),

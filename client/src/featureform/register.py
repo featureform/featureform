@@ -166,7 +166,7 @@ class OfflineSparkProvider(OfflineProvider):
         return self.register_file(name, file_path, variant, owner, description)
 
     def sql_transformation(self,
-                           variant: str,
+                           variant: str = "default",
                            owner: Union[str, UserRegistrar] = "",
                            name: str = "",
                            schedule: str = "",
@@ -218,7 +218,7 @@ class OfflineSparkProvider(OfflineProvider):
                           tags: List[str] = [],
                           properties: dict = {}):
         """
-        Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
+        Register a Dataframe transformation source. The spark.df_transformation decorator takes the contents
         of the following function and executes the code it contains at serving time.
 
         The name of the function is used as the name of the source when being registered.
@@ -227,7 +227,7 @@ class OfflineSparkProvider(OfflineProvider):
 
         **Examples**:
         ``` py
-        @k8s_azure.df_transformation(inputs=[("source", "one")])        # Sources are added as inputs
+        @spark.df_transformation(inputs=[("source", "one")])        # Sources are added as inputs
         def average_user_transaction(df):                           # Sources can be manipulated by adding them as params
             return df
         ```
@@ -288,7 +288,7 @@ class OfflineK8sProvider(OfflineProvider):
                                                       properties=properties)
 
     def sql_transformation(self,
-                           variant: str = "",
+                           variant: str = "default",
                            owner: Union[str, UserRegistrar] = "",
                            name: str = "",
                            schedule: str = "",
@@ -1001,7 +1001,7 @@ class ResourceRegistrar:
 
     def create_training_set(self,
                             name: str,
-                            variant: str,
+                            variant: str = "default",
                             label: NameVariant = None,
                             schedule: str = "",
                             features: List[NameVariant] = None,
@@ -1617,6 +1617,7 @@ class Registrar:
                     credentials: AWSCredentials,
                     bucket_path: str,
                     bucket_region: str,
+                    path: str = "",
                     description: str = "",
                     team: str = "",
                     tags: List[str] = [],
@@ -1631,8 +1632,9 @@ class Registrar:
         s3 = ff.register_s3(
             name="s3-quickstart",
             credentials=aws_creds,
-            bucket_path="bucket_name/path",
+            bucket_path="bucket_name",
             bucket_region=<bucket_region>,
+            path="path/to/store/featureform_files/in/",
             description="An s3 store provider to store offline"
         )
         ```
@@ -1641,6 +1643,7 @@ class Registrar:
             credentials (AWSCredentials): AWS credentials to access the bucket
             bucket_path (str): custom path including the bucket name
             bucket_region (str): aws region the bucket is located in
+            path (str): the path used to store featureform files in
             description (str): Description of S3 provider to be registered
             team (str): the name of the team registering the filestore
             tags (List[str]): Optional grouping mechanism for resources
@@ -1650,7 +1653,7 @@ class Registrar:
                 has all the functionality of OfflineProvider
         """
 
-        s3_config = S3StoreConfig(bucket_path=bucket_path, bucket_region=bucket_region, credentials=credentials)
+        s3_config = S3StoreConfig(bucket_path=bucket_path, bucket_region=bucket_region, credentials=credentials, path=path)
 
         provider = Provider(name=name,
                             function="OFFLINE",
@@ -2398,9 +2401,9 @@ class Registrar:
 
     def register_sql_transformation(self,
                                     name: str,
-                                    variant: str,
                                     query: str,
                                     provider: Union[str, OfflineProvider],
+                                    variant: str = "default",
                                     owner: Union[str, UserRegistrar] = "",
                                     description: str = "",
                                     schedule: str = "",
@@ -2445,8 +2448,8 @@ class Registrar:
         return ColumnSourceRegistrar(self, source)
 
     def sql_transformation(self,
-                           variant: str,
                            provider: Union[str, OfflineProvider],
+                           variant: str = "default",
                            name: str = "",
                            schedule: str = "",
                            owner: Union[str, UserRegistrar] = "",
@@ -2924,7 +2927,7 @@ class Registrar:
         return model
 
 
-class ResourceClient(Registrar):
+class ResourceClient:
     """The resource client is used to retrieve information on specific resources (entities, providers, features, labels, training sets, models, users). If retrieved resources are needed to register additional resources (e.g. registering a feature from a source), use the [Client](client.md) functions instead.
 
     **Using the Resource Client:**
@@ -2992,7 +2995,7 @@ class ResourceClient(Registrar):
             resources = resource_state.sorted_list()
             display_statuses(self._stub, resources)
 
-        self.clear_state()
+        clear_state()
 
 
     def get_user(self, name, local=False):

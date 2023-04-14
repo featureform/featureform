@@ -60,7 +60,7 @@ gcs = ff.register_gcs(
     name=f"gcs-quickstart_{VERSION}",
     credentials=gcp_creds,
     bucket_name=os.getenv("GCS_BUCKET_NAME", None),
-    bucket_path="end2end_tests",
+    bucket_path=f"end_to_end_tests/{VERSION}",
 )
 
 spark = ff.register_spark(

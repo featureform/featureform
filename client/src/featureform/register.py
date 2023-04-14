@@ -998,7 +998,7 @@ class ResourceRegistrar:
 
     def create_training_set(self,
                             name: str,
-                            variant: str,
+                            variant: str = "default",
                             label: NameVariant = None,
                             schedule: str = "",
                             features: List[NameVariant] = None,
@@ -2395,9 +2395,9 @@ class Registrar:
 
     def register_sql_transformation(self,
                                     name: str,
-                                    variant: str,
                                     query: str,
                                     provider: Union[str, OfflineProvider],
+                                    variant: str = "default",
                                     owner: Union[str, UserRegistrar] = "",
                                     description: str = "",
                                     schedule: str = "",
@@ -2442,8 +2442,8 @@ class Registrar:
         return ColumnSourceRegistrar(self, source)
 
     def sql_transformation(self,
-                           variant: str,
                            provider: Union[str, OfflineProvider],
+                           variant: str = "default",
                            name: str = "",
                            schedule: str = "",
                            owner: Union[str, UserRegistrar] = "",

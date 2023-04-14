@@ -67,7 +67,7 @@ ice_cream = k8s.register_file(
 
 @k8s.df_transformation(name=f"ice_cream_entity_{VERSION}",
                        variant=VERSION,
-                       inputs=[(f"ice_cream_{VERSION}", VERSION)])
+                       inputs=[ice_cream])
 def ice_cream_entity_transformation(df):
     """ the ice cream dataset with entity """
     df["entity"] = "farm"

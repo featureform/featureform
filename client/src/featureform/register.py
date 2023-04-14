@@ -166,7 +166,7 @@ class OfflineSparkProvider(OfflineProvider):
         return self.register_file(name, file_path, variant, owner, description)
 
     def sql_transformation(self,
-                           variant: str,
+                           variant: str = "default",
                            owner: Union[str, UserRegistrar] = "",
                            name: str = "",
                            schedule: str = "",
@@ -218,7 +218,7 @@ class OfflineSparkProvider(OfflineProvider):
                           tags: List[str] = [],
                           properties: dict = {}):
         """
-        Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
+        Register a Dataframe transformation source. The spark.df_transformation decorator takes the contents
         of the following function and executes the code it contains at serving time.
 
         The name of the function is used as the name of the source when being registered.
@@ -227,7 +227,7 @@ class OfflineSparkProvider(OfflineProvider):
 
         **Examples**:
         ``` py
-        @k8s_azure.df_transformation(inputs=[("source", "one")])        # Sources are added as inputs
+        @spark.df_transformation(inputs=[("source", "one")])        # Sources are added as inputs
         def average_user_transaction(df):                           # Sources can be manipulated by adding them as params
             return df
         ```
@@ -288,7 +288,7 @@ class OfflineK8sProvider(OfflineProvider):
                                                       properties=properties)
 
     def sql_transformation(self,
-                           variant: str = "",
+                           variant: str = "default",
                            owner: Union[str, UserRegistrar] = "",
                            name: str = "",
                            schedule: str = "",
@@ -998,7 +998,7 @@ class ResourceRegistrar:
 
     def create_training_set(self,
                             name: str,
-                            variant: str,
+                            variant: str = "default",
                             label: NameVariant = None,
                             schedule: str = "",
                             features: List[NameVariant] = None,
@@ -2398,9 +2398,9 @@ class Registrar:
 
     def register_sql_transformation(self,
                                     name: str,
-                                    variant: str,
                                     query: str,
                                     provider: Union[str, OfflineProvider],
+                                    variant: str = "default",
                                     owner: Union[str, UserRegistrar] = "",
                                     description: str = "",
                                     schedule: str = "",
@@ -2445,8 +2445,8 @@ class Registrar:
         return ColumnSourceRegistrar(self, source)
 
     def sql_transformation(self,
-                           variant: str,
                            provider: Union[str, OfflineProvider],
+                           variant: str = "default",
                            name: str = "",
                            schedule: str = "",
                            owner: Union[str, UserRegistrar] = "",

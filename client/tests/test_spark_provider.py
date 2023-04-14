@@ -113,16 +113,19 @@ def test_sql_transformation_without_variant(sql, spark_provider):
 
 
 @pytest.mark.parametrize(
-    "name,variant,transformation",
+    "name,variant,inputs,transformation",
     [
-        ("test_name", "test_variant","avg_user_transaction"),
+        ("test_input", "primary_dataset", "primary_dataset", "avg_user_transaction"),
+        ("test_input", "df_transformation", "df_transformation_src", "avg_user_transaction"),
+        ("test_input", "sql_transformation", "sql_transformation_src", "avg_user_transaction"),
+        ("test_input", "tuples", "tuple_inputs", "avg_user_transaction"),
     ]
 )
-def test_df_transformation(name, variant, transformation, spark_provider, request):
+def test_df_transformation(name, variant, inputs, transformation, spark_provider, request):
     df_transformation = request.getfixturevalue(transformation)
+    inputs = request.getfixturevalue(inputs)
 
-    src_variant = f"{variant}_src"
-    decorator = spark_provider.df_transformation(name=name, variant=variant, inputs=[(name, src_variant)])
+    decorator = spark_provider.df_transformation(name=name, variant=variant, inputs=inputs)
     decorator(df_transformation)
 
     query = dill.dumps(df_transformation.__code__)
@@ -131,7 +134,7 @@ def test_df_transformation(name, variant, transformation, spark_provider, reques
     expected_src = Source(
         name=name,
         variant=variant,
-        definition=DFTransformation(query=query, inputs=[(name, src_variant)]),
+        definition=DFTransformation(query=query, inputs=inputs),
         owner="tester",
         provider="spark",
         description="doc string",

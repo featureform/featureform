@@ -601,6 +601,9 @@ class SourceRegistrar:
     def id(self) -> NameVariant:
         return self.__source.name, self.__source.variant
 
+    def name_variant(self) -> NameVariant:
+        return self.id()
+
     def registrar(self):
         return self.__registrar
 

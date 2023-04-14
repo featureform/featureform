@@ -601,6 +601,9 @@ class SourceRegistrar:
     def id(self) -> NameVariant:
         return self.__source.name, self.__source.variant
 
+    def name_variant(self) -> NameVariant:
+        return self.id()
+
     def registrar(self):
         return self.__registrar
 
@@ -2527,7 +2530,7 @@ class Registrar:
             provider = provider.name()
         for i, nv in enumerate(inputs):
             if not isinstance(nv, tuple):
-                inputs[i] = nv.id()
+                inputs[i] = nv.name_variant()
         source = Source(
             name=name,
             variant=variant,
@@ -2578,7 +2581,7 @@ class Registrar:
             provider = provider.name()
         for i, nv in enumerate(inputs):
             if not isinstance(nv, tuple):
-                inputs[i] = nv.id()
+                inputs[i] = nv.name_variant()
         decorator = DFTransformationDecorator(
             registrar=self,
             name=name,

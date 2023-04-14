@@ -48,7 +48,7 @@ def list_name_variant_status(stub, resource_type):
             searchNameVariant = metadata_pb2.NameVariant(name=f.name, variant=v)
             for x in stub_list_functions[resource_type][1](iter([searchNameVariant])):
                 if x.variant == f.default_variant:
-                    format_rows(f.name, f"{f.default_variant} (default)", f.status.Status._enum_type.values[f.status.status].name)
+                    format_rows(f.name, f"{f.default_variant} (default)", x.status.Status._enum_type.values[x.status.status].name)
                 else:
                     format_rows(x.name, x.variant, x.status.Status._enum_type.values[x.status.status].name)
     return res
@@ -67,7 +67,7 @@ def list_name_variant_status_desc(stub, resource_type):
             searchNameVariant = metadata_pb2.NameVariant(name=f.name, variant=v)
             for x in stub_list_functions[resource_type][1](iter([searchNameVariant])):
                 if x.variant == f.default_variant:
-                    format_rows(f.name, f"{f.default_variant} (default)", f.status.Status._enum_type.values[f.status.status].name, x.description)
+                    format_rows(f.name, f"{f.default_variant} (default)", x.status.Status._enum_type.values[x.status.status].name, x.description)
                 else:
                     format_rows(x.name, x.variant, x.status.Status._enum_type.values[x.status.status].name, x.description)
     return res

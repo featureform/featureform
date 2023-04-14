@@ -195,7 +195,8 @@ class S3StoreConfig:
     def __init__(self, 
                  bucket_path: str,
                  bucket_region: str,
-                 credentials: AWSCredentials):
+                 credentials: AWSCredentials,
+                 path: str = ""):
         bucket_path_ends_with_slash = len(bucket_path) != 0 and bucket_path[-1] == "/"
 
         if bucket_path_ends_with_slash:
@@ -204,6 +205,7 @@ class S3StoreConfig:
         self.bucket_path = bucket_path
         self.bucket_region = bucket_region
         self.credentials = credentials
+        self.path = path
 
     def software(self) -> str:
         return "S3"
@@ -212,11 +214,7 @@ class S3StoreConfig:
         return "S3"
 
     def serialize(self) -> bytes:
-        config = {
-            "Credentials": self.credentials.config(),
-            "BucketRegion": self.bucket_region,
-            "BucketPath": self.bucket_path,
-        }
+        config = self.config()
         return bytes(json.dumps(config), "utf-8")
 
     def config(self):
@@ -224,6 +222,7 @@ class S3StoreConfig:
             "Credentials": self.credentials.config(),
             "BucketRegion": self.bucket_region,
             "BucketPath": self.bucket_path,
+            "Path": self.path,
         }
     
     def store_type(self):

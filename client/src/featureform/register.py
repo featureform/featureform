@@ -1614,6 +1614,7 @@ class Registrar:
                     credentials: AWSCredentials,
                     bucket_path: str,
                     bucket_region: str,
+                    path: str = "",
                     description: str = "",
                     team: str = "",
                     tags: List[str] = [],
@@ -1628,8 +1629,9 @@ class Registrar:
         s3 = ff.register_s3(
             name="s3-quickstart",
             credentials=aws_creds,
-            bucket_path="bucket_name/path",
+            bucket_path="bucket_name",
             bucket_region=<bucket_region>,
+            path="path/to/store/featureform_files/in/",
             description="An s3 store provider to store offline"
         )
         ```
@@ -1638,6 +1640,7 @@ class Registrar:
             credentials (AWSCredentials): AWS credentials to access the bucket
             bucket_path (str): custom path including the bucket name
             bucket_region (str): aws region the bucket is located in
+            path (str): the path used to store featureform files in
             description (str): Description of S3 provider to be registered
             team (str): the name of the team registering the filestore
             tags (List[str]): Optional grouping mechanism for resources
@@ -1647,7 +1650,7 @@ class Registrar:
                 has all the functionality of OfflineProvider
         """
 
-        s3_config = S3StoreConfig(bucket_path=bucket_path, bucket_region=bucket_region, credentials=credentials)
+        s3_config = S3StoreConfig(bucket_path=bucket_path, bucket_region=bucket_region, credentials=credentials, path=path)
 
         provider = Provider(name=name,
                             function="OFFLINE",

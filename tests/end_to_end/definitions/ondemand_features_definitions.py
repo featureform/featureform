@@ -60,6 +60,7 @@ s3 = ff.register_s3(
     credentials=aws_creds,
     bucket_path=os.getenv("S3_BUCKET_PATH", None),
     bucket_region=os.getenv("S3_BUCKET_REGION", None),
+    path=f"end_to_end_tests/{VERSION}",
 )
 
 spark = ff.register_spark(

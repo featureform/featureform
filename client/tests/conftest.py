@@ -68,12 +68,13 @@ def aws_credentials():
 
 @pytest.fixture(scope="module")
 def s3_config(aws_credentials):
-    config = S3StoreConfig("bucket_path", "bucket_region", aws_credentials)
+    config = S3StoreConfig("bucket_path", "bucket_region", aws_credentials, path="path_to_file/")
 
     expected_config = {
         "Credentials": aws_credentials.config(),
         "BucketRegion": "bucket_region",
         "BucketPath": "bucket_path",
+        "Path": "path_to_file/",
     }
 
     return config, expected_config

@@ -83,7 +83,8 @@ def get_feature_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetFeatureVariants(iter([searchNameVariant])):
-            format_rows([("NAME: ", x.name), 
+            status = x.status.Status._enum_type.values[x.status.status].name
+            rows = [("NAME: ", x.name),
             ("VARIANT: ", x.variant), 
             ("TYPE:", x.type), 
             ("ENTITY:", x.entity),
@@ -91,7 +92,10 @@ def get_feature_variant_info(stub, name, variant):
             ("DESCRIPTION:", x.description),
             ("PROVIDER:", x.provider),
             ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)
-            ])
+            ]
+            if status == "FAILED":
+                rows.append(("ERROR: ", x.status.error_message))
+            format_rows(rows)
             format_tags_and_properties(x.tags, x.properties)
             format_pg("SOURCE: ")
             format_rows([("NAME", "VARIANT"), (x.source.name, x.source.variant)])
@@ -108,14 +112,18 @@ def get_label_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetLabelVariants(iter([searchNameVariant])):
-            format_rows([("NAME: ", x.name),
+            status = x.status.Status._enum_type.values[x.status.status].name
+            rows = [("NAME: ", x.name),
             ("VARIANT: ", x.variant), 
             ("TYPE:", x.type), 
             ("ENTITY:", x.entity), 
             ("OWNER:", x.owner), 
             ("DESCRIPTION:", x.description),
             ("PROVIDER:", x.provider),
-            ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
+            ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)]
+            if status == "FAILED":
+                rows.append(("ERROR: ", x.status.error_message))
+            format_rows(rows)
             format_tags_and_properties(x.tags, x.properties)
             format_pg("SOURCE: ")
             format_rows([("NAME", "VARIANT"), (x.source.name, x.source.variant)])
@@ -132,13 +140,17 @@ def get_source_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetSourceVariants(iter([searchNameVariant])):
-            format_rows([("NAME: ", x.name),
+            status = x.status.Status._enum_type.values[x.status.status].name
+            rows = [("NAME: ", x.name),
             ("VARIANT: ", x.variant), 
             ("OWNER:", x.owner),
             ("DESCRIPTION:", x.description),
             ("PROVIDER:", x.provider),
             ("TABLE:", x.table),
-            ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
+            ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)]
+            if status == "FAILED":
+                rows.append(("ERROR: ", x.status.error_message))
+            format_rows(rows)
             format_tags_and_properties(x.tags, x.properties)
             format_pg("DEFINITION:")
             print("TRANSFORMATION")
@@ -170,12 +182,16 @@ def get_training_set_variant_info(stub, name, variant):
     searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
     try:
         for x in stub.GetTrainingSetVariants(iter([searchNameVariant])):
-            format_rows([("NAME: ", x.name),
+            status = x.status.Status._enum_type.values[x.status.status].name
+            rows = [("NAME: ", x.name),
             ("VARIANT: ", x.variant),
             ("OWNER:", x.owner),
             ("DESCRIPTION:", x.description),
             ("PROVIDER:", x.provider),
-            ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
+            ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)]
+            if status == "FAILED":
+                rows.append(("ERROR: ", x.status.error_message))
+            format_rows(rows)
             format_tags_and_properties(x.tags, x.properties)
             format_pg("LABEL: ")
             format_rows([("NAME", "VARIANT"), (x.label.name, x.label.variant)])
@@ -192,12 +208,16 @@ def get_provider_info(stub, name):
     searchName = metadata_pb2.Name(name=name)
     try:
         for x in stub.GetProviders(iter([searchName])):
-            format_rows([("NAME: ", x.name),
+            status = x.status.Status._enum_type.values[x.status.status].name
+            rows = [("NAME: ", x.name),
             ("DESCRIPTION: ", x.description),
             ("TYPE: ", x.type),
             ("SOFTWARE: ", x.software),
             ("TEAM: ", x.team),
-            ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)])
+            ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name)]
+            if status == "FAILED":
+                rows.append(("ERROR: ", x.status.error_message))
+            format_rows(rows)
             format_tags_and_properties(x.tags, x.properties)
             format_pg("SOURCES:")
             format_rows("NAME", "VARIANT")

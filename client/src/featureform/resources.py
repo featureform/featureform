@@ -214,12 +214,7 @@ class S3StoreConfig:
         return "S3"
 
     def serialize(self) -> bytes:
-        config = {
-            "Credentials": self.credentials.config(),
-            "BucketRegion": self.bucket_region,
-            "BucketPath": self.bucket_path,
-            "Path": self.path,
-        }
+        config = self.config()
         return bytes(json.dumps(config), "utf-8")
 
     def config(self):

@@ -736,15 +736,16 @@ class SubscriptableTransformation:
         self.fn = fn
         self.registrar = registrar
         self.provider = provider
-        # Binds the register_resources and name_variant methods to the subscriptable_fn
-        # using the descriptor protocol. This allows us to call the methods on the
-        # subscriptable_fn instance. **NOTE** the MethodType could also be used to bind
-        # the methods to the subscriptable_fn instance; however, the descriptor protocol
-        # produces the same result while also being compatible with `classmethod`
-        # and `staticmethod`.
-        self.register_resources = decorator_register_resources_method.__get__(self)
-        self.name_variant = decorator_name_variant_method.__get__(self)
-        pass
+        # Previously, the descriptor protocol was used to apply methods from the decorator classes
+        # to instances of SubscriptableTransformation such that a user could call `fn.name_variant()`
+        # and receive a tuple of (name, variant) where name was the name of the wrapped function and
+        # variant was either the value passed to the decorator or the default value. This was achieved
+        # via the following syntax: `self.name_variant = decorator_name_variant_method.__get__(self)`
+        # For as-of-yet unknown reasons, this behavior was not working as expected in Python 3.11.2, so
+        # so the code has been reverted to the original syntax, which simply passes a reference to the
+        # the decorator methods to the SubscriptableTransformation class.
+        self.register_resources = decorator_register_resources_method
+        self.name_variant = decorator_name_variant_method
 
     def __getitem__(self, columns: List[str]):
         col_len = len(columns)

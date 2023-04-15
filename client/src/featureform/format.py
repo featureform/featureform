@@ -13,6 +13,8 @@ four_row_spacing = "{:<30} {:<30} {:<30} {:<30}"
 five_row_spacing = "{:<30} {:<30} {:<30} {:<30} {:<30}"
 divider = "-----------------------------------------------"
 
+# maximum number of dots printing when featureform apply for Running...
+MAX_NUM_RUNNING_DOTS = 10 
 
 def format_rows(format_obj, format_obj_2=None, format_obj_3=None, format_obj_4=None, format_obj_5=None):
     # Base case for when `format_obj` is a string
@@ -80,12 +82,15 @@ def display_statuses(stub, resources):
     print()
     console = Console()
     with Live(console=console, auto_refresh=True, screen=False) as live:
+        i = 0
         while True:
             statuses = get_statuses()
             finished_running = is_finished(statuses)
+            
+            dots = "."*(1 + i%MAX_NUM_RUNNING_DOTS)
 
             title = (
-                f"[green]COMPLETED[/]" if finished_running else f"[yellow]RUNNING...[/]"
+                f"[green]COMPLETED[/]" if finished_running else f"[yellow]RUNNING{dots}[/]"
             )
             table = Table(
                 title=title,
@@ -129,4 +134,5 @@ def display_statuses(stub, resources):
             if finished_running:
                 break
 
+            i += 1
             time.sleep(1)

@@ -211,7 +211,6 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
   const statsTabDisplacement = showMetrics ? 1 : 0;
   const name = resources["name"];
   const icon = resourceType.materialIcon;
-  const enableTags = false;
 
   let variant = resources["default-variant"];
 
@@ -506,7 +505,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                     </div>
                   )}
 
-                  {metadata["location"] && (
+                  {metadata["location"] && !metadata["is-on-demand"] && (
                     <div className={classes.linkBox}>
                       <Typography variant="body1" className={classes.typeTitle}>
                         <b>Columns:</b>{" "}
@@ -517,6 +516,21 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                         &nbsp;<b>Timestamp:</b> {metadata["location"].TS}
                       </Typography>
                     </div>
+                  )}
+
+                  {metadata["location"] && metadata["is-on-demand"] && (
+                    <div className={classes.linkBox}>
+                    <Typography variant="body1" className={classes.typeTitle}>
+                      <b>Feature Variant Type:</b>{" "}
+                    </Typography>
+                    <Chip
+                      variant="outlined"
+                      className={classes.linkChip}
+                      size="small"
+                      onClick={() => {}}
+                      label={"On-Demand"}
+                    ></Chip>
+                  </div>
                   )}
                 </Grid>
                 {metadata["tags"]?.length > 0 && (

@@ -1,20 +1,22 @@
 import csv
 import shutil
+import sys
 import time
 from tempfile import NamedTemporaryFile
 from unittest import TestCase
+from unittest.mock import MagicMock
 import os, stat
 import numpy as np
 
 import pandas as pd
 import pytest
-import sys
+from featureform.local_utils import feature_df_with_entity, label_df_from_csv
 
 sys.path.insert(0, 'client/src/')
 from featureform import ResourceClient, ServingClient
 import serving_cases as cases
 import featureform as ff
-from featureform.serving import LocalClientImpl, check_feature_type
+from featureform.serving import LocalClientImpl, check_feature_type, Row
 
 @pytest.mark.parametrize("test_input,expected",
                          [
@@ -26,6 +28,7 @@ from featureform.serving import LocalClientImpl, check_feature_type
 def test_check_feature_type(test_input, expected):
     assert expected == check_feature_type(test_input)
 
+
 class TestIndividualFeatures(TestCase):
     def test_process_feature_no_ts(self):
         for name, case in cases.features_no_ts.items():
@@ -34,7 +37,7 @@ class TestIndividualFeatures(TestCase):
                 file_name = create_temp_file(case)
                 client = ServingClient(local=True)
                 local_client = LocalClientImpl()
-                dataframe_mapping = local_client.feature_df_with_entity(file_name, "entity_id", case)
+                dataframe_mapping = feature_df_with_entity(file_name, "entity_id", case)
                 expected = pd.DataFrame(case['expected'])
                 actual = dataframe_mapping
                 expected = expected.values.tolist()
@@ -51,7 +54,7 @@ class TestIndividualFeatures(TestCase):
                 file_name = create_temp_file(case)
                 client = ServingClient(local=True)
                 local_client = LocalClientImpl()
-                dataframe_mapping = local_client.feature_df_with_entity(file_name, "entity_id", case)
+                dataframe_mapping = feature_df_with_entity(file_name, "entity_id", case)
                 expected = pd.DataFrame(case['expected'])
                 actual = dataframe_mapping
                 expected = expected.values.tolist()
@@ -67,7 +70,7 @@ class TestIndividualFeatures(TestCase):
         client = ServingClient(local=True)
         local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            local_client.feature_df_with_entity(file_name, "entity_id", case)
+            feature_df_with_entity(file_name, "entity_id", case)
         local_client.db.close()
         client.impl.db.close()
         assert "column does not exist" in str(err.value)
@@ -78,7 +81,7 @@ class TestIndividualFeatures(TestCase):
         client = ServingClient(local=True)
         local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            local_client.feature_df_with_entity(file_name, "entity_id", case)
+            feature_df_with_entity(file_name, "entity_id", case)
         local_client.db.close()
         client.impl.db.close()
         assert "column does not exist" in str(err.value)
@@ -89,7 +92,7 @@ class TestIndividualFeatures(TestCase):
         client = ServingClient(local=True)
         local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            local_client.feature_df_with_entity(file_name, "entity_id", case)
+            feature_df_with_entity(file_name, "entity_id", case)
         local_client.db.close()
         client.impl.db.close()
         assert "column does not exist" in str(err.value)
@@ -153,8 +156,7 @@ class TestIndividualLabels(TestCase):
             with self.subTest(name):
                 print("TEST: ", name)
                 file_name = create_temp_file(case)
-                local_client = LocalClientImpl()
-                actual = local_client.label_df_from_csv(case, file_name)
+                actual = label_df_from_csv(case, file_name)
                 expected = pd.DataFrame(case['expected']).set_index(case['entity_name'])
                 pd.testing.assert_frame_equal(actual, expected)
 
@@ -168,9 +170,8 @@ class TestIndividualLabels(TestCase):
             'source_timestamp': 'ts'
         }
         file_name = create_temp_file(case)
-        local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            local_client.label_df_from_csv(case, file_name)
+            label_df_from_csv(case, file_name)
         assert "column does not exist" in str(err.value)
 
     def test_invalid_value(self):
@@ -182,9 +183,8 @@ class TestIndividualLabels(TestCase):
             'source_timestamp': 'ts'
         }
         file_name = create_temp_file(case)
-        local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            local_client.label_df_from_csv(case, file_name)
+            label_df_from_csv(case, file_name)
         assert "column does not exist" in str(err.value)
 
     def test_invalid_ts(self):
@@ -196,9 +196,8 @@ class TestIndividualLabels(TestCase):
             'source_timestamp': 'ts_dne'
         }
         file_name = create_temp_file(case)
-        local_client = LocalClientImpl()
         with pytest.raises(KeyError) as err:
-            local_client.label_df_from_csv(case, file_name)
+            label_df_from_csv(case, file_name)
         assert "column does not exist" in str(err.value)
 
     @pytest.fixture(autouse=True)
@@ -233,7 +232,7 @@ class TestTransformation(TestCase):
         def s_transformation():
             """the average transaction amount for a user """
             return "SELECT CustomerID as entity, avg(TransactionAmount) as feature_val from {{transactions.SQL}} GROUP BY entity"
-        
+
         @local.sql_transformation(variant="sql_to_sql")
         def s_transformation1():
             """the customerID for a user """
@@ -350,7 +349,7 @@ class TestTransformation(TestCase):
         res = serve.features([(f"feature-{name}", name)], {"user": "a"})
         serve.impl.db.close()
         return res
-    
+
     def sql_run_checks(self, transformation, name, local):
         transformation.register_resources(
             entity="user",
@@ -455,9 +454,11 @@ class TestTrainingSet(TestCase):
                 serving.impl.db.close()
                 actual_len = 0
                 expected_len = len(case['expected'])
+
                 for i, r in enumerate(tset):
                     actual_len += 1
-                    actual = r.features() + r.label()
+                    features = [replace_nans(feature) for feature in r.features()]
+                    actual = features + r.label()
                     if actual in case['expected']:
                         case['expected'].remove(actual)
                     else:
@@ -467,6 +468,50 @@ class TestTrainingSet(TestCase):
                 except Exception as e:
                     print(f"Could Not Reset Database: {e}")
                 assert actual_len == expected_len
+
+
+@pytest.fixture
+def proto_row():
+    class ProtoRow:
+        def __init__(self):
+            self.features = [1, 2, 3]
+            self.label = 4
+        
+        def to_numpy(self):
+            row = np.array(self.features)
+            row = np.append(row, self.label)
+            return row
+
+    return ProtoRow()
+
+def test_row_to_numpy(proto_row):
+    def side_effect(value):
+        if value in proto_row.features:
+            return value
+        else:
+            return proto_row.label
+
+    ff.serving.parse_proto_value = MagicMock(side_effect = side_effect)
+
+    row = Row(proto_row)
+    row_np = row.to_numpy()
+    proto_row_np = proto_row.to_numpy()
+
+    assert np.array_equal(row_np, proto_row_np)
+
+
+def replace_nans(row):
+    """
+    Replaces NaNs in a list with the string 'NaN'. Dealing with NaN's can be a pain in Python so this is a
+    helper function to make it easier to test.
+    """
+    result = []
+    for r in row:
+        if isinstance(r, float) and np.isnan(r):
+            result.append('NaN')
+        else:
+            result.append(r)
+    return result
 
 
 def clear_and_reset():
@@ -492,16 +537,14 @@ def create_temp_file(test_values):
 
 
 def e2e_features(file, entity_name, entity_loc, name_variants, value_cols, entities, ts_col):
-    resource_client = ResourceClient(local=True)
-    resource_client.register_user("featureformer").make_default_owner()
-    local = resource_client.register_local()
-    transactions = local.register_file(
+    local = ff.local
+    transactions = ff.local.register_file(
         name="transactions",
         variant="v1",
         description="A dataset of fraudulent transactions",
         path=file
     )
-    entity = resource_client.register_entity(entity_name)
+    entity = ff.register_entity(entity_name)
     for i, variant in enumerate(name_variants):
         transactions.register_resources(
             entity=entity,
@@ -512,7 +555,7 @@ def e2e_features(file, entity_name, entity_loc, name_variants, value_cols, entit
             ],
             timestamp_column=ts_col
         )
-    resource_client.state().create_all_local()
+    ResourceClient(local=True).apply()
     client = ServingClient(local=True)
     results = []
     for entity in entities:

@@ -42,11 +42,11 @@ ff.register_snowflake(
     description = "Example inference store",
     team = "Featureform",
     username = snowflake_username,
-    password: snowflake_password,
-    account: snowflake_account,
-    organization: snowflake_org,
-    database: snowflake_database,
-    schema: snowflake_schema,
+    password = snowflake_password,
+    account = snowflake_account,
+    organization = snowflake_org,
+    database = snowflake_database,
+    schema = snowflake_schema,
 )
 ```
 
@@ -68,10 +68,10 @@ ff.register_snowflake_legacy(
     description = "Example inference store",
     team = "Featureform",
     username = snowflake_username,
-    password: snowflake_password,
-    account_locator: snowflake_account_locator,
-    database: snowflake_database,
-    schema: snowflake_schema,
+    password =  snowflake_password,
+    account_locator = snowflake_account_locator,
+    database = snowflake_database,
+    schema = snowflake_schema,
 )
 ```
 

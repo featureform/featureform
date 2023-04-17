@@ -5,11 +5,12 @@
 import sys
 import json
 import time
-import datetime
+import base64
 from enum import Enum
 from typeguard import typechecked
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 
+import dill
 import grpc
 from .sqlite_metadata import SQLiteMetadata
 from google.protobuf.duration_pb2 import Duration
@@ -17,55 +18,15 @@ from google.protobuf.duration_pb2 import Duration
 from featureform.proto import metadata_pb2 as pb
 from dataclasses import dataclass, field
 from .version import check_up_to_date
+from .exceptions import *
+from .enums import *
 
 NameVariant = Tuple[str, str]
 
 
 # Constants for Pyspark Versions
 MAJOR_VERSION = "3"
-MINOR_VERSIONS = ["7", "8", "9", "10"]
-
-
-class ColumnTypes(Enum):
-    NIL = ""
-    INT = "int"
-    INT32 = "int32"
-    INT64 = "int64"
-    FLOAT32 = "float32"
-    FLOAT64 = "float64"
-    STRING = "string"
-    BOOL = "bool"
-    DATETIME = "datetime"
-
-
-class ResourceStatus(Enum):
-    NO_STATUS = "NO_STATUS"
-    CREATED = "CREATED"
-    PENDING = "PENDING"
-    READY = "READY"
-    FAILED = "FAILED"
-
-
-@typechecked
-@dataclass
-class OperationType(Enum):
-    GET = 0
-    CREATE = 1
-
-
-@typechecked
-@dataclass
-class SourceType(Enum):
-    PRIMARY_SOURCE = "PRIMARY"
-    DF_TRANSFORMATION = "DF"
-    SQL_TRANSFORMATION = "SQL"
-
-
-@typechecked
-@dataclass
-class FilePrefix(Enum):
-    S3 = "s3://"
-    S3A = "s3a://"
+MINOR_VERSIONS = ["7", "8", "9", "10", "11"]
 
 
 @typechecked
@@ -234,7 +195,8 @@ class S3StoreConfig:
     def __init__(self, 
                  bucket_path: str,
                  bucket_region: str,
-                 credentials: AWSCredentials):
+                 credentials: AWSCredentials,
+                 path: str = ""):
         bucket_path_ends_with_slash = len(bucket_path) != 0 and bucket_path[-1] == "/"
 
         if bucket_path_ends_with_slash:
@@ -243,6 +205,7 @@ class S3StoreConfig:
         self.bucket_path = bucket_path
         self.bucket_region = bucket_region
         self.credentials = credentials
+        self.path = path
 
     def software(self) -> str:
         return "S3"
@@ -251,11 +214,7 @@ class S3StoreConfig:
         return "S3"
 
     def serialize(self) -> bytes:
-        config = {
-            "Credentials": self.credentials.config(),
-            "BucketRegion": self.bucket_region,
-            "BucketPath": self.bucket_path,
-        }
+        config = self.config()
         return bytes(json.dumps(config), "utf-8")
 
     def config(self):
@@ -263,6 +222,7 @@ class S3StoreConfig:
             "Credentials": self.credentials.config(),
             "BucketRegion": self.bucket_region,
             "BucketPath": self.bucket_path,
+            "Path": self.path,
         }
     
     def store_type(self):
@@ -651,10 +611,23 @@ class K8sConfig:
         return bytes(json.dumps(config), "utf-8")
 
 
+@typechecked
+@dataclass
+class EmptyConfig:
+    def software(self) -> str:
+        return ""
+
+    def type(self) -> str:
+        return ""
+
+    def serialize(self) -> bytes:
+        return bytes("", "utf-8")
+
+
 Config = Union[
     RedisConfig, SnowflakeConfig, PostgresConfig, RedshiftConfig, LocalConfig, BigQueryConfig,
     FirestoreConfig, SparkConfig, OnlineBlobConfig, AzureFileStoreConfig, S3StoreConfig, K8sConfig,
-    MongoDBConfig, GCSFileStoreConfig
+    MongoDBConfig, GCSFileStoreConfig, EmptyConfig
 ]
 
 @typechecked
@@ -667,19 +640,22 @@ class Properties:
         for key, val in self.properties.items():
             self.serialized.property[key].string_value = val
 
+
 @typechecked
 @dataclass
 class Provider:
     name: str
-    function: str
-    config: Config
     description: str
     team: str
-    tags: list
-    properties: dict
+    config: Config
+    function: str
+    status: str = "NO_STATUS"
+    tags: list = None
+    properties: dict = None
+    error: Optional[str] = None
 
     def __post_init__(self):
-        self.software = self.config.software()
+        self.software = self.config.software() if self.config is not None else None
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -688,6 +664,22 @@ class Provider:
     @staticmethod
     def type() -> str:
         return "provider"
+
+    def get(self, stub) -> 'Provider':
+        name = pb.Name(name=self.name)
+        provider = next(stub.GetProviders(iter([name])))
+
+        return Provider(
+            name=provider.name,
+            description=provider.description,
+            function=provider.type,
+            team=provider.team,
+            config=EmptyConfig(),  # TODO add deserializer to configs
+            tags=list(provider.tags.tag),
+            properties={k: v for k, v in provider.properties.property.items()},
+            status=provider.status.Status._enum_type.values[provider.status.status].name,
+            error=provider.status.error_message
+        )
 
     def _create(self, stub) -> None:
         serialized = pb.Provider(
@@ -858,12 +850,13 @@ class Source:
     description: str
     tags: list
     properties: dict
+    status: str = "NO_STATUS"
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
     inputs = [],
-    status: str = "NO_STATUS"
+    error: Optional[str] = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=7, schedule_string=schedule)
@@ -876,6 +869,48 @@ class Source:
     @staticmethod
     def type() -> str:
         return "source"
+
+    def get(self, stub):
+        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        source = next(stub.GetSourceVariants(iter([name_variant])))
+        definition = self._get_source_definition(source)
+
+        return Source(
+            name=source.name,
+            definition=definition,
+            owner=source.owner,
+            provider=source.provider,
+            description=source.description,
+            variant=source.variant,
+            tags=list(source.tags.tag),
+            properties={k: v for k, v in source.properties.property.items()},
+            status=source.status.Status._enum_type.values[source.status.status].name,
+            error=source.status.error_message,
+        )
+
+    def _get_source_definition(self, source):
+        if source.primaryData.table.name:
+            return PrimaryData(
+                Location(source.primaryData.table.name)
+            )
+        elif source.transformation:
+            return self._get_transformation_definition(source)
+        else:
+            raise Exception(f"Invalid source type {source}")
+
+    def _get_transformation_definition(self, source):
+        if source.transformation.DFTransformation.query != bytes():
+            transformation = source.transformation.DFTransformation
+            return DFTransformation(
+                query=transformation.query,
+                inputs=[(input.name, input.variant) for input in transformation.inputs]
+            )
+        elif source.transformation.SQLTransformation.query != "":
+            return SQLTransformation(
+                source.transformation.SQLTransformation.query
+            )
+        else:
+            raise Exception(f"Invalid transformation type {source}")
 
     def _create(self, stub) -> None:
         defArgs = self.definition.kwargs()
@@ -1016,12 +1051,13 @@ class Feature:
     provider: str
     location: ResourceLocation
     description: str
-    tags: list
-    properties: dict
+    tags: list = None
+    properties: dict = None
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
     status: str = "NO_STATUS"
+    error: Optional[str] = None
 
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]
@@ -1040,6 +1076,26 @@ class Feature:
     def type() -> str:
         return "feature"
 
+    def get(self, stub) -> "Feature":
+        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        feature = next(stub.GetFeatureVariants(iter([name_variant])))
+
+        return Feature(
+            name=feature.name,
+            variant=feature.variant,
+            source=(feature.source.name, feature.source.variant),
+            value_type=feature.type,
+            entity=feature.entity,
+            owner=feature.owner,
+            provider=feature.provider,
+            location=ResourceColumnMapping("", "", ""),
+            description=feature.description,
+            tags=list(feature.tags.tag),
+            properties={k: v for k, v in feature.properties.property.items()},
+            status=feature.status.Status._enum_type.values[feature.status.status].name,
+            error=feature.status.error_message,
+        )
+
     def _create(self, stub) -> None:
         serialized = pb.FeatureVariant(
             name=self.name,
@@ -1055,6 +1111,7 @@ class Feature:
             schedule=self.schedule,
             provider=self.provider,
             columns=self.location.proto(),
+            mode=ComputationMode.PRECOMPUTED.proto(),
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
@@ -1081,14 +1138,134 @@ class Feature:
             db.upsert("tags", self.name, self.variant, "feature_variant", json.dumps(self.tags))
         if len(self.properties):
             db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
-        self._create_feature_resource(db)
 
-    def _create_feature_resource(self, db) -> None:
+        self._write_feature_variant_and_mode(db)
+
+    def _write_feature_variant_and_mode(self, db) -> None:
         db.insert(
             "features",
             self.name,
             self.variant,
-            self.value_type
+            self.value_type,
+        )
+        is_on_demand = 0
+        db.insert(
+            "feature_computation_mode",
+            self.name,
+            self.variant,
+            ComputationMode.PRECOMPUTED.value,
+            is_on_demand,
+        )
+
+    def get_status(self):
+        return ResourceStatus(self.status)
+
+    def is_ready(self):
+        return self.status == ResourceStatus.READY.value
+
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
+
+@typechecked
+@dataclass
+class OnDemandFeature:
+    owner: str
+    tags: List[str] = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
+    variant: str = "default"
+    name: str = ""
+    description: str = ""
+    status: str = "READY"
+    error: Optional[str] = None
+
+    def __call__(self, fn):
+        if self.description == "" and fn.__doc__ is not None:
+            self.description = fn.__doc__
+        if self.name == "":
+            self.name = fn.__name__
+
+        self.query = dill.dumps(fn.__code__)
+        fn.name_variant = self.name_variant
+        fn.query = self.query
+        return fn
+
+    def name_variant(self):
+        return (self.name, self.variant)
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    @staticmethod
+    def type() -> str:
+        return "ondemand_feature"
+
+    def _create(self, stub) -> None:
+        serialized = pb.FeatureVariant(
+            name=self.name,
+            variant=self.variant,
+            owner=self.owner,
+            description=self.description,
+            function=pb.PythonFunction(query=self.query),
+            mode=ComputationMode.CLIENT_COMPUTED.proto(),
+            tags=pb.Tags(tag=self.tags),
+            properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
+        )
+        stub.CreateFeatureVariant(serialized)
+
+    def _create_local(self, db) -> None:
+        decode_query = base64.b64encode(self.query).decode("ascii")
+
+        db.insert("ondemand_feature_variant",
+                  str(time.time()),
+                  self.description,
+                  self.name,
+                  self.owner,
+                  self.variant,
+                  "ready",
+                  decode_query,
+                  )
+        if self.tags and len(self.tags):
+            db.upsert("tags", self.name, self.variant, "feature_variant", json.dumps(self.tags))
+        if len(self.properties):
+            db.upsert("properties", self.name, self.variant, "feature_variant", json.dumps(self.properties))
+
+        self._write_feature_variant_and_mode(db)
+
+    def _write_feature_variant_and_mode(self, db) -> None:
+        db.insert(
+            "features",
+            self.name,
+            self.variant,
+            "tbd",
+        )
+        is_on_demand = 1
+
+        db.insert(
+            "feature_computation_mode",
+            self.name,
+            self.variant,
+            ComputationMode.CLIENT_COMPUTED.value,
+            is_on_demand,
+        )
+    
+    def get(self, stub) -> "OnDemandFeature":
+        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        ondemand_feature = next(stub.GetFeatureVariants(iter([name_variant])))
+
+        return OnDemandFeature(
+            name=ondemand_feature.name,
+            variant=ondemand_feature.variant,
+            owner=ondemand_feature.owner,
+            description=ondemand_feature.description,
+            tags=list(ondemand_feature.tags.tag),
+            properties={k: v for k, v in ondemand_feature.properties.property.items()},
+            status=ondemand_feature.status.Status._enum_type.values[ondemand_feature.status.status].name,
+            error=ondemand_feature.status.error_message,
         )
 
     def get_status(self):
@@ -1117,8 +1294,9 @@ class Label:
     tags: list
     properties: dict
     location: ResourceLocation
-    variant: str = "default"
     status: str = "NO_STATUS"
+    variant: str = "default"
+    error: Optional[str] = None
 
     def __post_init__(self):
         col_types = [member.value for member in ColumnTypes]
@@ -1132,6 +1310,26 @@ class Label:
     @staticmethod
     def type() -> str:
         return "label"
+
+    def get(self, stub) -> "Label":
+        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        label = next(stub.GetLabelVariants(iter([name_variant])))
+
+        return Label(
+            name=label.name,
+            variant=label.variant,
+            source=(label.source.name, label.source.variant),
+            value_type=label.type,
+            entity=label.entity,
+            owner=label.owner,
+            provider=label.provider,
+            location=ResourceColumnMapping("", "", ""),
+            description=label.description,
+            tags=list(label.tags.tag),
+            properties={k: v for k, v in label.properties.property.items()},
+            status=label.status.Status._enum_type.values[label.status.status].name,
+            error=label.status.error_message
+        )
 
     def _create(self, stub) -> None:
         serialized = pb.LabelVariant(
@@ -1292,14 +1490,15 @@ class TrainingSet:
     label: NameVariant
     features: List[NameVariant]
     description: str
-    tags: list
-    properties: dict
     feature_lags: list = field(default_factory=list)
-    status: str = "NO_STATUS"
+    tags: list = None
+    properties: dict = None
     variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
     provider: str = ""
+    status: str = "NO_STATUS"
+    error: Optional[str] = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(name=self.name, variant=self.variant, resource_type=6, schedule_string=schedule)
@@ -1321,6 +1520,25 @@ class TrainingSet:
     @staticmethod
     def type() -> str:
         return "training-set"
+
+    def get(self, stub):
+        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        ts = next(stub.GetTrainingSetVariants(iter([name_variant])))
+
+        return TrainingSet(
+            name=ts.name,
+            variant=ts.variant,
+            owner=ts.owner,
+            description=ts.description,
+            status=ts.status.Status._enum_type.values[ts.status.status].name,
+            label=(ts.label.name, ts.label.variant),
+            features=[(f.name, f.variant) for f in ts.features],
+            feature_lags=[],
+            provider=ts.provider,
+            tags=list(ts.tags.tag),
+            properties={k: v for k, v in ts.properties.property.items()},
+            error=ts.status.error_message,
+        )
 
     def _create(self, stub) -> None:
         feature_lags = []
@@ -1385,9 +1603,13 @@ class TrainingSet:
 
         for feature_name, feature_variant in self.features:
             try:
-                db.get_feature_variant(feature_name, feature_variant)
+                is_on_demand = db.get_feature_variant_on_demand(feature_name, feature_variant)
+                if is_on_demand:
+                    raise InvalidTrainingSetFeatureComputationMode(feature_name, feature_variant)
+            except InvalidTrainingSetFeatureComputationMode as e:
+                raise e
             except Exception as e:
-                raise Exception(f"{feature_name} does not exist. Failed to register training set. Error: {e}")
+                raise Exception(f"{feature_name}:{feature_variant} does not exist. Failed to register training set. Error: {e}")
 
             db.insert(
                 "training_set_features",
@@ -1474,7 +1696,7 @@ class Model:
 
 
 Resource = Union[PrimaryData, Provider, Entity, User, Feature, Label,
-                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference, Model]
+                 TrainingSet, Source, Schedule, ProviderReference, SourceReference, EntityReference, Model, OnDemandFeature]
 
 
 class ResourceRedefinedError(Exception):
@@ -1492,7 +1714,6 @@ class ResourceState:
 
     def __init__(self):
         self.__state = {}
-        self.__create_list = []
 
     @typechecked
     def add(self, resource: Resource) -> None:
@@ -1506,12 +1727,10 @@ class ResourceState:
                 return
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
-        self.__create_list.append(resource)
         if hasattr(resource, 'schedule_obj') and resource.schedule_obj != None:
             my_schedule = resource.schedule_obj
             key = (my_schedule.type(), my_schedule.name)
             self.__state[key] = my_schedule
-            self.__create_list.append(my_schedule)
 
     def sorted_list(self) -> List[Resource]:
         resource_order = {
@@ -1520,9 +1739,11 @@ class ResourceState:
             "source": 2,
             "entity": 3,
             "feature": 4,
-            "label": 5,
-            "training-set": 6,
-            "schedule": 7,
+            "ondemand_feature": 5,
+            "label": 6,
+            "training-set": 7,
+            "schedule": 8,
+            "model": 9
         }
 
         def to_sort_key(res):
@@ -1533,7 +1754,7 @@ class ResourceState:
         return sorted(self.__state.values(), key=to_sort_key)
 
     def create_all_dryrun(self) -> None:
-        for resource in self.__create_list:
+        for resource in self.sorted_list():
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name)
             if resource.operation_type() is OperationType.CREATE:
@@ -1542,7 +1763,7 @@ class ResourceState:
     def create_all_local(self) -> None:
         db = SQLiteMetadata()
         check_up_to_date(True, "register")
-        for resource in self.__create_list:
+        for resource in self.sorted_list():
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name)
                 resource._get_local(db)
@@ -1554,19 +1775,23 @@ class ResourceState:
 
     def create_all(self, stub) -> None:
         check_up_to_date(False, "register")
-        for resource in self.__create_list:
+        for resource in self.sorted_list():
             if resource.type() == "provider" and resource.name == "local-mode":
                 continue
             try:
+                # NOTE: There is an extra space before the variant name to better handle the case
+                # where a resource has no variant; ultimately, we should separate data access and
+                # logging/CLI output to avoid this unnecessary coupling.
+                resource_variant = f" {resource.variant}" if hasattr(resource, "variant") else ""
                 if resource.operation_type() is OperationType.GET:
-                    print("Getting", resource.type(), resource.name)
+                    print(f"Getting {resource.type()} {resource.name}{resource_variant}")
                     resource._get(stub)
                 if resource.operation_type() is OperationType.CREATE:
-                    print("Creating", resource.type(), resource.name)
+                    print(f"Creating {resource.type()} {resource.name}{resource_variant}")
                     resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
-                    print(resource.name, "already exists.")
+                    print(f"{resource.name}{resource_variant} already exists.")
                     continue
 
                 raise e
@@ -1658,7 +1883,7 @@ class SparkCredentials:
 
             if client_major != MAJOR_VERSION:
                 client_major = "3"
-            if minor not in MINOR_VERSIONS:
+            if client_minor not in MINOR_VERSIONS:
                 client_minor = "7"
 
             version = f"{client_major}.{client_minor}"
@@ -1674,11 +1899,13 @@ class SparkCredentials:
             raise Exception(f"The Python version {version} is not supported. Currently, supported versions are 3.7-3.10.")
         
         """
-        The Python versions on the Docker image are 3.7.16, 3.8.16, 3.9.16, and 3.10.10. 
+        The Python versions on the Docker image are 3.7.16, 3.8.16, 3.9.16, 3.10.10, and 3.11.2.
         This conditional statement sets the patch number based on the minor version. 
         """
         if minor == "10":
             patch = "10"
+        elif minor == "11":
+            patch = "2"
         else:
             patch = "16"
         

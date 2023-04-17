@@ -77,6 +77,21 @@ func (r ResourceStatus) Serialized() pb.ResourceStatus_Status {
 	return pb.ResourceStatus_Status(r)
 }
 
+type ComputationMode int32
+
+const (
+	PRECOMPUTED     ComputationMode = ComputationMode(pb.ComputationMode_PRECOMPUTED)
+	CLIENT_COMPUTED                 = ComputationMode(pb.ComputationMode_CLIENT_COMPUTED)
+)
+
+func (cm ComputationMode) Equals(mode pb.ComputationMode) bool {
+	return cm == ComputationMode(mode)
+}
+
+func (cm ComputationMode) String() string {
+	return pb.ComputationMode_name[int32(cm)]
+}
+
 var parentMapping = map[ResourceType]ResourceType{
 	FEATURE_VARIANT:      FEATURE,
 	LABEL_VARIANT:        LABEL,
@@ -86,10 +101,17 @@ var parentMapping = map[ResourceType]ResourceType{
 
 func (serv *MetadataServer) needsJob(res Resource) bool {
 	if res.ID().Type == TRAINING_SET_VARIANT ||
-		res.ID().Type == FEATURE_VARIANT ||
 		res.ID().Type == SOURCE_VARIANT ||
 		res.ID().Type == LABEL_VARIANT {
 		return true
+	}
+	if res.ID().Type == FEATURE_VARIANT {
+		if fv, ok := res.(*featureVariantResource); !ok {
+			serv.Logger.Errorf("resource has type FEATURE VARIANT but failed to cast %s", res.ID())
+			return false
+		} else {
+			return PRECOMPUTED.Equals(fv.serialized.Mode)
+		}
 	}
 	return false
 }
@@ -512,26 +534,28 @@ func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (Res
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
-			Name:    serialized.Source.Name,
-			Variant: serialized.Source.Variant,
-			Type:    SOURCE_VARIANT,
-		},
-		{
-			Name: serialized.Entity,
-			Type: ENTITY,
-		},
-		{
 			Name: serialized.Owner,
 			Type: USER,
-		},
-		{
-			Name: serialized.Provider,
-			Type: PROVIDER,
 		},
 		{
 			Name: serialized.Name,
 			Type: FEATURE,
 		},
+	}
+	if PRECOMPUTED.Equals(serialized.Mode) {
+		depIds = append(depIds, ResourceID{
+			Name:    serialized.Source.Name,
+			Variant: serialized.Source.Variant,
+			Type:    SOURCE_VARIANT,
+		},
+			ResourceID{
+				Name: serialized.Entity,
+				Type: ENTITY,
+			},
+			ResourceID{
+				Name: serialized.Provider,
+				Type: PROVIDER,
+			})
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
@@ -545,9 +569,12 @@ func (resource *featureVariantResource) Proto() proto.Message {
 }
 
 func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+	if !PRECOMPUTED.Equals(this.serialized.Mode) {
+		return nil
+	}
 	id := that.ID()
-	releventOp := op == create_op && id.Type == TRAINING_SET_VARIANT
-	if !releventOp {
+	relevantOp := op == create_op && id.Type == TRAINING_SET_VARIANT
+	if !relevantOp {
 		return nil
 	}
 	key := id.Proto()
@@ -1048,34 +1075,34 @@ func (resource *providerResource) Update(lookup ResourceLookup, resourceUpdate R
 	return nil
 }
 
-func (a providerResource) isValidConfigUpdate(configUpdate pc.SerializedConfig) (bool, error) {
-	switch pt.Type(a.serialized.Type) {
+func (resource *providerResource) isValidConfigUpdate(configUpdate pc.SerializedConfig) (bool, error) {
+	switch pt.Type(resource.serialized.Type) {
 	case pt.BigQueryOffline:
-		return isValidBigQueryConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidBigQueryConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.CassandraOnline:
-		return isValidCassandraConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidCassandraConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.DynamoDBOnline:
-		return isValidDynamoConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidDynamoConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.FirestoreOnline:
-		return isValidFirestoreConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidFirestoreConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.MongoDBOnline:
-		return isValidMongoConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidMongoConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.PostgresOffline:
-		return isValidPostgresConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidPostgresConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.RedisOnline:
-		return isValidRedisConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidRedisConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.SnowflakeOffline:
-		return isValidSnowflakeConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidSnowflakeConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.RedshiftOffline:
-		return isValidRedshiftConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidRedshiftConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.K8sOffline:
-		return isValidK8sConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidK8sConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.SparkOffline:
-		return isValidSparkConfigUpdate(a.serialized.SerializedConfig, configUpdate)
-	case pt.S3, pt.HDFS, pt.GCS, pt.AZURE:
+		return isValidSparkConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
+	case pt.S3, pt.HDFS, pt.GCS, pt.AZURE, pt.BlobOnline:
 		return true, nil
 	default:
-		return false, fmt.Errorf("unrecognized provider type: %v", a.serialized.Type)
+		return false, fmt.Errorf("unable to update config for provider. Provider type %s not found", resource.serialized.Type)
 	}
 }
 
@@ -1278,7 +1305,7 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *p
 			&pb.Feature{
 				Name:           name,
 				DefaultVariant: variant,
-				// This will be set when the change is propogated to dependencies.
+				// This will be set when the change is propagated to dependencies.
 				Variants: []string{},
 			},
 		}
@@ -1310,7 +1337,7 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variant *pb.
 			&pb.Label{
 				Name:           name,
 				DefaultVariant: variant,
-				// This will be set when the change is propogated to dependencies.
+				// This will be set when the change is propagated to dependencies.
 				Variants: []string{},
 			},
 		}
@@ -1342,7 +1369,7 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, varian
 			&pb.TrainingSet{
 				Name:           name,
 				DefaultVariant: variant,
-				// This will be set when the change is propogated to dependencies.
+				// This will be set when the change is propagated to dependencies.
 				Variants: []string{},
 			},
 		}
@@ -1374,7 +1401,7 @@ func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variant *pb
 			&pb.Source{
 				Name:           name,
 				DefaultVariant: variant,
-				// This will be set when the change is propogated to dependencies.
+				// This will be set when the change is propagated to dependencies.
 				Variants: []string{},
 			},
 		}
@@ -1507,7 +1534,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 			}
 		}
 	}
-	if err := serv.propogateChange(res); err != nil {
+	if err := serv.propagateChange(res); err != nil {
 		err := errors.Wrap(err, fmt.Sprintf("could not propogate: %s", res))
 		serv.Logger.Error(errors.WithStack(err))
 		return nil, err
@@ -1515,11 +1542,11 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	return &pb.Empty{}, nil
 }
 
-func (serv *MetadataServer) propogateChange(newRes Resource) error {
+func (serv *MetadataServer) propagateChange(newRes Resource) error {
 	visited := make(map[ResourceID]struct{})
 	// We have to make it a var so that the anonymous function can call itself.
-	var propogateChange func(parent Resource) error
-	propogateChange = func(parent Resource) error {
+	var propagateChange func(parent Resource) error
+	propagateChange = func(parent Resource) error {
 		deps, err := parent.Dependencies(serv.lookup)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("could not get dependencies for parent: %s", parent))
@@ -1540,13 +1567,13 @@ func (serv *MetadataServer) propogateChange(newRes Resource) error {
 			if err := serv.lookup.Set(res.ID(), res); err != nil {
 				return nil
 			}
-			if err := propogateChange(res); err != nil {
+			if err := propagateChange(res); err != nil {
 				return err
 			}
 		}
 		return nil
 	}
-	return propogateChange(newRes)
+	return propagateChange(newRes)
 }
 
 func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send sendFn) error {

@@ -1,6 +1,6 @@
 import featureform as ff
 import pytest
-
+from featureform.register import Registrar, DFTransformationDecorator, ResourceRegistrar
 from featureform.resources import Entity, Feature, Label
 
 
@@ -49,23 +49,15 @@ def test_class_api_syntax(provider_source_fxt, is_local, is_insecure, request):
     "provider_source_fxt,is_local",
     [
         pytest.param("local_provider_source", True, marks=pytest.mark.local),
-        pytest.param(
-            "hosted_sql_provider_and_source", False, marks=pytest.mark.hosted
-        ),
-        pytest.param(
-            "hosted_sql_provider_and_source", False, marks=pytest.mark.docker
-        ),
+        pytest.param("hosted_sql_provider_and_source", False, marks=pytest.mark.hosted),
+        pytest.param("hosted_sql_provider_and_source", False, marks=pytest.mark.docker),
     ],
 )
-def test_variants_naming_consistency(
-    provider_source_fxt, is_local, request
-):
+def test_variants_naming_consistency(provider_source_fxt, is_local, request):
     custom_marks = [
         mark.name for mark in request.node.own_markers if mark.name != "parametrize"
     ]
-    _, source, _ = request.getfixturevalue(provider_source_fxt)(
-        custom_marks
-    )
+    _, source, _ = request.getfixturevalue(provider_source_fxt)(custom_marks)
     label_column = "IsFraud" if is_local else "isfraud"
     label_entity_column = "CustomerID" if is_local else "customerid"
 
@@ -87,32 +79,105 @@ def test_variants_naming_consistency(
             }
         )
 
+@pytest.mark.local
+def test_subscriptable_transformation_decorator_method_call():
+    df_transformation_decorator = DFTransformationDecorator(
+        registrar=Registrar(),
+        provider="test_provider",
+        owner="test_owner",
+        tags=[],
+        properties={},
+    )
+
+    def test_function():
+        pass
+
+    df_transformation_decorator(test_function)
+
+    name_variant = df_transformation_decorator.name_variant()
+    column_resource = df_transformation_decorator.register_resources(
+        entity="user",
+        entity_column="user_id",
+        owner="test_owner",
+        inference_store="test_store",
+        features=[{"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"}],
+    )
+
+    assert name_variant == ("test_function", "default") and isinstance(column_resource, ResourceRegistrar)
+
 
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local",
     [
         pytest.param("local_provider_source", True, marks=pytest.mark.local),
-        pytest.param(
-            "hosted_sql_provider_and_source", False, marks=pytest.mark.hosted
-        ),
-        pytest.param(
-            "hosted_sql_provider_and_source", False, marks=pytest.mark.docker
-        ),
+        pytest.param("hosted_sql_provider_and_source", False, marks=pytest.mark.hosted),
+        pytest.param("hosted_sql_provider_and_source", False, marks=pytest.mark.docker),
     ],
 )
-def test_indexing_with_fewer_than_two_columns(
-    provider_source_fxt, is_local, request
-):
+def test_indexing_with_fewer_than_two_columns(provider_source_fxt, is_local, request):
     custom_marks = [
         mark.name for mark in request.node.own_markers if mark.name != "parametrize"
     ]
-    _, source, _ = request.getfixturevalue(provider_source_fxt)(
-        custom_marks
-    )
+    _, source, _ = request.getfixturevalue(provider_source_fxt)(custom_marks)
     label_entity_column = "CustomerID" if is_local else "customerid"
 
     with pytest.raises(Exception, match="Expected 2 columns"):
         source[[label_entity_column]]
+
+
+@pytest.mark.parametrize(
+    "provider_source_fxt,is_local",
+    [
+        pytest.param("local_provider_source", True, marks=pytest.mark.local),
+        pytest.param("hosted_sql_provider_and_source", False, marks=pytest.mark.hosted),
+        pytest.param("hosted_sql_provider_and_source", False, marks=pytest.mark.docker),
+    ],
+)
+def test_indexing_with_more_than_three_columns(provider_source_fxt, is_local, request):
+    custom_marks = [
+        mark.name for mark in request.node.own_markers if mark.name != "parametrize"
+    ]
+    _, source, _ = request.getfixturevalue(provider_source_fxt)(custom_marks)
+    label_entity_column = "CustomerID" if is_local else "customerid"
+    label_entity_column = "CustomerID" if is_local else "customerid"
+    label_timestamp_column = "Timestamp" if is_local else "timestamp"
+
+    with pytest.raises(Exception, match="Found unrecognized columns"):
+        source[
+            [
+                label_entity_column,
+                label_entity_column,
+                label_timestamp_column,
+                "unknown_column",
+            ]
+        ]
+
+
+@pytest.mark.parametrize(
+    "provider_source_fxt,is_local",
+    [
+        pytest.param("local_provider_source", True, marks=pytest.mark.local),
+        pytest.param("hosted_sql_provider_and_source", False, marks=pytest.mark.hosted),
+        pytest.param("hosted_sql_provider_and_source", False, marks=pytest.mark.docker),
+    ],
+)
+def test_specifying_timestamp_column_twice(provider_source_fxt, is_local, request):
+    custom_marks = [
+        mark.name for mark in request.node.own_markers if mark.name != "parametrize"
+    ]
+    _, source, _ = request.getfixturevalue(provider_source_fxt)(custom_marks)
+    label_column = "IsFraud" if is_local else "isfraud"
+    label_entity_column = "CustomerID" if is_local else "customerid"
+    timestamp_column = "Timestamp" if is_local else "timestamp"
+
+    with pytest.raises(Exception, match="Timestamp column specified twice"):
+        ff.Label(
+            source[[label_entity_column, label_column, timestamp_column]],
+            description="Whether a user's transaction is fraudulent.",
+            variant="quickstart",
+            type=ff.Bool,
+            timestamp_column=timestamp_column,
+        )
 
 
 @pytest.fixture(autouse=True)
@@ -139,18 +204,19 @@ def arrange_resources(
         def average_user_transaction():
             return "SELECT customerid as user_id, avg(transactionamount) as avg_transaction_amt from {{transactions.quickstart}} GROUP BY user_id"
 
+    inference_store = provider if is_local else online_store
     feature_column = "TransactionAmount" if is_local else "avg_transaction_amt"
     label_column = "IsFraud" if is_local else "isfraud"
-    inference_store = provider if is_local else online_store
     feature_entity_column = "CustomerID" if is_local else "user_id"
     label_entity_column = "CustomerID" if is_local else "customerid"
+    timestamp_column = "Timestamp" if is_local else "timestamp"
 
     if is_class_api:
 
         @ff.entity
         class User:
             fraudulent = ff.Label(
-                source[[label_entity_column, label_column]],
+                source[[label_entity_column, label_column, timestamp_column]],
                 description="Whether a user's transaction is fraudulent.",
                 variant="quickstart",
                 type=ff.Bool,
@@ -219,4 +285,5 @@ def arrange_resources(
                     "description": "Whether a user's transaction is fraudulent.",
                 },
             ],
+            timestamp_column=timestamp_column,
         )

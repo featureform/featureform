@@ -18,12 +18,6 @@ def setup():
         """the average transaction amount for a user """
         return transactions.groupby("CustomerID")["TransactionAmount"].mean()
 
-    @local.sql_transformation(variant="quickstart")
-    def sql_average_user_transaction():
-        """the average transaction amount for a user """
-        return "SELECT CustomerID as user_id, avg(TransactionAmount) " \
-            "as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
-
     user = ff.register_entity("user")
 
     # Register a column from our transformation as a feature
@@ -33,15 +27,6 @@ def setup():
         inference_store=local,
         features=[
             {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
-        ],
-    )
-
-    sql_average_user_transaction.register_resources(
-        entity=user,
-        entity_column="CustomerID",
-        inference_store=local,
-        features=[
-            {"name": "avg_transactions", "variant": "sql", "column": "TransactionAmount", "type": "float32"},
         ],
     )
 

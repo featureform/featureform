@@ -22,7 +22,7 @@ You can also try local mode in this example [📔 Google Colab notebook 📔](ht
 Install the Featureform SDK via Pip.
 
 ```shell
-> pip install featureform
+pip install featureform
 ```
 
 ## Step 2: Download test data
@@ -89,7 +89,7 @@ Next, we'll register a passenger entity to associate with a feature and label.
 @ff.entity
 class User:
     avg_transactions = ff.Feature(
-        average_user_transaction[["CustomerID", "TransactionAmount"]],
+        average_user_transaction[["CustomerID", "TransactionAmount"]], # We can optional include the `timestamp_column` "Timestamp" here
         variant="quickstart",
         type=ff.Float32,
         inference_store=local,
@@ -148,7 +148,7 @@ ff.register_training_set(
 Now that our definitions are complete, we can apply it to our Featureform instance.
 
 ```shell
-> featureform apply definitions.py --local
+featureform apply definitions.py --local
 ```
 
 ## Step 4: Serve features for training and inference

@@ -6,6 +6,7 @@ import types
 import base64
 import argparse
 from typing import List
+from pathlib import Path
 from datetime import datetime
 
 
@@ -65,14 +66,17 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
 
         if job_type == "Transformation" or job_type == "Materialization" or job_type == "Training Set":
             for i, source in enumerate(source_list):
-                if source.endswith(".csv"):
+                file_extension = Path(source).suffix
+                is_directory = file_extension == ""
+
+                if file_extension == ".csv":
                     source_df = spark.read.option("header","true").option("recursiveFileLookup", "true").csv(source) 
                     source_df.createOrReplaceTempView(f'source_{i}')
-                elif source.endswith(".parquet"):
+                elif file_extension == ".parquet" or is_directory:
                     source_df = spark.read.option("header","true").option("recursiveFileLookup", "true").parquet(source) 
                     source_df.createOrReplaceTempView(f'source_{i}')
                 else:
-                    raise Exception(f"the file type for '{location}' file is not supported.")
+                    raise Exception(f"the file type for '{source}' file is not supported.")
         else:
             raise Exception(f"the '{job_type}' is not supported. Supported types: 'Transformation', 'Materialization', 'Training Set'")
         
@@ -80,7 +84,9 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
 
         dt = datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
-        output_uri_with_timestamp = f'{output_uri}{safe_datetime}/'
+
+        # remove the '/' at the end of output_uri in order to avoid double slashes in the output file path. 
+        output_uri_with_timestamp = f"{output_uri.rstrip('/')}/{safe_datetime}"
 
         output_dataframe.write.option("header", "true").mode("overwrite").parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp
@@ -104,9 +110,12 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
     print(f"reading {len(sources)} source files")
     func_parameters = []
     for location in sources:
-        if location.endswith(".csv"):
+        file_extension = Path(location).suffix
+        is_directory = file_extension == ""
+        
+        if file_extension == ".csv":
             func_parameters.append(spark.read.option("header","true").option("recursiveFileLookup", "true").csv(location))
-        elif location.endswith(".parquet"):
+        elif file_extension == ".parquet" or is_directory:
             func_parameters.append(spark.read.option("header","true").option("recursiveFileLookup", "true").parquet(location))
         else:
             raise Exception(f"the file type for '{location}' file is not supported.")
@@ -118,7 +127,10 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
 
         dt = datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
-        output_uri_with_timestamp = f"{output_uri}{safe_datetime}" if output_uri[-1] == "/" else f"{output_uri}/{safe_datetime}"
+
+        # remove the '/' at the end of output_uri in order to avoid double slashes in the output file path. 
+        output_uri_with_timestamp = f"{output_uri.rstrip('/')}/{safe_datetime}" 
+        
         output_df.write.mode("overwrite").option("header","true").parquet(output_uri_with_timestamp)
         return output_uri_with_timestamp
     except (IOError, OSError) as e:

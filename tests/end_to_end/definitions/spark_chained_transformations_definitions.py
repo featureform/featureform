@@ -1,5 +1,5 @@
 import os
-from datetime import timedelta 
+from datetime import timedelta
 
 from dotenv import load_dotenv
 
@@ -25,9 +25,9 @@ VERSION=get_random_string()
 os.environ["TEST_CASE_VERSION"]=VERSION
 
 FEATURE_NAME = f"spark_e2e_{VERSION}"
-FEATURE_VARIANT = "generic_s3"
+FEATURE_VARIANT = "emr_s3_chained"
 TRAININGSET_NAME = f"spark_e2e_training_{VERSION}"
-TRAININGSET_VARIANT = "generic_s3"
+TRAININGSET_VARIANT = "emr_s3_chained"
 
 FEATURE_SERVING = f"farm:farm1"
 VERSIONS = f"{FEATURE_NAME},{FEATURE_VARIANT}:{TRAININGSET_NAME},{TRAININGSET_VARIANT}"
@@ -44,15 +44,15 @@ redis = ff.register_redis(
     description="A Redis deployment we created for the Featureform quickstart"
 )
 
-spark_creds = ff.SparkCredentials(
-    master=os.getenv("SPARK_MASTER", "local"),
-    deploy_mode="client",
-    python_version="3.7.16",
-)
-
 aws_creds = ff.AWSCredentials(
     aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", None),
     aws_secret_access_key=os.getenv("AWS_SECRET_KEY", None),
+)
+
+emr = ff.EMRCredentials(
+    emr_cluster_id=os.getenv("AWS_EMR_CLUSTER_ID", None),
+    emr_cluster_region=os.getenv("AWS_EMR_CLUSTER_REGION", None),
+    credentials=aws_creds,
 )
 
 s3 = ff.register_s3(
@@ -64,31 +64,37 @@ s3 = ff.register_s3(
 )
 
 spark = ff.register_spark(
-            name=f"spark-generic-s3_{VERSION}",
-            description="A Spark deployment we created for the Featureform quickstart",
-            team="featureform-team",
-            executor=spark_creds,
-            filestore=s3,
-        )
+    name=f"spark-emr-s3_{VERSION}",
+    description="A Spark deployment we created for the Featureform quickstart",
+    team="featureform-team",
+    executor=emr,
+    filestore=s3,
+)
 
-ice_cream_dataset = spark.register_parquet_file(
-    name=f"ice_cream_{VERSION}",
-    variant=VERSION,
+ice_cream_dataset = spark.register_file(
+    name="ice_cream",
+    variant="default",
     description="A dataset of ice cream",
     file_path="s3://featureform-spark-testing/featureform/tests/ice_cream.parquet"
 )
 
-@spark.df_transformation(name=f"ice_cream_transformation_{VERSION}",
-                        variant=VERSION,
-                        inputs=[(f"ice_cream_{VERSION}", VERSION)])
-def ice_cream_transformation(df):
+@spark.sql_transformation(name=f"ice_cream_transformation_{VERSION}",
+                         variant=VERSION)
+def ice_cream_transformation():
+    """the ice cream dataset """
+    return "SELECT * FROM {{ ice_cream.default }}"
+
+@spark.df_transformation(name=f"ice_cream_chained_transformation_{VERSION}",
+                         variant=VERSION,
+                         inputs=[(f"ice_cream_transformation_{VERSION}", VERSION)])
+def ice_cream_chained_transformation(df):
     """the ice cream dataset """
     return df
 
 farm = ff.register_entity("farm")
 
 # Register a column from our transformation as a feature
-ice_cream_transformation.register_resources(
+ice_cream_chained_transformation.register_resources(
     entity=farm,
     entity_column="strawberry_source",
     inference_store=redis,
@@ -98,7 +104,7 @@ ice_cream_transformation.register_resources(
 )
 
 # Register label from our base Transactions table
-ice_cream_transformation.register_resources(
+ice_cream_chained_transformation.register_resources(
     entity=farm,
     entity_column="strawberry_source",
     labels=[

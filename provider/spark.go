@@ -949,7 +949,7 @@ func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string) (stri
 			}
 
 			// the output file is compressed so we need decompress it
-			errorMessage, err := decompressMessage(logs)
+			errorMessage, err := decompressMessageToString(logs)
 			if err != nil {
 				return "", fmt.Errorf("could not decompress error message: %v", err)
 			}

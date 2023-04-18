@@ -15,12 +15,54 @@ from .get_local import *
 from .list_local import *
 from .sqlite_metadata import SQLiteMetadata
 from .tls import insecure_channel, secure_channel
-from .resources import ColumnTypes, Model, ResourceState, Provider, RedisConfig, FirestoreConfig, CassandraConfig, DynamodbConfig, \
-    MongoDBConfig, PostgresConfig, SnowflakeConfig, LocalConfig, RedshiftConfig, BigQueryConfig, SparkConfig, \
-    AzureFileStoreConfig, OnlineBlobConfig, K8sConfig, S3StoreConfig, GCSFileStoreConfig, User, Location, Source, PrimaryData, SQLTable, \
-    SQLTransformation, DFTransformation, Entity, Feature, Label, ResourceColumnMapping, TrainingSet, ProviderReference, \
-    EntityReference, SourceReference, ExecutorCredentials, ResourceRedefinedError, ResourceStatus, Transformation, \
-    K8sArgs, AWSCredentials, GCPCredentials, HDFSConfig, K8sResourceSpecs, FilePrefix, OnDemandFeature
+from .resources import (
+    ColumnTypes,
+    Model,
+    ResourceState,
+    Provider,
+    RedisConfig,
+    FirestoreConfig,
+    CassandraConfig,
+    DynamodbConfig,
+    MongoDBConfig,
+    PostgresConfig,
+    SnowflakeConfig,
+    LocalConfig,
+    RedshiftConfig,
+    BigQueryConfig,
+    SparkConfig,
+    AzureFileStoreConfig,
+    OnlineBlobConfig,
+    K8sConfig,
+    S3StoreConfig,
+    GCSFileStoreConfig,
+    User,
+    Location,
+    Source,
+    PrimaryData,
+    SQLTable,
+    SQLTransformation,
+    DFTransformation,
+    Entity,
+    Feature,
+    Label,
+    ResourceColumnMapping,
+    TrainingSet,
+    ProviderReference,
+    EntityReference,
+    SourceReference,
+    ExecutorCredentials,
+    ResourceRedefinedError,
+    ResourceStatus,
+    Transformation,
+    K8sArgs,
+    AWSCredentials,
+    GCPCredentials,
+    HDFSConfig,
+    K8sResourceSpecs,
+    FilePrefix,
+    OnDemandFeature,
+)
 
 from .proto import metadata_pb2_grpc as ff_grpc
 from .search_local import search_local
@@ -33,7 +75,6 @@ NON_INFERENCE_STORES = [s3_config.type()]
 
 
 class EntityRegistrar:
-
     def __init__(self, registrar, entity):
         self.__registrar = registrar
         self.__entity = entity
@@ -43,7 +84,6 @@ class EntityRegistrar:
 
 
 class UserRegistrar:
-
     def __init__(self, registrar, user):
         self.__registrar = registrar
         self.__user = user
@@ -56,7 +96,6 @@ class UserRegistrar:
 
 
 class OfflineProvider:
-
     def __init__(self, registrar, provider):
         self.__registrar = registrar
         self.__provider = provider
@@ -66,20 +105,21 @@ class OfflineProvider:
 
 
 class OfflineSQLProvider(OfflineProvider):
-
     def __init__(self, registrar, provider):
         super().__init__(registrar, provider)
         self.__registrar = registrar
         self.__provider = provider
 
-    def register_table(self,
-                       name: str,
-                       table: str,
-                       variant: str = "default",
-                       owner: Union[str, UserRegistrar] = "",
-                       description: str = "",
-                       tags: List[str] = [],
-                       properties: dict = {}):
+    def register_table(
+        self,
+        name: str,
+        table: str,
+        variant: str = "default",
+        owner: Union[str, UserRegistrar] = "",
+        description: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a SQL table as a primary data source.
 
         Args:
@@ -92,31 +132,37 @@ class OfflineSQLProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): source
         """
-        return self.__registrar.register_primary_data(name=name,
-                                                      variant=variant,
-                                                      location=SQLTable(table),
-                                                      owner=owner,
-                                                      provider=self.name(),
-                                                      description=description,
-                                                      tags=tags,
-                                                      properties=properties)
+        return self.__registrar.register_primary_data(
+            name=name,
+            variant=variant,
+            location=SQLTable(table),
+            owner=owner,
+            provider=self.name(),
+            description=description,
+            tags=tags,
+            properties=properties,
+        )
 
-    def sql_transformation(self,
-                           owner: Union[str, UserRegistrar] = "",
-                           variant: str = "default",
-                           name: str = "",
-                           schedule: str = "",
-                           description: str = "",
-                           tags: List[str] = [],
-                           properties: dict = {}):
-        return self.__registrar.sql_transformation(name=name,
-                                                   variant=variant,
-                                                   owner=owner,
-                                                   schedule=schedule,
-                                                   provider=self.name(),
-                                                   description=description,
-                                                   tags=tags,
-                                                   properties=properties)
+    def sql_transformation(
+        self,
+        owner: Union[str, UserRegistrar] = "",
+        variant: str = "default",
+        name: str = "",
+        schedule: str = "",
+        description: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
+        return self.__registrar.sql_transformation(
+            name=name,
+            variant=variant,
+            owner=owner,
+            schedule=schedule,
+            provider=self.name(),
+            description=description,
+            tags=tags,
+            properties=properties,
+        )
 
 
 class OfflineSparkProvider(OfflineProvider):
@@ -125,14 +171,16 @@ class OfflineSparkProvider(OfflineProvider):
         self.__registrar = registrar
         self.__provider = provider
 
-    def register_file(self,
-                        name: str,
-                        file_path: str,
-                        variant: str = "default",
-                        owner: Union[str, UserRegistrar] = "",
-                        description: str = "",
-                        tags: List[str] = [],
-                        properties: dict = {}):
+    def register_file(
+        self,
+        name: str,
+        file_path: str,
+        variant: str = "default",
+        owner: Union[str, UserRegistrar] = "",
+        description: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a Spark data source as a primary data source.
 
         Args:
@@ -145,34 +193,42 @@ class OfflineSparkProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): source
         """
-        return self.__registrar.register_primary_data(name=name,
-                                                      variant=variant,
-                                                      location=SQLTable(file_path),
-                                                      owner=owner,
-                                                      provider=self.name(),
-                                                      description=description,
-                                                      tags=tags,
-                                                      properties=properties)
-    
-    def register_parquet_file(self,
-                              name: str,
-                              file_path: str,
-                              variant: str = "default",
-                              owner: Union[str, UserRegistrar] = "",
-                              description: str = "", ):
-        if self.__provider.config.executor_type != "EMR" and file_path.startswith(FilePrefix.S3.value):
+        return self.__registrar.register_primary_data(
+            name=name,
+            variant=variant,
+            location=SQLTable(file_path),
+            owner=owner,
+            provider=self.name(),
+            description=description,
+            tags=tags,
+            properties=properties,
+        )
+
+    def register_parquet_file(
+        self,
+        name: str,
+        file_path: str,
+        variant: str = "default",
+        owner: Union[str, UserRegistrar] = "",
+        description: str = "",
+    ):
+        if self.__provider.config.executor_type != "EMR" and file_path.startswith(
+            FilePrefix.S3.value
+        ):
             file_path = file_path.replace(FilePrefix.S3.value, FilePrefix.S3A.value)
 
         return self.register_file(name, file_path, variant, owner, description)
 
-    def sql_transformation(self,
-                           variant: str = "default",
-                           owner: Union[str, UserRegistrar] = "",
-                           name: str = "",
-                           schedule: str = "",
-                           description: str = "",
-                           tags: List[str] = [],
-                           properties: dict = {}):
+    def sql_transformation(
+        self,
+        variant: str = "default",
+        owner: Union[str, UserRegistrar] = "",
+        name: str = "",
+        schedule: str = "",
+        description: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """
         Register a SQL transformation source. The spark.sql_transformation decorator takes the returned string in the
         following function and executes it as a SQL Query.
@@ -200,23 +256,27 @@ class OfflineSparkProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): Source
         """
-        return self.__registrar.sql_transformation(name=name,
-                                                   variant=variant,
-                                                   owner=owner,
-                                                   schedule=schedule,
-                                                   provider=self.name(),
-                                                   description=description,
-                                                   tags=tags,
-                                                   properties=properties)
+        return self.__registrar.sql_transformation(
+            name=name,
+            variant=variant,
+            owner=owner,
+            schedule=schedule,
+            provider=self.name(),
+            description=description,
+            tags=tags,
+            properties=properties,
+        )
 
-    def df_transformation(self,
-                          variant: str = "default",
-                          owner: Union[str, UserRegistrar] = "",
-                          name: str = "",
-                          description: str = "",
-                          inputs: list = [],
-                          tags: List[str] = [],
-                          properties: dict = {}):
+    def df_transformation(
+        self,
+        variant: str = "default",
+        owner: Union[str, UserRegistrar] = "",
+        name: str = "",
+        description: str = "",
+        inputs: list = [],
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """
         Register a Dataframe transformation source. The spark.df_transformation decorator takes the contents
         of the following function and executes the code it contains at serving time.
@@ -242,14 +302,16 @@ class OfflineSparkProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): Source
         """
-        return self.__registrar.df_transformation(name=name,
-                                                  variant=variant,
-                                                  owner=owner,
-                                                  provider=self.name(),
-                                                  description=description,
-                                                  inputs=inputs,
-                                                  tags=tags,
-                                                  properties=properties)
+        return self.__registrar.df_transformation(
+            name=name,
+            variant=variant,
+            owner=owner,
+            provider=self.name(),
+            description=description,
+            inputs=inputs,
+            tags=tags,
+            properties=properties,
+        )
 
 
 class OfflineK8sProvider(OfflineProvider):
@@ -258,14 +320,16 @@ class OfflineK8sProvider(OfflineProvider):
         self.__registrar = registrar
         self.__provider = provider
 
-    def register_file(self,
-                      name: str,
-                      path: str,
-                      variant: str = "default",
-                      owner: Union[str, UserRegistrar] = "",
-                      description: str = "",
-                      tags: List[str] = [],
-                      properties: dict = {}):
+    def register_file(
+        self,
+        name: str,
+        path: str,
+        variant: str = "default",
+        owner: Union[str, UserRegistrar] = "",
+        description: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a blob data source path as a primary data source.
 
         Args:
@@ -278,25 +342,29 @@ class OfflineK8sProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): source
         """
-        return self.__registrar.register_primary_data(name=name,
-                                                      variant=variant,
-                                                      location=SQLTable(path),
-                                                      owner=owner,
-                                                      provider=self.name(),
-                                                      description=description,
-                                                      tags=tags,
-                                                      properties=properties)
+        return self.__registrar.register_primary_data(
+            name=name,
+            variant=variant,
+            location=SQLTable(path),
+            owner=owner,
+            provider=self.name(),
+            description=description,
+            tags=tags,
+            properties=properties,
+        )
 
-    def sql_transformation(self,
-                           variant: str = "default",
-                           owner: Union[str, UserRegistrar] = "",
-                           name: str = "",
-                           schedule: str = "",
-                           description: str = "",
-                           docker_image: str = "",
-                           resource_specs: Union[K8sResourceSpecs, None] = None,
-                           tags: List[str] = [],
-                           properties: dict = {}):
+    def sql_transformation(
+        self,
+        variant: str = "default",
+        owner: Union[str, UserRegistrar] = "",
+        name: str = "",
+        schedule: str = "",
+        description: str = "",
+        docker_image: str = "",
+        resource_specs: Union[K8sResourceSpecs, None] = None,
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """
         Register a SQL transformation source. The k8s.sql_transformation decorator takes the returned string in the
         following function and executes it as a SQL Query.
@@ -326,26 +394,30 @@ class OfflineK8sProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): Source
         """
-        return self.__registrar.sql_transformation(name=name,
-                                                   variant=variant,
-                                                   owner=owner,
-                                                   schedule=schedule,
-                                                   provider=self.name(),
-                                                   description=description,
-                                                   args=K8sArgs(docker_image=docker_image, specs=resource_specs),
-                                                   tags=tags,
-                                                   properties=properties)
+        return self.__registrar.sql_transformation(
+            name=name,
+            variant=variant,
+            owner=owner,
+            schedule=schedule,
+            provider=self.name(),
+            description=description,
+            args=K8sArgs(docker_image=docker_image, specs=resource_specs),
+            tags=tags,
+            properties=properties,
+        )
 
-    def df_transformation(self,
-                          variant: str = "default",
-                          owner: Union[str, UserRegistrar] = "",
-                          name: str = "",
-                          description: str = "",
-                          inputs: list = [],
-                          docker_image: str = "",
-                          resource_specs: Union[K8sResourceSpecs, None] = None,
-                          tags: List[str] = [],
-                          properties: dict = {}):
+    def df_transformation(
+        self,
+        variant: str = "default",
+        owner: Union[str, UserRegistrar] = "",
+        name: str = "",
+        description: str = "",
+        inputs: list = [],
+        docker_image: str = "",
+        resource_specs: Union[K8sResourceSpecs, None] = None,
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """
         Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
         of the following function and executes the code it contains at serving time.
@@ -373,15 +445,17 @@ class OfflineK8sProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): Source
         """
-        return self.__registrar.df_transformation(name=name,
-                                                  variant=variant,
-                                                  owner=owner,
-                                                  provider=self.name(),
-                                                  description=description,
-                                                  inputs=inputs,
-                                                  args=K8sArgs(docker_image=docker_image, specs=resource_specs),
-                                                  tags=tags,
-                                                  properties=properties)
+        return self.__registrar.df_transformation(
+            name=name,
+            variant=variant,
+            owner=owner,
+            provider=self.name(),
+            description=description,
+            inputs=inputs,
+            args=K8sArgs(docker_image=docker_image, specs=resource_specs),
+            tags=tags,
+            properties=properties,
+        )
 
 
 class OnlineProvider:
@@ -593,7 +667,6 @@ class LocalProvider:
 
 
 class SourceRegistrar:
-
     def __init__(self, registrar, source):
         self.__registrar = registrar
         self.__source = source
@@ -622,14 +695,16 @@ class LocalSource:
     LocalSource creates a reference to a source that can be accessed locally.
     """
 
-    def __init__(self,
-                 registrar,
-                 name: str,
-                 owner: str,
-                 variant: str,
-                 provider: str,
-                 path: str,
-                 description: str = ""):
+    def __init__(
+        self,
+        registrar,
+        name: str,
+        owner: str,
+        variant: str,
+        provider: str,
+        path: str,
+        description: str = "",
+    ):
         self.registrar = registrar
         self.name = name
         self.variant = variant
@@ -650,9 +725,13 @@ class LocalSource:
     def __getitem__(self, columns: List[str]):
         col_len = len(columns)
         if col_len < 2:
-            raise Exception(f"Expected 2 columns, but found {col_len}. Missing entity and/or source columns")
+            raise Exception(
+                f"Expected 2 columns, but found {col_len}. Missing entity and/or source columns"
+            )
         elif col_len > 3:
-            raise Exception(f"Found unrecognized columns {', '.join(columns[3:])}. Expected 2 required columns and an optional 3rd timestamp column")
+            raise Exception(
+                f"Found unrecognized columns {', '.join(columns[3:])}. Expected 2 required columns and an optional 3rd timestamp column"
+            )
         return (self.registrar, self.name_variant(), columns)
 
     def name_variant(self):
@@ -668,14 +747,14 @@ class LocalSource:
         return pd.read_csv(self.path)
 
     def register_resources(
-            self,
-            entity: Union[str, EntityRegistrar],
-            entity_column: str,
-            owner: Union[str, UserRegistrar] = "",
-            inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
-            features: List[ColumnMapping] = None,
-            labels: List[ColumnMapping] = None,
-            timestamp_column: str = "",
+        self,
+        entity: Union[str, EntityRegistrar],
+        entity_column: str,
+        owner: Union[str, UserRegistrar] = "",
+        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
+        features: List[ColumnMapping] = None,
+        labels: List[ColumnMapping] = None,
+        timestamp_column: str = "",
     ):
         """
         Registers a features and/or labels that can be used in training sets or served.
@@ -735,7 +814,14 @@ class SubscriptableTransformation:
     enables this behavior while still maintaining the original function signature and behavior.
     """
 
-    def __init__(self, fn, registrar, provider, decorator_register_resources_method, decorator_name_variant_method):
+    def __init__(
+        self,
+        fn,
+        registrar,
+        provider,
+        decorator_register_resources_method,
+        decorator_name_variant_method,
+    ):
         self.fn = fn
         self.registrar = registrar
         self.provider = provider
@@ -753,9 +839,13 @@ class SubscriptableTransformation:
     def __getitem__(self, columns: List[str]):
         col_len = len(columns)
         if col_len < 2:
-            raise Exception(f"Expected 2 columns, but found {col_len}. Missing entity and/or source columns")
+            raise Exception(
+                f"Expected 2 columns, but found {col_len}. Missing entity and/or source columns"
+            )
         elif col_len > 3:
-            raise Exception(f"Found unrecognized columns {', '.join(columns[3:])}. Expected 2 required columns and an optional 3rd timestamp column")
+            raise Exception(
+                f"Found unrecognized columns {', '.join(columns[3:])}. Expected 2 required columns and an optional 3rd timestamp column"
+            )
         return (self.registrar, self.name_variant(), columns)
 
     def __call__(self, *args, **kwds):
@@ -763,18 +853,19 @@ class SubscriptableTransformation:
 
 
 class SQLTransformationDecorator:
-
-    def __init__(self,
-                 registrar,
-                 owner: str,
-                 provider: str,
-                 tags: List[str],
-                 properties: dict,
-                 variant: str = "default",
-                 name: str = "",
-                 schedule: str = "",
-                 description: str = "",
-                 args: K8sArgs = None):
+    def __init__(
+        self,
+        registrar,
+        owner: str,
+        provider: str,
+        tags: List[str],
+        properties: dict,
+        variant: str = "default",
+        name: str = "",
+        schedule: str = "",
+        description: str = "",
+        args: K8sArgs = None,
+    ):
         self.registrar = registrar
         self.name = name
         self.variant = variant
@@ -797,7 +888,7 @@ class SQLTransformationDecorator:
             self.registrar,
             self.provider,
             self.register_resources,
-            self.name_variant
+            self.name_variant,
         )
 
     @typechecked
@@ -816,23 +907,23 @@ class SQLTransformationDecorator:
             provider=self.provider,
             description=self.description,
             tags=self.tags,
-            properties=self.properties
+            properties=self.properties,
         )
 
     def name_variant(self):
         return (self.name, self.variant)
 
     def register_resources(
-            self,
-            entity: Union[str, EntityRegistrar],
-            entity_column: str,
-            owner: Union[str, UserRegistrar] = "",
-            inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
-            features: List[ColumnMapping] = None,
-            labels: List[ColumnMapping] = None,
-            timestamp_column: str = "",
-            description: str = "",
-            schedule: str = "",
+        self,
+        entity: Union[str, EntityRegistrar],
+        entity_column: str,
+        owner: Union[str, UserRegistrar] = "",
+        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
+        features: List[ColumnMapping] = None,
+        labels: List[ColumnMapping] = None,
+        timestamp_column: str = "",
+        description: str = "",
+        schedule: str = "",
     ):
         return self.registrar.register_column_resources(
             source=(self.name, self.variant),
@@ -849,18 +940,19 @@ class SQLTransformationDecorator:
 
 
 class DFTransformationDecorator:
-
-    def __init__(self,
-                 registrar,
-                 owner: str,
-                 provider: str,
-                 tags: List[str],
-                 properties: dict,
-                 variant: str = "default",
-                 name: str = "",
-                 description: str = "",
-                 inputs: list = [],
-                 args: K8sArgs = None):
+    def __init__(
+        self,
+        registrar,
+        owner: str,
+        provider: str,
+        tags: List[str],
+        properties: dict,
+        variant: str = "default",
+        name: str = "",
+        description: str = "",
+        inputs: list = [],
+        args: K8sArgs = None,
+    ):
         self.registrar = registrar
         self.name = name
         self.variant = variant
@@ -880,14 +972,16 @@ class DFTransformationDecorator:
 
         for nv in self.inputs:
             if self.name is nv[0] and self.variant is nv[1]:
-                raise ValueError(f"Transformation cannot be input for itself: {self.name} {self.variant}")
+                raise ValueError(
+                    f"Transformation cannot be input for itself: {self.name} {self.variant}"
+                )
         self.query = dill.dumps(fn.__code__)
         return SubscriptableTransformation(
             fn,
             self.registrar,
             self.provider,
             self.register_resources,
-            self.name_variant
+            self.name_variant,
         )
 
     def to_source(self) -> Source:
@@ -899,22 +993,22 @@ class DFTransformationDecorator:
             provider=self.provider,
             description=self.description,
             tags=self.tags,
-            properties=self.properties
+            properties=self.properties,
         )
 
     def name_variant(self):
         return (self.name, self.variant)
 
     def register_resources(
-            self,
-            entity: Union[str, EntityRegistrar],
-            entity_column: str,
-            owner: Union[str, UserRegistrar] = "",
-            inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
-            features: List[ColumnMapping] = None,
-            labels: List[ColumnMapping] = None,
-            timestamp_column: str = "",
-            description: str = ""
+        self,
+        entity: Union[str, EntityRegistrar],
+        entity_column: str,
+        owner: Union[str, UserRegistrar] = "",
+        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
+        features: List[ColumnMapping] = None,
+        labels: List[ColumnMapping] = None,
+        timestamp_column: str = "",
+        description: str = "",
     ):
         return self.registrar.register_column_resources(
             source=(self.name, self.variant),
@@ -930,26 +1024,29 @@ class DFTransformationDecorator:
 
 
 class ColumnSourceRegistrar(SourceRegistrar):
-
     def __getitem__(self, columns: List[str]):
         col_len = len(columns)
         if col_len < 2:
-            raise Exception(f"Expected 2 columns, but found {col_len}. Missing entity and/or source columns")
+            raise Exception(
+                f"Expected 2 columns, but found {col_len}. Missing entity and/or source columns"
+            )
         elif col_len > 3:
-            raise Exception(f"Found unrecognized columns {', '.join(columns[3:])}. Expected 2 required columns and an optional 3rd timestamp column")
+            raise Exception(
+                f"Found unrecognized columns {', '.join(columns[3:])}. Expected 2 required columns and an optional 3rd timestamp column"
+            )
         return (self.registrar(), self.id(), columns)
 
     def register_resources(
-            self,
-            entity: Union[str, EntityRegistrar],
-            entity_column: str,
-            owner: Union[str, UserRegistrar] = "",
-            inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
-            features: List[ColumnMapping] = None,
-            labels: List[ColumnMapping] = None,
-            timestamp_column: str = "",
-            description: str = "",
-            schedule: str = "",
+        self,
+        entity: Union[str, EntityRegistrar],
+        entity_column: str,
+        owner: Union[str, UserRegistrar] = "",
+        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
+        features: List[ColumnMapping] = None,
+        labels: List[ColumnMapping] = None,
+        timestamp_column: str = "",
+        description: str = "",
+        schedule: str = "",
     ):
         """
         Registers a features and/or labels that can be used in training sets or served.
@@ -993,43 +1090,45 @@ class ColumnSourceRegistrar(SourceRegistrar):
 
 
 class ResourceRegistrar:
-
     def __init__(self, registrar, features, labels):
         self.__registrar = registrar
         self.__features = features
         self.__labels = labels
 
-    def create_training_set(self,
-                            name: str,
-                            variant: str = "default",
-                            label: NameVariant = None,
-                            schedule: str = "",
-                            features: List[NameVariant] = None,
-                            resources: List = None,
-                            owner: Union[str, UserRegistrar] = "",
-                            description: str = ""):
+    def create_training_set(
+        self,
+        name: str,
+        variant: str = "default",
+        label: NameVariant = None,
+        schedule: str = "",
+        features: List[NameVariant] = None,
+        resources: List = None,
+        owner: Union[str, UserRegistrar] = "",
+        description: str = "",
+    ):
         if len(self.__labels) == 0:
             raise ValueError("A label must be included in a training set")
         if len(self.__features) == 0:
             raise ValueError("A feature must be included in a training set")
         if len(self.__labels) > 1 and label == None:
-            raise ValueError(
-                "Only one label may be specified in a TrainingSet.")
+            raise ValueError("Only one label may be specified in a TrainingSet.")
         if features is not None:
-            featureSet = set([(feature["name"], feature["variant"])
-                              for feature in self.__features])
+            featureSet = set(
+                [(feature["name"], feature["variant"]) for feature in self.__features]
+            )
             for feature in features:
                 if feature not in featureSet:
                     raise ValueError(f"Feature {feature} not found.")
         else:
-            features = [(feature["name"], feature["variant"])
-                        for feature in self.__features]
+            features = [
+                (feature["name"], feature["variant"]) for feature in self.__features
+            ]
         if label is None:
             label = (self.__labels[0]["name"], self.__labels[0]["variant"])
         else:
-            labelSet = set([
-                (label["name"], label["variant"]) for label in self.__labels
-            ])
+            labelSet = set(
+                [(label["name"], label["variant"]) for label in self.__labels]
+            )
             if label not in labelSet:
                 raise ValueError(f"Label {label} not found.")
         return self.__registrar.register_training_set(
@@ -1049,7 +1148,9 @@ class ResourceRegistrar:
     def label(self):
         if isinstance(self.__labels, list):
             if len(self.__labels) > 1:
-                raise ValueError("A resource used has multiple labels. A training set can only have one label")
+                raise ValueError(
+                    "A resource used has multiple labels. A training set can only have one label"
+                )
             elif len(self.__labels) == 1:
                 self.__labels = (self.__labels[0]["name"], self.__labels[0]["variant"])
             else:
@@ -1058,7 +1159,6 @@ class ResourceRegistrar:
 
 
 class ModelRegistrar:
-
     def __init__(self, registrar, model):
         self.__registrar = registrar
         self.__model = model
@@ -1094,7 +1194,9 @@ class Registrar:
     def get_resources(self):
         return self.__resources
 
-    def register_user(self, name: str, tags: List[str] = [], properties: dict = {}) -> UserRegistrar:
+    def register_user(
+        self, name: str, tags: List[str] = [], properties: dict = {}
+    ) -> UserRegistrar:
         """Register a user.
 
         Args:
@@ -1121,8 +1223,7 @@ class Registrar:
     def must_get_default_owner(self) -> str:
         owner = self.default_owner()
         if owner == "":
-            raise ValueError(
-                "Owner must be set or a default owner must be specified.")
+            raise ValueError("Owner must be set or a default owner must be specified.")
         return owner
 
     def get_source(self, name, variant, local=False):
@@ -1150,28 +1251,38 @@ class Registrar:
         get = SourceReference(name=name, variant=variant, obj=None)
         self.__resources.append(get)
         if local:
-            return LocalSource(self,
-                               name=name,
-                               owner="",
-                               variant=variant,
-                               provider="",
-                               description="",
-                               path="")
+            return LocalSource(
+                self,
+                name=name,
+                owner="",
+                variant=variant,
+                provider="",
+                description="",
+                path="",
+            )
         else:
             fakeDefinition = PrimaryData(location=SQLTable(name=""))
-            fakeSource = Source(name=name,
-                                variant=variant,
-                                definition=fakeDefinition,
-                                owner="",
-                                provider="",
-                                description="")
+            fakeSource = Source(
+                name=name,
+                variant=variant,
+                definition=fakeDefinition,
+                owner="",
+                provider="",
+                description="",
+            )
             return ColumnSourceRegistrar(self, fakeSource)
 
     def get_local_provider(self, name="local-mode"):
         get = ProviderReference(name=name, provider_type="local", obj=None)
         self.__resources.append(get)
         fakeConfig = LocalConfig()
-        fakeProvider = Provider(name=name, function="LOCAL_ONLINE", description="", team="", config=fakeConfig)
+        fakeProvider = Provider(
+            name=name,
+            function="LOCAL_ONLINE",
+            description="",
+            team="",
+            config=fakeConfig,
+        )
         return LocalProvider(self, fakeProvider)
 
     def get_redis(self, name):
@@ -1199,7 +1310,9 @@ class Registrar:
         get = ProviderReference(name=name, provider_type="redis", obj=None)
         self.__resources.append(get)
         fakeConfig = RedisConfig(host="", port=123, password="", db=123)
-        fakeProvider = Provider(name=name, function="ONLINE", description="", team="", config=fakeConfig)
+        fakeProvider = Provider(
+            name=name, function="ONLINE", description="", team="", config=fakeConfig
+        )
         return OnlineProvider(self, fakeProvider)
 
     def get_mongodb(self, name):
@@ -1227,7 +1340,9 @@ class Registrar:
         get = ProviderReference(name=name, provider_type="mongodb", obj=None)
         self.__resources.append(get)
         mock_config = MongoDBConfig()
-        mock_provider = Provider(name=name, function="ONLINE", description="", team="", config=mock_config)
+        mock_provider = Provider(
+            name=name, function="ONLINE", description="", team="", config=mock_config
+        )
         return OnlineProvider(self, mock_provider)
 
     def get_blob_store(self, name):
@@ -1254,9 +1369,15 @@ class Registrar:
         """
         get = ProviderReference(name=name, provider_type="AZURE", obj=None)
         self.__resources.append(get)
-        fake_azure_config = AzureFileStoreConfig(account_name="", account_key="", container_name="", root_path="")
-        fake_config = OnlineBlobConfig(store_type="AZURE", store_config=fake_azure_config.config())
-        fakeProvider = Provider(name=name, function="ONLINE", description="", team="", config=fake_config)
+        fake_azure_config = AzureFileStoreConfig(
+            account_name="", account_key="", container_name="", root_path=""
+        )
+        fake_config = OnlineBlobConfig(
+            store_type="AZURE", store_config=fake_azure_config.config()
+        )
+        fakeProvider = Provider(
+            name=name, function="ONLINE", description="", team="", config=fake_config
+        )
         return FileStoreProvider(self, fakeProvider, fake_config, "AZURE")
 
     def get_postgres(self, name):
@@ -1281,7 +1402,9 @@ class Registrar:
         get = ProviderReference(name=name, provider_type="postgres", obj=None)
         self.__resources.append(get)
         fakeConfig = PostgresConfig(host="", port="", database="", user="", password="")
-        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        fakeProvider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=fakeConfig
+        )
         return OfflineSQLProvider(self, fakeProvider)
 
     def get_snowflake(self, name):
@@ -1305,10 +1428,19 @@ class Registrar:
         """
         get = ProviderReference(name=name, provider_type="snowflake", obj=None)
         self.__resources.append(get)
-        fakeConfig = SnowflakeConfig(account="ff_fake", database="ff_fake", organization="ff_fake", username="ff_fake", password="ff_fake", schema="ff_fake")
-        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        fakeConfig = SnowflakeConfig(
+            account="ff_fake",
+            database="ff_fake",
+            organization="ff_fake",
+            username="ff_fake",
+            password="ff_fake",
+            schema="ff_fake",
+        )
+        fakeProvider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=fakeConfig
+        )
         return OfflineSQLProvider(self, fakeProvider)
-    
+
     def get_snowflake_legacy(self, name: str):
         """Get a Snowflake provider. The returned object can be used to register additional resources.
 
@@ -1331,8 +1463,18 @@ class Registrar:
         get = ProviderReference(name=name, provider_type="snowflake", obj=None)
         self.__resources.append(get)
 
-        fakeConfig = SnowflakeConfig(account_locator="ff_fake", database="ff_fake", username="ff_fake", password="ff_fake", schema="ff_fake", warehouse="ff_fake", role="ff_fake")
-        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        fakeConfig = SnowflakeConfig(
+            account_locator="ff_fake",
+            database="ff_fake",
+            username="ff_fake",
+            password="ff_fake",
+            schema="ff_fake",
+            warehouse="ff_fake",
+            role="ff_fake",
+        )
+        fakeProvider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=fakeConfig
+        )
         return OfflineSQLProvider(self, fakeProvider)
 
     def get_redshift(self, name):
@@ -1357,7 +1499,9 @@ class Registrar:
         get = ProviderReference(name=name, provider_type="redshift", obj=None)
         self.__resources.append(get)
         fakeConfig = RedshiftConfig(host="", port="", database="", user="", password="")
-        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        fakeProvider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=fakeConfig
+        )
         return OfflineSQLProvider(self, fakeProvider)
 
     def get_bigquery(self, name):
@@ -1382,7 +1526,9 @@ class Registrar:
         get = ProviderReference(name=name, provider_type="bigquery", obj=None)
         self.__resources.append(get)
         fakeConfig = BigQueryConfig(project_id="", dataset_id="", credentials_path="")
-        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        fakeProvider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=fakeConfig
+        )
         return OfflineSQLProvider(self, fakeProvider)
 
     def get_spark(self, name):
@@ -1404,8 +1550,12 @@ class Registrar:
         """
         get = ProviderReference(name=name, provider_type="spark", obj=None)
         self.__resources.append(get)
-        fakeConfig = SparkConfig(executor_type="", executor_config={}, store_type="", store_config={})
-        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        fakeConfig = SparkConfig(
+            executor_type="", executor_config={}, store_type="", store_config={}
+        )
+        fakeProvider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=fakeConfig
+        )
         return OfflineSparkProvider(self, fakeProvider)
 
     def get_kubernetes(self, name):
@@ -1431,7 +1581,9 @@ class Registrar:
         self.__resources.append(get)
 
         fakeConfig = K8sConfig(store_type="", store_config={})
-        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        fakeProvider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=fakeConfig
+        )
         return OfflineK8sProvider(self, fakeProvider)
 
     def get_s3(self, name):
@@ -1458,14 +1610,18 @@ class Registrar:
         self.__resources.append(get)
 
         fake_creds = AWSCredentials("id", "secret")
-        fakeConfig = S3StoreConfig(bucket_path="", bucket_region="", credentials=fake_creds)
-        provider = Provider(name=name,
-                            function="OFFLINE",
-                            description=description,
-                            team=team,
-                            config=s3_config)
+        fakeConfig = S3StoreConfig(
+            bucket_path="", bucket_region="", credentials=fake_creds
+        )
+        provider = Provider(
+            name=name,
+            function="OFFLINE",
+            description=description,
+            team=team,
+            config=s3_config,
+        )
         return FileStoreProvider(provider, s3_config, s3_config.type())
-    
+
     def get_gcs(self, name):
         get = ProviderReference(name=name, provider_type="GCS", obj=None)
         self.__resources.append(get)
@@ -1475,10 +1631,14 @@ class Registrar:
             self._create_mock_creds_file(filename, {"test": "creds"})
 
         fake_creds = GCPCredentials("id", filename)
-        fakeConfig = GCSStoreConfig(bucket_name="", bucket_path="", credentials=fake_creds)
-        fakeProvider = Provider(name=name, function="OFFLINE", description="", team="", config=fakeConfig)
+        fakeConfig = GCSStoreConfig(
+            bucket_name="", bucket_path="", credentials=fake_creds
+        )
+        fakeProvider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=fakeConfig
+        )
         return OfflineK8sProvider(self, fakeProvider)
-    
+
     def _create_mock_creds_file(self, filename, json_data):
         with open(filename, "w") as f:
             json.dumps(json_data, f)
@@ -1509,16 +1669,18 @@ class Registrar:
         fakeEntity = Entity(name=name, description="")
         return EntityRegistrar(self, fakeEntity)
 
-    def register_redis(self,
-                       name: str,
-                       description: str = "",
-                       team: str = "",
-                       host: str = "0.0.0.0",
-                       port: int = 6379,
-                       password: str = "",
-                       db: int = 0,
-                       tags: List[str] = [],
-                       properties: dict = {}):
+    def register_redis(
+        self,
+        name: str,
+        description: str = "",
+        team: str = "",
+        host: str = "0.0.0.0",
+        port: int = 6379,
+        password: str = "",
+        db: int = 0,
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a Redis provider.
 
         **Examples**:
@@ -1545,27 +1707,30 @@ class Registrar:
             redis (OnlineProvider): Provider
         """
         config = RedisConfig(host=host, port=port, password=password, db=db)
-        provider = Provider(name=name,
-                            function="ONLINE",
-                            description=description,
-                            team=team,
-                            config=config,
-                            tags=tags,
-                            properties=properties)
+        provider = Provider(
+            name=name,
+            function="ONLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
 
-    def register_blob_store(self,
-                            name: str,
-                            account_name: str,
-                            account_key: str,
-                            container_name: str,
-                            root_path: str,
-                            description: str = "",
-                            team: str = "",
-                            tags: List[str] = [],
-                            properties: dict = {}):
-
+    def register_blob_store(
+        self,
+        name: str,
+        account_name: str,
+        account_key: str,
+        container_name: str,
+        root_path: str,
+        description: str = "",
+        team: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register an azure blob store provider.
 
         This has the functionality of an online store and can be used as a parameter
@@ -1578,7 +1743,7 @@ class Registrar:
             container_name="my_company_container"
             root_path="custom/path/in/container"
             account_name=<azure_account_name>
-            account_key=<azure_account_key> 
+            account_key=<azure_account_key>
             description="An azure blob store provider to store offline and inference data"
         )
         ```
@@ -1598,30 +1763,40 @@ class Registrar:
                 has all the functionality of OnlineProvider
         """
 
-        azure_config = AzureFileStoreConfig(account_name=account_name, account_key=account_key,
-                                            container_name=container_name, root_path=root_path)
-        config = OnlineBlobConfig(store_type="AZURE", store_config=azure_config.config())
+        azure_config = AzureFileStoreConfig(
+            account_name=account_name,
+            account_key=account_key,
+            container_name=container_name,
+            root_path=root_path,
+        )
+        config = OnlineBlobConfig(
+            store_type="AZURE", store_config=azure_config.config()
+        )
 
-        provider = Provider(name=name,
-                            function="ONLINE",
-                            description=description,
-                            team=team,
-                            config=config,
-                            tags=tags,
-                            properties=properties)
+        provider = Provider(
+            name=name,
+            function="ONLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, azure_config, "AZURE")
 
-    def register_s3(self,
-                    name: str,
-                    credentials: AWSCredentials,
-                    bucket_path: str,
-                    bucket_region: str,
-                    path: str = "",
-                    description: str = "",
-                    team: str = "",
-                    tags: List[str] = [],
-                    properties: dict = {}):
+    def register_s3(
+        self,
+        name: str,
+        credentials: AWSCredentials,
+        bucket_path: str,
+        bucket_region: str,
+        path: str = "",
+        description: str = "",
+        team: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a S3 store provider.
 
         This has the functionality of an offline store and can be used as a parameter
@@ -1653,28 +1828,36 @@ class Registrar:
                 has all the functionality of OfflineProvider
         """
 
-        s3_config = S3StoreConfig(bucket_path=bucket_path, bucket_region=bucket_region, credentials=credentials, path=path)
+        s3_config = S3StoreConfig(
+            bucket_path=bucket_path,
+            bucket_region=bucket_region,
+            credentials=credentials,
+            path=path,
+        )
 
-        provider = Provider(name=name,
-                            function="OFFLINE",
-                            description=description,
-                            team=team,
-                            config=s3_config,
-                            tags=tags,
-                            properties=properties)
+        provider = Provider(
+            name=name,
+            function="OFFLINE",
+            description=description,
+            team=team,
+            config=s3_config,
+            tags=tags,
+            properties=properties,
+        )
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, s3_config, s3_config.type())
 
-
-    def register_gcs(self,
-                    name: str,
-                    credentials: GCPCredentials,
-                    bucket_name: str,
-                    bucket_path: str = "",
-                    description: str = "",
-                    team: str = "",
-                    tags: List[str] = [],
-                    properties: dict = {}):
+    def register_gcs(
+        self,
+        name: str,
+        credentials: GCPCredentials,
+        bucket_name: str,
+        bucket_path: str = "",
+        description: str = "",
+        team: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a GCS store provider.
                 **Examples**:
         ```
@@ -1700,25 +1883,31 @@ class Registrar:
                 has all the functionality of OfflineProvider
         """
 
-        gcs_config = GCSFileStoreConfig(bucket_name=bucket_name, bucket_path=bucket_path, credentials=credentials)
-        provider = Provider(name=name,
-                            function="OFFLINE",
-                            description=description,
-                            team=team,
-                            config=gcs_config,
-                            tags=tags,
-                            properties=properties)
+        gcs_config = GCSFileStoreConfig(
+            bucket_name=bucket_name, bucket_path=bucket_path, credentials=credentials
+        )
+        provider = Provider(
+            name=name,
+            function="OFFLINE",
+            description=description,
+            team=team,
+            config=gcs_config,
+            tags=tags,
+            properties=properties,
+        )
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, gcs_config, gcs_config.type())
 
-    def register_hdfs(self,
-                      name: str,
-                      host: str,
-                      port: str,
-                      username: str = "",
-                      path: str = "",
-                      description: str = "",
-                      team: str = "", ):
+    def register_hdfs(
+        self,
+        name: str,
+        host: str,
+        port: str,
+        username: str = "",
+        path: str = "",
+        description: str = "",
+        team: str = "",
+    ):
         """Register a HDFS store provider.
 
         This has the functionality of an offline store and can be used as a parameter
@@ -1749,23 +1938,27 @@ class Registrar:
 
         hdfs_config = HDFSConfig(host=host, port=port, path=path, username=username)
 
-        provider = Provider(name=name,
-                            function="OFFLINE",
-                            description=description,
-                            team=team,
-                            config=hdfs_config)
+        provider = Provider(
+            name=name,
+            function="OFFLINE",
+            description=description,
+            team=team,
+            config=hdfs_config,
+        )
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, hdfs_config, hdfs_config.type())
 
-    def register_firestore(self,
-                           name: str,
-                           collection: str,
-                           project_id: str,
-                           credentials_path: str,
-                           description: str = "",
-                           team: str = "",
-                           tags: List[str] = [],
-                           properties: dict = {}):
+    def register_firestore(
+        self,
+        name: str,
+        collection: str,
+        project_id: str,
+        credentials_path: str,
+        description: str = "",
+        team: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a Firestore provider.
 
         **Examples**:
@@ -1789,30 +1982,38 @@ class Registrar:
         Returns:
             firestore (OfflineSQLProvider): Provider
         """
-        config = FirestoreConfig(collection=collection, project_id=project_id, credentials_path=credentials_path)
-        provider = Provider(name=name,
-                            function="ONLINE",
-                            description=description,
-                            team=team,
-                            config=config,
-                            tags=tags,
-                            properties=properties)
+        config = FirestoreConfig(
+            collection=collection,
+            project_id=project_id,
+            credentials_path=credentials_path,
+        )
+        provider = Provider(
+            name=name,
+            function="ONLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
 
-    def register_cassandra(self,
-                           name: str,
-                           description: str = "",
-                           team: str = "",
-                           host: str = "0.0.0.0",
-                           port: int = 9042,
-                           username: str = "cassandra",
-                           password: str = "cassandra",
-                           keyspace: str = "",
-                           consistency: str = "THREE",
-                           replication: int = 3,
-                           tags: List[str] = [],
-                           properties: dict = {}):
+    def register_cassandra(
+        self,
+        name: str,
+        description: str = "",
+        team: str = "",
+        host: str = "0.0.0.0",
+        port: int = 9042,
+        username: str = "cassandra",
+        password: str = "cassandra",
+        keyspace: str = "",
+        consistency: str = "THREE",
+        replication: int = 3,
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a Cassandra provider.
 
         **Examples**:
@@ -1845,27 +2046,38 @@ class Registrar:
         Returns:
             cassandra (OnlineProvider): Provider
         """
-        config = CassandraConfig(host=host, port=port, username=username, password=password, keyspace=keyspace,
-                                 consistency=consistency, replication=replication)
-        provider = Provider(name=name,
-                            function="ONLINE",
-                            description=description,
-                            team=team,
-                            config=config,
-                            tags=tags,
-                            properties=properties)
+        config = CassandraConfig(
+            host=host,
+            port=port,
+            username=username,
+            password=password,
+            keyspace=keyspace,
+            consistency=consistency,
+            replication=replication,
+        )
+        provider = Provider(
+            name=name,
+            function="ONLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
 
-    def register_dynamodb(self,
-                          name: str,
-                          description: str = "",
-                          team: str = "",
-                          access_key: str = None,
-                          secret_key: str = None,
-                          region: str = None,
-                          tags: List[str] = [],
-                          properties: dict = {}):
+    def register_dynamodb(
+        self,
+        name: str,
+        description: str = "",
+        team: str = "",
+        access_key: str = None,
+        secret_key: str = None,
+        region: str = None,
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a DynamoDB provider.
 
         **Examples**:
@@ -1891,30 +2103,35 @@ class Registrar:
         Returns:
             dynamodb (OnlineProvider): Provider
         """
-        config = DynamodbConfig(access_key=access_key, secret_key=secret_key, region=region)
-        provider = Provider(name=name,
-                            function="ONLINE",
-                            description=description,
-                            team=team,
-                            config=config,
-                            tags=tags,
-                            properties=properties)
+        config = DynamodbConfig(
+            access_key=access_key, secret_key=secret_key, region=region
+        )
+        provider = Provider(
+            name=name,
+            function="ONLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
 
-    def register_mongodb(self,
-                         name: str,
-                         description: str = "",
-                         team: str = "",
-                         username: str = None,
-                         password: str = None,
-                         database: str = None,
-                         host: str = None,
-                         port: str = None,
-                         throughput: int = 1000,
-                         tags: List[str] = [],
-                         properties: dict = {}
-                         ):
+    def register_mongodb(
+        self,
+        name: str,
+        description: str = "",
+        team: str = "",
+        username: str = None,
+        password: str = None,
+        database: str = None,
+        host: str = None,
+        port: str = None,
+        throughput: int = 1000,
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a MongoDB provider.
 
         **Examples**:
@@ -1947,32 +2164,41 @@ class Registrar:
         Returns:
             mongodb (OnlineProvider): Provider
         """
-        config = MongoDBConfig(username=username, password=password, host=host, port=port, database=database,
-                               throughput=throughput)
-        provider = Provider(name=name,
-                            function="ONLINE",
-                            description=description,
-                            team=team,
-                            config=config,
-                            tags=tags,
-                            properties=properties)
+        config = MongoDBConfig(
+            username=username,
+            password=password,
+            host=host,
+            port=port,
+            database=database,
+            throughput=throughput,
+        )
+        provider = Provider(
+            name=name,
+            function="ONLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
 
     def register_snowflake_legacy(
-                self,
-                name: str,
-                username: str,
-                password: str,
-                account_locator: str,
-                database: str,
-                schema: str = "PUBLIC",
-                description: str = "",
-                team: str = "",
-                warehouse: str = "",
-                role: str = "",
-                tags: List[str] = [],
-                properties: dict = {}):
+        self,
+        name: str,
+        username: str,
+        password: str,
+        account_locator: str,
+        database: str,
+        schema: str = "PUBLIC",
+        description: str = "",
+        team: str = "",
+        warehouse: str = "",
+        role: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a Snowflake provider using legacy credentials.
 
         **Examples**:
@@ -2004,38 +2230,43 @@ class Registrar:
         Returns:
             snowflake (OfflineSQLProvider): Provider
         """
-        config = SnowflakeConfig(account_locator=account_locator,
-                                 database=database,
-                                 username=username,
-                                 password=password,
-                                 schema=schema,
-                                 warehouse=warehouse,
-                                 role=role)
-        provider = Provider(name=name,
-                            function="OFFLINE",
-                            description=description,
-                            team=team,
-                            config=config,
-                            tags=tags,
-                            properties=properties)
+        config = SnowflakeConfig(
+            account_locator=account_locator,
+            database=database,
+            username=username,
+            password=password,
+            schema=schema,
+            warehouse=warehouse,
+            role=role,
+        )
+        provider = Provider(
+            name=name,
+            function="OFFLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
     def register_snowflake(
-            self,
-            name: str,
-            username: str,
-            password: str,
-            account: str,
-            organization: str,
-            database: str,
-            schema: str = "PUBLIC",
-            description: str = "",
-            team: str = "",
-            warehouse: str = "",
-            role: str = "",
-            tags: List[str] = [],
-            properties: dict = {}):
+        self,
+        name: str,
+        username: str,
+        password: str,
+        account: str,
+        organization: str,
+        database: str,
+        schema: str = "PUBLIC",
+        description: str = "",
+        team: str = "",
+        warehouse: str = "",
+        role: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a Snowflake provider.
 
         **Examples**:
@@ -2069,35 +2300,41 @@ class Registrar:
         Returns:
             snowflake (OfflineSQLProvider): Provider
         """
-        config = SnowflakeConfig(account=account,
-                                 database=database,
-                                 organization=organization,
-                                 username=username,
-                                 password=password,
-                                 schema=schema,
-                                 warehouse=warehouse,
-                                 role=role)
-        provider = Provider(name=name,
-                            function="OFFLINE",
-                            description=description,
-                            team=team,
-                            config=config,
-                            tags=tags,
-                            properties=properties)
+        config = SnowflakeConfig(
+            account=account,
+            database=database,
+            organization=organization,
+            username=username,
+            password=password,
+            schema=schema,
+            warehouse=warehouse,
+            role=role,
+        )
+        provider = Provider(
+            name=name,
+            function="OFFLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
-    def register_postgres(self,
-                          name: str,
-                          description: str = "",
-                          team: str = "",
-                          host: str = "0.0.0.0",
-                          port: str = "5432",
-                          user: str = "postgres",
-                          password: str = "password",
-                          database: str = "postgres",
-                          tags: List[str] = None,
-                          properties: dict = None):
+    def register_postgres(
+        self,
+        name: str,
+        description: str = "",
+        team: str = "",
+        host: str = "0.0.0.0",
+        port: str = "5432",
+        user: str = "postgres",
+        password: str = "password",
+        database: str = "postgres",
+        tags: List[str] = None,
+        properties: dict = None,
+    ):
         """Register a Postgres provider.
 
         **Examples**:
@@ -2127,32 +2364,34 @@ class Registrar:
         Returns:
             postgres (OfflineSQLProvider): Provider
         """
-        config = PostgresConfig(host=host,
-                                port=port,
-                                database=database,
-                                user=user,
-                                password=password)
-        provider = Provider(name=name,
-                            function="OFFLINE",
-                            description=description,
-                            team=team,
-                            config=config,
-                            tags=tags or [],
-                            properties=properties or {})
+        config = PostgresConfig(
+            host=host, port=port, database=database, user=user, password=password
+        )
+        provider = Provider(
+            name=name,
+            function="OFFLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags or [],
+            properties=properties or {},
+        )
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
-    def register_redshift(self,
-                          name: str,
-                          description: str = "",
-                          team: str = "",
-                          host: str = "",
-                          port: int = 5432,
-                          user: str = "redshift",
-                          password: str = "password",
-                          database: str = "dev",
-                          tags: List[str] = [],
-                          properties: dict = {}):
+    def register_redshift(
+        self,
+        name: str,
+        description: str = "",
+        team: str = "",
+        host: str = "",
+        port: int = 5432,
+        user: str = "redshift",
+        password: str = "password",
+        database: str = "dev",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a Redshift provider.
 
         **Examples**:
@@ -2182,30 +2421,32 @@ class Registrar:
         Returns:
             redshift (OfflineSQLProvider): Provider
         """
-        config = RedshiftConfig(host=host,
-                                port=port,
-                                database=database,
-                                user=user,
-                                password=password)
-        provider = Provider(name=name,
-                            function="OFFLINE",
-                            description=description,
-                            team=team,
-                            config=config,
-                            tags=tags,
-                            properties=properties)
+        config = RedshiftConfig(
+            host=host, port=port, database=database, user=user, password=password
+        )
+        provider = Provider(
+            name=name,
+            function="OFFLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
-    def register_bigquery(self,
-                          name: str,
-                          description: str = "",
-                          team: str = "",
-                          project_id: str = "",
-                          dataset_id: str = "",
-                          credentials_path: str = "",
-                          tags: List[str] = [],
-                          properties: dict = {}):
+    def register_bigquery(
+        self,
+        name: str,
+        description: str = "",
+        team: str = "",
+        project_id: str = "",
+        dataset_id: str = "",
+        credentials_path: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a BigQuery provider.
 
         **Examples**:
@@ -2230,27 +2471,33 @@ class Registrar:
         Returns:
             bigquery (OfflineSQLProvider): Provider
         """
-        config = BigQueryConfig(project_id=project_id,
-                                dataset_id=dataset_id,
-                                credentials_path=credentials_path, )
-        provider = Provider(name=name,
-                            function="OFFLINE",
-                            description=description,
-                            team=team,
-                            config=config,
-                            tags=tags,
-                            properties=properties)
+        config = BigQueryConfig(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            credentials_path=credentials_path,
+        )
+        provider = Provider(
+            name=name,
+            function="OFFLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
-    def register_spark(self,
-                       name: str,
-                       executor: ExecutorCredentials,
-                       filestore: FileStoreProvider,
-                       description: str = "",
-                       team: str = "",
-                       tags: List[str] = [],
-                       properties: dict = {}):
+    def register_spark(
+        self,
+        name: str,
+        executor: ExecutorCredentials,
+        filestore: FileStoreProvider,
+        description: str = "",
+        team: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a Spark on Executor provider.
         **Examples**:
         ```
@@ -2279,29 +2526,34 @@ class Registrar:
             executor_type=executor.type(),
             executor_config=executor.config(),
             store_type=filestore.store_type(),
-            store_config=filestore.config())
+            store_config=filestore.config(),
+        )
 
-        provider = Provider(name=name,
-                            function="OFFLINE",
-                            description=description,
-                            team=team,
-                            config=config,
-                            tags=tags,
-                            properties=properties)
+        provider = Provider(
+            name=name,
+            function="OFFLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
         self.__resources.append(provider)
         return OfflineSparkProvider(self, provider)
 
-    def register_k8s(self,
-                     name: str,
-                     store: FileStoreProvider,
-                     description: str = "",
-                     team: str = "",
-                     docker_image: str = "",
-                     tags: List[str] = [],
-                     properties: dict = {}):
+    def register_k8s(
+        self,
+        name: str,
+        store: FileStoreProvider,
+        description: str = "",
+        team: str = "",
+        docker_image: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """
         Register an offline store provider to run on featureform's own k8s deployment
-        
+
         Args:
             name (str): Name of provider
             store (FileStoreProvider): Reference to registered file store provider
@@ -2324,16 +2576,18 @@ class Registrar:
         config = K8sConfig(
             store_type=store.store_type(),
             store_config=store.config(),
-            docker_image=docker_image
+            docker_image=docker_image,
         )
 
-        provider = Provider(name=name,
-                            function="OFFLINE",
-                            description=description,
-                            team=team,
-                            config=config,
-                            tags=tags,
-                            properties=properties)
+        provider = Provider(
+            name=name,
+            function="OFFLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
         self.__resources.append(provider)
         return OfflineK8sProvider(self, provider)
 
@@ -2348,27 +2602,31 @@ class Registrar:
             local (LocalProvider): Provider
         """
         config = LocalConfig()
-        provider = Provider(name="local-mode",
-                            function="LOCAL_ONLINE",
-                            description="This is local mode",
-                            team="team",
-                            config=config,
-                            tags=['local-mode'],
-                            properties={"resource_type": "Provider"})
+        provider = Provider(
+            name="local-mode",
+            function="LOCAL_ONLINE",
+            description="This is local mode",
+            team="team",
+            config=config,
+            tags=["local-mode"],
+            properties={"resource_type": "Provider"},
+        )
         self.__resources.append(provider)
         local_provider = LocalProvider(self, provider)
         local_provider.insert_provider()
         return local_provider
 
-    def register_primary_data(self,
-                              name: str,
-                              variant: str,
-                              location: Location,
-                              provider: Union[str, OfflineProvider],
-                              tags: List[str],
-                              properties: dict,
-                              owner: Union[str, UserRegistrar] = "",
-                              description: str = ""):
+    def register_primary_data(
+        self,
+        name: str,
+        variant: str,
+        location: Location,
+        provider: Union[str, OfflineProvider],
+        tags: List[str],
+        properties: dict,
+        owner: Union[str, UserRegistrar] = "",
+        description: str = "",
+    ):
         """Register a primary data source.
 
         Args:
@@ -2388,28 +2646,32 @@ class Registrar:
             owner = self.must_get_default_owner()
         if not isinstance(provider, str):
             provider = provider.name()
-        source = Source(name=name,
-                        variant=variant,
-                        definition=PrimaryData(location=location),
-                        owner=owner,
-                        provider=provider,
-                        description=description,
-                        tags=tags,
-                        properties=properties)
+        source = Source(
+            name=name,
+            variant=variant,
+            definition=PrimaryData(location=location),
+            owner=owner,
+            provider=provider,
+            description=description,
+            tags=tags,
+            properties=properties,
+        )
         self.__resources.append(source)
         return ColumnSourceRegistrar(self, source)
 
-    def register_sql_transformation(self,
-                                    name: str,
-                                    query: str,
-                                    provider: Union[str, OfflineProvider],
-                                    variant: str = "default",
-                                    owner: Union[str, UserRegistrar] = "",
-                                    description: str = "",
-                                    schedule: str = "",
-                                    args: K8sArgs = None,
-                                    tags: List[str] = [],
-                                    properties: dict = {}):
+    def register_sql_transformation(
+        self,
+        name: str,
+        query: str,
+        provider: Union[str, OfflineProvider],
+        variant: str = "default",
+        owner: Union[str, UserRegistrar] = "",
+        description: str = "",
+        schedule: str = "",
+        args: K8sArgs = None,
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a SQL transformation source.
 
         Args:
@@ -2442,21 +2704,23 @@ class Registrar:
             provider=provider,
             description=description,
             tags=tags,
-            properties=properties
+            properties=properties,
         )
         self.__resources.append(source)
         return ColumnSourceRegistrar(self, source)
 
-    def sql_transformation(self,
-                           provider: Union[str, OfflineProvider],
-                           variant: str = "default",
-                           name: str = "",
-                           schedule: str = "",
-                           owner: Union[str, UserRegistrar] = "",
-                           description: str = "",
-                           args: K8sArgs = None,
-                           tags: List[str] = [],
-                           properties: dict = {}):
+    def sql_transformation(
+        self,
+        provider: Union[str, OfflineProvider],
+        variant: str = "default",
+        name: str = "",
+        schedule: str = "",
+        owner: Union[str, UserRegistrar] = "",
+        description: str = "",
+        args: K8sArgs = None,
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """SQL transformation decorator.
 
         Args:
@@ -2489,23 +2753,25 @@ class Registrar:
             description=description,
             args=args,
             tags=tags,
-            properties=properties
+            properties=properties,
         )
         self.__resources.append(decorator)
         return decorator
 
-    def register_df_transformation(self,
-                                   name: str,
-                                   query: str,
-                                   provider: Union[str, OfflineProvider],
-                                   variant: str = "default",
-                                   owner: Union[str, UserRegistrar] = "",
-                                   description: str = "",
-                                   inputs: list = [],
-                                   schedule: str = "",
-                                   args: K8sArgs = None,
-                                   tags: List[str] = [],
-                                   properties: dict = {}):
+    def register_df_transformation(
+        self,
+        name: str,
+        query: str,
+        provider: Union[str, OfflineProvider],
+        variant: str = "default",
+        owner: Union[str, UserRegistrar] = "",
+        description: str = "",
+        inputs: list = [],
+        schedule: str = "",
+        args: K8sArgs = None,
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a Dataframe transformation source.
 
         Args:
@@ -2543,22 +2809,23 @@ class Registrar:
             provider=provider,
             description=description,
             tags=tags,
-            properties=properties
+            properties=properties,
         )
         self.__resources.append(source)
         return ColumnSourceRegistrar(self, source)
 
-    def df_transformation(self,
-                          provider: Union[str, OfflineProvider],
-                          tags: List[str],
-                          properties: dict,
-                          variant: str = "default",
-                          name: str = "",
-                          owner: Union[str, UserRegistrar] = "",
-                          description: str = "",
-                          inputs: list = [],
-                          args: K8sArgs = None
-                          ):
+    def df_transformation(
+        self,
+        provider: Union[str, OfflineProvider],
+        tags: List[str],
+        properties: dict,
+        variant: str = "default",
+        name: str = "",
+        owner: Union[str, UserRegistrar] = "",
+        description: str = "",
+        inputs: list = [],
+        args: K8sArgs = None,
+    ):
         """Dataframe transformation decorator.
 
         Args:
@@ -2595,20 +2862,22 @@ class Registrar:
             inputs=inputs,
             args=args,
             tags=tags,
-            properties=properties
+            properties=properties,
         )
         self.__resources.append(decorator)
         return decorator
 
-    def ondemand_feature(self, 
-                          fn=None, *,
-                          tags: List[str] = None,
-                          properties: dict = None,
-                          variant: str = "default",
-                          name: str = "",
-                          owner: Union[str, UserRegistrar] = "",
-                          description: str = "",
-                          ):
+    def ondemand_feature(
+        self,
+        fn=None,
+        *,
+        tags: List[str] = None,
+        properties: dict = None,
+        variant: str = "default",
+        name: str = "",
+        owner: Union[str, UserRegistrar] = "",
+        description: str = "",
+    ):
         """On Demand Feature decorator.
 
         Args:
@@ -2634,7 +2903,7 @@ class Registrar:
             owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
-    
+
         decorator = OnDemandFeature(
             name=name,
             variant=variant,
@@ -2644,7 +2913,7 @@ class Registrar:
             properties=properties or {},
         )
         self.__resources.append(decorator)
-        
+
         if fn is None:
             return decorator
         else:
@@ -2653,21 +2922,33 @@ class Registrar:
     def state(self):
         for resource in self.__resources:
             try:
-                if isinstance(resource, SQLTransformationDecorator) or isinstance(resource, DFTransformationDecorator):
+                if isinstance(resource, SQLTransformationDecorator) or isinstance(
+                    resource, DFTransformationDecorator
+                ):
                     resource = resource.to_source()
                 self.__state.add(resource)
             except ResourceRedefinedError:
                 raise
             except Exception as e:
-                resource_variant = f" ({resource.variant})" if hasattr(resource, 'variant') else ""
-                raise Exception(f"Could not add apply {resource.name}{resource_variant}: {e}")
+                resource_variant = (
+                    f" ({resource.variant})" if hasattr(resource, "variant") else ""
+                )
+                raise Exception(
+                    f"Could not add apply {resource.name}{resource_variant}: {e}"
+                )
         self.__resources = []
         return self.__state
 
     def clear_state(self):
         self.__state = ResourceState()
 
-    def register_entity(self, name: str, description: str = "", tags: List[str] = [], properties: dict = {}):
+    def register_entity(
+        self,
+        name: str,
+        description: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register an entity.
 
         **Examples**:
@@ -2683,22 +2964,25 @@ class Registrar:
         Returns:
             entity (EntityRegistrar): Entity
         """
-        entity = Entity(name=name, description=description, tags=tags, properties=properties)
+        entity = Entity(
+            name=name, description=description, tags=tags, properties=properties
+        )
         self.__resources.append(entity)
         return EntityRegistrar(self, entity)
 
     def register_column_resources(
-            self,
-            source: Union[NameVariant, SourceRegistrar, SQLTransformationDecorator],
-            entity: Union[str, EntityRegistrar],
-            entity_column: str,
-            owner: Union[str, UserRegistrar] = "",
-            inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
-            features: List[ColumnMapping] = None,
-            labels: List[ColumnMapping] = None,
-            timestamp_column: str = "",
-            description: str = "",
-            schedule: str = "",):
+        self,
+        source: Union[NameVariant, SourceRegistrar, SQLTransformationDecorator],
+        entity: Union[str, EntityRegistrar],
+        entity_column: str,
+        owner: Union[str, UserRegistrar] = "",
+        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
+        features: List[ColumnMapping] = None,
+        labels: List[ColumnMapping] = None,
+        timestamp_column: str = "",
+        description: str = "",
+        schedule: str = "",
+    ):
         """Create features and labels from a source. Used in the register_resources function.
 
         Args:
@@ -2718,8 +3002,13 @@ class Registrar:
             resource (ResourceRegistrar): resource
         """
 
-        if type(inference_store) == FileStoreProvider and inference_store.store_type() in NON_INFERENCE_STORES:
-            raise Exception(f"cannot use '{inference_store.store_type()}' as an inference store.")
+        if (
+            type(inference_store) == FileStoreProvider
+            and inference_store.store_type() in NON_INFERENCE_STORES
+        ):
+            raise Exception(
+                f"cannot use '{inference_store.store_type()}' as an inference store."
+            )
 
         if features is None:
             features = []
@@ -2734,8 +3023,7 @@ class Registrar:
         if not isinstance(inference_store, str):
             inference_store = inference_store.name()
         if len(features) > 0 and inference_store == "":
-            raise ValueError(
-                "Inference store must be set when defining features")
+            raise ValueError("Inference store must be set when defining features")
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":
@@ -2763,7 +3051,7 @@ class Registrar:
                     timestamp=timestamp_column,
                 ),
                 tags=feature_tags,
-                properties=feature_properties
+                properties=feature_properties,
             )
             self.__resources.append(resource)
             feature_resources.append(resource)
@@ -2788,7 +3076,7 @@ class Registrar:
                     timestamp=timestamp_column,
                 ),
                 tags=label_tags,
-                properties=label_properties
+                properties=label_properties,
             )
             self.__resources.append(resource)
             label_resources.append(resource)
@@ -2806,20 +3094,27 @@ class Registrar:
                 if lag:
                     required_lag_keys = set(["lag", "feature", "variant"])
                     received_lag_keys = set(feature.keys())
-                    if required_lag_keys.intersection(received_lag_keys) != required_lag_keys:
+                    if (
+                        required_lag_keys.intersection(received_lag_keys)
+                        != required_lag_keys
+                    ):
                         raise ValueError(
-                            f"feature lags require 'lag', 'feature', 'variant' fields. Received: {feature.keys()}")
+                            f"feature lags require 'lag', 'feature', 'variant' fields. Received: {feature.keys()}"
+                        )
 
                     if not isinstance(lag, timedelta):
                         raise ValueError(
-                            f"the lag, '{lag}', needs to be of type 'datetime.timedelta'. Received: {type(lag)}.")
+                            f"the lag, '{lag}', needs to be of type 'datetime.timedelta'. Received: {type(lag)}."
+                        )
 
                     feature_name_variant = (feature["feature"], feature["variant"])
                     if feature_name_variant not in feature_nv_list:
                         feature_nv_list.append(feature_name_variant)
 
                     lag_name = f"{feature['feature']}_{feature['variant']}_lag_{lag}"
-                    sanitized_lag_name = lag_name.replace(" ", "").replace(",", "_").replace(":", "_")
+                    sanitized_lag_name = (
+                        lag_name.replace(" ", "").replace(",", "_").replace(":", "_")
+                    )
                     feature["name"] = feature.get("name", sanitized_lag_name)
 
                     feature_lags.append(feature)
@@ -2838,17 +3133,19 @@ class Registrar:
 
         return feature_nv_list, feature_lags
 
-    def register_training_set(self,
-                              name: str,
-                              variant: str = "default",
-                              features: list = [],
-                              label: NameVariant = (),
-                              resources: list = [],
-                              owner: Union[str, UserRegistrar] = "",
-                              description: str = "",
-                              schedule: str = "",
-                              tags: List[str] = [],
-                              properties: dict = {}):
+    def register_training_set(
+        self,
+        name: str,
+        variant: str = "default",
+        features: list = [],
+        label: NameVariant = (),
+        resources: list = [],
+        owner: Union[str, UserRegistrar] = "",
+        description: str = "",
+        schedule: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
         """Register a training set.
 
         Args:
@@ -2911,7 +3208,9 @@ class Registrar:
         )
         self.__resources.append(resource)
 
-    def register_model(self, name: str, tags: List[str] = [], properties: dict = {}) -> Model:
+    def register_model(
+        self, name: str, tags: List[str] = [], properties: dict = {}
+    ) -> Model:
         """Register a model.
 
         Args:
@@ -2942,7 +3241,9 @@ class ResourceClient:
     ```
     """
 
-    def __init__(self, host=None, local=False, insecure=False, cert_path=None, dry_run=False):
+    def __init__(
+        self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
+    ):
         """Initialise a Resource Client object.
 
         Args:
@@ -2962,11 +3263,11 @@ class ResourceClient:
         if local and host:
             raise ValueError("Cannot be local and have a host")
         elif not local:
-            host = host or os.getenv('FEATUREFORM_HOST')
+            host = host or os.getenv("FEATUREFORM_HOST")
             if host is None:
                 raise RuntimeError(
-                    'If not in local mode then `host` must be passed or the environment'
-                    ' variable FEATUREFORM_HOST must be set.'
+                    "If not in local mode then `host` must be passed or the environment"
+                    " variable FEATUREFORM_HOST must be set."
                 )
             if insecure:
                 channel = insecure_channel(host)
@@ -2996,7 +3297,6 @@ class ResourceClient:
             display_statuses(self._stub, resources)
 
         clear_state()
-
 
     def get_user(self, name, local=False):
         """Get a user. Prints out name of user, and all resources associated with the user.
@@ -3228,7 +3528,7 @@ class ResourceClient:
             provider=feature.provider,
             location=ResourceColumnMapping("", "", ""),
             description=feature.description,
-            status=feature.status.Status._enum_type.values[feature.status.status].name
+            status=feature.status.Status._enum_type.values[feature.status.status].name,
         )
 
     def print_feature(self, name, variant=None, local=False):
@@ -3351,7 +3651,7 @@ class ResourceClient:
             provider=label.provider,
             location=ResourceColumnMapping("", "", ""),
             description=label.description,
-            status=label.status.Status._enum_type.values[label.status.status].name
+            status=label.status.Status._enum_type.values[label.status.status].name,
         )
 
     def print_label(self, name, variant=None, local=False):
@@ -3592,14 +3892,12 @@ class ResourceClient:
             variant=source.variant,
             status=source.status.Status._enum_type.values[source.status.status].name,
             tags=[],
-            properties={}
+            properties={},
         )
 
     def _get_source_definition(self, source):
         if source.primaryData.table.name:
-            return PrimaryData(
-                Location(source.primaryData.table.name)
-            )
+            return PrimaryData(Location(source.primaryData.table.name))
         elif source.transformation:
             return self._get_transformation_definition(source)
         else:
@@ -3610,12 +3908,10 @@ class ResourceClient:
             transformation = source.transformation.DFTransformation
             return DFTransformation(
                 query=transformation.query,
-                inputs=[(input.name, input.variant) for input in transformation.inputs]
+                inputs=[(input.name, input.variant) for input in transformation.inputs],
             )
         elif source.transformation.SQLTransformation.query != "":
-            return SQLTransformation(
-                source.transformation.SQLTransformation.query
-            )
+            return SQLTransformation(source.transformation.SQLTransformation.query)
         else:
             raise Exception(f"Invalid transformation type {source}")
 
@@ -3771,7 +4067,9 @@ class ResourceClient:
             features (List[Feature]): List of Feature Objects
         """
         if local:
-            return list_local("feature", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS])
+            return list_local(
+                "feature", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS]
+            )
         return list_name_variant_status(self._stub, "feature")
 
     def list_labels(self, local=False):
@@ -3812,7 +4110,9 @@ class ResourceClient:
             labels (List[Label]): List of Label Objects
         """
         if local:
-            return list_local("label", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS])
+            return list_local(
+                "label", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS]
+            )
         return list_name_variant_status(self._stub, "label")
 
     def list_users(self, local=False):
@@ -3974,8 +4274,15 @@ class ResourceClient:
             sources (List[Source]): List of Source Objects
         """
         if local:
-            return list_local("source",
-                              [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS, ColumnName.DESCRIPTION])
+            return list_local(
+                "source",
+                [
+                    ColumnName.NAME,
+                    ColumnName.VARIANT,
+                    ColumnName.STATUS,
+                    ColumnName.DESCRIPTION,
+                ],
+            )
         return list_name_variant_status_desc(self._stub, "source")
 
     def list_training_sets(self, local=False):
@@ -4015,7 +4322,9 @@ class ResourceClient:
             training_sets (List[TrainingSet]): List of TrainingSet Objects
         """
         if local:
-            return list_local("training-set", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS])
+            return list_local(
+                "training-set", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS]
+            )
         return list_name_variant_status_desc(self._stub, "training-set")
 
     def list_models(self, local=False) -> List[Model]:
@@ -4031,7 +4340,9 @@ class ResourceClient:
         else:
             model_protos = list_name(self._stub, "model")
             # TODO: apply values from proto
-            models = [Model(proto.name, tags=[], properties={}) for proto in model_protos]
+            models = [
+                Model(proto.name, tags=[], properties={}) for proto in model_protos
+            ]
 
         return models
 
@@ -4103,7 +4414,9 @@ class ResourceClient:
             providers (List[Provider]): List of Provider Objects
         """
         if local:
-            return list_local("provider", [ColumnName.NAME, ColumnName.STATUS, ColumnName.DESCRIPTION])
+            return list_local(
+                "provider", [ColumnName.NAME, ColumnName.STATUS, ColumnName.DESCRIPTION]
+            )
         return list_name_status_desc(self._stub, "provider")
 
     def search(self, raw_query, local=False):
@@ -4123,7 +4436,7 @@ class ResourceClient:
         """
         if type(raw_query) != str or len(raw_query) == 0:
             raise Exception("query must be string and cannot be empty")
-        processed_query = raw_query.translate({ ord(i): None for i in '.,-@!*#'})
+        processed_query = raw_query.translate({ord(i): None for i in ".,-@!*#"})
         if local:
             return search_local(processed_query)
         else:
@@ -4139,6 +4452,7 @@ class ColumnResource:
     class. This means that all possible params for either resource must be passed into this base
     class prior to calling `register_column_resources` on the registrar.
     """
+
     def __init__(
         self,
         transformation_args: tuple,
@@ -4190,17 +4504,19 @@ class ColumnResource:
             timestamp_column=self.timestamp_column,
             schedule=self.schedule,
         )
-    
+
     def features_and_labels(self) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
-        resources = [{
-            "name": self.name,
-            "variant": self.variant,
-            "column": self.source_column,
-            "type": self.type,
-            "description": self.description,
-            "tags": self.tags,
-            "properties": self.properties,
-        }]
+        resources = [
+            {
+                "name": self.name,
+                "variant": self.variant,
+                "column": self.source_column,
+                "type": self.type,
+                "description": self.description,
+                "tags": self.tags,
+                "properties": self.properties,
+            }
+        ]
         if self.resource_type == "feature":
             features = resources
             labels = []
@@ -4232,57 +4548,65 @@ class Variants:
 
 
 class FeatureColumnResource(ColumnResource):
-    def __init__(self,
-                 transformation_args: tuple,
-                 type: Union[ColumnTypes, str],
-                 entity: Union[Entity, str] = "",
-                 variant="default",
-                 owner: str = "",
-                 inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
-                 timestamp_column: str = "",
-                 description: str = "",
-                 schedule: str = "",
-                 tags: List[str] = [],
-                 properties: Dict[str, str] = {}):
-        super().__init__(transformation_args=transformation_args,
-                            type=type,
-                            resource_type="feature",
-                            entity=entity,
-                            variant=variant,
-                            owner=owner,
-                            inference_store=inference_store,
-                            timestamp_column=timestamp_column,
-                            description=description,
-                            schedule=schedule,
-                            tags=tags,
-                            properties=properties)
+    def __init__(
+        self,
+        transformation_args: tuple,
+        type: Union[ColumnTypes, str],
+        entity: Union[Entity, str] = "",
+        variant="default",
+        owner: str = "",
+        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
+        timestamp_column: str = "",
+        description: str = "",
+        schedule: str = "",
+        tags: List[str] = [],
+        properties: Dict[str, str] = {},
+    ):
+        super().__init__(
+            transformation_args=transformation_args,
+            type=type,
+            resource_type="feature",
+            entity=entity,
+            variant=variant,
+            owner=owner,
+            inference_store=inference_store,
+            timestamp_column=timestamp_column,
+            description=description,
+            schedule=schedule,
+            tags=tags,
+            properties=properties,
+        )
 
 
 class LabelColumnResource(ColumnResource):
-    def __init__(self,
-                 transformation_args: tuple,
-                 type: Union[ColumnTypes, str],
-                 entity: Union[Entity, str] = "",
-                 variant="default",
-                 owner: str = "",
-                 inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
-                 timestamp_column: str = "",
-                 description: str = "",
-                 schedule: str = "",
-                 tags: List[str] = [],
-                 properties: Dict[str, str] = {}):
-        super().__init__(transformation_args=transformation_args,
-                            type=type,
-                            resource_type="label",
-                            entity=entity,
-                            variant=variant,
-                            owner=owner,
-                            inference_store=inference_store,
-                            timestamp_column=timestamp_column,
-                            description=description,
-                            schedule=schedule,
-                            tags=tags,
-                            properties=properties)
+    def __init__(
+        self,
+        transformation_args: tuple,
+        type: Union[ColumnTypes, str],
+        entity: Union[Entity, str] = "",
+        variant="default",
+        owner: str = "",
+        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
+        timestamp_column: str = "",
+        description: str = "",
+        schedule: str = "",
+        tags: List[str] = [],
+        properties: Dict[str, str] = {},
+    ):
+        super().__init__(
+            transformation_args=transformation_args,
+            type=type,
+            resource_type="label",
+            entity=entity,
+            variant=variant,
+            owner=owner,
+            inference_store=inference_store,
+            timestamp_column=timestamp_column,
+            description=description,
+            schedule=schedule,
+            tags=tags,
+            properties=properties,
+        )
 
 
 def entity(cls):

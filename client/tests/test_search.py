@@ -9,23 +9,38 @@ import pytest
     "provider_source_fxt,is_local,is_insecure",
     [
         pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
-        pytest.param("hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted),
-        pytest.param("hosted_sql_provider_and_source", False, True, marks=pytest.mark.docker),
-    ]
+        pytest.param(
+            "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
+        ),
+        pytest.param(
+            "hosted_sql_provider_and_source", False, True, marks=pytest.mark.docker
+        ),
+    ],
 )
 def test_simple_search(provider_source_fxt, is_local, is_insecure, request):
-    custom_marks = [mark.name for mark in request.node.own_markers if mark.name != 'parametrize']
-    provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(custom_marks)
+    custom_marks = [
+        mark.name for mark in request.node.own_markers if mark.name != "parametrize"
+    ]
+    provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(
+        custom_marks
+    )
 
     # Arranges the resources context following the Quickstart pattern
-    resource_client = arrange_resources(provider, source, inference_store, is_local, is_insecure)
+    resource_client = arrange_resources(
+        provider, source, inference_store, is_local, is_insecure
+    )
 
     phrase_a_results = resource_client.search("quick", is_local)
     phrase_b_results = resource_client.search("transact", is_local)
     phrase_c_results = resource_client.search("dataset", is_local)
     phrase_d_results = resource_client.search("foo", is_local)
 
-    counts = [len(phrase_a_results), len(phrase_b_results), len(phrase_c_results), len(phrase_d_results)]
+    counts = [
+        len(phrase_a_results),
+        len(phrase_b_results),
+        len(phrase_c_results),
+        len(phrase_d_results),
+    ]
 
     assert counts == [4, 3, 1, 0]
 
@@ -34,38 +49,62 @@ def test_simple_search(provider_source_fxt, is_local, is_insecure, request):
     "provider_source_fxt,is_local,is_insecure",
     [
         pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
-        pytest.param("hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted),
-        pytest.param("hosted_sql_provider_and_source", False, True, marks=pytest.mark.docker),
-    ]
+        pytest.param(
+            "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
+        ),
+        pytest.param(
+            "hosted_sql_provider_and_source", False, True, marks=pytest.mark.docker
+        ),
+    ],
 )
 def test_special_character_search(provider_source_fxt, is_local, is_insecure, request):
-    custom_marks = [mark.name for mark in request.node.own_markers if mark.name != 'parametrize']
-    provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(custom_marks)
+    custom_marks = [
+        mark.name for mark in request.node.own_markers if mark.name != "parametrize"
+    ]
+    provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(
+        custom_marks
+    )
 
     # Arranges the resources context following the Quickstart pattern
-    resource_client = arrange_resources(provider, source, inference_store, is_local, is_insecure)
+    resource_client = arrange_resources(
+        provider, source, inference_store, is_local, is_insecure
+    )
 
     phrase_a_results = resource_client.search("qui#ck!", is_local)
     phrase_b_results = resource_client.search("t*ran.saction!", is_local)
     phrase_c_results = resource_client.search("d,ata@se-t", is_local)
 
-    assert len(phrase_a_results) == 4 and len(phrase_b_results) == 3 and len(phrase_c_results) == 1
+    assert (
+        len(phrase_a_results) == 4
+        and len(phrase_b_results) == 3
+        and len(phrase_c_results) == 1
+    )
 
 
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
         pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
-        pytest.param("hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted),
-        pytest.param("hosted_sql_provider_and_source", False, True, marks=pytest.mark.docker),
-    ]
+        pytest.param(
+            "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
+        ),
+        pytest.param(
+            "hosted_sql_provider_and_source", False, True, marks=pytest.mark.docker
+        ),
+    ],
 )
 def test_empty_query_to_search(provider_source_fxt, is_local, is_insecure, request):
-    custom_marks = [mark.name for mark in request.node.own_markers if mark.name != 'parametrize']
-    provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(custom_marks)
+    custom_marks = [
+        mark.name for mark in request.node.own_markers if mark.name != "parametrize"
+    ]
+    provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(
+        custom_marks
+    )
 
     # Arranges the resources context following the Quickstart pattern
-    resource_client = arrange_resources(provider, source, inference_store, is_local, is_insecure)
+    resource_client = arrange_resources(
+        provider, source, inference_store, is_local, is_insecure
+    )
 
     with pytest.raises(Exception, match="query must be string and cannot be empty"):
         phrase = resource_client.search(raw_query="", local=is_local)
@@ -75,18 +114,30 @@ def test_empty_query_to_search(provider_source_fxt, is_local, is_insecure, reque
     "provider_source_fxt,is_local,is_insecure",
     [
         pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
-        pytest.param("hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted),
-        pytest.param("hosted_sql_provider_and_source", False, True, marks=pytest.mark.docker),
-    ]
+        pytest.param(
+            "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
+        ),
+        pytest.param(
+            "hosted_sql_provider_and_source", False, True, marks=pytest.mark.docker
+        ),
+    ],
 )
 def test_query_type_in_search(provider_source_fxt, is_local, is_insecure, request):
-    custom_marks = [mark.name for mark in request.node.own_markers if mark.name != 'parametrize']
-    provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(custom_marks)
+    custom_marks = [
+        mark.name for mark in request.node.own_markers if mark.name != "parametrize"
+    ]
+    provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(
+        custom_marks
+    )
 
     # Arranges the resources context following the Quickstart pattern
-    resource_client = arrange_resources(provider, source, inference_store, is_local, is_insecure)
+    resource_client = arrange_resources(
+        provider, source, inference_store, is_local, is_insecure
+    )
 
-    with pytest.raises(TypeError, match="missing 1 required positional argument: 'raw_query'"):
+    with pytest.raises(
+        TypeError, match="missing 1 required positional argument: 'raw_query'"
+    ):
         phrase = resource_client.search(local=is_local)
 
 
@@ -99,10 +150,15 @@ def before_and_after_each(setup_teardown):
 
 def arrange_resources(provider, source, online_store, is_local, is_insecure):
     if is_local:
-        @provider.df_transformation(variant="quickstart", inputs=[("transactions", "quickstart")])
+
+        @provider.df_transformation(
+            variant="quickstart", inputs=[("transactions", "quickstart")]
+        )
         def average_user_transaction(transactions):
             return transactions.groupby("CustomerID")["TransactionAmount"].mean()
+
     else:
+
         @provider.sql_transformation(variant="quickstart")
         def average_user_transaction():
             return "SELECT customerid as user_id, avg(transactionamount) as avg_transaction_amt from {{transactions.quickstart}} GROUP BY user_id"
@@ -117,7 +173,12 @@ def arrange_resources(provider, source, online_store, is_local, is_insecure):
         entity_column="CustomerID" if is_local else "user_id",
         inference_store=inference_store,
         features=[
-            {"name": "avg_transactions", "variant": "quickstart", "column": feature_column, "type": "float32"},
+            {
+                "name": "avg_transactions",
+                "variant": "quickstart",
+                "column": feature_column,
+                "type": "float32",
+            },
         ],
     )
 
@@ -125,7 +186,12 @@ def arrange_resources(provider, source, online_store, is_local, is_insecure):
         entity=user,
         entity_column="CustomerID" if is_local else "customerid",
         labels=[
-            {"name": "fraudulent", "variant": "quickstart", "column": label_column, "type": "bool"},
+            {
+                "name": "fraudulent",
+                "variant": "quickstart",
+                "column": label_column,
+                "type": "bool",
+            },
         ],
     )
 

@@ -12,6 +12,7 @@ load_dotenv(env_file_path)
 def get_random_string():
     import random
     import string
+
     return "".join(random.choice(string.ascii_lowercase) for _ in range(10))
 
 
@@ -47,14 +48,12 @@ databricks = ff.DatabricksCredentials(
     password="",
     host=os.getenv("DATABRICKS_HOST"),
     token=os.getenv("DATABRICKS_TOKEN"),
-    cluster_id=os.getenv("DATABRICKS_CLUSTER")
+    cluster_id=os.getenv("DATABRICKS_CLUSTER"),
 )
 
 # Register spark as the pair of a filestore + executor credentials
 spark = ff.register_spark(
-    name=f"spark_{VERSION}",
-    executor=databricks,
-    filestore=azure_blob
+    name=f"spark_{VERSION}", executor=databricks, filestore=azure_blob
 )
 
 mongo = ff.register_mongodb(
@@ -64,7 +63,7 @@ mongo = ff.register_mongodb(
     username=os.getenv("MONGODB_USERNAME"),
     password=os.getenv("MONGODB_PASSWORD"),
     database=os.getenv("MONGODB_DATABASE"),
-    throughput=10000
+    throughput=10000,
 )
 
 payments = spark.register_file(
@@ -117,77 +116,111 @@ products = spark.register_file(
 )
 
 
-@spark.sql_transformation(name="total_paid_per_customer_per_day",
-                          variant="default",
-                          description="Get the daily total value of payments per customer.")
+@spark.sql_transformation(
+    name="total_paid_per_customer_per_day",
+    variant="default",
+    description="Get the daily total value of payments per customer.",
+)
 def total_paid_per_customer_per_day():
-    return "select date_trunc('day', to_timestamp(order_approved_at)) as day_date, c.customer_unique_id, sum(p.payment_value) as total_customer_order_paid " \
-           "from {{payments.default}} p " \
-           "join {{orders.default}} o on (o.order_id = p.order_id) " \
-           "join {{customers.default}} c on (c.customer_id = o.customer_id) " \
-           "group by 1,2 order by 1 asc "
+    return (
+        "select date_trunc('day', to_timestamp(order_approved_at)) as day_date, c.customer_unique_id, sum(p.payment_value) as total_customer_order_paid "
+        "from {{payments.default}} p "
+        "join {{orders.default}} o on (o.order_id = p.order_id) "
+        "join {{customers.default}} c on (c.customer_id = o.customer_id) "
+        "group by 1,2 order by 1 asc "
+    )
+
 
 # Get total payments per day
-@spark.sql_transformation(name="total_paid_per_day",
-                          variant="default",
-                          description="Get the daily total value of payments.")
+@spark.sql_transformation(
+    name="total_paid_per_day",
+    variant="default",
+    description="Get the daily total value of payments.",
+)
 def total_paid_per_day():
-    return "select trunc(order_approved_at,'day') as day_date, sum(p.payment_value) as total_order_paid " \
-           "from {{payments.default}} p " \
-           "join {{orders.default}} o on (o.order_id = p.order_id) " \
-           "group by 1 order by 1 asc "
+    return (
+        "select trunc(order_approved_at,'day') as day_date, sum(p.payment_value) as total_order_paid "
+        "from {{payments.default}} p "
+        "join {{orders.default}} o on (o.order_id = p.order_id) "
+        "group by 1 order by 1 asc "
+    )
 
-@spark.df_transformation(inputs=[("total_paid_per_customer_per_day", "default")], variant="default")
+
+@spark.df_transformation(
+    inputs=[("total_paid_per_customer_per_day", "default")], variant="default"
+)
 def average_daily_transaction(df):
     from pyspark.sql.functions import mean
-    df = df.groupBy("day_date").agg(mean("total_customer_order_paid").alias("average_order_value"))
+
+    df = df.groupBy("day_date").agg(
+        mean("total_customer_order_paid").alias("average_order_value")
+    )
     return df
 
-@spark.sql_transformation(name="reviews_by_order",
-                          variant="default",
-                          description="get reviews by order")
+
+@spark.sql_transformation(
+    name="reviews_by_order", variant="default", description="get reviews by order"
+)
 def reviews_by_order():
-    return "select order_id, review_score, " \
-           "concat(review_comment_title, '-',review_comment_message) as review_text " \
-           "from {{reviews.default}} r " \
-           "where (review_comment_title is not null) and (review_comment_message is not null) " \
-           "and (review_comment_title <> '') and (review_comment_message <> '') " \
-           "limit 50"
+    return (
+        "select order_id, review_score, "
+        "concat(review_comment_title, '-',review_comment_message) as review_text "
+        "from {{reviews.default}} r "
+        "where (review_comment_title is not null) and (review_comment_message is not null) "
+        "and (review_comment_title <> '') and (review_comment_message <> '') "
+        "limit 50"
+    )
 
-@spark.sql_transformation(name="calculate_month_1_month_6_dates",
-                          variant="default",
-                          description="Calculate month 1 - 6")
+
+@spark.sql_transformation(
+    name="calculate_month_1_month_6_dates",
+    variant="default",
+    description="Calculate month 1 - 6",
+)
 def calculate_month_1_month_6_dates():
-    return "select customer_unique_id, to_date(earliest_purchase) as earliest_datetime_purchase, " \
-           "date_add(to_date(earliest_purchase),30) as  month_1_datetime, " \
-           "date_add(to_date(earliest_purchase),150) as  month_6_datetime " \
-           "from (select c.customer_unique_id, min(o.order_approved_at) as earliest_purchase " \
-           "from {{orders.default}} o join {{customers.default}} c on (c.customer_id = o.customer_id) group by 1 " \
-           "limit 100)"
+    return (
+        "select customer_unique_id, to_date(earliest_purchase) as earliest_datetime_purchase, "
+        "date_add(to_date(earliest_purchase),30) as  month_1_datetime, "
+        "date_add(to_date(earliest_purchase),150) as  month_6_datetime "
+        "from (select c.customer_unique_id, min(o.order_approved_at) as earliest_purchase "
+        "from {{orders.default}} o join {{customers.default}} c on (c.customer_id = o.customer_id) group by 1 "
+        "limit 100)"
+    )
 
-@spark.sql_transformation(name="get_month_1_customer_spend",
-                          variant="default",
-                          description="Get month 1 customer spend")
+
+@spark.sql_transformation(
+    name="get_month_1_customer_spend",
+    variant="default",
+    description="Get month 1 customer spend",
+)
 def get_month_1_customer_spend():
-    return "select cm.customer_unique_id, sum(p.payment_value) as month_1_value " \
-           "from {{orders.default}} o " \
-           "join {{customers.default}} c on (c.customer_id = o.customer_id) " \
-           "join {{calculate_month_1_month_6_dates.default}} cm on (cm.customer_unique_id = c.customer_unique_id) " \
-           "join {{payments.default}} p on (p.order_id = o.order_id) " \
-           "where (to_date(o.order_approved_at) < month_1_datetime) or (to_date(o.order_approved_at) = month_1_datetime) " \
-           "group by 1"
+    return (
+        "select cm.customer_unique_id, sum(p.payment_value) as month_1_value "
+        "from {{orders.default}} o "
+        "join {{customers.default}} c on (c.customer_id = o.customer_id) "
+        "join {{calculate_month_1_month_6_dates.default}} cm on (cm.customer_unique_id = c.customer_unique_id) "
+        "join {{payments.default}} p on (p.order_id = o.order_id) "
+        "where (to_date(o.order_approved_at) < month_1_datetime) or (to_date(o.order_approved_at) = month_1_datetime) "
+        "group by 1"
+    )
 
-@spark.sql_transformation(name="get_month_6_customer_spend",
-                          variant="default",
-                          description="Get month 6 customer spend")
+
+@spark.sql_transformation(
+    name="get_month_6_customer_spend",
+    variant="default",
+    description="Get month 6 customer spend",
+)
 def get_month_6_customer_spend():
-    return "select cm.customer_unique_id, sum(p.payment_value) as month_6_value " \
-           "from {{orders.default}} o " \
-           "join {{customers.default}} c on (c.customer_id = o.customer_id) " \
-           "join {{calculate_month_1_month_6_dates.default}} cm on (cm.customer_unique_id = c.customer_unique_id) " \
-           "join {{payments.default}} p on (p.order_id = o.order_id) " \
-           "where (to_date(o.order_approved_at) < month_6_datetime) " \
-           "group by 1"
+    return (
+        "select cm.customer_unique_id, sum(p.payment_value) as month_6_value "
+        "from {{orders.default}} o "
+        "join {{customers.default}} c on (c.customer_id = o.customer_id) "
+        "join {{calculate_month_1_month_6_dates.default}} cm on (cm.customer_unique_id = c.customer_unique_id) "
+        "join {{payments.default}} p on (p.order_id = o.order_id) "
+        "where (to_date(o.order_approved_at) < month_6_datetime) "
+        "group by 1"
+    )
+
 
 order = ff.register_entity("order")
 customer = ff.register_entity("customer")
@@ -198,8 +231,13 @@ total_paid_per_day.register_resources(
     entity_column="day_date",
     inference_store=mongo,
     labels=[
-        {"name": "total_order_paid", "variant": VERSION, "column": "total_order_paid", "type": "float32"},
-    ]
+        {
+            "name": "total_order_paid",
+            "variant": VERSION,
+            "column": "total_order_paid",
+            "type": "float32",
+        },
+    ],
 )
 
 average_daily_transaction.register_resources(
@@ -207,7 +245,12 @@ average_daily_transaction.register_resources(
     entity_column="day_date",
     inference_store=mongo,
     features=[
-        {"name": "average_order_value", "variant":  VERSION, "column": "average_order_value", "type": "float32"},
+        {
+            "name": "average_order_value",
+            "variant": VERSION,
+            "column": "average_order_value",
+            "type": "float32",
+        },
     ],
 )
 
@@ -216,11 +259,21 @@ reviews_by_order.register_resources(
     entity_column="order_id",
     inference_store=mongo,
     features=[
-        {"name": "review_text", "variant":  VERSION, "column": "review_text", "type": "string"},
+        {
+            "name": "review_text",
+            "variant": VERSION,
+            "column": "review_text",
+            "type": "string",
+        },
     ],
     labels=[
-        {"name": "review_score", "variant":  VERSION, "column": "review_score", "type": "int"},
-    ]
+        {
+            "name": "review_score",
+            "variant": VERSION,
+            "column": "review_score",
+            "type": "int",
+        },
+    ],
 )
 
 calculate_month_1_month_6_dates.register_resources(
@@ -228,9 +281,24 @@ calculate_month_1_month_6_dates.register_resources(
     entity_column="customer_unique_id",
     inference_store=mongo,
     features=[
-        {"name": "earliest_datetime_purchase", "variant":  VERSION, "column": "earliest_datetime_purchase", "type": "datetime"},
-        {"name": "month_1_datetime", "variant":  VERSION, "column": "month_1_datetime", "type": "datetime"},
-        {"name": "month_6_datetime", "variant": VERSION, "column": "month_6_datetime", "type": "datetime"},
+        {
+            "name": "earliest_datetime_purchase",
+            "variant": VERSION,
+            "column": "earliest_datetime_purchase",
+            "type": "datetime",
+        },
+        {
+            "name": "month_1_datetime",
+            "variant": VERSION,
+            "column": "month_1_datetime",
+            "type": "datetime",
+        },
+        {
+            "name": "month_6_datetime",
+            "variant": VERSION,
+            "column": "month_6_datetime",
+            "type": "datetime",
+        },
     ],
 )
 
@@ -239,7 +307,12 @@ get_month_1_customer_spend.register_resources(
     entity_column="customer_unique_id",
     inference_store=mongo,
     features=[
-        {"name": "month_1_value", "variant": VERSION, "column": "month_1_value", "type": "float32"},
+        {
+            "name": "month_1_value",
+            "variant": VERSION,
+            "column": "month_1_value",
+            "type": "float32",
+        },
     ],
 )
 
@@ -248,18 +321,25 @@ get_month_6_customer_spend.register_resources(
     entity_column="customer_unique_id",
     inference_store=mongo,
     labels=[
-        {"name": "month_6_value", "variant": VERSION, "column": "month_6_value", "type": "float32"},
-    ]
+        {
+            "name": "month_6_value",
+            "variant": VERSION,
+            "column": "month_6_value",
+            "type": "float32",
+        },
+    ],
 )
 
 ff.register_training_set(
-    "customerLTV_training", VERSION,
+    "customerLTV_training",
+    VERSION,
     label=("month_6_value", VERSION),
     features=[("month_1_value", VERSION)],
 )
 
 ff.register_training_set(
-    "sentiment_prediction", VERSION,
+    "sentiment_prediction",
+    VERSION,
     label=("review_score", VERSION),
     features=[("review_text", VERSION)],
 )

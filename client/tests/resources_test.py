@@ -4,14 +4,39 @@
 import os.path
 import sys
 
-sys.path.insert(0, 'client/src/')
+sys.path.insert(0, "client/src/")
 import pytest
-from featureform.resources import ResourceRedefinedError, ResourceState, Provider, RedisConfig, CassandraConfig, \
-    FirestoreConfig, AzureFileStoreConfig, \
-    SnowflakeConfig, PostgresConfig, RedshiftConfig, BigQueryConfig, OnlineBlobConfig, K8sConfig, \
-    User, Provider, Entity, Feature, Label, TrainingSet, PrimaryData, SQLTable, \
-    Source, ResourceColumnMapping, DynamodbConfig, Schedule, SQLTransformation, DFTransformation, K8sArgs, \
-    K8sResourceSpecs
+from featureform.resources import (
+    ResourceRedefinedError,
+    ResourceState,
+    Provider,
+    RedisConfig,
+    CassandraConfig,
+    FirestoreConfig,
+    AzureFileStoreConfig,
+    SnowflakeConfig,
+    PostgresConfig,
+    RedshiftConfig,
+    BigQueryConfig,
+    OnlineBlobConfig,
+    K8sConfig,
+    User,
+    Provider,
+    Entity,
+    Feature,
+    Label,
+    TrainingSet,
+    PrimaryData,
+    SQLTable,
+    Source,
+    ResourceColumnMapping,
+    DynamodbConfig,
+    Schedule,
+    SQLTransformation,
+    DFTransformation,
+    K8sArgs,
+    K8sResourceSpecs,
+)
 
 from featureform.register import OfflineK8sProvider, Registrar, FileStoreProvider
 
@@ -72,19 +97,13 @@ def online_blob_config(blob_store_config):
 @pytest.fixture
 def file_store_provider(blob_store_config):
     return FileStoreProvider(
-        registrar=None,
-        provider=None,
-        config=blob_store_config,
-        store_type="AZURE"
+        registrar=None, provider=None, config=blob_store_config, store_type="AZURE"
     )
 
 
 @pytest.fixture
 def kubernetes_config(file_store_provider):
-    return K8sConfig(
-        store_type="K8s",
-        store_config={}
-    )
+    return K8sConfig(store_type="K8s", store_config={})
 
 
 @pytest.fixture
@@ -111,11 +130,7 @@ def firesstore_config():
 
 @pytest.fixture
 def dynamodb_config():
-    return DynamodbConfig(
-        region="abc",
-        access_key="abc",
-        secret_key="abc"
-    )
+    return DynamodbConfig(region="abc", access_key="abc", secret_key="abc")
 
 
 @pytest.fixture
@@ -131,7 +146,10 @@ def redshift_config():
 
 @pytest.fixture
 def bigquery_config():
-    path = os.path.abspath(os.getcwd()) + "/client/tests/test_files/bigquery_dummy_credentials.json"
+    path = (
+        os.path.abspath(os.getcwd())
+        + "/client/tests/test_files/bigquery_dummy_credentials.json"
+    )
     return BigQueryConfig(
         project_id="bigquery-project",
         dataset_id="bigquery-dataset",
@@ -152,7 +170,7 @@ def postgres_provider(postgres_config):
         team="team2",
         config=postgres_config,
         tags=[],
-        properties={}
+        properties={},
     )
 
 
@@ -165,7 +183,7 @@ def snowflake_provider(snowflake_config):
         team="team3",
         config=snowflake_config,
         tags=[],
-        properties={}
+        properties={},
     )
 
 
@@ -178,7 +196,7 @@ def redis_provider(redis_config):
         team="team3",
         config=redis_config,
         tags=[],
-        properties={}
+        properties={},
     )
 
 
@@ -191,7 +209,7 @@ def redshift_provider(redshift_config):
         team="team2",
         config=redshift_config,
         tags=[],
-        properties={}
+        properties={},
     )
 
 
@@ -204,10 +222,11 @@ def bigquery_provider(bigquery_config):
         team="team2",
         config=bigquery_config,
         tags=[],
-        properties={}
+        properties={},
     )
 
-@pytest.mark.parametrize('image', ["", "my/docker_image:latest"])
+
+@pytest.mark.parametrize("image", ["", "my/docker_image:latest"])
 def test_k8s_args_apply(image):
     transformation = pb.Transformation()
     specs = K8sResourceSpecs()
@@ -216,11 +235,9 @@ def test_k8s_args_apply(image):
     assert image == transformation.kubernetes_args.docker_image
 
 
-@pytest.mark.parametrize('query,image', [
-    ("SELECT * FROM X", ""),
-    ("SELECT * FROM X", "my/docker:image")
-
-])
+@pytest.mark.parametrize(
+    "query,image", [("SELECT * FROM X", ""), ("SELECT * FROM X", "my/docker:image")]
+)
 def test_sql_k8s_image(query, image):
     transformation = SQLTransformation(query, K8sArgs(image, K8sResourceSpecs()))
     recv_query = transformation.kwargs()["transformation"].SQLTransformation.query
@@ -238,11 +255,7 @@ def test_sql_k8s_image_none():
     assert recv_image == ""
 
 
-@pytest.mark.parametrize('query,image', [
-    (bytes(), ""),
-    (bytes(), "my/docker:image")
-
-])
+@pytest.mark.parametrize("query,image", [(bytes(), ""), (bytes(), "my/docker:image")])
 def test_df_k8s_image(query, image):
     transformation = DFTransformation(query, [], K8sArgs(image, K8sResourceSpecs()))
     recv_query = transformation.kwargs()["transformation"].DFTransformation.query
@@ -269,7 +282,7 @@ def mock_provider(kubernetes_config):
         team="team",
         config=kubernetes_config,
         tags=[],
-        properties={}
+        properties={},
     )
 
 
@@ -284,7 +297,7 @@ def get_transformation_config(registrar):
     return config
 
 
-@pytest.mark.parametrize('image', ['', 'docker/image:latest'])
+@pytest.mark.parametrize("image", ["", "docker/image:latest"])
 def test_k8s_sql_provider(registrar, mock_provider, image):
     k8s = OfflineK8sProvider(registrar, mock_provider)
 
@@ -309,7 +322,7 @@ def test_k8s_sql_provider_empty(registrar, mock_provider):
     assert docker_image == ""
 
 
-@pytest.mark.parametrize('image', ['', 'docker/image:latest'])
+@pytest.mark.parametrize("image", ["", "docker/image:latest"])
 def test_k8s_df_provider(registrar, mock_provider, image):
     k8s = OfflineK8sProvider(registrar, mock_provider)
 
@@ -335,27 +348,41 @@ def test_k8s_df_provider_empty(registrar, mock_provider):
 
 
 def init_feature(input):
-    Feature(name="feature",
-            variant="v1",
-            source=("a", "b"),
-            description="feature",
-            value_type=input,
-            entity="user",
-            owner="Owner",
-            location=ResourceColumnMapping(
-                entity="abc",
-                value="def",
-                timestamp="ts",
-            ),
-            provider="redis-name",
-            tags=[],
-            properties={})
+    Feature(
+        name="feature",
+        variant="v1",
+        source=("a", "b"),
+        description="feature",
+        value_type=input,
+        entity="user",
+        owner="Owner",
+        location=ResourceColumnMapping(
+            entity="abc",
+            value="def",
+            timestamp="ts",
+        ),
+        provider="redis-name",
+        tags=[],
+        properties={},
+    )
 
 
-@pytest.mark.parametrize("input,fail", [
-    ("int", False), ("int32", False), ("int64", False), ("float32", False), ("float64", False), ("string", False),
-    ("bool", False), ("datetime", False), ("datetime", False), ("none", True), ("str", True),
-])
+@pytest.mark.parametrize(
+    "input,fail",
+    [
+        ("int", False),
+        ("int32", False),
+        ("int64", False),
+        ("float32", False),
+        ("float64", False),
+        ("string", False),
+        ("bool", False),
+        ("datetime", False),
+        ("datetime", False),
+        ("none", True),
+        ("str", True),
+    ],
+)
 def test_valid_feature_column_types(input, fail):
     if not fail:
         init_feature(input)
@@ -365,27 +392,41 @@ def test_valid_feature_column_types(input, fail):
 
 
 def init_label(input):
-    Label(name="feature",
-          variant="v1",
-          source=("a", "b"),
-          description="feature",
-          value_type=input,
-          entity="user",
-          owner="Owner",
-          location=ResourceColumnMapping(
-              entity="abc",
-              value="def",
-              timestamp="ts",
-          ),
-          provider="redis-name", 
-          tags=[], 
-          properties={})
+    Label(
+        name="feature",
+        variant="v1",
+        source=("a", "b"),
+        description="feature",
+        value_type=input,
+        entity="user",
+        owner="Owner",
+        location=ResourceColumnMapping(
+            entity="abc",
+            value="def",
+            timestamp="ts",
+        ),
+        provider="redis-name",
+        tags=[],
+        properties={},
+    )
 
 
-@pytest.mark.parametrize("input,fail", [
-    ("int", False), ("int32", False), ("int64", False), ("float32", False), ("float64", False), ("string", False),
-    ("bool", False), ("datetime", False), ("datetime", False), ("none", True), ("str", True),
-])
+@pytest.mark.parametrize(
+    "input,fail",
+    [
+        ("int", False),
+        ("int32", False),
+        ("int64", False),
+        ("float32", False),
+        ("float64", False),
+        ("string", False),
+        ("bool", False),
+        ("datetime", False),
+        ("datetime", False),
+        ("none", True),
+        ("str", True),
+    ],
+)
 def test_valid_label_column_types(input, fail):
     if not fail:
         init_label(input)
@@ -398,36 +439,35 @@ def test_valid_label_column_types(input, fail):
 def all_resources_set(redis_provider):
     return [
         redis_provider,
-        User(name="Featureform",
-             tags=[],
-             properties={}),
-        Entity(name="user",
-               description="A user",
-               tags=[],
-               properties={}),
-        Source(name="primary",
-               variant="abc",
-               definition=PrimaryData(location=SQLTable("table")),
-               owner="someone",
-               description="desc",
-               provider="redis-name",
-               tags=[],
-               properties={}),
-        Feature(name="feature",
-                variant="v1",
-                source=("a", "b"),
-                description="feature",
-                value_type="float32",
-                entity="user",
-                owner="Owner",
-                location=ResourceColumnMapping(
-                    entity="abc",
-                    value="def",
-                    timestamp="ts",
-                ),
-                provider="redis-name",
-                tags=[],
-                properties={}),
+        User(name="Featureform", tags=[], properties={}),
+        Entity(name="user", description="A user", tags=[], properties={}),
+        Source(
+            name="primary",
+            variant="abc",
+            definition=PrimaryData(location=SQLTable("table")),
+            owner="someone",
+            description="desc",
+            provider="redis-name",
+            tags=[],
+            properties={},
+        ),
+        Feature(
+            name="feature",
+            variant="v1",
+            source=("a", "b"),
+            description="feature",
+            value_type="float32",
+            entity="user",
+            owner="Owner",
+            location=ResourceColumnMapping(
+                entity="abc",
+                value="def",
+                timestamp="ts",
+            ),
+            provider="redis-name",
+            tags=[],
+            properties={},
+        ),
         Label(
             name="label",
             variant="v1",
@@ -443,32 +483,36 @@ def all_resources_set(redis_provider):
             owner="Owner",
             provider="redis-name",
             tags=[],
-            properties={}
+            properties={},
         ),
-        TrainingSet(name="training-set",
-                    variant="v1",
-                    description="desc",
-                    owner="featureform",
-                    label=("label", "var"),
-                    feature_lags=[],
-                    features=[("f1", "var")],
-                    tags=[],
-                    properties={})
+        TrainingSet(
+            name="training-set",
+            variant="v1",
+            description="desc",
+            owner="featureform",
+            label=("label", "var"),
+            feature_lags=[],
+            features=[("f1", "var")],
+            tags=[],
+            properties={},
+        ),
     ]
 
 
 @pytest.fixture
 def all_resources_strange_order(redis_provider):
     return [
-        TrainingSet(name="training-set",
-                    variant="v1",
-                    description="desc",
-                    owner="featureform",
-                    feature_lags=[],
-                    label=("label", "var"),
-                    features=[("f1", "var")],
-                    tags=[],
-                    properties={}),
+        TrainingSet(
+            name="training-set",
+            variant="v1",
+            description="desc",
+            owner="featureform",
+            feature_lags=[],
+            label=("label", "var"),
+            features=[("f1", "var")],
+            tags=[],
+            properties={},
+        ),
         Label(
             name="label",
             variant="v1",
@@ -484,42 +528,48 @@ def all_resources_strange_order(redis_provider):
             owner="Owner",
             provider="redis-name",
             tags=[],
-            properties={}
+            properties={},
         ),
-        Feature(name="feature",
-                variant="v1",
-                source=("a", "b"),
-                description="feature",
-                value_type="float32",
-                entity="user",
-                location=ResourceColumnMapping(
-                    entity="abc",
-                    value="def",
-                    timestamp="ts",
-                ),
-                owner="Owner",
-                provider="redis-name",
-                tags=[],
-                properties={}),
-        Entity(name="user",
-               description="A user",
-               tags=[],
-               properties={}),
-        Source(name="primary",
-               variant="abc",
-               definition=PrimaryData(location=SQLTable("table")),
-               owner="someone",
-               description="desc",
-               provider="redis-name",
-               tags=[],
-               properties={}),
+        Feature(
+            name="feature",
+            variant="v1",
+            source=("a", "b"),
+            description="feature",
+            value_type="float32",
+            entity="user",
+            location=ResourceColumnMapping(
+                entity="abc",
+                value="def",
+                timestamp="ts",
+            ),
+            owner="Owner",
+            provider="redis-name",
+            tags=[],
+            properties={},
+        ),
+        Entity(name="user", description="A user", tags=[], properties={}),
+        Source(
+            name="primary",
+            variant="abc",
+            definition=PrimaryData(location=SQLTable("table")),
+            owner="someone",
+            description="desc",
+            provider="redis-name",
+            tags=[],
+            properties={},
+        ),
         redis_provider,
         User(name="Featureform", tags=[], properties={}),
     ]
 
 
-def test_create_all_provider_types(redis_provider, snowflake_provider,
-                                   postgres_provider, redshift_provider, bigquery_provider):
+def test_create_all_provider_types(
+    redis_provider,
+    snowflake_provider,
+    postgres_provider,
+    redshift_provider,
+    bigquery_provider,
+):
     providers = [
         redis_provider,
         snowflake_provider,
@@ -534,20 +584,24 @@ def test_create_all_provider_types(redis_provider, snowflake_provider,
 
 def test_redefine_provider(redis_config, snowflake_config):
     providers = [
-        Provider(name="name",
-                 description="desc",
-                 function="fn",
-                 team="team",
-                 config=redis_config,
-                 tags=[],
-                 properties={}),
-        Provider(name="name",
-                 description="desc2",
-                 function="fn2",
-                 team="team2",
-                 config=snowflake_config,
-                 tags=[],
-                 properties={})
+        Provider(
+            name="name",
+            description="desc",
+            function="fn",
+            team="team",
+            config=redis_config,
+            tags=[],
+            properties={},
+        ),
+        Provider(
+            name="name",
+            description="desc2",
+            function="fn2",
+            team="team2",
+            config=snowflake_config,
+            tags=[],
+            properties={},
+        ),
     ]
     state = ResourceState()
     state.add(providers[0])
@@ -568,32 +622,36 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
             team="team3",
             config=redis_config,
             tags=[],
-            properties={}
+            properties={},
         ),
-        Source(name="primary",
-               variant="abc",
-               definition=PrimaryData(location=SQLTable("table")),
-               owner="someone",
-               description="desc",
-               provider="redis-name",
-               tags=[],
-               properties={}),
+        Source(
+            name="primary",
+            variant="abc",
+            definition=PrimaryData(location=SQLTable("table")),
+            owner="someone",
+            description="desc",
+            provider="redis-name",
+            tags=[],
+            properties={},
+        ),
         Entity(name="user", description="A user", tags=[], properties={}),
-        Feature(name="feature",
-                variant="v1",
-                source=("a", "b"),
-                description="feature",
-                value_type="float32",
-                location=ResourceColumnMapping(
-                    entity="abc",
-                    value="def",
-                    timestamp="ts",
-                ),
-                entity="user",
-                owner="Owner",
-                provider="redis-name",
-                tags=[],
-                properties={}),
+        Feature(
+            name="feature",
+            variant="v1",
+            source=("a", "b"),
+            description="feature",
+            value_type="float32",
+            location=ResourceColumnMapping(
+                entity="abc",
+                value="def",
+                timestamp="ts",
+            ),
+            entity="user",
+            owner="Owner",
+            provider="redis-name",
+            tags=[],
+            properties={},
+        ),
         Label(
             name="label",
             variant="v1",
@@ -609,17 +667,19 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
             owner="Owner",
             provider="redis-name",
             tags=[],
-            properties={}
+            properties={},
         ),
-        TrainingSet(name="training-set",
-                    variant="v1",
-                    description="desc",
-                    owner="featureform",
-                    label=("label", "var"),
-                    features=[("f1", "var")],
-                    feature_lags=[],
-                    tags=[],
-                    properties={}),
+        TrainingSet(
+            name="training-set",
+            variant="v1",
+            description="desc",
+            owner="featureform",
+            label=("label", "var"),
+            features=[("f1", "var")],
+            feature_lags=[],
+            tags=[],
+            properties={},
+        ),
     ]
 
 
@@ -637,20 +697,15 @@ def test_invalid_providers(snowflake_config):
             "description": "desc",
             "function": "fn",
             "team": "team",
-            "config": snowflake_config
+            "config": snowflake_config,
         },
         {
             "name": "name",
             "description": "desc",
             "team": "team",
-            "config": snowflake_config
+            "config": snowflake_config,
         },
-        {
-            "name": "name",
-            "description": "desc",
-            "function": "fn",
-            "team": "team"
-        },
+        {"name": "name", "description": "desc", "function": "fn", "team": "team"},
     ]
     for args in provider_args:
         with pytest.raises(TypeError):
@@ -664,56 +719,59 @@ def test_invalid_users():
             User(**args)
 
 
-@pytest.mark.parametrize("args", [
-    {
-        "name": "name",
-        "variant": "var",
-        "owner": "featureform",
-        "description": "abc",
-        "label": ("var"),
-        "features": [("a", "var")],
-    },
-    {
-        "name": "name",
-        "variant": "var",
-        "owner": "featureform",
-        "label": ("", "var"),
-        "description": "abc",
-        "features": [("a", "var")],
-    },
-    {
-        "name": "name",
-        "variant": "var",
-        "owner": "featureform",
-        "label": ("a", "var"),
-        "features": [],
-        "description": "abc",
-    },
-    {
-        "name": "name",
-        "variant": "var",
-        "owner": "featureform",
-        "label": ("a", "var"),
-        "features": [("a", "var"), ("var")],
-        "description": "abc",
-    },
-    {
-        "name": "name",
-        "variant": "var",
-        "owner": "featureform",
-        "label": ("a", "var"),
-        "features": [("a", "var"), ("", "var")],
-        "description": "abc",
-    },
-    {
-        "name": "name",
-        "variant": "var",
-        "owner": "featureform",
-        "label": ("a", "var"),
-        "features": [("a", "var"), ("b", "")],
-        "description": "abc",
-    },
-])
+@pytest.mark.parametrize(
+    "args",
+    [
+        {
+            "name": "name",
+            "variant": "var",
+            "owner": "featureform",
+            "description": "abc",
+            "label": ("var"),
+            "features": [("a", "var")],
+        },
+        {
+            "name": "name",
+            "variant": "var",
+            "owner": "featureform",
+            "label": ("", "var"),
+            "description": "abc",
+            "features": [("a", "var")],
+        },
+        {
+            "name": "name",
+            "variant": "var",
+            "owner": "featureform",
+            "label": ("a", "var"),
+            "features": [],
+            "description": "abc",
+        },
+        {
+            "name": "name",
+            "variant": "var",
+            "owner": "featureform",
+            "label": ("a", "var"),
+            "features": [("a", "var"), ("var")],
+            "description": "abc",
+        },
+        {
+            "name": "name",
+            "variant": "var",
+            "owner": "featureform",
+            "label": ("a", "var"),
+            "features": [("a", "var"), ("", "var")],
+            "description": "abc",
+        },
+        {
+            "name": "name",
+            "variant": "var",
+            "owner": "featureform",
+            "label": ("a", "var"),
+            "features": [("a", "var"), ("b", "")],
+            "description": "abc",
+        },
+    ],
+)
 def test_invalid_training_set(args):
     with pytest.raises((ValueError, TypeError)):
         TrainingSet(**args)
@@ -722,7 +780,7 @@ def test_invalid_training_set(args):
 def test_add_all_resources_with_schedule(all_resources_strange_order, redis_config):
     state = ResourceState()
     for resource in all_resources_strange_order:
-        if hasattr(resource, 'schedule'):
+        if hasattr(resource, "schedule"):
             resource.update_schedule("* * * * *")
         state.add(resource)
     assert state.sorted_list() == [
@@ -734,36 +792,50 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             team="team3",
             config=redis_config,
             tags=[],
-            properties={}
+            properties={},
         ),
-        Source(name="primary",
-               variant="abc",
-               definition=PrimaryData(location=SQLTable("table")),
-               owner="someone",
-               description="desc",
-               provider="redis-name",
-               schedule="* * * * *",
-               schedule_obj=Schedule(name="primary", variant="abc", resource_type=7, schedule_string="* * * * *"),
-               tags=[],
-               properties={}),
+        Source(
+            name="primary",
+            variant="abc",
+            definition=PrimaryData(location=SQLTable("table")),
+            owner="someone",
+            description="desc",
+            provider="redis-name",
+            schedule="* * * * *",
+            schedule_obj=Schedule(
+                name="primary",
+                variant="abc",
+                resource_type=7,
+                schedule_string="* * * * *",
+            ),
+            tags=[],
+            properties={},
+        ),
         Entity(name="user", description="A user", tags=[], properties={}),
-        Feature(name="feature",
+        Feature(
+            name="feature",
+            variant="v1",
+            source=("a", "b"),
+            description="feature",
+            value_type="float32",
+            location=ResourceColumnMapping(
+                entity="abc",
+                value="def",
+                timestamp="ts",
+            ),
+            entity="user",
+            owner="Owner",
+            provider="redis-name",
+            schedule="* * * * *",
+            schedule_obj=Schedule(
+                name="feature",
                 variant="v1",
-                source=("a", "b"),
-                description="feature",
-                value_type="float32",
-                location=ResourceColumnMapping(
-                    entity="abc",
-                    value="def",
-                    timestamp="ts",
-                ),
-                entity="user",
-                owner="Owner",
-                provider="redis-name",
-                schedule="* * * * *",
-                schedule_obj=Schedule(name="feature", variant="v1", resource_type=4, schedule_string="* * * * *"),
-                tags=[],
-                properties={}),
+                resource_type=4,
+                schedule_string="* * * * *",
+            ),
+            tags=[],
+            properties={},
+        ),
         Label(
             name="label",
             variant="v1",
@@ -779,30 +851,36 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             owner="Owner",
             provider="redis-name",
             tags=[],
-            properties={}
+            properties={},
         ),
-        TrainingSet(name="training-set",
-                    variant="v1",
-                    description="desc",
-                    owner="featureform",
-                    label=("label", "var"),
-                    features=[("f1", "var")],
-                    feature_lags=[],
-                    schedule="* * * * *",
-                    schedule_obj=Schedule(name="training-set", variant="v1", resource_type=6,
-                                          schedule_string="* * * * *"),
-                    tags=[],
-                    properties={}),
-        Schedule(name="feature",
-                 variant="v1",
-                 resource_type=4,
-                 schedule_string="* * * * *"),
-        Schedule(name="primary",
-                 variant="abc",
-                 resource_type=7,
-                 schedule_string="* * * * *"),
-        Schedule(name="training-set",
-                 variant="v1",
-                 resource_type=6,
-                 schedule_string="* * * * *"),
+        TrainingSet(
+            name="training-set",
+            variant="v1",
+            description="desc",
+            owner="featureform",
+            label=("label", "var"),
+            features=[("f1", "var")],
+            feature_lags=[],
+            schedule="* * * * *",
+            schedule_obj=Schedule(
+                name="training-set",
+                variant="v1",
+                resource_type=6,
+                schedule_string="* * * * *",
+            ),
+            tags=[],
+            properties={},
+        ),
+        Schedule(
+            name="feature", variant="v1", resource_type=4, schedule_string="* * * * *"
+        ),
+        Schedule(
+            name="primary", variant="abc", resource_type=7, schedule_string="* * * * *"
+        ),
+        Schedule(
+            name="training-set",
+            variant="v1",
+            resource_type=6,
+            schedule_string="* * * * *",
+        ),
     ]

@@ -47,3 +47,10 @@ jobs:
       - name: Run Linter
         continue-on-error: true
         run: golangci-lint run ./...
+
+  python-format:
+    name: Python Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: psf/black@stable

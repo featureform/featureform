@@ -3,7 +3,7 @@ import sys
 import pytest
 import os
 
-sys.path.insert(0, 'client/src/')
+sys.path.insert(0, "client/src/")
 from featureform.resources import BigQueryConfig, FirestoreConfig
 
 
@@ -21,7 +21,7 @@ def test_bigquery(bigquery_config):
     conf = BigQueryConfig(
         project_id=bigquery_config["ProjectID"],
         dataset_id=bigquery_config["DatasetID"],
-        credentials_path="provider/connection/gcp_test_credentials.json"
+        credentials_path="provider/connection/gcp_test_credentials.json",
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == bigquery_config
@@ -36,7 +36,7 @@ def test_firestore(firestore_config):
     conf = FirestoreConfig(
         project_id=firestore_config["ProjectID"],
         collection=firestore_config["Collection"],
-        credentials_path="provider/connection/gcp_test_credentials.json"
+        credentials_path="provider/connection/gcp_test_credentials.json",
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == firestore_config

@@ -14,6 +14,7 @@ load_dotenv(env_file_path)
 def get_random_string():
     import random
     import string
+
     return "".join(random.choice(string.ascii_lowercase) for _ in range(10))
 
 
@@ -50,37 +51,38 @@ redis = ff.register_redis(
     name=f"redis-quickstart_{VERSION}",
     host="quickstart-redis",  # The internal dns name for redis
     port=6379,
-    description="A Redis deployment we created for the Featureform quickstart"
+    description="A Redis deployment we created for the Featureform quickstart",
 )
 
-k8s = ff.register_k8s(
-    name=f"k8s_{VERSION}",
-    store=azure_blob
-)
+k8s = ff.register_k8s(name=f"k8s_{VERSION}", store=azure_blob)
 
 ice_cream = k8s.register_file(
     name=f"ice_cream_{VERSION}",
     variant=VERSION,
     description="A dataset of ice cream",
-    path="testing/ff/data/ice_cream_100rows.csv"
+    path="testing/ff/data/ice_cream_100rows.csv",
 )
 
 
-@k8s.df_transformation(name=f"ice_cream_entity_{VERSION}",
-                       variant=VERSION,
-                       inputs=[(f"ice_cream_{VERSION}", VERSION)],
-                       docker_image="featureformcom/k8s_runner:latest")
+@k8s.df_transformation(
+    name=f"ice_cream_entity_{VERSION}",
+    variant=VERSION,
+    inputs=[(f"ice_cream_{VERSION}", VERSION)],
+    docker_image="featureformcom/k8s_runner:latest",
+)
 def ice_cream_entity_transformation(df):
-    """ the ice cream dataset with entity """
+    """the ice cream dataset with entity"""
     df["entity"] = "farm"
     return df
 
 
-@k8s.df_transformation(name=f"ice_cream_transformation_{VERSION}",
-                       variant=VERSION,
-                       inputs=[(f"ice_cream_entity_{VERSION}", VERSION)])
+@k8s.df_transformation(
+    name=f"ice_cream_transformation_{VERSION}",
+    variant=VERSION,
+    inputs=[(f"ice_cream_entity_{VERSION}", VERSION)],
+)
 def ice_cream_transformation(df):
-    """the ice cream dataset """
+    """the ice cream dataset"""
     return df
 
 
@@ -93,7 +95,12 @@ ice_cream_transformation.register_resources(
     timestamp_column="time_index",
     inference_store=azure_blob,
     features=[
-        {"name": FEATURE_NAME, "variant": FEATURE_VARIANT, "column": "dairy_flow_rate", "type": "float32"},
+        {
+            "name": FEATURE_NAME,
+            "variant": FEATURE_VARIANT,
+            "column": "dairy_flow_rate",
+            "type": "float32",
+        },
     ],
 )
 
@@ -103,13 +110,18 @@ ice_cream_entity_transformation.register_resources(
     entity_column="entity",
     timestamp_column="time_index",
     labels=[
-        {"name": f"ice_cream_label_{VERSION}", "variant": FEATURE_VARIANT, "column": "quality_score",
-         "type": "float32"},
+        {
+            "name": f"ice_cream_label_{VERSION}",
+            "variant": FEATURE_VARIANT,
+            "column": "quality_score",
+            "type": "float32",
+        },
     ],
 )
 
 ff.register_training_set(
-    TRAININGSET_NAME, TRAININGSET_VARIANT,
+    TRAININGSET_NAME,
+    TRAININGSET_VARIANT,
     label=(f"ice_cream_label_{VERSION}", FEATURE_VARIANT),
     features=[
         (f"ice_cream_feature_{VERSION}", FEATURE_VARIANT),

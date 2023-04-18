@@ -22,13 +22,14 @@ table = snowflake.register_table(
     description="Transactions file from Kaggle",
 )
 
+
 @snowflake.sql_transformation(
     variant="variant",
 )
 def transform():
-    """ Get all transactions over $500
-    """
+    """Get all transactions over $500"""
     return "SELECT * FROM {{transactions.final}} WHERE amount > 500"
+
 
 entity = ff.register_entity("user")
 redis = ff.register_redis(

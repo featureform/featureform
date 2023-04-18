@@ -3,6 +3,7 @@ import pytest
 from featureform.resources import ResourceRedefinedError
 import shutil
 
+
 class TestResourcesRedefined:
     def test_duplicate_resources(self):
         ff.register_user("featureformer").make_default_owner()
@@ -14,23 +15,24 @@ class TestResourcesRedefined:
             name="transactions",
             variant="quickstart",
             description="A dataset of fraudulent transactions",
-            path="transactions.csv"
+            path="transactions.csv",
         )
 
         transactions = local.register_file(
             name="transactions",
             variant="quickstart",
             description="A dataset of fraudulent transactions",
-            path="transactions.csv"
+            path="transactions.csv",
         )
 
         user = ff.register_entity("user")
         user = ff.register_entity("user")
 
-        @local.df_transformation(variant="quickstart",
-                                 inputs=[("transactions", "quickstart")])
+        @local.df_transformation(
+            variant="quickstart", inputs=[("transactions", "quickstart")]
+        )
         def average_user_transaction(transactions):
-            """the average transaction amount for a user """
+            """the average transaction amount for a user"""
             return transactions.groupby("CustomerID")["TransactionAmount"].mean()
 
         # Register a column from our transformation as a feature
@@ -39,7 +41,12 @@ class TestResourcesRedefined:
             entity_column="CustomerID",
             inference_store=local,
             features=[
-                {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
+                {
+                    "name": "avg_transactions",
+                    "variant": "quickstart",
+                    "column": "TransactionAmount",
+                    "type": "float32",
+                },
             ],
         )
         average_user_transaction.register_resources(
@@ -47,7 +54,12 @@ class TestResourcesRedefined:
             entity_column="CustomerID",
             inference_store=local,
             features=[
-                {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
+                {
+                    "name": "avg_transactions",
+                    "variant": "quickstart",
+                    "column": "TransactionAmount",
+                    "type": "float32",
+                },
             ],
         )
 
@@ -56,32 +68,43 @@ class TestResourcesRedefined:
             entity=user,
             entity_column="CustomerID",
             labels=[
-                {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
+                {
+                    "name": "fraudulent",
+                    "variant": "quickstart",
+                    "column": "IsFraud",
+                    "type": "bool",
+                },
             ],
         )
         transactions.register_resources(
             entity=user,
             entity_column="CustomerID",
             labels=[
-                {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
+                {
+                    "name": "fraudulent",
+                    "variant": "quickstart",
+                    "column": "IsFraud",
+                    "type": "bool",
+                },
             ],
         )
 
         ff.register_training_set(
-            "fraud_training", "quickstart",
+            "fraud_training",
+            "quickstart",
             label=("fraudulent", "quickstart"),
             features=[("avg_transactions", "quickstart")],
         )
 
         ff.register_training_set(
-            "fraud_training", "quickstart",
+            "fraud_training",
+            "quickstart",
             label=("fraudulent", "quickstart"),
             features=[("avg_transactions", "quickstart")],
         )
 
         client = ff.ResourceClient(local=True)
         client.apply()
-
 
     def test_diff_resources_same_name_variant(self):
         client = ff.ResourceClient(local=True)
@@ -92,14 +115,14 @@ class TestResourcesRedefined:
             name="transaction",
             variant="quickstart",
             description="A dataset of fraudulent transactions",
-            path="transactions.csv"
+            path="transactions.csv",
         )
 
         transactions = local.register_file(
             name="transaction",
             variant="quickstart",
             description="A dataset of fraudulent transaction",
-            path="transaction.csv"
+            path="transaction.csv",
         )
 
         with pytest.raises(ResourceRedefinedError):
@@ -107,10 +130,11 @@ class TestResourcesRedefined:
 
         user = ff.register_entity("user")
 
-        @local.df_transformation(variant="quickstart",
-                                 inputs=[("transaction", "quickstart")])
+        @local.df_transformation(
+            variant="quickstart", inputs=[("transaction", "quickstart")]
+        )
         def average_user_transaction(transactions):
-            """the average transaction amount for a user """
+            """the average transaction amount for a user"""
             return transactions.groupby("CustomerID")["TransactionAmount"].mean()
 
         # Register a column from our transformation as a feature
@@ -119,7 +143,12 @@ class TestResourcesRedefined:
             entity_column="CustomerID",
             inference_store=local,
             features=[
-                {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
+                {
+                    "name": "avg_transactions",
+                    "variant": "quickstart",
+                    "column": "TransactionAmount",
+                    "type": "float32",
+                },
             ],
         )
         average_user_transaction.register_resources(
@@ -127,7 +156,12 @@ class TestResourcesRedefined:
             entity_column="CustomerID",
             inference_store=local,
             features=[
-                {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float64"},
+                {
+                    "name": "avg_transactions",
+                    "variant": "quickstart",
+                    "column": "TransactionAmount",
+                    "type": "float64",
+                },
             ],
         )
 
@@ -139,26 +173,38 @@ class TestResourcesRedefined:
             entity=user,
             entity_column="CustomerID",
             labels=[
-                {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
+                {
+                    "name": "fraudulent",
+                    "variant": "quickstart",
+                    "column": "IsFraud",
+                    "type": "bool",
+                },
             ],
         )
         transactions.register_resources(
             entity=user,
             entity_column="CustomerID",
             labels=[
-                {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
+                {
+                    "name": "fraudulent",
+                    "variant": "quickstart",
+                    "column": "IsFraud",
+                    "type": "bool",
+                },
             ],
         )
         with pytest.raises(ResourceRedefinedError):
             client.apply()
 
         ff.register_training_set(
-            "fraud_training", "quickstart",
+            "fraud_training",
+            "quickstart",
             label=("fraudulent", "quickstart"),
             features=[("avg_transactions", "quickstart")],
         )
         ff.register_training_set(
-            "fraud_training", "quickstart",
+            "fraud_training",
+            "quickstart",
             label=("fraudulent", "quickstart"),
             features=[("avg_tranzactions", "quickstart")],
         )
@@ -170,6 +216,6 @@ class TestResourcesRedefined:
         try:
             client = ff.ServingClient(local=True)
             client.impl.sqldb.close()
-            shutil.rmtree('.featureform')
+            shutil.rmtree(".featureform")
         except:
             print("File Already Removed")

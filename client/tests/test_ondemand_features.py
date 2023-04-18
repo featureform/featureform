@@ -50,14 +50,48 @@ def test_ondemand_decorator():
     [
         ([("avg_transactions", "quickstart")], {"user": "C8837983"}, [1875.0]),
         ([("pi", "default")], {"user": "C8837983"}, [3.141592653589793]),
-        ([("avg_transactions", "quickstart"), ("pi", "default")], {"user": "C8837983"}, [1875.0, 3.141592653589793]),
-        ([("pi", "default"), ("avg_transactions", "quickstart")], {"user": "C8837983"}, [3.141592653589793, 1875.0]),
-        ([("avg_transactions", "quickstart"), ("pi", "default"), ("avg_transactions", "quickstart")], {"user": "C8837983"}, [1875.0, 3.141592653589793, 1875.0]),
-        ([("avg_transactions", "quickstart"), ("pi", "default"), ("avg_transactions", "quickstart"), ("pi", "default")], {"user": "C8837983"}, [1875.0, 3.141592653589793, 1875.0, 3.141592653589793]),
-        ([("avg_transactions", "quickstart"), ("pi", "default"), ("pi", "pi_named"), ("pi_called", "default")], {"user": "C8837983"}, [1875.0, 3.141592653589793, 3.141592653589793, 3.141592653589793]),
+        (
+            [("avg_transactions", "quickstart"), ("pi", "default")],
+            {"user": "C8837983"},
+            [1875.0, 3.141592653589793],
+        ),
+        (
+            [("pi", "default"), ("avg_transactions", "quickstart")],
+            {"user": "C8837983"},
+            [3.141592653589793, 1875.0],
+        ),
+        (
+            [
+                ("avg_transactions", "quickstart"),
+                ("pi", "default"),
+                ("avg_transactions", "quickstart"),
+            ],
+            {"user": "C8837983"},
+            [1875.0, 3.141592653589793, 1875.0],
+        ),
+        (
+            [
+                ("avg_transactions", "quickstart"),
+                ("pi", "default"),
+                ("avg_transactions", "quickstart"),
+                ("pi", "default"),
+            ],
+            {"user": "C8837983"},
+            [1875.0, 3.141592653589793, 1875.0, 3.141592653589793],
+        ),
+        (
+            [
+                ("avg_transactions", "quickstart"),
+                ("pi", "default"),
+                ("pi", "pi_named"),
+                ("pi_called", "default"),
+            ],
+            {"user": "C8837983"},
+            [1875.0, 3.141592653589793, 3.141592653589793, 3.141592653589793],
+        ),
         pytest.param([], {}, [], marks=pytest.mark.xfail),
         pytest.param([("pi", "default")], None, [], marks=pytest.mark.xfail),
-    ]
+    ],
 )
 def test_serving_ondemand_precalculated_feature(features, entity, expected_output):
     register_resources()
@@ -78,28 +112,32 @@ def register_resources():
         name="transactions",
         variant="quickstart",
         description="A dataset of fraudulent transactions",
-        path="transactions.csv"
+        path="transactions.csv",
     )
 
-    @local.df_transformation(variant="quickstart",
-                            inputs=[("transactions", "quickstart")])
+    @local.df_transformation(
+        variant="quickstart", inputs=[("transactions", "quickstart")]
+    )
     def average_user_transaction(transactions):
-        """the average transaction amount for a user """
+        """the average transaction amount for a user"""
         return transactions.groupby("CustomerID")["TransactionAmount"].mean()
 
     @ff.ondemand_feature
     def pi(serving_client, entities, params):
         import math
+
         return math.pi
 
     @ff.ondemand_feature()
     def pi_called(serving_client, entities, params):
         import math
+
         return math.pi
 
     @ff.ondemand_feature(variant="pi_named")
     def pi(serving_client, entities, params):
         import math
+
         return math.pi
 
     user = ff.register_entity("user")
@@ -109,7 +147,12 @@ def register_resources():
         entity_column="CustomerID",
         inference_store=local,
         features=[
-            {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
+            {
+                "name": "avg_transactions",
+                "variant": "quickstart",
+                "column": "TransactionAmount",
+                "type": "float32",
+            },
         ],
     )
     # Register label from our base Transactions table
@@ -117,12 +160,18 @@ def register_resources():
         entity=user,
         entity_column="CustomerID",
         labels=[
-            {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
+            {
+                "name": "fraudulent",
+                "variant": "quickstart",
+                "column": "IsFraud",
+                "type": "bool",
+            },
         ],
     )
 
     ff.register_training_set(
-        "fraud_training", "quickstart",
+        "fraud_training",
+        "quickstart",
         label=("fraudulent", "quickstart"),
         features=[("avg_transactions", "quickstart")],
     )

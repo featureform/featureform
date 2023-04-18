@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 
+	"compress/gzip"
 	"fmt"
 	"os"
 	"os/exec"
@@ -638,9 +639,10 @@ type SparkExecutor interface {
 }
 
 type EMRExecutor struct {
-	client      *emr.Client
-	clusterName string
-	logger      *zap.SugaredLogger
+	client       *emr.Client
+	clusterName  string
+	logger       *zap.SugaredLogger
+	logFileStore FileStore
 }
 
 func (e EMRExecutor) InitializeExecutor(store SparkFileStore) error {
@@ -827,15 +829,33 @@ func NewSparkExecutor(execType pc.SparkExecutorType, config pc.SparkExecutorConf
 }
 
 func NewEMRExecutor(emrConfig pc.EMRConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+	awsAccessKeyId := emrConfig.Credentials.AWSAccessKeyId
+	awsSecretKey := emrConfig.Credentials.AWSSecretKey
+
 	client := emr.New(emr.Options{
 		Region:      emrConfig.ClusterRegion,
-		Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(emrConfig.Credentials.AWSAccessKeyId, emrConfig.Credentials.AWSSecretKey, "")),
+		Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(awsAccessKeyId, awsSecretKey, "")),
 	})
 
+	var logFileStore FileStore
+	describeEMR, err := client.DescribeCluster(context.TODO(), &emr.DescribeClusterInput{
+		ClusterId: aws.String(emrConfig.ClusterName),
+	})
+	if err != nil {
+		return nil, err
+	} else if describeEMR.Cluster.LogUri != nil {
+		logLocation := *describeEMR.Cluster.LogUri
+		logFileStore, err = createLogS3FileStore(emrConfig.ClusterRegion, logLocation, awsAccessKeyId, awsSecretKey)
+		if err != nil {
+			return nil, fmt.Errorf("could not create log fi: %v", err)
+		}
+	}
+
 	emrExecutor := EMRExecutor{
-		client:      client,
-		logger:      logger,
-		clusterName: emrConfig.ClusterName,
+		client:       client,
+		logger:       logger,
+		clusterName:  emrConfig.ClusterName,
+		logFileStore: logFileStore,
 	}
 	return &emrExecutor, nil
 }
@@ -868,10 +888,77 @@ func (e *EMRExecutor) RunSparkJob(args []string, store SparkFileStore) error {
 		StepId:    aws.String(stepId),
 	}, waitDuration)
 	if err != nil {
+		errorMessage, err := e.getStepErrorMessage(e.clusterName, stepId)
+		if err != nil {
+			return fmt.Errorf("could not get error message from EMR step: %v", err)
+		}
+
+		if errorMessage != "" {
+			return fmt.Errorf("the EMR step '%s' failed: %s", stepId, errorMessage)
+		}
+
 		e.logger.Errorw("Failure waiting for completion of EMR cluster", err)
-		return err
+		return fmt.Errorf("failure waiting for completion of EMR cluster: %s", err)
 	}
 	return nil
+}
+
+func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string) (string, error) {
+	stepResults, err := e.client.DescribeStep(context.TODO(), &emr.DescribeStepInput{
+		ClusterId: aws.String(clusterId),
+		StepId:    aws.String(stepId),
+	})
+	if err != nil {
+		return "", fmt.Errorf("could not get information on EMR step '%s'", stepId)
+	}
+
+	if stepResults.Step.Status.State == "FAILED" {
+		var errorMsg string
+		// check if there are any errors
+		if stepResults.Step.Status.FailureDetails.Message != nil {
+			// get the error message
+			errorMsg = *stepResults.Step.Status.FailureDetails.Message
+		}
+		if errorMsg != "" {
+			return errorMsg, nil
+		}
+
+		if stepResults.Step.Status.FailureDetails.LogFile != nil {
+			logFile := *stepResults.Step.Status.FailureDetails.LogFile
+
+			bucket, path := getBucketAndPathFromFilePath(logFile)
+			outputFilePath := fmt.Sprintf("%s/stdout.gz", path)
+
+			// wait until log file exists
+			for {
+				fileExists, err := e.logFileStore.Exists(outputFilePath)
+				if err != nil {
+					return "", fmt.Errorf("could not determine if file '%s' exists: %v", outputFilePath, err)
+				}
+
+				if fileExists {
+					break
+				}
+
+				time.Sleep(2 * time.Second)
+			}
+
+			logs, err := e.logFileStore.Read(outputFilePath)
+			if err != nil {
+				return "", fmt.Errorf("could not read log file in '%s' bucket at '%s' path: %v", bucket, outputFilePath, err)
+			}
+
+			// the output file is compressed so we need decompress it
+			errorMessage, err := decompressMessage(logs)
+			if err != nil {
+				return "", fmt.Errorf("could not decompress error message: %v", err)
+			}
+
+			return errorMessage, nil
+		}
+	}
+
+	return "", nil
 }
 
 func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
@@ -909,6 +996,62 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 	argList = append(argList, "--source_list")
 	argList = append(argList, sourceList...)
 	return argList
+}
+
+func createLogS3FileStore(emrRegion string, s3LogLocation string, awsAccessKeyId string, awsSecretKey string) (FileStore, error) {
+	if s3LogLocation == "" {
+		return nil, nil
+	}
+	bucketName, path := getBucketAndPathFromFilePath(s3LogLocation)
+
+	logS3Config := pc.S3FileStoreConfig{
+		Credentials:  pc.AWSCredentials{AWSAccessKeyId: awsAccessKeyId, AWSSecretKey: awsSecretKey},
+		BucketRegion: emrRegion,
+		BucketPath:   bucketName,
+		Path:         path,
+	}
+
+	config, err := logS3Config.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("could not serialize s3 file store config: %v", err)
+	}
+
+	logFileStore, err := NewS3FileStore(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not create s3 file store (bucket: %s, path: %s) for emr logs: %v", err, bucketName, path)
+	}
+	return logFileStore, nil
+}
+
+func getBucketAndPathFromFilePath(filePath string) (string, string) {
+	logFileWithoutPrefix := strings.Split(filePath, "://")[1]
+	endOfBucketNameIdx := strings.Index(logFileWithoutPrefix, "/")
+	bucket := logFileWithoutPrefix[:endOfBucketNameIdx]
+	path := strings.Trim(logFileWithoutPrefix[endOfBucketNameIdx:], "/")
+
+	return bucket, path
+}
+
+func decompressMessageToString(message []byte) (string, error) {
+	// this function takes a gzip compressed byte array and
+	// decompresses it into string
+
+	buffer := bytes.NewBuffer(message)
+
+	gr, err := gzip.NewReader(buffer)
+	if err != nil {
+		return "", fmt.Errorf("could not create a new gzip Reader: %v", err)
+	}
+
+	var decompressed bytes.Buffer
+	if _, err := decompressed.ReadFrom(gr); err != nil {
+		return "", fmt.Errorf("could not read from gzip Reader: %v", err)
+	}
+
+	if err := gr.Close(); err != nil {
+		return "", fmt.Errorf("could not close gzip Reader: %v", err)
+	}
+	return decompressed.String(), nil
 }
 
 func removeEspaceCharacters(values []string) []string {

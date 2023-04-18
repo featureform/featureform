@@ -127,14 +127,14 @@ features = [
         "all-variants": ["quickstart"],
         "type": "Feature",
         "default-variant": "quickstart",
-        "name": "avg_transactions",
+        "name": "avg_transaction",
         "variants": {
             "quickstart": {
                 "mode": "PRECOMPUTED",
                 "is-on-demand": False,
                 "description": "",
                 "entity": "user",
-                "name": "avg_transactions",
+                "name": "avg_transaction",
                 "owner": "default_user",
                 "provider": "redis-quickstart",
                 "data-type": "float32",

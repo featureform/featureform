@@ -5,7 +5,7 @@ redis = ff.register_redis(
     name="redis-quickstart",
     host="quickstart-redis",  # The internal dns name for redis
     port=6379,
-    description="A Redis deployment we created for the Featureform quickstart"
+    description="A Redis deployment we created for the Featureform quickstart",
 )
 
 dynamo = ff.register_dynamodb(
@@ -14,7 +14,7 @@ dynamo = ff.register_dynamodb(
     team="featureform",
     access_key=os.getenv("DYNAMO_ACCESS_KEY"),
     secret_key=os.getenv("DYNAMO_SECRET_KEY"),
-    region="us-east-1"
+    region="us-east-1",
 )
 
 postgres = ff.register_postgres(
@@ -24,7 +24,7 @@ postgres = ff.register_postgres(
     user="postgres",
     password="password",
     database="postgres",
-    description="A Postgres deployment we created for the Featureform quickstart"
+    description="A Postgres deployment we created for the Featureform quickstart",
 )
 
 transactions = postgres.register_table(
@@ -37,9 +37,11 @@ transactions = postgres.register_table(
 
 @postgres.sql_transformation(variant="quickstart")
 def average_user_transaction():
-    """the average transaction amount for a user """
-    return "SELECT CustomerID as user_id, avg(TransactionAmount) " \
-           "as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
+    """the average transaction amount for a user"""
+    return (
+        "SELECT CustomerID as user_id, avg(TransactionAmount) "
+        "as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
+    )
 
 
 user = ff.register_entity("user")
@@ -49,7 +51,12 @@ average_user_transaction.register_resources(
     entity_column="user_id",
     inference_store=redis,
     features=[
-        {"name": "avg_transactions", "variant": "quickstart", "column": "avg_transaction_amt", "type": "float32"},
+        {
+            "name": "avg_transactions",
+            "variant": "quickstart",
+            "column": "avg_transaction_amt",
+            "type": "float32",
+        },
     ],
 )
 
@@ -58,7 +65,12 @@ average_user_transaction.register_resources(
     entity_column="user_id",
     inference_store=dynamo,
     features=[
-        {"name": "avg_transactions_2", "variant": "dynamo", "column": "avg_transaction_amt", "type": "float32"},
+        {
+            "name": "avg_transactions_2",
+            "variant": "dynamo",
+            "column": "avg_transaction_amt",
+            "type": "float32",
+        },
     ],
 )
 
@@ -67,12 +79,18 @@ transactions.register_resources(
     entity=user,
     entity_column="customerid",
     labels=[
-        {"name": "fraudulent", "variant": "quickstart", "column": "isfraud", "type": "bool"},
+        {
+            "name": "fraudulent",
+            "variant": "quickstart",
+            "column": "isfraud",
+            "type": "bool",
+        },
     ],
 )
 
 ff.register_training_set(
-    "fraud_training", "quickstart",
+    "fraud_training",
+    "quickstart",
     label=("fraudulent", "quickstart"),
     features=[("avg_transactions", "quickstart")],
 )

@@ -5,10 +5,23 @@ import sys
 import pytest
 import dill
 
-sys.path.insert(0, 'client/src/')
-from featureform.register import ResourceClient, DFTransformation, SQLTransformation, PrimaryData, Location
-from featureform.resources import Feature, Label, TrainingSet, Source, Transformation, ResourceColumnMapping, \
-    ResourceStatus
+sys.path.insert(0, "client/src/")
+from featureform.register import (
+    ResourceClient,
+    DFTransformation,
+    SQLTransformation,
+    PrimaryData,
+    Location,
+)
+from featureform.resources import (
+    Feature,
+    Label,
+    TrainingSet,
+    Source,
+    Transformation,
+    ResourceColumnMapping,
+    ResourceStatus,
+)
 from featureform.proto import metadata_pb2 as pb
 
 
@@ -29,10 +42,8 @@ primary_table_name = "my_table"
 sql_definition_proto = pb.SourceVariant(
     name="",
     transformation=pb.Transformation(
-        SQLTransformation=pb.SQLTransformation(
-            query=sql_query
-        )
-    )
+        SQLTransformation=pb.SQLTransformation(query=sql_query)
+    ),
 )
 
 df_definition_proto = pb.SourceVariant(
@@ -40,32 +51,23 @@ df_definition_proto = pb.SourceVariant(
     transformation=pb.Transformation(
         DFTransformation=pb.DFTransformation(
             query=df_query,
-            inputs=[pb.NameVariant(name=nv[0], variant=nv[1]) for nv in df_name_variants]
+            inputs=[
+                pb.NameVariant(name=nv[0], variant=nv[1]) for nv in df_name_variants
+            ],
         )
-    )
+    ),
 )
 
 primary_definition_proto = pb.SourceVariant(
     name="",
-    primaryData=pb.PrimaryData(
-        table=pb.PrimarySQLTable(
-            name=primary_table_name
-        )
-    )
+    primaryData=pb.PrimaryData(table=pb.PrimarySQLTable(name=primary_table_name)),
 )
 
-sql_definition_obj = SQLTransformation(
-    sql_query
-)
+sql_definition_obj = SQLTransformation(sql_query)
 
-df_definition_obj = DFTransformation(
-    query=df_query,
-    inputs=df_name_variants
-)
+df_definition_obj = DFTransformation(query=df_query, inputs=df_name_variants)
 
-primary_definition_obj = PrimaryData(
-    Location(primary_table_name)
-)
+primary_definition_obj = PrimaryData(Location(primary_table_name))
 
 
 # Fetches status from proto for same response that client would give
@@ -73,17 +75,20 @@ def get_pb_status(status):
     return pb.ResourceStatus.Status._enum_type.values[status].name
 
 
-@pytest.mark.parametrize("status,expected,ready", [
-    (pb_no_status, ResourceStatus.NO_STATUS, False),
-    (pb_created, ResourceStatus.CREATED, False),
-    (pb_pending, ResourceStatus.PENDING, False),
-    (pb_ready, ResourceStatus.READY, True),
-    (pb_failed, ResourceStatus.FAILED, False),
-])
+@pytest.mark.parametrize(
+    "status,expected,ready",
+    [
+        (pb_no_status, ResourceStatus.NO_STATUS, False),
+        (pb_created, ResourceStatus.CREATED, False),
+        (pb_pending, ResourceStatus.PENDING, False),
+        (pb_ready, ResourceStatus.READY, True),
+        (pb_failed, ResourceStatus.FAILED, False),
+    ],
+)
 def test_feature_status(mocker, status, expected, ready):
     # Environment variable is getting set somewhere when using Makefile
     # Needs further investigation
-    os.environ.pop('FEATUREFORM_CERT', None)
+    os.environ.pop("FEATUREFORM_CERT", None)
     mocker.patch.object(
         ResourceClient,
         "get_feature",
@@ -98,8 +103,9 @@ def test_feature_status(mocker, status, expected, ready):
             description="",
             status=get_pb_status(status),
             tags=[],
-            properties={}
-        ))
+            properties={},
+        ),
+    )
     client = ResourceClient("host")
     feature = client.get_feature("", "")
     assert feature.get_status() == expected
@@ -107,13 +113,16 @@ def test_feature_status(mocker, status, expected, ready):
     assert feature.is_ready() == ready
 
 
-@pytest.mark.parametrize("status,expected,ready", [
-    (pb_no_status, ResourceStatus.NO_STATUS, False),
-    (pb_created, ResourceStatus.CREATED, False),
-    (pb_pending, ResourceStatus.PENDING, False),
-    (pb_ready, ResourceStatus.READY, True),
-    (pb_failed, ResourceStatus.FAILED, False),
-])
+@pytest.mark.parametrize(
+    "status,expected,ready",
+    [
+        (pb_no_status, ResourceStatus.NO_STATUS, False),
+        (pb_created, ResourceStatus.CREATED, False),
+        (pb_pending, ResourceStatus.PENDING, False),
+        (pb_ready, ResourceStatus.READY, True),
+        (pb_failed, ResourceStatus.FAILED, False),
+    ],
+)
 def test_label_status(mocker, status, expected, ready):
     mocker.patch.object(
         ResourceClient,
@@ -129,8 +138,9 @@ def test_label_status(mocker, status, expected, ready):
             description="",
             status=get_pb_status(status),
             tags=[],
-            properties={}
-        ))
+            properties={},
+        ),
+    )
     client = ResourceClient("host")
     label = client.get_label("", "")
     assert label.get_status() == expected
@@ -138,13 +148,16 @@ def test_label_status(mocker, status, expected, ready):
     assert label.is_ready() == ready
 
 
-@pytest.mark.parametrize("status,expected,ready", [
-    (pb_no_status, ResourceStatus.NO_STATUS, False),
-    (pb_created, ResourceStatus.CREATED, False),
-    (pb_pending, ResourceStatus.PENDING, False),
-    (pb_ready, ResourceStatus.READY, True),
-    (pb_failed, ResourceStatus.FAILED, False),
-])
+@pytest.mark.parametrize(
+    "status,expected,ready",
+    [
+        (pb_no_status, ResourceStatus.NO_STATUS, False),
+        (pb_created, ResourceStatus.CREATED, False),
+        (pb_pending, ResourceStatus.PENDING, False),
+        (pb_ready, ResourceStatus.READY, True),
+        (pb_failed, ResourceStatus.FAILED, False),
+    ],
+)
 def test_training_set_status(mocker, status, expected, ready):
     mocker.patch.object(
         ResourceClient,
@@ -158,8 +171,9 @@ def test_training_set_status(mocker, status, expected, ready):
             description="",
             status=get_pb_status(status),
             tags=[],
-            properties={}
-        ))
+            properties={},
+        ),
+    )
     client = ResourceClient("host")
     ts = client.get_training_set("", "")
     assert ts.get_status() == expected
@@ -167,13 +181,16 @@ def test_training_set_status(mocker, status, expected, ready):
     assert ts.is_ready() == ready
 
 
-@pytest.mark.parametrize("status,expected,ready", [
-    (pb_no_status, ResourceStatus.NO_STATUS, False),
-    (pb_created, ResourceStatus.CREATED, False),
-    (pb_pending, ResourceStatus.PENDING, False),
-    (pb_ready, ResourceStatus.READY, True),
-    (pb_failed, ResourceStatus.FAILED, False),
-])
+@pytest.mark.parametrize(
+    "status,expected,ready",
+    [
+        (pb_no_status, ResourceStatus.NO_STATUS, False),
+        (pb_created, ResourceStatus.CREATED, False),
+        (pb_pending, ResourceStatus.PENDING, False),
+        (pb_ready, ResourceStatus.READY, True),
+        (pb_failed, ResourceStatus.FAILED, False),
+    ],
+)
 def test_source_status(mocker, status, expected, ready):
     mocker.patch.object(
         ResourceClient,
@@ -186,8 +203,9 @@ def test_source_status(mocker, status, expected, ready):
             description="",
             status=get_pb_status(status),
             tags=[],
-            properties={}
-        ))
+            properties={},
+        ),
+    )
     client = ResourceClient("host")
     source = client.get_source("", "")
     assert source.get_status() == expected
@@ -195,18 +213,24 @@ def test_source_status(mocker, status, expected, ready):
     assert source.is_ready() == ready
 
 
-@pytest.mark.parametrize("source,expected", [
-    (sql_definition_proto, sql_definition_obj),
-])
+@pytest.mark.parametrize(
+    "source,expected",
+    [
+        (sql_definition_proto, sql_definition_obj),
+    ],
+)
 def test_sql_source_definition_parse(source, expected):
     client = ResourceClient("host")
     source_obj = client._get_source_definition(source)
     assert source_obj.query == expected.query
 
 
-@pytest.mark.parametrize("source,expected", [
-    (df_definition_proto, df_definition_obj),
-])
+@pytest.mark.parametrize(
+    "source,expected",
+    [
+        (df_definition_proto, df_definition_obj),
+    ],
+)
 def test_df_source_definition_parse(source, expected):
     client = ResourceClient("host")
     source_obj = client._get_source_definition(source)
@@ -214,9 +238,12 @@ def test_df_source_definition_parse(source, expected):
     assert source_obj.inputs == expected.inputs
 
 
-@pytest.mark.parametrize("source,expected", [
-    (primary_definition_proto, primary_definition_obj),
-])
+@pytest.mark.parametrize(
+    "source,expected",
+    [
+        (primary_definition_proto, primary_definition_obj),
+    ],
+)
 def test_primary_source_definition_parse(source, expected):
     client = ResourceClient("host")
     source_obj = client._get_source_definition(source)

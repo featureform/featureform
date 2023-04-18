@@ -26,7 +26,7 @@ transactions = postgres.register_table(
 
 
 @postgres.sql_transformation(variant="quickstart")
-def average_user_transaction():
+def average_user_transactions():
     """the average transaction amount for a user"""
     return (
         "SELECT CustomerID as user_id, avg(TransactionAmount) "
@@ -36,13 +36,13 @@ def average_user_transaction():
 
 user = ff.register_entity("user")
 
-average_user_transaction.register_resources(
+average_user_transactions.register_resources(
     entity=user,
     entity_column="user_id",
     inference_store=redis,
     features=[
         {
-            "name": "avg_transactions",
+            "name": "avg_transaction",
             "variant": "quickstart",
             "column": "avg_transaction_amt",
             "type": "float32",
@@ -66,7 +66,6 @@ transactions.register_resources(
 
 ff.register_training_set(
     "fraud_training",
-    "quickstart",
     label=("fraudulent", "quickstart"),
-    features=[("avg_transactions", "quickstart")],
+    features=[("avg_transaction", "quickstart")],
 )

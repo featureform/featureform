@@ -60,11 +60,11 @@ sources = [
         "all-variants": ["quickstart"],
         "type": "Source",
         "default-variant": "quickstart",
-        "name": "average_user_transaction",
+        "name": "average_user_transactions",
         "variants": {
             "quickstart": {
-                "description": "the average transaction amount for a user ",
-                "name": "average_user_transaction",
+                "description": "the average transaction amount for a user",
+                "name": "average_user_transactions",
                 "source-type": "SQL Transformation",
                 "specifications": {},
                 "owner": "default_user",
@@ -147,7 +147,10 @@ features = [
                     "TS": "",
                     "Value": "avg_transaction_amt",
                 },
-                "source": {"Name": "average_user_transaction", "Variant": "quickstart"},
+                "source": {
+                    "Name": "average_user_transactions",
+                    "Variant": "quickstart",
+                },
                 "training-sets": None,
                 "tags": [],
                 "properties": {},
@@ -190,17 +193,17 @@ labels = [
 
 training_sets = [
     {
-        "all-variants": ["quickstart"],
+        "all-variants": ["default"],
         "type": "TrainingSet",
-        "default-variant": "quickstart",
+        "default-variant": "default",
         "name": "fraud_training",
         "variants": {
-            "quickstart": {
+            "default": {
                 "description": "",
                 "name": "fraud_training",
                 "owner": "default_user",
                 "provider": "postgres-quickstart",
-                "variant": "quickstart",
+                "variant": "default",
                 "label": {"Name": "fraudulent", "Variant": "quickstart"},
                 "features": None,
                 "status": "READY",

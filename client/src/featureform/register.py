@@ -1939,7 +1939,7 @@ class Registrar:
         Args:
             name (str): Name of HDFS store to be registered
             host (str): The hostname for HDFS
-            port (str): The port for the namenode for HDFS
+            port (str): The IPC port for the Namenode for HDFS. (Typically 8020 or 9000)
             path (str): A storage path within HDFS
             username (str): A Username for HDFS
             description (str): Description of HDFS provider to be registered

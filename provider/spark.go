@@ -438,21 +438,6 @@ func NewDatabricksExecutor(databricksConfig pc.DatabricksConfig) (SparkExecutor,
 }
 
 func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) error {
-	//set spark configuration
-	// clusterClient := db.client.Clusters()
-	// setConfigReq := clusterHTTPModels.EditReq{
-	// 	ClusterID: db.cluster,
-	// 	SparkConf: clusterModels.SparkConfPair{
-	// 		Key:   "fs.azure.account.key.testingstoragegen.dfs.core.windows.net", //change to one based on account name
-	// 		Value: helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
-	// 	},
-	// }
-	//TODO: resolve error: "Custom containers is turned off for your deployment. Please contact your workspace administrator to use this feature."
-	// need to specify spark version
-	// if err := clusterClient.Edit(setConfigReq); err != nil {
-	// 	return fmt.Errorf("Could not modify cluster to accept spark configs; %v", err)
-	// }
-
 	pythonTask := jobs.SparkPythonTask{
 		PythonFile: db.PythonFileURI(store),
 		Parameters: args,
@@ -474,11 +459,23 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 		return fmt.Errorf("error creating job: %v", err)
 	}
 
-	_, err = db.client.Jobs.RunNowAndWait(ctx, jobs.RunNow{
+	runResp, err := db.client.Jobs.RunNowAndWait(ctx, jobs.RunNow{
 		JobId: jobToRun.JobId,
 	})
 	if err != nil {
-		return fmt.Errorf("the '%v' job failed: %v", jobToRun.JobId, err)
+		// runJob := jobs.GetRunOutput{
+		// 	RunId: runResp.RunId,
+		// }
+		// output, err := db.client.Jobs.GetRunOutput(ctx, runJob)
+		// if err != nil {
+		// 	return fmt.Errorf("could not retreive job output: %v", err)
+		// }
+
+		// if len(output.Error) > 0 {
+		// 	return fmt.Errorf("the '%v' job failed: %v", jobToRun.JobId, output.Error)
+		// }
+
+		return fmt.Errorf("the '%v' job failed with run id '%d': %v", jobToRun.JobId, runResp.RunId, err)
 	}
 
 	return nil

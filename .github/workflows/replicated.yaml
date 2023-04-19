@@ -358,10 +358,12 @@ jobs:
         id: vars
         shell: bash
         run: |
+          echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
           echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
       - name: Set production tag
-        run: echo "TAG=0.0.0-${{ steps.vars.outputs.sha_short }}" >> $GITHUB_ENV
+        run: | 
+          echo "TAG=0.0.0-${{ steps.vars.outputs.sha_short }}" >> $GITHUB_ENV
 
       - name: Install Helm
         run: |
@@ -382,4 +384,4 @@ jobs:
 
       - name: Create Replicated Release
         run: |
-          replicated release create --yaml-dir ./charts/manifests --auto -y
+          replicated release create --yaml-dir ./charts/manifests --promote ${{ steps.vars.outputs.sha_short }}  --auto -y

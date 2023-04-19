@@ -384,4 +384,4 @@ jobs:
 
       - name: Create Replicated Release
         run: |
-          replicated release create --yaml-dir ./charts/manifests --promote $GITHUB_BASE_REF --auto -y
+          replicated release create --yaml-dir ./charts/manifests --promote $GITHUB_HEAD_REF --auto -y

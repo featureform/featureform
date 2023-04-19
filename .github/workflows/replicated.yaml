@@ -365,4 +365,4 @@ jobs:
 
       - name: Create Replicated Release
         run: |
-          replicated release create --yaml-dir ./charts/manifests --auto
+          replicated release create --yaml-dir ./charts/manifests --auto -y

@@ -2070,12 +2070,19 @@ class SparkCredentials:
         return "SPARK"
 
     def config(self):
+        core_site = (
+            "" if self.core_site_path == "" else open(self.core_site_path, "r").read()
+        )
+        yarn_site = (
+            "" if self.yarn_site_path == "" else open(self.yarn_site_path, "r").read()
+        )
+
         return {
             "Master": self.master,
             "DeployMode": self.deploy_mode,
             "PythonVersion": self.python_version,
-            "CoreSite": open(self.core_site_path, "r").read(),
-            "YarnSite": open(self.yarn_site_path, "r").read(),
+            "CoreSite": core_site,
+            "YarnSite": yarn_site,
         }
 
 

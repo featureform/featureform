@@ -14,7 +14,6 @@ import (
 	"math/rand"
 	// "os"
 	"bytes"
-	"compress/gzip"
 	"encoding/csv"
 	"reflect"
 	"strings"

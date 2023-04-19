@@ -361,6 +361,7 @@ jobs:
       - name: Package Helm
         run: |
           sed -i -e "s/0.0.0/${{ env.TAG }}/g" ./charts/featureform/values.yaml 
+          sed -i -e "s/0.0.0/${{ env.TAG }}/g" ./charts/manifests/featureform.yaml
           helm package ./charts/featureform -d ./charts/manifests --app-version ${{ env.TAG }} --version ${{ env.TAG }}
 
       - name: Create Replicated Release

@@ -6,7 +6,7 @@ spec:
   # chart identifies a matching chart from a .tgz
   chart:
     name: featureform
-    chartVersion: 0.2.0
+    chartVersion: 0.0.0
 
   # helmVersion identifies the Helm Version used to render the Chart.
   helmVersion: v3

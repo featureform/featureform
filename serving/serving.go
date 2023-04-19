@@ -75,6 +75,33 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 	return nil
 }
 
+func (serv *FeatureServer) SourceData(req *pb.SourceDataRequest, stream pb.Feature_SourceDataServer) error {
+	id := req.GetId()
+	name, variant := id.GetName(), id.GetVersion()
+	logger := serv.Logger.With("Name", name, "Variant", variant)
+	logger.Info("Serving source data")
+	iter, err := serv.getSourceDataIterator(name, variant, -1)
+	if err != nil {
+		logger.Errorw("Failed to get source data iterator", "Error", err)
+		return err
+	}
+	for iter.Next() {
+		sRow, err := serializedSourceRow(iter.Values())
+		if err != nil {
+			return err
+		}
+		if err := stream.Send(sRow); err != nil {
+			logger.Errorw("Failed to write to source data stream", "Error", err)
+			return err
+		}
+	}
+	if err := iter.Err(); err != nil {
+		logger.Errorw("Source data set error", "Error", err)
+		return err
+	}
+	return nil
+}
+
 func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provider.TrainingSetIterator, error) {
 	ctx := context.TODO()
 	serv.Logger.Infow("Getting Training Set Iterator", "name", name, "variant", variant)
@@ -99,6 +126,33 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	}
 	serv.Logger.Debugw("Get Training Set From Store", "name", name, "variant", variant)
 	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
+}
+
+func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int64) (provider.GenericTableIterator, error) {
+	ctx := context.TODO()
+	serv.Logger.Infow("Getting Source Variant Iterator", "name", name, "variant", variant)
+	sv, err := serv.Metadata.GetSourceVariant(ctx, metadata.NameVariant{name, variant})
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get source variant")
+	}
+	serv.Logger.Debugw("Fetching Source Variant Provider", "tablename", sv.PrimaryDataSQLTableName())
+	providerEntry, err := sv.FetchProvider(serv.Metadata, ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get fetch provider")
+	}
+	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get provider")
+	}
+	store, err := p.AsOfflineStore()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not open as offline store")
+	}
+	primary, err := store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary})
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get primary table")
+	}
+	return primary.IterateSegment(limit)
 }
 
 func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServeRequest) (*pb.FeatureRow, error) {
@@ -192,7 +246,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 	default:
 		return nil, fmt.Errorf("unknown computation mode %v", meta.Mode())
 	}
-	f, err := newFeature(val)
+	f, err := newValue(val)
 	if err != nil {
 		logger.Errorw("invalid feature type", "Error", err)
 		obs.SetError()
@@ -200,4 +254,18 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 	}
 	obs.ServeRow()
 	return f.Serialized(), nil
+}
+
+func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceDataRequest) (*pb.SourceDataColumns, error) {
+	id := req.GetId()
+	name, variant := id.GetName(), id.GetVersion()
+	serv.Logger.Infow("Getting source columns", "Name", name, "Variant", variant)
+	it, err := serv.getSourceDataIterator(name, variant, 0) // Set limit to zero to fetch columns only
+	if err != nil {
+		return nil, err
+	}
+	defer it.Close()
+	return &pb.SourceDataColumns{
+		Columns: it.Columns(),
+	}, nil
 }

@@ -678,6 +678,32 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 	}
 }
 
+func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feature_SourceDataServer) error {
+	serv.Logger.Infow("Serving Source Data", "id", req.Id.String())
+	client, err := serv.client.SourceData(context.Background(), req)
+	if err != nil {
+		return fmt.Errorf("could not serve source data: %w", err)
+	}
+	for {
+		row, err := client.Recv()
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return fmt.Errorf("receive error: %w", err)
+		}
+		if err := stream.Send(row); err != nil {
+			serv.Logger.Errorf("failed to write to source data stream: %w", err)
+			return fmt.Errorf("source send row: %w", err)
+		}
+	}
+}
+
+func (serv *OnlineServer) SourceColumns(ctx context.Context, req *srv.SourceDataRequest) (*srv.SourceDataColumns, error) {
+	serv.Logger.Infow("Serving Source Columns", "id", req.Id.String())
+	return serv.client.SourceColumns(ctx, req)
+}
+
 func (serv *ApiServer) Serve() error {
 	if serv.grpcServer != nil {
 		return fmt.Errorf("server already running")

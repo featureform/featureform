@@ -11,6 +11,8 @@ package featureform.serving.proto;
 service Feature {
   rpc TrainingData(TrainingDataRequest) returns (stream TrainingDataRow) {}
   rpc FeatureServe(FeatureServeRequest) returns (FeatureRow) {}
+  rpc SourceData(SourceDataRequest) returns (stream SourceDataRow) {}
+  rpc SourceColumns(SourceDataRequest) returns (SourceDataColumns) {}
 }
 
 message Model {
@@ -63,4 +65,21 @@ message Value {
         bool   bool_value = 7;
         bytes on_demand_function = 8;
     }
+}
+
+message SourceID {
+  string name = 1;
+  string version = 2;
+}
+
+message SourceDataRequest {
+  SourceID id = 1;
+}
+
+message SourceDataRow {
+  repeated Value rows = 1;
+}
+
+message SourceDataColumns {
+  repeated string columns = 1;
 }

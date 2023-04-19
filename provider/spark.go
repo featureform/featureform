@@ -1024,6 +1024,14 @@ func createLogS3FileStore(emrRegion string, s3LogLocation string, awsAccessKeyId
 }
 
 func getBucketAndPathFromFilePath(filePath string) (string, string) {
+	// this method takes a file path and returns bucket and path
+	// example:
+	//   Input:
+	//     filePath: s3://bucket_name/path/to/file/example.log
+	//   Return values:
+	//     bucket: bucket_name
+	//     path: path/to/file/example.log
+
 	logFileWithoutPrefix := strings.Split(filePath, "://")[1]
 	endOfBucketNameIdx := strings.Index(logFileWithoutPrefix, "/")
 	bucket := logFileWithoutPrefix[:endOfBucketNameIdx]

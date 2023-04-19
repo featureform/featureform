@@ -109,6 +109,10 @@ export default class Resource {
     return "/" + this._urlPath;
   }
 
+  get queryParam() {
+    return this._urlPath;
+  }
+
   urlPathResource(name) {
     return "/" + this._urlPath + "/" + name;
   }

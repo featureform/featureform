@@ -6,6 +6,7 @@ import Button from "@material-ui/core/Button";
 import Box from "@material-ui/core/Box";
 import Typography from "@material-ui/core/Typography";
 import Resource from "../../api/resources/Resource.js";
+import Link from "next/link.js";
 
 const useStyles = makeStyles((theme, id) => ({
   root: {
@@ -98,25 +99,28 @@ const Tile = ({ detail, id }) => {
     <ClientOnly>
       <Box sx={{ boxShadow: 3 }}>
         <div className={classes.root}>
-          <Button
-            className={buttonClass}
-            onClick={handleClick}
-            disabled={disabled}
-            focusRipple={true}
-            variant="contained"
-          >
-            <div className={classes.tileContent}>
-              <div>
-                <Icon className={classes.icon}>{resourceType.materialIcon}</Icon>
-              </div>
+          <Link href={`/datapage?type=${resourceType.queryParam}`}>
+            <Button
+              className={buttonClass}
+              // onClick={handleClick}
+              // href="/users"
+              disabled={disabled}
+              focusRipple={true}
+              variant="contained"
+            >
+              <div className={classes.tileContent}>
+                <div>
+                  <Icon className={classes.icon}>{resourceType.materialIcon}</Icon>
+                </div>
 
-              <div>
-                <Typography className={classes.title} variant="h5">
-                  <b>{resourceType.typePlural}</b>
-                </Typography>
+                <div>
+                  <Typography className={classes.title} variant="h5">
+                    <b>{resourceType.typePlural}</b>
+                  </Typography>
+                </div>
               </div>
-            </div>
-          </Button>
+            </Button>
+          </Link>
         </div>
       </Box>
     </ClientOnly>

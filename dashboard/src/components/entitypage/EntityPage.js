@@ -45,7 +45,9 @@ const EntityPage = ({ api, entityPage, activeVariants, type, entity, ...props })
   const fetchEntity = props.fetch;
 
   useEffect(() => {
-    fetchEntity(api, type, entity);
+    if (api && type && entity) {
+      fetchEntity(api, type, entity);
+    }
   }, [type, entity]);
 
   return (

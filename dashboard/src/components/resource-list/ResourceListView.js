@@ -202,9 +202,10 @@ export const ResourceListView = ({
   // MaterialTable can't handle immutable object, we have to make a copy
   // https://github.com/mbrn/material-table/issues/666
   const mutableRes = copy(initRes);
-  
+
   function detailRedirect(e, data) {
-    router.push(router.query["type"] + "/" + data.name);
+    // router.push(router.query["type"] + "/" + data.name);
+    router.push(`/datapage?type=${router.query["type"]}&entity=${data.name}`);
   }
 
   let rowVariants = {};
@@ -214,17 +215,17 @@ export const ResourceListView = ({
       <MaterialTable
         {...(!noVariants
           ? {
-              detailPanel: (row) => {
-                return (
-                  <VariantTable
-                    name={row.name}
-                    row={row}
-                    type={type}
-                    setVariant={setVariant}
-                  />
-                );
-              },
-            }
+            detailPanel: (row) => {
+              return (
+                <VariantTable
+                  name={row.name}
+                  row={row}
+                  type={type}
+                  setVariant={setVariant}
+                />
+              );
+            },
+          }
           : {})}
         className={classes.table}
         title={
@@ -308,12 +309,12 @@ export const ResourceListView = ({
         }}
         {...(!(initialLoad || loading || failed)
           ? {
-              localization: {
-                body: {
-                  emptyDataSourceMessage: <NoDataMessage type={title} />,
-                },
+            localization: {
+              body: {
+                emptyDataSourceMessage: <NoDataMessage type={title} />,
               },
-            }
+            },
+          }
           : {})}
       />
     </div>
@@ -348,7 +349,7 @@ export const VariantTable = ({ name, setVariant, type, row }) => {
   let router = useRouter();
   function variantChangeRedirect(e, data) {
     setVariant(type, name, data.variant);
-    router.push(Resource[type].urlPathResource(name));
+    router.push(`/datapage?type=${Resource[type].queryParam}&entity=${name}`);
   }
 
   let myVariants = [];

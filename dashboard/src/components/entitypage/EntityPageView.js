@@ -205,7 +205,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
   let resourceType = Resource[resources.type];
   let type = resourceType.type;
   const router = useRouter();
-  const showMetrics = resourceType.hasMetrics;
+  const showMetrics = process.env.NODE_ENV == 'production' ? resourceType.hasMetrics : false;
   const showStats = false;
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const statsTabDisplacement = showMetrics ? 1 : 0;
@@ -250,7 +250,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
 
   const numValidKeys = (dict) => {
     let validKeys = 0;
-    Object.keys(dict).forEach(function(key) {
+    Object.keys(dict).forEach(function (key) {
       if (metadata["specifications"][key] !== "") {
         validKeys++
       }
@@ -276,23 +276,23 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
   };
 
   const linkToEntityPage = (event) => {
-    router.push(`/entities/${metadata["entity"]}`);
+    router.push(`/datapage?type=entities&entity=${metadata["entity"]}`);
   };
 
   const linkToPrimaryData = (event) => {
-    router.push(`/sources/${metadata["source"]}`);
+    router.push(`/datapage?type=sources&entity=${metadata["source"]}`);
   };
 
   const linkToLabel = (event) => {
-    router.push(`/labels/${metadata["label"].Name}`);
+    router.push(`/datapage?type=labels&entity=${metadata["label"].Name}`);
   };
 
   const linkToUserPage = (event) => {
-    router.push(`/users/${metadata["owner"]}`);
+    router.push(`/datapage?type=users&entity=${metadata["owner"]}`);
   };
 
   const linkToProviderPage = (event) => {
-    router.push(`/providers/${metadata["provider"]}`);
+    router.push(`/datapage?type=providers&entity=${metadata["provider"]}`);
   };
 
   return true || (!resources.loading && !resources.failed && resources.data) ? (
@@ -333,7 +333,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
               </div>
             </Grid>
           </Grid>
-          {(Object.keys(metadata).length > 0 && metadata["status"] != "NO_STATUS")&& (
+          {(Object.keys(metadata).length > 0 && metadata["status"] != "NO_STATUS") && (
             <div className={classes.resourcesData}>
               <Grid container spacing={0}>
                 <Grid item xs={6} className={classes.resourceMetadata}>
@@ -434,19 +434,19 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                     </Typography>
                   )}
                   {metadata["specifications"] && (numValidKeys(metadata["specifications"]) > 0) && (
-                      <div>
-                        <Typography variant="body1">
-                          <b>Specifications:</b>
-                        </Typography>
-                        <Typography variant="body1" component={"h2"}>
-                          {Object.keys(metadata["specifications"]).map((k) => (
-                              metadata["specifications"][k] !== "" && (
-                              <div style={{ marginLeft: 16 }}>
-                                <b>{k}: </b> {metadata["specifications"][k]}
-                              </div>)
-                          ))}
-                        </Typography>
-                      </div>
+                    <div>
+                      <Typography variant="body1">
+                        <b>Specifications:</b>
+                      </Typography>
+                      <Typography variant="body1" component={"h2"}>
+                        {Object.keys(metadata["specifications"]).map((k) => (
+                          metadata["specifications"][k] !== "" && (
+                            <div style={{ marginLeft: 16 }}>
+                              <b>{k}: </b> {metadata["specifications"][k]}
+                            </div>)
+                        ))}
+                      </Typography>
+                    </div>
                   )
                   }
                   {metadata["definition"] && (
@@ -520,17 +520,17 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
 
                   {metadata["location"] && metadata["is-on-demand"] && (
                     <div className={classes.linkBox}>
-                    <Typography variant="body1" className={classes.typeTitle}>
-                      <b>Feature Variant Type:</b>{" "}
-                    </Typography>
-                    <Chip
-                      variant="outlined"
-                      className={classes.linkChip}
-                      size="small"
-                      onClick={() => {}}
-                      label={"On-Demand"}
-                    ></Chip>
-                  </div>
+                      <Typography variant="body1" className={classes.typeTitle}>
+                        <b>Feature Variant Type:</b>{" "}
+                      </Typography>
+                      <Chip
+                        variant="outlined"
+                        className={classes.linkChip}
+                        size="small"
+                        onClick={() => { }}
+                        label={"On-Demand"}
+                      ></Chip>
+                    </div>
                   )}
                 </Grid>
                 {metadata["tags"]?.length > 0 && (
@@ -545,7 +545,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       title={"Properties"} />}
                   </Grid>
                 )}
-                </Grid>
+              </Grid>
             </div>
           )}
           {metadata["config"] && (
@@ -643,11 +643,11 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                 }}
                 {...(Object.keys(resourcesData[resourceType]).length > 0
                   ? {
-                      columns: ["name", "variant"].map((item) => ({
-                        title: capitalize(item),
-                        field: item,
-                      })),
-                    }
+                    columns: ["name", "variant"].map((item) => ({
+                      title: capitalize(item),
+                      field: item,
+                    })),
+                  }
                   : {})}
                 data={Object.entries(resourcesData[resourceType]).map(
                   (resourceEntry) => {
@@ -706,7 +706,7 @@ export const TagList = ({
         key={tag}
         className={tagClass}
         color={activeTags[tag] ? "secondary" : "default"}
-        onClick={(event) => {}}
+        onClick={(event) => { }}
         variant="outlined"
         label={tag}
       />

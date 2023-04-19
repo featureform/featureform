@@ -25,20 +25,38 @@ const useStyles = makeStyles((theme) => ({
 const BreadCrumbs = () => {
   const classes = useStyles();
   const { asPath } = useRouter();
-  const path = asPath.split("/");
-  while (path.length > 0 && path[0].length === 0) {
-    path.shift();
-  }
-
+  let path = asPath.split("/");
+  path = path.slice(-1); //grab the query params
   const capitalize = (word) => {
     return word ? word[0].toUpperCase() + word.slice(1).toLowerCase() : '';
   };
 
-  const pathBuilder = (accumulator, currentValue) =>
-    accumulator + "/" + currentValue;
+  // console.log('path after slice', path);
+  let params = new URLSearchParams(path[path.length - 1])
+  // const pathBuilder = (accumulator, currentValue) =>
+  //   accumulator + "/" + currentValue;
   return (
     <div className={classes.root}>
-      {path.length > 0 ? (
+      <Breadcrumbs
+        className={classes.breadcrumbs}
+        style={{ margin: "0.25em" }}
+        aria-label="breadcrumb"
+        separator={<NavigateNextIcon fontSize="medium" />}
+        classes={{
+          separator: classes.separator,
+          ol: classes.ol,
+        }}
+      >
+        {[...params.entries()].length && <Link href="/">Home</Link>}
+        {[...params.entries()].map((entry, index) => {
+          if (entry[0] == 'type') {
+            return <Link key={`link-${index}`} href={'/datapage/?type=' + entry[1]}>{capitalize(entry[1])}</Link>
+          }
+          else { return <span>{capitalize(entry[1])}</span> }
+        }
+        )}
+      </Breadcrumbs>
+      {/* {path.length > 0 ? (
         <Breadcrumbs
           className={classes.breadcrumbs}
           style={{ margin: "0.25em" }}
@@ -65,7 +83,7 @@ const BreadCrumbs = () => {
         </Breadcrumbs>
       ) : (
         <div></div>
-      )}
+      )} */}
     </div>
   );
 };

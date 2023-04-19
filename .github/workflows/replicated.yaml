@@ -1,5 +1,8 @@
 name: Update Replicated
-on: push
+on: [pull_request]
+concurrency:
+  group: ${{ github.head_ref }}-replicated
+  cancel-in-progress: true
 
 
 jobs:

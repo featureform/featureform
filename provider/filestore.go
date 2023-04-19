@@ -28,11 +28,11 @@ import (
 
 const (
 	Memory     pc.FileStoreType = "MEMORY"
-	FileSystem                  = "LOCAL_FILESYSTEM"
-	Azure                       = "AZURE"
-	S3                          = "S3"
-	GCS                         = "GCS"
-	HDFS                        = "HDFS"
+	FileSystem pc.FileStoreType = "LOCAL_FILESYSTEM"
+	Azure      pc.FileStoreType = "AZURE"
+	S3         pc.FileStoreType = "S3"
+	GCS        pc.FileStoreType = "GCS"
+	HDFS       pc.FileStoreType = "HDFS"
 )
 
 type FileType string

@@ -326,8 +326,11 @@ jobs:
 #          tags: featureformcom/k8s_runner:${{ env.TAG }}
 #          push: true
   helm:
-    name: Package Helm
-    environment: Deployment
+    name: Package Replicated
+    environment: Replicated
+    env:
+      REPLICATED_APP: featureform
+      REPLICATED_API_TOKEN: ${{ secrets.REPLICATED_API_TOKEN }}
     defaults:
       run:
         working-directory: ./

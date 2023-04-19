@@ -13,6 +13,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Get Short SHA
+        id: vars
+        shell: bash
+        run: |
+          echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+
       - name: Set production tag
         run: echo "TAG=0.0.0-rc+${{ steps.vars.outputs.sha_short }}" >> $GITHUB_ENV
 
@@ -42,6 +48,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+
+      - name: Get Short SHA
+        id: vars
+        shell: bash
+        run: |
+          echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
       - name: Set production tag
         run: echo "TAG=0.0.0-rc+${{ steps.vars.outputs.sha_short }}" >> $GITHUB_ENV
@@ -83,6 +95,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Get Short SHA
+        id: vars
+        shell: bash
+        run: |
+          echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+
       - name: Set production tag
         run: echo "TAG=0.0.0-rc+${{ steps.vars.outputs.sha_short }}" >> $GITHUB_ENV
 
@@ -115,6 +133,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Get Short SHA
+        id: vars
+        shell: bash
+        run: |
+          echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+
       - name: Set production tag
         run: echo "TAG=0.0.0-rc+${{ steps.vars.outputs.sha_short }}" >> $GITHUB_ENV
 
@@ -144,6 +168,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+
+      - name: Get Short SHA
+        id: vars
+        shell: bash
+        run: |
+          echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
       - name: Set production tag
         run: echo "TAG=0.0.0-rc+${{ steps.vars.outputs.sha_short }}" >> $GITHUB_ENV
@@ -175,6 +205,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Get Short SHA
+        id: vars
+        shell: bash
+        run: |
+          echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+
       - name: Set production tag
         run: echo "TAG=0.0.0-rc+${{ steps.vars.outputs.sha_short }}" >> $GITHUB_ENV
 
@@ -204,6 +240,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+
+      - name: Get Short SHA
+        id: vars
+        shell: bash
+        run: |
+          echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
       - name: Set production tag
         run: echo "TAG=0.0.0-rc+${{ steps.vars.outputs.sha_short }}" >> $GITHUB_ENV
@@ -235,6 +277,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Get Short SHA
+        id: vars
+        shell: bash
+        run: |
+          echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+
       - name: Set production tag
         run: echo "TAG=0.0.0-rc+${{ steps.vars.outputs.sha_short }}" >> $GITHUB_ENV
 
@@ -264,6 +312,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+
+      - name: Get Short SHA
+        id: vars
+        shell: bash
+        run: |
+          echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
       - name: Set production tag
         run: echo "TAG=0.0.0-rc+${{ steps.vars.outputs.sha_short }}" >> $GITHUB_ENV

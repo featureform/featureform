@@ -3,8 +3,8 @@
 # docker push featureformcom/dashboard:latest
 
 FROM node:16-alpine
-COPY ./dashboard ./dashboard
-WORKDIR ./dashboard
+COPY . ./dashboard
+WORKDIR /dashboard
 RUN npm install --legacy-peer-deps
 RUN npm run build
 RUN rm -r node_modules
@@ -15,4 +15,4 @@ FROM nginx
 WORKDIR /app
 
 COPY --from=0 ./dashboard ./dashboard
-COPY ./dashboard/nginx.conf /etc/nginx/nginx.conf
+COPY ./nginx.conf /etc/nginx/nginx.conf

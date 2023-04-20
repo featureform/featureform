@@ -152,8 +152,10 @@ const SEARCH_URL = {
   apiKey: "",
 };
 
-if (typeof process.env.REACT_APP_API_URL != "undefined") {
-  API_URL = process.env.REACT_APP_API_URL.trim();
+console.log('Current API url:', API_URL);
+if (process.env.NEXT_PUBLIC_REACT_APP_API_URL) {
+  API_URL = process.env.NEXT_PUBLIC_REACT_APP_API_URL.trim();
+  console.log('Setting new API url:', API_URL);
 }
 
 export var PROMETHEUS_URL = API_URL + "/prometheus";

@@ -205,7 +205,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
   let resourceType = Resource[resources.type];
   let type = resourceType.type;
   const router = useRouter();
-  const showMetrics = resourceType.hasMetrics;
+  const showMetrics = process.env.NODE_ENV == 'production' ? resourceType.hasMetrics : false;
   const showStats = false;
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const statsTabDisplacement = showMetrics ? 1 : 0;

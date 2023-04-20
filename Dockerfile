@@ -27,7 +27,8 @@ COPY kubernetes/ kubernetes/
 COPY config/ config/
 COPY logging/ logging/
 
-RUN apt install protobuf-compiler -y
+RUN apt update && \
+    apt install -y protobuf-compiler
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./proto/serving.proto
@@ -55,6 +56,18 @@ COPY --from=dashboard-builder ./dashboard ./dashboard
 RUN apt-get update && apt-get install -y supervisor
 RUN mkdir -p /var/lock/apache2 /var/run/apache2 /var/run/sshd /var/log/supervisor
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Setup Spark
+COPY provider/scripts/spark/offline_store_spark_runner.py scripts/spark/offline_store_spark_runner.py
+COPY provider/scripts/spark/python_packages.sh scripts/spark/python_packages.sh
+COPY provider/scripts/spark/requirements.txt scripts/spark/requirements.txt
+
+# Setup Etcd
+RUN git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
+WORKDIR /app/etcd
+RUN ./build
+WORKDIR /app
+RUN ETCD_UNSUPPORTED_ARCH=arm64 ./etcd/bin/etcd --version
 
 # Install Nginx
 RUN apt-get update

@@ -5,6 +5,8 @@ from os.path import exists
 from datetime import timedelta
 from typeguard import typechecked
 from typing import Dict, Tuple, Callable, List, Union
+import warnings
+import inspect
 
 import dill
 import pandas as pd
@@ -3252,7 +3254,11 @@ class ResourceClient:
             insecure (bool): True if connecting to an insecure Featureform endpoint. False if using a self-signed or public TLS certificate
             cert_path (str): The path to a public certificate if using a self-signed certificate.
         """
-        super().__init__()
+        if inspect.stack()[1].function != "__init__":
+            warnings.warn(
+                "ResourceClient is deprecated and will be removed in future versions; use Client instead.",
+                PendingDeprecationWarning,
+            )
         self._dry_run = dry_run
         self._stub = None
         self.local = local

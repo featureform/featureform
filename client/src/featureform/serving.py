@@ -2,9 +2,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import inspect
 import os
 import re
 from typing import Union
+import warnings
 import dill
 import json
 import math
@@ -67,6 +69,11 @@ class ServingClient:
     """
 
     def __init__(self, host=None, local=False, insecure=False, cert_path=None):
+        if inspect.stack()[1].function != "__init__":
+            warnings.warn(
+                "ServingClient is deprecated and will be removed in future versions; use Client instead.",
+                PendingDeprecationWarning,
+            )
         """
         Args:
             host (str): The hostname of the Featureform instance. Exclude if using Localmode.

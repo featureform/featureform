@@ -52,9 +52,21 @@ class SourceType(Enum):
     DF_TRANSFORMATION = "DF"
     SQL_TRANSFORMATION = "SQL"
 
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self.value == other
+        if isinstance(other, SourceType):
+            return self.value == other.value
+        return False
+
 
 @typechecked
 @dataclass
 class FilePrefix(Enum):
     S3 = "s3://"
     S3A = "s3a://"
+
+
+class ApplicationMode(Enum):
+    LOCAL = "local"
+    HOSTED = "hosted"

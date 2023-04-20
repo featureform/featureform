@@ -57,6 +57,18 @@ RUN apt-get update && apt-get install -y supervisor
 RUN mkdir -p /var/lock/apache2 /var/run/apache2 /var/run/sshd /var/log/supervisor
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
+# Setup Spark
+COPY provider/scripts/spark/offline_store_spark_runner.py scripts/spark/offline_store_spark_runner.py
+COPY provider/scripts/spark/python_packages.sh scripts/spark/python_packages.sh
+COPY provider/scripts/spark/requirements.txt scripts/spark/requirements.txt
+
+# Setup Etcd
+RUN git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
+WORKDIR /app/etcd
+RUN ./build
+WORKDIR /app
+RUN ETCD_UNSUPPORTED_ARCH=arm64 ./etcd/bin/etcd --version
+
 # Install Nginx
 RUN apt-get update
 RUN apt-get install -y nginx --option=Dpkg::Options::=--force-confdef

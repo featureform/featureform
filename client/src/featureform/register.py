@@ -3254,6 +3254,8 @@ class ResourceClient:
             insecure (bool): True if connecting to an insecure Featureform endpoint. False if using a self-signed or public TLS certificate
             cert_path (str): The path to a public certificate if using a self-signed certificate.
         """
+        # This line ensures that the warning is only raised if ResourceClient is instantiated directly
+        # TODO: Remove this check once ServingClient is deprecated
         if inspect.stack()[1].function != "__init__":
             warnings.warn(
                 "ResourceClient is deprecated and will be removed in future versions; use Client instead.",

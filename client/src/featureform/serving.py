@@ -69,6 +69,8 @@ class ServingClient:
     """
 
     def __init__(self, host=None, local=False, insecure=False, cert_path=None):
+        # This line ensures that the warning is only raised if ServingClient is instantiated directly
+        # TODO: Remove this check once ServingClient is deprecated
         if inspect.stack()[1].function != "__init__":
             warnings.warn(
                 "ServingClient is deprecated and will be removed in future versions; use Client instead.",

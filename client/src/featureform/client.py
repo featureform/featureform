@@ -40,6 +40,8 @@ class Client(ResourceClient, ServingClient):
             cert_path=cert_path,
             dry_run=dry_run,
         )
+        # Given both ResourceClient and ServingClient are instantiated together, if dry_run is True, then
+        # the ServingClient cannot be instantiated due to a conflict the local and host arguments.
         if not dry_run:
             ServingClient.__init__(
                 self, host=host, local=local, insecure=insecure, cert_path=cert_path

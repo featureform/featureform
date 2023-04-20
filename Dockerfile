@@ -27,7 +27,8 @@ COPY kubernetes/ kubernetes/
 COPY config/ config/
 COPY logging/ logging/
 
-RUN apt install protobuf-compiler -y
+RUN apt update && \
+    apt install -y protobuf-compiler
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./proto/serving.proto

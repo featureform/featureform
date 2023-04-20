@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"net/http"
 
 	"fmt"
 	"os"
@@ -19,6 +20,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/emr"
 	databricks "github.com/databricks/databricks-sdk-go"
+	dbClient "github.com/databricks/databricks-sdk-go/client"
+	dbConfig "github.com/databricks/databricks-sdk-go/config"
 	"github.com/databricks/databricks-sdk-go/service/jobs"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -351,9 +354,10 @@ const (
 )
 
 type DatabricksExecutor struct {
-	client  *databricks.WorkspaceClient
-	cluster string
-	config  pc.DatabricksConfig
+	client    *databricks.WorkspaceClient
+	cluster   string
+	config    pc.DatabricksConfig
+	runClient *dbClient.DatabricksClient
 }
 
 func (e *EMRExecutor) PythonFileURI(store SparkFileStore) string {
@@ -430,10 +434,22 @@ func NewDatabricksExecutor(databricksConfig pc.DatabricksConfig) (SparkExecutor,
 			Username: databricksConfig.Username,
 			Password: databricksConfig.Password,
 		}))
+
+	runClient, err := dbClient.New(&dbConfig.Config{
+		Host:     databricksConfig.Host,
+		Token:    databricksConfig.Token,
+		Username: databricksConfig.Username,
+		Password: databricksConfig.Password,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not create databricks run client: %v", err)
+	}
+
 	return &DatabricksExecutor{
-		client:  client,
-		cluster: databricksConfig.Cluster,
-		config:  databricksConfig,
+		client:    client,
+		cluster:   databricksConfig.Cluster,
+		config:    databricksConfig,
+		runClient: runClient,
 	}, nil
 }
 
@@ -446,10 +462,10 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 	id := uuid.New().String()
 
 	jobToRun, err := db.client.Jobs.Create(ctx, jobs.CreateJob{
-		Name: fmt.Sprintf("featureform-job-%s", id),
+		Name: fmt.Sprintf("featureform-job-1-%s", id),
 		Tasks: []jobs.JobTaskSettings{
 			{
-				TaskKey:           fmt.Sprintf("featureform-task-%s", id),
+				TaskKey:           fmt.Sprintf("featureform-task-1-%s", id),
 				ExistingClusterId: db.cluster,
 				SparkPythonTask:   &pythonTask,
 			},
@@ -459,26 +475,49 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 		return fmt.Errorf("error creating job: %v", err)
 	}
 
-	runResp, err := db.client.Jobs.RunNowAndWait(ctx, jobs.RunNow{
+	_, err = db.client.Jobs.RunNowAndWait(ctx, jobs.RunNow{
 		JobId: jobToRun.JobId,
 	})
 	if err != nil {
-		// runJob := jobs.GetRunOutput{
-		// 	RunId: runResp.RunId,
-		// }
-		// output, err := db.client.Jobs.GetRunOutput(ctx, runJob)
-		// if err != nil {
-		// 	return fmt.Errorf("could not retreive job output: %v", err)
-		// }
+		errorMessage, err := db.getErrorMessage(jobToRun.JobId)
+		if err != nil {
+			return fmt.Errorf("the '%v' job failed, could not get error message: %v", jobToRun.JobId, err)
+		}
 
-		// if len(output.Error) > 0 {
-		// 	return fmt.Errorf("the '%v' job failed: %v", jobToRun.JobId, output.Error)
-		// }
-
-		return fmt.Errorf("the '%v' job failed with run id '%d': %v", jobToRun.JobId, runResp.RunId, err)
+		return fmt.Errorf("the '%v' job failed: %v", jobToRun.JobId, errorMessage)
 	}
 
 	return nil
+}
+
+func (db *DatabricksExecutor) getErrorMessage(jobId int64) (string, error) {
+	ctx := context.Background()
+
+	runRequest := jobs.ListRunsRequest{
+		JobId: jobId,
+	}
+
+	runs, err := db.client.Jobs.ListRunsAll(ctx, runRequest)
+	if err != nil {
+		return "", fmt.Errorf("could not get run id: %v", err)
+	}
+
+	runID := runs[0].RunId
+	request := jobs.GetRunRequest{
+		RunId: runID,
+	}
+
+	// in order to get the status of the run output, we need to
+	// use API v2.0 instead of v2.1. The following code leverages
+	// version 2.0 of the API to get the run output.
+	var runOutput jobs.RunOutput
+	path := "/api/2.0/jobs/runs/get-output"
+	err = db.runClient.Do(ctx, http.MethodGet, path, request, &runOutput)
+	if err != nil {
+		return "", fmt.Errorf("could not get run output: %v", err)
+	}
+
+	return runOutput.Error, nil
 }
 
 type PythonOfflineQueries interface {

@@ -481,7 +481,7 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 	})
 	if err != nil {
 		errorMessage := err
-		if db.errorMessageClient == nil {
+		if db.errorMessageClient != nil {
 			errorMessage, err = db.getErrorMessage(jobToRun.JobId)
 			if err != nil {
 				fmt.Printf("the '%v' job failed, could not get error message: %v\n", jobToRun.JobId, err)

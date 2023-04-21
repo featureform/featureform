@@ -152,9 +152,17 @@ const SEARCH_URL = {
   apiKey: "",
 };
 
+console.log("Node ENV:", process.env.NODE_ENV);
 if (process.env.REACT_APP_API_URL) {
   API_URL = process.env.REACT_APP_API_URL.trim();
-  console.log('Setting new API url:', API_URL);
+  console.log('Setting new REACT_APP_API_URL url:', API_URL);
+}
+
+//if you want to override the api url (in any environment local to your machine, set this in ".env.local")
+//.env.local is not tracked in source
+if (process.env.NEXT_PUBLIC_REACT_APP_API_URL) {
+  API_URL = process.env.NEXT_PUBLIC_REACT_APP_API_URL.trim();
+  console.log('Setting new NEXT_PUBLIC_REACT_APP_API_URL url:', API_URL);
 }
 
 export var PROMETHEUS_URL = API_URL + "/prometheus";

@@ -462,10 +462,10 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 	id := uuid.New().String()
 
 	jobToRun, err := db.client.Jobs.Create(ctx, jobs.CreateJob{
-		Name: fmt.Sprintf("featureform-job-1-%s", id),
+		Name: fmt.Sprintf("featureform-job-%s", id),
 		Tasks: []jobs.JobTaskSettings{
 			{
-				TaskKey:           fmt.Sprintf("featureform-task-1-%s", id),
+				TaskKey:           fmt.Sprintf("featureform-task-%s", id),
 				ExistingClusterId: db.cluster,
 				SparkPythonTask:   &pythonTask,
 			},

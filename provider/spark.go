@@ -354,10 +354,10 @@ const (
 )
 
 type DatabricksExecutor struct {
-	client    *databricks.WorkspaceClient
-	cluster   string
-	config    pc.DatabricksConfig
-	runClient *dbClient.DatabricksClient
+	client             *databricks.WorkspaceClient
+	cluster            string
+	config             pc.DatabricksConfig
+	errorMessageClient *dbClient.DatabricksClient
 }
 
 func (e *EMRExecutor) PythonFileURI(store SparkFileStore) string {
@@ -435,21 +435,22 @@ func NewDatabricksExecutor(databricksConfig pc.DatabricksConfig) (SparkExecutor,
 			Password: databricksConfig.Password,
 		}))
 
-	runClient, err := dbClient.New(&dbConfig.Config{
+	errorMessageClient, err := dbClient.New(&dbConfig.Config{
 		Host:     databricksConfig.Host,
 		Token:    databricksConfig.Token,
 		Username: databricksConfig.Username,
 		Password: databricksConfig.Password,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("could not create databricks run client: %v", err)
+		fmt.Println("could not create error message client: ", err)
+		errorMessageClient = nil
 	}
 
 	return &DatabricksExecutor{
-		client:    client,
-		cluster:   databricksConfig.Cluster,
-		config:    databricksConfig,
-		runClient: runClient,
+		client:             client,
+		cluster:            databricksConfig.Cluster,
+		config:             databricksConfig,
+		errorMessageClient: errorMessageClient,
 	}, nil
 }
 
@@ -479,9 +480,12 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 		JobId: jobToRun.JobId,
 	})
 	if err != nil {
-		errorMessage, err := db.getErrorMessage(jobToRun.JobId)
-		if err != nil {
-			return fmt.Errorf("the '%v' job failed, could not get error message: %v", jobToRun.JobId, err)
+		errorMessage := err
+		if db.errorMessageClient == nil {
+			errorMessage, err = db.getErrorMessage(jobToRun.JobId)
+			if err != nil {
+				fmt.Printf("the '%v' job failed, could not get error message: %v\n", jobToRun.JobId, err)
+			}
 		}
 
 		return fmt.Errorf("the '%v' job failed: %v", jobToRun.JobId, errorMessage)
@@ -490,7 +494,7 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 	return nil
 }
 
-func (db *DatabricksExecutor) getErrorMessage(jobId int64) (string, error) {
+func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {
 	ctx := context.Background()
 
 	runRequest := jobs.ListRunsRequest{
@@ -499,7 +503,7 @@ func (db *DatabricksExecutor) getErrorMessage(jobId int64) (string, error) {
 
 	runs, err := db.client.Jobs.ListRunsAll(ctx, runRequest)
 	if err != nil {
-		return "", fmt.Errorf("could not get run id: %v", err)
+		return nil, fmt.Errorf("could not get run id: %v", err)
 	}
 
 	runID := runs[0].RunId
@@ -512,12 +516,12 @@ func (db *DatabricksExecutor) getErrorMessage(jobId int64) (string, error) {
 	// version 2.0 of the API to get the run output.
 	var runOutput jobs.RunOutput
 	path := "/api/2.0/jobs/runs/get-output"
-	err = db.runClient.Do(ctx, http.MethodGet, path, request, &runOutput)
+	err = db.errorMessageClient.Do(ctx, http.MethodGet, path, request, &runOutput)
 	if err != nil {
-		return "", fmt.Errorf("could not get run output: %v", err)
+		return nil, fmt.Errorf("could not get run output: %v", err)
 	}
 
-	return runOutput.Error, nil
+	return fmt.Errorf("%s", runOutput.Error), nil
 }
 
 type PythonOfflineQueries interface {

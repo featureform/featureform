@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"net/http"
 
 	"fmt"
 	"os"
@@ -19,6 +20,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/emr"
 	databricks "github.com/databricks/databricks-sdk-go"
+	dbClient "github.com/databricks/databricks-sdk-go/client"
+	dbConfig "github.com/databricks/databricks-sdk-go/config"
 	"github.com/databricks/databricks-sdk-go/service/jobs"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -352,9 +355,10 @@ const (
 )
 
 type DatabricksExecutor struct {
-	client  *databricks.WorkspaceClient
-	cluster string
-	config  pc.DatabricksConfig
+	client             *databricks.WorkspaceClient
+	cluster            string
+	config             pc.DatabricksConfig
+	errorMessageClient *dbClient.DatabricksClient
 }
 
 func (e *EMRExecutor) PythonFileURI(store SparkFileStore) string {
@@ -431,29 +435,27 @@ func NewDatabricksExecutor(databricksConfig pc.DatabricksConfig) (SparkExecutor,
 			Username: databricksConfig.Username,
 			Password: databricksConfig.Password,
 		}))
+
+	errorMessageClient, err := dbClient.New(&dbConfig.Config{
+		Host:     databricksConfig.Host,
+		Token:    databricksConfig.Token,
+		Username: databricksConfig.Username,
+		Password: databricksConfig.Password,
+	})
+	if err != nil {
+		fmt.Println("could not create error message client: ", err)
+		errorMessageClient = nil
+	}
+
 	return &DatabricksExecutor{
-		client:  client,
-		cluster: databricksConfig.Cluster,
-		config:  databricksConfig,
+		client:             client,
+		cluster:            databricksConfig.Cluster,
+		config:             databricksConfig,
+		errorMessageClient: errorMessageClient,
 	}, nil
 }
 
 func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) error {
-	//set spark configuration
-	// clusterClient := db.client.Clusters()
-	// setConfigReq := clusterHTTPModels.EditReq{
-	// 	ClusterID: db.cluster,
-	// 	SparkConf: clusterModels.SparkConfPair{
-	// 		Key:   "fs.azure.account.key.testingstoragegen.dfs.core.windows.net", //change to one based on account name
-	// 		Value: helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
-	// 	},
-	// }
-	//TODO: resolve error: "Custom containers is turned off for your deployment. Please contact your workspace administrator to use this feature."
-	// need to specify spark version
-	// if err := clusterClient.Edit(setConfigReq); err != nil {
-	// 	return fmt.Errorf("Could not modify cluster to accept spark configs; %v", err)
-	// }
-
 	pythonTask := jobs.SparkPythonTask{
 		PythonFile: db.PythonFileURI(store),
 		Parameters: args,
@@ -479,10 +481,48 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 		JobId: jobToRun.JobId,
 	})
 	if err != nil {
-		return fmt.Errorf("the '%v' job failed: %v", jobToRun.JobId, err)
+		errorMessage := err
+		if db.errorMessageClient != nil {
+			errorMessage, err = db.getErrorMessage(jobToRun.JobId)
+			if err != nil {
+				fmt.Printf("the '%v' job failed, could not get error message: %v\n", jobToRun.JobId, err)
+			}
+		}
+
+		return fmt.Errorf("the '%v' job failed: %v", jobToRun.JobId, errorMessage)
 	}
 
 	return nil
+}
+
+func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {
+	ctx := context.Background()
+
+	runRequest := jobs.ListRunsRequest{
+		JobId: jobId,
+	}
+
+	runs, err := db.client.Jobs.ListRunsAll(ctx, runRequest)
+	if err != nil {
+		return nil, fmt.Errorf("could not get run id: %v", err)
+	}
+
+	runID := runs[0].RunId
+	request := jobs.GetRunRequest{
+		RunId: runID,
+	}
+
+	// in order to get the status of the run output, we need to
+	// use API v2.0 instead of v2.1. The following code leverages
+	// version 2.0 of the API to get the run output.
+	var runOutput jobs.RunOutput
+	path := "/api/2.0/jobs/runs/get-output"
+	err = db.errorMessageClient.Do(ctx, http.MethodGet, path, request, &runOutput)
+	if err != nil {
+		return nil, fmt.Errorf("could not get run output: %v", err)
+	}
+
+	return fmt.Errorf("%s", runOutput.Error), nil
 }
 
 type PythonOfflineQueries interface {

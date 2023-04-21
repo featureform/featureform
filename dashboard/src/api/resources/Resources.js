@@ -153,6 +153,11 @@ const SEARCH_URL = {
 };
 
 console.log('Current API url:', API_URL);
+if (process.env.REACT_APP_API_URL) {
+  API_URL = process.env.REACT_APP_API_URL.trim();
+  console.log('Setting new API url:', API_URL);
+}
+
 if (process.env.NEXT_PUBLIC_REACT_APP_API_URL) {
   API_URL = process.env.NEXT_PUBLIC_REACT_APP_API_URL.trim();
   console.log('Setting new API url:', API_URL);

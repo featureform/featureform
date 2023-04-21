@@ -36,6 +36,9 @@ def test_compute_df_for_name_variant_args(
         transformation_df, (pd.DataFrame, pd.Series)
     )
 
+    if is_local:
+        client.impl.db.close()  # TODO automatically do this
+
 
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
@@ -69,6 +72,9 @@ def test_compute_df_for_source_args(
     assert isinstance(source_df, pd.DataFrame) and isinstance(
         transformation_df, (pd.DataFrame, pd.Series)
     )
+
+    if is_local:
+        client.impl.db.close()  # TODO automatically do this
 
 
 @pytest.fixture(autouse=True)

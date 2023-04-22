@@ -78,7 +78,8 @@ const SearchBar = ({ input, setQuery, homePage }) => {
   const [searchText, setSearchText] = React.useState("");
 
   function handleSearch(event) {
-    let uri = "/search?q=" + searchText;
+    event.preventDefault();
+    let uri = "/search?q=" + searchText?.trim();
     Router.push(uri);
   }
 
@@ -92,9 +93,18 @@ const SearchBar = ({ input, setQuery, homePage }) => {
           <InputBase
             placeholder="Search..."
             onChange={(event) => {
-              setSearchText(event.target.value);
+              const rawText = event.target.value;
+              if (rawText === '') {
+                // user is deleting the text field. clear it out
+                setSearchText(rawText);
+                return;
+              }
+              const searchText = event.target.value ?? '';
+              if (searchText.trim()) {
+                setSearchText(searchText);
+              }
             }}
-            defaultValue={""}
+            value={searchText}
             onKeyDown={(event) =>
               event.keyCode === ENTER_KEY_CODE && searchText.length > 0
                 ? handleSearch(event)

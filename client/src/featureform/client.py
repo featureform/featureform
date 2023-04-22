@@ -1,5 +1,4 @@
 from typing import Union
-import warnings
 from .register import (
     ResourceClient,
     SourceRegistrar,
@@ -7,8 +6,6 @@ from .register import (
     SubscriptableTransformation,
 )
 from .serving import ServingClient
-from .enums import ApplicationMode
-import pandas as pd
 
 
 class Client(ResourceClient, ServingClient):
@@ -46,9 +43,6 @@ class Client(ResourceClient, ServingClient):
             ServingClient.__init__(
                 self, host=host, local=local, insecure=insecure, cert_path=cert_path
             )
-            self.application_mode = (
-                ApplicationMode.LOCAL if local else ApplicationMode.HOSTED
-            )
 
     def compute_df(
         self,
@@ -78,12 +72,4 @@ class Client(ResourceClient, ServingClient):
             raise ValueError(
                 f"source must be of type SourceRegistrar, LocalSource, SubscriptableTransformation or str, not {type(source)}"
             )
-        if self.application_mode == ApplicationMode.LOCAL:
-            return self.impl.get_input_df(name, variant)
-        elif self.application_mode == ApplicationMode.HOSTED:
-            warnings.warn(
-                "Computing dataframes on sources in hosted mode is not yet supported."
-            )
-            return pd.DataFrame()
-        else:
-            raise ValueError(f"ApplicationMode {ApplicationMode} not supported.")
+        return self.impl.get_source_as_df(name, variant)

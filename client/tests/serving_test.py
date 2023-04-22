@@ -566,7 +566,7 @@ def del_rw(action, name, exc):
 
 
 def create_temp_file(test_values):
-    file = NamedTemporaryFile(delete=False)
+    file = NamedTemporaryFile(delete=False, suffix=".csv")
     with open(file.name, "w") as csvfile:
         writer = csv.writer(csvfile, delimiter=",", quotechar="|")
         writer.writerow(test_values["columns"])

@@ -69,6 +69,7 @@ from .resources import (
 from .proto import metadata_pb2_grpc as ff_grpc
 from .search_local import search_local
 from .search import search
+from .enums import FileFormat
 
 NameVariant = Tuple[str, str]
 
@@ -534,13 +535,20 @@ class LocalProvider:
         Args:
             name (str): Name for how to reference the file later
             description (str): Description of the file
-            path (str): Path to the file
+            path (str): Path to the file (supported formats: csv, parquet)
             variant (str): File variant
             owner (str): Owner of the file
 
         Returns:
             source (LocalSource): source
         """
+        if not FileFormat.is_supported(path):
+            print(f"File format not supported: {path}")
+            raise Exception(
+                "File format not supported. Supported formats: {}".format(
+                    FileFormat.supported_formats()
+                )
+            )
         if owner == "":
             owner = self.__registrar.must_get_default_owner()
         # Store the file as a source
@@ -3256,7 +3264,8 @@ class ResourceClient:
         """
         # This line ensures that the warning is only raised if ResourceClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
-        if inspect.stack()[1].function != "__init__":
+        is_instantiated_directed = inspect.stack()[1].function != "__init__"
+        if is_instantiated_directed:
             warnings.warn(
                 "ResourceClient is deprecated and will be removed in future versions; use Client instead.",
                 PendingDeprecationWarning,

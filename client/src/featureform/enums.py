@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from enum import Enum
 from featureform.proto import metadata_pb2 as pb
 from typeguard import typechecked
+from os import path
+from fnmatch import fnmatch
 
 
 class ColumnTypes(Enum):
@@ -67,6 +69,37 @@ class FilePrefix(Enum):
     S3A = "s3a://"
 
 
-class ApplicationMode(Enum):
-    LOCAL = "local"
-    HOSTED = "hosted"
+class FileFormat(Enum):
+    CSV = "csv"
+    PARQUET = "parquet"
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, str):
+            return self.value == other
+        if isinstance(other, FileFormat):
+            return self.value == other.value
+        return False
+
+    @classmethod
+    def is_supported(cls, file_path: str) -> bool:
+        file_name = path.basename(file_path)
+
+        for file_format in cls:
+            if fnmatch(file_name, f"*.{file_format.value}"):
+                return True
+
+        return False
+
+    @classmethod
+    def get_format(cls, file_path: str) -> str:
+        file_name = path.basename(file_path)
+
+        for file_format in cls:
+            if fnmatch(file_name, f"*.{file_format.value}"):
+                return file_format.value
+
+        raise ValueError(f"File format not supported: {file_name}")
+
+    @classmethod
+    def supported_formats(cls) -> str:
+        return ", ".join([file_format.value for file_format in cls])

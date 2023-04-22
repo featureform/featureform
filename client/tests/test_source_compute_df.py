@@ -1,4 +1,5 @@
 import featureform as ff
+from featureform.enums import FileFormat
 import pandas as pd
 import pytest
 
@@ -59,6 +60,41 @@ def test_compute_df_for_source_args(
     ]
     provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(
         custom_marks
+    )
+
+    transformation = arrange_transformation(provider, is_local)
+
+    client = ff.Client(local=is_local, insecure=is_insecure)
+    client.apply(asynchronous=True)
+
+    source_df = client.compute_df(source)
+    transformation_df = client.compute_df(transformation)
+
+    assert isinstance(source_df, pd.DataFrame) and isinstance(
+        transformation_df, (pd.DataFrame, pd.Series)
+    )
+
+    if is_local:
+        client.impl.db.close()  # TODO automatically do this
+
+
+@pytest.mark.parametrize(
+    "provider_source_fxt,is_local,is_insecure",
+    [
+        pytest.param(
+            "local_provider_source",
+            True,
+            True,
+            marks=pytest.mark.local,
+        ),
+    ],
+)
+def test_compute_df_parquet(provider_source_fxt, is_local, is_insecure, request):
+    custom_marks = [
+        mark.name for mark in request.node.own_markers if mark.name != "parametrize"
+    ]
+    provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(
+        custom_marks, file_format=FileFormat.PARQUET.value
     )
 
     transformation = arrange_transformation(provider, is_local)

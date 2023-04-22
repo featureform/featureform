@@ -113,6 +113,7 @@ const SearchResultsList = ({ type, contents, setVariant }) => {
   );
 };
 
+// todo: ask sterling to verify this mapping. do variants map back to their base form? 
 var searchTypeMap = {
   "FEATURE": "Feature",
   "FEATURE_VARIANT": "Feature",

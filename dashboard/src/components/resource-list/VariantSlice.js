@@ -17,7 +17,7 @@ const variantSlice = createSlice({
   reducers: {
     set: (state, action) => {
       const { type, name, variant } = action.payload;
-      const typePayload = type
+      let typePayload = type
       if (Resource.typeToName[type]) {
         typePayload = Resource.typeToName[type]
       }

@@ -23,7 +23,7 @@ class Client(ResourceClient, ServingClient):
     redis = client.get_provider("redis-quickstart")
 
     # Example 2: Compute a dataframe from a registered source
-    transactions_df = client.compute_df("transactions", "quickstart")
+    transactions_df = client.dataframe("transactions", "quickstart")
     """
 
     def __init__(
@@ -44,7 +44,7 @@ class Client(ResourceClient, ServingClient):
                 self, host=host, local=local, insecure=insecure, cert_path=cert_path
             )
 
-    def compute_df(
+    def dataframe(
         self,
         source: Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str],
         variant="default",
@@ -58,7 +58,7 @@ class Client(ResourceClient, ServingClient):
 
         **Example:**
         ```py title="definitions.py"
-        transactions_df = client.compute_df("transactions", "quickstart")
+        transactions_df = client.dataframe("transactions", "quickstart")
 
         avg_user_transaction_df = transactions_df.groupby("CustomerID")["TransactionAmount"].mean()
         """

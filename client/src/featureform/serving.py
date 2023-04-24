@@ -72,7 +72,7 @@ class ServingClient:
         # This line ensures that the warning is only raised if ServingClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
         is_instantiated_directed = inspect.stack()[1].function != "__init__"
-        if is_instantiated_directed != "__init__":
+        if is_instantiated_directed:
             warnings.warn(
                 "ServingClient is deprecated and will be removed in future versions; use Client instead.",
                 PendingDeprecationWarning,

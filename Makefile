@@ -234,7 +234,7 @@ pytest:
 	pytest -m 'local' client/tests/test_ondemand_features.py
 	pytest client/tests/test_localmode_caching.py
 	pytest -m 'local' client/tests/test_resource_registration.py
-	pytest -m 'local' client/tests/test_source_compute_df.py
+	pytest -m 'local' client/tests/test_source_dataframe.py
 	-rm -r .featureform
 	-rm -f transactions.csv
 

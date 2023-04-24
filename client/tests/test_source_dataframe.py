@@ -15,7 +15,7 @@ import pytest
         ),
     ],
 )
-def test_compute_df_for_name_variant_args(
+def test_dataframe_for_name_variant_args(
     provider_source_fxt, is_local, is_insecure, request
 ):
     custom_marks = [
@@ -30,8 +30,8 @@ def test_compute_df_for_name_variant_args(
     client = ff.Client(local=is_local, insecure=is_insecure)
     client.apply(asynchronous=True)
 
-    source_df = client.compute_df(source.name, source.variant)
-    transformation_df = client.compute_df(*transformation.name_variant())
+    source_df = client.dataframe(source.name, source.variant)
+    transformation_df = client.dataframe(*transformation.name_variant())
 
     assert isinstance(source_df, pd.DataFrame) and isinstance(
         transformation_df, (pd.DataFrame, pd.Series)
@@ -52,9 +52,7 @@ def test_compute_df_for_name_variant_args(
         ),
     ],
 )
-def test_compute_df_for_source_args(
-    provider_source_fxt, is_local, is_insecure, request
-):
+def test_dataframe_for_source_args(provider_source_fxt, is_local, is_insecure, request):
     custom_marks = [
         mark.name for mark in request.node.own_markers if mark.name != "parametrize"
     ]
@@ -67,8 +65,8 @@ def test_compute_df_for_source_args(
     client = ff.Client(local=is_local, insecure=is_insecure)
     client.apply(asynchronous=True)
 
-    source_df = client.compute_df(source)
-    transformation_df = client.compute_df(transformation)
+    source_df = client.dataframe(source)
+    transformation_df = client.dataframe(transformation)
 
     assert isinstance(source_df, pd.DataFrame) and isinstance(
         transformation_df, (pd.DataFrame, pd.Series)
@@ -89,7 +87,7 @@ def test_compute_df_for_source_args(
         ),
     ],
 )
-def test_compute_df_parquet(provider_source_fxt, is_local, is_insecure, request):
+def test_dataframe_parquet(provider_source_fxt, is_local, is_insecure, request):
     custom_marks = [
         mark.name for mark in request.node.own_markers if mark.name != "parametrize"
     ]
@@ -102,8 +100,8 @@ def test_compute_df_parquet(provider_source_fxt, is_local, is_insecure, request)
     client = ff.Client(local=is_local, insecure=is_insecure)
     client.apply(asynchronous=True)
 
-    source_df = client.compute_df(source)
-    transformation_df = client.compute_df(transformation)
+    source_df = client.dataframe(source)
+    transformation_df = client.dataframe(transformation)
 
     assert isinstance(source_df, pd.DataFrame) and isinstance(
         transformation_df, (pd.DataFrame, pd.Series)

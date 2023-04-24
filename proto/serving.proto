@@ -12,7 +12,7 @@ service Feature {
   rpc TrainingData(TrainingDataRequest) returns (stream TrainingDataRow) {}
   rpc FeatureServe(FeatureServeRequest) returns (FeatureRow) {}
   rpc SourceData(SourceDataRequest) returns (stream SourceDataRow) {}
-  rpc SourceColumns(SourceDataRequest) returns (SourceDataColumns) {}
+  rpc SourceColumns(SourceColumnRequest) returns (SourceDataColumns) {}
 }
 
 message Model {
@@ -73,6 +73,11 @@ message SourceID {
 }
 
 message SourceDataRequest {
+  SourceID id = 1;
+  int64 limit = 2;
+}
+
+message SourceColumnRequest {
   SourceID id = 1;
 }
 

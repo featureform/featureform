@@ -78,9 +78,10 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 func (serv *FeatureServer) SourceData(req *pb.SourceDataRequest, stream pb.Feature_SourceDataServer) error {
 	id := req.GetId()
 	name, variant := id.GetName(), id.GetVersion()
+	limit := req.GetLimit()
 	logger := serv.Logger.With("Name", name, "Variant", variant)
 	logger.Info("Serving source data")
-	iter, err := serv.getSourceDataIterator(name, variant, -1)
+	iter, err := serv.getSourceDataIterator(name, variant, limit)
 	if err != nil {
 		logger.Errorw("Failed to get source data iterator", "Error", err)
 		return err
@@ -256,7 +257,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 	return f.Serialized(), nil
 }
 
-func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceDataRequest) (*pb.SourceDataColumns, error) {
+func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceColumnRequest) (*pb.SourceDataColumns, error) {
 	id := req.GetId()
 	name, variant := id.GetName(), id.GetVersion()
 	serv.Logger.Infow("Getting source columns", "Name", name, "Variant", variant)

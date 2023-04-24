@@ -680,6 +680,9 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 
 func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feature_SourceDataServer) error {
 	serv.Logger.Infow("Serving Source Data", "id", req.Id.String())
+	if req.Limit == 0 {
+		return fmt.Errorf("limit must be greater -1 to denote no limit or a positive integer")
+	}
 	client, err := serv.client.SourceData(context.Background(), req)
 	if err != nil {
 		return fmt.Errorf("could not serve source data: %w", err)
@@ -699,7 +702,7 @@ func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feat
 	}
 }
 
-func (serv *OnlineServer) SourceColumns(ctx context.Context, req *srv.SourceDataRequest) (*srv.SourceDataColumns, error) {
+func (serv *OnlineServer) SourceColumns(ctx context.Context, req *srv.SourceColumnRequest) (*srv.SourceDataColumns, error) {
 	serv.Logger.Infow("Serving Source Columns", "id", req.Id.String())
 	return serv.client.SourceColumns(ctx, req)
 }

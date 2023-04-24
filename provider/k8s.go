@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"os"
 	"os/exec"
 	"sort"
@@ -817,7 +818,13 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 	if err != nil {
 		return nil, fmt.Errorf("could not create iterator from source table: %v", err)
 	}
-	return &FileStoreIterator{iter: iterator, curIdx: 0, maxIdx: n}, nil
+	var maxIdx int64
+	if n == -1 {
+		maxIdx = math.MaxInt64
+	} else {
+		maxIdx = n
+	}
+	return &FileStoreIterator{iter: iterator, curIdx: 0, maxIdx: maxIdx}, nil
 }
 
 func (tbl *FileStorePrimaryTable) NumRows() (int64, error) {

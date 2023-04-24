@@ -140,7 +140,7 @@ const SearchResultsItem = ({ type, content, setVariant }) => {
   }
 
   return (
-      <div>
+      <>
         <ListItem button alignItems="flex-start" onClick={() => handleClick(content)} >
           <ListItemText
               primary={
@@ -164,7 +164,7 @@ const SearchResultsItem = ({ type, content, setVariant }) => {
               }
           />
         </ListItem>
-      </div>
+      </>
   );
 };
 

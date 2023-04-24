@@ -27,16 +27,16 @@ describe("Bread Crumb Tests", () => {
         </>
     }
 
-    //todo: you can probably get rid of this test.
-    test("Issue-#: Bread x", async () => {
-        //todo: find a way to paramaterize the mock itself. perhaps pass the asPath to the <breadCrumb> component?
-        //also test the hrefs
-        //export capitalize?
-        let queryParamPath = '/training-sets/fraud_training/last_model?q=shouldNotDisplayParam';
-        const helper = render(getTestBody(queryParamPath));
+    test("Issue-762: The breadcrumb component renders the ULR path correctly.", async () => {
+        //given: 
+        let urlPath = '/training-sets/fraud_training/last_model';
+        const helper = render(getTestBody(urlPath));
+
+        //when: we find the breadcrumb links
         const anchorLinks = helper.container.querySelectorAll('a');
         const finalBread = helper.container.querySelector('b');
 
+        //then: the bread crumbs are constructed correctly
         expect(anchorLinks.length).toBe(3);
         expect(anchorLinks[0].textContent).toBe('Home');
         expect(anchorLinks[0].href).toBe('http://localhost/');
@@ -50,12 +50,31 @@ describe("Bread Crumb Tests", () => {
         expect(finalBread.textContent).toBe('Last_model');
     });
 
+    test("Issue-762: Query params are ignored", async () => {
+        //given: a url path with a query param
+        let queryParam = '?q=shouldNotDisplayParam';
+        const helper = render(getTestBody(`/path1${queryParam}`));
+
+        //when: we find the breadcrumb links
+        const anchorLinks = helper.container.querySelectorAll('a');
+        const finalBread = helper.container.querySelector('b');
+        const foundQueryParam = helper.queryByText(queryParam);
+
+        //then: the query param is not present
+        expect(anchorLinks.length).toBe(1);
+        expect(anchorLinks[0].href).toBe('http://localhost/');
+        expect(anchorLinks[0].textContent).toBe('Home');
+        expect(anchorLinks[0].href).toBe('http://localhost/');
+        expect(finalBread.textContent).toBe('Path1');
+        expect(foundQueryParam).toBeNull();
+    });
+
     test.each`
     PathParam                       | LinkCountParam    | LastLinkParam
-    ${'/path?param=noQueryParams!'} | ${1}              | ${'http://localhost/'}
+    ${'/path'}                      | ${1}              | ${'http://localhost/'}
     ${'/path1/path2/model1'}        | ${3}              | ${'http://localhost/path1/path2'}          
     ${'/path1/path2/path3/model1'}  | ${4}              | ${'http://localhost/path1/path2/path3'}
-    `(`Issue-#: The route path "$PathParam" has $LinkCountParam anchor links`, async ({ PathParam, LinkCountParam, LastLinkParam }) => {
+    `(`Issue-762: The route path "$PathParam" has $LinkCountParam anchor links`, async ({ PathParam, LinkCountParam, LastLinkParam }) => {
         //given:
         userRouterMock.asPath = PathParam;
         const helper = render(getTestBody(PathParam));

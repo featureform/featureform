@@ -7,7 +7,6 @@ import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
 import Container from "@material-ui/core/Container";
-import Icon from "@material-ui/core/Icon";
 import Resource from "../../api/resources/Resource.js";
 import { useRouter } from 'next/router'
 
@@ -132,10 +131,7 @@ var searchTypeMap = {
 const SearchResultsItem = ({ type, content, setVariant }) => {
   const classes = useStyles();
   const router = useRouter()
-  // console.log("content:", content, "type:", type);
   const resourceType = Resource[searchTypeMap[content.Type]];
-  // console.log("found resource type", resourceType);
-  // const resourceIcon = resourceType.materialIcon;
   function handleClick(content) {
     if (resourceType?.hasVariants) {
       setVariant(content.Type, content.Name, content.Variant);
@@ -145,13 +141,12 @@ const SearchResultsItem = ({ type, content, setVariant }) => {
 
   return (
       <div>
-        <ListItem button alignItems="flex-start">
+        <ListItem button alignItems="flex-start" onClick={() => handleClick(content)} >
           <ListItemText
               primary={
                 <div>
                   <div>
                     <div className={classes.resultTitle}>
-                      {/*<Icon>{resourceIcon}</Icon>*/}
                     </div>
                     <Typography className={classes.resultTitle} variant="h6">
                       {content.Name}
@@ -167,7 +162,6 @@ const SearchResultsItem = ({ type, content, setVariant }) => {
                   </Typography>
                 </div>
               }
-              onClick={() => handleClick(content)}
           />
         </ListItem>
       </div>

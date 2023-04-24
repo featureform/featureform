@@ -463,9 +463,48 @@ func (resource *sourceVariantResource) Update(lookup ResourceLookup, updateRes R
 	if !ok {
 		return errors.New("failed to deserialize existing source variant record")
 	}
+	switch definition := resource.serialized.Definition.(type) {
+	case *pb.SourceVariant_PrimaryData:
+		otherPrimaryData, ok := variantUpdate.Definition.(*pb.SourceVariant_PrimaryData)
+		if !ok {
+			return fmt.Errorf("cannot change primary data to transformation")
+		}
+
+		diff, err := DiffProtos(definition.PrimaryData, otherPrimaryData.PrimaryData)
+		if err != nil {
+			return err
+		}
+		if len(diff) > 0 {
+			errorMessage := getDiffErrorMessage(resource.serialized.Name, diff)
+			return fmt.Errorf(errorMessage)
+		}
+	case *pb.SourceVariant_Transformation:
+		otherTransformation, ok := variantUpdate.Definition.(*pb.SourceVariant_Transformation)
+		if !ok {
+			return fmt.Errorf("cannot change transformation to transformation")
+		}
+
+		diff, err := pb.DiffProtos(definition.Transformation, otherTransformation.Transformation)
+		if err != nil {
+			return err
+		}
+		if len(diff) > 0 {
+			errorMessage := getDiffErrorMessage(resource.serialized.Name, diff)
+			return fmt.Errorf(errorMessage)
+		}
+	}
 	resource.serialized.Tags = unionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
+}
+
+func getDiffErrorMessage(resourceName string, diff pb.DiffMap) string {
+	messageBuilder := strings.Builder{}
+	messageBuilder.WriteString(fmt.Sprintf("%s cannot be updated, please use new variant.\n", resourceName))
+	for key, value := range diff {
+		messageBuilder.WriteString(fmt.Sprintf("%s: %s\n", key, value))
+	}
+	return messageBuilder.String()
 }
 
 type featureResource struct {

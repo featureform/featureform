@@ -1085,6 +1085,39 @@ func TestSource(t *testing.T) {
 	testListResources(t, SOURCE, expectedSources())
 	testGetResources(t, SOURCE, expectedSources())
 	testGetResources(t, SOURCE_VARIANT, expectedSourceVariants())
+	testUpdatedResource(t)
+}
+
+func testUpdatedResource(t *testing.T) {
+	ctx := testContext{
+		Defs: filledResourceDefs(),
+	}
+	client, err := ctx.Create(t)
+	defer ctx.Destroy()
+	if err != nil {
+		t.Fatalf("Failed to create resources: %s", err)
+	}
+
+	updatedResource := SourceDef{
+		Name:        "mockSource",
+		Variant:     "var2",
+		Description: "A CSV source but different",
+		Definition: PrimaryDataSource{
+			Location: SQLTable{
+				Name: "mockPrimaryChanged",
+			},
+		},
+		Owner:      "Featureform",
+		Provider:   "mockOffline",
+		Tags:       Tags{},
+		Properties: Properties{},
+	}
+	err = update(client, SOURCE_VARIANT, updatedResource)
+	fmt.Println(err)
+	if err == nil {
+		t.Fatalf("Expected error when updating a resource")
+	}
+
 }
 
 type FeatureTest ParentResourceTest

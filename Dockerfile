@@ -1,7 +1,7 @@
 # Build dashboard
 FROM node:16-alpine as dashboard-builder
 COPY ./dashboard ./dashboard
-WORKDIR /dashboard
+WORKDIR ./dashboard
 RUN npm install --legacy-peer-deps
 RUN npm run build
 RUN rm -r node_modules
@@ -72,7 +72,7 @@ RUN ETCD_UNSUPPORTED_ARCH=arm64 ./etcd/bin/etcd --version
 # Install Nginx
 RUN apt-get update
 RUN apt-get install -y nginx --option=Dpkg::Options::=--force-confdef
-COPY ./nginx.conf /etc/nginx/nginx.conf
+COPY nginx.conf /etc/nginx/nginx.conf
 
 # Install MeiliSearch
 RUN curl -L https://install.meilisearch.com | sh

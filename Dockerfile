@@ -1,7 +1,7 @@
 # Build dashboard
 FROM node:16-alpine as dashboard-builder
 COPY ./dashboard ./dashboard
-WORKDIR /dashboard
+WORKDIR ./dashboard
 RUN npm install --legacy-peer-deps
 RUN npm run build
 RUN rm -r node_modules

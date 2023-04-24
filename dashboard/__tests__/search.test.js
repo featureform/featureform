@@ -71,7 +71,7 @@ describe("Search Input Tests", () => {
 
     test.each`
     SearchInputParam        | InvokeParam
-    ${'nospacesSearch'}     | ${1}
+    ${'noSpaceSearch'}      | ${1}
     ${'spaces between'}     | ${1}
     ${'spaces after   '}    | ${1}
     ${'  spaces before'}    | ${1}

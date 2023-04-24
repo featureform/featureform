@@ -263,7 +263,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 		for wresp := range rch {
 			for _, ev := range wresp.Events {
 				time.Sleep(1 * time.Second)
-				if ev.Type == 0 {
+				if ev.Type == mvccpb.PUT {
 					go func(ev *clientv3.Event) {
 						err := c.ExecuteJob(string(ev.Kv.Key))
 						if err != nil {
@@ -590,6 +590,20 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule s
 			c.Logger.Errorf("could not close offline store: %v", err)
 		}
 	}(sourceStore)
+	status := source.Status()
+	if status == metadata.READY {
+		return ResourceAlreadyCompleteError{
+			resourceID: resID,
+		}
+	}
+	if status == metadata.FAILED {
+		return ResourceAlreadyFailedError{
+			resourceID: resID,
+		}
+	}
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
+		return fmt.Errorf("set pending status for registering source: %v", err)
+	}
 	if source.IsSQLTransformation() {
 		return c.runSQLTransformationJob(source, resID, sourceStore, schedule, sourceProvider)
 	} else if source.IsDFTransformation() {

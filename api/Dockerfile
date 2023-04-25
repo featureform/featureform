@@ -18,6 +18,7 @@ COPY ./metadata/search/ ./metadata/search/
 COPY ./metadata/proto/ ./metadata/proto/
 COPY ./proto/ ./proto/
 COPY ./helpers/ ./helpers/
+COPY ./logging/ ./logging/
 COPY ./api/main.go ./api/main.go
 COPY ./provider/provider_config/ ./provider/provider_config/
 COPY ./provider/provider_type/ ./provider/provider_type/

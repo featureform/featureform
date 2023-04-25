@@ -31,6 +31,7 @@ import (
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
 	"github.com/featureform/config"
 	"github.com/featureform/helpers/decompress"
+	"github.com/featureform/provider/filepath"
 	pc "github.com/featureform/provider/provider_config"
 )
 
@@ -966,21 +967,19 @@ func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string) (stri
 		if stepResults.Step.Status.FailureDetails.LogFile != nil {
 			logFile := *stepResults.Step.Status.FailureDetails.LogFile
 
-			bucket, path := getBucketAndPathFromFilePath(logFile)
+			s3FilePath := &filepath.S3FilePath{}
+			err := s3FilePath.ParseFullPath(logFile)
+			if err != nil {
+				return "", fmt.Errorf("could not parse log file path '%s': %v", logFile, err)
+			}
+
+			bucket := s3FilePath.Bucket()
+			path := s3FilePath.Path()
 			outputFilePath := fmt.Sprintf("%s/stdout.gz", path)
 
-			// wait until log file exists
-			for {
-				fileExists, err := e.logFileStore.Exists(outputFilePath)
-				if err != nil {
-					return "", fmt.Errorf("could not determine if file '%s' exists: %v", outputFilePath, err)
-				}
-
-				if fileExists {
-					break
-				}
-
-				time.Sleep(2 * time.Second)
+			err = e.waitForLogFile(outputFilePath)
+			if err != nil {
+				return "", fmt.Errorf("could not wait for log file '%s' to be available: %v", outputFilePath, err)
 			}
 
 			logs, err := e.logFileStore.Read(outputFilePath)
@@ -999,6 +998,22 @@ func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string) (stri
 	}
 
 	return "", nil
+}
+
+func (e *EMRExecutor) waitForLogFile(logFile string) error {
+	// wait until log file exists
+	for {
+		fileExists, err := e.logFileStore.Exists(logFile)
+		if err != nil {
+			return fmt.Errorf("could not determine if file '%s' exists: %v", logFile, err)
+		}
+
+		if fileExists {
+			return nil
+		}
+
+		time.Sleep(2 * time.Second)
+	}
 }
 
 func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
@@ -1042,7 +1057,7 @@ func createLogS3FileStore(emrRegion string, s3LogLocation string, awsAccessKeyId
 	if s3LogLocation == "" {
 		return nil, fmt.Errorf("s3 log location is empty")
 	}
-	bucketName, path := getBucketAndPathFromFilePath(s3LogLocation)
+	bucketName, path := getS3BucketAndPathFromFilePath(s3LogLocation)
 
 	logS3Config := pc.S3FileStoreConfig{
 		Credentials:  pc.AWSCredentials{AWSAccessKeyId: awsAccessKeyId, AWSSecretKey: awsSecretKey},
@@ -1061,23 +1076,6 @@ func createLogS3FileStore(emrRegion string, s3LogLocation string, awsAccessKeyId
 		return nil, fmt.Errorf("could not create s3 file store (bucket: %s, path: %s) for emr logs: %v", err, bucketName, path)
 	}
 	return logFileStore, nil
-}
-
-func getBucketAndPathFromFilePath(filePath string) (string, string) {
-	// this method takes a file path and returns bucket and path
-	// example:
-	//   Input:
-	//     filePath: s3://bucket_name/path/to/file/example.log
-	//   Return values:
-	//     bucket: bucket_name
-	//     path: path/to/file/example.log
-
-	logFileWithoutPrefix := strings.Split(filePath, "://")[1]
-	endOfBucketNameIdx := strings.Index(logFileWithoutPrefix, "/")
-	bucket := logFileWithoutPrefix[:endOfBucketNameIdx]
-	path := strings.Trim(logFileWithoutPrefix[endOfBucketNameIdx:], "/")
-
-	return bucket, path
 }
 
 func removeEspaceCharacters(values []string) []string {

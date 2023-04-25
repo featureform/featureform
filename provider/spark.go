@@ -31,7 +31,6 @@ import (
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
 	"github.com/featureform/config"
 	"github.com/featureform/helpers/compression"
-	"github.com/featureform/provider/filepath"
 	pc "github.com/featureform/provider/provider_config"
 )
 
@@ -967,7 +966,7 @@ func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string) (stri
 		if stepResults.Step.Status.FailureDetails.LogFile != nil {
 			logFile := *stepResults.Step.Status.FailureDetails.LogFile
 
-			s3FilePath := &filepath.S3FilePath{}
+			s3FilePath := &S3FilePath{}
 			err := s3FilePath.ParseFullPath(logFile)
 			if err != nil {
 				return "", fmt.Errorf("could not parse log file path '%s': %v", logFile, err)

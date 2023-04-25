@@ -7,6 +7,7 @@ package serving
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/pkg/errors"
 
@@ -120,15 +121,40 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 		}
 	}
 	vals := make([]*pb.Value, len(features))
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var exErr error
+
 	for i, feature := range req.GetFeatures() {
-		name, variant := feature.GetName(), feature.GetVersion()
-		serv.Logger.Infow("Serving feature", "Name", name, "Variant", variant)
-		val, err := serv.getFeatureValue(ctx, name, variant, entityMap)
-		if err != nil {
-			return nil, errors.Wrap(err, "could not get feature value")
-		}
-		vals[i] = val
+		wg.Add(1)
+		go func(i int, feature *pb.FeatureID) {
+			defer wg.Done()
+			name, variant := feature.GetName(), feature.GetVersion()
+			serv.Logger.Infow("Serving feature", "Name", name, "Variant", variant)
+			val, err := serv.getFeatureValue(ctx, name, variant, entityMap)
+			if err != nil {
+				// Use mutex to avoid race conditions when updating the vals slice
+				mu.Lock()
+				defer mu.Unlock()
+				vals[i] = val
+				serv.Logger.Errorw("Could not get feature value", "Name", name, "Variant", variant, "Error", err.Error())
+				exErr = err
+				return
+			}
+			// Use mutex to avoid race conditions when updating the vals slice
+			mu.Lock()
+			defer mu.Unlock()
+			vals[i] = val
+		}(i, feature)
 	}
+
+	// Wait for all goroutines to finish before returning the result
+	wg.Wait()
+
+	if exErr != nil {
+		return nil, exErr
+	}
+
 	return &pb.FeatureRow{
 		Values: vals,
 	}, nil

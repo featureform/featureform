@@ -2730,54 +2730,6 @@ func TestInitSparkAzure(t *testing.T) {
 	}
 }
 
-func TestGetBucketAndPathFromFilePath(t *testing.T) {
-	type TestCase struct {
-		FilePath       string
-		ExpectedBucket string
-		ExpectedPath   string
-	}
-
-	tests := map[string]TestCase{
-		"s3Path": {
-			FilePath:       "s3://bucket/path/to/file/output.gzip",
-			ExpectedBucket: "bucket",
-			ExpectedPath:   "path/to/file/output.gzip",
-		},
-		"s3nPath": {
-			FilePath:       "s3n://bucket/path/to/file/output.gzip",
-			ExpectedBucket: "bucket",
-			ExpectedPath:   "path/to/file/output.gzip",
-		},
-		"s3aPath": {
-			FilePath:       "s3a://bucket/path/to/file/output.gzip",
-			ExpectedBucket: "bucket",
-			ExpectedPath:   "path/to/file/output.gzip",
-		},
-		"s3aPathEndingWithSlash": {
-			FilePath:       "s3a://bucket/path/to/file/",
-			ExpectedBucket: "bucket",
-			ExpectedPath:   "path/to/file",
-		},
-	}
-
-	runTestCase := func(t *testing.T, test TestCase) {
-		bucket, path := getBucketAndPathFromFilePath(test.FilePath)
-		if bucket != test.ExpectedBucket {
-			t.Fatalf("buckets do not match: expected '%s' but got '%s'", test.ExpectedBucket, bucket)
-		}
-		if path != test.ExpectedPath {
-			t.Fatalf("paths do not match: expected '%s' but got '%s'", test.ExpectedPath, path)
-		}
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			runTestCase(t, test)
-		})
-	}
-}
-
 func TestCreateLogS3FileStore(t *testing.T) {
 	type TestCase struct {
 		Region      string

@@ -966,7 +966,7 @@ func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string) (stri
 		if stepResults.Step.Status.FailureDetails.LogFile != nil {
 			logFile := *stepResults.Step.Status.FailureDetails.LogFile
 
-			s3FilePath := &S3FilePath{}
+			s3FilePath := &S3Filepath{}
 			err := s3FilePath.ParseFullPath(logFile)
 			if err != nil {
 				return "", fmt.Errorf("could not parse log file path '%s': %v", logFile, err)
@@ -1056,7 +1056,14 @@ func createLogS3FileStore(emrRegion string, s3LogLocation string, awsAccessKeyId
 	if s3LogLocation == "" {
 		return nil, fmt.Errorf("s3 log location is empty")
 	}
-	bucketName, path := getS3BucketAndPathFromFilePath(s3LogLocation)
+	s3FilePath := &S3Filepath{}
+	err := s3FilePath.ParseFullPath(s3LogLocation)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse file path '%s': %v", s3LogLocation, err)
+	}
+
+	bucketName := s3FilePath.Bucket()
+	path := s3FilePath.Path()
 
 	logS3Config := pc.S3FileStoreConfig{
 		Credentials:  pc.AWSCredentials{AWSAccessKeyId: awsAccessKeyId, AWSSecretKey: awsSecretKey},

@@ -49,17 +49,10 @@ class OperationType(Enum):
 
 @typechecked
 @dataclass
-class SourceType(Enum):
+class SourceType(str, Enum):
     PRIMARY_SOURCE = "PRIMARY"
     DF_TRANSFORMATION = "DF"
     SQL_TRANSFORMATION = "SQL"
-
-    def __eq__(self, other):
-        if isinstance(other, str):
-            return self.value == other
-        if isinstance(other, SourceType):
-            return self.value == other.value
-        return False
 
 
 @typechecked
@@ -69,16 +62,9 @@ class FilePrefix(Enum):
     S3A = "s3a://"
 
 
-class FileFormat(Enum):
+class FileFormat(str, Enum):
     CSV = "csv"
     PARQUET = "parquet"
-
-    def __eq__(self, other) -> bool:
-        if isinstance(other, str):
-            return self.value == other
-        if isinstance(other, FileFormat):
-            return self.value == other.value
-        return False
 
     @classmethod
     def is_supported(cls, file_path: str) -> bool:

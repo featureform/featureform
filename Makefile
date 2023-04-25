@@ -226,13 +226,13 @@ pytest:
 	pytest client/tests/test_spark_provider.py
 	pytest client/tests/test_localmode_include_label_ts.py
 	pytest client/tests/test_localmode_lag_features.py
+	pytest client/tests/test_localmode_caching.py
 	pytest -m 'local' client/tests/test_serving_model.py
 	pytest -m 'local' client/tests/test_getting_model.py
 	pytest -m 'local' client/tests/test_search.py
 	pytest -m 'local' client/tests/test_tags_and_properties.py
 	pytest -m 'local' client/tests/test_class_api.py
 	pytest -m 'local' client/tests/test_ondemand_features.py
-	pytest client/tests/test_localmode_caching.py
 	pytest -m 'local' client/tests/test_resource_registration.py
 	pytest -m 'local' client/tests/test_source_dataframe.py
 	-rm -r .featureform

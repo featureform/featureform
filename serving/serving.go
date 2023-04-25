@@ -7,8 +7,6 @@ package serving
 import (
 	"context"
 	"fmt"
-	"sync"
-
 	"github.com/pkg/errors"
 
 	"github.com/featureform/metadata"
@@ -121,38 +119,48 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 			return nil, err
 		}
 	}
-	vals := make([]*pb.Value, len(features))
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	var exErr error
 
-	for i, feature := range req.GetFeatures() {
-		wg.Add(1)
-		go func(i int, feature *pb.FeatureID) {
-			defer wg.Done()
-			name, variant := feature.GetName(), feature.GetVersion()
-			val, err := serv.getFeatureValue(ctx, name, variant, entityMap)
-			if err != nil {
-				// Use mutex to avoid race conditions when updating the vals slice
-				mu.Lock()
-				defer mu.Unlock()
-				vals[i] = val
-				serv.Logger.Errorw("Could not get feature value", "Name", name, "Variant", variant, "Error", err.Error())
-				exErr = err
-				return
-			}
-			// Use mutex to avoid race conditions when updating the vals slice
-			mu.Lock()
-			defer mu.Unlock()
-			vals[i] = val
-		}(i, feature)
+	nvs := make([]metadata.NameVariant, len(features))
+
+	serv.Logger.Info("Converting NameVariants")
+
+	for _, feature := range req.GetFeatures() {
+		nvs = append(nvs, metadata.NameVariant{Name: feature.GetName(), Variant: feature.GetVersion()})
 	}
 
-	// Wait for all goroutines to finish before returning the result
-	wg.Wait()
+	serv.Logger.Info("Getting feature variants")
 
-	if exErr != nil {
-		return nil, exErr
+	metas, err := serv.Metadata.GetFeatureVariants(ctx, nvs)
+	if err != nil {
+		return nil, err
+	}
+
+	vals := make([]*pb.Value, len(features))
+	valueCh := make(chan *pb.Value, len(metas))
+	errCh := make(chan error, len(metas))
+
+	serv.Logger.Info("Getting feature values")
+
+	for _, meta := range metas {
+		go func(meta *metadata.FeatureVariant) {
+			value, err := serv.getFeatureValues(ctx, meta, entityMap)
+			if err != nil {
+				errCh <- err
+				return
+			}
+			valueCh <- value
+		}(meta)
+	}
+
+	serv.Logger.Info("Adding values to response")
+
+	for i := 0; i < len(metas); i++ {
+		select {
+		case value := <-valueCh:
+			vals = append(vals, value)
+		case err := <-errCh:
+			return nil, err
+		}
 	}
 
 	serv.Logger.Info("Serving Complete")
@@ -162,18 +170,10 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	}, nil
 }
 
-func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant string, entityMap map[string]string) (*pb.Value, error) {
-	obs := serv.Metrics.BeginObservingOnlineServe(name, variant)
+func (serv *FeatureServer) getFeatureValues(ctx context.Context, meta *metadata.FeatureVariant, entityMap map[string]string) (*pb.Value, error) {
+	obs := serv.Metrics.BeginObservingOnlineServe(meta.Name(), meta.Variant())
 	defer obs.Finish()
-	logger := serv.Logger.With("Name", name, "Variant", variant)
-	logger.Debug("Getting metadata")
-	meta, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{name, variant})
-	if err != nil {
-		logger.Errorw("metadata lookup failed", "Err", err)
-		obs.SetError()
-		return nil, err
-	}
-	logger.Debug("Returned metadata")
+	logger := serv.Logger.With("Name", meta.Name(), "Variant", meta.Variant())
 
 	var val interface{}
 	switch meta.Mode() {
@@ -209,7 +209,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 			return nil, err
 		}
 		logger.Debug("Getting table")
-		table, err := store.GetTable(name, variant)
+		table, err := store.GetTable(meta.Name(), meta.Variant())
 		if err != nil {
 			logger.Errorw("feature not found", "Error", err)
 			obs.SetError()

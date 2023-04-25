@@ -2,9 +2,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import inspect
 import os
-import re
 from typing import Union
+import warnings
 import dill
 import json
 import math
@@ -34,6 +35,7 @@ from featureform.proto import serving_pb2_grpc
 from .resources import Model, SourceType, ComputationMode
 from .tls import insecure_channel, secure_channel
 from .version import check_up_to_date
+from .enums import FileFormat
 
 
 def check_feature_type(features):
@@ -67,6 +69,14 @@ class ServingClient:
     """
 
     def __init__(self, host=None, local=False, insecure=False, cert_path=None):
+        # This line ensures that the warning is only raised if ServingClient is instantiated directly
+        # TODO: Remove this check once ServingClient is deprecated
+        is_instantiated_directed = inspect.stack()[1].function != "__init__"
+        if is_instantiated_directed:
+            warnings.warn(
+                "ServingClient is deprecated and will be removed in future versions; use Client instead.",
+                PendingDeprecationWarning,
+            )
         """
         Args:
             host (str): The hostname of the Featureform instance. Exclude if using Localmode.
@@ -179,6 +189,12 @@ class HostedClientImpl:
             feature_values.append(parsed_value)
 
         return feature_values
+
+    def get_source_as_df(self, name, variant):
+        warnings.warn(
+            "Computing dataframes on sources in hosted mode is not yet supported."
+        )
+        return pd.DataFrame()
 
 
 class LocalClientImpl:
@@ -330,10 +346,17 @@ class LocalClientImpl:
     def get_input_df(self, source_name, source_variant):
         if (
             self.db.is_transformation(source_name, source_variant)
-            == SourceType.PRIMARY_SOURCE.value
+            == SourceType.PRIMARY_SOURCE
         ):
             source = self.db.get_source_variant(source_name, source_variant)
-            df = pd.read_csv(str(source["definition"]))
+            file_path = source["definition"]
+            if FileFormat.get_format(file_path) == FileFormat.CSV:
+                df = pd.read_csv(file_path)
+            elif FileFormat.get_format(file_path) == FileFormat.PARQUET:
+                df = pd.read_parquet(file_path)
+            else:
+                raise ValueError(f"Unsupported file format for {file_path}")
+            return df
         else:
             df = self.process_transformation(source_name, source_variant)
         return df
@@ -629,6 +652,9 @@ class LocalClientImpl:
 
         self.db.insert("models", name, type)
         self.db.insert(look_up_table, name, association_name, association_variant)
+
+    def get_source_as_df(self, name, variant):
+        return self.get_input_df(name, variant)
 
 
 class Stream:

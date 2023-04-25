@@ -30,6 +30,7 @@ from featureform.resources import (
     SQLTransformation,
     DFTransformation,
 )
+from featureform.enums import FileFormat
 import featureform as ff
 
 real_path = os.path.realpath(__file__)
@@ -285,14 +286,14 @@ def s3(aws_credentials):
 @pytest.fixture(scope="module")
 def local_provider_source():
     # empty param to match the signature of the other fixtures
-    def get_local(_):
+    def get_local(_, file_format=FileFormat.CSV.value):
         ff.register_user("test_user").make_default_owner()
         provider = ff.register_local()
         source = provider.register_file(
             name="transactions",
             variant="quickstart",
             description="A dataset of fraudulent transactions.",
-            path=f"{dir_path}/test_files/input_files/transactions.csv",
+            path=f"{dir_path}/test_files/input_files/transactions.{file_format}",
         )
         return (provider, source, None)
 

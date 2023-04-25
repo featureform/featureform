@@ -2,7 +2,6 @@ import time
 import featureform as ff
 from featureform.resources import Model
 import pytest
-from featureform.serving import LocalClientImpl
 
 
 @pytest.mark.parametrize(

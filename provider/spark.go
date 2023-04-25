@@ -887,7 +887,7 @@ func NewEMRExecutor(emrConfig pc.EMRConfig, logger *zap.SugaredLogger) (SparkExe
 		logLocation := *describeEMR.Cluster.LogUri
 		logFileStore, err = createLogS3FileStore(emrConfig.ClusterRegion, logLocation, awsAccessKeyId, awsSecretKey)
 		if err != nil {
-			return nil, fmt.Errorf("could not create log fi: %v", err)
+			return nil, fmt.Errorf("could not create log file store: %v", err)
 		}
 	}
 
@@ -989,7 +989,7 @@ func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string) (stri
 			}
 
 			// the output file is compressed so we need decompress it
-			errorMessage, err := decompress.GZipMessageToString(logs)
+			errorMessage, err := decompress.GZip(logs)
 			if err != nil {
 				return "", fmt.Errorf("could not decompress error message: %v", err)
 			}
@@ -1040,7 +1040,7 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 
 func createLogS3FileStore(emrRegion string, s3LogLocation string, awsAccessKeyId string, awsSecretKey string) (FileStore, error) {
 	if s3LogLocation == "" {
-		return nil, nil
+		return nil, fmt.Errorf("s3 log location is empty")
 	}
 	bucketName, path := getBucketAndPathFromFilePath(s3LogLocation)
 

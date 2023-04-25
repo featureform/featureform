@@ -335,7 +335,9 @@ func (client *Client) parseFeatureVariantStream(stream featureVariantStream) ([]
 		} else if err != nil {
 			return nil, err
 		}
+		client.Logger.Info("Wrap variants")
 		features = append(features, wrapProtoFeatureVariant(serial))
+		client.Logger.Info("Done wrapping variants")
 	}
 	client.Logger.Info("Done Parsing")
 	return features, nil

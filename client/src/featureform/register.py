@@ -5,6 +5,8 @@ from os.path import exists
 from datetime import timedelta
 from typeguard import typechecked
 from typing import Dict, Tuple, Callable, List, Union
+import warnings
+import inspect
 
 import dill
 import pandas as pd
@@ -25,6 +27,7 @@ from .resources import ColumnTypes, Model, ResourceState, Provider, RedisConfig,
 from .proto import metadata_pb2_grpc as ff_grpc
 from .search_local import search_local
 from .search import search
+from .enums import FileFormat
 
 NameVariant = Tuple[str, str]
 
@@ -458,13 +461,20 @@ class LocalProvider:
         Args:
             name (str): Name for how to reference the file later
             description (str): Description of the file
-            path (str): Path to the file
+            path (str): Path to the file (supported formats: csv, parquet)
             variant (str): File variant
             owner (str): Owner of the file
 
         Returns:
             source (LocalSource): source
         """
+        if not FileFormat.is_supported(path):
+            print(f"File format not supported: {path}")
+            raise Exception(
+                "File format not supported. Supported formats: {}".format(
+                    FileFormat.supported_formats()
+                )
+            )
         if owner == "":
             owner = self.__registrar.must_get_default_owner()
         # Store the file as a source
@@ -2951,7 +2961,14 @@ class ResourceClient:
             insecure (bool): True if connecting to an insecure Featureform endpoint. False if using a self-signed or public TLS certificate
             cert_path (str): The path to a public certificate if using a self-signed certificate.
         """
-        super().__init__()
+        # This line ensures that the warning is only raised if ResourceClient is instantiated directly
+        # TODO: Remove this check once ServingClient is deprecated
+        is_instantiated_directed = inspect.stack()[1].function != "__init__"
+        if is_instantiated_directed:
+            warnings.warn(
+                "ResourceClient is deprecated and will be removed in future versions; use Client instead.",
+                PendingDeprecationWarning,
+            )
         self._dry_run = dry_run
         self._stub = None
         self.local = local

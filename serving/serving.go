@@ -178,24 +178,28 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 	var val interface{}
 	switch meta.Mode() {
 	case metadata.PRECOMPUTED:
+		logger.Debug("Checking entity")
 		entity, has := entityMap[meta.Entity()]
 		if !has {
 			logger.Errorw("Entity not found", "Entity", meta.Entity())
 			obs.SetError()
 			return nil, fmt.Errorf("No value for entity %s", meta.Entity())
 		}
+		logger.Debug("Getting provider")
 		providerEntry, err := meta.FetchProvider(serv.Metadata, ctx)
 		if err != nil {
 			logger.Errorw("fetching provider metadata failed", "Error", err)
 			obs.SetError()
 			return nil, err
 		}
+		logger.Debug("Initializing provider")
 		p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 		if err != nil {
 			logger.Errorw("failed to get provider", "Error", err)
 			obs.SetError()
 			return nil, err
 		}
+		logger.Debug("Online store check")
 		store, err := p.AsOnlineStore()
 		if err != nil {
 			logger.Errorw("failed to use provider as onlinestore for feature", "Error", err)
@@ -204,12 +208,14 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 			// That shouldn't be possible.
 			return nil, err
 		}
+		logger.Debug("Getting table")
 		table, err := store.GetTable(name, variant)
 		if err != nil {
 			logger.Errorw("feature not found", "Error", err)
 			obs.SetError()
 			return nil, err
 		}
+		logger.Debug("Getting value")
 		val, err = table.Get(entity)
 		if err != nil {
 			logger.Errorw("entity not found", "Error", err)

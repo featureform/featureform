@@ -20,6 +20,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	help "github.com/featureform/helpers"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
 	srv "github.com/featureform/proto"
@@ -804,7 +805,7 @@ func main() {
 	apiConn := fmt.Sprintf("0.0.0.0:%s", apiPort)
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	servingConn := fmt.Sprintf("%s:%s", servingHost, servingPort)
-	logger := zap.NewExample().Sugar()
+	logger := logging.NewLogger("api")
 	go func() {
 		err := startHttpsServer(":8443")
 		if err != nil && err != http.ErrServerClosed {

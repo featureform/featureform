@@ -105,6 +105,7 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServeRequest) (*pb.FeatureRow, error) {
 	features := req.GetFeatures()
 	entities := req.GetEntities()
+	serv.Logger.Infow("Serving features", "Features", features, "Entities", entities)
 	entityMap := make(map[string]string)
 	for _, entity := range entities {
 		entityMap[entity.GetName()] = entity.GetValue()
@@ -130,7 +131,6 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 		go func(i int, feature *pb.FeatureID) {
 			defer wg.Done()
 			name, variant := feature.GetName(), feature.GetVersion()
-			serv.Logger.Infow("Serving feature", "Name", name, "Variant", variant)
 			val, err := serv.getFeatureValue(ctx, name, variant, entityMap)
 			if err != nil {
 				// Use mutex to avoid race conditions when updating the vals slice
@@ -154,6 +154,8 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	if exErr != nil {
 		return nil, exErr
 	}
+
+	serv.Logger.Info("Serving Complete")
 
 	return &pb.FeatureRow{
 		Values: vals,

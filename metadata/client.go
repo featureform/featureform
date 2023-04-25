@@ -186,13 +186,16 @@ func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant)
 	}
 	client.Logger.Info("Send Variants")
 	go func() {
+		client.Logger.Info("Send Variants go routine")
 		for _, id := range ids {
 			stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
 		}
+		client.Logger.Info("Send Variants go routine sent")
 		err := stream.CloseSend()
 		if err != nil {
 			client.Logger.Errorw("Failed to close send", "Err", err)
 		}
+		client.Logger.Info("Send Variants stream closed")
 	}()
 	client.Logger.Info("Return Variant Stream")
 	return client.parseFeatureVariantStream(stream)
@@ -324,6 +327,7 @@ type featureVariantStream interface {
 
 func (client *Client) parseFeatureVariantStream(stream featureVariantStream) ([]*FeatureVariant, error) {
 	features := make([]*FeatureVariant, 0)
+	client.Logger.Info("Parse Features")
 	for {
 		serial, err := stream.Recv()
 		if err == io.EOF {
@@ -333,6 +337,7 @@ func (client *Client) parseFeatureVariantStream(stream featureVariantStream) ([]
 		}
 		features = append(features, wrapProtoFeatureVariant(serial))
 	}
+	client.Logger.Info("Done Parsing")
 	return features, nil
 }
 

@@ -181,7 +181,7 @@ func (client *Client) GetFeatures(ctx context.Context, features []string) ([]*Fe
 func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant) ([]*FeatureVariant, error) {
 	stream, err := client.grpcConn.GetFeatureVariants(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get feature variants: %v", err)
 	}
 	go func() {
 		for _, id := range ids {

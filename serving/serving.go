@@ -128,10 +128,11 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 		nvs = append(nvs, metadata.NameVariant{Name: feature.GetName(), Variant: feature.GetVersion()})
 	}
 
-	serv.Logger.Info("Getting feature variants")
+	serv.Logger.Infow("Getting feature variants", "NameVariants", nvs)
 
 	metas, err := serv.Metadata.GetFeatureVariants(ctx, nvs)
 	if err != nil {
+		serv.Logger.Errorw("Failed to get feature variants", "Error", err)
 		return nil, err
 	}
 

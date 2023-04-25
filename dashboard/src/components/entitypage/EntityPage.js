@@ -26,6 +26,7 @@ function mapStateToProps(state) {
 
 const LoadingDots = () => {
   return (
+    <div data-testid='loadingDotsId'>
     <Container maxWidth="xl">
       <Paper elevation={3}>
         <Container maxWidth="sm">
@@ -33,6 +34,7 @@ const LoadingDots = () => {
         </Container>
       </Paper>
     </Container>
+    </div>
   );
 };
 
@@ -54,13 +56,11 @@ const EntityPage = ({ api, entityPage, activeVariants, type, entity, ...props })
     }
   }, [type, entity]);
 
-  //todo: refactor and unit test this. also test when browsing to a bad type "/asdf/fraudulent"
-  //convert loading dots to global spinner?
   return (
     <div>
       {entityPage.failed || (!entityPage.loading && fetchNotFound(entityPage)) ? (
         <NotFoundPage />
-      ) : checkIfEmpty(entityPage) || entityPage.loading ? (
+      ) : entityPage.loading || checkIfEmpty(entityPage) ? (
         <LoadingDots />
       ) : (
         <EntityPageView

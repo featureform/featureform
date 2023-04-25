@@ -409,6 +409,9 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 			resourceID: resID,
 		}
 	}
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
+		return fmt.Errorf("set pending status for transformation job: %v", err)
+	}
 
 	createTransformationConfig := runner.CreateTransformationConfig{
 		OfflineType:          pt.Type(sourceProvider.Type()),
@@ -590,20 +593,6 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule s
 			c.Logger.Errorf("could not close offline store: %v", err)
 		}
 	}(sourceStore)
-	status := source.Status()
-	if status == metadata.READY {
-		return ResourceAlreadyCompleteError{
-			resourceID: resID,
-		}
-	}
-	if status == metadata.FAILED {
-		return ResourceAlreadyFailedError{
-			resourceID: resID,
-		}
-	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
-		return fmt.Errorf("set pending status for registering source: %v", err)
-	}
 	if source.IsSQLTransformation() {
 		return c.runSQLTransformationJob(source, resID, sourceStore, schedule, sourceProvider)
 	} else if source.IsDFTransformation() {

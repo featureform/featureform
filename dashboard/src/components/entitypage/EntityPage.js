@@ -40,19 +40,25 @@ const checkIfEmpty = (object) => {
   return Object.keys(object).length === 0 && object.constructor === Object;
 };
 
+const fetchNotFound = (object) => {
+  return !object?.resources?.name && !object?.resources?.type
+}
+
 const EntityPage = ({ api, entityPage, activeVariants, type, entity, ...props }) => {
   let resourceType = Resource[Resource.pathToType[type]];
   const fetchEntity = props.fetch;
 
   useEffect(() => {
-    if (api && type && entity && resourceType) {
+    if (api && type && entity) {
       fetchEntity(api, type, entity);
     }
   }, [type, entity]);
 
+  //todo: refactor and unit test this. also test when browsing to a bad type "/asdf/fraudulent"
+  //convert loading dots to global spinner?
   return (
     <div>
-      {entityPage.failed || !resourceType ? (
+      {entityPage.failed || (!entityPage.loading && fetchNotFound(entityPage)) ? (
         <NotFoundPage />
       ) : checkIfEmpty(entityPage) || entityPage.loading ? (
         <LoadingDots />

@@ -8,7 +8,7 @@ import ListItem from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
 import Container from "@material-ui/core/Container";
 import Resource from "../../api/resources/Resource.js";
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router"
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -112,20 +112,19 @@ const SearchResultsList = ({ type, contents, setVariant }) => {
   );
 };
 
-// todo: ask sterling to verify this mapping. do variants map back to their base form? 
 var searchTypeMap = {
   "FEATURE": "Feature",
   "FEATURE_VARIANT": "Feature",
-  'LABEL': "Label",
-  'LABEL_VARIANT': 'Label',
-  'TRAINING_SET': "TrainingSet",
-  'TRAINING_SET_VARIANT': "TrainingSet",
-  'SOURCE': "Source",
-  'SOURCE_VARIANT': "Source",
-  'PROVIDER': "Provider",
-  'ENTITY': "Entity",
-  'MODEL': "Model",
-  'USER': "User",
+  "LABEL": "Label",
+  "LABEL_VARIANT": "Label",
+  "TRAINING_SET": "TrainingSet",
+  "TRAINING_SET_VARIANT": "TrainingSet",
+  "SOURCE": "Source",
+  "SOURCE_VARIANT": "Source",
+  "PROVIDER": "Provider",
+  "ENTITY": "Entity",
+  "MODEL": "Model",
+  "USER": "User",
 }
 
 const SearchResultsItem = ({ type, content, setVariant }) => {

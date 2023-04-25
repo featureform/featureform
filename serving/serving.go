@@ -124,8 +124,8 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 
 	serv.Logger.Info("Converting NameVariants")
 
-	for _, feature := range req.GetFeatures() {
-		nvs = append(nvs, metadata.NameVariant{Name: feature.GetName(), Variant: feature.GetVersion()})
+	for i, feature := range req.GetFeatures() {
+		nvs[i] = metadata.NameVariant{Name: feature.GetName(), Variant: feature.GetVersion()}
 	}
 
 	serv.Logger.Infow("Getting feature variants", "NameVariants", nvs)

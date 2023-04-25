@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	help "github.com/featureform/helpers"
+	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/pkg/errors"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -321,24 +322,30 @@ func (lookup etcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 }
 
 func (lookup etcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
+	logger := logging.NewLogger("lookup")
 	key := createKey(id)
 	fmt.Printf("Lookup Key: %s\n", key)
+	logger.Infow("Get", "key", key)
 	resp, err := lookup.connection.Get(key)
 	if err != nil || len(resp) == 0 {
 		return nil, &ResourceNotFound{id, err}
 	}
+	logger.Infow("Deserialize", "key", key)
 	msg, err := lookup.deserialize(resp)
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("lookup deserialize: %s", id))
 	}
+	logger.Infow("Create empty resource", "key", key)
 	resType, err := lookup.createEmptyResource(msg.ResourceType)
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("lookup create: %s", id))
 	}
+	logger.Infow("Parse resource", "key", key)
 	resource, err := lookup.connection.ParseResource(msg, resType)
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("lookup parse: %s", id))
 	}
+	logger.Infow("Return", "key", key)
 	return resource, nil
 }
 

@@ -30,7 +30,7 @@ import (
 
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
 	"github.com/featureform/config"
-	"github.com/featureform/helpers/decompress"
+	"github.com/featureform/helpers/compression"
 	"github.com/featureform/provider/filepath"
 	pc "github.com/featureform/provider/provider_config"
 )
@@ -987,10 +987,10 @@ func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string) (stri
 				return "", fmt.Errorf("could not read log file in '%s' bucket at '%s' path: %v", bucket, outputFilePath, err)
 			}
 
-			// the output file is compressed so we need decompress it
-			errorMessage, err := decompress.GZip(logs)
+			// the output file is compressed so we need uncompress it
+			errorMessage, err := compression.UnGZip(logs)
 			if err != nil {
-				return "", fmt.Errorf("could not decompress error message: %v", err)
+				return "", fmt.Errorf("could not uncompress error message: %v", err)
 			}
 
 			return errorMessage, nil

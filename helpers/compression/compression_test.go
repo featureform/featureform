@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-func TestDecompressMessage(t *testing.T) {
+func TestUncompressMessage(t *testing.T) {
 	type TestCase struct {
 		InputString string
 	}
@@ -51,7 +51,7 @@ func TestDecompressMessage(t *testing.T) {
 
 		outputString, err := UnGZip(compressedBytes)
 		if err != nil {
-			t.Fatalf("could not decompress message: %v", err)
+			t.Fatalf("could not uncompress message: %v", err)
 		}
 
 		if outputString != test.InputString {

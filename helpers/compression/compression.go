@@ -12,7 +12,7 @@ import (
 
 func UnGZip(message []byte) (string, error) {
 	// this function takes a gzip compressed byte array and
-	// decompresses it into string
+	// uncompresses it into string
 
 	buffer := bytes.NewBuffer(message)
 

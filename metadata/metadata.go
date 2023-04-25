@@ -1606,16 +1606,19 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 			serv.Logger.Errorw("Generic Get receive error", "error", recvErr)
 			return recvErr
 		}
+		serv.Logger.Infow("Looking up Resource", "id", id)
 		resource, err := serv.lookup.Lookup(id)
 		if err != nil {
 			serv.Logger.Errorw("Generic Get lookup error", "error", err)
 			return err
 		}
+		serv.Logger.Infow("Sending Resource", "id", id)
 		serialized := resource.Proto()
 		if err := send(serialized); err != nil {
 			serv.Logger.Errorw("Generic Get send error", "error", err)
 			return err
 		}
+		serv.Logger.Infow("Send Complete", "id", id)
 	}
 }
 

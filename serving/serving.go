@@ -158,7 +158,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	for i := 0; i < len(metas); i++ {
 		select {
 		case value := <-valueCh:
-			vals = append(vals, value)
+			vals[i] = value
 		case err := <-errCh:
 			return nil, err
 		}

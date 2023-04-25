@@ -173,6 +173,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 		obs.SetError()
 		return nil, err
 	}
+	logger.Debug("Returned metadata")
 
 	var val interface{}
 	switch meta.Mode() {
@@ -220,7 +221,9 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 	default:
 		return nil, fmt.Errorf("unknown computation mode %v", meta.Mode())
 	}
+	logger.Debug("Returned feature values")
 	f, err := newFeature(val)
+	logger.Debug("Casted feature value")
 	if err != nil {
 		logger.Errorw("invalid feature type", "Error", err)
 		obs.SetError()

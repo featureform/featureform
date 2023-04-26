@@ -104,4 +104,19 @@ describe("Entity Page Tests", () => {
         expect(foundPageMock).toBeDefined();
         expect(apiMock.fetchEntity).toHaveBeenCalledTimes(1);
     });
+
+    test('Issue-769: If no resource data is found, display the "404 not found" component', async () => {
+        //given: an empty resources response obj
+        const state = { ...defaultState, entityPage: { failed: false, loading: false, resources: {} } };
+        const helper = render(getTestBody(state));
+
+         //when: 
+         const notFoundDiv = await helper.findByTestId(NOT_FOUND);
+         const foundFoundElem = helper.getByText("404", { exact: false })
+ 
+         //then: 
+         expect(notFoundDiv).toBeDefined();
+         expect(foundFoundElem.nodeName).toBe("H1");
+         expect(apiMock.fetchEntity).toHaveBeenCalledTimes(1);
+    });
 });

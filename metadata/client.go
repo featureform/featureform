@@ -179,26 +179,26 @@ func (client *Client) GetFeatures(ctx context.Context, features []string) ([]*Fe
 }
 
 func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant) ([]*FeatureVariant, error) {
-	client.Logger.With("ids", ids)
-	client.Logger.Info("Getting feature variants")
+	logger := client.Logger.With("ids", ids)
+	logger.Info("Getting feature variants")
 	stream, err := client.grpcConn.GetFeatureVariants(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get feature variants: %v", err)
 	}
-	client.Logger.Info("Send Variants")
+	logger.Info("Send Variants")
 	go func() {
 		client.Logger.Info("Send Variants go routine")
 		for _, id := range ids {
 			stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
 		}
-		client.Logger.Info("Send Variants go routine sent")
+		logger.Info("Send Variants go routine sent")
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "Err", err)
 		}
-		client.Logger.Info("Send Variants stream closed")
+		logger.Info("Send Variants stream closed")
 	}()
-	client.Logger.Info("Return Variant Stream")
+	logger.Info("Return Variant Stream")
 	return client.parseFeatureVariantStream(stream)
 }
 
@@ -336,9 +336,9 @@ func (client *Client) parseFeatureVariantStream(stream featureVariantStream) ([]
 		} else if err != nil {
 			return nil, err
 		}
-		client.Logger.Info("Wrap variants")
+		client.Logger.Info("Wrap variants", serial.Name, serial.Variant)
 		features = append(features, wrapProtoFeatureVariant(serial))
-		client.Logger.Info("Done wrapping variants")
+		client.Logger.Info("Done wrapping variants", serial.Name, serial.Variant)
 	}
 	client.Logger.Info("Done Parsing")
 	return features, nil

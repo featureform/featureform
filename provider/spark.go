@@ -688,7 +688,7 @@ type EMRExecutor struct {
 	client       *emr.Client
 	clusterName  string
 	logger       *zap.SugaredLogger
-	logFileStore FileStore
+	logFileStore *FileStore
 }
 
 func (e EMRExecutor) InitializeExecutor(store SparkFileStore) error {
@@ -883,17 +883,17 @@ func NewEMRExecutor(emrConfig pc.EMRConfig, logger *zap.SugaredLogger) (SparkExe
 		Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(awsAccessKeyId, awsSecretKey, "")),
 	})
 
-	var logFileStore FileStore
+	var logFileStore *FileStore
 	describeEMR, err := client.DescribeCluster(context.TODO(), &emr.DescribeClusterInput{
 		ClusterId: aws.String(emrConfig.ClusterName),
 	})
 	if err != nil {
-		return nil, err
+		logger.Infof("could not pull information about the cluster '%s': %s", emrConfig.ClusterName, err)
 	} else if describeEMR.Cluster.LogUri != nil {
 		logLocation := *describeEMR.Cluster.LogUri
 		logFileStore, err = createLogS3FileStore(emrConfig.ClusterRegion, logLocation, awsAccessKeyId, awsSecretKey)
 		if err != nil {
-			return nil, fmt.Errorf("could not create log file store: %v", err)
+			logger.Infof("could not create log file store at '%s': %s", logLocation, err)
 		}
 	}
 
@@ -934,22 +934,25 @@ func (e *EMRExecutor) RunSparkJob(args []string, store SparkFileStore) error {
 		StepId:    aws.String(stepId),
 	}, waitDuration)
 	if err != nil {
-		errorMessage, err := e.getStepErrorMessage(e.clusterName, stepId)
-		if err != nil {
-			return fmt.Errorf("could not get error message from EMR step: %v", err)
+		errorMessage, getErr := e.getStepErrorMessage(e.clusterName, stepId)
+		if getErr != nil {
+			e.logger.Infof("could not get error message for EMR step '%s': %s", stepId, getErr)
 		}
-
 		if errorMessage != "" {
 			return fmt.Errorf("the EMR step '%s' failed: %s", stepId, errorMessage)
 		}
 
-		e.logger.Errorw("Failure waiting for completion of EMR cluster", err)
+		e.logger.Errorf("Failure waiting for completion of EMR cluster: %s", err)
 		return fmt.Errorf("failure waiting for completion of EMR cluster: %s", err)
 	}
 	return nil
 }
 
 func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string) (string, error) {
+	if e.logFileStore == nil {
+		return "", fmt.Errorf("cannot get error message for EMR step '%s' because the log file store is not set", stepId)
+	}
+
 	stepResults, err := e.client.DescribeStep(context.TODO(), &emr.DescribeStepInput{
 		ClusterId: aws.String(clusterId),
 		StepId:    aws.String(stepId),
@@ -1066,7 +1069,7 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 	return argList
 }
 
-func createLogS3FileStore(emrRegion string, s3LogLocation string, awsAccessKeyId string, awsSecretKey string) (FileStore, error) {
+func createLogS3FileStore(emrRegion string, s3LogLocation string, awsAccessKeyId string, awsSecretKey string) (*FileStore, error) {
 	if s3LogLocation == "" {
 		return nil, fmt.Errorf("s3 log location is empty")
 	}
@@ -1095,7 +1098,7 @@ func createLogS3FileStore(emrRegion string, s3LogLocation string, awsAccessKeyId
 	if err != nil {
 		return nil, fmt.Errorf("could not create s3 file store (bucket: %s, path: %s) for emr logs: %v", err, bucketName, path)
 	}
-	return logFileStore, nil
+	return &logFileStore, nil
 }
 
 func removeEspaceCharacters(values []string) []string {

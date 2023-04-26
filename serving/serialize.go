@@ -102,7 +102,7 @@ func (row *row) AddFeature(feature interface{}) error {
 func newSourceRow(rows []interface{}) (*sourceRow, error) {
 	r := emptySourceRow()
 	for _, row := range rows {
-		if err := r.AddRow(row); err != nil {
+		if err := r.AddValue(row); err != nil {
 			return nil, err
 		}
 	}
@@ -113,7 +113,7 @@ func (row *sourceRow) Serialized() *pb.SourceDataRow {
 	return row.serialized
 }
 
-func (r *sourceRow) AddRow(row interface{}) error {
+func (r *sourceRow) AddValue(row interface{}) error {
 	value, err := wrapValue(row)
 	if err != nil {
 		return fmt.Errorf("add row: %w", err)

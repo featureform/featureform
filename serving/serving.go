@@ -129,6 +129,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	for i, feature := range req.GetFeatures() {
 		serv.Logger.Infow("Getting feature value", "Name", feature.Name, "Variant", feature.Version)
 		wg.Add(1)
+		serv.Logger.Infow("Added wait group", "Name", feature.Name, "Variant", feature.Version)
 		go func(i int, feature *pb.FeatureID) {
 			defer wg.Done()
 			name, variant := feature.GetName(), feature.GetVersion()

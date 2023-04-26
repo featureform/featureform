@@ -10,11 +10,13 @@ package provider
 import (
 	"fmt"
 	"testing"
+
+	pc "github.com/featureform/provider/provider_config"
 )
 
 func TestNewFilepath(t *testing.T) {
 	type TestCase struct {
-		StoreType       string
+		StoreType       pc.FileStoreType
 		Bucket          string
 		Prefix          string
 		Path            string
@@ -25,7 +27,7 @@ func TestNewFilepath(t *testing.T) {
 
 	tests := map[string]TestCase{
 		"Local": {
-			StoreType:       "local",
+			StoreType:       FileSystem,
 			Bucket:          "directory",
 			Prefix:          "elasticmapreduce",
 			Path:            "path/to/file",
@@ -34,7 +36,7 @@ func TestNewFilepath(t *testing.T) {
 			ExpectedError:   fmt.Errorf("unknown store type 'local'"),
 		},
 		"S3FilePath": {
-			StoreType: "s3",
+			StoreType: S3,
 			Bucket:    "bucket",
 			Prefix:    "elasticmapreduce",
 			Path:      "path/to/file",
@@ -49,7 +51,7 @@ func TestNewFilepath(t *testing.T) {
 			ExpectedError:   nil,
 		},
 		"GSFilePath": {
-			StoreType:       "google_cloud_storage",
+			StoreType:       GCS,
 			Bucket:          "bucket",
 			Prefix:          "elasticmapreduce",
 			Path:            "path/to/file",
@@ -58,7 +60,7 @@ func TestNewFilepath(t *testing.T) {
 			ExpectedError:   fmt.Errorf("unknown store type 'google_cloud_storage'"),
 		},
 		"AzureBlobStoreFilePath": {
-			StoreType:       "azure_blob_store",
+			StoreType:       Azure,
 			Bucket:          "bucket",
 			Prefix:          "elasticmapreduce",
 			Path:            "path/to/file",
@@ -67,7 +69,7 @@ func TestNewFilepath(t *testing.T) {
 			ExpectedError:   fmt.Errorf("unknown store type 'azure_blob_store'"),
 		},
 		"HDFSFilePath": {
-			StoreType:       "hdfs",
+			StoreType:       HDFS,
 			Bucket:          "host",
 			Prefix:          "elasticmapreduce",
 			Path:            "path/to/file",
@@ -116,7 +118,7 @@ func TestNewFilepath(t *testing.T) {
 
 func TestParseFullPath(t *testing.T) {
 	type TestCase struct {
-		StoreType       string
+		StoreType       pc.FileStoreType
 		FullPath        string
 		ExpectedPath    Filepath
 		ExpectedFailure bool
@@ -125,14 +127,14 @@ func TestParseFullPath(t *testing.T) {
 
 	tests := map[string]TestCase{
 		"Local": {
-			StoreType:       "local",
+			StoreType:       FileSystem,
 			FullPath:        "directory/elasticmapreduce/path/to/file",
 			ExpectedPath:    nil,
 			ExpectedFailure: false,
 			ExpectedError:   nil,
 		},
 		"S3FilePath": {
-			StoreType: "s3",
+			StoreType: S3,
 			FullPath:  "s3://bucket/elasticmapreduce/path/to/file",
 			ExpectedPath: &S3Filepath{
 				genericFilepath: genericFilepath{
@@ -145,21 +147,21 @@ func TestParseFullPath(t *testing.T) {
 			ExpectedError:   nil,
 		},
 		"GSFilePath": {
-			StoreType:       "google_cloud_storage",
+			StoreType:       GCS,
 			FullPath:        "gs://bucket/elasticmapreduce/path/to/file",
 			ExpectedPath:    nil,
 			ExpectedFailure: false,
 			ExpectedError:   nil,
 		},
 		"AzureBlobStoreFilePath": {
-			StoreType:       "azure_blob_store",
+			StoreType:       Azure,
 			FullPath:        "abfss://container@account.dfs.core.windows.net/elasticmapreduce/path/to/file",
 			ExpectedPath:    nil,
 			ExpectedFailure: false,
 			ExpectedError:   nil,
 		},
 		"HDFSFilePath": {
-			StoreType:       "hdfs",
+			StoreType:       HDFS,
 			FullPath:        "hdfs://host/elasticmapreduce/path/to/file",
 			ExpectedPath:    nil,
 			ExpectedFailure: false,
@@ -171,16 +173,16 @@ func TestParseFullPath(t *testing.T) {
 		var filePath Filepath
 		var err error
 		switch test.StoreType {
-		case "local":
+		case FileSystem:
 			t.Skip()
-		case "s3":
+		case S3:
 			filePath = &S3Filepath{}
 			err = filePath.ParseFullPath(test.FullPath)
-		case "google_cloud_storage":
+		case GCS:
 			t.Skip()
-		case "azure_blob_store":
+		case Azure:
 			t.Skip()
-		case "hdfs":
+		case HDFS:
 			t.Skip()
 		}
 

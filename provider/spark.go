@@ -507,14 +507,20 @@ func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {
 		return nil, fmt.Errorf("could not get run id: %v", err)
 	}
 
+	if len(runs) == 0 {
+		return nil, fmt.Errorf("no runs found for job id: %v", jobId)
+	}
 	runID := runs[0].RunId
 	request := jobs.GetRunRequest{
 		RunId: runID,
 	}
 
 	// in order to get the status of the run output, we need to
-	// use API v2.0 instead of v2.1. The following code leverages
-	// version 2.0 of the API to get the run output.
+	// use API v2.0 instead of v2.1. The version 2.1 does not allow
+	// for getting the run output for multiple tasks. The following code
+	// leverages version 2.0 of the API to get the run output.
+	// we have created a github issue on the databricks-sdk-go repo
+	// https://github.com/databricks/databricks-sdk-go/issues/375
 	var runOutput jobs.RunOutput
 	path := "/api/2.0/jobs/runs/get-output"
 	err = db.errorMessageClient.Do(ctx, http.MethodGet, path, request, &runOutput)
@@ -966,30 +972,9 @@ func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string) (stri
 		if stepResults.Step.Status.FailureDetails.LogFile != nil {
 			logFile := *stepResults.Step.Status.FailureDetails.LogFile
 
-			s3FilePath := &S3Filepath{}
-			err := s3FilePath.ParseFullPath(logFile)
+			errorMessage, err := e.getLogFileMessage(logFile)
 			if err != nil {
-				return "", fmt.Errorf("could not parse log file path '%s': %v", logFile, err)
-			}
-
-			bucket := s3FilePath.Bucket()
-			path := s3FilePath.Path()
-			outputFilePath := fmt.Sprintf("%s/stdout.gz", path)
-
-			err = e.waitForLogFile(outputFilePath)
-			if err != nil {
-				return "", fmt.Errorf("could not wait for log file '%s' to be available: %v", outputFilePath, err)
-			}
-
-			logs, err := e.logFileStore.Read(outputFilePath)
-			if err != nil {
-				return "", fmt.Errorf("could not read log file in '%s' bucket at '%s' path: %v", bucket, outputFilePath, err)
-			}
-
-			// the output file is compressed so we need uncompress it
-			errorMessage, err := compression.UnGZip(logs)
-			if err != nil {
-				return "", fmt.Errorf("could not uncompress error message: %v", err)
+				return "", fmt.Errorf("could not get error message from log file '%s': %v", logFile, err)
 			}
 
 			return errorMessage, nil
@@ -997,6 +982,35 @@ func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string) (stri
 	}
 
 	return "", nil
+}
+
+func (e *EMRExecutor) getLogFileMessage(logFile string) (string, error) {
+	s3FilePath := &S3Filepath{}
+	err := s3FilePath.ParseFullPath(logFile)
+	if err != nil {
+		return "", fmt.Errorf("could not parse log file path '%s': %v", logFile, err)
+	}
+
+	bucket := s3FilePath.Bucket()
+	path := s3FilePath.Path()
+	outputFilePath := fmt.Sprintf("%s/stdout.gz", path)
+
+	err = e.waitForLogFile(outputFilePath)
+	if err != nil {
+		return "", fmt.Errorf("could not wait for log file '%s' to be available: %v", outputFilePath, err)
+	}
+
+	logs, err := e.logFileStore.Read(outputFilePath)
+	if err != nil {
+		return "", fmt.Errorf("could not read log file in '%s' bucket at '%s' path: %v", bucket, outputFilePath, err)
+	}
+
+	// the output file is compressed so we need uncompress it
+	errorMessage, err := compression.GunZip(logs)
+	if err != nil {
+		return "", fmt.Errorf("could not uncompress error message: %v", err)
+	}
+	return errorMessage, nil
 }
 
 func (e *EMRExecutor) waitForLogFile(logFile string) error {

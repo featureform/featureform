@@ -49,7 +49,7 @@ func TestUncompressMessage(t *testing.T) {
 		// print the compressed data as a byte slice
 		compressedBytes := compressed.Bytes()
 
-		outputString, err := UnGZip(compressedBytes)
+		outputString, err := GunZip(compressedBytes)
 		if err != nil {
 			t.Fatalf("could not uncompress message: %v", err)
 		}

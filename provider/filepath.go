@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+
+	pc "github.com/featureform/provider/provider_config"
 )
 
 type Filepath interface {
@@ -19,9 +21,9 @@ type Filepath interface {
 	ParseFullPath(path string) error
 }
 
-func NewFilepath(storeType string, bucket string, prefix string, path string) (Filepath, error) {
+func NewFilepath(storeType pc.FileStoreType, bucket string, prefix string, path string) (Filepath, error) {
 	switch storeType {
-	case "s3":
+	case S3:
 		return &S3Filepath{
 			genericFilepath: genericFilepath{
 				bucket: bucket,

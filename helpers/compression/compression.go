@@ -10,7 +10,7 @@ import (
 	"fmt"
 )
 
-func UnGZip(message []byte) (string, error) {
+func GunZip(message []byte) (string, error) {
 	// this function takes a gzip compressed byte array and
 	// uncompresses it into string
 

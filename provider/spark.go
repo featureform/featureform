@@ -1003,7 +1003,7 @@ func (e *EMRExecutor) getLogFileMessage(logFile string) (string, error) {
 		return "", fmt.Errorf("could not wait for log file '%s' to be available: %v", outputFilePath, err)
 	}
 
-	logs, err := e.logFileStore.Read(outputFilePath)
+	logs, err := (*e.logFileStore).Read(outputFilePath)
 	if err != nil {
 		return "", fmt.Errorf("could not read log file in '%s' bucket at '%s' path: %v", bucket, outputFilePath, err)
 	}
@@ -1019,7 +1019,7 @@ func (e *EMRExecutor) getLogFileMessage(logFile string) (string, error) {
 func (e *EMRExecutor) waitForLogFile(logFile string) error {
 	// wait until log file exists
 	for {
-		fileExists, err := e.logFileStore.Exists(logFile)
+		fileExists, err := (*e.logFileStore).Exists(logFile)
 		if err != nil {
 			return fmt.Errorf("could not determine if file '%s' exists: %v", logFile, err)
 		}

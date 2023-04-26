@@ -7,8 +7,6 @@ package serving
 import (
 	"context"
 	"fmt"
-	"sync"
-
 	"github.com/pkg/errors"
 
 	"github.com/featureform/metadata"
@@ -121,47 +119,35 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 			return nil, err
 		}
 	}
-	vals := make([]*pb.Value, len(features))
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	var exErr error
+	vals := make(chan *pb.Value, len(features))
+	errc := make(chan error, len(req.GetFeatures()))
 
 	for i, feature := range req.GetFeatures() {
-		serv.Logger.Infow("Getting feature value", "Name", feature.Name, "Variant", feature.Version)
-		wg.Add(1)
-		serv.Logger.Infow("Added wait group", "Name", feature.Name, "Variant", feature.Version)
 		go func(i int, feature *pb.FeatureID) {
-			defer wg.Done()
 			name, variant := feature.GetName(), feature.GetVersion()
 			val, err := serv.getFeatureValue(ctx, name, variant, entityMap)
 			if err != nil {
-				// Use mutex to avoid race conditions when updating the vals slice
-				mu.Lock()
-				defer mu.Unlock()
-				vals[i] = val
+				errc <- fmt.Errorf("error getting feature value: %w", err)
 				serv.Logger.Errorw("Could not get feature value", "Name", name, "Variant", variant, "Error", err.Error())
-				exErr = err
 				return
 			}
-			// Use mutex to avoid race conditions when updating the vals slice
-			mu.Lock()
-			defer mu.Unlock()
-			vals[i] = val
+			vals <- val
 		}(i, feature)
 		serv.Logger.Infow("End of goroutine", "Name", feature.Name, "Variant", feature.Version)
 	}
 
-	// Wait for all goroutines to finish before returning the result
-	wg.Wait()
-
-	if exErr != nil {
-		return nil, exErr
+	results := make([]*pb.Value, len(req.GetFeatures()))
+	for i := 0; i < len(req.GetFeatures()); i++ {
+		result := <-vals
+		if err := <-errc; err != nil {
+			serv.Logger.Errorw("Could not get feature value", "Error", err.Error())
+		}
+		results[i] = result
 	}
-
 	serv.Logger.Info("Serving Complete")
 
 	return &pb.FeatureRow{
-		Values: vals,
+		Values: results,
 	}, nil
 }
 

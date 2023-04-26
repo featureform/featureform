@@ -7,9 +7,8 @@ import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
 import Container from "@material-ui/core/Container";
-import Icon from "@material-ui/core/Icon";
 import Resource from "../../api/resources/Resource.js";
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router"
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -70,7 +69,7 @@ const SearchResultsView = ({ results, search_query, setVariant }) => {
               variant="h4"
               style={{ display: "flex" }}
           >
-            {results.length > 0 ? (
+            {results?.length > 0 ? (
                 <div style={{ color: "gray" }}>Results for:&nbsp;</div>
             ) : (
                 <div style={{ color: "gray" }}>No results for:&nbsp;</div>
@@ -87,14 +86,16 @@ const SearchResultsView = ({ results, search_query, setVariant }) => {
 const SearchResultsList = ({ type, contents, setVariant }) => {
   const classes = useStyles();
   let filteredContentHits = {};
-  console.log(contents)
-  let moreFilteredContents = contents.filter((content) => {
-    if (content.Name + "." + content.Variant + "." + content.Type in filteredContentHits) {
-      return false;
-    }
-    filteredContentHits[content.Name + "." + content.Variant + "." + content.Type] = content.Variant;
-    return true;
-  });
+  let moreFilteredContents = [];
+  if (contents?.length) {
+    moreFilteredContents = contents.filter((content) => {
+      if (content.Name + "." + content.Variant + "." + content.Type in filteredContentHits) {
+        return false;
+      }
+      filteredContentHits[content.Name + "." + content.Variant + "." + content.Type] = content.Variant;
+      return true;
+    }); 
+  }
   return (
       <div>
         <List className={classes.root} component="nav">
@@ -112,42 +113,39 @@ const SearchResultsList = ({ type, contents, setVariant }) => {
 };
 
 var searchTypeMap = {
-  "FEATURE": "Feature", //feature variant
-  '\u0005': "Label",
-  '\u0006': "TrainingSet",
-  '\u0007': "Source",
-  '\u0008': "Provider",
-  '\u0009': "Entity",
-  '\u000a': "Model",
-  '\u000b': "User",
+  "FEATURE": "Feature",
+  "FEATURE_VARIANT": "Feature",
+  "LABEL": "Label",
+  "LABEL_VARIANT": "Label",
+  "TRAINING_SET": "TrainingSet",
+  "TRAINING_SET_VARIANT": "TrainingSet",
+  "SOURCE": "Source",
+  "SOURCE_VARIANT": "Source",
+  "PROVIDER": "Provider",
+  "ENTITY": "Entity",
+  "MODEL": "Model",
+  "USER": "User",
 }
 
 const SearchResultsItem = ({ type, content, setVariant }) => {
   const classes = useStyles();
   const router = useRouter()
-  console.log("content", content)
-  console.log("type", type)
-  // const resourceType = Resource[searchTypeMap[content.Type]];
-  console.log("found resource type")
-  // console.log(resourceType)
-  // const resourceIcon = resourceType.materialIcon;
+  const resourceType = Resource[searchTypeMap[content.Type]];
   function handleClick(content) {
-    if (resourceType.hasVariants) {
+    if (resourceType?.hasVariants) {
       setVariant(content.Type, content.Name, content.Variant);
     }
     router.push(resourceType.urlPathResource(content.Name));
   }
 
   return (
-      <div>
-        <ListItem button alignItems="flex-start">
+      <>
+        <ListItem button alignItems="flex-start" onClick={() => handleClick(content)} >
           <ListItemText
               primary={
                 <div>
                   <div>
                     <div className={classes.resultTitle}>
-                      {console.log("CLASS")}
-                      {/*<Icon>{resourceIcon}</Icon>*/}
                     </div>
                     <Typography className={classes.resultTitle} variant="h6">
                       {content.Name}
@@ -163,10 +161,9 @@ const SearchResultsItem = ({ type, content, setVariant }) => {
                   </Typography>
                 </div>
               }
-              onClick={() => handleClick(content)}
           />
         </ListItem>
-      </div>
+      </>
   );
 };
 

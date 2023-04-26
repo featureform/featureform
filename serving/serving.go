@@ -167,6 +167,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 	defer obs.Finish()
 	logger := serv.Logger.With("Name", name, "Variant", variant)
 	logger.Debug("Getting metadata")
+	// THIS IS SLOW 80ms
 	meta, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{name, variant})
 	if err != nil {
 		logger.Errorw("metadata lookup failed", "Err", err)
@@ -186,6 +187,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 			return nil, fmt.Errorf("No value for entity %s", meta.Entity())
 		}
 		logger.Debug("Getting provider")
+		// THIS IS SLOW 100ms
 		providerEntry, err := meta.FetchProvider(serv.Metadata, ctx)
 		if err != nil {
 			logger.Errorw("fetching provider metadata failed", "Error", err)
@@ -209,6 +211,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 			return nil, err
 		}
 		logger.Debug("Getting table")
+		// 70ms
 		table, err := store.GetTable(name, variant)
 		if err != nil {
 			logger.Errorw("feature not found", "Error", err)
@@ -216,6 +219,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 			return nil, err
 		}
 		logger.Debug("Getting value")
+		//60ms
 		val, err = table.Get(entity)
 		if err != nil {
 			logger.Errorw("entity not found", "Error", err)

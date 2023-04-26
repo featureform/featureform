@@ -179,6 +179,7 @@ func (client *Client) GetFeatures(ctx context.Context, features []string) ([]*Fe
 }
 
 func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant) ([]*FeatureVariant, error) {
+	client.Logger.With("ids", ids)
 	client.Logger.Info("Getting feature variants")
 	stream, err := client.grpcConn.GetFeatureVariants(ctx)
 	if err != nil {

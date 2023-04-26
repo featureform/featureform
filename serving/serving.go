@@ -127,6 +127,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	var exErr error
 
 	for i, feature := range req.GetFeatures() {
+		serv.Logger.Infow("Getting feature value", "Name", feature.Name, "Variant", feature.Version)
 		wg.Add(1)
 		go func(i int, feature *pb.FeatureID) {
 			defer wg.Done()
@@ -146,6 +147,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 			defer mu.Unlock()
 			vals[i] = val
 		}(i, feature)
+		serv.Logger.Infow("End of goroutine", "Name", feature.Name, "Variant", feature.Version)
 	}
 
 	// Wait for all goroutines to finish before returning the result

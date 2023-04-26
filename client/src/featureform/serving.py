@@ -37,6 +37,8 @@ from .tls import insecure_channel, secure_channel
 from .version import check_up_to_date
 from .enums import FileFormat
 
+NO_RECORD_LIMIT = -1
+
 
 def check_feature_type(features):
     checked_features = []
@@ -136,42 +138,6 @@ class ServingClient:
         features = check_feature_type(features)
         return self.impl.features(features, entities, model)
 
-    def source_columns(self, name, variant="default"):
-        """Returns the columns for the specified source.
-
-        **Examples**:
-        ``` py
-            client = ff.ServingClient(local=True)
-            columns = client.source_columns("transactions")
-            # columns = ["user", "amount", "timestamp"]
-        ```
-        Args:
-            name (str): Name of source to be retrieved
-            variant (str): Variant of source to be retrieved
-
-        Returns:
-            columns (list[str]): A list of column names
-        """
-        return self.impl.source_columns(name, variant)
-
-    def source_data(self, name, variant="default"):
-        """Returns the data for the specified source.
-
-        **Examples**:
-        ``` py
-            client = ff.ServingClient(local=True)
-            data = client.source_data("transactions")
-            # data = [["C1410926", 100, 1620000000], ["C1410926", 200, 1620000001]]
-        ```
-        Args:
-            name (str): Name of source to be retrieved
-            variant (str): Variant of source to be retrieved
-
-        Returns:
-            data (list[list]): A list of rows of data
-        """
-        return self.impl.source_data(name, variant)
-
 
 class HostedClientImpl:
     def __init__(self, host=None, insecure=False, cert_path=None):
@@ -226,23 +192,22 @@ class HostedClientImpl:
 
         return feature_values
 
-    def get_source_as_df(self, name, variant):
-        warnings.warn(
-            "Computing dataframes on sources in hosted mode is not yet supported."
-        )
-        return pd.DataFrame()
+    def _get_source_as_df(self, name, variant, limit):
+        columns = self._get_source_columns(name, variant)
+        data = self._get_source_data(name, variant, limit)
+        return pd.DataFrame(data=data, columns=columns)
 
-    def source_data(self, name, variant):
+    def _get_source_data(self, name, variant, limit):
         id = serving_pb2.SourceID(name=name, version=variant)
-        req = serving_pb2.SourceDataRequest(id=id)
+        req = serving_pb2.SourceDataRequest(id=id, limit=limit)
         resp = self._stub.SourceData(req)
-        rows = []
-        for row in resp:
-            rows.append([getattr(r, r.WhichOneof("value")) for r in row.rows])
-        return rows
+        data = []
+        for rows in resp:
+            row = [getattr(r, r.WhichOneof("value")) for r in rows.rows]
+            data.append(row)
+        return data
 
-    def source_columns(self, name, variant):
-        print(f"Getting columns for source {name} and variant {variant}")
+    def _get_source_columns(self, name, variant):
         id = serving_pb2.SourceID(name=name, version=variant)
         req = serving_pb2.SourceDataRequest(id=id)
         resp = self._stub.SourceColumns(req)
@@ -705,8 +670,16 @@ class LocalClientImpl:
         self.db.insert("models", name, type)
         self.db.insert(look_up_table, name, association_name, association_variant)
 
-    def get_source_as_df(self, name, variant):
-        return self.get_input_df(name, variant)
+    def _get_source_as_df(self, name, variant, limit):
+        if limit == 0:
+            raise ValueError(
+                "Limit must be greater -1 to denote no limit or a positive integer"
+            )
+        df = self.get_input_df(name, variant)
+        if limit != NO_RECORD_LIMIT:
+            return df[:limit]
+        else:
+            return df
 
 
 class Stream:

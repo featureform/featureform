@@ -325,17 +325,8 @@ def del_rw(action, name, exc):
 
 @pytest.fixture(scope="module")
 def hosted_sql_provider_and_source():
-    def get_hosted(custom_marks):
+    def get_hosted(custom_marks, file_format=FileFormat.CSV.value):
         ff.register_user("test_user").make_default_owner()
-
-        postgres_host = (
-            "host.docker.internal"
-            if "docker" in custom_marks
-            else "quickstart-postgres"
-        )
-        redis_host = (
-            "host.docker.internal" if "docker" in custom_marks else "quickstart-redis"
-        )
 
         provider = ff.register_postgres(
             name="postgres-quickstart",

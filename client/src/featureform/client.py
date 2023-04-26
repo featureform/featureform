@@ -7,6 +7,8 @@ from .register import (
 )
 from .serving import ServingClient
 
+NO_RECORD_LIMIT = -1
+
 
 class Client(ResourceClient, ServingClient):
     """
@@ -48,6 +50,7 @@ class Client(ResourceClient, ServingClient):
         self,
         source: Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str],
         variant="default",
+        limit=NO_RECORD_LIMIT,
     ):
         """
         Compute a dataframe from a registered source or transformation
@@ -72,4 +75,4 @@ class Client(ResourceClient, ServingClient):
             raise ValueError(
                 f"source must be of type SourceRegistrar, LocalSource, SubscriptableTransformation or str, not {type(source)}"
             )
-        return self.impl.get_source_as_df(name, variant)
+        return self.impl._get_source_as_df(name, variant, limit)

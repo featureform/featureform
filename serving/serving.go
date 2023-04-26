@@ -122,7 +122,9 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	vals := make(chan *pb.Value, len(features))
 	errc := make(chan error, len(req.GetFeatures()))
 
+	serv.Logger.Infow("Starting goroutines")
 	for i, feature := range req.GetFeatures() {
+		serv.Logger.Infow("Creating goroutine", "Name", feature.Name, "Variant", feature.Version)
 		go func(i int, feature *pb.FeatureID) {
 			name, variant := feature.GetName(), feature.GetVersion()
 			val, err := serv.getFeatureValue(ctx, name, variant, entityMap)
@@ -135,6 +137,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 		}(i, feature)
 		serv.Logger.Infow("End of goroutine", "Name", feature.Name, "Variant", feature.Version)
 	}
+	serv.Logger.Infow("Done creating goroutine", "Name")
 
 	results := make([]*pb.Value, len(req.GetFeatures()))
 	for i := 0; i < len(req.GetFeatures()); i++ {

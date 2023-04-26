@@ -41,7 +41,7 @@ func CreateAndRun() error {
 	if err != nil {
 		return err
 	}
-	logger.Infow("Starting job for resource:", jobRunner.Resource())
+	logger.Infof("Starting job for resource: %v", jobRunner.Resource())
 	if jobRunner.IsUpdateJob() {
 		logger.Info("This is an update job")
 		etcdConf, ok = os.LookupEnv("ETCD_CONFIG")
@@ -74,10 +74,10 @@ func CreateAndRun() error {
 	if err := watcher.Wait(); err != nil {
 		return err
 	}
-	logger.Infow("Completed job for resource %v", jobRunner.Resource())
+	logger.Infof("Completed job for resource %v", jobRunner.Resource())
 	if jobRunner.IsUpdateJob() {
 		jobResource := jobRunner.Resource()
-		logger.Infow("Logging update success in etcd for job:", jobResource)
+		logger.Infof("Logging update success in etcd for job: %v", jobResource)
 		etcdConfig := &coordinator.ETCDConfig{}
 		err := etcdConfig.Deserialize(coordinator.Config(etcdConf))
 		if err != nil {
@@ -104,7 +104,7 @@ func CreateAndRun() error {
 		if err != nil {
 			return err
 		}
-		logger.Infow("Succesfully logged job completion for resource:", jobRunner.Resource())
+		logger.Infof("Succesfully logged job completion for resource: %v", jobRunner.Resource())
 	}
 	return nil
 }

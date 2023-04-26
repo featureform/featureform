@@ -25,10 +25,10 @@ func NewFilepath(storeType pc.FileStoreType, bucket string, prefix string, path 
 	switch storeType {
 	case S3:
 		return &S3Filepath{
-			genericFilepath: genericFilepath{
-				bucket: bucket,
-				prefix: prefix,
-				path:   path,
+			filePath: filePath{
+				bucket: strings.Trim(bucket, "/"),
+				prefix: strings.Trim(prefix, "/"),
+				path:   strings.TrimPrefix(path, "/"),
 			},
 		}, nil
 	default:
@@ -36,25 +36,25 @@ func NewFilepath(storeType pc.FileStoreType, bucket string, prefix string, path 
 	}
 }
 
-type genericFilepath struct {
+type filePath struct {
 	bucket string
 	prefix string
 	path   string
 }
 
-func (fp *genericFilepath) Bucket() string {
+func (fp *filePath) Bucket() string {
 	return fp.bucket
 }
 
-func (fp *genericFilepath) Prefix() string {
+func (fp *filePath) Prefix() string {
 	return fp.prefix
 }
 
-func (fp *genericFilepath) Path() string {
+func (fp *filePath) Path() string {
 	return fp.path
 }
 
-func (fp *genericFilepath) FullPathWithBucket() string {
+func (fp *filePath) FullPathWithBucket() string {
 	prefix := ""
 	if fp.prefix != "" {
 		prefix = fmt.Sprintf("/%s", fp.prefix)
@@ -63,7 +63,7 @@ func (fp *genericFilepath) FullPathWithBucket() string {
 	return fmt.Sprintf("%s%s/%s", fp.bucket, prefix, fp.path)
 }
 
-func (fp *genericFilepath) FullPathWithoutBucket() string {
+func (fp *filePath) FullPathWithoutBucket() string {
 	prefix := ""
 	if fp.prefix != "" {
 		prefix = fmt.Sprintf("%s/", fp.prefix)
@@ -71,7 +71,7 @@ func (fp *genericFilepath) FullPathWithoutBucket() string {
 	return fmt.Sprintf("%s%s", prefix, fp.path)
 }
 
-func (fp *genericFilepath) ParseFullPath(fullPath string) error {
+func (fp *filePath) ParseFullPath(fullPath string) error {
 	// Parse the URI into a url.URL object.
 	u, err := url.Parse(fullPath)
 	if err != nil {
@@ -88,7 +88,7 @@ func (fp *genericFilepath) ParseFullPath(fullPath string) error {
 }
 
 type S3Filepath struct {
-	genericFilepath
+	filePath
 }
 
 func (s3 *S3Filepath) FullPathWithBucket() string {

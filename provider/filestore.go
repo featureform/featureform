@@ -604,6 +604,6 @@ func (fs *HDFSFileStore) AsAzureStore() *AzureFileStore {
 	return nil
 }
 
-func (fs HDFSFileStore) FilestoreType() pc.FilestoreType {
+func (fs HDFSFileStore) FilestoreType() pc.FileStoreType {
 	return HDFS
 }

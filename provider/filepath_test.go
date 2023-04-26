@@ -33,7 +33,7 @@ func TestNewFilepath(t *testing.T) {
 			Path:            "path/to/file",
 			ExpectedPath:    nil,
 			ExpectedFailure: true,
-			ExpectedError:   fmt.Errorf("unknown store type 'local'"),
+			ExpectedError:   fmt.Errorf("unknown store type '%s'", FileSystem),
 		},
 		"S3FilePath": {
 			StoreType: S3,
@@ -50,6 +50,21 @@ func TestNewFilepath(t *testing.T) {
 			ExpectedFailure: false,
 			ExpectedError:   nil,
 		},
+		"S3FilePathTrailingPaths": {
+			StoreType: S3,
+			Bucket:    "bucket/",
+			Prefix:    "/elasticmapreduce/",
+			Path:      "/path/to/file/",
+			ExpectedPath: &S3Filepath{
+				genericFilepath: genericFilepath{
+					bucket: "bucket",
+					prefix: "elasticmapreduce",
+					path:   "path/to/file/",
+				},
+			},
+			ExpectedFailure: false,
+			ExpectedError:   nil,
+		},
 		"GSFilePath": {
 			StoreType:       GCS,
 			Bucket:          "bucket",
@@ -57,7 +72,7 @@ func TestNewFilepath(t *testing.T) {
 			Path:            "path/to/file",
 			ExpectedPath:    nil,
 			ExpectedFailure: true,
-			ExpectedError:   fmt.Errorf("unknown store type 'google_cloud_storage'"),
+			ExpectedError:   fmt.Errorf("unknown store type '%s'", GCS),
 		},
 		"AzureBlobStoreFilePath": {
 			StoreType:       Azure,
@@ -66,7 +81,7 @@ func TestNewFilepath(t *testing.T) {
 			Path:            "path/to/file",
 			ExpectedPath:    nil,
 			ExpectedFailure: true,
-			ExpectedError:   fmt.Errorf("unknown store type 'azure_blob_store'"),
+			ExpectedError:   fmt.Errorf("unknown store type '%s'", Azure),
 		},
 		"HDFSFilePath": {
 			StoreType:       HDFS,
@@ -75,7 +90,7 @@ func TestNewFilepath(t *testing.T) {
 			Path:            "path/to/file",
 			ExpectedPath:    nil,
 			ExpectedFailure: true,
-			ExpectedError:   fmt.Errorf("unknown store type 'hdfs'"),
+			ExpectedError:   fmt.Errorf("unknown store type '%s'", HDFS),
 		},
 	}
 
@@ -141,6 +156,19 @@ func TestParseFullPath(t *testing.T) {
 					bucket: "bucket",
 					prefix: "",
 					path:   "elasticmapreduce/path/to/file",
+				},
+			},
+			ExpectedFailure: false,
+			ExpectedError:   nil,
+		},
+		"S3FilePathTrailingPaths": {
+			StoreType: S3,
+			FullPath:  "s3://bucket/elasticmapreduce/path/to/file/",
+			ExpectedPath: &S3Filepath{
+				genericFilepath: genericFilepath{
+					bucket: "bucket",
+					prefix: "",
+					path:   "elasticmapreduce/path/to/file/",
 				},
 			},
 			ExpectedFailure: false,

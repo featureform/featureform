@@ -186,7 +186,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 		}
 		mutex.RLock()
 		if table, has := tableMap[meta.Provider()]; has {
-			logger.Debug("Getting value")
+			logger.Debug("Table is cached")
 			//60ms
 			val, err = table.Get(entity)
 			if err != nil {

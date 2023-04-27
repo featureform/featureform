@@ -161,8 +161,8 @@ import featureform as ff
 client = ff.ServingClient(local=True)
 dataset = client.training_set("fraud_training", "quickstart")
 training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
-for feature_batch in training_dataset:
-    # Train model
+for row in training_dataset:
+    print(row.features(), row.label())
 ```
 
 We can serve features in production once we deploy our trained model as well.

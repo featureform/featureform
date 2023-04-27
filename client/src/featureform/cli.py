@@ -3,7 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import click
-from featureform import ResourceClient
+from .client import Client
 from .list import *
 from .get import *
 import os
@@ -20,14 +20,15 @@ resource_types = [
     "entity",
     "provider",
     "model",
-    "user"
+    "user",
 ]
 
-CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 def cli():
+    # fmt: off
     """
     \b
     ______         _                   __                     
@@ -39,80 +40,77 @@ def cli():
 
     Interact with Featureform's Feature Store via the official command line interface.
     """
+    # fmt: on
     pass
 
 
 @cli.command()
-@click.option("--host",
-              "host",
-              required=False,
-              help="The host address of the API server to connect to")
-@click.option("--cert",
-              "cert",
-              required=False,
-              help="Path to self-signed TLS certificate")
-@click.option("--insecure",
-              is_flag=True,
-              help="Disables TLS verification")
-@click.option("--local",
-              is_flag=True,
-              help="Enables local mode")
+@click.option(
+    "--host",
+    "host",
+    required=False,
+    help="The host address of the API server to connect to",
+)
+@click.option(
+    "--cert", "cert", required=False, help="Path to self-signed TLS certificate"
+)
+@click.option("--insecure", is_flag=True, help="Disables TLS verification")
+@click.option("--local", is_flag=True, help="Enables local mode")
 @click.argument("resource_type", required=True)
 @click.argument("name", required=True)
 @click.argument("variant", required=False)
 def get(host, cert, insecure, local, resource_type, name, variant):
-    """Get resources of a given type.
-    """
+    """Get resources of a given type."""
     if local:
         if host != None:
             raise ValueError("Cannot be local and have a host")
 
     elif host == None:
-        host = os.getenv('FEATUREFORM_HOST')
+        host = os.getenv("FEATUREFORM_HOST")
         if host == None:
             raise ValueError(
-                "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
+                "Host value must be set with --host flag or in env as FEATUREFORM_HOST"
+            )
 
-    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
+    client = Client(host=host, local=local, insecure=insecure, cert_path=cert)
 
-    rc_get_functions_variant = {
-        "feature": rc.print_feature,
-        "label": rc.print_label,
-        "source": rc.print_source,
-        "trainingset": rc.print_training_set,
-        "training-set": rc.print_training_set
+    resource_get_functions_variant = {
+        "feature": client.print_feature,
+        "label": client.print_label,
+        "source": client.print_source,
+        "trainingset": client.print_training_set,
+        "training-set": client.print_training_set,
     }
 
-    rc_get_functions = {
-        "user": rc.get_user,
-        "model": rc.get_model,
-        "entity": rc.get_entity,
-        "provider": rc.get_provider
+    resource_get_functions = {
+        "user": client.get_user,
+        "model": client.get_model,
+        "entity": client.get_entity,
+        "provider": client.get_provider,
     }
 
-    if resource_type in rc_get_functions_variant:
-        rc_get_functions_variant[resource_type](name=name, variant=variant, local=local)
-    elif resource_type in rc_get_functions:
-        rc_get_functions[resource_type](name=name, local=local)
+    if resource_type in resource_get_functions_variant:
+        resource_get_functions_variant[resource_type](
+            name=name, variant=variant, local=local
+        )
+    elif resource_type in resource_get_functions:
+        resource_get_functions[resource_type](name=name, local=local)
     else:
         raise ValueError("Resource type not found")
 
 
 @cli.command()
-@click.option("--host",
-              "host",
-              required=False,
-              help="The host address of the API server to connect to")
-@click.option("--cert",
-              "cert",
-              required=False,
-              help="Path to self-signed TLS certificate")
-@click.option("--insecure",
-              is_flag=True,
-              help="Disables TLS verification")
-@click.option("--local",
-              is_flag=True,
-              help="Enable local mode")
+@click.option(
+    "--host",
+    "host",
+    required=False,
+    help="The host address of the API server to connect to",
+)
+@click.option(
+    "--cert", "cert", required=False, help="Path to self-signed TLS certificate"
+)
+@click.option("--insecure", is_flag=True, help="Disables TLS verification")
+@click.option("--local", is_flag=True, help="Enable local mode")
 @click.argument("resource_type", required=True)
 def list(host, cert, insecure, local, resource_type):
     if local:
@@ -120,27 +118,28 @@ def list(host, cert, insecure, local, resource_type):
             raise ValueError("Cannot be local and have a host")
 
     elif host == None:
-        host = os.getenv('FEATUREFORM_HOST')
+        host = os.getenv("FEATUREFORM_HOST")
         if host == None:
             raise ValueError(
-                "Host value must be set with --host flag or in env as FEATUREFORM_HOST")
+                "Host value must be set with --host flag or in env as FEATUREFORM_HOST"
+            )
 
-    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
+    client = Client(host=host, local=local, insecure=insecure, cert_path=cert)
 
-    rc_list_functions = {
-        "features": rc.list_features,
-        "labels": rc.list_labels,
-        "sources": rc.list_sources,
-        "trainingsets": rc.list_training_sets,
-        "training-sets": rc.list_training_sets,
-        "users": rc.list_users,
-        "models": rc.list_models,
-        "entities": rc.list_entities,
-        "providers": rc.list_providers
+    resource_list_functions = {
+        "features": client.list_features,
+        "labels": client.list_labels,
+        "sources": client.list_sources,
+        "trainingsets": client.list_training_sets,
+        "training-sets": client.list_training_sets,
+        "users": client.list_users,
+        "models": client.list_models,
+        "entities": client.list_entities,
+        "providers": client.list_providers,
     }
 
-    if resource_type in rc_list_functions:
-        rc_list_functions[resource_type](local=local)
+    if resource_type in resource_list_functions:
+        resource_list_functions[resource_type](local=local)
     else:
         raise ValueError("Resource type not found")
 
@@ -156,26 +155,21 @@ def dash():
 
 @cli.command()
 @click.argument("files", required=True, nargs=-1)
-@click.option("--host",
-              "host",
-              required=False,
-              help="The host address of the API server to connect to")
-@click.option("--cert",
-              "cert",
-              required=False,
-              help="Path to self-signed TLS certificate")
-@click.option("--insecure",
-              is_flag=True,
-              help="Disables TLS verification")
-@click.option("--local",
-              is_flag=True,
-              help="Enable local mode")
-@click.option("--dry-run",
-              is_flag=True,
-              help="Checks the definitions without applying them")
-@click.option("--no-wait",
-              is_flag=True,
-              help="Applies the resources asynchronously")
+@click.option(
+    "--host",
+    "host",
+    required=False,
+    help="The host address of the API server to connect to",
+)
+@click.option(
+    "--cert", "cert", required=False, help="Path to self-signed TLS certificate"
+)
+@click.option("--insecure", is_flag=True, help="Disables TLS verification")
+@click.option("--local", is_flag=True, help="Enable local mode")
+@click.option(
+    "--dry-run", is_flag=True, help="Checks the definitions without applying them"
+)
+@click.option("--no-wait", is_flag=True, help="Applies the resources asynchronously")
 def apply(host, cert, insecure, local, files, dry_run, no_wait):
     for file in files:
         if os.path.isfile(file):
@@ -184,40 +178,46 @@ def apply(host, cert, insecure, local, files, dry_run, no_wait):
             read_url(file)
         else:
             raise ValueError(
-                f"Argument must be a path to a file or URL with a valid schema (http:// or https://): {file}")
+                f"Argument must be a path to a file or URL with a valid schema (http:// or https://): {file}"
+            )
 
-    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert, dry_run=dry_run)
+    client = Client(
+        host=host, local=local, insecure=insecure, cert_path=cert, dry_run=dry_run
+    )
     asynchronous = no_wait
-    rc.apply(asynchronous=asynchronous)
+    client.apply(asynchronous=asynchronous)
 
 
 @cli.command()
-@click.option("--query",
-              "-q",
-              "query",
-              required=True,
-              help="The phrase to search resources (e.g. 'quick').")
-@click.option("--host",
-              "host",
-              required=False,
-              help="The host address of the API server to connect to")
-@click.option("--cert",
-              "cert",
-              required=False,
-              help="Path to self-signed TLS certificate")
-@click.option("--insecure",
-              is_flag=True,
-              help="Disables TLS verification")
-@click.option("--local",
-              is_flag=True,
-              help="Enable local mode")
+@click.option(
+    "--query",
+    "-q",
+    "query",
+    required=True,
+    help="The phrase to search resources (e.g. 'quick').",
+)
+@click.option(
+    "--host",
+    "host",
+    required=False,
+    help="The host address of the API server to connect to",
+)
+@click.option(
+    "--cert", "cert", required=False, help="Path to self-signed TLS certificate"
+)
+@click.option("--insecure", is_flag=True, help="Disables TLS verification")
+@click.option("--local", is_flag=True, help="Enable local mode")
 def search(query, host, cert, insecure, local):
-    rc = ResourceClient(host=host, local=local, insecure=insecure, cert_path=cert)
-    results = rc.search(query, local)
+    client = Client(host=host, local=local, insecure=insecure, cert_path=cert)
+    results = client.search(query, local)
     if local:
         format_rows("NAME", "VARIANT", "TYPE")
         for r in results:
-            desc = r["description"][:cutoff_length] + "..." if len(r["description"]) > 0 else ""
+            desc = (
+                r["description"][:cutoff_length] + "..."
+                if len(r["description"]) > 0
+                else ""
+            )
             format_rows(r["name"], r["variant"], r["resource_type"])
 
 
@@ -243,5 +243,5 @@ def exec_file(file, name):
     exec(code, file_globals)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()

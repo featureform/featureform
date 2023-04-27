@@ -1,5 +1,5 @@
 import os
-from datetime import timedelta 
+from datetime import timedelta
 
 from dotenv import load_dotenv
 
@@ -11,18 +11,22 @@ featureform_location = os.path.dirname(os.path.dirname(FILE_DIRECTORY))
 env_file_path = os.path.join(featureform_location, ".env")
 load_dotenv(env_file_path)
 
+
 def get_random_string():
     import random
     import string
+
     return "".join(random.choice(string.ascii_lowercase) for _ in range(10))
+
 
 def save_to_file(filename, data):
     global FILE_DIRECTORY
     with open(f"{FILE_DIRECTORY}/{filename}", "w+") as f:
         f.write(data)
 
-VERSION=get_random_string()
-os.environ["TEST_CASE_VERSION"]=VERSION
+
+VERSION = get_random_string()
+os.environ["TEST_CASE_VERSION"] = VERSION
 
 FEATURE_NAME = f"spark_e2e_{VERSION}"
 FEATURE_VARIANT = "generic_azure"
@@ -39,9 +43,9 @@ save_to_file("version.txt", VERSIONS)
 # Start of Featureform Definitions
 redis = ff.register_redis(
     name=f"redis-spark-e2e_{VERSION}",
-    host="quickstart-redis", # The internal dns name for redis
+    host="quickstart-redis",  # The internal dns name for redis
     port=6379,
-    description="A Redis deployment we created for the Featureform quickstart"
+    description="A Redis deployment we created for the Featureform quickstart",
 )
 
 spark_creds = ff.SparkCredentials(
@@ -59,27 +63,32 @@ azure_blob = ff.register_blob_store(
 )
 
 spark = ff.register_spark(
-            name=f"spark-generic-azure_{VERSION}",
-            description="A Spark deployment we created for the Featureform quickstart",
-            team="featureform-team",
-            executor=spark_creds,
-            filestore=azure_blob,
-        )
+    name=f"spark-generic-azure_{VERSION}",
+    description="A Spark deployment we created for the Featureform quickstart",
+    team="featureform-team",
+    executor=spark_creds,
+    filestore=azure_blob,
+)
 
 ice_cream_dataset = spark.register_file(
     name=f"ice_cream_{VERSION}",
     variant=VERSION,
     description="A dataset of ice cream",
-    file_path="abfss://test@testingstoragegen.dfs.core.windows.net/featureform/tests/ice_cream.parquet"
+    file_path="abfss://test@testingstoragegen.dfs.core.windows.net/featureform/tests/ice_cream.parquet",
 )
 
-@spark.df_transformation(name=f"ice_cream_transformation_{VERSION}",
-                        variant=VERSION,
-                        inputs=[(f"ice_cream_{VERSION}", VERSION)])
+
+@spark.df_transformation(
+    name=f"ice_cream_transformation_{VERSION}",
+    variant=VERSION,
+    inputs=[(f"ice_cream_{VERSION}", VERSION)],
+)
 def ice_cream_transformation(df):
-    """the ice cream dataset """
+    """the ice cream dataset"""
     from pyspark.sql.functions import col
-    return df.withColumn("dairy_flow_rate",col("dairy_flow_rate")*2)
+
+    return df.withColumn("dairy_flow_rate", col("dairy_flow_rate") * 2)
+
 
 farm = ff.register_entity("farm")
 
@@ -89,7 +98,12 @@ ice_cream_transformation.register_resources(
     entity_column="strawberry_source",
     inference_store=redis,
     features=[
-        {"name": FEATURE_NAME, "variant": FEATURE_VARIANT, "column": "dairy_flow_rate", "type": "float32"},
+        {
+            "name": FEATURE_NAME,
+            "variant": FEATURE_VARIANT,
+            "column": "dairy_flow_rate",
+            "type": "float32",
+        },
     ],
 )
 
@@ -98,12 +112,18 @@ ice_cream_transformation.register_resources(
     entity=farm,
     entity_column="strawberry_source",
     labels=[
-        {"name": f"ice_cream_label_{VERSION}", "variant": FEATURE_VARIANT, "column": "quality_score", "type": "float32"},
+        {
+            "name": f"ice_cream_label_{VERSION}",
+            "variant": FEATURE_VARIANT,
+            "column": "quality_score",
+            "type": "float32",
+        },
     ],
 )
 
 ff.register_training_set(
-    TRAININGSET_NAME, TRAININGSET_VARIANT,
+    TRAININGSET_NAME,
+    TRAININGSET_VARIANT,
     label=(f"ice_cream_label_{VERSION}", FEATURE_VARIANT),
     features=[
         (FEATURE_NAME, FEATURE_VARIANT),

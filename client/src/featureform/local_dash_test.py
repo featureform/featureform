@@ -231,7 +231,7 @@ sources = [
         "name": "average_user_transaction",
         "variants": {
             "quickstart": {
-                "description": "the average transaction amount for a user ",
+                "description": "the average transaction amount for a user",
                 "name": "average_user_transaction",
                 "source-type": "Source",
                 "owner": "default_user",
@@ -739,7 +739,7 @@ users = [
             ],
             "average_user_transaction": [
                 {
-                    "description": "the average transaction amount for a user ",
+                    "description": "the average transaction amount for a user",
                     "name": "average_user_transaction",
                     "source-type": "Source",
                     "owner": "default_user",
@@ -950,7 +950,7 @@ providers = [
             ],
             "average_user_transaction": [
                 {
-                    "description": "the average transaction amount for a user ",
+                    "description": "the average transaction amount for a user",
                     "name": "average_user_transaction",
                     "source-type": "Source",
                     "owner": "default_user",
@@ -1308,7 +1308,7 @@ default_user = {
         ],
         "average_user_transaction": [
             {
-                "description": "the average transaction amount for a user ",
+                "description": "the average transaction amount for a user",
                 "name": "average_user_transaction",
                 "source-type": "Source",
                 "owner": "default_user",
@@ -1516,7 +1516,7 @@ localmode = {
         ],
         "average_user_transaction": [
             {
-                "description": "the average transaction amount for a user ",
+                "description": "the average transaction amount for a user",
                 "name": "average_user_transaction",
                 "source-type": "Source",
                 "owner": "default_user",
@@ -1628,7 +1628,7 @@ average_user_transaction = {
     "name": "average_user_transaction",
     "variants": {
         "quickstart": {
-            "description": "the average transaction amount for a user ",
+            "description": "the average transaction amount for a user",
             "name": "average_user_transaction",
             "source-type": "Source",
             "owner": "default_user",

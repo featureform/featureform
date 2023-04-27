@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"net/http"
+	"path/filepath"
 
 	"fmt"
 	"os"
@@ -19,6 +21,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/emr"
 	databricks "github.com/databricks/databricks-sdk-go"
+	dbClient "github.com/databricks/databricks-sdk-go/client"
+	dbConfig "github.com/databricks/databricks-sdk-go/config"
 	"github.com/databricks/databricks-sdk-go/service/jobs"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -27,6 +31,7 @@ import (
 
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
 	"github.com/featureform/config"
+	"github.com/featureform/helpers/compression"
 	pc "github.com/featureform/provider/provider_config"
 )
 
@@ -351,9 +356,10 @@ const (
 )
 
 type DatabricksExecutor struct {
-	client  *databricks.WorkspaceClient
-	cluster string
-	config  pc.DatabricksConfig
+	client             *databricks.WorkspaceClient
+	cluster            string
+	config             pc.DatabricksConfig
+	errorMessageClient *dbClient.DatabricksClient
 }
 
 func (e *EMRExecutor) PythonFileURI(store SparkFileStore) string {
@@ -430,29 +436,27 @@ func NewDatabricksExecutor(databricksConfig pc.DatabricksConfig) (SparkExecutor,
 			Username: databricksConfig.Username,
 			Password: databricksConfig.Password,
 		}))
+
+	errorMessageClient, err := dbClient.New(&dbConfig.Config{
+		Host:     databricksConfig.Host,
+		Token:    databricksConfig.Token,
+		Username: databricksConfig.Username,
+		Password: databricksConfig.Password,
+	})
+	if err != nil {
+		fmt.Println("could not create error message client: ", err)
+		errorMessageClient = nil
+	}
+
 	return &DatabricksExecutor{
-		client:  client,
-		cluster: databricksConfig.Cluster,
-		config:  databricksConfig,
+		client:             client,
+		cluster:            databricksConfig.Cluster,
+		config:             databricksConfig,
+		errorMessageClient: errorMessageClient,
 	}, nil
 }
 
 func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) error {
-	//set spark configuration
-	// clusterClient := db.client.Clusters()
-	// setConfigReq := clusterHTTPModels.EditReq{
-	// 	ClusterID: db.cluster,
-	// 	SparkConf: clusterModels.SparkConfPair{
-	// 		Key:   "fs.azure.account.key.testingstoragegen.dfs.core.windows.net", //change to one based on account name
-	// 		Value: helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
-	// 	},
-	// }
-	//TODO: resolve error: "Custom containers is turned off for your deployment. Please contact your workspace administrator to use this feature."
-	// need to specify spark version
-	// if err := clusterClient.Edit(setConfigReq); err != nil {
-	// 	return fmt.Errorf("Could not modify cluster to accept spark configs; %v", err)
-	// }
-
 	pythonTask := jobs.SparkPythonTask{
 		PythonFile: db.PythonFileURI(store),
 		Parameters: args,
@@ -478,10 +482,54 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 		JobId: jobToRun.JobId,
 	})
 	if err != nil {
-		return fmt.Errorf("the '%v' job failed: %v", jobToRun.JobId, err)
+		errorMessage := err
+		if db.errorMessageClient != nil {
+			errorMessage, err = db.getErrorMessage(jobToRun.JobId)
+			if err != nil {
+				fmt.Printf("the '%v' job failed, could not get error message: %v\n", jobToRun.JobId, err)
+			}
+		}
+
+		return fmt.Errorf("the '%v' job failed: %v", jobToRun.JobId, errorMessage)
 	}
 
 	return nil
+}
+
+func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {
+	ctx := context.Background()
+
+	runRequest := jobs.ListRunsRequest{
+		JobId: jobId,
+	}
+
+	runs, err := db.client.Jobs.ListRunsAll(ctx, runRequest)
+	if err != nil {
+		return nil, fmt.Errorf("could not get run id: %v", err)
+	}
+
+	if len(runs) == 0 {
+		return nil, fmt.Errorf("no runs found for job id: %v", jobId)
+	}
+	runID := runs[0].RunId
+	request := jobs.GetRunRequest{
+		RunId: runID,
+	}
+
+	// in order to get the status of the run output, we need to
+	// use API v2.0 instead of v2.1. The version 2.1 does not allow
+	// for getting the run output for multiple tasks. The following code
+	// leverages version 2.0 of the API to get the run output.
+	// we have created a github issue on the databricks-sdk-go repo
+	// https://github.com/databricks/databricks-sdk-go/issues/375
+	var runOutput jobs.RunOutput
+	path := "/api/2.0/jobs/runs/get-output"
+	err = db.errorMessageClient.Do(ctx, http.MethodGet, path, request, &runOutput)
+	if err != nil {
+		return nil, fmt.Errorf("could not get run output: %v", err)
+	}
+
+	return fmt.Errorf("%s", runOutput.Error), nil
 }
 
 type PythonOfflineQueries interface {
@@ -638,9 +686,10 @@ type SparkExecutor interface {
 }
 
 type EMRExecutor struct {
-	client      *emr.Client
-	clusterName string
-	logger      *zap.SugaredLogger
+	client       *emr.Client
+	clusterName  string
+	logger       *zap.SugaredLogger
+	logFileStore *FileStore
 }
 
 func (e EMRExecutor) InitializeExecutor(store SparkFileStore) error {
@@ -664,6 +713,8 @@ type SparkGenericExecutor struct {
 	master        string
 	deployMode    string
 	pythonVersion string
+	coreSite      string
+	yarnSite      string
 	logger        *zap.SugaredLogger
 }
 
@@ -684,10 +735,49 @@ func (s *SparkGenericExecutor) InitializeExecutor(store SparkFileStore) error {
 	return nil
 }
 
+func (s *SparkGenericExecutor) getYarnCommand(args string) (string, error) {
+	configDir, err := os.MkdirTemp("", "hadoop-conf")
+	if err != nil {
+		return "", fmt.Errorf("could not create temp dir: %v", err)
+	}
+	coreSitePath := filepath.Join(configDir, "core-site.xml")
+	err = os.WriteFile(coreSitePath, []byte(s.coreSite), 0644)
+	if err != nil {
+		return "", fmt.Errorf("could not write core-site.xml: %v", err)
+	}
+	yarnSitePath := filepath.Join(configDir, "yarn-site.xml")
+	err = os.WriteFile(yarnSitePath, []byte(s.yarnSite), 0644)
+	if err != nil {
+		return "", fmt.Errorf("could not write core-site.xml: %v", err)
+	}
+	return fmt.Sprintf(""+
+		"pyenv global %s && "+
+		"export HADOOP_CONF_DIR=%s &&  "+
+		"pyenv exec %s; "+
+		"rm -r %s", s.pythonVersion, configDir, args, configDir), nil
+}
+
+func (s *SparkGenericExecutor) getGenericCommand(args string) string {
+	return fmt.Sprintf("pyenv global %s && pyenv exec %s", s.pythonVersion, args)
+}
+
 func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore) error {
 	bashCommand := "bash"
 	sparkArgsString := strings.Join(args, " ")
-	bashCommandArgs := []string{"-c", fmt.Sprintf("pyenv global %s && pyenv exec %s", s.pythonVersion, sparkArgsString)}
+	var commandString string
+
+	if s.master == "yarn" {
+		s.logger.Info("Running spark job on yarn")
+		var err error
+		commandString, err = s.getYarnCommand(sparkArgsString)
+		if err != nil {
+			return fmt.Errorf("could not run yarn job: %v", err)
+		}
+	} else {
+		commandString = s.getGenericCommand(sparkArgsString)
+	}
+
+	bashCommandArgs := []string{"-c", commandString}
 
 	s.logger.Info("Executing spark-submit")
 	cmd := exec.Command(bashCommand, bashCommandArgs...)
@@ -796,6 +886,8 @@ func NewSparkGenericExecutor(sparkGenericConfig pc.SparkGenericConfig, logger *z
 		master:        sparkGenericConfig.Master,
 		deployMode:    sparkGenericConfig.DeployMode,
 		pythonVersion: sparkGenericConfig.PythonVersion,
+		coreSite:      sparkGenericConfig.CoreSite,
+		yarnSite:      sparkGenericConfig.YarnSite,
 		logger:        logger,
 	}
 	return &sparkGenericExecutor, nil
@@ -827,15 +919,33 @@ func NewSparkExecutor(execType pc.SparkExecutorType, config pc.SparkExecutorConf
 }
 
 func NewEMRExecutor(emrConfig pc.EMRConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+	awsAccessKeyId := emrConfig.Credentials.AWSAccessKeyId
+	awsSecretKey := emrConfig.Credentials.AWSSecretKey
+
 	client := emr.New(emr.Options{
 		Region:      emrConfig.ClusterRegion,
-		Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(emrConfig.Credentials.AWSAccessKeyId, emrConfig.Credentials.AWSSecretKey, "")),
+		Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(awsAccessKeyId, awsSecretKey, "")),
 	})
 
+	var logFileStore *FileStore
+	describeEMR, err := client.DescribeCluster(context.TODO(), &emr.DescribeClusterInput{
+		ClusterId: aws.String(emrConfig.ClusterName),
+	})
+	if err != nil {
+		logger.Infof("could not pull information about the cluster '%s': %s", emrConfig.ClusterName, err)
+	} else if describeEMR.Cluster.LogUri != nil {
+		logLocation := *describeEMR.Cluster.LogUri
+		logFileStore, err = createLogS3FileStore(emrConfig.ClusterRegion, logLocation, awsAccessKeyId, awsSecretKey)
+		if err != nil {
+			logger.Infof("could not create log file store at '%s': %s", logLocation, err)
+		}
+	}
+
 	emrExecutor := EMRExecutor{
-		client:      client,
-		logger:      logger,
-		clusterName: emrConfig.ClusterName,
+		client:       client,
+		logger:       logger,
+		clusterName:  emrConfig.ClusterName,
+		logFileStore: logFileStore,
 	}
 	return &emrExecutor, nil
 }
@@ -868,10 +978,102 @@ func (e *EMRExecutor) RunSparkJob(args []string, store SparkFileStore) error {
 		StepId:    aws.String(stepId),
 	}, waitDuration)
 	if err != nil {
-		e.logger.Errorw("Failure waiting for completion of EMR cluster", err)
-		return err
+		errorMessage, getErr := e.getStepErrorMessage(e.clusterName, stepId)
+		if getErr != nil {
+			e.logger.Infof("could not get error message for EMR step '%s': %s", stepId, getErr)
+		}
+		if errorMessage != "" {
+			return fmt.Errorf("the EMR step '%s' failed: %s", stepId, errorMessage)
+		}
+
+		e.logger.Errorf("Failure waiting for completion of EMR cluster: %s", err)
+		return fmt.Errorf("failure waiting for completion of EMR cluster: %s", err)
 	}
 	return nil
+}
+
+func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string) (string, error) {
+	if e.logFileStore == nil {
+		return "", fmt.Errorf("cannot get error message for EMR step '%s' because the log file store is not set", stepId)
+	}
+
+	stepResults, err := e.client.DescribeStep(context.TODO(), &emr.DescribeStepInput{
+		ClusterId: aws.String(clusterId),
+		StepId:    aws.String(stepId),
+	})
+	if err != nil {
+		return "", fmt.Errorf("could not get information on EMR step '%s'", stepId)
+	}
+
+	if stepResults.Step.Status.State == "FAILED" {
+		var errorMsg string
+		// check if there are any errors
+		if stepResults.Step.Status.FailureDetails.Message != nil {
+			// get the error message
+			errorMsg = *stepResults.Step.Status.FailureDetails.Message
+		}
+		if errorMsg != "" {
+			return errorMsg, nil
+		}
+
+		if stepResults.Step.Status.FailureDetails.LogFile != nil {
+			logFile := *stepResults.Step.Status.FailureDetails.LogFile
+
+			errorMessage, err := e.getLogFileMessage(logFile)
+			if err != nil {
+				return "", fmt.Errorf("could not get error message from log file '%s': %v", logFile, err)
+			}
+
+			return errorMessage, nil
+		}
+	}
+
+	return "", nil
+}
+
+func (e *EMRExecutor) getLogFileMessage(logFile string) (string, error) {
+	s3FilePath := &S3Filepath{}
+	err := s3FilePath.ParseFullPath(logFile)
+	if err != nil {
+		return "", fmt.Errorf("could not parse log file path '%s': %v", logFile, err)
+	}
+
+	bucket := s3FilePath.Bucket()
+	path := s3FilePath.Path()
+	outputFilePath := fmt.Sprintf("%s/stdout.gz", path)
+
+	err = e.waitForLogFile(outputFilePath)
+	if err != nil {
+		return "", fmt.Errorf("could not wait for log file '%s' to be available: %v", outputFilePath, err)
+	}
+
+	logs, err := (*e.logFileStore).Read(outputFilePath)
+	if err != nil {
+		return "", fmt.Errorf("could not read log file in '%s' bucket at '%s' path: %v", bucket, outputFilePath, err)
+	}
+
+	// the output file is compressed so we need uncompress it
+	errorMessage, err := compression.GunZip(logs)
+	if err != nil {
+		return "", fmt.Errorf("could not uncompress error message: %v", err)
+	}
+	return errorMessage, nil
+}
+
+func (e *EMRExecutor) waitForLogFile(logFile string) error {
+	// wait until log file exists
+	for {
+		fileExists, err := (*e.logFileStore).Exists(logFile)
+		if err != nil {
+			return fmt.Errorf("could not determine if file '%s' exists: %v", logFile, err)
+		}
+
+		if fileExists {
+			return nil
+		}
+
+		time.Sleep(2 * time.Second)
+	}
 }
 
 func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
@@ -909,6 +1111,38 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 	argList = append(argList, "--source_list")
 	argList = append(argList, sourceList...)
 	return argList
+}
+
+func createLogS3FileStore(emrRegion string, s3LogLocation string, awsAccessKeyId string, awsSecretKey string) (*FileStore, error) {
+	if s3LogLocation == "" {
+		return nil, fmt.Errorf("s3 log location is empty")
+	}
+	s3FilePath := &S3Filepath{}
+	err := s3FilePath.ParseFullPath(s3LogLocation)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse file path '%s': %v", s3LogLocation, err)
+	}
+
+	bucketName := s3FilePath.Bucket()
+	path := s3FilePath.Path()
+
+	logS3Config := pc.S3FileStoreConfig{
+		Credentials:  pc.AWSCredentials{AWSAccessKeyId: awsAccessKeyId, AWSSecretKey: awsSecretKey},
+		BucketRegion: emrRegion,
+		BucketPath:   bucketName,
+		Path:         path,
+	}
+
+	config, err := logS3Config.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("could not serialize s3 file store config: %v", err)
+	}
+
+	logFileStore, err := NewS3FileStore(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not create s3 file store (bucket: %s, path: %s) for emr logs: %v", err, bucketName, path)
+	}
+	return &logFileStore, nil
 }
 
 func removeEspaceCharacters(values []string) []string {

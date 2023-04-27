@@ -6,14 +6,14 @@ import shutil
 import os
 import stat
 
+
 class TestPetalGuide:
     def test_register_local(self):
-
         iris = local.register_file(
             name="Iris dataset",
-            variant = "Kaggle",
+            variant="Kaggle",
             description="Iris dataset from Kaggle",
-            path="iris.csv"
+            path="iris.csv",
         )
 
         test_entity = ff.register_entity("id")
@@ -30,13 +30,22 @@ class TestPetalGuide:
             df.drop(columns=["PetalLengthCm", "PetalWidthCm", "Species"], inplace=True)
             return df
 
-        @local.df_transformation(variant="v1", inputs=[("base_transformation1", "v1"), ("base_transformation2", "v1")])
+        @local.df_transformation(
+            variant="v1",
+            inputs=[("base_transformation1", "v1"), ("base_transformation2", "v1")],
+        )
         def join_transformation(df1, df2):
             """the number of transactions for each user"""
-            return df2.assign(PetalLengthCm=df1['PetalLengthCm'], PetalWidthCm=df1['PetalWidthCm'], Species=df1['Species'])
+            return df2.assign(
+                PetalLengthCm=df1["PetalLengthCm"],
+                PetalWidthCm=df1["PetalWidthCm"],
+                Species=df1["Species"],
+            )
 
-
-        @local.df_transformation(variant="v1", inputs=[("Iris dataset", "Kaggle"), ("Iris dataset", "Kaggle")])
+        @local.df_transformation(
+            variant="v1",
+            inputs=[("Iris dataset", "Kaggle"), ("Iris dataset", "Kaggle")],
+        )
         def new_transformation(df, df2):
             """the number of transactions for each user"""
             df.drop(columns="Species", inplace=True)
@@ -45,19 +54,33 @@ class TestPetalGuide:
         @local.df_transformation(variant="v1", inputs=[("Iris dataset", "Kaggle")])
         def transform1(df):
             """one transform"""
-            df = pd.DataFrame({'id':[1, 2, 3, 1], 'value': ["one", "two", "three", "four"], 'ts': [.1, .2, .3, .4]})
+            df = pd.DataFrame(
+                {
+                    "id": [1, 2, 3, 1],
+                    "value": ["one", "two", "three", "four"],
+                    "ts": [0.1, 0.2, 0.3, 0.4],
+                }
+            )
             return df
 
         @local.df_transformation(variant="v1", inputs=[("Iris dataset", "Kaggle")])
         def transform2(df):
             """one transform"""
-            df = pd.DataFrame({'id':[1, 2, 3], 'value': ["three", "four", "five"], 'ts': [.3, .2, .1]})
+            df = pd.DataFrame(
+                {
+                    "id": [1, 2, 3],
+                    "value": ["three", "four", "five"],
+                    "ts": [0.3, 0.2, 0.1],
+                }
+            )
             return df
 
         @local.df_transformation(variant="v1", inputs=[("Iris dataset", "Kaggle")])
         def transform3(df):
             """one transform"""
-            df = pd.DataFrame({'id':[1, 2, 3], 'value': [True, False, True], 'ts': [.2, .2, .2]})
+            df = pd.DataFrame(
+                {"id": [1, 2, 3], "value": [True, False, True], "ts": [0.2, 0.2, 0.2]}
+            )
             return df
 
         feat1v1 = transform1.register_resources(
@@ -67,7 +90,7 @@ class TestPetalGuide:
             features=[
                 {"name": "feat1", "variant": "v1", "column": "value", "type": "string"},
             ],
-            timestamp_column='ts'
+            timestamp_column="ts",
         )
 
         feat1v2 = transform1.register_resources(
@@ -86,7 +109,7 @@ class TestPetalGuide:
             features=[
                 {"name": "feat2", "variant": "v1", "column": "value", "type": "string"},
             ],
-            timestamp_column='ts'
+            timestamp_column="ts",
         )
 
         feat2v2 = transform2.register_resources(
@@ -112,11 +135,15 @@ class TestPetalGuide:
             inference_store=local,
             labels=[
                 {"name": "label1", "variant": "v1", "column": "value", "type": "bool"},
-                {"name": "label1", "variant": "v1.1", "column": "value", "type": "bool"},
+                {
+                    "name": "label1",
+                    "variant": "v1.1",
+                    "column": "value",
+                    "type": "bool",
+                },
             ],
-            timestamp_column='ts'
+            timestamp_column="ts",
         )
-
 
         user_entity = ff.register_entity("flower")
 
@@ -125,9 +152,13 @@ class TestPetalGuide:
             entity_column="Id",
             inference_store=local,
             features=[
-                {"name": "SepalLength", "variant": "transformation_test", "column": "SepalLengthCm", "type": "float32"},
+                {
+                    "name": "SepalLength",
+                    "variant": "transformation_test",
+                    "column": "SepalLengthCm",
+                    "type": "float32",
+                },
             ],
-
         )
 
         join_resources = join_transformation.register_resources(
@@ -135,135 +166,202 @@ class TestPetalGuide:
             entity_column="Id",
             inference_store=local,
             features=[
-                {"name": "SepalLength", "variant": "join", "column": "SepalLengthCm", "type": "float32"},
-                {"name": "SepalWidth", "variant": "join", "column": "SepalWidthCm", "type": "float32"},
-                {"name": "PetalLength", "variant": "join", "column": "PetalLengthCm", "type": "float32"},
-                {"name": "PetalWidth", "variant": "join", "column": "PetalWidthCm", "type": "float32"},
+                {
+                    "name": "SepalLength",
+                    "variant": "join",
+                    "column": "SepalLengthCm",
+                    "type": "float32",
+                },
+                {
+                    "name": "SepalWidth",
+                    "variant": "join",
+                    "column": "SepalWidthCm",
+                    "type": "float32",
+                },
+                {
+                    "name": "PetalLength",
+                    "variant": "join",
+                    "column": "PetalLengthCm",
+                    "type": "float32",
+                },
+                {
+                    "name": "PetalWidth",
+                    "variant": "join",
+                    "column": "PetalWidthCm",
+                    "type": "float32",
+                },
             ],
             labels=[
-                {"name": "SpeciesType", "variant": "join", "column": "Species", "type": "string"},
+                {
+                    "name": "SpeciesType",
+                    "variant": "join",
+                    "column": "Species",
+                    "type": "string",
+                },
             ],
-
         )
         iris_centimeters = iris.register_resources(
             entity=user_entity,
             entity_column="Id",
             inference_store=local,
             features=[
-                {"name": "SepalLength", "variant": "centimeters", "column": "SepalLengthCm", "type": "float32"},
-                {"name": "SepalWidth", "variant": "centimeters", "column": "SepalWidthCm", "type": "float32"},
-                {"name": "PetalLength", "variant": "centimeters", "column": "PetalLengthCm", "type": "float32"},
-                {"name": "PetalWidth", "variant": "centimeters", "column": "PetalWidthCm", "type": "float32"},
+                {
+                    "name": "SepalLength",
+                    "variant": "centimeters",
+                    "column": "SepalLengthCm",
+                    "type": "float32",
+                },
+                {
+                    "name": "SepalWidth",
+                    "variant": "centimeters",
+                    "column": "SepalWidthCm",
+                    "type": "float32",
+                },
+                {
+                    "name": "PetalLength",
+                    "variant": "centimeters",
+                    "column": "PetalLengthCm",
+                    "type": "float32",
+                },
+                {
+                    "name": "PetalWidth",
+                    "variant": "centimeters",
+                    "column": "PetalWidthCm",
+                    "type": "float32",
+                },
             ],
-
             labels=[
-                {"name": "SpeciesType", "variant": "String", "column": "Species", "type": "string"},
+                {
+                    "name": "SpeciesType",
+                    "variant": "String",
+                    "column": "Species",
+                    "type": "string",
+                },
             ],
         )
 
         client = ff.ResourceClient(local=True)
 
         ff.register_training_set(
-            "test_training", "v1",
+            "test_training",
+            "v1",
             label=label1v2.label(),
             features=[feat1v1.features(), feat2v1.features()],
         )
 
         ff.register_training_set(
-            "resouce_and_features", "v2",
+            "resouce_and_features",
+            "v2",
             label=("label1", "v2"),
-            resources = [feat1v2],
+            resources=[feat1v2],
             features=[("feat2", "v2")],
         )
         ff.register_training_set(
-            "multiple_resources", "v2",
+            "multiple_resources",
+            "v2",
             label=("label1", "v2"),
-            resources = [feat1v2, feat2v2],
+            resources=[feat1v2, feat2v2],
         )
 
         ff.register_training_set(
-            "resources", "v3",
-            resources = [join_resources, transformation_test],
-        ) 
+            "resources",
+            "v3",
+            resources=[join_resources, transformation_test],
+        )
 
         ff.register_training_set(
-            "iris_training", "quickstart",
+            "iris_training",
+            "quickstart",
             label=("SpeciesType", "String"),
-            features=[iris_centimeters.features(), ("SepalLength", "transformation_test")],
+            features=[
+                iris_centimeters.features(),
+                ("SepalLength", "transformation_test"),
+            ],
         )
 
         ff.register_training_set(
-            "join", "v1",
-            label = join_resources.label(),
-            features= join_resources.features(),
+            "join",
+            "v1",
+            label=join_resources.label(),
+            features=join_resources.features(),
         )
 
         ff.register_training_set(
-            "join", "v3",
-            resources = [join_resources],
-        ) 
+            "join",
+            "v3",
+            resources=[join_resources],
+        )
 
         client.apply()
 
         with pytest.raises(ValueError, match="Label must be entered as a tuple"):
             ff.register_training_set(
-            "join", "v4",
-            label = [join_resources, ("SpeciesType", "String")],
-            features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetalLength", "join"),
-                      ("PetalWidth", "join")],
-            )
-        
-        with pytest.raises(ValueError, match="A training set can only have one label"):
-            ff.register_training_set(
-            "multiple_labels", "v4",
-            resources = [label1v1]
-            )
-        
-        with pytest.raises(ValueError, match="A training set can only have one label"):
-            ff.register_training_set(
-                "multiple_labels", "v2",
-                label=("label1", "v2"),
-                resources = [join_resources, iris_centimeters],
+                "join",
+                "v4",
+                label=[join_resources, ("SpeciesType", "String")],
+                features=[
+                    ("SepalLength", "join"),
+                    ("SepalWidth", "join"),
+                    ("PetalLength", "join"),
+                    ("PetalWidth", "join"),
+                ],
             )
 
-        with pytest.raises(ValueError, match="A training-set must have atleast one feature"):
+        with pytest.raises(ValueError, match="A training set can only have one label"):
+            ff.register_training_set("multiple_labels", "v4", resources=[label1v1])
+
+        with pytest.raises(ValueError, match="A training set can only have one label"):
             ff.register_training_set(
-                "Missing_features", "v4",
-                resources = [label1v2],
-                features = []
+                "multiple_labels",
+                "v2",
+                label=("label1", "v2"),
+                resources=[join_resources, iris_centimeters],
+            )
+
+        with pytest.raises(
+            ValueError, match="A training-set must have atleast one feature"
+        ):
+            ff.register_training_set(
+                "Missing_features", "v4", resources=[label1v2], features=[]
             )
 
         with pytest.raises(ValueError, match="Label must be set"):
             ff.register_training_set(
-                "missing_label", "v2",
-                resources = [feat1v1],
-            ) 
-            
-    def test_invalid_label(self):
+                "missing_label",
+                "v2",
+                resources=[feat1v1],
+            )
 
+    def test_invalid_label(self):
         ff.register_training_set(
-            "join", "v2",
+            "join",
+            "v2",
             label=("SpeciesTypo", "join"),
-            features=[("SepalLength", "join"), ("SepalWidth", "join"), ("PetalLength", "join"),
-                      ("PetalWidth", "join")],
+            features=[
+                ("SepalLength", "join"),
+                ("SepalWidth", "join"),
+                ("PetalLength", "join"),
+                ("PetalWidth", "join"),
+            ],
         )
         with pytest.raises(ValueError) as err:
             client = ff.ResourceClient(local=True)
             client.apply()
-        assert "SpeciesTypo does not exist. Failed to register training set" in str(err.value)
-
+        assert "SpeciesTypo does not exist. Failed to register training set" in str(
+            err.value
+        )
 
     @pytest.fixture(autouse=True)
     def run_before_and_after_tests(tmpdir):
         """Fixture to execute asserts before and after a test is run"""
         # Remove any lingering Databases
         try:
-            shutil.rmtree('.featureform', onerror=del_rw)
+            shutil.rmtree(".featureform", onerror=del_rw)
         except:
             print("File Already Removed")
         yield
         try:
-            shutil.rmtree('.featureform', onerror=del_rw)
+            shutil.rmtree(".featureform", onerror=del_rw)
         except:
             print("File Already Removed")
 

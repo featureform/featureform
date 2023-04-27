@@ -80,8 +80,8 @@ func NewLocalFileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
-func (fs LocalFileStore) FilestoreType() string {
-	return "local"
+func (fs LocalFileStore) FilestoreType() pc.FileStoreType {
+	return FileSystem
 }
 
 type AzureFileStore struct {
@@ -132,8 +132,8 @@ func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
 	return path
 }
 
-func (store AzureFileStore) FilestoreType() string {
-	return "azure_blob_store"
+func (store AzureFileStore) FilestoreType() pc.FileStoreType {
+	return Azure
 }
 
 func NewAzureFileStore(config Config) (FileStore, error) {
@@ -232,8 +232,8 @@ func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
 	return path
 }
 
-func (s3 S3FileStore) FilestoreType() string {
-	return "s3"
+func (s3 S3FileStore) FilestoreType() pc.FileStoreType {
+	return S3
 }
 
 type GCSFileStore struct {
@@ -262,8 +262,8 @@ func (gs GCSFileStore) PathWithPrefix(path string, remote bool) string {
 	return path
 }
 
-func (g GCSFileStore) FilestoreType() string {
-	return "google_cloud_storage"
+func (g GCSFileStore) FilestoreType() pc.FileStoreType {
+	return GCS
 }
 
 type GCSFileStoreConfig struct {
@@ -604,6 +604,6 @@ func (fs *HDFSFileStore) AsAzureStore() *AzureFileStore {
 	return nil
 }
 
-func (fs HDFSFileStore) FilestoreType() string {
-	return "hdfs"
+func (fs HDFSFileStore) FilestoreType() pc.FileStoreType {
+	return HDFS
 }

@@ -20,10 +20,12 @@ def port():
 
 @pytest.fixture
 def embedding_hub_proc(port):
-    proc = subprocess.Popen([
-        "{}/__main__/embeddingstore/main".format(os.environ["TEST_SRCDIR"]),
-        "0.0.0.0:{}".format(port)
-    ])
+    proc = subprocess.Popen(
+        [
+            "{}/__main__/embeddingstore/main".format(os.environ["TEST_SRCDIR"]),
+            "0.0.0.0:{}".format(port),
+        ]
+    )
     time.sleep(1)
     yield proc
     proc.kill()

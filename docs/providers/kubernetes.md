@@ -167,3 +167,28 @@ def add_kmeans_clustering(df):
 ```
 
 {% endcode %}
+
+## Custom Resource Requests and Limits
+
+By default, transformation pods will be scheduled without resource requests or limits. This means that the pods will be 
+scheduled on any node that has available resources.
+
+You can specify resource requests and limits for the transformation pods. This will ensure that the pods are scheduled
+when the appropriate resources are available.
+
+```python
+specs = ff.K8sResourceSpecs(
+    cpu_request="100m",
+    cpu_limit="500m",
+    memory_request="1Gi",
+    memory_limit="2Gi"
+)
+
+@k8s_custom.sql_transformation(
+    inputs=[("encode_product_category", "default")],
+    resource_specs=specs,
+)
+def add_kmeans_clustering(df):
+    return "SELECT CustomerID as user_id, max(TransactionAmount) "
+           "as max_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
+```

@@ -144,6 +144,13 @@ test_coordinator
 			Usage:
 				make test_metadata flags=ETCD_UNSUPPORTED_ARCH=arm64
 
+test_filestore
+	Requirements:
+		- Golang 1.18
+
+	Description:
+		Runs golang unit tests
+
 endef
 export HELP_BODY
 
@@ -219,9 +226,15 @@ pytest:
 	pytest client/tests/test_spark_provider.py
 	pytest client/tests/test_localmode_include_label_ts.py
 	pytest client/tests/test_localmode_lag_features.py
+	pytest client/tests/test_localmode_caching.py
 	pytest -m 'local' client/tests/test_serving_model.py
 	pytest -m 'local' client/tests/test_getting_model.py
 	pytest -m 'local' client/tests/test_search.py
+	pytest -m 'local' client/tests/test_tags_and_properties.py
+	pytest -m 'local' client/tests/test_class_api.py
+	pytest -m 'local' client/tests/test_ondemand_features.py
+	pytest -m 'local' client/tests/test_resource_registration.py
+	pytest -m 'local' client/tests/test_source_dataframe.py
 	-rm -r .featureform
 	-rm -f transactions.csv
 
@@ -252,6 +265,12 @@ test_offline_k8s:  					## Run k8s tests.
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage
 	go test -v -parallel 1000 -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=k8s
+
+test_filestore:
+	@echo "These tests require a .env file. Please Check .env-template for possible variables"
+	-mkdir coverage
+	go test -v -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider/... --tags=filestore
+
 
 test_online: gen_grpc 					## Run offline tests. Run with `make test_online provider=(memory | redis_mock | redis_insecure | redis_secure | cassandra | firestore | dynamo )`
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"
@@ -365,11 +384,12 @@ test_e2e: update_python					## Runs End-to-End tests on minikube
 	while ! echo exit | nc localhost 7000; do sleep 10; done
 	while ! echo exit | nc localhost 2379; do sleep 10; done
 
-	featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
+	featureform apply --no-wait client/examples/quickstart.py --host localhost:8000 --cert tls.crt
 	pytest client/tests/e2e.py
 	pytest -m 'hosted' client/tests/test_serving_model.py
 	pytest -m 'hosted' client/tests/test_getting_model.py
 	pytest -m 'hosted' client/tests/test_updating_provider.py
+	pytest -m 'hosted' client/tests/test_class_api.py
 #	pytest -m 'hosted' client/tests/test_search.py
 
 	 echo "Starting end to end tests"

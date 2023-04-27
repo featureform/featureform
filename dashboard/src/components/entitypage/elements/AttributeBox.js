@@ -12,7 +12,7 @@ const useStyles = makeStyles((theme) => ({
   selectEmpty: {
     marginTop: theme.spacing(2),
   },
-  tags: {
+  attributeContainer: {
     padding: theme.spacing(2),
     borderRadius: "16px",
     border: `1px solid ${theme.palette.border.main}`,
@@ -22,19 +22,25 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const TagBox = ({ tags }) => {
+/**
+ * 
+ * @param {attributes} param0 - ([]string) A list attributes string (e.g. resource tags)
+ * @param {title} param1 - (string) The attributes' title (e.g. "Tags")
+ * @returns {Container}
+ */
+const AttributeBox = ({ attributes, title }) => {
   const classes = useStyles();
 
   return (
-    <Container className={classes.tags}>
+    <Container className={classes.attributeContainer}>
       <Typography variant="h6" component="h5" gutterBottom>
-        Tags
+        {title}
       </Typography>
-      {tags ? (
-        tags.map((tag) => (
+      {attributes ? (
+        attributes.map((attr) => (
           <Chip
-            label={tag}
-            key={tag}
+            label={attr}
+            key={attr}
             className={classes.chip}
             variant="outlined"
           />
@@ -46,4 +52,4 @@ const TagBox = ({ tags }) => {
   );
 };
 
-export default TagBox;
+export default AttributeBox;

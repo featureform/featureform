@@ -1,20 +1,30 @@
+import json
 from .format import *
 from .sqlite_metadata import *
 from .resources import Model
 
+
 def get_user_info_local(name):
-    user = get_resource("user", name)
+    user = get_resource("user", name, True)
 
     format_rows("USER NAME: ", user["name"])
     format_rows("TYPE: ", user["type"])
     format_rows("STATUS: ", user["status"])
-    return user
+    tags = json.loads(user["tags"]) if user["tags"] is not None else []
+    properties = (
+        json.loads(user["properties"]) if user["properties"] is not None else {}
+    )
+    format_tags_and_properties(tags, properties)
+    return {**user, "tags": tags, "properties": properties}
+
 
 def get_entity_info_local(name):
     db = SQLiteMetadata()
-    entity = get_resource("entity", name)
-    
-    returned_features_query_list = get_related_resources("feature_variant", "entity", name)
+    entity = get_resource("entity", name, True)
+
+    returned_features_query_list = get_related_resources(
+        "feature_variant", "entity", name
+    )
     returned_features_list = format_resource_list(returned_features_query_list)
 
     returned_labels_query_list = get_related_resources("label_variant", "entity", name)
@@ -23,37 +33,48 @@ def get_entity_info_local(name):
     training_set_list = set()
     for f in returned_features_list:
         try:
-            training_set_features_query_list = db.get_training_set_from_features(f["name"], f["variant"])
+            training_set_features_query_list = db.get_training_set_from_features(
+                f["name"], f["variant"]
+            )
         except ValueError:
             training_set_features_query_list = []
         for t in training_set_features_query_list:
             training_set_list.add(t)
 
-    returned_training_sets_list = format_resource_list(training_set_list, "training_set_name", "training_set_variant")
-    
+    returned_training_sets_list = format_resource_list(
+        training_set_list, "training_set_name", "training_set_variant"
+    )
+
     returned_entity = {
         "name": name,
         "status": entity["status"],
         "features": returned_features_list,
         "labels": returned_labels_list,
-        "trainingsets": returned_training_sets_list
+        "trainingsets": returned_training_sets_list,
+        "tags": json.loads(entity["tags"]) if entity["tags"] is not None else [],
+        "properties": json.loads(entity["properties"])
+        if entity["properties"] is not None
+        else {},
     }
 
-    format_rows([("ENTITY NAME: ", returned_entity["name"]),
-    ("STATUS: ", returned_entity["status"])])
+    format_rows(
+        [
+            ("ENTITY NAME: ", returned_entity["name"]),
+            ("STATUS: ", returned_entity["status"]),
+        ]
+    )
+    format_tags_and_properties(returned_entity["tags"], returned_entity["properties"])
     format_pg()
-    format_rows('NAME', 'VARIANT', 'TYPE')
+    format_rows("NAME", "VARIANT", "TYPE")
     for f in returned_entity["features"]:
-        format_rows(
-            f["name"], f["variant"], "feature")
+        format_rows(f["name"], f["variant"], "feature")
     for l in returned_entity["labels"]:
-        format_rows(
-            l["name"], l["variant"], "label")
+        format_rows(l["name"], l["variant"], "label")
     for t in returned_entity["trainingsets"]:
-        format_rows(
-            t["name"], t["variant"], "training set")
+        format_rows(t["name"], t["variant"], "training set")
     format_pg()
     return returned_entity
+
 
 def get_resource_info_local(resource_type, name):
     resource = get_resource(resource_type, name)
@@ -63,29 +84,39 @@ def get_resource_info_local(resource_type, name):
     returned_resource_list = {
         "name": resource["name"],
         "default_variant": resource["default_variant"],
-        "variants": [v["variant"] for v in variants_list]
+        "variants": [(v["variant"], v["tags"], v["properties"]) for v in variants_list],
     }
-   
+
     format_rows("NAME: ", returned_resource_list["name"])
     if "status" in resource:
         format_rows("STATUS: ", resource["status"])
     format_pg("VARIANTS:")
-    format_rows(returned_resource_list["default_variant"], 'default')
-    for v in returned_resource_list["variants"]:
-        if v != returned_resource_list["default_variant"]:
-            format_rows(v, '')
+    formatted_variants = [("NAME", "DEFAULT", "TAGS", "PROPERTIES")]
+    for v, t, p in returned_resource_list["variants"]:
+        t = json.loads(t) if t is not None else []
+        p = json.loads(p) if p is not None else {}
+        default = "" if v != returned_resource_list["default_variant"] else "default"
+        formatted_variants.append(
+            (v, default, ", ".join(t), ", ".join([f"{k}:{v}" for (k, v) in p.items()]))
+        )
+    format_rows(formatted_variants)
     format_pg()
     return returned_resource_list
+
 
 def get_feature_variant_info_local(name, variant):
     db = SQLiteMetadata()
     feature = get_variant("feature", name, variant)
 
     try:
-        returned_training_sets_query_list = db.get_training_set_from_features(feature["name"], feature["variant"])
+        returned_training_sets_query_list = db.get_training_set_from_features(
+            feature["name"], feature["variant"]
+        )
     except ValueError:
         returned_training_sets_query_list = []
-    returned_training_sets_list = format_resource_list(returned_training_sets_query_list, "training_set_name", "training_set_variant")
+    returned_training_sets_list = format_resource_list(
+        returned_training_sets_query_list, "training_set_name", "training_set_variant"
+    )
 
     returned_feature = {
         "name": feature["name"],
@@ -96,23 +127,36 @@ def get_feature_variant_info_local(name, variant):
         "description": feature["description"],
         "provider": feature["provider"],
         "status": feature["status"],
-        "source": { 
+        "source": {
             "name": feature["source_name"],
-            "variant": feature["source_variant"]
+            "variant": feature["source_variant"],
         },
-        "trainingsets": returned_training_sets_list
+        "trainingsets": returned_training_sets_list,
+        "tags": json.loads(feature["tags"]) if feature["tags"] is not None else [],
+        "properties": json.loads(feature["properties"])
+        if feature["properties"] is not None
+        else {},
     }
-    format_rows([("NAME: ", returned_feature["name"]), 
-    ("VARIANT: ", returned_feature["variant"]), 
-    ("TYPE:", returned_feature["type"]), 
-    ("ENTITY:", returned_feature["entity"]),
-    ("OWNER:", returned_feature["owner"]),
-    ("DESCRIPTION:", returned_feature["description"]),
-    ("PROVIDER:", returned_feature["provider"]),
-    ("STATUS: ", returned_feature["status"])
-    ])
+    format_rows(
+        [
+            ("NAME: ", returned_feature["name"]),
+            ("VARIANT: ", returned_feature["variant"]),
+            ("TYPE:", returned_feature["type"]),
+            ("ENTITY:", returned_feature["entity"]),
+            ("OWNER:", returned_feature["owner"]),
+            ("DESCRIPTION:", returned_feature["description"]),
+            ("PROVIDER:", returned_feature["provider"]),
+            ("STATUS: ", returned_feature["status"]),
+        ]
+    )
+    format_tags_and_properties(returned_feature["tags"], returned_feature["properties"])
     format_pg("SOURCE: ")
-    format_rows([("NAME", "VARIANT"), (returned_feature["source"]["name"], returned_feature["source"]["variant"])])
+    format_rows(
+        [
+            ("NAME", "VARIANT"),
+            (returned_feature["source"]["name"], returned_feature["source"]["variant"]),
+        ]
+    )
     format_pg("TRAINING SETS:")
     format_rows("NAME", "VARIANT")
     for t in returned_feature["trainingsets"]:
@@ -120,16 +164,21 @@ def get_feature_variant_info_local(name, variant):
     format_pg()
     return returned_feature
 
+
 def get_label_variant_info_local(name, variant):
     db = SQLiteMetadata()
     label = get_variant("label", name, variant)
 
     try:
-        returned_training_sets_query_list = db.get_training_set_from_labels(label["name"], label["variant"])
+        returned_training_sets_query_list = db.get_training_set_from_labels(
+            label["name"], label["variant"]
+        )
     except ValueError:
         returned_training_sets_query_list = []
-    
-    returned_training_sets_list = format_resource_list(returned_training_sets_query_list)
+
+    returned_training_sets_list = format_resource_list(
+        returned_training_sets_query_list
+    )
 
     returned_label = {
         "name": label["name"],
@@ -140,23 +189,33 @@ def get_label_variant_info_local(name, variant):
         "description": label["description"],
         "provider": label["provider"],
         "status": label["status"],
-        "source": { 
-            "name": label["source_name"],
-            "variant": label["source_variant"]
-        },
-        "trainingsets": returned_training_sets_list
+        "source": {"name": label["source_name"], "variant": label["source_variant"]},
+        "trainingsets": returned_training_sets_list,
+        "tags": json.loads(label["tags"]) if label["tags"] is not None else [],
+        "properties": json.loads(label["properties"])
+        if label["properties"] is not None
+        else {},
     }
-    format_rows([("NAME: ", returned_label["name"]), 
-    ("VARIANT: ", returned_label["variant"]), 
-    ("TYPE:", returned_label["type"]), 
-    ("ENTITY:", returned_label["entity"]),
-    ("OWNER:", returned_label["owner"]),
-    ("DESCRIPTION:", returned_label["description"]),
-    ("PROVIDER:", returned_label["provider"]),
-    ("STATUS: ", returned_label["status"])
-    ])
+    format_rows(
+        [
+            ("NAME: ", returned_label["name"]),
+            ("VARIANT: ", returned_label["variant"]),
+            ("TYPE:", returned_label["type"]),
+            ("ENTITY:", returned_label["entity"]),
+            ("OWNER:", returned_label["owner"]),
+            ("DESCRIPTION:", returned_label["description"]),
+            ("PROVIDER:", returned_label["provider"]),
+            ("STATUS: ", returned_label["status"]),
+        ]
+    )
+    format_tags_and_properties(returned_label["tags"], returned_label["properties"])
     format_pg("SOURCE: ")
-    format_rows([("NAME", "VARIANT"), (returned_label["source"]["name"], returned_label["source"]["variant"])])
+    format_rows(
+        [
+            ("NAME", "VARIANT"),
+            (returned_label["source"]["name"], returned_label["source"]["variant"]),
+        ]
+    )
     format_pg("TRAINING SETS:")
     format_rows("NAME", "VARIANT")
     for t in returned_label["trainingsets"]:
@@ -164,12 +223,15 @@ def get_label_variant_info_local(name, variant):
     format_pg()
     return returned_label
 
+
 def get_source_variant_info_local(name, variant):
     db = SQLiteMetadata()
     source = get_variant("source", name, variant)
 
     try:
-        returned_features_query_list = db.get_feature_variants_from_source(name, variant)
+        returned_features_query_list = db.get_feature_variants_from_source(
+            name, variant
+        )
         returned_features_list = format_resource_list(returned_features_query_list)
     except ValueError:
         returned_features_list = []
@@ -184,22 +246,26 @@ def get_source_variant_info_local(name, variant):
 
     for f in returned_features_list:
         try:
-            training_set_features_query_list = db.get_training_set_from_features(f["name"], f["variant"])
+            training_set_features_query_list = db.get_training_set_from_features(
+                f["name"], f["variant"]
+            )
         except ValueError:
             training_set_features_query_list = []
         for t in training_set_features_query_list:
             training_set_list.add(t)
-    
+
     for l in returned_labels_list:
         try:
-            training_set_labels_query_list = db.get_training_set_variant_from_label(l["name"], l["variant"])
+            training_set_labels_query_list = db.get_training_set_variant_from_label(
+                l["name"], l["variant"]
+            )
         except ValueError:
             training_set_labels_query_list = []
         for t in training_set_labels_query_list:
             training_set_list.add(t)
 
     returned_training_sets_list = format_resource_list(training_set_list)
-    
+
     returned_source = {
         "name": source["name"],
         "variant": source["variant"],
@@ -210,15 +276,24 @@ def get_source_variant_info_local(name, variant):
         "definition": source["definition"],
         "features": returned_features_list,
         "labels": returned_labels_list,
-        "trainingsets": returned_training_sets_list
+        "trainingsets": returned_training_sets_list,
+        "tags": json.loads(source["tags"]) if source["tags"] is not None else [],
+        "properties": json.loads(source["properties"])
+        if source["properties"] is not None
+        else {},
     }
 
-    format_rows([("NAME: ", returned_source["name"]),
-    ("VARIANT: ", returned_source["variant"]), 
-    ("OWNER:", returned_source["owner"]),
-    ("DESCRIPTION:", returned_source["description"]),
-    ("PROVIDER:", returned_source["provider"]),
-    ("STATUS: ", returned_source["status"])])
+    format_rows(
+        [
+            ("NAME: ", returned_source["name"]),
+            ("VARIANT: ", returned_source["variant"]),
+            ("OWNER:", returned_source["owner"]),
+            ("DESCRIPTION:", returned_source["description"]),
+            ("PROVIDER:", returned_source["provider"]),
+            ("STATUS: ", returned_source["status"]),
+        ]
+    )
+    format_tags_and_properties(returned_source["tags"], returned_source["properties"])
     format_pg("DEFINITION:")
     print(returned_source["definition"])
     print("FEATURES:")
@@ -236,6 +311,7 @@ def get_source_variant_info_local(name, variant):
     format_pg()
     return returned_source
 
+
 def get_training_set_variant_info_local(name, variant):
     db = SQLiteMetadata()
     training_set = get_variant("training-set", name, variant)
@@ -244,8 +320,10 @@ def get_training_set_variant_info_local(name, variant):
         returned_features_query_list = db.get_training_set_features(name, variant)
     except ValueError:
         returned_features_query_list = []
-    returned_features_list = format_resource_list(returned_features_query_list, "feature_name", "feature_variant")
-    
+    returned_features_list = format_resource_list(
+        returned_features_query_list, "feature_name", "feature_variant"
+    )
+
     returned_training_set = {
         "name": training_set["name"],
         "variant": training_set["variant"],
@@ -254,18 +332,39 @@ def get_training_set_variant_info_local(name, variant):
         "status": training_set["status"],
         "label": {
             "name": training_set["label_name"],
-            "variant": training_set["label_variant"]
+            "variant": training_set["label_variant"],
         },
-        "features": returned_features_list
+        "features": returned_features_list,
+        "tags": json.loads(training_set["tags"])
+        if training_set["tags"] is not None
+        else [],
+        "properties": json.loads(training_set["properties"])
+        if training_set["properties"] is not None
+        else {},
     }
 
-    format_rows([("NAME: ", returned_training_set["name"]),
-    ("VARIANT: ", returned_training_set["variant"]),
-    ("OWNER:", returned_training_set["owner"]),
-    ("DESCRIPTION:", returned_training_set["description"]),
-    ("STATUS: ", returned_training_set["status"])])
+    format_rows(
+        [
+            ("NAME: ", returned_training_set["name"]),
+            ("VARIANT: ", returned_training_set["variant"]),
+            ("OWNER:", returned_training_set["owner"]),
+            ("DESCRIPTION:", returned_training_set["description"]),
+            ("STATUS: ", returned_training_set["status"]),
+        ]
+    )
+    format_tags_and_properties(
+        returned_training_set["tags"], returned_training_set["properties"]
+    )
     format_pg("LABEL: ")
-    format_rows([("NAME", "VARIANT"), (returned_training_set["label"]["name"], returned_training_set["label"]["variant"])])
+    format_rows(
+        [
+            ("NAME", "VARIANT"),
+            (
+                returned_training_set["label"]["name"],
+                returned_training_set["label"]["variant"],
+            ),
+        ]
+    )
     format_pg("FEATURES:")
     format_rows("NAME", "VARIANT")
     for f in returned_training_set["features"]:
@@ -273,9 +372,10 @@ def get_training_set_variant_info_local(name, variant):
     format_pg()
     return returned_training_set
 
+
 def get_provider_info_local(name):
     db = SQLiteMetadata()
-    provider = get_resource("provider", name)
+    provider = get_resource("provider", name, True)
 
     try:
         returned_features_query_list = db.get_feature_variants_from_provider(name)
@@ -285,10 +385,10 @@ def get_provider_info_local(name):
 
     try:
         returned_labels_query_list = db.get_label_variants_from_provider(name)
-        returned_labels_list = format_resource_list(returned_labels_query_list)                         
+        returned_labels_list = format_resource_list(returned_labels_query_list)
     except ValueError:
         returned_labels_list = []
-    
+
     returned_provider = {
         "name": provider["name"],
         "type": provider["type"],
@@ -300,15 +400,26 @@ def get_provider_info_local(name):
         "serializedConfig": provider["serialized_config"],
         "sources": provider["sources"],
         "features": returned_features_list,
-        "labels": returned_labels_list
+        "labels": returned_labels_list,
+        "tags": json.loads(provider["tags"]) if provider["tags"] is not None else [],
+        "properties": json.loads(provider["properties"])
+        if provider["properties"] is not None
+        else {},
     }
 
-    format_rows([("NAME: ", returned_provider["name"]),
-    ("DESCRIPTION: ", returned_provider["description"]),
-    ("TYPE: ", returned_provider["type"]),
-    ("SOFTWARE: ", returned_provider["software"]),
-    ("TEAM: ", returned_provider["team"]),
-    ("STATUS: ", returned_provider["status"])])
+    format_rows(
+        [
+            ("NAME: ", returned_provider["name"]),
+            ("DESCRIPTION: ", returned_provider["description"]),
+            ("TYPE: ", returned_provider["type"]),
+            ("SOFTWARE: ", returned_provider["software"]),
+            ("TEAM: ", returned_provider["team"]),
+            ("STATUS: ", returned_provider["status"]),
+        ]
+    )
+    format_tags_and_properties(
+        returned_provider["tags"], returned_provider["properties"]
+    )
     format_rows("SOURCE:", returned_provider["sources"])
     format_pg("FEATURES:")
     format_rows("NAME", "VARIANT")
@@ -321,6 +432,7 @@ def get_provider_info_local(name):
     format_pg()
     return returned_provider
 
+
 def get_related_resources(table, column, name):
     db = SQLiteMetadata()
     try:
@@ -329,7 +441,8 @@ def get_related_resources(table, column, name):
         res_list = []
     return res_list
 
-def get_resource(resource_type, name):
+
+def get_resource(resource_type, name, should_fetch_tags_properties=False):
     db = SQLiteMetadata()
     resource_sql_functions = {
         "user": db.get_user,
@@ -339,10 +452,11 @@ def get_resource(resource_type, name):
         "source": db.get_source,
         "training-set": db.get_training_set,
         "model": db.get_model,
-        "provider": db.get_provider
+        "provider": db.get_provider,
     }
-    res_list = resource_sql_functions[resource_type](name)
+    res_list = resource_sql_functions[resource_type](name, should_fetch_tags_properties)
     return res_list
+
 
 def get_variant_list(resource_type, name):
     db = SQLiteMetadata()
@@ -350,11 +464,12 @@ def get_variant_list(resource_type, name):
         "feature": db.get_feature_variants_from_feature,
         "label": db.get_label_variants_from_label,
         "source": db.get_source_variants_from_source,
-        "training-set": db.get_training_set_variant_from_training_set
+        "training-set": db.get_training_set_variant_from_training_set,
     }
-    
+
     res_list = variant_list_sql_functions[resource_type](name)
     return res_list
+
 
 def get_variant(resource_type, name, variant):
     db = SQLiteMetadata()
@@ -363,15 +478,17 @@ def get_variant(resource_type, name, variant):
         "feature": db.get_feature_variant,
         "label": db.get_label_variant,
         "source": db.get_source_variant,
-        "training-set": db.get_training_set_variant
+        "training-set": db.get_training_set_variant,
     }
 
     res_list = variant_sql_functions[resource_type](name, variant)
     return res_list
 
+
 def format_resource_list(res_list, name_col="name", var_col="variant"):
-    formatted_res = [{ "name": r[name_col], "variant": r[var_col]} for r in res_list]
+    formatted_res = [{"name": r[name_col], "variant": r[var_col]} for r in res_list]
     return formatted_res
+
 
 def get_model_info_local(name) -> Model:
     model = get_resource("model", name)
@@ -379,4 +496,13 @@ def get_model_info_local(name) -> Model:
     format_rows("MODEL NAME: ", model["name"])
     format_rows("TYPE: ", model["type"])
 
-    return Model(model["name"])
+    return Model(model["name"], tags=[], properties={})
+
+
+def format_tags_and_properties(tags, properties):
+    if len(tags):
+        format_rows("TAGS:", ", ".join(tags))
+    if len(properties):
+        format_rows(
+            "PROPERTIES:", ", ".join([f"{k}:{v}" for (k, v) in properties.items()])
+        )

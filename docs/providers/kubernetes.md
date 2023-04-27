@@ -29,11 +29,11 @@ import featureform as ff
 
 azure_blob = ff.register_blob_store(
     name="azure-quickstart",
-    description="An azure blob store provider to store offline and inference data" # Optional
-    container_name="my_company_container"
-    root_path="custom/path/in/container"
-    account_name="<azure_account_name>"
-    account_key="<azure_account_key>" 
+    description="An azure blob store provider to store offline and inference data", # Optional
+    container_name="my_company_container",
+    root_path="custom/path/in/container",
+    account_name="<azure_account_name>",
+    account_key="<azure_account_key>"
 )
 
 k8s_store = ff.register_k8s(
@@ -167,3 +167,28 @@ def add_kmeans_clustering(df):
 ```
 
 {% endcode %}
+
+## Custom Resource Requests and Limits
+
+By default, transformation pods will be scheduled without resource requests or limits. This means that the pods will be 
+scheduled on any node that has available resources.
+
+You can specify resource requests and limits for the transformation pods. This will ensure that the pods are scheduled
+when the appropriate resources are available.
+
+```python
+specs = ff.K8sResourceSpecs(
+    cpu_request="100m",
+    cpu_limit="500m",
+    memory_request="1Gi",
+    memory_limit="2Gi"
+)
+
+@k8s_custom.sql_transformation(
+    inputs=[("encode_product_category", "default")],
+    resource_specs=specs,
+)
+def add_kmeans_clustering(df):
+    return "SELECT CustomerID as user_id, max(TransactionAmount) "
+           "as max_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
+```

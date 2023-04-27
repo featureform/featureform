@@ -77,6 +77,21 @@ func (r ResourceStatus) Serialized() pb.ResourceStatus_Status {
 	return pb.ResourceStatus_Status(r)
 }
 
+type ComputationMode int32
+
+const (
+	PRECOMPUTED     ComputationMode = ComputationMode(pb.ComputationMode_PRECOMPUTED)
+	CLIENT_COMPUTED                 = ComputationMode(pb.ComputationMode_CLIENT_COMPUTED)
+)
+
+func (cm ComputationMode) Equals(mode pb.ComputationMode) bool {
+	return cm == ComputationMode(mode)
+}
+
+func (cm ComputationMode) String() string {
+	return pb.ComputationMode_name[int32(cm)]
+}
+
 var parentMapping = map[ResourceType]ResourceType{
 	FEATURE_VARIANT:      FEATURE,
 	LABEL_VARIANT:        LABEL,
@@ -86,10 +101,17 @@ var parentMapping = map[ResourceType]ResourceType{
 
 func (serv *MetadataServer) needsJob(res Resource) bool {
 	if res.ID().Type == TRAINING_SET_VARIANT ||
-		res.ID().Type == FEATURE_VARIANT ||
 		res.ID().Type == SOURCE_VARIANT ||
 		res.ID().Type == LABEL_VARIANT {
 		return true
+	}
+	if res.ID().Type == FEATURE_VARIANT {
+		if fv, ok := res.(*featureVariantResource); !ok {
+			serv.Logger.Errorf("resource has type FEATURE VARIANT but failed to cast %s", res.ID())
+			return false
+		} else {
+			return PRECOMPUTED.Equals(fv.serialized.Mode)
+		}
 	}
 	return false
 }
@@ -436,7 +458,14 @@ func (resource *sourceVariantResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *sourceVariantResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExists{updateRes.ID()}
+	deserialized := updateRes.Proto()
+	variantUpdate, ok := deserialized.(*pb.SourceVariant)
+	if !ok {
+		return errors.New("failed to deserialize existing source variant record")
+	}
+	resource.serialized.Tags = unionTags(resource.serialized.Tags, variantUpdate.Tags)
+	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
+	return nil
 }
 
 type featureResource struct {
@@ -505,26 +534,28 @@ func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (Res
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
-			Name:    serialized.Source.Name,
-			Variant: serialized.Source.Variant,
-			Type:    SOURCE_VARIANT,
-		},
-		{
-			Name: serialized.Entity,
-			Type: ENTITY,
-		},
-		{
 			Name: serialized.Owner,
 			Type: USER,
-		},
-		{
-			Name: serialized.Provider,
-			Type: PROVIDER,
 		},
 		{
 			Name: serialized.Name,
 			Type: FEATURE,
 		},
+	}
+	if PRECOMPUTED.Equals(serialized.Mode) {
+		depIds = append(depIds, ResourceID{
+			Name:    serialized.Source.Name,
+			Variant: serialized.Source.Variant,
+			Type:    SOURCE_VARIANT,
+		},
+			ResourceID{
+				Name: serialized.Entity,
+				Type: ENTITY,
+			},
+			ResourceID{
+				Name: serialized.Provider,
+				Type: PROVIDER,
+			})
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
@@ -538,9 +569,12 @@ func (resource *featureVariantResource) Proto() proto.Message {
 }
 
 func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+	if !PRECOMPUTED.Equals(this.serialized.Mode) {
+		return nil
+	}
 	id := that.ID()
-	releventOp := op == create_op && id.Type == TRAINING_SET_VARIANT
-	if !releventOp {
+	relevantOp := op == create_op && id.Type == TRAINING_SET_VARIANT
+	if !relevantOp {
 		return nil
 	}
 	key := id.Proto()
@@ -560,7 +594,14 @@ func (resource *featureVariantResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *featureVariantResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExists{updateRes.ID()}
+	deserialized := updateRes.Proto()
+	variantUpdate, ok := deserialized.(*pb.FeatureVariant)
+	if !ok {
+		return errors.New("failed to deserialize existing feature variant record")
+	}
+	resource.serialized.Tags = unionTags(resource.serialized.Tags, variantUpdate.Tags)
+	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
+	return nil
 }
 
 type labelResource struct {
@@ -682,7 +723,14 @@ func (resource *labelVariantResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *labelVariantResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExists{updateRes.ID()}
+	deserialized := updateRes.Proto()
+	variantUpdate, ok := deserialized.(*pb.LabelVariant)
+	if !ok {
+		return errors.New("failed to deserialize existing label variant record")
+	}
+	resource.serialized.Tags = unionTags(resource.serialized.Tags, variantUpdate.Tags)
+	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
+	return nil
 }
 
 type trainingSetResource struct {
@@ -802,7 +850,14 @@ func (resource *trainingSetVariantResource) UpdateSchedule(schedule string) erro
 }
 
 func (resource *trainingSetVariantResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExists{updateRes.ID()}
+	deserialized := updateRes.Proto()
+	variantUpdate, ok := deserialized.(*pb.TrainingSetVariant)
+	if !ok {
+		return errors.New("failed to deserialize existing training set variant record")
+	}
+	resource.serialized.Tags = unionTags(resource.serialized.Tags, variantUpdate.Tags)
+	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
+	return nil
 }
 
 type modelResource struct {
@@ -869,36 +924,15 @@ func (resource *modelResource) UpdateSchedule(schedule string) error {
 
 func (resource *modelResource) Update(lookup ResourceLookup, updateRes Resource) error {
 	deserialized := updateRes.Proto()
-	updateModel, ok := deserialized.(*pb.Model)
+	modelUpdate, ok := deserialized.(*pb.Model)
 	if !ok {
 		return errors.New("failed to deserialize existing model record")
 	}
-	resource.serialized.Features = unionNameVariants(resource.serialized.Features, updateModel.Features)
-	resource.serialized.Trainingsets = unionNameVariants(resource.serialized.Trainingsets, updateModel.Trainingsets)
+	resource.serialized.Features = unionNameVariants(resource.serialized.Features, modelUpdate.Features)
+	resource.serialized.Trainingsets = unionNameVariants(resource.serialized.Trainingsets, modelUpdate.Trainingsets)
+	resource.serialized.Tags = unionTags(resource.serialized.Tags, modelUpdate.Tags)
+	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, modelUpdate.Properties)
 	return nil
-}
-
-func unionNameVariants(destination, source []*pb.NameVariant) []*pb.NameVariant {
-	type nameVariantKey struct {
-		Name    string
-		Variant string
-	}
-
-	set := make(map[nameVariantKey]bool)
-
-	for _, nameVariant := range destination {
-		key := nameVariantKey{nameVariant.Name, nameVariant.Variant}
-		set[key] = true
-	}
-
-	for _, nameVariant := range source {
-		key := nameVariantKey{nameVariant.Name, nameVariant.Variant}
-		if _, has := set[key]; !has {
-			destination = append(destination, nameVariant)
-		}
-	}
-
-	return destination
 }
 
 type userResource struct {
@@ -957,7 +991,14 @@ func (resource *userResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *userResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExists{updateRes.ID()}
+	deserialized := updateRes.Proto()
+	userUpdate, ok := deserialized.(*pb.User)
+	if !ok {
+		return errors.New("failed to deserialize existing user record")
+	}
+	resource.serialized.Tags = unionTags(resource.serialized.Tags, userUpdate.Tags)
+	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, userUpdate.Properties)
+	return nil
 }
 
 type providerResource struct {
@@ -1016,50 +1057,52 @@ func (resource *providerResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *providerResource) Update(lookup ResourceLookup, resourceUpdate Resource) error {
-	deserialized, ok := resourceUpdate.Proto().(*pb.Provider)
+	providerUpdate, ok := resourceUpdate.Proto().(*pb.Provider)
 	if !ok {
 		return errors.New("failed to deserialize existing provider record")
 	}
-	isValid, err := resource.isValidConfigUpdate(deserialized.SerializedConfig)
+	isValid, err := resource.isValidConfigUpdate(providerUpdate.SerializedConfig)
 	if err != nil {
 		return err
 	}
 	if !isValid {
 		return &ResourceExists{resourceUpdate.ID()}
 	}
-	resource.serialized.SerializedConfig = deserialized.SerializedConfig
-	resource.serialized.Description = deserialized.Description
+	resource.serialized.SerializedConfig = providerUpdate.SerializedConfig
+	resource.serialized.Description = providerUpdate.Description
+	resource.serialized.Tags = unionTags(resource.serialized.Tags, providerUpdate.Tags)
+	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, providerUpdate.Properties)
 	return nil
 }
 
-func (a providerResource) isValidConfigUpdate(configUpdate pc.SerializedConfig) (bool, error) {
-	switch pt.Type(a.serialized.Type) {
+func (resource *providerResource) isValidConfigUpdate(configUpdate pc.SerializedConfig) (bool, error) {
+	switch pt.Type(resource.serialized.Type) {
 	case pt.BigQueryOffline:
-		return isValidBigQueryConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidBigQueryConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.CassandraOnline:
-		return isValidCassandraConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidCassandraConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.DynamoDBOnline:
-		return isValidDynamoConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidDynamoConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.FirestoreOnline:
-		return isValidFirestoreConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidFirestoreConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.MongoDBOnline:
-		return isValidMongoConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidMongoConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.PostgresOffline:
-		return isValidPostgresConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidPostgresConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.RedisOnline:
-		return isValidRedisConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidRedisConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.SnowflakeOffline:
-		return isValidSnowflakeConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidSnowflakeConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.RedshiftOffline:
-		return isValidRedshiftConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidRedshiftConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.K8sOffline:
-		return isValidK8sConfigUpdate(a.serialized.SerializedConfig, configUpdate)
+		return isValidK8sConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.SparkOffline:
-		return isValidSparkConfigUpdate(a.serialized.SerializedConfig, configUpdate)
-	case pt.S3, pt.HDFS, pt.GCS, pt.AZURE:
+		return isValidSparkConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
+	case pt.S3, pt.HDFS, pt.GCS, pt.AZURE, pt.BlobOnline:
 		return true, nil
 	default:
-		return false, fmt.Errorf("unrecognized provider type: %v", a.serialized.Type)
+		return false, fmt.Errorf("unable to update config for provider. Provider type %s not found", resource.serialized.Type)
 	}
 }
 
@@ -1112,7 +1155,14 @@ func (resource *entityResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *entityResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExists{updateRes.ID()}
+	deserialized := updateRes.Proto()
+	entityUpdate, ok := deserialized.(*pb.Entity)
+	if !ok {
+		return errors.New("failed to deserialize existing training entity record")
+	}
+	resource.serialized.Tags = unionTags(resource.serialized.Tags, entityUpdate.Tags)
+	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, entityUpdate.Properties)
+	return nil
 }
 
 type MetadataServer struct {
@@ -1255,7 +1305,7 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *p
 			&pb.Feature{
 				Name:           name,
 				DefaultVariant: variant,
-				// This will be set when the change is propogated to dependencies.
+				// This will be set when the change is propagated to dependencies.
 				Variants: []string{},
 			},
 		}
@@ -1287,7 +1337,7 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variant *pb.
 			&pb.Label{
 				Name:           name,
 				DefaultVariant: variant,
-				// This will be set when the change is propogated to dependencies.
+				// This will be set when the change is propagated to dependencies.
 				Variants: []string{},
 			},
 		}
@@ -1319,7 +1369,7 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, varian
 			&pb.TrainingSet{
 				Name:           name,
 				DefaultVariant: variant,
-				// This will be set when the change is propogated to dependencies.
+				// This will be set when the change is propagated to dependencies.
 				Variants: []string{},
 			},
 		}
@@ -1351,7 +1401,7 @@ func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variant *pb
 			&pb.Source{
 				Name:           name,
 				DefaultVariant: variant,
-				// This will be set when the change is propogated to dependencies.
+				// This will be set when the change is propagated to dependencies.
 				Variants: []string{},
 			},
 		}
@@ -1453,7 +1503,11 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if err := resourceNamedSafely(id); err != nil {
 		return nil, err
 	}
-	if existing, err := serv.lookup.Lookup(id); err == nil {
+	existing, err := serv.lookup.Lookup(id)
+	if _, isResourceError := err.(*ResourceNotFound); err != nil && !isResourceError {
+		return nil, err
+	}
+	if existing != nil {
 		if err := existing.Update(serv.lookup, res); err != nil {
 			return nil, err
 		}
@@ -1462,7 +1516,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if err := serv.lookup.Set(id, res); err != nil {
 		return nil, err
 	}
-	if serv.needsJob(res) {
+	if serv.needsJob(res) && existing == nil {
 		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
 		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
 			return nil, fmt.Errorf("set job: %w", err)
@@ -1480,7 +1534,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 			}
 		}
 	}
-	if err := serv.propogateChange(res); err != nil {
+	if err := serv.propagateChange(res); err != nil {
 		err := errors.Wrap(err, fmt.Sprintf("could not propogate: %s", res))
 		serv.Logger.Error(errors.WithStack(err))
 		return nil, err
@@ -1488,11 +1542,11 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	return &pb.Empty{}, nil
 }
 
-func (serv *MetadataServer) propogateChange(newRes Resource) error {
+func (serv *MetadataServer) propagateChange(newRes Resource) error {
 	visited := make(map[ResourceID]struct{})
 	// We have to make it a var so that the anonymous function can call itself.
-	var propogateChange func(parent Resource) error
-	propogateChange = func(parent Resource) error {
+	var propagateChange func(parent Resource) error
+	propagateChange = func(parent Resource) error {
 		deps, err := parent.Dependencies(serv.lookup)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("could not get dependencies for parent: %s", parent))
@@ -1513,13 +1567,13 @@ func (serv *MetadataServer) propogateChange(newRes Resource) error {
 			if err := serv.lookup.Set(res.ID(), res); err != nil {
 				return nil
 			}
-			if err := propogateChange(res); err != nil {
+			if err := propagateChange(res); err != nil {
 				return err
 			}
 		}
 		return nil
 	}
-	return propogateChange(newRes)
+	return propagateChange(newRes)
 }
 
 func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send sendFn) error {

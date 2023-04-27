@@ -379,7 +379,7 @@ type FileStore interface {
 	Close() error
 	Upload(sourcePath string, destPath string) error
 	Download(sourcePath string, destPath string) error
-	FilestoreType() string
+	FilestoreType() pc.FileStoreType
 }
 
 type Iterator interface {
@@ -396,7 +396,7 @@ type genericFileStore struct {
 func (store genericFileStore) PathWithPrefix(path string, remote bool) string {
 	// What does this mean? Change this as check for local file
 	if len(store.path) > 4 && store.path[0:4] == "file" {
-		return fmt.Sprintf("%s%s", store.path[len("file:///"):], path)
+		return fmt.Sprintf("%s%s", store.path[len("file:///"):], strings.TrimPrefix(path, "/"))
 	} else {
 		return path
 	}
@@ -544,8 +544,8 @@ func (store genericFileStore) Download(sourcePath string, destPath string) error
 	return nil
 }
 
-func (store genericFileStore) FilestoreType() string {
-	return ""
+func (store genericFileStore) FilestoreType() pc.FileStoreType {
+	return Memory
 }
 
 func convertToParquetBytes(list []any) ([]byte, error) {

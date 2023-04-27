@@ -23,8 +23,10 @@ transactions = postgres.register_table(
 
 @postgres.sql_transformation()
 def average_user_transaction():
-    return "SELECT CustomerID as user_id, avg(TransactionAmount) " \
-           "as avg_transaction_amt from {{transactions.default}} GROUP BY user_id"
+    return (
+        "SELECT CustomerID as user_id, avg(TransactionAmount) "
+        "as avg_transaction_amt from {{transactions.default}} GROUP BY user_id"
+    )
 
 
 user = ff.register_entity("user")
@@ -34,7 +36,11 @@ average_user_transaction.register_resources(
     entity_column="user_id",
     inference_store=redis,
     features=[
-        {"name": "avg_transactions", "column": "avg_transaction_amt", "type": "float32"},
+        {
+            "name": "avg_transactions",
+            "column": "avg_transaction_amt",
+            "type": "float32",
+        },
     ],
 )
 # Register label from our base Transactions table

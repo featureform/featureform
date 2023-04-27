@@ -26,6 +26,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/featureform/helpers"
+	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
 )
 
@@ -2727,4 +2728,155 @@ func TestInitSparkAzure(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not initialize store: %v", err)
 	}
+}
+
+func TestCreateLogS3FileStore(t *testing.T) {
+	type TestCase struct {
+		Region      string
+		LogLocation string
+		AccessKey   string
+		SecretKey   string
+	}
+
+	tests := map[string]TestCase{
+		"USEast1S3": {
+			Region:      "us-east-1",
+			LogLocation: "s3://bucket/elasticmapreduce/",
+			AccessKey:   "accessKey",
+			SecretKey:   "secretKey",
+		},
+		"USEast1S3a": {
+			Region:      "us-east-1",
+			LogLocation: "s3a://bucket/elasticmapreduce/",
+			AccessKey:   "accessKey",
+			SecretKey:   "secretKey",
+		},
+		"USWest1S3": {
+			Region:      "us-west-1",
+			LogLocation: "s3://bucket/elasticmapreduce/",
+			AccessKey:   "accessKey",
+			SecretKey:   "secretKey",
+		},
+		"USWest1S3a": {
+			Region:      "us-west-1",
+			LogLocation: "s3a://bucket/elasticmapreduce/",
+			AccessKey:   "accessKey",
+			SecretKey:   "secretKey",
+		},
+	}
+
+	runTestCase := func(t *testing.T, test TestCase) {
+		_, err := createLogS3FileStore(test.Region, test.LogLocation, test.AccessKey, test.SecretKey)
+		if err != nil {
+			t.Fatalf("could not create S3 Filestore: %v", err)
+		}
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			runTestCase(t, test)
+		})
+	}
+}
+
+func TestEMRErrorMessages(t *testing.T) {
+	bucketName := helpers.GetEnv("S3_BUCKET_PATH", "")
+	emr, s3, err := createEMRAndS3(bucketName)
+	if err != nil {
+		t.Fatalf("could not create emr and/or s3 connection: %v", err)
+	}
+
+	localScriptPath := "scripts/spark/tests/test_files/scripts/test_emr_error.py"
+	remoteScriptPath := "unit_tests/scripts/tests/test_emr_error.py"
+	err = readAndUploadFile(localScriptPath, remoteScriptPath, s3)
+	if err != nil {
+		t.Fatalf("could not upload '%s' to '%s': %v", localScriptPath, remoteScriptPath, err)
+	}
+
+	type TestCase struct {
+		ErrorMessage         string
+		ExpectedErrorMessage string
+	}
+
+	tests := map[string]TestCase{
+		"ErrorBoring": {
+			ErrorMessage:         "Boring",
+			ExpectedErrorMessage: "ERROR: Boring",
+		},
+		"NoErrorMessage": {
+			ErrorMessage:         "",
+			ExpectedErrorMessage: "There is an Error",
+		},
+	}
+
+	remoteScriptPathWithPrefix := fmt.Sprintf("s3://%s/%s", bucketName, remoteScriptPath)
+	args := []string{
+		"spark-submit",
+		"--deploy-mode",
+		"client",
+		remoteScriptPathWithPrefix,
+	}
+
+	runTestCase := func(t *testing.T, test TestCase) {
+		runArgs := append(args, test.ErrorMessage)
+		err := emr.RunSparkJob(runArgs, s3)
+		if err == nil {
+			t.Fatal("job did not failed as expected")
+		}
+
+		errAsString := fmt.Sprintf("%s", err)
+		scriptError := strings.Split(errAsString, "failed: Exception:")[1]
+		errorMessage := strings.Trim(scriptError, " ")
+
+		if errorMessage != test.ExpectedErrorMessage {
+			t.Fatalf("did not get the expected error message: expected '%s' but got '%s'", test.ExpectedErrorMessage, errorMessage)
+		}
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			runTestCase(t, test)
+		})
+	}
+}
+
+func createEMRAndS3(bucketName string) (SparkExecutor, SparkFileStore, error) {
+	awsAccessKeyId := helpers.GetEnv("AWS_ACCESS_KEY_ID", "")
+	awsSecretKey := helpers.GetEnv("AWS_SECRET_KEY", "")
+
+	bucketRegion := helpers.GetEnv("S3_BUCKET_REGION", "us-east-1")
+
+	s3Config := pc.S3FileStoreConfig{
+		Credentials:  pc.AWSCredentials{AWSAccessKeyId: awsAccessKeyId, AWSSecretKey: awsSecretKey},
+		BucketRegion: bucketRegion,
+		BucketPath:   bucketName,
+		Path:         "unit_tests",
+	}
+
+	config, err := s3Config.Serialize()
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not serialize S3 config: %v", err)
+	}
+	s3, err := NewSparkS3FileStore(config)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not create new S3 file store: %v", err)
+	}
+
+	emrRegion := helpers.GetEnv("AWS_EMR_CLUSTER_REGION", "us-east-1")
+	emrClusterId := helpers.GetEnv("AWS_EMR_CLUSTER_ID", "")
+
+	emrConfig := pc.EMRConfig{
+		Credentials:   pc.AWSCredentials{AWSAccessKeyId: awsAccessKeyId, AWSSecretKey: awsSecretKey},
+		ClusterRegion: emrRegion,
+		ClusterName:   emrClusterId,
+	}
+
+	logger := logging.NewLogger("spark-unit-tests")
+	emr, err := NewEMRExecutor(emrConfig, logger)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not create new EMR executor: %v", err)
+	}
+	return emr, s3, nil
 }

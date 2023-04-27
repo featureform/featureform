@@ -19,6 +19,8 @@ env:
   ETCD_PORT: 2379
   REDSHIFT_PORT: 5439
   REDSHIFT_DATABASE: dev
+  SPARK_LOCAL_SCRIPT_PATH: scripts/spark/offline_store_spark_runner.py
+  PYTHON_LOCAL_INIT_PATH: scripts/spark/python_packages.sh
 
 jobs:
   setup:
@@ -914,6 +916,27 @@ jobs:
           AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
         run: make test_pandas
 
+      - name: Creating GCS Secret File
+        id: create-json-2
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "./provider/gcp_credentials.json"
+          json: ${{ secrets.GCS_CREDENTIALS }}
+      
+      - name: Testing Filestore
+        env:
+          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
+          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_CREDENTIALS_FILE: "./gcp_credentials.json" # this path needs to be relative to the test file location
+        run: make test_filestore
+
       - name: Convert Coverage Test Results
         if: always()
         working-directory: ./coverage
@@ -943,7 +966,10 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest] #osx-arm64 currently not working. Ticket made with github
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        exclude:
+          - os: windows-latest
+            python-version: "3.11"
     steps:
       - name: Download Working Compiled Directories
         uses: actions/download-artifact@v3

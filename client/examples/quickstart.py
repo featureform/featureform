@@ -4,7 +4,7 @@ redis = ff.register_redis(
     name="redis-quickstart",
     host="quickstart-redis",  # The internal dns name for redis
     port=6379,
-    description="A Redis deployment we created for the Featureform quickstart"
+    description="A Redis deployment we created for the Featureform quickstart",
 )
 
 postgres = ff.register_postgres(
@@ -14,7 +14,7 @@ postgres = ff.register_postgres(
     user="postgres",
     password="password",
     database="postgres",
-    description="A Postgres deployment we created for the Featureform quickstart"
+    description="A Postgres deployment we created for the Featureform quickstart",
 )
 
 transactions = postgres.register_table(
@@ -26,20 +26,27 @@ transactions = postgres.register_table(
 
 
 @postgres.sql_transformation(variant="quickstart")
-def average_user_transaction():
-    """the average transaction amount for a user """
-    return "SELECT CustomerID as user_id, avg(TransactionAmount) " \
-           "as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
+def average_user_transactions():
+    """the average transaction amount for a user"""
+    return (
+        "SELECT CustomerID as user_id, avg(TransactionAmount) "
+        "as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
+    )
 
 
 user = ff.register_entity("user")
 
-average_user_transaction.register_resources(
+average_user_transactions.register_resources(
     entity=user,
     entity_column="user_id",
     inference_store=redis,
     features=[
-        {"name": "avg_transactions", "variant": "quickstart", "column": "avg_transaction_amt", "type": "float32"},
+        {
+            "name": "avg_transaction",
+            "variant": "quickstart",
+            "column": "avg_transaction_amt",
+            "type": "float32",
+        },
     ],
 )
 
@@ -48,12 +55,17 @@ transactions.register_resources(
     entity=user,
     entity_column="customerid",
     labels=[
-        {"name": "fraudulent", "variant": "quickstart", "column": "isfraud", "type": "bool"},
+        {
+            "name": "fraudulent",
+            "variant": "quickstart",
+            "column": "isfraud",
+            "type": "bool",
+        },
     ],
 )
 
 ff.register_training_set(
-    "fraud_training", "quickstart",
+    "fraud_training",
     label=("fraudulent", "quickstart"),
-    features=[("avg_transactions", "quickstart")],
+    features=[("avg_transaction", "quickstart")],
 )

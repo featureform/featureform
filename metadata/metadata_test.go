@@ -3,6 +3,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	pb "github.com/featureform/metadata/proto"
 	"net"
 	"reflect"
 	"testing"
@@ -13,6 +14,9 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap/zaptest"
 )
+
+const PythonFunc = `def average_user_transaction(transactions):
+	return transactions.groupby("CustomerID")["TransactionAmount"].mean()`
 
 func TestResourceTypes(t *testing.T) {
 	typeMapping := map[ResourceType]ResourceDef{
@@ -50,10 +54,14 @@ func filledResourceDefs() []ResourceDef {
 	}
 	return []ResourceDef{
 		UserDef{
-			Name: "Featureform",
+			Name:       "Featureform",
+			Tags:       Tags{},
+			Properties: Properties{},
 		},
 		UserDef{
-			Name: "Other",
+			Name:       "Other",
+			Tags:       Tags{},
+			Properties: Properties{},
 		},
 		ProviderDef{
 			Name:             "mockOnline",
@@ -62,6 +70,8 @@ func filledResourceDefs() []ResourceDef {
 			Software:         "redis",
 			Team:             "fraud",
 			SerializedConfig: redisConfig.Serialized(),
+			Tags:             Tags{},
+			Properties:       Properties{},
 		},
 		ProviderDef{
 			Name:             "mockOffline",
@@ -70,14 +80,20 @@ func filledResourceDefs() []ResourceDef {
 			Software:         "snowflake",
 			Team:             "recommendations",
 			SerializedConfig: snowflakeConfig.Serialize(),
+			Tags:             Tags{},
+			Properties:       Properties{},
 		},
 		EntityDef{
 			Name:        "user",
 			Description: "A user entity",
+			Tags:        Tags{},
+			Properties:  Properties{},
 		},
 		EntityDef{
 			Name:        "item",
 			Description: "An item entity",
+			Tags:        Tags{},
+			Properties:  Properties{},
 		},
 		SourceDef{
 			Name:        "mockSource",
@@ -92,8 +108,10 @@ func filledResourceDefs() []ResourceDef {
 					},
 				},
 			},
-			Owner:    "Featureform",
-			Provider: "mockOffline",
+			Owner:      "Featureform",
+			Provider:   "mockOffline",
+			Tags:       Tags{},
+			Properties: Properties{},
 		},
 		SourceDef{
 			Name:        "mockSource",
@@ -104,8 +122,10 @@ func filledResourceDefs() []ResourceDef {
 					Name: "mockPrimary",
 				},
 			},
-			Owner:    "Featureform",
-			Provider: "mockOffline",
+			Owner:      "Featureform",
+			Provider:   "mockOffline",
+			Tags:       Tags{},
+			Properties: Properties{},
 		},
 		FeatureDef{
 			Name:        "feature",
@@ -121,6 +141,10 @@ func filledResourceDefs() []ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Tags:       Tags{},
+			Properties: Properties{},
+			Mode:       PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		FeatureDef{
 			Name:        "feature",
@@ -136,6 +160,10 @@ func filledResourceDefs() []ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Tags:       Tags{},
+			Properties: Properties{},
+			Mode:       PRECOMPUTED,
+			IsOnDemand: false,
 		},
 		FeatureDef{
 			Name:        "feature2",
@@ -151,6 +179,23 @@ func filledResourceDefs() []ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Tags:       Tags{},
+			Properties: Properties{},
+			Mode:       PRECOMPUTED,
+			IsOnDemand: false,
+		},
+		FeatureDef{
+			Name:        "feature3",
+			Variant:     "on-demand",
+			Description: "Feature3 on-demand",
+			Owner:       "Featureform",
+			Location: PythonFunction{
+				Query: []byte(PythonFunc),
+			},
+			Tags:       Tags{},
+			Properties: Properties{},
+			Mode:       CLIENT_COMPUTED,
+			IsOnDemand: true,
 		},
 		LabelDef{
 			Name:        "label",
@@ -166,6 +211,8 @@ func filledResourceDefs() []ResourceDef {
 				Value:  "col2",
 				TS:     "col3",
 			},
+			Tags:       Tags{},
+			Properties: Properties{},
 		},
 		TrainingSetDef{
 			Name:        "training-set",
@@ -177,7 +224,9 @@ func filledResourceDefs() []ResourceDef {
 				{"feature", "variant"},
 				{"feature", "variant2"},
 			},
-			Owner: "Other",
+			Owner:      "Other",
+			Tags:       Tags{},
+			Properties: Properties{},
 		},
 		TrainingSetDef{
 			Name:        "training-set",
@@ -189,13 +238,17 @@ func filledResourceDefs() []ResourceDef {
 				{"feature2", "variant"},
 				{"feature", "variant2"},
 			},
-			Owner: "Featureform",
+			Owner:      "Featureform",
+			Tags:       Tags{},
+			Properties: Properties{},
 		},
 		ModelDef{
 			Name:         "fraud",
 			Description:  "fraud model",
 			Features:     NameVariants{},
 			Trainingsets: NameVariants{},
+			Tags:         Tags{},
+			Properties:   Properties{},
 		},
 	}
 }
@@ -416,7 +469,7 @@ func TestClosedServer(t *testing.T) {
 	}
 	for _, typ := range listTypes {
 		if _, err := list(client, typ); err == nil {
-			t.Fatalf("Succeded in listing from closed server")
+			t.Fatalf("Succeeded in listing from closed server")
 		}
 	}
 	types := []ResourceType{
@@ -435,10 +488,10 @@ func TestClosedServer(t *testing.T) {
 	}
 	for _, typ := range types {
 		if _, err := getAll(client, typ, []NameVariant{}); err == nil {
-			t.Fatalf("Succeded in getting all from closed server")
+			t.Fatalf("Succeeded in getting all from closed server")
 		}
 		if _, err := get(client, typ, NameVariant{}); err == nil {
-			t.Fatalf("Succeded in getting from closed server")
+			t.Fatalf("Succeeded in getting from closed server")
 		}
 	}
 }
@@ -452,7 +505,7 @@ func TestServeGracefulStop(t *testing.T) {
 	}
 	serv, err := NewMetadataServer(config)
 	if err != nil {
-		t.Fatalf("Failed to create metadat server: %s", err)
+		t.Fatalf("Failed to create metadata server: %s", err)
 	}
 	errChan := make(chan error)
 	go func() {
@@ -477,56 +530,6 @@ func TestCreate(t *testing.T) {
 	_, err := ctx.Create(t)
 	if err != nil {
 		t.Fatalf("Failed to create resources: %s", err)
-	}
-	defer ctx.Destroy()
-}
-
-func TestResourceExists(t *testing.T) {
-	ctx := testContext{
-		Defs: []ResourceDef{
-			UserDef{
-				Name: "Featureform",
-			},
-			ProviderDef{
-				Name:             "mockOffline",
-				Description:      "A mock offline provider",
-				Type:             string(pt.SnowflakeOffline),
-				Software:         "snowflake",
-				Team:             "recommendations",
-				SerializedConfig: []byte("OFFLINE CONFIG"),
-			},
-			SourceDef{
-				Name:        "mockSource",
-				Variant:     "var",
-				Description: "A CSV source",
-				Definition: TransformationSource{
-					TransformationType: SQLTransformationType{
-						Query: "SELECT * FROM dummy",
-						Sources: []NameVariant{{
-							Name:    "mockName",
-							Variant: "mockVariant"},
-						},
-					},
-				},
-				Owner:    "Featureform",
-				Provider: "mockOffline",
-			},
-			SourceDef{
-				Name:        "mockSource",
-				Variant:     "var",
-				Description: "Different",
-				Definition: PrimaryDataSource{
-					Location: SQLTable{
-						Name: "mockPrimary",
-					},
-				},
-				Owner:    "Featureform",
-				Provider: "mockOffline",
-			},
-		},
-	}
-	if _, err := ctx.Create(t); err == nil {
-		t.Fatalf("Created same resource twice")
 	}
 	defer ctx.Destroy()
 }
@@ -560,6 +563,8 @@ type UserTest struct {
 	Labels       []NameVariant
 	TrainingSets []NameVariant
 	Sources      []NameVariant
+	Tags         Tags
+	Properties   Properties
 }
 
 func (test UserTest) NameVariant() NameVariant {
@@ -590,6 +595,7 @@ func expectedUsers() ResourceTests {
 				{"feature", "variant"},
 				{"feature2", "variant"},
 				{"feature", "variant2"},
+				{"feature3", "on-demand"},
 			},
 			Sources: []NameVariant{
 				{"mockSource", "var"},
@@ -613,9 +619,68 @@ func expectedUsers() ResourceTests {
 	}
 }
 
+func userUpdates() []ResourceDef {
+	return []ResourceDef{
+		UserDef{
+			Name:       "Featureform",
+			Tags:       Tags{"primary_user"},
+			Properties: Properties{"usr_key_1": "usr_val_1"},
+		},
+		UserDef{
+			Name:       "Featureform",
+			Tags:       Tags{"active"},
+			Properties: Properties{"usr_key_1": "user_value_1"},
+		},
+	}
+}
+
+func expectedUserUpdates() ResourceTests {
+	return ResourceTests{
+		UserTest{
+			Name:   "Featureform",
+			Labels: []NameVariant{},
+			Features: []NameVariant{
+				{"feature", "variant"},
+				{"feature2", "variant"},
+				{"feature", "variant2"},
+				{"feature3", "on-demand"},
+			},
+			Sources: []NameVariant{
+				{"mockSource", "var"},
+				{"mockSource", "var2"},
+			},
+			TrainingSets: []NameVariant{
+				{"training-set", "variant2"},
+			},
+			Tags:       Tags{"primary_user"},
+			Properties: Properties{"usr_key_1": "usr_val_1"},
+		},
+		UserTest{
+			Name:   "Featureform",
+			Labels: []NameVariant{},
+			Features: []NameVariant{
+				{"feature", "variant"},
+				{"feature2", "variant"},
+				{"feature", "variant2"},
+				{"feature3", "on-demand"},
+			},
+			Sources: []NameVariant{
+				{"mockSource", "var"},
+				{"mockSource", "var2"},
+			},
+			TrainingSets: []NameVariant{
+				{"training-set", "variant2"},
+			},
+			Tags:       Tags{"primary_user", "active"},
+			Properties: Properties{"usr_key_1": "user_value_1"},
+		},
+	}
+}
+
 func TestUser(t *testing.T) {
 	testListResources(t, USER, expectedUsers())
 	testGetResources(t, USER, expectedUsers())
+	testResourceUpdates(t, USER, expectedUsers(), expectedUserUpdates(), userUpdates())
 }
 
 type ProviderTest struct {
@@ -629,6 +694,8 @@ type ProviderTest struct {
 	Labels           []NameVariant
 	TrainingSets     []NameVariant
 	Sources          []NameVariant
+	Tags             Tags
+	Properties       Properties
 }
 
 func (test ProviderTest) NameVariant() NameVariant {
@@ -643,6 +710,8 @@ func (test ProviderTest) Test(t *testing.T, client *Client, res interface{}, sho
 	assertEqual(t, provider.Description(), test.Description)
 	assertEqual(t, provider.Software(), test.Software)
 	assertEqual(t, provider.SerializedConfig(), test.SerializedConfig)
+	assertEqual(t, provider.Tags(), test.Tags)
+	assertEqual(t, provider.Properties(), test.Properties)
 	assertEquivalentNameVariants(t, provider.Features(), test.Features)
 	assertEquivalentNameVariants(t, provider.Labels(), test.Labels)
 	assertEquivalentNameVariants(t, provider.TrainingSets(), test.TrainingSets)
@@ -687,6 +756,8 @@ func expectedProviders() ResourceTests {
 			},
 			Sources:      []NameVariant{},
 			TrainingSets: []NameVariant{},
+			Tags:         Tags{},
+			Properties:   Properties{},
 		},
 		ProviderTest{
 			Name:             "mockOffline",
@@ -707,6 +778,8 @@ func expectedProviders() ResourceTests {
 				{"training-set", "variant"},
 				{"training-set", "variant2"},
 			},
+			Tags:       Tags{},
+			Properties: Properties{},
 		},
 	}
 }
@@ -735,6 +808,7 @@ func providerUpdates() []ResourceDef {
 			Software:         "redis",
 			Team:             "fraud",
 			SerializedConfig: redisConfig.Serialized(),
+			Tags:             Tags{"online"},
 		},
 		ProviderDef{
 			Name:             "mockOffline",
@@ -743,6 +817,7 @@ func providerUpdates() []ResourceDef {
 			Software:         "snowflake",
 			Team:             "recommendations",
 			SerializedConfig: snowflakeConfig.Serialize(),
+			Tags:             Tags{"offline"},
 		},
 	}
 }
@@ -779,6 +854,8 @@ func expectedUpdatedProviders() ResourceTests {
 			},
 			Sources:      []NameVariant{},
 			TrainingSets: []NameVariant{},
+			Tags:         Tags{"online"},
+			Properties:   Properties{},
 		},
 		ProviderTest{
 			Name:             "mockOffline",
@@ -799,6 +876,8 @@ func expectedUpdatedProviders() ResourceTests {
 				{"training-set", "variant"},
 				{"training-set", "variant2"},
 			},
+			Tags:       Tags{"offline"},
+			Properties: Properties{},
 		},
 	}
 }
@@ -1043,6 +1122,11 @@ func expectedFeatures() ResourceTests {
 			Variants: []string{"variant"},
 			Default:  "variant",
 		},
+		FeatureTest{
+			Name:     "feature3",
+			Variants: []string{"on-demand"},
+			Default:  "on-demand",
+		},
 	}
 }
 
@@ -1056,8 +1140,10 @@ type FeatureVariantTest struct {
 	Provider     string
 	Source       NameVariant
 	TrainingSets []NameVariant
-	Location     ResourceVariantColumns
+	Location     interface{}
 	IsTable      bool
+	Mode         ComputationMode
+	IsOnDemand   bool
 }
 
 func (test FeatureVariantTest) NameVariant() NameVariant {
@@ -1070,19 +1156,26 @@ func (test FeatureVariantTest) Test(t *testing.T, client *Client, res interface{
 	assertEqual(t, feature.Name(), test.Name)
 	assertEqual(t, feature.Variant(), test.Variant)
 	assertEqual(t, feature.Description(), test.Description)
-	assertEqual(t, feature.Type(), test.Type)
 	assertEqual(t, feature.Owner(), test.Owner)
-	assertEqual(t, feature.Provider(), test.Provider)
-	assertEqual(t, feature.Source(), test.Source)
-	assertEqual(t, feature.Entity(), test.Entity)
-	assertEqual(t, feature.LocationColumns(), test.Location)
-	assertEqual(t, feature.isTable(), test.IsTable)
-	assertEquivalentNameVariants(t, feature.TrainingSets(), test.TrainingSets)
-	if shouldFetch {
-		testFetchProvider(t, client, feature)
-		testFetchSource(t, client, feature)
-		testFetchTrainingSets(t, client, feature)
+	if feature.Mode() == PRECOMPUTED {
+		assertEqual(t, feature.Type(), test.Type)
+		assertEqual(t, feature.Provider(), test.Provider)
+		assertEqual(t, feature.Source(), test.Source)
+		assertEqual(t, feature.Entity(), test.Entity)
+		assertEqual(t, feature.isTable(), test.IsTable)
+		assertEqual(t, feature.LocationColumns(), test.Location)
+		if shouldFetch {
+			testFetchProvider(t, client, feature)
+			testFetchSource(t, client, feature)
+			testFetchTrainingSets(t, client, feature)
+		}
+		assertEquivalentNameVariants(t, feature.TrainingSets(), test.TrainingSets)
+	} else {
+		assertEqual(t, feature.LocationFunction(), test.Location)
 	}
+	assertEqual(t, feature.Mode(), test.Mode)
+	assertEqual(t, feature.Mode(), test.Mode)
+	assertEqual(t, feature.IsOnDemand(), test.IsOnDemand)
 	if tm := feature.Created(); tm == (time.Time{}) {
 		t.Fatalf("Created time not set")
 	}
@@ -1147,6 +1240,17 @@ func expectedFeatureVariants() ResourceTests {
 				TS:     "col3",
 			},
 			IsTable: true,
+		},
+		FeatureVariantTest{
+			Name:        "feature3",
+			Variant:     "on-demand",
+			Description: "Feature3 on-demand",
+			Owner:       "Featureform",
+			Location: PythonFunction{
+				Query: []byte(PythonFunc),
+			},
+			Mode:       CLIENT_COMPUTED,
+			IsOnDemand: true,
 		},
 	}
 }
@@ -1366,6 +1470,8 @@ type ModelTest struct {
 	Labels       []NameVariant
 	TrainingSets []NameVariant
 	Sources      []NameVariant
+	Tags         Tags
+	Properties   Properties
 }
 
 func (test ModelTest) NameVariant() NameVariant {
@@ -1377,6 +1483,8 @@ func (test ModelTest) Test(t *testing.T, client *Client, resource interface{}, s
 	model := resource.(*Model)
 	assertEqual(t, model.Name(), test.Name)
 	assertEqual(t, model.Description(), test.Description)
+	assertEqual(t, model.Tags(), test.Tags)
+	assertEqual(t, model.Properties(), test.Properties)
 	assertEquivalentNameVariants(t, model.Features(), test.Features)
 	assertEquivalentNameVariants(t, model.Labels(), test.Labels)
 	assertEquivalentNameVariants(t, model.TrainingSets(), test.TrainingSets)
@@ -1398,6 +1506,8 @@ func expectedModels() ResourceTests {
 			Labels:       []NameVariant{},
 			Features:     []NameVariant{},
 			TrainingSets: []NameVariant{},
+			Tags:         []string{},
+			Properties:   map[string]string{},
 		},
 	}
 }
@@ -1421,6 +1531,8 @@ func modelUpdates() []ResourceDef {
 			Trainingsets: []NameVariant{
 				{Name: "training-set", Variant: "variant"},
 			},
+			Tags:       []string{"tag1"},
+			Properties: map[string]string{"key1": "a"},
 		},
 		ModelDef{
 			Name:        "fraud",
@@ -1429,6 +1541,8 @@ func modelUpdates() []ResourceDef {
 			Trainingsets: []NameVariant{
 				{Name: "training-set", Variant: "variant2"},
 			},
+			Tags:       []string{"tag2"},
+			Properties: map[string]string{"key2": "b", "key3": "c"},
 		},
 		ModelDef{
 			Name:        "fraud",
@@ -1437,6 +1551,8 @@ func modelUpdates() []ResourceDef {
 			Trainingsets: []NameVariant{
 				{Name: "training-set", Variant: "variant2"},
 			},
+			Tags:       []string{"tag2"},
+			Properties: map[string]string{"key3": "d"},
 		},
 	}
 }
@@ -1451,6 +1567,8 @@ func expectedUpdatedModels() ResourceTests {
 			TrainingSets: []NameVariant{
 				{Name: "training-set", Variant: "variant"},
 			},
+			Tags:       []string{"tag1"},
+			Properties: map[string]string{"key1": "a"},
 		},
 		ModelTest{
 			Name:        "fraud",
@@ -1461,6 +1579,8 @@ func expectedUpdatedModels() ResourceTests {
 				{Name: "training-set", Variant: "variant"},
 				{Name: "training-set", Variant: "variant2"},
 			},
+			Tags:       []string{"tag1", "tag2"},
+			Properties: map[string]string{"key1": "a", "key2": "b", "key3": "c"},
 		},
 		ModelTest{
 			Name:        "fraud",
@@ -1471,6 +1591,8 @@ func expectedUpdatedModels() ResourceTests {
 				{Name: "training-set", Variant: "variant"},
 				{Name: "training-set", Variant: "variant2"},
 			},
+			Tags:       []string{"tag1", "tag2"},
+			Properties: map[string]string{"key1": "a", "key2": "b", "key3": "d"},
 		},
 	}
 }
@@ -1495,16 +1617,14 @@ func testResourceUpdates(t *testing.T, typ ResourceType, arranged, expected Reso
 		if err := update(client, typ, u); err != nil {
 			t.Fatalf("Failed to update resource: %v", err)
 		}
-		var nameVariant NameVariant
+		nameVariant := NameVariant{}
 		switch typ {
+		case USER:
+			nameVariant.Name = u.(UserDef).Name
 		case MODEL:
-			nameVariant = NameVariant{
-				Name: u.(ModelDef).Name,
-			}
+			nameVariant.Name = u.(ModelDef).Name
 		case PROVIDER:
-			nameVariant = NameVariant{
-				Name: u.(ProviderDef).Name,
-			}
+			nameVariant.Name = u.(ProviderDef).Name
 		default:
 			t.Errorf("Unrecognized resource type: %v", typ)
 		}
@@ -1829,5 +1949,23 @@ func TestBannedStrings(t *testing.T) {
 	validName := ResourceID{"name", "variant", FEATURE}
 	if err := resourceNamedSafely(validName); err != nil {
 		t.Fatalf("valid resource triggered an error")
+	}
+}
+
+func TestIsValidConfigUpdate(t *testing.T) {
+
+	for _, providerType := range pt.AllProviderTypes {
+		resource := &providerResource{
+			serialized: &pb.Provider{
+				Type: providerType.String(),
+			},
+		}
+
+		_, err := resource.isValidConfigUpdate(pc.SerializedConfig{})
+		if err != nil {
+			if err.Error() == "config update not supported for provider type: "+providerType.String() {
+				t.Fatalf("no support for provider type %s", providerType)
+			}
+		}
 	}
 }

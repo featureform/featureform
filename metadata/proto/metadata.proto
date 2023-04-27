@@ -143,6 +143,15 @@ message Columns {
     string ts = 3;
 }
 
+message PythonFunction {
+    bytes query = 1;
+}
+
+enum ComputationMode {
+    PRECOMPUTED = 0;
+    CLIENT_COMPUTED = 1;
+}
+
 message FeatureVariant {
     string name = 1;
     string variant = 2;
@@ -157,9 +166,13 @@ message FeatureVariant {
     repeated NameVariant trainingsets = 11;
     oneof location {
         Columns columns = 12;
+        PythonFunction function = 17;
     }
     google.protobuf.Timestamp last_updated = 13;
     string schedule = 14;
+    Tags tags = 15;
+    Properties properties = 16;
+    ComputationMode mode = 18;
 }
 
 message FeatureLag {
@@ -191,6 +204,8 @@ message LabelVariant {
     oneof location {
         Columns columns = 12;
     }
+    Tags tags = 13;
+    Properties properties = 14;
 }
 
 message Provider {
@@ -205,6 +220,8 @@ message Provider {
     repeated NameVariant features = 9;
     repeated NameVariant trainingsets = 10;
     repeated NameVariant labels = 11;
+    Tags tags = 12;
+    Properties properties = 13;
 }
 
 message TrainingSet {
@@ -227,6 +244,8 @@ message TrainingSetVariant {
     google.protobuf.Timestamp last_updated = 13;
     string schedule = 14;
     repeated FeatureLag feature_lags = 15;
+    Tags tags = 16;
+    Properties properties = 17;
 }
 
 message Entity {
@@ -236,6 +255,8 @@ message Entity {
     repeated NameVariant features = 4;
     repeated NameVariant labels = 5;
     repeated NameVariant trainingsets = 6;
+    Tags tags = 7;
+    Properties properties = 8;
 }
 
 message Model {
@@ -244,6 +265,8 @@ message Model {
     repeated NameVariant features = 3;
     repeated NameVariant labels = 4;
     repeated NameVariant trainingsets = 5;
+    Tags tags = 6;
+    Properties properties = 7;
 }
 
 message User {
@@ -253,6 +276,8 @@ message User {
     repeated NameVariant labels = 4;
     repeated NameVariant trainingsets = 5;
     repeated NameVariant sources = 6;
+    Tags tags = 8;
+    Properties properties = 9;
 }
 
 message Source {
@@ -280,6 +305,8 @@ message SourceVariant {
     repeated NameVariant labels = 12;
     google.protobuf.Timestamp last_updated = 13;
     string schedule = 16;
+    Tags tags = 17;
+    Properties properties = 18;
 }
 
 message Transformation {
@@ -322,4 +349,18 @@ message PrimaryData {
 
 message PrimarySQLTable {
     string name = 1;
+}
+
+message Tags {
+    repeated string tag = 1;
+}
+
+message Property {
+    oneof value {
+        string string_value = 1;
+    }
+}
+
+message Properties {
+    map<string, Property> property = 1;
 }

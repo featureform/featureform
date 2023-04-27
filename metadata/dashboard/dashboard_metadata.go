@@ -7,11 +7,12 @@ package main
 import (
 	"context"
 	"fmt"
-	help "github.com/featureform/helpers"
-	"github.com/featureform/metadata/search"
 	"net/http"
 	"reflect"
 	"time"
+
+	help "github.com/featureform/helpers"
+	"github.com/featureform/metadata/search"
 
 	"github.com/featureform/metadata"
 	"github.com/gin-contrib/cors"
@@ -49,6 +50,10 @@ type FeatureVariantResource struct {
 	Location     map[string]string                       `json:"location"`
 	Source       metadata.NameVariant                    `json:"source"`
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
+	Tags         metadata.Tags                           `json:"tags"`
+	Properties   metadata.Properties                     `json:"properties"`
+	Mode         string                                  `json:"mode"`
+	IsOnDemand   bool                                    `json:"is-on-demand"`
 }
 
 type FeatureResource struct {
@@ -70,6 +75,8 @@ type TrainingSetVariantResource struct {
 	Features    map[string][]FeatureVariantResource `json:"features"`
 	Status      string                              `json:"status"`
 	Error       string                              `json:"error"`
+	Tags        metadata.Tags                       `json:"tags"`
+	Properties  metadata.Properties                 `json:"properties"`
 }
 
 type TrainingSetResource struct {
@@ -95,6 +102,8 @@ type SourceVariantResource struct {
 	Error          string                                  `json:"error"`
 	Definition     string                                  `json:"definition"`
 	Specifications map[string]string                       `json:"specifications"`
+	Tags           metadata.Tags                           `json:"tags"`
+	Properties     metadata.Properties                     `json:"properties"`
 }
 
 type SourceResource struct {
@@ -119,6 +128,8 @@ type LabelVariantResource struct {
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
 	Status       string                                  `json:"status"`
 	Error        string                                  `json:"error"`
+	Tags         metadata.Tags                           `json:"tags"`
+	Properties   metadata.Properties                     `json:"properties"`
 }
 
 type LabelResource struct {
@@ -137,6 +148,8 @@ type EntityResource struct {
 	Labels       map[string][]LabelVariantResource       `json:"labels"`
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
 	Status       string                                  `json:"status"`
+	Tags         metadata.Tags                           `json:"tags"`
+	Properties   metadata.Properties                     `json:"properties"`
 }
 
 type UserResource struct {
@@ -147,6 +160,8 @@ type UserResource struct {
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
 	Sources      map[string][]SourceVariantResource      `json:"sources"`
 	Status       string                                  `json:"status"`
+	Tags         metadata.Tags                           `json:"tags"`
+	Properties   metadata.Properties                     `json:"properties"`
 }
 
 type ModelResource struct {
@@ -157,6 +172,8 @@ type ModelResource struct {
 	Labels       map[string][]LabelVariantResource       `json:"labels"`
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
 	Status       string                                  `json:"status"`
+	Tags         metadata.Tags                           `json:"tags"`
+	Properties   metadata.Properties                     `json:"properties"`
 }
 
 type ProviderResource struct {
@@ -172,6 +189,8 @@ type ProviderResource struct {
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
 	Status       string                                  `json:"status"`
 	Error        string                                  `json:"error"`
+	Tags         metadata.Tags                           `json:"tags"`
+	Properties   metadata.Properties                     `json:"properties"`
 }
 
 type FetchError struct {
@@ -193,20 +212,50 @@ func columnsToMap(columns metadata.ResourceVariantColumns) map[string]string {
 }
 
 func featureShallowMap(variant *metadata.FeatureVariant) FeatureVariantResource {
-	return FeatureVariantResource{
-		Created:     variant.Created(),
-		Description: variant.Description(),
-		Entity:      variant.Entity(),
-		Name:        variant.Name(),
-		DataType:    variant.Type(),
-		Variant:     variant.Variant(),
-		Owner:       variant.Owner(),
-		Provider:    variant.Provider(),
-		Source:      variant.Source(),
-		Location:    columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns)),
-		Status:      variant.Status().String(),
-		Error:       variant.Error(),
+	fv := FeatureVariantResource{}
+	switch variant.Mode() {
+	case metadata.PRECOMPUTED:
+		fv = FeatureVariantResource{
+			Created:     variant.Created(),
+			Description: variant.Description(),
+			Entity:      variant.Entity(),
+			Name:        variant.Name(),
+			DataType:    variant.Type(),
+			Variant:     variant.Variant(),
+			Owner:       variant.Owner(),
+			Provider:    variant.Provider(),
+			Source:      variant.Source(),
+			Location:    columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns)),
+			Status:      variant.Status().String(),
+			Error:       variant.Error(),
+			Tags:        variant.Tags(),
+			Properties:  variant.Properties(),
+			Mode:        variant.Mode().String(),
+			IsOnDemand:  variant.IsOnDemand(),
+		}
+	case metadata.CLIENT_COMPUTED:
+		location := make(map[string]string)
+		if pyFunc, ok := variant.LocationFunction().(metadata.PythonFunction); ok {
+			location["query"] = string(pyFunc.Query)
+		}
+		fv = FeatureVariantResource{
+			Created:     variant.Created(),
+			Description: variant.Description(),
+			Name:        variant.Name(),
+			Variant:     variant.Variant(),
+			Owner:       variant.Owner(),
+			Location:    location,
+			Status:      variant.Status().String(),
+			Error:       variant.Error(),
+			Tags:        variant.Tags(),
+			Properties:  variant.Properties(),
+			Mode:        variant.Mode().String(),
+			IsOnDemand:  variant.IsOnDemand(),
+		}
+	default:
+		fmt.Printf("Unknown computation mode %v\n", variant.Mode())
 	}
+	return fv
 }
 
 func labelShallowMap(variant *metadata.LabelVariant) LabelVariantResource {
@@ -223,6 +272,8 @@ func labelShallowMap(variant *metadata.LabelVariant) LabelVariantResource {
 		Location:    columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns)),
 		Status:      variant.Status().String(),
 		Error:       variant.Error(),
+		Tags:        variant.Tags(),
+		Properties:  variant.Properties(),
 	}
 }
 
@@ -237,6 +288,8 @@ func trainingSetShallowMap(variant *metadata.TrainingSetVariant) TrainingSetVari
 		Label:       variant.Label(),
 		Status:      variant.Status().String(),
 		Error:       variant.Error(),
+		Tags:        variant.Tags(),
+		Properties:  variant.Properties(),
 	}
 }
 
@@ -253,6 +306,8 @@ func sourceShallowMap(variant *metadata.SourceVariant) SourceVariantResource {
 		Error:          variant.Error(),
 		Definition:     getSourceString(variant),
 		Specifications: getSourceArgs(variant),
+		Tags:           variant.Tags(),
+		Properties:     variant.Properties(),
 	}
 }
 
@@ -559,6 +614,8 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			Type:        "Entity",
 			Description: entity.Description(),
 			Status:      entity.Status().String(),
+			Tags:        entity.Tags(),
+			Properties:  entity.Properties(),
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
@@ -601,9 +658,11 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			return
 		}
 		userResource := &UserResource{
-			Name:   user.Name(),
-			Type:   "User",
-			Status: user.Status().String(),
+			Name:       user.Name(),
+			Type:       "User",
+			Status:     user.Status().String(),
+			Tags:       user.Tags(),
+			Properties: user.Properties(),
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
@@ -659,6 +718,8 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			Type:        "Model",
 			Description: model.Description(),
 			Status:      model.Status().String(),
+			Tags:        model.Tags(),
+			Properties:  model.Properties(),
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
@@ -709,6 +770,8 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			Team:         provider.Team(),
 			Status:       provider.Status().String(),
 			Error:        provider.Error(),
+			Tags:         provider.Tags(),
+			Properties:   provider.Properties(),
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
@@ -873,6 +936,8 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 				Type:        "Entity",
 				Description: entity.Description(),
 				Status:      entity.Status().String(),
+				Tags:        entity.Tags(),
+				Properties:  entity.Properties(),
 			}
 		}
 		c.JSON(http.StatusOK, entityList)
@@ -892,6 +957,8 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 				Type:        "Model",
 				Description: model.Description(),
 				Status:      model.Status().String(),
+				Tags:        model.Tags(),
+				Properties:  model.Properties(),
 			}
 		}
 		c.JSON(http.StatusOK, modelList)
@@ -907,9 +974,11 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 		userList := make([]UserResource, len(users))
 		for i, user := range users {
 			userList[i] = UserResource{
-				Name:   user.Name(),
-				Type:   "User",
-				Status: user.Status().String(),
+				Name:       user.Name(),
+				Type:       "User",
+				Status:     user.Status().String(),
+				Tags:       user.Tags(),
+				Properties: user.Properties(),
 			}
 		}
 		c.JSON(http.StatusOK, userList)
@@ -932,6 +1001,8 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 				Team:         provider.Team(),
 				ProviderType: provider.Type(),
 				Status:       provider.Status().String(),
+				Tags:         provider.Tags(),
+				Properties:   provider.Properties(),
 			}
 		}
 		c.JSON(http.StatusOK, providerList)

@@ -3,13 +3,14 @@ from featureform.register import ModelRegistrar
 from featureform.resources import Model
 import featureform as ff
 
+
 @pytest.mark.parametrize(
     "is_local,is_insecure",
     [
         pytest.param(True, True, marks=pytest.mark.local),
         pytest.param(False, False, marks=pytest.mark.hosted),
         pytest.param(False, True, marks=pytest.mark.docker),
-    ]
+    ],
 )
 def test_getting_model_successfully(is_local, is_insecure):
     model_name = "model_i"
@@ -18,7 +19,11 @@ def test_getting_model_successfully(is_local, is_insecure):
 
     model = resource_client.get_model(model_name, is_local)
 
-    assert isinstance(model, Model) and model.name == model_name and model.type() == "model"
+    assert (
+        isinstance(model, Model)
+        and model.name == model_name
+        and model.type() == "model"
+    )
 
 
 @pytest.mark.parametrize(
@@ -27,7 +32,7 @@ def test_getting_model_successfully(is_local, is_insecure):
         pytest.param(True, True, marks=pytest.mark.local),
         pytest.param(False, False, marks=pytest.mark.hosted),
         pytest.param(False, True, marks=pytest.mark.docker),
-    ]
+    ],
 )
 def test_getting_model_by_unregistered_name(is_local, is_insecure):
     model_name = "model_j"
@@ -48,14 +53,16 @@ def test_getting_model_by_unregistered_name(is_local, is_insecure):
         pytest.param(True, True, marks=pytest.mark.local),
         pytest.param(False, False, marks=pytest.mark.hosted),
         pytest.param(False, True, marks=pytest.mark.docker),
-    ]
+    ],
 )
 def test_getting_model_no_name(is_local, is_insecure):
     model_name = "model_k"
 
     resource_client = arrange_resources(model_name, is_local, is_insecure)
 
-    with pytest.raises(TypeError, match="missing 1 required positional argument: 'name'"):
+    with pytest.raises(
+        TypeError, match="missing 1 required positional argument: 'name'"
+    ):
         resource_client.get_model(local=is_local)
 
 
@@ -65,9 +72,10 @@ def before_and_after_each(setup_teardown):
     yield
     setup_teardown()
 
+
 def arrange_resources(model_name, is_local, is_insecure):
     ff.register_model(model_name)
     resource_client = ff.ResourceClient(local=is_local, insecure=is_insecure)
-    resource_client.apply()
+    resource_client.apply(asynchronous=True)
 
     return resource_client

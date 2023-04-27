@@ -328,7 +328,7 @@ jobs:
       - name: Configure Docker Socket
         run: |
           minikube start --kubernetes-version=v1.23.12
-          docker build . -t local/coordinator:stable -f coordinator/Dockerfile.old
+          docker build . -t local/coordinator:stable -f coordinator/Dockerfile.old --build-arg TESTING="True"
 
       - name: Load image
         run: |
@@ -403,6 +403,7 @@ jobs:
           S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
           S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
           GCP_CREDENTIALS_FILE: "./provider/gcp_credentials.json"
           FEATUREFORM_HOST: localhost:8000
           FEATUREFORM_CERT: tls.crt
@@ -429,7 +430,7 @@ jobs:
 
       - name: Clear ETCD
         run: |
-          kubectl port-forward svc/featureform-etcd 2379:2379 &
+          kubectl port-forward svc/featureform-etcd 2379:2379 || true &
           /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
 
       - name: Check ETCD Empty
@@ -465,7 +466,7 @@ jobs:
       - name: Run CLI for Get and List Functions
         run: |
             kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
-            featureform apply client/examples/quickstart.py --host localhost:8000 --cert tls.crt
+            featureform apply --no-wait client/examples/quickstart.py --host localhost:8000 --cert tls.crt
             featureform get label fraudulent --host localhost:8000 --cert tls.crt
             featureform get label fraudulent quickstart --host localhost:8000 --cert tls.crt
             featureform list labels --host localhost:8000 --cert tls.crt

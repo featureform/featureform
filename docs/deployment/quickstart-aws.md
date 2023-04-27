@@ -1,8 +1,8 @@
 ---
-description: A quick start guide for Featureform on Azure AKS.
+description: A quick start guide for Featureform on AWS EKS.
 ---
 
-# Quickstart (Azure)
+# Quickstart (Kubernetes)
 
 This quickstart will walk through creating a few simple features, labels, and a training set using Postgres and Redis. We will use a transaction fraud training set.
 
@@ -10,81 +10,89 @@ This quickstart will walk through creating a few simple features, labels, and a 
 
 ### Requirements
 
-- Python 3.7-3.10
-- Kubectl
-- Azure CLI
-- An available domain/subdomain name
-
+- Python 3.7+
 
 Install the Featureform SDK via Pip.
 
-```
+```shell
 pip install featureform
 ```
 
-## Step 2: Export domain name
-Featureform uses [gRPC](https://grpc.io/) which, in combination with the 
-[nginx ingress](https://github.com/kubernetes/ingress-nginx) requires a fully qualified domain name.
+## Step 2: Deploy EKS
 
-```
-export FEATUREFORM_HOST=<your_domain_name>
-```
+You can follow our [Minikube](../minikube.md) or [Kubernetes](kubernetes.md) deployment guide. This will walk through a simple AWS deployment of Featureform with our quick start Helm chart containing Postgres and Redis.
 
-## Step 3: Setup the AKS Cluster
-This step will provision a single node Kubernetes cluster with AKS
+Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) and [`eksctl`](https://eksctl.io/introduction/#installation) then run the following command to create an EKS cluster.
 
-### Login
-Login to the Azure CLI
-```
-az login
-```
-
-### Create Resource Group
-Create a resource group for the kubernetes cluster
-```
-az group create --name FeatureformResourceGroup --location eastus
-```
-
-### Create A Cluster
-Create a single node cluster for Featureform
-```
-az aks create --resource-group FeatureformResourceGroup --name FeatureformAKSCluster --node-count 1 --generate-ssh-keys
-```
-
-### Add To Kubeconfig
-Add the cluster information to the kubeconfig as a the current context
-
-```
-az aks get-credentials --resource-group FeatureformResourceGroup --name FeatureformAKSCluster
-```
-
-### Verify connection
-
-```
-kubectl get nodes
-```
-You should get a result like:
 ```shell
-NAME                                STATUS   ROLES   AGE     VERSION
-aks-nodepool1-25554489-vmss000000   Ready    agent   7m56s   v1.24.6
+eksctl create cluster \
+--name featureform \
+--version 1.24 \
+--region us-east-1 \
+--nodegroup-name linux-nodes \
+--nodes 1 \
+--nodes-min 1 \
+--nodes-max 4 \
+--with-oidc \
+--managed
 ```
 
+Newer versions of `eksctl` require you to separately add a Container Storage Interface (CSI) driver to support Persistent Volume Claims. For complete details on adding the Amazon EBS CSI driver to your EKS cluster, see [Managing the Amazon EBS CSI driver as an Amazon EKS add-on](https://docs.aws.amazon.com/eks/latest/userguide/managing-ebs-csi.html); however, the below examples should allow for a simple deployment.
 
-## Step 4: Install Helm charts
+### Create an Amazon EBS CSI Driver IAM Role
+
+```shell
+eksctl create iamserviceaccount \
+  --name ebs-csi-controller-sa \
+  --namespace kube-system \
+  --cluster featureform \
+  --region us-east-1 \
+  --attach-policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
+  --approve \
+  --role-only \
+  --role-name AmazonEKS_EBS_CSI_DriverRole
+```
+
+### Create the Amazon EBS CSI Add-On
+
+To easily find the account ID you used to create the cluster, run:
+
+```shell
+aws sts get-caller-identity --query Account --output text
+```
+
+Then, to add the Amazon EBS CSI add-on, run:
+
+```shell
+eksctl create addon \
+--name aws-ebs-csi-driver \
+--cluster featureform \
+--region us-east-1 \
+--service-account-role-arn arn:aws:iam::<AWS ACCOUNT ID>:role/AmazonEKS_EBS_CSI_DriverRole \
+--force
+```
+
+## Step 3: Install Helm charts
 
 We'll be installing three Helm Charts: Featureform, the Quickstart Demo, and Certificate Manager.
 
 First we need to add the Helm repositories.
 
-```
+```shell
 helm repo add featureform https://storage.googleapis.com/featureform-helm/ 
 helm repo add jetstack https://charts.jetstack.io 
 helm repo update
 ```
 
+Prior to installing the Helm charts, export your `FEATUREFORM_HOST` value:
+
+```shell
+export FEATUREFORM_HOST=aws-eks-demo.featureform.com
+```
+
 Now we can install the Helm charts.
 
-```
+```shell
 helm install certmgr jetstack/cert-manager \
     --set installCRDs=true \
     --version v1.8.0 \
@@ -99,36 +107,12 @@ helm install featureform featureform/featureform \
 helm install quickstart featureform/quickstart
 ```
 
-## Step 5: Setup Domain Name
-
-### Get the ingress IP address
-Get the IP address of the ingress. It may take a minute or so to show.
-```
-kubectl get ingress
-```
-
-In your DNS provider create two records:
-
-| Key                | Value                         | Record Type |
-|--------------------|-------------------------------|-------------|
-| <your_domain_name> | <ingress_ip_address>          | A           |
-| <your_domain_name> | 0 issuewild "letsencrypt.org" | CAA         |
-
-This will allow the client to securely connect to the cluster by allowing the cluster to provision its
-own public IP address.
-
-You can check when the cluster is ready by running
-```shell
-kubectl get cert
-```
-
-and checking that the status of the certificates is ready.
-
-## Step 6: Register providers
+## Step 4: Register providers
 
 The Quickstart helm chart creates a Postgres instance with preloaded data, as well as an empty Redis standalone instance. Now that they are deployed, we can write a config file in Python.
 
 {% code title="definitions.py" %}
+
 ```python
 import featureform as ff
 
@@ -149,6 +133,7 @@ postgres = ff.register_postgres(
     description = "A Postgres deployment we created for the Featureform quickstart"
 )
 ```
+
 {% endcode %}
 
 Once we create our config file, we can apply it to our Featureform deployment.
@@ -157,19 +142,22 @@ Once we create our config file, we can apply it to our Featureform deployment.
 featureform apply definitions.py
 ```
 
-## Step 7: Define our resources
+## Step 6: Define our resources
 
 We will create a user profile for us, and set it as the default owner for all the following resource definitions.
 
 {% code title="definitions.py" %}
+
 ```python
 ff.register_user("featureformer").make_default_owner()
 ```
+
 {% endcode %}
 
 Now we'll register our  user fraud dataset in Featureform.
 
 {% code title="definitions.py" %}
+
 ```python
 transactions = postgres.register_table(
     name = "transactions",
@@ -178,11 +166,13 @@ transactions = postgres.register_table(
     table = "Transactions", # This is the table's name in Postgres
 )
 ```
+
 {% endcode %}
 
 Next, we'll define a SQL transformation on our dataset.
 
 {% code title="definitions.py" %}
+
 ```python
 @postgres.sql_transformation(variant="quickstart")
 def average_user_transaction():
@@ -191,36 +181,34 @@ def average_user_transaction():
            "as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
     
 ```
+
 {% endcode %}
 
 Next, we'll register a passenger entity to associate with a feature and label.
 
 {% code title="definitions.py" %}
+
 ```python
-user = ff.register_entity("user")
-# Register a column from our transformation as a feature
-average_user_transaction.register_resources(
-    entity=user,
-    entity_column="user_id",
-    inference_store=redis,
-    features=[
-        {"name": "avg_transactions", "variant": "quickstart", "column": "avg_transaction_amt", "type": "float32"},
-    ],
-)
-# Register label from our base Transactions table
-transactions.register_resources(
-    entity=user,
-    entity_column="customerid",
-    labels=[
-        {"name": "fraudulent", "variant": "quickstart", "column": "isfraud", "type": "bool"},
-    ],
-)
+@ff.entity
+class User:
+    # Register a column from our transformation as a feature
+    avg_transactions = ff.Feature(
+        average_user_transaction[["user_id", "avg_transaction_amt"]], # We can optional include the `timestamp_column` "timestamp" here
+        type=ff.Float32,
+        inference_store=redis,
+    )
+    # Register label from our base Transactions table
+    fraudulent = ff.Label(
+        transactions[["customerid", "isfraud"]], variant="quickstart", type=ff.Bool
+    )
 ```
+
 {% endcode %}
 
-Finally, we'll join together the feature and label intro a training set.
+Finally, we'll join together the feature and label into a training set.
 
 {% code title="definitions.py" %}
+
 ```python
 ff.register_training_set(
     "fraud_training", "quickstart",
@@ -228,6 +216,7 @@ ff.register_training_set(
     features=[("avg_transactions", "quickstart")],
 )
 ```
+
 {% endcode %}
 
 Now that our definitions are complete, we can apply it to our Featureform instance.
@@ -257,5 +246,5 @@ import featureform as ff
 
 client = ff.ServingClient()
 fpf = client.features([("avg_transactions", "quickstart")], {"user": "C1410926"})
-print(fpf)
+# Run features through model
 ```

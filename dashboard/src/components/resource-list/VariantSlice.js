@@ -17,11 +17,13 @@ const variantSlice = createSlice({
   reducers: {
     set: (state, action) => {
       const { type, name, variant } = action.payload;
-      var typePayload = type
-      if (Resource.typeToName[type] !== undefined) {
+      let typePayload = type
+      if (Resource.typeToName[type]) {
         typePayload = Resource.typeToName[type]
       }
-      state[typePayload][name] = variant;
+      if (state[typePayload]) {
+        state[typePayload][name] = variant;
+      }
     },
   },
 });

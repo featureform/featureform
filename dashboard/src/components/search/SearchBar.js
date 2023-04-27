@@ -2,11 +2,11 @@ import React from "react";
 import { createStyles, alpha, makeStyles } from "@material-ui/core/styles";
 import SearchIcon from "@material-ui/icons/Search";
 import Grid from "@material-ui/core/Grid";
-import Router from "next/router";
+import { useRouter } from "next/router";
 import Container from "@material-ui/core/Container";
 import InputBase from "@material-ui/core/InputBase";
 
-const ENTER_KEY_CODE = 13;
+const ENTER_KEY = 'Enter';
 
 const useStyles = makeStyles((theme) =>
   createStyles({
@@ -72,14 +72,15 @@ const useStyles = makeStyles((theme) =>
   })
 );
 
-const SearchBar = ({ input, setQuery, homePage }) => {
+const SearchBar = ({ homePage }) => {
   const classes = useStyles();
-
+  const router = useRouter();
   const [searchText, setSearchText] = React.useState("");
 
   function handleSearch(event) {
-    let uri = "/search?q=" + searchText;
-    Router.push(uri);
+    event.preventDefault();
+    let uri = "/search?q=" + searchText?.trim();
+    router.push(uri);
   }
 
   return (
@@ -92,19 +93,29 @@ const SearchBar = ({ input, setQuery, homePage }) => {
           <InputBase
             placeholder="Search..."
             onChange={(event) => {
-              setSearchText(event.target.value);
+              const rawText = event.target.value;
+              if (rawText === '') {
+                // user is deleting the text field. allow this and clear out state
+                setSearchText(rawText);
+                return;
+              }
+              const searchText = event.target.value ?? '';
+              if (searchText.trim()) {
+                setSearchText(searchText);
+              }
             }}
-            defaultValue={""}
-            onKeyDown={(event) =>
-              event.keyCode === ENTER_KEY_CODE && searchText.length > 0
-                ? handleSearch(event)
-                : ""
+            value={searchText}
+            onKeyDown={(event) => {
+              if (event.key === ENTER_KEY && searchText) {
+                handleSearch(event);
+              }
+            }
             }
             classes={{
               root: classes.inputRoot,
               input: homePage ? classes.inputInputHome : classes.inputTopBar,
             }}
-            inputProps={{ "aria-label": "search " }}
+            inputProps={{ "aria-label": "search", "data-testid": "searchInputId"}}
           />
         </Container>
       </Grid>

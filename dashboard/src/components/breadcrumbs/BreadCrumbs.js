@@ -25,13 +25,14 @@ const useStyles = makeStyles((theme) => ({
 const BreadCrumbs = () => {
   const classes = useStyles();
   const { asPath } = useRouter();
-  const path = asPath.split("/");
+  const sansQuery = asPath.split('?').shift();
+  const path = sansQuery.split('/');
   while (path.length > 0 && path[0].length === 0) {
     path.shift();
   }
 
   const capitalize = (word) => {
-    return word[0].toUpperCase() + word.slice(1).toLowerCase();
+    return word ? word[0].toUpperCase() + word.slice(1).toLowerCase() : '';
   };
 
   const pathBuilder = (accumulator, currentValue) =>

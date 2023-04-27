@@ -2,6 +2,10 @@ package provider_type
 
 type Type string
 
+func (t Type) String() string {
+	return string(t)
+}
+
 const (
 	// Online
 	LocalOnline     Type = "LOCAL_ONLINE"
@@ -11,6 +15,7 @@ const (
 	DynamoDBOnline  Type = "DYNAMODB_ONLINE"
 	BlobOnline      Type = "BLOB_ONLINE"
 	MongoDBOnline   Type = "MONGODB_ONLINE"
+
 	// Offline
 	MemoryOffline    Type = "MEMORY_OFFLINE"
 	PostgresOffline  Type = "POSTGRES_OFFLINE"
@@ -24,3 +29,24 @@ const (
 	HDFS             Type = "HDFS"
 	AZURE            Type = "AZURE"
 )
+
+var AllProviderTypes = []Type{
+	LocalOnline,
+	RedisOnline,
+	CassandraOnline,
+	FirestoreOnline,
+	DynamoDBOnline,
+	BlobOnline,
+	MongoDBOnline,
+	MemoryOffline,
+	PostgresOffline,
+	SnowflakeOffline,
+	RedshiftOffline,
+	SparkOffline,
+	BigQueryOffline,
+	K8sOffline,
+	S3,
+	GCS,
+	HDFS,
+	AZURE,
+}

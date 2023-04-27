@@ -24,7 +24,7 @@ import json from "react-syntax-highlighter/dist/cjs/languages/prism/json";
 import { okaidia } from "react-syntax-highlighter/dist/cjs/styles/prism";
 
 import VariantControl from "./elements/VariantControl";
-import TagBox from "./elements/TagBox";
+import AttributeBox from "./elements/AttributeBox";
 import MetricsDropdown from "./elements/MetricsDropdown";
 import StatsDropdown from "./elements/StatsDropdown";
 import Resource from "../../api/resources/Resource.js";
@@ -205,13 +205,12 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
   let resourceType = Resource[resources.type];
   let type = resourceType.type;
   const router = useRouter();
-  const showMetrics = resourceType.hasMetrics;
+  const showMetrics = process.env.NODE_ENV == 'production' ? resourceType.hasMetrics : false;
   const showStats = false;
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const statsTabDisplacement = showMetrics ? 1 : 0;
   const name = resources["name"];
   const icon = resourceType.materialIcon;
-  const enableTags = false;
 
   let variant = resources["default-variant"];
 
@@ -337,7 +336,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
           {(Object.keys(metadata).length > 0 && metadata["status"] != "NO_STATUS")&& (
             <div className={classes.resourcesData}>
               <Grid container spacing={0}>
-                <Grid item xs={7} className={classes.resourceMetadata}>
+                <Grid item xs={6} className={classes.resourceMetadata}>
                   {metadata["description"] && (
                     <Typography variant="body1" className={classes.description}>
                       <b>Description:</b> {metadata["description"]}
@@ -506,7 +505,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                     </div>
                   )}
 
-                  {metadata["location"] && (
+                  {metadata["location"] && !metadata["is-on-demand"] && (
                     <div className={classes.linkBox}>
                       <Typography variant="body1" className={classes.typeTitle}>
                         <b>Columns:</b>{" "}
@@ -518,14 +517,35 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                       </Typography>
                     </div>
                   )}
+
+                  {metadata["location"] && metadata["is-on-demand"] && (
+                    <div className={classes.linkBox}>
+                    <Typography variant="body1" className={classes.typeTitle}>
+                      <b>Feature Variant Type:</b>{" "}
+                    </Typography>
+                    <Chip
+                      variant="outlined"
+                      className={classes.linkChip}
+                      size="small"
+                      onClick={() => {}}
+                      label={"On-Demand"}
+                    ></Chip>
+                  </div>
+                  )}
                 </Grid>
-                <Grid item xs={2}></Grid>
-                {enableTags && (
-                  <Grid item xs={3}>
-                    {metadata["tags"] && <TagBox tags={metadata["tags"]} />}
+                {metadata["tags"]?.length > 0 && (
+                  <Grid item xs>
+                    <AttributeBox attributes={metadata["tags"]} title={"Tags"} />
                   </Grid>
                 )}
-              </Grid>
+                {Object.keys(metadata["properties"] || {}).length > 0 && (
+                  <Grid item xs>
+                    {<AttributeBox
+                      attributes={Object.entries(metadata["properties"]).map(([k, v]) => `${k}:${v}`)}
+                      title={"Properties"} />}
+                  </Grid>
+                )}
+                </Grid>
             </div>
           )}
           {metadata["config"] && (

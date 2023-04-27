@@ -4,10 +4,18 @@ import stat
 import sys
 import featureform as ff
 
-sys.path.insert(0, 'client/src/')
+sys.path.insert(0, "client/src/")
 import pytest
-from featureform.register import LocalProvider, Provider, Registrar, LocalConfig, SQLTransformationDecorator, \
-    DFTransformationDecorator, SnowflakeConfig, Model
+from featureform.register import (
+    LocalProvider,
+    Provider,
+    Registrar,
+    LocalConfig,
+    SQLTransformationDecorator,
+    DFTransformationDecorator,
+    SnowflakeConfig,
+    Model,
+)
 
 
 @pytest.mark.parametrize(
@@ -19,26 +27,44 @@ from featureform.register import LocalProvider, Provider, Registrar, LocalConfig
         ["account", "org", "", False],
         ["", "", "account_locator", False],
         ["account", "org", "account_locator", True],
-    ]
+    ],
 )
-def test_snowflake_config_credentials(account, organization, account_locator, should_error):
+def test_snowflake_config_credentials(
+    account, organization, account_locator, should_error
+):
     if should_error:
         with pytest.raises(ValueError):
-            SnowflakeConfig(account=account, organization=organization, account_locator=account_locator, username="",
-                            password="", schema="")
+            SnowflakeConfig(
+                account=account,
+                organization=organization,
+                account_locator=account_locator,
+                username="",
+                password="",
+                schema="",
+            )
     else:  # Creating Obj should not error with proper credentials
-        SnowflakeConfig(account=account, organization=organization, account_locator=account_locator, username="",
-                        password="", schema="")
+        SnowflakeConfig(
+            account=account,
+            organization=organization,
+            account_locator=account_locator,
+            username="",
+            password="",
+            schema="",
+        )
 
 
 @pytest.fixture
 def local():
     config = LocalConfig()
-    provider = Provider(name="local-mode",
-                        function="LOCAL_ONLINE",
-                        description="This is local mode",
-                        team="team",
-                        config=config)
+    provider = Provider(
+        name="local-mode",
+        function="LOCAL_ONLINE",
+        description="This is local mode",
+        team="team",
+        config=config,
+        tags=[],
+        properties={},
+    )
     return LocalProvider(Registrar(), provider)
 
 
@@ -62,10 +88,7 @@ def return_5():
 
 @pytest.mark.parametrize("fn", [empty_string, return_5])
 def test_sql_transformation_decorator_invalid_fn(local, fn):
-    decorator = local.sql_transformation(
-        variant="var",
-        owner="owner"
-    )
+    decorator = local.sql_transformation(variant="var", owner="owner")
     with pytest.raises((TypeError, ValueError)):
         decorator(fn)
 
@@ -74,7 +97,14 @@ def test_sql_transformation_empty_description(registrar):
     def my_function():
         return "SELECT * FROM X"
 
-    dec = SQLTransformationDecorator(registrar=registrar, owner="", provider="", variant="sql")
+    dec = SQLTransformationDecorator(
+        registrar=registrar,
+        owner="",
+        provider="",
+        variant="sql",
+        tags=[],
+        properties={},
+    )
     dec.__call__(my_function)
 
     # Checks that Transformation definition does not error when converting to source
@@ -85,7 +115,9 @@ def test_df_transformation_empty_description(registrar):
     def my_function(df):
         return df
 
-    dec = DFTransformationDecorator(registrar=registrar, owner="", provider="", variant="df")
+    dec = DFTransformationDecorator(
+        registrar=registrar, owner="", provider="", variant="df", tags=[], properties={}
+    )
     dec.__call__(my_function)
 
     # Checks that Transformation definition does not error when converting to source
@@ -101,9 +133,19 @@ def test_valid_model_registration():
 
 
 def test_invalid_model_registration():
-
-    with pytest.raises(TypeError, match="missing 1 required positional argument: 'name'"):
+    with pytest.raises(
+        TypeError, match="missing 1 required positional argument: 'name'"
+    ):
         model = ff.register_model()
+
+
+@pytest.mark.parametrize(
+    "provider_name,func",
+    [("snowflake", ff.get_snowflake), ("snowflake_legacy", ff.get_snowflake_legacy)],
+)
+def test_get_snowflake_functions(provider_name, func):
+    offlineSQLProvider = func(provider_name)
+    assert offlineSQLProvider.name() == provider_name
 
 
 def del_rw(action, name, exc):
@@ -116,11 +158,11 @@ def run_before_and_after_tests(tmpdir):
     """Fixture to execute asserts before and after a test is run"""
     # Remove any lingering Databases
     try:
-        shutil.rmtree('.featureform', onerror=del_rw)
+        shutil.rmtree(".featureform", onerror=del_rw)
     except:
         print("File Already Removed")
     yield
     try:
-        shutil.rmtree('.featureform', onerror=del_rw)
+        shutil.rmtree(".featureform", onerror=del_rw)
     except:
         print("File Already Removed")

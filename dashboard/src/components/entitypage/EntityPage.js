@@ -26,6 +26,7 @@ function mapStateToProps(state) {
 
 const LoadingDots = () => {
   return (
+    <div data-testid='loadingDotsId'>
     <Container maxWidth="xl">
       <Paper elevation={3}>
         <Container maxWidth="sm">
@@ -33,6 +34,7 @@ const LoadingDots = () => {
         </Container>
       </Paper>
     </Container>
+    </div>
   );
 };
 
@@ -40,19 +42,25 @@ const checkIfEmpty = (object) => {
   return Object.keys(object).length === 0 && object.constructor === Object;
 };
 
+const fetchNotFound = (object) => {
+  return !object?.resources?.name && !object?.resources?.type
+}
+
 const EntityPage = ({ api, entityPage, activeVariants, type, entity, ...props }) => {
   let resourceType = Resource[Resource.pathToType[type]];
   const fetchEntity = props.fetch;
 
   useEffect(() => {
-    fetchEntity(api, type, entity);
+    if (api && type && entity) {
+      fetchEntity(api, type, entity);
+    }
   }, [type, entity]);
 
   return (
     <div>
-      {entityPage.failed ? (
+      {entityPage.failed || (!entityPage.loading && fetchNotFound(entityPage)) ? (
         <NotFoundPage />
-      ) : checkIfEmpty(entityPage) || entityPage.loading ? (
+      ) : entityPage.loading || checkIfEmpty(entityPage) ? (
         <LoadingDots />
       ) : (
         <EntityPageView

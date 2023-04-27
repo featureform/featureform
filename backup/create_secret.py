@@ -8,13 +8,11 @@ from google.oauth2 import service_account
 secretBase = {
     "apiVersion": "v1",
     "kind": "Secret",
-    "metadata": {
-        "name": "featureform-backup"
-    },
-    "type": "Opaque"
+    "metadata": {"name": "featureform-backup"},
+    "type": "Opaque",
 }
 
-CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
@@ -50,10 +48,11 @@ def azure(storage_account, storage_key, container_name, container_path):
         "AZURE_STORAGE_ACCOUNT": storage_account,
         "AZURE_STORAGE_KEY": storage_key,
         "AZURE_CONTAINER_NAME": container_name,
-        "AZURE_STORAGE_PATH": container_path
+        "AZURE_STORAGE_PATH": container_path,
     }
-    with open("./backup_secret.yaml", 'w+') as f:
+    with open("./backup_secret.yaml", "w+") as f:
         yaml.dump(secretBase, f)
+
 
 @cli.command()
 @click.argument("aws_access_key", required=True)
@@ -83,8 +82,9 @@ def s3(aws_access_key, aws_secret_key, bucket_region, bucket_name, bucket_path):
         "AWS_BUCKET_NAME": bucket_name,
         "AWS_BUCKET_PATH": bucket_path,
     }
-    with open("./backup_secret.yaml", 'w+') as f:
+    with open("./backup_secret.yaml", "w+") as f:
         yaml.dump(secretBase, f)
+
 
 @cli.command()
 @click.argument("bucket_name", required=True)
@@ -108,11 +108,11 @@ def gcs(bucket_name, bucket_path, json_credentials_path):
         "CLOUD_PROVIDER": "GCS",
         "GCS_BUCKET_NAME": bucket_name,
         "GCS_BUCKET_PATH": bucket_path,
-        "GCS_CREDENTIALS": json.dumps(service_account_info)
+        "GCS_CREDENTIALS": json.dumps(service_account_info),
     }
-    with open("./backup_secret.yaml", 'w+') as f:
+    with open("./backup_secret.yaml", "w+") as f:
         yaml.dump(secretBase, f)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()

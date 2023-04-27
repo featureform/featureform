@@ -14,15 +14,16 @@ import (
 	hdfs "github.com/colinmarc/hdfs/v2"
 	pc "github.com/featureform/provider/provider_config"
 
+	"io/fs"
+	"path/filepath"
+	"time"
+
 	"gocloud.dev/blob"
 	"gocloud.dev/blob/azureblob"
 	"gocloud.dev/blob/gcsblob"
 	"gocloud.dev/blob/s3blob"
 	"gocloud.dev/gcp"
 	"golang.org/x/oauth2/google"
-	"io/fs"
-	"path/filepath"
-	"time"
 )
 
 const (
@@ -51,6 +52,7 @@ func (ft FileType) Matches(file string) bool {
 const (
 	gsPrefix        = "gs://"
 	s3Prefix        = "s3://"
+	s3aPrefix       = "s3a://"
 	azureBlobPrefix = "abfss://"
 	HDFSPrefix      = "hdfs://"
 )
@@ -78,8 +80,8 @@ func NewLocalFileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
-func (fs LocalFileStore) FilestoreType() string {
-	return "local"
+func (fs LocalFileStore) FilestoreType() pc.FileStoreType {
+	return FileSystem
 }
 
 type AzureFileStore struct {
@@ -112,24 +114,26 @@ func (store AzureFileStore) AsAzureStore() *AzureFileStore {
 }
 
 func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
+	pathContainsAzureBlobPrefix := strings.HasPrefix(path, azureBlobPrefix)
+	pathContainsWorkingDirectory := store.Path != "" && strings.HasPrefix(path, store.Path)
+
 	if !remote {
-		if len(path) != 0 && path[0:len(store.Path)] != store.Path && store.Path != "" {
-			return fmt.Sprintf("%s/%s", store.Path, path)
+		if len(path) != 0 && !pathContainsWorkingDirectory {
+			return fmt.Sprintf("%s/%s", store.Path, strings.TrimPrefix(path, "/"))
 		}
-	}
-	if remote {
-		prefix := ""
-		pathContainsPrefix := path[:len(store.Path)] == store.Path
-		if store.Path != "" && !pathContainsPrefix {
-			prefix = fmt.Sprintf("%s/", store.Path)
+	} else if remote && !pathContainsAzureBlobPrefix {
+		azureBlobPathPrefix := ""
+		if !pathContainsWorkingDirectory {
+			azureBlobPathPrefix = fmt.Sprintf("/%s/", strings.TrimSuffix(store.Path, "/"))
 		}
-		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s%s", store.ContainerName, store.AccountName, prefix, path)
+		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s%s", store.ContainerName, store.AccountName, strings.TrimPrefix(azureBlobPathPrefix, "/"), strings.TrimPrefix(path, "/"))
 	}
+
 	return path
 }
 
-func (store AzureFileStore) FilestoreType() string {
-	return "azure_blob_store"
+func (store AzureFileStore) FilestoreType() pc.FileStoreType {
+	return Azure
 }
 
 func NewAzureFileStore(config Config) (FileStore, error) {
@@ -211,21 +215,25 @@ func NewS3FileStore(config Config) (FileStore, error) {
 }
 
 func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
-	s3PrefixLength := len(s3Prefix)
-	noS3Prefix := path[:s3PrefixLength] != s3Prefix
-	if remote && noS3Prefix {
-		s3Path := ""
-		if s3.Path != "" {
-			s3Path = fmt.Sprintf("/%s", s3.Path)
+	pathContainsS3Prefix := strings.HasPrefix(path, s3aPrefix)
+	pathContainsWorkingDirectory := s3.Path != "" && strings.HasPrefix(path, s3.Path)
+
+	if !remote {
+		if len(path) != 0 && !pathContainsWorkingDirectory {
+			return fmt.Sprintf("%s/%s", s3.Path, strings.TrimPrefix(path, "/"))
 		}
-		return fmt.Sprintf("%s%s%s/%s", s3Prefix, s3.Bucket, s3Path, path)
-	} else {
-		return path
+	} else if remote && !pathContainsS3Prefix {
+		s3PathPrefix := ""
+		if !pathContainsWorkingDirectory {
+			s3PathPrefix = fmt.Sprintf("/%s", s3.Path)
+		}
+		return fmt.Sprintf("%s%s%s/%s", s3Prefix, s3.Bucket, s3PathPrefix, strings.TrimPrefix(path, "/"))
 	}
+	return path
 }
 
-func (s3 S3FileStore) FilestoreType() string {
-	return "s3"
+func (s3 S3FileStore) FilestoreType() pc.FileStoreType {
+	return S3
 }
 
 type GCSFileStore struct {
@@ -236,21 +244,26 @@ type GCSFileStore struct {
 }
 
 func (gs GCSFileStore) PathWithPrefix(path string, remote bool) string {
-	noGSPrefix := !strings.HasPrefix(path, gsPrefix)
+	pathContainsGSPrefix := strings.HasPrefix(path, gsPrefix)
+	pathContainsWorkingDirectory := gs.Path != "" && strings.HasPrefix(path, gs.Path)
 
-	if remote && noGSPrefix {
+	if !remote {
+		if len(path) != 0 && !pathContainsWorkingDirectory {
+			return fmt.Sprintf("%s/%s", gs.Path, strings.TrimPrefix(path, "/"))
+		}
+	} else if remote && !pathContainsGSPrefix {
 		gsPathPrefix := ""
-		if gs.Path != "" {
+		if !pathContainsWorkingDirectory {
 			gsPathPrefix = fmt.Sprintf("/%s", gs.Path)
 		}
-		return fmt.Sprintf("gs://%s%s/%s", gs.Bucket, gsPathPrefix, path)
-	} else {
-		return path
+		return fmt.Sprintf("gs://%s%s/%s", gs.Bucket, gsPathPrefix, strings.TrimPrefix(path, "/"))
 	}
+
+	return path
 }
 
-func (g GCSFileStore) FilestoreType() string {
-	return "google_cloud_storage"
+func (g GCSFileStore) FilestoreType() pc.FileStoreType {
+	return GCS
 }
 
 type GCSFileStoreConfig struct {
@@ -287,7 +300,12 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 		return nil, fmt.Errorf("could not deserialize config: %v", err)
 	}
 
-	creds, err := google.CredentialsFromJSON(context.TODO(), GCSConfig.Credentials.SerializedFile, "https://www.googleapis.com/auth/cloud-platform")
+	serializedFile, err := json.Marshal(GCSConfig.Credentials.JSON)
+	if err != nil {
+		return nil, fmt.Errorf("could not serialize GCS config: %v", err)
+	}
+
+	creds, err := google.CredentialsFromJSON(context.TODO(), serializedFile, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
 		return nil, fmt.Errorf("could not get credentials from JSON: %v", err)
 	}
@@ -549,15 +567,14 @@ func (hdfs *HDFSFileStore) NewestFileOfType(prefix string, fileType FileType) (s
 }
 
 func (fs *HDFSFileStore) PathWithPrefix(path string, remote bool) string {
-	hdfsPrefixLength := len(HDFSPrefix)
-	nofsPrefix := path[:hdfsPrefixLength] != HDFSPrefix
+	nofsPrefix := !strings.HasPrefix(path, HDFSPrefix)
 
 	if remote && nofsPrefix {
 		fsPath := ""
 		if fs.Path != "" {
 			fsPath = fmt.Sprintf("/%s", fs.Path)
 		}
-		return fmt.Sprintf("%s%s/%s/%s", HDFSPrefix, fs.Host, fsPath, path)
+		return fmt.Sprintf("%s%s/%s/%s", HDFSPrefix, fs.Host, fsPath, strings.TrimPrefix(path, "/"))
 	} else {
 		return path
 	}
@@ -587,6 +604,6 @@ func (fs *HDFSFileStore) AsAzureStore() *AzureFileStore {
 	return nil
 }
 
-func (fs HDFSFileStore) FilestoreType() string {
-	return "hdfs"
+func (fs HDFSFileStore) FilestoreType() pc.FileStoreType {
+	return HDFS
 }

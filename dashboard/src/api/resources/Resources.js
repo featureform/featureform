@@ -113,12 +113,26 @@ export const testDetailsData = {
 
 
 export const providerLogos = Object.freeze({
-  REDIS: "static/Redis_Logo.svg",
-  BIGQUERY: "static/google_bigquery-ar21.svg",
-  "APACHE SPARK": "static/Apache_Spark_logo.svg",
+  // Offline Stores
+  BIGQUERY: "static/google_bigquery.svg",
   POSTGRES: "static/Postgresql_elephant.svg",
+  REDSHIFT: "static/amazon_redshift.svg",
   SNOWFLAKE: "static/Snowflake_Logo.svg",
-  LOCALMODE: "static/Featureform_logo_pink.svg",
+  SPARK: "static/Apache_Spark_logo.svg",
+  KUBERNETES: "static/kubernetes_logo.svg",
+
+  // Filestores
+  AZURE: "static/azure_storage_accounts.svg",
+  GCS: "static/google_cloud_storage.svg",
+  S3: "static/amazon_s3.svg",
+  HDFS: "static/apache_hadoop.svg",
+
+  // Online Stores
+  REDIS: "static/Redis_Logo.svg",
+  CASSANDRA: "static/apache_cassandra.svg",
+  DYNAMODB: "static/amazon_dynamoDB.svg",
+  FIRESTORE: "static/google_firestore.svg",
+  MONGODB: "static/mongoDB.svg",
 });
 
 
@@ -138,8 +152,14 @@ const SEARCH_URL = {
   apiKey: "",
 };
 
-if (typeof process.env.REACT_APP_API_URL != "undefined") {
+if (process.env.REACT_APP_API_URL) {
   API_URL = process.env.REACT_APP_API_URL.trim();
+}
+
+//if you want to override the api url (in any environment local to your machine, set this in ".env.local")
+//.env.local is not tracked in source
+if (process.env.NEXT_PUBLIC_REACT_APP_API_URL) {
+  API_URL = process.env.NEXT_PUBLIC_REACT_APP_API_URL.trim();
 }
 
 export var PROMETHEUS_URL = API_URL + "/prometheus";

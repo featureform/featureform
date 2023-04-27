@@ -107,7 +107,10 @@ func generateKubernetesEnvVars(envVars map[string]string) []v1.EnvVar {
 }
 
 func validateJobLimits(specs metadata.KubernetesResourceSpecs) (v1.ResourceRequirements, error) {
-	rsrcReq := v1.ResourceRequirements{}
+	rsrcReq := v1.ResourceRequirements{
+		Requests: make(v1.ResourceList),
+		Limits:   make(v1.ResourceList),
+	}
 	var parseErr error
 	if specs.CPURequest != "" {
 		qty, err := resource.ParseQuantity(specs.CPURequest)

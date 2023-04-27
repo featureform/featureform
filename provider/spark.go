@@ -741,11 +741,11 @@ func (s *SparkGenericExecutor) getYarnCommand(args string) (string, error) {
 		return "", fmt.Errorf("could not create temp dir: %v", err)
 	}
 	coreSitePath := filepath.Join(configDir, "core-site.xml")
-	yarnSitePath := filepath.Join(configDir, "yarn-site.xml")
 	err = os.WriteFile(coreSitePath, []byte(s.coreSite), 0644)
 	if err != nil {
 		return "", fmt.Errorf("could not write core-site.xml: %v", err)
 	}
+	yarnSitePath := filepath.Join(configDir, "yarn-site.xml")
 	err = os.WriteFile(yarnSitePath, []byte(s.yarnSite), 0644)
 	if err != nil {
 		return "", fmt.Errorf("could not write core-site.xml: %v", err)

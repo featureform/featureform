@@ -122,15 +122,14 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	}
 	vals := make(chan *pb.Value, len(features))
 	errc := make(chan error, len(req.GetFeatures()))
-	tableMap := make(map[string]provider.OnlineStoreTable)
-	mutex := sync.RWMutex{}
+	tableMap := sync.Map{}
 
 	serv.Logger.Infow("Starting goroutines")
 	for i, feature := range req.GetFeatures() {
 		serv.Logger.Infow("Creating goroutine", "Name", feature.Name, "Variant", feature.Version)
 		go func(i int, feature *pb.FeatureID) {
 			name, variant := feature.GetName(), feature.GetVersion()
-			val, err := serv.getFeatureValue(ctx, name, variant, entityMap, tableMap, &mutex)
+			val, err := serv.getFeatureValue(ctx, name, variant, entityMap, &tableMap)
 			if err != nil {
 				errc <- fmt.Errorf("error getting feature value: %w", err)
 				serv.Logger.Errorw("Could not get feature value", "Name", name, "Variant", variant, "Error", err.Error())
@@ -160,7 +159,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	}, nil
 }
 
-func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant string, entityMap map[string]string, tableMap map[string]provider.OnlineStoreTable, mutex *sync.RWMutex) (*pb.Value, error) {
+func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant string, entityMap map[string]string, tableMap *sync.Map) (*pb.Value, error) {
 	obs := serv.Metrics.BeginObservingOnlineServe(name, variant)
 	defer obs.Finish()
 	logger := serv.Logger.With("Name", name, "Variant", variant)
@@ -184,20 +183,18 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 			obs.SetError()
 			return nil, fmt.Errorf("No value for entity %s", meta.Entity())
 		}
-		mutex.RLock()
-		if table, has := tableMap[meta.Provider()]; has {
+		logger.Debug("Getting table")
+
+		if table, has := tableMap.Load(meta.Provider()); has {
 			logger.Debug("Table is cached")
 			//60ms
-			val, err = table.Get(entity)
+			val, err = table.(provider.OnlineStoreTable).Get(entity)
 			if err != nil {
 				logger.Errorw("entity not found", "Error", err)
 				obs.SetError()
-				mutex.RUnlock()
 				return nil, err
 			}
-			mutex.RUnlock()
 		} else {
-			mutex.RUnlock()
 			logger.Debug("Getting provider")
 			providerEntry, err := meta.FetchProvider(serv.Metadata, ctx)
 			if err != nil {
@@ -229,9 +226,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 				obs.SetError()
 				return nil, err
 			}
-			mutex.Lock()
-			tableMap[meta.Provider()] = table
-			mutex.Unlock()
+			tableMap.Store(meta.Provider(), table)
 			logger.Debug("Getting value")
 			//60ms
 			val, err = table.Get(entity)

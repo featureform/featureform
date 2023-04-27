@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"path/filepath"
 
 	"fmt"
 	"os"
@@ -712,6 +713,8 @@ type SparkGenericExecutor struct {
 	master        string
 	deployMode    string
 	pythonVersion string
+	coreSite      string
+	yarnSite      string
 	logger        *zap.SugaredLogger
 }
 
@@ -732,10 +735,49 @@ func (s *SparkGenericExecutor) InitializeExecutor(store SparkFileStore) error {
 	return nil
 }
 
+func (s *SparkGenericExecutor) getYarnCommand(args string) (string, error) {
+	configDir, err := os.MkdirTemp("", "hadoop-conf")
+	if err != nil {
+		return "", fmt.Errorf("could not create temp dir: %v", err)
+	}
+	coreSitePath := filepath.Join(configDir, "core-site.xml")
+	err = os.WriteFile(coreSitePath, []byte(s.coreSite), 0644)
+	if err != nil {
+		return "", fmt.Errorf("could not write core-site.xml: %v", err)
+	}
+	yarnSitePath := filepath.Join(configDir, "yarn-site.xml")
+	err = os.WriteFile(yarnSitePath, []byte(s.yarnSite), 0644)
+	if err != nil {
+		return "", fmt.Errorf("could not write core-site.xml: %v", err)
+	}
+	return fmt.Sprintf(""+
+		"pyenv global %s && "+
+		"export HADOOP_CONF_DIR=%s &&  "+
+		"pyenv exec %s; "+
+		"rm -r %s", s.pythonVersion, configDir, args, configDir), nil
+}
+
+func (s *SparkGenericExecutor) getGenericCommand(args string) string {
+	return fmt.Sprintf("pyenv global %s && pyenv exec %s", s.pythonVersion, args)
+}
+
 func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore) error {
 	bashCommand := "bash"
 	sparkArgsString := strings.Join(args, " ")
-	bashCommandArgs := []string{"-c", fmt.Sprintf("pyenv global %s && pyenv exec %s", s.pythonVersion, sparkArgsString)}
+	var commandString string
+
+	if s.master == "yarn" {
+		s.logger.Info("Running spark job on yarn")
+		var err error
+		commandString, err = s.getYarnCommand(sparkArgsString)
+		if err != nil {
+			return fmt.Errorf("could not run yarn job: %v", err)
+		}
+	} else {
+		commandString = s.getGenericCommand(sparkArgsString)
+	}
+
+	bashCommandArgs := []string{"-c", commandString}
 
 	s.logger.Info("Executing spark-submit")
 	cmd := exec.Command(bashCommand, bashCommandArgs...)
@@ -844,6 +886,8 @@ func NewSparkGenericExecutor(sparkGenericConfig pc.SparkGenericConfig, logger *z
 		master:        sparkGenericConfig.Master,
 		deployMode:    sparkGenericConfig.DeployMode,
 		pythonVersion: sparkGenericConfig.PythonVersion,
+		coreSite:      sparkGenericConfig.CoreSite,
+		yarnSite:      sparkGenericConfig.YarnSite,
 		logger:        logger,
 	}
 	return &sparkGenericExecutor, nil

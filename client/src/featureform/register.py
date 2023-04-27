@@ -1917,6 +1917,8 @@ class Registrar:
         path: str = "",
         description: str = "",
         team: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a HDFS store provider.
 
@@ -1937,7 +1939,7 @@ class Registrar:
         Args:
             name (str): Name of HDFS store to be registered
             host (str): The hostname for HDFS
-            port (str): The port for the namenode for HDFS
+            port (str): The IPC port for the Namenode for HDFS. (Typically 8020 or 9000)
             path (str): A storage path within HDFS
             username (str): A Username for HDFS
             description (str): Description of HDFS provider to be registered
@@ -1954,6 +1956,8 @@ class Registrar:
             description=description,
             team=team,
             config=hdfs_config,
+            tags=tags,
+            properties=properties,
         )
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, hdfs_config, hdfs_config.type())
@@ -2386,6 +2390,7 @@ class Registrar:
             tags=tags or [],
             properties=properties or {},
         )
+
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 

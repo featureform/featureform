@@ -143,11 +143,10 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	for i := 0; i < len(req.GetFeatures()); i++ {
 		result := <-vals
 		serv.Logger.Infow("Got result", "Count", i)
-		if err, ok := <-errc; err != nil {
+		if len(errc) != 0 {
+			err := <-errc
 			serv.Logger.Errorw("Could not get feature value", "Error", err.Error())
 			break
-		} else if ok {
-			continue
 		}
 		results[i] = result
 	}

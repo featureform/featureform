@@ -9,16 +9,26 @@ from types import SimpleNamespace
     "provider_source_fxt,is_local,is_insecure",
     [
         pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
-        pytest.param("hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted),
-        pytest.param("hosted_sql_provider_and_source", False, True, marks=pytest.mark.docker),
-    ]
+        pytest.param(
+            "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
+        ),
+        pytest.param(
+            "hosted_sql_provider_and_source", False, True, marks=pytest.mark.docker
+        ),
+    ],
 )
 def test_valid_provider_update(provider_source_fxt, is_local, is_insecure, request):
-    custom_marks = [mark.name for mark in request.node.own_markers if mark.name != 'parametrize']
-    provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(custom_marks)
+    custom_marks = [
+        mark.name for mark in request.node.own_markers if mark.name != "parametrize"
+    ]
+    provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(
+        custom_marks
+    )
 
     # Arranges the resources context following the Quickstart pattern
-    resource_client, postgres_name, redis_name = arrange_resources(provider, source, inference_store, is_local, is_insecure)
+    resource_client, postgres_name, redis_name = arrange_resources(
+        provider, source, inference_store, is_local, is_insecure
+    )
 
     # Must clear global state to simulate two separate calls to apply;
     # otherwise, a ResourceRedefinedError is thrown
@@ -38,8 +48,14 @@ def test_valid_provider_update(provider_source_fxt, is_local, is_insecure, reque
         redis_host = "0.0.0.0"
     else:
         # The host name for postgres is different between Docker and Minikube
-        postgres_host = "host.docker.internal" if "docker" in custom_marks else "quickstart-postgres"
-        redis_host = "host.docker.internal" if "docker" in custom_marks else "quickstart-redis"
+        postgres_host = (
+            "host.docker.internal"
+            if "docker" in custom_marks
+            else "quickstart-postgres"
+        )
+        redis_host = (
+            "host.docker.internal" if "docker" in custom_marks else "quickstart-redis"
+        )
 
     postgres = ff.register_postgres(
         name=postgres_name,
@@ -48,7 +64,7 @@ def test_valid_provider_update(provider_source_fxt, is_local, is_insecure, reque
         database="postgres",
         user=postgres_username,
         password=postgres_password,
-        description=postgres_description
+        description=postgres_description,
     )
 
     redis = ff.register_redis(
@@ -56,7 +72,7 @@ def test_valid_provider_update(provider_source_fxt, is_local, is_insecure, reque
         host=redis_host,
         port=6379,
         password=redis_password,
-        description=redis_description
+        description=redis_description,
     )
 
     resource_client.apply()
@@ -64,19 +80,21 @@ def test_valid_provider_update(provider_source_fxt, is_local, is_insecure, reque
     updated_postgres = resource_client.get_provider(postgres_name)
     updated_redis = resource_client.get_provider(redis_name)
 
-    postgres_config, redis_config = get_postgres_redis_configs(updated_postgres, updated_redis)
+    postgres_config, redis_config = get_postgres_redis_configs(
+        updated_postgres, updated_redis
+    )
 
     postgres_updates = [
         updated_postgres.description == postgres_description,
         postgres_config.Username == postgres_username,
-        postgres_config.Password == postgres_password
+        postgres_config.Password == postgres_password,
     ]
 
     redis_updates = [
         updated_redis.description == redis_description,
         redis_config.Password == redis_password,
     ]
-    
+
     assert all(postgres_updates) and all(redis_updates)
 
 
@@ -84,16 +102,28 @@ def test_valid_provider_update(provider_source_fxt, is_local, is_insecure, reque
     "provider_source_fxt,is_local,is_insecure",
     [
         pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
-        pytest.param("hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted),
-        pytest.param("hosted_sql_provider_and_source", False, True, marks=pytest.mark.docker),
-    ]
+        pytest.param(
+            "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
+        ),
+        pytest.param(
+            "hosted_sql_provider_and_source", False, True, marks=pytest.mark.docker
+        ),
+    ],
 )
-def test_invalid_provider_update(provider_source_fxt, is_local, is_insecure, request, capsys):
-    custom_marks = [mark.name for mark in request.node.own_markers if mark.name != 'parametrize']
-    provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(custom_marks)
+def test_invalid_provider_update(
+    provider_source_fxt, is_local, is_insecure, request, capsys
+):
+    custom_marks = [
+        mark.name for mark in request.node.own_markers if mark.name != "parametrize"
+    ]
+    provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(
+        custom_marks
+    )
 
     # Arranges the resources context following the Quickstart pattern
-    resource_client, postgres_name, redis_name = arrange_resources(provider, source, inference_store, is_local, is_insecure)
+    resource_client, postgres_name, redis_name = arrange_resources(
+        provider, source, inference_store, is_local, is_insecure
+    )
 
     # Must clear global state to simulate two separate calls to apply;
     # otherwise, a ResourceRedefinedError is thrown
@@ -109,7 +139,7 @@ def test_invalid_provider_update(provider_source_fxt, is_local, is_insecure, req
         port="5432",
         user="postgres",
         password="password",
-        description = "A Postgres deployment we created for the Featureform quickstart"
+        description="A Postgres deployment we created for the Featureform quickstart",
     )
 
     resource_client.apply()
@@ -134,7 +164,9 @@ def test_invalid_provider_update(provider_source_fxt, is_local, is_insecure, req
     updated_postgres = resource_client.get_provider(postgres_name)
     updated_redis = resource_client.get_provider(redis_name)
 
-    postgres_config, redis_config = get_postgres_redis_configs(updated_postgres, updated_redis)
+    postgres_config, redis_config = get_postgres_redis_configs(
+        updated_postgres, updated_redis
+    )
 
     no_updates = [
         postgres_config.Host != updated_postgres_host,
@@ -142,7 +174,11 @@ def test_invalid_provider_update(provider_source_fxt, is_local, is_insecure, req
         redis_config.Addr != f"{updated_redis_host}:{updated_redis_port}",
     ]
 
-    assert "postgres-quickstart already exists." in postgres_logs and  "redis-quickstart already exists." in redis_logs and all(no_updates)
+    assert (
+        "postgres-quickstart already exists." in postgres_logs
+        and "redis-quickstart already exists." in redis_logs
+        and all(no_updates)
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -158,17 +194,17 @@ def arrange_resources(provider, source, online_store, is_local, is_insecure):
         redis_name = "redis-quickstart"
 
         postgres = ff.register_postgres(
-            name = "postgres-quickstart",
-            host= "0.0.0.0",
+            name="postgres-quickstart",
+            host="0.0.0.0",
             port="5432",
             user="postgres",
             password="password",
             database="postgres",
-            description = "A Postgres deployment we created for the Featureform quickstart"
+            description="A Postgres deployment we created for the Featureform quickstart",
         )
 
         redis = ff.register_redis(
-            name = "redis-quickstart",
+            name="redis-quickstart",
             host="0.0.0.0",
             port=6379,
         )
@@ -176,17 +212,21 @@ def arrange_resources(provider, source, online_store, is_local, is_insecure):
         postgres_name = provider._OfflineProvider__provider.name
         redis_name = online_store._OnlineProvider__provider.name
 
-
     resource_client = ff.ResourceClient(local=is_local, insecure=is_insecure)
     resource_client.apply()
 
     return (resource_client, postgres_name, redis_name)
 
+
 def get_postgres_redis_configs(postgres_resource, redis_resouce):
     postgres_config_json = postgres_resource.serialized_config.decode("UTF-8")
-    postgres_config = json.loads(postgres_config_json, object_hook=lambda d: SimpleNamespace(**d))
+    postgres_config = json.loads(
+        postgres_config_json, object_hook=lambda d: SimpleNamespace(**d)
+    )
 
     redis_config_json = redis_resouce.serialized_config.decode("UTF-8")
-    redis_config = json.loads(redis_config_json, object_hook=lambda d: SimpleNamespace(**d))
+    redis_config = json.loads(
+        redis_config_json, object_hook=lambda d: SimpleNamespace(**d)
+    )
 
     return (postgres_config, redis_config)

@@ -80,6 +80,11 @@ export default function TopBar() {
     setAnchorEl(null);
   };
 
+  const goHome = (event) => {
+    event?.preventDefault();
+    router.push('/');
+  }
+
   return (
     <div className={classes.root}>
       <AppBar position="static" className={classes.appbar}>
@@ -89,8 +94,10 @@ export default function TopBar() {
               src="/static/FeatureForm_Logo_Full_Black.svg"
               height={30}
               alt="Featureform"
+              onClick={goHome}
               component="div"
               nowrap={"true"}
+              style={{cursor: 'pointer'}}
               sx={{ flexGrow: 1, display: { xs: "none", sm: "block" } }}
             />
           </div>

@@ -91,7 +91,9 @@ class LocalCache:
 
         source_files = set()
         if source_files_from_db:
-            source_files.update(set(map(lambda x: x["file_path"], source_files_from_db)))
+            source_files.update(
+                set(map(lambda x: x["file_path"], source_files_from_db))
+            )
         else:
             ts_variant = self.db.get_training_set_variant(
                 training_set_name, training_set_variant

@@ -18,7 +18,7 @@ from embeddinghub import EmbeddingHubClient
 # get [space] [key]
 # set [space] [key] [values...]
 # nn [space] [key] [num]
-if __name__ == '__main__':
+if __name__ == "__main__":
     client = EmbeddingHubClient()
     for line in sys.stdin:
         line = line.rstrip()

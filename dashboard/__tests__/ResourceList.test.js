@@ -18,7 +18,7 @@ describe("ResourceList", () => {
 
   const component = mount(
     <ReduxWrapper store={newTestStore()}>
-      <ResourceList api={mockApi} type={dataType} type={dataType} />
+      <ResourceList api={mockApi} type={dataType} />
     </ReduxWrapper>
   );
 

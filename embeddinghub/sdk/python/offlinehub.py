@@ -21,7 +21,6 @@ import hnswlib
 
 
 class Index:
-
     def __init__(self, key_emb_iter, dims):
         self._data = {}
         self._idx = hnswlib.Index("l2", dims)
@@ -49,7 +48,7 @@ class Index:
 
     def get(self, key):
         """Retrieves an embedding by key.
-    
+
         Args:
             key: The embedding index for retrieval.
 
@@ -114,15 +113,12 @@ class Index:
             num_retrieve = num + 1
         else:
             num_retrieve = num
-        list_results, list_distances = self._idx.knn_query(
-            embedding, num_retrieve)
+        list_results, list_distances = self._idx.knn_query(embedding, num_retrieve)
         results = list_results[0]
         if has_key:
             idx = self._mapper.to_idx(key)
             results = [
-                self._mapper.to_key(result)
-                for result in results
-                if result != idx
+                self._mapper.to_key(result) for result in results if result != idx
             ]
             # If the key wasn't found in the results, we still should return
             # only num results.
@@ -142,7 +138,7 @@ class Index:
 
 
 class HnswlibIndexMapper:
-    """ Maps keys to atomically increasing ints
+    """Maps keys to atomically increasing ints
 
     hnswlib.Index expects labels to be atomically increasing ints, but our API
     handles any type of key. This class is used for mapping back and forth
@@ -154,7 +150,7 @@ class HnswlibIndexMapper:
         self._next_idx = 0
 
     def to_idx(self, key):
-        """ Turn a key into an hnswlib index
+        """Turn a key into an hnswlib index
 
         Args:
             key: The key to transform
@@ -172,7 +168,7 @@ class HnswlibIndexMapper:
             return idx
 
     def to_key(self, idx):
-        """ Turn a hnswlib index into the original key
+        """Turn a hnswlib index into the original key
 
         Args:
             idx: an hnswlib index

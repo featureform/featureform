@@ -9,6 +9,7 @@ import featureform as ff
 FILE_DIRECTORY = os.getenv("FEATUREFORM_TEST_PATH", "")
 featureform_location = os.path.dirname(os.path.dirname(FILE_DIRECTORY))
 env_file_path = os.path.join(featureform_location, ".env")
+print(env_file_path)
 load_dotenv(env_file_path)
 
 
@@ -79,6 +80,14 @@ def ice_cream_entity_transformation(df):
     return df
 
 
+specs = ff.K8sResourceSpecs(
+    cpu_request="100m",
+    cpu_limit="500m",
+    memory_request="1Gi",
+    memory_limit="2Gi",
+)
+
+
 @k8s.df_transformation(
     name=f"ice_cream_transformation_{VERSION}",
     variant=VERSION,
@@ -86,6 +95,7 @@ def ice_cream_entity_transformation(df):
     docker_image=os.getenv(
         "K8S_RUNNER_SCIKIT", "featureformcom/k8s_runner:latest-scikit"
     ),
+    resource_specs=specs,
 )
 def scikit_test(df):
     """the ice cream dataset"""

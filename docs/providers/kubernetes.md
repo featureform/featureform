@@ -167,3 +167,29 @@ def add_kmeans_clustering(df):
 ```
 
 {% endcode %}
+
+## Custom Resource Requests and Limits
+
+By default, transformation pods will be scheduled without resource requests or limits. This means that the pods will be 
+scheduled on any node that has available resources.
+
+You can specify resource requests and limits for the transformation pods. This will ensure that the pods are scheduled
+when the appropriate resources are available.
+
+```python
+specs = ff.K8sResourceSpecs(
+    cpu_request="100m",
+    cpu_limit="500m",
+    memory_request="1Gi",
+    memory_limit="2Gi"
+)
+
+@k8s_store.df_transformation(
+    inputs=[("transactions", "kaggle")], 
+    variant="default", 
+    resource_specs=specs
+)
+def average_user_transaction(transactions):
+    user_tsc = transactions[["CustomerID","TransactionAmount","Timestamp"]]
+    return user_tsc.groupby("CustomerID").agg({'TransactionAmount':'mean','Timestamp':'max'})
+```

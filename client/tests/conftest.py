@@ -239,6 +239,8 @@ def spark_executor():
         "Master": master,
         "DeployMode": deploy_mode,
         "PythonVersion": python_version,
+        "YarnSite": "",
+        "CoreSite": "",
     }
 
     return config, expected_config

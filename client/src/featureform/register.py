@@ -2868,7 +2868,18 @@ class Registrar:
             if not isinstance(nv, tuple):
                 inputs[i] = nv.name_variant()
             if isinstance(nv, tuple):
-                self._verify_tuple(nv)
+                try:
+                    self._verify_tuple(nv)
+                except TypeError as e:
+                    transformation_message = f"'{name}:{variant}'"
+                    if name == "":
+                        transformation_message = f"with '{variant}' variant"
+
+                    raise TypeError(
+                        f"DF transformation {transformation_message} requires correct inputs " \
+                        f" '{nv}' is not a valid tuple: {e}"
+                    )
+
         decorator = DFTransformationDecorator(
             registrar=self,
             name=name,

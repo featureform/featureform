@@ -2876,7 +2876,7 @@ class Registrar:
                         transformation_message = f"with '{variant}' variant"
 
                     raise TypeError(
-                        f"DF transformation {transformation_message} requires correct inputs " \
+                        f"DF transformation {transformation_message} requires correct inputs "
                         f" '{nv}' is not a valid tuple: {e}"
                     )
 

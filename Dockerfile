@@ -115,6 +115,6 @@ ENV SERVING_HOST="0.0.0.0"
 ENV ETCD_ARCH=""
 
 EXPOSE 7878
-EXPOSE 3005
+EXPOSE 80
 
 CMD ["/usr/bin/supervisord"]

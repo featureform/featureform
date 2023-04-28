@@ -1,10 +1,38 @@
-# Build dashboard
-FROM node:16-alpine as dashboard-builder
-COPY ./dashboard ./dashboard
-WORKDIR ./dashboard
+FROM node:16-alpine AS base
+
+# Build the dashboard directoy, only what is needed.
+# Install dependencies only when needed
+FROM base AS deps
+# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+RUN apk add --no-cache libc6-compat
+WORKDIR /app/dashboard
+
+# Install dependencies based on the preferred package manager
+COPY /dashboard/package.json /dashboard/.yarn.lock* /dashboard/package-lock.json* ./
 RUN npm install --legacy-peer-deps
+
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/dashboard/node_modules ./dashboard/node_modules
+COPY ./dashboard ./dashboard
+ENV NEXT_TELEMETRY_DISABLED 1
+
+WORKDIR /app/dashboard
 RUN npm run build
-RUN rm -r node_modules
+
+#Production image, copy all the files and run next
+FROM base AS runner
+WORKDIR /app/dashboard
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+COPY --from=builder /app/dashboard/public ./public
+
+COPY --from=builder --chown=nextjs:nodejs /app/dashboard/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/dashboard/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/dashboard/out ./out
 
 # Build Go services
 FROM golang:1.18 as go-builder
@@ -50,7 +78,7 @@ WORKDIR /app
 COPY --from=go-builder /app/execs /app/execs
 
 # Copy built dashboard
-COPY --from=dashboard-builder ./dashboard ./dashboard
+COPY --from=runner /app/dashboard ./dashboard
 
 # Install and configure Supervisor
 RUN apt-get update && apt-get install -y supervisor
@@ -77,9 +105,16 @@ COPY nginx.conf /etc/nginx/nginx.conf
 # Install MeiliSearch
 RUN curl -L https://install.meilisearch.com | sh
 
+# Install Node 16 for internal dashboard server
+RUN curl -sL https://deb.nodesource.com/setup_16.x | sh
+RUN apt-get update
+RUN apt install nodejs
+
 ENV SERVING_PORT="8082"
 ENV SERVING_HOST="0.0.0.0"
 ENV ETCD_ARCH=""
 
 EXPOSE 7878
+EXPOSE 3005
+
 CMD ["/usr/bin/supervisord"]

@@ -136,8 +136,9 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get source variant")
 	}
-	serv.Logger.Debugw("Fetching Source Variant Provider", "tablename", sv.PrimaryDataSQLTableName())
+	// TODO: change this to use another method given this won't work for non-SQL sources
 	providerEntry, err := sv.FetchProvider(serv.Metadata, ctx)
+	serv.Logger.Debugw("Fetched Source Variant Provider", "name", providerEntry.Name(), "type", providerEntry.Type())
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get fetch provider")
 	}
@@ -149,8 +150,20 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	if err != nil {
 		return nil, errors.Wrap(err, "could not open as offline store")
 	}
-	primary, err := store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary})
-	if err != nil {
+	var primary provider.PrimaryTable
+	var providerErr error
+	if sv.IsTransformation() {
+		t, err := store.GetTransformationTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Transformation})
+		if err != nil {
+			providerErr = err
+		} else {
+			providerErr = nil
+			primary = t.(provider.PrimaryTable)
+		}
+	} else {
+		primary, providerErr = store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary})
+	}
+	if providerErr != nil {
 		return nil, errors.Wrap(err, "could not get primary table")
 	}
 	return primary.IterateSegment(limit)

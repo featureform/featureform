@@ -247,8 +247,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 	default:
 		return nil, fmt.Errorf("unknown computation mode %v", meta.Mode())
 	}
-	var castedValues *pb.ValueList
-	castedValues.Values = []*pb.Value{}
+	castedValues := &pb.ValueList{}
 	logger.Debug("Returned feature values")
 	for _, val := range values {
 		f, err := newFeature(val)

@@ -39,7 +39,11 @@ message FeatureServeRequest {
 }
 
 message FeatureRow {
-    repeated Value values = 1;
+    repeated ValueList values = 1;
+}
+
+message ValueList {
+  repeated Value values = 1;
 }
 
 message FeatureID {
@@ -49,7 +53,7 @@ message FeatureID {
 
 message Entity {
     string name = 1;
-    string value = 2;
+    repeated string value = 2;
 }
 
 message Value {

@@ -3,6 +3,7 @@ package provider
 import (
 	"bytes"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -639,7 +640,7 @@ func (store genericFileStore) Serve(key string) (Iterator, error) {
 	case "parquet":
 		return parquetIteratorFromBytes(b)
 	case "csv":
-		return nil, fmt.Errorf("could not find CSV reader")
+		return nil, fmt.Errorf("csv iterator not implemented")
 	default:
 		return nil, fmt.Errorf("unsupported file type")
 	}
@@ -658,6 +659,149 @@ func (store genericFileStore) NumRows(key string) (int64, error) {
 	default:
 		return 0, fmt.Errorf("unsupported file type")
 	}
+}
+
+type csvIterator struct {
+	reader        *csv.Reader
+	currentValues GenericRecord
+	err           error
+	columnNames   []string
+	idx           int64
+	limit         int64
+}
+
+func (c *csvIterator) Next() bool {
+	if c.idx >= c.limit {
+		return false
+	}
+	row, err := c.reader.Read()
+	if err != nil {
+		if err == io.EOF {
+			return false
+		} else {
+			c.err = err
+			return false
+		}
+	}
+	c.currentValues = c.ParseRow(row)
+	c.idx += 1
+	return true
+}
+
+func (c *csvIterator) Values() GenericRecord {
+	return c.currentValues
+}
+
+func (c *csvIterator) Columns() []string {
+	return c.columnNames
+}
+
+func (c *csvIterator) Err() error {
+	return c.err
+}
+
+func (c *csvIterator) Close() error {
+	return nil
+}
+
+func (c *csvIterator) ParseRow(row []string) GenericRecord {
+	records := make(GenericRecord, len(row))
+	for i, value := range row {
+		if integer, err := strconv.Atoi(value); err == nil {
+			records[i] = integer
+			continue
+		}
+		if float, err := strconv.ParseFloat(value, 64); err == nil {
+			records[i] = float
+			continue
+		}
+		records[i] = value
+	}
+	return records
+}
+
+func newCSVIterator(b []byte, limit int64) (GenericTableIterator, error) {
+	reader := csv.NewReader(bytes.NewReader(b))
+	headers, err := reader.Read()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create CSV reader: %w", err)
+	}
+	if limit == -1 {
+		limit = math.MaxInt64
+	}
+	return &csvIterator{
+		reader:      reader,
+		columnNames: headers,
+		limit:       limit,
+		idx:         0,
+	}, nil
+}
+
+type parquetIterator struct {
+	reader        *parquet.Reader
+	currentValues GenericRecord
+	err           error
+	columnNames   []string
+	limit         int64
+	idx           int64
+}
+
+func (p *parquetIterator) Next() bool {
+	if p.idx >= p.limit {
+		return false
+	}
+	value := make(map[string]interface{})
+	err := p.reader.Read(&value)
+	if err != nil {
+		if err == io.EOF {
+			return false
+		} else {
+			p.err = err
+			return false
+		}
+	}
+	records := make(GenericRecord, 0)
+	for idx := range p.columnNames {
+		records = append(records, value[p.columnNames[idx]])
+	}
+	p.currentValues = records
+	p.idx += 1
+	return true
+}
+
+func (p *parquetIterator) Values() GenericRecord {
+	return p.currentValues
+}
+
+func (p *parquetIterator) Columns() []string {
+	return p.columnNames
+}
+
+func (p *parquetIterator) Err() error {
+	return p.err
+}
+
+func (p *parquetIterator) Close() error {
+	return p.reader.Close()
+}
+
+func newParquetIterator(b []byte, limit int64) (GenericTableIterator, error) {
+	file := bytes.NewReader(b)
+	r := parquet.NewReader(file)
+	columnList := r.Schema().Columns()
+	columnNames := make([]string, len(columnList))
+	for i, column := range columnList {
+		columnNames[i] = column[0]
+	}
+	if limit == -1 {
+		limit = math.MaxInt64
+	}
+	return &parquetIterator{
+		reader:      r,
+		columnNames: columnNames,
+		limit:       limit,
+		idx:         0,
+	}, nil
 }
 
 type ParquetIterator struct {
@@ -813,18 +957,25 @@ func (tbl *FileStorePrimaryTable) GetName() string {
 	return tbl.sourcePath
 }
 
+// This function is currently only here to satisfy the interface, so it's allowable to
+// use it for the source-to-dataframe feature
 func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
-	iterator, err := tbl.store.Serve(tbl.sourcePath)
+	keyParts := strings.Split(tbl.sourcePath, ".")
+	if len(keyParts) == 1 {
+		return nil, fmt.Errorf("expected a file but got a directory: %s", keyParts[0])
+	}
+	b, err := tbl.store.Read(tbl.sourcePath)
 	if err != nil {
-		return nil, fmt.Errorf("could not create iterator from source table: %v", err)
+		return nil, fmt.Errorf("could not read file: %w", err)
 	}
-	var maxIdx int64
-	if n == -1 {
-		maxIdx = math.MaxInt64
-	} else {
-		maxIdx = n
+	switch fileType := keyParts[len(keyParts)-1]; fileType {
+	case "parquet":
+		return newParquetIterator(b, n)
+	case "csv":
+		return newCSVIterator(b, n)
+	default:
+		return nil, fmt.Errorf("unsupported file type: %s", fileType)
 	}
-	return &FileStoreIterator{iter: iterator, curIdx: 0, maxIdx: maxIdx}, nil
 }
 
 func (tbl *FileStorePrimaryTable) NumRows() (int64, error) {
@@ -1176,6 +1327,7 @@ func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogger) (PrimaryTable, error) {
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	logger.Debugw("Getting primary table", "id", id)
+	fmt.Println("****************************** fileStoreGetPrimary resourceKey: ", resourceKey, '\n')
 
 	table, err := store.Read(resourceKey)
 	if err != nil {

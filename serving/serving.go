@@ -139,7 +139,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 		}(i, feature)
 		serv.Logger.Infow("End of goroutine", "Name", feature.Name, "Variant", feature.Version)
 	}
-	serv.Logger.Infow("Done creating goroutine", "Name")
+	serv.Logger.Infow("Done creating goroutine")
 
 	results := make([]*pb.ValueList, len(req.GetFeatures()))
 	for i := 0; i < len(req.GetFeatures()); i++ {
@@ -248,6 +248,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 		return nil, fmt.Errorf("unknown computation mode %v", meta.Mode())
 	}
 	var castedValues *pb.ValueList
+	castedValues.Values = []*pb.Value{}
 	logger.Debug("Returned feature values")
 	for _, val := range values {
 		f, err := newFeature(val)

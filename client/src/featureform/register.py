@@ -3,6 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 from os.path import exists
 from datetime import timedelta
+
 from typeguard import typechecked
 from typing import Dict, Tuple, Callable, List, Union
 import warnings
@@ -16,6 +17,7 @@ from .list import *
 from .get_local import *
 from .list_local import *
 from .sqlite_metadata import SQLiteMetadata
+from .status_display import StatusDisplayer
 from .tls import insecure_channel, secure_channel
 from .resources import (
     ColumnTypes,
@@ -56,7 +58,6 @@ from .resources import (
     ExecutorCredentials,
     ResourceRedefinedError,
     ResourceStatus,
-    Transformation,
     K8sArgs,
     AWSCredentials,
     GCPCredentials,
@@ -3348,7 +3349,7 @@ class ResourceClient:
 
         if not asynchronous and self._stub:
             resources = resource_state.sorted_list()
-            display_statuses(self._stub, resources)
+            StatusDisplayer(self._stub, resources).display()
 
         clear_state()
 

@@ -38,8 +38,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/dashboard/.next/static ./.next/st
 COPY --from=builder --chown=nextjs:nodejs /app/dashboard/out ./out
 
 #todox: swap to port 80. but edit the nginx config first.
-EXPOSE 3007
-ENV PORT 3007
+EXPOSE 80
+ENV PORT 80
 
 CMD ["node", "server.js"]
 

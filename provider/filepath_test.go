@@ -249,6 +249,7 @@ func TestParseFullPath(t *testing.T) {
 			if filePath.Prefix() != test.ExpectedPath.Prefix() {
 				t.Fatalf("Prefix failed; expected '%s' but got '%s'", test.ExpectedPath.Prefix(), filePath.Prefix())
 			}
+			t.Log(filePath.Path(), test.ExpectedPath.Path())
 			if filePath.Path() != test.ExpectedPath.Path() {
 				t.Fatalf("Path failed; expected '%s' but got '%s'", test.ExpectedPath.Path(), filePath.Path())
 			}

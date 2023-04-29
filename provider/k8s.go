@@ -1333,14 +1333,14 @@ func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogg
 		return nil, fmt.Errorf("error fetching primary table: %v", err)
 	}
 
-	fp, err := NewEmptyFilepath(store.FilestoreType())
-	if err != nil {
-		return nil, fmt.Errorf("error creating filepath: %v", err)
-	}
-	fp.ParseFullPath(string(table))
+	//fp, err := NewEmptyFilepath(store.FilestoreType())
+	//if err != nil {
+	//	return nil, fmt.Errorf("error creating filepath: %v", err)
+	//}
+	//fp.ParseFullPath(string(table))
 
 	logger.Debugw("Successfully retrieved primary table", "id", id)
-	return &FileStorePrimaryTable{store, string(fp.Path()), false, id}, nil
+	return &FileStorePrimaryTable{store, string(table), false, id}, nil
 }
 
 func (k8s *K8sOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/featureform/helpers"
 	"io"
 	"io/ioutil"
 	"math"
@@ -387,6 +388,7 @@ func (k KubernetesJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, err
 }
 
 func (k KubernetesJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
+	successfulJobsHistoryLimit := int32(helpers.GetEnvInt("SUCCESSFUL_JOBS_HISTORY_LIMIT", 3))
 	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      k.JobName,
@@ -396,6 +398,7 @@ func (k KubernetesJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batc
 			JobTemplate: batchv1.JobTemplateSpec{
 				Spec: *jobSpec,
 			},
+			SuccessfulJobsHistoryLimit: &successfulJobsHistoryLimit,
 		},
 	}
 	if _, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Create(context.TODO(), cronJob, metav1.CreateOptions{}); err != nil {

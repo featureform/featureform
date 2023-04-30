@@ -959,17 +959,6 @@ func (tbl *FileStorePrimaryTable) GetName() string {
 
 func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 	path := tbl.sourcePath
-	//if tbl.store.FilestoreType() == S3 {
-	//	fp, err := NewEmptyFilepath(tbl.store.FilestoreType())
-	//	if err != nil {
-	//		return nil, fmt.Errorf("error creating filepath: %v", err)
-	//	}
-	//	err = fp.ParseFullPath(tbl.sourcePath)
-	//	if err != nil {
-	//		return nil, fmt.Errorf("could not parse path: %v", err)
-	//	}
-	//	path = fp.Path()
-	//}
 	keyParts := strings.Split(path, ".")
 	if len(keyParts) == 1 {
 		return nil, fmt.Errorf("expected a file but got a directory: %s", keyParts[0])
@@ -1342,17 +1331,6 @@ func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogg
 	if err != nil {
 		return nil, fmt.Errorf("error fetching primary table: %v", err)
 	}
-
-	fp, err := NewEmptyFilepath(store.FilestoreType())
-	if err != nil {
-		return nil, fmt.Errorf("error creating filepath: %v", err)
-	}
-	err = fp.ParseFullPath(string(table))
-	if err != nil {
-		return nil, fmt.Errorf("could not parse path: %v", err)
-	}
-	logger.Debugw("Parsed Path", "path", fp.Path())
-	logger.Debugw("Original Path", "path", string(table))
 
 	logger.Debugw("Successfully retrieved primary table", "id", id)
 	return &FileStorePrimaryTable{store, string(table), false, id}, nil

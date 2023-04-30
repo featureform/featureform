@@ -1,5 +1,5 @@
 name: Update Coordinator Base Image
-on: [workflow_dispatch]
+on: [push]
 
 
 jobs:

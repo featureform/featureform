@@ -1342,7 +1342,7 @@ func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogg
 		return nil, fmt.Errorf("could not parse path: %v", err)
 	}
 	logger.Debugw("Parsed Path", "path", fp.Path())
-	logger.Debugw("Original Path", "path", table)
+	logger.Debugw("Original Path", "path", string(table))
 
 	logger.Debugw("Successfully retrieved primary table", "id", id)
 	return &FileStorePrimaryTable{store, string(table), false, id}, nil

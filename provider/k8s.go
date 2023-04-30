@@ -1333,11 +1333,16 @@ func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogg
 		return nil, fmt.Errorf("error fetching primary table: %v", err)
 	}
 
-	//fp, err := NewEmptyFilepath(store.FilestoreType())
-	//if err != nil {
-	//	return nil, fmt.Errorf("error creating filepath: %v", err)
-	//}
-	//fp.ParseFullPath(string(table))
+	fp, err := NewEmptyFilepath(store.FilestoreType())
+	if err != nil {
+		return nil, fmt.Errorf("error creating filepath: %v", err)
+	}
+	err = fp.ParseFullPath(string(table))
+	if err != nil {
+		return nil, fmt.Errorf("could not parse path: %v", err)
+	}
+	logger.Debugw("Parsed Path", "path", fp.Path())
+	logger.Debugw("Original Path", "path", table)
 
 	logger.Debugw("Successfully retrieved primary table", "id", id)
 	return &FileStorePrimaryTable{store, string(table), false, id}, nil

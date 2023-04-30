@@ -28,13 +28,9 @@ COPY ./coordinator/main/main.go ./coordinator/main/main.go
 ENV CGO_ENABLED=0
 RUN go build ./coordinator/main/main.go
 
-FROM featureformcom/coordinator_base:latest
+FROM featureformcom/coordinator-base:latest
 
 COPY --from=0 ./app/main /app/main
-
-# Download Shaded Jar
-RUN apt-get install -y wget
-RUN wget https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop2-2.2.11/gcs-connector-hadoop2-2.2.11-shaded.jar -P /app/provider/scripts/spark/jars/
 
 ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
 ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"

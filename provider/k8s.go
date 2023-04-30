@@ -959,17 +959,17 @@ func (tbl *FileStorePrimaryTable) GetName() string {
 
 func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 	path := tbl.sourcePath
-	if tbl.store.FilestoreType() == S3 {
-		fp, err := NewEmptyFilepath(tbl.store.FilestoreType())
-		if err != nil {
-			return nil, fmt.Errorf("error creating filepath: %v", err)
-		}
-		err = fp.ParseFullPath(tbl.sourcePath)
-		if err != nil {
-			return nil, fmt.Errorf("could not parse path: %v", err)
-		}
-		path = fp.Path()
-	}
+	//if tbl.store.FilestoreType() == S3 {
+	//	fp, err := NewEmptyFilepath(tbl.store.FilestoreType())
+	//	if err != nil {
+	//		return nil, fmt.Errorf("error creating filepath: %v", err)
+	//	}
+	//	err = fp.ParseFullPath(tbl.sourcePath)
+	//	if err != nil {
+	//		return nil, fmt.Errorf("could not parse path: %v", err)
+	//	}
+	//	path = fp.Path()
+	//}
 	keyParts := strings.Split(path, ".")
 	if len(keyParts) == 1 {
 		return nil, fmt.Errorf("expected a file but got a directory: %s", keyParts[0])

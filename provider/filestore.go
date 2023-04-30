@@ -236,6 +236,23 @@ func (s3 S3FileStore) FilestoreType() pc.FileStoreType {
 	return S3
 }
 
+func (s3 S3FileStore) Read(key string) ([]byte, error) {
+	fp, err := NewEmptyFilepath(S3)
+	if err != nil {
+		return nil, fmt.Errorf("error creating filepath: %v", err)
+	}
+	err = fp.ParseFullPath(key)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse path: %v", err)
+	}
+	key = fp.Path()
+	data, err := s3.bucket.ReadAll(context.TODO(), key)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
 type GCSFileStore struct {
 	Bucket      string
 	Path        string

@@ -1,4 +1,4 @@
-name: Update Helm
+name: Update Coordinator Base Image
 on: [workflow_dispatch]
 
 

@@ -108,6 +108,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	}
 	m.Logger.Infow("Creating Table", "name", m.ID.Name, "variant", m.ID.Variant)
 	_, err = m.Online.CreateTable(m.ID.Name, m.ID.Variant, m.VType)
+	fmt.Printf("BUTTTTTTHOLEEEE")
 	fmt.Printf("table not created: %v", err)
 	_, exists := err.(*provider.TableAlreadyExists)
 

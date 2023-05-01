@@ -1233,7 +1233,7 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 		spark.Logger.Errorw("spark submit job for transformation failed to run", config.TargetTableID, err)
 		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
-	spark.Logger.Debugw("Succesfully ran SQL transformation", config)
+	spark.Logger.Debugw("Successfully ran SQL transformation", config)
 	return nil
 }
 
@@ -1625,7 +1625,6 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 
 func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	return sparkTrainingSet(def, spark, false)
-
 }
 
 func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {

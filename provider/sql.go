@@ -825,12 +825,20 @@ func (table *sqlPrimaryTable) getColumnNameString() string {
 
 func (pt *sqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 	columns, err := pt.query.getColumns(pt.db, pt.name)
+	if err != nil {
+		return nil, err
+	}
 	columnNames := make([]string, 0)
 	for _, col := range columns {
 		columnNames = append(columnNames, sanitize(col.Name))
 	}
 	names := strings.Join(columnNames[:], ", ")
-	query := fmt.Sprintf("SELECT %s FROM %s LIMIT %d", names, sanitize(pt.name), n)
+	var query string
+	if n == -1 {
+		query = fmt.Sprintf("SELECT %s FROM %s", names, sanitize(pt.name))
+	} else {
+		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", names, sanitize(pt.name), n)
+	}
 	rows, err := pt.db.Query(query)
 	if err != nil {
 		return nil, err

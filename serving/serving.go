@@ -144,13 +144,11 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 			}
 			vals <- val
 		}(i, feature)
-		serv.Logger.Infow("End of goroutine", "Name", feature.Name, "Variant", feature.Version)
 	}
 
 	results := make([]*pb.ValueList, len(req.GetFeatures()))
 	for i := 0; i < len(req.GetFeatures()); i++ {
 		result := <-vals
-		serv.Logger.Infow("Got result", "Count", i)
 		if len(errc) != 0 {
 			err := <-errc
 			serv.Logger.Errorw("Could not get feature value", "Error", err.Error())

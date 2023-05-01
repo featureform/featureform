@@ -68,7 +68,7 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 	key := redisTableKey{store.prefix, feature, variant}
 	vType, err := store.client.HGet(context.TODO(), fmt.Sprintf("%s__tables", store.prefix), key.String()).Result()
 	if err != nil {
-		return nil, &TableNotFound{feature, variant}
+		return nil, err
 	}
 	table := &redisOnlineTable{client: store.client, key: key, valueType: ValueType(vType)}
 	return table, nil

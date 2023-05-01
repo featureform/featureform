@@ -1215,6 +1215,7 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
 	bucketTransformationDest := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false)
 	newestTransformationFile, err := spark.Store.NewestFileOfType(bucketTransformationDest, Parquet)
+	fmt.Printf("---ALI---newestTransformationFile: %v\n", newestTransformationFile)
 	if err != nil {
 		return fmt.Errorf("could not get newest transformation file: %v", err)
 	}

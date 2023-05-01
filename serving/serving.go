@@ -125,6 +125,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	tableMap := sync.Map{}
 	defer func(tableMap *sync.Map) {
 		tableMap.Range(func(key, value interface{}) bool {
+			serv.Logger.Infow("Closing table", "Name", key.(string))
 			if err := value.(provider.OnlineStore).Close(); err != nil {
 				serv.Logger.Errorw("Error closing table", "Error", err)
 			}
@@ -132,9 +133,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 		})
 	}(&tableMap)
 
-	serv.Logger.Infow("Starting goroutines")
 	for i, feature := range req.GetFeatures() {
-		serv.Logger.Infow("Creating goroutine", "Name", feature.Name, "Variant", feature.Version)
 		go func(i int, feature *pb.FeatureID) {
 			name, variant := feature.GetName(), feature.GetVersion()
 			val, err := serv.getFeatureValue(ctx, name, variant, entityMap, &tableMap)
@@ -147,7 +146,6 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 		}(i, feature)
 		serv.Logger.Infow("End of goroutine", "Name", feature.Name, "Variant", feature.Version)
 	}
-	serv.Logger.Infow("Done creating goroutine")
 
 	results := make([]*pb.ValueList, len(req.GetFeatures()))
 	for i := 0; i < len(req.GetFeatures()); i++ {
@@ -171,7 +169,6 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 	obs := serv.Metrics.BeginObservingOnlineServe(name, variant)
 	defer obs.Finish()
 	logger := serv.Logger.With("Name", name, "Variant", variant)
-	logger.Debug("Getting metadata")
 	// THIS IS SLOW 80ms
 	meta, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{name, variant})
 	if err != nil {
@@ -179,22 +176,18 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 		obs.SetError()
 		return nil, err
 	}
-	logger.Debug("Returned metadata")
 
 	var values []interface{}
 	switch meta.Mode() {
 	case metadata.PRECOMPUTED:
-		logger.Debug("Checking entity")
 		entity, has := entityMap[meta.Entity()]
 		if !has {
 			logger.Errorw("Entity not found", "Entity", meta.Entity())
 			obs.SetError()
 			return nil, fmt.Errorf("no value for entity %s", meta.Entity())
 		}
-		logger.Debug("Getting table")
 
 		if store, has := tableMap.Load(meta.Provider()); has {
-			logger.Debug("Table is cached")
 			//60ms
 			table, err := store.(provider.OnlineStore).GetTable(name, variant)
 			if err != nil {
@@ -213,21 +206,18 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 				values = append(values, val)
 			}
 		} else {
-			logger.Debug("Getting provider")
 			providerEntry, err := meta.FetchProvider(serv.Metadata, ctx)
 			if err != nil {
 				logger.Errorw("fetching provider metadata failed", "Error", err)
 				obs.SetError()
 				return nil, err
 			}
-			logger.Debug("Initializing provider")
 			p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 			if err != nil {
 				logger.Errorw("failed to get provider", "Error", err)
 				obs.SetError()
 				return nil, err
 			}
-			logger.Debug("Online store check")
 			store, err := p.AsOnlineStore()
 			if err != nil {
 				logger.Errorw("failed to use provider as onlinestore for feature", "Error", err)
@@ -237,7 +227,6 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 				return nil, err
 			}
 			tableMap.Store(meta.Provider(), store)
-			logger.Debug("Getting table")
 			// 70ms
 			table, err := store.GetTable(name, variant)
 			if err != nil {
@@ -245,7 +234,6 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 				obs.SetError()
 				return nil, err
 			}
-			logger.Debug("Getting value")
 			//60ms
 			for _, entityVal := range entity {
 				val, err := table.(provider.OnlineStoreTable).Get(entityVal)
@@ -263,10 +251,8 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 		return nil, fmt.Errorf("unknown computation mode %v", meta.Mode())
 	}
 	castedValues := &pb.ValueList{}
-	logger.Debug("Returned feature values")
 	for _, val := range values {
 		f, err := newFeature(val)
-		logger.Debug("Casted feature value")
 		if err != nil {
 			logger.Errorw("invalid feature type", "Error", err)
 			obs.SetError()

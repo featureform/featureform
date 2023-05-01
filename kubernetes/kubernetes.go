@@ -165,7 +165,7 @@ func newJobSpec(config KubernetesRunnerConfig, rsrcReqs v1.ResourceRequirements)
 						Name:            containerID,
 						Image:           config.Image,
 						Env:             envVars,
-						ImagePullPolicy: v1.PullIfNotPresent,
+						ImagePullPolicy: v1.PullAlways,
 						Resources:       rsrcReqs,
 					},
 				},

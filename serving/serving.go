@@ -21,17 +21,19 @@ import (
 
 type FeatureServer struct {
 	pb.UnimplementedFeatureServer
-	Metrics  metrics.MetricsHandler
-	Metadata *metadata.Client
-	Logger   *zap.SugaredLogger
+	Metrics   metrics.MetricsHandler
+	Metadata  *metadata.Client
+	Logger    *zap.SugaredLogger
+	Providers *sync.Map
 }
 
 func NewFeatureServer(meta *metadata.Client, promMetrics metrics.MetricsHandler, logger *zap.SugaredLogger) (*FeatureServer, error) {
 	logger.Debug("Creating new training data server")
 	return &FeatureServer{
-		Metadata: meta,
-		Metrics:  promMetrics,
-		Logger:   logger,
+		Metadata:  meta,
+		Metrics:   promMetrics,
+		Logger:    logger,
+		Providers: &sync.Map{},
 	}, nil
 }
 
@@ -122,21 +124,20 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	}
 	vals := make(chan *pb.ValueList, len(features))
 	errc := make(chan error, len(req.GetFeatures()))
-	tableMap := sync.Map{}
-	defer func(tableMap *sync.Map) {
-		tableMap.Range(func(key, value interface{}) bool {
-			serv.Logger.Infow("Closing table", "Name", key.(string))
-			if err := value.(provider.OnlineStore).Close(); err != nil {
-				serv.Logger.Errorw("Error closing table", "Error", err)
-			}
-			return true
-		})
-	}(&tableMap)
+	//defer func(tableMap *sync.Map) {
+	//	tableMap.Range(func(key, value interface{}) bool {
+	//		serv.Logger.Infow("Closing table", "Name", key.(string))
+	//		if err := value.(provider.OnlineStore).Close(); err != nil {
+	//			serv.Logger.Errorw("Error closing table", "Error", err)
+	//		}
+	//		return true
+	//	})
+	//}(&tableMap)
 
 	for i, feature := range req.GetFeatures() {
 		go func(i int, feature *pb.FeatureID) {
 			name, variant := feature.GetName(), feature.GetVersion()
-			val, err := serv.getFeatureValue(ctx, name, variant, entityMap, &tableMap)
+			val, err := serv.getFeatureValue(ctx, name, variant, entityMap)
 			if err != nil {
 				errc <- fmt.Errorf("error getting feature value: %w", err)
 				serv.Logger.Errorw("Could not get feature value", "Name", name, "Variant", variant, "Error", err.Error())
@@ -163,7 +164,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	}, nil
 }
 
-func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant string, entityMap map[string][]string, tableMap *sync.Map) (*pb.ValueList, error) {
+func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant string, entityMap map[string][]string) (*pb.ValueList, error) {
 	obs := serv.Metrics.BeginObservingOnlineServe(name, variant)
 	defer obs.Finish()
 	logger := serv.Logger.With("Name", name, "Variant", variant)
@@ -185,7 +186,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 			return nil, fmt.Errorf("no value for entity %s", meta.Entity())
 		}
 
-		if store, has := tableMap.Load(meta.Provider()); has {
+		if store, has := serv.Providers.Load(meta.Provider()); has {
 			//60ms
 			table, err := store.(provider.OnlineStore).GetTable(name, variant)
 			if err != nil {
@@ -224,7 +225,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 				// That shouldn't be possible.
 				return nil, err
 			}
-			tableMap.Store(meta.Provider(), store)
+			serv.Providers.Store(meta.Provider(), store)
 			// 70ms
 			table, err := store.GetTable(name, variant)
 			if err != nil {

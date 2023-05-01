@@ -125,7 +125,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	tableMap := sync.Map{}
 	defer func(tableMap *sync.Map) {
 		tableMap.Range(func(key, value interface{}) bool {
-			serv.Logger.Infow("Closing table", "Name", key.(string))
+			serv.Logger.Infow("Closing table", "Name", key.(string), "Features", features, "Entities", entities)
 			if err := value.(provider.OnlineStore).Close(); err != nil {
 				serv.Logger.Errorw("Error closing table", "Error", err)
 			}
@@ -156,7 +156,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 		}
 		results[i] = result
 	}
-	serv.Logger.Info("Serving Complete")
+	serv.Logger.Info("Serving Complete", "Features", features, "Entities", entities)
 
 	return &pb.FeatureRow{
 		Values: results,

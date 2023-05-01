@@ -123,6 +123,14 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	vals := make(chan *pb.ValueList, len(features))
 	errc := make(chan error, len(req.GetFeatures()))
 	tableMap := sync.Map{}
+	defer func(tableMap *sync.Map) {
+		tableMap.Range(func(key, value interface{}) bool {
+			if err := value.(provider.OnlineStore).Close(); err != nil {
+				serv.Logger.Errorw("Error closing table", "Error", err)
+			}
+			return true
+		})
+	}(&tableMap)
 
 	serv.Logger.Infow("Starting goroutines")
 	for i, feature := range req.GetFeatures() {
@@ -185,10 +193,17 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 		}
 		logger.Debug("Getting table")
 
-		if table, has := tableMap.Load(meta.Provider()); has {
+		if store, has := tableMap.Load(meta.Provider()); has {
 			logger.Debug("Table is cached")
 			//60ms
+			table, err := store.(provider.OnlineStore).GetTable(name, variant)
+			if err != nil {
+				logger.Errorw("feature not found", "Error", err)
+				obs.SetError()
+				return nil, err
+			}
 			for _, entityVal := range entity {
+
 				val, err := table.(provider.OnlineStoreTable).Get(entityVal)
 				if err != nil {
 					logger.Errorw("entity not found", "Error", err)
@@ -221,6 +236,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 				// That shouldn't be possible.
 				return nil, err
 			}
+			tableMap.Store(meta.Provider(), store)
 			logger.Debug("Getting table")
 			// 70ms
 			table, err := store.GetTable(name, variant)
@@ -229,7 +245,6 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 				obs.SetError()
 				return nil, err
 			}
-			tableMap.Store(meta.Provider(), table)
 			logger.Debug("Getting value")
 			//60ms
 			for _, entityVal := range entity {

@@ -105,6 +105,7 @@ func (table redisOnlineTable) Set(entity string, value interface{}) error {
 func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 	val := table.client.HGet(context.TODO(), table.key.String(), entity)
 	if val.Err() != nil {
+		fmt.Printf("get error: %s\n", val.Err())
 		return nil, &EntityNotFound{entity}
 	}
 	var result interface{}

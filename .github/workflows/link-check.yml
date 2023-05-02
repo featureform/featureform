@@ -27,19 +27,20 @@ jobs:
           config-file: ".docs_mlc_config.json"
           folder-path: "embeddinghub/docs"
           max-depth: 2
-  website-link-checker:
-    runs-on: ubuntu-latest
-    name: broken-link-check
-    steps:
-      - name: Check for broken links
-        id: link-report
-        uses: celinekurpershoek/link-checker@master
-        with:
-          # Required:
-          url: "https://www.featureform.com/"
-          # optional:
-          honorRobotExclusions: false
-          ignorePatterns: "*linkedin*,*autodesk*,*crunchbase*" # Linkedin returns 999 error to web scrapers
-          recursiveLinks: true
-      - name: Print result
-        run: echo "${{steps.link-report.outputs.result}}"
+  # Commenting out the website link checker until it can be moved to its own workflow
+  # website-link-checker:
+  #   runs-on: ubuntu-latest
+  #   name: broken-link-check
+  #   steps:
+  #     - name: Check for broken links
+  #       id: link-report
+  #       uses: celinekurpershoek/link-checker@master
+  #       with:
+  #         # Required:
+  #         url: "https://www.featureform.com/"
+  #         # optional:
+  #         honorRobotExclusions: false
+  #         ignorePatterns: "*linkedin*,*autodesk*,*crunchbase*" # Linkedin returns 999 error to web scrapers
+  #         recursiveLinks: true
+  #     - name: Print result
+  #       run: echo "${{steps.link-report.outputs.result}}"

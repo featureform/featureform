@@ -28,7 +28,7 @@ const entityPageSlice = createSlice({
       if (requestId !== state.requestId) {
         return;
       }
-      state.resources = action.payload.data;
+      state.resources = action.payload?.data;
       state.loading = false;
       state.failed = false;
     },

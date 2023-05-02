@@ -182,13 +182,13 @@ func GetLockKey(jobKey string) string {
 }
 
 func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (types.Runner, error) {
-	etcdConfig := &ETCDConfig{Endpoints: etcdEndpoints, Username: os.Getenv("ETCD_USERNAME"), Password: os.Getenv("ETCD_PASSWORD")}
+	etcdConfig := &ETCDConfig{Endpoints: etcdEndpoints, Username: "root", Password: "secretpassword"}
 	serializedETCD, err := etcdConfig.Serialize()
 	if err != nil {
 		return nil, err
 	}
 	pandas_image := cfg.GetPandasRunnerImage()
-	fmt.Println("GETJOBRUNNERID:", id)
+	fmt.Println("GETJOBRUNNERID:", id) // this should be a log
 	kubeConfig := kubernetes.KubernetesRunnerConfig{
 		EnvVars: map[string]string{
 			"NAME":             jobName,

@@ -33,22 +33,12 @@ func CreateAndRun() error {
 	if !ok {
 		return errors.New("NAME not set")
 	}
-	var etcdConf string
-	if !ok {
-		return errors.New("ETCD_CONFIG not set")
-	}
+
 	jobRunner, err := runner.Create(name, []byte(config))
 	if err != nil {
 		return err
 	}
 	logger.Infof("Starting job for resource: %v", jobRunner.Resource())
-	if jobRunner.IsUpdateJob() {
-		logger.Info("This is an update job")
-		etcdConf, ok = os.LookupEnv("ETCD_CONFIG")
-		if !ok {
-			return errors.New("ETCD_CONFIG not set")
-		}
-	}
 	indexString, hasIndexEnv := os.LookupEnv("JOB_COMPLETION_INDEX")
 	indexRunner, isIndexRunner := jobRunner.(runner.IndexRunner)
 	if isIndexRunner && !hasIndexEnv {
@@ -76,6 +66,11 @@ func CreateAndRun() error {
 	}
 	logger.Infof("Completed job for resource %v", jobRunner.Resource())
 	if jobRunner.IsUpdateJob() {
+		logger.Info("This is an update job")
+		etcdConf, ok := os.LookupEnv("ETCD_CONFIG")
+		if !ok {
+			return errors.New("ETCD_CONFIG not set")
+		}
 		jobResource := jobRunner.Resource()
 		logger.Infof("Logging update success in etcd for job: %v", jobResource)
 		etcdConfig := &coordinator.ETCDConfig{}

@@ -103,7 +103,7 @@ func (store *AzureFileStore) containerName() string {
 	return store.ContainerName
 }
 
-func (store *AzureFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+func (store AzureFileStore) AddEnvVars(envVars map[string]string) map[string]string {
 	envVars["AZURE_CONNECTION_STRING"] = store.ConnectionString
 	envVars["AZURE_CONTAINER_NAME"] = store.ContainerName
 	return envVars
@@ -636,4 +636,8 @@ func (fs *HDFSFileStore) AsAzureStore() *AzureFileStore {
 
 func (fs HDFSFileStore) FilestoreType() pc.FileStoreType {
 	return HDFS
+}
+
+func (fs HDFSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+	return envVars
 }

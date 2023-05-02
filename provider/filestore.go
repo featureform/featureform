@@ -103,7 +103,7 @@ func (store *AzureFileStore) containerName() string {
 	return store.ContainerName
 }
 
-func (store *AzureFileStore) addAzureVars(envVars map[string]string) map[string]string {
+func (store *AzureFileStore) AddEnvVars(envVars map[string]string) map[string]string {
 	envVars["AZURE_CONNECTION_STRING"] = store.ConnectionString
 	envVars["AZURE_CONTAINER_NAME"] = store.ContainerName
 	return envVars
@@ -236,6 +236,14 @@ func (s3 S3FileStore) FilestoreType() pc.FileStoreType {
 	return S3
 }
 
+func (s3 S3FileStore) AddEnvVars(envVars map[string]string) map[string]string {
+	envVars["AWS_ACCESS_KEY_ID"] = s3.Credentials.AWSAccessKeyId
+	envVars["AWS_SECRET_KEY"] = s3.Credentials.AWSSecretKey
+	envVars["S3_BUCKET_REGION"] = s3.BucketRegion
+	envVars["S3_BUCKET_NAME"] = s3.Bucket
+	return envVars
+}
+
 type GCSFileStore struct {
 	Bucket      string
 	Path        string
@@ -264,6 +272,11 @@ func (gs GCSFileStore) PathWithPrefix(path string, remote bool) string {
 
 func (g GCSFileStore) FilestoreType() pc.FileStoreType {
 	return GCS
+}
+
+func (g GCSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+	// TODO: add environment variables for GCS
+	return envVars
 }
 
 type GCSFileStoreConfig struct {

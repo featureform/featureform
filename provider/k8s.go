@@ -380,6 +380,7 @@ type FileStore interface {
 	Upload(sourcePath string, destPath string) error
 	Download(sourcePath string, destPath string) error
 	FilestoreType() pc.FileStoreType
+	AddEnvVars(envVars map[string]string) map[string]string
 }
 
 type Iterator interface {
@@ -546,6 +547,10 @@ func (store genericFileStore) Download(sourcePath string, destPath string) error
 
 func (store genericFileStore) FilestoreType() pc.FileStoreType {
 	return Memory
+}
+
+func (store genericFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+	return envVars
 }
 
 func convertToParquetBytes(list []any) ([]byte, error) {
@@ -935,10 +940,7 @@ func (k8s *K8sOfflineStore) pandasRunnerArgs(outputURI string, updatedQuery stri
 		"TRANSFORMATION_TYPE": "sql",
 		"TRANSFORMATION":      updatedQuery,
 	}
-	azureStore, ok := k8s.store.(*AzureFileStore)
-	if ok {
-		envVars = azureStore.addAzureVars(envVars)
-	}
+	envVars = k8s.store.AddEnvVars(envVars)
 	return envVars
 }
 
@@ -950,12 +952,7 @@ func (k8s K8sOfflineStore) getDFArgs(outputURI string, code string, mapping []So
 		"TRANSFORMATION_TYPE": "df",
 		"TRANSFORMATION":      code,
 	}
-	if _, ok := k8s.executor.(*KubernetesExecutor); ok {
-		envVars = addETCDVars(envVars)
-	}
-	if azureStore, ok := k8s.store.(*AzureFileStore); ok {
-		envVars = azureStore.addAzureVars(envVars)
-	}
+	envVars = k8s.store.AddEnvVars(envVars)
 	return envVars
 }
 

@@ -17,6 +17,7 @@ import (
 	pt "github.com/featureform/provider/provider_type"
 
 	"go.uber.org/zap"
+	_ "net/http/pprof"
 )
 
 type FeatureServer struct {

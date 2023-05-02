@@ -1,3 +1,4 @@
+{{ if not .Values.global.embeddedIngress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -15,8 +16,10 @@ metadata:
   name: grpc-ingress
 spec:
   rules:
+    {{ if not .Values.global.hostname }}
     - host: {{ .Values.global.hostname }}
-      http:
+    {{ end }}
+    - http:
         paths:
           - path: /featureform.serving.metadata.proto.Api/
             pathType: Prefix
@@ -35,9 +38,10 @@ spec:
                   number: 7878
 
 
-
+{{ if .Values.global.tls.enabled }}
   tls:
     - hosts:
         -  {{ .Values.global.hostname }}
       secretName: featureform-ca-secret
-
+{{ end }}
+{{ end }}

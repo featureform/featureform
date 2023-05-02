@@ -1,3 +1,4 @@
+{{ if not .Values.global.embeddedIngress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -18,8 +19,10 @@ spec:
       port:
         number: 80
   rules:
+    {{ if not .Values.global.hostname }}
     - host: {{ .Values.global.hostname }}
-      http:
+    {{ end }}
+    - http:
         paths:
           - path: /data/
             pathType: Prefix
@@ -51,4 +54,4 @@ spec:
                   number: 80
 
 
-
+{{ end }}

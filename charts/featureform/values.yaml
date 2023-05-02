@@ -94,6 +94,8 @@ global:
   embeddedIngress:
     disabled: true
     enabled: false
+  tls:
+    enabled: true
 
 
 metadata:

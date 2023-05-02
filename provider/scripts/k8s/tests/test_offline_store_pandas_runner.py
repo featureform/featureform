@@ -23,17 +23,6 @@ from offline_store_pandas_runner import (
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
 
-SAFE_ENVIRONMENT_VARIABLES = set(
-    [
-        "AWS_ACCESS_KEY_ID",
-        "AWS_SECRET_KEY",
-        "S3_BUCKET_NAME",
-        "S3_BUCKET_REGION",
-        "AZURE_CONNECTION_STRING",
-        "AZURE_CONTAINER_NAME",
-    ]
-)
-
 
 @pytest.mark.parametrize(
     "variables",
@@ -254,9 +243,6 @@ def test_blob_stores(variables, request):
 
 def set_environment_variables(variables, delete=False):
     for key, value in variables.items():
-        if key in SAFE_ENVIRONMENT_VARIABLES:
-            continue
-
         if delete:
             os.environ.pop(key)
         else:

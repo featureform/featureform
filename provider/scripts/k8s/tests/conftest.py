@@ -87,10 +87,6 @@ def k8s_df_variables_success():
         "ETCD_PORT": "2379,2380",
         "ETCD_USERNAME": "username",
         "ETCD_PASSWORD": "password",
-        "AZURE_CONNECTION_STRING": os.getenv(
-            "AZURE_CONNECTION_STRING", "connection_string"
-        ),
-        "AZURE_CONTAINER_NAME": os.getenv("AZURE_CONTAINER_NAME", "container_name"),
     }
 
 
@@ -107,10 +103,6 @@ def k8s_s3_df_variables_success():
         "ETCD_PORT": "2379,2380",
         "ETCD_USERNAME": "username",
         "ETCD_PASSWORD": "password",
-        "AWS_ACCESS_KEY_ID": os.getenv("AWS_ACCESS_KEY_ID", ""),
-        "AWS_SECRET_KEY": os.getenv("AWS_SECRET_KEY", ""),
-        "S3_BUCKET_NAME": os.getenv("S3_BUCKET_NAME", ""),
-        "S3_BUCKET_REGION": os.getenv("S3_BUCKET_REGION", ""),
     }
 
 
@@ -150,9 +142,6 @@ def k8s_df_variables_single_port_success():
         "ETCD_PORT": "2379",
         "ETCD_USERNAME": "username",
         "ETCD_PASSWORD": "password",
-        "AZURE_CONNECTION_STRING": os.getenv(
-            "AZURE_CONNECTION_STRING", "connection_string"
-        ),
     }
 
 

@@ -11,13 +11,19 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
 	"github.com/featureform/serving"
+	"log"
 	"net"
+	"net/http"
 
 	pb "github.com/featureform/proto"
 	"google.golang.org/grpc"
+	_ "net/http/pprof"
 )
 
 func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 	logger := logging.NewLogger("serving")
 
 	host := help.GetEnv("SERVING_HOST", "0.0.0.0")

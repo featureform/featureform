@@ -25,6 +25,7 @@ type FeatureServer struct {
 	Metadata  *metadata.Client
 	Logger    *zap.SugaredLogger
 	Providers *sync.Map
+	Tables    *sync.Map
 }
 
 func NewFeatureServer(meta *metadata.Client, promMetrics metrics.MetricsHandler, logger *zap.SugaredLogger) (*FeatureServer, error) {
@@ -34,6 +35,7 @@ func NewFeatureServer(meta *metadata.Client, promMetrics metrics.MetricsHandler,
 		Metrics:   promMetrics,
 		Logger:    logger,
 		Providers: &sync.Map{},
+		Tables:    &sync.Map{},
 	}, nil
 }
 
@@ -124,15 +126,6 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	}
 	vals := make(chan *pb.ValueList, len(features))
 	errc := make(chan error, len(req.GetFeatures()))
-	//defer func(tableMap *sync.Map) {
-	//	tableMap.Range(func(key, value interface{}) bool {
-	//		serv.Logger.Infow("Closing table", "Name", key.(string))
-	//		if err := value.(provider.OnlineStore).Close(); err != nil {
-	//			serv.Logger.Errorw("Error closing table", "Error", err)
-	//		}
-	//		return true
-	//	})
-	//}(&tableMap)
 
 	for i, feature := range req.GetFeatures() {
 		go func(i int, feature *pb.FeatureID) {
@@ -164,6 +157,10 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	}, nil
 }
 
+func (serv *FeatureServer) getTableCacheKey(name, variant string) string {
+	return fmt.Sprintf("%s:%s", name, variant)
+}
+
 func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant string, entityMap map[string][]string) (*pb.ValueList, error) {
 	obs := serv.Metrics.BeginObservingOnlineServe(name, variant)
 	defer obs.Finish()
@@ -187,16 +184,21 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 		}
 
 		if store, has := serv.Providers.Load(meta.Provider()); has {
-			//60ms
-			table, err := store.(provider.OnlineStore).GetTable(name, variant)
-			if err != nil {
-				logger.Errorw("feature not found", "Error", err)
-				obs.SetError()
-				return nil, err
+			var featureTable provider.OnlineStoreTable
+			if table, has := serv.Tables.Load(serv.getTableCacheKey(name, variant)); has {
+				featureTable = table.(provider.OnlineStoreTable)
+			} else {
+				table, err := store.(provider.OnlineStore).GetTable(name, variant)
+				if err != nil {
+					logger.Errorw("feature not found", "Error", err)
+					obs.SetError()
+					return nil, err
+				}
+				serv.Tables.Store(serv.getTableCacheKey(name, variant), table)
+				featureTable = table
 			}
 			for _, entityVal := range entity {
-
-				val, err := table.(provider.OnlineStoreTable).Get(entityVal)
+				val, err := featureTable.(provider.OnlineStoreTable).Get(entityVal)
 				if err != nil {
 					logger.Errorw("entity not found", "Error", err)
 					obs.SetError()
@@ -227,15 +229,21 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 			}
 			serv.Providers.Store(meta.Provider(), store)
 			// 70ms
-			table, err := store.GetTable(name, variant)
-			if err != nil {
-				logger.Errorw("feature not found", "Error", err)
-				obs.SetError()
-				return nil, err
+			var featureTable provider.OnlineStoreTable
+			if table, has := serv.Tables.Load(serv.getTableCacheKey(name, variant)); has {
+				featureTable = table.(provider.OnlineStoreTable)
+			} else {
+				table, err := store.GetTable(name, variant)
+				if err != nil {
+					logger.Errorw("feature not found", "Error", err)
+					obs.SetError()
+					return nil, err
+				}
+				serv.Tables.Store(serv.getTableCacheKey(name, variant), table)
+				featureTable = table
 			}
-			//60ms
 			for _, entityVal := range entity {
-				val, err := table.(provider.OnlineStoreTable).Get(entityVal)
+				val, err := featureTable.(provider.OnlineStoreTable).Get(entityVal)
 				if err != nil {
 					logger.Errorw("entity not found", "Error", err)
 					obs.SetError()

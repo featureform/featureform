@@ -7,6 +7,7 @@ package provider
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 
 	pc "github.com/featureform/provider/provider_config"
@@ -31,6 +32,27 @@ func NewFilepath(storeType pc.FileStoreType, bucket string, prefix string, path 
 				path:   strings.TrimPrefix(path, "/"),
 			},
 		}, nil
+	default:
+		return nil, fmt.Errorf("unknown store type '%s'", storeType)
+	}
+}
+
+func NewEmptyFilepath(storeType pc.FileStoreType) (Filepath, error) {
+	switch storeType {
+	case S3:
+		return &S3Filepath{}, nil
+	case Azure:
+		return &AzureFilepath{}, nil
+	case GCS:
+		return &GCSFilepath{}, nil
+	case Memory:
+		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
+	case FileSystem:
+		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
+	case pc.DB:
+		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
+	case HDFS:
+		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
 	default:
 		return nil, fmt.Errorf("unknown store type '%s'", storeType)
 	}
@@ -98,4 +120,44 @@ func (s3 *S3Filepath) FullPathWithBucket() string {
 	}
 
 	return fmt.Sprintf("s3://%s%s/%s", s3.bucket, prefix, s3.path)
+}
+
+type AzureFilepath struct {
+	storageAccount string
+	filePath
+}
+
+func (azure *AzureFilepath) FullPathWithBucket() string {
+	return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s", azure.filePath.bucket, azure.storageAccount, azure.filePath.path)
+}
+
+func (azure *AzureFilepath) ParseFullPath(fullPath string) error {
+	abfssRegex := regexp.MustCompile(`abfss://(.+?)@(.+?)\.dfs.core.windows.net/(.+)`)
+	matches := abfssRegex.FindStringSubmatch(fullPath)
+
+	// If the regex matches all parts of the ABFS path, then we can parse the
+	// bucket, storage account, and path components. Otherwise, we can just set
+	// the path for standard Azure Blob Storage paths.
+	if len(matches) == 4 {
+		azure.filePath.bucket = matches[1]
+		azure.storageAccount = matches[2]
+		azure.filePath.path = matches[3]
+	} else {
+		azure.filePath.path = fullPath
+	}
+
+	return nil
+}
+
+type GCSFilepath struct {
+	filePath
+}
+
+func (gcs *GCSFilepath) FullPathWithBucket() string {
+	prefix := ""
+	if gcs.prefix != "" {
+		prefix = fmt.Sprintf("/%s", gcs.prefix)
+	}
+
+	return fmt.Sprintf("gs://%s%s/%s", gcs.bucket, prefix, gcs.path)
 }

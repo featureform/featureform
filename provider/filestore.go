@@ -28,11 +28,11 @@ import (
 
 const (
 	Memory     pc.FileStoreType = "MEMORY"
-	FileSystem                  = "LOCAL_FILESYSTEM"
-	Azure                       = "AZURE"
-	S3                          = "S3"
-	GCS                         = "GCS"
-	HDFS                        = "HDFS"
+	FileSystem pc.FileStoreType = "LOCAL_FILESYSTEM"
+	Azure      pc.FileStoreType = "AZURE"
+	S3         pc.FileStoreType = "S3"
+	GCS        pc.FileStoreType = "GCS"
+	HDFS       pc.FileStoreType = "HDFS"
 )
 
 type FileType string
@@ -242,6 +242,23 @@ func (s3 S3FileStore) AddEnvVars(envVars map[string]string) map[string]string {
 	envVars["S3_BUCKET_REGION"] = s3.BucketRegion
 	envVars["S3_BUCKET_NAME"] = s3.Bucket
 	return envVars
+}
+
+func (s3 S3FileStore) Read(key string) ([]byte, error) {
+	fp, err := NewEmptyFilepath(S3)
+	if err != nil {
+		return nil, fmt.Errorf("error creating filepath: %v", err)
+	}
+	err = fp.ParseFullPath(key)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse path: %v", err)
+	}
+	key = fp.Path()
+	data, err := s3.bucket.ReadAll(context.TODO(), key)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 type GCSFileStore struct {

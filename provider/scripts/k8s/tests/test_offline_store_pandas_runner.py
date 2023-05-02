@@ -100,7 +100,6 @@ def test_execute_df_job(df_transformation, variables, expected_output, request):
     env = request.getfixturevalue(variables)
     set_environment_variables(env)
     args = get_args()
-    print(args)
 
     etcd_creds = None
     if args.mode == K8S_MODE:

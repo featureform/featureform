@@ -26,6 +26,7 @@ type FeatureServer struct {
 	Logger    *zap.SugaredLogger
 	Providers *sync.Map
 	Tables    *sync.Map
+	Features  *sync.Map
 }
 
 func NewFeatureServer(meta *metadata.Client, promMetrics metrics.MetricsHandler, logger *zap.SugaredLogger) (*FeatureServer, error) {
@@ -36,6 +37,7 @@ func NewFeatureServer(meta *metadata.Client, promMetrics metrics.MetricsHandler,
 		Logger:    logger,
 		Providers: &sync.Map{},
 		Tables:    &sync.Map{},
+		Features:  &sync.Map{},
 	}, nil
 }
 
@@ -157,7 +159,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	}, nil
 }
 
-func (serv *FeatureServer) getTableCacheKey(name, variant string) string {
+func (serv *FeatureServer) getNVCacheKey(name, variant string) string {
 	return fmt.Sprintf("%s:%s", name, variant)
 }
 
@@ -166,11 +168,18 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 	defer obs.Finish()
 	logger := serv.Logger.With("Name", name, "Variant", variant)
 	// THIS IS SLOW 80ms
-	meta, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{name, variant})
-	if err != nil {
-		logger.Errorw("metadata lookup failed", "Err", err)
-		obs.SetError()
-		return nil, err
+	var meta *metadata.FeatureVariant
+	if feature, has := serv.Features.Load(serv.getNVCacheKey(name, variant)); has {
+		meta = feature.(*metadata.FeatureVariant)
+	} else {
+		metaFeature, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{name, variant})
+		if err != nil {
+			logger.Errorw("metadata lookup failed", "Err", err)
+			obs.SetError()
+			return nil, err
+		}
+		meta = metaFeature
+		serv.Features.Store(serv.getNVCacheKey(name, variant), meta)
 	}
 
 	var values []interface{}
@@ -185,7 +194,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 
 		if store, has := serv.Providers.Load(meta.Provider()); has {
 			var featureTable provider.OnlineStoreTable
-			if table, has := serv.Tables.Load(serv.getTableCacheKey(name, variant)); has {
+			if table, has := serv.Tables.Load(serv.getNVCacheKey(name, variant)); has {
 				featureTable = table.(provider.OnlineStoreTable)
 			} else {
 				table, err := store.(provider.OnlineStore).GetTable(name, variant)
@@ -194,7 +203,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 					obs.SetError()
 					return nil, err
 				}
-				serv.Tables.Store(serv.getTableCacheKey(name, variant), table)
+				serv.Tables.Store(serv.getNVCacheKey(name, variant), table)
 				featureTable = table
 			}
 			for _, entityVal := range entity {
@@ -230,7 +239,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 			serv.Providers.Store(meta.Provider(), store)
 			// 70ms
 			var featureTable provider.OnlineStoreTable
-			if table, has := serv.Tables.Load(serv.getTableCacheKey(name, variant)); has {
+			if table, has := serv.Tables.Load(serv.getNVCacheKey(name, variant)); has {
 				featureTable = table.(provider.OnlineStoreTable)
 			} else {
 				table, err := store.GetTable(name, variant)
@@ -239,7 +248,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 					obs.SetError()
 					return nil, err
 				}
-				serv.Tables.Store(serv.getTableCacheKey(name, variant), table)
+				serv.Tables.Store(serv.getNVCacheKey(name, variant), table)
 				featureTable = table
 			}
 			for _, entityVal := range entity {

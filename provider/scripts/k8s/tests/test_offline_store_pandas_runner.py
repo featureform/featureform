@@ -23,6 +23,15 @@ from offline_store_pandas_runner import (
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
 
+SAFE_ENVIRONMENT_VARIABLES = set(
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_KEY",
+    "S3_BUCKET_NAME",
+    "S3_BUCKET_REGION",
+    "AZURE_CONNECTION_STRING",
+    "AZURE_CONTAINER_NAME",
+)
+
 
 @pytest.mark.parametrize(
     "variables",
@@ -191,7 +200,7 @@ def test_get_blob_credentials(variables, type, request):
         expected_output = Namespace(
             type=S3,
             aws_access_key_id=args.blob_credentials.aws_access_key_id,
-            aws_secret_access_key=args.blob_credentials.aws_secret_access_key,
+            aws_secret_key=args.blob_credentials.aws_secret_key,
             bucket_name=args.blob_credentials.bucket_name,
             bucket_region=args.blob_credentials.bucket_region,
         )
@@ -243,7 +252,7 @@ def test_blob_stores(variables, request):
 
 def set_environment_variables(variables, delete=False):
     for key, value in variables.items():
-        if key == "AZURE_CONNECTION_STRING" and os.getenv("AZURE_CONNECTION_STRING"):
+        if key in SAFE_ENVIRONMENT_VARIABLES:
             continue
 
         if delete:

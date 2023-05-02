@@ -94,7 +94,7 @@ class S3BlobStore(BlobStore):
     def _create_client(self):
         session = boto3.Session(
             aws_access_key_id=self._credentials.aws_access_key_id,
-            aws_secret_access_key=self._credentials.aws_secret_access_key,
+            aws_secret_key=self._credentials.aws_secret_key,
         )
         s3_resource_client = session.resource(
             "s3", region_name=self._credentials.bucket_region
@@ -581,7 +581,7 @@ def get_blob_credentials(mode, blob_store_type):
         return Namespace(
             type=S3,
             aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_key,
+            aws_secret_key=aws_secret_key,
             bucket_name=bucket_name,
             bucket_region=bucket_region,
         )

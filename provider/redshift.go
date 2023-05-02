@@ -16,11 +16,11 @@ type redshiftColumnType string
 
 const (
 	rsInt       redshiftColumnType = "integer"
-	rsBigInt                       = "bigint"
-	rsFloat                        = "real"
-	rsString                       = "varchar"
-	rsBool                         = "boolean"
-	rsTimestamp                    = "timestamp with time zone"
+	rsBigInt    redshiftColumnType = "bigint"
+	rsFloat     redshiftColumnType = "real"
+	rsString    redshiftColumnType = "varchar"
+	rsBool      redshiftColumnType = "boolean"
+	rsTimestamp redshiftColumnType = "timestamp with time zone"
 )
 
 func redshiftOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {

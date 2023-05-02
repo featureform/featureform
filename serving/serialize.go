@@ -6,29 +6,34 @@ package serving
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/proto"
 )
 
-type feature struct {
+type value struct {
 	serialized *pb.Value
 }
 
-func newFeature(val interface{}) (*feature, error) {
+func newValue(val interface{}) (*value, error) {
 	serial, err := wrapValue(val)
 	if err != nil {
-		return nil, fmt.Errorf("new feature: %w", err)
+		return nil, fmt.Errorf("new value: %w", err)
 	}
-	return &feature{serial}, nil
+	return &value{serial}, nil
 }
 
-func (f *feature) Serialized() *pb.Value {
-	return f.serialized
+func (v *value) Serialized() *pb.Value {
+	return v.serialized
 }
 
 type row struct {
 	serialized *pb.TrainingDataRow
+}
+
+type sourceRow struct {
+	serialized *pb.SourceDataRow
 }
 
 func emptyRow() *row {
@@ -37,8 +42,22 @@ func emptyRow() *row {
 	}
 }
 
+func emptySourceRow() *sourceRow {
+	return &sourceRow{
+		serialized: &pb.SourceDataRow{},
+	}
+}
+
 func serializedRow(features []interface{}, label interface{}) (*pb.TrainingDataRow, error) {
 	r, err := newRow(features, label)
+	if err != nil {
+		return nil, err
+	}
+	return r.Serialized(), nil
+}
+
+func serializedSourceRow(row []interface{}) (*pb.SourceDataRow, error) {
+	r, err := newSourceRow(row)
 	if err != nil {
 		return nil, err
 	}
@@ -80,6 +99,29 @@ func (row *row) AddFeature(feature interface{}) error {
 	return nil
 }
 
+func newSourceRow(rows []interface{}) (*sourceRow, error) {
+	r := emptySourceRow()
+	for _, row := range rows {
+		if err := r.AddValue(row); err != nil {
+			return nil, err
+		}
+	}
+	return r, nil
+}
+
+func (row *sourceRow) Serialized() *pb.SourceDataRow {
+	return row.serialized
+}
+
+func (r *sourceRow) AddValue(row interface{}) error {
+	value, err := wrapValue(row)
+	if err != nil {
+		return fmt.Errorf("add row: %w", err)
+	}
+	r.serialized.Rows = append(r.serialized.Rows, value)
+	return nil
+}
+
 type InvalidValue struct {
 	Value interface{}
 }
@@ -92,6 +134,12 @@ func wrapValue(value interface{}) (proto *pb.Value, err error) {
 	switch typed := value.(type) {
 	case string:
 		proto = wrapStr(typed)
+	/*
+		We should eventually add support for native time types; however, at
+		the moment, supporting RFC3339 strings will suffice.
+	*/
+	case time.Time:
+		proto = wrapStr(typed.Format(time.RFC3339))
 	case float32:
 		proto = wrapFloat(typed)
 	case float64:

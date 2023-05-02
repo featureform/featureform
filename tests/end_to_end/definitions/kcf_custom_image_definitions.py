@@ -50,13 +50,6 @@ azure_blob = ff.register_blob_store(
     root_path="testing/ff",
 )
 
-redis = ff.register_redis(
-    name=f"redis-quickstart_{VERSION}",
-    host="quickstart-redis",  # The internal dns name for redis
-    port=6379,
-    description="A Redis deployment we created for the Featureform quickstart",
-)
-
 k8s = ff.register_k8s(
     name=f"k8s_{VERSION}",
     store=azure_blob,

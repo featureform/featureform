@@ -13,6 +13,7 @@ dir_path = os.path.dirname(real_path)
 def local_variables_success():
     return {
         "MODE": "local",
+        "BLOB_STORE_TYPE": "local",
         "OUTPUT_URI": f"{dir_path}/test_files/output/local_test/",
         "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "sql",
@@ -24,6 +25,7 @@ def local_variables_success():
 def local_variables_parquet_success():
     return {
         "MODE": "local",
+        "BLOB_STORE_TYPE": "local",
         "OUTPUT_URI": f"{dir_path}/test_files/output/local_test/",
         "SOURCES": f"{dir_path}/test_files/inputs/transaction_short",
         "TRANSFORMATION_TYPE": "sql",
@@ -35,6 +37,7 @@ def local_variables_parquet_success():
 def local_df_variables_success():
     return {
         "MODE": "local",
+        "BLOB_STORE_TYPE": "local",
         "OUTPUT_URI": f"{dir_path}/test_files/output/local_test/",
         "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "df",
@@ -46,6 +49,7 @@ def local_df_variables_success():
 def local_df_parquet_variables_success():
     return {
         "MODE": "local",
+        "BLOB_STORE_TYPE": "local",
         "OUTPUT_URI": f"{dir_path}/test_files/output/local_test/",
         "SOURCES": f"{dir_path}/test_files/inputs/transaction_short",
         "TRANSFORMATION_TYPE": "df",
@@ -62,6 +66,7 @@ def local_variables_failure():
 def k8s_sql_variables_success():
     return {
         "MODE": "k8s",
+        "BLOB_STORE_TYPE": "local",
         "OUTPUT_URI": f"{dir_path}/test_files/output/local_test",
         "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "sql",
@@ -73,6 +78,7 @@ def k8s_sql_variables_success():
 def k8s_df_variables_success():
     return {
         "MODE": "k8s",
+        "BLOB_STORE_TYPE": "azure",
         "OUTPUT_URI": f"{dir_path}/test_files/output/local_test",
         "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "df",
@@ -84,6 +90,51 @@ def k8s_df_variables_success():
         "AZURE_CONNECTION_STRING": os.getenv(
             "AZURE_CONNECTION_STRING", "connection_string"
         ),
+        "AZURE_CONTAINER_NAME": os.getenv("AZURE_CONTAINER_NAME", "container_name"),
+    }
+
+
+@pytest.fixture(scope="module")
+def k8s_s3_df_variables_success():
+    return {
+        "MODE": "k8s",
+        "BLOB_STORE_TYPE": "s3",
+        "OUTPUT_URI": f"{dir_path}/test_files/output/local_test",
+        "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
+        "TRANSFORMATION_TYPE": "df",
+        "TRANSFORMATION": "/path/to/transformation",
+        "ETCD_HOST": "127.0.0.1",
+        "ETCD_PORT": "2379,2380",
+        "ETCD_USERNAME": "username",
+        "ETCD_PASSWORD": "password",
+        "AWS_ACCESS_KEY_ID": os.getenv("AWS_ACCESS_KEY_ID", ""),
+        "AWS_SECRET_ACCESS_KEY": os.getenv("AWS_SECRET_ACCESS_KEY", ""),
+        "S3_BUCKET_NAME": os.getenv("S3_BUCKET_NAME", ""),
+        "S3_BUCKET_REGION": os.getenv("S3_BUCKET_REGION", ""),
+    }
+
+
+@pytest.fixture(scope="module")
+def k8s_s3_df_variables_failure():
+    return {
+        "MODE": "k8s",
+        "BLOB_STORE_TYPE": "s3",
+        "OUTPUT_URI": f"{dir_path}/test_files/output/local_test",
+        "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
+        "TRANSFORMATION_TYPE": "df",
+        "TRANSFORMATION": "/path/to/transformation",
+        "ETCD_HOST": "127.0.0.1",
+        "ETCD_PORT": "2379,2380",
+        "ETCD_USERNAME": "username",
+        "ETCD_PASSWORD": "password",
+    }
+
+
+@pytest.fixture(scope="module")
+def not_supported_blob_store():
+    return {
+        "MODE": "k8s",
+        "BLOB_STORE_TYPE": "not_supported",
     }
 
 
@@ -106,9 +157,15 @@ def k8s_df_variables_single_port_success():
 
 
 @pytest.fixture(scope="module")
+def k8s_gs_df_variables_success():
+    return {}
+
+
+@pytest.fixture(scope="module")
 def k8s_variables_failure():
     return {
         "MODE": "k8s",
+        "BLOB_STORE_TYPE": "azure",
         "OUTPUT_URI": f"{dir_path}/test_files/output/local_test",
         "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "sql",
@@ -120,6 +177,7 @@ def k8s_variables_failure():
 def k8s_variables_port_not_provided_failure():
     return {
         "MODE": "k8s",
+        "BLOB_STORE_TYPE": "azure",
         "OUTPUT_URI": f"{dir_path}/test_files/output/local_test",
         "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "sql",

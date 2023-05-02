@@ -24,12 +24,14 @@ real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
 
 SAFE_ENVIRONMENT_VARIABLES = set(
-    "AWS_ACCESS_KEY_ID",
-    "AWS_SECRET_KEY",
-    "S3_BUCKET_NAME",
-    "S3_BUCKET_REGION",
-    "AZURE_CONNECTION_STRING",
-    "AZURE_CONTAINER_NAME",
+    [
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_KEY",
+        "S3_BUCKET_NAME",
+        "S3_BUCKET_REGION",
+        "AZURE_CONNECTION_STRING",
+        "AZURE_CONTAINER_NAME",
+    ]
 )
 
 

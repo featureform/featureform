@@ -39,10 +39,9 @@ func redisOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
 
 func NewRedisOnlineStore(options *pc.RedisConfig) *redisOnlineStore {
 	redisOptions := &redis.Options{
-		Addr:        options.Addr,
-		Password:    options.Password,
-		DB:          options.DB,
-		IdleTimeout: time.Second * 1,
+		Addr:     options.Addr,
+		Password: options.Password,
+		DB:       options.DB,
 	}
 	redisClient := redis.NewClient(redisOptions)
 	return &redisOnlineStore{redisClient, options.Prefix, BaseProvider{
@@ -106,8 +105,7 @@ func (table redisOnlineTable) Set(entity string, value interface{}) error {
 func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 	val := table.client.HGet(context.TODO(), table.key.String(), entity)
 	if val.Err() != nil {
-		fmt.Printf("get error: %s\n", val.Err())
-		return nil, &EntityNotFound{entity}
+		return nil, fmt.Errorf("could not get value for entity: %s: %w", entity, val.Err())
 	}
 	var result interface{}
 	var err error

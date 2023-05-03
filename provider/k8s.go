@@ -404,14 +404,42 @@ func (store genericFileStore) PathWithPrefix(path string, remote bool) string {
 
 func (store genericFileStore) NewestFileOfType(prefix string, fileType FileType) (string, error) {
 	opts := blob.ListOptions{
-		Prefix: prefix,
+		Prefix:    prefix,
+		Delimiter: "/",
 	}
 	listIterator := store.bucket.List(&opts)
+
+	//listIterator.minBy { return func(a, b *blob.ListObject) bool {
+	//	return a.ModTime.Before(b.ModTime)
+	//}
+
 	mostRecentTime := time.UnixMilli(0)
 	mostRecentKey := ""
+	//var objectList []*blob.ListObject
+	//for {
+	//	if newObj, err := listIterator.Next(context.TODO()); err == nil {
+	//		objectList = append(objectList, newObj)
+	//	} else if err == io.EOF {
+	//		break
+	//	} else {
+	//		return "", err
+	//	}
+	//}
+	//var objectList []*blob.ListObject
+	//for {
+	//	if newObj, err := listIterator.Next(context.TODO()); err == nil {
+	//		objectList = append(objectList, newObj)
+	//	} else if err == io.EOF {
+	//		break
+	//	} else {
+	//		return "", err
+	//	}
+	//}
+
 	for {
 		if newObj, err := listIterator.Next(context.TODO()); err == nil {
 			mostRecentTime, mostRecentKey = store.getMoreRecentFile(newObj, fileType, mostRecentTime, mostRecentKey)
+			fmt.Println("hi")
 		} else if err == io.EOF {
 			return mostRecentKey, nil
 		} else {
@@ -423,6 +451,30 @@ func (store genericFileStore) NewestFileOfType(prefix string, fileType FileType)
 func (store genericFileStore) getMoreRecentFile(newObj *blob.ListObject, expectedFileType FileType, oldTime time.Time, oldKey string) (time.Time, string) {
 	pathParts := strings.Split(newObj.Key, ".")
 	fileType := pathParts[len(pathParts)-1]
+	if newObj.IsDir {
+		// get first file of type FileType in dir
+		opts := blob.ListOptions{
+			Prefix: newObj.Key,
+		}
+		listIterator2 := store.bucket.List(&opts)
+		for {
+			if newObj2, err := listIterator2.Next(context.Background()); err == nil {
+				if newObj2.IsDir {
+					continue
+				}
+				pathParts := strings.Split(newObj2.Key, ".")
+				fileType := pathParts[len(pathParts)-1]
+				if fileType == string(expectedFileType) && store.isMostRecentFile(newObj2, oldTime) {
+					return newObj2.ModTime, newObj2.Key
+				}
+			} else if err == io.EOF {
+				break
+			} else {
+				return oldTime, oldKey
+			}
+
+		}
+	}
 	if fileType == string(expectedFileType) && !newObj.IsDir && store.isMostRecentFile(newObj, oldTime) {
 		return newObj.ModTime, newObj.Key
 	}

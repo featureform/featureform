@@ -403,6 +403,7 @@ func (store genericFileStore) PathWithPrefix(path string, remote bool) string {
 }
 
 func (store genericFileStore) NewestFileOfType(prefix string, fileType FileType) (string, error) {
+	println("This is the prefix: ", prefix)
 	opts := blob.ListOptions{
 		Prefix: prefix,
 	}
@@ -413,6 +414,7 @@ func (store genericFileStore) NewestFileOfType(prefix string, fileType FileType)
 		if newObj, err := listIterator.Next(context.TODO()); err == nil {
 			mostRecentTime, mostRecentKey = store.getMoreRecentFile(newObj, fileType, mostRecentTime, mostRecentKey)
 		} else if err == io.EOF {
+			println("This is the most recent key: ", mostRecentKey)
 			return mostRecentKey, nil
 		} else {
 			return "", err

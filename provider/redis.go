@@ -39,9 +39,10 @@ func redisOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
 
 func NewRedisOnlineStore(options *pc.RedisConfig) *redisOnlineStore {
 	redisOptions := &redis.Options{
-		Addr:     options.Addr,
-		Password: options.Password,
-		DB:       options.DB,
+		Addr:        options.Addr,
+		Password:    options.Password,
+		DB:          options.DB,
+		IdleTimeout: time.Second * 1,
 	}
 	redisClient := redis.NewClient(redisOptions)
 	return &redisOnlineStore{redisClient, options.Prefix, BaseProvider{

@@ -176,7 +176,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 		if err != nil {
 			logger.Errorw("metadata lookup failed", "Err", err)
 			obs.SetError()
-			return nil, err
+			return nil, fmt.Errorf("metadata lookup failed: %w", err)
 		}
 		meta = metaFeature
 		serv.Features.Store(serv.getNVCacheKey(name, variant), meta)
@@ -191,7 +191,6 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 			obs.SetError()
 			return nil, fmt.Errorf("no value for entity %s", meta.Entity())
 		}
-
 		if store, has := serv.Providers.Load(meta.Provider()); has {
 			var featureTable provider.OnlineStoreTable
 			if table, has := serv.Tables.Load(serv.getNVCacheKey(name, variant)); has {
@@ -201,7 +200,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 				if err != nil {
 					logger.Errorw("feature not found", "Error", err)
 					obs.SetError()
-					return nil, err
+					return nil, fmt.Errorf("feature not found: %w", err)
 				}
 				serv.Tables.Store(serv.getNVCacheKey(name, variant), table)
 				featureTable = table
@@ -211,7 +210,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 				if err != nil {
 					logger.Errorw("entity not found", "Error", err)
 					obs.SetError()
-					return nil, err
+					return nil, fmt.Errorf("entity not found: %w", err)
 				}
 				values = append(values, val)
 			}
@@ -220,13 +219,13 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 			if err != nil {
 				logger.Errorw("fetching provider metadata failed", "Error", err)
 				obs.SetError()
-				return nil, err
+				return nil, fmt.Errorf("fetching provider metadata failed: %w", err)
 			}
 			p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 			if err != nil {
 				logger.Errorw("failed to get provider", "Error", err)
 				obs.SetError()
-				return nil, err
+				return nil, fmt.Errorf("failed to get provider: %w", err)
 			}
 			store, err := p.AsOnlineStore()
 			if err != nil {
@@ -234,7 +233,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 				obs.SetError()
 				// This means that the provider of the feature isn't an online store.
 				// That shouldn't be possible.
-				return nil, err
+				return nil, fmt.Errorf("failed to use provider as onlinestore for feature: %w", err)
 			}
 			serv.Providers.Store(meta.Provider(), store)
 			// 70ms
@@ -246,7 +245,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 				if err != nil {
 					logger.Errorw("feature not found", "Error", err)
 					obs.SetError()
-					return nil, err
+					return nil, fmt.Errorf("feature not found: %w", err)
 				}
 				serv.Tables.Store(serv.getNVCacheKey(name, variant), table)
 				featureTable = table
@@ -256,7 +255,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 				if err != nil {
 					logger.Errorw("entity not found", "Error", err)
 					obs.SetError()
-					return nil, err
+					return nil, fmt.Errorf("entity not found: %w", err)
 				}
 				values = append(values, val)
 			}
@@ -272,7 +271,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 		if err != nil {
 			logger.Errorw("invalid feature type", "Error", err)
 			obs.SetError()
-			return nil, err
+			return nil, fmt.Errorf("invalid feature type: %w", err)
 		}
 		castedValues.Values = append(castedValues.Values, f.Serialized())
 	}

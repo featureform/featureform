@@ -6,7 +6,6 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app/dashboard
 
-# Install dependencies based on the preferred package manager
 COPY /dashboard/package.json /dashboard/.yarn.lock* /dashboard/package-lock.json* ./
 RUN npm install --legacy-peer-deps
 
@@ -33,7 +32,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/dashboard/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/dashboard/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/dashboard/out ./out
 
-#todox: swap to port 80. but edit the nginx config first.
 EXPOSE 80
 ENV PORT 80
 

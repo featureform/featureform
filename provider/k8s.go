@@ -439,8 +439,8 @@ func (store genericFileStore) NewestFileOfType(prefix string, fileType FileType)
 	for {
 		if newObj, err := listIterator.Next(context.TODO()); err == nil {
 			mostRecentTime, mostRecentKey = store.getMoreRecentFile(newObj, fileType, mostRecentTime, mostRecentKey)
-			fmt.Println("hi")
 		} else if err == io.EOF {
+			fmt.Println("MostRecentKey: ", mostRecentKey)
 			return mostRecentKey, nil
 		} else {
 			return "", err

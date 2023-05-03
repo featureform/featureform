@@ -403,6 +403,7 @@ func (store genericFileStore) PathWithPrefix(path string, remote bool) string {
 }
 
 func (store genericFileStore) NewestFileOfType(prefix string, fileType FileType) (string, error) {
+	fmt.Println("--------Ali--------prefix:", prefix)
 	opts := blob.ListOptions{
 		Prefix:    prefix,
 		Delimiter: "/",
@@ -474,8 +475,7 @@ func (store genericFileStore) getMoreRecentFile(newObj *blob.ListObject, expecte
 			}
 
 		}
-	}
-	if fileType == string(expectedFileType) && !newObj.IsDir && store.isMostRecentFile(newObj, oldTime) {
+	} else if fileType == string(expectedFileType) && store.isMostRecentFile(newObj, oldTime) {
 		return newObj.ModTime, newObj.Key
 	}
 	return oldTime, oldKey
@@ -1392,12 +1392,14 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		return nil, fmt.Errorf("resource not registered: %v", err)
 	}
 	k8sResourceTable, ok := resourceTable.(*BlobOfflineTable)
+	k8s.logger.Debugw("------Ali------k8sResourceTable", "k8sResourceTable", k8sResourceTable)
 	if !ok {
 		k8s.logger.Errorw("Could not convert resource table to blob offline table", id)
 		return nil, fmt.Errorf("could not convert offline table with id %v to k8sResourceTable", id)
 	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(materializationID), false)
+	k8s.logger.Debugw("------Ali------destinationPath", "destinationPath", destinationPath)
 	materializationExists, err := k8s.store.Exists(destinationPath)
 	if err != nil {
 		k8s.logger.Errorw("Could not determine whether materialization exists", err)
@@ -1411,7 +1413,9 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		return nil, fmt.Errorf("materialization does not exist")
 	}
 	materializationQuery := k8s.query.materializationCreate(k8sResourceTable.schema)
+	k8s.logger.Debugw("-------Ali-------the source table is: ", k8sResourceTable.schema.SourceTable)
 	sourcePath := k8s.store.PathWithPrefix(k8sResourceTable.schema.SourceTable, false)
+	k8s.logger.Debugw("-------Ali-------the source path updated is: ", sourcePath)
 	k8sArgs := k8s.pandasRunnerArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
 
 	k8sArgs = addResourceID(k8sArgs, id)

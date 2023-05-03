@@ -86,9 +86,16 @@ RUN mkdir -p /var/lock/apache2 /var/run/apache2 /var/run/sshd /var/log/superviso
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Setup Spark
-COPY provider/scripts/spark/offline_store_spark_runner.py scripts/spark/offline_store_spark_runner.py
-COPY provider/scripts/spark/python_packages.sh scripts/spark/python_packages.sh
-COPY provider/scripts/spark/requirements.txt scripts/spark/requirements.txt
+ARG SPARK_FILEPATH=/app/provider/scripts/spark/offline_store_spark_runner.py
+ARG SPARK_PYTHON_PACKAGES=/app/provider/scripts/spark/python_packages.sh
+ARG SPARK_REQUIREMENTS=/app/provider/scripts/spark/requirements.txt
+
+COPY provider/scripts/spark/offline_store_spark_runner.py $SPARK_FILEPATH
+COPY provider/scripts/spark/python_packages.sh $SPARK_PYTHON_PACKAGES
+COPY provider/scripts/spark/requirements.txt $SPARK_REQUIREMENTS
+
+ENV SPARK_LOCAL_SCRIPT_PATH=$SPARK_FILEPATH
+ENV PYTHON_LOCAL_INIT_PATH=$SPARK_PYTHON_PACKAGES
 
 # Setup Etcd
 RUN git clone -b v3.4.16 https://github.com/etcd-io/etcd.git

@@ -234,6 +234,69 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 				"Store.AccountKey":  true,
 			}, false,
 		},
+		{"SparkGeneric + S3 No Differing Fields", args{
+			a: SparkConfig{
+				ExecutorType: SparkGeneric,
+				ExecutorConfig: &SparkGenericConfig{
+					Master:     "my.spark.cluster.io:7077",
+					DeployMode: "cluster",
+				},
+				StoreType: S3,
+				StoreConfig: &S3FileStoreConfig{
+					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					BucketRegion: "us-east-1",
+					BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
+					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
+				},
+			},
+			b: SparkConfig{
+				ExecutorType: SparkGeneric,
+				ExecutorConfig: &SparkGenericConfig{
+					Master:     "my.spark.cluster.io:7077",
+					DeployMode: "cluster",
+				},
+				StoreType: S3,
+				StoreConfig: &S3FileStoreConfig{
+					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					BucketRegion: "us-east-1",
+					BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
+					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
+				},
+			},
+		}, ss.StringSet{}, false},
+		{"SparkGeneric + S3 Differing Fields", args{
+			a: SparkConfig{
+				ExecutorType: SparkGeneric,
+				ExecutorConfig: &SparkGenericConfig{
+					Master:     "my.spark.cluster.io:7077",
+					DeployMode: "cluster",
+				},
+				StoreType: S3,
+				StoreConfig: &S3FileStoreConfig{
+					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					BucketRegion: "us-east-1",
+					BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
+					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
+				},
+			},
+			b: SparkConfig{
+				ExecutorType: SparkGeneric,
+				ExecutorConfig: &SparkGenericConfig{
+					Master:     "my.other.spark.cluster.io:7077",
+					DeployMode: "cluster",
+				},
+				StoreType: S3,
+				StoreConfig: &S3FileStoreConfig{
+					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					BucketRegion: "us-west-2",
+					BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
+					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
+				},
+			},
+		}, ss.StringSet{
+			"Executor.Master":    true,
+			"Store.BucketRegion": true,
+		}, false},
 		{"Executor Config Mismatch: EMR -> Databricks", args{
 			a: SparkConfig{
 				ExecutorType: EMR,

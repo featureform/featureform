@@ -16,7 +16,7 @@ jest.mock("next/router", () => ({
 
 describe("Search Input Tests", () => {
     const SEARCH_INPUT_ID = "searchInputId";
-    const SEARCH_URI = "/search?q=";
+    const SEARCH_URI = "/query?q=";
     const USER_EVENT_ENTER = "{enter}";
     const USER_EVENT_DELETE = "{backspace}";
 

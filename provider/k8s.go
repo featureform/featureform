@@ -1251,9 +1251,12 @@ func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 
 func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogger) (PrimaryTable, error) {
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
+	logger.Debugw("----Ali----ResourceKey", "resourceKey", resourceKey)
 	logger.Debugw("Getting primary table", "id", id)
 
-	table, err := store.Read(resourceKey)
+	mostRecentFile, err := store.NewestFileOfType(resourceKey, Parquet)
+	logger.Debugw("----Ali----MostRecentFile", "mostRecentFile", mostRecentFile)
+	table, err := store.Read(mostRecentFile)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching primary table: %v", err)
 	}
@@ -1272,13 +1275,13 @@ func (k8s *K8sOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error
 
 func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.SugaredLogger) (OfflineTable, error) {
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
-	logger.Debugw("====---Ali----====", "resourceKey", resourceKey)
-	mostRecentFile, err := store.NewestFileOfType(resourceKey, Parquet)
-	if err != nil {
-		return nil, fmt.Errorf("error getting most recent file: %v", err)
-	}
+	//logger.Debugw("====---Ali----====", "resourceKey", resourceKey)
+	//mostRecentFile, err := store.NewestFileOfType(resourceKey, Parquet)
+	//if err != nil {
+	//	return nil, fmt.Errorf("error getting most recent file: %v", err)
+	//}
 	logger.Debugw("Getting resource table", "id", id)
-	serializedSchema, err := store.Read(mostRecentFile)
+	serializedSchema, err := store.Read(resourceKey)
 	if err != nil {
 		return nil, fmt.Errorf("error reading schema bytes from blob storage: %v", err)
 	}

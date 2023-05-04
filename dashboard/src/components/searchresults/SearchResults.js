@@ -24,7 +24,9 @@ const SearchResults = ({ searchResults, api, setVariant, ...props }) => {
   let search_query = useQuery().get("q");
   const fetchQuery = props.fetch;
   useEffect(() => {
-    fetchQuery(api, search_query);
+    if (api && search_query) {
+      fetchQuery(api, search_query);
+    }
   }, [search_query, api, fetchQuery]);
 
   return (

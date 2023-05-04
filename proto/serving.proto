@@ -10,6 +10,7 @@ package featureform.serving.proto;
 
 service Feature {
   rpc TrainingData(TrainingDataRequest) returns (stream TrainingDataRow) {}
+  rpc TrainingDataColumns(TrainingDataColumnsRequest) returns (TrainingColumns) {}
   rpc FeatureServe(FeatureServeRequest) returns (FeatureRow) {}
   rpc SourceData(SourceDataRequest) returns (stream SourceDataRow) {}
   rpc SourceColumns(SourceColumnRequest) returns (SourceDataColumns) {}
@@ -87,4 +88,13 @@ message SourceDataRow {
 
 message SourceDataColumns {
   repeated string columns = 1;
+}
+
+message TrainingDataColumnsRequest {
+  TrainingDataID id = 1;
+}
+
+message TrainingColumns {
+  repeated string features = 1;
+  string label = 2;
 }

@@ -1264,3 +1264,29 @@ func TestSimpleModelRegistrationTrainingSetServe(t *testing.T) {
 		t.Fatalf("Wrong training set associated with registered model: %v\nExpected %v", modelTrainingSet, trainingData)
 	}
 }
+
+func TestTrainingDataColumns(t *testing.T) {
+	ctx := onlineTestContext{
+		ResourceDefsFn: simpleResourceDefsFn,
+		FactoryFn:      createMockOfflineStoreFactory(simpleFeatureRecords(), simpleTrainingSetDefs()),
+	}
+	serv := ctx.Create(t)
+	defer ctx.Destroy()
+	req := &pb.TrainingDataColumnsRequest{
+		Id: &pb.TrainingDataID{
+			Name:    "training-set",
+			Version: "variant",
+		},
+	}
+	expectedColumns := &pb.TrainingColumns{
+		Features: []string{"feature_feature_variant"},
+		Label:    "label_label_variant",
+	}
+	resp, err := serv.TrainingDataColumns(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Failed to get training data columns: %s", err)
+	}
+	if !reflect.DeepEqual(expectedColumns, resp) {
+		t.Fatalf("Columns aren't equal: %v\n%v", expectedColumns, resp)
+	}
+}

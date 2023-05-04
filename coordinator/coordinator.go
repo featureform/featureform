@@ -633,6 +633,7 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 		return fmt.Errorf("source of could not complete job: %v", err)
 	}
 	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
+	c.Logger.Debugw("Fetched source provider", "provider", sourceProvider)
 	if err != nil {
 		return fmt.Errorf("could not fetch online provider: %v", err)
 	}
@@ -641,6 +642,7 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 		return fmt.Errorf("could not get offline provider config: %v", err)
 	}
 	sourceStore, err := p.AsOfflineStore()
+	c.Logger.Debugw("Fetched source store", "store", sourceStore)
 	if err != nil {
 		return fmt.Errorf("convert source provider to offline store interface: %v", err)
 	}
@@ -722,6 +724,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		return fmt.Errorf("source of could not complete job: %v", err)
 	}
 	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
+	c.Logger.Debugw("Fetched source provider", "provider", sourceProvider)
 	if err != nil {
 		return fmt.Errorf("could not fetch online provider: %v", err)
 	}
@@ -730,6 +733,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		return err
 	}
 	sourceStore, err := p.AsOfflineStore()
+	c.Logger.Debugw("Fetched source store", "store", sourceStore)
 	if err != nil {
 		return err
 	}

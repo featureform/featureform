@@ -1228,6 +1228,7 @@ func (k8s *K8sOfflineStore) getResourceInformationFromFilePath(path string) (str
 func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	k8s.logger.Debugw("Getting transformation table", "id", id)
 	transformationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(id), false)
+	k8s.logger.Debugw("Getting transformation table", "transformationPath", transformationPath)
 	transformationExactPath, err := k8s.store.NewestFileOfType(transformationPath, Parquet)
 	if err != nil {
 		k8s.logger.Errorw("Could not get transformation table", "error", err)
@@ -1251,11 +1252,6 @@ func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 
 func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogger) (PrimaryTable, error) {
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
-	//logger.Debugw("----Ali----ResourceKey", "resourceKey", resourceKey)
-	//logger.Debugw("Getting primary table", "id", id)
-
-	//mostRecentFile, err := store.NewestFileOfType(resourceKey, Parquet)
-	//logger.Debugw("----Ali----MostRecentFile", "mostRecentFile", mostRecentFile)
 	table, err := store.Read(resourceKey)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching primary table: %v", err)
@@ -1280,7 +1276,7 @@ func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.Sugar
 	//if err != nil {
 	//	return nil, fmt.Errorf("error getting most recent file: %v", err)
 	//}
-	logger.Debugw("Getting resource table", "id", id)
+	logger.Debugw("Getting resource table", "id", id, "resourceKey", resourceKey)
 	serializedSchema, err := store.Read(resourceKey)
 	if err != nil {
 		return nil, fmt.Errorf("error reading schema bytes from blob storage: %v", err)

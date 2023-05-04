@@ -1467,7 +1467,7 @@ func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (Transform
 	if err != nil || transformationExactPath == "" {
 		return nil, fmt.Errorf("could not get transformation table at %s: %v", transformationPath, err)
 	}
-	spark.Logger.Debugw("Succesfully retrieved transformation table", "ResourceID", id)
+	spark.Logger.Debugw("Successfully retrieved transformation table", "ResourceID", id)
 	return &FileStorePrimaryTable{spark.Store, transformationExactPath, true, id}, nil
 }
 
@@ -1523,7 +1523,11 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		return nil, fmt.Errorf("materialization already exists")
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-	sourcePath := spark.Store.PathWithPrefix(sparkResourceTable.schema.SourceTable, true)
+	// just to make sure this works
+	splitPath := strings.Split(sparkResourceTable.schema.SourceTable, "/")
+	// path is equal to everything esides the last
+	path := strings.Join(splitPath[:len(splitPath)-1], "/")
+	sourcePath := spark.Store.PathWithPrefix(path, true)
 	sparkArgs := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize, spark.Store)
 	spark.Logger.Debugw("Creating materialization", "id", id)
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {

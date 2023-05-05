@@ -1285,7 +1285,7 @@ func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.Sugar
 	if err := resourceSchema.Deserialize(serializedSchema); err != nil {
 		return nil, fmt.Errorf("error deserializing resource table: %v", err)
 	}
-	logger.Debugw("Successfully fetched resource table", "id", id)
+	logger.Debugw("Successfully fetched resource table", "id", id, "resourceSchema", resourceSchema)
 	return &BlobOfflineTable{resourceSchema}, nil
 }
 

@@ -1497,13 +1497,12 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		return nil, fmt.Errorf("only features can be materialized")
 	}
 	resourceTable, err := spark.GetResourceTable(id)
-	spark.Logger.Debugw("-----Ali-----resourceTable", "resourceTable", resourceTable)
 	if err != nil {
 		spark.Logger.Errorw("Attempted to fetch resource table of non registered resource", "error", err)
 		return nil, fmt.Errorf("resource not registered: %v", err)
 	}
 	sparkResourceTable, ok := resourceTable.(*BlobOfflineTable)
-	spark.Logger.Debugw("----Ali-----sparkResourceTable", "sparkResourceTable", sparkResourceTable)
+	spark.Logger.Debugw("----Ali-----sparkResourceTable", "sparkResourceTable", sparkResourceTable.schema)
 	if !ok {
 		spark.Logger.Errorw("Could not convert resource table to S3 offline table", "id", id)
 		return nil, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
@@ -1524,10 +1523,13 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
 	// just to make sure this works
-	splitPath := strings.Split(sparkResourceTable.schema.SourceTable, "/")
+	sourcePath := spark.Store.PathWithPrefix(sparkResourceTable.schema.SourceTable, true)
+	splitPath := strings.Split(sourcePath, "/")
+	spark.Logger.Debugw("-----Ali-----splitPath", "splitPath", splitPath)
 	// path is equal to everything esides the last
 	path := strings.Join(splitPath[:len(splitPath)-1], "/")
 	newestFilePath, err := spark.Store.NewestFileOfType(path, Parquet)
+	spark.Logger.Debugw("-----Ali-----newestFilePath", "newestFilePath", newestFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("could not get newest materialization file: %v", err)
 	}

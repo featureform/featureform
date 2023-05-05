@@ -4,7 +4,7 @@
 
 import inspect
 import os
-from typing import Union
+from typing import List, Union
 import warnings
 import dill
 import json
@@ -816,6 +816,38 @@ class Dataset:
         stream = Stream(self._stream, name, version, model)
         return Dataset(stream)
 
+    def dataframe(self) -> pd.DataFrame:
+        """Returns the training set as a pandas DataFrame
+
+        **Examples**:
+        ``` py
+            client = Client()
+            df = client.training_set("fraud_training", "v1").dataframe()
+            print(df.head())
+            # Output:
+            #                feature_avg_transactions_default  label_fraudulent_default
+            # 0                                25.0                       False
+            # 1                             27999.0                       False
+            # 2                               459.0                       False
+            # 3                              2060.0                        True
+            # 4                              1762.5                       False
+        ```
+
+        Returns:
+            pandas.DataFrame: A pandas DataFrame containing the training set.
+        """
+        if self._dataframe is not None:
+            return self._dataframe
+        else:
+            name = self._stream.name
+            variant = self._stream.version
+            stub = self._stream._stub
+            id = serving_pb2.TrainingDataID(name=name, version=variant)
+            req = serving_pb2.TrainingDataRequest(id=id)
+            cols = stub.TrainingDataColumns(req)
+            data = [r.to_dict(cols.features, cols.label) for r in self._stream]
+            return pd.DataFrame(data=data, columns=[*cols.features, cols.label])
+
     def from_dataframe(dataframe, include_label_timestamp):
         stream = LocalStream(dataframe.values.tolist(), include_label_timestamp)
         return Dataset(stream, dataframe)
@@ -909,11 +941,11 @@ class Dataset:
 
 class Row:
     def __init__(self, proto_row):
-        features = np.array(
+        self._features = np.array(
             [parse_proto_value(feature) for feature in proto_row.features]
         )
         self._label = parse_proto_value(proto_row.label)
-        self._row = np.append(features, self._label)
+        self._row = np.append(self._features, self._label)
 
     def features(self):
         return [self._row[:-1]]
@@ -923,6 +955,11 @@ class Row:
 
     def to_numpy(self):
         return self._row
+
+    def to_dict(self, feature_columns: List[str], label_column: str):
+        row_dict = dict(zip(feature_columns, self._features))
+        row_dict[label_column] = self._label
+        return row_dict
 
     def __repr__(self):
         return "Features: {} , Label: {}".format(self.features(), self.label())

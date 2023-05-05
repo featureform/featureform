@@ -1523,13 +1523,14 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
 	// just to make sure this works
-	sourcePath := spark.Store.PathWithPrefix(sparkResourceTable.schema.SourceTable, true)
-	splitPath := strings.Split(sourcePath, "/")
+	splitPath := strings.Split(sparkResourceTable.schema.SourceTable, "/")
 	spark.Logger.Debugw("-----Ali-----splitPath", "splitPath", splitPath)
-	// path is equal to everything esides the last
 	path := strings.Join(splitPath[:len(splitPath)-1], "/")
 	newestFilePath, err := spark.Store.NewestFileOfType(path, Parquet)
 	spark.Logger.Debugw("-----Ali-----newestFilePath", "newestFilePath", newestFilePath)
+	sourcePath := spark.Store.PathWithPrefix(newestFilePath, true)
+	spark.Logger.Debugw("-----Ali-----sourcePath", "splitPath", sourcePath)
+	// path is equal to everything esides the last
 	if err != nil {
 		return nil, fmt.Errorf("could not get newest materialization file: %v", err)
 	}

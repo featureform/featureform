@@ -72,7 +72,7 @@ ice_cream = k8s.register_file(
     name=f"ice_cream_{VERSION}",
     variant=VERSION,
     description="A dataset of ice cream",
-    path="testing/ff/data/ice_cream_100rows.csv",
+    path="featureform/tests/ice_cream.parquet",
 )
 
 

@@ -47,7 +47,7 @@ azure_blob = ff.register_blob_store(
     account_name=os.getenv("AZURE_ACCOUNT_NAME", None),
     account_key=os.getenv("AZURE_ACCOUNT_KEY", None),
     container_name=os.getenv("AZURE_CONTAINER_NAME", None),
-    root_path="testing/ff",
+    root_path=f"testing/ff",
 )
 
 k8s = ff.register_k8s(

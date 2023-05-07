@@ -342,20 +342,22 @@ cleanup_coordinator:
 containers: gen_grpc						## Build Docker containers for Minikube
 	minikube image build -f ./api/Dockerfile . -t local/api-server:stable & \
 	minikube image build -f ./dashboard/Dockerfile . -t local/dashboard:stable & \
-	minikube image build -f ./coordinator/Dockerfile . -t local/coordinator:stable & \
+	minikube image build -f ./coordinator/Dockerfile.old --build-opt=build-arg=TESTING=True . -t local/coordinator:stable & \
 	minikube image build -f ./metadata/Dockerfile . -t local/metadata:stable & \
 	minikube image build -f ./metadata/dashboard/Dockerfile . -t local/metadata-dashboard:stable & \
 	minikube image build -f ./serving/Dockerfile . -t local/serving:stable & \
-	minikube image build -f ./runner/Dockerfile . -t local/worker:stable & \
+	minikube image build -f ./runner/Dockerfile --build-opt=build-arg=TESTING=True . -t local/worker:stable & \
+	minikube image build -f ./provider/scripts/k8s/Dockerfile . -t local/k8s_runner:stable & \
+	minikube image build -f ./provider/scripts/k8s/Dockerfile.scikit . -t local/k8s_runner:stable-scikit & \
 	wait; \
 	echo "Build Complete"
 
 start_minikube:	##Starts Minikube
-	minikube start
+	minikube start --kubernetes-version=v1.23.3
 
 reset_minikube:	##Resets Minikube
 	minikube delete
-	minikube start
+	minikube start --kubernetes-version=v1.23.3
 
 install_featureform: start_minikube containers		## Configures Featureform on Minikube
 	helm repo add jetstack https://charts.jetstack.io

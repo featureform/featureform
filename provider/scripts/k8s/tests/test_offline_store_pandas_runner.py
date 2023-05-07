@@ -12,7 +12,6 @@ from dotenv import load_dotenv
 from offline_store_pandas_runner import K8S_MODE, LOCAL, AZURE, S3, GCS, LOCAL_DATA_PATH
 from offline_store_pandas_runner import (
     main,
-    get_etcd_host,
     get_args,
     get_blob_store,
     execute_df_job,
@@ -101,14 +100,6 @@ def test_execute_df_job(df_transformation, variables, expected_output, request):
     set_environment_variables(env)
     args = get_args()
 
-    etcd_creds = None
-    if args.mode == K8S_MODE:
-        etcd_creds = {
-            "host": args.etcd_host,
-            "ports": args.etcd_ports,
-            "username": args.etcd_user,
-            "password": args.etcd_password,
-        }
     blob_store = get_blob_store(args.blob_credentials)
 
     output_file = execute_df_job(
@@ -116,7 +107,6 @@ def test_execute_df_job(df_transformation, variables, expected_output, request):
         args.output_uri,
         df_transformation,
         args.sources,
-        etcd_creds,
         blob_store,
     )
 
@@ -128,18 +118,6 @@ def test_execute_df_job(df_transformation, variables, expected_output, request):
 
     set_environment_variables(env, delete=True)
     assert len(expected_df) == len(output_df)
-
-
-@pytest.mark.parametrize(
-    "host,ports,expected_output",
-    [
-        ("127.0.0.1", ["2379"], (("127.0.0.1", 2379),)),
-        ("127.0.0.1", ["2379", "2380"], (("127.0.0.1", 2379), ("127.0.0.1", 2380))),
-    ],
-)
-def test_get_etcd_host(host, ports, expected_output):
-    etcd_host = get_etcd_host(host, ports)
-    assert etcd_host == expected_output
 
 
 @pytest.mark.parametrize(

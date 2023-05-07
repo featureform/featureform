@@ -8,7 +8,6 @@ from argparse import Namespace
 
 import dill
 
-# import etcd # TODO: Uncomment this line when etcd is used to store df transformations
 import boto3
 import pandas as pd
 from pandasql import sqldf
@@ -70,7 +69,6 @@ class BlobStore:
             or blob_path.endswith(".pkl")
         ):
             response = self.download_file(blob_path, full_path)
-
         else:
             print("downloading directory...")
             if not os.path.isdir(full_path):
@@ -104,8 +102,8 @@ class S3BlobStore(BlobStore):
 
     def upload_file(self, local_file_path, blob_path):
         bucket = self._client.Bucket(self._bucket_name)
-        response = bucket.upload_file(local_file_path, blob_path)
-        return response
+        _ = bucket.upload_file(local_file_path, blob_path)
+        return blob_path
 
     def upload_directory(self, directory_path, blob_path):
         file_count = 0
@@ -114,7 +112,7 @@ class S3BlobStore(BlobStore):
             _ = self.upload_file(local_file_path, f"{blob_path}/{file}")
             file_count += 1
 
-        return f"uploaded {file_count} files to {blob_path}"
+        return blob_path
 
     def download_file(self, blob_path, local_file_path):
         s3_object = self._client.Object(
@@ -142,7 +140,7 @@ class S3BlobStore(BlobStore):
 
             file_count += 1
 
-        return f"downloaded {file_count} files to {directory_path}"
+        return directory_path
 
 
 class AzureBlobStore(BlobStore):
@@ -163,6 +161,8 @@ class AzureBlobStore(BlobStore):
         blob_upload = self._client.get_blob_client(blob_path)
         with open(local_filename, "rb") as data:
             blob_upload.upload_blob(data, blob_type="BlockBlob")
+        
+        return blob_path
 
     def upload_directory(self, directory_path, blob_path):
         print(f"uploading {directory_path} file to {blob_path} as partitioned files")
@@ -171,6 +171,8 @@ class AzureBlobStore(BlobStore):
             full_file_path = os.path.join(directory_path, file)
             with open(full_file_path, "rb") as data:
                 blob_upload.upload_blob(data, blob_type="BlockBlob")
+        
+        return blob_path
 
     def download_file(self, blob_path, local_file_path):
         blob_client = self._client.get_blob_client(blob_path)
@@ -178,6 +180,8 @@ class AzureBlobStore(BlobStore):
         with open(local_file_path, "wb") as my_blob:
             download_stream = blob_client.download_blob()
             my_blob.write(download_stream.readall())
+        
+        return local_file_path
 
     def download_directory(self, blob_path, directory_path):
         print(f"downloading directory: {blob_path}")
@@ -196,6 +200,8 @@ class AzureBlobStore(BlobStore):
             with open(f"{directory_path}/{b.name.split('/')[-1]}", "wb") as my_blob:
                 download_stream = blob_client.download_blob()
                 my_blob.write(download_stream.readall())
+        
+        return directory_path
 
 
 class LocalBlobStore(BlobStore):
@@ -213,6 +219,7 @@ def main(args):
     """
 
     blob_store = get_blob_store(args.blob_credentials)
+    print(f"retrieved blob store of type {blob_store.type}")
 
     if args.transformation_type == "sql":
         print(f"starting execution for SQL Transformation in {args.mode} mode")
@@ -230,7 +237,6 @@ def main(args):
             args.output_uri,
             args.transformation,
             args.sources,
-            args.etcd_credentials,
             blob_store,
         )
     return output_location
@@ -288,7 +294,7 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_store):
         raise e
 
 
-def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_store):
+def execute_df_job(mode, output_uri, code, sources, blob_store):
     """
     Executes the DF transformation:
 
@@ -297,7 +303,6 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_store
         output_uri:       string (blob store path)
         code:             code (python code)
         sources:          List(string) (a list of input sources)
-        etcd_credentials: {"username": "", "password": ""} (used to pull the code)
         blob_store:       BlobStore (blob store object)
 
     Returns:
@@ -305,14 +310,18 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_store
     """
 
     func_parameters = []
+    print(f"reading '{len(sources)}' source files")
     for i, source in enumerate(sources):
         if blob_store.type == LOCAL:
             source_path = source
         else:
             # download blob to local & set source to local path
             local_file = f"source_{i}.csv" if source.endswith(".csv") else f"source_{i}"
+
+            print(f"downloading {source} to {local_file}")
             source_path = blob_store.download(source, local_file)
 
+        print(f"reading '{source}' source file into dataframe")
         if source_path.endswith(".csv"):
             func_parameters.append(pd.read_csv(source_path))
         else:
@@ -321,18 +330,22 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_store
     try:
         df_path = "transformation.pkl"
 
+
+        print(f"retrieving code from {code} in {blob_store.type}")
         if blob_store.type == LOCAL:
             code_path = code
         else:
             code_path = blob_store.download(code, df_path)
-
-        code = get_code_from_file(mode, code_path, etcd_credentials)
+    
+        print("executing transformation code")
+        code = get_code_from_file(mode, code_path)
         func = types.FunctionType(code, globals(), "df_transformation")
         output_df = pd.DataFrame(func(*func_parameters))
 
         dt = datetime.now()
         output_uri_with_timestamp = f"{output_uri}/{dt}.parquet"
 
+        print(f"storing output dataframe to {output_uri_with_timestamp}")
         if blob_store.type == LOCAL:
             os.makedirs(output_uri, exist_ok=True)
             output_df.to_parquet(output_uri_with_timestamp)
@@ -349,7 +362,7 @@ def execute_df_job(mode, output_uri, code, sources, etcd_credentials, blob_store
         raise e
 
 
-def get_code_from_file(mode, file_path, etcd_credentials):
+def get_code_from_file(mode, file_path):
     """
     Reads the code from a pkl file into a python code object.
     Then this object will be used to execute the transformation.
@@ -357,49 +370,17 @@ def get_code_from_file(mode, file_path, etcd_credentials):
     Parameters:
         mode:             string ("local", "k8s")
         file_path:        string (path to file)
-        etcd_credentials: Namespace(host="", port=[""], username="", password="") (used to pull the code)
-
+        
     Returns:
         code: code object that could be executed
     """
     print(f"Retrieving transformation code from '{file_path}' file in {mode} mode.")
     code = None
-    # if mode == "k8s":
-    #     """
-    #     When executing on kubernetes, we will need to pull the transformation
-    #     from etcd.
-    #     """
-    #     if len(etcd_credentials["ports"]) == 1:
-    #         etcd_port = int(etcd_credentials["ports"][0])
-    #         etcd_client = etcd.Client(host=etcd_credentials["host"], port=etcd_port)
-    #     else:
-    #         etcd_host = get_etcd_host(etcd_credentials["host"], etcd_credentials["ports"])
-    #         etcd_client = etcd.Client(host=etcd_host)
-
-    #     code_data = etcd_client.read(file_path).value
-    #     code = dill.loads(code_data)
-    # else:
     with open(file_path, "rb") as f:
         f.seek(0)
         code = dill.load(f)
 
     return code
-
-
-def get_etcd_host(host, ports):
-    """
-    Converts the host and ports list into the expected for need for etcd client.
-    Parameters:
-        host: str   ("127.0.0.1")
-        port: [str] (["2379"])
-
-    Returns:
-        etcd_host: [(str, str)] (example: [("127.0.0.1", "2379")])
-    """
-    etcd_host = []
-    for port in ports:
-        etcd_host.append((host, int(port)))
-    return tuple(etcd_host)
 
 
 def get_blob_store(store_credentials):
@@ -454,7 +435,6 @@ def get_args():
     transformation_type = os.getenv("TRANSFORMATION_TYPE")
     transformation = os.getenv("TRANSFORMATION")
 
-    etcd_credentials = get_etcd_credentials(mode, transformation_type)
     blob_credentials = get_blob_credentials(mode, blob_store_type)
 
     args = Namespace(
@@ -463,7 +443,6 @@ def get_args():
         transformation=transformation,
         output_uri=output_uri,
         sources=sources,
-        etcd_credentials=etcd_credentials,
         blob_credentials=blob_credentials,
     )
 
@@ -502,43 +481,6 @@ def validate_args(args):
         raise Exception(
             "the environment variables are not set properly; output_uri, sources, and transformation are not set correctly."
         )
-
-
-def get_etcd_credentials(mode, transformation_type):
-    """
-    Retrieves etcd credentials from environment variables.
-
-    Parameters:
-        mode: string ("local", "k8s")
-        transformation_type: string ("sql", "df")
-
-    Returns:
-        Namespace
-    """
-
-    if mode == K8S_MODE and transformation_type == "df":
-        etcd_host = os.getenv("ETCD_HOST")
-        etcd_ports = os.getenv("ETCD_PORT", "").split(",")
-        etcd_user = os.getenv("ETCD_USERNAME")
-        etcd_password = os.getenv("ETCD_PASSWORD")
-
-        if (
-            etcd_host == ""
-            or etcd_ports == [""]
-            or etcd_user == ""
-            or etcd_password == ""
-        ):
-            raise Exception(
-                "for k8s mode, df transformations require etcd host, port, and credentials."
-            )
-        return Namespace(
-            host=etcd_host,
-            ports=etcd_ports,
-            username=etcd_user,
-            password=etcd_password,
-        )
-
-    return Namespace()
 
 
 def get_blob_credentials(mode, blob_store_type):

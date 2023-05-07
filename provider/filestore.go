@@ -104,6 +104,7 @@ func (store *AzureFileStore) containerName() string {
 }
 
 func (store AzureFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+	envVars["BLOB_STORE_TYPE"] = "azure"
 	envVars["AZURE_CONNECTION_STRING"] = store.ConnectionString
 	envVars["AZURE_CONTAINER_NAME"] = store.ContainerName
 	return envVars
@@ -195,13 +196,13 @@ func NewS3FileStore(config Config) (FileStore, error) {
 			},
 		}))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not load aws config: %v", err)
 	}
 	cfg.Region = s3StoreConfig.BucketRegion
 	clientV2 := s3v2.NewFromConfig(cfg)
 	bucket, err := s3blob.OpenBucketV2(context.TODO(), clientV2, s3StoreConfig.BucketPath, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create connection to s3 bucket: config: %v, name: %s, %v", s3StoreConfig, s3StoreConfig.BucketPath, err)
 	}
 	return &S3FileStore{
 		Bucket:       s3StoreConfig.BucketPath,
@@ -237,6 +238,7 @@ func (s3 S3FileStore) FilestoreType() pc.FileStoreType {
 }
 
 func (s3 S3FileStore) AddEnvVars(envVars map[string]string) map[string]string {
+	envVars["BLOB_STORE_TYPE"] = "s3"
 	envVars["AWS_ACCESS_KEY_ID"] = s3.Credentials.AWSAccessKeyId
 	envVars["AWS_SECRET_KEY"] = s3.Credentials.AWSSecretKey
 	envVars["S3_BUCKET_REGION"] = s3.BucketRegion

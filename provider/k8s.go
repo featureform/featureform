@@ -158,7 +158,7 @@ func CreateFileStore(name string, config Config) (FileStore, error) {
 	}
 	FileStore, err := factory(config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create FileStore: %v", err)
 	}
 	return FileStore, nil
 }

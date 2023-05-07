@@ -23,10 +23,10 @@ func (k8s *K8sConfig) Serialize() ([]byte, error) {
 	return data, nil
 }
 
-func (k8s *K8sConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, k8s)
+func (k8s *K8sConfig) Deserialize(data SerializedConfig) error {
+	err := json.Unmarshal(data, k8s)
 	if err != nil {
-		return fmt.Errorf("deserialize k8s config: %w", err)
+		return err
 	}
 	return nil
 }
@@ -71,6 +71,7 @@ func (k8s *K8sConfig) decodeExecutor(executorType ExecutorType, configMap map[st
 	if err != nil {
 		return fmt.Errorf("could not deserialize config into ExecutorConfig: %w", err)
 	}
+
 	k8s.ExecutorConfig = excConfig
 	return nil
 }
@@ -83,7 +84,7 @@ func (k8s *K8sConfig) decodeFileStore(fileStoreType FileStoreType, configMap map
 	case S3:
 		fileStoreConfig = &S3FileStoreConfig{}
 	default:
-		return fmt.Errorf("the file store type '%s' is not supported ", fileStoreType)
+		return fmt.Errorf("the file store type '%s' is not supported for k8s", fileStoreType)
 	}
 
 	err := mapstructure.Decode(configMap, fileStoreConfig)

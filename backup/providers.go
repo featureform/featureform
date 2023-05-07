@@ -27,7 +27,7 @@ type Azure struct {
 }
 
 func (az *Azure) Init() error {
-	filestoreConfig := pc.AzureFileStoreConfig{
+	filestoreConfig := &pc.AzureFileStoreConfig{
 		AccountName:   az.AccountName,
 		AccountKey:    az.AccountKey,
 		ContainerName: az.ContainerName,

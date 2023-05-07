@@ -260,7 +260,7 @@ func getHDFSFileStore() (FileStore, error) {
 }
 
 func getAzureFileStore() (FileStore, error) {
-	azureConfig := pc.AzureFileStoreConfig{
+	azureConfig := &pc.AzureFileStoreConfig{
 		AccountName:   os.Getenv("AZURE_ACCOUNT_NAME"),
 		AccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
 		ContainerName: os.Getenv("AZURE_CONTAINER_NAME"),

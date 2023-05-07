@@ -34,27 +34,28 @@ func uuidWithoutDashes() string {
 // Tests that both Legacy and new ExecutorConfig can be properly deserialized
 func TestDeserializeExecutorConfig(t *testing.T) {
 	expectedConfig := pc.K8sConfig{
-		ExecutorType: "k8s",
+		ExecutorType: pc.K8s,
 		ExecutorConfig: pc.ExecutorConfig{
 			DockerImage: "",
 		},
-		StoreType: "blob",
-		StoreConfig: pc.AzureFileStoreConfig{
+		StoreType: pc.Azure,
+		StoreConfig: &pc.AzureFileStoreConfig{
 			AccountName:   "account name",
 			AccountKey:    "account key",
 			ContainerName: "container name",
 			Path:          "container path",
 		},
 	}
+
 	testConfig := map[string]interface{}{
 		"ExecutorType":   expectedConfig.ExecutorType,
 		"ExecutorConfig": "",
 		"StoreType":      expectedConfig.StoreType,
-		"StoreConfig": map[string]interface{}{
-			"AccountName":   expectedConfig.StoreConfig.AccountName,
-			"AccountKey":    expectedConfig.StoreConfig.AccountKey,
-			"ContainerName": expectedConfig.StoreConfig.ContainerName,
-			"Path":          expectedConfig.StoreConfig.Path,
+		"StoreConfig": &pc.AzureFileStoreConfig{
+			AccountName:   expectedConfig.StoreConfig.(*pc.AzureFileStoreConfig).AccountName,
+			AccountKey:    expectedConfig.StoreConfig.(*pc.AzureFileStoreConfig).AccountKey,
+			ContainerName: expectedConfig.StoreConfig.(*pc.AzureFileStoreConfig).ContainerName,
+			Path:          expectedConfig.StoreConfig.(*pc.AzureFileStoreConfig).Path,
 		},
 	}
 
@@ -98,7 +99,8 @@ func TestDeserializeExecutorConfig(t *testing.T) {
 			}
 			receivedConfig := pc.K8sConfig{}
 			receivedConfig.Deserialize(serializedConfig)
-			if !reflect.DeepEqual(expectedConfig, receivedConfig) {
+
+			if !(reflect.DeepEqual(expectedConfig, receivedConfig)) {
 				t.Errorf("\nExpected %#v\nGot %#v\n", expectedConfig, receivedConfig)
 			}
 		})
@@ -140,7 +142,7 @@ func TestBlobInterfaces(t *testing.T) {
 		t.Fatalf("failed to create new file blob store: %v", err)
 	}
 
-	azureStoreConfig := pc.AzureFileStoreConfig{
+	azureStoreConfig := &pc.AzureFileStoreConfig{
 		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
@@ -301,7 +303,7 @@ func TestNewConfig(t *testing.T) {
 		ExecutorType:   pc.K8s,
 		ExecutorConfig: pc.ExecutorConfig{},
 		StoreType:      pc.Azure,
-		StoreConfig: pc.AzureFileStoreConfig{
+		StoreConfig: &pc.AzureFileStoreConfig{
 			AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 			AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 			ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
@@ -682,7 +684,7 @@ func TestDatabricksInitialization(t *testing.T) {
 		t.Fatalf("Could not create new databricks client: %v", err)
 	}
 
-	azureStoreConfig := pc.AzureFileStoreConfig{
+	azureStoreConfig := &pc.AzureFileStoreConfig{
 		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
@@ -754,7 +756,7 @@ func TestKExecutorConfig_getImage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &pc.ExecutorConfig{
+			c := pc.ExecutorConfig{
 				DockerImage: tt.fields.DockerImage,
 			}
 			if got := c.GetImage(); got != tt.want {

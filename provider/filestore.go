@@ -138,7 +138,7 @@ func (store AzureFileStore) FilestoreType() pc.FileStoreType {
 }
 
 func NewAzureFileStore(config Config) (FileStore, error) {
-	azureStoreConfig := pc.AzureFileStoreConfig{}
+	azureStoreConfig := &pc.AzureFileStoreConfig{}
 	if err := azureStoreConfig.Deserialize(pc.SerializedConfig(config)); err != nil {
 		return nil, fmt.Errorf("could not deserialize azure store config: %v", err)
 	}

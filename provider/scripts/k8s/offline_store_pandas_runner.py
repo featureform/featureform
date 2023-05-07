@@ -161,7 +161,7 @@ class AzureBlobStore(BlobStore):
         blob_upload = self._client.get_blob_client(blob_path)
         with open(local_filename, "rb") as data:
             blob_upload.upload_blob(data, blob_type="BlockBlob")
-        
+
         return blob_path
 
     def upload_directory(self, directory_path, blob_path):
@@ -171,7 +171,7 @@ class AzureBlobStore(BlobStore):
             full_file_path = os.path.join(directory_path, file)
             with open(full_file_path, "rb") as data:
                 blob_upload.upload_blob(data, blob_type="BlockBlob")
-        
+
         return blob_path
 
     def download_file(self, blob_path, local_file_path):
@@ -180,7 +180,7 @@ class AzureBlobStore(BlobStore):
         with open(local_file_path, "wb") as my_blob:
             download_stream = blob_client.download_blob()
             my_blob.write(download_stream.readall())
-        
+
         return local_file_path
 
     def download_directory(self, blob_path, directory_path):
@@ -200,7 +200,7 @@ class AzureBlobStore(BlobStore):
             with open(f"{directory_path}/{b.name.split('/')[-1]}", "wb") as my_blob:
                 download_stream = blob_client.download_blob()
                 my_blob.write(download_stream.readall())
-        
+
         return directory_path
 
 
@@ -330,13 +330,12 @@ def execute_df_job(mode, output_uri, code, sources, blob_store):
     try:
         df_path = "transformation.pkl"
 
-
         print(f"retrieving code from {code} in {blob_store.type}")
         if blob_store.type == LOCAL:
             code_path = code
         else:
             code_path = blob_store.download(code, df_path)
-    
+
         print("executing transformation code")
         code = get_code_from_file(mode, code_path)
         func = types.FunctionType(code, globals(), "df_transformation")
@@ -370,7 +369,7 @@ def get_code_from_file(mode, file_path):
     Parameters:
         mode:             string ("local", "k8s")
         file_path:        string (path to file)
-        
+
     Returns:
         code: code object that could be executed
     """

@@ -408,6 +408,8 @@ jobs:
           GCP_CREDENTIALS_FILE: "./provider/gcp_credentials.json"
           FEATUREFORM_HOST: localhost:8000
           FEATUREFORM_CERT: tls.crt
+          K8S_RUNNER_BASE_IMAGE: "local/k8s_runner:stable"
+          K8S_RUNNER_SCIKIT: "local/k8s_runner:scikit-stable"
 
         run: make test_e2e
 

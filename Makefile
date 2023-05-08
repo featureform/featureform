@@ -340,15 +340,15 @@ cleanup_coordinator:
 ##############################################  MINIKUBE ###############################################################
 
 containers: gen_grpc						## Build Docker containers for Minikube
-	minikube image build -f ./api/Dockerfile . -t local/api-server:stable & \
-	minikube image build -f ./dashboard/Dockerfile . -t local/dashboard:stable & \
-	minikube image build -f ./coordinator/Dockerfile.old --build-opt=build-arg=TESTING=True . -t local/coordinator:stable & \
-	minikube image build -f ./metadata/Dockerfile . -t local/metadata:stable & \
-	minikube image build -f ./metadata/dashboard/Dockerfile . -t local/metadata-dashboard:stable & \
-	minikube image build -f ./serving/Dockerfile . -t local/serving:stable & \
-	minikube image build -f ./runner/Dockerfile --build-opt=build-arg=TESTING=True . -t local/worker:stable & \
-	minikube image build -f ./provider/scripts/k8s/Dockerfile . -t local/k8s_runner:stable & \
-	minikube image build -f ./provider/scripts/k8s/Dockerfile.scikit . -t local/k8s_runner:stable-scikit & \
+	minikube image build --v=3 -f ./api/Dockerfile . -t local/api-server:stable & \
+	minikube image build --v=3 -f ./dashboard/Dockerfile . -t local/dashboard:stable & \
+	minikube image build --v=3 -f ./coordinator/Dockerfile.old --build-opt=build-arg=TESTING=True . -t local/coordinator:stable & \
+	minikube image build --v=3 -f ./metadata/Dockerfile . -t local/metadata:stable & \
+	minikube image build --v=3 -f ./metadata/dashboard/Dockerfile . -t local/metadata-dashboard:stable & \
+	minikube image build --v=3 -f ./serving/Dockerfile . -t local/serving:stable & \
+	minikube image build --v=3 -f ./runner/Dockerfile --build-opt=build-arg=TESTING=True . -t local/worker:stable & \
+	minikube image build --v=3 -f ./provider/scripts/k8s/Dockerfile . -t local/k8s_runner:stable & \
+	minikube image build --v=3 -f ./provider/scripts/k8s/Dockerfile.scikit . -t local/k8s_runner:stable-scikit & \
 	wait; \
 	echo "Build Complete"
 

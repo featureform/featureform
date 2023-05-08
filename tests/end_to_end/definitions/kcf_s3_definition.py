@@ -55,7 +55,7 @@ aws_creds = ff.AWSCredentials(
 )
 
 s3 = ff.register_s3(
-    name=f"s3-kcf_{VERSION}",
+    name=f"kcf-s3-{VERSION}",
     credentials=aws_creds,
     bucket_path=os.getenv("S3_BUCKET_PATH", None),
     bucket_region=os.getenv("S3_BUCKET_REGION", None),
@@ -63,7 +63,7 @@ s3 = ff.register_s3(
 )
 
 k8s = ff.register_k8s(
-    name=f"k8s_{VERSION}",
+    name=f"k8s_s3_{VERSION}",
     store=s3,
     docker_image=os.getenv("K8S_RUNNER_BASE_IMAGE", "featureformcom/k8s_runner:latest"),
 )
@@ -84,37 +84,10 @@ def ice_cream_entity_transformation(df):
     df["entity"] = "farm"
     return df
 
-
-specs = ff.K8sResourceSpecs(
-    cpu_request="100m",
-    cpu_limit="500m",
-    memory_request="1Gi",
-    memory_limit="2Gi",
-)
-
-
-@k8s.df_transformation(
-    name=f"ice_cream_transformation_{VERSION}",
-    variant=VERSION,
-    inputs=[(f"ice_cream_entity_{VERSION}", VERSION)],
-    docker_image=os.getenv(
-        "K8S_RUNNER_SCIKIT", "featureformcom/k8s_runner:latest-scikit"
-    ),
-    resource_specs=specs,
-)
-def scikit_test(df):
-    """the ice cream dataset"""
-    from sklearn import datasets
-
-    iris = datasets.load_iris()
-    print(iris.items())
-    return df
-
-
 farm = ff.register_entity("farm")
 
 # Register a column from our transformation as a feature
-scikit_test.register_resources(
+ice_cream_entity_transformation.register_resources(
     entity=farm,
     entity_column="entity",
     timestamp_column="time_index",
@@ -123,7 +96,7 @@ scikit_test.register_resources(
         {
             "name": FEATURE_NAME,
             "variant": FEATURE_VARIANT,
-            "column": "dairy_flow_rate",
+            "column": "quality_score",
             "type": "float32",
         },
     ],
@@ -149,6 +122,6 @@ ff.register_training_set(
     TRAININGSET_VARIANT,
     label=(f"ice_cream_label_{VERSION}", FEATURE_VARIANT),
     features=[
-        (f"ice_cream_feature_{VERSION}", FEATURE_VARIANT),
+        (FEATURE_NAME, FEATURE_VARIANT),
     ],
 )

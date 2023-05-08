@@ -42,7 +42,7 @@ func (k8s *K8sConfig) UnmarshalJSON(data []byte) error {
 	var temp tempConfig
 	err := json.Unmarshal(data, &temp)
 	if err != nil {
-		return fmt.Errorf("unmarshal: %w", err)
+		return fmt.Errorf("failed to unmarshal configuration: %v", err)
 	}
 
 	k8s.ExecutorType = temp.ExecutorType

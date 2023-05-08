@@ -150,32 +150,28 @@ def average_user_transaction(transactions):
 Next, we'll register a passenger entity to associate with a feature and label.
 
 ```python
-user = ff.register_entity("user")
-# Register a column from our transformation as a feature
-average_user_transaction.register_resources(
-    entity=user,
-    entity_column="CustomerID",
-    inference_store=local,
-    features=[
-        {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
-    ],
-)
-# Register label from our base Transactions table
-transactions.register_resources(
-    entity=user,
-    entity_column="CustomerID",
-    labels=[
-        {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
-    ],
-)
+@ff.entity
+class User:
+    avg_transactions = ff.Feature(
+        average_user_transaction[["CustomerID", "TransactionAmount"]],
+        variant="quickstart",
+        type=ff.Float32,
+        inference_store=local,
+    )
+
+    fraudulent = ff.Label(
+        transactions[["CustomerID", "IsFraud"]],
+        variant="quickstart",
+        type=ff.Bool,
+    )
 ```
 
 Finally, we'll join together the feature and label into a training set.
 ```python
 ff.register_training_set(
-"fraud_training", "quickstart",
-label=("fraudulent", "quickstart"),
-features=[("avg_transactions", "quickstart")],
+    "fraud_training", "quickstart",
+    label=("fraudulent", "quickstart"),
+    features=[("avg_transactions", "quickstart")],
 )
 ```
 Now that our definitions are complete, we can apply it to our Featureform instance.
@@ -189,7 +185,7 @@ Once we have our training set and features registered, we can train our model.
 ```python
 import featureform as ff
 
-client = ff.ServingLocalClient()
+client = ff.Client(local=True)
 dataset = client.training_set("fraud_training", "quickstart")
 training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
 for feature_batch in training_dataset:
@@ -201,8 +197,8 @@ We can serve features in production once we deploy our trained model as well.
 ```python
 import featureform as ff
 
-client = ff.ServingLocalClient()
-fpf = client.features([("avg_transactions", "quickstart")], ("CustomerID", "C1410926"))
+client = ff.Client(local=True)
+fpf = client.features([("avg_transactions", "quickstart")], {"user": "C1410926"})
 # Run features through model
 ```
 

@@ -1525,7 +1525,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	// just to make sure this works
 	splitPath := strings.Split(sparkResourceTable.schema.SourceTable, "/")
 	spark.Logger.Debugw("-----Ali-----splitPath", "splitPath", splitPath)
-	path := strings.Join(splitPath[:len(splitPath)-1], "/")
+	path := strings.Join(splitPath[:len(splitPath)-2], "/")
 	newestFilePath, err := spark.Store.NewestFileOfType(path, Parquet)
 	spark.Logger.Debugw("-----Ali-----newestFilePath", "newestFilePath", newestFilePath)
 	sourcePath := spark.Store.PathWithPrefix(newestFilePath, true)

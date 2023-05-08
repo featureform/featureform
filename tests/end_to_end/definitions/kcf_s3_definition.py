@@ -84,6 +84,7 @@ def ice_cream_entity_transformation(df):
     df["entity"] = "farm"
     return df
 
+
 farm = ff.register_entity("farm")
 
 # Register a column from our transformation as a feature

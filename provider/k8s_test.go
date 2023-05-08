@@ -65,12 +65,12 @@ func TestDeserializeExecutorConfig(t *testing.T) {
 	}
 
 	testCases := map[string]testCase{
-		// "Legacy Config": testCase{
-		// 	"",
-		// 	pc.ExecutorConfig{
-		// 		DockerImage: "",
-		// 	},
-		// },
+		"Legacy Config": testCase{
+			"",
+			pc.ExecutorConfig{
+				DockerImage: "",
+			},
+		},
 		"Empty Image": testCase{
 			map[string]interface{}{
 				"docker_image": "",

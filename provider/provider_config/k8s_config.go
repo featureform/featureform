@@ -34,7 +34,7 @@ func (k8s *K8sConfig) Deserialize(data SerializedConfig) error {
 func (k8s *K8sConfig) UnmarshalJSON(data []byte) error {
 	type tempConfig struct {
 		ExecutorType   ExecutorType
-		ExecutorConfig map[string]interface{}
+		ExecutorConfig interface{}
 		StoreType      FileStoreType
 		StoreConfig    map[string]interface{}
 	}
@@ -48,9 +48,13 @@ func (k8s *K8sConfig) UnmarshalJSON(data []byte) error {
 	k8s.ExecutorType = temp.ExecutorType
 	k8s.StoreType = temp.StoreType
 
-	err = k8s.decodeExecutor(temp.ExecutorType, temp.ExecutorConfig)
-	if err != nil {
-		return fmt.Errorf("could not decode executor: %w", err)
+	if temp.ExecutorConfig == "" {
+		k8s.ExecutorConfig = ExecutorConfig{}
+	} else {
+		err = k8s.decodeExecutor(temp.ExecutorType, temp.ExecutorConfig)
+		if err != nil {
+			return fmt.Errorf("could not decode executor: %w", err)
+		}
 	}
 
 	err = k8s.decodeFileStore(temp.StoreType, temp.StoreConfig)
@@ -61,7 +65,7 @@ func (k8s *K8sConfig) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (k8s *K8sConfig) decodeExecutor(executorType ExecutorType, configMap map[string]interface{}) error {
+func (k8s *K8sConfig) decodeExecutor(executorType ExecutorType, configMap interface{}) error {
 	serializedExecutor, err := json.Marshal(configMap)
 	if err != nil {
 		return fmt.Errorf("could not marshal executor config: %w", err)

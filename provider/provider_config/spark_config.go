@@ -148,6 +148,8 @@ func (a SparkConfig) DifferingFields(b SparkConfig) (ss.StringSet, error) {
 		executorFields, err = a.ExecutorConfig.(*EMRConfig).DifferingFields(*b.ExecutorConfig.(*EMRConfig))
 	case Databricks:
 		executorFields, err = a.ExecutorConfig.(*DatabricksConfig).DifferingFields(*b.ExecutorConfig.(*DatabricksConfig))
+	case SparkGeneric:
+		executorFields, err = a.ExecutorConfig.(*SparkGenericConfig).DifferingFields(*b.ExecutorConfig.(*SparkGenericConfig))
 	default:
 		return nil, fmt.Errorf("unknown executor type: %v", a.ExecutorType)
 	}

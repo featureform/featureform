@@ -54,7 +54,11 @@ redis = ff.register_redis(
     description="A Redis deployment we created for the Featureform quickstart",
 )
 
-k8s = ff.register_k8s(name=f"k8s_{VERSION}", store=azure_blob)
+k8s = ff.register_k8s(
+    name=f"k8s_{VERSION}",
+    store=azure_blob,
+    docker_image=os.getenv("K8S_RUNNER_BASE_IMAGE", "featureformcom/k8s_runner:latest"),
+)
 
 ice_cream = k8s.register_file(
     name=f"ice_cream_{VERSION}",

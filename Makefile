@@ -254,7 +254,7 @@ test_pandas:
 test_offline: gen_grpc 					## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage
-	go test -v -parallel 1000 -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider --tags=offline --provider=$(provider)
+	go test -v -parallel 1000 -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider --tags=offline,filepath --provider=$(provider)
 
 test_offline_spark: gen_grpc 					## Run spark tests.
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"
@@ -390,6 +390,7 @@ test_e2e: update_python					## Runs End-to-End tests on minikube
 	pytest -m 'hosted' client/tests/test_getting_model.py
 	pytest -m 'hosted' client/tests/test_updating_provider.py
 	pytest -m 'hosted' client/tests/test_class_api.py
+	pytest -m 'hosted' client/tests/test_source_dataframe.py
 #	pytest -m 'hosted' client/tests/test_search.py
 
 	 echo "Starting end to end tests"

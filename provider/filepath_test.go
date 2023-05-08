@@ -41,7 +41,7 @@ func TestNewFilepath(t *testing.T) {
 			Prefix:    "elasticmapreduce",
 			Path:      "path/to/file",
 			ExpectedPath: &S3Filepath{
-				genericFilepath: genericFilepath{
+				filePath: filePath{
 					bucket: "bucket",
 					prefix: "elasticmapreduce",
 					path:   "path/to/file",
@@ -56,7 +56,7 @@ func TestNewFilepath(t *testing.T) {
 			Prefix:    "/elasticmapreduce/",
 			Path:      "/path/to/file/",
 			ExpectedPath: &S3Filepath{
-				genericFilepath: genericFilepath{
+				filePath: filePath{
 					bucket: "bucket",
 					prefix: "elasticmapreduce",
 					path:   "path/to/file/",
@@ -152,7 +152,7 @@ func TestParseFullPath(t *testing.T) {
 			StoreType: S3,
 			FullPath:  "s3://bucket/elasticmapreduce/path/to/file",
 			ExpectedPath: &S3Filepath{
-				genericFilepath: genericFilepath{
+				filePath: filePath{
 					bucket: "bucket",
 					prefix: "",
 					path:   "elasticmapreduce/path/to/file",
@@ -165,7 +165,7 @@ func TestParseFullPath(t *testing.T) {
 			StoreType: S3,
 			FullPath:  "s3://bucket/elasticmapreduce/path/to/file/",
 			ExpectedPath: &S3Filepath{
-				genericFilepath: genericFilepath{
+				filePath: filePath{
 					bucket: "bucket",
 					prefix: "",
 					path:   "elasticmapreduce/path/to/file/",
@@ -175,16 +175,29 @@ func TestParseFullPath(t *testing.T) {
 			ExpectedError:   nil,
 		},
 		"GSFilePath": {
-			StoreType:       GCS,
-			FullPath:        "gs://bucket/elasticmapreduce/path/to/file",
-			ExpectedPath:    nil,
+			StoreType: GCS,
+			FullPath:  "gs://bucket/elasticmapreduce/path/to/file",
+			ExpectedPath: &GCSFilepath{
+				filePath: filePath{
+					bucket: "bucket",
+					prefix: "",
+					path:   "elasticmapreduce/path/to/file",
+				},
+			},
 			ExpectedFailure: false,
 			ExpectedError:   nil,
 		},
 		"AzureBlobStoreFilePath": {
-			StoreType:       Azure,
-			FullPath:        "abfss://container@account.dfs.core.windows.net/elasticmapreduce/path/to/file",
-			ExpectedPath:    nil,
+			StoreType: Azure,
+			FullPath:  "abfss://container@account.dfs.core.windows.net/elasticmapreduce/path/to/file",
+			ExpectedPath: &AzureFilepath{
+				storageAccount: "account",
+				filePath: filePath{
+					bucket: "container",
+					prefix: "",
+					path:   "elasticmapreduce/path/to/file",
+				},
+			},
 			ExpectedFailure: false,
 			ExpectedError:   nil,
 		},
@@ -209,7 +222,8 @@ func TestParseFullPath(t *testing.T) {
 		case GCS:
 			t.Skip()
 		case Azure:
-			t.Skip()
+			filePath = &AzureFilepath{}
+			err = filePath.ParseFullPath(test.FullPath)
 		case HDFS:
 			t.Skip()
 		}

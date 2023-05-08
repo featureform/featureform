@@ -148,6 +148,38 @@ def test_get_snowflake_functions(provider_name, func):
     assert offlineSQLProvider.name() == provider_name
 
 
+@pytest.mark.parametrize(
+    "tuple,error",
+    [
+        (("name", "variant"), None),
+        (
+            ("name", "variant", "owner"),
+            TypeError("Tuple must be of length 2, got length 3"),
+        ),
+        (("name"), TypeError("not a tuple; received: 'str' type")),
+        (
+            ("name",),
+            TypeError("Tuple must be of length 2, got length 1"),
+        ),
+        (
+            ("name", [1, 2, 3]),
+            TypeError("Tuple must be of type (str, str); got (str, list)"),
+        ),
+        (
+            ([1, 2, 3], "variant"),
+            TypeError("Tuple must be of type (str, str); got (list, str)"),
+        ),
+    ],
+)
+def test_local_provider_verify_inputs(tuple, error):
+    try:
+        r = Registrar()
+        assert r._verify_tuple(tuple) is None and error is None
+    except Exception as e:
+        assert type(e).__name__ == type(error).__name__
+        assert str(e) == str(error)
+
+
 def del_rw(action, name, exc):
     os.chmod(name, stat.S_IWRITE)
     os.remove(name)

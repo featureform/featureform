@@ -184,11 +184,12 @@ specs = ff.K8sResourceSpecs(
     memory_limit="2Gi"
 )
 
-@k8s_custom.sql_transformation(
-    inputs=[("encode_product_category", "default")],
-    resource_specs=specs,
+@k8s_store.df_transformation(
+    inputs=[("transactions", "kaggle")], 
+    variant="default", 
+    resource_specs=specs
 )
-def add_kmeans_clustering(df):
-    return "SELECT CustomerID as user_id, max(TransactionAmount) "
-           "as max_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
+def average_user_transaction(transactions):
+    user_tsc = transactions[["CustomerID","TransactionAmount","Timestamp"]]
+    return user_tsc.groupby("CustomerID").agg({'TransactionAmount':'mean','Timestamp':'max'})
 ```

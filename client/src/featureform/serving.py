@@ -36,6 +36,7 @@ from .resources import Model, SourceType, ComputationMode
 from .tls import insecure_channel, secure_channel
 from .version import check_up_to_date
 from .enums import FileFormat
+from .constants import NO_RECORD_LIMIT
 
 
 def check_feature_type(features):
@@ -190,11 +191,26 @@ class HostedClientImpl:
 
         return feature_values
 
-    def get_source_as_df(self, name, variant):
-        warnings.warn(
-            "Computing dataframes on sources in hosted mode is not yet supported."
-        )
-        return pd.DataFrame()
+    def _get_source_as_df(self, name, variant, limit):
+        columns = self._get_source_columns(name, variant)
+        data = self._get_source_data(name, variant, limit)
+        return pd.DataFrame(data=data, columns=columns)
+
+    def _get_source_data(self, name, variant, limit):
+        id = serving_pb2.SourceID(name=name, version=variant)
+        req = serving_pb2.SourceDataRequest(id=id, limit=limit)
+        resp = self._stub.SourceData(req)
+        data = []
+        for rows in resp:
+            row = [getattr(r, r.WhichOneof("value")) for r in rows.rows]
+            data.append(row)
+        return data
+
+    def _get_source_columns(self, name, variant):
+        id = serving_pb2.SourceID(name=name, version=variant)
+        req = serving_pb2.SourceDataRequest(id=id)
+        resp = self._stub.SourceColumns(req)
+        return resp.columns
 
 
 class LocalClientImpl:
@@ -653,8 +669,14 @@ class LocalClientImpl:
         self.db.insert("models", name, type)
         self.db.insert(look_up_table, name, association_name, association_variant)
 
-    def get_source_as_df(self, name, variant):
-        return self.get_input_df(name, variant)
+    def _get_source_as_df(self, name, variant, limit):
+        if limit == 0:
+            raise ValueError("limit must be greater than 0")
+        df = self.get_input_df(name, variant)
+        if limit != NO_RECORD_LIMIT:
+            return df[:limit]
+        else:
+            return df
 
 
 class Stream:

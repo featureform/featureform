@@ -61,7 +61,7 @@ RUN echo "PATH=${PATH}" > "${ENV}"
 
 RUN curl https://pyenv.run | bash
 
-# Install Python versions
+## Install Python versions
 ARG TESTING
 RUN if [ "$TESTING" = "True" ]; then \
     pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
@@ -76,7 +76,7 @@ RUN if [ "$TESTING" = "True" ]; then \
 ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
 ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
 
-# Download Shaded Jar
+## Download Shaded Jar
 RUN wget https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop2-2.2.11/gcs-connector-hadoop2-2.2.11-shaded.jar -P /app/provider/scripts/spark/jars/
 
 EXPOSE 8080

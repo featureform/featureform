@@ -2867,6 +2867,19 @@ class Registrar:
         for i, nv in enumerate(inputs):
             if not isinstance(nv, tuple):
                 inputs[i] = nv.name_variant()
+            if isinstance(nv, tuple):
+                try:
+                    self._verify_tuple(nv)
+                except TypeError as e:
+                    transformation_message = f"'{name}:{variant}'"
+                    if name == "":
+                        transformation_message = f"with '{variant}' variant"
+
+                    raise TypeError(
+                        f"DF transformation {transformation_message} requires correct inputs "
+                        f" '{nv}' is not a valid tuple: {e}"
+                    )
+
         decorator = DFTransformationDecorator(
             registrar=self,
             name=name,
@@ -2881,6 +2894,25 @@ class Registrar:
         )
         self.__resources.append(decorator)
         return decorator
+
+    def _verify_tuple(self, nv_tuple):
+        if not isinstance(nv_tuple, tuple):
+            raise TypeError(f"not a tuple; received: '{type(nv_tuple).__name__}' type")
+
+        if len(nv_tuple) != 2:
+            raise TypeError(
+                "Tuple must be of length 2, got length {}".format(len(nv_tuple))
+            )
+        if len(nv_tuple) == 2:
+            not_string_tuples = not (
+                isinstance(nv_tuple[0], str) and isinstance(nv_tuple[1], str)
+            )
+            if not_string_tuples:
+                first_position_type = type(nv_tuple[0]).__name__
+                second_position_type = type(nv_tuple[1]).__name__
+                raise TypeError(
+                    f"Tuple must be of type (str, str); got ({first_position_type}, {second_position_type})"
+                )
 
     def ondemand_feature(
         self,

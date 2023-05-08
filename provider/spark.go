@@ -1529,13 +1529,13 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	newestFilePath, err := spark.Store.NewestFileOfType(path, Parquet)
 	spark.Logger.Debugw("-----Ali-----newestFilePath", "newestFilePath", newestFilePath)
 	sourcePath := spark.Store.PathWithPrefix(newestFilePath, true)
-	spark.Logger.Debugw("-----Ali-----sourcePath", "splitPath", sourcePath)
+	spark.Logger.Debugw("-----Ali-----sourcePath", "sourcePath", sourcePath)
 	// path is equal to everything esides the last
 	if err != nil {
 		return nil, fmt.Errorf("could not get newest materialization file: %v", err)
 	}
 	//sourcePath := spark.Store.PathWithPrefix(path, true)
-	sparkArgs := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, []string{newestFilePath}, Materialize, spark.Store)
+	sparkArgs := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize, spark.Store)
 	spark.Logger.Debugw("Creating materialization", "id", id)
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Spark submit job failed to run", "error", err)

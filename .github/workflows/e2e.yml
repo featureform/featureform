@@ -398,7 +398,7 @@ jobs:
           MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
           MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
           MONGODB_DATABASE: ${{ secrets.MONGODB_PASSWORD }}
-          K8s_RUNNER_BASE_IMAGE: "local/k8s_runner:stable"
+          K8S_RUNNER_BASE_IMAGE: "local/k8s_runner:stable"
           K8S_RUNNER_SCIKIT: "local/k8s_runner:scikit-stable"
           S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
           S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_PATH }}
@@ -408,8 +408,6 @@ jobs:
           GCP_CREDENTIALS_FILE: "./provider/gcp_credentials.json"
           FEATUREFORM_HOST: localhost:8000
           FEATUREFORM_CERT: tls.crt
-          K8S_RUNNER_BASE_IMAGE: "local/k8s_runner:stable"
-          K8S_RUNNER_SCIKIT: "local/k8s_runner:scikit-stable"
 
         run: make test_e2e
 

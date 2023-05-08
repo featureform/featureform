@@ -103,7 +103,7 @@ func (store *AzureFileStore) containerName() string {
 	return store.ContainerName
 }
 
-func (store *AzureFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+func (store AzureFileStore) AddEnvVars(envVars map[string]string) map[string]string {
 	envVars["BLOB_STORE_TYPE"] = "azure"
 	envVars["AZURE_CONNECTION_STRING"] = store.ConnectionString
 	envVars["AZURE_CONTAINER_NAME"] = store.ContainerName
@@ -237,7 +237,7 @@ func (s3 S3FileStore) FilestoreType() pc.FileStoreType {
 	return S3
 }
 
-func (s3 *S3FileStore) AddEnvVars(envVars map[string]string) map[string]string {
+func (s3 S3FileStore) AddEnvVars(envVars map[string]string) map[string]string {
 	envVars["BLOB_STORE_TYPE"] = "s3"
 	envVars["AWS_ACCESS_KEY_ID"] = s3.Credentials.AWSAccessKeyId
 	envVars["AWS_SECRET_KEY"] = s3.Credentials.AWSSecretKey
@@ -293,7 +293,7 @@ func (g GCSFileStore) FilestoreType() pc.FileStoreType {
 	return GCS
 }
 
-func (g *GCSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+func (g GCSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
 	// TODO: add environment variables for GCS
 	return envVars
 }
@@ -640,6 +640,6 @@ func (fs HDFSFileStore) FilestoreType() pc.FileStoreType {
 	return HDFS
 }
 
-func (fs *HDFSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+func (fs HDFSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
 	return envVars
 }

@@ -97,10 +97,14 @@ func (pt *bqPrimaryTable) GetName() string {
 
 func (pt *bqPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 	tableName := pt.query.getTableName(pt.name)
-	query := fmt.Sprintf("SELECT * FROM `%s` LIMIT %d", tableName, n)
+	var query string
+	if n == -1 {
+		query = fmt.Sprintf("SELECT * FROM `%s`", tableName)
+	} else {
+		query = fmt.Sprintf("SELECT * FROM `%s` LIMIT %d", tableName, n)
+	}
 	bqQ := pt.client.Query(query)
 	it, err := bqQ.Read(pt.query.getContext())
-
 	if err != nil {
 		return nil, err
 	}

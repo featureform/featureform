@@ -161,7 +161,7 @@ func (s3 SparkS3FileStore) PathWithPrefix(path string, remote bool) string {
 func NewSparkAzureFileStore(config Config) (SparkFileStore, error) {
 	fileStore, err := NewAzureFileStore(config)
 	if err != nil {
-		return nil, fmt.Errorf("could not create auzre blob file store: %v", err)
+		return nil, fmt.Errorf("could not create azure blob file store: %v", err)
 	}
 
 	azure, ok := fileStore.(*AzureFileStore)

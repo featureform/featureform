@@ -38,10 +38,6 @@ const LoadingDots = () => {
   );
 };
 
-const checkIfEmpty = (object) => {
-  return Object.keys(object).length === 0 && object.constructor === Object;
-};
-
 const fetchNotFound = (object) => {
   return !object?.resources?.name && !object?.resources?.type
 }
@@ -50,18 +46,18 @@ const EntityPage = ({ api, entityPage, activeVariants, type, entity, ...props })
   let resourceType = Resource[Resource.pathToType[type]];
   const fetchEntity = props.fetch;
 
-  useEffect(() => {
+  useEffect(async () => {
     if (api && type && entity) {
-      fetchEntity(api, type, entity);
+      await fetchEntity(api, type, entity);
     }
   }, [type, entity]);
 
   return (
     <div>
-      {entityPage.failed || (!entityPage.loading && fetchNotFound(entityPage)) ? (
-        <NotFoundPage />
-      ) : entityPage.loading || checkIfEmpty(entityPage) ? (
+      {entityPage.loading ? (
         <LoadingDots />
+      ) : entityPage.failed || (!entityPage.loading && fetchNotFound(entityPage)) ? (
+        <NotFoundPage />
       ) : (
         <EntityPageView
           entity={entityPage}

@@ -56,7 +56,7 @@ class DisplayStatus:
 
 
 class StatusDisplayer:
-    resource_types_to_check = {
+    RESOURCE_TYPES_TO_CHECK = {
         Feature,
         OnDemandFeature,
         TrainingSet,
@@ -65,9 +65,17 @@ class StatusDisplayer:
         Provider,
     }
 
+    STATUS_TO_COLOR = {
+        "READY": "green",
+        "CREATED": "green",
+        "PENDING": "yellow",
+        "NO_STATUS": "white",
+        "FAILED": "red",
+    }
+
     def __init__(self, stub: ApiStub, resources: List[Resource]):
         filtered_resources = filter(
-            lambda r: type(r) in self.resource_types_to_check, resources
+            lambda r: type(r) in self.RESOURCE_TYPES_TO_CHECK, resources
         )
         self.stub = stub
 
@@ -130,18 +138,10 @@ class StatusDisplayer:
                         else "CREATED"
                     )
 
-                    status_to_color = {
-                        "READY": "green",
-                        "CREATED": "green",
-                        "PENDING": "yellow",
-                        "NO_STATUS": "white",
-                        "FAILED": "red",
-                    }
-
                     table.add_row(
                         Text(resource_type),
                         Text(f"{name} ({status.variant})"),
-                        Text(status_text, style=status_to_color[status_text]),
+                        Text(status_text, style=self.STATUS_TO_COLOR[status_text]),
                         Text(error, style="red"),
                     )
 
@@ -149,7 +149,6 @@ class StatusDisplayer:
                 live.refresh()
 
                 if finished_running:
-                    print(self.api_calls_made, "API calls made")
                     break
 
                 i += 1

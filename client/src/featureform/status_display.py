@@ -56,7 +56,6 @@ class DisplayStatus:
 
 
 class StatusDisplayer:
-
     resource_types_to_check = {
         Feature,
         OnDemandFeature,

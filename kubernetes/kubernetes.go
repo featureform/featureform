@@ -390,10 +390,7 @@ func (k KubernetesJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, err
 func (k KubernetesJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
 	successfulJobsHistoryLimit := helpers.GetEnvInt32("SUCCESSFUL_JOBS_HISTORY_LIMIT", 2)
 	failedJobsHistoryLimit := helpers.GetEnvInt32("FAILED_JOBS_HISTORY_LIMIT", 1)
-	concurrencyPolicy, err := getConcurrencyPolicy()
-	if err != nil {
-		return err
-	}
+	concurrencyPolicy := getConcurrencyPolicy()
 
 	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
@@ -435,7 +432,6 @@ func (k KubernetesJobClient) UpdateJobSchedule(schedule CronSchedule, jobSpec *b
 }
 
 func (k KubernetesJobClient) GetJobSchedule(jobName string) (CronSchedule, error) {
-
 	job, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Get(context.TODO(), jobName, metav1.GetOptions{})
 	if err != nil {
 		return "", err
@@ -455,7 +451,7 @@ func NewKubernetesJobClient(name string, namespace string) (*KubernetesJobClient
 	return &KubernetesJobClient{Clientset: clientset, JobName: name, Namespace: namespace}, nil
 }
 
-func getConcurrencyPolicy() (batchv1.ConcurrencyPolicy, error) {
+func getConcurrencyPolicy() batchv1.ConcurrencyPolicy {
 	concurrencyPolicyEnv := helpers.GetEnv("JOBS_CONCURRENCY_POLICY", "Allow")
 	var concurrencyPolicy batchv1.ConcurrencyPolicy
 	switch concurrencyPolicyEnv {
@@ -466,7 +462,8 @@ func getConcurrencyPolicy() (batchv1.ConcurrencyPolicy, error) {
 	case "Replace":
 		concurrencyPolicy = batchv1.ReplaceConcurrent
 	default:
-		return "", fmt.Errorf("invalid concurrency policy: %s", concurrencyPolicyEnv)
+		fmt.Printf("invalid concurrency policy: %s, defaulting to Allow", concurrencyPolicyEnv)
+		return batchv1.AllowConcurrent
 	}
-	return concurrencyPolicy, nil
+	return concurrencyPolicy
 }

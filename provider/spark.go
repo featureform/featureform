@@ -1602,11 +1602,13 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		return fmt.Errorf("spark training set does not exist: %v", def.ID)
 	}
 	labelSchema, err := spark.registeredResourceSchema(def.Label)
+	spark.Logger.Debugw("-----Ali-----labelSchema", "labelSchema", labelSchema)
 	if err != nil {
 		spark.Logger.Errorw("Could not get schema of label in spark store", "label", def.Label, "error", err)
 		return fmt.Errorf("could not get schema of label %s: %v", def.Label, err)
 	}
 	labelPath := spark.Store.PathWithPrefix(labelSchema.SourceTable, true)
+	spark.Logger.Debugw("-----Ali-----labelPath", "labelPath", labelPath)
 	sourcePaths = append(sourcePaths, labelPath)
 	for _, feature := range def.Features {
 		featureSchema, err := spark.registeredResourceSchema(feature)
@@ -1614,7 +1616,17 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 			spark.Logger.Errorw("Could not get schema of feature in spark store", "feature", feature, "error", err)
 			return fmt.Errorf("could not get schema of feature %s: %v", feature, err)
 		}
-		featurePath := spark.Store.PathWithPrefix(featureSchema.SourceTable, true)
+		featureSource := strings.Split(featureSchema.SourceTable, "/")
+		spark.Logger.Debugw("-----Ali-----featureSource", "featureSource", featureSource)
+		prefix := strings.Join(featureSource[:len(featureSource)-2], "/")
+		spark.Logger.Debugw("-----Ali-----prefix", "prefix", prefix)
+		newestFeatureSource, err := spark.Store.NewestFileOfType(prefix, Parquet)
+		spark.Logger.Debugw("-----Ali-----newestFeatureSource", "newestFeatureSource", newestFeatureSource)
+		if err != nil {
+			return fmt.Errorf("Error getting newest feature source: %v", err)
+		}
+		featurePath := spark.Store.PathWithPrefix(newestFeatureSource, true)
+		spark.Logger.Debugw("-----Ali-----featurePath", "featurePath", featurePath)
 		sourcePaths = append(sourcePaths, featurePath)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
@@ -1625,6 +1637,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Spark submit training set job failed to run", "definition", def.ID, "error", err)
 		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
 	}
+	// what happens if this isn't fully done yet?
 	newestTrainingSet, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(ResourcePrefix(def.ID), false), Parquet)
 	if err != nil {
 		return fmt.Errorf("could not check that training set was created: %v", err)

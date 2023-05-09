@@ -51,6 +51,7 @@ def entity(type, entity):
 def search():
     return dashboard_app.send_static_file("query.html")
 
+
 @dashboard_app.route("/query")
 def query():
     return dashboard_app.send_static_file("query.html")

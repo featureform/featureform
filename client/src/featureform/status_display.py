@@ -22,7 +22,7 @@ MAX_NUM_RUNNING_DOTS = 10
 SECONDS_BETWEEN_STATUS_CHECKS = 2
 
 
-def display_status(stub: ApiStub, resources: List[Resource]):
+def display_statuses(stub: ApiStub, resources: List[Resource]):
     StatusDisplayer(stub, resources).display()
 
 

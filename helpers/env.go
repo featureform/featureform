@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 )
@@ -23,6 +24,7 @@ func getEnvGeneric(key string, fallback interface{}, converter func(string) (int
 
 	parsedValue, err := converter(value)
 	if err != nil {
+		fmt.Printf("Error parsing environment variable %s: %s\n", key, err.Error())
 		return fallback
 	}
 	return parsedValue

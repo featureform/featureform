@@ -353,11 +353,11 @@ containers: gen_grpc						## Build Docker containers for Minikube
 	echo "Build Complete"
 
 start_minikube:	##Starts Minikube
-	minikube start --kubernetes-version=v1.23.3
+	minikube start --kubernetes-version=v1.23.12
 
 reset_minikube:	##Resets Minikube
 	minikube delete
-	minikube start --kubernetes-version=v1.23.3
+	minikube start --kubernetes-version=v1.23.12
 
 install_featureform: start_minikube containers		## Configures Featureform on Minikube
 	helm repo add jetstack https://charts.jetstack.io

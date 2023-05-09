@@ -2,6 +2,7 @@ import time
 from typing import Type, Tuple, List
 
 from dataclasses import dataclass
+from featureform.proto.metadata_pb2_grpc import ApiStub
 from featureform.resources import (
     Feature,
     OnDemandFeature,
@@ -21,7 +22,7 @@ MAX_NUM_RUNNING_DOTS = 10
 SECONDS_BETWEEN_STATUS_CHECKS = 2
 
 
-def display_status(stub, resources):
+def display_status(stub: ApiStub, resources: List[Resource]):
     StatusDisplayer(stub, resources).display()
 
 
@@ -55,6 +56,7 @@ class DisplayStatus:
 
 
 class StatusDisplayer:
+
     resource_types_to_check = {
         Feature,
         OnDemandFeature,
@@ -64,7 +66,7 @@ class StatusDisplayer:
         Provider,
     }
 
-    def __init__(self, stub, resources):
+    def __init__(self, stub: ApiStub, resources: List[Resource]):
         filtered_resources = filter(
             lambda r: type(r) in self.resource_types_to_check, resources
         )
@@ -148,6 +150,7 @@ class StatusDisplayer:
                 live.refresh()
 
                 if finished_running:
+                    print(self.api_calls_made, "API calls made")
                     break
 
                 i += 1

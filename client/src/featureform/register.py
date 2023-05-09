@@ -3349,7 +3349,7 @@ class ResourceClient:
 
         if not asynchronous and self._stub:
             resources = resource_state.sorted_list()
-            display_status(resources, self._stub)
+            display_status(self._stub, resources)
 
         clear_state()
 

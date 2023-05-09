@@ -21,6 +21,10 @@ MAX_NUM_RUNNING_DOTS = 10
 SECONDS_BETWEEN_STATUS_CHECKS = 2
 
 
+def display_status(stub, resources):
+    StatusDisplayer(stub, resources).display()
+
+
 @dataclass
 class DisplayStatus:
     resource_type: Type

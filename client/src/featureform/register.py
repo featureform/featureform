@@ -17,7 +17,7 @@ from .list import *
 from .get_local import *
 from .list_local import *
 from .sqlite_metadata import SQLiteMetadata
-from .status_display import StatusDisplayer
+from .status_display import display_status
 from .tls import insecure_channel, secure_channel
 from .resources import (
     ColumnTypes,
@@ -3349,7 +3349,7 @@ class ResourceClient:
 
         if not asynchronous and self._stub:
             resources = resource_state.sorted_list()
-            StatusDisplayer(self._stub, resources).display()
+            display_status(resources, self._stub)
 
         clear_state()
 

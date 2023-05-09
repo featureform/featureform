@@ -390,7 +390,7 @@ func (k KubernetesJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, err
 func (k KubernetesJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
 	successfulJobsHistoryLimit := helpers.GetEnvInt32("SUCCESSFUL_JOBS_HISTORY_LIMIT", 2)
 	failedJobsHistoryLimit := helpers.GetEnvInt32("FAILED_JOBS_HISTORY_LIMIT", 1)
-	concurrencyPolicy := batchv1.ConcurrencyPolicy(helpers.GetEnv("CONCURRENCY_POLICY", "Forbid"))
+	concurrencyPolicy := batchv1.ConcurrencyPolicy(helpers.GetEnv("CONCURRENCY_POLICY", "Allow"))
 
 	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{

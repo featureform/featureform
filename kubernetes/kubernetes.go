@@ -388,7 +388,7 @@ func (k KubernetesJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, err
 }
 
 func (k KubernetesJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
-	successfulJobsHistoryLimit := int32(helpers.GetEnvInt("SUCCESSFUL_JOBS_HISTORY_LIMIT", 3))
+	successfulJobsHistoryLimit := helpers.GetEnvInt32("SUCCESSFUL_JOBS_HISTORY_LIMIT", 3)
 	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      k.JobName,

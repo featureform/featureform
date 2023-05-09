@@ -6,7 +6,7 @@ import (
 )
 
 // GetEnv Takes a environment variable key and returns the value if it exists.
-// Otherwise returns the fallback value provided
+// Otherwise, returns the fallback value provided
 func GetEnv(key, fallback string) string {
 	value, has := os.LookupEnv(key)
 	if !has {
@@ -33,6 +33,13 @@ func GetEnvInt(key string, fallback int) int {
 		parsedValue, err := strconv.Atoi(val)
 		return parsedValue, err
 	}).(int)
+}
+
+func GetEnvInt32(key string, fallback int32) int32 {
+	return getEnvGeneric(key, fallback, func(val string) (interface{}, error) {
+		parsedValue, err := strconv.ParseInt(val, 10, 32)
+		return int32(parsedValue), err
+	}).(int32)
 }
 
 func GetEnvBool(key string, fallback bool) bool {

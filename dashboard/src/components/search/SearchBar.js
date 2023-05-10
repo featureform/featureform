@@ -79,7 +79,7 @@ const SearchBar = ({ homePage }) => {
 
   function handleSearch(event) {
     event.preventDefault();
-    let uri = "/search?q=" + searchText?.trim();
+    let uri = "/query?q=" + searchText?.trim();
     router.push(uri);
   }
 

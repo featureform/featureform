@@ -49,7 +49,12 @@ def entity(type, entity):
 
 @dashboard_app.route("/search")
 def search():
-    return dashboard_app.send_static_file("search.html")
+    return dashboard_app.send_static_file("query.html")
+
+
+@dashboard_app.route("/query")
+def query():
+    return dashboard_app.send_static_file("query.html")
 
 
 @dashboard_app.route("/static/<asset>")

@@ -508,7 +508,13 @@ class LocalClientImpl:
         if isinstance(df, pd.Series):
             df = df.to_frame()
             df.reset_index(inplace=True)
-        if feature["source_timestamp"] != "":
+        if feature["source_timestamp"] != "" and feature["source_timestamp"] not in df:
+            raise ValueError(
+                f"Provided timestamp column '{feature['source_timestamp']}' for feature "
+                f"'{feature['name']}:{feature['variant']}' not found in source '{feature['source_name']}:{feature['source_variant']}'; "
+                f"either remove 'timestamp_column' from the feature registration or include it in the source."
+            )
+        elif feature["source_timestamp"] != "":
             df = df[
                 [
                     feature["source_entity"],

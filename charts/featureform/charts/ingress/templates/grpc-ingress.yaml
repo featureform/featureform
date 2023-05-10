@@ -38,10 +38,10 @@ spec:
                   number: 7878
 
 
-{{ if .Values.global.tls.enabled }}
+  {{ if .Values.global.tls.enabled }}
   tls:
     - hosts:
         -  {{ .Values.global.hostname }}
       secretName: featureform-ca-secret
-{{ end }}
+  {{ end }}
 {{ end }}

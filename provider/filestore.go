@@ -80,7 +80,7 @@ func NewLocalFileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
-func (fs LocalFileStore) FilestoreType() pc.FileStoreType {
+func (fs *LocalFileStore) FilestoreType() pc.FileStoreType {
 	return FileSystem
 }
 
@@ -103,18 +103,18 @@ func (store *AzureFileStore) containerName() string {
 	return store.ContainerName
 }
 
-func (store AzureFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+func (store *AzureFileStore) AddEnvVars(envVars map[string]string) map[string]string {
 	envVars["BLOB_STORE_TYPE"] = "azure"
 	envVars["AZURE_CONNECTION_STRING"] = store.ConnectionString
 	envVars["AZURE_CONTAINER_NAME"] = store.ContainerName
 	return envVars
 }
 
-func (store AzureFileStore) AsAzureStore() *AzureFileStore {
+func (store *AzureFileStore) AsAzureStore() *AzureFileStore {
 	return &store
 }
 
-func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
+func (store *AzureFileStore) PathWithPrefix(path string, remote bool) string {
 	pathContainsAzureBlobPrefix := strings.HasPrefix(path, azureBlobPrefix)
 	pathContainsWorkingDirectory := store.Path != "" && strings.HasPrefix(path, store.Path)
 
@@ -133,7 +133,7 @@ func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
 	return path
 }
 
-func (store AzureFileStore) FilestoreType() pc.FileStoreType {
+func (store *AzureFileStore) FilestoreType() pc.FileStoreType {
 	return Azure
 }
 
@@ -233,11 +233,11 @@ func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
 	return path
 }
 
-func (s3 S3FileStore) FilestoreType() pc.FileStoreType {
+func (s3 *S3FileStore) FilestoreType() pc.FileStoreType {
 	return S3
 }
 
-func (s3 S3FileStore) AddEnvVars(envVars map[string]string) map[string]string {
+func (s3 *S3FileStore) AddEnvVars(envVars map[string]string) map[string]string {
 	envVars["BLOB_STORE_TYPE"] = "s3"
 	envVars["AWS_ACCESS_KEY_ID"] = s3.Credentials.AWSAccessKeyId
 	envVars["AWS_SECRET_KEY"] = s3.Credentials.AWSSecretKey
@@ -246,7 +246,7 @@ func (s3 S3FileStore) AddEnvVars(envVars map[string]string) map[string]string {
 	return envVars
 }
 
-func (s3 S3FileStore) Read(key string) ([]byte, error) {
+func (s3 *S3FileStore) Read(key string) ([]byte, error) {
 	fp, err := NewEmptyFilepath(S3)
 	if err != nil {
 		return nil, fmt.Errorf("error creating filepath: %v", err)
@@ -270,7 +270,7 @@ type GCSFileStore struct {
 	genericFileStore
 }
 
-func (gs GCSFileStore) PathWithPrefix(path string, remote bool) string {
+func (gs *GCSFileStore) PathWithPrefix(path string, remote bool) string {
 	pathContainsGSPrefix := strings.HasPrefix(path, gsPrefix)
 	pathContainsWorkingDirectory := gs.Path != "" && strings.HasPrefix(path, gs.Path)
 
@@ -289,13 +289,13 @@ func (gs GCSFileStore) PathWithPrefix(path string, remote bool) string {
 	return path
 }
 
-func (g GCSFileStore) FilestoreType() pc.FileStoreType {
+func (g *GCSFileStore) FilestoreType() pc.FileStoreType {
 	return GCS
 }
 
-func (g GCSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+func (g *GCSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
 	// TODO: add environment variables for GCS
-	return envVars
+	panic("GCS Filestore is not supported for K8s at the moment.")
 }
 
 type GCSFileStoreConfig struct {
@@ -636,10 +636,10 @@ func (fs *HDFSFileStore) AsAzureStore() *AzureFileStore {
 	return nil
 }
 
-func (fs HDFSFileStore) FilestoreType() pc.FileStoreType {
+func (fs *HDFSFileStore) FilestoreType() pc.FileStoreType {
 	return HDFS
 }
 
-func (fs HDFSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
-	return envVars
+func (fs *HDFSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+	panic("HDFS Filestore is not supported for K8s at the moment.")
 }

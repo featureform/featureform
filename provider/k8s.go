@@ -396,7 +396,7 @@ type genericFileStore struct {
 	path   string
 }
 
-func (store genericFileStore) PathWithPrefix(path string, remote bool) string {
+func (store *genericFileStore) PathWithPrefix(path string, remote bool) string {
 	// What does this mean? Change this as check for local file
 	if len(store.path) > 4 && store.path[0:4] == "file" {
 		return fmt.Sprintf("%s%s", store.path[len("file:///"):], strings.TrimPrefix(path, "/"))
@@ -405,7 +405,7 @@ func (store genericFileStore) PathWithPrefix(path string, remote bool) string {
 	}
 }
 
-func (store genericFileStore) NewestFileOfType(prefix string, fileType FileType) (string, error) {
+func (store *genericFileStore) NewestFileOfType(prefix string, fileType FileType) (string, error) {
 	opts := blob.ListOptions{
 		Prefix: prefix,
 	}
@@ -423,7 +423,7 @@ func (store genericFileStore) NewestFileOfType(prefix string, fileType FileType)
 	}
 }
 
-func (store genericFileStore) getMoreRecentFile(newObj *blob.ListObject, expectedFileType FileType, oldTime time.Time, oldKey string) (time.Time, string) {
+func (store *genericFileStore) getMoreRecentFile(newObj *blob.ListObject, expectedFileType FileType, oldTime time.Time, oldKey string) (time.Time, string) {
 	pathParts := strings.Split(newObj.Key, ".")
 	fileType := pathParts[len(pathParts)-1]
 	if fileType == string(expectedFileType) && !newObj.IsDir && store.isMostRecentFile(newObj, oldTime) {
@@ -432,11 +432,11 @@ func (store genericFileStore) getMoreRecentFile(newObj *blob.ListObject, expecte
 	return oldTime, oldKey
 }
 
-func (store genericFileStore) isMostRecentFile(listObj *blob.ListObject, time time.Time) bool {
+func (store *genericFileStore) isMostRecentFile(listObj *blob.ListObject, time time.Time) bool {
 	return listObj.ModTime.After(time) || listObj.ModTime.Equal(time)
 }
 
-func (store genericFileStore) outputFileList(prefix string) []string {
+func (store *genericFileStore) outputFileList(prefix string) []string {
 	opts := blob.ListOptions{
 		Prefix:    prefix,
 		Delimiter: "/",
@@ -472,7 +472,7 @@ func (store genericFileStore) outputFileList(prefix string) []string {
 	return partsList
 }
 
-func (store genericFileStore) DeleteAll(dir string) error {
+func (store *genericFileStore) DeleteAll(dir string) error {
 	opts := blob.ListOptions{
 		Prefix: dir,
 	}
@@ -487,7 +487,7 @@ func (store genericFileStore) DeleteAll(dir string) error {
 	return nil
 }
 
-func (store genericFileStore) Write(key string, data []byte) error {
+func (store *genericFileStore) Write(key string, data []byte) error {
 	err := store.bucket.WriteAll(context.TODO(), key, data, nil)
 	if err != nil {
 		return err
@@ -495,11 +495,11 @@ func (store genericFileStore) Write(key string, data []byte) error {
 	return nil
 }
 
-func (store genericFileStore) Writer(key string) (*blob.Writer, error) {
+func (store *genericFileStore) Writer(key string) (*blob.Writer, error) {
 	return store.bucket.NewWriter(context.TODO(), key, nil)
 }
 
-func (store genericFileStore) Read(key string) ([]byte, error) {
+func (store *genericFileStore) Read(key string) ([]byte, error) {
 	data, err := store.bucket.ReadAll(context.TODO(), key)
 	if err != nil {
 		return nil, err
@@ -507,7 +507,7 @@ func (store genericFileStore) Read(key string) ([]byte, error) {
 	return data, nil
 }
 
-func (store genericFileStore) ServeDirectory(dir string) (Iterator, error) {
+func (store *genericFileStore) ServeDirectory(dir string) (Iterator, error) {
 	fileParts := store.outputFileList(dir)
 	if len(fileParts) == 0 {
 		return nil, fmt.Errorf("no files in given directory")
@@ -516,7 +516,7 @@ func (store genericFileStore) ServeDirectory(dir string) (Iterator, error) {
 	return parquetIteratorOverMultipleFiles(fileParts, store)
 }
 
-func (store genericFileStore) Upload(sourcePath string, destPath string) error {
+func (store *genericFileStore) Upload(sourcePath string, destPath string) error {
 	content, err := ioutil.ReadFile(sourcePath)
 	if err != nil {
 		return fmt.Errorf("cannot read %s file: %v", sourcePath, err)
@@ -530,7 +530,7 @@ func (store genericFileStore) Upload(sourcePath string, destPath string) error {
 	return nil
 }
 
-func (store genericFileStore) Download(sourcePath string, destPath string) error {
+func (store *genericFileStore) Download(sourcePath string, destPath string) error {
 	content, err := store.Read(sourcePath)
 	if err != nil {
 		return fmt.Errorf("cannot read %s file: %v", sourcePath, err)
@@ -547,11 +547,11 @@ func (store genericFileStore) Download(sourcePath string, destPath string) error
 	return nil
 }
 
-func (store genericFileStore) FilestoreType() pc.FileStoreType {
+func (store *genericFileStore) FilestoreType() pc.FileStoreType {
 	return Memory
 }
 
-func (store genericFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+func (store *genericFileStore) AddEnvVars(envVars map[string]string) map[string]string {
 	return envVars
 }
 
@@ -632,7 +632,7 @@ func (p *ParquetIteratorMultipleFiles) Next() (map[string]interface{}, error) {
 	return nextRow, nil
 }
 
-func (store genericFileStore) Serve(key string) (Iterator, error) {
+func (store *genericFileStore) Serve(key string) (Iterator, error) {
 	keyParts := strings.Split(key, ".")
 	if len(keyParts) == 1 {
 		return store.ServeDirectory(key)
@@ -652,7 +652,7 @@ func (store genericFileStore) Serve(key string) (Iterator, error) {
 
 }
 
-func (store genericFileStore) NumRows(key string) (int64, error) {
+func (store *genericFileStore) NumRows(key string) (int64, error) {
 	b, err := store.bucket.ReadAll(context.TODO(), key)
 	if err != nil {
 		return 0, err
@@ -889,15 +889,15 @@ func parquetIteratorFromBytes(b []byte) (Iterator, error) {
 	}, nil
 }
 
-func (store genericFileStore) Exists(key string) (bool, error) {
+func (store *genericFileStore) Exists(key string) (bool, error) {
 	return store.bucket.Exists(context.TODO(), key)
 }
 
-func (store genericFileStore) Delete(key string) error {
+func (store *genericFileStore) Delete(key string) error {
 	return store.bucket.Delete(context.TODO(), key)
 }
 
-func (store genericFileStore) Close() error {
+func (store *genericFileStore) Close() error {
 	return store.bucket.Close()
 }
 

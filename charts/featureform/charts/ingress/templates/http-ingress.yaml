@@ -19,7 +19,7 @@ spec:
       port:
         number: 80
   rules:
-    {{ if not .Values.global.hostname }}
+    {{ if .Values.global.hostname }}
     - host: {{ .Values.global.hostname }}
     {{ end }}
     - http:

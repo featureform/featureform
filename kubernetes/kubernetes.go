@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/featureform/config"
 	"io"
 	"io/ioutil"
 	"math"
@@ -103,6 +104,10 @@ func generateKubernetesEnvVars(envVars map[string]string) []v1.EnvVar {
 		kubeEnvVars[i] = v1.EnvVar{Name: key, Value: element}
 		i++
 	}
+	kubeEnvVars = append(kubeEnvVars, v1.EnvVar{
+		Name:  "FEATUREFORM_VERSION",
+		Value: config.GetFeatureformVersion(),
+	})
 	return kubeEnvVars
 }
 

@@ -13,6 +13,10 @@ func GetPandasRunnerImage() string {
 	return helpers.GetEnv("PANDAS_RUNNER_IMAGE", PandasBaseImage)
 }
 
+
+func GetFeatureformVersion() string {
+	return helpers.GetEnv("FEATUREFORM_VERSION", "0.0.0")
+
 func GetSparkLocalScriptPath() string {
 	return helpers.GetEnv("SPARK_LOCAL_SCRIPT_PATH", SparkLocalScriptPath)
 }

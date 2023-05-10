@@ -1,9 +1,9 @@
-import React from "react";
-import Typography from "@material-ui/core/Typography";
-import { makeStyles } from "@material-ui/core/styles";
-import Slider from "@material-ui/core/Slider";
-import { connect } from "react-redux";
-import { changeTime } from "./ExponentialTimeSliderSlice.js";
+import React from 'react';
+import Typography from '@material-ui/core/Typography';
+import { makeStyles } from '@material-ui/core/styles';
+import Slider from '@material-ui/core/Slider';
+import { connect } from 'react-redux';
+import { changeTime } from './ExponentialTimeSliderSlice.js';
 
 const useStyles = makeStyles((theme) => ({
   dateRangeView: {},
@@ -13,47 +13,47 @@ const minutesSince = [
   {
     value: 0,
     scaledValue: 2620000,
-    label: "~",
+    label: '~',
   },
   {
     value: 25,
     scaledValue: 262800,
-    label: "6mo",
+    label: '6mo',
   },
   {
     value: 50,
     scaledValue: 43800,
-    label: "1mo",
+    label: '1mo',
   },
   {
     value: 75,
     scaledValue: 10080,
-    label: "1w",
+    label: '1w',
   },
   {
     value: 100,
     scaledValue: 1440,
-    label: "1d",
+    label: '1d',
   },
   {
     value: 125,
     scaledValue: 60,
-    label: "1h",
+    label: '1h',
   },
   {
     value: 150,
     scaledValue: 10,
-    label: "10m",
+    label: '10m',
   },
   {
     value: 175,
     scaledValue: 1,
-    label: "1m",
+    label: '1m',
   },
   {
     value: 200,
     scaledValue: 0,
-    label: "now",
+    label: 'now',
   },
 ];
 
@@ -111,11 +111,11 @@ function ExponentialTimeSlider({ changeTime }) {
         scale={scaleValues}
         onChange={handleChange}
         onChangeCommitted={dispatchChange}
-        valueLabelDisplay="auto"
+        valueLabelDisplay='auto'
       />
       <div className={classes.dateRangeView}>
         {scaleValues(value).map((value, i) => (
-          <Typography key={i} variant="body2">
+          <Typography key={i} variant='body2'>
             {convToDateTime(value)}
           </Typography>
         ))}

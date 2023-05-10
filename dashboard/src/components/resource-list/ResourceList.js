@@ -1,12 +1,12 @@
-import React from "react";
-import PropTypes from "prop-types";
-import { connect } from "react-redux";
-import { createSelector } from "@reduxjs/toolkit";
-import { fetchResources } from "./ResourceSlice.js";
-import ResourceListView from "./ResourceListView.js";
-import { setVariant } from "./VariantSlice.js";
-import { toggleTag } from "./TagSlice.js";
-import ServerErrorPage from "../servererror/ServerErrorPage";
+import React from 'react';
+import PropTypes from 'prop-types';
+import { connect } from 'react-redux';
+import { createSelector } from '@reduxjs/toolkit';
+import { fetchResources } from './ResourceSlice.js';
+import ResourceListView from './ResourceListView.js';
+import { setVariant } from './VariantSlice.js';
+import { toggleTag } from './TagSlice.js';
+import ServerErrorPage from '../servererror/ServerErrorPage';
 
 export const makeSelectFilteredResources = (type) => {
   const selectResources = (state) => state.resourceList[type].resources;
@@ -31,7 +31,7 @@ export const makeSelectFilteredResources = (type) => {
       return resources.filter((resource) => {
         let activeVariantName = variants[resource.name]
           ? variants[resource.name]
-          : resource["default-variant"];
+          : resource['default-variant'];
         let activeResource = resource.variants[activeVariantName];
         const resTags = activeResource.tags || [];
         const numFound = resTags.filter((itemTag) => itemTag in tags).length;

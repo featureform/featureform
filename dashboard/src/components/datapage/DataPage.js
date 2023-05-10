@@ -1,8 +1,8 @@
-import React from "react";
-import ResourcesAPI from "../../api/resources";
-import ResourceList from "../resource-list/ResourceList";
-import NotFoundPage from "../notfoundpage/NotFoundPage";
-import Resource from "../../api/resources/Resource.js";
+import React from 'react';
+import ResourcesAPI from '../../api/resources';
+import ResourceList from '../resource-list/ResourceList';
+import NotFoundPage from '../notfoundpage/NotFoundPage';
+import Resource from '../../api/resources/Resource.js';
 const apiHandle = new ResourcesAPI();
 
 const DataPage = ({ type, ...props }) => {

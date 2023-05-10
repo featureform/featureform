@@ -1,20 +1,20 @@
-import "jest-canvas-mock";
-import deferred from "deferred";
-import { configureStore } from "@reduxjs/toolkit";
-import { newTestStore } from "../src/components/redux/store";
+import 'jest-canvas-mock';
+import deferred from 'deferred';
+import { configureStore } from '@reduxjs/toolkit';
+import { newTestStore } from '../src/components/redux/store';
 import {
   initialState,
   fetchResources,
   default as resourceReducer,
-} from "../src/components/resource-list/ResourceSlice";
-import { testData } from "../src/api/resources";
+} from '../src/components/resource-list/ResourceSlice';
+import { testData } from '../src/api/resources';
 
-const dataType = "Feature";
+const dataType = 'Feature';
 
-describe("fetchResourcesThunk", () => {
+describe('fetchResourcesThunk', () => {
   const wrapInPromise = (arr) => Promise.resolve({ data: arr });
 
-  it("fetches resources with dispatch", async () => {
+  it('fetches resources with dispatch', async () => {
     const reduxStore = newTestStore();
     const mockApi = {
       fetchResources: jest.fn(() => wrapInPromise(testData)),
@@ -25,7 +25,7 @@ describe("fetchResourcesThunk", () => {
     expect(data.payload).toEqual(testData);
   });
 
-  it("sets resources state with dispatch", async () => {
+  it('sets resources state with dispatch', async () => {
     const reduxStore = newTestStore();
     const mockApi = {
       fetchResources: jest.fn(() => wrapInPromise(testData)),
@@ -43,7 +43,7 @@ describe("fetchResourcesThunk", () => {
     const mockFetchResources = jest.fn();
     mockFetchResources
       .mockReturnValueOnce(wrapInPromise(testData))
-      .mockReturnValueOnce(wrapInPromise(["abc"]));
+      .mockReturnValueOnce(wrapInPromise(['abc']));
     const mockApi = {
       fetchResources: mockFetchResources,
     };
@@ -61,7 +61,7 @@ describe("fetchResourcesThunk", () => {
     const mockFetchResources = jest.fn();
     mockFetchResources
       .mockReturnValueOnce(defer.promise)
-      .mockReturnValueOnce(wrapInPromise(["abc"]));
+      .mockReturnValueOnce(wrapInPromise(['abc']));
     const mockApi = {
       fetchResources: mockFetchResources,
     };
@@ -81,22 +81,22 @@ describe("fetchResourcesThunk", () => {
   });
 });
 
-describe("ResourceReducers", () => {
-  it("sets state to loading on pending", () => {
-    const action = fetchResources.pending("requestID", { type: dataType });
+describe('ResourceReducers', () => {
+  it('sets state to loading on pending', () => {
+    const action = fetchResources.pending('requestID', { type: dataType });
     const state = resourceReducer({ [dataType]: {} }, action);
     expect(state[dataType].loading).toEqual(true);
   });
 
-  it("unsets data on pending", () => {
-    const action = fetchResources.pending("requestId", { type: dataType });
+  it('unsets data on pending', () => {
+    const action = fetchResources.pending('requestId', { type: dataType });
     const state = resourceReducer({ [dataType]: { data: [] } }, action);
     expect(state[dataType].resources).toEqual(null);
   });
 
-  it("sets data on success", () => {
+  it('sets data on success', () => {
     const payload = testData;
-    const requestId = "123";
+    const requestId = '123';
     const action = fetchResources.fulfilled(payload, requestId, {
       type: dataType,
     });
@@ -107,8 +107,8 @@ describe("ResourceReducers", () => {
     expect(state[dataType].resources).toEqual(payload);
   });
 
-  it("sets failed on rejected", () => {
-    const requestId = "123";
+  it('sets failed on rejected', () => {
+    const requestId = '123';
     const action = fetchResources.rejected(null, requestId, { type: dataType });
     const state = resourceReducer(
       { [dataType]: { requestId: requestId } },
@@ -117,9 +117,9 @@ describe("ResourceReducers", () => {
     expect(state[dataType].failed).toEqual(true);
   });
 
-  it("clears failed on pending", () => {
+  it('clears failed on pending', () => {
     const payload = testData;
-    const requestId = "123";
+    const requestId = '123';
     const action = fetchResources.pending(requestId, { type: dataType });
     const state = resourceReducer(
       { [dataType]: { requestId: requestId, failed: true } },
@@ -128,10 +128,10 @@ describe("ResourceReducers", () => {
     expect(state[dataType].failed).toEqual(false);
   });
 
-  it("ignore old request on fulfilled", () => {
+  it('ignore old request on fulfilled', () => {
     const payload = testData;
-    const oldRequestId = "456";
-    const newRequestId = "123";
+    const oldRequestId = '456';
+    const newRequestId = '123';
     const action = fetchResources.fulfilled(payload, oldRequestId, {
       type: dataType,
     });
@@ -142,10 +142,10 @@ describe("ResourceReducers", () => {
     expect(state[dataType].loading).toEqual(true);
   });
 
-  it("ignore old request on rejected", () => {
+  it('ignore old request on rejected', () => {
     const payload = testData;
-    const oldRequestId = "456";
-    const newRequestId = "123";
+    const oldRequestId = '456';
+    const newRequestId = '123';
     const action = fetchResources.rejected(payload, oldRequestId, {
       type: dataType,
     });

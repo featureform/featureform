@@ -1,15 +1,15 @@
-import React from "react";
-import { useEffect, useCallback } from "react";
-import { Chart } from "chart.js";
-import { makeStyles } from "@material-ui/core/styles";
+import React from 'react';
+import { useEffect, useCallback } from 'react';
+import { Chart } from 'chart.js';
+import { makeStyles } from '@material-ui/core/styles';
 
-import { connect } from "react-redux";
+import { connect } from 'react-redux';
 
-import { PROMETHEUS_URL } from "../../../api/resources";
+import { PROMETHEUS_URL } from '../../../api/resources';
 
 const useStyles = makeStyles((theme) => ({
   graphBox: {
-    height: "50%",
+    height: '50%',
   },
 }));
 
@@ -29,11 +29,11 @@ const PrometheusGraph = ({
   remote,
 }) => {
   let max = 1000;
-  if (query.includes("error")) {
+  if (query.includes('error')) {
     max = 10;
-  } else if (query_type === "latency" && type === "TrainingSet") {
+  } else if (query_type === 'latency' && type === 'TrainingSet') {
     max = 10;
-  } else if (query_type === "latency" && type === "Feature") {
+  } else if (query_type === 'latency' && type === 'Feature') {
     max = 0.1;
   }
   const classes = useStyles();
@@ -41,9 +41,9 @@ const PrometheusGraph = ({
   const add_labels_string = add_labels
     ? Object.keys(add_labels).reduce(
         (acc, label) => `${acc} ${label}:"${add_labels[label]}"`,
-        ""
+        ''
       )
-    : "";
+    : '';
 
   const customReq = useCallback(
     (start, end, step, stub) => {
@@ -53,18 +53,18 @@ const PrometheusGraph = ({
       return fetch(url)
         .then((response) => response.json())
         .then((response) => {
-          return response["data"]
+          return response['data'];
         })
         .catch((err) => console.error(err));
     },
     [query, add_labels_string, remote]
   );
-  
+
   useEffect(() => {
     var myChart = new Chart(chartRef.current, {
-      type: "line",
+      type: 'line',
 
-      plugins: [require("chartjs-plugin-datasource-prometheus")],
+      plugins: [require('chartjs-plugin-datasource-prometheus')],
       options: {
         maintainAspectRatio: false,
         fillGaps: true,
@@ -83,7 +83,7 @@ const PrometheusGraph = ({
         scales: {
           xAxes: [
             {
-              type: "time",
+              type: 'time',
               ticks: {
                 autoSkip: true,
                 maxTicksLimit: 15,
@@ -102,11 +102,11 @@ const PrometheusGraph = ({
         },
 
         plugins: {
-          "datasource-prometheus": {
+          'datasource-prometheus': {
             query: customReq,
 
             timeRange: {
-              type: "relative",
+              type: 'relative',
               //timestamps in miliseconds relative to current time.
               //negative is the past, positive is the future
               start: -minutesToMilliseconds(timeRange.timeRange[0]),
@@ -137,8 +137,8 @@ const PrometheusGraph = ({
   return (
     <div className={classes.graphBox}>
       <canvas
-        height="300vw"
-        style={{ maxHeight: "20em", width: "100%" }}
+        height='300vw'
+        style={{ maxHeight: '20em', width: '100%' }}
         ref={chartRef}
       />
     </div>

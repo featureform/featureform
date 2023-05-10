@@ -1,7 +1,7 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice } from '@reduxjs/toolkit';
 
 const exponentialTimeSliderSlice = createSlice({
-  name: "timeSlider",
+  name: 'timeSlider',
   initialState: {
     timeRange: [60, 0],
   },

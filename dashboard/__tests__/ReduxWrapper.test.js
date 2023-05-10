@@ -1,16 +1,16 @@
-import React from "react";
-import { configure, mount } from "enzyme";
-import Adapter from "@wojtekmaj/enzyme-adapter-react-17";
-import { connect } from "react-redux";
-import { configureStore, createSlice } from "@reduxjs/toolkit";
+import React from 'react';
+import { configure, mount } from 'enzyme';
+import Adapter from '@wojtekmaj/enzyme-adapter-react-17';
+import { connect } from 'react-redux';
+import { configureStore, createSlice } from '@reduxjs/toolkit';
 
-import ReduxWrapper from "../src/components/redux/wrapper/ReduxWrapper.js";
+import ReduxWrapper from '../src/components/redux/wrapper/ReduxWrapper.js';
 
 configure({ adapter: new Adapter() });
 
-describe("ReduxWrapper", () => {
+describe('ReduxWrapper', () => {
   const exampleSlice = createSlice({
-    name: "example",
+    name: 'example',
     initialState: {
       value: 5,
     },
@@ -34,8 +34,8 @@ describe("ReduxWrapper", () => {
     </ReduxWrapper>
   );
 
-  it("Add store to context and test mapStateToProps", () => {
-    const divProps = reduxComponent.find("StatefulDiv").props();
+  it('Add store to context and test mapStateToProps', () => {
+    const divProps = reduxComponent.find('StatefulDiv').props();
     expect(divProps).toMatchObject({
       valueProp: 5,
     });

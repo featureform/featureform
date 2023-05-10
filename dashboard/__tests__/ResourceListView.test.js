@@ -1,19 +1,19 @@
-import React from "react";
+import React from 'react';
 // Necessary to get MaterialTable to work correctly.
-import "jest-canvas-mock";
-import { configure, shallow, mount } from "enzyme";
-import Adapter from "@wojtekmaj/enzyme-adapter-react-17";
-import Chip from "@material-ui/core/Chip";
-import produce from "immer";
-import CssBaseline from "@material-ui/core/CssBaseline";
-import TEST_THEME from "../src/styles/theme";
-import { ThemeProvider } from "@material-ui/core/styles";
+import 'jest-canvas-mock';
+import { configure, shallow, mount } from 'enzyme';
+import Adapter from '@wojtekmaj/enzyme-adapter-react-17';
+import Chip from '@material-ui/core/Chip';
+import produce from 'immer';
+import CssBaseline from '@material-ui/core/CssBaseline';
+import TEST_THEME from '../src/styles/theme';
+import { ThemeProvider } from '@material-ui/core/styles';
 
 import {
   ResourceListView,
   TagList,
   VariantSelector,
-} from "../src/components/resource-list/ResourceListView";
+} from '../src/components/resource-list/ResourceListView';
 
 configure({ adapter: new Adapter() });
 
@@ -40,102 +40,102 @@ export function shallowWithTheme(child) {
   });
 }
 
-describe("ResourceListView", () => {
-  it("sets resources to [] by default", () => {
-    const list = shallow(<ResourceListView title="test" type="Feature" />);
+describe('ResourceListView', () => {
+  it('sets resources to [] by default', () => {
+    const list = shallow(<ResourceListView title='test' type='Feature' />);
     expect(list.children().props().data).toEqual([]);
   });
 
-  it("passes through resources", () => {
+  it('passes through resources', () => {
     const list = shallow(
       <ResourceListView
-        title="test"
-        type="Feature"
+        title='test'
+        type='Feature'
         resources={[
           {
-            name: "abc",
-            revision: "Invalid Date",
-            "default-variant": "first-variant",
+            name: 'abc',
+            revision: 'Invalid Date',
+            'default-variant': 'first-variant',
           },
         ]}
       />
     );
     expect(list.children().props().data).toEqual([
       {
-        name: "abc",
-        revision: "Invalid Date",
-        "default-variant": "first-variant",
+        name: 'abc',
+        revision: 'Invalid Date',
+        'default-variant': 'first-variant',
       },
     ]);
   });
 
-  it("makes resources mutable", () => {
+  it('makes resources mutable', () => {
     const immutData = produce([], (draft) => {
       draft.push({
-        name: "abc",
-        "default-variant": "first-variant",
-        variants: { "first-variant": {}, "second-variant": {} },
+        name: 'abc',
+        'default-variant': 'first-variant',
+        variants: { 'first-variant': {}, 'second-variant': {} },
       });
     });
     const list = shallow(
-      <ResourceListView title="test" resources={immutData} type="Feature" />
+      <ResourceListView title='test' resources={immutData} type='Feature' />
     );
     expect(Object.isFrozen(immutData)).toBe(true);
     expect(Object.isFrozen(list.children().props().data)).toBe(false);
   });
 
   it("sets isLoading when resources isn't set", () => {
-    const list = shallow(<ResourceListView title="test" type="Feature" />);
+    const list = shallow(<ResourceListView title='test' type='Feature' />);
     expect(list.children().props().isLoading).toEqual(true);
   });
 
-  it("sets isLoading when loading", () => {
+  it('sets isLoading when loading', () => {
     const list = shallow(
-      <ResourceListView title="test" loading={true} type="Feature" />
+      <ResourceListView title='test' loading={true} type='Feature' />
     );
     expect(list.children().props().isLoading).toEqual(true);
   });
 
-  it("sets isLoading when failed", () => {
+  it('sets isLoading when failed', () => {
     const list = shallow(
       <ResourceListView
-        title="test"
+        title='test'
         loading={false}
         failed={true}
-        type="Feature"
+        type='Feature'
       />
     );
     expect(list.children().props().isLoading).toEqual(true);
   });
 
-  describe("TagList", () => {
-    const exampleTags = ["a", "b", "c"];
+  describe('TagList', () => {
+    const exampleTags = ['a', 'b', 'c'];
 
-    it("renders correctly with no tags", () => {
+    it('renders correctly with no tags', () => {
       const list = shallow(<TagList />);
       expect(list.children().length).toBe(0);
     });
 
-    it("renders correctly with no active tags", () => {
+    it('renders correctly with no active tags', () => {
       const list = shallow(
-        <TagList tagClass="class-here" tags={exampleTags} />
+        <TagList tagClass='class-here' tags={exampleTags} />
       );
       expect(list).toMatchSnapshot();
     });
 
-    it("highlights active tags", () => {
+    it('highlights active tags', () => {
       const list = mount(
         <TagList activeTags={{ [exampleTags[1]]: true }} tags={exampleTags} />
       );
       const chips = list.find(Chip);
-      expect(chips.at(0).prop("color")).toBe("default");
-      expect(chips.at(1).prop("color")).toBe("secondary");
+      expect(chips.at(0).prop('color')).toBe('default');
+      expect(chips.at(1).prop('color')).toBe('secondary');
     });
 
-    it("toggles tag on click", () => {
+    it('toggles tag on click', () => {
       const toggle = jest.fn();
       const list = mount(<TagList tags={exampleTags} toggleTag={toggle} />);
-      list.find(Chip).at(0).simulate("click");
+      list.find(Chip).at(0).simulate('click');
       expect(toggle).toHaveBeenCalledWith(exampleTags[0]);
     });
   });

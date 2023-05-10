@@ -3,4 +3,4 @@ export {
   testData,
   providerLogos,
   PROMETHEUS_URL,
-} from "./Resources.js";
+} from './Resources.js';

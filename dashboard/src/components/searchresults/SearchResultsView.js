@@ -112,7 +112,7 @@ const SearchResultsList = ({ type, contents, setVariant }) => {
   );
 };
 
-var searchTypeMap = {
+const searchTypeMap = Object.freeze({
   "FEATURE": "Feature",
   "FEATURE_VARIANT": "Feature",
   "LABEL": "Label",
@@ -125,12 +125,12 @@ var searchTypeMap = {
   "ENTITY": "Entity",
   "MODEL": "Model",
   "USER": "User",
-}
+})
 
 const SearchResultsItem = ({ type, content, setVariant }) => {
   const classes = useStyles();
   const router = useRouter()
-  const resourceType = Resource[searchTypeMap[content.Type]];
+  const resourceType = Resource[searchTypeMap[content.Type?.toUpperCase()]];
   function handleClick(content) {
     if (resourceType?.hasVariants) {
       setVariant(content.Type, content.Name, content.Variant);

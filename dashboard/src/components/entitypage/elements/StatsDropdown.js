@@ -1,8 +1,8 @@
-import React from 'react';
-import { Typography, Grid, Container } from '@material-ui/core';
+import { Container, Grid, Typography } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
-import { Bar } from 'react-chartjs-2';
 import faker from 'faker';
+import React from 'react';
+import { Bar } from 'react-chartjs-2';
 
 const useStyles = makeStyles((theme) => ({
   root: {

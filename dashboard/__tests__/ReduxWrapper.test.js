@@ -1,9 +1,8 @@
-import React from 'react';
-import { configure, mount } from 'enzyme';
-import Adapter from '@wojtekmaj/enzyme-adapter-react-17';
-import { connect } from 'react-redux';
 import { configureStore, createSlice } from '@reduxjs/toolkit';
-
+import Adapter from '@wojtekmaj/enzyme-adapter-react-17';
+import { configure, mount } from 'enzyme';
+import React from 'react';
+import { connect } from 'react-redux';
 import ReduxWrapper from '../src/components/redux/wrapper/ReduxWrapper.js';
 
 configure({ adapter: new Adapter() });

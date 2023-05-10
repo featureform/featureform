@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import Box from '@material-ui/core/Box';
+import Button from '@material-ui/core/Button';
 import Icon from '@material-ui/core/Icon';
 import { makeStyles } from '@material-ui/core/styles';
-import { useRouter } from 'next/router';
-import Button from '@material-ui/core/Button';
-import Box from '@material-ui/core/Box';
 import Typography from '@material-ui/core/Typography';
+import { useRouter } from 'next/router';
+import React, { useEffect, useState } from 'react';
 import Resource from '../../api/resources/Resource.js';
 
 const useStyles = makeStyles((theme, id) => ({

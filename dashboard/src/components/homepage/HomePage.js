@@ -1,9 +1,9 @@
-import React from 'react';
 import { makeStyles } from '@material-ui/core/styles';
+import Typography from '@material-ui/core/Typography';
+import React from 'react';
 import { connect } from 'react-redux';
 import SearchBar from '../search/SearchBar';
 import TilePanel from '../tilelinks/TilePanel';
-import Typography from '@material-ui/core/Typography';
 
 const useStyles = makeStyles((theme) => ({
   root: {

@@ -1,4 +1,3 @@
-import { NextPage } from 'next';
 import Head from 'next/head';
 import HomePage from '../src/components/homepage/HomePage';
 

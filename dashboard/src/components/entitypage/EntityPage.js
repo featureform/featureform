@@ -1,13 +1,13 @@
-import React, { useEffect } from 'react';
-import { connect } from 'react-redux';
-import { fetchEntity } from './EntityPageSlice.js';
-import EntityPageView from './EntityPageView.js';
-import Loader from 'react-loader-spinner';
 import Container from '@material-ui/core/Container';
 import Paper from '@material-ui/core/Paper';
-import { setVariant } from '../resource-list/VariantSlice.js';
-import NotFoundPage from '../notfoundpage/NotFoundPage';
+import React, { useEffect } from 'react';
+import Loader from 'react-loader-spinner';
+import { connect } from 'react-redux';
 import Resource from '../../api/resources/Resource.js';
+import NotFoundPage from '../notfoundpage/NotFoundPage';
+import { setVariant } from '../resource-list/VariantSlice.js';
+import { fetchEntity } from './EntityPageSlice.js';
+import EntityPageView from './EntityPageView.js';
 
 const mapDispatchToProps = (dispatch) => {
   return {

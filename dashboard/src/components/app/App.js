@@ -1,18 +1,11 @@
-import React from 'react';
-import { makeStyles } from '@material-ui/core/styles';
-import CssBaseline from '@material-ui/core/CssBaseline';
-import theme from '../../styles/theme';
-import { ThemeProvider } from '@material-ui/core/styles';
-import ResourcesAPI from '../../api/resources';
-import HomePage from '../homepage/HomePage';
-import DataPage from '../datapage/DataPage';
-import TopBar from '../topbar/TopBar';
-import EntityPage from '../entitypage/EntityPage';
-import BreadCrumbs from '../breadcrumbs/BreadCrumbs';
 import Container from '@material-ui/core/Container';
-import SearchResults from '../searchresults/SearchResults';
-import NotFoundPage from '../notfoundpage/NotFoundPage';
-import ConnectionPage from '../connectionpage';
+import CssBaseline from '@material-ui/core/CssBaseline';
+import { makeStyles, ThemeProvider } from '@material-ui/core/styles';
+import React from 'react';
+import ResourcesAPI from '../../api/resources';
+import theme from '../../styles/theme';
+import BreadCrumbs from '../breadcrumbs/BreadCrumbs';
+import TopBar from '../topbar/TopBar';
 
 const apiHandle = new ResourcesAPI();
 const useStyles = makeStyles((theme) => ({

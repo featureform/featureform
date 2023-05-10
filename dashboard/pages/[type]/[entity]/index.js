@@ -1,6 +1,6 @@
-import EntityPage from '../../../src/components/entitypage/EntityPage';
 import { useRouter } from 'next/router';
 import ResourcesAPI from '../../../src/api/resources/Resources';
+import EntityPage from '../../../src/components/entitypage/EntityPage';
 
 const EntityPageRoute = () => {
   const router = useRouter();

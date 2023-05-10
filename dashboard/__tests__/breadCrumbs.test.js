@@ -1,6 +1,6 @@
-import React from 'react';
-import 'jest-canvas-mock';
 import { cleanup, render } from '@testing-library/react';
+import 'jest-canvas-mock';
+import React from 'react';
 import BreadCrumbs from '../src/components/breadcrumbs/BreadCrumbs';
 
 const userRouterMock = {

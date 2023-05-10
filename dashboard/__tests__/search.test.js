@@ -1,10 +1,10 @@
-import React from 'react';
-import 'jest-canvas-mock';
-import { cleanup, fireEvent, render } from '@testing-library/react';
-import SearchBar from '../src/components/search/SearchBar';
 import { ThemeProvider } from '@material-ui/core';
-import TEST_THEME from '../src/styles/theme';
+import { cleanup, fireEvent, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import 'jest-canvas-mock';
+import React from 'react';
+import SearchBar from '../src/components/search/SearchBar';
+import TEST_THEME from '../src/styles/theme';
 
 const userRouterMock = {
   push: jest.fn(),

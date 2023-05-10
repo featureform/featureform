@@ -1,10 +1,10 @@
-import React from 'react';
-import { createStyles, alpha, makeStyles } from '@material-ui/core/styles';
-import SearchIcon from '@material-ui/icons/Search';
-import Grid from '@material-ui/core/Grid';
-import { useRouter } from 'next/router';
 import Container from '@material-ui/core/Container';
+import Grid from '@material-ui/core/Grid';
 import InputBase from '@material-ui/core/InputBase';
+import { alpha, createStyles, makeStyles } from '@material-ui/core/styles';
+import SearchIcon from '@material-ui/icons/Search';
+import { useRouter } from 'next/router';
+import React from 'react';
 
 const ENTER_KEY = 'Enter';
 

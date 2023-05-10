@@ -1,10 +1,7 @@
-import React from 'react';
-import { useEffect, useCallback } from 'react';
-import { Chart } from 'chart.js';
 import { makeStyles } from '@material-ui/core/styles';
-
+import { Chart } from 'chart.js';
+import React, { useCallback, useEffect } from 'react';
 import { connect } from 'react-redux';
-
 import { PROMETHEUS_URL } from '../../../api/resources';
 
 const useStyles = makeStyles((theme) => ({

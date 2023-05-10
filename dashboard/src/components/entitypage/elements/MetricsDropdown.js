@@ -1,10 +1,10 @@
-import React, { useEffect } from 'react';
-import { Typography, Grid, Container } from '@material-ui/core';
-import { makeStyles } from '@material-ui/core/styles';
-import TimeDropdown from './TimeDropdown';
-import QueryDropdown from './QueryDropdown';
-import { connect } from 'react-redux';
+import { Container, Grid, Typography } from '@material-ui/core';
 import Chip from '@material-ui/core/Chip';
+import { makeStyles } from '@material-ui/core/styles';
+import React, { useEffect } from 'react';
+import { connect } from 'react-redux';
+import QueryDropdown from './QueryDropdown';
+import TimeDropdown from './TimeDropdown';
 
 const useStyles = makeStyles((theme) => ({
   root: {

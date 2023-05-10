@@ -1,11 +1,9 @@
-import React from 'react';
-import PropTypes from 'prop-types';
-import { makeStyles } from '@material-ui/core/styles';
-import { useRouter } from 'next/router';
-import Typography from '@material-ui/core/Typography';
-import Grid from '@material-ui/core/Grid';
+import Button from '@material-ui/core/Button';
 import Chip from '@material-ui/core/Chip';
-import theme from '../../styles/theme';
+import Container from '@material-ui/core/Container';
+import Grid from '@material-ui/core/Grid';
+import { makeStyles } from '@material-ui/core/styles';
+import Typography from '@material-ui/core/Typography';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import Rating from '@mui/material/Rating';
 import MaterialTable, {
@@ -13,14 +11,16 @@ import MaterialTable, {
   MTableHeader,
   MTableToolbar,
 } from 'material-table';
+import { useRouter } from 'next/router';
+import PropTypes from 'prop-types';
+import React from 'react';
 import { PrismAsyncLight as SyntaxHighlighter } from 'react-syntax-highlighter';
+import json from 'react-syntax-highlighter/dist/cjs/languages/prism/json';
 import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
 import sql from 'react-syntax-highlighter/dist/cjs/languages/prism/sql';
-import json from 'react-syntax-highlighter/dist/cjs/languages/prism/json';
-import Container from '@material-ui/core/Container';
 import { providerLogos } from '../../api/resources';
-import Button from '@material-ui/core/Button';
 import Resource from '../../api/resources/Resource.js';
+import theme from '../../styles/theme';
 
 SyntaxHighlighter.registerLanguage('python', python);
 SyntaxHighlighter.registerLanguage('sql', sql);

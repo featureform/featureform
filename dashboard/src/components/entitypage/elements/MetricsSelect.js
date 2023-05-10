@@ -1,21 +1,19 @@
 import {
-  Select,
-  MenuItem,
   Box,
   FormControl,
   InputLabel,
+  MenuItem,
+  Select,
 } from '@material-ui/core/';
 import Typography from '@material-ui/core/Typography';
-
-import MetricsAPI from '../../api/resources/Metrics.js';
-import {
-  modifyMetrics,
-  modifyInstances,
-  fetchMetrics,
-} from './MetricsSelectSlice.js';
-
 import React, { useEffect } from 'react';
 import { connect } from 'react-redux';
+import MetricsAPI from '../../api/resources/Metrics.js';
+import {
+  fetchMetrics,
+  modifyInstances,
+  modifyMetrics,
+} from './MetricsSelectSlice.js';
 
 const metricsAPI = new MetricsAPI();
 

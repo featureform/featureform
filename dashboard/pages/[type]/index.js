@@ -1,6 +1,6 @@
-import DataPage from '../../src/components/datapage/DataPage';
 import { useRouter } from 'next/router';
 import ResourcesAPI from '../../src/api/resources/Resources';
+import DataPage from '../../src/components/datapage/DataPage';
 
 const DataPageRoute = () => {
   const router = useRouter();

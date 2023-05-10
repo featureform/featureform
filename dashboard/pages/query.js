@@ -1,6 +1,6 @@
 import React from 'react';
-import SearchResults from '../src/components/searchresults/SearchResults';
 import ResourcesAPI from '../src/api/resources/Resources';
+import SearchResults from '../src/components/searchresults/SearchResults';
 
 const QueryWrapper = () => {
   const apiHandle = new ResourcesAPI();

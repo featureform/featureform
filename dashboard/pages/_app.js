@@ -1,21 +1,14 @@
-import React from 'react';
-import '../src/styles/base.css';
-import ReduxWrapper from '../src/components/redux/wrapper';
-import ReduxStore from '../src/components/redux/store';
-import { makeStyles } from '@material-ui/core/styles';
-import CssBaseline from '@material-ui/core/CssBaseline';
-import theme from '../src/styles/theme';
-import { ThemeProvider } from '@material-ui/core/styles';
-import ResourcesAPI from '../src/api/resources';
-import HomePage from '../src/components/homepage/HomePage';
-import DataPage from '../src/components/datapage/DataPage';
-import TopBar from '../src/components/topbar/TopBar';
-import EntityPage from '../src/components/entitypage/EntityPage';
-import BreadCrumbs from '../src/components/breadcrumbs/BreadCrumbs';
 import Container from '@material-ui/core/Container';
-import SearchResults from '../src/components/searchresults/SearchResults';
-import NotFoundPage from '../src/components/notfoundpage/NotFoundPage';
-import ConnectionPage from '../src/components/connectionpage';
+import CssBaseline from '@material-ui/core/CssBaseline';
+import { makeStyles, ThemeProvider } from '@material-ui/core/styles';
+import React from 'react';
+import ResourcesAPI from '../src/api/resources';
+import BreadCrumbs from '../src/components/breadcrumbs/BreadCrumbs';
+import ReduxStore from '../src/components/redux/store';
+import ReduxWrapper from '../src/components/redux/wrapper';
+import TopBar from '../src/components/topbar/TopBar';
+import '../src/styles/base.css';
+import theme from '../src/styles/theme';
 
 const apiHandle = new ResourcesAPI();
 const useStyles = makeStyles((theme) => ({

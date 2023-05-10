@@ -1,9 +1,9 @@
+import { useRouter } from 'next/router';
 import React, { useEffect } from 'react';
 import { connect } from 'react-redux';
-import SearchResultsView from './SearchResultsView';
-import { useRouter } from 'next/router';
-import { fetchSearch } from './SearchResultsSlice';
 import { setVariant } from '../resource-list/VariantSlice.js';
+import { fetchSearch } from './SearchResultsSlice';
+import SearchResultsView from './SearchResultsView';
 
 function useQuery() {
   const router = useRouter();

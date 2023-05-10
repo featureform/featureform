@@ -1,19 +1,17 @@
-import React from 'react';
+import Chip from '@material-ui/core/Chip';
+import CssBaseline from '@material-ui/core/CssBaseline';
+import { ThemeProvider } from '@material-ui/core/styles';
+import Adapter from '@wojtekmaj/enzyme-adapter-react-17';
+import { configure, mount, shallow } from 'enzyme';
+import produce from 'immer';
 // Necessary to get MaterialTable to work correctly.
 import 'jest-canvas-mock';
-import { configure, shallow, mount } from 'enzyme';
-import Adapter from '@wojtekmaj/enzyme-adapter-react-17';
-import Chip from '@material-ui/core/Chip';
-import produce from 'immer';
-import CssBaseline from '@material-ui/core/CssBaseline';
-import TEST_THEME from '../src/styles/theme';
-import { ThemeProvider } from '@material-ui/core/styles';
-
+import React from 'react';
 import {
   ResourceListView,
   TagList,
-  VariantSelector,
 } from '../src/components/resource-list/ResourceListView';
+import TEST_THEME from '../src/styles/theme';
 
 configure({ adapter: new Adapter() });
 

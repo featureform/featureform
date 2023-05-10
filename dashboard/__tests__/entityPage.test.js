@@ -1,10 +1,10 @@
-import React from 'react';
-import 'jest-canvas-mock';
+import { ThemeProvider } from '@material-ui/core/styles';
+import { configureStore, createSlice } from '@reduxjs/toolkit';
 import { cleanup, render } from '@testing-library/react';
+import 'jest-canvas-mock';
+import React from 'react';
 import EntityPage from '../src/components/entitypage/EntityPage';
 import ReduxWrapper from '../src/components/redux/wrapper/ReduxWrapper';
-import { createSlice, configureStore } from '@reduxjs/toolkit';
-import { ThemeProvider } from '@material-ui/core/styles';
 import TEST_THEME from '../src/styles/theme';
 
 jest.mock('../src/components/entitypage/EntityPageView', () => () => {

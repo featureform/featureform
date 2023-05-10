@@ -1,14 +1,14 @@
-import React from 'react';
-import PropTypes from 'prop-types';
-import { makeStyles } from '@material-ui/core/styles';
-import Typography from '@material-ui/core/Typography';
 import Box from '@material-ui/core/Box';
+import Container from '@material-ui/core/Container';
 import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
 import ListItemText from '@material-ui/core/ListItemText';
-import Container from '@material-ui/core/Container';
-import Resource from '../../api/resources/Resource.js';
+import { makeStyles } from '@material-ui/core/styles';
+import Typography from '@material-ui/core/Typography';
 import { useRouter } from 'next/router';
+import PropTypes from 'prop-types';
+import React from 'react';
+import Resource from '../../api/resources/Resource.js';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;

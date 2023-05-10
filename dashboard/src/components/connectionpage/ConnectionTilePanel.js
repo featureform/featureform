@@ -1,6 +1,6 @@
+import Grid from '@material-ui/core/Grid';
 import React from 'react';
 import ConnectionTile from './ConnectionTile';
-import Grid from '@material-ui/core/Grid';
 
 const TilePanel = ({ sections }) => {
   return (

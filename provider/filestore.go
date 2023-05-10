@@ -152,12 +152,12 @@ func NewAzureFileStore(config Config) (FileStore, error) {
 	serviceURL := azureblob.ServiceURL(fmt.Sprintf("https://%s.blob.core.windows.net", azureStoreConfig.AccountName))
 	client, err := azureblob.NewDefaultServiceClient(serviceURL)
 	if err != nil {
-		return &AzureFileStore{}, fmt.Errorf("could not create azure client: %v", err)
+		return nil, fmt.Errorf("could not create azure client: %v", err)
 	}
 
 	bucket, err := azureblob.OpenBucket(context.TODO(), client, azureStoreConfig.ContainerName, nil)
 	if err != nil {
-		return &AzureFileStore{}, fmt.Errorf("could not open azure bucket: %v", err)
+		return nil, fmt.Errorf("could not open azure bucket: %v", err)
 	}
 	connectionString := fmt.Sprintf("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s", azureStoreConfig.AccountName, azureStoreConfig.AccountKey)
 	return &AzureFileStore{

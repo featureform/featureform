@@ -16,7 +16,7 @@ metadata:
   name: grpc-ingress
 spec:
   rules:
-    {{ if not .Values.global.hostname }}
+    {{ if .Values.global.hostname }}
     - host: {{ .Values.global.hostname }}
     {{ end }}
     - http:

@@ -22,12 +22,23 @@ func main() {
 	useK8sRunner := help.GetEnv("K8S_RUNNER_ENABLE", "false")
 	fmt.Printf("connecting to etcd: %s\n", etcdUrl)
 	fmt.Printf("connecting to metadata: %s\n", metadataUrl)
-	cli, err := clientv3.New(clientv3.Config{
+	etcdConfig := clientv3.Config{
 		Endpoints:   []string{etcdUrl},
 		Username:    help.GetEnv("ETCD_USERNAME", "root"),
 		Password:    help.GetEnv("ETCD_PASSWORD", "secretpassword"),
 		DialTimeout: time.Second * 1,
-	})
+	}
+	cli, err := clientv3.New(etcdConfig)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("connected to etcd")
+	defer func(cli *clientv3.Client) {
+		err := cli.Close()
+		if err != nil {
+			panic(fmt.Errorf("failed to close etcd client: %w", err))
+		}
+	}(cli)
 	if err := runner.RegisterFactory(string(runner.COPY_TO_ONLINE), runner.MaterializedChunkRunnerFactory); err != nil {
 		panic(fmt.Errorf("failed to register 'Copy to Online' runner factory: %w", err))
 	}
@@ -40,10 +51,6 @@ func main() {
 	if err := runner.RegisterFactory(string(runner.CREATE_TRAINING_SET), runner.TrainingSetRunnerFactory); err != nil {
 		panic(fmt.Errorf("failed to register 'Create Training Set' runner factory: %w", err))
 	}
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("connected to etcd")
 	logger := logging.NewLogger("coordinator")
 	defer logger.Sync()
 	logger.Debug("Connected to ETCD")
@@ -57,7 +64,7 @@ func main() {
 	if useK8sRunner == "false" {
 		spawner = &coordinator.MemoryJobSpawner{}
 	} else {
-		spawner = &coordinator.KubernetesJobSpawner{}
+		spawner = &coordinator.KubernetesJobSpawner{EtcdConfig: etcdConfig}
 	}
 	coord, err := coordinator.NewCoordinator(client, logger, cli, spawner)
 	if err != nil {

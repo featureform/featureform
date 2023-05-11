@@ -5,7 +5,7 @@ const styles = {
   textAlign: 'center',
 };
 
-const FeatureDistribution = (data) => (
+const FeatureDistribution = () => (
   <div style={styles}>
     <p>Feauture Distribution</p>
   </div>

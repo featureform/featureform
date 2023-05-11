@@ -42,6 +42,8 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const QuickLinks = () => {
+  /*eslint-disable no-undef*/
+  //todox: see if we need this or not
   const history = useHistory();
   const classes = useStyles();
 

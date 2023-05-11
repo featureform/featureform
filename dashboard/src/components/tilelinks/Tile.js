@@ -86,7 +86,7 @@ const Tile = ({ detail, id }) => {
     buttonClass = classes.buttonDisabled;
   }
 
-  const handleClick = (event) => {
+  const handleClick = () => {
     router.push(resourceType.urlPath);
   };
 

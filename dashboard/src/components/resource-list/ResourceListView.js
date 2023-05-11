@@ -449,7 +449,7 @@ function IconContainer(props) {
   return <span {...other}>{customIcons[value].icon}</span>;
 }
 
-export const UsageTab = ({ usage, children }) => {
+export const UsageTab = () => {
   const classes = useStyles();
 
   return (

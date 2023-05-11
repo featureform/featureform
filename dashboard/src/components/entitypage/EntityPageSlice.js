@@ -5,9 +5,6 @@ export const fetchEntity = createAsyncThunk(
   async ({ api, type, title }, { signal }) => {
     const response = await api.fetchEntity(type, title, signal);
     return response;
-  },
-  {
-    condition: ({ api, type, title }, { getState }) => {},
   }
 );
 

@@ -126,7 +126,7 @@ export default class SearchEngine {
     let filteredData = {};
     filteredData['data'] = {};
     let keyOrder = [];
-    Object.keys(unfilteredData).forEach((key, index) => {
+    Object.keys(unfilteredData).forEach((key) => {
       const sortedResults = this.sortedResultsByRelevance(
         unfilteredData[key],
         lowerCaseQuery

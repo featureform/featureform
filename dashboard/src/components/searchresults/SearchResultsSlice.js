@@ -1,7 +1,7 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
 export const fetchSearch = createAsyncThunk(
-  "searchResults/fetchSearch",
+  'searchResults/fetchSearch',
   async ({ api, query }, { signal }) => {
     const response = await api.fetchSearch(query, signal);
     return response;
@@ -11,7 +11,7 @@ export const fetchSearch = createAsyncThunk(
 export const initialState = {};
 
 const searchResultsSlice = createSlice({
-  name: "searchResults",
+  name: 'searchResults',
   // initialState is a map between each resource type to an empty object.
   initialState: initialState,
   extraReducers: {

@@ -1,67 +1,67 @@
 export default class Resource {
   static Feature = new Resource({
-    type: "Feature",
-    typePlural: "Features",
-    urlPath: "features",
+    type: 'Feature',
+    typePlural: 'Features',
+    urlPath: 'features',
     hasVariants: true,
-    materialIcon: "description",
+    materialIcon: 'description',
     hasMetrics: true,
   });
 
   static Label = new Resource({
-    type: "Label",
-    typePlural: "Labels",
-    urlPath: "labels",
+    type: 'Label',
+    typePlural: 'Labels',
+    urlPath: 'labels',
     hasVariants: true,
-    materialIcon: "label",
+    materialIcon: 'label',
     hasMetrics: false,
   });
   static TrainingSet = new Resource({
-    type: "Training Set",
-    typePlural: "Training Sets",
-    urlPath: "training-sets",
+    type: 'Training Set',
+    typePlural: 'Training Sets',
+    urlPath: 'training-sets',
     hasVariants: true,
-    materialIcon: "storage",
+    materialIcon: 'storage',
     hasMetrics: true,
   });
   static Source = new Resource({
-    type: "Source",
-    typePlural: "Sources",
-    urlPath: "sources",
+    type: 'Source',
+    typePlural: 'Sources',
+    urlPath: 'sources',
     hasVariants: true,
-    materialIcon: "source",
+    materialIcon: 'source',
     hasMetrics: false,
   });
   static Entity = new Resource({
-    type: "Entity",
-    typePlural: "Entities",
-    urlPath: "entities",
+    type: 'Entity',
+    typePlural: 'Entities',
+    urlPath: 'entities',
     hasVariants: false,
-    materialIcon: "fingerprint",
+    materialIcon: 'fingerprint',
     hasMetrics: false,
   });
   static Model = new Resource({
-    type: "Model",
-    typePlural: "Models",
-    urlPath: "models",
+    type: 'Model',
+    typePlural: 'Models',
+    urlPath: 'models',
     hasVariants: false,
-    materialIcon: "model_training",
+    materialIcon: 'model_training',
     hasMetrics: false,
   });
   static Provider = new Resource({
-    type: "Provider",
-    typePlural: "Providers",
-    urlPath: "providers",
+    type: 'Provider',
+    typePlural: 'Providers',
+    urlPath: 'providers',
     hasVariants: false,
-    materialIcon: "device_hub",
+    materialIcon: 'device_hub',
     hasMetrics: false,
   });
   static User = new Resource({
-    type: "User",
-    typePlural: "Users",
-    urlPath: "users",
+    type: 'User',
+    typePlural: 'Users',
+    urlPath: 'users',
     hasVariants: false,
-    materialIcon: "person",
+    materialIcon: 'person',
     hasMetrics: false,
   });
 
@@ -89,7 +89,6 @@ export default class Resource {
 
   static typeToName = this._generateNames();
 
-
   static get resourceTypes() {
     return Object.entries(Resource)
       .filter((res) => res[1] instanceof Resource)
@@ -106,11 +105,11 @@ export default class Resource {
   }
 
   get urlPath() {
-    return "/" + this._urlPath;
+    return '/' + this._urlPath;
   }
 
   urlPathResource(name) {
-    return "/" + this._urlPath + "/" + name;
+    return '/' + this._urlPath + '/' + name;
   }
 
   get hasVariants() {

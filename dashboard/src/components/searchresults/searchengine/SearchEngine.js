@@ -11,13 +11,13 @@ export default class SearchEngine {
         continue;
       }
       let originalText;
-      if (k === "name") {
+      if (k === 'name') {
         originalText = item.name;
-      } else if (k === "description") {
-        originalText = item.variants[item["default-variant"]].description;
+      } else if (k === 'description') {
+        originalText = item.variants[item['default-variant']].description;
       }
 
-      let formattedString = "";
+      let formattedString = '';
       let lastPos = 0;
       let posArray = Array.from(matchPositions[k]);
       posArray.sort((first, second) => {
@@ -34,17 +34,17 @@ export default class SearchEngine {
         i++;
         const pos2 = posArray[i];
         formattedString += originalText.substring(lastPos, pos1);
-        formattedString += "<b>";
+        formattedString += '<b>';
         formattedString += originalText.substring(pos1, pos2);
-        formattedString += "</b>";
+        formattedString += '</b>';
         lastPos = pos2;
       }
       formattedString += originalText.substring(lastPos, originalText.length);
 
-      if (k === "name") {
-        item["formattedName"] = formattedString;
-      } else if (k === "description") {
-        item["formattedDescription"] = formattedString;
+      if (k === 'name') {
+        item['formattedName'] = formattedString;
+      } else if (k === 'description') {
+        item['formattedDescription'] = formattedString;
       }
     }
   }
@@ -81,29 +81,29 @@ export default class SearchEngine {
       let score = 0;
       const itemData = {
         name: item.name.toLowerCase(),
-        description: item.variants[item["default-variant"]].description
-          ? item.variants[item["default-variant"]].description.toLowerCase()
-          : "",
-        tags: item.variants[item["default-variant"]].tags
-          ? item.variants[item["default-variant"]].tags.join(" ").toLowerCase()
-          : "",
+        description: item.variants[item['default-variant']].description
+          ? item.variants[item['default-variant']].description.toLowerCase()
+          : '',
+        tags: item.variants[item['default-variant']].tags
+          ? item.variants[item['default-variant']].tags.join(' ').toLowerCase()
+          : '',
       };
 
       const querySlices = this.sliceQuery(query);
       let matchPositions = {};
       Object.keys(this.scores).forEach((key) => {
-        if (key !== "tags") {
+        if (key !== 'tags') {
           matchPositions[key] = new Set();
         }
       });
       querySlices.forEach((slice) => {
         const sliceLength = slice.length;
-        const sliceString = slice.join(" ");
+        const sliceString = slice.join(' ');
 
         for (const [k, v] of Object.entries(this.scores)) {
           const queryIndexInItem = itemData[k].indexOf(sliceString);
           if (queryIndexInItem > -1) {
-            if (k !== "tags") {
+            if (k !== 'tags') {
               matchPositions[k].add(queryIndexInItem);
               matchPositions[k].add(queryIndexInItem + sliceString.length);
             }
@@ -124,7 +124,7 @@ export default class SearchEngine {
   filterSearch(query, unfilteredData) {
     const lowerCaseQuery = query.toLowerCase();
     let filteredData = {};
-    filteredData["data"] = {};
+    filteredData['data'] = {};
     let keyOrder = [];
     Object.keys(unfilteredData).forEach((key, index) => {
       const sortedResults = this.sortedResultsByRelevance(
@@ -134,12 +134,12 @@ export default class SearchEngine {
 
       keyOrder.push([key, sortedResults[1]]);
       if (sortedResults[0].length > 0) {
-        filteredData["data"][key] = sortedResults[0];
+        filteredData['data'][key] = sortedResults[0];
       }
     });
     let typeOrder = this.sortValueList(keyOrder);
 
-    filteredData["typeOrder"] = typeOrder;
+    filteredData['typeOrder'] = typeOrder;
     return filteredData;
   }
 }

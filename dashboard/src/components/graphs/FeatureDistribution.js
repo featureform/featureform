@@ -1,8 +1,8 @@
-import React from "react";
+import React from 'react';
 
 const styles = {
-  fontFamily: "sans-serif",
-  textAlign: "center",
+  fontFamily: 'sans-serif',
+  textAlign: 'center',
 };
 
 const FeatureDistribution = (data) => (

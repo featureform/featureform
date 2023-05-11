@@ -1,0 +1,86 @@
+apiVersion: kots.io/v1beta1
+kind: LintConfig
+metadata:
+  name: default-lint-config
+spec:
+  rules:
+    - name: missing-kind-field
+      level: "error"
+    - name: missing-api-version-field
+      level: "error"
+    - name: preflight-spec
+      level: "warn"
+    - name: config-spec
+      level: "warn"
+    - name: troubleshoot-spec
+      level: "warn"
+    - name: application-spec
+      level: "warn"
+    - name: application-icon
+      level: "warn"
+    - name: application-statusInformers
+      level: "warn"
+    - name: invalid-target-kots-version
+      level: "error"
+    - name: invalid-min-kots-version
+      level: "error"
+    - name: invalid-kubernetes-installer
+      level: "error"
+    - name: deprecated-kubernetes-installer-version
+      level: "warn"
+    - name: duplicate-kots-kind
+      level: "error"
+    - name: invalid-helm-release-name
+      level: "error"
+    - name: duplicate-helm-release-name
+      level: "error"
+    - name: replicas-1
+      level: "info"
+    - name: privileged
+      level: "info"
+    - name: allow-privilege-escalation
+      level: "info"
+    - name: container-image-latest-tag
+      level: "info"
+    - name: container-image-local-image-name
+      level: "error"
+    - name: container-resources
+      level: "info"
+    - name: container-resource-limits
+      level: "info"
+    - name: container-resource-requests
+      level: "info"
+    - name: resource-limits-cpu
+      level: "info"
+    - name: resource-limits-memory
+      level: "info"
+    - name: resource-requests-cpu
+      level: "info"
+    - name: resource-requests-memory
+      level: "info"
+    - name: volumes-host-paths
+      level: "info"
+    - name: volume-docker-sock
+      level: "info"
+    - name: hardcoded-namespace
+      level: "info"
+    - name: may-contain-secrets
+      level: "info"
+    - name: config-option-invalid-type
+      level: "error"
+    - name: repeat-option-missing-template
+      level: "error"
+    - name: repeat-option-missing-valuesByGroup
+      level: "error"
+    - name: repeat-option-malformed-yamlpath
+      level: "error"
+    - name: config-option-password-type
+      level: "warn"
+    - name: config-option-not-found
+      level: "warn"
+    - name: config-option-is-circular
+      level: "error"
+    - name: config-option-not-repeatable
+      level: "error"
+    - name: config-option-when-is-invalid
+      level: "error"

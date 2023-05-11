@@ -170,10 +170,12 @@ func (c *Coordinator) AwaitPendingLabel(labelNameVariant metadata.NameVariant) (
 }
 
 type JobSpawner interface {
-	GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (types.Runner, error)
+	GetJobRunner(jobName string, config runner.Config, resourceId metadata.ResourceID) (types.Runner, error)
 }
 
-type KubernetesJobSpawner struct{}
+type KubernetesJobSpawner struct {
+	EtcdConfig clientv3.Config
+}
 
 type MemoryJobSpawner struct{}
 
@@ -181,16 +183,14 @@ func GetLockKey(jobKey string) string {
 	return fmt.Sprintf("LOCK_%s", jobKey)
 }
 
-func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (types.Runner, error) {
-	etcd_username := help.GetEnv("ETCD_USERNAME", "root")
-	etcd_password := help.GetEnv("ETCD_PASSWORD", "secretpassword")
-	etcdConfig := &ETCDConfig{Endpoints: etcdEndpoints, Username: etcd_username, Password: etcd_password}
+func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config, resourceId metadata.ResourceID) (types.Runner, error) {
+	etcdConfig := &ETCDConfig{Endpoints: k.EtcdConfig.Endpoints, Username: k.EtcdConfig.Username, Password: k.EtcdConfig.Password}
 	serializedETCD, err := etcdConfig.Serialize()
 	if err != nil {
 		return nil, err
 	}
 	pandas_image := cfg.GetPandasRunnerImage()
-	fmt.Println("GETJOBRUNNERID:", id)
+	fmt.Println("GETJOBRUNNERID:", resourceId)
 	kubeConfig := kubernetes.KubernetesRunnerConfig{
 		EnvVars: map[string]string{
 			"NAME":             jobName,
@@ -200,7 +200,7 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 		},
 		Image:    help.GetEnv("WORKER_IMAGE", "local/worker:stable"),
 		NumTasks: 1,
-		Resource: id,
+		Resource: resourceId,
 	}
 	jobRunner, err := kubernetes.NewKubernetesRunner(kubeConfig)
 	if err != nil {
@@ -209,7 +209,7 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 	return jobRunner, nil
 }
 
-func (k *MemoryJobSpawner) GetJobRunner(jobName string, config runner.Config, etcdEndpoints []string, id metadata.ResourceID) (types.Runner, error) {
+func (k *MemoryJobSpawner) GetJobRunner(jobName string, config runner.Config, resourceId metadata.ResourceID) (types.Runner, error) {
 	jobRunner, err := runner.Create(jobName, config)
 	if err != nil {
 		return nil, err
@@ -427,7 +427,7 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 		return fmt.Errorf("serialize transformation config: %v", err)
 	}
 	c.Logger.Debugw("Transformation Get Job Runner")
-	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serialized, c.EtcdClient.Endpoints(), resID)
+	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serialized, resID)
 	if err != nil {
 		return fmt.Errorf("spawn create transformation job runner: %v", err)
 	}
@@ -456,7 +456,7 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 		if err != nil {
 			return fmt.Errorf("serialize schedule transformation config: %v", err)
 		}
-		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serializedUpdate, c.EtcdClient.Endpoints(), resID)
+		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serializedUpdate, resID)
 		if err != nil {
 			return fmt.Errorf("run ransformation schedule job runner: %v", err)
 		}
@@ -797,7 +797,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	needsOnlineMaterialization := strings.Split(string(featureProvider.Type()), "_")[1] == "ONLINE"
 	if needsOnlineMaterialization {
 		c.Logger.Info("Starting Materialize")
-		jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, c.EtcdClient.Endpoints(), resID)
+		jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, resID)
 		if err != nil {
 			return fmt.Errorf("could not use store as online store: %w", err)
 		}
@@ -827,7 +827,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		if err != nil {
 			return fmt.Errorf("serialize materialize runner config: %v", err)
 		}
-		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serializedUpdate, c.EtcdClient.Endpoints(), resID)
+		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serializedUpdate, resID)
 		if err != nil {
 			return fmt.Errorf("creating materialize job schedule job runner: %v", err)
 		}
@@ -944,7 +944,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		IsUpdate:      false,
 	}
 	serialized, _ := tsRunnerConfig.Serialize()
-	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serialized, c.EtcdClient.Endpoints(), resID)
+	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serialized, resID)
 	if err != nil {
 		return fmt.Errorf("create training set job runner: %v", err)
 	}
@@ -969,7 +969,7 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		if err != nil {
 			return fmt.Errorf("serialize training set schedule runner config: %v", err)
 		}
-		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serializedUpdate, c.EtcdClient.Endpoints(), resID)
+		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serializedUpdate, resID)
 		if err != nil {
 			return fmt.Errorf("spawn training set job runner: %v", err)
 		}

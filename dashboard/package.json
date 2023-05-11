@@ -71,6 +71,7 @@
     ]
   },
   "devDependencies": {
+    "@next/eslint-plugin-next": "^13.4.1",
     "@testing-library/dom": "^9.2.0",
     "@testing-library/jest-dom": "^5.16.4",
     "@wojtekmaj/enzyme-adapter-react-17": "^0.6.3",

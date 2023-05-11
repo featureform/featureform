@@ -952,6 +952,13 @@
   resolved "https://registry.npmjs.org/@next/env/-/env-12.2.4-canary.8.tgz"
   integrity sha512-UCxihMhR1gIvJU4geqOFYWMa/HS8qWncaOhaUUKoBDcB82LGmUVAiQ7ONseGD3jDDHlVS8IrbUlEDx9sYzcAGw==
 
+"@next/eslint-plugin-next@^13.4.1":
+  version "13.4.1"
+  resolved "https://registry.npmjs.org/@next/eslint-plugin-next/-/eslint-plugin-next-13.4.1.tgz"
+  integrity sha512-tVPS/2FKlA3ANCRCYZVT5jdbUKasBU8LG6bYqcNhyORDFTlDYa4cAWQJjZ7msIgLwMQIbL8CAsxrOL8maa/4Lg==
+  dependencies:
+    glob "7.1.7"
+
 "@next/swc-darwin-arm64@12.2.4-canary.8":
   version "12.2.4-canary.8"
   resolved "https://registry.npmjs.org/@next/swc-darwin-arm64/-/swc-darwin-arm64-12.2.4-canary.8.tgz"
@@ -2795,6 +2802,18 @@ glob@^7.1.3, glob@^7.1.4:
     inflight "^1.0.4"
     inherits "2"
     minimatch "^3.1.1"
+    once "^1.3.0"
+    path-is-absolute "^1.0.0"
+
+glob@7.1.7:
+  version "7.1.7"
+  resolved "https://registry.npmjs.org/glob/-/glob-7.1.7.tgz"
+  integrity sha512-OvD9ENzPLbegENnYP5UUfJIirTg4+XwMWGaQfQTY0JenxNvvIKP3U3/tAQSPIu/lHxXYSZmpXlUHeqAIdKzBLQ==
+  dependencies:
+    fs.realpath "^1.0.0"
+    inflight "^1.0.4"
+    inherits "2"
+    minimatch "^3.0.4"
     once "^1.3.0"
     path-is-absolute "^1.0.0"
 

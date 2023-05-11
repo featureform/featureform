@@ -623,14 +623,14 @@ func testNewestFile(t *testing.T, store FileStore) {
 
 func testPathWithPrefix(t *testing.T, store FileStore) {
 	randomKey := uuid.New().String()
-	azureStore, ok := store.(AzureFileStore)
+	azureStore, ok := store.(*AzureFileStore)
 	if ok {
 		azurePathWithPrefix := azureStore.PathWithPrefix(randomKey, false)
 		if azurePathWithPrefix != fmt.Sprintf("%s/%s", azureStore.Path, randomKey) {
 			t.Fatalf("Incorrect path with prefix. Expected %s, got %s", fmt.Sprintf("%s/%s", azureStore.Path, randomKey), azurePathWithPrefix)
 		}
 	}
-	fileFileStore, ok := store.(LocalFileStore)
+	fileFileStore, ok := store.(*LocalFileStore)
 	if ok {
 		filePathWithPrefix := fileFileStore.PathWithPrefix(randomKey, false)
 		if filePathWithPrefix != fmt.Sprintf("%s%s", fileFileStore.DirPath, randomKey) {
@@ -787,7 +787,7 @@ func TestK8sOfflineStore_checkArgs(t *testing.T) {
 	}
 	f := fields{
 		&KubernetesExecutor{},
-		AzureFileStore{},
+		&AzureFileStore{},
 		zaptest.NewLogger(t).Sugar(),
 		nil,
 		BaseProvider{},

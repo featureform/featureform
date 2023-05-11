@@ -1,1 +1,1 @@
-export { default, newTestStore } from "./ReduxStore.js";
+export { default, newTestStore } from './ReduxStore.js';

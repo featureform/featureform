@@ -1,17 +1,17 @@
-import React from "react";
-import { connect } from "react-redux";
-import Box from "@mui/material/Box";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
-import FormControl from "@mui/material/FormControl";
-import Select from "@mui/material/Select";
-import { changeAggregate } from "./AggregateDropdownSlice.js";
+import Box from '@mui/material/Box';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import React from 'react';
+import { connect } from 'react-redux';
+import { changeAggregate } from './AggregateDropdownSlice.js';
 
 const dropdownValues = [
-  { label: "Average", value: "avg" },
-  { label: "Sum", value: "sum" },
-  { label: "Minimum", value: "min" },
-  { label: "Maximum", value: "max" },
+  { label: 'Average', value: 'avg' },
+  { label: 'Sum', value: 'sum' },
+  { label: 'Minimum', value: 'min' },
+  { label: 'Maximum', value: 'max' },
 ];
 
 function AggregateDropdwon({ graph, aggregates, changeAggregate }) {
@@ -26,14 +26,14 @@ function AggregateDropdwon({ graph, aggregates, changeAggregate }) {
     <div>
       <Box sx={{ minWidth: 120 }}>
         <FormControl fullWidth>
-          <InputLabel id="demo-simple-select-label">
+          <InputLabel id='demo-simple-select-label'>
             Aggregation Select
           </InputLabel>
           <Select
-            labelId="demo-simple-select-label"
-            id="demo-simple-select"
+            labelId='demo-simple-select-label'
+            id='demo-simple-select'
             value={agg}
-            label="Aggregation Select"
+            label='Aggregation Select'
             onChange={handleChange}
           >
             {/* {Object.keys(resourceData).map((key, i) => ( */}

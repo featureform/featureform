@@ -1,34 +1,34 @@
-import React from "react";
-import { makeStyles } from "@material-ui/core/styles";
-import { connect } from "react-redux";
-import SearchBar from "../search/SearchBar";
-import TilePanel from "../tilelinks/TilePanel";
-import Typography from "@material-ui/core/Typography";
+import { makeStyles } from '@material-ui/core/styles';
+import Typography from '@material-ui/core/Typography';
+import React from 'react';
+import { connect } from 'react-redux';
+import SearchBar from '../search/SearchBar';
+import TilePanel from '../tilelinks/TilePanel';
 
 const useStyles = makeStyles((theme) => ({
   root: {
     padding: theme.spacing(0),
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   search: {
     padding: theme.spacing(2),
-    width: "40%",
-    margin: "auto",
+    width: '40%',
+    margin: 'auto',
   },
   searchTitle: {
-    width: "100%",
-    display: "flex",
-    flexWrap: "wrap",
-    justifyContent: "center",
+    width: '100%',
+    display: 'flex',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     padding: theme.spacing(0.5),
     marginBottom: theme.spacing(2),
   },
   clickPills: {
-    width: "35%",
-    margin: "auto",
-    maxHeight: "1em",
-    opacity: "70%",
+    width: '35%',
+    margin: 'auto',
+    maxHeight: '1em',
+    opacity: '70%',
   },
   title: {
     marginBottom: theme.spacing(1),
@@ -56,9 +56,9 @@ const HomePage = ({ sections }) => {
       <div className={classes.sections}>
         <div className={classes.tilePanel}>
           <div className={classes.title}>
-            <Typography variant="h5"></Typography>
+            <Typography variant='h5'></Typography>
           </div>
-          <TilePanel sections={sections["features"]} />
+          <TilePanel sections={sections['features']} />
         </div>
       </div>
     </div>

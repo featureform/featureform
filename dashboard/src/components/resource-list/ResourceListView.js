@@ -1,66 +1,66 @@
-import React from "react";
-import PropTypes from "prop-types";
-import { makeStyles } from "@material-ui/core/styles";
-import { useRouter } from "next/router";
-import Typography from "@material-ui/core/Typography";
-import Grid from "@material-ui/core/Grid";
-import Chip from "@material-ui/core/Chip";
-import theme from "../../styles/theme";
-import CircleOutlinedIcon from "@mui/icons-material/CircleOutlined";
-import Rating from "@mui/material/Rating";
+import Button from '@material-ui/core/Button';
+import Chip from '@material-ui/core/Chip';
+import Container from '@material-ui/core/Container';
+import Grid from '@material-ui/core/Grid';
+import { makeStyles } from '@material-ui/core/styles';
+import Typography from '@material-ui/core/Typography';
+import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
+import Rating from '@mui/material/Rating';
 import MaterialTable, {
   MTableBody,
   MTableHeader,
   MTableToolbar,
-} from "material-table";
-import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
-import python from "react-syntax-highlighter/dist/cjs/languages/prism/python";
-import sql from "react-syntax-highlighter/dist/cjs/languages/prism/sql";
-import json from "react-syntax-highlighter/dist/cjs/languages/prism/json";
-import Container from "@material-ui/core/Container";
-import { providerLogos } from "../../api/resources";
-import Button from "@material-ui/core/Button";
-import Resource from "../../api/resources/Resource.js";
+} from 'material-table';
+import { useRouter } from 'next/router';
+import PropTypes from 'prop-types';
+import React from 'react';
+import { PrismAsyncLight as SyntaxHighlighter } from 'react-syntax-highlighter';
+import json from 'react-syntax-highlighter/dist/cjs/languages/prism/json';
+import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
+import sql from 'react-syntax-highlighter/dist/cjs/languages/prism/sql';
+import { providerLogos } from '../../api/resources';
+import Resource from '../../api/resources/Resource.js';
+import theme from '../../styles/theme';
 
-SyntaxHighlighter.registerLanguage("python", python);
-SyntaxHighlighter.registerLanguage("sql", sql);
-SyntaxHighlighter.registerLanguage("json", json);
+SyntaxHighlighter.registerLanguage('python', python);
+SyntaxHighlighter.registerLanguage('sql', sql);
+SyntaxHighlighter.registerLanguage('json', json);
 
 const useStyles = makeStyles(() => ({
   root: {
-    background: "rgba(255, 255, 255, 0.5)",
+    background: 'rgba(255, 255, 255, 0.5)',
     border: `2px solid ${theme.palette.border.main}`,
     borderRadius: 16,
-    "& > *": {
+    '& > *': {
       borderRadius: 16,
     },
   },
   noDataPage: {
-    "& > *": {
+    '& > *': {
       padding: theme.spacing(1),
     },
   },
   table: {
     borderRadius: 16,
-    background: "rgba(255, 255, 255, 1)",
+    background: 'rgba(255, 255, 255, 1)',
     border: `2px solid ${theme.palette.border.main}`,
   },
   usageIcon: {
-    color: "red",
+    color: 'red',
   },
   variantTableContainer: {
     marginLeft: theme.spacing(4),
     marginRight: theme.spacing(4),
   },
   variantTable: {
-    background: "rgba(255, 255, 255, 1)",
+    background: 'rgba(255, 255, 255, 1)',
     border: `2px solid ${theme.palette.border.main}`,
   },
   detailPanel: {
     padding: theme.spacing(4),
   },
   config: {
-    width: "100%",
+    width: '100%',
   },
   detailButton: {
     margin: theme.spacing(1),
@@ -70,14 +70,14 @@ const useStyles = makeStyles(() => ({
   },
   tableBody: {
     border: `2px solid ${theme.palette.border.main}`,
-    background: "white",
-    color: "white",
+    background: 'white',
+    color: 'white',
     opacity: 1,
   },
   providerColumn: {},
   providerLogo: {
-    maxWidth: "6em",
-    maxHeight: "2.5em",
+    maxWidth: '6em',
+    maxHeight: '2.5em',
   },
   tableToolbar: {
     paddingTop: theme.spacing(3),
@@ -98,19 +98,19 @@ export const ResourceListView = ({
 }) => {
   const columnFormats = {
     default: [
-      { title: "Name", field: "name" },
-      { title: "Description", field: "description" },
+      { title: 'Name', field: 'name' },
+      { title: 'Description', field: 'description' },
     ],
     Model: [
-      { title: "Name", field: "name" },
-      { title: "Description", field: "description" },
+      { title: 'Name', field: 'name' },
+      { title: 'Description', field: 'description' },
     ],
     default_tags: [
-      { title: "Name", field: "name" },
-      { title: "Description", field: "description" },
+      { title: 'Name', field: 'name' },
+      { title: 'Description', field: 'description' },
       {
-        title: "Tags",
-        field: "tags",
+        title: 'Tags',
+        field: 'tags',
         render: (row) => (
           <TagList
             activeTags={activeTags}
@@ -122,27 +122,27 @@ export const ResourceListView = ({
       },
     ],
     Feature: [
-      { title: "Name", field: "name" },
-      { title: "Description", field: "description" },
+      { title: 'Name', field: 'name' },
+      { title: 'Description', field: 'description' },
       {
-        title: "Type",
-        field: "data-type",
+        title: 'Type',
+        field: 'data-type',
       },
       {
-        title: "Default Variant",
-        field: "variants",
+        title: 'Default Variant',
+        field: 'variants',
         render: (row) => (
-          <Typography variant="body1">{row["default-variant"]}</Typography>
+          <Typography variant='body1'>{row['default-variant']}</Typography>
         ),
       },
     ],
     Provider: [
-      { title: "Name", field: "name" },
-      { title: "Description", field: "description" },
-      { title: "Type", field: "type" },
+      { title: 'Name', field: 'name' },
+      { title: 'Description', field: 'description' },
+      { title: 'Type', field: 'type' },
       {
-        title: "Software",
-        field: "software",
+        title: 'Software',
+        field: 'software',
         render: (row) => (
           <div className={classes.providerColumn}>
             <img
@@ -154,25 +154,25 @@ export const ResourceListView = ({
         ),
       },
     ],
-    "Data Source": [
-      { title: "Name", field: "name" },
-      { title: "Description", field: "description" },
-      { title: "Type", field: "type" },
+    'Data Source': [
+      { title: 'Name', field: 'name' },
+      { title: 'Description', field: 'description' },
+      { title: 'Type', field: 'type' },
     ],
-    User: [{ title: "Name", field: "name" }],
+    User: [{ title: 'Name', field: 'name' }],
     Entity: [
-      { title: "Name", field: "name" },
+      { title: 'Name', field: 'name' },
       {
-        title: "Description",
-        field: "description",
+        title: 'Description',
+        field: 'description',
       },
     ],
     Transformation: [
-      { title: "Name", field: "name" },
-      { title: "Description", field: "description" },
+      { title: 'Name', field: 'name' },
+      { title: 'Description', field: 'description' },
       {
-        title: "Tags",
-        field: "tags",
+        title: 'Tags',
+        field: 'tags',
         render: (row) => (
           <TagList
             activeTags={activeTags}
@@ -183,11 +183,11 @@ export const ResourceListView = ({
         ),
       },
       {
-        title: "Default Variant",
-        field: "variants",
+        title: 'Default Variant',
+        field: 'variants',
         render: (row) => (
-          <Typography variant="body1">
-            {rowVariants.find((v) => v.name === row.name)["default-variant"]}
+          <Typography variant='body1'>
+            {rowVariants.find((v) => v.name === row.name)['default-variant']}
           </Typography>
         ),
       },
@@ -202,9 +202,9 @@ export const ResourceListView = ({
   // MaterialTable can't handle immutable object, we have to make a copy
   // https://github.com/mbrn/material-table/issues/666
   const mutableRes = copy(initRes);
-  
+
   function detailRedirect(e, data) {
-    router.push(router.query["type"] + "/" + data.name);
+    router.push(router.query['type'] + '/' + data.name);
   }
 
   let rowVariants = {};
@@ -228,14 +228,14 @@ export const ResourceListView = ({
           : {})}
         className={classes.table}
         title={
-          <Typography variant="h4">
+          <Typography variant='h4'>
             <b>{Resource[type].typePlural}</b>
           </Typography>
         }
         columns={
           Object.keys(columnFormats).includes(title)
             ? columnFormats[title]
-            : columnFormats["default"]
+            : columnFormats['default']
         }
         data={mutableRes.map((row) => {
           //mapping each row to have the same object format
@@ -256,7 +256,7 @@ export const ResourceListView = ({
           }
           let rowVariant;
           if (!activeVariants[row.name]) {
-            rowVariant = row["default-variant"];
+            rowVariant = row['default-variant'];
           } else {
             rowVariant = activeVariants[row.name];
           }
@@ -267,15 +267,15 @@ export const ResourceListView = ({
           Object.values(row.variants).forEach((variantValue) => {
             variantList.push(variantValue);
           });
-          rowData["variants"] = variantList;
-          rowData["default-variant"] = row["default-variant"];
+          rowData['variants'] = variantList;
+          rowData['default-variant'] = row['default-variant'];
           return rowData;
         })}
         isLoading={initialLoad || loading || failed}
         onRowClick={detailRedirect}
         components={{
           Container: (props) => (
-            <Container maxWidth="xl" className={classes.root} {...props} />
+            <Container maxWidth='xl' className={classes.root} {...props} />
           ),
           Body: (props) => (
             <MTableBody
@@ -297,7 +297,7 @@ export const ResourceListView = ({
           search: true,
           draggable: false,
           headerStyle: {
-            backgroundColor: "white",
+            backgroundColor: 'white',
             color: theme.palette.primary.main,
             marginLeft: 3,
           },
@@ -326,17 +326,17 @@ export const TagList = ({
   tagClass,
   toggleTag,
 }) => (
-  <Grid container direction="row">
+  <Grid container direction='row'>
     {tags.map((tag) => (
       <Chip
         key={tag}
         className={tagClass}
-        color={activeTags[tag] ? "secondary" : "default"}
+        color={activeTags[tag] ? 'secondary' : 'default'}
         onClick={(event) => {
           toggleTag(tag);
           event.stopPropagation();
         }}
-        variant="outlined"
+        variant='outlined'
         label={tag}
       />
     ))}
@@ -366,7 +366,7 @@ export const VariantTable = ({ name, setVariant, type, row }) => {
       <MaterialTable
         className={classes.variantTable}
         title={
-          <Typography variant="h6">
+          <Typography variant='h6'>
             <b></b>
           </Typography>
         }
@@ -374,7 +374,7 @@ export const VariantTable = ({ name, setVariant, type, row }) => {
         components={{
           Container: (props) => (
             <Container
-              maxWidth="xl"
+              maxWidth='xl'
               className={classes.variantTable}
               {...props}
             />
@@ -396,8 +396,8 @@ export const VariantTable = ({ name, setVariant, type, row }) => {
           ),
         }}
         columns={[
-          { title: "Variants", field: "variant" },
-          { title: "Description", field: "description" },
+          { title: 'Variants', field: 'variant' },
+          { title: 'Description', field: 'description' },
         ]}
         data={myVariants}
         options={{
@@ -407,7 +407,7 @@ export const VariantTable = ({ name, setVariant, type, row }) => {
           toolbar: false,
           draggable: false,
           headerStyle: {
-            backgroundColor: "white",
+            backgroundColor: 'white',
             color: theme.palette.primary.main,
             marginLeft: 3,
           },
@@ -425,23 +425,23 @@ export const VariantTable = ({ name, setVariant, type, row }) => {
 const customIcons = {
   1: {
     icon: <CircleOutlinedIcon />,
-    label: "Unused",
+    label: 'Unused',
   },
   2: {
     icon: <CircleOutlinedIcon />,
-    label: "Dissatisfied",
+    label: 'Dissatisfied',
   },
   3: {
     icon: <CircleOutlinedIcon />,
-    label: "Neutral",
+    label: 'Neutral',
   },
   4: {
     icon: <CircleOutlinedIcon />,
-    label: "Satisfied",
+    label: 'Satisfied',
   },
   5: {
     icon: <CircleOutlinedIcon />,
-    label: "Frequently used",
+    label: 'Frequently used',
   },
 };
 function IconContainer(props) {
@@ -455,7 +455,7 @@ export const UsageTab = ({ usage, children }) => {
   return (
     <Rating
       className={classes.usageIcon}
-      name="read-only"
+      name='read-only'
       value={2}
       IconContainerComponent={IconContainer}
       readOnly
@@ -467,21 +467,21 @@ const NoDataMessage = ({ type }) => {
   const classes = useStyles();
 
   function redirect() {
-    window.location.href = "https://docs.featureform.com/quickstart";
+    window.location.href = 'https://docs.featureform.com/quickstart';
   }
   return (
     <Container>
       <div className={classes.noDataPage}>
-        <Typography variant="h4">
+        <Typography variant='h4'>
           No {Resource[type].typePlural} Registered
         </Typography>
-        <Typography variant="body1">
+        <Typography variant='body1'>
           There are no visible {type.toLowerCase()}s in your organization.
         </Typography>
-        <Typography vairant="body1">
+        <Typography vairant='body1'>
           Check out our docs for step by step instructions to create one.
         </Typography>
-        <Button variant="outlined" onClick={redirect}>
+        <Button variant='outlined' onClick={redirect}>
           FeatureForm Docs
         </Button>
       </div>

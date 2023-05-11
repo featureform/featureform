@@ -126,18 +126,17 @@ func createNewCoordinator(addr string) (*Coordinator, error) {
 	return NewCoordinator(client, logger, cli, &memJobSpawner)
 }
 
-//may cause an error depending on kubernetes implementation
+// may cause an error depending on kubernetes implementation
 func TestKubernetesJobRunnerError(t *testing.T) {
 	kubeJobSpawner := KubernetesJobSpawner{}
-	if _, err := kubeJobSpawner.GetJobRunner("ghost_job", []byte{}, []string{"localhost:2379"}, metadata.ResourceID{}); err == nil {
+	if _, err := kubeJobSpawner.GetJobRunner("ghost_job", []byte{}, metadata.ResourceID{}); err == nil {
 		t.Fatalf("did not trigger error getting nonexistent runner")
 	}
 }
 
 func TestMemoryJobRunnerError(t *testing.T) {
-	etcdConnect := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
 	memJobSpawner := MemoryJobSpawner{}
-	if _, err := memJobSpawner.GetJobRunner("ghost_job", []byte{}, []string{etcdConnect}, metadata.ResourceID{}); err == nil {
+	if _, err := memJobSpawner.GetJobRunner("ghost_job", []byte{}, metadata.ResourceID{}); err == nil {
 		t.Fatalf("did not trigger error getting nonexistent runner")
 	}
 }

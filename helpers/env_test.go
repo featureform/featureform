@@ -46,6 +46,8 @@ func TestGetEnv(t *testing.T) {
 				got = fn(tt.args.key, tt.args.fallback.(string))
 			case func(string, int) int:
 				got = fn(tt.args.key, tt.args.fallback.(int))
+			case func(string, int32) int32:
+				got = fn(tt.args.key, tt.args.fallback.(int32))
 			case func(string, bool) bool:
 				got = fn(tt.args.key, tt.args.fallback.(bool))
 			}

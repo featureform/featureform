@@ -82,11 +82,9 @@ class ResourceList extends React.Component {
   }
 
   render() {
-    // Only pass down props required for the view.
-    // sends down props resources, loading, and failed
-    //todox: find a way to elegently solve this without using destructure
-    /*eslint-disable no-unused-vars*/
-    const { api, fetch, ...viewProps } = this.props;
+    const viewProps = { ...this.props };
+    delete viewProps.api;
+    delete viewProps.fetch;
     return viewProps.failed ? (
       <ServerErrorPage />
     ) : (

@@ -206,7 +206,6 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
   const showMetrics =
     process.env.NODE_ENV == 'production' ? resourceType.hasMetrics : false;
   const showStats = false;
-  //todox: ??? this is setting the tab id based on configurations for metrics + stats ???
   /*eslint-disable no-constant-condition*/
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const statsTabDisplacement = showMetrics ? 1 : 0;

@@ -1,73 +1,73 @@
-import React from "react";
-import { createStyles, alpha, makeStyles } from "@material-ui/core/styles";
-import SearchIcon from "@material-ui/icons/Search";
-import Grid from "@material-ui/core/Grid";
-import { useRouter } from "next/router";
-import Container from "@material-ui/core/Container";
-import InputBase from "@material-ui/core/InputBase";
+import Container from '@material-ui/core/Container';
+import Grid from '@material-ui/core/Grid';
+import InputBase from '@material-ui/core/InputBase';
+import { alpha, createStyles, makeStyles } from '@material-ui/core/styles';
+import SearchIcon from '@material-ui/icons/Search';
+import { useRouter } from 'next/router';
+import React from 'react';
 
 const ENTER_KEY = 'Enter';
 
 const useStyles = makeStyles((theme) =>
   createStyles({
     search: {
-      position: "relative",
+      position: 'relative',
       borderRadius: theme.shape.borderRadius,
       backgroundColor: alpha(theme.palette.common.white, 0.15),
-      "&:hover": {
+      '&:hover': {
         backgroundColor: alpha(theme.palette.common.white, 0.25),
       },
       marginLeft: 0,
-      width: "100%",
-      [theme.breakpoints.up("sm")]: {
+      width: '100%',
+      [theme.breakpoints.up('sm')]: {
         marginLeft: theme.spacing(1),
-        width: "auto",
+        width: 'auto',
       },
     },
     searchIcon: {
       padding: theme.spacing(0, 0),
-      height: "100%",
-      position: "absolute",
-      pointerEvents: "none",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
+      height: '100%',
+      position: 'absolute',
+      pointerEvents: 'none',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     border: {
       border: `2px solid ${theme.palette.border.alternate}`,
       borderRadius: 16,
-      "&:hover": {
+      '&:hover': {
         border: `2px solid black`,
       },
     },
     inputRoot: {
       borderRadius: 16,
-      color: "inherit",
-      background: "transparent",
-      boxShadow: "none",
-      transition: theme.transitions.create("width"),
-      width: "100%",
-      display: "flex",
+      color: 'inherit',
+      background: 'transparent',
+      boxShadow: 'none',
+      transition: theme.transitions.create('width'),
+      width: '100%',
+      display: 'flex',
     },
     inputInputHome: {
       paddingLeft: theme.spacing(4),
-      transition: theme.transitions.create("width"),
-      background: "transparent",
-      boxShadow: "none",
+      transition: theme.transitions.create('width'),
+      background: 'transparent',
+      boxShadow: 'none',
       padding: theme.spacing(1, 0.75, 0.4, 0),
-      justifyContent: "center",
-      display: "flex",
-      alignSelf: "flex-end",
+      justifyContent: 'center',
+      display: 'flex',
+      alignSelf: 'flex-end',
     },
     inputTopBar: {
       padding: theme.spacing(1, 0, 0, 0),
-      width: "100%",
+      width: '100%',
       paddingLeft: theme.spacing(4),
-      transition: theme.transitions.create("width"),
-      background: "transparent",
-      boxShadow: "none",
-      color: "black",
-      alignSelf: "center",
+      transition: theme.transitions.create('width'),
+      background: 'transparent',
+      boxShadow: 'none',
+      color: 'black',
+      alignSelf: 'center',
     },
   })
 );
@@ -75,23 +75,23 @@ const useStyles = makeStyles((theme) =>
 const SearchBar = ({ homePage }) => {
   const classes = useStyles();
   const router = useRouter();
-  const [searchText, setSearchText] = React.useState("");
+  const [searchText, setSearchText] = React.useState('');
 
   function handleSearch(event) {
     event.preventDefault();
-    let uri = "/search?q=" + searchText?.trim();
+    let uri = '/query?q=' + searchText?.trim();
     router.push(uri);
   }
 
   return (
     <div className={classes.search}>
-      <Grid container item justifyContent="center" direction="row">
+      <Grid container item justifyContent='center' direction='row'>
         <Container className={classes.border}>
           <div className={classes.searchIcon}>
             <SearchIcon />
           </div>
           <InputBase
-            placeholder="Search..."
+            placeholder='Search...'
             onChange={(event) => {
               const rawText = event.target.value;
               if (rawText === '') {
@@ -109,13 +109,15 @@ const SearchBar = ({ homePage }) => {
               if (event.key === ENTER_KEY && searchText) {
                 handleSearch(event);
               }
-            }
-            }
+            }}
             classes={{
               root: classes.inputRoot,
               input: homePage ? classes.inputInputHome : classes.inputTopBar,
             }}
-            inputProps={{ "aria-label": "search", "data-testid": "searchInputId"}}
+            inputProps={{
+              'aria-label': 'search',
+              'data-testid': 'searchInputId',
+            }}
           />
         </Container>
       </Grid>

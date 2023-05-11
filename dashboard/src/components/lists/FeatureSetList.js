@@ -1,5 +1,5 @@
-import React from "react";
-import MaterialTable from "material-table";
+import MaterialTable from 'material-table';
+import React from 'react';
 
 const FeatureSetList = ({ data }) => {
   const initRes = data || [];
@@ -9,10 +9,10 @@ const FeatureSetList = ({ data }) => {
   const mutableRes = copy(initRes);
   return (
     <MaterialTable
-      title="Feature Sets"
+      title='Feature Sets'
       columns={[
-        { title: "Name", field: "name" },
-        { title: "Created", field: "created" },
+        { title: 'Name', field: 'name' },
+        { title: 'Created', field: 'created' },
       ]}
       data={mutableRes}
       options={{

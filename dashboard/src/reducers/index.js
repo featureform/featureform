@@ -1,17 +1,19 @@
-import { combineReducers } from "redux";
+import { combineReducers } from 'redux';
+import { breadCrumbsReducer } from '../components/breadcrumbs';
+import { connectionPageSliceReducer } from '../components/connectionpage';
+import { entityPageReducer } from '../components/entitypage';
+import {
+  aggregateDropdownSliceReducer,
+  exponentialTimeSliderReducer,
+  metricsSelectSliceReducer,
+} from '../components/entitypage/elements';
+import { homePageReducer } from '../components/homepage';
 import {
   resourceReducer,
-  variantReducer,
   tagReducer,
-} from "../components/resource-list";
-import { homePageReducer } from "../components/homepage";
-import { breadCrumbsReducer } from "../components/breadcrumbs";
-import { entityPageReducer } from "../components/entitypage";
-import { searchResultsReducer } from "../components/searchresults";
-import { exponentialTimeSliderReducer } from "../components/entitypage/elements";
-import { metricsSelectSliceReducer } from "../components/entitypage/elements";
-import { connectionPageSliceReducer } from "../components/connectionpage";
-import { aggregateDropdownSliceReducer } from "../components/entitypage/elements";
+  variantReducer,
+} from '../components/resource-list';
+import { searchResultsReducer } from '../components/searchresults';
 
 export default combineReducers({
   resourceList: resourceReducer,

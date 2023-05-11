@@ -1,9 +1,9 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice } from '@reduxjs/toolkit';
 
 const aggregateDropdownSlice = createSlice({
-  name: "aggregateDropdown",
+  name: 'aggregateDropdown',
   initialState: {
-    aggregates: ["avg", "avg", "avg"],
+    aggregates: ['avg', 'avg', 'avg'],
   },
   reducers: {
     changeAggregate: (state, action) => {

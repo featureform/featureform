@@ -1,1 +1,1 @@
-export { default } from "./ReduxWrapper.js";
+export { default } from './ReduxWrapper.js';

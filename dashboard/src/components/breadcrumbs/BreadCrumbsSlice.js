@@ -1,7 +1,7 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice } from '@reduxjs/toolkit';
 
 const breadCrumbsSlice = createSlice({
-  name: "breadCrumbs",
+  name: 'breadCrumbs',
   initialState: [
     {
       path: [],

@@ -1,10 +1,10 @@
-const METRICS_API_URL = "http://localhost:9090/api/v1";
+const METRICS_API_URL = 'http://localhost:9090/api/v1';
 
 export default class MetricsAPI {
   checkStatus() {
     return fetch(`${METRICS_API_URL}/label/__name__/values`, {
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
     })
       .then((response) => {
@@ -19,7 +19,7 @@ export default class MetricsAPI {
 
     return fetch(fetchAddress, {
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
     })
       .then((res) => res.json())
@@ -32,7 +32,7 @@ export default class MetricsAPI {
     var fetchAddress = `${METRICS_API_URL}/metadata`;
     return fetch(fetchAddress, {
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
     })
       .then((res) => res.json())

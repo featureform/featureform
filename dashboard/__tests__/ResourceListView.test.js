@@ -1,6 +1,4 @@
 import Chip from '@material-ui/core/Chip';
-import CssBaseline from '@material-ui/core/CssBaseline';
-import { ThemeProvider } from '@material-ui/core/styles';
 import Adapter from '@wojtekmaj/enzyme-adapter-react-17';
 import { configure, mount, shallow } from 'enzyme';
 import produce from 'immer';
@@ -11,32 +9,8 @@ import {
   ResourceListView,
   TagList,
 } from '../src/components/resource-list/ResourceListView';
-import TEST_THEME from '../src/styles/theme';
 
 configure({ adapter: new Adapter() });
-
-export const ThemeWrapper = ({ children }) => (
-  <ThemeProvider theme={TEST_THEME}>
-    <CssBaseline />
-    {children}
-  </ThemeProvider>
-);
-
-export function mountWithTheme(child) {
-  return mount(child, {
-    wrappingComponent: ({ children }) => (
-      <ThemeProvider theme={TEST_THEME}>{children}</ThemeProvider>
-    ),
-  });
-}
-
-export function shallowWithTheme(child) {
-  return shallow(child, {
-    wrappingComponent: ({ children }) => (
-      <ThemeWrapper>{children}</ThemeWrapper>
-    ),
-  });
-}
 
 describe('ResourceListView', () => {
   it('sets resources to [] by default', () => {

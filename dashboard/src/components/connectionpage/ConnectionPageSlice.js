@@ -2,7 +2,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
 export const fetchStatus = createAsyncThunk(
   'metricsSelect/fetchStatus',
-  async ({ api, resource }, { signal }) => {
+  async ({ api }, { signal }) => {
     const response = await api.checkStatus(signal);
     return response;
   }

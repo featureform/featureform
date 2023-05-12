@@ -1,3 +1,4 @@
+import { Box } from '@material-ui/core';
 import AppBar from '@material-ui/core/AppBar';
 import IconButton from '@material-ui/core/IconButton';
 import Menu from '@material-ui/core/Menu';
@@ -90,15 +91,17 @@ export default function TopBar() {
       <AppBar position='static' className={classes.appbar}>
         <Toolbar className={classes.toolbar}>
           <div className={classes.title}>
-            <img
+            <Box
+              component={'img'}
               src='/static/FeatureForm_Logo_Full_Black.svg'
-              height={30}
               alt='Featureform'
               onClick={goHome}
-              component='div'
-              nowrap={'true'}
-              style={{ cursor: 'pointer' }}
-              sx={{ flexGrow: 1, display: { xs: 'none', sm: 'block' } }}
+              style={{ cursor: 'pointer', nowrap: true }}
+              sx={{
+                height: 30,
+                flexGrow: 1,
+                display: { xs: 'none', sm: 'block' },
+              }}
             />
           </div>
 

@@ -28,7 +28,7 @@ export default class MetricsAPI {
       });
   }
 
-  fetchMetrics(instance) {
+  fetchMetrics() {
     var fetchAddress = `${METRICS_API_URL}/metadata`;
     return fetch(fetchAddress, {
       headers: {

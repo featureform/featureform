@@ -1,4 +1,5 @@
 import { useRouter } from 'next/router';
+import React from 'react';
 import ResourcesAPI from '../../../src/api/resources/Resources';
 import EntityPage from '../../../src/components/entitypage/EntityPage';
 

@@ -42,7 +42,7 @@ export const makeSelectFilteredResources = (type) => {
   );
 };
 
-const makeMapStateToProps = (initState, initProps) => {
+const makeMapStateToProps = (_, initProps) => {
   const type = initProps.type;
   return (state) => {
     const selector = makeSelectFilteredResources(type);
@@ -60,7 +60,7 @@ const makeMapStateToProps = (initState, initProps) => {
   };
 };
 
-const makeMapDispatchToProps = (ignore, initProps) => {
+const makeMapDispatchToProps = (_, initProps) => {
   return (dispatch) => ({
     fetch: () => {
       const { type, api } = initProps;
@@ -82,9 +82,9 @@ class ResourceList extends React.Component {
   }
 
   render() {
-    // Only pass down props required for the view.
-    // sends down props resources, loading, and failed
-    const { api, fetch, ...viewProps } = this.props;
+    const viewProps = { ...this.props };
+    delete viewProps.api;
+    delete viewProps.fetch;
     return viewProps.failed ? (
       <ServerErrorPage />
     ) : (

@@ -2,12 +2,10 @@ import Container from '@material-ui/core/Container';
 import CssBaseline from '@material-ui/core/CssBaseline';
 import { makeStyles, ThemeProvider } from '@material-ui/core/styles';
 import React from 'react';
-import ResourcesAPI from '../../api/resources';
 import theme from '../../styles/theme';
 import BreadCrumbs from '../breadcrumbs/BreadCrumbs';
 import TopBar from '../topbar/TopBar';
 
-const apiHandle = new ResourcesAPI();
 const useStyles = makeStyles((theme) => ({
   pageContainer: {
     paddingLeft: theme.spacing(8),

@@ -5,7 +5,7 @@ import NotFoundPage from '../notfoundpage/NotFoundPage';
 import ResourceList from '../resource-list/ResourceList';
 const apiHandle = new ResourcesAPI();
 
-const DataPage = ({ type, ...props }) => {
+const DataPage = ({ type }) => {
   let resourceType = Resource.pathToType[type];
   return (
     <div>

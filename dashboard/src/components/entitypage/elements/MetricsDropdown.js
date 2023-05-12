@@ -108,14 +108,14 @@ const prometheusAPI = 'http://localhost:9090/api/v1/labels';
 
 const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
   const classes = useStyles();
-  const [stepRange, setStepRange] = React.useState('min');
   const [apiConnected, setAPIConnected] = React.useState(false);
   const [step, setStep] = React.useState('1m');
 
   const createPromUrl = () => {
+    /*eslint-disable react/jsx-key*/
     let urlPrefix = 'http://localhost:9090/graph?';
     let urlParamPart = Object.entries(queryFormats[type])
-      .map(([query_name, query_data], i) => {
+      .map(([, query_data], i) => {
         return `g${i}.expr=${encodeURIComponent(
           query_data.query(name, variant, step)
         )} &g${i}.tab=0&g${i}.stacked=0&g${i}.show_exemplars=0&g${i}.range_input=1h`;
@@ -127,13 +127,11 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
 
   useEffect(() => {
     fetch(prometheusAPI)
-      .then((_) => setAPIConnected(true))
-      .catch((_) => setAPIConnected(false));
+      .then(() => setAPIConnected(true))
+      .catch(() => setAPIConnected(false));
     if (timeRange.timeRange[0] > 60) {
-      setStepRange('hour');
       setStep('1h');
     } else if (timeRange.timeRange[0] === 60) {
-      setStepRange('min');
       setStep('1m');
     }
   }, [timeRange, aggregates]);

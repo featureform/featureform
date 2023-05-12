@@ -38,7 +38,6 @@ module.exports = class MeiliSearchClient {
     this._apikey = apikey;
   }
   search(query) {
-    let searchParams = { q: query, query_by: 'Name' };
     let client = new MeiliSearch({
       host: 'http://' + this._host + ':' + this._port,
     });

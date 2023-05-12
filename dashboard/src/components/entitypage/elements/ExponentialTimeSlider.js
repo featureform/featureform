@@ -5,7 +5,7 @@ import React from 'react';
 import { connect } from 'react-redux';
 import { changeTime } from './ExponentialTimeSliderSlice.js';
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   dateRangeView: {},
 }));
 

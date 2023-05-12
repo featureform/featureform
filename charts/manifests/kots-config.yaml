@@ -1,0 +1,29 @@
+---
+apiVersion: kots.io/v1beta1
+kind: Config
+metadata:
+  name: config-featureform
+spec:
+  groups:
+    - name: featureform_config
+      title: Featureform Config
+      description: Configuration for Featureform
+      items:
+        - name: hostname
+          title: Host Name
+          type: text
+          value: ""
+          default: "localhost"
+        - name: enable_ingress
+          type: bool
+          title: Enable Kubernetes Ingress
+          help_text: |
+            When checked, deploy the provided Kubernetes Ingress resource.
+          default: "1"
+        - name: annotations
+          type: textarea
+          title: Annotations
+          help_text: |
+            Use this textarea to provide annotations specific to your ingress controller.
+            For example, `kubernetes.io/ingress.class: alb` when using the ALB ingress controller.
+          when: repl{{ ConfigOptionEquals "enable_ingress" "1" }}

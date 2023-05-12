@@ -1,6 +1,5 @@
-import { NextPage } from 'next'
-import Head from 'next/head'
-import HomePage from '../src/components/homepage/HomePage'
+import Head from 'next/head';
+import HomePage from '../src/components/homepage/HomePage';
 
 const IndexPage = () => {
   return (
@@ -8,9 +7,9 @@ const IndexPage = () => {
       <Head>
         <title>Featureform Dashboard</title>
       </Head>
-        <HomePage />
+      <HomePage />
     </div>
-  )
-}
+  );
+};
 
-export default IndexPage
+export default IndexPage;

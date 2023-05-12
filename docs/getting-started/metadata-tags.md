@@ -53,37 +53,21 @@ def average_user_transaction():
     )
 
 
-user = ff.register_entity("user", tags=["transactions_pk"])
-
-# Register a column from our transformation as a feature
-average_user_transaction.register_resources(
-    entity=user,
-    entity_column="user_id",
-    inference_store=redis,
-    features=[
-        {
-            "name": "avg_transactions",
-            "column": "avg_transaction_amt",
-            "type": "float32",
-            "tags": ["transactions_v1", "pii_data"],
-            "properties": {"ready_for_training": "yes"},
-        },
-    ],
-)
-# Register label from our base Transactions table
-transactions.register_resources(
-    entity=user,
-    entity_column="customerid",
-    labels=[
-        {
-            "name": "fraudulent",
-            "column": "isfraud",
-            "type": "bool",
-            "tags": ["transactions_v1", "pii_data"],
-            "properties": {"ready_for_training": "yes"},
-        },
-    ],
-)
+@ff.entity
+class User:
+    # Register a column from our transformation as a feature
+    avg_transactions = ff.Feature(
+        average_user_transaction[["user_id", "avg_transaction_amt"]],
+        variant: "quickstart",
+        type=ff.Float32,
+        inference_store=redis
+    )
+    # Register label from our base Transactions table
+    fraudulent = ff.Label(
+        transactions[["customerid", "isfraud"]],
+        variant: "quickstart",
+        type=ff.Bool,
+    )
 
 ff.register_training_set(
     "fraud_training", label="fraudulent", features=["avg_transactions"], tags=["transactions_v1", "pii_data"]
@@ -94,7 +78,7 @@ ff.register_training_set(
 
 Then, we'll use the Featureform CLI to register these resources with the applied metadata tags.
 
-```bash
+```shell
 featureform apply providers.py
 ```
 

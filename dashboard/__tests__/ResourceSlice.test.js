@@ -70,6 +70,7 @@ describe('fetchResourcesThunk', () => {
     );
     // The second promise is resolved, so we can await it.
     await reduxStore.dispatch(fetchResources({ api: mockApi, type: dataType }));
+    /*eslint-disable jest/valid-expect-in-promise*/
     defer.resolve({ data: testData });
     origDispatch.then(() => {
       const state = reduxStore.getState();
@@ -93,16 +94,15 @@ describe('ResourceReducers', () => {
   });
 
   it('sets data on success', () => {
-    const payload = testData;
     const requestId = '123';
-    const action = fetchResources.fulfilled(payload, requestId, {
+    const action = fetchResources.fulfilled(testData, requestId, {
       type: dataType,
     });
     const state = resourceReducer(
       { [dataType]: { requestId: requestId } },
       action
     );
-    expect(state[dataType].resources).toEqual(payload);
+    expect(state[dataType].resources).toEqual(testData);
   });
 
   it('sets failed on rejected', () => {
@@ -116,7 +116,6 @@ describe('ResourceReducers', () => {
   });
 
   it('clears failed on pending', () => {
-    const payload = testData;
     const requestId = '123';
     const action = fetchResources.pending(requestId, { type: dataType });
     const state = resourceReducer(
@@ -127,10 +126,9 @@ describe('ResourceReducers', () => {
   });
 
   it('ignore old request on fulfilled', () => {
-    const payload = testData;
     const oldRequestId = '456';
     const newRequestId = '123';
-    const action = fetchResources.fulfilled(payload, oldRequestId, {
+    const action = fetchResources.fulfilled(testData, oldRequestId, {
       type: dataType,
     });
     const state = resourceReducer(
@@ -141,10 +139,9 @@ describe('ResourceReducers', () => {
   });
 
   it('ignore old request on rejected', () => {
-    const payload = testData;
     const oldRequestId = '456';
     const newRequestId = '123';
-    const action = fetchResources.rejected(payload, oldRequestId, {
+    const action = fetchResources.rejected(testData, oldRequestId, {
       type: dataType,
     });
     const state = resourceReducer(

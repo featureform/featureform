@@ -7,9 +7,13 @@ import EntityPage from '../src/components/entitypage/EntityPage';
 import ReduxWrapper from '../src/components/redux/wrapper/ReduxWrapper';
 import TEST_THEME from '../src/styles/theme';
 
-jest.mock('../src/components/entitypage/EntityPageView', () => () => {
-  return <div data-testid='entityPageViewId' />;
-});
+jest.mock(
+  '../src/components/entitypage/EntityPageView',
+  () =>
+    function MockView() {
+      return <div data-testid='entityPageViewId' />;
+    }
+);
 
 describe('Entity Page Tests', () => {
   const LOADING_DOTS_ID = 'loadingDotsId';

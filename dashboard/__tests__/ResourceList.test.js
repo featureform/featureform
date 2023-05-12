@@ -12,6 +12,7 @@ import ResourceList, {
 configure({ adapter: new Adapter() });
 
 describe('ResourceList', () => {
+  const wrapInPromise = (arr) => Promise.resolve({ data: arr });
   const dataType = 'Feature';
   const mockFn = jest.fn(() => wrapInPromise(testData));
   const mockApi = {

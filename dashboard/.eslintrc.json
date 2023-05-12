@@ -12,7 +12,8 @@
   "extends": [
     "eslint:recommended",
     "plugin:react/recommended",
-    "plugin:@next/next/recommended"
+    "plugin:@next/next/recommended",
+    "plugin:jest/recommended"
   ],
   "overrides": [],
   "parserOptions": {
@@ -26,10 +27,10 @@
     "node_modules",
     "public",
     ".next",
-    "out",
-    "__tests__"
+    "out"
   ],
   "rules": {
-    "react/prop-types": "off"
+    "react/prop-types": "off",
+    "jest/no-conditional-expect": "off"
   }
 }

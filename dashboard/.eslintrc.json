@@ -31,6 +31,7 @@
   ],
   "rules": {
     "react/prop-types": "off",
-    "jest/no-conditional-expect": "off"
+    "jest/no-conditional-expect": "off",
+    "@next/next/no-img-element": "off"
   }
 }

@@ -11,6 +11,7 @@ import MaterialTable, {
   MTableHeader,
   MTableToolbar,
 } from 'material-table';
+import Image from 'next/image';
 import { useRouter } from 'next/router';
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -145,11 +146,11 @@ export const ResourceListView = ({
         field: 'software',
         render: (row) => (
           <div className={classes.providerColumn}>
-            <img
+            <Image
               alt={row.software}
               className={classes.providerLogo}
               src={providerLogos[row.software.toUpperCase()]}
-            ></img>
+            />
           </div>
         ),
       },
@@ -208,7 +209,6 @@ export const ResourceListView = ({
   }
 
   let rowVariants = {};
-
   return (
     <div>
       <MaterialTable

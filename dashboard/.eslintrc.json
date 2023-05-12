@@ -16,6 +16,15 @@
     "sourceType": "module"
   },
   "plugins": ["react"],
+  "ignorePatterns": [
+    "coverage",
+    "build",
+    "node_modules",
+    "public",
+    ".next",
+    "out",
+    "__tests__"
+  ],
   "rules": {
     "react/prop-types": "off"
   }

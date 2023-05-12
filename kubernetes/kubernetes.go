@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/featureform/helpers"
 	"io"
 	"io/ioutil"
 	"math"
@@ -387,6 +388,10 @@ func (k KubernetesJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, err
 }
 
 func (k KubernetesJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
+	successfulJobsHistoryLimit := helpers.GetEnvInt32("SUCCESSFUL_JOBS_HISTORY_LIMIT", 2)
+	failedJobsHistoryLimit := helpers.GetEnvInt32("FAILED_JOBS_HISTORY_LIMIT", 1)
+	concurrencyPolicy := getConcurrencyPolicy()
+
 	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      k.JobName,
@@ -396,6 +401,9 @@ func (k KubernetesJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batc
 			JobTemplate: batchv1.JobTemplateSpec{
 				Spec: *jobSpec,
 			},
+			SuccessfulJobsHistoryLimit: &successfulJobsHistoryLimit,
+			FailedJobsHistoryLimit:     &failedJobsHistoryLimit,
+			ConcurrencyPolicy:          concurrencyPolicy,
 		},
 	}
 	if _, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Create(context.TODO(), cronJob, metav1.CreateOptions{}); err != nil {
@@ -424,7 +432,6 @@ func (k KubernetesJobClient) UpdateJobSchedule(schedule CronSchedule, jobSpec *b
 }
 
 func (k KubernetesJobClient) GetJobSchedule(jobName string) (CronSchedule, error) {
-
 	job, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Get(context.TODO(), jobName, metav1.GetOptions{})
 	if err != nil {
 		return "", err
@@ -442,4 +449,21 @@ func NewKubernetesJobClient(name string, namespace string) (*KubernetesJobClient
 		return nil, err
 	}
 	return &KubernetesJobClient{Clientset: clientset, JobName: name, Namespace: namespace}, nil
+}
+
+func getConcurrencyPolicy() batchv1.ConcurrencyPolicy {
+	concurrencyPolicyEnv := helpers.GetEnv("JOBS_CONCURRENCY_POLICY", "Allow")
+	var concurrencyPolicy batchv1.ConcurrencyPolicy
+	switch concurrencyPolicyEnv {
+	case "Allow":
+		concurrencyPolicy = batchv1.AllowConcurrent
+	case "Forbid":
+		concurrencyPolicy = batchv1.ForbidConcurrent
+	case "Replace":
+		concurrencyPolicy = batchv1.ReplaceConcurrent
+	default:
+		fmt.Printf("invalid concurrency policy: %s, defaulting to Allow", concurrencyPolicyEnv)
+		return batchv1.AllowConcurrent
+	}
+	return concurrencyPolicy
 }

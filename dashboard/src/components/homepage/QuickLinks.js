@@ -42,6 +42,8 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const QuickLinks = () => {
+  //todo: quick links is not being used in the app. deprecate.
+  /*eslint-disable no-undef*/
   const history = useHistory();
   const classes = useStyles();
 

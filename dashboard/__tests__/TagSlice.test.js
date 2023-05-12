@@ -3,7 +3,7 @@ import {
   toggleTag,
 } from '../src/components/resource-list/TagSlice';
 
-describe('TagSlice ', () => {
+describe('TagSlice', () => {
   const type = 'Feature';
   it('toggle on tag', () => {
     const tag = 'abc';

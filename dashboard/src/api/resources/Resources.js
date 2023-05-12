@@ -247,7 +247,7 @@ export default class ResourcesAPI {
           });
   }
 
-  fetchVariantSearchStub(query) {
+  fetchVariantSearchStub() {
     const fetchAddress = '/data/lists/search_results_example.json';
 
     return fetch(fetchAddress, {

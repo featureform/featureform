@@ -132,7 +132,7 @@ const searchTypeMap = Object.freeze({
   USER: 'User',
 });
 
-const SearchResultsItem = ({ type, content, setVariant }) => {
+const SearchResultsItem = ({ content, setVariant }) => {
   const classes = useStyles();
   const router = useRouter();
   const resourceType = Resource[searchTypeMap[content.Type?.toUpperCase()]];

@@ -8,7 +8,7 @@ export const fetchMetrics = createAsyncThunk(
     return response;
   },
   {
-    condition: ({ api }, { getState }) => {
+    condition: (_, { getState }) => {
       const { loading } = getState().metricsSelect;
       if (loading) {
         return false;

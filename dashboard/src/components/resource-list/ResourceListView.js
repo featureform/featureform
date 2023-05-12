@@ -149,7 +149,7 @@ export const ResourceListView = ({
               alt={row.software}
               className={classes.providerLogo}
               src={providerLogos[row.software.toUpperCase()]}
-            ></img>
+            />
           </div>
         ),
       },
@@ -208,7 +208,6 @@ export const ResourceListView = ({
   }
 
   let rowVariants = {};
-
   return (
     <div>
       <MaterialTable
@@ -449,7 +448,7 @@ function IconContainer(props) {
   return <span {...other}>{customIcons[value].icon}</span>;
 }
 
-export const UsageTab = ({ usage, children }) => {
+export const UsageTab = () => {
   const classes = useStyles();
 
   return (

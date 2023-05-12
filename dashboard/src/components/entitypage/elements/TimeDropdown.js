@@ -13,7 +13,7 @@ const dropdownValues = [
   { label: '1w', value: 360 * 4 * 7 },
 ];
 
-function ExponentialTimeSlider({ timeRange, changeTime }) {
+function ExponentialTimeSlider({ changeTime }) {
   const [time, setTime] = React.useState(60);
 
   const handleChange = (event) => {

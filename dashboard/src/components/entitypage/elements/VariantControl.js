@@ -23,14 +23,7 @@ function mapStateToProps(state) {
   };
 }
 
-const VariantControl = ({
-  variant,
-  variants,
-  handleVariantChange,
-  entityPage,
-  convertTimestampToDate,
-  local,
-}) => {
+const VariantControl = ({ variant, variants, handleVariantChange }) => {
   const classes = useStyles();
 
   const handleChange = (event) => {

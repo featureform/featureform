@@ -110,7 +110,7 @@ export const data = {
   ],
 };
 
-const StatsDropdown = ({ type, name }) => {
+const StatsDropdown = ({ type }) => {
   const classes = useStyles();
 
   const stats = exampleStats[type];
@@ -122,7 +122,7 @@ const StatsDropdown = ({ type, name }) => {
           <div className={classes.graph}>
             <Container minheight={'800px'}>
               {Object.keys(stats).map((key, i) => (
-                <Typography variant='body1'>
+                <Typography key={i} variant='body1'>
                   <b>{key}: </b>
                   {stats[key]}
                 </Typography>

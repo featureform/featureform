@@ -3,7 +3,7 @@ import { makeStyles } from '@material-ui/core/styles';
 import Typography from '@material-ui/core/Typography';
 import React from 'react';
 
-const useStyles = makeStyles((theme, current_status) => ({
+const useStyles = makeStyles((theme) => ({
   root: {
     padding: theme.spacing(2),
     width: '100%',

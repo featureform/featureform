@@ -206,6 +206,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
   const showMetrics =
     process.env.NODE_ENV == 'production' ? resourceType.hasMetrics : false;
   const showStats = false;
+  /*eslint-disable no-constant-condition*/
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const statsTabDisplacement = showMetrics ? 1 : 0;
   const name = resources['name'];
@@ -266,7 +267,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
     setVariant(type, name, event.target.value);
   };
 
-  const handleChange = (event, newValue) => {
+  const handleChange = (_, newValue) => {
     setValue(newValue);
   };
 
@@ -274,23 +275,23 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
     return word[0].toUpperCase() + word.slice(1).toLowerCase();
   };
 
-  const linkToEntityPage = (event) => {
+  const linkToEntityPage = () => {
     router.push(`/entities/${metadata['entity']}`);
   };
 
-  const linkToPrimaryData = (event) => {
+  const linkToPrimaryData = () => {
     router.push(`/sources/${metadata['source']}`);
   };
 
-  const linkToLabel = (event) => {
+  const linkToLabel = () => {
     router.push(`/labels/${metadata['label'].Name}`);
   };
 
-  const linkToUserPage = (event) => {
+  const linkToUserPage = () => {
     router.push(`/users/${metadata['owner']}`);
   };
 
-  const linkToProviderPage = (event) => {
+  const linkToProviderPage = () => {
     router.push(`/providers/${metadata['provider']}`);
   };
 
@@ -453,9 +454,9 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                           </Typography>
                           <Typography variant='body1' component={'h2'}>
                             {Object.keys(metadata['specifications']).map(
-                              (k) =>
+                              (k, index) =>
                                 metadata['specifications'][k] !== '' && (
-                                  <div style={{ marginLeft: 16 }}>
+                                  <div key={index} style={{ marginLeft: 16 }}>
                                     <b>{k}: </b> {metadata['specifications'][k]}
                                   </div>
                                 )
@@ -707,7 +708,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                   Container: (props) => (
                     <div
                       className={classes.resourceList}
-                      minwidth='xl'
+                      style={{ minWidth: 'xl' }}
                       {...props}
                     />
                   ),
@@ -729,19 +730,14 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
   );
 };
 
-export const TagList = ({
-  activeTags = {},
-  tags = [],
-  tagClass,
-  toggleTag,
-}) => (
+export const TagList = ({ activeTags = {}, tags = [], tagClass }) => (
   <Grid container direction='row'>
     {tags.map((tag) => (
       <Chip
         key={tag}
         className={tagClass}
         color={activeTags[tag] ? 'secondary' : 'default'}
-        onClick={(event) => {}}
+        onClick={() => null}
         variant='outlined'
         label={tag}
       />
@@ -749,7 +745,7 @@ export const TagList = ({
   </Grid>
 );
 
-export const VariantSelector = ({ name, variants = [''], children }) => (
+export const VariantSelector = ({ variants = [''] }) => (
   <FormControl>
     <Select value={variants[0]}>
       {variants.map((variant) => (

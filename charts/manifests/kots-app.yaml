@@ -1,0 +1,8 @@
+---
+apiVersion: kots.io/v1beta1
+kind: Application
+metadata:
+  name: featureform
+spec:
+  title: Featureform
+  icon: https://raw.githubusercontent.com/featureform/featureform/main/assets/featureform_logo.png

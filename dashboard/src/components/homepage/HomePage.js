@@ -2,8 +2,6 @@ import { makeStyles } from '@material-ui/core/styles';
 import Typography from '@material-ui/core/Typography';
 import React from 'react';
 import { connect } from 'react-redux';
-import SearchBar from '../search/SearchBar';
-import TilePanel from '../tilelinks/TilePanel';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -44,22 +42,18 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const HomePage = ({ sections }) => {
+const HomePage = () => {
   let classes = useStyles();
 
   return (
     <div className={classes.root}>
-      <div className={classes.search}>
-        <div className={classes.searchTitle}></div>
-        <SearchBar homePage={true} />
-      </div>
       <div className={classes.sections}>
         <div className={classes.tilePanel}>
           <div className={classes.title}>
             <Typography variant='h5'></Typography>
           </div>
-          <TilePanel sections={sections['features']} />
         </div>
+        <h1>Todo: Decide on Homepage component</h1>
       </div>
     </div>
   );

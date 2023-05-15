@@ -75,7 +75,7 @@ const reduceFn = (map, type) => {
   map[type] = {};
   return map;
 };
-const reduceFnInitial = {};
+const reduceFnInitial = { selectedType: null };
 export const initialState = Resource.resourceTypes.reduce(
   reduceFn,
   reduceFnInitial
@@ -85,6 +85,11 @@ const resourceSlice = createSlice({
   name: 'resourceList',
   // initialState is a map between each resource type to an empty object.
   initialState: initialState,
+  reducers: {
+    setCurrentType: (state, action) => {
+      state['selectedType'] = action.payload.selectedType;
+    },
+  },
   extraReducers: {
     [fetchResources.pending]: (state, action) => {
       const type = action.meta.arg.type;
@@ -129,5 +134,7 @@ const resourceSlice = createSlice({
     },
   },
 });
+
+export const setCurrentType = resourceSlice.actions.setCurrentType;
 
 export default resourceSlice.reducer;

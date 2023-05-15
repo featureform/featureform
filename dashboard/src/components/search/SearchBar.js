@@ -1,7 +1,7 @@
 import Container from '@material-ui/core/Container';
 import Grid from '@material-ui/core/Grid';
 import InputBase from '@material-ui/core/InputBase';
-import { alpha, createStyles, makeStyles } from '@material-ui/core/styles';
+import { createStyles, makeStyles } from '@material-ui/core/styles';
 import SearchIcon from '@material-ui/icons/Search';
 import { useRouter } from 'next/router';
 import React from 'react';
@@ -11,27 +11,17 @@ const ENTER_KEY = 'Enter';
 const useStyles = makeStyles((theme) =>
   createStyles({
     search: {
-      position: 'relative',
-      borderRadius: theme.shape.borderRadius,
-      backgroundColor: alpha(theme.palette.common.white, 0.15),
-      '&:hover': {
-        backgroundColor: alpha(theme.palette.common.white, 0.25),
-      },
-      marginLeft: 0,
-      width: '100%',
-      [theme.breakpoints.up('sm')]: {
-        marginLeft: theme.spacing(1),
-        width: 'auto',
-      },
-    },
-    searchIcon: {
-      padding: theme.spacing(0, 0),
-      height: '100%',
-      position: 'absolute',
-      pointerEvents: 'none',
       display: 'flex',
+      flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
+      padding: '0px',
+      gap: '4px',
+      position: 'absolute',
+      width: '328px',
+      height: '36px',
+      left: `calc(50% - 328px/2)`,
+      background: `rgba(92, 15, 172, 0.7)`,
+      borderRadius: `28px`,
     },
     border: {
       border: `2px solid ${theme.palette.border.alternate}`,
@@ -42,12 +32,15 @@ const useStyles = makeStyles((theme) =>
     },
     inputRoot: {
       borderRadius: 16,
-      color: 'inherit',
       background: 'transparent',
       boxShadow: 'none',
       transition: theme.transitions.create('width'),
       width: '100%',
       display: 'flex',
+      color: '#FFFFFF',
+    },
+    inputColor: {
+      color: '#FFFFFF',
     },
     inputInputHome: {
       paddingLeft: theme.spacing(4),
@@ -58,16 +51,15 @@ const useStyles = makeStyles((theme) =>
       justifyContent: 'center',
       display: 'flex',
       alignSelf: 'flex-end',
+      color: '#FFFFFF',
     },
     inputTopBar: {
-      padding: theme.spacing(1, 0, 0, 0),
       width: '100%',
-      paddingLeft: theme.spacing(4),
       transition: theme.transitions.create('width'),
       background: 'transparent',
       boxShadow: 'none',
-      color: 'black',
       alignSelf: 'center',
+      color: '#FFFFFF',
     },
   })
 );
@@ -87,11 +79,9 @@ const SearchBar = ({ homePage }) => {
     <div className={classes.search}>
       <Grid container item justifyContent='center' direction='row'>
         <Container className={classes.border}>
-          <div className={classes.searchIcon}>
-            <SearchIcon />
-          </div>
           <InputBase
             placeholder='Search...'
+            endAdornment={<SearchIcon />}
             onChange={(event) => {
               const rawText = event.target.value;
               if (rawText === '') {

@@ -53,7 +53,7 @@ const HomePage = () => {
             <Typography variant='h5'></Typography>
           </div>
         </div>
-        <h1>Todo: Decide on Homepage component</h1>
+        <h1>Todo: Set HomePage Component</h1>
       </div>
     </div>
   );

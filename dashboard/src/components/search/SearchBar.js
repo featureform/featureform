@@ -4,7 +4,7 @@ import InputBase from '@material-ui/core/InputBase';
 import { createStyles, makeStyles } from '@material-ui/core/styles';
 import SearchIcon from '@material-ui/icons/Search';
 import { useRouter } from 'next/router';
-import React from 'react';
+import React, { useEffect } from 'react';
 
 const ENTER_KEY = 'Enter';
 
@@ -74,6 +74,16 @@ const SearchBar = ({ homePage }) => {
     let uri = '/query?q=' + searchText?.trim();
     router.push(uri);
   }
+
+  useEffect(() => {
+    if (router.query) {
+      if ('q' in router.query) {
+        setSearchText(router.query.q);
+      } else {
+        setSearchText('');
+      }
+    }
+  }, [router.query]);
 
   return (
     <div className={classes.search}>

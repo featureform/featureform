@@ -88,7 +88,7 @@ export default function TopBar() {
           <div className={classes.title}>
             <Box
               component={'img'}
-              src='/static/FeatureForm_Logo_Full_Black.svg'
+              src='/static/FeatureForm_Logo_Full_White.svg'
               alt='Featureform'
               onClick={goHome}
               style={{

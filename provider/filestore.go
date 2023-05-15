@@ -80,7 +80,7 @@ func NewLocalFileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
-func (fs LocalFileStore) FilestoreType() pc.FileStoreType {
+func (fs *LocalFileStore) FilestoreType() pc.FileStoreType {
 	return FileSystem
 }
 
@@ -103,17 +103,18 @@ func (store *AzureFileStore) containerName() string {
 	return store.ContainerName
 }
 
-func (store *AzureFileStore) addAzureVars(envVars map[string]string) map[string]string {
+func (store *AzureFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+	envVars["BLOB_STORE_TYPE"] = "azure"
 	envVars["AZURE_CONNECTION_STRING"] = store.ConnectionString
 	envVars["AZURE_CONTAINER_NAME"] = store.ContainerName
 	return envVars
 }
 
-func (store AzureFileStore) AsAzureStore() *AzureFileStore {
-	return &store
+func (store *AzureFileStore) AsAzureStore() *AzureFileStore {
+	return store
 }
 
-func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
+func (store *AzureFileStore) PathWithPrefix(path string, remote bool) string {
 	pathContainsAzureBlobPrefix := strings.HasPrefix(path, azureBlobPrefix)
 	pathContainsWorkingDirectory := store.Path != "" && strings.HasPrefix(path, store.Path)
 
@@ -132,12 +133,12 @@ func (store AzureFileStore) PathWithPrefix(path string, remote bool) string {
 	return path
 }
 
-func (store AzureFileStore) FilestoreType() pc.FileStoreType {
+func (store *AzureFileStore) FilestoreType() pc.FileStoreType {
 	return Azure
 }
 
 func NewAzureFileStore(config Config) (FileStore, error) {
-	azureStoreConfig := pc.AzureFileStoreConfig{}
+	azureStoreConfig := &pc.AzureFileStoreConfig{}
 	if err := azureStoreConfig.Deserialize(pc.SerializedConfig(config)); err != nil {
 		return nil, fmt.Errorf("could not deserialize azure store config: %v", err)
 	}
@@ -151,12 +152,12 @@ func NewAzureFileStore(config Config) (FileStore, error) {
 	serviceURL := azureblob.ServiceURL(fmt.Sprintf("https://%s.blob.core.windows.net", azureStoreConfig.AccountName))
 	client, err := azureblob.NewDefaultServiceClient(serviceURL)
 	if err != nil {
-		return AzureFileStore{}, fmt.Errorf("could not create azure client: %v", err)
+		return nil, fmt.Errorf("could not create azure client: %v", err)
 	}
 
 	bucket, err := azureblob.OpenBucket(context.TODO(), client, azureStoreConfig.ContainerName, nil)
 	if err != nil {
-		return AzureFileStore{}, fmt.Errorf("could not open azure bucket: %v", err)
+		return nil, fmt.Errorf("could not open azure bucket: %v", err)
 	}
 	connectionString := fmt.Sprintf("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s", azureStoreConfig.AccountName, azureStoreConfig.AccountKey)
 	return &AzureFileStore{
@@ -195,13 +196,13 @@ func NewS3FileStore(config Config) (FileStore, error) {
 			},
 		}))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not load aws config: %v", err)
 	}
 	cfg.Region = s3StoreConfig.BucketRegion
 	clientV2 := s3v2.NewFromConfig(cfg)
 	bucket, err := s3blob.OpenBucketV2(context.TODO(), clientV2, s3StoreConfig.BucketPath, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create connection to s3 bucket: config: %v, name: %s, %v", s3StoreConfig, s3StoreConfig.BucketPath, err)
 	}
 	return &S3FileStore{
 		Bucket:       s3StoreConfig.BucketPath,
@@ -232,11 +233,20 @@ func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
 	return path
 }
 
-func (s3 S3FileStore) FilestoreType() pc.FileStoreType {
+func (s3 *S3FileStore) FilestoreType() pc.FileStoreType {
 	return S3
 }
 
-func (s3 S3FileStore) Read(key string) ([]byte, error) {
+func (s3 *S3FileStore) AddEnvVars(envVars map[string]string) map[string]string {
+	envVars["BLOB_STORE_TYPE"] = "s3"
+	envVars["AWS_ACCESS_KEY_ID"] = s3.Credentials.AWSAccessKeyId
+	envVars["AWS_SECRET_KEY"] = s3.Credentials.AWSSecretKey
+	envVars["S3_BUCKET_REGION"] = s3.BucketRegion
+	envVars["S3_BUCKET_NAME"] = s3.Bucket
+	return envVars
+}
+
+func (s3 *S3FileStore) Read(key string) ([]byte, error) {
 	fp, err := NewEmptyFilepath(S3)
 	if err != nil {
 		return nil, fmt.Errorf("error creating filepath: %v", err)
@@ -260,7 +270,7 @@ type GCSFileStore struct {
 	genericFileStore
 }
 
-func (gs GCSFileStore) PathWithPrefix(path string, remote bool) string {
+func (gs *GCSFileStore) PathWithPrefix(path string, remote bool) string {
 	pathContainsGSPrefix := strings.HasPrefix(path, gsPrefix)
 	pathContainsWorkingDirectory := gs.Path != "" && strings.HasPrefix(path, gs.Path)
 
@@ -279,8 +289,13 @@ func (gs GCSFileStore) PathWithPrefix(path string, remote bool) string {
 	return path
 }
 
-func (g GCSFileStore) FilestoreType() pc.FileStoreType {
+func (g *GCSFileStore) FilestoreType() pc.FileStoreType {
 	return GCS
+}
+
+func (g *GCSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+	// TODO: add environment variables for GCS
+	panic("GCS Filestore is not supported for K8s at the moment.")
 }
 
 type GCSFileStoreConfig struct {
@@ -621,6 +636,10 @@ func (fs *HDFSFileStore) AsAzureStore() *AzureFileStore {
 	return nil
 }
 
-func (fs HDFSFileStore) FilestoreType() pc.FileStoreType {
+func (fs *HDFSFileStore) FilestoreType() pc.FileStoreType {
 	return HDFS
+}
+
+func (fs *HDFSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+	panic("HDFS Filestore is not supported for K8s at the moment.")
 }

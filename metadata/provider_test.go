@@ -515,7 +515,7 @@ func testK8sConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 			DockerImage: dockerImage,
 		},
 		StoreType: pc.Azure,
-		StoreConfig: pc.AzureFileStoreConfig{
+		StoreConfig: &pc.AzureFileStoreConfig{
 			AccountName:   accountName,
 			AccountKey:    accountKey,
 			ContainerName: containerName,
@@ -542,7 +542,7 @@ func testK8sConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 			DockerImage: dockerImage,
 		},
 		StoreType: pc.Azure,
-		StoreConfig: pc.AzureFileStoreConfig{
+		StoreConfig: &pc.AzureFileStoreConfig{
 			AccountName:   accountName,
 			AccountKey:    accountKey,
 			ContainerName: containerName,

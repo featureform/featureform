@@ -72,6 +72,7 @@ from .proto import metadata_pb2_grpc as ff_grpc
 from .search_local import search_local
 from .search import search
 from .enums import FileFormat
+from .names_generator import get_random_name
 
 NameVariant = Tuple[str, str]
 
@@ -119,7 +120,7 @@ class OfflineSQLProvider(OfflineProvider):
         self,
         name: str,
         table: str,
-        variant: str = "default",
+        variant: Union[str, None] = None,
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
         tags: List[str] = [],
@@ -137,6 +138,7 @@ class OfflineSQLProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): source
         """
+        variant = get_random_name() if variant is None else variant
         return self.__registrar.register_primary_data(
             name=name,
             variant=variant,
@@ -151,13 +153,14 @@ class OfflineSQLProvider(OfflineProvider):
     def sql_transformation(
         self,
         owner: Union[str, UserRegistrar] = "",
-        variant: str = "default",
+        variant: Union[str, None] = None,
         name: str = "",
         schedule: str = "",
         description: str = "",
         tags: List[str] = [],
         properties: dict = {},
     ):
+        variant = get_random_name() if variant is None else variant
         return self.__registrar.sql_transformation(
             name=name,
             variant=variant,
@@ -180,7 +183,7 @@ class OfflineSparkProvider(OfflineProvider):
         self,
         name: str,
         file_path: str,
-        variant: str = "default",
+        variant: Union[str, None] = None,
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
         tags: List[str] = [],
@@ -198,6 +201,7 @@ class OfflineSparkProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): source
         """
+        variant = get_random_name() if variant is None else variant
         return self.__registrar.register_primary_data(
             name=name,
             variant=variant,
@@ -213,7 +217,7 @@ class OfflineSparkProvider(OfflineProvider):
         self,
         name: str,
         file_path: str,
-        variant: str = "default",
+        variant: Union[str, None] = None,
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
     ):
@@ -221,12 +225,12 @@ class OfflineSparkProvider(OfflineProvider):
             FilePrefix.S3.value
         ):
             file_path = file_path.replace(FilePrefix.S3.value, FilePrefix.S3A.value)
-
+        variant = get_random_name() if variant is None else variant
         return self.register_file(name, file_path, variant, owner, description)
 
     def sql_transformation(
         self,
-        variant: str = "default",
+        variant: Union[str, None] = None,
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         schedule: str = "",
@@ -261,6 +265,7 @@ class OfflineSparkProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): Source
         """
+        variant = get_random_name() if variant is None else variant
         return self.__registrar.sql_transformation(
             name=name,
             variant=variant,
@@ -274,7 +279,7 @@ class OfflineSparkProvider(OfflineProvider):
 
     def df_transformation(
         self,
-        variant: str = "default",
+        variant: Union[str, None] = None,
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         description: str = "",
@@ -307,6 +312,7 @@ class OfflineSparkProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): Source
         """
+        variant = get_random_name() if variant is None else variant
         return self.__registrar.df_transformation(
             name=name,
             variant=variant,
@@ -329,7 +335,7 @@ class OfflineK8sProvider(OfflineProvider):
         self,
         name: str,
         path: str,
-        variant: str = "default",
+        variant: Union[str, None] = None,
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
         tags: List[str] = [],
@@ -347,6 +353,7 @@ class OfflineK8sProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): source
         """
+        variant = get_random_name() if variant is None else variant
         return self.__registrar.register_primary_data(
             name=name,
             variant=variant,
@@ -360,7 +367,7 @@ class OfflineK8sProvider(OfflineProvider):
 
     def sql_transformation(
         self,
-        variant: str = "default",
+        variant: Union[str, None] = None,
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         schedule: str = "",
@@ -399,6 +406,7 @@ class OfflineK8sProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): Source
         """
+        variant = get_random_name() if variant is None else variant
         return self.__registrar.sql_transformation(
             name=name,
             variant=variant,
@@ -413,7 +421,7 @@ class OfflineK8sProvider(OfflineProvider):
 
     def df_transformation(
         self,
-        variant: str = "default",
+        variant: Union[str, None] = None,
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         description: str = "",
@@ -450,6 +458,7 @@ class OfflineK8sProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): Source
         """
+        variant = get_random_name() if variant is None else variant
         return self.__registrar.df_transformation(
             name=name,
             variant=variant,
@@ -518,7 +527,7 @@ class LocalProvider:
         name,
         path,
         description="",
-        variant="default",
+        variant: Union[str, None] = None,
         owner="",
         tags: List[str] = [],
         properties: dict = {},
@@ -553,6 +562,7 @@ class LocalProvider:
             )
         if owner == "":
             owner = self.__registrar.must_get_default_owner()
+        variant = get_random_name() if variant is None else variant
         # Store the file as a source
         self.__registrar.register_primary_data(
             name=name,
@@ -587,7 +597,7 @@ class LocalProvider:
 
     def df_transformation(
         self,
-        variant: str = "default",
+        variant: Union[str, None] = None,
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         description: str = "",
@@ -620,6 +630,7 @@ class LocalProvider:
         Returns:
             source (ColumnSourceRegistrar): Source
         """
+        variant = get_random_name() if variant is None else variant
         return self.__registrar.df_transformation(
             name=name,
             variant=variant,
@@ -633,7 +644,7 @@ class LocalProvider:
 
     def sql_transformation(
         self,
-        variant: str = "default",
+        variant: Union[str, None] = None,
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         description: str = "",
@@ -667,6 +678,7 @@ class LocalProvider:
         Returns:
             source (ColumnSourceRegistrar): Source
         """
+        variant = get_random_name() if variant is None else variant
         return self.__registrar.sql_transformation(
             name=name,
             variant=variant,
@@ -872,15 +884,15 @@ class SQLTransformationDecorator:
         provider: str,
         tags: List[str],
         properties: dict,
-        variant: str = "default",
+        variant: Union[str, None] = None,
         name: str = "",
         schedule: str = "",
         description: str = "",
-        args: K8sArgs = None,
+        args: Union[K8sArgs, None] = None,
     ):
         self.registrar = registrar
         self.name = name
-        self.variant = variant
+        self.variant = get_random_name() if variant is None else variant
         self.owner = owner
         self.schedule = schedule
         self.provider = provider
@@ -959,15 +971,15 @@ class DFTransformationDecorator:
         provider: str,
         tags: List[str],
         properties: dict,
-        variant: str = "default",
+        variant: Union[str, None] = None,
         name: str = "",
         description: str = "",
         inputs: list = [],
-        args: K8sArgs = None,
+        args: Union[K8sArgs, None] = None,
     ):
         self.registrar = registrar
         self.name = name
-        self.variant = variant
+        self.variant = get_random_name() if variant is None else variant
         self.owner = owner
         self.provider = provider
         self.description = description
@@ -1110,7 +1122,7 @@ class ResourceRegistrar:
     def create_training_set(
         self,
         name: str,
-        variant: str = "default",
+        variant: Union[str, None] = None,
         label: NameVariant = None,
         schedule: str = "",
         features: List[NameVariant] = None,
@@ -1143,6 +1155,7 @@ class ResourceRegistrar:
             )
             if label not in labelSet:
                 raise ValueError(f"Label {label} not found.")
+        variant = get_random_name() if variant is None else variant
         return self.__registrar.register_training_set(
             name=name,
             variant=variant,
@@ -1177,6 +1190,180 @@ class ModelRegistrar:
 
     def name(self) -> str:
         return self.__model.name
+
+
+class ColumnResource:
+    """
+    Base class for all column resources. This class is not meant to be instantiated directly.
+    In the original syntax, features and labels were registered using the `register_resources`
+    method on the sources (e.g. SQL/DF transformation or tables sources); however, in the new
+    Class API syntax, features and labels can now be declared as class attributes on an entity
+    class. This means that all possible params for either resource must be passed into this base
+    class prior to calling `register_column_resources` on the registrar.
+    """
+
+    def __init__(
+        self,
+        transformation_args: tuple,
+        type: Union[ColumnTypes, str],
+        resource_type: str,
+        entity: Union[Entity, str],
+        variant: Union[str, None],
+        owner: Union[str, UserRegistrar],
+        inference_store: Union[str, OnlineProvider, FileStoreProvider],
+        timestamp_column: str,
+        description: str,
+        schedule: str,
+        tags: List[str],
+        properties: Dict[str, str],
+    ):
+        registrar, source_name_variant, columns = transformation_args
+        self.type = type if isinstance(type, str) else type.value
+        self.registrar = registrar
+        self.source = source_name_variant
+        self.entity_column = columns[0]
+        self.source_column = columns[1]
+        self.resource_type = resource_type
+        self.entity = entity
+        self.name = None
+        self.variant = get_random_name() if variant is None else variant
+        self.owner = owner
+        self.inference_store = inference_store
+        if not timestamp_column and len(columns) == 3:
+            self.timestamp_column = columns[2]
+        elif timestamp_column and len(columns) == 3:
+            raise Exception("Timestamp column specified twice.")
+        else:
+            self.timestamp_column = timestamp_column
+        self.description = description
+        self.schedule = schedule
+        self.tags = tags
+        self.properties = properties
+
+    def register(self):
+        features, labels = self.features_and_labels()
+
+        self.registrar.register_column_resources(
+            source=self.source,
+            entity=self.entity,
+            entity_column=self.entity_column,
+            owner=self.owner,
+            inference_store=self.inference_store,
+            features=features,
+            labels=labels,
+            timestamp_column=self.timestamp_column,
+            schedule=self.schedule,
+        )
+
+    def features_and_labels(self) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
+        resources = [
+            {
+                "name": self.name,
+                "variant": self.variant,
+                "column": self.source_column,
+                "type": self.type,
+                "description": self.description,
+                "tags": self.tags,
+                "properties": self.properties,
+            }
+        ]
+        if self.resource_type == "feature":
+            features = resources
+            labels = []
+        elif self.resource_type == "label":
+            features = []
+            labels = resources
+        else:
+            raise ValueError(f"Resource type {self.resource_type} not supported")
+        return (features, labels)
+
+    def name_variant(self) -> Tuple[str, str]:
+        if self.name is None:
+            raise ValueError("Resource name not set")
+        if self.variant is None:
+            raise ValueError("Resource variant not set")
+        return (self.name, self.variant)
+
+
+class Variants:
+    def __init__(self, resources: Dict[str, ColumnResource]):
+        self.resources = resources
+        self.validate_variant_names()
+
+    def validate_variant_names(self):
+        for variant_key, resource in self.resources.items():
+            if resource.variant == None:
+                resource.variant = variant_key
+            if resource.variant != variant_key:
+                raise ValueError(
+                    f"Variant name {variant_key} does not match resource variant name {resource.variant}"
+                )
+
+    def register(self):
+        for resource in self.resources.values():
+            resource.register()
+
+
+class FeatureColumnResource(ColumnResource):
+    def __init__(
+        self,
+        transformation_args: tuple,
+        type: Union[ColumnTypes, str],
+        entity: Union[Entity, str] = "",
+        variant: Union[str, None] = None,
+        owner: str = "",
+        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
+        timestamp_column: str = "",
+        description: str = "",
+        schedule: str = "",
+        tags: List[str] = [],
+        properties: Dict[str, str] = {},
+    ):
+        super().__init__(
+            transformation_args=transformation_args,
+            type=type,
+            resource_type="feature",
+            entity=entity,
+            variant=variant,
+            owner=owner,
+            inference_store=inference_store,
+            timestamp_column=timestamp_column,
+            description=description,
+            schedule=schedule,
+            tags=tags,
+            properties=properties,
+        )
+
+
+class LabelColumnResource(ColumnResource):
+    def __init__(
+        self,
+        transformation_args: tuple,
+        type: Union[ColumnTypes, str],
+        entity: Union[Entity, str] = "",
+        variant: Union[str, None] = None,
+        owner: str = "",
+        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
+        timestamp_column: str = "",
+        description: str = "",
+        schedule: str = "",
+        tags: List[str] = [],
+        properties: Dict[str, str] = {},
+    ):
+        super().__init__(
+            transformation_args=transformation_args,
+            type=type,
+            resource_type="label",
+            entity=entity,
+            variant=variant,
+            owner=owner,
+            inference_store=inference_store,
+            timestamp_column=timestamp_column,
+            description=description,
+            schedule=schedule,
+            tags=tags,
+            properties=properties,
+        )
 
 
 class Registrar:
@@ -2683,7 +2870,7 @@ class Registrar:
         name: str,
         query: str,
         provider: Union[str, OfflineProvider],
-        variant: str = "default",
+        variant: Union[str, None] = None,
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
         schedule: str = "",
@@ -2714,6 +2901,7 @@ class Registrar:
             owner = self.must_get_default_owner()
         if not isinstance(provider, str):
             provider = provider.name()
+        variant = get_random_name() if variant is None else variant
         source = Source(
             name=name,
             variant=variant,
@@ -2731,7 +2919,7 @@ class Registrar:
     def sql_transformation(
         self,
         provider: Union[str, OfflineProvider],
-        variant: str = "default",
+        variant: Union[str, None] = None,
         name: str = "",
         schedule: str = "",
         owner: Union[str, UserRegistrar] = "",
@@ -2762,6 +2950,7 @@ class Registrar:
             owner = self.must_get_default_owner()
         if not isinstance(provider, str):
             provider = provider.name()
+        variant = get_random_name() if variant is None else variant
         decorator = SQLTransformationDecorator(
             registrar=self,
             name=name,
@@ -2782,7 +2971,7 @@ class Registrar:
         name: str,
         query: str,
         provider: Union[str, OfflineProvider],
-        variant: str = "default",
+        variant: Union[str, None] = None,
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
         inputs: list = [],
@@ -2819,6 +3008,7 @@ class Registrar:
         for i, nv in enumerate(inputs):
             if not isinstance(nv, tuple):
                 inputs[i] = nv.name_variant()
+        variant = get_random_name() if variant is None else variant
         source = Source(
             name=name,
             variant=variant,
@@ -2838,11 +3028,11 @@ class Registrar:
         provider: Union[str, OfflineProvider],
         tags: List[str],
         properties: dict,
-        variant: str = "default",
+        variant: Union[str, None] = None,
         name: str = "",
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
-        inputs: list = [],
+        inputs: Union[List[NameVariant], List[ColumnSourceRegistrar]] = [],
         args: K8sArgs = None,
     ):
         """Dataframe transformation decorator.
@@ -2868,6 +3058,7 @@ class Registrar:
             owner = self.must_get_default_owner()
         if not isinstance(provider, str):
             provider = provider.name()
+        variant = get_random_name() if variant is None else variant
         for i, nv in enumerate(inputs):
             if not isinstance(nv, tuple):
                 inputs[i] = nv.name_variant()
@@ -2924,7 +3115,7 @@ class Registrar:
         *,
         tags: List[str] = None,
         properties: dict = None,
-        variant: str = "default",
+        variant: Union[str, None] = None,
         name: str = "",
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
@@ -2954,7 +3145,7 @@ class Registrar:
             owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
-
+        variant = get_random_name() if variant is None else variant
         decorator = OnDemandFeature(
             name=name,
             variant=variant,
@@ -3082,7 +3273,7 @@ class Registrar:
         feature_resources = []
         label_resources = []
         for feature in features:
-            variant = feature.get("variant", "default")
+            variant = feature.get("variant", get_random_name())
             desc = feature.get("description", "")
             feature_tags = feature.get("tags", [])
             feature_properties = feature.get("properties", {})
@@ -3110,7 +3301,7 @@ class Registrar:
             feature_resources.append(resource)
 
         for label in labels:
-            variant = label.get("variant", "default")
+            variant = label.get("variant", get_random_name())
             desc = label.get("description", "")
             label_tags = label.get("tags", [])
             label_properties = label.get("properties", {})
@@ -3139,9 +3330,8 @@ class Registrar:
         feature_nv_list = []
         feature_lags = []
         for feature in features:
-            if isinstance(feature, str):
-                feature_nv = (feature, "default")
-                feature_nv_list.append(feature_nv)
+            if isinstance(feature, FeatureColumnResource):
+                feature_nv_list.append(feature.name_variant())
             elif isinstance(feature, dict):
                 lag = feature.get("lag")
                 if lag:
@@ -3189,9 +3379,9 @@ class Registrar:
     def register_training_set(
         self,
         name: str,
-        variant: str = "default",
-        features: list = [],
-        label: NameVariant = (),
+        variant: Union[str, None] = None,
+        features: Union[list, List[FeatureColumnResource]] = [],
+        label: Union[NameVariant, LabelColumnResource] = ("", ""),
         resources: list = [],
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
@@ -3221,11 +3411,17 @@ class Registrar:
         if owner == "":
             owner = self.must_get_default_owner()
 
-        if isinstance(features, tuple):
-            raise ValueError("Features must be entered as a list")
+        if not isinstance(features, (list)):
+            raise ValueError(
+                f"Invalid features type: {type(features)} "
+                "Features must be entered as a list of name-variant tuples (e.g. [('feature1', 'quickstart'), ('feature2', 'quickstart')]) or a list of FeatureColumnResource instances."
+            )
 
-        if isinstance(label, list):
-            raise ValueError("Label must be entered as a tuple")
+        if not isinstance(label, (tuple, LabelColumnResource)):
+            raise ValueError(
+                f"Invalid label type: {type(label)} "
+                "Label must be entered as a name-variant tuple (e.g. ('fraudulent', 'quickstart')) or an instance of LabelColumnResource."
+            )
 
         for resource in resources:
             features += resource.features()
@@ -3237,8 +3433,8 @@ class Registrar:
             elif resource_label != ():
                 raise ValueError("A training set can only have one label")
 
-        if isinstance(label, str):
-            label = (label, "default")
+        if isinstance(label, LabelColumnResource):
+            label = label.name_variant()
 
         features, feature_lags = self.__get_feature_nv(features)
 
@@ -3246,7 +3442,7 @@ class Registrar:
             raise ValueError("Label must be set")
         if features == []:
             raise ValueError("A training-set must have atleast one feature")
-
+        variant = get_random_name() if variant is None else variant
         resource = TrainingSet(
             name=name,
             variant=variant,

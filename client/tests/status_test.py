@@ -23,6 +23,7 @@ from featureform.resources import (
     ResourceStatus,
 )
 from featureform.proto import metadata_pb2 as pb
+from featureform.names_generator import get_random_name
 
 
 def my_func(df):
@@ -104,6 +105,7 @@ def test_feature_status(mocker, status, expected, ready):
             status=get_pb_status(status),
             tags=[],
             properties={},
+            variant=get_random_name(),
         ),
     )
     client = ResourceClient("host")
@@ -139,6 +141,7 @@ def test_label_status(mocker, status, expected, ready):
             status=get_pb_status(status),
             tags=[],
             properties={},
+            variant=get_random_name(),
         ),
     )
     client = ResourceClient("host")
@@ -172,6 +175,7 @@ def test_training_set_status(mocker, status, expected, ready):
             status=get_pb_status(status),
             tags=[],
             properties={},
+            variant=get_random_name(),
         ),
     )
     client = ResourceClient("host")
@@ -204,6 +208,7 @@ def test_source_status(mocker, status, expected, ready):
             status=get_pb_status(status),
             tags=[],
             properties={},
+            variant=get_random_name(),
         ),
     )
     client = ResourceClient("host")

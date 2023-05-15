@@ -7,6 +7,7 @@ from .register import (
 )
 from .serving import ServingClient
 from .constants import NO_RECORD_LIMIT
+from .names_generator import get_random_name
 
 
 class Client(ResourceClient, ServingClient):
@@ -48,7 +49,7 @@ class Client(ResourceClient, ServingClient):
     def dataframe(
         self,
         source: Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str],
-        variant="default",
+        variant: Union[str, None] = None,
         limit=NO_RECORD_LIMIT,
     ):
         """
@@ -56,7 +57,7 @@ class Client(ResourceClient, ServingClient):
 
         Args:
             source (Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
-            variant (str): The source variant; defaults to "default" and is ignored if source argument is not a string
+            variant (str): The source variant; defaults to a Docker-style random name and is ignored if source argument is not a string
             limit (int): The maximum number of records to return; defaults to NO_RECORD_LIMIT
 
         **Example:**
@@ -75,6 +76,7 @@ class Client(ResourceClient, ServingClient):
             raise ValueError(
                 f"source must be of type SourceRegistrar, LocalSource, SubscriptableTransformation or str, not {type(source)}"
             )
+        variant = get_random_name() if variant is None else variant
         return self.impl._get_source_as_df(name, variant, limit)
 
     def nearest(self, name, variant, vector, k):

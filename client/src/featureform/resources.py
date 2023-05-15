@@ -875,8 +875,8 @@ class Source:
     description: str
     tags: list
     properties: dict
+    variant: str
     status: str = "NO_STATUS"
-    variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
@@ -1079,11 +1079,11 @@ class Feature:
     provider: str
     location: ResourceLocation
     description: str
+    variant: str
     is_embedding: bool = False
     dims: int = 0
     tags: list = None
     properties: dict = None
-    variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
     status: str = "NO_STATUS"
@@ -1228,9 +1228,9 @@ class Feature:
 @dataclass
 class OnDemandFeature:
     owner: str
+    variant: str
     tags: List[str] = field(default_factory=list)
     properties: dict = field(default_factory=dict)
-    variant: str = "default"
     name: str = ""
     description: str = ""
     status: str = "READY"
@@ -1364,8 +1364,8 @@ class Label:
     tags: list
     properties: dict
     location: ResourceLocation
+    variant: str
     status: str = "NO_STATUS"
-    variant: str = "default"
     error: Optional[str] = None
 
     def __post_init__(self):
@@ -1570,10 +1570,10 @@ class TrainingSet:
     label: NameVariant
     features: List[NameVariant]
     description: str
+    variant: str
     feature_lags: list = field(default_factory=list)
     tags: list = None
     properties: dict = None
-    variant: str = "default"
     schedule: str = ""
     schedule_obj: Schedule = None
     provider: str = ""

@@ -6,7 +6,11 @@ import (
 	sm "github.com/featureform/helpers/struct_map"
 )
 
-type FileStoreConfig []byte
+type FileStoreConfig interface {
+	Serialize() ([]byte, error)
+	Deserialize(config SerializedConfig) error
+	IsFileStoreConfig() bool
+}
 
 type ExecutorType string
 

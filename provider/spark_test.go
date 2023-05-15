@@ -2714,7 +2714,7 @@ func TestInitSparkS3(t *testing.T) {
 }
 
 func TestInitSparkAzure(t *testing.T) {
-	config := pc.AzureFileStoreConfig{
+	config := &pc.AzureFileStoreConfig{
 		AccountName:   "",
 		AccountKey:    "asbc",
 		ContainerName: "asdf",

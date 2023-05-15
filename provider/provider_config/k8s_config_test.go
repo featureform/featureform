@@ -19,7 +19,7 @@ func TestK8sConfigMutableFields(t *testing.T) {
 			DockerImage: "container",
 		},
 		StoreType: Azure,
-		StoreConfig: AzureFileStoreConfig{
+		StoreConfig: &AzureFileStoreConfig{
 			AccountName:   "account name",
 			AccountKey:    "account key",
 			ContainerName: "container name",
@@ -50,8 +50,8 @@ func TestK8sConfigDifferingFields(t *testing.T) {
 				ExecutorConfig: ExecutorConfig{
 					DockerImage: "container",
 				},
-				StoreType: "blob",
-				StoreConfig: AzureFileStoreConfig{
+				StoreType: Azure,
+				StoreConfig: &AzureFileStoreConfig{
 					AccountName:   "account name",
 					AccountKey:    "account key",
 					ContainerName: "container name",
@@ -63,8 +63,8 @@ func TestK8sConfigDifferingFields(t *testing.T) {
 				ExecutorConfig: ExecutorConfig{
 					DockerImage: "container",
 				},
-				StoreType: "blob",
-				StoreConfig: AzureFileStoreConfig{
+				StoreType: Azure,
+				StoreConfig: &AzureFileStoreConfig{
 					AccountName:   "account name",
 					AccountKey:    "account key",
 					ContainerName: "container name",
@@ -78,8 +78,8 @@ func TestK8sConfigDifferingFields(t *testing.T) {
 				ExecutorConfig: ExecutorConfig{
 					DockerImage: "container",
 				},
-				StoreType: "blob",
-				StoreConfig: AzureFileStoreConfig{
+				StoreType: Azure,
+				StoreConfig: &AzureFileStoreConfig{
 					AccountName:   "account name",
 					AccountKey:    "account key",
 					ContainerName: "container name",
@@ -91,8 +91,8 @@ func TestK8sConfigDifferingFields(t *testing.T) {
 				ExecutorConfig: ExecutorConfig{
 					DockerImage: "container_v2",
 				},
-				StoreType: "blob",
-				StoreConfig: AzureFileStoreConfig{
+				StoreType: Azure,
+				StoreConfig: &AzureFileStoreConfig{
 					AccountName:   "account_name2",
 					AccountKey:    "account_key2",
 					ContainerName: "container name",
@@ -120,5 +120,4 @@ func TestK8sConfigDifferingFields(t *testing.T) {
 
 		})
 	}
-
 }

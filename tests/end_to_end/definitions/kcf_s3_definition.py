@@ -37,8 +37,9 @@ TRAININGSET_VARIANT = "lag_features"
 FEATURE_SERVING = f"farm:farm"
 VERSIONS = f"{FEATURE_NAME},{FEATURE_VARIANT}:{TRAININGSET_NAME},{TRAININGSET_VARIANT}"
 
-save_to_file("feature.txt", FEATURE_SERVING)
-save_to_file("version.txt", VERSIONS)
+TEST_NAME = "kcf_s3_definition"
+save_to_file(f"feature_{TEST_NAME}.txt", FEATURE_SERVING)
+save_to_file(f"version_{TEST_NAME}.txt", VERSIONS)
 
 
 # Start of Featureform Definitions

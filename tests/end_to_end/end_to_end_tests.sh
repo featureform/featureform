@@ -23,10 +23,14 @@ do
     else
         featureform apply $f
     fi
+done
 
-    echo -e "\nNow serving '$filename'"
-    python $TESTING_DIRECTORY/serving.py
-    echo -e "Successfully completed '$filename'"
+for f in $TESTING_DIRECTORY/feature_*
+do
+  filename="${f##*/}"
+  echo -e "\nNow serving '$filename'"
+  python $TESTING_DIRECTORY/serving.py $filename
+  echo -e "Successfully completed '$filename'"
 done
 
 echo -e "\n\n"

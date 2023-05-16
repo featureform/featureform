@@ -1,10 +1,12 @@
-import os
+import os, sys
 import time
 
 from dotenv import load_dotenv
 
 import featureform as ff
 
+TEST_NAME = sys.argv[1].replace("feature_", "")
+print(TEST_NAME)
 
 SLEEP_DURATION = 30
 NUMBER_OF_SLEEPS = 20
@@ -40,9 +42,9 @@ def parse_feature(data):
 
 
 FEATURE_NAME, FEATURE_VARIANT, TRAININGSET_NAME, TRAININGSET_VARIANT = parse_versions(
-    read_file("version.txt")
+    read_file(f"version_{TEST_NAME}")
 )
-FEATURE_ENTITY, FEATURE_VALUE = parse_feature(read_file("feature.txt"))
+FEATURE_ENTITY, FEATURE_VALUE = parse_feature(read_file(f"feature_{TEST_NAME}"))
 if (
     FEATURE_NAME == None
     or FEATURE_VARIANT == None

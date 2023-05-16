@@ -1343,7 +1343,7 @@ func (k8s *K8sOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error
 
 func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.SugaredLogger) (OfflineTable, error) {
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
-	logger.Debugw("Getting resource table", "id", id)
+	logger.Debugw("Getting resource table", "id", id, "resourceKey", resourceKey)
 	serializedSchema, err := store.Read(resourceKey)
 	if err != nil {
 		return nil, fmt.Errorf("error reading schema bytes from blob storage: %v", err)

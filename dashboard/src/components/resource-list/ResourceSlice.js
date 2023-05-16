@@ -62,8 +62,9 @@ export const fetchResources = createAsyncThunk(
   },
   {
     condition: ({ type }, { getState }) => {
-      const { loading } = getState().resourceList[type];
-      if (loading) {
+      const { resources, loading } = getState().resourceList[type];
+
+      if (loading || resources) {
         return false;
       }
     },

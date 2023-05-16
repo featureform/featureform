@@ -343,6 +343,7 @@ func Test_parquetIteratorFromReader(t *testing.T) {
 		w.Write(row)
 	}
 	w.Close()
+
 	iter, err := parquetIteratorFromBytes(buf.Bytes())
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -926,5 +927,53 @@ func TestTrainingSetOrder(t *testing.T) {
 			t.Errorf("Expected label: %v, got %v", getStructValueByName(testRows[i], labelColName), tsIterator.Label())
 		}
 		i++
+	}
+}
+
+func TestParquetIterator_vector32(t *testing.T) {
+	data, err := ioutil.ReadFile("test_files/vector32.parquet")
+	if err != nil {
+		t.Fatalf("could not read vector32 parquet file: %v", err)
+	}
+	iter, err := parquetIteratorFromBytes(data)
+	if err != nil {
+		t.Fatalf("could not create parquet iterator: %v", err)
+	}
+	for {
+		v, err := iter.Next()
+		if err != nil {
+			t.Fatalf("could not get next row: %v", err)
+		}
+		value := v["value"]
+		if value == nil {
+			break
+		}
+		mapValue, ok := value.(map[string]interface{})
+		if !ok {
+			t.Fatalf("could not cast type: %T to map[string]interface{}", value)
+		}
+		list, ok := mapValue["list"]
+		if !ok {
+			t.Fatalf("could not find list in value: %v", value)
+		}
+		elementsSlice, ok := list.([]interface{})
+		if !ok {
+			t.Fatalf("could not cast type: %T to []interface{}", list)
+		}
+		vector32 := make([]float32, len(elementsSlice))
+		for i, e := range elementsSlice {
+			m, ok := e.(map[string]interface{})
+			if !ok {
+				t.Fatalf("could not cast type: %T to map[string]interface{}", e)
+			}
+			switch element := m["element"].(type) {
+			case float32:
+				vector32[i] = element
+			case float64:
+				vector32[i] = float32(element)
+			default:
+				t.Fatalf("could not cast element type: %T to float32", element)
+			}
+		}
 	}
 }

@@ -65,6 +65,7 @@ message Value {
         int32  int32_value = 6;
         bool   bool_value = 7;
         bytes on_demand_function = 8;
+        Vector32 vector32_value = 9;
     }
 }
 
@@ -97,4 +98,8 @@ message TrainingDataColumnsRequest {
 message TrainingColumns {
   repeated string features = 1;
   string label = 2;
+}
+
+message Vector32 {
+  repeated float value = 1;
 }

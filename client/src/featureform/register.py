@@ -1280,6 +1280,8 @@ class Registrar:
                 owner="",
                 provider="",
                 description="",
+                tags=[],
+                properties={},
             )
             return ColumnSourceRegistrar(self, fakeSource)
 
@@ -4757,3 +4759,4 @@ Float32 = ColumnTypes.FLOAT32
 Float64 = ColumnTypes.FLOAT64
 Bool = ColumnTypes.BOOL
 DateTime = ColumnTypes.DATETIME
+Vector32 = ColumnTypes.VECTOR32

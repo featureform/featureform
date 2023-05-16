@@ -33,6 +33,7 @@ const (
 	Bool      ValueType = "bool"
 	Timestamp ValueType = "time.Time"
 	Datetime  ValueType = "datetime"
+	Vector32  ValueType = "vector32"
 )
 
 type OfflineResourceType int

@@ -16,6 +16,7 @@ class ColumnTypes(Enum):
     STRING = "string"
     BOOL = "bool"
     DATETIME = "datetime"
+    VECTOR32 = "vector32"
 
 
 class ResourceStatus(Enum):

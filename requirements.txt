@@ -28,7 +28,7 @@ packaging==23.0
 pluggy==1.0.0
 protobuf==4.21.12
 Pygments==2.14.0
-pymdown-extensions==9.9.2
+pymdown-extensions==10.0
 pyproject_hooks==1.0.0
 pytest==7.2.1
 pytest-mock==3.10.0

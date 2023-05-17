@@ -18,7 +18,8 @@ const useStyles = makeStyles((theme) => ({
   },
 
   appbar: {
-    position: 'absolute',
+    position: 'fixed',
+    top: '0',
     width: '100%',
     height: '70px',
     left: '0px',

@@ -24,7 +24,7 @@ export const MyApp = ({ Component, pageProps }) => {
     <React.StrictMode>
       <ReduxWrapper store={ReduxStore}>
         <ThemeWrapper>
-          <TopBar className={classes.topbar} />
+          <TopBar className={classes.topbar} api={apiHandle} />
           <Container
             maxWidth='xl'
             className={classes.root}

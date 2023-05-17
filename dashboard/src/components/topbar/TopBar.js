@@ -56,13 +56,14 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function TopBar() {
+export default function TopBar({ api }) {
   let router = useRouter();
   const classes = useStyles();
   let auth = false;
 
   const [search, setSearch] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const [version, setVersion] = React.useState('');
   const open = Boolean(anchorEl);
 
   useEffect(() => {
@@ -85,6 +86,13 @@ export default function TopBar() {
     event?.preventDefault();
     router.push('/');
   };
+
+  useEffect(async () => {
+    if (!version) {
+      const ffVersion = await api.fetchVersion();
+      setVersion(ffVersion.data);
+    }
+  }, [api]);
 
   return (
     <div className={classes.root}>
@@ -142,6 +150,7 @@ export default function TopBar() {
               </div>
             )}
           </div>
+          <span>Version: {version}</span>
         </Toolbar>
       </AppBar>
     </div>

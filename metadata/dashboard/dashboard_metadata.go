@@ -1031,6 +1031,10 @@ func (m *MetadataServer) GetSearch(c *gin.Context) {
 	c.JSON(200, result)
 }
 
+func (m *MetadataServer) GetVersion(c *gin.Context) {
+	c.JSON(200, help.GetEnv("FEATUREFORM_VERSION", "Default"))
+}
+
 func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
@@ -1038,6 +1042,7 @@ func (m *MetadataServer) Start(port string) {
 	router.GET("/data/:type", m.GetMetadataList)
 	router.GET("/data/:type/:resource", m.GetMetadata)
 	router.GET("/data/search", m.GetSearch)
+	router.GET("/data/version", m.GetVersion)
 
 	router.Run(port)
 }

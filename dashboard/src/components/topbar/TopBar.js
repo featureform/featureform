@@ -8,7 +8,7 @@ import Toolbar from '@material-ui/core/Toolbar';
 import AccountCircle from '@material-ui/icons/AccountCircle';
 import SideNav from 'components/sideNav/SideNav';
 import { useRouter } from 'next/router';
-import React from 'react';
+import React, { useEffect } from 'react';
 import SearchBar from '../search/SearchBar';
 
 const useStyles = makeStyles((theme) => ({

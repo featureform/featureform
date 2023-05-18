@@ -29,7 +29,6 @@ export const MyApp = ({ Component, pageProps }) => {
             className={classes.root}
             classes={{ maxWidthXl: classes.pageContainer }}
           >
-            <BreadCrumbs />
             <Component {...pageProps} api={apiHandle} />
           </Container>
         </ThemeWrapper>

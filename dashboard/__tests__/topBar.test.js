@@ -51,7 +51,7 @@ describe('TopBar version tests', () => {
 
     // then: the correct value displays
     expect(versionField).toBeDefined();
-    expect(versionField.nodeName).toBe('DIV');
+    expect(versionField.nodeName).toBe('SPAN');
     expect(versionField.textContent).toBe(`Version: ${mockVersion}`);
   });
 });

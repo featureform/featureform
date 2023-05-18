@@ -6,8 +6,9 @@ import MenuItem from '@material-ui/core/MenuItem';
 import { makeStyles } from '@material-ui/core/styles';
 import Toolbar from '@material-ui/core/Toolbar';
 import AccountCircle from '@material-ui/icons/AccountCircle';
+import SideNav from 'components/sideNav/SideNav';
 import { useRouter } from 'next/router';
-import React, { useEffect } from 'react';
+import React from 'react';
 import SearchBar from '../search/SearchBar';
 
 const useStyles = makeStyles((theme) => ({
@@ -17,16 +18,20 @@ const useStyles = makeStyles((theme) => ({
   },
 
   appbar: {
-    background: 'transparent',
-    boxShadow: 'none',
-    display: 'flex',
+    position: 'fixed',
+    top: '0',
     width: '100%',
-    color: 'black',
+    height: '70px',
+    left: '0px',
+    background: `linear-gradient(270deg, #6BF77A 0%, #7A14E5 37.22%)`,
+    borderBottom: `1px solid #E5E5E5`,
   },
   instanceLogo: {
     height: '3em',
   },
-  searchBar: {},
+  searchBar: {
+    margin: 'auto',
+  },
   toolbar: {
     width: '100%',
     display: 'flex',
@@ -34,7 +39,7 @@ const useStyles = makeStyles((theme) => ({
   },
   title: {
     justifySelf: 'flex-start',
-    paddingLeft: theme.spacing(6),
+    paddingLeft: theme.spacing(1.5),
   },
   instanceName: {
     userSelect: 'none',
@@ -61,18 +66,9 @@ export default function TopBar({ api }) {
   const classes = useStyles();
   let auth = false;
 
-  const [search, setSearch] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [version, setVersion] = React.useState('');
   const open = Boolean(anchorEl);
-
-  useEffect(() => {
-    if (router.pathname !== '/') {
-      setSearch(true);
-    } else {
-      setSearch(false);
-    }
-  }, [router]);
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
@@ -96,15 +92,18 @@ export default function TopBar({ api }) {
 
   return (
     <div className={classes.root}>
-      <AppBar position='static' className={classes.appbar}>
+      <AppBar position='absolute' className={classes.appbar}>
         <Toolbar className={classes.toolbar}>
           <div className={classes.title}>
             <Box
               component={'img'}
-              src='/static/FeatureForm_Logo_Full_Black.svg'
+              src='/static/FeatureForm_Logo_Full_White.svg'
               alt='Featureform'
               onClick={goHome}
-              style={{ cursor: 'pointer', nowrap: true }}
+              style={{
+                cursor: 'pointer',
+                nowrap: true,
+              }}
               sx={{
                 height: 30,
                 flexGrow: 1,
@@ -114,9 +113,7 @@ export default function TopBar({ api }) {
           </div>
 
           <div className={classes.toolbarRight}>
-            {search && (
-              <SearchBar className={classes.searchBar} homePage={false} />
-            )}
+            <SearchBar className={classes.searchBar} homePage={false} />
             {auth && (
               <div>
                 <IconButton
@@ -153,6 +150,7 @@ export default function TopBar({ api }) {
           <span>Version: {version}</span>
         </Toolbar>
       </AppBar>
+      <SideNav />
     </div>
   );
 }

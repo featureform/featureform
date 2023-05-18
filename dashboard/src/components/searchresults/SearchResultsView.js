@@ -74,10 +74,11 @@ const SearchResultsView = ({ results, search_query, setVariant }) => {
           ) : (
             <div style={{ color: 'gray' }}>No results for:&nbsp;</div>
           )}
-
           <b>{search_query}</b>
         </Typography>
-        <SearchResultsList contents={results} setVariant={setVariant} />
+        {results?.length > 0 ? (
+          <SearchResultsList contents={results} setVariant={setVariant} />
+        ) : null}
       </Container>
     </div>
   );

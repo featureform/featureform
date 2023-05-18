@@ -16,8 +16,7 @@ const themeSpec = {
     MuiCssBaseline: {
       '@global': {
         body: {
-          background:
-            'radial-gradient(circle farthest-side, #E4D0FA 0%, rgba(255, 0, 0, 0) 40%) top left/200% 100%, radial-gradient(circle farthest-side, #FCA3BE 0%, rgba(255, 0, 0, 0) 40%) top right/180% 150%;',
+          background: '#FFFFFF',
           backgroundRepeat: 'no-repeat',
           backgroundAttachment: 'fixed',
         },

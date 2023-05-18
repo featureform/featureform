@@ -6,7 +6,6 @@ import MenuItem from '@material-ui/core/MenuItem';
 import { makeStyles } from '@material-ui/core/styles';
 import Toolbar from '@material-ui/core/Toolbar';
 import AccountCircle from '@material-ui/icons/AccountCircle';
-import SideNav from 'components/sideNav/SideNav';
 import { useRouter } from 'next/router';
 import React, { useEffect } from 'react';
 import SearchBar from '../search/SearchBar';
@@ -150,7 +149,6 @@ export default function TopBar({ api }) {
           <span>Version: {version}</span>
         </Toolbar>
       </AppBar>
-      <SideNav />
     </div>
   );
 }

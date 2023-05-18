@@ -5,6 +5,7 @@ import React from 'react';
 import ResourcesAPI from '../src/api/resources';
 import ReduxStore from '../src/components/redux/store';
 import ReduxWrapper from '../src/components/redux/wrapper';
+import SideNav from '../src/components/sideNav/SideNav';
 import TopBar from '../src/components/topbar/TopBar';
 import '../src/styles/base.css';
 import theme from '../src/styles/theme';
@@ -14,6 +15,8 @@ const useStyles = makeStyles(() => ({
   pageContainer: {
     height: '100%',
     width: '100%',
+    top: '70px',
+    position: 'relative',
   },
 }));
 
@@ -24,13 +27,15 @@ export const MyApp = ({ Component, pageProps }) => {
       <ReduxWrapper store={ReduxStore}>
         <ThemeWrapper>
           <TopBar className={classes.topbar} api={apiHandle} />
-          <Container
-            maxWidth='xl'
-            className={classes.root}
-            classes={{ maxWidthXl: classes.pageContainer }}
-          >
-            <Component {...pageProps} api={apiHandle} />
-          </Container>
+          <SideNav>
+            <Container
+              maxWidth='xl'
+              className={classes.root}
+              classes={{ maxWidthXl: classes.pageContainer }}
+            >
+              <Component {...pageProps} api={apiHandle} />
+            </Container>
+          </SideNav>
         </ThemeWrapper>
       </ReduxWrapper>
     </React.StrictMode>

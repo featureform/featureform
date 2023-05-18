@@ -4,11 +4,11 @@ import React from 'react';
 import { connect } from 'react-redux';
 import ServerErrorPage from '../servererror/ServerErrorPage';
 import ResourceListView from './ResourceListView.js';
-import { fetchResources } from './ResourceSlice.js';
+import { fetchResources, setCurrentType } from './ResourceSlice.js';
 import { toggleTag } from './TagSlice.js';
 import { setVariant } from './VariantSlice.js';
 
-export const makeSelectFilteredResources = (type) => {
+export const selectFilteredResources = (type) => {
   const selectResources = (state) => state.resourceList[type].resources;
   const selectTags = (state) => state.selectedTags[type];
   const activeVariants = (state) => state.selectedVariant[type];
@@ -42,15 +42,16 @@ export const makeSelectFilteredResources = (type) => {
   );
 };
 
-const makeMapStateToProps = (_, initProps) => {
-  const type = initProps.type;
+const mapStateToProps = (_, ownProps) => {
   return (state) => {
-    const selector = makeSelectFilteredResources(type);
-    const item = state.resourceList[type];
-    const activeVariants = state.selectedVariant[type];
-    const activeTags = state.selectedTags[type];
+    const selectedType = state.resourceList.selectedType;
+    const typeToUse = selectedType ? selectedType : ownProps.type;
+    const selector = selectFilteredResources(typeToUse);
+    const item = state.resourceList[typeToUse];
+    const activeVariants = state.selectedVariant[typeToUse];
+    const activeTags = state.selectedTags[typeToUse];
     return {
-      title: type,
+      title: typeToUse,
       resources: selector(state),
       loading: item.loading,
       failed: item.failed,
@@ -60,11 +61,18 @@ const makeMapStateToProps = (_, initProps) => {
   };
 };
 
-const makeMapDispatchToProps = (_, initProps) => {
+const mapDispatchToProps = (_, initProps) => {
   return (dispatch) => ({
-    fetch: () => {
-      const { type, api } = initProps;
-      dispatch(fetchResources({ api, type }));
+    setCurrentType: (type) => {
+      dispatch(setCurrentType({ selectedType: type }));
+    },
+    fetch: (typeParam) => {
+      dispatch(
+        fetchResources({
+          api: initProps.api,
+          type: typeParam ? typeParam : initProps.type,
+        })
+      );
     },
     setVariant: (type, name, variant) => {
       dispatch(setVariant({ type, name, variant }));
@@ -79,6 +87,14 @@ const makeMapDispatchToProps = (_, initProps) => {
 class ResourceList extends React.Component {
   componentDidMount() {
     this.props.fetch();
+    this.props.setCurrentType(this.props.type);
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.type !== this.props.type) {
+      this.props.fetch(this.props.type);
+      this.props.setCurrentType(this.props.type);
+    }
   }
 
   render() {
@@ -102,7 +118,4 @@ ResourceList.propTypes = {
   failed: PropTypes.bool,
 };
 
-export default connect(
-  makeMapStateToProps,
-  makeMapDispatchToProps
-)(ResourceList);
+export default connect(mapStateToProps, mapDispatchToProps)(ResourceList);

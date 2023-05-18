@@ -6,7 +6,7 @@ import { testData } from '../src/api/resources';
 import { newTestStore } from '../src/components/redux/store';
 import ReduxWrapper from '../src/components/redux/wrapper';
 import ResourceList, {
-  makeSelectFilteredResources,
+  selectFilteredResources,
 } from '../src/components/resource-list/ResourceList';
 
 configure({ adapter: new Adapter() });
@@ -45,6 +45,7 @@ describe('ResourceList', () => {
       'title',
       'resources',
       'loading',
+      'setCurrentType',
       'type',
       'failed',
       'setVariant',
@@ -60,7 +61,7 @@ describe('ResourceList', () => {
         selectedTags: { [dataType]: {} },
         selectedVariant: { [dataType]: {} },
       };
-      const selector = makeSelectFilteredResources(dataType);
+      const selector = selectFilteredResources(dataType);
       expect(selector(state)).toBeNull();
     });
 
@@ -71,7 +72,7 @@ describe('ResourceList', () => {
         selectedTags: { [dataType]: {} },
         selectedVariant: { [dataType]: {} },
       };
-      const selector = makeSelectFilteredResources(dataType);
+      const selector = selectFilteredResources(dataType);
       expect(selector(state)).toEqual(resList);
     });
 
@@ -87,7 +88,7 @@ describe('ResourceList', () => {
         selectedTags: { [dataType]: { '1': true } },
         selectedVariant: { [dataType]: { a: 'a1', b: 'b1', c: 'c1', d: 'd1' } },
       };
-      const selector = makeSelectFilteredResources(dataType);
+      const selector = selectFilteredResources(dataType);
       const expected = [0, 2].map((idx) => resList[idx]);
       expect(selector(state)).toEqual(expected);
     });
@@ -104,7 +105,7 @@ describe('ResourceList', () => {
         selectedTags: { [dataType]: { '1': true, '2': true } },
         selectedVariant: { [dataType]: { a: 'a1', b: 'b1', c: 'c1', d: 'd1' } },
       };
-      const selector = makeSelectFilteredResources(dataType);
+      const selector = selectFilteredResources(dataType);
       const expected = [0].map((idx) => resList[idx]);
       expect(selector(state)).toEqual(expected);
     });

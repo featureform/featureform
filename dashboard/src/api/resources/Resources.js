@@ -237,7 +237,7 @@ export default class ResourcesAPI {
       });
   }
 
-  fetchVersion() {
+  fetchVersionMap() {
     const fetchAddress = `${API_URL + '/data/version'}`;
 
     return fetch(fetchAddress, {

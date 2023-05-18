@@ -84,8 +84,8 @@ export default function TopBar({ api }) {
 
   useEffect(async () => {
     if (!version) {
-      const ffVersion = await api.fetchVersion();
-      setVersion(ffVersion.data);
+      const versionMap = await api.fetchVersionMap();
+      setVersion(versionMap.data?.version);
     }
   }, [api]);
 

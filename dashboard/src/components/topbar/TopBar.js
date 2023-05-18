@@ -84,8 +84,8 @@ export default function TopBar({ api }) {
 
   useEffect(async () => {
     if (!version) {
-      const versionMap = await api.fetchVersionMap();
-      setVersion(versionMap.data?.version);
+      const versionData = await api.fetchVersionMap();
+      setVersion(versionData.data.version);
     }
   }, [api]);
 
@@ -146,7 +146,7 @@ export default function TopBar({ api }) {
               </div>
             )}
           </div>
-          <span>Version: {version}</span>
+          <span data-testid={'versionPropId'}>Version: {version}</span>
         </Toolbar>
       </AppBar>
     </div>

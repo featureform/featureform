@@ -50,7 +50,7 @@ spec:
             - name: MEILISEARCH_APIKEY
               value: {{ .Values.search.apikey | quote }}
             - name: FEATUREFORM_VERSION
-              value: {{ .Values.featureformVersion | quote}}
+              value: {{ .Values.global.version | default .Chart.AppVersion}}
           ports:
             - name: http
               containerPort: 3001

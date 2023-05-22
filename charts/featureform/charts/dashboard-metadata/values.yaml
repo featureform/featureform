@@ -15,9 +15,6 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-#current application version
-featureformVersion: "v0.8.1"
-
 search:
   host: featureform-search
   port: 7700

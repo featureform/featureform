@@ -146,7 +146,7 @@ export default function TopBar({ api }) {
               </div>
             )}
           </div>
-          <span data-testid={'versionPropId'}>{version}</span>
+          <span data-testid={'versionPropId'}>Version: {version}</span>
         </Toolbar>
       </AppBar>
     </div>

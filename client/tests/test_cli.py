@@ -3,7 +3,7 @@ import sys
 from click.testing import CliRunner
 
 sys.path.insert(0, "client/src/")
-from featureform.cli import apply
+from featureform.cli import apply, version
 
 
 class TestApply:
@@ -56,3 +56,9 @@ class TestApply:
             catch_exceptions=False,
         )
         assert result.exit_code == 0
+
+    def test_version(sefl):
+        runner = CliRunner()
+        result = runner.invoke(version)
+        assert result.exit_code == 0
+        assert result.output.startswith("Client Version:")

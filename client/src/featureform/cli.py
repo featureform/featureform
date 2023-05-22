@@ -11,6 +11,7 @@ from flask import Flask
 from .dashboard_metadata import dashboard_app
 import validators
 import urllib.request
+from .version import get_package_version
 
 resource_types = [
     "feature",
@@ -146,6 +147,11 @@ def list(host, cert, insecure, local, resource_type):
 
 app = Flask(__name__)
 app.register_blueprint(dashboard_app)
+
+
+@cli.command()
+def version():
+    print("Client Version: {}".format(get_package_version()))
 
 
 @cli.command()

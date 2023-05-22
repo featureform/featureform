@@ -20,7 +20,7 @@ from .type_objects import (
 )
 import os
 from featureform import ResourceClient
-from version import get_package_version
+from .version import get_package_version
 
 path = os.path.join(os.path.dirname(__file__), "dashboard")
 

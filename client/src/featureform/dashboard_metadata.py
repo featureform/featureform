@@ -20,7 +20,7 @@ from .type_objects import (
 )
 import os
 from featureform import ResourceClient
-import sys
+from version import get_package_version
 
 path = os.path.join(os.path.dirname(__file__), "dashboard")
 
@@ -60,6 +60,11 @@ def query():
 @dashboard_app.route("/static/<asset>")
 def deliver_static(asset):
     return dashboard_app.send_static_file("static/" + asset)
+
+
+@dashboard_app.route("/data/version")
+def version():
+    return {"version": get_package_version()}
 
 
 def variant_organiser(allVariantList):

@@ -1032,8 +1032,9 @@ func (m *MetadataServer) GetSearch(c *gin.Context) {
 }
 
 func (m *MetadataServer) GetVersionMap(c *gin.Context) {
-	versionMap := map[string]string{}
-	versionMap["version"] = help.GetEnv("FEATUREFORM_VERSION", "Default")
+	versionMap := map[string]string{
+		"version": help.GetEnv("FEATUREFORM_VERSION", ""),
+	}
 	c.JSON(200, versionMap)
 }
 

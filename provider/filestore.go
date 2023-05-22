@@ -120,7 +120,12 @@ func (store *AzureFileStore) PathWithPrefix(path string, remote bool) string {
 
 	if !remote {
 		if len(path) != 0 && !pathContainsWorkingDirectory {
-			return fmt.Sprintf("%s/%s", store.Path, strings.TrimPrefix(path, "/"))
+			if store.Path == "" {
+				return strings.TrimPrefix(path, "/")
+			} else {
+				return fmt.Sprintf("%s/%s", store.Path, strings.TrimPrefix(path, "/"))
+			}
+
 		}
 	} else if remote && !pathContainsAzureBlobPrefix {
 		azureBlobPathPrefix := ""

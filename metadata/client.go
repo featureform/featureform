@@ -95,7 +95,7 @@ type ResourceDef interface {
 	ResourceType() ResourceType
 }
 
-//accessible to the frontend as it does not directly change status in metadata
+// accessible to the frontend as it does not directly change status in metadata
 func (client *Client) RequestScheduleChange(ctx context.Context, resID ResourceID, schedule string) error {
 	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
 	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
@@ -410,6 +410,7 @@ func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) erro
 	return err
 }
 
+// todox:
 func (client *Client) GetLabelVariants(ctx context.Context, ids []NameVariant) ([]*LabelVariant, error) {
 	stream, err := client.grpcConn.GetLabelVariants(ctx)
 	if err != nil {
@@ -1955,6 +1956,10 @@ func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
 
 func (variant *SourceVariant) Name() string {
 	return variant.serialized.GetName()
+}
+
+func (variant *SourceVariant) Schedule() string {
+	return variant.serialized.GetSchedule()
 }
 
 func (variant *SourceVariant) Variant() string {

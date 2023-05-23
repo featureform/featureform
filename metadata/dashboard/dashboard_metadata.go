@@ -88,22 +88,25 @@ type TrainingSetResource struct {
 }
 
 type SourceVariantResource struct {
-	Created        time.Time                               `json:"created"`
-	Description    string                                  `json:"description"`
 	Name           string                                  `json:"name"`
-	SourceType     string                                  `json:"source-type"`
-	Owner          string                                  `json:"owner"`
-	Provider       string                                  `json:"provider"`
 	Variant        string                                  `json:"variant"`
-	Labels         map[string][]LabelVariantResource       `json:"labels"`
-	Features       map[string][]FeatureVariantResource     `json:"features"`
-	TrainingSets   map[string][]TrainingSetVariantResource `json:"training-sets"`
-	Status         string                                  `json:"status"`
-	Error          string                                  `json:"error"`
 	Definition     string                                  `json:"definition"`
-	Specifications map[string]string                       `json:"specifications"`
+	Owner          string                                  `json:"owner"`
+	Description    string                                  `json:"description"`
+	Provider       string                                  `json:"provider"`
+	Created        time.Time                               `json:"created"`
+	Status         string                                  `json:"status"`
+	Table          string                                  `json:"table"`
+	TrainingSets   map[string][]TrainingSetVariantResource `json:"training-sets"`
+	Features       map[string][]FeatureVariantResource     `json:"features"`
+	Labels         map[string][]LabelVariantResource       `json:"labels"`
+	LastUpdated    time.Time                               `json:"lastUpdated"`
+	Schedule       string                                  `json:"schedule"`
 	Tags           metadata.Tags                           `json:"tags"`
 	Properties     metadata.Properties                     `json:"properties"`
+	SourceType     string                                  `json:"source-type"`
+	Error          string                                  `json:"error"`
+	Specifications map[string]string                       `json:"specifications"`
 }
 
 type SourceResource struct {
@@ -293,21 +296,24 @@ func trainingSetShallowMap(variant *metadata.TrainingSetVariant) TrainingSetVari
 	}
 }
 
+// todox: map this here
 func sourceShallowMap(variant *metadata.SourceVariant) SourceVariantResource {
 	return SourceVariantResource{
-		Created:        variant.Created(),
-		Description:    variant.Description(),
 		Name:           variant.Name(),
-		SourceType:     getSourceType(variant),
 		Variant:        variant.Variant(),
-		Owner:          variant.Owner(),
-		Provider:       variant.Provider(),
-		Status:         variant.Status().String(),
-		Error:          variant.Error(),
 		Definition:     getSourceString(variant),
-		Specifications: getSourceArgs(variant),
+		Owner:          variant.Owner(),
+		Description:    variant.Description(),
+		Provider:       variant.Provider(),
+		Created:        variant.Created(),
+		Status:         variant.Status().String(),
+		LastUpdated:    variant.LastUpdated(),
+		Schedule:       variant.Schedule(),
 		Tags:           variant.Tags(),
+		SourceType:     getSourceType(variant),
 		Properties:     variant.Properties(),
+		Error:          variant.Error(),
+		Specifications: getSourceArgs(variant),
 	}
 }
 
@@ -366,6 +372,7 @@ func (m *MetadataServer) getFeatures(nameVariants []metadata.NameVariant) (map[s
 	return featureMap, nil
 }
 
+// todox:
 func (m *MetadataServer) getLabels(nameVariants []metadata.NameVariant) (map[string][]LabelVariantResource, error) {
 	labelMap := make(map[string][]LabelVariantResource)
 	labelVariants, err := m.client.GetLabelVariants(context.Background(), nameVariants)

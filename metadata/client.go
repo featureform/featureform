@@ -410,7 +410,6 @@ func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) erro
 	return err
 }
 
-// todox:
 func (client *Client) GetLabelVariants(ctx context.Context, ids []NameVariant) ([]*LabelVariant, error) {
 	stream, err := client.grpcConn.GetLabelVariants(ctx)
 	if err != nil {

@@ -296,7 +296,6 @@ func trainingSetShallowMap(variant *metadata.TrainingSetVariant) TrainingSetVari
 	}
 }
 
-// todox: map this here
 func sourceShallowMap(variant *metadata.SourceVariant) SourceVariantResource {
 	return SourceVariantResource{
 		Name:           variant.Name(),
@@ -372,7 +371,6 @@ func (m *MetadataServer) getFeatures(nameVariants []metadata.NameVariant) (map[s
 	return featureMap, nil
 }
 
-// todox:
 func (m *MetadataServer) getLabels(nameVariants []metadata.NameVariant) (map[string][]LabelVariantResource, error) {
 	labelMap := make(map[string][]LabelVariantResource)
 	labelVariants, err := m.client.GetLabelVariants(context.Background(), nameVariants)

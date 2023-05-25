@@ -746,15 +746,20 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if err != nil {
 		return fmt.Errorf("could not fetch  onlineprovider: %v", err)
 	}
+	vType, err := provider.NewValueType(featureType, feature.IsEmbedding(), int(feature.Dimension()))
+	if err != nil {
+		return err
+	}
 	materializedRunnerConfig := runner.MaterializedRunnerConfig{
 		OnlineType:    pt.Type(featureProvider.Type()),
 		OfflineType:   pt.Type(sourceProvider.Type()),
 		OnlineConfig:  featureProvider.SerializedConfig(),
 		OfflineConfig: sourceProvider.SerializedConfig(),
 		ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
-		VType:         provider.ValueType(featureType),
+		VType:         runner.ValueTypeJSON{vType},
 		Cloud:         runner.LocalMaterializeRunner,
 		IsUpdate:      false,
+		IsEmbedding:   feature.IsEmbedding(),
 	}
 	serialized, err := materializedRunnerConfig.Serialize()
 	if err != nil {
@@ -820,7 +825,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 			OnlineConfig:  featureProvider.SerializedConfig(),
 			OfflineConfig: sourceProvider.SerializedConfig(),
 			ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
-			VType:         provider.ValueType(featureType),
+			VType:         runner.ValueTypeJSON{vType},
 			Cloud:         runner.LocalMaterializeRunner,
 			IsUpdate:      true,
 		}

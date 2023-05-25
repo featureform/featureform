@@ -173,6 +173,8 @@ message FeatureVariant {
     Tags tags = 15;
     Properties properties = 16;
     ComputationMode mode = 18;
+    bool is_embedding = 19;
+    int32 dimension = 20;
 }
 
 message FeatureLag {

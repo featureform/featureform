@@ -1074,6 +1074,8 @@ class Feature:
     name: str
     source: NameVariant
     value_type: str
+    is_embedding: bool
+    dim: int
     entity: str
     owner: str
     provider: str
@@ -1088,7 +1090,7 @@ class Feature:
     error: Optional[str] = None
 
     def __post_init__(self):
-        col_types = [member.value for member in ColumnTypes]
+        col_types = [member.value for member in ScalarType]
         if self.value_type not in col_types:
             raise ValueError(
                 f"Invalid feature type ({self.value_type}) must be one of: {col_types}"
@@ -1120,6 +1122,8 @@ class Feature:
             variant=feature.variant,
             source=(feature.source.name, feature.source.variant),
             value_type=feature.type,
+            is_embedding=feature.is_embedding,
+            dim=feature.dimension,
             entity=feature.entity,
             owner=feature.owner,
             provider=feature.provider,
@@ -1140,6 +1144,8 @@ class Feature:
                 variant=self.source[1],
             ),
             type=self.value_type,
+            is_embedding=self.is_embedding,
+            dimension=self.dim,
             entity=self.entity,
             owner=self.owner,
             description=self.description,
@@ -1363,7 +1369,7 @@ class Label:
     error: Optional[str] = None
 
     def __post_init__(self):
-        col_types = [member.value for member in ColumnTypes]
+        col_types = [member.value for member in ScalarType]
         if self.value_type not in col_types:
             raise ValueError(
                 f"Invalid label type ({self.value_type}) must be one of: {col_types}"

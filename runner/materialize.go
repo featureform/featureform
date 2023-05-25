@@ -33,13 +33,14 @@ const (
 )
 
 type MaterializeRunner struct {
-	Online   provider.OnlineStore
-	Offline  provider.OfflineStore
-	ID       provider.ResourceID
-	VType    provider.ValueType
-	IsUpdate bool
-	Cloud    JobCloud
-	Logger   *zap.SugaredLogger
+	Online      provider.OnlineStore
+	Offline     provider.OfflineStore
+	ID          provider.ResourceID
+	VType       provider.ValueType
+	IsUpdate    bool
+	Cloud       JobCloud
+	Logger      *zap.SugaredLogger
+	IsEmbedding bool
 }
 
 func (m MaterializeRunner) Resource() metadata.ResourceID {
@@ -105,6 +106,25 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	}
 	if err != nil {
 		return nil, err
+	}
+	// Create the vector similarity index prior to writing any values to the
+	// inference store. This is currently only required for RediSearch, but other
+	// vector databases allow for manual index configuration even if they support
+	// autogeneration of indexes.
+	if m.IsEmbedding {
+		m.Logger.Infow("Creating Index", "name", m.ID.Name, "variant", m.ID.Variant)
+		vectorStore, ok := m.Online.(provider.VectorStore)
+		if !ok {
+			return nil, fmt.Errorf("cannot create index on non-vector store: %v", m.Online)
+		}
+		vectorType, ok := m.VType.(provider.VectorType)
+		if !ok {
+			return nil, fmt.Errorf("cannot create index on non-vector type: %v", m.VType)
+		}
+		_, err := vectorStore.CreateIndex(m.ID.Name, m.ID.Variant, vectorType)
+		if err != nil {
+			return nil, fmt.Errorf("create index error: %w", err)
+		}
 	}
 	m.Logger.Infow("Creating Table", "name", m.ID.Name, "variant", m.ID.Variant)
 	_, err = m.Online.CreateTable(m.ID.Name, m.ID.Variant, m.VType)
@@ -202,15 +222,36 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	return materializeWatcher, nil
 }
 
+type ValueTypeJSON struct {
+	provider.ValueType
+}
+
+func (vt *ValueTypeJSON) UnmarshalJSON(data []byte) error {
+	v := map[string]provider.VectorType{"ValueType": {}}
+	if err := json.Unmarshal(data, &v); err == nil {
+		vt.ValueType = v["ValueType"]
+		return nil
+	}
+
+	s := map[string]provider.ScalarType{"ValueType": provider.ScalarType("")}
+	if err := json.Unmarshal(data, &s); err == nil {
+		vt.ValueType = s["ValueType"]
+		return nil
+	}
+
+	return fmt.Errorf("could not unmarshal value type: %v", data)
+}
+
 type MaterializedRunnerConfig struct {
 	OnlineType    pt.Type
 	OfflineType   pt.Type
 	OnlineConfig  pc.SerializedConfig
 	OfflineConfig pc.SerializedConfig
 	ResourceID    provider.ResourceID
-	VType         provider.ValueType
+	VType         ValueTypeJSON
 	Cloud         JobCloud
 	IsUpdate      bool
+	IsEmbedding   bool
 }
 
 func (m *MaterializedRunnerConfig) Serialize() (Config, error) {
@@ -251,12 +292,13 @@ func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
 	}
 	return &MaterializeRunner{
-		Online:   onlineStore,
-		Offline:  offlineStore,
-		ID:       runnerConfig.ResourceID,
-		VType:    runnerConfig.VType,
-		IsUpdate: runnerConfig.IsUpdate,
-		Cloud:    runnerConfig.Cloud,
-		Logger:   logging.NewLogger("materializer"),
+		Online:      onlineStore,
+		Offline:     offlineStore,
+		ID:          runnerConfig.ResourceID,
+		VType:       runnerConfig.VType.ValueType,
+		IsUpdate:    runnerConfig.IsUpdate,
+		Cloud:       runnerConfig.Cloud,
+		Logger:      logging.NewLogger("materializer"),
+		IsEmbedding: runnerConfig.IsEmbedding,
 	}, nil
 }

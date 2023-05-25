@@ -76,7 +76,7 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 	if err != nil {
 		return nil, &TableNotFound{feature, variant}
 	}
-	table := &redisOnlineTable{client: &store.client, key: key, valueType: ValueType(vType)}
+	table := &redisOnlineTable{client: &store.client, key: key, valueType: ScalarType(vType)}
 	return table, nil
 }
 
@@ -98,7 +98,7 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 		Hset().
 		Key(fmt.Sprintf("%s__tables", store.prefix)).
 		FieldValue().
-		FieldValue(key.String(), string(valueType)).
+		FieldValue(key.String(), string(valueType.Scalar())).
 		Build()
 	if resp := store.client.Do(context.TODO(), cmd); resp.Error() != nil {
 		return nil, resp.Error()
@@ -174,6 +174,9 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	if table.valueType.IsVector() {
+		return rueidis.ToVector32(val), nil
+	}
 	switch table.valueType {
 	case NilType, String:
 		result, err = val, nil
@@ -187,7 +190,7 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 		result, err = strconv.ParseInt(val, 10, 64)
 	case Float32:
 		if result, err = strconv.ParseFloat(val, 32); err == nil {
-			result = float32(result.(float64))
+			result, err = float32(result.(float64)), nil
 		}
 	case Float64:
 		result, err = strconv.ParseFloat(val, 64)
@@ -197,8 +200,6 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 		// maintains compatibility with go-redis implementation:
 		// https://github.com/redis/go-redis/blob/v8.11.5/command.go#L939
 		result, err = time.Parse(time.RFC3339Nano, val)
-	case Vector32:
-		result, err = rueidis.ToVector32(val), nil
 	default:
 		result, err = val, nil
 	}
@@ -206,4 +207,44 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 		return nil, fmt.Errorf("could not cast value: %v to %s: %w", resp, table.valueType, err)
 	}
 	return result, nil
+}
+
+func (table redisOnlineTable) Nearest(vector []float32, k int) ([]string, error) {
+	return nil, nil
+}
+
+func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error) {
+	key := redisTableKey{store.prefix, feature, variant}
+	cmd := store.createIndexCmd(key, feature, variant, vectorType)
+	resp := store.client.Do(context.Background(), cmd)
+	if resp.Error() != nil {
+		return redisOnlineTable{}, resp.Error()
+	}
+	table := &redisOnlineTable{client: &store.client, key: key, valueType: vectorType}
+	return table, nil
+}
+
+// TODO: write unit tests for command creation
+func (store *redisOnlineStore) createIndexCmd(key redisTableKey, feature, variant string, vectorType VectorType) rueidis.Completed {
+	requiredParams := []string{
+		"TYPE", "FLOAT32",
+		"DIM", strconv.Itoa(vectorType.Dimension),
+		"DISTANCE_METRIC", "COSINE",
+	}
+	return store.client.B().
+		FtCreate().
+		// TODO: determine if we want to use a different naming convention for the index
+		Index(fmt.Sprintf("%s_idx", key.String())).
+		Schema().
+		FieldName(feature).
+		Vector("HNSW", int64(len(requiredParams)), requiredParams...).
+		Build()
+}
+
+func (store *redisOnlineStore) GetIndex(feature, variant string) (string, error) {
+	return "", nil
+}
+
+func (store *redisOnlineStore) DeleteIndex(feature, variant string) error {
+	return nil
 }

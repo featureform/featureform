@@ -806,6 +806,7 @@ func (s *SparkGenericExecutor) PythonFileURI(store SparkFileStore) string {
 }
 
 func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
+	s.logger.Debugw("SparkSubmitArgs", "destPath", destPath, "cleanQuery", cleanQuery, "sourceList", sourceList, "jobType", jobType, "store", store)
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
@@ -1077,6 +1078,7 @@ func (e *EMRExecutor) waitForLogFile(logFile string) error {
 }
 
 func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
+	e.logger.Debugw("SparkSubmitArgs", "destPath", destPath, "cleanQuery", cleanQuery, "sourceList", sourceList, "jobType", jobType, "store", store)
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
@@ -1459,15 +1461,9 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 }
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	spark.Logger.Debugw("Getting transformation table", "ResourceID", id)
 	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), false)
-	transformationExactPath, err := spark.Store.NewestFileOfType(transformationPath, Parquet)
-
-	if err != nil || transformationExactPath == "" {
-		return nil, fmt.Errorf("could not get transformation table at %s: %v", transformationPath, err)
-	}
-	spark.Logger.Debugw("Succesfully retrieved transformation table", "ResourceID", id)
-	return &FileStorePrimaryTable{spark.Store, transformationExactPath, true, id}, nil
+	spark.Logger.Debugw("Retrieved transformation source", "ResourceID", id, "transformationPath", transformationPath)
+	return &FileStorePrimaryTable{spark.Store, transformationPath, true, id}, nil
 }
 
 func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig) error {
@@ -1505,6 +1501,8 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		spark.Logger.Errorw("Could not convert resource table to S3 offline table", "id", id)
 		return nil, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
 	}
+
+	// get destination path for the materialization
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath := spark.Store.PathWithPrefix(ResourcePrefix(materializationID), true)
 	materializationNewestFile, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(fileStoreResourcePath(materializationID), false), Parquet)
@@ -1520,7 +1518,12 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		return nil, fmt.Errorf("materialization already exists")
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-	sourcePath := spark.Store.PathWithPrefix(sparkResourceTable.schema.SourceTable, true)
+
+	latestSourcePath, err := spark.Store.NewestFileOfType(sparkResourceTable.schema.SourceTable, Parquet)
+	sourcePath := spark.Store.PathWithPrefix(latestSourcePath, true)
+	if err != nil {
+		return nil, fmt.Errorf("could not get latest source file: %v", err)
+	}
 	sparkArgs := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize, spark.Store)
 	spark.Logger.Debugw("Creating materialization", "id", id)
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
@@ -1592,7 +1595,12 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Could not get schema of label in spark store", "label", def.Label, "error", err)
 		return fmt.Errorf("could not get schema of label %s: %v", def.Label, err)
 	}
-	labelPath := spark.Store.PathWithPrefix(labelSchema.SourceTable, true)
+	latestLabelPath, err := spark.Store.NewestFileOfType(labelSchema.SourceTable, Parquet)
+	if err != nil {
+		spark.Logger.Errorw("Could not get latest label file", "label", def.Label, "error", err)
+		return fmt.Errorf("could not get latest label file: %v", err)
+	}
+	labelPath := spark.Store.PathWithPrefix(latestLabelPath, true)
 	sourcePaths = append(sourcePaths, labelPath)
 	for _, feature := range def.Features {
 		featureSchema, err := spark.registeredResourceSchema(feature)
@@ -1600,7 +1608,12 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 			spark.Logger.Errorw("Could not get schema of feature in spark store", "feature", feature, "error", err)
 			return fmt.Errorf("could not get schema of feature %s: %v", feature, err)
 		}
-		featurePath := spark.Store.PathWithPrefix(featureSchema.SourceTable, true)
+		latestFeaturePath, err := spark.Store.NewestFileOfType(featureSchema.SourceTable, Parquet)
+		if err != nil {
+			spark.Logger.Errorw("Could not get latest feature file", "feature", feature, "error", err)
+			return fmt.Errorf("could not get latest feature file: %v", err)
+		}
+		featurePath := spark.Store.PathWithPrefix(latestFeaturePath, true)
 		sourcePaths = append(sourcePaths, featurePath)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}

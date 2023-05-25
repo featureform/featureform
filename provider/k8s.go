@@ -1476,20 +1476,16 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 // If any one of the three formats is valid, returns the parsed timestamp, otherwise it
 // returns an error
 func (iter *FileStoreFeatureIterator) parseTimestamp(ts string) (time.Time, error) {
-	// Attempt to parse timestamp as UTC first
-	timestamp, err := time.Parse(fmt.Sprintf("%s UTC", baseDateFormat), ts)
-	if err == nil {
-		return timestamp, nil
+	formats := []string{
+		fmt.Sprintf("%s UTC", baseDateFormat),
+		baseDateFormat,
+		fmt.Sprintf("%s +0000 UTC", baseDateFormat),
 	}
-	// Attempt to parse timestamp as local time
-	timestamp, err = time.Parse(baseDateFormat, ts)
-	if err == nil {
-		return timestamp, nil
-	}
-	// Attempt to parse timestamp as UTC with timezone and millisecond precision
-	timestamp, err = time.Parse(fmt.Sprintf("%s +0000 UTC", baseDateFormat), ts)
-	if err == nil {
-		return timestamp, nil
+	for _, format := range formats {
+		timestamp, err := time.Parse(format, ts)
+		if err == nil {
+			return timestamp, nil
+		}
 	}
 	return time.Time{}, fmt.Errorf("could not parse timestamp: %v", ts)
 }

@@ -33,13 +33,14 @@ const (
 )
 
 type MaterializeRunner struct {
-	Online   provider.OnlineStore
-	Offline  provider.OfflineStore
-	ID       provider.ResourceID
-	VType    provider.ValueType
-	IsUpdate bool
-	Cloud    JobCloud
-	Logger   *zap.SugaredLogger
+	Online      provider.OnlineStore
+	Offline     provider.OfflineStore
+	ID          provider.ResourceID
+	VType       provider.ValueType
+	IsUpdate    bool
+	Cloud       JobCloud
+	Logger      *zap.SugaredLogger
+	IsEmbedding bool // will be determined by the resource
 }
 
 func (m MaterializeRunner) Resource() metadata.ResourceID {
@@ -107,6 +108,11 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		return nil, err
 	}
 	m.Logger.Infow("Creating Table", "name", m.ID.Name, "variant", m.ID.Variant)
+
+	// conditional check on isEmbedding, and if true cast to VectorStore and call CreateIndex
+	// if cast doesn't work, then we should return an error that communicates that you can't
+	// have a embedding attached to a non-vector store
+	// otherwise, status quo
 	_, err = m.Online.CreateTable(m.ID.Name, m.ID.Variant, m.VType)
 	_, exists := err.(*provider.TableAlreadyExists)
 	if err != nil && !exists {

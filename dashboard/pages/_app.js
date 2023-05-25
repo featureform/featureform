@@ -1,9 +1,9 @@
 import Container from '@material-ui/core/Container';
 import CssBaseline from '@material-ui/core/CssBaseline';
 import { makeStyles, ThemeProvider } from '@material-ui/core/styles';
+import SideNav from 'components/sideNav/SideNav';
 import React from 'react';
 import ResourcesAPI from '../src/api/resources';
-import BreadCrumbs from '../src/components/breadcrumbs/BreadCrumbs';
 import ReduxStore from '../src/components/redux/store';
 import ReduxWrapper from '../src/components/redux/wrapper';
 import TopBar from '../src/components/topbar/TopBar';
@@ -11,10 +11,10 @@ import '../src/styles/base.css';
 import theme from '../src/styles/theme';
 
 const apiHandle = new ResourcesAPI();
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   pageContainer: {
-    paddingLeft: theme.spacing(8),
-    paddingRight: theme.spacing(8),
+    height: '100%',
+    width: '100%',
   },
 }));
 
@@ -25,14 +25,14 @@ export const MyApp = ({ Component, pageProps }) => {
       <ReduxWrapper store={ReduxStore}>
         <ThemeWrapper>
           <TopBar className={classes.topbar} />
-          <Container
-            maxWidth='xl'
-            className={classes.root}
-            classes={{ maxWidthXl: classes.pageContainer }}
-          >
-            <BreadCrumbs />
-            <Component {...pageProps} api={apiHandle} />
-          </Container>
+          <SideNav>
+            <Container
+              maxWidth='xl'
+              classes={{ maxWidthXl: classes.pageContainer }}
+            >
+              <Component {...pageProps} api={apiHandle} />
+            </Container>
+          </SideNav>
         </ThemeWrapper>
       </ReduxWrapper>
     </React.StrictMode>

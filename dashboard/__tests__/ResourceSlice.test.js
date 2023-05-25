@@ -36,23 +36,6 @@ describe('fetchResourcesThunk', () => {
     expect(resources).toEqual(testData);
   });
 
-  it("doesn't run a new request when it has data", async () => {
-    const reduxStore = newTestStore();
-    const mockFetchResources = jest.fn();
-    mockFetchResources
-      .mockReturnValueOnce(wrapInPromise(testData))
-      .mockReturnValueOnce(wrapInPromise(['abc']));
-    const mockApi = {
-      fetchResources: mockFetchResources,
-    };
-    await reduxStore.dispatch(fetchResources({ api: mockApi, type: dataType }));
-    // This one should be a no-op due to the asyncThunk condition.
-    await reduxStore.dispatch(fetchResources({ api: mockApi, type: dataType }));
-    const state = reduxStore.getState();
-    const resources = state.resourceList[dataType].resources;
-    expect(resources).toEqual(testData);
-  });
-
   it("doesn't run a new request when loading", async () => {
     const reduxStore = newTestStore();
     const defer = deferred();

@@ -23,7 +23,7 @@ func (t redisTableKey) String() string {
 }
 
 type redisOnlineStore struct {
-	client *rueidis.Client
+	client rueidis.Client
 	prefix string
 	BaseProvider
 }
@@ -49,7 +49,7 @@ func NewRedisOnlineStore(options *pc.RedisConfig) (*redisOnlineStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &redisOnlineStore{&redisClient, options.Prefix, BaseProvider{
+	return &redisOnlineStore{redisClient, options.Prefix, BaseProvider{
 		ProviderType:   pt.RedisOnline,
 		ProviderConfig: options.Serialized(),
 	},
@@ -61,52 +61,49 @@ func (store *redisOnlineStore) AsOnlineStore() (OnlineStore, error) {
 }
 
 func (store *redisOnlineStore) Close() error {
-	c := *store.client
-	c.Close()
+	store.client.Close()
 	return nil
 }
 
 func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
-	client := *store.client
 	key := redisTableKey{store.prefix, feature, variant}
-	cmd := client.B().
+	cmd := store.client.B().
 		Hget().
 		Key(fmt.Sprintf("%s__tables", store.prefix)).
 		Field(key.String()).
 		Build()
-	vType, err := client.Do(context.TODO(), cmd).ToString()
+	vType, err := store.client.Do(context.TODO(), cmd).ToString()
 	if err != nil {
 		return nil, &TableNotFound{feature, variant}
 	}
-	table := &redisOnlineTable{client: &client, key: key, valueType: ValueType(vType)}
+	table := &redisOnlineTable{client: &store.client, key: key, valueType: ValueType(vType)}
 	return table, nil
 }
 
 func (store *redisOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
-	client := *store.client
 	key := redisTableKey{store.prefix, feature, variant}
-	cmd := client.B().
+	cmd := store.client.B().
 		Hexists().
 		Key(fmt.Sprintf("%s__tables", store.prefix)).
 		Field(key.String()).
 		Build()
-	exists, err := client.Do(context.TODO(), cmd).AsBool()
+	exists, err := store.client.Do(context.TODO(), cmd).AsBool()
 	if err != nil {
 		return nil, err
 	}
 	if exists {
 		return nil, &TableAlreadyExists{feature, variant}
 	}
-	cmd = client.B().
+	cmd = store.client.B().
 		Hset().
 		Key(fmt.Sprintf("%s__tables", store.prefix)).
 		FieldValue().
 		FieldValue(key.String(), string(valueType)).
 		Build()
-	if resp := client.Do(context.TODO(), cmd); resp.Error() != nil {
+	if resp := store.client.Do(context.TODO(), cmd); resp.Error() != nil {
 		return nil, resp.Error()
 	}
-	table := &redisOnlineTable{client: &client, key: key, valueType: valueType}
+	table := &redisOnlineTable{client: &store.client, key: key, valueType: valueType}
 	return table, nil
 }
 
@@ -142,14 +139,8 @@ func (table redisOnlineTable) Set(entity string, value interface{}) error {
 		}
 	case time.Time:
 		value = v.Format(time.RFC3339)
-	// Vector parsed from parquet files will have the type map[string]interface{}
-	// and require further processing to be stored in Redis as a string.
-	case map[string]interface{}:
-		serialized, err := table.formatVector(v)
-		if err != nil {
-			return err
-		}
-		value = serialized
+	case []float32:
+		value = rueidis.VectorString32(v)
 	default:
 		return fmt.Errorf("type %T of value %v is unsupported", value, value)
 	}
@@ -215,38 +206,4 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 		return nil, fmt.Errorf("could not cast value: %v to %s: %w", resp, table.valueType, err)
 	}
 	return result, nil
-}
-
-// formatVector takes a map[string]interface{} and returns a string representation of the vector
-// using the VectorString32 method provided by the rueidis Redis package.
-func (table redisOnlineTable) formatVector(value map[string]interface{}) (string, error) {
-	list, ok := value["list"]
-	if !ok {
-		return "", fmt.Errorf("expected to find field 'list' value (type %T)", value)
-	}
-	// To iterate over the list and create a we need to cast it to []interface{}
-	elementsSlice, ok := list.([]interface{})
-	if !ok {
-		return "", fmt.Errorf("could not cast type: %T to []interface{}", list)
-	}
-	vector32 := make([]float32, len(elementsSlice))
-	for i, e := range elementsSlice {
-		// To access the 'element' field, which holds the float value,
-		// we need to cast it to map[string]interface{}
-		m, ok := e.(map[string]interface{})
-		if !ok {
-			return "", fmt.Errorf("could not cast type: %T to map[string]interface{}", e)
-		}
-		switch element := m["element"].(type) {
-		case float32:
-			vector32[i] = element
-		// Given floats in Python are typically 64-bit, it's possible we'll receive
-		// a vector of float64
-		case float64:
-			vector32[i] = float32(element)
-		default:
-			return "", fmt.Errorf("unexpected type in parquet vector list: %T", element)
-		}
-	}
-	return rueidis.VectorString32(vector32), nil
 }

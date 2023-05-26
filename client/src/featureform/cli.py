@@ -163,7 +163,6 @@ def version():
             response = json.loads(res.text)
             clusterVersion = response["version"]
         except Exception as e:
-            print(e)
             clusterVersion = "Could not retrieve cluster version"
     else:
         clusterVersion = "No host is set"

@@ -35,7 +35,7 @@ titanic = postgres.register_table(
 ### Streams
 
 {% hint style="warning" %}
-Streaming Support Coming Soon
+Streaming support coming soon in Enterprise Featureform. [Book a call with us today!](https://calendly.com/d/y5h-jpf-gj7/featureform-intro-call)
 {% endhint %}
 
 ## Defining transformations

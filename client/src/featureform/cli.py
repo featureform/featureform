@@ -11,6 +11,8 @@ from flask import Flask
 from .dashboard_metadata import dashboard_app
 import validators
 import urllib.request
+import requests
+import json
 from .version import get_package_version
 
 resource_types = [
@@ -151,7 +153,29 @@ app.register_blueprint(dashboard_app)
 
 @cli.command()
 def version():
-    print("Client Version: {}".format(get_package_version()))
+    clientVersion = get_package_version()
+    clusterVersion = ""
+    host = os.getenv("FEATUREFORM_HOST")
+    if host:
+        try:
+            host = host.split(":")[0]  # todo: do we need a cert path option for this?
+            res = requests.get("http://" + host + "/data/version")
+            response = json.loads(res.text)
+            clusterVersion = response["version"]
+        except Exception as e:
+            print(e)
+            clusterVersion = "Could not retrieve cluster version"
+    else:
+        clusterVersion = "No host is set"
+
+    print(
+        """
+    Client Version: {}
+    Cluster Version: {}
+    """.format(
+            clientVersion, clusterVersion
+        )
+    )
 
 
 @cli.command()

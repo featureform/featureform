@@ -61,4 +61,5 @@ class TestApply:
         runner = CliRunner()
         result = runner.invoke(version)
         assert result.exit_code == 0
-        assert result.output.startswith("Client Version:")
+        assert "Client Version:" in result.output
+        assert "Cluster Version:" in result.output

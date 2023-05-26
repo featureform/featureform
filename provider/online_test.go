@@ -324,7 +324,7 @@ func testMassTableWrite(t *testing.T, store OnlineStore) {
 		entityList[i] = uuid.New().String()
 	}
 	for i := range tableList {
-		tab, err := store.CreateTable(tableList[i].Name, tableList[i].Variant, ValueType("int"))
+		tab, err := store.CreateTable(tableList[i].Name, tableList[i].Variant, ScalarType("int"))
 		if err != nil {
 			t.Fatalf("could not create table %v in online store: %v", tableList[i], err)
 		}

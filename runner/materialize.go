@@ -40,7 +40,7 @@ type MaterializeRunner struct {
 	IsUpdate    bool
 	Cloud       JobCloud
 	Logger      *zap.SugaredLogger
-	IsEmbedding bool // will be determined by the resource
+	IsEmbedding bool
 }
 
 func (m MaterializeRunner) Resource() metadata.ResourceID {
@@ -108,11 +108,25 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		return nil, err
 	}
 	m.Logger.Infow("Creating Table", "name", m.ID.Name, "variant", m.ID.Variant)
-
-	// conditional check on isEmbedding, and if true cast to VectorStore and call CreateIndex
-	// if cast doesn't work, then we should return an error that communicates that you can't
-	// have a embedding attached to a non-vector store
-	// otherwise, status quo
+	// Create the vector similarity index prior to writing any values to the
+	// inference store. This is currently only required for RediSearch, but other
+	// vector databases allow for manual index configuration even if they support
+	// autogeneration of indexes.
+	if m.IsEmbedding {
+		m.Logger.Infow("Creating Index", "name", m.ID.Name, "variant", m.ID.Variant)
+		vectorStore, ok := m.Online.(provider.VectorStore)
+		if !ok {
+			return nil, fmt.Errorf("cannot create index on non-vector store")
+		}
+		vectorType, ok := m.VType.(provider.VectorType)
+		if !ok {
+			return nil, fmt.Errorf("cannot create index on non-vector type")
+		}
+		_, err := vectorStore.CreateIndex(m.ID.Name, m.ID.Variant, vectorType)
+		if err != nil {
+			return nil, fmt.Errorf("create index error: %w", err)
+		}
+	}
 	_, err = m.Online.CreateTable(m.ID.Name, m.ID.Variant, m.VType)
 	_, exists := err.(*provider.TableAlreadyExists)
 	if err != nil && !exists {
@@ -216,6 +230,7 @@ type MaterializedRunnerConfig struct {
 	VType         provider.ValueType
 	Cloud         JobCloud
 	IsUpdate      bool
+	IsEmbedding   bool
 }
 
 func (m *MaterializedRunnerConfig) Serialize() (Config, error) {
@@ -256,12 +271,13 @@ func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
 	}
 	return &MaterializeRunner{
-		Online:   onlineStore,
-		Offline:  offlineStore,
-		ID:       runnerConfig.ResourceID,
-		VType:    runnerConfig.VType,
-		IsUpdate: runnerConfig.IsUpdate,
-		Cloud:    runnerConfig.Cloud,
-		Logger:   logging.NewLogger("materializer"),
+		Online:      onlineStore,
+		Offline:     offlineStore,
+		ID:          runnerConfig.ResourceID,
+		VType:       runnerConfig.VType,
+		IsUpdate:    runnerConfig.IsUpdate,
+		Cloud:       runnerConfig.Cloud,
+		Logger:      logging.NewLogger("materializer"),
+		IsEmbedding: runnerConfig.IsEmbedding,
 	}, nil
 }

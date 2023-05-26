@@ -222,6 +222,7 @@ type FeatureDef struct {
 	Properties  Properties
 	Mode        ComputationMode
 	IsOnDemand  bool
+	IsEmbedding bool
 }
 
 type ResourceVariantColumns struct {
@@ -282,6 +283,7 @@ func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) 
 		Tags:        &pb.Tags{Tag: def.Tags},
 		Properties:  def.Properties.Serialize(),
 		Mode:        pb.ComputationMode(def.Mode),
+		IsEmbedding: def.IsEmbedding,
 	}
 	switch x := def.Location.(type) {
 	case ResourceVariantColumns:
@@ -1349,6 +1351,30 @@ func (fn fetchPropertiesFn) Properties() Properties {
 	return properties
 }
 
+type isEmbeddingGetter interface {
+	GetIsEmbedding() bool
+}
+
+type fetchIsEmbeddingFn struct {
+	getter isEmbeddingGetter
+}
+
+func (fn fetchIsEmbeddingFn) IsEmbedding() bool {
+	return fn.getter.GetIsEmbedding()
+}
+
+type dimensionGetter interface {
+	GetDimension() int32
+}
+
+type fetchDimensionFn struct {
+	getter dimensionGetter
+}
+
+func (fn fetchDimensionFn) Dimension() int32 {
+	return fn.getter.GetDimension()
+}
+
 type Feature struct {
 	serialized *pb.Feature
 	variantsFns
@@ -1377,6 +1403,8 @@ type FeatureVariant struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
+	fetchIsEmbeddingFn
+	fetchDimensionFn
 }
 
 func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
@@ -1390,6 +1418,7 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 		protoStringer:        protoStringer{serialized},
 		fetchTagsFn:          fetchTagsFn{serialized},
 		fetchPropertiesFn:    fetchPropertiesFn{serialized},
+		fetchIsEmbeddingFn:   fetchIsEmbeddingFn{serialized},
 	}
 }
 
@@ -1485,6 +1514,10 @@ func (variant *FeatureVariant) IsOnDemand() bool {
 		fmt.Printf("Unknown computation mode: %v\n", variant.Mode())
 		return false
 	}
+}
+
+func (variant *FeatureVariant) IsEmbedding() bool {
+	return variant.fetchIsEmbeddingFn.IsEmbedding()
 }
 
 type User struct {

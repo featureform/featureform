@@ -59,7 +59,9 @@ func Test_redisOnlineTable_Get(t *testing.T) {
 			fields{
 				&redisClient,
 				redisTableKey{},
-				Vector32,
+				VectorType{
+					ScalarType: Float32,
+				},
 			},
 			args{"entity9"},
 			[]float32{0.08067775, 0.0012904393, 0.14408082, -0.028135499, 0.076197624},
@@ -68,14 +70,14 @@ func Test_redisOnlineTable_Get(t *testing.T) {
 		},
 		// These will allow any previously created tables with incorrect valueTypes to be called as a string
 		// if the valueType is not recognized
-		{"String Default", fields{&redisClient, redisTableKey{}, "Invalid"}, args{"entity9"}, "somestring", "somestring", false},
-		{"Int Default", fields{&redisClient, redisTableKey{}, "Invalid"}, args{"entity10"}, 1, fmt.Sprintf("%d", 1), false},
-		{"Int32 Default", fields{&redisClient, redisTableKey{}, "Invalid"}, args{"entity11"}, 1, fmt.Sprintf("%d", 1), false},
-		{"Int64 Default", fields{&redisClient, redisTableKey{}, "Invalid"}, args{"entity12"}, 1, fmt.Sprintf("%d", 1), false},
-		{"Float32 Default", fields{&redisClient, redisTableKey{}, "Invalid"}, args{"entity13"}, 1, fmt.Sprintf("%d", 1), false},
-		{"Float64 Default", fields{&redisClient, redisTableKey{}, "Invalid"}, args{"entity14"}, 1, fmt.Sprintf("%d", 1), false},
-		{"Bool Default", fields{&redisClient, redisTableKey{}, "Invalid"}, args{"entity15"}, true, fmt.Sprintf("%d", 1), false},
-		{"Timestamp Default", fields{&redisClient, redisTableKey{}, "Invalid"}, args{"entity16"}, time.UnixMilli(0), time.UnixMilli(0).Format(time.RFC3339), false},
+		{"String Default", fields{&redisClient, redisTableKey{}, ScalarType("Invalid")}, args{"entity9"}, "somestring", "somestring", false},
+		{"Int Default", fields{&redisClient, redisTableKey{}, ScalarType("Invalid")}, args{"entity10"}, 1, fmt.Sprintf("%d", 1), false},
+		{"Int32 Default", fields{&redisClient, redisTableKey{}, ScalarType("Invalid")}, args{"entity11"}, 1, fmt.Sprintf("%d", 1), false},
+		{"Int64 Default", fields{&redisClient, redisTableKey{}, ScalarType("Invalid")}, args{"entity12"}, 1, fmt.Sprintf("%d", 1), false},
+		{"Float32 Default", fields{&redisClient, redisTableKey{}, ScalarType("Invalid")}, args{"entity13"}, 1, fmt.Sprintf("%d", 1), false},
+		{"Float64 Default", fields{&redisClient, redisTableKey{}, ScalarType("Invalid")}, args{"entity14"}, 1, fmt.Sprintf("%d", 1), false},
+		{"Bool Default", fields{&redisClient, redisTableKey{}, ScalarType("Invalid")}, args{"entity15"}, true, fmt.Sprintf("%d", 1), false},
+		{"Timestamp Default", fields{&redisClient, redisTableKey{}, ScalarType("Invalid")}, args{"entity16"}, time.UnixMilli(0), time.UnixMilli(0).Format(time.RFC3339), false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

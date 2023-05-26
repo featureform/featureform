@@ -20,49 +20,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// TODO: split these out into separate file and/or package
-type ValueType interface {
-	Scalar() ScalarType
-	IsVector() bool
-}
-
-type VectorType struct {
-	ScalarType ScalarType
-	Dim        int
-}
-
-func (t VectorType) Scalar() ScalarType {
-	return t.ScalarType
-}
-
-func (t VectorType) IsVector() bool {
-	return true
-}
-
-type ScalarType string
-
-func (t ScalarType) Scalar() ScalarType {
-	return t
-}
-
-func (t ScalarType) IsVector() bool {
-	return false
-}
-
-const (
-	NilType   ScalarType = ""
-	Int       ScalarType = "int"
-	Int32     ScalarType = "int32"
-	Int64     ScalarType = "int64"
-	Float32   ScalarType = "float32"
-	Float64   ScalarType = "float64"
-	String    ScalarType = "string"
-	Bool      ScalarType = "bool"
-	Timestamp ScalarType = "time.Time"
-	Datetime  ScalarType = "datetime"
-	// Vector32  ScalarType = "vector32"
-)
-
 type OfflineResourceType int
 
 const (

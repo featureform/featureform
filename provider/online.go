@@ -34,6 +34,19 @@ type OnlineStoreTable interface {
 	Get(entity string) (interface{}, error)
 }
 
+type VectorStore interface {
+	CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error)
+	GetIndex(feature, variant string) (string, error) // TODO: determine the type of index
+	DeleteIndex(feature, variant string) error
+	Close() error // Is this necessary?
+	Provider
+}
+
+type VectorStoreTable interface {
+	OnlineStoreTable
+	Nearest(vector []float32, k int) ([]string, error) // TODO: determine if the return type should be NameVariants
+}
+
 type TableNotFound struct {
 	Feature, Variant string
 }

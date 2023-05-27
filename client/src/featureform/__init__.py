@@ -45,6 +45,7 @@ GCPCredentials = GCPCredentials
 Feature = FeatureColumnResource
 Label = LabelColumnResource
 Variants = Variants
+Vector = VectorColumnResource
 
 
 local = register_local()

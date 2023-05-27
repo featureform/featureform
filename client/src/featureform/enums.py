@@ -8,7 +8,7 @@ from fnmatch import fnmatch
 
 # Reproduce the same logic/structure as
 # ScalarType
-class ColumnTypes(Enum):
+class ScalarType(Enum):
     NIL = ""
     INT = "int"
     INT32 = "int32"
@@ -18,7 +18,7 @@ class ColumnTypes(Enum):
     STRING = "string"
     BOOL = "bool"
     DATETIME = "datetime"
-    VECTOR32 = "vector32"  # convert to class
+    # VECTOR32 = "vector32"  # convert to class
 
 
 class ResourceStatus(Enum):

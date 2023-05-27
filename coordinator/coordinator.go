@@ -755,7 +755,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		OnlineConfig:  featureProvider.SerializedConfig(),
 		OfflineConfig: sourceProvider.SerializedConfig(),
 		ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
-		VType:         vType,
+		VType:         runner.ValueTypeJSON{vType},
 		Cloud:         runner.LocalMaterializeRunner,
 		IsUpdate:      false,
 		IsEmbedding:   feature.IsEmbedding(),
@@ -824,7 +824,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 			OnlineConfig:  featureProvider.SerializedConfig(),
 			OfflineConfig: sourceProvider.SerializedConfig(),
 			ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
-			VType:         vType,
+			VType:         runner.ValueTypeJSON{vType},
 			Cloud:         runner.LocalMaterializeRunner,
 			IsUpdate:      true,
 		}

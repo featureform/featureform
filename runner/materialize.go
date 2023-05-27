@@ -221,13 +221,33 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	return materializeWatcher, nil
 }
 
+type ValueTypeJSON struct {
+	provider.ValueType
+}
+
+func (v *ValueTypeJSON) UnmarshalJSON(data []byte) error {
+	var vt provider.VectorType
+	if err := json.Unmarshal(data, &vt); err == nil {
+		v.ValueType = vt
+		return nil
+	}
+
+	var st provider.ScalarType
+	if err := json.Unmarshal(data, &st); err == nil {
+		v.ValueType = st
+		return nil
+	}
+
+	return fmt.Errorf("could not unmarshal value type")
+}
+
 type MaterializedRunnerConfig struct {
 	OnlineType    pt.Type
 	OfflineType   pt.Type
 	OnlineConfig  pc.SerializedConfig
 	OfflineConfig pc.SerializedConfig
 	ResourceID    provider.ResourceID
-	VType         provider.ValueType
+	VType         ValueTypeJSON
 	Cloud         JobCloud
 	IsUpdate      bool
 	IsEmbedding   bool
@@ -276,7 +296,7 @@ func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 		Online:      onlineStore,
 		Offline:     offlineStore,
 		ID:          runnerConfig.ResourceID,
-		VType:       runnerConfig.VType,
+		VType:       runnerConfig.VType.ValueType,
 		IsUpdate:    runnerConfig.IsUpdate,
 		Cloud:       runnerConfig.Cloud,
 		Logger:      logging.NewLogger("materializer"),

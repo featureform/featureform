@@ -9,8 +9,6 @@ import (
 
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
-	pc "github.com/featureform/provider/provider_config"
-	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/types"
 	"go.uber.org/zap/zaptest"
 )
@@ -108,51 +106,59 @@ func TestWatcherMultiplex(t *testing.T) {
 }
 
 // write a unit test to cover serializing and deserializing the config
-func TestMaterializeRunnerConfig(t *testing.T) {
-	redisConfig := pc.RedisConfig{
-		Addr: "localhost:6379",
-	}
-	sparkConfig := pc.SparkConfig{
-		ExecutorType: pc.Databricks,
-		ExecutorConfig: &pc.DatabricksConfig{
-			Host:    "databricks.com",
-			Token:   "sometoken",
-			Cluster: "test",
+func TestMaterializeRunnerConfigVectorTypeUnMarshall(t *testing.T) {
+	// config := map[string]interface{}{"OnlineType": "REDIS_ONLINE", "OfflineType": "SPARK_OFFLINE", "OnlineConfig": "eyJBZGRyIjogInJlZGlzZWFyY2g6NjM4MCIsICJQYXNzd29yZCI6ICIiLCAiREIiOiAwfQ==", "OfflineConfig": "eyJFeGVjdXRvclR5cGUiOiAiREFUQUJSSUNLUyIsICJTdG9yZVR5cGUiOiAiQVpVUkUiLCAiRXhlY3V0b3JDb25maWciOiB7IlVzZXJuYW1lIjogIiIsICJQYXNzd29yZCI6ICIiLCAiSG9zdCI6ICJodHRwczovL2FkYi00MTc0OTc2Mzk1NzA5MDc4LjE4LmF6dXJlZGF0YWJyaWNrcy5uZXQiLCAiVG9rZW4iOiAiZGFwaTczODljYzU3NTgwOTk3YmM1YWJiYTc1N2YwNzJlMGFmLTMiLCAiQ2x1c3RlciI6ICIxMTAyLTIxNDYxNy1jbng1OHltaiJ9LCAiU3RvcmVDb25maWciOiB7IkFjY291bnROYW1lIjogImZmc2FudGFuZGVyZGVtbyIsICJBY2NvdW50S2V5IjogIkFQZ3RJZjJpT2lqdFd0blJEbUo0VzNPNStnRDdNaDNRVEd1cXBzU0tlL09zZ2V0b2xKOUxjVnlWVTNNNVZkRk4wSmNydFpUVXRhWVUrQVN0aFdSazh3PT0iLCAiQ29udGFpbmVyTmFtZSI6ICJxdW90ZXMiLCAiUGF0aCI6ICJxdW90ZXMifX0=", "ResourceID": map[string]interface{}{"Name": "pb_quote_embeddings", "Variant": "vector32poc_54", "Type": 2}, "VType": map[string]interface{}{"ScalarType": "float32", "Dimension": 384}, "Cloud": "LOCAL", "IsUpdate": false, "IsEmbedding": true}
+	// config := []byte(`{"OnlineType":"REDIS_ONLINE","OfflineType":"SPARK_OFFLINE","OnlineConfig":"eyJBZGRyIjogInJlZGlzZWFyY2g6NjM4MCIsICJQYXNzd29yZCI6ICIiLCAiREIiOiAwfQ==","OfflineConfig":"eyJFeGVjdXRvclR5cGUiOiAiREFUQUJSSUNLUyIsICJTdG9yZVR5cGUiOiAiQVpVUkUiLCAiRXhlY3V0b3JDb25maWciOiB7IlVzZXJuYW1lIjogIiIsICJQYXNzd29yZCI6ICIiLCAiSG9zdCI6ICJodHRwczovL2FkYi00MTc0OTc2Mzk1NzA5MDc4LjE4LmF6dXJlZGF0YWJyaWNrcy5uZXQiLCAiVG9rZW4iOiAiZGFwaTczODljYzU3NTgwOTk3YmM1YWJiYTc1N2YwNzJlMGFmLTMiLCAiQ2x1c3RlciI6ICIxMTAyLTIxNDYxNy1jbng1OHltaiJ9LCAiU3RvcmVDb25maWciOiB7IkFjY291bnROYW1lIjogImZmc2FudGFuZGVyZGVtbyIsICJBY2NvdW50S2V5IjogIkFQZ3RJZjJpT2lqdFd0blJEbUo0VzNPNStnRDdNaDNRVEd1cXBzU0tlL09zZ2V0b2xKOUxjVnlWVTNNNVZkRk4wSmNydFpUVXRhWVUrQVN0aFdSazh3PT0iLCAiQ29udGFpbmVyTmFtZSI6ICJxdW90ZXMiLCAiUGF0aCI6ICJxdW90ZXMifX0=","ResourceID":{"Name":"pb_quote_embeddings","Variant":"vector32poc_54","Type":2},"VType":{"ScalarType":"float32","Dimension":384},"Cloud":"LOCAL","IsUpdate":false,"IsEmbedding":true}`)
+	config := []byte(`{
+		"OnlineType": "REDIS_ONLINE",
+		"OfflineType": "SPARK_OFFLINE",
+		"OnlineConfig": "eyJBZGRyIjogInJlZGlzZWFyY2g6NjM4MCIsICJQYXNzd29yZCI6ICIiLCAiREIiOiAwfQ==",
+		"OfflineConfig": "eyJFeGVjdXRvclR5cGUiOiAiREFUQUJSSUNLUyIsICJTdG9yZVR5cGUiOiAiQVpVUkUiLCAiRXhlY3V0b3JDb25maWciOiB7IlVzZXJuYW1lIjogIiIsICJQYXNzd29yZCI6ICIiLCAiSG9zdCI6ICJodHRwczovL2FkYi00MTc0OTc2Mzk1NzA5MDc4LjE4LmF6dXJlZGF0YWJyaWNrcy5uZXQiLCAiVG9rZW4iOiAiZGFwaTczODljYzU3NTgwOTk3YmM1YWJiYTc1N2YwNzJlMGFmLTMiLCAiQ2x1c3RlciI6ICIxMTAyLTIxNDYxNy1jbng1OHltaiJ9LCAiU3RvcmVDb25maWciOiB7IkFjY291bnROYW1lIjogImZmc2FudGFuZGVyZGVtbyIsICJBY2NvdW50S2V5IjogIkFQZ3RJZjJpT2lqdFd0blJEbUo0VzNPNStnRDdNaDNRVEd1cXBzU0tlL09zZ2V0b2xKOUxjVnlWVTNNNVZkRk4wSmNydFpUVXRhWVUrQVN0aFdSazh3PT0iLCAiQ29udGFpbmVyTmFtZSI6ICJxdW90ZXMiLCAiUGF0aCI6ICJxdW90ZXMifX0=",
+		"ResourceID": {
+			"Name": "pb_quote_embeddings",
+			"Variant": "vector32poc_54",
+			"Type": 2
 		},
-		StoreType: pc.Azure,
-		StoreConfig: &pc.AzureFileStoreConfig{
-			AccountName:   "test",
-			AccountKey:    "test",
-			ContainerName: "test",
-			Path:          "test",
+		"VType": {
+			"ScalarType": "float32",
+			"Dimension": 384
 		},
+		"Cloud": "LOCAL",
+		"IsUpdate": false,
+		"IsEmbedding": true
+	}`)
+	runnerConfig := &MaterializedRunnerConfig{}
+	if err := runnerConfig.Deserialize(config); err != nil {
+		t.Fatalf("failed to deserialize materialize runner config: %v", err)
 	}
-	sparkConfigSerialized, err := sparkConfig.Serialize()
-	if err != nil {
-		t.Fatalf("Failed to serialize spark config: %v", err)
+	if _, isVectorType := runnerConfig.VType.ValueType.(provider.VectorType); !isVectorType {
+		t.Fatalf("expected VectorType, got %v", runnerConfig.VType.ValueType)
 	}
-	// valueType, err := provider.NewValueType("float32", true, 384)
-	// if err != nil {
-	// 	t.Fatalf("Failed to create value type: %v", err)
-	// }
-	configA := MaterializedRunnerConfig{
-		OnlineType:    pt.RedisOnline,
-		OnlineConfig:  redisConfig.Serialized(),
-		OfflineType:   pt.SparkOffline,
-		OfflineConfig: sparkConfigSerialized,
-		// VType:         valueType,
-		VType:       nil,
-		Cloud:       "KUBERNETES",
-		IsUpdate:    false,
-		IsEmbedding: true,
-	}
+}
 
-	serializedConfig, err := configA.Serialize()
-	if err != nil {
-		t.Fatalf("Failed to serialize config: %v", err)
+func TestMaterializeRunnerConfigScalarTypeUnMarshall(t *testing.T) {
+	// config := map[string]interface{}{"OnlineType": "REDIS_ONLINE", "OfflineType": "SPARK_OFFLINE", "OnlineConfig": "eyJBZGRyIjogInJlZGlzZWFyY2g6NjM4MCIsICJQYXNzd29yZCI6ICIiLCAiREIiOiAwfQ==", "OfflineConfig": "eyJFeGVjdXRvclR5cGUiOiAiREFUQUJSSUNLUyIsICJTdG9yZVR5cGUiOiAiQVpVUkUiLCAiRXhlY3V0b3JDb25maWciOiB7IlVzZXJuYW1lIjogIiIsICJQYXNzd29yZCI6ICIiLCAiSG9zdCI6ICJodHRwczovL2FkYi00MTc0OTc2Mzk1NzA5MDc4LjE4LmF6dXJlZGF0YWJyaWNrcy5uZXQiLCAiVG9rZW4iOiAiZGFwaTczODljYzU3NTgwOTk3YmM1YWJiYTc1N2YwNzJlMGFmLTMiLCAiQ2x1c3RlciI6ICIxMTAyLTIxNDYxNy1jbng1OHltaiJ9LCAiU3RvcmVDb25maWciOiB7IkFjY291bnROYW1lIjogImZmc2FudGFuZGVyZGVtbyIsICJBY2NvdW50S2V5IjogIkFQZ3RJZjJpT2lqdFd0blJEbUo0VzNPNStnRDdNaDNRVEd1cXBzU0tlL09zZ2V0b2xKOUxjVnlWVTNNNVZkRk4wSmNydFpUVXRhWVUrQVN0aFdSazh3PT0iLCAiQ29udGFpbmVyTmFtZSI6ICJxdW90ZXMiLCAiUGF0aCI6ICJxdW90ZXMifX0=", "ResourceID": map[string]interface{}{"Name": "pb_quote_embeddings", "Variant": "vector32poc_54", "Type": 2}, "VType": map[string]interface{}{"ScalarType": "float32", "Dimension": 384}, "Cloud": "LOCAL", "IsUpdate": false, "IsEmbedding": true}
+	// config := []byte(`{"OnlineType":"REDIS_ONLINE","OfflineType":"SPARK_OFFLINE","OnlineConfig":"eyJBZGRyIjogInJlZGlzZWFyY2g6NjM4MCIsICJQYXNzd29yZCI6ICIiLCAiREIiOiAwfQ==","OfflineConfig":"eyJFeGVjdXRvclR5cGUiOiAiREFUQUJSSUNLUyIsICJTdG9yZVR5cGUiOiAiQVpVUkUiLCAiRXhlY3V0b3JDb25maWciOiB7IlVzZXJuYW1lIjogIiIsICJQYXNzd29yZCI6ICIiLCAiSG9zdCI6ICJodHRwczovL2FkYi00MTc0OTc2Mzk1NzA5MDc4LjE4LmF6dXJlZGF0YWJyaWNrcy5uZXQiLCAiVG9rZW4iOiAiZGFwaTczODljYzU3NTgwOTk3YmM1YWJiYTc1N2YwNzJlMGFmLTMiLCAiQ2x1c3RlciI6ICIxMTAyLTIxNDYxNy1jbng1OHltaiJ9LCAiU3RvcmVDb25maWciOiB7IkFjY291bnROYW1lIjogImZmc2FudGFuZGVyZGVtbyIsICJBY2NvdW50S2V5IjogIkFQZ3RJZjJpT2lqdFd0blJEbUo0VzNPNStnRDdNaDNRVEd1cXBzU0tlL09zZ2V0b2xKOUxjVnlWVTNNNVZkRk4wSmNydFpUVXRhWVUrQVN0aFdSazh3PT0iLCAiQ29udGFpbmVyTmFtZSI6ICJxdW90ZXMiLCAiUGF0aCI6ICJxdW90ZXMifX0=","ResourceID":{"Name":"pb_quote_embeddings","Variant":"vector32poc_54","Type":2},"VType":{"ScalarType":"float32","Dimension":384},"Cloud":"LOCAL","IsUpdate":false,"IsEmbedding":true}`)
+	config := []byte(`{
+		"OnlineType": "REDIS_ONLINE",
+		"OfflineType": "SPARK_OFFLINE",
+		"OnlineConfig": "eyJBZGRyIjogInJlZGlzZWFyY2g6NjM4MCIsICJQYXNzd29yZCI6ICIiLCAiREIiOiAwfQ==",
+		"OfflineConfig": "eyJFeGVjdXRvclR5cGUiOiAiREFUQUJSSUNLUyIsICJTdG9yZVR5cGUiOiAiQVpVUkUiLCAiRXhlY3V0b3JDb25maWciOiB7IlVzZXJuYW1lIjogIiIsICJQYXNzd29yZCI6ICIiLCAiSG9zdCI6ICJodHRwczovL2FkYi00MTc0OTc2Mzk1NzA5MDc4LjE4LmF6dXJlZGF0YWJyaWNrcy5uZXQiLCAiVG9rZW4iOiAiZGFwaTczODljYzU3NTgwOTk3YmM1YWJiYTc1N2YwNzJlMGFmLTMiLCAiQ2x1c3RlciI6ICIxMTAyLTIxNDYxNy1jbng1OHltaiJ9LCAiU3RvcmVDb25maWciOiB7IkFjY291bnROYW1lIjogImZmc2FudGFuZGVyZGVtbyIsICJBY2NvdW50S2V5IjogIkFQZ3RJZjJpT2lqdFd0blJEbUo0VzNPNStnRDdNaDNRVEd1cXBzU0tlL09zZ2V0b2xKOUxjVnlWVTNNNVZkRk4wSmNydFpUVXRhWVUrQVN0aFdSazh3PT0iLCAiQ29udGFpbmVyTmFtZSI6ICJxdW90ZXMiLCAiUGF0aCI6ICJxdW90ZXMifX0=",
+		"ResourceID": {
+			"Name": "pb_quote_embeddings",
+			"Variant": "vector32poc_54",
+			"Type": 2
+		},
+		"VType": "int32",
+		"Cloud": "LOCAL",
+		"IsUpdate": false,
+		"IsEmbedding": true
+	}`)
+	runnerConfig := &MaterializedRunnerConfig{}
+	if err := runnerConfig.Deserialize(config); err != nil {
+		t.Fatalf("failed to deserialize materialize runner config: %v", err)
 	}
-
-	configB := MaterializedRunnerConfig{}
-
-	configB.Deserialize(serializedConfig)
+	if _, isScalarType := runnerConfig.VType.ValueType.(provider.ScalarType); !isScalarType {
+		t.Fatalf("expected ScalarType, got %v", runnerConfig.VType.ValueType)
+	}
 }

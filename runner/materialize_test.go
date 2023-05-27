@@ -5,11 +5,14 @@
 package runner
 
 import (
+	"testing"
+
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/types"
 	"go.uber.org/zap/zaptest"
-	"testing"
 )
 
 type mockChunkRunner struct{}
@@ -102,4 +105,54 @@ func TestWatcherMultiplex(t *testing.T) {
 	if result := multiplex.String(); len(result) == 0 {
 		t.Fatalf("Failed to return multiplexer string")
 	}
+}
+
+// write a unit test to cover serializing and deserializing the config
+func TestMaterializeRunnerConfig(t *testing.T) {
+	redisConfig := pc.RedisConfig{
+		Addr: "localhost:6379",
+	}
+	sparkConfig := pc.SparkConfig{
+		ExecutorType: pc.Databricks,
+		ExecutorConfig: &pc.DatabricksConfig{
+			Host:    "databricks.com",
+			Token:   "sometoken",
+			Cluster: "test",
+		},
+		StoreType: pc.Azure,
+		StoreConfig: &pc.AzureFileStoreConfig{
+			AccountName:   "test",
+			AccountKey:    "test",
+			ContainerName: "test",
+			Path:          "test",
+		},
+	}
+	sparkConfigSerialized, err := sparkConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Failed to serialize spark config: %v", err)
+	}
+	// valueType, err := provider.NewValueType("float32", true, 384)
+	// if err != nil {
+	// 	t.Fatalf("Failed to create value type: %v", err)
+	// }
+	configA := MaterializedRunnerConfig{
+		OnlineType:    pt.RedisOnline,
+		OnlineConfig:  redisConfig.Serialized(),
+		OfflineType:   pt.SparkOffline,
+		OfflineConfig: sparkConfigSerialized,
+		// VType:         valueType,
+		VType:       nil,
+		Cloud:       "KUBERNETES",
+		IsUpdate:    false,
+		IsEmbedding: true,
+	}
+
+	serializedConfig, err := configA.Serialize()
+	if err != nil {
+		t.Fatalf("Failed to serialize config: %v", err)
+	}
+
+	configB := MaterializedRunnerConfig{}
+
+	configB.Deserialize(serializedConfig)
 }

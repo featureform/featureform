@@ -251,6 +251,8 @@ func (m *MaterializedRunnerConfig) Deserialize(config Config) error {
 
 func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 	runnerConfig := &MaterializedRunnerConfig{}
+	fmt.Println("================== DESERIALIZING ==================")
+	fmt.Println(string(config))
 	if err := runnerConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("failed to deserialize materialize runner config: %v", err)
 	}

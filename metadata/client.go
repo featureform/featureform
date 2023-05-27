@@ -1419,6 +1419,7 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 		fetchTagsFn:          fetchTagsFn{serialized},
 		fetchPropertiesFn:    fetchPropertiesFn{serialized},
 		fetchIsEmbeddingFn:   fetchIsEmbeddingFn{serialized},
+		fetchDimensionFn:     fetchDimensionFn{serialized},
 	}
 }
 
@@ -1518,6 +1519,10 @@ func (variant *FeatureVariant) IsOnDemand() bool {
 
 func (variant *FeatureVariant) IsEmbedding() bool {
 	return variant.fetchIsEmbeddingFn.IsEmbedding()
+}
+
+func (variant *FeatureVariant) Dimension() int32 {
+	return variant.fetchDimensionFn.Dimension()
 }
 
 type User struct {

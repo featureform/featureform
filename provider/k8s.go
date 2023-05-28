@@ -1494,8 +1494,8 @@ func (iter *FileStoreFeatureIterator) parseTimestamp(ts string) (time.Time, erro
 // 1. a scalar value (string, int, float, bool)
 // 2. []float32 (i.e. vector32)
 func (iter *FileStoreFeatureIterator) parseValue(value interface{}) (interface{}, error) {
-	valueMap, isScalar := value.(map[string]interface{})
-	if isScalar {
+	valueMap, ok := value.(map[string]interface{})
+	if !ok {
 		return value, nil
 	}
 	list, ok := valueMap["list"]

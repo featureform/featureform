@@ -102,3 +102,17 @@ func Test_redisOnlineTable_Get(t *testing.T) {
 		})
 	}
 }
+
+// func TestFTCreateCommands(t *testing.T) {
+// 	// TODO: use miniredis to mock redis; this currently only work by running
+// 	// > kubectl port-forward redisearch-<ID> 6379:6379
+// 	redisOnlineStore, err := NewRedisOnlineStore(&pc.RedisConfig{
+// 		Addr:   "localhost:6379",
+// 		Prefix: "Featureform_table__",
+// 	})
+// 	if err != nil {
+// 		t.Fatalf("failed to create redis online store: %v", err)
+// 	}
+
+// 	cmd := redisOnlineStore.createIndexCmd(redisTableKey("test_key"), "feature", "variant", VectorType{ScalarType: Float32, Dimension: 384})
+// }

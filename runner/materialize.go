@@ -113,14 +113,16 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	// vector databases allow for manual index configuration even if they support
 	// autogeneration of indexes.
 	if m.IsEmbedding {
+		fmt.Println("MATERIALIZATION RUNNER STRUCT: ", m)
 		m.Logger.Infow("Creating Index", "name", m.ID.Name, "variant", m.ID.Variant)
 		vectorStore, ok := m.Online.(provider.VectorStore)
 		if !ok {
-			return nil, fmt.Errorf("cannot create index on non-vector store")
+			return nil, fmt.Errorf("cannot create index on non-vector store: %v", m.Online)
 		}
 		vectorType, ok := m.VType.(provider.VectorType)
+		fmt.Println("??????????? in materialize.go: ", vectorType)
 		if !ok {
-			return nil, fmt.Errorf("cannot create index on non-vector type")
+			return nil, fmt.Errorf("cannot create index on non-vector type: %v", m.VType)
 		}
 		_, err := vectorStore.CreateIndex(m.ID.Name, m.ID.Variant, vectorType)
 		if err != nil {

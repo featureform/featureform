@@ -5,7 +5,10 @@
 package runner
 
 import (
+	"fmt"
 	"testing"
+
+	"encoding/base64"
 
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
@@ -161,6 +164,52 @@ func TestMaterializeRunnerConfigScalarTypeUnMarshall(t *testing.T) {
 	}
 	if _, isScalarType := runnerConfig.VType.ValueType.(provider.ScalarType); !isScalarType {
 		t.Fatalf("expected ScalarType, got %v", runnerConfig.VType.ValueType)
+	}
+}
+
+func TestMaterializeRunner(t *testing.T) {
+	c := &pc.RedisConfig{
+		Addr:   "localhost:6379",
+		Prefix: "Featureform_table__",
+	}
+	fmt.Println(base64.StdEncoding.EncodeToString(c.Serialized()))
+	config := []byte(`{
+		"OnlineType": "REDIS_ONLINE",
+		"OfflineType": "SPARK_OFFLINE",
+		"OnlineConfig": "eyJQcmVmaXgiOiJGZWF0dXJlZm9ybV90YWJsZV9fIiwiQWRkciI6ImxvY2FsaG9zdDo2Mzc5IiwiUGFzc3dvcmQiOiIiLCJEQiI6MH0=",
+		"OfflineConfig": "eyJFeGVjdXRvclR5cGUiOiAiREFUQUJSSUNLUyIsICJTdG9yZVR5cGUiOiAiQVpVUkUiLCAiRXhlY3V0b3JDb25maWciOiB7IlVzZXJuYW1lIjogIiIsICJQYXNzd29yZCI6ICIiLCAiSG9zdCI6ICJodHRwczovL2FkYi00MTc0OTc2Mzk1NzA5MDc4LjE4LmF6dXJlZGF0YWJyaWNrcy5uZXQiLCAiVG9rZW4iOiAiZGFwaTczODljYzU3NTgwOTk3YmM1YWJiYTc1N2YwNzJlMGFmLTMiLCAiQ2x1c3RlciI6ICIxMTAyLTIxNDYxNy1jbng1OHltaiJ9LCAiU3RvcmVDb25maWciOiB7IkFjY291bnROYW1lIjogImZmc2FudGFuZGVyZGVtbyIsICJBY2NvdW50S2V5IjogIkFQZ3RJZjJpT2lqdFd0blJEbUo0VzNPNStnRDdNaDNRVEd1cXBzU0tlL09zZ2V0b2xKOUxjVnlWVTNNNVZkRk4wSmNydFpUVXRhWVUrQVN0aFdSazh3PT0iLCAiQ29udGFpbmVyTmFtZSI6ICJxdW90ZXMiLCAiUGF0aCI6ICJxdW90ZXMifX0=",
+		"ResourceID": {
+			"Name": "pb_quote_embeddings",
+			"Variant": "vector32poc_54",
+			"Type": 2
+		},
+		"VType": {
+			"ScalarType": "float32",
+			"Dimension": 384
+		},
+		"Cloud": "LOCAL",
+		"IsUpdate": false,
+		"IsEmbedding": true
+	}`)
+
+	runner, err := MaterializeRunnerFactory(config)
+	if err != nil {
+		t.Fatalf("failed to create materialize runner: %v", err)
+	}
+	materializeRunner, ok := runner.(*MaterializeRunner)
+	if !ok {
+		t.Fatalf("expected materialize runner, got %v", runner)
+	}
+
+	if materializeRunner.IsEmbedding {
+		vectorType, ok := materializeRunner.VType.(provider.VectorType)
+		fmt.Println(vectorType)
+		if !ok {
+			t.Fatalf("expected vector type, got %v", materializeRunner.VType)
+		}
+		if vectorType.Dimension != 384 {
+			t.Fatalf("expected vector type dimension 384, got %v", vectorType.Dimension)
+		}
 	}
 }
 

@@ -214,19 +214,9 @@ func (table redisOnlineTable) Nearest(vector []float32, k int) ([]string, error)
 }
 
 func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error) {
+	fmt.Println("??????????? in redis.go: ", vectorType)
 	key := redisTableKey{store.prefix, feature, variant}
-	requiredParams := []string{
-		"TYPE", "FLOAT32",
-		"DIM", strconv.Itoa(vectorType.Dimension),
-		"DISTANCE_METRIC", "COSINE",
-	}
-	cmd := store.client.B().
-		FtCreate().
-		Index(fmt.Sprintf("%s_idx", key.String())).
-		Schema().
-		FieldName(feature).
-		Vector("HNSW", int64(len(requiredParams)), requiredParams...).
-		Build()
+	cmd := store.createIndexCmd(key, feature, variant, vectorType)
 	fmt.Println("************************************ VECTOR FIELD INDEX COMMAND ************************************", cmd.Commands())
 	resp := store.client.Do(context.Background(), cmd)
 	if resp.Error() != nil {
@@ -234,6 +224,21 @@ func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType V
 	}
 	table := &redisOnlineTable{client: &store.client, key: key, valueType: vectorType}
 	return table, nil
+}
+
+func (store *redisOnlineStore) createIndexCmd(key redisTableKey, feature, variant string, vectorType VectorType) rueidis.Completed {
+	requiredParams := []string{
+		"TYPE", "FLOAT32",
+		"DIM", strconv.Itoa(vectorType.Dimension),
+		"DISTANCE_METRIC", "COSINE",
+	}
+	return store.client.B().
+		FtCreate().
+		Index(fmt.Sprintf("%s_idx", key.String())).
+		Schema().
+		FieldName(feature).
+		Vector("HNSW", int64(len(requiredParams)), requiredParams...).
+		Build()
 }
 
 func (store *redisOnlineStore) GetIndex(feature, variant string) (string, error) {

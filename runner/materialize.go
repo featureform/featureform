@@ -227,21 +227,68 @@ type ValueTypeJSON struct {
 	provider.ValueType
 }
 
-func (v *ValueTypeJSON) UnmarshalJSON(data []byte) error {
-	var vt provider.VectorType
-	if err := json.Unmarshal(data, &vt); err == nil {
-		v.ValueType = vt
+func (vt *ValueTypeJSON) UnmarshalJSON(data []byte) error {
+	v := map[string]provider.VectorType{"ValueType": {}}
+	if err := json.Unmarshal(data, &v); err == nil {
+		vt.ValueType = v["ValueType"]
 		return nil
 	}
 
-	var st provider.ScalarType
-	if err := json.Unmarshal(data, &st); err == nil {
-		v.ValueType = st
+	s := map[string]provider.ScalarType{"ValueType": provider.ScalarType("")}
+	if err := json.Unmarshal(data, &s); err == nil {
+		vt.ValueType = s["ValueType"]
 		return nil
 	}
 
 	return fmt.Errorf("could not unmarshal value type")
 }
+
+// WORKS BUT THIS CANNOT POSSIBLY BE THE BEST WAY TO DO THIS
+// func (v *ValueTypeJSON) UnmarshalJSON(data []byte) error {
+// 	var m map[string]interface{}
+// 	err := json.Unmarshal(data, &m)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	vt, ok := m["ValueType"]
+// 	if !ok {
+// 		return fmt.Errorf("expected field ValueType")
+// 	}
+
+// 	vec, isVectorType := vt.(map[string]interface{})
+// 	if isVectorType {
+// 		scalar, hasScalarType := vec["ScalarType"]
+// 		if !hasScalarType {
+// 			return fmt.Errorf("expected field ScalarType")
+// 		}
+// 		dimension, hasDimension := vec["Dimension"]
+// 		if !hasDimension {
+// 			return fmt.Errorf("expected field Dimension")
+// 		}
+// 		scalarType, isScalarType := scalar.(string)
+// 		if !isScalarType {
+// 			return fmt.Errorf("expected field ScalarType to be string")
+// 		}
+// 		dimensionType, isDimensionType := dimension.(float64)
+// 		if !isDimensionType {
+// 			return fmt.Errorf("expected field Dimension to be int")
+// 		}
+// 		v.ValueType = provider.VectorType{
+// 			ScalarType: provider.ScalarType(scalarType),
+// 			Dimension:  int(dimensionType),
+// 		}
+// 		return nil
+// 	}
+
+// 	scalar, isScalarType := vt.(string)
+// 	if isScalarType {
+// 		v.ValueType = provider.ScalarType(scalar)
+// 		return nil
+// 	}
+
+// 	return fmt.Errorf("could not unmarshal value type")
+// }
 
 type MaterializedRunnerConfig struct {
 	OnlineType    pt.Type

@@ -110,22 +110,54 @@ func TestWatcherMultiplex(t *testing.T) {
 }
 
 // write a unit test to cover serializing and deserializing the config
+// func TestMaterializeRunnerConfigVectorTypeUnMarshall(t *testing.T) {
+// 	// config := map[string]interface{}{"OnlineType": "REDIS_ONLINE", "OfflineType": "SPARK_OFFLINE", "OnlineConfig": "eyJBZGRyIjogInJlZGlzZWFyY2g6NjM4MCIsICJQYXNzd29yZCI6ICIiLCAiREIiOiAwfQ==", "OfflineConfig": "eyJFeGVjdXRvclR5cGUiOiAiREFUQUJSSUNLUyIsICJTdG9yZVR5cGUiOiAiQVpVUkUiLCAiRXhlY3V0b3JDb25maWciOiB7IlVzZXJuYW1lIjogIiIsICJQYXNzd29yZCI6ICIiLCAiSG9zdCI6ICJodHRwczovL2FkYi00MTc0OTc2Mzk1NzA5MDc4LjE4LmF6dXJlZGF0YWJyaWNrcy5uZXQiLCAiVG9rZW4iOiAiZGFwaTczODljYzU3NTgwOTk3YmM1YWJiYTc1N2YwNzJlMGFmLTMiLCAiQ2x1c3RlciI6ICIxMTAyLTIxNDYxNy1jbng1OHltaiJ9LCAiU3RvcmVDb25maWciOiB7IkFjY291bnROYW1lIjogImZmc2FudGFuZGVyZGVtbyIsICJBY2NvdW50S2V5IjogIkFQZ3RJZjJpT2lqdFd0blJEbUo0VzNPNStnRDdNaDNRVEd1cXBzU0tlL09zZ2V0b2xKOUxjVnlWVTNNNVZkRk4wSmNydFpUVXRhWVUrQVN0aFdSazh3PT0iLCAiQ29udGFpbmVyTmFtZSI6ICJxdW90ZXMiLCAiUGF0aCI6ICJxdW90ZXMifX0=", "ResourceID": map[string]interface{}{"Name": "pb_quote_embeddings", "Variant": "vector32poc_54", "Type": 2}, "VType": map[string]interface{}{"ScalarType": "float32", "Dimension": 384}, "Cloud": "LOCAL", "IsUpdate": false, "IsEmbedding": true}
+// 	// config := []byte(`{"OnlineType":"REDIS_ONLINE","OfflineType":"SPARK_OFFLINE","OnlineConfig":"eyJBZGRyIjogInJlZGlzZWFyY2g6NjM4MCIsICJQYXNzd29yZCI6ICIiLCAiREIiOiAwfQ==","OfflineConfig":"eyJFeGVjdXRvclR5cGUiOiAiREFUQUJSSUNLUyIsICJTdG9yZVR5cGUiOiAiQVpVUkUiLCAiRXhlY3V0b3JDb25maWciOiB7IlVzZXJuYW1lIjogIiIsICJQYXNzd29yZCI6ICIiLCAiSG9zdCI6ICJodHRwczovL2FkYi00MTc0OTc2Mzk1NzA5MDc4LjE4LmF6dXJlZGF0YWJyaWNrcy5uZXQiLCAiVG9rZW4iOiAiZGFwaTczODljYzU3NTgwOTk3YmM1YWJiYTc1N2YwNzJlMGFmLTMiLCAiQ2x1c3RlciI6ICIxMTAyLTIxNDYxNy1jbng1OHltaiJ9LCAiU3RvcmVDb25maWciOiB7IkFjY291bnROYW1lIjogImZmc2FudGFuZGVyZGVtbyIsICJBY2NvdW50S2V5IjogIkFQZ3RJZjJpT2lqdFd0blJEbUo0VzNPNStnRDdNaDNRVEd1cXBzU0tlL09zZ2V0b2xKOUxjVnlWVTNNNVZkRk4wSmNydFpUVXRhWVUrQVN0aFdSazh3PT0iLCAiQ29udGFpbmVyTmFtZSI6ICJxdW90ZXMiLCAiUGF0aCI6ICJxdW90ZXMifX0=","ResourceID":{"Name":"pb_quote_embeddings","Variant":"vector32poc_54","Type":2},"VType":{"ScalarType":"float32","Dimension":384},"Cloud":"LOCAL","IsUpdate":false,"IsEmbedding":true}`)
+// 	config := []byte(`{
+// 		"OnlineType": "REDIS_ONLINE",
+// 		"OfflineType": "SPARK_OFFLINE",
+// 		"OnlineConfig": "eyJBZGRyIjogInJlZGlzZWFyY2g6NjM4MCIsICJQYXNzd29yZCI6ICIiLCAiREIiOiAwfQ==",
+// 		"OfflineConfig": "eyJFeGVjdXRvclR5cGUiOiAiREFUQUJSSUNLUyIsICJTdG9yZVR5cGUiOiAiQVpVUkUiLCAiRXhlY3V0b3JDb25maWciOiB7IlVzZXJuYW1lIjogIiIsICJQYXNzd29yZCI6ICIiLCAiSG9zdCI6ICJodHRwczovL2FkYi00MTc0OTc2Mzk1NzA5MDc4LjE4LmF6dXJlZGF0YWJyaWNrcy5uZXQiLCAiVG9rZW4iOiAiZGFwaTczODljYzU3NTgwOTk3YmM1YWJiYTc1N2YwNzJlMGFmLTMiLCAiQ2x1c3RlciI6ICIxMTAyLTIxNDYxNy1jbng1OHltaiJ9LCAiU3RvcmVDb25maWciOiB7IkFjY291bnROYW1lIjogImZmc2FudGFuZGVyZGVtbyIsICJBY2NvdW50S2V5IjogIkFQZ3RJZjJpT2lqdFd0blJEbUo0VzNPNStnRDdNaDNRVEd1cXBzU0tlL09zZ2V0b2xKOUxjVnlWVTNNNVZkRk4wSmNydFpUVXRhWVUrQVN0aFdSazh3PT0iLCAiQ29udGFpbmVyTmFtZSI6ICJxdW90ZXMiLCAiUGF0aCI6ICJxdW90ZXMifX0=",
+// 		"ResourceID": {
+// 			"Name": "pb_quote_embeddings",
+// 			"Variant": "vector32poc_54",
+// 			"Type": 2
+// 		},
+// 		"VType": {
+// 			"ScalarType": "float32",
+// 			"Dimension": 384
+// 		},
+// 		"Cloud": "LOCAL",
+// 		"IsUpdate": false,
+// 		"IsEmbedding": true
+// 	}`)
+// 	runnerConfig := &MaterializedRunnerConfig{}
+// 	if err := runnerConfig.Deserialize(config); err != nil {
+// 		t.Fatalf("failed to deserialize materialize runner config: %v", err)
+// 	}
+// 	if _, isVectorType := runnerConfig.VType.ValueType.(provider.VectorType); !isVectorType {
+// 		t.Fatalf("expected VectorType, got %v", runnerConfig.VType.ValueType)
+// 	}
+// }
+
 func TestMaterializeRunnerConfigVectorTypeUnMarshall(t *testing.T) {
 	// config := map[string]interface{}{"OnlineType": "REDIS_ONLINE", "OfflineType": "SPARK_OFFLINE", "OnlineConfig": "eyJBZGRyIjogInJlZGlzZWFyY2g6NjM4MCIsICJQYXNzd29yZCI6ICIiLCAiREIiOiAwfQ==", "OfflineConfig": "eyJFeGVjdXRvclR5cGUiOiAiREFUQUJSSUNLUyIsICJTdG9yZVR5cGUiOiAiQVpVUkUiLCAiRXhlY3V0b3JDb25maWciOiB7IlVzZXJuYW1lIjogIiIsICJQYXNzd29yZCI6ICIiLCAiSG9zdCI6ICJodHRwczovL2FkYi00MTc0OTc2Mzk1NzA5MDc4LjE4LmF6dXJlZGF0YWJyaWNrcy5uZXQiLCAiVG9rZW4iOiAiZGFwaTczODljYzU3NTgwOTk3YmM1YWJiYTc1N2YwNzJlMGFmLTMiLCAiQ2x1c3RlciI6ICIxMTAyLTIxNDYxNy1jbng1OHltaiJ9LCAiU3RvcmVDb25maWciOiB7IkFjY291bnROYW1lIjogImZmc2FudGFuZGVyZGVtbyIsICJBY2NvdW50S2V5IjogIkFQZ3RJZjJpT2lqdFd0blJEbUo0VzNPNStnRDdNaDNRVEd1cXBzU0tlL09zZ2V0b2xKOUxjVnlWVTNNNVZkRk4wSmNydFpUVXRhWVUrQVN0aFdSazh3PT0iLCAiQ29udGFpbmVyTmFtZSI6ICJxdW90ZXMiLCAiUGF0aCI6ICJxdW90ZXMifX0=", "ResourceID": map[string]interface{}{"Name": "pb_quote_embeddings", "Variant": "vector32poc_54", "Type": 2}, "VType": map[string]interface{}{"ScalarType": "float32", "Dimension": 384}, "Cloud": "LOCAL", "IsUpdate": false, "IsEmbedding": true}
 	// config := []byte(`{"OnlineType":"REDIS_ONLINE","OfflineType":"SPARK_OFFLINE","OnlineConfig":"eyJBZGRyIjogInJlZGlzZWFyY2g6NjM4MCIsICJQYXNzd29yZCI6ICIiLCAiREIiOiAwfQ==","OfflineConfig":"eyJFeGVjdXRvclR5cGUiOiAiREFUQUJSSUNLUyIsICJTdG9yZVR5cGUiOiAiQVpVUkUiLCAiRXhlY3V0b3JDb25maWciOiB7IlVzZXJuYW1lIjogIiIsICJQYXNzd29yZCI6ICIiLCAiSG9zdCI6ICJodHRwczovL2FkYi00MTc0OTc2Mzk1NzA5MDc4LjE4LmF6dXJlZGF0YWJyaWNrcy5uZXQiLCAiVG9rZW4iOiAiZGFwaTczODljYzU3NTgwOTk3YmM1YWJiYTc1N2YwNzJlMGFmLTMiLCAiQ2x1c3RlciI6ICIxMTAyLTIxNDYxNy1jbng1OHltaiJ9LCAiU3RvcmVDb25maWciOiB7IkFjY291bnROYW1lIjogImZmc2FudGFuZGVyZGVtbyIsICJBY2NvdW50S2V5IjogIkFQZ3RJZjJpT2lqdFd0blJEbUo0VzNPNStnRDdNaDNRVEd1cXBzU0tlL09zZ2V0b2xKOUxjVnlWVTNNNVZkRk4wSmNydFpUVXRhWVUrQVN0aFdSazh3PT0iLCAiQ29udGFpbmVyTmFtZSI6ICJxdW90ZXMiLCAiUGF0aCI6ICJxdW90ZXMifX0=","ResourceID":{"Name":"pb_quote_embeddings","Variant":"vector32poc_54","Type":2},"VType":{"ScalarType":"float32","Dimension":384},"Cloud":"LOCAL","IsUpdate":false,"IsEmbedding":true}`)
 	config := []byte(`{
 		"OnlineType": "REDIS_ONLINE",
 		"OfflineType": "SPARK_OFFLINE",
-		"OnlineConfig": "eyJBZGRyIjogInJlZGlzZWFyY2g6NjM4MCIsICJQYXNzd29yZCI6ICIiLCAiREIiOiAwfQ==",
+		"OnlineConfig": "eyJBZGRyIjogInJlZGlzZWFyY2g6NjM3OSIsICJQYXNzd29yZCI6ICIiLCAiREIiOiAwfQ==",
 		"OfflineConfig": "eyJFeGVjdXRvclR5cGUiOiAiREFUQUJSSUNLUyIsICJTdG9yZVR5cGUiOiAiQVpVUkUiLCAiRXhlY3V0b3JDb25maWciOiB7IlVzZXJuYW1lIjogIiIsICJQYXNzd29yZCI6ICIiLCAiSG9zdCI6ICJodHRwczovL2FkYi00MTc0OTc2Mzk1NzA5MDc4LjE4LmF6dXJlZGF0YWJyaWNrcy5uZXQiLCAiVG9rZW4iOiAiZGFwaTczODljYzU3NTgwOTk3YmM1YWJiYTc1N2YwNzJlMGFmLTMiLCAiQ2x1c3RlciI6ICIxMTAyLTIxNDYxNy1jbng1OHltaiJ9LCAiU3RvcmVDb25maWciOiB7IkFjY291bnROYW1lIjogImZmc2FudGFuZGVyZGVtbyIsICJBY2NvdW50S2V5IjogIkFQZ3RJZjJpT2lqdFd0blJEbUo0VzNPNStnRDdNaDNRVEd1cXBzU0tlL09zZ2V0b2xKOUxjVnlWVTNNNVZkRk4wSmNydFpUVXRhWVUrQVN0aFdSazh3PT0iLCAiQ29udGFpbmVyTmFtZSI6ICJxdW90ZXMiLCAiUGF0aCI6ICJxdW90ZXMifX0=",
 		"ResourceID": {
 			"Name": "pb_quote_embeddings",
-			"Variant": "vector32poc_54",
+			"Variant": "vector32poc_65",
 			"Type": 2
 		},
 		"VType": {
-			"ScalarType": "float32",
-			"Dimension": 384
+			"ValueType": {
+				"ScalarType": "float32",
+				"Dimension": 384
+			}
 		},
 		"Cloud": "LOCAL",
 		"IsUpdate": false,
@@ -135,8 +167,15 @@ func TestMaterializeRunnerConfigVectorTypeUnMarshall(t *testing.T) {
 	if err := runnerConfig.Deserialize(config); err != nil {
 		t.Fatalf("failed to deserialize materialize runner config: %v", err)
 	}
-	if _, isVectorType := runnerConfig.VType.ValueType.(provider.VectorType); !isVectorType {
+	vectorType, isVectorType := runnerConfig.VType.ValueType.(provider.VectorType)
+	if !isVectorType {
 		t.Fatalf("expected VectorType, got %v", runnerConfig.VType.ValueType)
+	}
+	if vectorType.ScalarType != "float32" {
+		t.Fatalf("expected float32, got %v", vectorType.ScalarType)
+	}
+	if vectorType.Dimension != 384 {
+		t.Fatalf("expected 384, got %v", vectorType.Dimension)
 	}
 }
 
@@ -146,14 +185,16 @@ func TestMaterializeRunnerConfigScalarTypeUnMarshall(t *testing.T) {
 	config := []byte(`{
 		"OnlineType": "REDIS_ONLINE",
 		"OfflineType": "SPARK_OFFLINE",
-		"OnlineConfig": "eyJBZGRyIjogInJlZGlzZWFyY2g6NjM4MCIsICJQYXNzd29yZCI6ICIiLCAiREIiOiAwfQ==",
+		"OnlineConfig": "eyJBZGRyIjogInJlZGlzZWFyY2g6NjM3OSIsICJQYXNzd29yZCI6ICIiLCAiREIiOiAwfQ==",
 		"OfflineConfig": "eyJFeGVjdXRvclR5cGUiOiAiREFUQUJSSUNLUyIsICJTdG9yZVR5cGUiOiAiQVpVUkUiLCAiRXhlY3V0b3JDb25maWciOiB7IlVzZXJuYW1lIjogIiIsICJQYXNzd29yZCI6ICIiLCAiSG9zdCI6ICJodHRwczovL2FkYi00MTc0OTc2Mzk1NzA5MDc4LjE4LmF6dXJlZGF0YWJyaWNrcy5uZXQiLCAiVG9rZW4iOiAiZGFwaTczODljYzU3NTgwOTk3YmM1YWJiYTc1N2YwNzJlMGFmLTMiLCAiQ2x1c3RlciI6ICIxMTAyLTIxNDYxNy1jbng1OHltaiJ9LCAiU3RvcmVDb25maWciOiB7IkFjY291bnROYW1lIjogImZmc2FudGFuZGVyZGVtbyIsICJBY2NvdW50S2V5IjogIkFQZ3RJZjJpT2lqdFd0blJEbUo0VzNPNStnRDdNaDNRVEd1cXBzU0tlL09zZ2V0b2xKOUxjVnlWVTNNNVZkRk4wSmNydFpUVXRhWVUrQVN0aFdSazh3PT0iLCAiQ29udGFpbmVyTmFtZSI6ICJxdW90ZXMiLCAiUGF0aCI6ICJxdW90ZXMifX0=",
 		"ResourceID": {
 			"Name": "pb_quote_embeddings",
-			"Variant": "vector32poc_54",
+			"Variant": "vector32poc_65",
 			"Type": 2
 		},
-		"VType": "int32",
+		"VType": {
+			"ValueType": "float32"
+		},
 		"Cloud": "LOCAL",
 		"IsUpdate": false,
 		"IsEmbedding": true
@@ -164,6 +205,13 @@ func TestMaterializeRunnerConfigScalarTypeUnMarshall(t *testing.T) {
 	}
 	if _, isScalarType := runnerConfig.VType.ValueType.(provider.ScalarType); !isScalarType {
 		t.Fatalf("expected ScalarType, got %v", runnerConfig.VType.ValueType)
+	}
+	scalarType, isScalarType := runnerConfig.VType.ValueType.(provider.ScalarType)
+	if !isScalarType {
+		t.Fatalf("expected ScalarType, got %v", scalarType)
+	}
+	if scalarType != provider.Float32 {
+		t.Fatalf("expected Float32, got %v", scalarType)
 	}
 }
 

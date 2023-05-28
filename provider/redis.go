@@ -214,10 +214,8 @@ func (table redisOnlineTable) Nearest(vector []float32, k int) ([]string, error)
 }
 
 func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error) {
-	fmt.Println("??????????? in redis.go: ", vectorType)
 	key := redisTableKey{store.prefix, feature, variant}
 	cmd := store.createIndexCmd(key, feature, variant, vectorType)
-	fmt.Println("************************************ VECTOR FIELD INDEX COMMAND ************************************", cmd.Commands())
 	resp := store.client.Do(context.Background(), cmd)
 	if resp.Error() != nil {
 		return redisOnlineTable{}, resp.Error()
@@ -226,6 +224,7 @@ func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType V
 	return table, nil
 }
 
+// TODO: write unit tests for command creation
 func (store *redisOnlineStore) createIndexCmd(key redisTableKey, feature, variant string, vectorType VectorType) rueidis.Completed {
 	requiredParams := []string{
 		"TYPE", "FLOAT32",
@@ -234,6 +233,7 @@ func (store *redisOnlineStore) createIndexCmd(key redisTableKey, feature, varian
 	}
 	return store.client.B().
 		FtCreate().
+		// TODO: determine if we want to use a different naming convention for the index
 		Index(fmt.Sprintf("%s_idx", key.String())).
 		Schema().
 		FieldName(feature).

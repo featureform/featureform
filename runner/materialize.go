@@ -107,20 +107,17 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	if err != nil {
 		return nil, err
 	}
-	m.Logger.Infow("Creating Table", "name", m.ID.Name, "variant", m.ID.Variant)
 	// Create the vector similarity index prior to writing any values to the
 	// inference store. This is currently only required for RediSearch, but other
 	// vector databases allow for manual index configuration even if they support
 	// autogeneration of indexes.
 	if m.IsEmbedding {
-		fmt.Println("MATERIALIZATION RUNNER STRUCT: ", m)
 		m.Logger.Infow("Creating Index", "name", m.ID.Name, "variant", m.ID.Variant)
 		vectorStore, ok := m.Online.(provider.VectorStore)
 		if !ok {
 			return nil, fmt.Errorf("cannot create index on non-vector store: %v", m.Online)
 		}
 		vectorType, ok := m.VType.(provider.VectorType)
-		fmt.Println("??????????? in materialize.go: ", vectorType)
 		if !ok {
 			return nil, fmt.Errorf("cannot create index on non-vector type: %v", m.VType)
 		}
@@ -129,6 +126,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 			return nil, fmt.Errorf("create index error: %w", err)
 		}
 	}
+	m.Logger.Infow("Creating Table", "name", m.ID.Name, "variant", m.ID.Variant)
 	_, err = m.Online.CreateTable(m.ID.Name, m.ID.Variant, m.VType)
 	_, exists := err.(*provider.TableAlreadyExists)
 	if err != nil && !exists {
@@ -240,55 +238,8 @@ func (vt *ValueTypeJSON) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("could not unmarshal value type")
+	return fmt.Errorf("could not unmarshal value type: %v", data)
 }
-
-// WORKS BUT THIS CANNOT POSSIBLY BE THE BEST WAY TO DO THIS
-// func (v *ValueTypeJSON) UnmarshalJSON(data []byte) error {
-// 	var m map[string]interface{}
-// 	err := json.Unmarshal(data, &m)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	vt, ok := m["ValueType"]
-// 	if !ok {
-// 		return fmt.Errorf("expected field ValueType")
-// 	}
-
-// 	vec, isVectorType := vt.(map[string]interface{})
-// 	if isVectorType {
-// 		scalar, hasScalarType := vec["ScalarType"]
-// 		if !hasScalarType {
-// 			return fmt.Errorf("expected field ScalarType")
-// 		}
-// 		dimension, hasDimension := vec["Dimension"]
-// 		if !hasDimension {
-// 			return fmt.Errorf("expected field Dimension")
-// 		}
-// 		scalarType, isScalarType := scalar.(string)
-// 		if !isScalarType {
-// 			return fmt.Errorf("expected field ScalarType to be string")
-// 		}
-// 		dimensionType, isDimensionType := dimension.(float64)
-// 		if !isDimensionType {
-// 			return fmt.Errorf("expected field Dimension to be int")
-// 		}
-// 		v.ValueType = provider.VectorType{
-// 			ScalarType: provider.ScalarType(scalarType),
-// 			Dimension:  int(dimensionType),
-// 		}
-// 		return nil
-// 	}
-
-// 	scalar, isScalarType := vt.(string)
-// 	if isScalarType {
-// 		v.ValueType = provider.ScalarType(scalar)
-// 		return nil
-// 	}
-
-// 	return fmt.Errorf("could not unmarshal value type")
-// }
 
 type MaterializedRunnerConfig struct {
 	OnlineType    pt.Type
@@ -320,8 +271,6 @@ func (m *MaterializedRunnerConfig) Deserialize(config Config) error {
 
 func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 	runnerConfig := &MaterializedRunnerConfig{}
-	fmt.Println("================== DESERIALIZING ==================")
-	fmt.Println(string(config))
 	if err := runnerConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("failed to deserialize materialize runner config: %v", err)
 	}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	pc "github.com/featureform/provider/provider_config"
 	"github.com/featureform/types"
 	"go.uber.org/zap/zaptest"
 )
@@ -160,5 +161,32 @@ func TestMaterializeRunnerConfigScalarTypeUnMarshall(t *testing.T) {
 	}
 	if _, isScalarType := runnerConfig.VType.ValueType.(provider.ScalarType); !isScalarType {
 		t.Fatalf("expected ScalarType, got %v", runnerConfig.VType.ValueType)
+	}
+}
+
+func TestOnlineStoreCastToVectorStore(t *testing.T) {
+	// TODO: use miniredis to mock redis; this currently only work by running
+	// > kubectl port-forward redisearch-<ID> 6379:6379
+	redisOnlineStore, err := provider.NewRedisOnlineStore(&pc.RedisConfig{
+		Addr:   "localhost:6379",
+		Prefix: "Featureform_table__",
+	})
+	if err != nil {
+		t.Fatalf("failed to create redis online store: %v", err)
+	}
+
+	runner := &MaterializeRunner{
+		Online:      redisOnlineStore,
+		IsEmbedding: true,
+	}
+
+	if runner.IsEmbedding {
+		vectorStore, ok := runner.Online.(provider.VectorStore)
+		if !ok {
+			t.Fatalf("expected vector store, got %v", runner.Online)
+		}
+		if vectorStore == nil {
+			t.Fatalf("expected vector store, got nil")
+		}
 	}
 }

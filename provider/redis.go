@@ -209,31 +209,36 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 	return result, nil
 }
 
-func (table redisOnlineTable) CreateIndex(feature, variant string, vectorType VectorType) (redisOnlineTable, error) {
-	client := *table.client
+func (table redisOnlineTable) Nearest(vector []float32, k int) ([]string, error) {
+	return nil, nil
+}
+
+func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error) {
+	key := redisTableKey{store.prefix, feature, variant}
 	requiredParams := []string{
 		"TYPE", "FLOAT32",
 		"DIM", strconv.Itoa(vectorType.Dimension),
 		"DISTANCE_METRIC", "COSINE",
 	}
-	cmd := client.B().
+	cmd := store.client.B().
 		FtCreate().
-		Index(fmt.Sprintf("%s_idx", table.key.String())).
+		Index(fmt.Sprintf("%s_idx", key.String())).
 		Schema().
 		FieldName(feature).
 		Vector("HNSW", int64(len(requiredParams)), requiredParams...).
 		Build()
-	resp := client.Do(context.Background(), cmd)
+	resp := store.client.Do(context.Background(), cmd)
 	if resp.Error() != nil {
 		return redisOnlineTable{}, resp.Error()
 	}
-	return table, nil // Not certain why we're returning table here
+	table := &redisOnlineTable{client: &store.client, key: key, valueType: vectorType}
+	return table, nil
 }
 
-func (table redisOnlineTable) GetIndex(feature, variant string) (string, error) {
+func (store *redisOnlineStore) GetIndex(feature, variant string) (string, error) {
 	return "", nil
 }
 
-func (table redisOnlineTable) DeleteIndex(feature, variant string) error {
+func (store *redisOnlineStore) DeleteIndex(feature, variant string) error {
 	return nil
 }

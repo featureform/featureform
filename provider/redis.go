@@ -227,6 +227,7 @@ func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType V
 		FieldName(feature).
 		Vector("HNSW", int64(len(requiredParams)), requiredParams...).
 		Build()
+	fmt.Println("************************************ VECTOR FIELD INDEX COMMAND ************************************", cmd.Commands())
 	resp := store.client.Do(context.Background(), cmd)
 	if resp.Error() != nil {
 		return redisOnlineTable{}, resp.Error()

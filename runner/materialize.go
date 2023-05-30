@@ -41,6 +41,7 @@ type MaterializeRunner struct {
 	Cloud       JobCloud
 	Logger      *zap.SugaredLogger
 	IsEmbedding bool
+	Entity      string
 }
 
 func (m MaterializeRunner) Resource() metadata.ResourceID {
@@ -121,7 +122,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		if !ok {
 			return nil, fmt.Errorf("cannot create index on non-vector type: %v", m.VType)
 		}
-		_, err := vectorStore.CreateIndex(m.ID.Name, m.ID.Variant, vectorType)
+		_, err := vectorStore.CreateIndex(m.ID.Name, m.ID.Variant, m.Entity, vectorType)
 		if err != nil {
 			return nil, fmt.Errorf("create index error: %w", err)
 		}
@@ -251,6 +252,7 @@ type MaterializedRunnerConfig struct {
 	Cloud         JobCloud
 	IsUpdate      bool
 	IsEmbedding   bool
+	Entity        string
 }
 
 func (m *MaterializedRunnerConfig) Serialize() (Config, error) {
@@ -299,5 +301,6 @@ func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 		Cloud:       runnerConfig.Cloud,
 		Logger:      logging.NewLogger("materializer"),
 		IsEmbedding: runnerConfig.IsEmbedding,
+		Entity:      runnerConfig.Entity,
 	}, nil
 }

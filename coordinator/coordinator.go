@@ -759,6 +759,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		Cloud:         runner.LocalMaterializeRunner,
 		IsUpdate:      false,
 		IsEmbedding:   feature.IsEmbedding(),
+		Entity:        feature.Entity(),
 	}
 	serialized, err := materializedRunnerConfig.Serialize()
 	if err != nil {

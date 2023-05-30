@@ -115,9 +115,9 @@ func (store *redisOnlineStore) DeleteTable(feature, variant string) error {
 	return nil
 }
 
-func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error) {
+func (store *redisOnlineStore) CreateIndex(feature, variant, entity string, vectorType VectorType) (VectorStoreTable, error) {
 	key := redisTableKey{store.prefix, feature, variant}
-	cmd := store.createIndexCmd(key, feature, variant, vectorType)
+	cmd := store.createIndexCmd(key, feature, variant, entity, vectorType)
 	resp := store.client.Do(context.Background(), cmd)
 	if resp.Error() != nil {
 		return &redisOnlineTable{}, resp.Error()
@@ -127,7 +127,7 @@ func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType V
 }
 
 // TODO: write unit tests for command creation
-func (store *redisOnlineStore) createIndexCmd(key redisTableKey, feature, variant string, vectorType VectorType) rueidis.Completed {
+func (store *redisOnlineStore) createIndexCmd(key redisTableKey, feature, variant, entity string, vectorType VectorType) rueidis.Completed {
 	requiredParams := []string{
 		"TYPE", "FLOAT32",
 		"DIM", strconv.Itoa(vectorType.Dimension),
@@ -136,9 +136,9 @@ func (store *redisOnlineStore) createIndexCmd(key redisTableKey, feature, varian
 	return store.client.B().
 		FtCreate().
 		// TODO: determine if we want to use a different naming convention for the index
-		Index(fmt.Sprintf("%s_idx", key.String())).
+		Index(fmt.Sprintf("%s_idx", key.String())). // feature name-variant + _idx identifies the index
 		Schema().
-		FieldName(feature).
+		FieldName(entity). // entity identifies the vector field
 		Vector("HNSW", int64(len(requiredParams)), requiredParams...).
 		Build()
 }
@@ -247,28 +247,25 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 	return result, nil
 }
 
-func (table redisOnlineTable) Nearest(feature, variant string, vector []float32, k uint32) ([]string, error) {
+func (table redisOnlineTable) Nearest(feature, variant, entity string, vector []float32, k uint32) ([]string, error) {
 	fmt.Println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++", feature, variant, vector, k)
-	cmd := table.createNearestCmd(table.key, feature, variant, vector, k)
+	cmd := table.createNearestCmd(table.key, feature, variant, entity, vector, k)
 	fmt.Println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++", cmd.Commands())
 	total, docs, err := table.client.Do(context.Background(), cmd).AsFtSearch()
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("\n\n")
 	fmt.Println("********************************************************* total", total)
-	fmt.Println("\n\n")
 	fmt.Println("********************************************************* docs", docs)
-	fmt.Println("\n\n")
 	return nil, nil
 }
 
-func (table redisOnlineTable) createNearestCmd(key redisTableKey, feature, variant string, vector []float32, k uint32) rueidis.Completed {
+func (table redisOnlineTable) createNearestCmd(key redisTableKey, feature, variant, entity string, vector []float32, k uint32) rueidis.Completed {
 	return table.client.B().
 		FtSearch().
 		Index(fmt.Sprintf("%s_idx", key.String())).
-		Query(fmt.Sprintf("*=>[KNN $K @%s $BLOB]", feature)).
-		Sortby(fmt.Sprintf("__%s_score", feature)).
+		Query(fmt.Sprintf("*=>[KNN $K @%s $BLOB]", entity)).
+		Sortby(fmt.Sprintf("__%s_score", entity)).
 		Params().
 		Nargs(4).
 		NameValue().

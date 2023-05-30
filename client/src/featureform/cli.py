@@ -11,9 +11,8 @@ from flask import Flask
 from .dashboard_metadata import dashboard_app
 import validators
 import urllib.request
-import requests
-import json
 from .version import get_package_version
+from .tls import get_version_local, get_version_hosted
 
 resource_types = [
     "feature",
@@ -152,27 +151,27 @@ app.register_blueprint(dashboard_app)
 
 
 @cli.command()
-def version():
-    clientVersion = get_package_version()
-    clusterVersion = ""
-    host = os.getenv("FEATUREFORM_HOST")
-    if host:
-        try:
-            host = host.split(":")[0]  # todo: do we need a cert path option for this?
-            res = requests.get("http://" + host + "/data/version")
-            response = json.loads(res.text)
-            clusterVersion = response["version"]
-        except Exception as e:
-            clusterVersion = "Could not retrieve cluster version"
-    else:
-        clusterVersion = "No host is set"
+@click.option("--local", is_flag=True, help="Required for local mode only")
+def version(local):
+    client_cersion = get_package_version()
+    cluster_version = ""
+    host = os.getenv("FEATUREFORM_HOST", "")
+    try:
+        if local:
+            cluster_version = get_version_local()
+        elif host:
+            cluster_version = get_version_hosted(host)
+        else:
+            cluster_version = "No host is set."
+    except:
+        cluster_version = "Cannot retrieve: Check your FEATUREFORM_HOST value. If using local mode, only use the --local flag."
 
     print(
         """
     Client Version: {}
     Cluster Version: {}
     """.format(
-            clientVersion, clusterVersion
+            client_cersion, cluster_version
         )
     )
 

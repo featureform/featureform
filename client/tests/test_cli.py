@@ -57,7 +57,7 @@ class TestApply:
         )
         assert result.exit_code == 0
 
-    def test_version(sefl):
+    def test_hosted_version(sefl):
         runner = CliRunner()
         result = runner.invoke(version)
         assert result.exit_code == 0

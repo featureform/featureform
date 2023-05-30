@@ -198,9 +198,10 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 			"ETCD_CONFIG":      string(serializedETCD),
 			"K8S_RUNNER_IMAGE": pandas_image,
 		},
-		Image:    help.GetEnv("WORKER_IMAGE", "local/worker:stable"),
-		NumTasks: 1,
-		Resource: resourceId,
+		JobPrefix: "runner",
+		Image:     help.GetEnv("WORKER_IMAGE", "local/worker:stable"),
+		NumTasks:  1,
+		Resource:  resourceId,
 	}
 	jobRunner, err := kubernetes.NewKubernetesRunner(kubeConfig)
 	if err != nil {
@@ -1112,6 +1113,7 @@ func (c *Coordinator) ExecuteJob(jobKey string) error {
 	if !has {
 		return fmt.Errorf("not a valid resource type for running jobs")
 	}
+
 	if err := jobFunc(job.Resource, job.Schedule); err != nil {
 		switch err.(type) {
 		case ResourceAlreadyFailedError:
@@ -1186,7 +1188,12 @@ func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	if err != nil {
 		return fmt.Errorf("create new concurrency session for resource update job: %v", err)
 	}
-	defer s.Close()
+	defer func(s *concurrency.Session) {
+		err := s.Close()
+		if err != nil {
+			c.Logger.Debugw("Error closing scheduling session", "error", err)
+		}
+	}(s)
 	mtx, err := c.createJobLock(key, s)
 	if err != nil {
 		return fmt.Errorf("create lock on resource update job with key %s: %v", key, err)
@@ -1204,13 +1211,14 @@ func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	if err != nil {
 		return fmt.Errorf("could not get kubernetes namespace: %v", err)
 	}
-	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), namespace)
+	jobName := kubernetes.CreateJobName("", coordinatorScheduleJob.Resource)
+	jobClient, err := kubernetes.NewKubernetesJobClient(jobName, namespace)
 	if err != nil {
 		return fmt.Errorf("create new kubernetes job client: %v", err)
 	}
 	cronJob, err := jobClient.GetCronJob()
 	if err != nil {
-		return fmt.Errorf("fetch cron job from kuberentes with name %s: %v", kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), err)
+		return fmt.Errorf("fetch cron job from kuberentes with name %s: %v", jobName, err)
 	}
 	cronJob.Spec.Schedule = coordinatorScheduleJob.Schedule
 	if _, err := jobClient.UpdateCronJob(cronJob); err != nil {

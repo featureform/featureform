@@ -315,6 +315,7 @@ func (kube *KubernetesExecutor) setCustomImage(image string) {
 }
 
 func (kube *KubernetesExecutor) ExecuteScript(envVars map[string]string, args *metadata.KubernetesArgs) error {
+	kube.logger.Debugw("Executing k8s script", "env_vars", envVars, "args", args)
 	var specs metadata.KubernetesResourceSpecs
 	if args != nil {
 		kube.setCustomImage(args.DockerImage)
@@ -331,9 +332,10 @@ func (kube *KubernetesExecutor) ExecuteScript(envVars map[string]string, args *m
 		resourceType = 0
 	}
 	config := kubernetes.KubernetesRunnerConfig{
-		EnvVars:  envVars,
-		Image:    kube.image,
-		NumTasks: 1,
+		EnvVars:   envVars,
+		JobPrefix: "kcf",
+		Image:     kube.image,
+		NumTasks:  1,
 		Resource: metadata.ResourceID{
 			Name:    envVars["RESOURCE_NAME"],
 			Variant: envVars["RESOURCE_VARIANT"],

@@ -248,7 +248,9 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 }
 
 func (table redisOnlineTable) Nearest(feature, variant string, vector []float32, k uint32) ([]string, error) {
+	fmt.Println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++", feature, variant, vector, k)
 	cmd := table.createNearestCmd(table.key, feature, variant, vector, k)
+	fmt.Println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++", cmd.Commands())
 	total, docs, err := table.client.Do(context.Background(), cmd).AsFtSearch()
 	if err != nil {
 		return nil, err

@@ -44,7 +44,7 @@ type VectorStore interface {
 
 type VectorStoreTable interface {
 	OnlineStoreTable
-	Nearest(vector []float32, k int) ([]string, error) // TODO: determine if the return type should be NameVariants
+	Nearest(feature, variant string, vector []float32, k uint32) ([]string, error) // TODO: determine if the return type should be NameVariants
 }
 
 type TableNotFound struct {
@@ -135,7 +135,7 @@ func (store *localOnlineStore) Close() error {
 type localOnlineTable map[string]interface{}
 
 type redisOnlineTable struct {
-	client    *rueidis.Client
+	client    rueidis.Client
 	key       redisTableKey
 	valueType ValueType
 }

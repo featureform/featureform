@@ -13,6 +13,7 @@ service Feature {
   rpc FeatureServe(FeatureServeRequest) returns (FeatureRow) {}
   rpc SourceData(SourceDataRequest) returns (stream SourceDataRow) {}
   rpc SourceColumns(SourceColumnRequest) returns (SourceDataColumns) {}
+  rpc Nearest(NearestRequest) returns (NearestResponse) {}
 }
 
 message Model {
@@ -92,4 +93,14 @@ message SourceDataColumns {
 
 message Vector32 {
   repeated float value = 1;
+}
+
+message NearestRequest {
+  FeatureID id = 1;
+  Vector32 vector = 2;
+  uint32 k = 3;
+}
+
+message NearestResponse {
+  repeated Entity entities = 1;
 }

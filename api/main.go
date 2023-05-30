@@ -707,6 +707,11 @@ func (serv *OnlineServer) SourceColumns(ctx context.Context, req *srv.SourceColu
 	return serv.client.SourceColumns(ctx, req)
 }
 
+func (serv *OnlineServer) Nearest(ctx context.Context, req *srv.NearestRequest) (*srv.NearestResponse, error) {
+	serv.Logger.Infow("Serving Nearest", "id", req.Id.String())
+	return serv.client.Nearest(ctx, req)
+}
+
 func (serv *ApiServer) Serve() error {
 	if serv.grpcServer != nil {
 		return fmt.Errorf("server already running")

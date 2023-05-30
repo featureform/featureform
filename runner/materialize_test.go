@@ -197,8 +197,10 @@ func TestMaterializeRunnerVectorStoreTypeAssertion(t *testing.T) {
 			"Type": 2
 		},
 		"VType": {
-			"ScalarType": "float32",
-			"Dimension": 384
+			"ValueType": {
+				"ScalarType": "float32",
+				"Dimension": 384
+			}
 		},
 		"Cloud": "LOCAL",
 		"IsUpdate": false,

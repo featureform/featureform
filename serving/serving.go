@@ -168,6 +168,7 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	return primary.IterateSegment(limit)
 }
 
+// TODO: test serving embedding features
 func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServeRequest) (*pb.FeatureRow, error) {
 	features := req.GetFeatures()
 	entities := req.GetEntities()
@@ -281,4 +282,50 @@ func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceColu
 	return &pb.SourceDataColumns{
 		Columns: it.Columns(),
 	}, nil
+}
+
+func (serv *FeatureServer) Nearest(ctx context.Context, req *pb.NearestRequest) (*pb.NearestResponse, error) {
+	id := req.GetId()
+	name, variant := id.GetName(), id.GetVersion()
+	serv.Logger.Infow("Searching nearest", "Name", name, "Variant", variant)
+	meta, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{name, variant})
+	if err != nil {
+		serv.Logger.Errorw("metadata lookup failed", "Err", err)
+		return nil, err
+	}
+	providerEntry, err := meta.FetchProvider(serv.Metadata, ctx)
+	if err != nil {
+		serv.Logger.Errorw("fetching provider metadata failed", "Error", err)
+		return nil, err
+	}
+	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
+	if err != nil {
+		serv.Logger.Errorw("failed to get provider", "Error", err)
+		return nil, err
+	}
+	store, err := p.AsOnlineStore()
+	if err != nil {
+		serv.Logger.Errorw("failed to use provider as online store for feature", "Error", err)
+		return nil, err
+	}
+	table, err := store.GetTable(name, variant)
+	if err != nil {
+		serv.Logger.Errorw("feature not found", "Error", err)
+		return nil, err
+	}
+	vectorTable, ok := table.(provider.VectorStoreTable)
+	if !ok {
+		serv.Logger.Errorw("failed to use table as vector store table", "Error", err)
+	}
+	searchVector := req.GetVector()
+	k := req.GetK()
+	if searchVector == nil {
+		return nil, fmt.Errorf("no embedding provided")
+	}
+	_, err = vectorTable.Nearest(name, variant, searchVector.Value, k) // handle results
+	if err != nil {
+		serv.Logger.Errorw("nearest search failed", "Error", err)
+		return nil, err
+	}
+	return nil, nil
 }

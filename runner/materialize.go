@@ -33,14 +33,14 @@ const (
 )
 
 type MaterializeRunner struct {
-	Online      provider.OnlineStore
-	Offline     provider.OfflineStore
-	ID          provider.ResourceID
-	VType       provider.ValueType
-	IsUpdate    bool
-	Cloud       JobCloud
-	Logger      *zap.SugaredLogger
-	IsEmbedding bool
+	Online   provider.OnlineStore
+	Offline  provider.OfflineStore
+	ID       provider.ResourceID
+	VType    provider.ValueType
+	IsUpdate bool
+	Cloud    JobCloud
+	Logger   *zap.SugaredLogger
+	Entity   string
 }
 
 func (m MaterializeRunner) Resource() metadata.ResourceID {
@@ -111,17 +111,16 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	// inference store. This is currently only required for RediSearch, but other
 	// vector databases allow for manual index configuration even if they support
 	// autogeneration of indexes.
-	if m.IsEmbedding {
+	if vectorType, ok := m.VType.(provider.VectorType); ok && vectorType.IsEmbedding {
 		m.Logger.Infow("Creating Index", "name", m.ID.Name, "variant", m.ID.Variant)
 		vectorStore, ok := m.Online.(provider.VectorStore)
 		if !ok {
 			return nil, fmt.Errorf("cannot create index on non-vector store: %v", m.Online)
 		}
-		vectorType, ok := m.VType.(provider.VectorType)
 		if !ok {
 			return nil, fmt.Errorf("cannot create index on non-vector type: %v", m.VType)
 		}
-		_, err := vectorStore.CreateIndex(m.ID.Name, m.ID.Variant, vectorType)
+		_, err := vectorStore.CreateIndex(m.ID.Name, m.ID.Variant, m.Entity, vectorType)
 		if err != nil {
 			return nil, fmt.Errorf("create index error: %w", err)
 		}
@@ -251,7 +250,7 @@ type MaterializedRunnerConfig struct {
 	VType         ValueTypeJSON
 	Cloud         JobCloud
 	IsUpdate      bool
-	IsEmbedding   bool
+	Entity        string
 }
 
 func (m *MaterializedRunnerConfig) Serialize() (Config, error) {
@@ -292,13 +291,13 @@ func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
 	}
 	return &MaterializeRunner{
-		Online:      onlineStore,
-		Offline:     offlineStore,
-		ID:          runnerConfig.ResourceID,
-		VType:       runnerConfig.VType.ValueType,
-		IsUpdate:    runnerConfig.IsUpdate,
-		Cloud:       runnerConfig.Cloud,
-		Logger:      logging.NewLogger("materializer"),
-		IsEmbedding: runnerConfig.IsEmbedding,
+		Online:   onlineStore,
+		Offline:  offlineStore,
+		ID:       runnerConfig.ResourceID,
+		VType:    runnerConfig.VType.ValueType,
+		IsUpdate: runnerConfig.IsUpdate,
+		Cloud:    runnerConfig.Cloud,
+		Logger:   logging.NewLogger("materializer"),
+		Entity:   runnerConfig.Entity,
 	}, nil
 }

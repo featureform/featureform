@@ -121,12 +121,13 @@ func TestMaterializeRunnerConfigUnmarshalVectorType(t *testing.T) {
 		"VType": {
 			"ValueType": {
 				"ScalarType": "float32",
-				"Dimension": 384
+				"Dimension": 384,
+				"IsEmbedding": true
 			}
 		},
 		"Cloud": "LOCAL",
 		"IsUpdate": false,
-		"IsEmbedding": true
+		"Entity": "character"
 	}`)
 	runnerConfig := &MaterializedRunnerConfig{}
 	if err := runnerConfig.Deserialize(config); err != nil {
@@ -197,12 +198,15 @@ func TestMaterializeRunnerVectorStoreTypeAssertion(t *testing.T) {
 			"Type": 2
 		},
 		"VType": {
-			"ScalarType": "float32",
-			"Dimension": 384
+			"ValueType": {
+				"ScalarType": "float32",
+				"Dimension": 384,
+				"IsEmbedding": true
+			}
 		},
 		"Cloud": "LOCAL",
 		"IsUpdate": false,
-		"IsEmbedding": true
+		"Entity": "character"
 	}`)
 
 	runner, err := MaterializeRunnerFactory(config)
@@ -214,8 +218,7 @@ func TestMaterializeRunnerVectorStoreTypeAssertion(t *testing.T) {
 		t.Fatalf("expected materialize runner, got %v", runner)
 	}
 
-	if materializeRunner.IsEmbedding {
-		vectorType, ok := materializeRunner.VType.(provider.VectorType)
+	if vectorType, ok := materializeRunner.VType.(provider.VectorType); ok {
 		fmt.Println(vectorType)
 		if !ok {
 			t.Fatalf("expected vector type, got %v", materializeRunner.VType)
@@ -238,11 +241,15 @@ func TestOnlineStoreCastToVectorStore(t *testing.T) {
 	}
 
 	runner := &MaterializeRunner{
-		Online:      redisOnlineStore,
-		IsEmbedding: true,
+		Online: redisOnlineStore,
+		VType: provider.VectorType{
+			ScalarType:  provider.ScalarType("float32"),
+			Dimension:   384,
+			IsEmbedding: true,
+		},
 	}
 
-	if runner.IsEmbedding {
+	if _, ok := runner.VType.(provider.VectorType); ok {
 		vectorStore, ok := runner.Online.(provider.VectorStore)
 		if !ok {
 			t.Fatalf("expected vector store, got %v", runner.Online)

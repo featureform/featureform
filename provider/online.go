@@ -9,7 +9,6 @@ import (
 
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
-	"github.com/redis/rueidis"
 )
 
 var cassandraTypeMap = map[string]string{
@@ -35,7 +34,7 @@ type OnlineStoreTable interface {
 }
 
 type VectorStore interface {
-	CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error)
+	CreateIndex(feature, variant, entity string, vectorType VectorType) (VectorStoreTable, error)
 	GetIndex(feature, variant string) (string, error) // TODO: determine the type of index
 	DeleteIndex(feature, variant string) error
 	Close() error // Is this necessary?
@@ -44,7 +43,7 @@ type VectorStore interface {
 
 type VectorStoreTable interface {
 	OnlineStoreTable
-	Nearest(vector []float32, k int) ([]string, error) // TODO: determine if the return type should be NameVariants
+	Nearest(feature, variant, entity string, vector []float32, k uint32) ([]string, error) // TODO: determine if the return type should be NameVariants
 }
 
 type TableNotFound struct {
@@ -133,12 +132,6 @@ func (store *localOnlineStore) Close() error {
 }
 
 type localOnlineTable map[string]interface{}
-
-type redisOnlineTable struct {
-	client    *rueidis.Client
-	key       redisTableKey
-	valueType ValueType
-}
 
 func (table localOnlineTable) Set(entity string, value interface{}) error {
 	table[entity] = value

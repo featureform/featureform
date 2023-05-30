@@ -164,7 +164,7 @@ def version(local):
         else:
             cluster_version = "No host is set."
     except:
-        cluster_version = "Cannot retrieve: Check your FEATUREFORM_HOST value. If using local mode, only use the --local flag."
+        cluster_version = "Cannot retrieve: Check your FEATUREFORM_HOST value. If using local mode, use the --local flag."
 
     print(
         """

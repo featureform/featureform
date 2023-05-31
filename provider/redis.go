@@ -318,11 +318,11 @@ func (table redisOnlineIndex) Get(entity string) (interface{}, error) {
 
 func (table redisOnlineIndex) Nearest(feature, variant, entity string, vector []float32, k uint32) ([]string, error) {
 	cmd := table.createNearestCmd(vector, k)
-	total, docs, err := table.client.Do(context.Background(), cmd).AsFtSearch()
+	_, docs, err := table.client.Do(context.Background(), cmd).AsFtSearch()
 	if err != nil {
 		return nil, err
 	}
-	entities := make([]string, 0, total)
+	entities := make([]string, 0, len(docs))
 	for idx, doc := range docs {
 		entities[idx] = doc.Doc["entity_id"]
 	}

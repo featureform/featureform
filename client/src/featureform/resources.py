@@ -1075,7 +1075,7 @@ class Feature:
     source: NameVariant
     value_type: str
     is_embedding: bool
-    dim: int
+    dims: int
     entity: str
     owner: str
     provider: str
@@ -1123,7 +1123,7 @@ class Feature:
             source=(feature.source.name, feature.source.variant),
             value_type=feature.type,
             is_embedding=feature.is_embedding,
-            dim=feature.dimension,
+            dims=feature.dimension,
             entity=feature.entity,
             owner=feature.owner,
             provider=feature.provider,
@@ -1145,7 +1145,7 @@ class Feature:
             ),
             type=self.value_type,
             is_embedding=self.is_embedding,
-            dimension=self.dim,
+            dimension=self.dims,
             entity=self.entity,
             owner=self.owner,
             description=self.description,

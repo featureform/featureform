@@ -219,6 +219,13 @@ class HostedClientImpl:
         resp = self._stub.SourceColumns(req)
         return resp.columns
 
+    def _nearest(self, name, variant, vector, k):
+        id = serving_pb2.FeatureID(name=name, version=variant)
+        vec = serving_pb2.Vector32(value=vector)
+        req = serving_pb2.NearestRequest(id=id, vector=vec, k=k)
+        resp = self._stub.Nearest(req)
+        return resp.entities
+
 
 class LocalClientImpl:
     def __init__(self):
@@ -690,6 +697,9 @@ class LocalClientImpl:
             return df[:limit]
         else:
             return df
+
+    def _nearest(self, name, variant, vector, k):
+        raise NotImplementedError
 
 
 class Stream:

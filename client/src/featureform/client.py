@@ -76,3 +76,6 @@ class Client(ResourceClient, ServingClient):
                 f"source must be of type SourceRegistrar, LocalSource, SubscriptableTransformation or str, not {type(source)}"
             )
         return self.impl._get_source_as_df(name, variant, limit)
+
+    def nearest(self, name, variant, vector, k):
+        return self.impl._nearest(name, variant, vector, k)

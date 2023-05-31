@@ -112,5 +112,5 @@ message NearestRequest {
 }
 
 message NearestResponse {
-  repeated Entity entities = 1;
+  repeated string entities = 1;
 }

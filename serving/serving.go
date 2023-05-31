@@ -309,12 +309,33 @@ func (serv *FeatureServer) Nearest(ctx context.Context, req *pb.NearestRequest) 
 	id := req.GetId()
 	name, variant := id.GetName(), id.GetVersion()
 	serv.Logger.Infow("Searching nearest", "Name", name, "Variant", variant)
-	meta, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{name, variant})
+	fv, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 	if err != nil {
 		serv.Logger.Errorw("metadata lookup failed", "Err", err)
 		return nil, err
 	}
-	providerEntry, err := meta.FetchProvider(serv.Metadata, ctx)
+	vectorTable, err := serv.getVectorTable(ctx, fv)
+	if err != nil {
+		serv.Logger.Errorw("failed to get vector table", "Error", err)
+		return nil, err
+	}
+	searchVector := req.GetVector()
+	k := req.GetK()
+	if searchVector == nil {
+		return nil, fmt.Errorf("no embedding provided")
+	}
+	entities, err := vectorTable.Nearest(name, variant, fv.Entity(), searchVector.Value, k) // handle results
+	if err != nil {
+		serv.Logger.Errorw("nearest search failed", "Error", err)
+		return nil, err
+	}
+	return &pb.NearestResponse{
+		Entities: entities,
+	}, nil
+}
+
+func (serv *FeatureServer) getVectorTable(ctx context.Context, fv *metadata.FeatureVariant) (provider.VectorStoreTable, error) {
+	providerEntry, err := fv.FetchProvider(serv.Metadata, ctx)
 	if err != nil {
 		serv.Logger.Errorw("fetching provider metadata failed", "Error", err)
 		return nil, err
@@ -329,7 +350,7 @@ func (serv *FeatureServer) Nearest(ctx context.Context, req *pb.NearestRequest) 
 		serv.Logger.Errorw("failed to use provider as online store for feature", "Error", err)
 		return nil, err
 	}
-	table, err := store.GetTable(name, variant)
+	table, err := store.GetTable(fv.Name(), fv.Variant())
 	if err != nil {
 		serv.Logger.Errorw("feature not found", "Error", err)
 		return nil, err
@@ -338,15 +359,5 @@ func (serv *FeatureServer) Nearest(ctx context.Context, req *pb.NearestRequest) 
 	if !ok {
 		serv.Logger.Errorw("failed to use table as vector store table", "Error", err)
 	}
-	searchVector := req.GetVector()
-	k := req.GetK()
-	if searchVector == nil {
-		return nil, fmt.Errorf("no embedding provided")
-	}
-	_, err = vectorTable.Nearest(name, variant, meta.Entity(), searchVector.Value, k) // handle results
-	if err != nil {
-		serv.Logger.Errorw("nearest search failed", "Error", err)
-		return nil, err
-	}
-	return nil, nil
+	return vectorTable, nil
 }

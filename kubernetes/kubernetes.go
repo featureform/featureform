@@ -49,7 +49,7 @@ func CreateJobName(jobPrefix string, id metadata.ResourceID) string {
 	removedColons := strings.ReplaceAll(removedSlashes, ":", "")
 	lowerCased := strings.ToLower(removedColons)
 
-	// truncate job name to 55 characters
+	// truncate job name to 53 characters
 	jobNameSize := int(math.Min(float64(len(lowerCased)), float64(MaxJobNameLength)))
 	jobName := lowerCased[0:jobNameSize]
 	return jobName

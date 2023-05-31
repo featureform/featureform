@@ -317,16 +317,15 @@ func (table redisOnlineIndex) Get(entity string) (interface{}, error) {
 }
 
 func (table redisOnlineIndex) Nearest(feature, variant, entity string, vector []float32, k uint32) ([]string, error) {
-	fmt.Println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++", feature, variant, vector, k)
 	cmd := table.createNearestCmd(table.key, vector, k)
-	fmt.Println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++", cmd.Commands())
 	total, docs, err := table.client.Do(context.Background(), cmd).AsFtSearch()
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("********************************************************* total", total)
-	fmt.Println("********************************************************* docs", docs)
-	return nil, nil
+	entities := make([]string, 0, total)
+	for idx, doc := range docs {
+		entities[idx] = doc["entity_id"]
+	return entities, nil
 }
 
 func (table redisOnlineIndex) createNearestCmd(key redisTableKey, vector []float32, k uint32) rueidis.Completed {

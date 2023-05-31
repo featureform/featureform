@@ -322,7 +322,7 @@ func (table redisOnlineIndex) Nearest(feature, variant, entity string, vector []
 	if err != nil {
 		return nil, err
 	}
-	entities := make([]string, 0, len(docs))
+	entities := make([]string, len(docs))
 	for idx, doc := range docs {
 		entities[idx] = doc.Doc["entity_id"]
 	}
@@ -334,6 +334,8 @@ func (table redisOnlineIndex) createNearestCmd(vector []float32, k uint32) rueid
 		FtSearch().
 		Index(table.key.String()).
 		Query("*=>[KNN $K @vector_field $BLOB]").
+		Return("1").
+		Identifier("entity_id").
 		Sortby("__vector_field_score").
 		Params().
 		Nargs(4).

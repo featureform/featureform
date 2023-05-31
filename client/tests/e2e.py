@@ -72,7 +72,6 @@ sources = [
                 "schedule": "",
                 "variant": "quickstart",
                 "labels": None,
-                "lastUpdated": "",
                 "features": None,
                 "training-sets": None,
                 "status": "READY",
@@ -100,7 +99,6 @@ sources = [
                 "schedule": "",
                 "variant": "kaggle",
                 "labels": None,
-                "lastUpdated": "",
                 "features": None,
                 "training-sets": None,
                 "status": "READY",
@@ -272,6 +270,7 @@ def remove_timestamps(json_value):
     for res in json_value:
         for v in res["variants"]:
             del res["variants"][v]["created"]
+            del res["variants"][v]["lastUpdated"]
     return json_value
 
 

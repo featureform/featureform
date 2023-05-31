@@ -1984,6 +1984,14 @@ def check_objs(path, test_obj, client):
         assert actual == expected
 
 
+def test_version(client):
+    response = client.get("data/version")
+    assert response.status == "200 OK"
+    assert response.data is not None
+    json_obj = json.loads(response.data)
+    assert json_obj["version"] is not None
+
+
 def test_features(client):
     check_objs("/data/features", features, client)
 

@@ -31,15 +31,15 @@ def fetch_cluster_version(version_url=""):
 
 def get_version_local():
     local_port = os.getenv("LOCALMODE_DASHBOARD_PORT", 3000)
-    version_url = "localhost:{}/data/version".format(local_port)
-    return fetch_cluster_version(insecure_protocol + version_url)
+    version_url = f"localhost:{local_port}/data/version"
+    return fetch_cluster_version(f"{insecure_protocol}{version_url}")
 
 
 def get_version_hosted(host):
     cluster_version = ""
-    versionUrl = "{}/data/version".format(host)
+    version_url = f"{host}/data/version"
     if host.__contains__(":443"):
-        cluster_version = fetch_cluster_version(secure_protocol + versionUrl)
+        cluster_version = fetch_cluster_version(f"{secure_protocol}{version_url}")
     else:
-        cluster_version = fetch_cluster_version(insecure_protocol + versionUrl)
+        cluster_version = fetch_cluster_version(f"{insecure_protocol}{version_url}")
     return cluster_version

@@ -3091,7 +3091,7 @@ class Registrar:
                 source=source,
                 value_type=feature["type"],
                 is_embedding=feature.get("is_embedding", False),
-                dim=feature.get("dim", 0),
+                dims=feature.get("dims", 0),
                 entity=entity,
                 owner=owner,
                 provider=inference_store,
@@ -4516,7 +4516,7 @@ class ColumnResource:
         self,
         transformation_args: tuple,
         type: Union[ScalarType, str],
-        dim: int,
+        dims: int,
         is_embedding: bool,
         resource_type: str,
         entity: Union[Entity, str],
@@ -4531,7 +4531,7 @@ class ColumnResource:
     ):
         registrar, source_name_variant, columns = transformation_args
         self.type = type if isinstance(type, str) else type.value
-        self.dim = dim
+        self.dims = dims
         self.is_embedding = is_embedding
         self.registrar = registrar
         self.source = source_name_variant
@@ -4580,7 +4580,7 @@ class ColumnResource:
         }
 
         if self.resource_type == "feature":
-            resource["dim"] = self.dim
+            resource["dims"] = self.dims
             resource["is_embedding"] = self.is_embedding
             features = [resource]
             labels = []
@@ -4629,8 +4629,8 @@ class FeatureColumnResource(ColumnResource):
         super().__init__(
             transformation_args=transformation_args,
             type=type,
-            dim=0,  # TODO: determine whether to expose this
-            is_embedding=False,  # TODO: determine whether to expose this
+            dims=0,
+            is_embedding=False,
             resource_type="feature",
             entity=entity,
             variant=variant,
@@ -4662,8 +4662,8 @@ class LabelColumnResource(ColumnResource):
         super().__init__(
             transformation_args=transformation_args,
             type=type,
-            dim=0,  # TODO: determine whether to expose this
-            is_embedding=False,  # TODO: determine whether to expose this
+            dims=0,
+            is_embedding=False,
             resource_type="label",
             entity=entity,
             variant=variant,
@@ -4677,22 +4677,15 @@ class LabelColumnResource(ColumnResource):
         )
 
 
-class VectorType:
-    def __init__(self, scalar: ScalarType, dim: int, is_embedding: bool):
-        self.scalar = scalar
-        self.dim = dim
-        self.is_embedding = is_embedding
-
-
-class VectorColumnResource(ColumnResource):
+class EmbeddingColumnResource(ColumnResource):
     def __init__(
         self,
         transformation_args: tuple,
-        type: VectorType,
+        dims: int,
+        vector_db: Union[str, OnlineProvider, FileStoreProvider],
         entity: Union[Entity, str] = "",
         variant="default",
         owner: str = "",
-        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
         timestamp_column: str = "",
         description: str = "",
         schedule: str = "",
@@ -4701,14 +4694,14 @@ class VectorColumnResource(ColumnResource):
     ):
         super().__init__(
             transformation_args=transformation_args,
-            type=type.scalar,
-            dim=type.dim,
-            is_embedding=type.is_embedding,
+            type=ScalarType.FLOAT32,
+            dims=dims,
+            is_embedding=True,
             resource_type="feature",
             entity=entity,
             variant=variant,
             owner=owner,
-            inference_store=inference_store,
+            inference_store=vector_db,
             timestamp_column=timestamp_column,
             description=description,
             schedule=schedule,

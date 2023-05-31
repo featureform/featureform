@@ -150,6 +150,13 @@ func newJobSpec(config KubernetesRunnerConfig, rsrcReqs v1.ResourceRequirements)
 		completionMode = batchv1.NonIndexedCompletion
 	}
 
+	var pullPolicy v1.PullPolicy
+	if helpers.IsDebugEnv() {
+		pullPolicy = v1.PullAlways
+	} else {
+		pullPolicy = v1.PullIfNotPresent
+	}
+
 	backoffLimit := int32(0)
 	ttlLimit := int32(3600)
 	return batchv1.JobSpec{
@@ -165,7 +172,7 @@ func newJobSpec(config KubernetesRunnerConfig, rsrcReqs v1.ResourceRequirements)
 						Name:            containerID,
 						Image:           config.Image,
 						Env:             envVars,
-						ImagePullPolicy: v1.PullIfNotPresent,
+						ImagePullPolicy: pullPolicy,
 						Resources:       rsrcReqs,
 					},
 				},

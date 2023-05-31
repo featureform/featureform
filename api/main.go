@@ -709,7 +709,12 @@ func (serv *OnlineServer) SourceColumns(ctx context.Context, req *srv.SourceColu
 
 func (serv *OnlineServer) Nearest(ctx context.Context, req *srv.NearestRequest) (*srv.NearestResponse, error) {
 	serv.Logger.Infow("Serving Nearest", "id", req.Id.String())
-	return serv.client.Nearest(ctx, req)
+	resp, err := serv.client.Nearest(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("nearest: %w", err)
+	}
+	fmt.Println("-----?????", resp)
+	return resp, nil
 }
 
 func (serv *ApiServer) Serve() error {

@@ -13,6 +13,8 @@ import (
 	"github.com/redis/rueidis"
 )
 
+const vectorField = "vector_field"
+
 type redisTableKey struct {
 	Prefix, Feature, Variant string
 }
@@ -72,19 +74,36 @@ func (store *redisOnlineStore) Close() error {
 func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
 	key := redisTableKey{store.prefix, feature, variant}
 	cmd := store.client.B().
-		Hget().
+		Hgetall().
 		Key(fmt.Sprintf("%s__tables", store.prefix)).
-		Field(key.String()).
 		Build()
-	vType, err := store.client.Do(context.TODO(), cmd).ToString()
+	fieldMap, err := store.client.Do(context.TODO(), cmd).AsStrMap()
 	if err != nil {
 		return nil, &TableNotFound{feature, variant}
 	}
-	table := &redisOnlineTable{client: store.client, key: key, valueType: ScalarType(vType)}
+	vType, ok := fieldMap[key.String()]
+	if !ok {
+		return nil, &TableNotFound{feature, variant}
+	}
+	var table OnlineStoreTable
+	if hasEmbeddingIdx, ok := fieldMap["has_embedding_idx"]; ok && hasEmbeddingIdx == "true" {
+		dimension, err := strconv.Atoi(fieldMap["dimension"])
+		if err != nil {
+			return nil, err
+		}
+		table = &redisOnlineIndex{
+			client:    store.client,
+			key:       key,
+			valueType: VectorType{ScalarType: ScalarType(vType), Dimension: uint32(dimension), IsEmbedding: true},
+		}
+	} else {
+		table = &redisOnlineTable{client: store.client, key: key, valueType: ScalarType(vType)}
+	}
 	return table, nil
 }
 
 func (store *redisOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+	// Use vector type to determine if this is a vector field index
 	key := redisTableKey{store.prefix, feature, variant}
 	cmd := store.client.B().
 		Hexists().
@@ -98,13 +117,16 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 	if exists {
 		return nil, &TableAlreadyExists{feature, variant}
 	}
-	cmd = store.client.B().
+	hsetCmd := store.client.B().
 		Hset().
 		Key(fmt.Sprintf("%s__tables", store.prefix)).
 		FieldValue().
-		FieldValue(key.String(), string(valueType.Scalar())).
-		Build()
-	if resp := store.client.Do(context.TODO(), cmd); resp.Error() != nil {
+		FieldValue(key.String(), string(valueType.Scalar()))
+
+	if vectorType, isVector := valueType.(VectorType); isVector && vectorType.IsEmbedding {
+		hsetCmd.FieldValue("has_embedding_idx", "true").FieldValue("dimension", strconv.FormatUint(uint64(vectorType.Dimension), 10))
+	}
+	if resp := store.client.Do(context.TODO(), hsetCmd.Build()); resp.Error() != nil {
 		return nil, resp.Error()
 	}
 	table := &redisOnlineTable{client: store.client, key: key, valueType: valueType}
@@ -117,28 +139,27 @@ func (store *redisOnlineStore) DeleteTable(feature, variant string) error {
 
 func (store *redisOnlineStore) CreateIndex(feature, variant, entity string, vectorType VectorType) (VectorStoreTable, error) {
 	key := redisTableKey{store.prefix, feature, variant}
-	cmd := store.createIndexCmd(key, feature, variant, entity, vectorType)
+	cmd := store.createIndexCmd(key, entity, vectorType)
 	resp := store.client.Do(context.Background(), cmd)
 	if resp.Error() != nil {
-		return &redisOnlineTable{}, resp.Error()
+		return &redisOnlineIndex{}, resp.Error()
 	}
-	table := &redisOnlineTable{client: store.client, key: key, valueType: vectorType}
+	table := &redisOnlineIndex{client: store.client, key: key, valueType: vectorType}
 	return table, nil
 }
 
 // TODO: write unit tests for command creation
-func (store *redisOnlineStore) createIndexCmd(key redisTableKey, feature, variant, entity string, vectorType VectorType) rueidis.Completed {
+func (store *redisOnlineStore) createIndexCmd(key redisTableKey, entity string, vectorType VectorType) rueidis.Completed {
 	requiredParams := []string{
 		"TYPE", "FLOAT32",
-		"DIM", strconv.Itoa(vectorType.Dimension),
+		"DIM", strconv.FormatUint(uint64(vectorType.Dimension), 10),
 		"DISTANCE_METRIC", "COSINE",
 	}
 	return store.client.B().
 		FtCreate().
-		// TODO: determine if we want to use a different naming convention for the index
-		Index(fmt.Sprintf("%s_idx", key.String())). // feature name-variant + _idx identifies the index
+		Index(key.String()).
 		Schema().
-		FieldName(entity). // entity identifies the vector field
+		FieldName(vectorField).
 		Vector("HNSW", int64(len(requiredParams)), requiredParams...).
 		Build()
 }
@@ -149,6 +170,12 @@ func (store *redisOnlineStore) GetIndex(feature, variant string) (string, error)
 
 func (store *redisOnlineStore) DeleteIndex(feature, variant string) error {
 	return nil
+}
+
+type redisOnlineTable struct {
+	client    rueidis.Client
+	key       redisTableKey
+	valueType ValueType
 }
 
 func (table redisOnlineTable) Set(entity string, value interface{}) error {
@@ -247,9 +274,51 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 	return result, nil
 }
 
-func (table redisOnlineTable) Nearest(feature, variant, entity string, vector []float32, k uint32) ([]string, error) {
+type redisOnlineIndex struct {
+	client    rueidis.Client
+	key       redisTableKey
+	valueType ValueType
+}
+
+func (table redisOnlineIndex) Set(entity string, value interface{}) error {
+	vector, ok := value.([]float32)
+	if !ok {
+		return fmt.Errorf("value %v is not a vector", value)
+	}
+	cmd := table.client.B().
+		Hset().
+		Key(table.key.String()).
+		FieldValue().
+		FieldValue("entity_id", entity).
+		FieldValue(vectorField, rueidis.VectorString32(vector)).
+		Build()
+	res := table.client.Do(context.TODO(), cmd)
+	if res.Error() != nil {
+		return res.Error()
+	}
+	return nil
+}
+
+func (table redisOnlineIndex) Get(entity string) (interface{}, error) {
+	cmd := table.client.B().
+		Hget().
+		Key(table.key.String()).
+		Field(vectorField).
+		Build()
+	resp := table.client.Do(context.TODO(), cmd)
+	if resp.Error() != nil {
+		return nil, &EntityNotFound{entity}
+	}
+	val, err := resp.ToString()
+	if err != nil {
+		return nil, err
+	}
+	return rueidis.ToVector32(val), nil
+}
+
+func (table redisOnlineIndex) Nearest(feature, variant, entity string, vector []float32, k uint32) ([]string, error) {
 	fmt.Println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++", feature, variant, vector, k)
-	cmd := table.createNearestCmd(table.key, feature, variant, entity, vector, k)
+	cmd := table.createNearestCmd(table.key, vector, k)
 	fmt.Println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++", cmd.Commands())
 	total, docs, err := table.client.Do(context.Background(), cmd).AsFtSearch()
 	if err != nil {
@@ -260,12 +329,12 @@ func (table redisOnlineTable) Nearest(feature, variant, entity string, vector []
 	return nil, nil
 }
 
-func (table redisOnlineTable) createNearestCmd(key redisTableKey, feature, variant, entity string, vector []float32, k uint32) rueidis.Completed {
+func (table redisOnlineIndex) createNearestCmd(key redisTableKey, vector []float32, k uint32) rueidis.Completed {
 	return table.client.B().
 		FtSearch().
-		Index(fmt.Sprintf("%s_idx", key.String())).
-		Query(fmt.Sprintf("*=>[KNN $K @%s $BLOB]", entity)).
-		Sortby(fmt.Sprintf("__%s_score", entity)).
+		Index(key.String()).
+		Query("*=>[KNN $K @vector_field $BLOB]").
+		Sortby("__vector_field_score").
 		Params().
 		Nargs(4).
 		NameValue().

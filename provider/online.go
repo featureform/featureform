@@ -9,7 +9,6 @@ import (
 
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
-	"github.com/redis/rueidis"
 )
 
 var cassandraTypeMap = map[string]string{
@@ -133,12 +132,6 @@ func (store *localOnlineStore) Close() error {
 }
 
 type localOnlineTable map[string]interface{}
-
-type redisOnlineTable struct {
-	client    rueidis.Client
-	key       redisTableKey
-	valueType ValueType
-}
 
 func (table localOnlineTable) Set(entity string, value interface{}) error {
 	table[entity] = value

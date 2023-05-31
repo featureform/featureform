@@ -153,7 +153,7 @@ app.register_blueprint(dashboard_app)
 @cli.command()
 @click.option("--local", is_flag=True, help="Required for local mode only")
 def version(local):
-    client_cersion = get_package_version()
+    client_version = get_package_version()
     cluster_version = ""
     host = os.getenv("FEATUREFORM_HOST", "")
     try:
@@ -167,12 +167,10 @@ def version(local):
         cluster_version = "Cannot retrieve: Check your FEATUREFORM_HOST value. If using local mode, use the --local flag."
 
     print(
-        """
-    Client Version: {}
-    Cluster Version: {}
-    """.format(
-            client_cersion, cluster_version
-        )
+        f"""
+    Client Version: {client_version}
+    Cluster Version: {cluster_version}
+    """
     )
 
 

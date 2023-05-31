@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"github.com/featureform/helpers"
 	"io"
-	"io/ioutil"
 	"math"
+	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/featureform/metadata"
 	"github.com/featureform/types"
@@ -30,25 +32,27 @@ import (
 
 type CronSchedule string
 
-const MaxNameLength = 53
+const MaxJobNameLength = 53
 
-func GetJobName(id metadata.ResourceID, image string) string {
-	resourceName := fmt.Sprintf("%s-%s-%s", id.Type, id.Name, id.Variant)
-	if len(resourceName) > MaxNameLength {
-		resourceName = resourceName[:MaxNameLength]
+func CreateJobName(jobPrefix string, id metadata.ResourceID) string {
+	timestamp := time.Now().UnixNano() / int64(time.Millisecond) // get current time in milliseconds
+	timestampBase36 := strconv.FormatInt(timestamp, 36)          // convert timestamp to base36
+	jobNameBase := fmt.Sprintf("%s-%s-%s-%s", id.Type, id.Name, id.Variant, timestampBase36)
+
+	if jobPrefix != "" {
+		jobNameBase = fmt.Sprintf("%s-%s", jobPrefix, jobNameBase)
 	}
-	jobName := strings.ReplaceAll(resourceName, "_", ".")
-	removedSlashes := strings.ReplaceAll(jobName, "/", "")
-	removedColons := strings.ReplaceAll(removedSlashes, ":", "")
-	MaxJobSize := 63
-	lowerCase := strings.ToLower(removedColons)
-	jobNameSize := int(math.Min(float64(len(lowerCase)), float64(MaxJobSize)))
-	lowerName := lowerCase[0:jobNameSize]
-	return lowerName
-}
 
-func GetCronJobName(id metadata.ResourceID) string {
-	return strings.ReplaceAll(fmt.Sprintf("featureform-%s-%s-%s-%d", strings.ToLower(string(id.Type)), strings.ToLower(id.Name), strings.ToLower(id.Variant), id.Type), "_", ".")
+	// clean up job name for k8s
+	removedUnderscores := strings.ReplaceAll(jobNameBase, "_", ".")
+	removedSlashes := strings.ReplaceAll(removedUnderscores, "/", "")
+	removedColons := strings.ReplaceAll(removedSlashes, ":", "")
+	lowerCased := strings.ToLower(removedColons)
+
+	// truncate job name to 53 characters
+	jobNameSize := int(math.Min(float64(len(lowerCased)), float64(MaxJobNameLength)))
+	jobName := lowerCased[0:jobNameSize]
+	return jobName
 }
 
 func makeCronSchedule(schedule string) (*CronSchedule, error) {
@@ -177,14 +181,16 @@ func newJobSpec(config KubernetesRunnerConfig, rsrcReqs v1.ResourceRequirements)
 }
 
 type KubernetesRunnerConfig struct {
-	EnvVars  map[string]string
-	Resource metadata.ResourceID
-	Image    string
-	NumTasks int32
-	Specs    metadata.KubernetesResourceSpecs
+	EnvVars   map[string]string
+	JobPrefix string
+	Resource  metadata.ResourceID
+	Image     string
+	NumTasks  int32
+	Specs     metadata.KubernetesResourceSpecs
 }
 
 type JobClient interface {
+	GetJobName() string
 	Get() (*batchv1.Job, error)
 	GetCronJob() (*batchv1.CronJob, error)
 	UpdateCronJob(cronJob *batchv1.CronJob) (*batchv1.CronJob, error)
@@ -267,6 +273,7 @@ func getPodLogs(namespace string, name string) string {
 func (k KubernetesCompletionWatcher) Wait() error {
 	watcher, err := k.jobClient.Watch()
 	if err != nil {
+		fmt.Println("error fetching watcher for job: ", k.jobClient.GetJobName())
 		return err
 	}
 	watchChannel := watcher.ResultChan()
@@ -321,7 +328,7 @@ func (k KubernetesRunner) ScheduleJob(schedule CronSchedule) error {
 }
 
 func GetCurrentNamespace() (string, error) {
-	contents, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	contents, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
 		return "", err
 	}
@@ -342,7 +349,7 @@ func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config, rsrcReqs)
 	var jobName string
 	if config.Resource.Name != "" {
-		jobName = GetJobName(config.Resource, config.Image)
+		jobName = CreateJobName(config.JobPrefix, config.Resource)
 	} else {
 		jobName = generateCleanRandomJobName()
 	}
@@ -366,12 +373,20 @@ type KubernetesJobClient struct {
 	Namespace string
 }
 
+func (k KubernetesJobClient) GetJobName() string {
+	return k.JobName
+}
+
+func (k KubernetesJobClient) getCronJobName() string {
+	return fmt.Sprintf("cron-%s", k.JobName)
+}
+
 func (k KubernetesJobClient) Get() (*batchv1.Job, error) {
 	return k.Clientset.BatchV1().Jobs(k.Namespace).Get(context.TODO(), k.JobName, metav1.GetOptions{})
 }
 
 func (k KubernetesJobClient) GetCronJob() (*batchv1.CronJob, error) {
-	return k.Clientset.BatchV1().CronJobs(k.Namespace).Get(context.TODO(), k.JobName, metav1.GetOptions{})
+	return k.Clientset.BatchV1().CronJobs(k.Namespace).Get(context.TODO(), k.getCronJobName(), metav1.GetOptions{})
 }
 
 func (k KubernetesJobClient) UpdateCronJob(cronJob *batchv1.CronJob) (*batchv1.CronJob, error) {
@@ -383,6 +398,7 @@ func (k KubernetesJobClient) Watch() (watch.Interface, error) {
 }
 
 func (k KubernetesJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error) {
+	fmt.Println("Creating kubernetes job with name: ", k.JobName)
 	job := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: k.JobName, Namespace: k.Namespace}, Spec: *jobSpec}
 	return k.Clientset.BatchV1().Jobs(k.Namespace).Create(context.TODO(), job, metav1.CreateOptions{})
 }
@@ -394,7 +410,7 @@ func (k KubernetesJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batc
 
 	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      k.JobName,
+			Name:      k.getCronJobName(),
 			Namespace: k.Namespace},
 		Spec: batchv1.CronJobSpec{
 			Schedule: string(schedule),

@@ -332,8 +332,8 @@ func (kube *KubernetesExecutor) ExecuteScript(envVars map[string]string, args *m
 		resourceType = 0
 	}
 	config := kubernetes.KubernetesRunnerConfig{
-		EnvVars:   envVars,
 		JobPrefix: "kcf",
+		EnvVars:   envVars,
 		Image:     kube.image,
 		NumTasks:  1,
 		Resource: metadata.ResourceID{

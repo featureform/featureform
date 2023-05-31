@@ -32,11 +32,13 @@ COPY ./coordinator/main/main.go ./coordinator/main/main.go
 # Building Go app
 # CGD_ENABLED=0 is used to avoid the libc differences in alpine and ubuntu
 ENV CGO_ENABLED=0
-RUN go build ./coordinator/main/main.go
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+RUN go build -gcflags="all=-N -l" ./coordinator/main/main.go
 
 FROM ubuntu:22.04
 
 COPY --from=builder ./app/main /app/main
+COPY --from=builder /go/bin/dlv /go/bin/dlv
 COPY ./provider/scripts/spark/ /app/provider/scripts/spark/
 
 # Installing pyenv
@@ -67,7 +69,7 @@ RUN curl https://pyenv.run | bash
 
 ## Install Python versions
 ARG TESTING
-RUN if [ "$TESTING" = "True" ]; then \
+RUN if [ "True" = "True" ]; then \
     pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
   else \
     pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
@@ -83,5 +85,5 @@ ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
 ## Download Shaded Jar
 RUN wget https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop2-2.2.11/gcs-connector-hadoop2-2.2.11-shaded.jar -P /app/provider/scripts/spark/jars/
 
-EXPOSE 8080
-ENTRYPOINT ["/app/main"]
+EXPOSE 8080 40001
+ENTRYPOINT ["/go/bin/dlv", "--listen=:40001", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/app/main"]

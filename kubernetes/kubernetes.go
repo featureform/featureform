@@ -35,7 +35,6 @@ type CronSchedule string
 const MaxJobNameLength = 53
 
 func CreateJobName(jobPrefix string, id metadata.ResourceID) string {
-	// example job name
 	timestamp := time.Now().UnixNano() / int64(time.Millisecond) // get current time in milliseconds
 	timestampBase36 := strconv.FormatInt(timestamp, 36)          // convert timestamp to base36
 	jobNameBase := fmt.Sprintf("%s-%s-%s-%s", id.Type, id.Name, id.Variant, timestampBase36)

@@ -4,6 +4,11 @@
 
 package provider
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 type ValueType interface {
 	Scalar() ScalarType
 	IsVector() bool
@@ -45,3 +50,47 @@ const (
 	Timestamp ScalarType = "time.Time"
 	Datetime  ScalarType = "datetime"
 )
+
+var ScalarTypes = map[ScalarType]bool{
+	NilType:   true,
+	Int:       true,
+	Int32:     true,
+	Int64:     true,
+	Float32:   true,
+	Float64:   true,
+	String:    true,
+	Bool:      true,
+	Timestamp: true,
+	Datetime:  true,
+}
+
+type ValueTypeJSONWrapper struct {
+	ValueType
+}
+
+func (vt *ValueTypeJSONWrapper) UnmarshalJSON(data []byte) error {
+	v := map[string]VectorType{"ValueType": {}}
+	if err := json.Unmarshal(data, &v); err == nil {
+		vt.ValueType = v["ValueType"]
+		return nil
+	}
+
+	s := map[string]ScalarType{"ValueType": ScalarType("")}
+	if err := json.Unmarshal(data, &s); err == nil {
+		vt.ValueType = s["ValueType"]
+		return nil
+	}
+
+	return fmt.Errorf("could not unmarshal value type: %v", data)
+}
+
+func (vt ValueTypeJSONWrapper) MarshalJSON() ([]byte, error) {
+	switch vt.ValueType.(type) {
+	case VectorType:
+		return json.Marshal(map[string]VectorType{"ValueType": vt.ValueType.(VectorType)})
+	case ScalarType:
+		return json.Marshal(map[string]ScalarType{"ValueType": vt.ValueType.(ScalarType)})
+	default:
+		return nil, fmt.Errorf("could not marshal value type: %v", vt.ValueType)
+	}
+}

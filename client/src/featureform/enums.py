@@ -6,8 +6,6 @@ from os import path
 from fnmatch import fnmatch
 
 
-# Reproduce the same logic/structure as
-# ScalarType
 class ScalarType(Enum):
     NIL = ""
     INT = "int"
@@ -18,7 +16,6 @@ class ScalarType(Enum):
     STRING = "string"
     BOOL = "bool"
     DATETIME = "datetime"
-    # VECTOR32 = "vector32"  # convert to class
 
 
 class ResourceStatus(Enum):

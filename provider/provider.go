@@ -40,7 +40,6 @@ type SerializedTableSchema []byte
 type Provider interface {
 	AsOnlineStore() (OnlineStore, error)
 	AsOfflineStore() (OfflineStore, error)
-	AsVectorStore() (VectorStore, error)
 	Type() pt.Type
 	Config() pc.SerializedConfig
 }
@@ -56,10 +55,6 @@ func (provider BaseProvider) AsOnlineStore() (OnlineStore, error) {
 
 func (provider BaseProvider) AsOfflineStore() (OfflineStore, error) {
 	return nil, fmt.Errorf("%T cannot be used as an OfflineStore", provider)
-}
-
-func (provider BaseProvider) AsVectorStore() (VectorStore, error) {
-	return nil, fmt.Errorf("%T cannot be used as an VectorStore", provider)
 }
 
 func (provider BaseProvider) Type() pt.Type {

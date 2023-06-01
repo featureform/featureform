@@ -74,36 +74,33 @@ func (store *redisOnlineStore) Close() error {
 func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
 	key := redisTableKey{store.prefix, feature, variant}
 	cmd := store.client.B().
-		Hgetall().
+		Hget().
 		Key(fmt.Sprintf("%s__tables", store.prefix)).
+		Field(key.String()).
 		Build()
-	fieldMap, err := store.client.Do(context.TODO(), cmd).AsStrMap()
+	vType, err := store.client.Do(context.TODO(), cmd).ToString()
 	if err != nil {
 		return nil, &TableNotFound{feature, variant}
 	}
-	vType, ok := fieldMap[key.String()]
-	if !ok {
-		return nil, &TableNotFound{feature, variant}
-	}
-	var table OnlineStoreTable
-	if hasEmbeddingIdx, ok := fieldMap["has_embedding_idx"]; ok && hasEmbeddingIdx == "true" {
-		dimension, err := strconv.Atoi(fieldMap["dimension"])
+	var valueType ValueType
+	if _, isScalarType := ScalarTypes[ScalarType(vType)]; isScalarType {
+		valueType = ScalarType(vType)
+	} else {
+		valueType = &VectorType{}
+		err = json.Unmarshal([]byte(vType), valueType)
 		if err != nil {
 			return nil, err
 		}
-		table = &redisOnlineIndex{
-			client:    store.client,
-			key:       key,
-			valueType: VectorType{ScalarType: ScalarType(vType), Dimension: uint32(dimension), IsEmbedding: true},
-		}
-	} else {
-		table = &redisOnlineTable{client: store.client, key: key, valueType: ScalarType(vType)}
+	}
+	table := &redisOnlineIndex{
+		client:    store.client,
+		key:       key,
+		valueType: valueType,
 	}
 	return table, nil
 }
 
 func (store *redisOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
-	// Use vector type to determine if this is a vector field index
 	key := redisTableKey{store.prefix, feature, variant}
 	cmd := store.client.B().
 		Hexists().
@@ -117,16 +114,17 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 	if exists {
 		return nil, &TableAlreadyExists{feature, variant}
 	}
-	hsetCmd := store.client.B().
+	serialized, err := json.Marshal(ValueTypeJSONWrapper{valueType})
+	if err != nil {
+		return nil, err
+	}
+	cmd = store.client.B().
 		Hset().
 		Key(fmt.Sprintf("%s__tables", store.prefix)).
 		FieldValue().
-		FieldValue(key.String(), string(valueType.Scalar()))
-
-	if vectorType, isVector := valueType.(VectorType); isVector && vectorType.IsEmbedding {
-		hsetCmd.FieldValue("has_embedding_idx", "true").FieldValue("dimension", strconv.FormatUint(uint64(vectorType.Dimension), 10))
-	}
-	if resp := store.client.Do(context.TODO(), hsetCmd.Build()); resp.Error() != nil {
+		FieldValue(key.String(), string(serialized)).
+		Build()
+	if resp := store.client.Do(context.TODO(), cmd); resp.Error() != nil {
 		return nil, resp.Error()
 	}
 	table := &redisOnlineTable{client: store.client, key: key, valueType: valueType}

@@ -221,33 +221,13 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	return materializeWatcher, nil
 }
 
-type ValueTypeJSON struct {
-	provider.ValueType
-}
-
-func (vt *ValueTypeJSON) UnmarshalJSON(data []byte) error {
-	v := map[string]provider.VectorType{"ValueType": {}}
-	if err := json.Unmarshal(data, &v); err == nil {
-		vt.ValueType = v["ValueType"]
-		return nil
-	}
-
-	s := map[string]provider.ScalarType{"ValueType": provider.ScalarType("")}
-	if err := json.Unmarshal(data, &s); err == nil {
-		vt.ValueType = s["ValueType"]
-		return nil
-	}
-
-	return fmt.Errorf("could not unmarshal value type: %v", data)
-}
-
 type MaterializedRunnerConfig struct {
 	OnlineType    pt.Type
 	OfflineType   pt.Type
 	OnlineConfig  pc.SerializedConfig
 	OfflineConfig pc.SerializedConfig
 	ResourceID    provider.ResourceID
-	VType         ValueTypeJSON
+	VType         provider.ValueTypeJSONWrapper
 	Cloud         JobCloud
 	IsUpdate      bool
 	Entity        string

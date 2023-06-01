@@ -15,7 +15,6 @@ import (
 	"go.uber.org/zap"
 
 	cfg "github.com/featureform/config"
-	help "github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
@@ -189,17 +188,18 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 	if err != nil {
 		return nil, err
 	}
-	pandas_image := cfg.GetPandasRunnerImage()
+	pandasImage := cfg.GetPandasRunnerImage()
+	workerImage := cfg.GetWorkerImage()
 	fmt.Println("GETJOBRUNNERID:", resourceId)
 	kubeConfig := kubernetes.KubernetesRunnerConfig{
 		EnvVars: map[string]string{
 			"NAME":             jobName,
 			"CONFIG":           string(config),
 			"ETCD_CONFIG":      string(serializedETCD),
-			"K8S_RUNNER_IMAGE": pandas_image,
+			"K8S_RUNNER_IMAGE": pandasImage,
 		},
 		JobPrefix: "runner",
-		Image:     help.GetEnv("WORKER_IMAGE", "local/worker:stable"),
+		Image:     workerImage,
 		NumTasks:  1,
 		Resource:  resourceId,
 	}

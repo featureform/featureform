@@ -158,7 +158,7 @@ func (q postgresSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Trainin
 	} else {
 		tempName := sanitize(fmt.Sprintf("tmp_%s", tableName))
 		fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", tempName, columnStr, query)
-		err := q.atomicUpdate(store.db, tableName, tempName, fullQuery)
+		err := q.atomicUpdate2(store.db, tableName, tempName, fullQuery)
 		if err != nil {
 			return err
 		}
@@ -217,7 +217,59 @@ func (q postgresSQLQueries) transformationCreate(name string, query string) stri
 func (q postgresSQLQueries) transformationUpdate(db *sql.DB, tableName string, query string) error {
 	tempName := sanitize(fmt.Sprintf("tmp_%s", tableName))
 	fullQuery := fmt.Sprintf("CREATE TABLE %s AS %s", tempName, query)
-	return q.atomicUpdate(db, tableName, tempName, fullQuery)
+	return q.atomicUpdate2(db, tableName, tempName, fullQuery)
+}
+
+func (q postgresSQLQueries) atomicUpdate2(db *sql.DB, tableName string, tempName string, query string) error {
+	_, err := db.Exec(fmt.Sprintf("CREATE TABLE %s AS %s", tempName, query))
+	if err != nil {
+		return err
+	}
+
+	// Start transaction
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	// If any error occurs during the process, roll back the transaction
+	defer func() {
+		if p := recover(); p != nil {
+			err := tx.Rollback()
+			if err != nil {
+				return
+			}
+			panic(p) // re-throw panic after Rollback
+		} else if err != nil {
+			// err is non-nil; don't change it
+			err := tx.Rollback()
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	// Truncate current table
+	_, err = tx.Exec(fmt.Sprintf("TRUNCATE TABLE %s", tableName))
+	if err != nil {
+		return err
+	}
+
+	// Copy contents from temp table
+	_, err = tx.Exec(fmt.Sprintf("INSERT INTO %s SELECT * FROM %s", tableName, tempName))
+	if err != nil {
+		return err
+	}
+
+	// Drop temp table
+	_, err = tx.Exec(fmt.Sprintf("DROP TABLE %s", tempName))
+	if err != nil {
+		return err
+	}
+
+	// Commit transaction
+	err = tx.Commit()
+	return err
 }
 
 func (q postgresSQLQueries) atomicUpdate(db *sql.DB, tableName string, tempName string, query string) error {

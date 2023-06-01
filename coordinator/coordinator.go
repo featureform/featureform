@@ -750,7 +750,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	if feature.IsEmbedding() {
 		vType = provider.VectorType{
 			ScalarType:  provider.ScalarType(featureType),
-			Dimension:   uint32(feature.Dimension()),
+			Dimension:   feature.Dimension(),
 			IsEmbedding: true,
 		}
 	} else {

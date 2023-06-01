@@ -1364,14 +1364,14 @@ func (fn fetchIsEmbeddingFn) IsEmbedding() bool {
 }
 
 type dimensionGetter interface {
-	GetDimension() uint32
+	GetDimension() int32
 }
 
 type fetchDimensionFn struct {
 	getter dimensionGetter
 }
 
-func (fn fetchDimensionFn) Dimension() uint32 {
+func (fn fetchDimensionFn) Dimension() int32 {
 	return fn.getter.GetDimension()
 }
 
@@ -1521,7 +1521,7 @@ func (variant *FeatureVariant) IsEmbedding() bool {
 	return variant.fetchIsEmbeddingFn.IsEmbedding()
 }
 
-func (variant *FeatureVariant) Dimension() uint32 {
+func (variant *FeatureVariant) Dimension() int32 {
 	return variant.fetchDimensionFn.Dimension()
 }
 

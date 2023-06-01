@@ -83,19 +83,37 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 		return nil, &TableNotFound{feature, variant}
 	}
 	var valueType ValueType
-	if _, isScalarType := ScalarTypes[ScalarType(vType)]; isScalarType {
-		valueType = ScalarType(vType)
-	} else {
-		valueType = &VectorType{}
-		err = json.Unmarshal([]byte(vType), valueType)
-		if err != nil {
-			return nil, err
-		}
+	var table OnlineStoreTable
+	// This maintains backwards compatibility with the previous implementation,
+	// which wrote the scalar type string as the value to the field under the
+	// tables hash.
+	if _, isScalarString := ScalarTypes[ScalarType(vType)]; isScalarString {
+		return &redisOnlineTable{
+			client:    store.client,
+			key:       key,
+			valueType: ScalarType(vType),
+		}, nil
 	}
-	table := &redisOnlineIndex{
-		client:    store.client,
-		key:       key,
-		valueType: valueType,
+	valueTypeJSON := &ValueTypeJSONWrapper{}
+	err = json.Unmarshal([]byte(vType), valueTypeJSON)
+	if err != nil {
+		return nil, err
+	}
+	switch valueTypeJSON.ValueType.(type) {
+	case VectorType:
+		table = &redisOnlineIndex{
+			client:    store.client,
+			key:       key,
+			valueType: valueType,
+		}
+	case ScalarType:
+		table = &redisOnlineTable{
+			client:    store.client,
+			key:       key,
+			valueType: valueType,
+		}
+	default:
+		return nil, fmt.Errorf("unknown value type: %T", valueTypeJSON.ValueType)
 	}
 	return table, nil
 }
@@ -314,7 +332,7 @@ func (table redisOnlineIndex) Get(entity string) (interface{}, error) {
 	return rueidis.ToVector32(val), nil
 }
 
-func (table redisOnlineIndex) Nearest(feature, variant, entity string, vector []float32, k uint32) ([]string, error) {
+func (table redisOnlineIndex) Nearest(feature, variant, entity string, vector []float32, k int32) ([]string, error) {
 	cmd := table.createNearestCmd(vector, k)
 	_, docs, err := table.client.Do(context.Background(), cmd).AsFtSearch()
 	if err != nil {
@@ -327,7 +345,7 @@ func (table redisOnlineIndex) Nearest(feature, variant, entity string, vector []
 	return entities, nil
 }
 
-func (table redisOnlineIndex) createNearestCmd(vector []float32, k uint32) rueidis.Completed {
+func (table redisOnlineIndex) createNearestCmd(vector []float32, k int32) rueidis.Completed {
 	return table.client.B().
 		FtSearch().
 		Index(table.key.String()).

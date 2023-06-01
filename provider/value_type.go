@@ -16,7 +16,7 @@ type ValueType interface {
 
 type VectorType struct {
 	ScalarType  ScalarType
-	Dimension   uint32
+	Dimension   int32
 	IsEmbedding bool
 }
 

@@ -12,6 +12,7 @@ import inspect
 import dill
 import pandas as pd
 
+
 from .get import *
 from .list import *
 from .get_local import *
@@ -4516,8 +4517,6 @@ class ColumnResource:
         self,
         transformation_args: tuple,
         type: Union[ScalarType, str],
-        dims: int,
-        is_embedding: bool,
         resource_type: str,
         entity: Union[Entity, str],
         variant: str,
@@ -4531,8 +4530,6 @@ class ColumnResource:
     ):
         registrar, source_name_variant, columns = transformation_args
         self.type = type if isinstance(type, str) else type.value
-        self.dims = dims
-        self.is_embedding = is_embedding
         self.registrar = registrar
         self.source = source_name_variant
         self.entity_column = columns[0]
@@ -4554,7 +4551,7 @@ class ColumnResource:
         self.properties = properties
 
     def register(self):
-        features, labels = self.features_and_labels()
+        features, labels = self.get_resources_by_type(self.resource_type)
 
         self.registrar.register_column_resources(
             source=self.source,
@@ -4568,25 +4565,27 @@ class ColumnResource:
             schedule=self.schedule,
         )
 
-    def features_and_labels(self) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
-        resource = {
-            "name": self.name,
-            "variant": self.variant,
-            "column": self.source_column,
-            "type": self.type,
-            "description": self.description,
-            "tags": self.tags,
-            "properties": self.properties,
-        }
+    def get_resources_by_type(
+        self, resource_type: str
+    ) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
+        resources = [
+            {
+                "name": self.name,
+                "variant": self.variant,
+                "column": self.source_column,
+                "type": self.type,
+                "description": self.description,
+                "tags": self.tags,
+                "properties": self.properties,
+            }
+        ]
 
-        if self.resource_type == "feature":
-            resource["dims"] = self.dims
-            resource["is_embedding"] = self.is_embedding
-            features = [resource]
+        if resource_type == "feature":
+            features = resources
             labels = []
-        elif self.resource_type == "label":
+        elif resource_type == "label":
             features = []
-            labels = [resource]
+            labels = resources
         else:
             raise ValueError(f"Resource type {self.resource_type} not supported")
         return (features, labels)
@@ -4629,8 +4628,6 @@ class FeatureColumnResource(ColumnResource):
         super().__init__(
             transformation_args=transformation_args,
             type=type,
-            dims=0,
-            is_embedding=False,
             resource_type="feature",
             entity=entity,
             variant=variant,
@@ -4662,8 +4659,6 @@ class LabelColumnResource(ColumnResource):
         super().__init__(
             transformation_args=transformation_args,
             type=type,
-            dims=0,
-            is_embedding=False,
             resource_type="label",
             entity=entity,
             variant=variant,
@@ -4695,8 +4690,6 @@ class EmbeddingColumnResource(ColumnResource):
         super().__init__(
             transformation_args=transformation_args,
             type=ScalarType.FLOAT32,
-            dims=dims,
-            is_embedding=True,
             resource_type="feature",
             entity=entity,
             variant=variant,
@@ -4708,6 +4701,17 @@ class EmbeddingColumnResource(ColumnResource):
             tags=tags,
             properties=properties,
         )
+        if dims < 1:
+            raise ValueError("Vector dimensions must be a positive integer")
+        self.dims = dims
+
+    def get_resources_by_type(
+        self, resource_type: str
+    ) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
+        features, labels = super().get_resources_by_type(resource_type)
+        features[0]["dims"] = self.dims
+        features[0]["is_embedding"] = True
+        return (features, labels)
 
 
 def entity(cls):

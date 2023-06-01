@@ -108,7 +108,7 @@ message Vector32 {
 message NearestRequest {
   FeatureID id = 1;
   Vector32 vector = 2;
-  uint32 k = 3;
+  int32 k = 3;
 }
 
 message NearestResponse {

@@ -8,25 +8,21 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"testing"
 	"time"
+
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 
 	"github.com/redis/rueidis"
 )
 
 func Test_redisOnlineTable_Get(t *testing.T) {
 	miniRedis := mockRedis()
-	miniRedis.Addr()
-	redisClient, err := rueidis.NewClient(
-		rueidis.ClientOption{
-			InitAddress:  []string{miniRedis.Addr()},
-			Password:     "",
-			SelectDB:     0,
-			DisableCache: true,
-		},
-	)
+	redisClient, err := instantiateMockRedisClient(miniRedis.Addr())
 	if err != nil {
 		t.Fatalf("Failed to create redis client: %v", err)
 	}
@@ -103,16 +99,122 @@ func Test_redisOnlineTable_Get(t *testing.T) {
 	}
 }
 
-// func TestFTCreateCommands(t *testing.T) {
-// 	// TODO: use miniredis to mock redis; this currently only work by running
-// 	// > kubectl port-forward redisearch-<ID> 6379:6379
-// 	redisOnlineStore, err := NewRedisOnlineStore(&pc.RedisConfig{
-// 		Addr:   "localhost:6379",
-// 		Prefix: "Featureform_table__",
-// 	})
-// 	if err != nil {
-// 		t.Fatalf("failed to create redis online store: %v", err)
-// 	}
+func TestGetTableBackwardsCompatibility(t *testing.T) {
+	miniRedis := mockRedis()
+	redisClient, err := instantiateMockRedisClient(miniRedis.Addr())
+	if err != nil {
+		t.Fatalf("Failed to create redis client: %v", err)
+	}
+	redisConfig := pc.RedisConfig{
+		Addr:     miniRedis.Addr(),
+		Password: "",
+		DB:       0,
+	}
+	prefix := "Featureform_table__"
+	redisOnlineStore := redisOnlineStore{
+		redisClient,
+		prefix,
+		BaseProvider{ProviderType: pt.RedisOnline, ProviderConfig: redisConfig.Serialized()},
+	}
+	if err != nil {
+		t.Fatalf("Failed to create redis online store: %v", err)
+	}
+	// Arrange - Create "Featureform_table____tables" hash to simulate
+	// in user's Redis instance existing "metadata" table
+	scalarTypes := []ScalarType{String, Int, Int32, Int64, Float32, Float64, Bool, Timestamp}
+	for _, scalarType := range scalarTypes {
+		// The below represents the implementation of CreateTable prior to introducing the
+		// JSON serialized value type as the field value of the tables hash
+		key := redisTableKey{prefix, fmt.Sprintf("feature_%s", string(scalarType)), "v"}
+		cmd := redisClient.B().
+			Hset().
+			Key(fmt.Sprintf("%s__tables", prefix)).
+			FieldValue().
+			FieldValue(key.String(), string(scalarType)).
+			Build()
+		resp := redisClient.Do(context.TODO(), cmd)
+		if resp.Error() != nil {
+			t.Fatalf("Failed to create table: %v", resp.Error())
+		}
+	}
+	// Act - Get table
+	for _, scalarType := range scalarTypes {
+		onlineStoreTable, err := redisOnlineStore.GetTable(fmt.Sprintf("feature_%s", string(scalarType)), "v")
+		if err != nil {
+			t.Fatalf("Failed to get table: %v", err)
+		}
+		if reflect.TypeOf(onlineStoreTable) != reflect.TypeOf(&redisOnlineTable{}) {
+			t.Fatalf("Expected onlineStoreTable to be redisOnlineTable but received: %T", onlineStoreTable)
+		}
+	}
+}
 
-// 	cmd := redisOnlineStore.createIndexCmd(redisTableKey("test_key"), "feature", "variant", VectorType{ScalarType: Float32, Dimension: 384})
-// }
+func TestCreateGetTable(t *testing.T) {
+	miniRedis := mockRedis()
+	redisClient, err := instantiateMockRedisClient(miniRedis.Addr())
+	if err != nil {
+		t.Fatalf("Failed to create redis client: %v", err)
+	}
+	redisConfig := pc.RedisConfig{
+		Addr:     miniRedis.Addr(),
+		Password: "",
+		DB:       0,
+	}
+	prefix := "Featureform_table__"
+	redisOnlineStore := redisOnlineStore{
+		redisClient,
+		prefix,
+		BaseProvider{ProviderType: pt.RedisOnline, ProviderConfig: redisConfig.Serialized()},
+	}
+	if err != nil {
+		t.Fatalf("Failed to create redis online store: %v", err)
+	}
+	// Arrange - Create tables
+	scalarTypes := []ScalarType{String, Int, Int32, Int64, Float32, Float64, Bool, Timestamp}
+	for _, scalarType := range scalarTypes {
+		var valueType ValueType
+		if scalarType == Float32 {
+			valueType = VectorType{ScalarType: scalarType, Dimension: 384, IsEmbedding: true}
+		} else {
+			valueType = scalarType
+		}
+		_, err := redisOnlineStore.CreateTable(fmt.Sprintf("feature_%s", string(scalarType)), "v", valueType)
+		if err != nil {
+			t.Fatalf("Failed to create table: %v", err)
+		}
+	}
+	// Act - Get table
+	for _, scalarType := range scalarTypes {
+		onlineStoreTable, err := redisOnlineStore.GetTable(fmt.Sprintf("feature_%s", string(scalarType)), "v")
+		if err != nil {
+			t.Fatalf("Failed to get table: %v", err)
+		}
+		if scalarType == Float32 {
+			if reflect.TypeOf(onlineStoreTable) != reflect.TypeOf(&redisOnlineIndex{}) {
+				t.Fatalf("Expected onlineStoreTable to be redisOnlineIndex but received: %T", onlineStoreTable)
+			}
+		} else {
+			if reflect.TypeOf(onlineStoreTable) != reflect.TypeOf(&redisOnlineTable{}) {
+				t.Fatalf("Expected onlineStoreTable to be redisOnlineTable but received: %T", onlineStoreTable)
+			}
+		}
+	}
+}
+
+func instantiateMockRedisClient(addr string) (rueidis.Client, error) {
+	return rueidis.NewClient(
+		rueidis.ClientOption{
+			InitAddress: []string{addr},
+			Password:    "",
+			SelectDB:    0,
+			// Miniredis does not support certain commands used by RediSearch, and given
+			// rueidis supports these, there are certain configurations that need to be be
+			// set to avoid errors, such as the following:
+			// ````
+			// unknown command `CLIENT`, with args beginning with: `TRACKING`, `ON`, `OPTIN`, :
+			// ClientOption.DisableCache must be true for redis not supporting client-side caching or not supporting RESP3
+			// ```
+			DisableCache: true,
+		},
+	)
+}

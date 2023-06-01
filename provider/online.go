@@ -43,7 +43,7 @@ type VectorStore interface {
 
 type VectorStoreTable interface {
 	OnlineStoreTable
-	Nearest(feature, variant, entity string, vector []float32, k uint32) ([]string, error)
+	Nearest(feature, variant, entity string, vector []float32, k int32) ([]string, error)
 }
 
 type TableNotFound struct {

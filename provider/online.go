@@ -35,10 +35,7 @@ type OnlineStoreTable interface {
 
 type VectorStore interface {
 	CreateIndex(feature, variant, entity string, vectorType VectorType) (VectorStoreTable, error)
-	GetIndex(feature, variant string) (string, error) // TODO: determine the type of index
-	DeleteIndex(feature, variant string) error
-	Close() error
-	Provider
+	OnlineStore
 }
 
 type VectorStoreTable interface {

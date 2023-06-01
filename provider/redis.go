@@ -164,7 +164,6 @@ func (store *redisOnlineStore) CreateIndex(feature, variant, entity string, vect
 	return table, nil
 }
 
-// TODO: write unit tests for command creation
 func (store *redisOnlineStore) createIndexCmd(key redisTableKey, entity string, vectorType VectorType) rueidis.Completed {
 	requiredParams := []string{
 		"TYPE", "FLOAT32",
@@ -178,14 +177,6 @@ func (store *redisOnlineStore) createIndexCmd(key redisTableKey, entity string, 
 		FieldName(vectorField).
 		Vector("HNSW", int64(len(requiredParams)), requiredParams...).
 		Build()
-}
-
-func (store *redisOnlineStore) GetIndex(feature, variant string) (string, error) {
-	return "", nil
-}
-
-func (store *redisOnlineStore) DeleteIndex(feature, variant string) error {
-	return nil
 }
 
 type redisOnlineTable struct {

@@ -204,7 +204,8 @@ export const ResourceListView = ({
   const mutableRes = copy(initRes);
 
   function detailRedirect(e, data) {
-    router.push(router.query['type'] + '/' + data.name);
+    e.stopPropagation();
+    router.push(Resource[type].urlPathResource(data.name));
   }
 
   let rowVariants = {};

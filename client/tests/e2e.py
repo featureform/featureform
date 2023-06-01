@@ -270,7 +270,8 @@ def remove_timestamps(json_value):
     for res in json_value:
         for v in res["variants"]:
             del res["variants"][v]["created"]
-            del res["variants"][v]["lastUpdated"]
+            if res["variants"][v]["lastUpdated"]:
+                del res["variants"][v]["lastUpdated"]
     return json_value
 
 

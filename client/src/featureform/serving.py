@@ -846,7 +846,9 @@ class Dataset:
             req = serving_pb2.TrainingDataRequest(id=id)
             cols = stub.TrainingDataColumns(req)
             data = [r.to_dict(cols.features, cols.label) for r in self._stream]
-            self._dataframe = pd.DataFrame(data=data, columns=[*cols.features, cols.label])
+            self._dataframe = pd.DataFrame(
+                data=data, columns=[*cols.features, cols.label]
+            )
             return self._dataframe
 
     def from_dataframe(dataframe, include_label_timestamp):

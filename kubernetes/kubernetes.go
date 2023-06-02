@@ -9,17 +9,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/featureform/helpers"
-	"io"
-	"math"
-	"os"
-	"strconv"
-	"strings"
-	"time"
-
 	"github.com/featureform/metadata"
 	"github.com/featureform/types"
 	"github.com/google/uuid"
 	"github.com/gorhill/cronexpr"
+	"io"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -28,19 +22,18 @@ import (
 	watch "k8s.io/apimachinery/pkg/watch"
 	kubernetes "k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
+	"math"
+	"os"
+	"strings"
 )
 
 type CronSchedule string
 
-const MaxJobNameLength = 50
+const MaxJobNameLength = 52
 
 // CreateJobName Only the first value in prefixes will be used.
 func CreateJobName(id metadata.ResourceID, prefixes ...string) string {
-	// use timestamp to generate unique job name
-	timestamp := time.Now().UnixNano() / int64(time.Millisecond) // get current time in milliseconds
-	timestampBase36 := strconv.FormatInt(timestamp, 36)          // convert timestamp to base36
-
-	jobNameBase := fmt.Sprintf("%s-%s-%s-%s", id.Type, id.Name, id.Variant, timestampBase36)
+	jobNameBase := fmt.Sprintf("%s-%s-%s", id.Type, id.Name, id.Variant)
 
 	// if jobPrefix is provided, prepend it to jobNameBase
 	if len(prefixes) > 0 && prefixes[0] != "" {
@@ -53,12 +46,12 @@ func CreateJobName(id metadata.ResourceID, prefixes ...string) string {
 
 	lowerCased := strings.ToLower(jobNameBase)
 
-	// truncate job name to MaxJobNameLength characters
-	if len(lowerCased) > MaxJobNameLength {
-		lowerCased = lowerCased[:MaxJobNameLength]
+	// leave room for a 10 character uuid and a 1 character separator
+	if len(lowerCased) > MaxJobNameLength-11 {
+		lowerCased = lowerCased[:MaxJobNameLength-11]
 	}
 
-	return lowerCased
+	return fmt.Sprintf("%s-%s", lowerCased, uuid.New().String()[:10])
 }
 
 func makeCronSchedule(schedule string) (*CronSchedule, error) {

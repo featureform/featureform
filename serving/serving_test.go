@@ -1279,8 +1279,8 @@ func TestTrainingDataColumns(t *testing.T) {
 		},
 	}
 	expectedColumns := &pb.TrainingColumns{
-		Features: []string{"feature_feature_variant"},
-		Label:    "label_label_variant",
+		Features: []string{"feature__feature__variant"},
+		Label:    "label__label__variant",
 	}
 	resp, err := serv.TrainingDataColumns(context.Background(), req)
 	if err != nil {

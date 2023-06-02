@@ -14,6 +14,9 @@ import urllib.request
 from .version import get_package_version
 from .tls import get_version_local, get_version_hosted
 
+from click_didyoumean import DYMGroup
+
+
 resource_types = [
     "feature",
     "source",
@@ -28,7 +31,7 @@ resource_types = [
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
-@click.group(context_settings=CONTEXT_SETTINGS)
+@click.group(context_settings=CONTEXT_SETTINGS, cls=DYMGroup)
 def cli():
     # fmt: off
     """

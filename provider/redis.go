@@ -280,8 +280,8 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 		result, err = strconv.ParseFloat(val, 64)
 	case Bool:
 		result, err = strconv.ParseBool(val)
-	case Timestamp, Datetime: // Maintains compatibility with previously create timestamp tables
-		// maintains compatibility with go-redis implementation:
+	case Timestamp, Datetime: // Including `Datetime` here maintains compatibility with previously create timestamp tables
+		// Maintains compatibility with go-redis implementation:
 		// https://github.com/redis/go-redis/blob/v8.11.5/command.go#L939
 		result, err = time.Parse(time.RFC3339Nano, val)
 	default:

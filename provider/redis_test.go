@@ -92,8 +92,17 @@ func Test_redisOnlineTable_Get(t *testing.T) {
 				t.Errorf("Get() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Get() got = %v (%T), want %v (%T)", got, got, tt.want, tt.want)
+			// Comparing time.Time using reflect results in comparing the underlying time.Time struct
+			// which won't be equal if the timestamps are created on different machines; instead, we
+			// compare the string representations of the timestamps
+			if reflect.TypeOf(got) == reflect.TypeOf(time.Time{}) {
+				if !(tt.want).(time.Time).Equal(got.(time.Time)) {
+					t.Errorf("Get() got = %v (%T), want %v (%T)", got, got, tt.want, tt.want)
+				}
+			} else {
+				if !reflect.DeepEqual(got, tt.want) {
+					t.Errorf("Get() got = %v (%T), want %v (%T)", got, got, tt.want, tt.want)
+				}
 			}
 		})
 	}
@@ -146,6 +155,13 @@ func TestGetTableBackwardsCompatibility(t *testing.T) {
 		if reflect.TypeOf(onlineStoreTable) != reflect.TypeOf(&redisOnlineTable{}) {
 			t.Fatalf("Expected onlineStoreTable to be redisOnlineTable but received: %T", onlineStoreTable)
 		}
+		tbl := onlineStoreTable.(*redisOnlineTable)
+		if tbl.valueType != scalarType {
+			t.Fatalf("Expected valueType to be %s but received: %s", scalarType, tbl.valueType)
+		}
+		if tbl.valueType.IsVector() {
+			t.Fatalf("Expected valueType to be scalar but received: %s", tbl.valueType)
+		}
 	}
 }
 
@@ -193,9 +209,26 @@ func TestCreateGetTable(t *testing.T) {
 			if reflect.TypeOf(onlineStoreTable) != reflect.TypeOf(&redisOnlineIndex{}) {
 				t.Fatalf("Expected onlineStoreTable to be redisOnlineIndex but received: %T", onlineStoreTable)
 			}
+			tbl := onlineStoreTable.(*redisOnlineIndex)
+			if !tbl.valueType.IsVector() {
+				t.Fatalf("Expected onlineStoreTable to be embedding but received: %v", tbl.valueType.IsVector())
+			}
+			if reflect.TypeOf(tbl.valueType) != reflect.TypeOf(VectorType{}) {
+				t.Fatalf("Expected onlineStoreTable to be VectorType but received: %T", tbl.valueType)
+			}
+			if !tbl.valueType.(VectorType).IsEmbedding {
+				t.Fatalf("Expected onlineStoreTable to be embedding but received: %v", tbl.valueType.(VectorType).IsEmbedding)
+			}
 		} else {
 			if reflect.TypeOf(onlineStoreTable) != reflect.TypeOf(&redisOnlineTable{}) {
 				t.Fatalf("Expected onlineStoreTable to be redisOnlineTable but received: %T", onlineStoreTable)
+			}
+			tbl := onlineStoreTable.(*redisOnlineTable)
+			if tbl.valueType.IsVector() {
+				t.Fatalf("Expected onlineStoreTable to not be embedding but received: %v", tbl.valueType.IsVector())
+			}
+			if reflect.TypeOf(tbl.valueType) != reflect.TypeOf(scalarType) {
+				t.Fatalf("Expected onlineStoreTable to be %v but received: %T", scalarType, tbl.valueType)
 			}
 		}
 	}

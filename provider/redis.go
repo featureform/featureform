@@ -46,6 +46,19 @@ func NewRedisOnlineStore(options *pc.RedisConfig) (*redisOnlineStore, error) {
 		InitAddress: []string{options.Addr},
 		Password:    options.Password,
 		SelectDB:    options.DB,
+		/*
+			The rueidis client opts-in to server-assisted client-side caching by default.
+			Given we're not making use of this feature (i.e. via the commands `DoCach` or
+			`DoMultiCache`), and given this is normally a feature that a user would have to
+			explicitly opt into for a connection via the Redis command `CLIENT TRACKING ON`,
+			we disable this feature by default to avoid any issues with Redis servers versions
+			under 6.0.
+
+			See details here:
+				* rueidis client-side caching: https://github.com/redis/rueidis#client-side-caching
+				* Redis CLIENT TRACKING command: https://redis.io/commands/client-tracking/
+		*/
+		DisableCache: true,
 	}
 	redisClient, err := rueidis.NewClient(redisOptions)
 	if err != nil {

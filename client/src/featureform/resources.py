@@ -1074,13 +1074,13 @@ class Feature:
     name: str
     source: NameVariant
     value_type: str
-    is_embedding: bool
-    dims: int
     entity: str
     owner: str
     provider: str
     location: ResourceLocation
     description: str
+    is_embedding: bool = False
+    dims: int = 0
     tags: list = None
     properties: dict = None
     variant: str = "default"

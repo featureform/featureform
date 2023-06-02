@@ -15,7 +15,6 @@ import (
 	"go.uber.org/zap"
 
 	cfg "github.com/featureform/config"
-	help "github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
@@ -189,18 +188,20 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 	if err != nil {
 		return nil, err
 	}
-	pandas_image := cfg.GetPandasRunnerImage()
+	pandasImage := cfg.GetPandasRunnerImage()
+	workerImage := cfg.GetWorkerImage()
 	fmt.Println("GETJOBRUNNERID:", resourceId)
 	kubeConfig := kubernetes.KubernetesRunnerConfig{
 		EnvVars: map[string]string{
 			"NAME":             jobName,
 			"CONFIG":           string(config),
 			"ETCD_CONFIG":      string(serializedETCD),
-			"K8S_RUNNER_IMAGE": pandas_image,
+			"K8S_RUNNER_IMAGE": pandasImage,
 		},
-		Image:    help.GetEnv("WORKER_IMAGE", "local/worker:stable"),
-		NumTasks: 1,
-		Resource: resourceId,
+		JobPrefix: "runner",
+		Image:     workerImage,
+		NumTasks:  1,
+		Resource:  resourceId,
 	}
 	jobRunner, err := kubernetes.NewKubernetesRunner(kubeConfig)
 	if err != nil {
@@ -1112,6 +1113,7 @@ func (c *Coordinator) ExecuteJob(jobKey string) error {
 	if !has {
 		return fmt.Errorf("not a valid resource type for running jobs")
 	}
+
 	if err := jobFunc(job.Resource, job.Schedule); err != nil {
 		switch err.(type) {
 		case ResourceAlreadyFailedError:
@@ -1186,7 +1188,12 @@ func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	if err != nil {
 		return fmt.Errorf("create new concurrency session for resource update job: %v", err)
 	}
-	defer s.Close()
+	defer func(s *concurrency.Session) {
+		err := s.Close()
+		if err != nil {
+			c.Logger.Debugw("Error closing scheduling session", "error", err)
+		}
+	}(s)
 	mtx, err := c.createJobLock(key, s)
 	if err != nil {
 		return fmt.Errorf("create lock on resource update job with key %s: %v", key, err)
@@ -1198,19 +1205,20 @@ func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	}()
 	coordinatorScheduleJob := &metadata.CoordinatorScheduleJob{}
 	if err := coordinatorScheduleJob.Deserialize(Config(value)); err != nil {
-		return fmt.Errorf("deserialize coordiantor schedule job: %v", err)
+		return fmt.Errorf("deserialize coordinator schedule job: %v", err)
 	}
 	namespace, err := kubernetes.GetCurrentNamespace()
 	if err != nil {
 		return fmt.Errorf("could not get kubernetes namespace: %v", err)
 	}
-	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), namespace)
+	jobName := kubernetes.CreateJobName(coordinatorScheduleJob.Resource)
+	jobClient, err := kubernetes.NewKubernetesJobClient(jobName, namespace)
 	if err != nil {
 		return fmt.Errorf("create new kubernetes job client: %v", err)
 	}
 	cronJob, err := jobClient.GetCronJob()
 	if err != nil {
-		return fmt.Errorf("fetch cron job from kuberentes with name %s: %v", kubernetes.GetCronJobName(coordinatorScheduleJob.Resource), err)
+		return fmt.Errorf("fetch cron job from kubernetes with name %s: %v", jobName, err)
 	}
 	cronJob.Spec.Schedule = coordinatorScheduleJob.Schedule
 	if _, err := jobClient.UpdateCronJob(cronJob); err != nil {
@@ -1219,7 +1227,7 @@ func (c *Coordinator) changeJobSchedule(key string, value string) error {
 	if err := c.Metadata.SetStatus(context.Background(), coordinatorScheduleJob.Resource, metadata.READY, ""); err != nil {
 		return fmt.Errorf("set schedule job update status in metadata: %v", err)
 	}
-	c.Logger.Info("Succesfully updated schedule for job in kubernetes with key: ", key)
+	c.Logger.Info("Successfully updated schedule for job in kubernetes with key: ", key)
 	if err := c.deleteJob(mtx, key); err != nil {
 		return fmt.Errorf("delete update schedule job in etcd: %v", err)
 	}

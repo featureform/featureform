@@ -155,10 +155,11 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		pandas_image := cfg.GetPandasRunnerImage()
 		envVars := map[string]string{"NAME": string(COPY_TO_ONLINE), "CONFIG": string(serializedConfig), "PANDAS_RUNNER_IMAGE": pandas_image}
 		kubernetesConfig := kubernetes.KubernetesRunnerConfig{
-			EnvVars:  envVars,
-			Image:    WORKER_IMAGE,
-			NumTasks: int32(numChunks),
-			Resource: metadata.ResourceID{Name: m.ID.Name, Variant: m.ID.Variant, Type: provider.ProviderToMetadataResourceType[m.ID.Type]},
+			JobPrefix: "materialize",
+			EnvVars:   envVars,
+			Image:     WORKER_IMAGE,
+			NumTasks:  int32(numChunks),
+			Resource:  metadata.ResourceID{Name: m.ID.Name, Variant: m.ID.Variant, Type: provider.ProviderToMetadataResourceType[m.ID.Type]},
 		}
 		kubernetesRunner, err := kubernetes.NewKubernetesRunner(kubernetesConfig)
 		if err != nil {

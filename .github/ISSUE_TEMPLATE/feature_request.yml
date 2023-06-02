@@ -1,0 +1,45 @@
+name: Feature Request
+description: Request a new feature
+title: "[Feature Request]: "
+labels: ["feature_request"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Provide a clear and concise description of the feature you are requesting.
+    validations:
+      required: true
+  - type: textarea
+    id: current-behavior
+    attributes:
+      label: Current Behavior
+      description: Describe the current behavior or limitations of the project that you would like to see improved or enhanced.
+  - type: textarea
+    id: desired-behavior
+    attributes:
+      label: Desired Behavior
+      description: Explain the specific changes or additions you would like to see implemented.
+    validations:
+      required: true
+  - type: textarea
+    id: benefits
+    attributes:
+      label: Benefits
+      description: Describe the benefits and advantages of implementing this feature.
+    validations:
+      required: true
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Possible Implementation
+      description: If you have any suggestions or ideas on how the feature could be implemented, you can provide them here.
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any additional information, context, or examples that might help in understanding or implementing the feature.
+    validations:
+      required: false

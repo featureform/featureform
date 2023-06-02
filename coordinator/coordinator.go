@@ -768,7 +768,6 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		VType:         provider.ValueTypeJSONWrapper{ValueType: vType},
 		Cloud:         runner.LocalMaterializeRunner,
 		IsUpdate:      false,
-		Entity:        feature.Entity(),
 	}
 	serialized, err := materializedRunnerConfig.Serialize()
 	if err != nil {

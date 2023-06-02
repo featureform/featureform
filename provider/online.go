@@ -34,13 +34,13 @@ type OnlineStoreTable interface {
 }
 
 type VectorStore interface {
-	CreateIndex(feature, variant, entity string, vectorType VectorType) (VectorStoreTable, error)
+	CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error)
 	OnlineStore
 }
 
 type VectorStoreTable interface {
 	OnlineStoreTable
-	Nearest(feature, variant, entity string, vector []float32, k int32) ([]string, error)
+	Nearest(feature, variant string, vector []float32, k int32) ([]string, error)
 }
 
 type TableNotFound struct {

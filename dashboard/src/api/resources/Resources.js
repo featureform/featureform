@@ -237,6 +237,25 @@ export default class ResourcesAPI {
       });
   }
 
+  fetchVersionMap() {
+    const fetchAddress = `${API_URL + '/data/version'}`;
+
+    return fetch(fetchAddress, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then((res) =>
+        res.json().then((json_data) => {
+          return { data: json_data };
+        })
+      )
+      .catch((error) => {
+        console.error(error);
+        return { data: 'Default' };
+      });
+  }
+
   fetchSearch(query) {
     return query === null
       ? {}

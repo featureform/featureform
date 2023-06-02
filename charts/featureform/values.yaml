@@ -94,6 +94,7 @@ global:
   embeddedIngress:
     disabled: true
     enabled: false
+  debug: false
 
 
 metadata:

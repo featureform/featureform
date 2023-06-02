@@ -50,3 +50,7 @@ func GetEnvBool(key string, fallback bool) bool {
 		return parsedValue, err
 	}).(bool)
 }
+
+func IsDebugEnv() bool {
+	return GetEnvBool("DEBUG", false)
+}

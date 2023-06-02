@@ -75,6 +75,27 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 	return nil
 }
 
+func (serv *FeatureServer) TrainingDataColumns(ctx context.Context, req *pb.TrainingDataColumnsRequest) (*pb.TrainingColumns, error) {
+	id := req.GetId()
+	name, variant := id.GetName(), id.GetVersion()
+	serv.Logger.Infow("Getting training set columns", "Name", name, "Variant", variant)
+	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get training set variant")
+	}
+	fv := ts.Features()
+	features := make([]string, len(fv))
+	for i, f := range fv {
+		features[i] = fmt.Sprintf("feature__%s__%s", f.Name, f.Variant)
+	}
+	lv := ts.Label()
+	label := fmt.Sprintf("label__%s__%s", lv.Name, lv.Variant)
+	return &pb.TrainingColumns{
+		Features: features,
+		Label:    label,
+	}, nil
+}
+
 func (serv *FeatureServer) SourceData(req *pb.SourceDataRequest, stream pb.Feature_SourceDataServer) error {
 	id := req.GetId()
 	name, variant := id.GetName(), id.GetVersion()

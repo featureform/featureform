@@ -15,8 +15,6 @@ body:
     attributes:
       label: Current Behavior
       description: Describe the current behavior or limitations of the project that you would like to see improved or enhanced.
-    validations:
-      required: true
   - type: textarea
     id: desired-behavior
     attributes:

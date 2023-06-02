@@ -101,7 +101,8 @@ def get(host, cert, insecure, local, resource_type, name, variant):
     elif resource_type in resource_get_functions:
         resource_get_functions[resource_type](name=name, local=local)
     else:
-        raise ValueError("Resource type not found")
+        get_resource_types = list(resource_get_functions_variant.keys()) + list(resource_get_functions.keys())
+        raise ValueError(f"Resource type, '{resource_type}' not found. Use one of the following resource types: {get_resource_types}")
 
 
 @cli.command()
@@ -146,7 +147,8 @@ def list(host, cert, insecure, local, resource_type):
     if resource_type in resource_list_functions:
         resource_list_functions[resource_type](local=local)
     else:
-        raise ValueError("Resource type not found")
+        list_resource_types = list(resource_list_functions.keys())
+        raise ValueError(f"Resource type, '{resource_type}' not found. Use one of the following resource types: {list_resource_types}")
 
 
 app = Flask(__name__)

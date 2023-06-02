@@ -856,6 +856,10 @@ class Dataset:
         return Dataset(stream, dataframe)
 
     def pandas(self):
+        warnings.warn(
+            "Dataset.pandas() is deprecated and will be removed in future versions; use Dataset.dataframe() instead.",
+            PendingDeprecationWarning,
+        )
         if self._dataframe is None:
             _ = self.dataframe()
         return self._dataframe

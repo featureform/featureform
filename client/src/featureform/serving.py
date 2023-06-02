@@ -846,13 +846,16 @@ class Dataset:
             req = serving_pb2.TrainingDataRequest(id=id)
             cols = stub.TrainingDataColumns(req)
             data = [r.to_dict(cols.features, cols.label) for r in self._stream]
-            return pd.DataFrame(data=data, columns=[*cols.features, cols.label])
+            self._dataframe = pd.DataFrame(data=data, columns=[*cols.features, cols.label])
+            return self._dataframe
 
     def from_dataframe(dataframe, include_label_timestamp):
         stream = LocalStream(dataframe.values.tolist(), include_label_timestamp)
         return Dataset(stream, dataframe)
 
     def pandas(self):
+        if self._dataframe is None:
+            _ = self.dataframe()
         return self._dataframe
 
     def repeat(self, num):

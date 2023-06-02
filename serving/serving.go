@@ -86,10 +86,10 @@ func (serv *FeatureServer) TrainingDataColumns(ctx context.Context, req *pb.Trai
 	fv := ts.Features()
 	features := make([]string, len(fv))
 	for i, f := range fv {
-		features[i] = fmt.Sprintf("feature_%s_%s", f.Name, f.Variant)
+		features[i] = fmt.Sprintf("feature__%s__%s", f.Name, f.Variant)
 	}
 	lv := ts.Label()
-	label := fmt.Sprintf("label_%s_%s", lv.Name, lv.Variant)
+	label := fmt.Sprintf("label__%s__%s", lv.Name, lv.Variant)
 	return &pb.TrainingColumns{
 		Features: features,
 		Label:    label,

@@ -95,7 +95,6 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 	if err != nil {
 		return nil, &TableNotFound{feature, variant}
 	}
-	var valueType ValueType
 	var table OnlineStoreTable
 	// This maintains backwards compatibility with the previous implementation,
 	// which wrote the scalar type string as the value to the field under the
@@ -117,13 +116,13 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 		table = &redisOnlineIndex{
 			client:    store.client,
 			key:       key,
-			valueType: valueType,
+			valueType: valueTypeJSON.ValueType,
 		}
 	case ScalarType:
 		table = &redisOnlineTable{
 			client:    store.client,
 			key:       key,
-			valueType: valueType,
+			valueType: valueTypeJSON.ValueType,
 		}
 	default:
 		return nil, fmt.Errorf("unknown value type: %T", valueTypeJSON.ValueType)

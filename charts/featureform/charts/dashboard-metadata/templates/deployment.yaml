@@ -49,6 +49,8 @@ spec:
               value: {{ .Values.search.host }}
             - name: MEILISEARCH_APIKEY
               value: {{ .Values.search.apikey | quote }}
+            - name: FEATUREFORM_VERSION
+              value: {{ .Values.global.version | default .Chart.AppVersion}}
           ports:
             - name: http
               containerPort: 3001

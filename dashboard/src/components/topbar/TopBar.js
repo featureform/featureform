@@ -6,9 +6,8 @@ import MenuItem from '@material-ui/core/MenuItem';
 import { makeStyles } from '@material-ui/core/styles';
 import Toolbar from '@material-ui/core/Toolbar';
 import AccountCircle from '@material-ui/icons/AccountCircle';
-import SideNav from 'components/sideNav/SideNav';
 import { useRouter } from 'next/router';
-import React from 'react';
+import React, { useEffect } from 'react';
 import SearchBar from '../search/SearchBar';
 
 const useStyles = makeStyles((theme) => ({
@@ -61,12 +60,13 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function TopBar() {
+export default function TopBar({ api }) {
   let router = useRouter();
   const classes = useStyles();
   let auth = false;
 
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const [version, setVersion] = React.useState('');
   const open = Boolean(anchorEl);
 
   const handleMenu = (event) => {
@@ -81,6 +81,13 @@ export default function TopBar() {
     event?.preventDefault();
     router.push('/');
   };
+
+  useEffect(async () => {
+    if (!version) {
+      const versionMap = await api.fetchVersionMap();
+      setVersion(versionMap.data?.version);
+    }
+  }, [api]);
 
   return (
     <div className={classes.root}>
@@ -139,9 +146,9 @@ export default function TopBar() {
               </div>
             )}
           </div>
+          <span data-testid={'versionPropId'}>Version: {version}</span>
         </Toolbar>
       </AppBar>
-      <SideNav />
     </div>
   );
 }

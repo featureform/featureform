@@ -678,6 +678,11 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 	}
 }
 
+func (serv *OnlineServer) TrainingDataColumns(ctx context.Context, req *srv.TrainingDataColumnsRequest) (*srv.TrainingColumns, error) {
+	serv.Logger.Infow("Serving Training Set Columns", "id", req.Id.String())
+	return serv.client.TrainingDataColumns(ctx, req)
+}
+
 func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feature_SourceDataServer) error {
 	serv.Logger.Infow("Serving Source Data", "id", req.Id.String())
 	if req.Limit == 0 {

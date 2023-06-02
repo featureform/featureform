@@ -160,6 +160,7 @@ func (q postgresSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Trainin
 		fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", tempName, columnStr, query)
 		err := q.atomicUpdate2(store.db, tableName, tempName, fullQuery)
 		if err != nil {
+			fmt.Println("Error in atomic update:", err)
 			return err
 		}
 	}
@@ -221,7 +222,7 @@ func (q postgresSQLQueries) transformationUpdate(db *sql.DB, tableName string, q
 }
 
 func (q postgresSQLQueries) atomicUpdate2(db *sql.DB, tableName string, tempName string, query string) error {
-	_, err := db.Exec(fmt.Sprintf("CREATE TABLE %s AS %s", tempName, query))
+	_, err := db.Exec(query)
 	if err != nil {
 		return err
 	}
@@ -242,6 +243,7 @@ func (q postgresSQLQueries) atomicUpdate2(db *sql.DB, tableName string, tempName
 			panic(p) // re-throw panic after Rollback
 		} else if err != nil {
 			// err is non-nil; don't change it
+			fmt.Println("Error in atomic update:", err)
 			err := tx.Rollback()
 			if err != nil {
 				return

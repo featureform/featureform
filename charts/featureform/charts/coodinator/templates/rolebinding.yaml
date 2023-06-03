@@ -6,6 +6,9 @@ subjects:
   - kind: ServiceAccount
     name: {{ .Release.Name }}-coordinator
     apiGroup: ""
+  - kind: ServiceAccount
+    name: default
+    apiGroup: ""
 roleRef:
   kind: Role
   name: {{ .Release.Name }}-coordinator

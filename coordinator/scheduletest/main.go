@@ -296,7 +296,7 @@ func kubernetesRanScheduledJob(resID metadata.ResourceID) error {
 	if err != nil {
 		return err
 	}
-	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(resID), currentNameSpace)
+	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.CreateJobName(resID, "test"), currentNameSpace)
 	if err != nil {
 		return fmt.Errorf("Could not initialize kubernetes job client: %v", err)
 	}
@@ -522,7 +522,7 @@ func testUpdateExistingSchedule() error {
 	if err != nil {
 		return fmt.Errorf("could not get kubernetes namespace: %v", err)
 	}
-	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.GetCronJobName(featureID), namespace)
+	jobClient, err := kubernetes.NewKubernetesJobClient(kubernetes.CreateJobName(featureID, "test"), namespace)
 	if err != nil {
 		return fmt.Errorf("Could not get kubernetes job client: %v", err)
 	}

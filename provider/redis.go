@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	pc "github.com/featureform/provider/provider_config"
@@ -304,9 +305,8 @@ func (table redisOnlineIndex) Set(entity string, value interface{}) error {
 	}
 	cmd := table.client.B().
 		Hset().
-		Key(table.key.String()).
+		Key(table.getHashKey(entity)).
 		FieldValue().
-		FieldValue("entity_id", entity).
 		FieldValue(table.getVectorField(), rueidis.VectorString32(vector)).
 		Build()
 	res := table.client.Do(context.TODO(), cmd)
@@ -319,7 +319,7 @@ func (table redisOnlineIndex) Set(entity string, value interface{}) error {
 func (table redisOnlineIndex) Get(entity string) (interface{}, error) {
 	cmd := table.client.B().
 		Hget().
-		Key(table.key.String()).
+		Key(table.getHashKey(entity)).
 		Field(table.getVectorField()).
 		Build()
 	resp := table.client.Do(context.TODO(), cmd)
@@ -339,21 +339,21 @@ func (table redisOnlineIndex) Nearest(feature, variant string, vector []float32,
 	if err != nil {
 		return nil, err
 	}
+
 	entities := make([]string, len(docs))
 	for idx, doc := range docs {
-		entities[idx] = doc.Doc["entity_id"]
+		entities[idx] = table.getEntityFromHashKey(doc.Key)
 	}
 	return entities, nil
 }
 
 func (table redisOnlineIndex) createNearestCmd(key redisTableKey, vector []float32, k int32) rueidis.Completed {
+	vectorField := table.getVectorField()
 	return table.client.B().
 		FtSearch().
 		Index(table.key.String()).
-		Query(fmt.Sprintf("*=>[KNN $K @%s $BLOB]", table.getVectorField())).
-		Return("1").
-		Identifier("entity_id").
-		Sortby(fmt.Sprintf("__%s_score", table.getVectorField())).
+		Query(fmt.Sprintf("*=>[KNN $K @%s $BLOB]", vectorField)).
+		Sortby(fmt.Sprintf("__%s_score", vectorField)).
 		Params().
 		Nargs(4).
 		NameValue().
@@ -365,4 +365,13 @@ func (table redisOnlineIndex) createNearestCmd(key redisTableKey, vector []float
 
 func (table redisOnlineIndex) getVectorField() string {
 	return fmt.Sprintf("vector_field_%s_%s", table.key.Feature, table.key.Variant)
+}
+
+func (table redisOnlineIndex) getHashKey(entity string) string {
+	return fmt.Sprintf("featureform_%s_%s_%s", table.key.Feature, table.key.Variant, entity)
+}
+
+func (table redisOnlineIndex) getEntityFromHashKey(key string) string {
+	idx := strings.LastIndex(key, "_")
+	return key[idx+1:]
 }

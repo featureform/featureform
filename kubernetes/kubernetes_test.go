@@ -35,6 +35,10 @@ type MockJobClient struct {
 	Namespace string
 }
 
+func (m MockJobClient) GetJobName() string {
+	return m.JobName
+}
+
 func (m MockJobClient) Get() (*batchv1.Job, error) {
 	return &batchv1.Job{}, nil
 }
@@ -64,7 +68,7 @@ func (m MockJobClient) GetJobSchedule(jobName string) (CronSchedule, error) {
 }
 
 func TestKubernetesRunnerCreate(t *testing.T) {
-	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{EnvVars: map[string]string{"test": "envVar"}, Image: "test", NumTasks: 1})
+	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{EnvVars: map[string]string{"test": "envVar"}, JobPrefix: "", Image: "test", NumTasks: 1})
 	if err != nil {
 		t.Fatalf("Failed to create Kubernetes runner")
 	}
@@ -85,6 +89,10 @@ func TestKubernetesRunnerCreate(t *testing.T) {
 }
 
 type MockJobClientBroken struct{}
+
+func (m MockJobClientBroken) GetJobName() string {
+	return ""
+}
 
 func (m MockJobClientBroken) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error) {
 	return nil, errors.New("cannot create job")
@@ -125,6 +133,10 @@ func TestJobClientCreateFail(t *testing.T) {
 }
 
 type MockJobClientRunBroken struct{}
+
+func (m MockJobClientRunBroken) GetJobName() string {
+	return ""
+}
 
 func (m MockJobClientRunBroken) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error) {
 	return &batchv1.Job{}, nil
@@ -187,6 +199,10 @@ func (m MockWatch) ResultChan() <-chan watch.Event {
 
 type MockJobClientFailChannel struct{}
 
+func (m MockJobClientFailChannel) GetJobName() string {
+	return ""
+}
+
 func (m MockJobClientFailChannel) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error) {
 	return &batchv1.Job{}, nil
 }
@@ -237,7 +253,7 @@ func TestPodFailure(t *testing.T) {
 }
 
 func TestKubernetesRunnerSchedule(t *testing.T) {
-	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{EnvVars: map[string]string{"test": "envVar"}, Image: "test", NumTasks: 1})
+	runner, err := NewMockKubernetesRunner(KubernetesRunnerConfig{EnvVars: map[string]string{"test": "envVar"}, JobPrefix: "", Image: "test", NumTasks: 1})
 	if err != nil {
 		t.Fatalf("Failed to create Kubernetes runner")
 	}

@@ -29,6 +29,7 @@ const useStyles = makeStyles((theme) =>
       '&:hover': {
         border: `2px solid black`,
       },
+      color: '#FFFFFF',
     },
     inputRoot: {
       borderRadius: 16,

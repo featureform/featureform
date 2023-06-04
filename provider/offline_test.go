@@ -196,6 +196,7 @@ func TestOfflineStores(t *testing.T) {
 		"PrimaryTableWrite":            testPrimaryTableWrite,
 		"Transformation":               testTransform,
 		"TransformationUpdate":         testTransformUpdate,
+		"TransformWithFeatureUpdate":   testTransformWithFeatureUpdate,
 		"CreateDuplicatePrimaryTable":  testCreateDuplicatePrimaryTable,
 		"ChainTransformations":         testChainTransform,
 		"CreateResourceFromSource":     testCreateResourceFromSource,
@@ -2276,7 +2277,6 @@ func testTransform(t *testing.T, store OfflineStore) {
 			testTransform(t, testConst)
 		})
 	}
-
 }
 
 func testTransformUpdate(t *testing.T, store OfflineStore) {
@@ -2397,6 +2397,11 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 		},
 	}
 
+	featureID := ResourceID{
+		Name: uuid.NewString(),
+		Type: Feature,
+	}
+
 	testTransform := func(t *testing.T, test TransformTest) {
 		table, err := store.CreatePrimaryTable(test.PrimaryTable, test.Schema)
 		if err != nil {
@@ -2436,7 +2441,7 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 					found = true
 					lastIdx := len(test.Expected) - 1
 					// Swap the record that we've found to the end, then shrink the slice to not include it.
-					// This is essentially a delete operation expect that it re-orders the slice.
+					// This is essentially a delete operation except that it re-orders the slice.
 					test.Expected[i], test.Expected[lastIdx] = test.Expected[lastIdx], test.Expected[i]
 					test.Expected = test.Expected[:lastIdx]
 					break
@@ -2467,6 +2472,26 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 			t.Errorf("Could not get updated transformation table: %v", err)
 		}
 
+		// create feature on transformation
+		recSchema := ResourceSchema{
+			Entity:      "entity",
+			Value:       "int",
+			TS:          "ts",
+			SourceTable: table.GetName(),
+		}
+		_, err = store.RegisterResourceFromSourceTable(featureID, recSchema)
+		if err != nil {
+			t.Fatalf("Could not register from tf: %s", err)
+		}
+		_, err = store.GetResourceTable(featureID)
+		if err != nil {
+			t.Fatalf("Could not get resource table: %v", err)
+		}
+		_, err = store.CreateMaterialization(featureID)
+		if err != nil {
+			t.Fatalf("Could not create materialization: %v", err)
+		}
+
 		iterator, err = table.IterateSegment(100)
 		if err != nil {
 			t.Fatalf("Could not get generic iterator: %v", err)
@@ -2480,7 +2505,7 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 					found = true
 					lastIdx := len(test.UpdatedExpected) - 1
 					// Swap the record that we've found to the end, then shrink the slice to not include it.
-					// This is essentially a delete operation expect that it re-orders the slice.
+					// This is essentially a delete operation except that it re-orders the slice.
 					test.UpdatedExpected[i], test.UpdatedExpected[lastIdx] = test.UpdatedExpected[lastIdx], test.UpdatedExpected[i]
 					test.UpdatedExpected = test.UpdatedExpected[:lastIdx]
 					break

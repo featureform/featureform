@@ -446,14 +446,15 @@ func (q defaultBQQueries) transformationUpdate(client *bigquery.Client, tableNam
 }
 
 func (q defaultBQQueries) atomicUpdate(client *bigquery.Client, tableName string, tempName string, query string) error {
-	sanitizedTable := tableName
-	oldTable := fmt.Sprintf("old_%s", tableName)
+	table := q.getTableName(tableName)
 	updateQuery := fmt.Sprintf(
-		"%s;"+
-			"ALTER TABLE `%s` RENAME TO `%s`;"+
-			"ALTER TABLE `%s` RENAME TO `%s`;"+
-			"DROP TABLE `%s`;"+
-			"", query, q.getTableName(sanitizedTable), oldTable, q.getTableName(tempName), sanitizedTable, q.getTableName(oldTable))
+		"BEGIN TRANSACTION;"+
+			"%s;"+
+			"TRUNCATE TABLE %s;"+ // this doesn't work in a trx
+			"INSERT INTO %s SELECT * FROM %s;"+
+			"DROP TABLE %s;"+
+			"COMMIT;"+
+			"", query, table, table, tempName, tempName)
 
 	bdQ := client.Query(updateQuery)
 	job, err := bdQ.Run(q.getContext())

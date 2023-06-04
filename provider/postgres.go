@@ -220,18 +220,42 @@ func (q postgresSQLQueries) transformationUpdate(db *sql.DB, tableName string, q
 	return q.atomicUpdate(db, tableName, tempName, fullQuery)
 }
 
-func (q postgresSQLQueries) atomicUpdate(db *sql.DB, tableName string, tempName string, query string) error {
-	santizedName := sanitize(tableName)
-	oldName := sanitize(fmt.Sprintf("old_%s", tableName))
-	transaction := fmt.Sprintf("BEGIN;"+
-		"%s;"+
-		"ALTER TABLE %s RENAME TO %s;"+
-		"ALTER TABLE %s RENAME TO %s;"+
-		"DROP TABLE %s;"+
-		"COMMIT;", query, santizedName, oldName, tempName, santizedName, oldName)
-	_, err := db.Exec(transaction)
+func (q postgresSQLQueries) atomicUpdate(db *sql.DB, tableName string, tempName string, fullQuery string) error {
+	// creates the temp table
+	_, err := db.Exec(fullQuery)
+	if err != nil {
+		return err
+	}
 
-	return err
+	// Start transaction
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+
+	// Truncate current table
+	if _, err = tx.Exec(fmt.Sprintf("TRUNCATE TABLE %s", tableName)); err != nil {
+		return err
+	}
+
+	// Copy contents from temp table
+	if _, err = tx.Exec(fmt.Sprintf("INSERT INTO %s SELECT * FROM %s", tableName, tempName)); err != nil {
+		return err
+	}
+
+	// Drop temp table
+	if _, err = tx.Exec(fmt.Sprintf("DROP TABLE %s", tempName)); err != nil {
+		return err
+	}
+
+	// Commit the transaction.
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (q postgresSQLQueries) transformationExists() string {

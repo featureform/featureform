@@ -1885,11 +1885,14 @@ class ResourceState:
         db = SQLiteMetadata()
         check_up_to_date(True, "register")
         for resource in self.sorted_list():
+            resource_variant = (
+                f" {resource.variant}" if hasattr(resource, "variant") else ""
+            )
             if resource.operation_type() is OperationType.GET:
-                print("Getting", resource.type(), resource.name)
+                print("Getting", resource.type(), resource.name, resource_variant)
                 resource._get_local(db)
             if resource.operation_type() is OperationType.CREATE:
-                print("Creating", resource.type(), resource.name)
+                print("Creating", resource.type(), resource.name, resource_variant)
                 resource._create_local(db)
         db.close()
         return

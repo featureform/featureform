@@ -35,6 +35,7 @@ describe('TopBar version tests', () => {
   };
 
   beforeEach(() => {
+    console.warn = jest.fn();
     jest.resetAllMocks();
   });
 

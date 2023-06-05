@@ -21,7 +21,7 @@ describe('ResourceListView tests', () => {
   const NO_RECORDS = 'No records to display';
   const PROGRESS_BAR = 'progressbar';
   const SVG_NODE = 'svg';
-  const DIV_NODE = 'DIV';
+  const SPAN_NODE = 'SPAN';
   const TD_NODE = 'TD';
 
   test('The resource list renders correctly when no data is present', () => {
@@ -91,7 +91,7 @@ describe('ResourceListView tests', () => {
 
     //then:
     expect(foundNoRecords.nodeName).toBe(TD_NODE);
-    expect(foundProgressBar.nodeName).toBe(DIV_NODE);
+    expect(foundProgressBar.nodeName).toBe(SPAN_NODE);
     expect(foundProgressBar.firstChild.nodeName).toBe(SVG_NODE);
   });
 
@@ -103,7 +103,7 @@ describe('ResourceListView tests', () => {
     const foundProgressBar = await helper.findByRole(PROGRESS_BAR);
 
     expect(foundNoRecords.nodeName).toBe(TD_NODE);
-    expect(foundProgressBar.nodeName).toBe(DIV_NODE);
+    expect(foundProgressBar.nodeName).toBe(SPAN_NODE);
     expect(foundProgressBar.firstChild.nodeName).toBe(SVG_NODE);
   });
 
@@ -120,7 +120,7 @@ describe('ResourceListView tests', () => {
     const foundProgressBar = await helper.findByRole(PROGRESS_BAR);
 
     expect(foundNoRecords.nodeName).toBe(TD_NODE);
-    expect(foundProgressBar.nodeName).toBe(DIV_NODE);
+    expect(foundProgressBar.nodeName).toBe(SPAN_NODE);
     expect(foundProgressBar.firstChild.nodeName).toBe(SVG_NODE);
   });
 });

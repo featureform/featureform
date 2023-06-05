@@ -6,10 +6,6 @@
   "dependencies": {
     "@emotion/react": "^11.11.0",
     "@emotion/styled": "^11.11.0",
-    "@material-ui/core": "^4.12.3",
-    "@material-ui/data-grid": "^4.0.0-alpha.37",
-    "@material-ui/icons": "^4.11.3",
-    "@material-ui/styles": "^4.11.5",
     "@mui/icons-material": "^5.11.16",
     "@mui/material": "^5.13.0",
     "@mui/styles": "^5.5.0",

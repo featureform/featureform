@@ -1,38 +1,67 @@
-import Chip from '@material-ui/core/Chip';
+import { cleanup, fireEvent, render } from '@testing-library/react';
 import Adapter from '@wojtekmaj/enzyme-adapter-react-17';
-import { configure, mount, shallow } from 'enzyme';
+import { configure } from 'enzyme';
 import 'jest-canvas-mock';
 import React from 'react';
 import { TagList } from '../src/components/resource-list/ResourceListView';
 
 configure({ adapter: new Adapter() });
 
-describe('TagList', () => {
-  const exampleTags = ['a', 'b', 'c'];
-
-  test('renders correctly with no tags', () => {
-    const list = shallow(<TagList />);
-    expect(list.children().length).toBe(0);
+describe('Tag list test', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
   });
 
-  test('renders correctly with no active tags', () => {
-    const list = shallow(<TagList tagClass='class-here' tags={exampleTags} />);
-    expect(list).toMatchSnapshot();
+  afterEach(() => {
+    cleanup();
   });
 
-  test('highlights active tags', () => {
-    const list = mount(
+  const exampleTags = ['tag1', 'tag2', 'tag3'];
+  const CONTAINER_ID = 'tagContainerId';
+
+  const MUI_DEFAULT_CLASS = 'MuiChip-colorDefault';
+  const MUI_ACTIVE_CLASS = 'MuiChip-colorSecondary';
+
+  test('Renders correctly with no tags', () => {
+    //given:
+    const helper = render(<TagList />);
+
+    //when:
+    const foundContainer = helper.getByTestId(CONTAINER_ID);
+
+    //then:
+    expect(foundContainer.childElementCount).toBe(0);
+  });
+
+  test('Highlights active tags', () => {
+    //given: the 2nd tag is highlighted
+    const helper = render(
       <TagList activeTags={{ [exampleTags[1]]: true }} tags={exampleTags} />
     );
-    const chips = list.find(Chip);
-    expect(chips.at(0).prop('color')).toBe('default');
-    expect(chips.at(1).prop('color')).toBe('secondary');
+
+    //when:
+    const activeTag = helper.getByText(exampleTags[1]);
+    const inactiveTag = helper.getByText(exampleTags[0]);
+
+    //then:
+    expect(activeTag.parentNode.className).toContain(MUI_ACTIVE_CLASS);
+    expect(inactiveTag.parentNode.className).toContain(MUI_DEFAULT_CLASS);
   });
 
-  test('toggles tag on click', () => {
-    const toggle = jest.fn();
-    const list = mount(<TagList tags={exampleTags} toggleTag={toggle} />);
-    list.find(Chip).at(0).simulate('click');
-    expect(toggle).toHaveBeenCalledWith(exampleTags[0]);
+  test('The toggle function prop is called when clicked', () => {
+    //given:
+    const toggleMock = jest.fn();
+    const firstTag = exampleTags[0];
+    const helper = render(
+      <TagList tags={exampleTags} toggleTag={toggleMock} />
+    );
+
+    //when:
+    const foundTag = helper.getByTestId(`${firstTag}-0`);
+    fireEvent.click(foundTag);
+
+    //then:
+    expect(toggleMock).toHaveBeenCalledTimes(1);
+    expect(toggleMock).toHaveBeenCalledWith(firstTag);
   });
 });

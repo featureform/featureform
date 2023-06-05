@@ -1,12 +1,11 @@
-import Button from '@material-ui/core/Button';
-import Chip from '@material-ui/core/Chip';
-import Container from '@material-ui/core/Container';
-import Grid from '@material-ui/core/Grid';
-import { makeStyles } from '@material-ui/core/styles';
-import Typography from '@material-ui/core/Typography';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
+import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import Container from '@mui/material/Container';
+import Grid from '@mui/material/Grid';
 import Rating from '@mui/material/Rating';
-import { ThemeProvider } from '@mui/styles';
+import Typography from '@mui/material/Typography';
+import { makeStyles, ThemeProvider } from '@mui/styles';
 import MaterialTable, {
   MTableBody,
   MTableHeader,
@@ -332,10 +331,11 @@ export const TagList = ({
   tagClass,
   toggleTag,
 }) => (
-  <Grid container direction='row'>
-    {tags.map((tag) => (
+  <Grid data-testid='tagContainerId' container direction='row'>
+    {tags.map((tag, index) => (
       <Chip
         key={tag}
+        data-testid={`${tag}-${index}`}
         className={tagClass}
         color={activeTags[tag] ? 'secondary' : 'default'}
         onClick={(event) => {

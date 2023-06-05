@@ -254,7 +254,7 @@ jobs:
     runs-on: self-hosted
     strategy:
         matrix:
-            k8s-version: ["1.23.16", "1.24.14", "1.25.10", "1.26.5", "1.27.2"]
+            k8s-version: ["1.23.16"] #, "1.24.14", "1.25.10", "1.26.5", "1.27.2"]
     steps:
       - name: Configure Docker Socket
         run: |

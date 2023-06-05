@@ -2,10 +2,10 @@ package provider
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	pc "github.com/featureform/provider/provider_config"
@@ -113,8 +113,12 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 	switch valueTypeJSON.ValueType.(type) {
 	case VectorType:
 		table = &redisOnlineIndex{
-			client:    store.client,
-			key:       key,
+			client: store.client,
+			key: redisIndexKey{
+				Prefix:  store.prefix,
+				Feature: feature,
+				Variant: variant,
+			},
 			valueType: valueTypeJSON.ValueType,
 		}
 	case ScalarType:
@@ -156,7 +160,27 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 	if resp := store.client.Do(context.TODO(), cmd); resp.Error() != nil {
 		return nil, resp.Error()
 	}
-	table := &redisOnlineTable{client: store.client, key: key, valueType: valueType}
+	var table OnlineStoreTable
+	switch valueType.(type) {
+	case VectorType:
+		table = &redisOnlineIndex{
+			client: store.client,
+			key: redisIndexKey{
+				Prefix:  store.prefix,
+				Feature: feature,
+				Variant: variant,
+			},
+			valueType: valueType,
+		}
+	case ScalarType:
+		table = &redisOnlineTable{
+			client:    store.client,
+			key:       key,
+			valueType: valueType,
+		}
+	default:
+		return nil, fmt.Errorf("unknown value type: %T", valueType)
+	}
 	return table, nil
 }
 
@@ -165,8 +189,11 @@ func (store *redisOnlineStore) DeleteTable(feature, variant string) error {
 }
 
 func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error) {
-	key := redisTableKey{store.prefix, feature, variant}
-	cmd := store.createIndexCmd(key, vectorType)
+	key := redisIndexKey{Prefix: store.prefix, Feature: feature, Variant: variant}
+	cmd, err := store.createIndexCmd(key, vectorType)
+	if err != nil {
+		return nil, err
+	}
 	resp := store.client.Do(context.Background(), cmd)
 	if resp.Error() != nil {
 		return &redisOnlineIndex{}, resp.Error()
@@ -175,7 +202,11 @@ func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType V
 	return table, nil
 }
 
-func (store *redisOnlineStore) createIndexCmd(key redisTableKey, vectorType VectorType) rueidis.Completed {
+func (store *redisOnlineStore) createIndexCmd(key redisIndexKey, vectorType VectorType) (rueidis.Completed, error) {
+	serializedKey, err := key.serialize("")
+	if err != nil {
+		return rueidis.Completed{}, err
+	}
 	requiredParams := []string{
 		"TYPE", "FLOAT32",
 		"DIM", strconv.FormatUint(uint64(vectorType.Dimension), 10),
@@ -183,11 +214,11 @@ func (store *redisOnlineStore) createIndexCmd(key redisTableKey, vectorType Vect
 	}
 	return store.client.B().
 		FtCreate().
-		Index(key.String()).
+		Index(string(serializedKey)).
 		Schema().
-		FieldName(fmt.Sprintf("vector_field_%s_%s", key.Feature, key.Variant)).
+		FieldName(key.getVectorField()).
 		Vector("HNSW", int64(len(requiredParams)), requiredParams...).
-		Build()
+		Build(), nil
 }
 
 type redisOnlineTable struct {
@@ -294,8 +325,29 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 
 type redisOnlineIndex struct {
 	client    rueidis.Client
-	key       redisTableKey
+	key       redisIndexKey
 	valueType ValueType
+}
+
+type redisIndexKey struct {
+	Prefix, Feature, Variant, Entity string
+}
+
+func (k *redisIndexKey) serialize(entity string) ([]byte, error) {
+	k.Entity = entity
+	return json.Marshal(k)
+}
+
+func (k *redisIndexKey) deserialize(key []byte) error {
+	return json.Unmarshal(key, &k)
+}
+
+func (k redisIndexKey) getVectorField() string {
+	name_variant := fmt.Sprintf("%s_%s", k.Feature, k.Variant)
+	// RawStdEncoding is necessary given the padding character is considered
+	// a token character in RediSearch
+	encoded := base64.RawStdEncoding.EncodeToString([]byte(name_variant))
+	return fmt.Sprintf("vector_field_%s", encoded)
 }
 
 func (table redisOnlineIndex) Set(entity string, value interface{}) error {
@@ -303,11 +355,15 @@ func (table redisOnlineIndex) Set(entity string, value interface{}) error {
 	if !ok {
 		return fmt.Errorf("value %v is not a vector", value)
 	}
+	serializedKey, err := table.key.serialize(entity)
+	if err != nil {
+		return err
+	}
 	cmd := table.client.B().
 		Hset().
-		Key(table.getHashKey(entity)).
+		Key(string(serializedKey)).
 		FieldValue().
-		FieldValue(table.getVectorField(), rueidis.VectorString32(vector)).
+		FieldValue(table.key.getVectorField(), rueidis.VectorString32(vector)).
 		Build()
 	res := table.client.Do(context.TODO(), cmd)
 	if res.Error() != nil {
@@ -317,10 +373,14 @@ func (table redisOnlineIndex) Set(entity string, value interface{}) error {
 }
 
 func (table redisOnlineIndex) Get(entity string) (interface{}, error) {
+	serializedKey, err := table.key.serialize(entity)
+	if err != nil {
+		return nil, err
+	}
 	cmd := table.client.B().
 		Hget().
-		Key(table.getHashKey(entity)).
-		Field(table.getVectorField()).
+		Key(string(serializedKey)).
+		Field(table.key.getVectorField()).
 		Build()
 	resp := table.client.Do(context.TODO(), cmd)
 	if resp.Error() != nil {
@@ -334,24 +394,35 @@ func (table redisOnlineIndex) Get(entity string) (interface{}, error) {
 }
 
 func (table redisOnlineIndex) Nearest(feature, variant string, vector []float32, k int32) ([]string, error) {
-	cmd := table.createNearestCmd(table.key, vector, k)
+	cmd, err := table.createNearestCmd(vector, k)
+	if err != nil {
+		return nil, err
+	}
 	_, docs, err := table.client.Do(context.Background(), cmd).AsFtSearch()
 	if err != nil {
 		return nil, err
 	}
-
 	entities := make([]string, len(docs))
 	for idx, doc := range docs {
-		entities[idx] = table.getEntityFromHashKey(doc.Key)
+		key := redisIndexKey{}
+		err := key.deserialize([]byte(doc.Key))
+		if err != nil {
+			return nil, err
+		}
+		entities[idx] = key.Entity
 	}
 	return entities, nil
 }
 
-func (table redisOnlineIndex) createNearestCmd(key redisTableKey, vector []float32, k int32) rueidis.Completed {
-	vectorField := table.getVectorField()
+func (table redisOnlineIndex) createNearestCmd(vector []float32, k int32) (rueidis.Completed, error) {
+	vectorField := table.key.getVectorField()
+	serializedKey, err := table.key.serialize("")
+	if err != nil {
+		return rueidis.Completed{}, err
+	}
 	return table.client.B().
 		FtSearch().
-		Index(table.key.String()).
+		Index(string(serializedKey)).
 		Query(fmt.Sprintf("*=>[KNN $K @%s $BLOB]", vectorField)).
 		Sortby(fmt.Sprintf("__%s_score", vectorField)).
 		Params().
@@ -360,18 +431,5 @@ func (table redisOnlineIndex) createNearestCmd(key redisTableKey, vector []float
 		NameValue("K", strconv.Itoa(int(k))).
 		NameValue("BLOB", rueidis.VectorString32(vector)).
 		Dialect(2).
-		Build()
-}
-
-func (table redisOnlineIndex) getVectorField() string {
-	return fmt.Sprintf("vector_field_%s_%s", table.key.Feature, table.key.Variant)
-}
-
-func (table redisOnlineIndex) getHashKey(entity string) string {
-	return fmt.Sprintf("featureform_%s_%s_%s", table.key.Feature, table.key.Variant, entity)
-}
-
-func (table redisOnlineIndex) getEntityFromHashKey(key string) string {
-	idx := strings.LastIndex(key, "_")
-	return key[idx+1:]
+		Build(), nil
 }

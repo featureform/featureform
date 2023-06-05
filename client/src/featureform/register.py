@@ -2896,17 +2896,24 @@ class Registrar:
         self.__resources.append(decorator)
         return decorator
 
-    def _verify_tuple(self, tuple):
-        if len(tuple) != 2:
+    def _verify_tuple(self, nv_tuple):
+        if not isinstance(nv_tuple, tuple):
+            raise TypeError(f"not a tuple; received: '{type(nv_tuple).__name__}' type")
+
+        if len(nv_tuple) != 2:
             raise TypeError(
-                "Tuple must be of length 2, got length {}".format(len(tuple))
+                "Tuple must be of length 2, got length {}".format(len(nv_tuple))
             )
-        if len(tuple) == 2:
-            not_string_tuples = not (isinstance(tuple[0], str) and isinstance(tuple[1], str))
+        if len(nv_tuple) == 2:
+            not_string_tuples = not (
+                isinstance(nv_tuple[0], str) and isinstance(nv_tuple[1], str)
+            )
             if not_string_tuples:
-                first_position_type = type(tuple[0]).__name__
-                second_position_type = type(tuple[1]).__name__
-                raise TypeError(f"input tuple must be of type (str, str); got ({first_position_type}, {second_position_type})")
+                first_position_type = type(nv_tuple[0]).__name__
+                second_position_type = type(nv_tuple[1]).__name__
+                raise TypeError(
+                    f"Tuple must be of type (str, str); got ({first_position_type}, {second_position_type})"
+                )
 
     def ondemand_feature(
         self,

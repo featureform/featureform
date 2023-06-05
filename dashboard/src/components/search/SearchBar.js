@@ -24,10 +24,10 @@ const useStyles = makeStyles((theme) =>
       borderRadius: `28px`,
     },
     border: {
-      border: `2px solid ${theme.palette.border.alternate}`,
+      border: `2px solid white`,
       borderRadius: 16,
       '&:hover': {
-        border: `2px solid black`,
+        border: `2px solid white`,
       },
       color: '#FFFFFF',
     },
@@ -41,7 +41,7 @@ const useStyles = makeStyles((theme) =>
       color: '#FFFFFF',
     },
     inputColor: {
-      color: '#FFFFFF',
+      color: 'white',
     },
     inputInputHome: {
       paddingLeft: theme.spacing(4),

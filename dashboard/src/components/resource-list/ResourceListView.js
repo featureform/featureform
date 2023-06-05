@@ -20,6 +20,7 @@ import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
 import sql from 'react-syntax-highlighter/dist/cjs/languages/prism/sql';
 import { providerLogos } from '../../api/resources';
 import Resource from '../../api/resources/Resource.js';
+import { deepCopy } from '../../helper';
 import theme from '../../styles/theme';
 
 SyntaxHighlighter.registerLanguage('python', python);
@@ -197,11 +198,10 @@ export const ResourceListView = ({
   let router = useRouter();
   const initialLoad = resources == null && !loading;
   const initRes = resources || [];
-  const copy = (res) => res.map((o) => ({ ...o }));
   const noVariants = !Resource[type].hasVariants;
   // MaterialTable can't handle immutable object, we have to make a copy
   // https://github.com/mbrn/material-table/issues/666
-  const mutableRes = copy(initRes);
+  const mutableRes = deepCopy(initRes);
 
   function detailRedirect(e, data) {
     e.stopPropagation();
@@ -294,6 +294,7 @@ export const ResourceListView = ({
           ),
         }}
         options={{
+          loadingType: 'overlay',
           search: true,
           draggable: false,
           headerStyle: {

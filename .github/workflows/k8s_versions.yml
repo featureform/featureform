@@ -1,0 +1,412 @@
+name: Testing Featureform with Kubernetes Versions
+on:
+  pull_request:
+    branches: '**'
+  push:
+    branches: 'release/**'
+
+concurrency:
+  group: ${{ github.head_ref }}-k8s
+  cancel-in-progress: true
+jobs:
+  api-server:
+    name: Build API Server
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./api/Dockerfile
+          tags: local/api-server:stable
+          push: false
+          outputs: type=docker,dest=/tmp/api-server.tar
+
+      - name: Upload image
+        uses: actions/upload-artifact@v3
+        with:
+          name: api-server
+          path: /tmp/api-server.tar
+
+  dashboard:
+    name: Build Dashboard
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./dashboard/Dockerfile
+          tags: local/dashboard:stable
+          push: false
+          outputs: type=docker,dest=/tmp/dashboard.tar
+      - name: Upload image
+        uses: actions/upload-artifact@v3
+        with:
+          name: dashboard
+          path: /tmp/dashboard.tar
+
+  metadata:
+    name: Build Metadata
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./metadata/Dockerfile
+          tags: local/metadata:stable
+          push: false
+          outputs: type=docker,dest=/tmp/metadata.tar
+      - name: Upload image
+        uses: actions/upload-artifact@v3
+        with:
+          name: metadata
+          path: /tmp/metadata.tar
+
+  dashboard-metadata:
+    name: Build Dashboard Metadata
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./metadata/dashboard/Dockerfile
+          tags: local/metadata-dashboard:stable
+          push: false
+          outputs: type=docker,dest=/tmp/metadata-dashboard.tar
+
+      - name: Upload image
+        uses: actions/upload-artifact@v3
+        with:
+          name: metadata-dashboard
+          path: /tmp/metadata-dashboard.tar
+
+  serving:
+    name: Build Serving
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and export
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./serving/Dockerfile
+          tags: local/serving:stable
+          push: false
+          outputs: type=docker,dest=/tmp/serving.tar
+
+      - name: Upload image
+        uses: actions/upload-artifact@v3
+        with:
+          name: serving
+          path: /tmp/serving.tar
+
+  k8s_runner:
+    name: Build K8s Runner
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      # Manual build and save b/c Github Actions not setting docker env properly
+      - name: Build Base
+        run: docker build . -t local/k8s_runner:stable -f ./provider/scripts/k8s/Dockerfile
+
+      - name: Build scikit
+        run: docker build . -t local/k8s_runner:scikit-stable -f ./provider/scripts/k8s/Dockerfile.scikit
+
+      - name: Save Base
+        run: docker save local/k8s_runner:stable > /tmp/k8s_runner.tar
+
+      - name: Save Scikit
+        run: docker save local/k8s_runner:scikit-stable > /tmp/k8s_runner_scikit.tar
+
+      - name: Upload Base Image
+        uses: actions/upload-artifact@v3
+        with:
+          name: k8s_runner
+          path: /tmp/k8s_runner.tar
+
+      - name: Upload Scikit Image
+        uses: actions/upload-artifact@v3
+        with:
+          name: k8s_runner_scikit
+          path: /tmp/k8s_runner_scikit.tar
+
+  setup:
+    name: Setting up environment
+    environment: Integration testing
+    needs: [api-server, dashboard, dashboard-metadata, metadata, serving, k8s_runner]
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          names: api-server dashboard dashboard-metadata metadata serving k8s_runner k8s_runner_scikit backup
+          path: /tmp
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.7"
+          check-latest: true
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
+      - name: Install Python Dependencies
+        run: |
+          pip install pyyaml click
+          pip install -r ./backup/requirements.txt
+
+      - name: Check Artifacts
+        run: |
+          ls /tmp
+          ls /tmp/api-server
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools requests python-dotenv
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Install etcdctl
+        env:
+          ETCD_VER: v3.4.19
+          GOOGLE_URL: https://storage.googleapis.com/etcd
+        run: |
+          rm -f /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
+          rm -rf /tmp/etcd-download-test && mkdir -p /tmp/etcd-download-test
+          
+          curl -L ${GOOGLE_URL}/${ETCD_VER}/etcd-${ETCD_VER}-linux-amd64.tar.gz -o /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
+          tar xzvf /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz -C /tmp/etcd-download-test --strip-components=1
+          rm -f /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
+          
+          /tmp/etcd-download-test/etcd --version
+          /tmp/etcd-download-test/etcdctl version
+          echo "/tmp/etcd-download-test/" >> $GITHUB_PATH
+
+      - name: Install minikube and helm
+        run: |
+          curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+          sudo install minikube-linux-amd64 /usr/local/bin/minikube
+          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+          chmod 700 get_helm.sh
+          ./get_helm.sh
+
+  testing:    
+    name: Test Localmode
+    needs: setup
+    defaults:
+        run:
+            working-directory: ./
+    runs-on: self-hosted
+    strategy:
+        matrix:
+            k8s-version: ["1.23.16", "1.24.14", "1.25.10", "1.26.5", "1.27.2"]
+    steps:
+      - name: Configure Docker Socket
+        run: |
+          minikube start --kubernetes-version=${{ matrix.k8s-version }} -p ff-${{ matrix.k8s-version }}
+          docker build . -t local/coordinator:stable -f coordinator/Dockerfile.old --build-arg TESTING="True"
+
+      - name: Load image
+        run: |
+          docker load --input /tmp/api-server/api-server.tar
+          docker load --input /tmp/dashboard/dashboard.tar
+          docker load --input /tmp/metadata-dashboard/metadata-dashboard.tar
+          docker load --input /tmp/metadata/metadata.tar
+          docker load --input /tmp/serving/serving.tar
+          docker load --input /tmp/k8s_runner/k8s_runner.tar
+          docker load --input /tmp/k8s_runner_scikit/k8s_runner_scikit.tar
+          docker load --input /tmp/backup/backup.tar
+          minikube image load local/api-server:stable
+          minikube image load local/coordinator:stable
+          minikube image load local/dashboard:stable
+          minikube image load local/metadata-dashboard:stable
+          minikube image load local/metadata:stable
+          minikube image load local/serving:stable
+          minikube image load local/k8s_runner:stable
+          minikube image load local/k8s_runner:scikit-stable
+          minikube image load local/backup:stable
+          minikube image ls
+
+      - name: Helm Install Featureform
+        run: |
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo update
+          helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
+          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable 
+
+      - name: Helm Install Quickstart
+        run: |
+          helm install quickstart ./charts/quickstart
+
+      - name: K8s Pods
+        if: always()
+        run: kubectl get pods
+
+      - name: API Server Logs
+        if: always()
+        run: kubectl logs -l app=featureform-api-server
+
+      - name: Coordinator Logs
+        if: always()
+        run: kubectl logs -l app=featureform-coordinator
+
+      - name: Dashboard Logs
+        if: always()
+        run: kubectl logs -l app=featureform-dashboard
+
+      - name: Dashboard Metadata Logs
+        if: always()
+        run: kubectl logs -l app=featureform-dashboard-metadata
+
+      - name: ETCD Logs
+        if: always()
+        run: kubectl logs -l app.kubernetes.io/name=etcd
+
+      - name: Feature Server Logs
+        if: always()
+        run: kubectl logs -l app=featureform-feature-server
+
+      - name: Ingress Logs
+        if: always()
+        run: kubectl logs -l app.kubernetes.io/name=ingress-nginx
+
+      - name: Metadata Server Logs
+        if: always()
+        run: kubectl logs -l app=featureform-metadata-server
+
+      - name: Quickstart Loader Logs
+        if: always()
+        continue-on-error: true
+        run: kubectl logs -l job-name=featureform-quickstart-loader
+
+      - name: Users
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/users
+
+      - name: Providers
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/providers
+
+      - name: Entities
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/entities
+
+      - name: Sources
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/sources
+
+      - name: Features
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/features
+
+      - name: Labels
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/labels
+
+      - name: Training Sets
+        if: always()
+        continue-on-error: true
+        run: curl http://localhost:7000/data/training-sets
+
+      - name: Cleanup Featureform
+        if: always()
+        continue-on-error: true
+        run: helm uninstall featureform
+
+      - name: Cleanup Cert Manager
+        if: always()
+        continue-on-error: true
+        run: helm uninstall certmgr --namespace cert-manager
+
+      - name: Cleanup Quickstart
+        if: always()
+        continue-on-error: true
+        run: helm uninstall quickstart
+
+      - name: Cleanup Hadoop
+        if: always()
+        continue-on-error: true
+        run: |
+          docker kill hadoop
+          docker rm hadoop
+
+      - name: Cleanup Docker
+        if: always()
+        continue-on-error: true
+        run: | 
+          docker system prune -a
+          docker rmi $(docker images -a -q)
+
+      - name: Cleanup PVC
+        if: always()
+        continue-on-error: true
+        run: |
+          kubectl delete pvc data-featureform-etcd-0
+          kubectl delete pvc data-featureform-etcd-1
+          kubectl delete pvc data-featureform-etcd-2
+
+      - name: Cleanup Minikube
+        if: always()
+        continue-on-error: true
+        run: minikube delete -p ff-${{ matrix.k8s-version }}

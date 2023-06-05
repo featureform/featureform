@@ -23,7 +23,6 @@ from featureform.resources import (
     ResourceStatus,
 )
 from featureform.proto import metadata_pb2 as pb
-from featureform.names_generator import get_random_name
 
 
 def my_func(df):
@@ -95,6 +94,7 @@ def test_feature_status(mocker, status, expected, ready):
         "get_feature",
         return_value=Feature(
             name="name",
+            variant="",
             source=("some", "source"),
             value_type="float32",
             entity="entity",
@@ -105,7 +105,6 @@ def test_feature_status(mocker, status, expected, ready):
             status=get_pb_status(status),
             tags=[],
             properties={},
-            variant=get_random_name(),
         ),
     )
     client = ResourceClient("host")
@@ -131,6 +130,7 @@ def test_label_status(mocker, status, expected, ready):
         "get_label",
         return_value=Label(
             name="name",
+            variant="",
             source=("some", "source"),
             value_type="float32",
             entity="entity",
@@ -141,7 +141,6 @@ def test_label_status(mocker, status, expected, ready):
             status=get_pb_status(status),
             tags=[],
             properties={},
-            variant=get_random_name(),
         ),
     )
     client = ResourceClient("host")
@@ -167,6 +166,7 @@ def test_training_set_status(mocker, status, expected, ready):
         "get_training_set",
         return_value=TrainingSet(
             name="",
+            variant="",
             owner="",
             label=("something", "something"),
             features=[("some", "feature")],
@@ -175,7 +175,6 @@ def test_training_set_status(mocker, status, expected, ready):
             status=get_pb_status(status),
             tags=[],
             properties={},
-            variant=get_random_name(),
         ),
     )
     client = ResourceClient("host")
@@ -201,6 +200,7 @@ def test_source_status(mocker, status, expected, ready):
         "get_source",
         return_value=Source(
             name="",
+            variant="",
             definition=Transformation(),
             owner="me",
             provider="provider",
@@ -208,7 +208,6 @@ def test_source_status(mocker, status, expected, ready):
             status=get_pb_status(status),
             tags=[],
             properties={},
-            variant=get_random_name(),
         ),
     )
     client = ResourceClient("host")

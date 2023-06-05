@@ -1,5 +1,6 @@
 import pytest
 from featureform.register import Registrar, ColumnMapping
+from featureform.resources import Location
 
 
 def test_set_run():
@@ -38,7 +39,7 @@ def test_register_primary(set_variant):
     registrar.register_primary_data(
         name="test",
         owner="default_user",
-        location="",
+        location=Location("table"),
         provider="",
         tags=[],
         properties={},
@@ -161,7 +162,7 @@ def test_register_primary_with_variant():
         name="test",
         variant=variant,
         owner="default_user",
-        location="",
+        location=Location("table"),
         provider="",
         tags=[],
         properties={},

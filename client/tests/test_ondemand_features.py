@@ -1,10 +1,11 @@
 import dill
+import time
 
 import pytest
+import numpy as np
 
 import featureform as ff
 from featureform.resources import OnDemandFeature, ResourceStatus
-from featureform.names_generator import get_random_name
 
 
 @pytest.fixture(autouse=True)
@@ -18,12 +19,11 @@ def before_and_after_each(setup_teardown):
 def test_ondemand_feature_decorator_class():
     name = "test_ondemand_feature"
     owner = "ff_tester"
-    variant = get_random_name()
 
-    decorator = OnDemandFeature(owner=owner, name=name, variant=variant)
-    decorator_2 = OnDemandFeature(owner=owner, name=name, variant=variant)
+    decorator = OnDemandFeature(owner=owner, name=name, variant="default")
+    decorator_2 = OnDemandFeature(owner=owner, name=name, variant="default")
 
-    assert decorator.name_variant() == (name, variant)
+    assert decorator.name_variant() == (name, "default")
     assert decorator.type() == "ondemand_feature"
     assert decorator.get_status() == ResourceStatus.READY
     assert decorator.is_ready() is True
@@ -33,15 +33,14 @@ def test_ondemand_feature_decorator_class():
 @pytest.mark.local
 def test_ondemand_decorator():
     owner = "ff_tester"
-    variant = get_random_name()
 
-    @OnDemandFeature(owner=owner, variant=variant)
+    @OnDemandFeature(owner=owner, variant="default")
     def test_fn():
         return 1 + 1
 
     expected_query = dill.dumps(test_fn.__code__)
 
-    assert test_fn.name_variant() == (test_fn.__name__, variant)
+    assert test_fn.name_variant() == (test_fn.__name__, "default")
     assert test_fn.query == expected_query
 
 
@@ -50,49 +49,45 @@ def test_ondemand_decorator():
     "features,entity,expected_output",
     [
         ([("avg_transactions", "quickstart")], {"user": "C8837983"}, [1875.0]),
-        # ([("pi", "default")], {"user": "C8837983"}, [3.141592653589793]),
+        ([("pi", "default")], {"user": "C8837983"}, [3.141592653589793]),
         (
-            # [("avg_transactions", "quickstart"), ("pi", "default")],
-            [("avg_transactions", "quickstart")],
+            [("avg_transactions", "quickstart"), ("pi", "default")],
             {"user": "C8837983"},
-            [1875.0],
-        ),
-        # (
-        #     [("pi", "default"), ("avg_transactions", "quickstart")],
-        #     {"user": "C8837983"},
-        #     [3.141592653589793, 1875.0],
-        # ),
-        (
-            [
-                ("avg_transactions", "quickstart"),
-                # ("pi", "default"),
-                ("avg_transactions", "quickstart"),
-            ],
-            {"user": "C8837983"},
-            # [1875.0, 3.141592653589793, 1875.0],
-            [1875.0, 1875.0],
-        ),
-        (
-            [
-                ("avg_transactions", "quickstart"),
-                # ("pi", "default"),
-                ("avg_transactions", "quickstart"),
-                # ("pi", "default"),
-            ],
-            {"user": "C8837983"},
-            # [1875.0, 3.141592653589793, 1875.0, 3.141592653589793],
-            [1875.0, 1875.0],
-        ),
-        (
-            [
-                ("avg_transactions", "quickstart"),
-                # ("pi", "default"),
-                ("pi", "pi_named"),
-                # ("pi_called", "default"),
-            ],
-            {"user": "C8837983"},
-            # [1875.0, 3.141592653589793, 3.141592653589793, 3.141592653589793],
             [1875.0, 3.141592653589793],
+        ),
+        (
+            [("pi", "default"), ("avg_transactions", "quickstart")],
+            {"user": "C8837983"},
+            [3.141592653589793, 1875.0],
+        ),
+        (
+            [
+                ("avg_transactions", "quickstart"),
+                ("pi", "default"),
+                ("avg_transactions", "quickstart"),
+            ],
+            {"user": "C8837983"},
+            [1875.0, 3.141592653589793, 1875.0],
+        ),
+        (
+            [
+                ("avg_transactions", "quickstart"),
+                ("pi", "default"),
+                ("avg_transactions", "quickstart"),
+                ("pi", "default"),
+            ],
+            {"user": "C8837983"},
+            [1875.0, 3.141592653589793, 1875.0, 3.141592653589793],
+        ),
+        (
+            [
+                ("avg_transactions", "quickstart"),
+                ("pi", "default"),
+                ("pi", "pi_named"),
+                ("pi_called", "default"),
+            ],
+            {"user": "C8837983"},
+            [1875.0, 3.141592653589793, 3.141592653589793, 3.141592653589793],
         ),
         pytest.param([], {}, [], marks=pytest.mark.xfail),
         pytest.param([("pi", "default")], None, [], marks=pytest.mark.xfail),
@@ -110,7 +105,7 @@ def test_serving_ondemand_precalculated_feature(features, entity, expected_outpu
 
 def register_resources():
     ff.register_user("featureformer").make_default_owner()
-
+    ff.set_run("default")
     local = ff.register_local()
 
     transactions = local.register_file(
@@ -127,17 +122,17 @@ def register_resources():
         """the average transaction amount for a user"""
         return transactions.groupby("CustomerID")["TransactionAmount"].mean()
 
-    # @ff.ondemand_feature
-    # def pi(serving_client, entities, params):
-    #     import math
+    @ff.ondemand_feature
+    def pi(serving_client, entities, params):
+        import math
 
-    #     return math.pi
+        return math.pi
 
-    # @ff.ondemand_feature()
-    # def pi_called(serving_client, entities, params):
-    #     import math
+    @ff.ondemand_feature()
+    def pi_called(serving_client, entities, params):
+        import math
 
-    #     return math.pi
+        return math.pi
 
     @ff.ondemand_feature(variant="pi_named")
     def pi(serving_client, entities, params):

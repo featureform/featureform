@@ -981,7 +981,7 @@ class DFTransformationDecorator:
         self.tags = tags
         self.properties = properties
         self.variant = variant
-        self.query = ""
+        self.query = b""
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:
@@ -3040,7 +3040,6 @@ class Registrar:
         provider: Union[str, OfflineProvider],
         tags: List[str],
         properties: dict,
-        query="",
         variant: str = "",
         name: str = "",
         owner: Union[str, UserRegistrar] = "",

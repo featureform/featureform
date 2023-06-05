@@ -1,5 +1,6 @@
 import featureform as ff
 
+ff.set_run("default")
 redis = ff.register_redis(
     name="redis-quickstart",
     host="quickstart-redis",  # The internal dns name for redis

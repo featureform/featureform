@@ -1,4 +1,4 @@
-import AccountCircle from '@material-ui/icons/AccountCircle';
+import AccountCircle from '@mui/icons-material/AccountCircle';
 import { Box } from '@mui/material';
 import AppBar from '@mui/material/AppBar';
 import IconButton from '@mui/material/IconButton';

@@ -1,6 +1,6 @@
-import Container from '@material-ui/core/Container';
-import CssBaseline from '@material-ui/core/CssBaseline';
-import { makeStyles, ThemeProvider } from '@material-ui/core/styles';
+import Container from '@mui/material/Container';
+import CssBaseline from '@mui/material/CssBaseline';
+import { makeStyles, ThemeProvider } from '@mui/styles';
 import React from 'react';
 import theme from '../../styles/theme';
 import BreadCrumbs from '../breadcrumbs/BreadCrumbs';

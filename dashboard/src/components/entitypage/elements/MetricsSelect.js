@@ -1,11 +1,5 @@
-import {
-  Box,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
-} from '@material-ui/core/';
-import Typography from '@material-ui/core/Typography';
+import { Box, FormControl, InputLabel, MenuItem, Select } from '@mui/material';
+import Typography from '@mui/material/Typography';
 import React, { useEffect } from 'react';
 import { connect } from 'react-redux';
 import MetricsAPI from '../../api/resources/Metrics.js';

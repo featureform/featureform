@@ -1,5 +1,5 @@
-import blueGrey from '@material-ui/core/colors/blueGrey';
-import { createTheme, responsiveFontSizes } from '@material-ui/core/styles';
+import { blueGrey } from '@mui/material/colors';
+import { createTheme, responsiveFontSizes } from '@mui/material/styles';
 
 export const GREEN = '#27ae60';
 export const FEATUREFORM_PURPLE = '#7A14E5';

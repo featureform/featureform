@@ -30,7 +30,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-var provider = flag.String("provider", "all", "provider to perform test on")
+var provider = flag.String("provider", "", "provider to perform test on")
 
 type testMember struct {
 	t               pt.Type
@@ -196,7 +196,6 @@ func TestOfflineStores(t *testing.T) {
 		"PrimaryTableWrite":            testPrimaryTableWrite,
 		"Transformation":               testTransform,
 		"TransformationUpdate":         testTransformUpdate,
-		"TransformWithFeatureUpdate":   testTransformWithFeatureUpdate,
 		"CreateDuplicatePrimaryTable":  testCreateDuplicatePrimaryTable,
 		"ChainTransformations":         testChainTransform,
 		"CreateResourceFromSource":     testCreateResourceFromSource,

@@ -271,6 +271,9 @@ jobs:
           docker load --input /tmp/k8s_runner/k8s_runner.tar
           docker load --input /tmp/k8s_runner_scikit/k8s_runner_scikit.tar
           docker load --input /tmp/backup/backup.tar
+
+          minikube profile ff-${{ matrix.k8s-version }}
+
           minikube image load local/api-server:stable
           minikube image load local/coordinator:stable
           minikube image load local/dashboard:stable

@@ -448,12 +448,10 @@ func (q defaultBQQueries) transformationUpdate(client *bigquery.Client, tableNam
 func (q defaultBQQueries) atomicUpdate(client *bigquery.Client, tableName string, tempName string, query string) error {
 	table := q.getTableName(tableName)
 	updateQuery := fmt.Sprintf(
-		"BEGIN TRANSACTION;"+
-			"%s;"+
+		"%s;"+
 			"TRUNCATE TABLE %s;"+ // this doesn't work in a trx
 			"INSERT INTO %s SELECT * FROM %s;"+
 			"DROP TABLE %s;"+
-			"COMMIT;"+
 			"", query, table, table, tempName, tempName)
 
 	bdQ := client.Query(updateQuery)

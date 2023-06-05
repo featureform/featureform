@@ -1343,7 +1343,7 @@ func (q defaultOfflineSQLQueries) atomicUpdate(db *sql.DB, tableName string, tem
 			"COMMIT;"+
 			"", query, sanitizedTable, sanitizedTable, tempName, tempName)
 	var numStatements = 6
-	// Gets around the fact that the go snowflake/redshift driver doesn't support multi statement trx queries
+	// Gets around the fact that the go redshift driver doesn't support multi statement trx queries
 	stmt, _ := sf.WithMultiStatement(context.TODO(), numStatements)
 	_, err := db.QueryContext(stmt, transaction)
 	return err

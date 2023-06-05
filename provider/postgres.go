@@ -220,44 +220,6 @@ func (q postgresSQLQueries) transformationUpdate(db *sql.DB, tableName string, q
 	return q.atomicUpdate(db, tableName, tempName, fullQuery)
 }
 
-func (q postgresSQLQueries) atomicUpdate(db *sql.DB, tableName string, tempName string, fullQuery string) error {
-	// creates the temp table
-	_, err := db.Exec(fullQuery)
-	if err != nil {
-		return err
-	}
-
-	// Start transaction
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-
-	defer tx.Rollback()
-
-	// Truncate current table
-	if _, err = tx.Exec(fmt.Sprintf("TRUNCATE TABLE %s", tableName)); err != nil {
-		return err
-	}
-
-	// Copy contents from temp table
-	if _, err = tx.Exec(fmt.Sprintf("INSERT INTO %s SELECT * FROM %s", tableName, tempName)); err != nil {
-		return err
-	}
-
-	// Drop temp table
-	if _, err = tx.Exec(fmt.Sprintf("DROP TABLE %s", tempName)); err != nil {
-		return err
-	}
-
-	// Commit the transaction.
-	if err = tx.Commit(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (q postgresSQLQueries) transformationExists() string {
 	return "SELECT * FROM pg_matviews WHERE matviewname = $1"
 }

@@ -457,14 +457,19 @@ class LocalClientImpl:
             label_df.rename(columns={label["source_value"]: "label"}, inplace=True)
             return label_df
 
-        return self.local_cache.get_or_put(
-            resource_type="label",
-            resource_name=label["name"],
-            resource_variant=label["variant"],
-            source_name=label["source_name"],
-            source_variant=label["source_variant"],
-            func=get,
-        )
+        try:
+            return self.local_cache.get_or_put(
+                resource_type="label",
+                resource_name=label["name"],
+                resource_variant=label["variant"],
+                source_name=label["source_name"],
+                source_variant=label["source_variant"],
+                func=get,
+            )
+        except Exception as e:
+            raise ValueError(
+                f"Could not get source for label {label['name']} ({label['variant']}): {e}"
+            )
 
     def label_df_from_transformation(self, label):
         df = self.process_transformation(label["source_name"], label["source_variant"])

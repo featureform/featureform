@@ -34,6 +34,11 @@ import (
 
 const azureBlobStorePrefix = "abfss://"
 
+// Hardcoded Go DateTime format, without milliseconds
+// or UTC components, used for attempting to parse
+// the timestamp column of an entity
+const baseDateFormat = "2006-01-02 15:04:05"
+
 type pandasOfflineQueries struct {
 	defaultPythonOfflineQueries
 }
@@ -1302,9 +1307,16 @@ func (k8s *K8sOfflineStore) getResourceInformationFromFilePath(path string) (str
 }
 
 func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+	k8s.logger.Debugw("Getting transformation table", "id", id)
 	transformationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(id), false)
-	k8s.logger.Debugw("Retrieved transformation source", "ResourceId", id, "transformationPath", transformationPath)
-	return &FileStorePrimaryTable{k8s.store, transformationPath, true, id}, nil
+	transformationExactPath, err := k8s.store.NewestFileOfType(transformationPath, Parquet)
+	if err != nil {
+		k8s.logger.Errorw("Could not get transformation table", "error", err)
+		return nil, fmt.Errorf("could not get transformation table (%v): %v", id, err)
+	}
+
+	k8s.logger.Debugw("Successfully retrieved transformation table", "id", id)
+	return &FileStorePrimaryTable{k8s.store, transformationExactPath, true, id}, nil
 }
 
 func (k8s *K8sOfflineStore) UpdateTransformation(config TransformationConfig) error {
@@ -1440,29 +1452,86 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 	if nextVal == nil {
 		return false
 	}
-	formatDate := "2006-01-02 15:04:05 UTC" // hardcoded golang format date
-	timeString, ok := nextVal["ts"].(string)
-	if !ok {
-		iter.cur = ResourceRecord{Entity: fmt.Sprintf("%s", nextVal["entity"]), Value: nextVal["value"]}
-	} else {
-		timestamp, err1 := time.Parse(formatDate, timeString)
-		formatDateWithoutUTC := "2006-01-02 15:04:05"
-		timestamp2, err2 := time.Parse(formatDateWithoutUTC, timeString)
-		formatDateMilli := "2006-01-02 15:04:05 +0000 UTC" // hardcoded golang format date
-		timestamp3, err3 := time.Parse(formatDateMilli, timeString)
-		if err1 != nil && err2 != nil && err3 != nil {
-			iter.err = fmt.Errorf("could not parse timestamp: %v: %v, %v", nextVal["ts"], err1, err2)
+	value, err := iter.parseValue(nextVal["value"])
+	if err != nil {
+		iter.err = err
+		return false
+	}
+	ts, hasTimestamp := nextVal["ts"].(string)
+	var timestamp time.Time
+	if hasTimestamp {
+		timestamp, err = iter.parseTimestamp(ts)
+		if err != nil {
+			iter.err = err
 			return false
 		}
-		if err2 == nil {
-			timestamp = timestamp2
-		} else if err3 == nil {
-			timestamp = timestamp3
-		}
-		iter.cur = ResourceRecord{Entity: nextVal["entity"].(string), Value: nextVal["value"], TS: timestamp}
 	}
-
+	iter.cur = ResourceRecord{
+		Entity: nextVal["entity"].(string),
+		Value:  value,
+		TS:     timestamp,
+	}
 	return true
+}
+
+// Attempts to parse timestamp in one of the following formats:
+// 1. "2006-01-02 15:04:05.000000 UTC"
+// 2. "2006-01-02 15:04:05.000000"
+// 3. "2006-01-02 15:04:05.000000 +0000 UTC"
+// If any one of the three formats is valid, returns the parsed timestamp, otherwise it
+// returns an error
+func (iter *FileStoreFeatureIterator) parseTimestamp(ts string) (time.Time, error) {
+	formats := []string{
+		fmt.Sprintf("%s UTC", baseDateFormat),
+		baseDateFormat,
+		fmt.Sprintf("%s +0000 UTC", baseDateFormat),
+	}
+	for _, format := range formats {
+		timestamp, err := time.Parse(format, ts)
+		if err == nil {
+			return timestamp, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("could not parse timestamp: %v", ts)
+}
+
+// Attempts to parse value in one of the following formats:
+// 1. a scalar value (string, int, float, bool)
+// 2. []float32 (i.e. vector32)
+func (iter *FileStoreFeatureIterator) parseValue(value interface{}) (interface{}, error) {
+	valueMap, ok := value.(map[string]interface{})
+	if !ok {
+		return value, nil
+	}
+	list, ok := valueMap["list"]
+	if !ok {
+		return "", fmt.Errorf("expected to find field 'list' value (type %T)", value)
+	}
+	// To iterate over the list and create a we need to cast it to []interface{}
+	elementsSlice, ok := list.([]interface{})
+	if !ok {
+		return "", fmt.Errorf("could not cast type: %T to []interface{}", list)
+	}
+	vector32 := make([]float32, len(elementsSlice))
+	for i, e := range elementsSlice {
+		// To access the 'element' field, which holds the float value,
+		// we need to cast it to map[string]interface{}
+		m, ok := e.(map[string]interface{})
+		if !ok {
+			return "", fmt.Errorf("could not cast type: %T to map[string]interface{}", e)
+		}
+		switch element := m["element"].(type) {
+		case float32:
+			vector32[i] = element
+		// Given floats in Python are typically 64-bit, it's possible we'll receive
+		// a vector of float64
+		case float64:
+			vector32[i] = float32(element)
+		default:
+			return "", fmt.Errorf("unexpected type in parquet vector list: %T", element)
+		}
+	}
+	return vector32, nil
 }
 
 func (iter *FileStoreFeatureIterator) Value() ResourceRecord {
@@ -1498,31 +1567,35 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(materializationID), false)
-	materializationNewestFile, err := k8s.store.NewestFileOfType(destinationPath, Parquet)
-	k8s.logger.Debugw("Running Materialization", "id", id, "destinationPath", destinationPath, "materializationNewestFile", materializationNewestFile)
-	materializationExists := materializationNewestFile != ""
+	materializationExists, err := k8s.store.Exists(destinationPath)
 	if err != nil {
 		k8s.logger.Errorw("Could not determine whether materialization exists", err)
 		return nil, fmt.Errorf("error checking if materialization exists: %v", err)
 	}
 	if !isUpdate && materializationExists {
-		k8s.logger.Errorw("Attempted to materialize a materialization that already exists", "id", id)
+		k8s.logger.Errorw("Attempted to materialize a materialization that already exists", id)
 		return nil, fmt.Errorf("materialization already exists")
 	} else if isUpdate && !materializationExists {
-		k8s.logger.Errorw("Attempted to update a materialization that does not exist", "id", id)
+		k8s.logger.Errorw("Attempted to update a materialization that does not exist", id)
 		return nil, fmt.Errorf("materialization does not exist")
 	}
 	materializationQuery := k8s.query.materializationCreate(k8sResourceTable.schema)
 	sourcePath := k8s.store.PathWithPrefix(k8sResourceTable.schema.SourceTable, false)
 	k8sArgs := k8s.pandasRunnerArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
+
 	k8sArgs = addResourceID(k8sArgs, id)
+	k8s.logger.Debugw("Creating materialization", "id", id)
 	if err := k8s.executor.ExecuteScript(k8sArgs, nil); err != nil {
-		k8s.logger.Errorw("Job failed to run", "error", err)
+		k8s.logger.Errorw("Job failed to run", err)
 		return nil, fmt.Errorf("job for materialization %v failed to run: %v", materializationID, err)
 	}
-
+	matPath := k8s.store.PathWithPrefix(fileStoreResourcePath(materializationID), false)
+	latestMatPath, err := k8s.store.NewestFileOfType(matPath, Parquet)
+	if err != nil {
+		return nil, fmt.Errorf("materialization does not exist; %v", err)
+	}
 	k8s.logger.Debugw("Successfully created materialization", "id", id)
-	return &FileStoreMaterialization{materializationID, k8s.store, materializationNewestFile}, nil
+	return &FileStoreMaterialization{materializationID, k8s.store, latestMatPath}, nil
 }
 
 func (k8s *K8sOfflineStore) DeleteMaterialization(id MaterializationID) error {
@@ -1564,7 +1637,7 @@ func (k8s *K8sOfflineStore) registeredResourceSchema(id ResourceID) (ResourceSch
 		k8s.logger.Errorw("could not convert offline table to blobResourceTable", "id", id)
 		return ResourceSchema{}, fmt.Errorf("could not convert offline table with id %v to blobResourceTable", id)
 	}
-	k8s.logger.Debugw("Successfully retrieved resource schema", "id", id, "schema", blobResourceTable.schema)
+	k8s.logger.Debugw("Successfully retrieved resource schema", "id", id)
 	return blobResourceTable.schema, nil
 }
 
@@ -1577,9 +1650,6 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	featureSchemas := make([]ResourceSchema, 0)
 	destinationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(def.ID), false)
 	trainingSetExactPath, err := k8s.store.NewestFileOfType(destinationPath, Parquet)
-
-	k8s.logger.Debugw("Running Training Set", "id", def.ID, "destinationPath", destinationPath, "trainingSetExactPath", trainingSetExactPath)
-
 	if err != nil {
 		return fmt.Errorf("could not get training set path: %v", err)
 	}
@@ -1597,13 +1667,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 		return fmt.Errorf("could not get schema of label %s: %v", def.Label, err)
 	}
 	labelPath := labelSchema.SourceTable
-	latestLabelFile, err := k8s.store.NewestFileOfType(labelPath, Parquet)
-	k8s.logger.Debugw("Latest label file", "labelPath", labelPath, "latestLabelFile", latestLabelFile)
-	if err != nil {
-		k8s.logger.Errorw("Could not get latest label file", "error", err)
-		return fmt.Errorf("could not get latest label file: %v", err)
-	}
-	sourcePaths = append(sourcePaths, latestLabelFile)
+	sourcePaths = append(sourcePaths, labelPath)
 	for _, feature := range def.Features {
 		featureSchema, err := k8s.registeredResourceSchema(feature)
 		if err != nil {
@@ -1611,17 +1675,11 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 			return fmt.Errorf("could not get schema of feature %s: %v", feature, err)
 		}
 		featurePath := featureSchema.SourceTable
-		latestFeatureFile, err := k8s.store.NewestFileOfType(featurePath, Parquet)
-		k8s.logger.Debugw("Latest feature file", "featurePath", featurePath, "latestFeatureFile", latestFeatureFile)
-		if err != nil {
-			k8s.logger.Errorw("Could not get latest feature file", "error", err)
-			return fmt.Errorf("could not get latest feature file: %v", err)
-		}
-		sourcePaths = append(sourcePaths, latestFeatureFile)
+		sourcePaths = append(sourcePaths, featurePath)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := k8s.query.trainingSetCreate(def, featureSchemas, labelSchema)
-	k8s.logger.Debugw("Training set query", "SourceFiles", sourcePaths)
+	k8s.logger.Debugw("Training set query", "query", sourcePaths)
 	k8s.logger.Debugw("Source list", "list", trainingSetQuery)
 	pandasArgs := k8s.pandasRunnerArgs(k8s.store.PathWithPrefix(destinationPath, false), trainingSetQuery, sourcePaths, CreateTrainingSet)
 	pandasArgs = addResourceID(pandasArgs, def.ID)

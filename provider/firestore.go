@@ -103,11 +103,10 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 	if err != nil {
 		return nil, fmt.Errorf("could not get data at: %v", err)
 	}
-
 	return &firestoreOnlineTable{
 		document:  table.Ref,
 		key:       key,
-		valueType: ValueType(valueType.(string)),
+		valueType: ScalarType(valueType.(string)),
 	}, nil
 }
 

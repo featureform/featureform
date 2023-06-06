@@ -143,7 +143,7 @@ func (store *dynamodbOnlineStore) UpdateMetadataTable(tablename string, valueTyp
 	input := &dynamodb.UpdateItemInput{
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":valtype": {
-				S: aws.String(string(valueType)),
+				S: aws.String(string(valueType.Scalar())),
 			},
 		},
 		TableName: aws.String("Metadata"),
@@ -180,7 +180,7 @@ func (store *dynamodbOnlineStore) GetFromMetadataTable(tablename string) (ValueT
 	if err != nil {
 		return NilType, err
 	}
-	return ValueType(metadata_item.Valuetype), err
+	return ScalarType(metadata_item.Valuetype), nil
 }
 
 func GetTablename(prefix, feature, variant string) string {

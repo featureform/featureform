@@ -2,6 +2,7 @@ import featureform as ff
 import pytest
 from featureform.register import Registrar, DFTransformationDecorator, ResourceRegistrar
 from featureform.resources import Entity, Feature, Label
+from featureform.names_generator import get_random_name
 
 
 @pytest.mark.parametrize(
@@ -82,12 +83,14 @@ def test_variants_naming_consistency(provider_source_fxt, is_local, request):
 
 @pytest.mark.local
 def test_subscriptable_transformation_decorator_method_call():
+    variant = get_random_name()
     df_transformation_decorator = DFTransformationDecorator(
         registrar=Registrar(),
         provider="test_provider",
         owner="test_owner",
         tags=[],
         properties={},
+        variant=variant,
     )
 
     def test_function():
@@ -111,7 +114,7 @@ def test_subscriptable_transformation_decorator_method_call():
         ],
     )
 
-    assert name_variant == ("test_function", "default") and isinstance(
+    assert name_variant == ("test_function", variant) and isinstance(
         column_resource, ResourceRegistrar
     )
 

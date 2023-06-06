@@ -13,6 +13,7 @@ from featureform.resources import (
     AzureFileStoreConfig,
     SparkCredentials,
 )
+from featureform.names_generator import get_random_name
 
 
 @pytest.mark.parametrize(
@@ -53,26 +54,18 @@ def test_create_provider(executor_fixture, filestore_fixture, request):
 
 
 @pytest.mark.parametrize(
-    "test_name,file_path,default_variant",
+    "test_name,file_path",
     [
-        ("file", "test_files/input/transaction", False),
-        ("file", "test_files/input/transaction", True),
+        ("file", "test_files/input/transaction"),
     ],
 )
-def test_register_file(test_name, file_path, default_variant, spark_provider):
-    if default_variant:
-        variant = "default"
-        s = spark_provider.register_file(
-            name=test_name,
-            file_path=file_path,
-        )
-    else:
-        variant = "test_variant"
-        s = spark_provider.register_file(
-            name=test_name,
-            variant=variant,
-            file_path=file_path,
-        )
+def test_register_file(test_name, file_path, spark_provider):
+    variant = get_random_name()
+    s = spark_provider.register_file(
+        name=test_name,
+        variant=variant,
+        file_path=file_path,
+    )
 
     assert type(s) == ColumnSourceRegistrar
 
@@ -119,12 +112,13 @@ def test_sql_transformation_without_variant(sql, spark_provider):
         """doc string"""
         return sql
 
-    decorator = spark_provider.sql_transformation()
+    variant = get_random_name()
+    decorator = spark_provider.sql_transformation(variant=variant)
     decorator(transformation)
 
     assert decorator.to_source() == Source(
         name=transformation.__name__,
-        variant="default",
+        variant=variant,
         definition=SQLTransformation(query=sql),
         owner="tester",
         provider="spark",

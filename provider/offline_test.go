@@ -30,7 +30,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-var provider = flag.String("provider", "all", "provider to perform test on")
+var provider = flag.String("provider", "", "provider to perform test on")
 
 type testMember struct {
 	t               pt.Type
@@ -192,15 +192,16 @@ func TestOfflineStores(t *testing.T) {
 		"TrainingDefShorthand":   testTrainingSetDefShorthand,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
-		"PrimaryTableCreate":           testPrimaryCreateTable,
-		"PrimaryTableWrite":            testPrimaryTableWrite,
-		"Transformation":               testTransform,
-		"TransformationUpdate":         testTransformUpdate,
-		"CreateDuplicatePrimaryTable":  testCreateDuplicatePrimaryTable,
-		"ChainTransformations":         testChainTransform,
-		"CreateResourceFromSource":     testCreateResourceFromSource,
-		"CreateResourceFromSourceNoTS": testCreateResourceFromSourceNoTS,
-		"CreatePrimaryFromSource":      testCreatePrimaryFromSource,
+		"PrimaryTableCreate":              testPrimaryCreateTable,
+		"PrimaryTableWrite":               testPrimaryTableWrite,
+		"Transformation":                  testTransform,
+		"TransformationUpdate":            testTransformUpdate,
+		"TransformationUpdateWithFeature": testTransformUpdateWithFeatures,
+		"CreateDuplicatePrimaryTable":     testCreateDuplicatePrimaryTable,
+		"ChainTransformations":            testChainTransform,
+		"CreateResourceFromSource":        testCreateResourceFromSource,
+		"CreateResourceFromSourceNoTS":    testCreateResourceFromSourceNoTS,
+		"CreatePrimaryFromSource":         testCreatePrimaryFromSource,
 	}
 
 	psqlInfo := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), "localhost", "5432", os.Getenv("POSTGRES_DB"))
@@ -2276,6 +2277,188 @@ func testTransform(t *testing.T, store OfflineStore) {
 			testTransform(t, testConst)
 		})
 	}
+}
+
+// Tests the update of a transformation that has a feature registerd on it. The main idea being that the atomic update
+// works as expected.
+func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
+	type TransformTest struct {
+		PrimaryTable    ResourceID
+		Schema          TableSchema
+		Records         []GenericRecord
+		UpdatedRecords  []GenericRecord
+		Config          TransformationConfig
+		Expected        []GenericRecord
+		UpdatedExpected []GenericRecord
+	}
+
+	tests := map[string]TransformTest{
+		"Simple": {
+			PrimaryTable: ResourceID{
+				Name: uuid.NewString(),
+				Type: Primary,
+			},
+			Schema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "int", ValueType: Int},
+					{Name: "flt", ValueType: Float64},
+					{Name: "str", ValueType: String},
+					{Name: "bool", ValueType: Bool},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			},
+			Records: []GenericRecord{
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0)},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0)},
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0)},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0)},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0)},
+			},
+			UpdatedRecords: []GenericRecord{
+				[]interface{}{"d", 6, 1.6, "sixth string", false, time.UnixMilli(0)},
+				[]interface{}{"e", 7, 1.7, "seventh string", true, time.UnixMilli(0)},
+			},
+			Config: TransformationConfig{
+				Type: SQLTransformation,
+				TargetTableID: ResourceID{
+					Name: uuid.NewString(),
+					Type: Transformation,
+				},
+				Query: "SELECT * FROM tb",
+				SourceMapping: []SourceMapping{
+					SourceMapping{
+						Template: "tb",
+						Source:   "TBD",
+					},
+				},
+			},
+			Expected: []GenericRecord{
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0).UTC()},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
+			},
+			UpdatedExpected: []GenericRecord{
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0).UTC()},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"d", 6, 1.6, "sixth string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"e", 7, 1.7, "seventh string", true, time.UnixMilli(0).UTC()},
+			},
+		},
+	}
+
+	featureID := ResourceID{
+		Name: uuid.NewString(),
+		Type: Feature,
+	}
+
+	testTransform := func(t *testing.T, test TransformTest) {
+		table, err := store.CreatePrimaryTable(test.PrimaryTable, test.Schema)
+		if err != nil {
+			t.Fatalf("Could not initialize table: %v", err)
+		}
+		for _, value := range test.Records {
+			if err := table.Write(value); err != nil {
+				t.Fatalf("Could not write value: %v: %v", err, value)
+			}
+		}
+
+		tableName := getTableName(t.Name(), table.GetName())
+		test.Config.Query = strings.Replace(test.Config.Query, "tb", tableName, 1)
+		if err := store.CreateTransformation(test.Config); err != nil {
+			t.Fatalf("Could not create transformation: %v", err)
+		}
+		rows, err := table.NumRows()
+		if err != nil {
+			t.Fatalf("could not get NumRows of table: %v", err)
+		}
+		if int(rows) != len(test.Records) {
+			t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(test.Records), rows)
+		}
+		table, err = store.GetTransformationTable(test.Config.TargetTableID)
+		if err != nil {
+			t.Errorf("Could not get transformation table: %v", err)
+		}
+
+		// create feature on transformation
+		recSchema := ResourceSchema{
+			Entity:      "entity",
+			Value:       "int",
+			TS:          "ts",
+			SourceTable: table.GetName(),
+		}
+		_, err = store.RegisterResourceFromSourceTable(featureID, recSchema)
+		if err != nil {
+			t.Fatalf("Could not register from tf: %s", err)
+		}
+		_, err = store.GetResourceTable(featureID)
+		if err != nil {
+			t.Fatalf("Could not get resource table: %v", err)
+		}
+		_, err = store.CreateMaterialization(featureID)
+		if err != nil {
+			t.Fatalf("Could not create materialization: %v", err)
+		}
+
+		table, err = store.GetPrimaryTable(test.PrimaryTable)
+		if err != nil {
+			t.Fatalf("Could not get primary table: %v", err)
+		}
+		for _, rec := range test.UpdatedRecords {
+			if err := table.Write(rec); err != nil {
+				t.Errorf("could not write to table: %v", err)
+			}
+		}
+		if err := store.UpdateTransformation(test.Config); err != nil {
+			t.Errorf("could not update transformation: %v", err)
+		}
+		table, err = store.GetTransformationTable(test.Config.TargetTableID)
+		if err != nil {
+			t.Errorf("Could not get updated transformation table: %v", err)
+		}
+
+		iterator, err := table.IterateSegment(100)
+		if err != nil {
+			t.Fatalf("Could not get generic iterator: %v", err)
+		}
+
+		i := 0
+		for iterator.Next() {
+			found := false
+			for i, expRow := range test.UpdatedExpected {
+				if reflect.DeepEqual(iterator.Values(), expRow) {
+					found = true
+					lastIdx := len(test.UpdatedExpected) - 1
+					// Swap the record that we've found to the end, then shrink the slice to not include it.
+					// This is essentially a delete operation except that it re-orders the slice.
+					test.UpdatedExpected[i], test.UpdatedExpected[lastIdx] = test.UpdatedExpected[lastIdx], test.UpdatedExpected[i]
+					test.UpdatedExpected = test.UpdatedExpected[:lastIdx]
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("Unexpected training row: %v, expected %v", iterator.Values(), test.UpdatedExpected)
+			}
+			i++
+		}
+		if err := iterator.Close(); err != nil {
+			t.Fatalf("Could not close iterator: %v", err)
+		}
+	}
+
+	for name, test := range tests {
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
+			testTransform(t, testConst)
+		})
+	}
 
 }
 
@@ -2504,7 +2687,6 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 			testTransform(t, testConst)
 		})
 	}
-
 }
 
 func testTransformCreateFeature(t *testing.T, store OfflineStore) {

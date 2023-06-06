@@ -180,12 +180,19 @@ class HostedClientImpl:
         feature_values = []
         for val in resp.values:
             parsed_value = parse_proto_value(val)
+            value_type = type(parsed_value)
 
-            is_ondemand_feature = type(parsed_value) == bytes
-            if is_ondemand_feature:
+            # Ondemand features are returned as a byte array
+            # which holds the pickled function
+            if value_type == bytes:
                 code = dill.loads(bytearray(parsed_value))
                 func = types.FunctionType(code, globals(), "transformation")
                 parsed_value = func(self, params, entities)
+            # Vector features are returned as a Vector32 proto due
+            # to the inability to use the `repeated` keyword in
+            # in a `oneof` field
+            elif value_type == serving_pb2.Vector32:
+                parsed_value = parsed_value.value
 
             feature_values.append(parsed_value)
 
@@ -211,6 +218,13 @@ class HostedClientImpl:
         req = serving_pb2.SourceDataRequest(id=id)
         resp = self._stub.SourceColumns(req)
         return resp.columns
+
+    def _nearest(self, name, variant, vector, k):
+        id = serving_pb2.FeatureID(name=name, version=variant)
+        vec = serving_pb2.Vector32(value=vector)
+        req = serving_pb2.NearestRequest(id=id, vector=vec, k=k)
+        resp = self._stub.Nearest(req)
+        return resp.entities
 
 
 class LocalClientImpl:
@@ -443,14 +457,19 @@ class LocalClientImpl:
             label_df.rename(columns={label["source_value"]: "label"}, inplace=True)
             return label_df
 
-        return self.local_cache.get_or_put(
-            resource_type="label",
-            resource_name=label["name"],
-            resource_variant=label["variant"],
-            source_name=label["source_name"],
-            source_variant=label["source_variant"],
-            func=get,
-        )
+        try:
+            return self.local_cache.get_or_put(
+                resource_type="label",
+                resource_name=label["name"],
+                resource_variant=label["variant"],
+                source_name=label["source_name"],
+                source_variant=label["source_variant"],
+                func=get,
+            )
+        except Exception as e:
+            raise ValueError(
+                f"Could not get source for label {label['name']} ({label['variant']}): {e}"
+            )
 
     def label_df_from_transformation(self, label):
         df = self.process_transformation(label["source_name"], label["source_variant"])
@@ -683,6 +702,9 @@ class LocalClientImpl:
             return df[:limit]
         else:
             return df
+
+    def _nearest(self, name, variant, vector, k):
+        raise NotImplementedError
 
 
 class Stream:

@@ -220,20 +220,6 @@ func (q postgresSQLQueries) transformationUpdate(db *sql.DB, tableName string, q
 	return q.atomicUpdate(db, tableName, tempName, fullQuery)
 }
 
-func (q postgresSQLQueries) atomicUpdate(db *sql.DB, tableName string, tempName string, query string) error {
-	santizedName := sanitize(tableName)
-	oldName := sanitize(fmt.Sprintf("old_%s", tableName))
-	transaction := fmt.Sprintf("BEGIN;"+
-		"%s;"+
-		"ALTER TABLE %s RENAME TO %s;"+
-		"ALTER TABLE %s RENAME TO %s;"+
-		"DROP TABLE %s;"+
-		"COMMIT;", query, santizedName, oldName, tempName, santizedName, oldName)
-	_, err := db.Exec(transaction)
-
-	return err
-}
-
 func (q postgresSQLQueries) transformationExists() string {
 	return "SELECT * FROM pg_matviews WHERE matviewname = $1"
 }

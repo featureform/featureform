@@ -5,11 +5,12 @@
 package runner
 
 import (
+	"testing"
+
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/types"
 	"go.uber.org/zap/zaptest"
-	"testing"
 )
 
 type mockChunkRunner struct{}

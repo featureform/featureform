@@ -158,6 +158,8 @@ func wrapValue(value interface{}) (proto *pb.Value, err error) {
 		proto = typed
 	case nil:
 		proto = wrapNil(typed)
+	case []float32:
+		proto = wrapVec32(typed)
 	default:
 		err = InvalidValue{value}
 	}
@@ -215,5 +217,15 @@ func wrapNil(val interface{}) *pb.Value {
 func wrapBytes(val []byte) *pb.Value {
 	return &pb.Value{
 		Value: &pb.Value_OnDemandFunction{val},
+	}
+}
+
+func wrapVec32(val []float32) *pb.Value {
+	return &pb.Value{
+		Value: &pb.Value_Vector32Value{
+			Vector32Value: &pb.Vector32{
+				Value: val,
+			},
+		},
 	}
 }

@@ -108,7 +108,7 @@ func (store *mongoDBOnlineStore) GetMetadataTableName() string {
 
 func (store *mongoDBOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
 	tableName := store.GetTableName(feature, variant)
-	vType := string(valueType)
+	vType := string(valueType.Scalar())
 	getTable, _ := store.GetTable(feature, variant)
 	if getTable != nil {
 		return nil, &TableAlreadyExists{feature, variant}
@@ -161,11 +161,14 @@ func (store *mongoDBOnlineStore) GetTable(feature, variant string) (OnlineStoreT
 	if err != nil {
 		return nil, fmt.Errorf("could not get metadata table value: %s, %w", tableName, err)
 	}
+	if err != nil {
+		return nil, fmt.Errorf("could not get metadata table value type: %s, %w", tableName, err)
+	}
 	table := &mongoDBOnlineTable{
 		client:    store.client,
 		database:  store.database,
 		name:      tableName,
-		valueType: ValueType(row.T),
+		valueType: ScalarType(row.T),
 	}
 	return table, nil
 }

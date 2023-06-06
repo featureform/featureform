@@ -12,7 +12,9 @@ import inspect
 import dill
 import pandas as pd
 
+
 from .get import *
+from .parse import *
 from .list import *
 from .get_local import *
 from .list_local import *
@@ -20,7 +22,7 @@ from .sqlite_metadata import SQLiteMetadata
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
 from .resources import (
-    ColumnTypes,
+    ScalarType,
     Model,
     ResourceState,
     Provider,
@@ -71,6 +73,7 @@ from .proto import metadata_pb2_grpc as ff_grpc
 from .search_local import search_local
 from .search import search
 from .enums import FileFormat
+from .names_generator import get_random_name
 
 NameVariant = Tuple[str, str]
 
@@ -118,7 +121,7 @@ class OfflineSQLProvider(OfflineProvider):
         self,
         name: str,
         table: str,
-        variant: str = "default",
+        variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
         tags: List[str] = [],
@@ -150,7 +153,7 @@ class OfflineSQLProvider(OfflineProvider):
     def sql_transformation(
         self,
         owner: Union[str, UserRegistrar] = "",
-        variant: str = "default",
+        variant: str = "",
         name: str = "",
         schedule: str = "",
         description: str = "",
@@ -179,7 +182,7 @@ class OfflineSparkProvider(OfflineProvider):
         self,
         name: str,
         file_path: str,
-        variant: str = "default",
+        variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
         tags: List[str] = [],
@@ -212,7 +215,7 @@ class OfflineSparkProvider(OfflineProvider):
         self,
         name: str,
         file_path: str,
-        variant: str = "default",
+        variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
     ):
@@ -220,12 +223,11 @@ class OfflineSparkProvider(OfflineProvider):
             FilePrefix.S3.value
         ):
             file_path = file_path.replace(FilePrefix.S3.value, FilePrefix.S3A.value)
-
         return self.register_file(name, file_path, variant, owner, description)
 
     def sql_transformation(
         self,
-        variant: str = "default",
+        variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         schedule: str = "",
@@ -273,7 +275,7 @@ class OfflineSparkProvider(OfflineProvider):
 
     def df_transformation(
         self,
-        variant: str = "default",
+        variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         description: str = "",
@@ -328,7 +330,7 @@ class OfflineK8sProvider(OfflineProvider):
         self,
         name: str,
         path: str,
-        variant: str = "default",
+        variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
         tags: List[str] = [],
@@ -359,7 +361,7 @@ class OfflineK8sProvider(OfflineProvider):
 
     def sql_transformation(
         self,
-        variant: str = "default",
+        variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         schedule: str = "",
@@ -412,7 +414,7 @@ class OfflineK8sProvider(OfflineProvider):
 
     def df_transformation(
         self,
-        variant: str = "default",
+        variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         description: str = "",
@@ -517,7 +519,7 @@ class LocalProvider:
         name,
         path,
         description="",
-        variant="default",
+        variant: str = "",
         owner="",
         tags: List[str] = [],
         properties: dict = {},
@@ -552,6 +554,8 @@ class LocalProvider:
             )
         if owner == "":
             owner = self.__registrar.must_get_default_owner()
+        if variant == "":
+            variant = self.__registrar.get_run()
         # Store the file as a source
         self.__registrar.register_primary_data(
             name=name,
@@ -564,7 +568,7 @@ class LocalProvider:
             properties=properties,
         )
         return LocalSource(
-            self.__registrar, name, owner, variant, self.name(), path, description
+            self.__registrar, name, owner, self.name(), path, variant, description
         )
 
     def insert_provider(self):
@@ -586,7 +590,7 @@ class LocalProvider:
 
     def df_transformation(
         self,
-        variant: str = "default",
+        variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         description: str = "",
@@ -632,7 +636,7 @@ class LocalProvider:
 
     def sql_transformation(
         self,
-        variant: str = "default",
+        variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         description: str = "",
@@ -694,11 +698,11 @@ class SourceRegistrar:
 
 class ColumnMapping(dict):
     name: str
-    variant: str
     column: str
     resource_type: str
     tags: List[str]
     properties: dict
+    variant: str = ""
 
 
 class LocalSource:
@@ -711,9 +715,9 @@ class LocalSource:
         registrar,
         name: str,
         owner: str,
-        variant: str,
         provider: str,
         path: str,
+        variant: str = "",
         description: str = "",
     ):
         self.registrar = registrar
@@ -871,15 +875,15 @@ class SQLTransformationDecorator:
         provider: str,
         tags: List[str],
         properties: dict,
-        variant: str = "default",
+        run: str = "",
+        variant: str = "",
         name: str = "",
         schedule: str = "",
         description: str = "",
-        args: K8sArgs = None,
+        args: Union[K8sArgs, None] = None,
     ):
         self.registrar = registrar
         self.name = name
-        self.variant = variant
         self.owner = owner
         self.schedule = schedule
         self.provider = provider
@@ -887,6 +891,9 @@ class SQLTransformationDecorator:
         self.args = args
         self.tags = tags
         self.properties = properties
+        self.variant = variant
+        self.run = run
+        self.query = ""
 
     def __call__(self, fn: Callable[[], str]):
         if self.description == "" and fn.__doc__ is not None:
@@ -906,7 +913,7 @@ class SQLTransformationDecorator:
     def __set_query(self, query: str):
         if query == "":
             raise ValueError("Query cannot be an empty string")
-        self.query = query
+        self.query = add_variant_to_name(query, self.run)
 
     def to_source(self) -> Source:
         return Source(
@@ -958,15 +965,14 @@ class DFTransformationDecorator:
         provider: str,
         tags: List[str],
         properties: dict,
-        variant: str = "default",
+        variant: str = "",
         name: str = "",
         description: str = "",
         inputs: list = [],
-        args: K8sArgs = None,
+        args: Union[K8sArgs, None] = None,
     ):
         self.registrar = registrar
         self.name = name
-        self.variant = variant
         self.owner = owner
         self.provider = provider
         self.description = description
@@ -974,6 +980,8 @@ class DFTransformationDecorator:
         self.args = args
         self.tags = tags
         self.properties = properties
+        self.variant = variant
+        self.query = b""
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:
@@ -1109,7 +1117,7 @@ class ResourceRegistrar:
     def create_training_set(
         self,
         name: str,
-        variant: str = "default",
+        variant: str = "",
         label: NameVariant = None,
         schedule: str = "",
         features: List[NameVariant] = None,
@@ -1178,6 +1186,181 @@ class ModelRegistrar:
         return self.__model.name
 
 
+class ColumnResource:
+    """
+    Base class for all column resources. This class is not meant to be instantiated directly.
+    In the original syntax, features and labels were registered using the `register_resources`
+    method on the sources (e.g. SQL/DF transformation or tables sources); however, in the new
+    Class API syntax, features and labels can now be declared as class attributes on an entity
+    class. This means that all possible params for either resource must be passed into this base
+    class prior to calling `register_column_resources` on the registrar.
+    """
+
+    def __init__(
+        self,
+        transformation_args: tuple,
+        type: Union[ColumnTypes, str],
+        resource_type: str,
+        entity: Union[Entity, str],
+        owner: Union[str, UserRegistrar],
+        inference_store: Union[str, OnlineProvider, FileStoreProvider],
+        timestamp_column: str,
+        description: str,
+        schedule: str,
+        tags: List[str],
+        properties: Dict[str, str],
+        variant: str = "",
+    ):
+        registrar, source_name_variant, columns = transformation_args
+        self.type = type if isinstance(type, str) else type.value
+        self.registrar = registrar
+        self.source = source_name_variant
+        self.entity_column = columns[0]
+        self.source_column = columns[1]
+        self.resource_type = resource_type
+        self.entity = entity
+        self.name = None
+        self.owner = owner
+        self.inference_store = inference_store
+        if not timestamp_column and len(columns) == 3:
+            self.timestamp_column = columns[2]
+        elif timestamp_column and len(columns) == 3:
+            raise Exception("Timestamp column specified twice.")
+        else:
+            self.timestamp_column = timestamp_column
+        self.description = description
+        self.schedule = schedule
+        self.tags = tags
+        self.properties = properties
+
+    def register(self):
+        features, labels = self.features_and_labels()
+
+        self.registrar.register_column_resources(
+            source=self.source,
+            entity=self.entity,
+            entity_column=self.entity_column,
+            owner=self.owner,
+            inference_store=self.inference_store,
+            features=features,
+            labels=labels,
+            timestamp_column=self.timestamp_column,
+            schedule=self.schedule,
+        )
+
+    def features_and_labels(self) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
+        resources = [
+            {
+                "name": self.name,
+                "variant": self.variant,
+                "column": self.source_column,
+                "type": self.type,
+                "description": self.description,
+                "tags": self.tags,
+                "properties": self.properties,
+            }
+        ]
+        if self.resource_type == "feature":
+            features = resources
+            labels = []
+        elif self.resource_type == "label":
+            features = []
+            labels = resources
+        else:
+            raise ValueError(f"Resource type {self.resource_type} not supported")
+        return (features, labels)
+
+    def name_variant(self) -> Tuple[str, str]:
+        if self.name is None:
+            raise ValueError("Resource name not set")
+        if self.variant is None:
+            raise ValueError("Resource variant not set")
+        return (self.name, self.variant)
+
+
+class Variants:
+    def __init__(self, resources: Dict[str, ColumnResource]):
+        self.resources = resources
+        self.validate_variant_names()
+
+    def validate_variant_names(self):
+        for variant_key, resource in self.resources.items():
+            if resource.variant == None:
+                resource.variant = variant_key
+            if resource.variant != variant_key:
+                raise ValueError(
+                    f"Variant name {variant_key} does not match resource variant name {resource.variant}"
+                )
+
+    def register(self):
+        for resource in self.resources.values():
+            resource.register()
+
+
+class FeatureColumnResource(ColumnResource):
+    def __init__(
+        self,
+        transformation_args: tuple,
+        type: Union[ColumnTypes, str],
+        entity: Union[Entity, str] = "",
+        variant: str = "",
+        owner: str = "",
+        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
+        timestamp_column: str = "",
+        description: str = "",
+        schedule: str = "",
+        tags: List[str] = [],
+        properties: Dict[str, str] = {},
+    ):
+        self.variant = variant
+        super().__init__(
+            transformation_args=transformation_args,
+            type=type,
+            resource_type="feature",
+            entity=entity,
+            variant=variant,
+            owner=owner,
+            inference_store=inference_store,
+            timestamp_column=timestamp_column,
+            description=description,
+            schedule=schedule,
+            tags=tags,
+            properties=properties,
+        )
+
+
+class LabelColumnResource(ColumnResource):
+    def __init__(
+        self,
+        transformation_args: tuple,
+        type: Union[ColumnTypes, str],
+        entity: Union[Entity, str] = "",
+        variant: str = "",
+        owner: str = "",
+        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
+        timestamp_column: str = "",
+        description: str = "",
+        schedule: str = "",
+        tags: List[str] = [],
+        properties: Dict[str, str] = {},
+    ):
+        self.variant = variant
+        super().__init__(
+            transformation_args=transformation_args,
+            type=type,
+            resource_type="label",
+            entity=entity,
+            variant=variant,
+            owner=owner,
+            inference_store=inference_store,
+            timestamp_column=timestamp_column,
+            description=description,
+            schedule=schedule,
+            tags=tags,
+            properties=properties,
+        )
+
+
 class Registrar:
     """These functions are used to register new resources and retrieving existing resources. Retrieved resources can be used to register additional resources. If information on these resources is needed (e.g. retrieve the names of all variants of a feature), use the [Resource Client](resource_client.md) instead.
 
@@ -1198,6 +1381,7 @@ class Registrar:
         self.__state = ResourceState()
         self.__resources = []
         self.__default_owner = ""
+        self.__run = get_random_name()
 
     def add_resource(self, resource):
         self.__resources.append(resource)
@@ -1236,6 +1420,16 @@ class Registrar:
         if owner == "":
             raise ValueError("Owner must be set or a default owner must be specified.")
         return owner
+
+    def set_run(self, run: str):
+        """Set run.
+        Args:
+            run (str): Name of a run to be set.
+        """
+        self.__run = run
+
+    def get_run(self) -> str:
+        return self.__run
 
     def get_source(self, name, variant, local=False):
         """Get a source. The returned object can be used to register additional resources.
@@ -1280,6 +1474,8 @@ class Registrar:
                 owner="",
                 provider="",
                 description="",
+                tags=[],
+                properties={},
             )
             return ColumnSourceRegistrar(self, fakeSource)
 
@@ -2635,11 +2831,11 @@ class Registrar:
     def register_primary_data(
         self,
         name: str,
-        variant: str,
         location: Location,
         provider: Union[str, OfflineProvider],
         tags: List[str],
         properties: dict,
+        variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
     ):
@@ -2660,6 +2856,8 @@ class Registrar:
             owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
+        if variant == "":
+            variant = self.__run
         if not isinstance(provider, str):
             provider = provider.name()
         source = Source(
@@ -2680,7 +2878,7 @@ class Registrar:
         name: str,
         query: str,
         provider: Union[str, OfflineProvider],
-        variant: str = "default",
+        variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
         schedule: str = "",
@@ -2709,6 +2907,8 @@ class Registrar:
             owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
+        if variant == "":
+            variant = self.__run
         if not isinstance(provider, str):
             provider = provider.name()
         source = Source(
@@ -2728,7 +2928,7 @@ class Registrar:
     def sql_transformation(
         self,
         provider: Union[str, OfflineProvider],
-        variant: str = "default",
+        variant: str = "",
         name: str = "",
         schedule: str = "",
         owner: Union[str, UserRegistrar] = "",
@@ -2757,11 +2957,14 @@ class Registrar:
             owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
+        if variant == "":
+            variant = self.__run
         if not isinstance(provider, str):
             provider = provider.name()
         decorator = SQLTransformationDecorator(
             registrar=self,
             name=name,
+            run=self.__run,
             variant=variant,
             provider=provider,
             schedule=schedule,
@@ -2779,7 +2982,7 @@ class Registrar:
         name: str,
         query: str,
         provider: Union[str, OfflineProvider],
-        variant: str = "default",
+        variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
         inputs: list = [],
@@ -2811,6 +3014,8 @@ class Registrar:
             owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
+        if variant == "":
+            variant = self.__run
         if not isinstance(provider, str):
             provider = provider.name()
         for i, nv in enumerate(inputs):
@@ -2835,11 +3040,11 @@ class Registrar:
         provider: Union[str, OfflineProvider],
         tags: List[str],
         properties: dict,
-        variant: str = "default",
+        variant: str = "",
         name: str = "",
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
-        inputs: list = [],
+        inputs: Union[List[NameVariant], List[str], List[ColumnSourceRegistrar]] = [],
         args: K8sArgs = None,
     ):
         """Dataframe transformation decorator.
@@ -2863,12 +3068,16 @@ class Registrar:
             owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
+        if variant == "":
+            variant = self.__run
         if not isinstance(provider, str):
             provider = provider.name()
         for i, nv in enumerate(inputs):
-            if not isinstance(nv, tuple):
+            if isinstance(nv, str):
+                inputs[i] = (nv, self.__run)
+            elif not isinstance(nv, tuple):
                 inputs[i] = nv.name_variant()
-            if isinstance(nv, tuple):
+            elif isinstance(nv, tuple):
                 try:
                     self._verify_tuple(nv)
                 except TypeError as e:
@@ -2880,6 +3089,8 @@ class Registrar:
                         f"DF transformation {transformation_message} requires correct inputs "
                         f" '{nv}' is not a valid tuple: {e}"
                     )
+            if inputs[i][1] == "":
+                inputs[i] = (inputs[i][0], self.__run)
 
         decorator = DFTransformationDecorator(
             registrar=self,
@@ -2921,7 +3132,7 @@ class Registrar:
         *,
         tags: List[str] = None,
         properties: dict = None,
-        variant: str = "default",
+        variant: str = "",
         name: str = "",
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
@@ -2951,7 +3162,8 @@ class Registrar:
             owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
-
+        if variant == "":
+            variant = self.__run
         decorator = OnDemandFeature(
             name=name,
             variant=variant,
@@ -2975,6 +3187,7 @@ class Registrar:
                 ):
                     resource = resource.to_source()
                 self.__state.add(resource)
+
             except ResourceRedefinedError:
                 raise
             except Exception as e:
@@ -3066,6 +3279,8 @@ class Registrar:
             raise ValueError("No features or labels set")
         if not isinstance(source, tuple):
             source = source.id()
+        if isinstance(source, tuple) and source[1] == "":
+            source = source[0], self.__run
         if not isinstance(entity, str):
             entity = entity.name()
         if not isinstance(inference_store, str):
@@ -3079,7 +3294,9 @@ class Registrar:
         feature_resources = []
         label_resources = []
         for feature in features:
-            variant = feature.get("variant", "default")
+            variant = feature.get("variant", "")
+            if variant == "":
+                variant = self.__run
             desc = feature.get("description", "")
             feature_tags = feature.get("tags", [])
             feature_properties = feature.get("properties", {})
@@ -3088,6 +3305,8 @@ class Registrar:
                 variant=variant,
                 source=source,
                 value_type=feature["type"],
+                is_embedding=feature.get("is_embedding", False),
+                dims=feature.get("dims", 0),
                 entity=entity,
                 owner=owner,
                 provider=inference_store,
@@ -3105,7 +3324,9 @@ class Registrar:
             feature_resources.append(resource)
 
         for label in labels:
-            variant = label.get("variant", "default")
+            variant = label.get("variant", "")
+            if variant == "":
+                variant = self.__run
             desc = label.get("description", "")
             label_tags = label.get("tags", [])
             label_properties = label.get("properties", {})
@@ -3130,15 +3351,18 @@ class Registrar:
             label_resources.append(resource)
         return ResourceRegistrar(self, features, labels)
 
-    def __get_feature_nv(self, features):
+    def __get_feature_nv(self, features, run):
         feature_nv_list = []
         feature_lags = []
         for feature in features:
+            if isinstance(feature, FeatureColumnResource):
+                feature_nv_list.append(feature.name_variant())
             if isinstance(feature, str):
-                feature_nv = (feature, "default")
-                feature_nv_list.append(feature_nv)
+                feature_nv_list.append((feature, run))
             elif isinstance(feature, dict):
                 lag = feature.get("lag")
+                if "variant" not in feature:
+                    feature["variant"] = run
                 if lag:
                     required_lag_keys = set(["lag", "feature", "variant"])
                     received_lag_keys = set(feature.keys())
@@ -3170,7 +3394,7 @@ class Registrar:
                     feature_nv = (feature["name"], feature["variant"])
                     feature_nv_list.append(feature_nv)
             elif isinstance(feature, list):
-                feature_nv, feature_lags_list = self.__get_feature_nv(feature)
+                feature_nv, feature_lags_list = self.__get_feature_nv(feature, run)
                 if len(feature_nv) != 0:
                     feature_nv_list.extend(feature_nv)
 
@@ -3184,9 +3408,9 @@ class Registrar:
     def register_training_set(
         self,
         name: str,
-        variant: str = "default",
-        features: list = [],
-        label: NameVariant = (),
+        variant: str = "",
+        features: Union[list, List[FeatureColumnResource]] = [],
+        label: Union[NameVariant, LabelColumnResource] = ("", ""),
         resources: list = [],
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
@@ -3215,33 +3439,48 @@ class Registrar:
             owner = owner.name()
         if owner == "":
             owner = self.must_get_default_owner()
+        if variant == "":
+            variant = self.__run
 
-        if isinstance(features, tuple):
-            raise ValueError("Features must be entered as a list")
-
-        if isinstance(label, list):
-            raise ValueError("Label must be entered as a tuple")
-
+        if not isinstance(features, (list)):
+            raise ValueError(
+                f"Invalid features type: {type(features)} "
+                "Features must be entered as a list of name-variant tuples (e.g. [('feature1', 'quickstart'), ('feature2', 'quickstart')]) or a list of FeatureColumnResource instances."
+            )
+        if not isinstance(label, (tuple, str, LabelColumnResource)):
+            raise ValueError(
+                f"Invalid label type: {type(label)} "
+                "Label must be entered as a name-variant tuple (e.g. ('fraudulent', 'quickstart')), a resource name, or an instance of LabelColumnResource."
+            )
         for resource in resources:
             features += resource.features()
             resource_label = resource.label()
             # label == () if it is NOT manually entered
-            if label == ():
+            if label == ("", ""):
                 label = resource_label
             # Elif: If label was updated to store resource_label it will not check the following elif
             elif resource_label != ():
                 raise ValueError("A training set can only have one label")
 
-        if isinstance(label, str):
-            label = (label, "default")
+        if isinstance(label, LabelColumnResource):
+            label = label.name_variant()
 
-        features, feature_lags = self.__get_feature_nv(features)
+        features, feature_lags = self.__get_feature_nv(features, self.__run)
 
         if label == ():
             raise ValueError("Label must be set")
         if features == []:
             raise ValueError("A training-set must have atleast one feature")
+        if isinstance(label, str):
+            label = (label, self.__run)
+        if label[1] == "":
+            label = (label[0], self.__run)
 
+        processed_features = []
+        for feature in features:
+            if feature[1] == "":
+                feature = (feature[0], self.__run)
+            processed_features.append(feature)
         resource = TrainingSet(
             name=name,
             variant=variant,
@@ -3249,7 +3488,7 @@ class Registrar:
             owner=owner,
             schedule=schedule,
             label=label,
-            features=features,
+            features=processed_features,
             feature_lags=feature_lags,
             tags=tags,
             properties=properties,
@@ -3337,6 +3576,8 @@ class ResourceClient:
 
         @param asynchronous: Wait for all resources to be ready before returning.
         """
+
+        print(f"Applying Run: {get_run()}")
         resource_state = state()
         if self._dry_run:
             print(resource_state.sorted_list())
@@ -4511,7 +4752,7 @@ class ColumnResource:
     def __init__(
         self,
         transformation_args: tuple,
-        type: Union[ColumnTypes, str],
+        type: Union[ScalarType, str],
         resource_type: str,
         entity: Union[Entity, str],
         variant: str,
@@ -4546,7 +4787,7 @@ class ColumnResource:
         self.properties = properties
 
     def register(self):
-        features, labels = self.features_and_labels()
+        features, labels = self.get_resources_by_type(self.resource_type)
 
         self.registrar.register_column_resources(
             source=self.source,
@@ -4560,7 +4801,9 @@ class ColumnResource:
             schedule=self.schedule,
         )
 
-    def features_and_labels(self) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
+    def get_resources_by_type(
+        self, resource_type: str
+    ) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
         resources = [
             {
                 "name": self.name,
@@ -4572,10 +4815,11 @@ class ColumnResource:
                 "properties": self.properties,
             }
         ]
-        if self.resource_type == "feature":
+
+        if resource_type == "feature":
             features = resources
             labels = []
-        elif self.resource_type == "label":
+        elif resource_type == "label":
             features = []
             labels = resources
         else:
@@ -4606,7 +4850,7 @@ class FeatureColumnResource(ColumnResource):
     def __init__(
         self,
         transformation_args: tuple,
-        type: Union[ColumnTypes, str],
+        type: Union[ScalarType, str],
         entity: Union[Entity, str] = "",
         variant="default",
         owner: str = "",
@@ -4637,7 +4881,7 @@ class LabelColumnResource(ColumnResource):
     def __init__(
         self,
         transformation_args: tuple,
-        type: Union[ColumnTypes, str],
+        type: Union[ScalarType, str],
         entity: Union[Entity, str] = "",
         variant="default",
         owner: str = "",
@@ -4662,6 +4906,48 @@ class LabelColumnResource(ColumnResource):
             tags=tags,
             properties=properties,
         )
+
+
+class EmbeddingColumnResource(ColumnResource):
+    def __init__(
+        self,
+        transformation_args: tuple,
+        dims: int,
+        vector_db: Union[str, OnlineProvider, FileStoreProvider],
+        entity: Union[Entity, str] = "",
+        variant="default",
+        owner: str = "",
+        timestamp_column: str = "",
+        description: str = "",
+        schedule: str = "",
+        tags: List[str] = [],
+        properties: Dict[str, str] = {},
+    ):
+        super().__init__(
+            transformation_args=transformation_args,
+            type=ScalarType.FLOAT32,
+            resource_type="feature",
+            entity=entity,
+            variant=variant,
+            owner=owner,
+            inference_store=vector_db,
+            timestamp_column=timestamp_column,
+            description=description,
+            schedule=schedule,
+            tags=tags,
+            properties=properties,
+        )
+        if dims < 1:
+            raise ValueError("Vector dimensions must be a positive integer")
+        self.dims = dims
+
+    def get_resources_by_type(
+        self, resource_type: str
+    ) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
+        features, labels = super().get_resources_by_type(resource_type)
+        features[0]["dims"] = self.dims
+        features[0]["is_embedding"] = True
+        return (features, labels)
 
 
 def entity(cls):
@@ -4705,6 +4991,8 @@ def entity(cls):
 global_registrar = Registrar()
 state = global_registrar.state
 clear_state = global_registrar.clear_state
+set_run = global_registrar.set_run
+get_run = global_registrar.get_run
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
 register_blob_store = global_registrar.register_blob_store
@@ -4748,12 +5036,12 @@ ondemand_feature = global_registrar.ondemand_feature
 ResourceStatus = ResourceStatus
 
 
-Nil = ColumnTypes.NIL
-String = ColumnTypes.STRING
-Int = ColumnTypes.INT
-Int32 = ColumnTypes.INT32
-Int64 = ColumnTypes.INT64
-Float32 = ColumnTypes.FLOAT32
-Float64 = ColumnTypes.FLOAT64
-Bool = ColumnTypes.BOOL
-DateTime = ColumnTypes.DATETIME
+Nil = ScalarType.NIL
+String = ScalarType.STRING
+Int = ScalarType.INT
+Int32 = ScalarType.INT32
+Int64 = ScalarType.INT64
+Float32 = ScalarType.FLOAT32
+Float64 = ScalarType.FLOAT64
+Bool = ScalarType.BOOL
+DateTime = ScalarType.DATETIME

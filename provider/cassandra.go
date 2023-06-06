@@ -110,7 +110,7 @@ func GetMetadataTableName(keyspace string) string {
 
 func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
 	tableName := GetTableName(store.keyspace, feature, variant)
-	vType := cassandraTypeMap[string(valueType)]
+	vType := cassandraTypeMap[string(valueType.Scalar())]
 	key := cassandraTableKey{store.keyspace, feature, variant}
 	getTable, _ := store.GetTable(feature, variant)
 	if getTable != nil {
@@ -119,7 +119,7 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 
 	metadataTableName := GetMetadataTableName(store.keyspace)
 	query := fmt.Sprintf("INSERT INTO %s (tableName, tableType) VALUES (?, ?)", metadataTableName)
-	err := store.session.Query(query, tableName, string(valueType)).WithContext(context.TODO()).Exec()
+	err := store.session.Query(query, tableName, string(valueType.Scalar())).WithContext(context.TODO()).Exec()
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func (store *cassandraOnlineStore) GetTable(feature, variant string) (OnlineStor
 	table := &cassandraOnlineTable{
 		session:   store.session,
 		key:       key,
-		valueType: ValueType(vType),
+		valueType: ScalarType(vType),
 	}
 
 	return table, nil

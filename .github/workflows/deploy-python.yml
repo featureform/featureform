@@ -1,9 +1,9 @@
 name: Update Pypi
-on: 
+on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version of python package to deploy'
+        description: "Version of python package to deploy"
         required: true
         type: string
 jobs:
@@ -22,11 +22,11 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 16
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: dashboard/package-lock.json
 
       - name: Install
-        run: npm install --legacy-peer-deps
+        run: npm i
         working-directory: ./dashboard
 
       - name: Install grpc_tools
@@ -45,4 +45,3 @@ jobs:
 
       - name: Package and Upload
         run: ./gen_pypi.sh
-

@@ -2,7 +2,7 @@ name: Dashboard CI
 on:
   push:
     paths:
-      - 'dashboard/**'
+      - "dashboard/**"
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -13,6 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Install modules
-        run: cd dashboard; npm install --legacy-peer-deps
+        run: cd dashboard; npm i
       - name: Run tests
         run: cd dashboard; npm test

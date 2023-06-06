@@ -22,7 +22,7 @@
     "immer": "^9.0.15",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.5.28",
-    "material-table": "^1.63.0",
+    "material-table": "^2.0.3",
     "meilisearch": "^0.31.1",
     "moment": "^2.29.2",
     "momentjs": "^2.0.0",

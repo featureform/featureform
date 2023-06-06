@@ -12,6 +12,7 @@ import inspect
 import dill
 import pandas as pd
 
+
 from .get import *
 from .list import *
 from .get_local import *
@@ -20,7 +21,7 @@ from .sqlite_metadata import SQLiteMetadata
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
 from .resources import (
-    ColumnTypes,
+    ScalarType,
     Model,
     ResourceState,
     Provider,
@@ -1280,6 +1281,8 @@ class Registrar:
                 owner="",
                 provider="",
                 description="",
+                tags=[],
+                properties={},
             )
             return ColumnSourceRegistrar(self, fakeSource)
 
@@ -3088,6 +3091,8 @@ class Registrar:
                 variant=variant,
                 source=source,
                 value_type=feature["type"],
+                is_embedding=feature.get("is_embedding", False),
+                dims=feature.get("dims", 0),
                 entity=entity,
                 owner=owner,
                 provider=inference_store,
@@ -4511,7 +4516,7 @@ class ColumnResource:
     def __init__(
         self,
         transformation_args: tuple,
-        type: Union[ColumnTypes, str],
+        type: Union[ScalarType, str],
         resource_type: str,
         entity: Union[Entity, str],
         variant: str,
@@ -4546,7 +4551,7 @@ class ColumnResource:
         self.properties = properties
 
     def register(self):
-        features, labels = self.features_and_labels()
+        features, labels = self.get_resources_by_type(self.resource_type)
 
         self.registrar.register_column_resources(
             source=self.source,
@@ -4560,7 +4565,9 @@ class ColumnResource:
             schedule=self.schedule,
         )
 
-    def features_and_labels(self) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
+    def get_resources_by_type(
+        self, resource_type: str
+    ) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
         resources = [
             {
                 "name": self.name,
@@ -4572,10 +4579,11 @@ class ColumnResource:
                 "properties": self.properties,
             }
         ]
-        if self.resource_type == "feature":
+
+        if resource_type == "feature":
             features = resources
             labels = []
-        elif self.resource_type == "label":
+        elif resource_type == "label":
             features = []
             labels = resources
         else:
@@ -4606,7 +4614,7 @@ class FeatureColumnResource(ColumnResource):
     def __init__(
         self,
         transformation_args: tuple,
-        type: Union[ColumnTypes, str],
+        type: Union[ScalarType, str],
         entity: Union[Entity, str] = "",
         variant="default",
         owner: str = "",
@@ -4637,7 +4645,7 @@ class LabelColumnResource(ColumnResource):
     def __init__(
         self,
         transformation_args: tuple,
-        type: Union[ColumnTypes, str],
+        type: Union[ScalarType, str],
         entity: Union[Entity, str] = "",
         variant="default",
         owner: str = "",
@@ -4662,6 +4670,48 @@ class LabelColumnResource(ColumnResource):
             tags=tags,
             properties=properties,
         )
+
+
+class EmbeddingColumnResource(ColumnResource):
+    def __init__(
+        self,
+        transformation_args: tuple,
+        dims: int,
+        vector_db: Union[str, OnlineProvider, FileStoreProvider],
+        entity: Union[Entity, str] = "",
+        variant="default",
+        owner: str = "",
+        timestamp_column: str = "",
+        description: str = "",
+        schedule: str = "",
+        tags: List[str] = [],
+        properties: Dict[str, str] = {},
+    ):
+        super().__init__(
+            transformation_args=transformation_args,
+            type=ScalarType.FLOAT32,
+            resource_type="feature",
+            entity=entity,
+            variant=variant,
+            owner=owner,
+            inference_store=vector_db,
+            timestamp_column=timestamp_column,
+            description=description,
+            schedule=schedule,
+            tags=tags,
+            properties=properties,
+        )
+        if dims < 1:
+            raise ValueError("Vector dimensions must be a positive integer")
+        self.dims = dims
+
+    def get_resources_by_type(
+        self, resource_type: str
+    ) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
+        features, labels = super().get_resources_by_type(resource_type)
+        features[0]["dims"] = self.dims
+        features[0]["is_embedding"] = True
+        return (features, labels)
 
 
 def entity(cls):
@@ -4748,12 +4798,12 @@ ondemand_feature = global_registrar.ondemand_feature
 ResourceStatus = ResourceStatus
 
 
-Nil = ColumnTypes.NIL
-String = ColumnTypes.STRING
-Int = ColumnTypes.INT
-Int32 = ColumnTypes.INT32
-Int64 = ColumnTypes.INT64
-Float32 = ColumnTypes.FLOAT32
-Float64 = ColumnTypes.FLOAT64
-Bool = ColumnTypes.BOOL
-DateTime = ColumnTypes.DATETIME
+Nil = ScalarType.NIL
+String = ScalarType.STRING
+Int = ScalarType.INT
+Int32 = ScalarType.INT32
+Int64 = ScalarType.INT64
+Float32 = ScalarType.FLOAT32
+Float64 = ScalarType.FLOAT64
+Bool = ScalarType.BOOL
+DateTime = ScalarType.DATETIME

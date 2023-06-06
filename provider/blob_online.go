@@ -64,12 +64,12 @@ func (store OnlineFileStore) readTableValue(feature, variant string) (ValueType,
 	if err != nil {
 		return NilType, err
 	}
-	return ValueType(string(value)), nil
+	return ScalarType(string(value)), nil
 }
 
 func (store OnlineFileStore) writeTableValue(feature, variant string, valueType ValueType) error {
 	tableKey := blobTableKey(store.Prefix, feature, variant)
-	return store.Write(tableKey, []byte(valueType))
+	return store.Write(tableKey, []byte(valueType.Scalar()))
 }
 
 func (store OnlineFileStore) deleteTable(feature, variant string) error {

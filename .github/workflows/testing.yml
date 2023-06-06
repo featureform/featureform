@@ -7,6 +7,7 @@ concurrency:
 env:
   MEILISEARCH_PORT: 7700
   MEILISEARCH_API_KEY: ""
+  REDISEARCH_INSECURE_PORT: 6380
   REDIS_INSECURE_PORT: 6379
   REDIS_SECURE_PORT: 6378
   REDIS_PASSWORD: "password"
@@ -100,7 +101,7 @@ jobs:
 
       - name: Start Search
         run: |
-          docker run -d -p $MEILISEARCH_PORT:7700 getmeili/meilisearch:v1.0 
+          docker run -d -p $MEILISEARCH_PORT:7700 getmeili/meilisearch:v1.0
 
       - name: Make Coverage Directory
         working-directory: ./
@@ -151,6 +152,13 @@ jobs:
         # supported for use outside of 'steps'
         ports:
           - 9042:9042
+
+      redisearch:
+        image: redis/redis-stack
+        # Hard coded port because environment variables not currently
+        # supported for use outside of 'steps'
+        ports:
+          - 6380:6379
 
     steps:
       - name: Download Working Compiled Directories
@@ -503,7 +511,6 @@ jobs:
           GCS_BUCKET_PATH: "backup"
           GCS_CREDENTIALS: ${{ secrets.GCS_CREDENTIALS }}
         run: ./tests/integration/backup/test.sh
-
 
   metrics:
     name: Metrics Testing
@@ -930,7 +937,7 @@ jobs:
         with:
           name: "./provider/gcp_credentials.json"
           json: ${{ secrets.GCS_CREDENTIALS }}
-      
+
       - name: Testing Filestore
         env:
           AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
@@ -951,7 +958,7 @@ jobs:
         run: |
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
-          
+
       - uses: codecov/codecov-action@v2
         if: always()
         with:

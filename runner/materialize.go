@@ -106,6 +106,24 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Create the vector similarity index prior to writing any values to the
+	// inference store. This is currently only required for RediSearch, but other
+	// vector databases allow for manual index configuration even if they support
+	// autogeneration of indexes.
+	if vectorType, ok := m.VType.(provider.VectorType); ok && vectorType.IsEmbedding {
+		m.Logger.Infow("Creating Index", "name", m.ID.Name, "variant", m.ID.Variant)
+		vectorStore, ok := m.Online.(provider.VectorStore)
+		if !ok {
+			return nil, fmt.Errorf("cannot create index on non-vector store: %v", m.Online)
+		}
+		if !ok {
+			return nil, fmt.Errorf("cannot create index on non-vector type: %v", m.VType)
+		}
+		_, err := vectorStore.CreateIndex(m.ID.Name, m.ID.Variant, vectorType)
+		if err != nil {
+			return nil, fmt.Errorf("create index error: %w", err)
+		}
+	}
 	m.Logger.Infow("Creating Table", "name", m.ID.Name, "variant", m.ID.Variant)
 	_, err = m.Online.CreateTable(m.ID.Name, m.ID.Variant, m.VType)
 	_, exists := err.(*provider.TableAlreadyExists)
@@ -208,7 +226,7 @@ type MaterializedRunnerConfig struct {
 	OnlineConfig  pc.SerializedConfig
 	OfflineConfig pc.SerializedConfig
 	ResourceID    provider.ResourceID
-	VType         provider.ValueType
+	VType         provider.ValueTypeJSONWrapper
 	Cloud         JobCloud
 	IsUpdate      bool
 }
@@ -254,7 +272,7 @@ func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 		Online:   onlineStore,
 		Offline:  offlineStore,
 		ID:       runnerConfig.ResourceID,
-		VType:    runnerConfig.VType,
+		VType:    runnerConfig.VType.ValueType,
 		IsUpdate: runnerConfig.IsUpdate,
 		Cloud:    runnerConfig.Cloud,
 		Logger:   logging.NewLogger("materializer"),

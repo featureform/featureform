@@ -1199,7 +1199,7 @@ class ColumnResource:
     def __init__(
         self,
         transformation_args: tuple,
-        type: Union[ColumnTypes, str],
+        type: Union[ScalarType, str],
         resource_type: str,
         entity: Union[Entity, str],
         owner: Union[str, UserRegistrar],
@@ -1301,7 +1301,7 @@ class FeatureColumnResource(ColumnResource):
     def __init__(
         self,
         transformation_args: tuple,
-        type: Union[ColumnTypes, str],
+        type: Union[ScalarType, str],
         entity: Union[Entity, str] = "",
         variant: str = "",
         owner: str = "",
@@ -1333,7 +1333,7 @@ class LabelColumnResource(ColumnResource):
     def __init__(
         self,
         transformation_args: tuple,
-        type: Union[ColumnTypes, str],
+        type: Union[ScalarType, str],
         entity: Union[Entity, str] = "",
         variant: str = "",
         owner: str = "",

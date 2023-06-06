@@ -45,7 +45,10 @@ GCPCredentials = GCPCredentials
 Feature = FeatureColumnResource
 Label = LabelColumnResource
 Variants = Variants
+Embedding = EmbeddingColumnResource
 
 
 local = register_local()
 register_user("default_user").make_default_owner()
+set_run = set_run
+get_run = get_run

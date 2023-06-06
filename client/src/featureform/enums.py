@@ -6,7 +6,7 @@ from os import path
 from fnmatch import fnmatch
 
 
-class ColumnTypes(Enum):
+class ScalarType(Enum):
     NIL = ""
     INT = "int"
     INT32 = "int32"

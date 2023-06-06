@@ -2,9 +2,10 @@ package metadata
 
 import (
 	"encoding/json"
-	pb "github.com/featureform/metadata/proto"
 	"reflect"
 	"testing"
+
+	pb "github.com/featureform/metadata/proto"
 )
 
 func TestSourceVariant_IsTransformation(t *testing.T) {
@@ -242,5 +243,37 @@ func TestEmptyKubernetesArgsSpecs(t *testing.T) {
 				t.Errorf("parseKubernetesArgs() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestVectorValueType(t *testing.T) {
+	fv := &pb.FeatureVariant{
+		Name:    "vector",
+		Variant: "vector_variant",
+		Source: &pb.NameVariant{
+			Name:    "vector_source",
+			Variant: "vector_source_variant",
+		},
+		Type:     "float32",
+		Entity:   "vector_entity",
+		Owner:    "vector_owner",
+		Provider: "vector_provider",
+		Location: &pb.FeatureVariant_Columns{
+			Columns: &pb.Columns{
+				Entity: "vector_entity",
+				Value:  "vector_value",
+			},
+		},
+		IsEmbedding: true,
+		Dimension:   384,
+	}
+
+	wfc := wrapProtoFeatureVariant(fv)
+
+	if wfc.Dimension() != 384 {
+		t.Errorf("expected dimension to be 384, got %d", wfc.Dimension())
+	}
+	if wfc.IsEmbedding() != true {
+		t.Errorf("expected embedding to be true, got %v", wfc.IsEmbedding())
 	}
 }

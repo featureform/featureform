@@ -189,6 +189,7 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	return primary.IterateSegment(limit)
 }
 
+// TODO: test serving embedding features
 func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServeRequest) (*pb.FeatureRow, error) {
 	features := req.GetFeatures()
 	entities := req.GetEntities()
@@ -302,4 +303,61 @@ func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceColu
 	return &pb.SourceDataColumns{
 		Columns: it.Columns(),
 	}, nil
+}
+
+func (serv *FeatureServer) Nearest(ctx context.Context, req *pb.NearestRequest) (*pb.NearestResponse, error) {
+	id := req.GetId()
+	name, variant := id.GetName(), id.GetVersion()
+	serv.Logger.Infow("Searching nearest", "Name", name, "Variant", variant)
+	fv, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
+	if err != nil {
+		serv.Logger.Errorw("metadata lookup failed", "Err", err)
+		return nil, err
+	}
+	vectorTable, err := serv.getVectorTable(ctx, fv)
+	if err != nil {
+		serv.Logger.Errorw("failed to get vector table", "Error", err)
+		return nil, err
+	}
+	searchVector := req.GetVector()
+	k := req.GetK()
+	if searchVector == nil {
+		return nil, fmt.Errorf("no embedding provided")
+	}
+	entities, err := vectorTable.Nearest(name, variant, searchVector.Value, k)
+	if err != nil {
+		serv.Logger.Errorw("nearest search failed", "Error", err)
+		return nil, err
+	}
+	return &pb.NearestResponse{
+		Entities: entities,
+	}, nil
+}
+
+func (serv *FeatureServer) getVectorTable(ctx context.Context, fv *metadata.FeatureVariant) (provider.VectorStoreTable, error) {
+	providerEntry, err := fv.FetchProvider(serv.Metadata, ctx)
+	if err != nil {
+		serv.Logger.Errorw("fetching provider metadata failed", "Error", err)
+		return nil, err
+	}
+	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
+	if err != nil {
+		serv.Logger.Errorw("failed to get provider", "Error", err)
+		return nil, err
+	}
+	store, err := p.AsOnlineStore()
+	if err != nil {
+		serv.Logger.Errorw("failed to use provider as online store for feature", "Error", err)
+		return nil, err
+	}
+	table, err := store.GetTable(fv.Name(), fv.Variant())
+	if err != nil {
+		serv.Logger.Errorw("feature not found", "Error", err)
+		return nil, err
+	}
+	vectorTable, ok := table.(provider.VectorStoreTable)
+	if !ok {
+		serv.Logger.Errorw("failed to use table as vector store table", "Error", err)
+	}
+	return vectorTable, nil
 }

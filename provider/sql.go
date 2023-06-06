@@ -1334,16 +1334,16 @@ func (q defaultOfflineSQLQueries) trainingSetQuery(store *sqlOfflineStore, def T
 
 func (q defaultOfflineSQLQueries) atomicUpdate(db *sql.DB, tableName string, tempName string, query string) error {
 	sanitizedTable := sanitize(tableName)
-	oldTable := sanitize(fmt.Sprintf("old_%s", tableName))
 	transaction := fmt.Sprintf(
 		"BEGIN TRANSACTION;"+
 			"%s;"+
-			"ALTER TABLE %s RENAME TO %s;"+
-			"ALTER TABLE %s RENAME TO %s;"+
+			"TRUNCATE TABLE %s;"+ // this doesn't work in a trx for BIGQUERY and REDSHIFT
+			"INSERT INTO %s SELECT * FROM %s;"+
 			"DROP TABLE %s;"+
 			"COMMIT;"+
-			"", query, sanitizedTable, oldTable, tempName, sanitizedTable, oldTable)
+			"", query, sanitizedTable, sanitizedTable, tempName, tempName)
 	var numStatements = 6
+	// Gets around the fact that the go redshift driver doesn't support multi statement trx queries
 	stmt, _ := sf.WithMultiStatement(context.TODO(), numStatements)
 	_, err := db.QueryContext(stmt, transaction)
 	return err

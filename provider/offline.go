@@ -20,21 +20,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type ValueType string
-
-const (
-	NilType   ValueType = ""
-	Int       ValueType = "int"
-	Int32     ValueType = "int32"
-	Int64     ValueType = "int64"
-	Float32   ValueType = "float32"
-	Float64   ValueType = "float64"
-	String    ValueType = "string"
-	Bool      ValueType = "bool"
-	Timestamp ValueType = "time.Time"
-	Datetime  ValueType = "datetime"
-)
-
 type OfflineResourceType int
 
 const (

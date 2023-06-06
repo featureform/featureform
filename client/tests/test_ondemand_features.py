@@ -20,8 +20,8 @@ def test_ondemand_feature_decorator_class():
     name = "test_ondemand_feature"
     owner = "ff_tester"
 
-    decorator = OnDemandFeature(owner=owner, name=name)
-    decorator_2 = OnDemandFeature(owner=owner, name=name)
+    decorator = OnDemandFeature(owner=owner, name=name, variant="default")
+    decorator_2 = OnDemandFeature(owner=owner, name=name, variant="default")
 
     assert decorator.name_variant() == (name, "default")
     assert decorator.type() == "ondemand_feature"
@@ -34,7 +34,7 @@ def test_ondemand_feature_decorator_class():
 def test_ondemand_decorator():
     owner = "ff_tester"
 
-    @OnDemandFeature(owner=owner)
+    @OnDemandFeature(owner=owner, variant="default")
     def test_fn():
         return 1 + 1
 
@@ -105,7 +105,7 @@ def test_serving_ondemand_precalculated_feature(features, entity, expected_outpu
 
 def register_resources():
     ff.register_user("featureformer").make_default_owner()
-
+    ff.set_run("default")
     local = ff.register_local()
 
     transactions = local.register_file(

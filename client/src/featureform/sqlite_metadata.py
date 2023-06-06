@@ -433,9 +433,7 @@ class SQLiteMetadata:
         self.__conn.commit()
         variant_data_list = variant_data.fetchall()
         if len(variant_data_list) == 0:
-            raise ValueError(
-                f"{type} with name: {name} and variant: {variant} not found"
-            )
+            raise ValueError(f"{type} {name} ({variant}) not found")
         return variant_data_list
 
     def fetch_data_safe(self, query, type, name, variant):

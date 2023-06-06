@@ -294,7 +294,9 @@ class TestPetalGuide:
 
         client.apply()
 
-        with pytest.raises(ValueError, match="Label must be entered as a tuple"):
+        with pytest.raises(
+            ValueError, match="Label must be entered as a name-variant tuple"
+        ):
             ff.register_training_set(
                 "join",
                 "v4",

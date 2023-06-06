@@ -94,6 +94,7 @@ def test_feature_status(mocker, status, expected, ready):
         "get_feature",
         return_value=Feature(
             name="name",
+            variant="",
             source=("some", "source"),
             value_type="float32",
             entity="entity",
@@ -129,6 +130,7 @@ def test_label_status(mocker, status, expected, ready):
         "get_label",
         return_value=Label(
             name="name",
+            variant="",
             source=("some", "source"),
             value_type="float32",
             entity="entity",
@@ -164,6 +166,7 @@ def test_training_set_status(mocker, status, expected, ready):
         "get_training_set",
         return_value=TrainingSet(
             name="",
+            variant="",
             owner="",
             label=("something", "something"),
             features=[("some", "feature")],
@@ -197,6 +200,7 @@ def test_source_status(mocker, status, expected, ready):
         "get_source",
         return_value=Source(
             name="",
+            variant="",
             definition=Transformation(),
             owner="me",
             provider="provider",

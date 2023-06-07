@@ -1576,7 +1576,12 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 	}
 	materializationQuery := k8s.query.materializationCreate(k8sResourceTable.schema)
 	sourcePath := k8s.store.PathWithPrefix(k8sResourceTable.schema.SourceTable, false)
-	k8sArgs := k8s.pandasRunnerArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
+	newestSourcePath, err := k8s.store.NewestFileOfType(sourcePath, Parquet)
+	if err != nil {
+		k8s.logger.Errorw("Could not determine newest source file for materialization", "sourcePath", sourcePath, "error", err)
+		return nil, fmt.Errorf("error determining newest source file: %v", err)
+	}
+	k8sArgs := k8s.pandasRunnerArgs(destinationPath, materializationQuery, []string{newestSourcePath}, Materialize)
 	k8sArgs = addResourceID(k8sArgs, id)
 	if err := k8s.executor.ExecuteScript(k8sArgs, nil); err != nil {
 		k8s.logger.Errorw("Job failed to run", "error", err)

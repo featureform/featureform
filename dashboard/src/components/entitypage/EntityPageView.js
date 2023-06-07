@@ -21,7 +21,6 @@ import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
 import sql from 'react-syntax-highlighter/dist/cjs/languages/prism/sql';
 import { okaidia } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import Resource from '../../api/resources/Resource.js';
-import SourceTableDialog from '../../components/dialog/SourceTableDialog.js';
 import theme from '../../styles/theme/index.js';
 import { VariantTable } from '../resource-list/ResourceListView.js';
 import AttributeBox from './elements/AttributeBox';
@@ -483,7 +482,6 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                             <b>{metadata['definition']}</b>
                           </Typography>
                         )}
-                        <SourceTableDialog tableName='Source Tabular Data' />
                       </div>
                     )}
                     {metadata['serialized-config'] && (

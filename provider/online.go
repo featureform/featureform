@@ -35,6 +35,7 @@ type OnlineStoreTable interface {
 
 type VectorStore interface {
 	CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error)
+	DeleteIndex(feature, variant string) error
 	OnlineStore
 }
 

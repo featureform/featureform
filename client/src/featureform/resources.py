@@ -705,6 +705,7 @@ class LocalConfig:
 
 Config = Union[
     RedisConfig,
+    PineconeConfig,
     SnowflakeConfig,
     PostgresConfig,
     RedshiftConfig,

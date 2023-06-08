@@ -74,10 +74,6 @@ func (store *redisOnlineStore) AsOnlineStore() (OnlineStore, error) {
 	return store, nil
 }
 
-func (store *redisOnlineStore) AsVectorStore() (VectorStore, error) {
-	return store, nil
-}
-
 func (store *redisOnlineStore) Close() error {
 	store.client.Close()
 	return nil
@@ -200,6 +196,10 @@ func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType V
 	}
 	table := &redisOnlineIndex{client: store.client, key: key, valueType: vectorType}
 	return table, nil
+}
+
+func (store *redisOnlineStore) DeleteIndex(feature, variant string, vectorType VectorType) error {
+	return nil
 }
 
 func (store *redisOnlineStore) createIndexCmd(key redisIndexKey, vectorType VectorType) (rueidis.Completed, error) {

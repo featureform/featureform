@@ -755,15 +755,15 @@ class LocalProvider:
         )
 
     def ondemand_feature(
-            self,
-            fn=None,
-            *,
-            tags: List[str] = None,
-            properties: dict = None,
-            variant: str = "",
-            name: str = "",
-            owner: Union[str, UserRegistrar] = "",
-            description: str = "",
+        self,
+        fn=None,
+        *,
+        tags: List[str] = None,
+        properties: dict = None,
+        variant: str = "",
+        name: str = "",
+        owner: Union[str, UserRegistrar] = "",
+        description: str = "",
     ):
         """On Demand Feature decorator.
 
@@ -795,7 +795,6 @@ class LocalProvider:
             tags=tags,
             properties=properties,
         )
-
 
 
 class SourceRegistrar:

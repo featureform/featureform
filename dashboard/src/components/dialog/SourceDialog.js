@@ -14,12 +14,17 @@ export default function SourceDialog({
   const [open, setOpen] = React.useState(false);
   const [columns, setColumns] = React.useState([]);
   const [rowList, setRowList] = React.useState([]);
+  const [error, setError] = React.useState('');
 
   React.useEffect(async () => {
     if (sourceName !== '' && open) {
       let response = await api.fetchSourceModalData(sourceName, sourceVariant);
-      setColumns(response.columns);
-      setRowList(response.rows);
+      if (response.columns && response.rows) {
+        setColumns(response.columns);
+        setRowList(response.rows);
+      } else {
+        setError(response);
+      }
     }
   }, [sourceName, sourceVariant, open]);
 
@@ -52,7 +57,11 @@ export default function SourceDialog({
           {sourceName.toUpperCase()}
         </DialogTitle>
         <DialogContent>
-          <SourceDialogTable api={api} columns={columns} rowList={rowList} />
+          {error === '' ? (
+            <SourceDialogTable api={api} columns={columns} rowList={rowList} />
+          ) : (
+            <div data-testid='errorMessageId'>{error}</div>
+          )}
         </DialogContent>
         <DialogActions>
           <Button data-testid={'sourceTableCloseId'} onClick={handleClose}>

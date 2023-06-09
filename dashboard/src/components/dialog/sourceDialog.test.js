@@ -21,10 +21,14 @@ describe('Source Table Dialog Tests', () => {
   const H2_NODE = 'H2';
   const TH_NODE = 'TH';
   const TD_NODE = 'TD';
+  const DIV_NODE = 'DIV';
   const OPEN_BTN_ID = 'sourceTableOpenId';
   const CLOSE_BTN_ID = 'sourceTableCloseId';
+  const ERROR_MSG_ID = 'errorMessageId';
   const TITLE_ID = 'sourceTableTitleId';
   const DEFAULT_NAME = 'Test Table';
+  const DEFAULT_VARIANT = 'default';
+  const ERROR_MSG = 'Error 500 - Something went wrong';
 
   const apiDataMock = {
     fetchSourceModalData: jest.fn().mockResolvedValue(testData),
@@ -35,6 +39,10 @@ describe('Source Table Dialog Tests', () => {
       columns: [],
       rows: [],
     }),
+  };
+
+  const apiErrorMock = {
+    fetchSourceModalData: jest.fn().mockResolvedValue(ERROR_MSG),
   };
 
   const getTestBody = (apiParam = apiDataMock, name = DEFAULT_NAME) => {
@@ -53,7 +61,10 @@ describe('Source Table Dialog Tests', () => {
 
     //then:
     expect(apiParam.fetchSourceModalData).toHaveBeenCalledTimes(1);
-    expect(apiParam.fetchSourceModalData).toHaveBeenCalledWith(name, 'default');
+    expect(apiParam.fetchSourceModalData).toHaveBeenCalledWith(
+      name,
+      DEFAULT_VARIANT
+    );
     expect(foundName.textContent).toBe(DEFAULT_NAME.toUpperCase());
     expect(foundName.nodeName).toBe(H2_NODE);
   });
@@ -89,6 +100,25 @@ describe('Source Table Dialog Tests', () => {
       expect(foundRow.length).toBeGreaterThan(0);
       expect(foundRow[0].nodeName).toBe(TD_NODE);
     });
+  });
+
+  test('Fetch errors are displayed to the user', async () => {
+    //given:
+    const { testBody, apiParam, name } = getTestBody(apiErrorMock);
+    const helper = render(testBody);
+
+    //when: the user clicks open
+    fireEvent.click(helper.getByTestId(OPEN_BTN_ID));
+    const foundError = await helper.findByTestId(ERROR_MSG_ID);
+
+    //then:
+    expect(apiParam.fetchSourceModalData).toHaveBeenCalledTimes(1);
+    expect(apiParam.fetchSourceModalData).toHaveBeenCalledWith(
+      name,
+      DEFAULT_VARIANT
+    );
+    expect(foundError.textContent).toBe(ERROR_MSG);
+    expect(foundError.nodeName).toBe(DIV_NODE);
   });
 
   test('The dialog closes on user click', async () => {

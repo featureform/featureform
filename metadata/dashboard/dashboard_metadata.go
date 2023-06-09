@@ -983,14 +983,17 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	var limit int64 = 50
 	response := SourceDataResponse{}
 	if name == "" || variant == "" {
-		m.logger.Errorw("Could not find the name or variant query parameters")
-		c.JSON(200, response)
+		fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData - Could not find the name or variant query parameters"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
 	}
 	iter, err := m.getSourceDataIterator(name, variant, limit)
 	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData"}
+		fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData - getSourceDataIterator() threw an exception"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
 	}
 	for _, columnName := range iter.Columns() {
 		response.Columns = append(response.Columns, strings.ReplaceAll(columnName, "\"", ""))
@@ -1001,6 +1004,7 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 			fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData"}
 			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 			c.JSON(fetchError.StatusCode, fetchError.Error())
+			return
 		}
 		dataRow := []string{}
 		for _, currentRow := range sRow.Rows {
@@ -1014,6 +1018,7 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
 	}
 	c.JSON(200, response)
 }

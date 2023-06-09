@@ -3,6 +3,7 @@ on: push
 jobs:
   python:
     name: Windows Python Build
+    runs-on: windows-latest
     defaults:
       run:
         working-directory: ./

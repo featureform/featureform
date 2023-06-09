@@ -111,7 +111,7 @@ class Provider:
     error: Optional[str] = None
 
     def __post_init__(self):
-        self.software = self.config.software() if self.config is not None else None
+        self.software = self.config.type() if self.config is not None else None
 
     @staticmethod
     def operation_type() -> OperationType:

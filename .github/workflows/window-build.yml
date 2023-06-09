@@ -1,0 +1,22 @@
+name: Build Windows Python
+on: push
+jobs:
+  python:
+    name: Windows Python Build
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download Files
+        run: pip download featureform --prefer-binary -d featureform_windows
+
+      - name: Archive code coverage results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: featureform_windows
+          path: ./featureform_windows
+

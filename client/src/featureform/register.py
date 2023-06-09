@@ -18,6 +18,9 @@ from .parse import *
 from .list import *
 from .get_local import *
 from .list_local import *
+from .resources_config import S3StoreConfig, AWSCredentials, LocalConfig, RedisConfig, MongoDBConfig, \
+    AzureFileStoreConfig, PostgresConfig, SnowflakeConfig, RedshiftConfig, BigQueryConfig, \
+    SparkConfig, K8sConfig, GCPCredentials, GCSFileStoreConfig, HDFSConfig
 from .sqlite_metadata import SQLiteMetadata
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
@@ -26,22 +29,6 @@ from .resources import (
     Model,
     ResourceState,
     Provider,
-    RedisConfig,
-    FirestoreConfig,
-    CassandraConfig,
-    DynamodbConfig,
-    MongoDBConfig,
-    PostgresConfig,
-    SnowflakeConfig,
-    LocalConfig,
-    RedshiftConfig,
-    BigQueryConfig,
-    SparkConfig,
-    AzureFileStoreConfig,
-    OnlineBlobConfig,
-    K8sConfig,
-    S3StoreConfig,
-    GCSFileStoreConfig,
     User,
     Location,
     Source,
@@ -61,9 +48,6 @@ from .resources import (
     ResourceRedefinedError,
     ResourceStatus,
     K8sArgs,
-    AWSCredentials,
-    GCPCredentials,
-    HDFSConfig,
     K8sResourceSpecs,
     FilePrefix,
     OnDemandFeature,
@@ -580,7 +564,6 @@ class LocalProvider:
             "Provider",
             self.__provider.description,
             self.__provider.config.type(),
-            self.__provider.config.software(),
             self.__provider.team,
             "sources",
             "status",
@@ -1579,13 +1562,10 @@ class Registrar:
         fake_azure_config = AzureFileStoreConfig(
             account_name="", account_key="", container_name="", root_path=""
         )
-        fake_config = OnlineBlobConfig(
-            store_type="AZURE", store_config=fake_azure_config.config()
-        )
         fakeProvider = Provider(
-            name=name, function="ONLINE", description="", team="", config=fake_config
+            name=name, function="ONLINE", description="", team="", config=fake_azure_config
         )
-        return FileStoreProvider(self, fakeProvider, fake_config, "AZURE")
+        return FileStoreProvider(self, fakeProvider, fake_azure_config, "AZURE")
 
     def get_postgres(self, name):
         """Get a Postgres provider. The returned object can be used to register additional resources.
@@ -1976,21 +1956,18 @@ class Registrar:
             container_name=container_name,
             root_path=root_path,
         )
-        config = OnlineBlobConfig(
-            store_type="AZURE", store_config=azure_config.config()
-        )
 
         provider = Provider(
             name=name,
             function="ONLINE",
             description=description,
             team=team,
-            config=config,
+            config=azure_config,
             tags=tags,
             properties=properties,
         )
         self.__resources.append(provider)
-        return FileStoreProvider(self, provider, azure_config, "AZURE")
+        return FileStoreProvider(self, provider, azure_config, azure_config.type())
 
     def register_s3(
         self,

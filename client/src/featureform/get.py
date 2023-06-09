@@ -233,7 +233,7 @@ def get_provider_info(stub, name):
                 ("NAME: ", x.name),
                 ("DESCRIPTION: ", x.description),
                 ("TYPE: ", x.type),
-                ("SOFTWARE: ", x.software),
+                ("SOFTWARE: ", x.type),
                 ("TEAM: ", x.team),
                 ("STATUS: ", x.status.Status._enum_type.values[x.status.status].name),
             ]

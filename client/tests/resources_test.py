@@ -18,7 +18,6 @@ from featureform.resources import (
     PostgresConfig,
     RedshiftConfig,
     BigQueryConfig,
-    OnlineBlobConfig,
     K8sConfig,
     User,
     Provider,
@@ -84,14 +83,6 @@ def blob_store_config():
         account_key="<account_key>",
         container_name="examplecontainer",
         root_path="example/path",
-    )
-
-
-@pytest.fixture
-def online_blob_config(blob_store_config):
-    return OnlineBlobConfig(
-        store_type="AZURE",
-        store_config=blob_store_config.serialize(),
     )
 
 

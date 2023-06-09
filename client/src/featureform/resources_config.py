@@ -48,9 +48,9 @@ class RedisConfig(Config):
 @dataclass
 class GCPCredentials(Config):
     def __init__(
-            self,
-            project_id: str,
-            credentials_path: str,
+        self,
+        project_id: str,
+        credentials_path: str,
     ):
         self.project_id = project_id
         self.credentials = json.load(open(credentials_path))
@@ -108,9 +108,9 @@ class AzureFileStoreConfig(FileStoreConfig):
 @dataclass
 class AWSCredentials(Config):
     def __init__(
-            self,
-            aws_access_key_id: str = "",
-            aws_secret_access_key: str = "",
+        self,
+        aws_access_key_id: str = "",
+        aws_secret_access_key: str = "",
     ):
         empty_strings = aws_access_key_id == "" or aws_secret_access_key == ""
         if empty_strings:
@@ -135,11 +135,11 @@ class AWSCredentials(Config):
 @dataclass
 class S3StoreConfig(FileStoreConfig):
     def __init__(
-            self,
-            bucket_path: str,
-            bucket_region: str,
-            credentials: AWSCredentials,
-            path: str = "",
+        self,
+        bucket_path: str,
+        bucket_region: str,
+        credentials: AWSCredentials,
+        path: str = "",
     ):
         bucket_path_ends_with_slash = len(bucket_path) != 0 and bucket_path[-1] == "/"
 
@@ -312,7 +312,7 @@ class SnowflakeConfig(Config):
 
     def __has_current_credentials(self) -> bool:
         if (self.account != "" and self.organization == "") or (
-                self.account == "" and self.organization != ""
+            self.account == "" and self.organization != ""
         ):
             raise ValueError("Both Snowflake organization and account must be included")
         elif self.account != "" and self.organization != "":

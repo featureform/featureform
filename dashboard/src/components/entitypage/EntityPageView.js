@@ -21,8 +21,8 @@ import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
 import sql from 'react-syntax-highlighter/dist/cjs/languages/prism/sql';
 import { okaidia } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import Resource from '../../api/resources/Resource.js';
-import SourceTableDialog from '../../components/dialog/SourceTableDialog.js';
 import theme from '../../styles/theme/index.js';
+import SourceDialog from '../dialog/SourceDialog';
 import { VariantTable } from '../resource-list/ResourceListView.js';
 import AttributeBox from './elements/AttributeBox';
 import MetricsDropdown from './elements/MetricsDropdown';
@@ -199,7 +199,7 @@ function a11yProps(index) {
   };
 }
 
-const EntityPageView = ({ entity, setVariant, activeVariants }) => {
+const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
   let resources = entity.resources;
   let resourceType = Resource[resources.type];
   let type = resourceType.type;
@@ -483,7 +483,11 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                             <b>{metadata['definition']}</b>
                           </Typography>
                         )}
-                        <SourceTableDialog tableName='Source Tabular Data' />
+                        <SourceDialog
+                          api={api}
+                          sourceName={name}
+                          sourceVariant='default'
+                        />
                       </div>
                     )}
                     {metadata['serialized-config'] && (

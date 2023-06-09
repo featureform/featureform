@@ -193,7 +193,6 @@ class HDFSConfig(FileStoreConfig):
 @dataclass
 class FirestoreConfig(Config):
     collection: str
-
     project_id: str
     credentials_path: str
 

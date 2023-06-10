@@ -1,7 +1,6 @@
 package provider_config
 
 import (
-	"encoding/json"
 	"fmt"
 
 	ss "github.com/featureform/helpers/string_set"
@@ -9,6 +8,7 @@ import (
 )
 
 type SnowflakeConfig struct {
+	DefaultProviderConfig
 	Username       string
 	Password       string
 	AccountLocator string
@@ -20,32 +20,12 @@ type SnowflakeConfig struct {
 	Role           string `snowflake:"role"`
 }
 
-func (sf *SnowflakeConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, sf)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (sf *SnowflakeConfig) Serialize() []byte {
-	conf, err := json.Marshal(sf)
-	if err != nil {
-		panic(err)
-	}
-	return conf
-}
-
-func (sf SnowflakeConfig) MutableFields() ss.StringSet {
+func (sf *SnowflakeConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
 		"Username": true,
 		"Password": true,
 		"Role":     true,
 	}
-}
-
-func (a SnowflakeConfig) DifferingFields(b SnowflakeConfig) (ss.StringSet, error) {
-	return differingFields(a, b)
 }
 
 func (sf *SnowflakeConfig) HasLegacyCredentials() bool {

@@ -1,15 +1,17 @@
 package provider_config
 
 import (
+	"encoding/json"
 	ss "github.com/featureform/helpers/string_set"
 	si "github.com/featureform/helpers/struct_iterator"
 	sm "github.com/featureform/helpers/struct_map"
 )
 
-type FileStoreConfig interface {
+type ProviderConfig interface {
 	Serialize() ([]byte, error)
 	Deserialize(config SerializedConfig) error
-	IsFileStoreConfig() bool
+	DifferingFields(other ProviderConfig) (ss.StringSet, error)
+	MutableFields() ss.StringSet
 }
 
 type ExecutorType string
@@ -28,23 +30,37 @@ const (
 
 type SerializedConfig []byte
 
-func differingFields(a, b interface{}) (ss.StringSet, error) {
+type DefaultProviderConfig struct{}
+
+func (config *DefaultProviderConfig) Serialize() ([]byte, error) {
+	return json.Marshal(config)
+}
+
+func (config *DefaultProviderConfig) Deserialize(serialized SerializedConfig) error {
+	err := json.Unmarshal(serialized, config)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (config *DefaultProviderConfig) DifferingFields(other ProviderConfig) (ss.StringSet, error) {
 	diff := ss.StringSet{}
-	aIter, err := si.NewStructIterator(a)
+	thisIter, err := si.NewStructIterator(config)
 	if err != nil {
 		return nil, err
 	}
 
-	bMap, err := sm.NewStructMap(b)
+	otherMap, err := sm.NewStructMap(other)
 
 	if err != nil {
 		return nil, err
 	}
 
-	for aIter.Next() {
-		key := aIter.Key()
-		aVal := aIter.Value()
-		if !bMap.Has(key, aVal) {
+	for thisIter.Next() {
+		key := thisIter.Key()
+		aVal := thisIter.Value()
+		if !otherMap.Has(key, aVal) {
 			diff[key] = true
 		}
 	}

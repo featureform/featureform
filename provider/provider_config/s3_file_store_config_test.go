@@ -27,8 +27,8 @@ func TestS3ConfigMutableFields(t *testing.T) {
 
 func TestS3ConfigDifferingFields(t *testing.T) {
 	type args struct {
-		a S3FileStoreConfig
-		b S3FileStoreConfig
+		a *S3FileStoreConfig
+		b *S3FileStoreConfig
 	}
 
 	tests := []struct {
@@ -37,13 +37,13 @@ func TestS3ConfigDifferingFields(t *testing.T) {
 		expected ss.StringSet
 	}{
 		{"No Differing Fields", args{
-			a: S3FileStoreConfig{
+			a: &S3FileStoreConfig{
 				Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
 				BucketRegion: "us-east-1",
 				BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 				Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 			},
-			b: S3FileStoreConfig{
+			b: &S3FileStoreConfig{
 				Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
 				BucketRegion: "us-east-1",
 				BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
@@ -51,13 +51,13 @@ func TestS3ConfigDifferingFields(t *testing.T) {
 			},
 		}, ss.StringSet{}},
 		{"Differing Fields", args{
-			a: S3FileStoreConfig{
+			a: &S3FileStoreConfig{
 				Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
 				BucketRegion: "us-east-1",
 				BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 				Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 			},
-			b: S3FileStoreConfig{
+			b: &S3FileStoreConfig{
 				Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key2", AWSSecretKey: "aws-secret2"},
 				BucketRegion: "us-west-2",
 				BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions-v2",

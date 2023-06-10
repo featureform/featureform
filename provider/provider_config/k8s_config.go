@@ -9,26 +9,11 @@ import (
 )
 
 type K8sConfig struct {
+	DefaultProviderConfig
 	ExecutorType   ExecutorType
 	ExecutorConfig interface{}
 	StoreType      FileStoreType
-	StoreConfig    FileStoreConfig
-}
-
-func (k8s *K8sConfig) Serialize() ([]byte, error) {
-	data, err := json.Marshal(k8s)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
-}
-
-func (k8s *K8sConfig) Deserialize(data SerializedConfig) error {
-	err := json.Unmarshal(data, k8s)
-	if err != nil {
-		return err
-	}
-	return nil
+	StoreConfig    ProviderConfig
 }
 
 func (k8s *K8sConfig) UnmarshalJSON(data []byte) error {
@@ -81,7 +66,7 @@ func (k8s *K8sConfig) decodeExecutor(executorType ExecutorType, configMap interf
 }
 
 func (k8s *K8sConfig) decodeFileStore(fileStoreType FileStoreType, configMap map[string]interface{}) error {
-	var fileStoreConfig FileStoreConfig
+	var fileStoreConfig ProviderConfig
 	switch fileStoreType {
 	case Azure:
 		fileStoreConfig = &AzureFileStoreConfig{}
@@ -99,7 +84,7 @@ func (k8s *K8sConfig) decodeFileStore(fileStoreType FileStoreType, configMap map
 	return nil
 }
 
-func (k8s K8sConfig) MutableFields() ss.StringSet {
+func (k8s *K8sConfig) MutableFields() ss.StringSet {
 	result := ss.StringSet{
 		"ExecutorConfig": true,
 	}
@@ -119,7 +104,7 @@ func (k8s K8sConfig) MutableFields() ss.StringSet {
 	return result
 }
 
-func (a K8sConfig) DifferingFields(b K8sConfig) (ss.StringSet, error) {
+func (a *K8sConfig) DifferingFields(b *K8sConfig) (ss.StringSet, error) {
 	result := ss.StringSet{}
 
 	if a.StoreType != b.StoreType {
@@ -138,9 +123,9 @@ func (a K8sConfig) DifferingFields(b K8sConfig) (ss.StringSet, error) {
 	var storeFields ss.StringSet
 	switch a.StoreType {
 	case Azure:
-		storeFields, err = a.StoreConfig.(*AzureFileStoreConfig).DifferingFields(*b.StoreConfig.(*AzureFileStoreConfig))
+		storeFields, err = a.StoreConfig.(*AzureFileStoreConfig).DifferingFields(b.StoreConfig.(*AzureFileStoreConfig))
 	case S3:
-		storeFields, err = a.StoreConfig.(*S3FileStoreConfig).DifferingFields(*b.StoreConfig.(*S3FileStoreConfig))
+		storeFields, err = a.StoreConfig.(*S3FileStoreConfig).DifferingFields(b.StoreConfig.(*S3FileStoreConfig))
 	default:
 		return nil, fmt.Errorf("unsupported store type: %v", a.StoreType)
 	}

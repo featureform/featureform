@@ -33,8 +33,8 @@ func TestGCSFileStoreConfigMutableFields(t *testing.T) {
 
 func TestGCSFileStoreDifferingFields(t *testing.T) {
 	type args struct {
-		a GCSFileStoreConfig
-		b GCSFileStoreConfig
+		a *GCSFileStoreConfig
+		b *GCSFileStoreConfig
 	}
 
 	gcpCredsBytes, err := ioutil.ReadFile("../test_files/gcp_creds.json")
@@ -59,7 +59,7 @@ func TestGCSFileStoreDifferingFields(t *testing.T) {
 		expected ss.StringSet
 	}{
 		{"No Differing Fields", args{
-			a: GCSFileStoreConfig{
+			a: &GCSFileStoreConfig{
 				BucketName: "transactions-ds",
 				BucketPath: "gs://transactions-ds",
 				Credentials: GCPCredentials{
@@ -67,7 +67,7 @@ func TestGCSFileStoreDifferingFields(t *testing.T) {
 					JSON:      oldCredentialsDict,
 				},
 			},
-			b: GCSFileStoreConfig{
+			b: &GCSFileStoreConfig{
 				BucketName: "transactions-ds",
 				BucketPath: "gs://transactions-ds",
 				Credentials: GCPCredentials{
@@ -77,7 +77,7 @@ func TestGCSFileStoreDifferingFields(t *testing.T) {
 			},
 		}, ss.StringSet{}},
 		{"Differing Fields", args{
-			a: GCSFileStoreConfig{
+			a: &GCSFileStoreConfig{
 				BucketName: "transactions-ds",
 				BucketPath: "gs://transactions-ds",
 				Credentials: GCPCredentials{
@@ -85,7 +85,7 @@ func TestGCSFileStoreDifferingFields(t *testing.T) {
 					JSON:      oldCredentialsDict,
 				},
 			},
-			b: GCSFileStoreConfig{
+			b: &GCSFileStoreConfig{
 				BucketName: "transactions-ds2",
 				BucketPath: "gs://transactions-ds2",
 				Credentials: GCPCredentials{

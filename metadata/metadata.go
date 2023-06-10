@@ -1068,10 +1068,11 @@ func (resource *providerResource) Update(lookup ResourceLookup, resourceUpdate R
 	if !isValid {
 		return &ResourceExists{resourceUpdate.ID()}
 	}
-	resource.serialized.SerializedConfig = providerUpdate.SerializedConfig
-	resource.serialized.Description = providerUpdate.Description
-	resource.serialized.Tags = unionTags(resource.serialized.Tags, providerUpdate.Tags)
-	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, providerUpdate.Properties)
+	serialized := resource.serialized
+	serialized.SerializedConfig = providerUpdate.SerializedConfig
+	serialized.Description = providerUpdate.Description
+	serialized.Tags = unionTags(serialized.Tags, providerUpdate.Tags)
+	serialized.Properties = mergeProperties(serialized.Properties, providerUpdate.Properties)
 	return nil
 }
 

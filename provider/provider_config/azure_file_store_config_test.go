@@ -12,7 +12,7 @@ func TestAzureFileStoreConfigMutableFields(t *testing.T) {
 		"AccountKey": true,
 	}
 
-	config := AzureFileStoreConfig{
+	config := &AzureFileStoreConfig{
 		AccountName:   "featureform-str",
 		AccountKey:    "secret-account-key",
 		ContainerName: "transactions_container",
@@ -27,8 +27,8 @@ func TestAzureFileStoreConfigMutableFields(t *testing.T) {
 
 func TestAzureFileStoreConfigDifferingFields(t *testing.T) {
 	type args struct {
-		a AzureFileStoreConfig
-		b AzureFileStoreConfig
+		a *AzureFileStoreConfig
+		b *AzureFileStoreConfig
 	}
 
 	tests := []struct {
@@ -37,13 +37,13 @@ func TestAzureFileStoreConfigDifferingFields(t *testing.T) {
 		expected ss.StringSet
 	}{
 		{"No Differing Fields", args{
-			a: AzureFileStoreConfig{
+			a: &AzureFileStoreConfig{
 				AccountName:   "featureform-str",
 				AccountKey:    "secret-account-key",
 				ContainerName: "transactions_container",
 				Path:          "custom/path/in/container",
 			},
-			b: AzureFileStoreConfig{
+			b: &AzureFileStoreConfig{
 				AccountName:   "featureform-str",
 				AccountKey:    "secret-account-key",
 				ContainerName: "transactions_container",
@@ -51,13 +51,13 @@ func TestAzureFileStoreConfigDifferingFields(t *testing.T) {
 			},
 		}, ss.StringSet{}},
 		{"Differing Fields", args{
-			a: AzureFileStoreConfig{
+			a: &AzureFileStoreConfig{
 				AccountName:   "featureform-str",
 				AccountKey:    "secret-account-key",
 				ContainerName: "transactions_container",
 				Path:          "custom/path/in/container",
 			},
-			b: AzureFileStoreConfig{
+			b: &AzureFileStoreConfig{
 				AccountName:   "featureform-str",
 				AccountKey:    "secret-account-key-2",
 				ContainerName: "transactions_container",
@@ -71,6 +71,7 @@ func TestAzureFileStoreConfigDifferingFields(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
 			actual, err := tt.args.a.DifferingFields(tt.args.b)
 
 			if err != nil {

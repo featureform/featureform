@@ -75,7 +75,8 @@ func TestSparkConfigMutableFields(t *testing.T) {
 
 func TestSparkConfigDifferingFields(t *testing.T) {
 	type args struct {
-		a, b SparkConfig
+		a *SparkConfig
+		b *SparkConfig
 	}
 
 	tests := []struct {
@@ -85,7 +86,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 		expectedErr bool
 	}{
 		{"EMR + S3 No Differing Fields", args{
-			a: SparkConfig{
+			a: &SparkConfig{
 				ExecutorType: EMR,
 				ExecutorConfig: &EMRConfig{
 					Credentials:   AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
@@ -100,7 +101,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 				},
 			},
-			b: SparkConfig{
+			b: &SparkConfig{
 				ExecutorType: EMR,
 				ExecutorConfig: &EMRConfig{
 					Credentials:   AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
@@ -117,7 +118,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 			},
 		}, ss.StringSet{}, false},
 		{"EMR + S3 Differing Fields", args{
-			a: SparkConfig{
+			a: &SparkConfig{
 				ExecutorType: EMR,
 				ExecutorConfig: &EMRConfig{
 					Credentials:   AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
@@ -132,7 +133,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 				},
 			},
-			b: SparkConfig{
+			b: &SparkConfig{
 				ExecutorType: EMR,
 				ExecutorConfig: &EMRConfig{
 					Credentials:   AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
@@ -154,7 +155,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 		{
 			"Databricks + Azure No Differing Fields",
 			args{
-				a: SparkConfig{
+				a: &SparkConfig{
 					ExecutorType: Databricks,
 					ExecutorConfig: &DatabricksConfig{
 						Host:     "https://featureform.cloud.databricks.com",
@@ -171,7 +172,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 						Path:          "custom/path/in/container",
 					},
 				},
-				b: SparkConfig{
+				b: &SparkConfig{
 					ExecutorType: Databricks,
 					ExecutorConfig: &DatabricksConfig{
 						Host:     "https://featureform.cloud.databricks.com",
@@ -193,7 +194,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 		{
 			"Databricks + Azure Differing Fields",
 			args{
-				a: SparkConfig{
+				a: &SparkConfig{
 					ExecutorType: Databricks,
 					ExecutorConfig: &DatabricksConfig{
 						Host:     "https://featureform.cloud.databricks.com",
@@ -210,7 +211,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 						Path:          "custom/path/in/container",
 					},
 				},
-				b: SparkConfig{
+				b: &SparkConfig{
 					ExecutorType: Databricks,
 					ExecutorConfig: &DatabricksConfig{
 						Host:     "https://featureform.cloud.databricks.com",
@@ -235,7 +236,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 			}, false,
 		},
 		{"SparkGeneric + S3 No Differing Fields", args{
-			a: SparkConfig{
+			a: &SparkConfig{
 				ExecutorType: SparkGeneric,
 				ExecutorConfig: &SparkGenericConfig{
 					Master:     "my.spark.cluster.io:7077",
@@ -249,7 +250,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 				},
 			},
-			b: SparkConfig{
+			b: &SparkConfig{
 				ExecutorType: SparkGeneric,
 				ExecutorConfig: &SparkGenericConfig{
 					Master:     "my.spark.cluster.io:7077",
@@ -265,7 +266,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 			},
 		}, ss.StringSet{}, false},
 		{"SparkGeneric + S3 Differing Fields", args{
-			a: SparkConfig{
+			a: &SparkConfig{
 				ExecutorType: SparkGeneric,
 				ExecutorConfig: &SparkGenericConfig{
 					Master:     "my.spark.cluster.io:7077",
@@ -279,7 +280,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 				},
 			},
-			b: SparkConfig{
+			b: &SparkConfig{
 				ExecutorType: SparkGeneric,
 				ExecutorConfig: &SparkGenericConfig{
 					Master:     "my.other.spark.cluster.io:7077",
@@ -298,7 +299,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 			"Store.BucketRegion": true,
 		}, false},
 		{"Executor Config Mismatch: EMR -> Databricks", args{
-			a: SparkConfig{
+			a: &SparkConfig{
 				ExecutorType: EMR,
 				ExecutorConfig: &EMRConfig{
 					Credentials:   AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
@@ -313,7 +314,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 				},
 			},
-			b: SparkConfig{
+			b: &SparkConfig{
 				ExecutorType: Databricks,
 				ExecutorConfig: &DatabricksConfig{
 					Host:     "https://featureform.cloud.databricks.com",
@@ -332,7 +333,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 			},
 		}, ss.StringSet{}, true},
 		{"Store Config Mismatch: S3 -> Azure", args{
-			a: SparkConfig{
+			a: &SparkConfig{
 				ExecutorType: EMR,
 				ExecutorConfig: &EMRConfig{
 					Credentials:   AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
@@ -347,7 +348,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 				},
 			},
-			b: SparkConfig{
+			b: &SparkConfig{
 				ExecutorType: EMR,
 				ExecutorConfig: &EMRConfig{
 					Credentials:   AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},

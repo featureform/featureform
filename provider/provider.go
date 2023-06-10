@@ -67,7 +67,7 @@ func (provider BaseProvider) Config() pc.SerializedConfig {
 
 type Factory func(pc.SerializedConfig) (Provider, error)
 
-var factories map[pt.Type]Factory = make(map[pt.Type]Factory)
+var factories = make(map[pt.Type]Factory)
 
 func RegisterFactory(t pt.Type, f Factory) error {
 	if _, has := factories[t]; has {

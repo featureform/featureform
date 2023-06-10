@@ -35,8 +35,8 @@ func TestK8sConfigMutableFields(t *testing.T) {
 
 func TestK8sConfigDifferingFields(t *testing.T) {
 	type args struct {
-		a K8sConfig
-		b K8sConfig
+		a *K8sConfig
+		b *K8sConfig
 	}
 
 	tests := []struct {
@@ -45,7 +45,7 @@ func TestK8sConfigDifferingFields(t *testing.T) {
 		expected ss.StringSet
 	}{
 		{"No Differing Fields", args{
-			a: K8sConfig{
+			a: &K8sConfig{
 				ExecutorType: "K8S",
 				ExecutorConfig: ExecutorConfig{
 					DockerImage: "container",
@@ -58,7 +58,7 @@ func TestK8sConfigDifferingFields(t *testing.T) {
 					Path:          "container path",
 				},
 			},
-			b: K8sConfig{
+			b: &K8sConfig{
 				ExecutorType: "K8S",
 				ExecutorConfig: ExecutorConfig{
 					DockerImage: "container",
@@ -73,7 +73,7 @@ func TestK8sConfigDifferingFields(t *testing.T) {
 			},
 		}, ss.StringSet{}},
 		{"Differing Fields", args{
-			a: K8sConfig{
+			a: &K8sConfig{
 				ExecutorType: "K8S",
 				ExecutorConfig: ExecutorConfig{
 					DockerImage: "container",
@@ -86,7 +86,7 @@ func TestK8sConfigDifferingFields(t *testing.T) {
 					Path:          "container path",
 				},
 			},
-			b: K8sConfig{
+			b: &K8sConfig{
 				ExecutorType: "K8S",
 				ExecutorConfig: ExecutorConfig{
 					DockerImage: "container_v2",

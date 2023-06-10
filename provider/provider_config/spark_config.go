@@ -39,26 +39,11 @@ type SparkFileStoreConfig interface {
 }
 
 type SparkConfig struct {
+	DefaultProviderConfig
 	ExecutorType   SparkExecutorType
 	ExecutorConfig SparkExecutorConfig
 	StoreType      FileStoreType
-	StoreConfig    SparkFileStoreConfig
-}
-
-func (s *SparkConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, s)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *SparkConfig) Serialize() ([]byte, error) {
-	conf, err := json.Marshal(s)
-	if err != nil {
-		return nil, err
-	}
-	return conf, nil
+	StoreConfig    ProviderConfig
 }
 
 func (s *SparkConfig) UnmarshalJSON(data []byte) error {
@@ -129,7 +114,7 @@ func (s SparkConfig) MutableFields() ss.StringSet {
 	return result
 }
 
-func (a SparkConfig) DifferingFields(b SparkConfig) (ss.StringSet, error) {
+func (a *SparkConfig) DifferingFields(b *SparkConfig) (ss.StringSet, error) {
 	result := ss.StringSet{}
 	var executorFields ss.StringSet
 	var storeFields ss.StringSet
@@ -149,7 +134,7 @@ func (a SparkConfig) DifferingFields(b SparkConfig) (ss.StringSet, error) {
 	case Databricks:
 		executorFields, err = a.ExecutorConfig.(*DatabricksConfig).DifferingFields(*b.ExecutorConfig.(*DatabricksConfig))
 	case SparkGeneric:
-		executorFields, err = a.ExecutorConfig.(*SparkGenericConfig).DifferingFields(*b.ExecutorConfig.(*SparkGenericConfig))
+		executorFields, err = a.ExecutorConfig.(*SparkGenericConfig).DifferingFields(b.ExecutorConfig.(*SparkGenericConfig))
 	default:
 		return nil, fmt.Errorf("unknown executor type: %v", a.ExecutorType)
 	}
@@ -160,11 +145,11 @@ func (a SparkConfig) DifferingFields(b SparkConfig) (ss.StringSet, error) {
 
 	switch a.StoreType {
 	case Azure:
-		storeFields, err = a.StoreConfig.(*AzureFileStoreConfig).DifferingFields(*b.StoreConfig.(*AzureFileStoreConfig))
+		storeFields, err = a.StoreConfig.(*AzureFileStoreConfig).DifferingFields(b.StoreConfig.(*AzureFileStoreConfig))
 	case S3:
-		storeFields, err = a.StoreConfig.(*S3FileStoreConfig).DifferingFields(*b.StoreConfig.(*S3FileStoreConfig))
+		storeFields, err = a.StoreConfig.(*S3FileStoreConfig).DifferingFields(b.StoreConfig.(*S3FileStoreConfig))
 	case GCS:
-		storeFields, err = a.StoreConfig.(*GCSFileStoreConfig).DifferingFields(*b.StoreConfig.(*GCSFileStoreConfig))
+		storeFields, err = a.StoreConfig.(*GCSFileStoreConfig).DifferingFields(b.StoreConfig.(*GCSFileStoreConfig))
 	default:
 		return nil, fmt.Errorf("unknown store type: %v", a.StoreType)
 	}
@@ -206,7 +191,7 @@ func (s *SparkConfig) decodeExecutor(executorType SparkExecutorType, configMap m
 }
 
 func (s *SparkConfig) decodeFileStore(fileStoreType FileStoreType, configMap map[string]interface{}) error {
-	var fileStoreConfig SparkFileStoreConfig
+	var fileStoreConfig ProviderConfig
 	switch fileStoreType {
 	case Azure:
 		fileStoreConfig = &AzureFileStoreConfig{}
@@ -229,6 +214,7 @@ func (s *SparkConfig) decodeFileStore(fileStoreType FileStoreType, configMap map
 }
 
 type SparkGenericConfig struct {
+	DefaultProviderConfig
 	Master        string
 	DeployMode    string
 	PythonVersion string
@@ -236,31 +222,11 @@ type SparkGenericConfig struct {
 	YarnSite      string
 }
 
-func (sc *SparkGenericConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, sc)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (sc *SparkGenericConfig) Serialize() ([]byte, error) {
-	conf, err := json.Marshal(sc)
-	if err != nil {
-		return nil, err
-	}
-	return conf, nil
-}
-
 func (sc *SparkGenericConfig) IsExecutorConfig() bool {
 	return true
 }
 
-func (sc SparkGenericConfig) MutableFields() ss.StringSet {
+func (sc *SparkGenericConfig) MutableFields() ss.StringSet {
 	// Generic Spark config is not open to update once registered
 	return ss.StringSet{}
-}
-
-func (a SparkGenericConfig) DifferingFields(b SparkGenericConfig) (ss.StringSet, error) {
-	return differingFields(a, b)
 }

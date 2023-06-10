@@ -1,24 +1,15 @@
 package provider_config
 
-import "encoding/json"
+import ss "github.com/featureform/helpers/string_set"
 
 type OnlineBlobConfig struct {
+	DefaultProviderConfig
 	Type   FileStoreType
 	Config AzureFileStoreConfig
 }
 
-func (online OnlineBlobConfig) Serialized() SerializedConfig {
-	config, err := json.Marshal(online)
-	if err != nil {
-		panic(err)
+func (o OnlineBlobConfig) MutableFields() ss.StringSet {
+	return ss.StringSet{
+		"Config": true,
 	}
-	return config
-}
-
-func (online *OnlineBlobConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, online)
-	if err != nil {
-		return err
-	}
-	return nil
 }

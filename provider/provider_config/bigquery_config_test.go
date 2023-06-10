@@ -28,8 +28,8 @@ func TestBigQueryConfigMutableFields(t *testing.T) {
 
 func TestBigQueryConfigDifferingFields(t *testing.T) {
 	type args struct {
-		a BigQueryConfig
-		b BigQueryConfig
+		a *BigQueryConfig
+		b *BigQueryConfig
 	}
 
 	gcpCredsBytes, err := ioutil.ReadFile("../test_files/gcp_creds.json")
@@ -55,24 +55,24 @@ func TestBigQueryConfigDifferingFields(t *testing.T) {
 		expected ss.StringSet
 	}{
 		{"No Differing Fields", args{
-			a: BigQueryConfig{
+			a: &BigQueryConfig{
 				ProjectId:   "ff-gcp-proj-id",
 				DatasetId:   "transactions-ds",
 				Credentials: map[string]interface{}{},
 			},
-			b: BigQueryConfig{
+			b: &BigQueryConfig{
 				ProjectId:   "ff-gcp-proj-id",
 				DatasetId:   "transactions-ds",
 				Credentials: map[string]interface{}{},
 			},
 		}, ss.StringSet{}},
 		{"Differing Fields", args{
-			a: BigQueryConfig{
+			a: &BigQueryConfig{
 				ProjectId:   "ff-gcp-proj-id",
 				DatasetId:   "transactions-ds",
 				Credentials: credentialsDictA,
 			},
-			b: BigQueryConfig{
+			b: &BigQueryConfig{
 				ProjectId:   "ff-gcp-proj-v2-id",
 				DatasetId:   "transactions-ds",
 				Credentials: credentialsDictB,

@@ -14,13 +14,27 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Download Files
-        run: pip download pandas==1.4.3 --prefer-binary -d featureform_windows
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - name: Build Python Package
+        run: ./pip_update.sh
 
       - name: Archive code coverage results
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: featureform_windows
-          path: ./featureform_windows
+          name: featureform
+          path: ./client/dist/
 

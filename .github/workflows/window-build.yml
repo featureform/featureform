@@ -1,18 +1,18 @@
 name: Build Windows Python
 on: push
 jobs:
-  python:
-    name: Windows Python Build
-    runs-on: windows-latest
+  setup:
+    name: Setup Test Dependencies
     defaults:
       run:
         working-directory: ./
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
+
+      - name: Check directory
+        run: |
+          ls -la
 
       - name: Set up Go
         uses: actions/setup-go@v2
@@ -31,10 +31,10 @@ jobs:
       - name: Build Python Package
         run: ./pip_update.sh
 
-      - name: Archive code coverage results
-        if: always()
-        uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v3
         with:
           name: featureform
           path: ./client/dist/
+          retention-days: 1
+
 

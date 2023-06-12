@@ -9,6 +9,10 @@ jobs:
         working-directory: ./
     steps:
       - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
 
       - name: Download Files
         run: pip download featureform --prefer-binary -d featureform_windows

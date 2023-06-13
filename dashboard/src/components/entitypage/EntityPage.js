@@ -1,5 +1,5 @@
-import Container from '@material-ui/core/Container';
-import Paper from '@material-ui/core/Paper';
+import Container from '@mui/material/Container';
+import Paper from '@mui/material/Paper';
 import React, { useEffect } from 'react';
 import Loader from 'react-loader-spinner';
 import { connect } from 'react-redux';

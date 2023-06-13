@@ -1,8 +1,8 @@
-import Container from '@material-ui/core/Container';
-import Grid from '@material-ui/core/Grid';
-import InputBase from '@material-ui/core/InputBase';
-import { createStyles, makeStyles } from '@material-ui/core/styles';
-import SearchIcon from '@material-ui/icons/Search';
+import SearchIcon from '@mui/icons-material/Search';
+import Container from '@mui/material/Container';
+import Grid from '@mui/material/Grid';
+import InputBase from '@mui/material/InputBase';
+import { createStyles, makeStyles } from '@mui/styles';
 import { useRouter } from 'next/router';
 import React, { useEffect } from 'react';
 
@@ -24,10 +24,10 @@ const useStyles = makeStyles((theme) =>
       borderRadius: `28px`,
     },
     border: {
-      border: `2px solid ${theme.palette.border.alternate}`,
+      border: `2px solid white`,
       borderRadius: 16,
       '&:hover': {
-        border: `2px solid black`,
+        border: `2px solid white`,
       },
       color: '#FFFFFF',
     },
@@ -41,7 +41,7 @@ const useStyles = makeStyles((theme) =>
       color: '#FFFFFF',
     },
     inputColor: {
-      color: '#FFFFFF',
+      color: 'white',
     },
     inputInputHome: {
       paddingLeft: theme.spacing(4),

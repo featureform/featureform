@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
-	"time"
 
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata/search"
@@ -36,161 +35,89 @@ func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client) (*Met
 	}, nil
 }
 
-type FeatureVariantResource struct {
-	Created      time.Time                               `json:"created"`
-	Description  string                                  `json:"description"`
-	Entity       string                                  `json:"entity"`
-	Name         string                                  `json:"name"`
-	Owner        string                                  `json:"owner"`
-	Provider     string                                  `json:"provider"`
-	DataType     string                                  `json:"data-type"`
-	Variant      string                                  `json:"variant"`
-	Status       string                                  `json:"status"`
-	Error        string                                  `json:"error"`
-	Location     map[string]string                       `json:"location"`
-	Source       metadata.NameVariant                    `json:"source"`
-	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
-	Tags         metadata.Tags                           `json:"tags"`
-	Properties   metadata.Properties                     `json:"properties"`
-	Mode         string                                  `json:"mode"`
-	IsOnDemand   bool                                    `json:"is-on-demand"`
-}
-
 type FeatureResource struct {
-	AllVariants    []string                          `json:"all-variants"`
-	Type           string                            `json:"type"`
-	DefaultVariant string                            `json:"default-variant"`
-	Name           string                            `json:"name"`
-	Variants       map[string]FeatureVariantResource `json:"variants"`
-}
-
-type TrainingSetVariantResource struct {
-	Created     time.Time                           `json:"created"`
-	Description string                              `json:"description"`
-	Name        string                              `json:"name"`
-	Owner       string                              `json:"owner"`
-	Provider    string                              `json:"provider"`
-	Variant     string                              `json:"variant"`
-	Label       metadata.NameVariant                `json:"label"`
-	Features    map[string][]FeatureVariantResource `json:"features"`
-	Status      string                              `json:"status"`
-	Error       string                              `json:"error"`
-	Tags        metadata.Tags                       `json:"tags"`
-	Properties  metadata.Properties                 `json:"properties"`
+	AllVariants    []string                                   `json:"all-variants"`
+	Type           string                                     `json:"type"`
+	DefaultVariant string                                     `json:"default-variant"`
+	Name           string                                     `json:"name"`
+	Variants       map[string]metadata.FeatureVariantResource `json:"variants"`
 }
 
 type TrainingSetResource struct {
-	AllVariants    []string                              `json:"all-variants"`
-	Type           string                                `json:"type"`
-	DefaultVariant string                                `json:"default-variant"`
-	Name           string                                `json:"name"`
-	Variants       map[string]TrainingSetVariantResource `json:"variants"`
-}
-
-type SourceVariantResource struct {
-	Created        time.Time                               `json:"created"`
-	Description    string                                  `json:"description"`
-	Name           string                                  `json:"name"`
-	SourceType     string                                  `json:"source-type"`
-	Owner          string                                  `json:"owner"`
-	Provider       string                                  `json:"provider"`
-	Variant        string                                  `json:"variant"`
-	Labels         map[string][]LabelVariantResource       `json:"labels"`
-	Features       map[string][]FeatureVariantResource     `json:"features"`
-	TrainingSets   map[string][]TrainingSetVariantResource `json:"training-sets"`
-	Status         string                                  `json:"status"`
-	Error          string                                  `json:"error"`
-	Definition     string                                  `json:"definition"`
-	Specifications map[string]string                       `json:"specifications"`
-	Tags           metadata.Tags                           `json:"tags"`
-	Properties     metadata.Properties                     `json:"properties"`
+	AllVariants    []string                                       `json:"all-variants"`
+	Type           string                                         `json:"type"`
+	DefaultVariant string                                         `json:"default-variant"`
+	Name           string                                         `json:"name"`
+	Variants       map[string]metadata.TrainingSetVariantResource `json:"variants"`
 }
 
 type SourceResource struct {
-	AllVariants    []string                         `json:"all-variants"`
-	Type           string                           `json:"type"`
-	DefaultVariant string                           `json:"default-variant"`
-	Name           string                           `json:"name"`
-	Variants       map[string]SourceVariantResource `json:"variants"`
-}
-
-type LabelVariantResource struct {
-	Created      time.Time                               `json:"created"`
-	Description  string                                  `json:"description"`
-	Entity       string                                  `json:"entity"`
-	Name         string                                  `json:"name"`
-	Owner        string                                  `json:"owner"`
-	Provider     string                                  `json:"provider"`
-	DataType     string                                  `json:"data-type"`
-	Variant      string                                  `json:"variant"`
-	Location     map[string]string                       `json:"location"`
-	Source       metadata.NameVariant                    `json:"source"`
-	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
-	Status       string                                  `json:"status"`
-	Error        string                                  `json:"error"`
-	Tags         metadata.Tags                           `json:"tags"`
-	Properties   metadata.Properties                     `json:"properties"`
+	AllVariants    []string                                  `json:"all-variants"`
+	Type           string                                    `json:"type"`
+	DefaultVariant string                                    `json:"default-variant"`
+	Name           string                                    `json:"name"`
+	Variants       map[string]metadata.SourceVariantResource `json:"variants"`
 }
 
 type LabelResource struct {
-	AllVariants    []string                        `json:"all-variants"`
-	Type           string                          `json:"type"`
-	DefaultVariant string                          `json:"default-variant"`
-	Name           string                          `json:"name"`
-	Variants       map[string]LabelVariantResource `json:"variants"`
+	AllVariants    []string                                 `json:"all-variants"`
+	Type           string                                   `json:"type"`
+	DefaultVariant string                                   `json:"default-variant"`
+	Name           string                                   `json:"name"`
+	Variants       map[string]metadata.LabelVariantResource `json:"variants"`
 }
 
 type EntityResource struct {
-	Name         string                                  `json:"name"`
-	Type         string                                  `json:"type"`
-	Description  string                                  `json:"description"`
-	Features     map[string][]FeatureVariantResource     `json:"features"`
-	Labels       map[string][]LabelVariantResource       `json:"labels"`
-	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
-	Status       string                                  `json:"status"`
-	Tags         metadata.Tags                           `json:"tags"`
-	Properties   metadata.Properties                     `json:"properties"`
+	Name         string                                           `json:"name"`
+	Type         string                                           `json:"type"`
+	Description  string                                           `json:"description"`
+	Features     map[string][]metadata.FeatureVariantResource     `json:"features"`
+	Labels       map[string][]metadata.LabelVariantResource       `json:"labels"`
+	TrainingSets map[string][]metadata.TrainingSetVariantResource `json:"training-sets"`
+	Status       string                                           `json:"status"`
+	Tags         metadata.Tags                                    `json:"tags"`
+	Properties   metadata.Properties                              `json:"properties"`
 }
 
 type UserResource struct {
-	Name         string                                  `json:"name"`
-	Type         string                                  `json:"type"`
-	Features     map[string][]FeatureVariantResource     `json:"features"`
-	Labels       map[string][]LabelVariantResource       `json:"labels"`
-	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
-	Sources      map[string][]SourceVariantResource      `json:"sources"`
-	Status       string                                  `json:"status"`
-	Tags         metadata.Tags                           `json:"tags"`
-	Properties   metadata.Properties                     `json:"properties"`
+	Name         string                                           `json:"name"`
+	Type         string                                           `json:"type"`
+	Features     map[string][]metadata.FeatureVariantResource     `json:"features"`
+	Labels       map[string][]metadata.LabelVariantResource       `json:"labels"`
+	TrainingSets map[string][]metadata.TrainingSetVariantResource `json:"training-sets"`
+	Sources      map[string][]metadata.SourceVariantResource      `json:"sources"`
+	Status       string                                           `json:"status"`
+	Tags         metadata.Tags                                    `json:"tags"`
+	Properties   metadata.Properties                              `json:"properties"`
 }
 
 type ModelResource struct {
-	Name         string                                  `json:"name"`
-	Type         string                                  `json:"type"`
-	Description  string                                  `json:"description"`
-	Features     map[string][]FeatureVariantResource     `json:"features"`
-	Labels       map[string][]LabelVariantResource       `json:"labels"`
-	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
-	Status       string                                  `json:"status"`
-	Tags         metadata.Tags                           `json:"tags"`
-	Properties   metadata.Properties                     `json:"properties"`
+	Name         string                                           `json:"name"`
+	Type         string                                           `json:"type"`
+	Description  string                                           `json:"description"`
+	Features     map[string][]metadata.FeatureVariantResource     `json:"features"`
+	Labels       map[string][]metadata.LabelVariantResource       `json:"labels"`
+	TrainingSets map[string][]metadata.TrainingSetVariantResource `json:"training-sets"`
+	Status       string                                           `json:"status"`
+	Tags         metadata.Tags                                    `json:"tags"`
+	Properties   metadata.Properties                              `json:"properties"`
 }
 
 type ProviderResource struct {
-	Name         string                                  `json:"name"`
-	Type         string                                  `json:"type"`
-	Description  string                                  `json:"description"`
-	ProviderType string                                  `json:"provider-type"`
-	Software     string                                  `json:"software"`
-	Team         string                                  `json:"team"`
-	Sources      map[string][]SourceVariantResource      `json:"sources"`
-	Features     map[string][]FeatureVariantResource     `json:"features"`
-	Labels       map[string][]LabelVariantResource       `json:"labels"`
-	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
-	Status       string                                  `json:"status"`
-	Error        string                                  `json:"error"`
-	Tags         metadata.Tags                           `json:"tags"`
-	Properties   metadata.Properties                     `json:"properties"`
+	Name         string                                           `json:"name"`
+	Type         string                                           `json:"type"`
+	Description  string                                           `json:"description"`
+	ProviderType string                                           `json:"provider-type"`
+	Software     string                                           `json:"software"`
+	Team         string                                           `json:"team"`
+	Sources      map[string][]metadata.SourceVariantResource      `json:"sources"`
+	Features     map[string][]metadata.FeatureVariantResource     `json:"features"`
+	Labels       map[string][]metadata.LabelVariantResource       `json:"labels"`
+	TrainingSets map[string][]metadata.TrainingSetVariantResource `json:"training-sets"`
+	Status       string                                           `json:"status"`
+	Error        string                                           `json:"error"`
+	Tags         metadata.Tags                                    `json:"tags"`
+	Properties   metadata.Properties                              `json:"properties"`
 }
 
 type FetchError struct {
@@ -211,11 +138,11 @@ func columnsToMap(columns metadata.ResourceVariantColumns) map[string]string {
 	return featureColumns
 }
 
-func featureShallowMap(variant *metadata.FeatureVariant) FeatureVariantResource {
-	fv := FeatureVariantResource{}
+func featureShallowMap(variant *metadata.FeatureVariant) metadata.FeatureVariantResource {
+	fv := metadata.FeatureVariantResource{}
 	switch variant.Mode() {
 	case metadata.PRECOMPUTED:
-		fv = FeatureVariantResource{
+		fv = metadata.FeatureVariantResource{
 			Created:     variant.Created(),
 			Description: variant.Description(),
 			Entity:      variant.Entity(),
@@ -238,7 +165,7 @@ func featureShallowMap(variant *metadata.FeatureVariant) FeatureVariantResource 
 		if pyFunc, ok := variant.LocationFunction().(metadata.PythonFunction); ok {
 			location["query"] = string(pyFunc.Query)
 		}
-		fv = FeatureVariantResource{
+		fv = metadata.FeatureVariantResource{
 			Created:     variant.Created(),
 			Description: variant.Description(),
 			Name:        variant.Name(),
@@ -258,8 +185,8 @@ func featureShallowMap(variant *metadata.FeatureVariant) FeatureVariantResource 
 	return fv
 }
 
-func labelShallowMap(variant *metadata.LabelVariant) LabelVariantResource {
-	return LabelVariantResource{
+func labelShallowMap(variant *metadata.LabelVariant) metadata.LabelVariantResource {
+	return metadata.LabelVariantResource{
 		Created:     variant.Created(),
 		Description: variant.Description(),
 		Entity:      variant.Entity(),
@@ -277,8 +204,8 @@ func labelShallowMap(variant *metadata.LabelVariant) LabelVariantResource {
 	}
 }
 
-func trainingSetShallowMap(variant *metadata.TrainingSetVariant) TrainingSetVariantResource {
-	return TrainingSetVariantResource{
+func trainingSetShallowMap(variant *metadata.TrainingSetVariant) metadata.TrainingSetVariantResource {
+	return metadata.TrainingSetVariantResource{
 		Created:     variant.Created(),
 		Description: variant.Description(),
 		Name:        variant.Name(),
@@ -293,21 +220,23 @@ func trainingSetShallowMap(variant *metadata.TrainingSetVariant) TrainingSetVari
 	}
 }
 
-func sourceShallowMap(variant *metadata.SourceVariant) SourceVariantResource {
-	return SourceVariantResource{
-		Created:        variant.Created(),
-		Description:    variant.Description(),
+func sourceShallowMap(variant *metadata.SourceVariant) metadata.SourceVariantResource {
+	return metadata.SourceVariantResource{
 		Name:           variant.Name(),
-		SourceType:     getSourceType(variant),
 		Variant:        variant.Variant(),
-		Owner:          variant.Owner(),
-		Provider:       variant.Provider(),
-		Status:         variant.Status().String(),
-		Error:          variant.Error(),
 		Definition:     getSourceString(variant),
-		Specifications: getSourceArgs(variant),
+		Owner:          variant.Owner(),
+		Description:    variant.Description(),
+		Provider:       variant.Provider(),
+		Created:        variant.Created(),
+		Status:         variant.Status().String(),
+		LastUpdated:    variant.LastUpdated(),
+		Schedule:       variant.Schedule(),
 		Tags:           variant.Tags(),
+		SourceType:     getSourceType(variant),
 		Properties:     variant.Properties(),
+		Error:          variant.Error(),
+		Specifications: getSourceArgs(variant),
 	}
 }
 
@@ -336,68 +265,68 @@ func getSourceArgs(variant *metadata.SourceVariant) map[string]string {
 	return map[string]string{}
 }
 
-func (m *MetadataServer) getTrainingSets(nameVariants []metadata.NameVariant) (map[string][]TrainingSetVariantResource, error) {
-	trainingSetMap := make(map[string][]TrainingSetVariantResource)
+func (m *MetadataServer) getTrainingSets(nameVariants []metadata.NameVariant) (map[string][]metadata.TrainingSetVariantResource, error) {
+	trainingSetMap := make(map[string][]metadata.TrainingSetVariantResource)
 	trainingSetVariants, err := m.client.GetTrainingSetVariants(context.Background(), nameVariants)
 	if err != nil {
 		return nil, err
 	}
 	for _, variant := range trainingSetVariants {
 		if _, has := trainingSetMap[variant.Name()]; !has {
-			trainingSetMap[variant.Name()] = []TrainingSetVariantResource{}
+			trainingSetMap[variant.Name()] = []metadata.TrainingSetVariantResource{}
 		}
 		trainingSetMap[variant.Name()] = append(trainingSetMap[variant.Name()], trainingSetShallowMap(variant))
 	}
 	return trainingSetMap, nil
 }
 
-func (m *MetadataServer) getFeatures(nameVariants []metadata.NameVariant) (map[string][]FeatureVariantResource, error) {
-	featureMap := make(map[string][]FeatureVariantResource)
+func (m *MetadataServer) getFeatures(nameVariants []metadata.NameVariant) (map[string][]metadata.FeatureVariantResource, error) {
+	featureMap := make(map[string][]metadata.FeatureVariantResource)
 	featureVariants, err := m.client.GetFeatureVariants(context.Background(), nameVariants)
 	if err != nil {
 		return nil, err
 	}
 	for _, variant := range featureVariants {
 		if _, has := featureMap[variant.Name()]; !has {
-			featureMap[variant.Name()] = []FeatureVariantResource{}
+			featureMap[variant.Name()] = []metadata.FeatureVariantResource{}
 		}
 		featureMap[variant.Name()] = append(featureMap[variant.Name()], featureShallowMap(variant))
 	}
 	return featureMap, nil
 }
 
-func (m *MetadataServer) getLabels(nameVariants []metadata.NameVariant) (map[string][]LabelVariantResource, error) {
-	labelMap := make(map[string][]LabelVariantResource)
+func (m *MetadataServer) getLabels(nameVariants []metadata.NameVariant) (map[string][]metadata.LabelVariantResource, error) {
+	labelMap := make(map[string][]metadata.LabelVariantResource)
 	labelVariants, err := m.client.GetLabelVariants(context.Background(), nameVariants)
 	if err != nil {
 		return nil, err
 	}
 	for _, variant := range labelVariants {
 		if _, has := labelMap[variant.Name()]; !has {
-			labelMap[variant.Name()] = []LabelVariantResource{}
+			labelMap[variant.Name()] = []metadata.LabelVariantResource{}
 		}
 		labelMap[variant.Name()] = append(labelMap[variant.Name()], labelShallowMap(variant))
 	}
 	return labelMap, nil
 }
 
-func (m *MetadataServer) getSources(nameVariants []metadata.NameVariant) (map[string][]SourceVariantResource, error) {
-	sourceMap := make(map[string][]SourceVariantResource)
+func (m *MetadataServer) getSources(nameVariants []metadata.NameVariant) (map[string][]metadata.SourceVariantResource, error) {
+	sourceMap := make(map[string][]metadata.SourceVariantResource)
 	sourceVariants, err := m.client.GetSourceVariants(context.Background(), nameVariants)
 	if err != nil {
 		return nil, err
 	}
 	for _, variant := range sourceVariants {
 		if _, has := sourceMap[variant.Name()]; !has {
-			sourceMap[variant.Name()] = []SourceVariantResource{}
+			sourceMap[variant.Name()] = []metadata.SourceVariantResource{}
 		}
 		sourceMap[variant.Name()] = append(sourceMap[variant.Name()], sourceShallowMap(variant))
 	}
 	return sourceMap, nil
 }
 
-func (m *MetadataServer) readFromFeature(feature *metadata.Feature, deepCopy bool) (map[string]FeatureVariantResource, *FetchError) {
-	variantMap := make(map[string]FeatureVariantResource)
+func (m *MetadataServer) readFromFeature(feature *metadata.Feature, deepCopy bool) (map[string]metadata.FeatureVariantResource, *FetchError) {
+	variantMap := make(map[string]metadata.FeatureVariantResource)
 	variants, err := feature.FetchVariants(m.client, context.Background())
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "feature variants"}
@@ -421,8 +350,8 @@ func (m *MetadataServer) readFromFeature(feature *metadata.Feature, deepCopy boo
 	return variantMap, nil
 }
 
-func (m *MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet, deepCopy bool) (map[string]TrainingSetVariantResource, *FetchError) {
-	variantMap := make(map[string]TrainingSetVariantResource)
+func (m *MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet, deepCopy bool) (map[string]metadata.TrainingSetVariantResource, *FetchError) {
+	variantMap := make(map[string]metadata.TrainingSetVariantResource)
 	variants, err := trainingSet.FetchVariants(m.client, context.Background())
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "training set variants"}
@@ -446,8 +375,8 @@ func (m *MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet, 
 	return variantMap, nil
 }
 
-func (m *MetadataServer) readFromSource(source *metadata.Source, deepCopy bool) (map[string]SourceVariantResource, *FetchError) {
-	variantMap := make(map[string]SourceVariantResource)
+func (m *MetadataServer) readFromSource(source *metadata.Source, deepCopy bool) (map[string]metadata.SourceVariantResource, *FetchError) {
+	variantMap := make(map[string]metadata.SourceVariantResource)
 	variants, err := source.FetchVariants(m.client, context.Background())
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "source variants"}
@@ -496,8 +425,8 @@ func (m *MetadataServer) readFromSource(source *metadata.Source, deepCopy bool) 
 	return variantMap, nil
 }
 
-func (m *MetadataServer) readFromLabel(label *metadata.Label, deepCopy bool) (map[string]LabelVariantResource, *FetchError) {
-	variantMap := make(map[string]LabelVariantResource)
+func (m *MetadataServer) readFromLabel(label *metadata.Label, deepCopy bool) (map[string]metadata.LabelVariantResource, *FetchError) {
+	variantMap := make(map[string]metadata.LabelVariantResource)
 	variants, err := label.FetchVariants(m.client, context.Background())
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "label variants"}

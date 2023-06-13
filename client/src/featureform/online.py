@@ -1,0 +1,174 @@
+from abc import ABC, abstractmethod
+from typing import List, Any, Union
+
+import numpy as np
+from .enums import ScalarType
+from .resources import PineconeConfig
+import pinecone
+import uuid
+
+
+class ValueType(ABC):
+    @abstractmethod
+    def scalar(self):
+        pass
+
+    @abstractmethod
+    def is_vector(self):
+        pass
+
+
+class VectorType(ValueType):
+    def __init__(self, scalar_type: ScalarType, dimension: int, is_embedding: bool):
+        self.scalar_type = scalar_type
+        self.dimension = dimension
+        self.is_embedding = is_embedding
+
+    def scalar(self):
+        return self.scalar_type
+
+    def is_vector(self):
+        return True
+
+
+class OnlineStore(ABC):
+    @abstractmethod
+    def get_table(self, feature: str, variant: str):
+        pass
+
+    @abstractmethod
+    def create_table(self, feature: str, variant: str, value_type: ValueType):
+        pass
+
+    @abstractmethod
+    def delete_table(self, feature: str, variant: str):
+        pass
+
+    @abstractmethod
+    def close(self):
+        pass
+
+
+class OnlineStoreTable(ABC):
+    @abstractmethod
+    def set(self, entity: str, value: object):
+        pass
+
+    @abstractmethod
+    def get(self, entity: str):
+        pass
+
+
+class VectorStore(OnlineStore, ABC):
+    @abstractmethod
+    def create_index(self, feature: str, variant: str, vector_type: VectorType):
+        pass
+
+    @abstractmethod
+    def delete_index(self, feature: str, variant: str):
+        pass
+
+
+class VectorStoreTable(OnlineStoreTable, ABC):
+    @abstractmethod
+    def nearest(self, feature: str, variant: str, vector: List[float], k: int):
+        pass
+
+
+class PineconeOnlineTable(VectorStoreTable):
+    def __init__(self, client, index_name: str, namespace: str, vector_type: ValueType):
+        self.client = client
+        self.index_name = index_name
+        self.namespace = namespace
+        self.vector_type = vector_type
+
+    def set(self, entity: str, value: Union[List[float], np.ndarray]):
+        self.client.Index(self.index_name).upsert(
+            vectors=[(self._create_id(entity), value, {"id": entity})],
+            namespace=self.namespace,
+        )
+
+    def get(self, entity: str):
+        id = self._create_id(entity)
+        fetch_response = self.client.Index(self.index_name).fetch(
+            ids=[id],
+            namespace=self.namespace,
+        )
+        vector = fetch_response["vectors"].get(id)
+        if vector is None:
+            return None
+        else:
+            return vector["metadata"]["id"]
+
+    def nearest(self, feature: str, variant: str, vector: List[float], k: int):
+        name_variant_id = uuid.uuid5(uuid.NAMESPACE_DNS, f"{feature}-{variant}")
+        query_response = self.client.Index(f"ff-idx--{name_variant_id}").query(
+            namespace=self.namespace, vector=vector, top_k=k, include_metadata=True
+        )
+        matches = query_response.get("matches", [])
+        if len(matches) == 0:
+            return []
+        else:
+            return [match["metadata"]["id"] for match in matches]
+
+    def _create_id(self, entity: str) -> str:
+        id_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, entity)
+        return str(id_uuid)
+
+
+class PineconeOnlineStore(VectorStore):
+    def __init__(self, config: PineconeConfig):
+        self.indexNameTemplate = "ff-idx--{0}"
+        pinecone.init(api_key=config.api_key, environment=config.environment)
+        self.client = pinecone
+
+    def get_table(self, feature: str, variant: str) -> PineconeOnlineTable:
+        idx = self._create_index_name(feature, variant)
+        describe_response = self.client.Index(idx).describe_index_stats()
+        return PineconeOnlineTable(
+            client=self.client,
+            index_name=idx,
+            namespace=self._create_namespace(feature, variant),
+            vector_type=VectorType(
+                scalar_type=ScalarType.FLOAT32,
+                dimension=describe_response.dimension,
+                is_embedding=True,
+            ),
+        )
+
+    def create_table(self, feature: str, variant: str, value_type: ValueType):
+        return PineconeOnlineTable(
+            client=self.client,
+            index_name=self._create_index_name(feature, variant),
+            namespace=self._create_namespace(feature, variant),
+            vector_type=value_type,
+        )
+
+    def delete_index(self, feature: str, variant: str):
+        index_name = self._create_index_name(feature, variant)
+        self.client.delete_index(name=index_name)
+
+    def delete_table(self, feature: str, variant: str):
+        pass
+
+    def close(self):
+        pass
+
+    def create_index(self, feature: str, variant: str, vector_type: VectorType):
+        index_name = self._create_index_name(feature, variant)
+        self.client.create_index(
+            name=index_name, dimension=vector_type.dimension, metric="cosine"
+        )
+        return PineconeOnlineTable(
+            client=self.client,
+            index_name=self._create_index_name(feature, variant),
+            namespace=self._create_namespace(feature, variant),
+            vector_type=vector_type,
+        )
+
+    def _create_index_name(self, feature: str, variant: str) -> str:
+        index_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, f"{feature}-{variant}")
+        return self.indexNameTemplate.format(index_uuid)
+
+    def _create_namespace(self, feature: str, variant: str) -> str:
+        return f"ff-namespace--{feature}-{variant}"

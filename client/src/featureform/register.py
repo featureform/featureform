@@ -22,6 +22,7 @@ from .sqlite_metadata import SQLiteMetadata
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
 from .resources import (
+    PineconeConfig,
     ScalarType,
     Model,
     ResourceState,
@@ -1914,6 +1915,55 @@ class Registrar:
             redis (OnlineProvider): Provider
         """
         config = RedisConfig(host=host, port=port, password=password, db=db)
+        provider = Provider(
+            name=name,
+            function="ONLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
+        self.__resources.append(provider)
+        return OnlineProvider(self, provider)
+
+    def register_pinecone(
+        self,
+        name: str,
+        project_id: str,
+        environment: str,
+        api_key: str,
+        description: str = "",
+        team: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
+        """Register a Pinecone provider.
+        **Examples**:
+        ```
+        pinecone = ff.register_pinecone(
+            name="pinecone-quickstart",
+            project_id="2g13ek7",
+            environment="us-west4-gcp-free",
+            api_key="e4egd064-1vb6-497f-aadf-7547atbb517f"
+            description="A Pinecone project for we Featureform embeddings"
+        )
+        ```
+        Args:
+            name (str): Name of Pinecone provider to be registered
+            project_id (str): Pinecone project id
+            environment (str): Pinecone environment
+            api_key (str): Pinecone api key
+            description (str): Description of Pinecone provider to be registered
+            team (str): Name of team
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
+        Returns:
+            pinecone (OnlineProvider): Provider
+        """
+        config = PineconeConfig(
+            project_id=project_id, environment=environment, api_key=api_key
+        )
         provider = Provider(
             name=name,
             function="ONLINE",
@@ -5011,6 +5061,7 @@ set_run = global_registrar.set_run
 get_run = global_registrar.get_run
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
+register_pinecone = global_registrar.register_pinecone
 register_blob_store = global_registrar.register_blob_store
 register_bigquery = global_registrar.register_bigquery
 register_firestore = global_registrar.register_firestore

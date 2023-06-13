@@ -85,6 +85,28 @@ class RedisConfig:
 
 @typechecked
 @dataclass
+class PineconeConfig:
+    project_id: str
+    environment: str
+    api_key: str
+
+    def software(self) -> str:
+        return "pinecone"
+
+    def type(self) -> str:
+        return "PINECONE_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "ProjectID": self.project_id,
+            "Environment": self.environment,
+            "ApiKey": self.api_key,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+
+@typechecked
+@dataclass
 class AWSCredentials:
     def __init__(
         self,
@@ -641,6 +663,7 @@ Config = Union[
     SnowflakeConfig,
     PostgresConfig,
     RedshiftConfig,
+    PineconeConfig,
     LocalConfig,
     BigQueryConfig,
     FirestoreConfig,

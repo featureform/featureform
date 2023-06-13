@@ -1,4 +1,4 @@
-from featureform.online import (
+from featureform.providers.online_store import (
     PineconeConfig,
     VectorType,
     PineconeOnlineStore,

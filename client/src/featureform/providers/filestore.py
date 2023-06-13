@@ -1,10 +1,10 @@
 import pandas as pd
 import os
 from ..register import ScalarType
-from .online_store import OnlineStore, OnlineTable
+from .online_store import OnlineStore, OnlineStoreTable, ValueType
 
 
-class LocalFileTable(OnlineTable):
+class LocalFileTable(OnlineStoreTable):
     def __init__(self, name, variant, root_path, stype):
         self.name = name
         self.variant = variant
@@ -73,7 +73,7 @@ class LocalFileStore(OnlineStore):
         if not os.path.exists(self.path):
             os.makedirs(self.path, exist_ok=True)
 
-    def create_table(self, name, variant, entity_type: ScalarType):
+    def create_table(self, name, variant, entity_type: ValueType):
         if os.path.exists(f"{self.path}/{name}/{variant}.csv"):
             raise ValueError(f"Table {name} with variant {variant} already exists")
 
@@ -118,9 +118,6 @@ class LocalFileStore(OnlineStore):
     def table_exists(self, name, variant):
         return os.path.exists(f"{self.path}/{name}/{variant}.csv")
 
-    def is_vector_store(self):
-        return False
-
     def __convert_type(self, stype: ScalarType):
         types = {
             ScalarType.NIL: "",
@@ -134,3 +131,9 @@ class LocalFileStore(OnlineStore):
             ScalarType.DATETIME: "datetime64[ns]",
         }
         return types[stype]
+
+    def close(self):
+        pass
+
+    def delete_table(self, feature: str, variant: str):
+        pass

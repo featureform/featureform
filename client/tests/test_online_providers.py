@@ -1,4 +1,4 @@
-from featureform.providers import get_provider, OnlineStore, OnlineTable, LocalFile
+from featureform.providers import get_provider, OnlineStore, OnlineTable, LocalFileStore
 from featureform.register import ScalarType
 import pytest
 import uuid
@@ -11,7 +11,7 @@ from datetime import datetime
 )
 class TestOnlineProvider:
     def test_get_provider(self, provider):
-        assert isinstance(get_provider(provider), LocalFile)
+        assert isinstance(get_provider(provider), LocalFileStore)
         with pytest.raises(NotImplementedError):
             get_provider("something else")
 

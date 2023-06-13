@@ -17,6 +17,14 @@ class ScalarType(Enum):
     BOOL = "bool"
     DATETIME = "datetime"
 
+    @classmethod
+    def has_value(cls, value):
+        return value in cls._value2member_map_
+
+    @classmethod
+    def get_values(cls):
+        return [e.value for e in cls]
+
 
 class ResourceStatus(Enum):
     NO_STATUS = "NO_STATUS"

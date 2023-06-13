@@ -3297,6 +3297,14 @@ class Registrar:
             variant = feature.get("variant", "")
             if variant == "":
                 variant = self.__run
+            if not ScalarType.has_value(feature["type"]) and not isinstance(
+                feature["type"], ScalarType
+            ):
+                raise ValueError(
+                    f"Invalid type for feature {feature['name']} ({variant}). Must be a ScalarType or one of {ScalarType.get_values()}"
+                )
+            if isinstance(feature["type"], ScalarType):
+                feature["type"] = feature["type"].value
             desc = feature.get("description", "")
             feature_tags = feature.get("tags", [])
             feature_properties = feature.get("properties", {})
@@ -3327,6 +3335,14 @@ class Registrar:
             variant = label.get("variant", "")
             if variant == "":
                 variant = self.__run
+            if not ScalarType.has_value(label["type"]) and not isinstance(
+                label["type"], ScalarType
+            ):
+                raise ValueError(
+                    f"Invalid type for label {label['name']} ({variant}). Must be a ScalarType or one of {ScalarType.get_values()}"
+                )
+            if isinstance(label["type"], ScalarType):
+                label["type"] = label["type"].value
             desc = label.get("description", "")
             label_tags = label.get("tags", [])
             label_properties = label.get("properties", {})

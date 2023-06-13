@@ -20,8 +20,8 @@ describe('Source Table Dialog Tests', () => {
 
   const H2_NODE = 'H2';
   const TH_NODE = 'TH';
-  const TD_NODE = 'TD';
   const DIV_NODE = 'DIV';
+  const P_NODE = 'P';
   const OPEN_BTN_ID = 'sourceTableOpenId';
   const CLOSE_BTN_ID = 'sourceTableCloseId';
   const ERROR_MSG_ID = 'errorMessageId';
@@ -98,7 +98,7 @@ describe('Source Table Dialog Tests', () => {
     testData.rows[0].map((row) => {
       const foundRow = helper.getAllByText(row);
       expect(foundRow.length).toBeGreaterThan(0);
-      expect(foundRow[0].nodeName).toBe(TD_NODE);
+      expect(foundRow[0].nodeName).toBe(P_NODE);
     });
   });
 

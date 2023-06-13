@@ -1,8 +1,6 @@
-from featureform.providers.online_store import (
-    PineconeConfig,
-    VectorType,
-    PineconeOnlineStore,
-)
+from featureform.providers.online_store import VectorType
+from featureform.providers.pinecone import PineconeOnlineStore
+from featureform.resources import PineconeConfig
 from featureform.register import Float32
 import os
 import sys

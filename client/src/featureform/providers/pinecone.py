@@ -1,78 +1,11 @@
-from abc import ABC, abstractmethod
 from typing import List, Any, Union
-
-import numpy as np
-from .enums import ScalarType
-from .resources import PineconeConfig
-import pinecone
 import uuid
+import pinecone
+import numpy as np
 
-
-class ValueType(ABC):
-    @abstractmethod
-    def scalar(self):
-        pass
-
-    @abstractmethod
-    def is_vector(self):
-        pass
-
-
-class VectorType(ValueType):
-    def __init__(self, scalar_type: ScalarType, dimension: int, is_embedding: bool):
-        self.scalar_type = scalar_type
-        self.dimension = dimension
-        self.is_embedding = is_embedding
-
-    def scalar(self):
-        return self.scalar_type
-
-    def is_vector(self):
-        return True
-
-
-class OnlineStore(ABC):
-    @abstractmethod
-    def get_table(self, feature: str, variant: str):
-        pass
-
-    @abstractmethod
-    def create_table(self, feature: str, variant: str, value_type: ValueType):
-        pass
-
-    @abstractmethod
-    def delete_table(self, feature: str, variant: str):
-        pass
-
-    @abstractmethod
-    def close(self):
-        pass
-
-
-class OnlineStoreTable(ABC):
-    @abstractmethod
-    def set(self, entity: str, value: object):
-        pass
-
-    @abstractmethod
-    def get(self, entity: str):
-        pass
-
-
-class VectorStore(OnlineStore, ABC):
-    @abstractmethod
-    def create_index(self, feature: str, variant: str, vector_type: VectorType):
-        pass
-
-    @abstractmethod
-    def delete_index(self, feature: str, variant: str):
-        pass
-
-
-class VectorStoreTable(OnlineStoreTable, ABC):
-    @abstractmethod
-    def nearest(self, feature: str, variant: str, vector: List[float], k: int):
-        pass
+from .online_store import VectorStoreTable, VectorStore, ValueType, VectorType
+from ..resources import PineconeConfig
+from ..enums import ScalarType
 
 
 class PineconeOnlineTable(VectorStoreTable):
@@ -136,12 +69,12 @@ class PineconeOnlineStore(VectorStore):
             ),
         )
 
-    def create_table(self, feature: str, variant: str, value_type: ValueType):
+    def create_table(self, feature: str, variant: str, entity_type: ValueType):
         return PineconeOnlineTable(
             client=self.client,
             index_name=self._create_index_name(feature, variant),
             namespace=self._create_namespace(feature, variant),
-            vector_type=value_type,
+            vector_type=entity_type,
         )
 
     def delete_index(self, feature: str, variant: str):

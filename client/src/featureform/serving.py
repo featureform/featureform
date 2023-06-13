@@ -19,6 +19,8 @@ from pandas.core.generic import NDFrame
 from pandasql import sqldf
 from featureform.proto import serving_pb2
 from .file_utils import absolute_file_paths
+from featureform.providers import get_provider
+from featureform.enums import ScalarType
 
 from .local_cache import LocalCache
 from .local_utils import (
@@ -585,13 +587,13 @@ class LocalClientImpl:
         self.params = params if params else []
 
         # This code assumes that the entities dictionary only has one entity
-        entity_id = list(entities.keys())[0]
-        entity_value = entities[entity_id]
-        all_features_list = self.add_feature_dfs_to_list(
-            feature_variant_list, entity_id
+        entity_name = list(entities.keys())[0]
+        entity_value = entities[entity_name]
+        features = self.add_features_to_list(
+            feature_variant_list, entity_name, entity_value
         )
-        all_features_df = list_to_combined_df(all_features_list, entity_id)
-        features = get_features_for_entity(entity_id, entity_value, all_features_df)
+        # all_features_df = list_to_combined_df(all_features_list, entity_name)
+        # features = get_features_for_entity(entity_name, entity_value, all_features_df)
 
         if model is not None:
             for feature_name, feature_variant in feature_variant_list:
@@ -604,8 +606,8 @@ class LocalClientImpl:
 
         return features
 
-    def add_feature_dfs_to_list(self, feature_variant_list, entity_id):
-        feature_df_list = []
+    def add_features_to_list(self, feature_variant_list, entity_name, entity_value):
+        feature_list = []
 
         for feature_variant in feature_variant_list:
             f_name = feature_variant[0]
@@ -614,36 +616,55 @@ class LocalClientImpl:
 
             if f_mode == ComputationMode.CLIENT_COMPUTED:
                 feature_df = self.calculate_ondemand_feature(
-                    f_name, f_variant, entity_id
+                    f_name, f_variant, entity_name
                 )
             else:
-                feature_df = self.get_precomputed_feature(f_name, f_variant, entity_id)
+                feature_df = self.get_precomputed_feature(
+                    f_name, f_variant, entity_name, entity_value
+                )
 
-            feature_df_list.append(feature_df)
+            feature_list.append(feature_df)
 
-        return feature_df_list
+        return feature_list
 
-    def get_precomputed_feature(self, f_name, f_variant, entity_id):
+    def get_precomputed_feature(self, f_name, f_variant, entity_name, entity_value):
         feature = self.db.get_feature_variant(f_name, f_variant)
         source_name, source_variant = feature["source_name"], feature["source_variant"]
-        if feature["entity"] != entity_id:
+        if feature["entity"] != entity_name:
             raise ValueError(
-                f"Invalid entity {entity_id} for feature {source_name}-{source_variant}"
+                f"Invalid entity {entity_name} for feature {source_name}-{source_variant}"
             )
         if (
             self.db.is_transformation(source_name, source_variant)
             != SourceType.PRIMARY_SOURCE.value
         ):
             feature_df = self.process_non_primary_df_transformation(
-                feature, source_name, source_variant, entity_id
+                feature, source_name, source_variant, entity_name
             )
         else:
             source = self.db.get_source_variant(source_name, source_variant)
             feature_df = feature_df_with_entity(
-                source["definition"], entity_id, feature
+                source["definition"], entity_name, feature
             )
 
-        return feature_df
+        # This will be replaced to select the appropriate provider for each feature
+        provider = get_provider("file")
+
+        if provider.table_exists(f_name, f_variant):
+            table = provider.get_table(f_name, f_variant)
+        else:
+            table = provider.create_table(
+                f_name, f_variant, ScalarType(feature["data_type"])
+            )
+
+        # Will add a check to see if any of the source tables have been updated
+        # and will set new values if so
+        for index, row in feature_df.iterrows():
+            table.set(row[0], row[1])
+
+        value = table.get(entity_value)
+
+        return value
 
     def process_non_primary_df_transformation(
         self, feature, source_name, source_variant, entity_id

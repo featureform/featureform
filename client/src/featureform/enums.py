@@ -32,6 +32,18 @@ class ScalarType(Enum):
     BOOL = "bool"
     DATETIME = "datetime"
 
+    @classmethod
+    def has_value(cls, value):
+        try:
+            cls(value)
+            return True
+        except ValueError:
+            return False
+
+    @classmethod
+    def get_values(cls):
+        return [e.value for e in cls]
+
 
 class ResourceStatus(Enum):
     """

@@ -84,6 +84,9 @@ class PineconeOnlineStore(VectorStore):
     def delete_table(self, feature: str, variant: str):
         pass
 
+    def table_exists(self, feature: str, variant: str) -> bool:
+        pass
+
     def close(self):
         pass
 

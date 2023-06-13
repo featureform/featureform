@@ -8,12 +8,14 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import * as React from 'react';
 
 export default function SourceDialogTable({ columns = [], rowList = [] }) {
   const [open, setOpen] = React.useState(false);
+  const [anchorEl, setAnchorEl] = React.useState(null);
 
   const closeSnackBar = (_, reason) => {
     if (reason === 'clickaway') {
@@ -31,7 +33,7 @@ export default function SourceDialogTable({ columns = [], rowList = [] }) {
 
   return (
     <div>
-      <Snackbar open={open} autoHideDuration={1500} onClose={closeSnackBar}>
+      <Snackbar open={open} autoHideDuration={1250} onClose={closeSnackBar}>
         <Alert severity='success' onClose={closeSnackBar}>
           Copied to clipboard!
         </Alert>
@@ -63,13 +65,15 @@ export default function SourceDialogTable({ columns = [], rowList = [] }) {
                     key={row + index}
                     align={index === 0 ? 'left' : 'right'}
                   >
-                    <Typography
-                      onClick={copyToClipBoard}
-                      fontSize={11}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      {row}
-                    </Typography>
+                    <Tooltip title='Copy to Clipboard.'>
+                      <Typography
+                        onClick={copyToClipBoard}
+                        fontSize={11}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {row}
+                      </Typography>
+                    </Tooltip>
                   </TableCell>
                 ))}
               </TableRow>

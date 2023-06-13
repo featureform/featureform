@@ -34,9 +34,6 @@ class LocalFileTable(OnlineTable):
         )
         return df
 
-    def get_path(self):
-        return self.filepath
-
     def set(self, key, value):
         df = pd.DataFrame(data={"entity": [key], "value": [value]}).astype(
             {"entity": "str", "value": self.stype}

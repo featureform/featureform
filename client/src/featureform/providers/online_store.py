@@ -1,28 +1,28 @@
-class OnlineStore:
+from abc import ABC
+
+
+class OnlineStore(ABC):
     def create_table(self, name, variant, entity_type):
-        raise NotImplementedError()
+        pass
 
     def get_table(self, name, variant):
-        raise NotImplementedError()
+        pass
 
     def table_exists(self, name, variant):
-        raise NotImplementedError()
-
-    def is_vector_store(self):
-        raise NotImplementedError()
+        pass
 
 
-class OnlineTable:
+class OnlineTable(ABC):
     def set(self, key, value):
-        raise NotImplementedError()
+        pass
 
     def get(self, key):
-        raise NotImplementedError()
+        pass
 
     def close(self):
-        raise NotImplementedError()
+        pass
 
 
-class OnlineVectorTable:
+class OnlineVectorTable(ABC):
     def nearest(self, vector):
-        raise NotImplementedError()
+        pass

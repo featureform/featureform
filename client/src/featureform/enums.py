@@ -19,7 +19,11 @@ class ScalarType(Enum):
 
     @classmethod
     def has_value(cls, value):
-        return value in cls._value2member_map_
+        try:
+            cls(value)
+            return True
+        except ValueError:
+            return False
 
     @classmethod
     def get_values(cls):

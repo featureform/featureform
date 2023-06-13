@@ -1,16 +1,16 @@
-import AppBar from '@material-ui/core/AppBar';
-import Box from '@material-ui/core/Box';
-import Chip from '@material-ui/core/Chip';
-import Container from '@material-ui/core/Container';
-import FormControl from '@material-ui/core/FormControl';
-import Grid from '@material-ui/core/Grid';
-import Icon from '@material-ui/core/Icon';
-import MenuItem from '@material-ui/core/MenuItem';
-import Select from '@material-ui/core/Select';
-import { makeStyles } from '@material-ui/core/styles';
-import Tab from '@material-ui/core/Tab';
-import Tabs from '@material-ui/core/Tabs';
-import Typography from '@material-ui/core/Typography';
+import AppBar from '@mui/material/AppBar';
+import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
+import Container from '@mui/material/Container';
+import FormControl from '@mui/material/FormControl';
+import Grid from '@mui/material/Grid';
+import Icon from '@mui/material/Icon';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
+import Typography from '@mui/material/Typography';
+import { makeStyles, ThemeProvider } from '@mui/styles';
 import MaterialTable, { MTableBody, MTableHeader } from 'material-table';
 import { useRouter } from 'next/router';
 import PropTypes from 'prop-types';
@@ -657,69 +657,74 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                 root: classes.tabChart,
               }}
             >
-              <MaterialTable
-                className={classes.tableRoot}
-                detailPanel={(row) => {
-                  return (
-                    <VariantTable
-                      type={resourceType}
-                      name={row.name}
-                      row={row}
-                      setVariant={setVariant}
-                    />
-                  );
-                }}
-                title={capitalize(resourceType)}
-                options={{
-                  toolbar: false,
-                  headerStyle: {
-                    backgroundColor: theme.palette.border.main,
-                    marginLeft: 3,
-                  },
-                }}
-                {...(Object.keys(resourcesData[resourceType]).length > 0
-                  ? {
-                      columns: ['name', 'variant'].map((item) => ({
-                        title: capitalize(item),
-                        field: item,
-                      })),
+              <ThemeProvider theme={theme}>
+                <MaterialTable
+                  className={classes.tableRoot}
+                  detailPanel={(row) => {
+                    return (
+                      <VariantTable
+                        type={resourceType}
+                        name={row.name}
+                        row={row}
+                        setVariant={setVariant}
+                      />
+                    );
+                  }}
+                  title={capitalize(resourceType)}
+                  options={{
+                    toolbar: false,
+                    headerStyle: {
+                      backgroundColor: theme.palette.border.main,
+                      marginLeft: 3,
+                    },
+                  }}
+                  {...(Object.keys(resourcesData[resourceType]).length > 0
+                    ? {
+                        columns: ['name', 'variant'].map((item) => ({
+                          title: capitalize(item),
+                          field: item,
+                        })),
+                      }
+                    : {})}
+                  data={Object.entries(resourcesData[resourceType]).map(
+                    (resourceEntry) => {
+                      const resourceName = resourceEntry[0];
+                      const resourceVariants = resourceEntry[1];
+                      let rowData = { name: resourceName };
+                      if (resourceVariants.length === 1) {
+                        rowData['variant'] = resourceVariants[0].variant;
+                      } else {
+                        rowData['variant'] = '...';
+                      }
+                      rowData['variants'] = Object.values(resourceVariants);
+                      return rowData;
                     }
-                  : {})}
-                data={Object.entries(resourcesData[resourceType]).map(
-                  (resourceEntry) => {
-                    const resourceName = resourceEntry[0];
-                    const resourceVariants = resourceEntry[1];
-                    let rowData = { name: resourceName };
-                    if (resourceVariants.length === 1) {
-                      rowData['variant'] = resourceVariants[0].variant;
-                    } else {
-                      rowData['variant'] = '...';
-                    }
-                    rowData['variants'] = Object.values(resourceVariants);
-                    return rowData;
+                  )}
+                  onRowClick={(event, rowData) =>
+                    router.push(
+                      Resource[resourceType].urlPathResource(rowData.name)
+                    )
                   }
-                )}
-                onRowClick={(event, rowData) =>
-                  router.push(
-                    Resource[resourceType].urlPathResource(rowData.name)
-                  )
-                }
-                components={{
-                  Container: (props) => (
-                    <div
-                      className={classes.resourceList}
-                      style={{ minWidth: 'xl' }}
-                      {...props}
-                    />
-                  ),
-                  Body: (props) => (
-                    <MTableBody className={classes.tableBody} {...props} />
-                  ),
-                  Header: (props) => (
-                    <MTableHeader className={classes.tableHeader} {...props} />
-                  ),
-                }}
-              />
+                  components={{
+                    Container: (props) => (
+                      <div
+                        className={classes.resourceList}
+                        style={{ minWidth: 'xl' }}
+                        {...props}
+                      />
+                    ),
+                    Body: (props) => (
+                      <MTableBody className={classes.tableBody} {...props} />
+                    ),
+                    Header: (props) => (
+                      <MTableHeader
+                        className={classes.tableHeader}
+                        {...props}
+                      />
+                    ),
+                  }}
+                />
+              </ThemeProvider>
             </TabPanel>
           ))}
         </div>

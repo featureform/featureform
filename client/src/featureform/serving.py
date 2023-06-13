@@ -18,7 +18,7 @@ import pandas as pd
 from pandas.core.generic import NDFrame
 from pandasql import sqldf
 from featureform.proto import serving_pb2
-from featureform.providers import get_provider
+from featureform.providers import get_provider, Scalar
 from featureform.enums import ScalarType
 
 from .local_cache import LocalCache
@@ -631,7 +631,7 @@ class LocalClientImpl:
             table = provider.get_table(f_name, f_variant)
         else:
             table = provider.create_table(
-                f_name, f_variant, ScalarType(feature["data_type"])
+                f_name, f_variant, Scalar(ScalarType(feature["data_type"]))
             )
 
         # Will add a check to see if any of the source tables have been updated

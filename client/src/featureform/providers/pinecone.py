@@ -77,6 +77,13 @@ class PineconeOnlineStore(VectorStore):
             vector_type=entity_type,
         )
 
+    def table_exists(self, name, variant):
+        try:
+            self.client.describe_index(self._create_index_name(name, variant))
+            return True
+        except pinecone.core.client.exceptions.NotFoundException:
+            return False
+
     def delete_index(self, feature: str, variant: str):
         index_name = self._create_index_name(feature, variant)
         self.client.delete_index(name=index_name)

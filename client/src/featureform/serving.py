@@ -19,8 +19,9 @@ from pandas.core.generic import NDFrame
 from pandasql import sqldf
 from featureform.proto import serving_pb2
 from .file_utils import absolute_file_paths
-from featureform.providers import get_provider, Scalar
+from featureform.providers import get_provider, Scalar, VectorType
 from featureform.enums import ScalarType
+from featureform import metadata
 
 from .local_cache import LocalCache
 from .local_utils import (
@@ -619,17 +620,34 @@ class LocalClientImpl:
                     f_name, f_variant, entity_name
                 )
             else:
-                feature_df = self.get_precomputed_feature(
-                    f_name, f_variant, entity_name, entity_value
-                )
+                self.compute_feature(f_name, f_variant, entity_name)
+                feature_df = self.get_feature_value(f_name, f_variant, entity_value)
 
             feature_list.append(feature_df)
 
         return feature_list
 
-    def get_precomputed_feature(self, f_name, f_variant, entity_name, entity_value):
+    def compute_feature(self, f_name, f_variant, entity_name):
         feature = self.db.get_feature_variant(f_name, f_variant)
         source_name, source_variant = feature["source_name"], feature["source_variant"]
+
+        source_files_from_db = self.db.get_source_files_for_resource(
+            "transformation", source_name, source_variant
+        )
+
+        if (
+            not any(
+                self._file_has_changed(
+                    source_file["updated_at"], source_file["file_path"]
+                )
+                for source_file in source_files_from_db
+            )
+            and len(source_files_from_db) > 0
+        ):
+            return
+
+        provider_obj = metadata.get_provider(feature["provider"])
+        provider_type = provider_obj.function
         if feature["entity"] != entity_name:
             raise ValueError(
                 f"Invalid entity {entity_name} for feature {source_name}-{source_variant}"
@@ -648,23 +666,68 @@ class LocalClientImpl:
             )
 
         # This will be replaced to select the appropriate provider for each feature
-        provider = get_provider("file")
+        provider = get_provider(provider_type)(provider_obj.config)
 
         if provider.table_exists(f_name, f_variant):
             table = provider.get_table(f_name, f_variant)
         else:
-            table = provider.create_table(
-                f_name, f_variant, Scalar(ScalarType(feature["data_type"]))
-            )
+            if not feature["is_embedding"]:
+                table = provider.create_table(
+                    f_name, f_variant, Scalar(ScalarType(feature["data_type"]))
+                )
+            else:
+                table = provider.create_index(
+                    f_name,
+                    f_variant,
+                    VectorType(
+                        ScalarType(feature["data_type"]), feature["dimension"], True
+                    ),
+                )
 
-        # Will add a check to see if any of the source tables have been updated
-        # and will set new values if so
+        total = len(feature_df)
         for index, row in feature_df.iterrows():
             table.set(row[0], row[1])
+            self.progress_bar(
+                total,
+                index,
+                prefix="Updating Feature Table:",
+                suffix="Complete",
+                length=50,
+            )
+        self.progress_bar(
+            total, total, prefix="Updating Feature Table:", suffix="Complete", length=50
+        )
+        print("\n")
 
+    @staticmethod
+    def _file_has_changed(last_updated_at, file_path):
+        """
+        Currently using last updated at for determining if a file has changed. We can consider using the file hash
+        if this becomes a performance issue.
+        """
+        os_last_updated = os.path.getmtime(file_path)
+        return os_last_updated > float(last_updated_at)
+
+    def get_feature_value(self, f_name, f_variant, entity_value):
+        feature = self.db.get_feature_variant(f_name, f_variant)
+        provider_obj = metadata.get_provider(feature["provider"])
+        provider_type = provider_obj.function
+        provider = get_provider(provider_type)(provider_obj.config)
+        table = provider.get_table(f_name, f_variant)
         value = table.get(entity_value)
 
         return value
+
+    def progress_bar(self, total, current, prefix="", suffix="", length=30, fill="█"):
+        import sys
+
+        percent = current / total
+        filled_length = int(length * percent)
+        bar = fill * filled_length + "-" * (length - filled_length)
+        sys.stdout.write(
+            "\r{} |{}| {}% {}".format(prefix, bar, int(percent * 100), suffix)
+        )
+        sys.stdout.flush()
 
     def process_non_primary_df_transformation(
         self, feature, source_name, source_variant, entity_id
@@ -748,7 +811,17 @@ class LocalClientImpl:
             return df
 
     def _nearest(self, name, variant, vector, k):
-        raise NotImplementedError
+        feature = self.db.get_feature_variant(name, variant)
+        self.compute_feature(name, variant, feature["entity"])
+        provider_obj = metadata.get_provider(feature["provider"])
+        provider_type = provider_obj.function
+        provider = get_provider(provider_type)(provider_obj.config)
+
+        if provider.table_exists(name, variant):
+            table = provider.get_table(name, variant)
+        else:
+            raise ValueError(f"Table does not exist for feature {name} ({variant})")
+        return table.nearest(name, variant, vector, k)
 
 
 class Stream:

@@ -86,9 +86,9 @@ class RedisConfig:
 @typechecked
 @dataclass
 class PineconeConfig:
-    project_id: str
-    environment: str
-    api_key: str
+    project_id: str = ""
+    environment: str = ""
+    api_key: str = ""
 
     def software(self) -> str:
         return "pinecone"
@@ -103,6 +103,13 @@ class PineconeConfig:
             "ApiKey": self.api_key,
         }
         return bytes(json.dumps(config), "utf-8")
+
+    def deserialize(self, config):
+        config = json.loads(config)
+        self.project_id = config["ProjectID"]
+        self.environment = config["Environment"]
+        self.api_key = config["ApiKey"]
+        return self
 
 
 @typechecked
@@ -445,20 +452,6 @@ class MongoDBConfig:
 
 @typechecked
 @dataclass
-class LocalConfig:
-    def software(self) -> str:
-        return "localmode"
-
-    def type(self) -> str:
-        return "LOCAL_ONLINE"
-
-    def serialize(self) -> bytes:
-        config = {}
-        return bytes(json.dumps(config), "utf-8")
-
-
-@typechecked
-@dataclass
 class SnowflakeConfig:
     username: str
     password: str
@@ -669,6 +662,22 @@ class EmptyConfig:
 
     def type(self) -> str:
         return ""
+
+    def serialize(self) -> bytes:
+        return bytes("", "utf-8")
+
+    def deserialize(self, config):
+        return self
+
+
+@typechecked
+@dataclass
+class LocalConfig:
+    def software(self) -> str:
+        return "local"
+
+    def type(self) -> str:
+        return "local"
 
     def serialize(self) -> bytes:
         return bytes("", "utf-8")
@@ -1232,6 +1241,8 @@ class Feature:
             self.location.value,
             self.source[0],
             self.source[1],
+            self.is_embedding,
+            self.dims,
         )
         if len(self.tags):
             db.upsert(
@@ -1941,7 +1952,10 @@ class ResourceState:
     def create_all_local(self) -> None:
         db = SQLiteMetadata()
         check_up_to_date(True, "register")
+        features = []
         for resource in self.sorted_list():
+            if isinstance(resource, Feature):
+                features.append(resource)
             resource_variant = (
                 f" {resource.variant}" if hasattr(resource, "variant") else ""
             )
@@ -1952,6 +1966,11 @@ class ResourceState:
                 print("Creating", resource.type(), resource.name, resource_variant)
                 resource._create_local(db)
         db.close()
+        from .serving import LocalClientImpl
+
+        client = LocalClientImpl()
+        for feature in features:
+            client.compute_feature(feature.name, feature.variant, feature.entity)
         return
 
     def create_all(self, stub) -> None:

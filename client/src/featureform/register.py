@@ -495,7 +495,7 @@ class LocalProvider:
     The LocalProvider exposes the registration functions for LocalMode
 
     **Using the LocalProvider:**
-    ``` py
+    ``` py title="definitions.py"
     from featureform import local
 
     transactions = local.register_file(
@@ -3113,11 +3113,15 @@ class Registrar:
                 "Tuple must be of length 2, got length {}".format(len(tuple))
             )
         if len(tuple) == 2:
-            not_string_tuples = not (isinstance(tuple[0], str) and isinstance(tuple[1], str))
+            not_string_tuples = not (
+                isinstance(tuple[0], str) and isinstance(tuple[1], str)
+            )
             if not_string_tuples:
                 first_position_type = type(tuple[0]).__name__
                 second_position_type = type(tuple[1]).__name__
-                raise TypeError(f"input tuple must be of type (str, str); got ({first_position_type}, {second_position_type})")
+                raise TypeError(
+                    f"input tuple must be of type (str, str); got ({first_position_type}, {second_position_type})"
+                )
 
     def ondemand_feature(
         self,

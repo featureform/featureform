@@ -15,7 +15,7 @@ class Client(ResourceClient, ServingClient):
     Client for interacting with Featureform APIs (resources and serving)
 
     **Using the Client:**
-    ```py title="definitions.py"
+    ``` py title="definitions.py"
     import featureform as ff
     from featureform import Client
 
@@ -26,6 +26,7 @@ class Client(ResourceClient, ServingClient):
 
     # Example 2: Compute a dataframe from a registered source
     transactions_df = client.dataframe("transactions", "quickstart")
+    ```
     """
 
     def __init__(
@@ -61,10 +62,11 @@ class Client(ResourceClient, ServingClient):
             limit (int): The maximum number of records to return; defaults to NO_RECORD_LIMIT
 
         **Example:**
-        ```py title="definitions.py"
+        ``` py title="definitions.py"
         transactions_df = client.dataframe("transactions", "quickstart")
 
         avg_user_transaction_df = transactions_df.groupby("CustomerID")["TransactionAmount"].mean()
+        ```
         """
         if isinstance(
             source, (SourceRegistrar, LocalSource, SubscriptableTransformation)

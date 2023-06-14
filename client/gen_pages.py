@@ -23,6 +23,16 @@ excluded_files = [
     "get_test.py",
     "list_local.py",
     "tls.py",
+    "exceptions.py",
+    "constants.py",
+    "local_utils.py",
+    "names_generator.py",
+    "parse.py",
+    "search.py",
+    "search_local.py",
+    "status_display.py",
+    "version.py",
+    "enums.py"
 ]
 
 for filename in os.listdir("./src/featureform"):

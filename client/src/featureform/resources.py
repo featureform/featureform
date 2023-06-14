@@ -114,6 +114,26 @@ class PineconeConfig:
 
 @typechecked
 @dataclass
+class WeaviateConfig:
+    url: str
+    api_key: str
+
+    def software(self) -> str:
+        return "weaviate"
+
+    def type(self) -> str:
+        return "WEAVIATE_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "URL": self.url,
+            "ApiKey": self.api_key,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+
+@typechecked
+@dataclass
 class AWSCredentials:
     def __init__(
         self,
@@ -685,6 +705,7 @@ Config = Union[
     GCSFileStoreConfig,
     EmptyConfig,
     HDFSConfig,
+    WeaviateConfig,
 ]
 
 

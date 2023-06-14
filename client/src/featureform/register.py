@@ -68,6 +68,7 @@ from .resources import (
     K8sResourceSpecs,
     FilePrefix,
     OnDemandFeature,
+    WeaviateConfig,
 )
 
 from .proto import metadata_pb2_grpc as ff_grpc
@@ -1964,6 +1965,50 @@ class Registrar:
         config = PineconeConfig(
             project_id=project_id, environment=environment, api_key=api_key
         )
+        provider = Provider(
+            name=name,
+            function="ONLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
+        self.__resources.append(provider)
+        return OnlineProvider(self, provider)
+
+    def register_weaviate(
+        self,
+        name: str,
+        url: str,
+        api_key: str,
+        description: str = "",
+        team: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
+        """Register a Weaviate provider.
+        **Examples**:
+        ```
+        weaviate = ff.register_weaviate(
+            name="weaviate-quickstart",
+            url="https://<CLUSTER NAME>.weaviate.network",
+            api_key="<API KEY>"
+            description="A Weaviate project for using embeddings in Featureform"
+        )
+        ```
+        Args:
+            name (str): Name of Weaviate provider to be registered
+            url (str): Endpoint of Weaviate cluster, either in the cloud or via another deployment operation
+            api_key (str): Weaviate api key
+            description (str): Description of Weaviate provider to be registered
+            team (str): Name of team
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
+        Returns:
+            weaviate (OnlineProvider): Provider
+        """
+        config = WeaviateConfig(url=url, api_key=api_key)
         provider = Provider(
             name=name,
             function="ONLINE",
@@ -5062,6 +5107,7 @@ get_run = global_registrar.get_run
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
 register_pinecone = global_registrar.register_pinecone
+register_weaviate = global_registrar.register_weaviate
 register_blob_store = global_registrar.register_blob_store
 register_bigquery = global_registrar.register_bigquery
 register_firestore = global_registrar.register_firestore

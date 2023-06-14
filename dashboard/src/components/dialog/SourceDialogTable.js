@@ -1,6 +1,7 @@
 import {
   Alert,
   Paper,
+  Slide,
   Snackbar,
   Table,
   TableBody,
@@ -13,10 +14,16 @@ import {
 } from '@mui/material';
 import * as React from 'react';
 
+const textEllipsis = {
+  whiteSpace: 'nowrap',
+  maxWidth: '230px',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  cursor: 'pointer',
+};
+
 export default function SourceDialogTable({ columns = [], rowList = [] }) {
   const [open, setOpen] = React.useState(false);
-  const [anchorEl, setAnchorEl] = React.useState(null);
-
   const closeSnackBar = (_, reason) => {
     if (reason === 'clickaway') {
       return;
@@ -31,11 +38,20 @@ export default function SourceDialogTable({ columns = [], rowList = [] }) {
     }
   };
 
+  function transition(props) {
+    return <Slide {...props} direction='right' />;
+  }
+
   return (
     <div>
-      <Snackbar open={open} autoHideDuration={1250} onClose={closeSnackBar}>
+      <Snackbar
+        open={open}
+        autoHideDuration={1250}
+        onClose={closeSnackBar}
+        TransitionComponent={transition}
+      >
         <Alert severity='success' onClose={closeSnackBar}>
-          Copied to clipboard!
+          <Typography>Copied to clipboard!</Typography>
         </Alert>
       </Snackbar>
       <TableContainer component={Paper}>
@@ -64,12 +80,13 @@ export default function SourceDialogTable({ columns = [], rowList = [] }) {
                   <TableCell
                     key={row + index}
                     align={index === 0 ? 'left' : 'right'}
+                    sx={{ maxHeight: '50px' }}
                   >
-                    <Tooltip title='Copy to Clipboard.'>
+                    <Tooltip title='Copy to Clipboard'>
                       <Typography
                         onClick={copyToClipBoard}
                         fontSize={11}
-                        style={{ cursor: 'pointer' }}
+                        style={textEllipsis}
                       >
                         {row}
                       </Typography>

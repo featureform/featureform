@@ -47,7 +47,7 @@ export default function SourceDialog({
       </Button>
       <Dialog
         fullWidth={true}
-        maxWidth={columns.length > 3 ? 'lg' : 'sm'}
+        maxWidth={columns.length > 3 ? 'xl' : 'sm'}
         open={open}
         onClose={handleClose}
         aria-labelledby='dialog-title'

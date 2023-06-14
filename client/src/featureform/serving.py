@@ -597,17 +597,32 @@ class LocalClientImpl:
                     f_name, f_variant, entity_name
                 )
             else:
-                feature_df = self.get_precomputed_feature(
-                    f_name, f_variant, entity_name, entity_value
-                )
+                self.compute_feature(f_name, f_variant, entity_name)
+                feature_df = self.get_feature_value(f_name, f_variant, entity_value)
 
             feature_list.append(feature_df)
 
         return feature_list
 
-    def get_precomputed_feature(self, f_name, f_variant, entity_name, entity_value):
+    def compute_feature(self, f_name, f_variant, entity_name):
         feature = self.db.get_feature_variant(f_name, f_variant)
         source_name, source_variant = feature["source_name"], feature["source_variant"]
+
+        source_files_from_db = self.db.get_source_files_for_resource(
+            "transformation", source_name, source_variant
+        )
+
+        if (
+            not any(
+                self._file_has_changed(
+                    source_file["updated_at"], source_file["file_path"]
+                )
+                for source_file in source_files_from_db
+            )
+            and len(source_files_from_db) > 0
+        ):
+            return
+
         provider_obj = metadata.get_provider(feature["provider"])
         provider_type = provider_obj.function
         if feature["entity"] != entity_name:
@@ -646,15 +661,36 @@ class LocalClientImpl:
                     ),
                 )
 
-        # Will add a check to see if any of the source tables have been updated
-        # and will set new values if so
         total = len(feature_df)
         for index, row in feature_df.iterrows():
             table.set(row[0], row[1])
             self.progress_bar(
-                total, index, prefix="Progress:", suffix="Complete", length=50
+                total,
+                index,
+                prefix="Updating Feature Table:",
+                suffix="Complete",
+                length=50,
             )
+        self.progress_bar(
+            total, total, prefix="Updating Feature Table:", suffix="Complete", length=50
+        )
+        print("\n")
 
+    @staticmethod
+    def _file_has_changed(last_updated_at, file_path):
+        """
+        Currently using last updated at for determining if a file has changed. We can consider using the file hash
+        if this becomes a performance issue.
+        """
+        os_last_updated = os.path.getmtime(file_path)
+        return os_last_updated > float(last_updated_at)
+
+    def get_feature_value(self, f_name, f_variant, entity_value):
+        feature = self.db.get_feature_variant(f_name, f_variant)
+        provider_obj = metadata.get_provider(feature["provider"])
+        provider_type = provider_obj.function
+        provider = get_provider(provider_type)(provider_obj.config)
+        table = provider.get_table(f_name, f_variant)
         value = table.get(entity_value)
 
         return value
@@ -753,6 +789,7 @@ class LocalClientImpl:
 
     def _nearest(self, name, variant, vector, k):
         feature = self.db.get_feature_variant(name, variant)
+        self.compute_feature(name, variant, feature["entity"])
         provider_obj = metadata.get_provider(feature["provider"])
         provider_type = provider_obj.function
         provider = get_provider(provider_type)(provider_obj.config)

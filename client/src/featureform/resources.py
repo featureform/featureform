@@ -1918,7 +1918,10 @@ class ResourceState:
     def create_all_local(self) -> None:
         db = SQLiteMetadata()
         check_up_to_date(True, "register")
+        features = []
         for resource in self.sorted_list():
+            if isinstance(resource, Feature):
+                features.append(resource)
             resource_variant = (
                 f" {resource.variant}" if hasattr(resource, "variant") else ""
             )
@@ -1929,6 +1932,11 @@ class ResourceState:
                 print("Creating", resource.type(), resource.name, resource_variant)
                 resource._create_local(db)
         db.close()
+        from .serving import LocalClientImpl
+
+        client = LocalClientImpl()
+        for feature in features:
+            client.compute_feature(feature.name, feature.variant, feature.entity)
         return
 
     def create_all(self, stub) -> None:

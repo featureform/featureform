@@ -4981,7 +4981,7 @@ class EmbeddingColumnResource(ColumnResource):
         dims: int,
         vector_db: Union[str, OnlineProvider, FileStoreProvider],
         entity: Union[Entity, str] = "",
-        variant="default",
+        variant="",
         owner: str = "",
         timestamp_column: str = "",
         description: str = "",

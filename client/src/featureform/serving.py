@@ -413,7 +413,12 @@ class LocalClientImpl:
         for absolute_fn, relative_fn in absolute_file_paths(directory):
             file_names.append(relative_fn)
             f = open(absolute_fn, "r")
-            file_body.append(f.read())
+            try:
+                file_body.append(f.read())
+            except Exception as e:
+                raise Exception(
+                    f"Cannot read file {absolute_fn}: {e}\nFiles must be text files"
+                )
         df = pd.DataFrame(data={"filename": file_names, "body": file_body})
         return df
 

@@ -493,32 +493,19 @@ class FileStoreProvider:
 
 class LocalProvider:
     """
-        The LocalProvider exposes the registration functions for LocalMode
+    The LocalProvider exposes the registration functions for LocalMode
 
-        **Using the LocalProvider:**
-        ``` py
-        from featureform import local
-    enum ResourceType {
-        FEATURE = 0;
-        LABEL = 1;
-        TRAINING_SET = 2;
-        SOURCE = 3;
-        FEATURE_VARIANT = 4;
-        LABEL_VARIANT = 5;
-        TRAINING_SET_VARIANT = 6;
-        SOURCE_VARIANT = 7;
-        PROVIDER = 8;
-        ENTITY = 9;
-        MODEL = 10;
-        USER = 11;
+    **Using the LocalProvider:**
+    ``` py
+    from featureform import local
 
-        transactions = local.register_file(
-            name="transactions",
-            variant="quickstart",
-            description="A dataset of fraudulent transactions",
-            path="transactions.csv"
-        )
-        ```
+    transactions = local.register_file(
+        name="transactions",
+        variant="quickstart",
+        description="A dataset of fraudulent transactions",
+        path="transactions.csv"
+    )
+    ```
     """
 
     def __init__(self, registrar, provider):

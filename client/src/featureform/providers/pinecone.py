@@ -31,7 +31,7 @@ class PineconeOnlineTable(VectorStoreTable):
         if vector is None:
             return None
         else:
-            return vector["metadata"]["id"]
+            return vector["values"]
 
     def nearest(self, feature: str, variant: str, vector: List[float], k: int):
         name_variant_id = uuid.uuid5(uuid.NAMESPACE_DNS, f"{feature}-{variant}")
@@ -51,7 +51,7 @@ class PineconeOnlineTable(VectorStoreTable):
 
 class PineconeOnlineStore(VectorStore):
     def __init__(self, config: PineconeConfig):
-        self.indexNameTemplate = "ff-idx--{0}"
+        self.index_name_template = "ff-idx--{0}"
         pinecone.init(api_key=config.api_key, environment=config.environment)
         self.client = pinecone
 
@@ -111,7 +111,7 @@ class PineconeOnlineStore(VectorStore):
 
     def _create_index_name(self, feature: str, variant: str) -> str:
         index_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, f"{feature}-{variant}")
-        return self.indexNameTemplate.format(index_uuid)
+        return self.index_name_template.format(index_uuid)
 
     def _create_namespace(self, feature: str, variant: str) -> str:
         return f"ff-namespace--{feature}-{variant}"

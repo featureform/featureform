@@ -47,6 +47,7 @@ from .resources import (
     Source,
     PrimaryData,
     SQLTable,
+    Directory,
     SQLTransformation,
     DFTransformation,
     Entity,
@@ -492,19 +493,32 @@ class FileStoreProvider:
 
 class LocalProvider:
     """
-    The LocalProvider exposes the registration functions for LocalMode
+        The LocalProvider exposes the registration functions for LocalMode
 
-    **Using the LocalProvider:**
-    ``` py
-    from featureform import local
+        **Using the LocalProvider:**
+        ``` py
+        from featureform import local
+    enum ResourceType {
+        FEATURE = 0;
+        LABEL = 1;
+        TRAINING_SET = 2;
+        SOURCE = 3;
+        FEATURE_VARIANT = 4;
+        LABEL_VARIANT = 5;
+        TRAINING_SET_VARIANT = 6;
+        SOURCE_VARIANT = 7;
+        PROVIDER = 8;
+        ENTITY = 9;
+        MODEL = 10;
+        USER = 11;
 
-    transactions = local.register_file(
-        name="transactions",
-        variant="quickstart",
-        description="A dataset of fraudulent transactions",
-        path="transactions.csv"
-    )
-    ```
+        transactions = local.register_file(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions",
+            path="transactions.csv"
+        )
+        ```
     """
 
     def __init__(self, registrar, provider):
@@ -545,6 +559,7 @@ class LocalProvider:
         Returns:
             source (LocalSource): source
         """
+        path = os.path.abspath(path)
         if not FileFormat.is_supported(path):
             print(f"File format not supported: {path}")
             raise Exception(
@@ -561,6 +576,67 @@ class LocalProvider:
             name=name,
             variant=variant,
             location=SQLTable(path),
+            provider=self.__provider.name,
+            owner=owner,
+            description=description,
+            tags=tags,
+            properties=properties,
+        )
+        return LocalSource(
+            self.__registrar, name, owner, self.name(), path, variant, description
+        )
+
+    def register_directory(
+        self,
+        name,
+        path,
+        description="",
+        variant: str = "",
+        owner="",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
+        """Register a directory.
+        When registering a directory, files can be interacted with as a table with columns "filename" and "body".
+        For example:
+        filename                  |            body
+        --------------------------|---------------------------------------
+        featureform_docs.txt      | Featureform allows data scientists....
+        featureform_home.txt      | The Open-Source Virtual Feature Store....
+
+
+        **Examples**:
+        ```
+        pages = local.register_directory(
+            name="scraped_pages",
+            description="A directory of scraped web pages",
+            path="scraper/"
+        )
+        ```
+        Args:
+            name (str): Name for how to reference the directory
+            description (str): Description of the directory
+            path (str): Path to directory
+            variant (str): Directory variant
+            owner (str): Owner of the file
+
+        Returns:
+            source (LocalSource): source
+        """
+        path = os.path.abspath(path)
+        if not os.path.isdir(path):
+            raise Exception(f"Path {path} is not a directory")
+
+        if owner == "":
+            owner = self.__registrar.must_get_default_owner()
+        if variant == "":
+            variant = self.__registrar.get_run()
+        # Store the file as a source
+        self.__registrar.register_primary_data(
+            name=name,
+            variant=variant,
+            location=Directory(path),
+            is_directory=True,
             provider=self.__provider.name,
             owner=owner,
             description=description,
@@ -2835,6 +2911,7 @@ class Registrar:
         provider: Union[str, OfflineProvider],
         tags: List[str],
         properties: dict,
+        is_directory: bool = False,
         variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
@@ -2864,6 +2941,7 @@ class Registrar:
             name=name,
             variant=variant,
             definition=PrimaryData(location=location),
+            is_directory=is_directory,
             owner=owner,
             provider=provider,
             description=description,

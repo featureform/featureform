@@ -14,6 +14,7 @@ from featureform.local_utils import feature_df_with_entity, label_df_from_csv
 
 sys.path.insert(0, "client/src/")
 from featureform import ResourceClient, ServingClient
+from featureform.serving import LocalClientImpl
 import serving_cases as cases
 import featureform as ff
 from featureform.serving import LocalClientImpl, check_feature_type, Row
@@ -621,3 +622,14 @@ def retry_delete():
         except Exception as e:
             print(f"Could not delete. Retrying...", e)
             time.sleep(1)
+
+
+def test_read_directory():
+    from pandas.testing import assert_frame_equal
+
+    local = LocalClientImpl()
+    df = local.read_directory("client/tests/test_files/input_files/readable_directory")
+    expected = pd.DataFrame(
+        data={"filename": ["c.txt", "b.txt", "a.txt"], "body": ["Sup", "Hi", "Hello"]}
+    )
+    assert_frame_equal(expected, df)

@@ -387,8 +387,34 @@ class LocalClientImpl:
             else:
                 raise ValueError(f"Unsupported file format for {file_path}")
             return df
+        elif (
+            self.db.is_transformation(source_name, source_variant)
+            == SourceType.DIRECTORY
+        ):
+            source = self.db.get_source_variant(source_name, source_variant)
+            directory = source["definition"]
+            return self.read_directory(directory)
+
         else:
             df = self.process_transformation(source_name, source_variant)
+        return df
+
+    def read_directory(self, directory):
+        if not os.path.isdir(directory):
+            raise Exception(f"Path {directory} is not a directory")
+
+        def absolute_file_paths(directory):
+            for dirpath, _, filenames in os.walk(directory):
+                for f in filenames:
+                    yield os.path.abspath(os.path.join(dirpath, f)), f
+
+        file_names = []
+        file_body = []
+        for absolute_fn, relative_fn in absolute_file_paths(directory):
+            file_names.append(relative_fn)
+            f = open(absolute_fn, "r")
+            file_body.append(f.read())
+        df = pd.DataFrame(data={"filename": file_names, "body": file_body})
         return df
 
     def sql_transformation(self, query):

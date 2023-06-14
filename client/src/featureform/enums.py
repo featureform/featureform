@@ -51,6 +51,7 @@ class OperationType(Enum):
 @dataclass
 class SourceType(str, Enum):
     PRIMARY_SOURCE = "PRIMARY"
+    DIRECTORY = "DIRECTORY"
     DF_TRANSFORMATION = "DF"
     SQL_TRANSFORMATION = "SQL"
 

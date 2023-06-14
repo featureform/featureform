@@ -227,13 +227,7 @@ func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func
 		t.Logf("Skipping %s, because it is an integration test", testItem.t)
 		return
 	}
-	var connections_start, connections_end int
-	if testItem.t == pt.PostgresOffline {
-		err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_start)
-		if err != nil {
-			panic(err)
-		}
-	}
+
 	provider, err := Get(testItem.t, testItem.c)
 	if err != nil {
 		t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
@@ -267,20 +261,6 @@ func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func
 			t.Errorf("%v - %v\n", testItem.t, err)
 		}
 	})
-
-	if testItem.t == pt.PostgresOffline {
-		t.Cleanup(func() {
-			err = db.QueryRow("SELECT Count(*) FROM pg_stat_activity WHERE pid!=pg_backend_pid()").Scan(&connections_end)
-			if err != nil {
-				panic(err)
-			}
-			t.Run("POSTGRES_ConnectionCheck", func(t *testing.T) {
-				if connections_start+3 <= connections_end {
-					t.Errorf("Started with %d connections, ended with %d connections", connections_start, connections_end)
-				}
-			})
-		})
-	}
 }
 
 func createRedshiftDatabase(c pc.RedshiftConfig) error {

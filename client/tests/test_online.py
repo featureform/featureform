@@ -1,6 +1,7 @@
 from featureform.providers.online_store import VectorType
 from featureform.providers.pinecone import PineconeOnlineStore
-from featureform.resources import PineconeConfig
+from featureform.providers.weaviate import WeaviateOnlineStore
+from featureform.resources import PineconeConfig, WeaviateConfig
 from featureform.register import Float32
 import os
 import sys
@@ -24,6 +25,15 @@ def get_pinecone_config():
     )
 
 
+def get_weaviate_config():
+    weaviate_url = os.getenv("WEAVIATE_URL", "")
+    weaviate_api_key = os.getenv("WEAVIATE_API_KEY", "")
+    return WeaviateConfig(
+        url=weaviate_url,
+        api_key=weaviate_api_key,
+    )
+
+
 def get_random_feature_variant():
     return str(uuid.uuid4()), str(uuid.uuid4())
 
@@ -35,6 +45,13 @@ cases = [
             "online_store_class": PineconeOnlineStore,
         },
         id="Pinecone",
+    ),
+    pytest.param(
+        {
+            "config_fn": get_weaviate_config,
+            "online_store_class": WeaviateOnlineStore,
+        },
+        id="Weaviate",
     ),
 ]
 
@@ -51,16 +68,22 @@ def test_online_vector_stores(case):
     assert table is not None
 
     # Test insert
-    embeddings = pd.read_csv(
+    embeddings_df = pd.read_csv(
         "client/tests/test_files/input_files/300_stock_headline_embeddings.csv"
     )
-    for _, row in embeddings.iterrows():
-        vector = np.fromstring(row["headline_vector"][1:-1], sep=", ")
+    embeddings = []
+    for _, row in embeddings_df.iterrows():
+        vector = np.fromstring(row["headline_vector"][1:-1], sep=", ", dtype=np.float32)
+        embeddings.append(vector.tolist())
         table.set(row["publisher"], vector.tolist())
 
-    expected = embeddings.tail(1)
+    expected = embeddings_df.tail(1)
     actual = table.get(expected["publisher"].values[0])
-    assert actual is not None and actual == expected["publisher"].values[0]
+    assert (
+        actual is not None
+        and len(actual) == len(embeddings[-1])
+        and np.allclose(actual, embeddings[-1])
+    )
 
     # Test nearest
     query_vector = [

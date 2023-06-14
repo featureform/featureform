@@ -32,7 +32,8 @@ excluded_files = [
     "search_local.py",
     "status_display.py",
     "version.py",
-    "enums.py"
+    "enums.py",
+    "local_cache.py",
 ]
 
 for filename in os.listdir("./src/featureform"):

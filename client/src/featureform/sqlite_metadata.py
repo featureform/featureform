@@ -31,8 +31,8 @@ class SyncSQLExecutor:
 
 
 class SQLiteMetadata:
-    def __init__(self):
-        self.path = ".featureform/SQLiteDB"
+    def __init__(self, path=".featureform/SQLiteDB"):
+        self.path = path
         if not os.path.exists(self.path):
             os.makedirs(self.path)
         raw_conn = sqlite3.connect(self.path + "/metadata.db", check_same_thread=False)
@@ -58,6 +58,8 @@ class SQLiteMetadata:
           source_value text,
           source_name text NOT NULL,
           source_variant text NOT NULL,
+          is_embedding bool, 
+          dimension int,
 
           PRIMARY KEY(name, variant),
 

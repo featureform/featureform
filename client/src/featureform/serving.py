@@ -18,8 +18,9 @@ import pandas as pd
 from pandas.core.generic import NDFrame
 from pandasql import sqldf
 from featureform.proto import serving_pb2
-from featureform.providers import get_provider, Scalar
+from featureform.providers import get_provider, Scalar, VectorType
 from featureform.enums import ScalarType
+from featureform import metadata
 
 from .local_cache import LocalCache
 from .local_utils import (
@@ -607,6 +608,8 @@ class LocalClientImpl:
     def get_precomputed_feature(self, f_name, f_variant, entity_name, entity_value):
         feature = self.db.get_feature_variant(f_name, f_variant)
         source_name, source_variant = feature["source_name"], feature["source_variant"]
+        provider_obj = metadata.get_provider(feature["provider"])
+        provider_type = provider_obj.function
         if feature["entity"] != entity_name:
             raise ValueError(
                 f"Invalid entity {entity_name} for feature {source_name}-{source_variant}"
@@ -625,23 +628,47 @@ class LocalClientImpl:
             )
 
         # This will be replaced to select the appropriate provider for each feature
-        provider = get_provider("file")
+        provider = get_provider(provider_type)(provider_obj.config)
 
         if provider.table_exists(f_name, f_variant):
             table = provider.get_table(f_name, f_variant)
         else:
-            table = provider.create_table(
-                f_name, f_variant, Scalar(ScalarType(feature["data_type"]))
-            )
+            if not feature["is_embedding"]:
+                table = provider.create_table(
+                    f_name, f_variant, Scalar(ScalarType(feature["data_type"]))
+                )
+            else:
+                table = provider.create_index(
+                    f_name,
+                    f_variant,
+                    VectorType(
+                        ScalarType(feature["data_type"]), feature["dimension"], True
+                    ),
+                )
 
         # Will add a check to see if any of the source tables have been updated
         # and will set new values if so
+        total = len(feature_df)
         for index, row in feature_df.iterrows():
             table.set(row[0], row[1])
+            self.progress_bar(
+                total, index, prefix="Progress:", suffix="Complete", length=50
+            )
 
         value = table.get(entity_value)
 
         return value
+
+    def progress_bar(self, total, current, prefix="", suffix="", length=30, fill="█"):
+        import sys
+
+        percent = current / total
+        filled_length = int(length * percent)
+        bar = fill * filled_length + "-" * (length - filled_length)
+        sys.stdout.write(
+            "\r{} |{}| {}% {}".format(prefix, bar, int(percent * 100), suffix)
+        )
+        sys.stdout.flush()
 
     def process_non_primary_df_transformation(
         self, feature, source_name, source_variant, entity_id
@@ -725,7 +752,16 @@ class LocalClientImpl:
             return df
 
     def _nearest(self, name, variant, vector, k):
-        raise NotImplementedError
+        feature = self.db.get_feature_variant(name, variant)
+        provider_obj = metadata.get_provider(feature["provider"])
+        provider_type = provider_obj.function
+        provider = get_provider(provider_type)(provider_obj.config)
+
+        if provider.table_exists(name, variant):
+            table = provider.get_table(name, variant)
+        else:
+            raise ValueError(f"Table does not exist for feature {name} ({variant})")
+        return table.nearest(name, variant, vector, k)
 
 
 class Stream:

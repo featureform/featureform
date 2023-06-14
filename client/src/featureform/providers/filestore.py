@@ -67,7 +67,7 @@ class LocalFileTable(OnlineStoreTable):
 
 
 class LocalFileStore(OnlineStore):
-    def __init__(self):
+    def __init__(self, config):
         self.path = ".featureform/features"
         self.type_table = f"{self.path}/types.csv"
         if not os.path.exists(self.path):

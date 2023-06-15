@@ -26,6 +26,7 @@ class Client(ResourceClient, ServingClient):
 
     # Example 2: Compute a dataframe from a registered source
     transactions_df = client.dataframe("transactions", "quickstart")
+    ```
     """
 
     def __init__(
@@ -65,6 +66,7 @@ class Client(ResourceClient, ServingClient):
         transactions_df = client.dataframe("transactions", "quickstart")
 
         avg_user_transaction_df = transactions_df.groupby("CustomerID")["TransactionAmount"].mean()
+        ```
         """
         if isinstance(
             source, (SourceRegistrar, LocalSource, SubscriptableTransformation)

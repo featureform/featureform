@@ -74,6 +74,8 @@ def version():
 @dashboard_app.route("/data/sourcedata", methods=["GET"])
 @cross_origin(allow_headers=["Content-Type"])
 def sourcedata():
+    limit = 50
+    n = 0
     name = request.args["name"]
     variant = request.args["variant"]
     source_data = {"columns": [], "rows": []}
@@ -84,8 +86,12 @@ def sourcedata():
     for column in df.columns:
         source_data["columns"].append(column)
     for _, currentRow in df.iterrows():
+        currentRow = currentRow.fillna("NaN")
+        n = n + 1
+        if n > limit:
+            break
         source_data["rows"].append(currentRow.to_list())
-    return source_data
+    return json.dumps(source_data, allow_nan=False)
 
 
 def variant_organiser(allVariantList):

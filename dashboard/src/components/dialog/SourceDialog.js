@@ -19,7 +19,7 @@ export default function SourceDialog({
   React.useEffect(async () => {
     if (sourceName !== '' && open) {
       let response = await api.fetchSourceModalData(sourceName, sourceVariant);
-      if (response.columns && response.rows) {
+      if (response?.columns && response?.rows) {
         setColumns(response.columns);
         setRowList(response.rows);
       } else {

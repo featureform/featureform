@@ -1,3 +1,4 @@
+import { Box, CircularProgress } from '@mui/material';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -15,9 +16,11 @@ export default function SourceDialog({
   const [columns, setColumns] = React.useState([]);
   const [rowList, setRowList] = React.useState([]);
   const [error, setError] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(async () => {
     if (sourceName !== '' && open) {
+      setIsLoading(true);
       let response = await api.fetchSourceModalData(sourceName, sourceVariant);
       if (response?.columns && response?.rows) {
         setColumns(response.columns);
@@ -25,6 +28,7 @@ export default function SourceDialog({
       } else {
         setError(response);
       }
+      setIsLoading(false);
     }
   }, [sourceName, sourceVariant, open]);
 
@@ -57,7 +61,13 @@ export default function SourceDialog({
           {sourceName.toUpperCase()}
         </DialogTitle>
         <DialogContent>
-          {error === '' ? (
+          {isLoading ? (
+            <Box
+              sx={{ display: 'flex', margin: 'auto', justifyContent: 'center' }}
+            >
+              <CircularProgress />
+            </Box>
+          ) : error === '' ? (
             <SourceDialogTable api={api} columns={columns} rowList={rowList} />
           ) : (
             <div data-testid='errorMessageId'>{error}</div>

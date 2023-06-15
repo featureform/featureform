@@ -74,7 +74,7 @@ def version():
 @dashboard_app.route("/data/sourcedata", methods=["GET"])
 @cross_origin(allow_headers=["Content-Type"])
 def sourcedata():
-    limit = 50
+    limit = 150
     n = 0
     name = request.args["name"]
     variant = request.args["variant"]
@@ -86,10 +86,10 @@ def sourcedata():
     for column in df.columns:
         source_data["columns"].append(column)
     for _, currentRow in df.iterrows():
-        currentRow = currentRow.fillna("NaN")
         n = n + 1
         if n > limit:
             break
+        currentRow = currentRow.fillna("NaN")
         source_data["rows"].append(currentRow.to_list())
     return json.dumps(source_data, allow_nan=False)
 

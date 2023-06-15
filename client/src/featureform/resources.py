@@ -791,7 +791,13 @@ class SQLTable:
     name: str
 
 
-Location = SQLTable
+@typechecked
+@dataclass
+class Directory:
+    path: str
+
+
+Location = Union[SQLTable, Directory]
 
 
 @typechecked
@@ -810,6 +816,9 @@ class PrimaryData:
 
     def name(self):
         return self.location.name
+
+    def path(self):
+        return self.location.path
 
 
 class Transformation:
@@ -862,7 +871,7 @@ class DFTransformation(Transformation):
         return {"transformation": transformation}
 
 
-SourceDefinition = Union[PrimaryData, Transformation]
+SourceDefinition = Union[PrimaryData, Transformation, str]
 
 
 @typechecked
@@ -880,9 +889,9 @@ class Source:
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
+
     inputs = ([],)
     error: Optional[str] = None
-    status: str = "NO_STATUS"
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -921,7 +930,7 @@ class Source:
 
     def _get_source_definition(self, source):
         if source.primaryData.table.name:
-            return PrimaryData(Location(source.primaryData.table.name))
+            return PrimaryData(SQLTable(source.primaryData.table.name))
         elif source.transformation:
             return self._get_transformation_definition(source)
         else:
@@ -963,8 +972,17 @@ class Source:
             self.is_transformation = SourceType.SQL_TRANSFORMATION.value
             self.definition = self.definition.query
         elif type(self.definition) == PrimaryData:
-            self.definition = self.definition.name()
-            self.is_transformation = SourceType.PRIMARY_SOURCE.value
+            if isinstance(self.definition.location, Directory):
+                self.definition = self.definition.path()
+                self.is_transformation = SourceType.DIRECTORY.value
+            elif isinstance(self.definition.location, SQLTable):
+                self.definition = self.definition.name()
+                self.is_transformation = SourceType.PRIMARY_SOURCE.value
+            else:
+                raise ValueError(
+                    f"Invalid Primary Data Type {self.definition.location}"
+                )
+
         db.insert_source(
             "source_variant",
             str(time.time()),

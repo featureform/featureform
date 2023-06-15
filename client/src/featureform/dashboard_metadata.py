@@ -24,6 +24,7 @@ from featureform import ResourceClient
 from .version import get_package_version
 from featureform.serving import LocalClientImpl
 
+
 path = os.path.join(os.path.dirname(__file__), "dashboard")
 localClientImpl = LocalClientImpl()
 

@@ -8,6 +8,7 @@ from typeguard import typechecked
 from typing import Dict, Tuple, Callable, List, Union
 import warnings
 import inspect
+from pathlib import Path
 
 import dill
 import pandas as pd
@@ -47,6 +48,7 @@ from .resources import (
     Source,
     PrimaryData,
     SQLTable,
+    Directory,
     SQLTransformation,
     DFTransformation,
     Entity,
@@ -74,6 +76,7 @@ from .search_local import search_local
 from .search import search
 from .enums import FileFormat
 from .names_generator import get_random_name
+from .file_utils import absolute_file_paths
 
 NameVariant = Tuple[str, str]
 
@@ -545,6 +548,7 @@ class LocalProvider:
         Returns:
             source (LocalSource): source
         """
+        path = os.path.abspath(path)
         if not FileFormat.is_supported(path):
             print(f"File format not supported: {path}")
             raise Exception(
@@ -561,6 +565,74 @@ class LocalProvider:
             name=name,
             variant=variant,
             location=SQLTable(path),
+            provider=self.__provider.name,
+            owner=owner,
+            description=description,
+            tags=tags,
+            properties=properties,
+        )
+        return LocalSource(
+            self.__registrar, name, owner, self.name(), path, variant, description
+        )
+
+    def register_directory(
+        self,
+        name,
+        path,
+        description="",
+        variant: str = "",
+        owner="",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
+        """Register a directory.
+        When registering a directory, files can be interacted with as a table with columns "filename" and "body".
+        For example:
+        filename                  |            body
+        --------------------------|---------------------------------------
+        featureform_docs.txt      | Featureform allows data scientists....
+        featureform_home.txt      | The Open-Source Virtual Feature Store....
+
+
+        **Examples**:
+        ```
+        pages = local.register_directory(
+            name="scraped_pages",
+            description="A directory of scraped web pages",
+            path="scraper/"
+        )
+        ```
+        Args:
+            name (str): Name for how to reference the directory
+            description (str): Description of the directory
+            path (str): Path to directory
+            variant (str): Directory variant
+            owner (str): Owner of the file
+
+        Returns:
+            source (LocalSource): source
+        """
+        path = os.path.abspath(path)
+        if not os.path.isdir(path):
+            raise Exception(f"Path {path} is not a directory")
+
+        for absolute_fn, _ in absolute_file_paths(path):
+            try:
+                Path(absolute_fn).read_text()
+            except Exception as e:
+                raise IOError(
+                    f"Cannot read file {absolute_fn}: {e}\nFile must be a text file"
+                )
+
+        if owner == "":
+            owner = self.__registrar.must_get_default_owner()
+        if variant == "":
+            variant = self.__registrar.get_run()
+        # Store the file as a source
+        self.__registrar.register_primary_data(
+            name=name,
+            variant=variant,
+            location=Directory(path),
             provider=self.__provider.name,
             owner=owner,
             description=description,
@@ -4193,7 +4265,7 @@ class ResourceClient:
 
     def _get_source_definition(self, source):
         if source.primaryData.table.name:
-            return PrimaryData(Location(source.primaryData.table.name))
+            return PrimaryData(SQLTable(source.primaryData.table.name))
         elif source.transformation:
             return self._get_transformation_definition(source)
         else:

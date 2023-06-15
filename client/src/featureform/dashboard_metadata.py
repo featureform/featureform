@@ -4,6 +4,7 @@ import json
 import importlib.resources as pkg_resources
 from .sqlite_metadata import SQLiteMetadata
 from .resources import SourceType
+import pandas as pd
 from .type_objects import (
     FeatureResource,
     FeatureVariantResource,
@@ -21,8 +22,10 @@ from .type_objects import (
 import os
 from featureform import ResourceClient
 from .version import get_package_version
+from featureform.serving import LocalClientImpl
 
 path = os.path.join(os.path.dirname(__file__), "dashboard")
+localClientImpl = LocalClientImpl()
 
 dashboard_app = Blueprint(
     "dashboard_app", __name__, static_folder=path + "/out/", static_url_path=""
@@ -65,6 +68,23 @@ def deliver_static(asset):
 @dashboard_app.route("/data/version")
 def version():
     return {"version": get_package_version()}
+
+
+@dashboard_app.route("/data/sourcedata", methods=["GET"])
+@cross_origin(allow_headers=["Content-Type"])
+def sourcedata():
+    name = request.args["name"]
+    variant = request.args["variant"]
+    source_data = {"columns": [], "rows": []}
+    df = localClientImpl.get_input_df(name, variant)
+    if isinstance(df, pd.Series):
+        df = df.to_frame()
+        df.reset_index(inplace=True)
+    for column in df.columns:
+        source_data["columns"].append(column)
+    for _, currentRow in df.iterrows():
+        source_data["rows"].append(currentRow.to_list())
+    return source_data
 
 
 def variant_organiser(allVariantList):

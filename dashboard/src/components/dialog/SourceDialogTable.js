@@ -64,7 +64,7 @@ export default function SourceDialogTable({ columns = [], rowList = [] }) {
                   data-testid={col + i}
                   align={i === 0 ? 'left' : 'right'}
                 >
-                  {col}
+                  {`${col}`}
                 </TableCell>
               ))}
             </TableRow>
@@ -88,7 +88,7 @@ export default function SourceDialogTable({ columns = [], rowList = [] }) {
                         fontSize={11}
                         style={textEllipsis}
                       >
-                        {row}
+                        {`${row}`}
                       </Typography>
                     </Tooltip>
                   </TableCell>

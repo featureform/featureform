@@ -78,20 +78,34 @@ def sourcedata():
     n = 0
     name = request.args["name"]
     variant = request.args["variant"]
-    source_data = {"columns": [], "rows": []}
-    df = localClientImpl.get_input_df(name, variant)
-    if isinstance(df, pd.Series):
-        df = df.to_frame()
-        df.reset_index(inplace=True)
-    for column in df.columns:
-        source_data["columns"].append(column)
-    for _, currentRow in df.iterrows():
-        n = n + 1
-        if n > limit:
-            break
-        currentRow = currentRow.fillna("NaN")
-        source_data["rows"].append(currentRow.to_list())
-    return json.dumps(source_data, allow_nan=False)
+    if name == "" or variant == "":
+        error = f"GetSourceData - Could not find the name({name}) or variant({variant}) query parameters"
+        response = Response(
+            response=json.dumps(error), status=400, mimetype="application/json"
+        )
+        return response
+
+    try:
+        source_data = {"columns": [], "rows": []}
+        df = localClientImpl.get_input_df(name, variant)
+        if isinstance(df, pd.Series):
+            df = df.to_frame()
+            df.reset_index(inplace=True)
+        for column in df.columns:
+            source_data["columns"].append(column)
+        for _, currentRow in df.iterrows():
+            n = n + 1
+            if n > limit:
+                break
+            currentRow = currentRow.fillna("NaN")
+            source_data["rows"].append(currentRow.to_list())
+        return json.dumps(source_data, allow_nan=False)
+    except ValueError as e:
+        error = f"Error 500: {e}"
+        response = Response(
+            response=json.dumps(error), status=500, mimetype="application/json"
+        )
+        return response
 
 
 def variant_organiser(allVariantList):

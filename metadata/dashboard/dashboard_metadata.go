@@ -983,7 +983,7 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	var limit int64 = 150
 	response := SourceDataResponse{}
 	if name == "" || variant == "" {
-		fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData - Could not find the name or variant query parameters"}
+		fetchError := &FetchError{StatusCode: 400, Type: "GetSourceData - Could not find the name or variant query parameters"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return

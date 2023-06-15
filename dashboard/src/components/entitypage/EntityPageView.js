@@ -486,7 +486,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                         <SourceDialog
                           api={api}
                           sourceName={name}
-                          sourceVariant='default'
+                          sourceVariant={variant}
                         />
                       </div>
                     )}

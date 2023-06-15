@@ -885,7 +885,6 @@ class Source:
     tags: list
     properties: dict
     variant: str
-    is_directory: bool = False
     status: str = "NO_STATUS"
     schedule: str = ""
     schedule_obj: Schedule = None
@@ -973,10 +972,10 @@ class Source:
             self.is_transformation = SourceType.SQL_TRANSFORMATION.value
             self.definition = self.definition.query
         elif type(self.definition) == PrimaryData:
-            if self.is_directory:
+            if isinstance(self.definition.location, Directory):
                 self.definition = self.definition.path()
                 self.is_transformation = SourceType.DIRECTORY.value
-            else:
+            elif isinstance(self.definition.location, PrimaryData):
                 self.definition = self.definition.name()
                 self.is_transformation = SourceType.PRIMARY_SOURCE.value
 

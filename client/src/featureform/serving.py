@@ -18,6 +18,7 @@ import pandas as pd
 from pandas.core.generic import NDFrame
 from pandasql import sqldf
 from featureform.proto import serving_pb2
+from .file_utils import absolute_file_paths
 
 from .local_cache import LocalCache
 from .local_utils import (
@@ -403,22 +404,17 @@ class LocalClientImpl:
         if not os.path.isdir(directory):
             raise Exception(f"Path {directory} is not a directory")
 
-        def absolute_file_paths(directory):
-            for dirpath, _, filenames in os.walk(directory):
-                for f in filenames:
-                    yield os.path.abspath(os.path.join(dirpath, f)), f
-
         file_names = []
         file_body = []
         for absolute_fn, relative_fn in absolute_file_paths(directory):
             file_names.append(relative_fn)
-            f = open(absolute_fn, "r")
-            try:
-                file_body.append(f.read())
-            except Exception as e:
-                raise Exception(
-                    f"Cannot read file {absolute_fn}: {e}\nFiles must be text files"
-                )
+            with open(absolute_fn, "r") as f:
+                try:
+                    file_body.append(f.read())
+                except Exception as e:
+                    raise Exception(
+                        f"Cannot read file {absolute_fn}: {e}\nFiles must be text files"
+                    )
         df = pd.DataFrame(data={"filename": file_names, "body": file_body})
         return df
 

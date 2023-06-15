@@ -86,6 +86,14 @@ class RedisConfig:
 @typechecked
 @dataclass
 class AWSCredentials:
+    """
+    AWS Credentials for accessing AWS Services
+
+    Attributes:
+        aws_access_key_id (str): AWS Access Key ID
+        aws_secret_access_key (str): AWS Secret Access Key
+    """
+
     def __init__(
         self,
         aws_access_key_id: str = "",

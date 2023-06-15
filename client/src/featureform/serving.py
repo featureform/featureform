@@ -51,6 +51,21 @@ def check_feature_type(features):
 
 
 class ServingClient:
+    """
+    The serving client is used to retrieve training sets and features for training and serving purposes.
+    **Using the Serving Client:**
+    ``` py
+    import featureform as ff
+    from featureform import ServingClient
+    client = ServingClient(host="localhost:8000")
+    # example:
+    dataset = client.training_set("fraud_training", "quickstart")
+    training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
+    for feature_batch in training_dataset:
+        # Train model
+    ```
+    """
+
     def __init__(self, host=None, local=False, insecure=False, cert_path=None):
         # This line ensures that the warning is only raised if ServingClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated

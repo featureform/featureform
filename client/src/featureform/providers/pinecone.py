@@ -77,9 +77,9 @@ class PineconeOnlineStore(VectorStore):
             vector_type=entity_type,
         )
 
-    def table_exists(self, name, variant):
+    def table_exists(self, feature: str, variant: str) -> bool:
         try:
-            self.client.describe_index(self._create_index_name(name, variant))
+            self.client.describe_index(self._create_index_name(feature, variant))
             return True
         except pinecone.core.client.exceptions.NotFoundException:
             return False
@@ -89,9 +89,6 @@ class PineconeOnlineStore(VectorStore):
         self.client.delete_index(name=index_name)
 
     def delete_table(self, feature: str, variant: str):
-        pass
-
-    def table_exists(self, feature: str, variant: str) -> bool:
         pass
 
     def close(self):

@@ -10,7 +10,7 @@ import SourceDialogTable from './SourceDialogTable';
 export default function SourceDialog({
   api,
   sourceName = '',
-  sourceVariant = 'default',
+  sourceVariant = '',
 }) {
   const [open, setOpen] = React.useState(false);
   const [columns, setColumns] = React.useState([]);
@@ -19,7 +19,7 @@ export default function SourceDialog({
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(async () => {
-    if (sourceName !== '' && open) {
+    if (sourceName && sourceVariant && open) {
       setIsLoading(true);
       let response = await api.fetchSourceModalData(sourceName, sourceVariant);
       if (response?.columns && response?.rows) {

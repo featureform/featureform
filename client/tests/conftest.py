@@ -29,6 +29,7 @@ from featureform.resources import (
     Source,
     SQLTransformation,
     DFTransformation,
+    SQLTable,
 )
 from featureform.enums import FileFormat
 import featureform as ff
@@ -93,7 +94,7 @@ def primary_dataset(ff_registrar):
     src = Source(
         name="primary",
         variant="default",
-        definition=PrimaryData(location=Location("tableName")),
+        definition=PrimaryData(location=SQLTable("tableName")),
         owner="tester",
         provider="spark",
         description="doc string",

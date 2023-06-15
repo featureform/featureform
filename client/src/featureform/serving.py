@@ -18,6 +18,7 @@ import pandas as pd
 from pandas.core.generic import NDFrame
 from pandasql import sqldf
 from featureform.proto import serving_pb2
+from .file_utils import absolute_file_paths
 
 from .local_cache import LocalCache
 from .local_utils import (
@@ -387,8 +388,34 @@ class LocalClientImpl:
             else:
                 raise ValueError(f"Unsupported file format for {file_path}")
             return df
+        elif (
+            self.db.is_transformation(source_name, source_variant)
+            == SourceType.DIRECTORY
+        ):
+            source = self.db.get_source_variant(source_name, source_variant)
+            directory = source["definition"]
+            return self.read_directory(directory)
+
         else:
             df = self.process_transformation(source_name, source_variant)
+        return df
+
+    def read_directory(self, directory):
+        if not os.path.isdir(directory):
+            raise Exception(f"Path {directory} is not a directory")
+
+        file_names = []
+        file_body = []
+        for absolute_fn, relative_fn in absolute_file_paths(directory):
+            file_names.append(relative_fn)
+            with open(absolute_fn, "r") as f:
+                try:
+                    file_body.append(f.read())
+                except Exception as e:
+                    raise Exception(
+                        f"Cannot read file {absolute_fn}: {e}\nFiles must be text files"
+                    )
+        df = pd.DataFrame(data={"filename": file_names, "body": file_body})
         return df
 
     def sql_transformation(self, query):

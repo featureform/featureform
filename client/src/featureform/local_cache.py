@@ -9,6 +9,7 @@ from featureform.local_utils import get_sql_transformation_sources
 from featureform.resources import SourceType  # fix to do client.source.import
 from pandas.core.generic import NDFrame
 from typeguard import typechecked
+from .file_utils import absolute_file_paths
 
 
 class LocalCache:
@@ -181,9 +182,12 @@ class LocalCache:
             dependencies = json.loads(source["inputs"])
             for name, variant in dependencies:
                 sources.update(self.get_source_files_for_source(name, variant))
+        elif transform_type == SourceType.DIRECTORY.value:
+            path = source["definition"]
+            for absolute_file, _ in absolute_file_paths(path):
+                sources.add(absolute_file)
         else:
             raise Exception(f"Unknown source type: {transform_type}")
-
         return sources
 
     def _invalidate_cache_if_source_files_changed(

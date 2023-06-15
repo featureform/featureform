@@ -79,7 +79,7 @@ def sourcedata():
     name = request.args["name"]
     variant = request.args["variant"]
     if name == "" or variant == "":
-        error = f"GetSourceData - Could not find the name({name}) or variant({variant}) query parameters"
+        error = f"Error 400: GetSourceData - Could not find the name({name}) or variant({variant}) query parameters"
         response = Response(
             response=json.dumps(error), status=400, mimetype="application/json"
         )

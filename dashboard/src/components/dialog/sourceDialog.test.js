@@ -45,8 +45,14 @@ describe('Source Table Dialog Tests', () => {
     fetchSourceModalData: jest.fn().mockResolvedValue(ERROR_MSG),
   };
 
-  const getTestBody = (apiParam = apiDataMock, name = DEFAULT_NAME) => {
-    const testBody = <SourceDialog api={apiParam} sourceName={name} />;
+  const getTestBody = (
+    apiParam = apiDataMock,
+    name = DEFAULT_NAME,
+    variant = DEFAULT_VARIANT
+  ) => {
+    const testBody = (
+      <SourceDialog api={apiParam} sourceName={name} sourceVariant={variant} />
+    );
     return { testBody, apiParam, name };
   };
 

@@ -980,7 +980,7 @@ type SourceDataResponse struct {
 func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	name := c.Query("name")
 	variant := c.Query("variant")
-	var limit int64 = 50
+	var limit int64 = 150
 	response := SourceDataResponse{}
 	if name == "" || variant == "" {
 		fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData - Could not find the name or variant query parameters"}

@@ -121,7 +121,9 @@ class ServingClient:
         """
         return self.impl.training_set(name, variant, include_label_timestamp, model)
 
-    def features(self, features, entities, model: Union[str, Model] = None):
+    def features(
+        self, features, entities, model: Union[str, Model] = None, params: list = None
+    ):
         """Returns the feature values for the specified entities.
 
         **Examples**:
@@ -138,7 +140,7 @@ class ServingClient:
             features (numpy.Array): An Numpy array of feature values in the order given by the inputs
         """
         features = check_feature_type(features)
-        return self.impl.features(features, entities, model)
+        return self.impl.features(features, entities, model, params)
 
 
 class HostedClientImpl:
@@ -222,7 +224,7 @@ class HostedClientImpl:
         resp = self._stub.SourceColumns(req)
         return resp.columns
 
-    def _nearest(self, name, variant, vector, k):
+    def nearest(self, name, variant, vector, k):
         id = serving_pb2.FeatureID(name=name, version=variant)
         vec = serving_pb2.Vector32(value=vector)
         req = serving_pb2.NearestRequest(id=id, vector=vec, k=k)
@@ -787,7 +789,7 @@ class LocalClientImpl:
         else:
             return df
 
-    def _nearest(self, name, variant, vector, k):
+    def nearest(self, name, variant, vector, k):
         feature = self.db.get_feature_variant(name, variant)
         self.compute_feature(name, variant, feature["entity"])
         provider_obj = metadata.get_provider(feature["provider"])

@@ -975,9 +975,13 @@ class Source:
             if isinstance(self.definition.location, Directory):
                 self.definition = self.definition.path()
                 self.is_transformation = SourceType.DIRECTORY.value
-            elif isinstance(self.definition.location, PrimaryData):
+            elif isinstance(self.definition.location, SQLTable):
                 self.definition = self.definition.name()
                 self.is_transformation = SourceType.PRIMARY_SOURCE.value
+            else:
+                raise ValueError(
+                    f"Invalid Primary Data Type {self.definition.location}"
+                )
 
         db.insert_source(
             "source_variant",

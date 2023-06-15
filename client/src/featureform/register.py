@@ -8,6 +8,7 @@ from typeguard import typechecked
 from typing import Dict, Tuple, Callable, List, Union
 import warnings
 import inspect
+from pathlib import Path
 
 import dill
 import pandas as pd
@@ -75,6 +76,7 @@ from .search_local import search_local
 from .search import search
 from .enums import FileFormat
 from .names_generator import get_random_name
+from .file_utils import absolute_file_paths
 
 NameVariant = Tuple[str, str]
 
@@ -613,6 +615,14 @@ class LocalProvider:
         path = os.path.abspath(path)
         if not os.path.isdir(path):
             raise Exception(f"Path {path} is not a directory")
+
+        for absolute_fn, _ in absolute_file_paths(path):
+            try:
+                Path(absolute_fn).read_text()
+            except Exception as e:
+                raise IOError(
+                    f"Cannot read file {absolute_fn}: {e}\nFile must be a text file"
+                )
 
         if owner == "":
             owner = self.__registrar.must_get_default_owner()

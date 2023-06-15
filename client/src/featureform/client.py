@@ -26,6 +26,7 @@ class Client(ResourceClient, ServingClient):
 
     # Example 2: Compute a dataframe from a registered source
     transactions_df = client.dataframe("transactions", "quickstart")
+    ```
     """
 
     def __init__(
@@ -65,6 +66,7 @@ class Client(ResourceClient, ServingClient):
         transactions_df = client.dataframe("transactions", "quickstart")
 
         avg_user_transaction_df = transactions_df.groupby("CustomerID")["TransactionAmount"].mean()
+        ```
         """
         if isinstance(
             source, (SourceRegistrar, LocalSource, SubscriptableTransformation)
@@ -80,6 +82,22 @@ class Client(ResourceClient, ServingClient):
         return self.impl._get_source_as_df(name, variant, limit)
 
     def nearest(self, name, variant, vector, k):
+        """
+        Query the K nearest neighbors of a provider vector in the index of a registered feature variant
+
+        Args:
+            name (str): Feature name
+            variant (str): Feature variant
+            vector (List[float]): Query vector
+            k (int): Number of nearest neighbors to return
+
+        **Example:**
+        ```py title="definitions.py"
+        # Get the 5 nearest neighbors of the vector [0.1, 0.2, 0.3] in the index of the feature "my_feature" with variant "my_variant"
+        nearest_neighbors = client.nearest("my_feature", "my_variant", [0.1, 0.2, 0.3], 5)
+        print(nearest_neighbors) # prints a list of entities (e.g. ["entity1", "entity2", "entity3", "entity4", "entity5"])
+        ```
+        """
         if k < 1:
             raise ValueError(f"k must be a positive integer")
         return self.impl._nearest(name, variant, vector, k)

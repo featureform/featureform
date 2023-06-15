@@ -632,4 +632,6 @@ def test_read_directory():
     expected = pd.DataFrame(
         data={"filename": ["c.txt", "b.txt", "a.txt"], "body": ["Sup", "Hi", "Hello"]}
     )
+    expected = expected.sort_values(by=expected.columns.tolist()).reset_index(drop=True)
+    df = df.sort_values(by=df.columns.tolist()).reset_index(drop=True)
     assert_frame_equal(expected, df)

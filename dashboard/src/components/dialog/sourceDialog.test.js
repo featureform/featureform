@@ -71,7 +71,9 @@ describe('Source Table Dialog Tests', () => {
       name,
       DEFAULT_VARIANT
     );
-    expect(foundName.textContent).toBe(DEFAULT_NAME.toUpperCase());
+    expect(foundName.textContent).toBe(
+      `${DEFAULT_NAME.toUpperCase()} - ${DEFAULT_VARIANT}`
+    );
     expect(foundName.nodeName).toBe(H2_NODE);
   });
 

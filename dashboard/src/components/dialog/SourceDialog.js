@@ -58,13 +58,11 @@ export default function SourceDialog({
         aria-describedby='dialog-description'
       >
         <DialogTitle id='dialog-title' data-testid={'sourceTableTitleId'}>
-          {sourceName.toUpperCase()}
+          {`${sourceName.toUpperCase()} - ${sourceVariant}`}
         </DialogTitle>
         <DialogContent>
           {isLoading ? (
-            <Box
-              sx={{ display: 'flex', margin: 'auto', justifyContent: 'center' }}
-            >
+            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
               <CircularProgress />
             </Box>
           ) : error === '' ? (

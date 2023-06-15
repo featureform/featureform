@@ -28,8 +28,10 @@ excluded_files = [
     "local_utils.py",
     "names_generator.py",
     "parse.py",
+    "search.py",
     "search_local.py",
     "status_display.py",
+    "local_cache.py",
     "version.py",
 ]
 

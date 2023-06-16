@@ -3381,16 +3381,40 @@ class Registrar:
         if len(self.__resources) == 0:
             return "No resources to be registered"
 
-        resources = []
+        resources = [["Type", "Name", "Variant"]]
         for resource in self.__resources:
             if hasattr(resource, "variant"):
                 resources.append(
-                    f"{resource.__class__.__name__} - {resource.name} ({resource.variant})"
+                    [resource.__class__.__name__, resource.name, resource.variant]
                 )
             else:
-                resources.append(f"{resource.__class__.__name__} - {resource.name}")
+                resources.append([resource.__class__.__name__, resource.name, ""])
 
-        return f"The resources to be registered: \n {resources}"
+        print("Resources to be registered:")
+        self.__print_state(resources)
+
+    def __print_state(self, data):
+        # Calculate the maximum width for each column
+        max_widths = [max(len(str(item)) for item in col) for col in zip(*data)]
+
+        # Format the table headers
+        headers = " | ".join(
+            f"{header:{width}}" for header, width in zip(data[0], max_widths)
+        )
+
+        # Generate the separator line
+        separator = "-" * len(headers)
+
+        # Format the table rows
+        rows = [
+            f" | ".join(f"{data[i][j]:{max_widths[j]}}" for j in range(len(data[i])))
+            for i in range(1, len(data))
+        ]
+
+        # Combine the headers, separator, and rows
+        table = headers + "\n" + separator + "\n" + "\n".join(rows)
+
+        print(table)
 
     def register_entity(
         self,

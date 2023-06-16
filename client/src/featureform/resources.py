@@ -62,7 +62,7 @@ class Schedule:
 
 @typechecked
 @dataclass
-class RedisConfig:    
+class RedisConfig:
     host: str
     port: int
     password: str
@@ -128,7 +128,7 @@ class GCPCredentials:
         project_id (str): GCP Project ID
         credentials_path (str): Path to GCP Credentials JSON file
     """
-    
+
     def __init__(
         self,
         project_id: str,

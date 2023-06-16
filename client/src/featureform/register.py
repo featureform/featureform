@@ -3370,7 +3370,7 @@ class Registrar:
     def clear_state(self):
         self.__state = ResourceState()
         self.__resources = []
-    
+
     def get_state(self):
         """
         Get the state of the resources to be registered.
@@ -3384,10 +3384,12 @@ class Registrar:
         resources = []
         for resource in self.__resources:
             if hasattr(resource, "variant"):
-                resources.append(f"{resource.__class__.__name__} - {resource.name} ({resource.variant})")
+                resources.append(
+                    f"{resource.__class__.__name__} - {resource.name} ({resource.variant})"
+                )
             else:
                 resources.append(f"{resource.__class__.__name__} - {resource.name}")
-        
+
         return f"The resources to be registered: \n {resources}"
 
     def register_entity(

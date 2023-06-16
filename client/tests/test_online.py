@@ -859,4 +859,7 @@ def test_online_vector_stores(case):
     results = table.nearest(feature, variant, query_vector, 2)
     assert len(results) == 2 and results == ["Investor's Business Daily", "Zacks"]
 
+    results_with_nparray = table.nearest(feature, variant, np.array(query_vector), 2)
+    assert len(results_with_nparray) == 2 and results_with_nparray == ["Investor's Business Daily", "Zacks"]
+
     store.delete_index(feature, variant)

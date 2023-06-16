@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import List, Any, Union
+
+import numpy as np
+
 from ..enums import ScalarType
 
 
@@ -71,7 +74,7 @@ class OnlineStoreTable(ABC):
 
 class VectorStoreTable(OnlineStoreTable, ABC):
     @abstractmethod
-    def nearest(self, feature: str, variant: str, vector: List[float], k: int):
+    def nearest(self, feature: str, variant: str, vector: Union[List[float], np.ndarray], k: int):
         pass
 
 

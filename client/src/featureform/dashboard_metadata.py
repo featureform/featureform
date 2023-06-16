@@ -73,7 +73,7 @@ def version():
 
 @dashboard_app.route("/data/sourcedata", methods=["GET"])
 @cross_origin(allow_headers=["Content-Type"])
-def sourcedata():
+def source_data():
     limit = 150
     n = 0
     name = request.args["name"]
@@ -86,6 +86,7 @@ def sourcedata():
         return response
 
     try:
+        localClientImpl = LocalClientImpl()
         source_data = {"columns": [], "rows": []}
         df = localClientImpl.get_input_df(name, variant)
         if isinstance(df, pd.Series):

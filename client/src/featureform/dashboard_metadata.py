@@ -297,7 +297,7 @@ def source_variant(variantData):
             if variantRow["properties"] is not None
             else {},
         ).toDictionary()
-        allVariantList.append(variantRow["name"])
+        allVariantList.append(variantRow["variant"])
         variantDict[variantRow["variant"]] = sourceVariant
         variants.append(sourceVariant)
 

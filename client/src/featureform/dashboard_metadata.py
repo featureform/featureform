@@ -107,6 +107,11 @@ def source_data():
             response=json.dumps(error), status=500, mimetype="application/json"
         )
         return response
+    except Exception as e:
+        error = f"Error 500: {e}"
+        return Response(
+            response=json.dumps(error), status=500, mimetype="application/json"
+        )
 
 
 def variant_organiser(allVariantList):

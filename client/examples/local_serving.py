@@ -11,5 +11,5 @@ for r in training_set:
         break
 
 client = ff.Client(local=True)
-fpf = client.features([("avg_transactions", "courageous_jones")], {"user": "C1410989"})
+fpf = client.features([("avg_transactions", "quickstart")], {"user": "C1010012"})
 print(fpf)

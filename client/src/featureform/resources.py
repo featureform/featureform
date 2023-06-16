@@ -697,7 +697,7 @@ class LocalConfig:
         return "local"
 
     def type(self) -> str:
-        return "local"
+        return "LOCAL_ONLINE"
 
     def serialize(self) -> bytes:
         return bytes("", "utf-8")

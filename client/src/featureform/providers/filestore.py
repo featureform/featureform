@@ -51,7 +51,7 @@ class LocalFileTable(OnlineStoreTable):
         except IndexError:
             raise ValueError(
                 f"Could not find value for feature: {self.name} ({self.variant}) for: {key}"
-            )
+            ) from None
         if self.stype == "datetime64[ns]":
             return pd.to_datetime(value)
         return value
@@ -80,17 +80,21 @@ class LocalFileStore(OnlineStore):
         self.__set_type(name, variant, entity_type)
 
         table = LocalFileTable(
-            name, variant, self.path, self.__convert_type(entity_type)
+            name, variant, self.path, self.__convert_type(entity_type.scalar())
         )
         return table
 
-    def __set_type(self, name, variant, entity_type: ScalarType):
+    def __set_type(self, name, variant, entity_type: ValueType):
         header = True
         if os.path.exists(self.type_table):
             header = False
 
         types_df = pd.DataFrame(
-            data={"name": [name], "variant": [variant], "type": [entity_type.value]}
+            data={
+                "name": [name],
+                "variant": [variant],
+                "type": [entity_type.scalar().value],
+            }
         ).astype({"name": "string", "variant": "string", "type": "string"})
 
         types_df.to_csv(self.type_table, mode="a", header=header, index=False)

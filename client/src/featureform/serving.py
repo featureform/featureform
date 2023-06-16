@@ -700,6 +700,8 @@ class LocalClientImpl:
             total, total, prefix="Updating Feature Table:", suffix="Complete", length=50
         )
         print("\n")
+        if provider_type == "LOCAL_ONLINE":
+            table.flush()
 
     @staticmethod
     def _file_has_changed(last_updated_at, file_path):

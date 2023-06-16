@@ -171,6 +171,6 @@ We can serve features in production once we deploy our trained model as well.
 import featureform as ff
 
 client = ff.Client(local=True)
-fpf = client.features([("avg_transactions", "quickstart")], {"user": "C1410926"})
+fpf = client.features([("avg_transactions", "quickstart")], {"user": "C1010012"})
 # Run features through model
 ```

@@ -100,4 +100,4 @@ class Client(ResourceClient, ServingClient):
         """
         if k < 1:
             raise ValueError(f"k must be a positive integer")
-        return self.impl._nearest(name, variant, vector, k)
+        return self.impl.nearest(name, variant, vector, k)

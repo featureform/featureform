@@ -23,6 +23,7 @@ from .sqlite_metadata import SQLiteMetadata
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
 from .resources import (
+    PineconeConfig,
     ScalarType,
     Model,
     ResourceState,
@@ -69,6 +70,7 @@ from .resources import (
     K8sResourceSpecs,
     FilePrefix,
     OnDemandFeature,
+    WeaviateConfig,
 )
 
 from .proto import metadata_pb2_grpc as ff_grpc
@@ -1998,6 +2000,99 @@ class Registrar:
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
 
+    def register_pinecone(
+        self,
+        name: str,
+        project_id: str,
+        environment: str,
+        api_key: str,
+        description: str = "",
+        team: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
+        """Register a Pinecone provider.
+        **Examples**:
+        ```
+        pinecone = ff.register_pinecone(
+            name="pinecone-quickstart",
+            project_id="2g13ek7",
+            environment="us-west4-gcp-free",
+            api_key="e4egd064-1vb6-497f-aadf-7547atbb517f"
+            description="A Pinecone project for we Featureform embeddings"
+        )
+        ```
+        Args:
+            name (str): Name of Pinecone provider to be registered
+            project_id (str): Pinecone project id
+            environment (str): Pinecone environment
+            api_key (str): Pinecone api key
+            description (str): Description of Pinecone provider to be registered
+            team (str): Name of team
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
+        Returns:
+            pinecone (OnlineProvider): Provider
+        """
+        config = PineconeConfig(
+            project_id=project_id, environment=environment, api_key=api_key
+        )
+        provider = Provider(
+            name=name,
+            function="ONLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
+        self.__resources.append(provider)
+        return OnlineProvider(self, provider)
+
+    def register_weaviate(
+        self,
+        name: str,
+        url: str,
+        api_key: str,
+        description: str = "",
+        team: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
+        """Register a Weaviate provider.
+        **Examples**:
+        ```
+        weaviate = ff.register_weaviate(
+            name="weaviate-quickstart",
+            url="https://<CLUSTER NAME>.weaviate.network",
+            api_key="<API KEY>"
+            description="A Weaviate project for using embeddings in Featureform"
+        )
+        ```
+        Args:
+            name (str): Name of Weaviate provider to be registered
+            url (str): Endpoint of Weaviate cluster, either in the cloud or via another deployment operation
+            api_key (str): Weaviate api key
+            description (str): Description of Weaviate provider to be registered
+            team (str): Name of team
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
+        Returns:
+            weaviate (OnlineProvider): Provider
+        """
+        config = WeaviateConfig(url=url, api_key=api_key)
+        provider = Provider(
+            name=name,
+            function="ONLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
+        self.__resources.append(provider)
+        return OnlineProvider(self, provider)
+
     def register_blob_store(
         self,
         name: str,
@@ -3389,6 +3484,14 @@ class Registrar:
             variant = feature.get("variant", "")
             if variant == "":
                 variant = self.__run
+            if not ScalarType.has_value(feature["type"]) and not isinstance(
+                feature["type"], ScalarType
+            ):
+                raise ValueError(
+                    f"Invalid type for feature {feature['name']} ({variant}). Must be a ScalarType or one of {ScalarType.get_values()}"
+                )
+            if isinstance(feature["type"], ScalarType):
+                feature["type"] = feature["type"].value
             desc = feature.get("description", "")
             feature_tags = feature.get("tags", [])
             feature_properties = feature.get("properties", {})
@@ -3419,6 +3522,14 @@ class Registrar:
             variant = label.get("variant", "")
             if variant == "":
                 variant = self.__run
+            if not ScalarType.has_value(label["type"]) and not isinstance(
+                label["type"], ScalarType
+            ):
+                raise ValueError(
+                    f"Invalid type for label {label['name']} ({variant}). Must be a ScalarType or one of {ScalarType.get_values()}"
+                )
+            if isinstance(label["type"], ScalarType):
+                label["type"] = label["type"].value
             desc = label.get("description", "")
             label_tags = label.get("tags", [])
             label_properties = label.get("properties", {})
@@ -5007,7 +5118,7 @@ class EmbeddingColumnResource(ColumnResource):
         dims: int,
         vector_db: Union[str, OnlineProvider, FileStoreProvider],
         entity: Union[Entity, str] = "",
-        variant="default",
+        variant="",
         owner: str = "",
         timestamp_column: str = "",
         description: str = "",
@@ -5088,6 +5199,8 @@ set_run = global_registrar.set_run
 get_run = global_registrar.get_run
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
+register_pinecone = global_registrar.register_pinecone
+register_weaviate = global_registrar.register_weaviate
 register_blob_store = global_registrar.register_blob_store
 register_bigquery = global_registrar.register_bigquery
 register_firestore = global_registrar.register_firestore

@@ -174,7 +174,8 @@ def version(local):
     )
 
 
-@cli.command()
+@click.command(name="dash")
+@click.command(name="dashboard")
 def dash():
     app.run(threaded=True, port=os.getenv("LOCALMODE_DASHBOARD_PORT", 3000))
 

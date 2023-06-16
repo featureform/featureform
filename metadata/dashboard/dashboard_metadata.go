@@ -9,9 +9,15 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strings"
 
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata/search"
+	"github.com/featureform/proto"
+	"github.com/featureform/provider"
+	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/serving"
+	"github.com/pkg/errors"
 
 	"github.com/featureform/metadata"
 	"github.com/gin-contrib/cors"
@@ -967,6 +973,107 @@ func (m *MetadataServer) GetVersionMap(c *gin.Context) {
 	c.JSON(200, versionMap)
 }
 
+type SourceDataResponse struct {
+	Columns []string   `json:"columns"`
+	Rows    [][]string `json:"rows"`
+}
+
+func (m *MetadataServer) GetSourceData(c *gin.Context) {
+	name := c.Query("name")
+	variant := c.Query("variant")
+	var limit int64 = 150
+	response := SourceDataResponse{}
+	if name == "" || variant == "" {
+		fetchError := &FetchError{StatusCode: 400, Type: "GetSourceData - Could not find the name or variant query parameters"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	iter, err := m.getSourceDataIterator(name, variant, limit)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData - getSourceDataIterator() threw an exception"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	for _, columnName := range iter.Columns() {
+		response.Columns = append(response.Columns, strings.ReplaceAll(columnName, "\"", ""))
+	}
+
+	for iter.Next() {
+		sRow, err := serving.SerializedSourceRow(iter.Values())
+		if err != nil {
+			fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData"}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
+			return
+		}
+		dataRow := []string{}
+		for _, rowElement := range sRow.Rows {
+			dataRow = append(dataRow, extractRowValue(rowElement))
+		}
+		response.Rows = append(response.Rows, dataRow)
+	}
+
+	if err := iter.Err(); err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	c.JSON(200, response)
+}
+
+/*
+example proto.value args:
+double_value:2544
+str_value:"C7332112"
+*/
+func extractRowValue(rowString *proto.Value) string {
+	split := strings.Split(rowString.String(), ":")
+	result := strings.ReplaceAll(split[1], "\"", "")
+	return result
+}
+
+func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64) (provider.GenericTableIterator, error) {
+	ctx := context.TODO()
+	m.logger.Infow("Getting Source Variant Iterator", "name", name, "variant", variant)
+	sv, err := m.client.GetSourceVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get source variant")
+	}
+	providerEntry, err := sv.FetchProvider(m.client, ctx)
+	m.logger.Debugw("Fetched Source Variant Provider", "name", providerEntry.Name(), "type", providerEntry.Type())
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get fetch provider")
+	}
+	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get provider")
+	}
+	store, err := p.AsOfflineStore()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not open as offline store")
+	}
+	var primary provider.PrimaryTable
+	var providerErr error
+	if sv.IsTransformation() {
+		t, err := store.GetTransformationTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Transformation})
+		if err != nil {
+			providerErr = err
+		} else {
+			providerErr = nil
+			primary = t.(provider.PrimaryTable)
+		}
+	} else {
+		primary, providerErr = store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary})
+	}
+	if providerErr != nil {
+		return nil, errors.Wrap(err, "could not get primary table")
+	}
+	return primary.IterateSegment(limit)
+}
+
 func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
@@ -975,6 +1082,7 @@ func (m *MetadataServer) Start(port string) {
 	router.GET("/data/:type/:resource", m.GetMetadata)
 	router.GET("/data/search", m.GetSearch)
 	router.GET("/data/version", m.GetVersionMap)
+	router.GET("/data/sourcedata", m.GetSourceData)
 
 	router.Run(port)
 }

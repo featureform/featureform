@@ -108,7 +108,7 @@ func (serv *FeatureServer) SourceData(req *pb.SourceDataRequest, stream pb.Featu
 		return err
 	}
 	for iter.Next() {
-		sRow, err := serializedSourceRow(iter.Values())
+		sRow, err := SerializedSourceRow(iter.Values())
 		if err != nil {
 			return err
 		}

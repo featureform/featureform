@@ -4,6 +4,7 @@ import json
 import importlib.resources as pkg_resources
 from .sqlite_metadata import SQLiteMetadata
 from .resources import SourceType
+import pandas as pd
 from .type_objects import (
     FeatureResource,
     FeatureVariantResource,
@@ -21,9 +22,11 @@ from .type_objects import (
 import os
 from featureform import ResourceClient
 from .version import get_package_version
+from featureform.serving import LocalClientImpl
 
 
 path = os.path.join(os.path.dirname(__file__), "dashboard")
+localClientImpl = LocalClientImpl()
 
 dashboard_app = Blueprint(
     "dashboard_app", __name__, static_folder=path + "/out/", static_url_path=""
@@ -66,6 +69,44 @@ def deliver_static(asset):
 @dashboard_app.route("/data/version")
 def version():
     return {"version": get_package_version()}
+
+
+@dashboard_app.route("/data/sourcedata", methods=["GET"])
+@cross_origin(allow_headers=["Content-Type"])
+def source_data():
+    limit = 150
+    n = 0
+    name = request.args["name"]
+    variant = request.args["variant"]
+    if name == "" or variant == "":
+        error = f"Error 400: GetSourceData - Could not find the name({name}) or variant({variant}) query parameters"
+        response = Response(
+            response=json.dumps(error), status=400, mimetype="application/json"
+        )
+        return response
+
+    try:
+        localClientImpl = LocalClientImpl()
+        source_data = {"columns": [], "rows": []}
+        df = localClientImpl.get_input_df(name, variant)
+        if isinstance(df, pd.Series):
+            df = df.to_frame()
+            df.reset_index(inplace=True)
+        for column in df.columns:
+            source_data["columns"].append(column)
+        for _, currentRow in df.iterrows():
+            n = n + 1
+            if n > limit:
+                break
+            currentRow = currentRow.fillna("NaN")
+            source_data["rows"].append(currentRow.to_list())
+        return json.dumps(source_data, allow_nan=False)
+    except ValueError as e:
+        error = f"Error 500: {e}"
+        response = Response(
+            response=json.dumps(error), status=500, mimetype="application/json"
+        )
+        return response
 
 
 def variant_organiser(allVariantList):

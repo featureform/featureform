@@ -68,6 +68,7 @@ const EntityPage = ({
         <NotFoundPage />
       ) : (
         <EntityPageView
+          api={api}
           entity={entityPage}
           setVariant={props.setVariant}
           activeVariants={activeVariants}

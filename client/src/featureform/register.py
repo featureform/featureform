@@ -3274,6 +3274,26 @@ class Registrar:
 
     def clear_state(self):
         self.__state = ResourceState()
+        self.__resources = []
+    
+    def get_state(self):
+        """
+        Get the state of the resources to be registered.
+
+        Returns:
+            resources (List[str]): List of resources to be registered ex. "{type} - {name} ({variant})"
+        """
+        if len(self.__resources) == 0:
+            return "No resources to be registered"
+
+        resources = []
+        for resource in self.__resources:
+            if hasattr(resource, "variant"):
+                resources.append(f"{resource.__class__.__name__} - {resource.name} ({resource.variant})")
+            else:
+                resources.append(f"{resource.__class__.__name__} - {resource.name}")
+        
+        return f"The resources to be registered: \n {resources}"
 
     def register_entity(
         self,
@@ -5063,6 +5083,7 @@ def entity(cls):
 global_registrar = Registrar()
 state = global_registrar.state
 clear_state = global_registrar.clear_state
+get_state = global_registrar.get_state
 set_run = global_registrar.set_run
 get_run = global_registrar.get_run
 register_user = global_registrar.register_user

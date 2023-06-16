@@ -1009,9 +1009,8 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 			return
 		}
 		dataRow := []string{}
-		for _, currentRow := range sRow.Rows {
-			fmt.Println(currentRow.String())
-			dataRow = append(dataRow, extractRowValue(currentRow))
+		for _, rowElement := range sRow.Rows {
+			dataRow = append(dataRow, extractRowValue(rowElement))
 		}
 		response.Rows = append(response.Rows, dataRow)
 	}

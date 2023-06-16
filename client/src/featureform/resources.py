@@ -86,6 +86,14 @@ class RedisConfig:
 @typechecked
 @dataclass
 class AWSCredentials:
+    """
+    AWS Credentials for accessing AWS Services
+
+    Attributes:
+        aws_access_key_id (str): AWS Access Key ID
+        aws_secret_access_key (str): AWS Secret Access Key
+    """
+
     def __init__(
         self,
         aws_access_key_id: str = "",
@@ -113,6 +121,14 @@ class AWSCredentials:
 @typechecked
 @dataclass
 class GCPCredentials:
+    """
+    GCP Credentials for accessing GCP Services
+
+    Attributes:
+        project_id (str): GCP Project ID
+        credentials_path (str): Path to GCP Credentials JSON file
+    """
+
     def __init__(
         self,
         project_id: str,

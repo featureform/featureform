@@ -1,6 +1,6 @@
-from featureform import ServingClient
+from featureform import Client
 
-serving = ServingClient("localhost:443")
+serving = Client("localhost:443")
 
 dataset = serving.training_set("fraud_training")
 training_dataset = dataset

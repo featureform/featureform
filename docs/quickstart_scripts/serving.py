@@ -1,7 +1,7 @@
-from featureform import ServingClient
+from featureform import Client
 
-serving = ServingClient(insecure=True)
+client = Client(insecure=True)
 
-user_feat = serving.features(["avg_transactions"], {"user": "C1214240"})
+user_feat = client.features(["avg_transactions"], {"user": "C1214240"})
 print("User Result: ")
 print(user_feat)

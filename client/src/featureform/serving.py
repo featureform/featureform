@@ -53,15 +53,11 @@ def check_feature_type(features):
 class ServingClient:
     """
     The serving client is used to retrieve training sets and features for training and serving purposes.
-
-
     **Using the Serving Client:**
     ``` py
     import featureform as ff
     from featureform import ServingClient
-
     client = ServingClient(host="localhost:8000")
-
     # example:
     dataset = client.training_set("fraud_training", "quickstart")
     training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
@@ -104,7 +100,7 @@ class ServingClient:
 
         **Examples**:
         ``` py
-            client = ff.ServingClient()
+            client = ff.Client()
             dataset = client.training_set("fraud_training", "quickstart")
             training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
             for feature_batch in training_dataset:
@@ -124,7 +120,7 @@ class ServingClient:
 
         **Examples**:
         ``` py
-            client = ff.ServingClient(local=True)
+            client = ff.Client(local=True)
             fpf = client.features([("avg_transactions", "quickstart")], {"user": "C1410926"})
             # Run features through model
         ```
@@ -924,7 +920,7 @@ class Dataset:
 
         **Examples**:
         ``` py
-            client = ff.ServingClient()
+            client = ff.Client()
             dataset = client.training_set("fraud_training", "quickstart")
             training_dataset = dataset.repeat(10) # Repeats data 10 times
             for feature_batch in training_dataset:
@@ -950,7 +946,7 @@ class Dataset:
 
         **Examples**:
         ``` py
-            client = ff.ServingClient()
+            client = ff.Client()
             dataset = client.training_set("fraud_training", "quickstart")
             training_dataset = dataset.shuffle(100) # Swaps 100 Rows
             for feature_batch in training_dataset:
@@ -974,7 +970,7 @@ class Dataset:
 
         **Examples**:
         ``` py
-            client = ff.ServingClient()
+            client = ff.Client()
             dataset = client.training_set("fraud_training", "quickstart")
             training_dataset = dataset.batch(8) # Creates a batch of 8 Datasets for each row
             for feature_batch in training_dataset:

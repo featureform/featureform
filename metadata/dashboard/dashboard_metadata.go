@@ -13,6 +13,7 @@ import (
 
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata/search"
+	"github.com/featureform/proto"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/serving"
@@ -998,6 +999,7 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	for _, columnName := range iter.Columns() {
 		response.Columns = append(response.Columns, strings.ReplaceAll(columnName, "\"", ""))
 	}
+
 	for iter.Next() {
 		sRow, err := serving.SerializedSourceRow(iter.Values())
 		if err != nil {
@@ -1008,12 +1010,12 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		}
 		dataRow := []string{}
 		for _, currentRow := range sRow.Rows {
-			split := strings.Split(currentRow.String(), ":")
-			result := strings.ReplaceAll(split[1], "\"", "")
-			dataRow = append(dataRow, result)
+			fmt.Println(currentRow.String())
+			dataRow = append(dataRow, extractRowValue(currentRow))
 		}
 		response.Rows = append(response.Rows, dataRow)
 	}
+
 	if err := iter.Err(); err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error", err)
@@ -1021,6 +1023,17 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		return
 	}
 	c.JSON(200, response)
+}
+
+/*
+example proto.value args:
+double_value:2544
+str_value:"C7332112"
+*/
+func extractRowValue(rowString *proto.Value) string {
+	split := strings.Split(rowString.String(), ":")
+	result := strings.ReplaceAll(split[1], "\"", "")
+	return result
 }
 
 func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64) (provider.GenericTableIterator, error) {

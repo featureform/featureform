@@ -74,7 +74,9 @@ class OnlineStoreTable(ABC):
 
 class VectorStoreTable(OnlineStoreTable, ABC):
     @abstractmethod
-    def nearest(self, feature: str, variant: str, vector: Union[List[float], np.ndarray], k: int):
+    def nearest(
+        self, feature: str, variant: str, vector: Union[List[float], np.ndarray], k: int
+    ):
         pass
 
 

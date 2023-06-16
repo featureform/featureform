@@ -225,7 +225,7 @@ sources = [
         },
     },
     {
-        "all-variants": ["average_user_transaction"],
+        "all-variants": ["quickstart"],
         "type": "Source",
         "default-variant": "quickstart",
         "name": "average_user_transaction",

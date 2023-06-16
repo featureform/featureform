@@ -1936,6 +1936,10 @@ class ResourceState:
         for resource in self.sorted_list():
             if resource.type() == "provider" and resource.name == "local-mode":
                 continue
+            if resource.type() == "feature" and resource.provider == "local-mode":
+                raise ValueError(
+                    f"Inference store must be provided for feature {resource.name} ({resource.variant})"
+                )
             try:
                 # NOTE: There is an extra space before the variant name to better handle the case
                 # where a resource has no variant; ultimately, we should separate data access and

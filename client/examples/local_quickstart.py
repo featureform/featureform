@@ -20,7 +20,6 @@ user = ff.register_entity("user")
 average_user_transaction.register_resources(
     entity=user,
     entity_column="CustomerID",
-    inference_store=local,
     features=[
         {
             "name": "avg_transactions",

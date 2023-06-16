@@ -3358,7 +3358,7 @@ class Registrar:
         if not isinstance(inference_store, str):
             inference_store = inference_store.name()
         if len(features) > 0 and inference_store == "":
-            raise ValueError("Inference store must be set when defining features")
+            inference_store = "local-mode"
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":

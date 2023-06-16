@@ -22,7 +22,7 @@ const useStyles = makeStyles((theme) => ({
     width: '100%',
     height: '70px',
     left: '0px',
-    background: `#FA759D`,
+    background: `#FC195C`,
     borderBottom: `1px solid #E5E5E5`,
   },
   instanceLogo: {

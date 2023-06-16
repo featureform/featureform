@@ -102,7 +102,7 @@ labels = [
 ]
 sources = [
     {
-        "all-variants": ["transactions"],
+        "all-variants": ["quickstart"],
         "type": "Source",
         "default-variant": "quickstart",
         "name": "transactions",
@@ -1622,7 +1622,7 @@ localmode = {
     "properties": {"resource_type": "Provider"},
 }
 average_user_transaction = {
-    "all-variants": ["average_user_transaction"],
+    "all-variants": ["quickstart"],
     "type": "Source",
     "default-variant": "quickstart",
     "name": "average_user_transaction",

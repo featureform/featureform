@@ -498,7 +498,7 @@ class LocalProvider:
     The LocalProvider exposes the registration functions for LocalMode
 
     **Using the LocalProvider:**
-    ``` py
+    ``` py title="definitions.py"
     from featureform import local
 
     transactions = local.register_file(

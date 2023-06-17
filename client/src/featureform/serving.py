@@ -50,6 +50,7 @@ def check_feature_type(features):
         if isinstance(feature, tuple):
             checked_features.append(feature)
         elif isinstance(feature, str):
+            # TODO: Need to identify how to pull the run id
             checked_features.append((feature, "default"))
         elif isinstance(feature, ff.register.FeatureColumnResource):
             checked_features.append(feature.name_variant())

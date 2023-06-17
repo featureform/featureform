@@ -147,7 +147,7 @@ def register_resources():
 
         return math.pi
 
-    @ff.ondemand_feature()
+    @local.ondemand_feature()
     def pi_called(serving_client, entities, params):
         import math
 

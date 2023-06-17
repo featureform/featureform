@@ -80,8 +80,8 @@ def setup(tmp_path_factory):
     client = ff.Client(local=True)
     client.apply()
 
-    # serving_client = ff.ServingClient(local=True)
-    # serving_client.training_set("fraud_training", "quickstart")
+    serving_client = ff.ServingClient(local=True)
+    serving_client.training_set("fraud_training", "quickstart")
 
     yield SetupFixture(transactions_file=str(temp_transactions), serving_client=client)
 

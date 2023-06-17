@@ -124,7 +124,7 @@ class TestFeaturesE2E(TestCase):
                 assert all(
                     elem in expected for elem in res
                 ), "Expected: {} Got: {}".format(expected, res)
-            retry_delete()
+            # retry_delete()
 
     def test_timestamp_doesnt_exist(self):
         case = {
@@ -160,14 +160,16 @@ class TestFeaturesE2E(TestCase):
         """Fixture to execute asserts before and after a test is run"""
         # Remove any lingering Databases
         try:
+            ff.clear_state()
+            ff.register_local()
             shutil.rmtree(".featureform", onerror=del_rw)
         except:
             print("File Already Removed")
         yield
-        try:
-            shutil.rmtree(".featureform", onerror=del_rw)
-        except:
-            print("File Already Removed")
+        # try:
+        #     shutil.rmtree(".featureform", onerror=del_rw)
+        # except:
+        #     print("File Already Removed")
 
 
 class TestIndividualLabels(TestCase):
@@ -220,19 +222,19 @@ class TestIndividualLabels(TestCase):
             label_df_from_csv(case, file_name)
         assert "column does not exist" in str(err.value)
 
-    @pytest.fixture(autouse=True)
-    def run_before_and_after_tests(tmpdir):
-        """Fixture to execute asserts before and after a test is run"""
-        # Remove any lingering Databases
-        try:
-            shutil.rmtree(".featureform", onerror=del_rw)
-        except:
-            print("File Already Removed")
-        yield
-        try:
-            shutil.rmtree(".featureform", onerror=del_rw)
-        except:
-            print("File Already Removed")
+    # @pytest.fixture(autouse=True)
+    # def run_before_and_after_tests(tmpdir):
+    #     """Fixture to execute asserts before and after a test is run"""
+    #     # Remove any lingering Databases
+    #     try:
+    #         shutil.rmtree(".featureform", onerror=del_rw)
+    #     except:
+    #         print("File Already Removed")
+    #     yield
+    #     try:
+    #         shutil.rmtree(".featureform", onerror=del_rw)
+    #     except:
+    #         print("File Already Removed")
 
 
 class TestTransformation(TestCase):
@@ -400,21 +402,21 @@ class TestTransformation(TestCase):
         serve.impl.db.close()
         return res
 
-    @pytest.fixture(autouse=True)
-    def run_before_and_after_tests(tmpdir):
-        """Fixture to execute asserts before and after a test is run"""
-        # Remove any lingering Databases
-        try:
-            ff.clear_state()
-            shutil.rmtree(".featureform", onerror=del_rw)
-        except:
-            print("File Already Removed")
-        yield
-        try:
-            ff.clear_state()
-            shutil.rmtree(".featureform", onerror=del_rw)
-        except:
-            print("File Already Removed")
+    # @pytest.fixture(autouse=True)
+    # def run_before_and_after_tests(tmpdir):
+    #     """Fixture to execute asserts before and after a test is run"""
+    #     # Remove any lingering Databases
+    #     try:
+    #         ff.clear_state()
+    #         shutil.rmtree(".featureform", onerror=del_rw)
+    #     except:
+    #         print("File Already Removed")
+    #     yield
+    #     try:
+    #         ff.clear_state()
+    #         shutil.rmtree(".featureform", onerror=del_rw)
+    #     except:
+    #         print("File Already Removed")
 
 
 class TestTrainingSet(TestCase):
@@ -556,9 +558,9 @@ def replace_nans(row):
     return result
 
 
-def clear_and_reset():
-    ff.clear_state()
-    shutil.rmtree(".featureform", onerror=del_rw)
+# def clear_and_reset():
+#     ff.clear_state()
+#     shutil.rmtree(".featureform", onerror=del_rw)
 
 
 def del_rw(action, name, exc):
@@ -613,15 +615,15 @@ def e2e_features(
     return results
 
 
-def retry_delete():
-    for i in range(0, 100):
-        try:
-            shutil.rmtree(".featureform", onerror=del_rw)
-            print("Table Deleted")
-            break
-        except Exception as e:
-            print(f"Could not delete. Retrying...", e)
-            time.sleep(1)
+# def retry_delete():
+#     for i in range(0, 100):
+#         try:
+#             shutil.rmtree(".featureform", onerror=del_rw)
+#             print("Table Deleted")
+#             break
+#         except Exception as e:
+#             print(f"Could not delete. Retrying...", e)
+#             time.sleep(1)
 
 
 def test_read_directory():

@@ -39,7 +39,9 @@ class WeaviateOnlineTable(VectorStoreTable):
         )
         return resp.get("vector")
 
-    def nearest(self, feature: str, variant: str, vector: Union[List[float], np.ndarray], k: int):
+    def nearest(
+        self, feature: str, variant: str, vector: Union[List[float], np.ndarray], k: int
+    ):
         if vector is np.ndarray:
             vector = vector.tolist()
         resp = (

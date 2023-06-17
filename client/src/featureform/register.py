@@ -3374,6 +3374,52 @@ class Registrar:
 
     def clear_state(self):
         self.__state = ResourceState()
+        self.__resources = []
+
+    def get_state(self):
+        """
+        Get the state of the resources to be registered.
+
+        Returns:
+            resources (List[str]): List of resources to be registered ex. "{type} - {name} ({variant})"
+        """
+        if len(self.__resources) == 0:
+            return "No resources to be registered"
+
+        resources = [["Type", "Name", "Variant"]]
+        for resource in self.__resources:
+            if hasattr(resource, "variant"):
+                resources.append(
+                    [resource.__class__.__name__, resource.name, resource.variant]
+                )
+            else:
+                resources.append([resource.__class__.__name__, resource.name, ""])
+
+        print("Resources to be registered:")
+        self.__print_state(resources)
+
+    def __print_state(self, data):
+        # Calculate the maximum width for each column
+        max_widths = [max(len(str(item)) for item in col) for col in zip(*data)]
+
+        # Format the table headers
+        headers = " | ".join(
+            f"{header:{width}}" for header, width in zip(data[0], max_widths)
+        )
+
+        # Generate the separator line
+        separator = "-" * len(headers)
+
+        # Format the table rows
+        rows = [
+            f" | ".join(f"{data[i][j]:{max_widths[j]}}" for j in range(len(data[i])))
+            for i in range(1, len(data))
+        ]
+
+        # Combine the headers, separator, and rows
+        table = headers + "\n" + separator + "\n" + "\n".join(rows)
+
+        print(table)
 
     def register_entity(
         self,
@@ -5179,6 +5225,7 @@ def entity(cls):
 global_registrar = Registrar()
 state = global_registrar.state
 clear_state = global_registrar.clear_state
+get_state = global_registrar.get_state
 set_run = global_registrar.set_run
 get_run = global_registrar.get_run
 register_user = global_registrar.register_user

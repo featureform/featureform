@@ -33,7 +33,9 @@ class PineconeOnlineTable(VectorStoreTable):
         else:
             return vector["values"]
 
-    def nearest(self, feature: str, variant: str, vector: Union[List[float], np.ndarray], k: int):
+    def nearest(
+        self, feature: str, variant: str, vector: Union[List[float], np.ndarray], k: int
+    ):
         name_variant_id = uuid.uuid5(uuid.NAMESPACE_DNS, f"{feature}-{variant}")
         if isinstance(vector, np.ndarray):
             vector = vector.tolist()

@@ -52,3 +52,14 @@ local = register_local()
 register_user("default_user").make_default_owner()
 set_run = set_run
 get_run = get_run
+
+def is_notebook() -> bool:
+    try:
+        ipy = get_ipython().__class__
+        shell = get_ipython().__class__.__name__
+        if ipy.__name__ in ['ZMQInteractiveShell',  'TerminalInteractiveShell'] or ipy.__module__ == "google.colab._shell":
+            print("Notebook environment detected, we recommend setting featureform.interactive_client")
+    except NameError:
+        pass
+
+interactive_client = None

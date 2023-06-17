@@ -1,7 +1,6 @@
-from . import interactive_client
-
-
 class ResourceList:
+    interactive_client = None
+
     def __init__(self):
         self.__list = []
 

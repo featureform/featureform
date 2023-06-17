@@ -95,7 +95,7 @@ class ServingClient:
     def training_set(
         self,
         name,
-        variant="default",
+        variant="",
         include_label_timestamp=False,
         model: Union[str, Model] = None,
     ):

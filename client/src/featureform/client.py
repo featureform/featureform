@@ -106,7 +106,7 @@ class Client(ResourceClient, ServingClient):
             variant = feature.variant
         else:
             raise Exception(
-                f"the feature '{feature}' of type '{type(feature)}' is not support." 
+                f"the feature '{feature}' of type '{type(feature)}' is not support."
                 "Feature must be a tuple of (name, variant) or a FeatureColumnResource"
             )
 

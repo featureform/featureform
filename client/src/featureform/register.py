@@ -72,6 +72,7 @@ from .resources import (
     OnDemandFeature,
     WeaviateConfig,
 )
+from .resourcelist import ResourceList
 
 from .proto import metadata_pb2_grpc as ff_grpc
 from .search_local import search_local
@@ -753,6 +754,93 @@ class LocalProvider:
             tags=tags,
             properties=properties,
         )
+
+    def ondemand_feature(
+            self,
+            fn=None,
+            *,
+            tags: List[str] = None,
+            properties: dict = None,
+            variant: str = "",
+            name: str = "",
+            owner: Union[str, UserRegistrar] = "",
+            description: str = "",
+    ):
+        """On Demand Feature decorator.
+
+        Args:
+            variant (str): Name of variant
+            name (str): Name of source
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of on demand feature
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
+
+        Returns:
+            decorator (OnDemandFeature): decorator
+
+        **Examples**
+        ```python
+        @ff.ondemand_feature()
+        def avg_user_transactions():
+            pass
+        ```
+        """
+
+        return self.__registrar.ondemand_feature(
+            fn=fn,
+            name=name,
+            variant=variant,
+            owner=owner,
+            provider=self.name(),
+            description=description,
+            tags=tags,
+            properties=properties,
+        )
+
+
+    def ondemand_feature(
+            self,
+            fn=None,
+            *,
+            tags: List[str] = None,
+            properties: dict = None,
+            variant: str = "",
+            name: str = "",
+            owner: Union[str, UserRegistrar] = "",
+            description: str = "",
+    ):
+        """On Demand Feature decorator.
+
+        Args:
+            variant (str): Name of variant
+            name (str): Name of source
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of on demand feature
+            tags (List[str]): Optional grouping mechanism for resources
+            properties (dict): Optional grouping mechanism for resources
+
+        Returns:
+            decorator (OnDemandFeature): decorator
+
+        **Examples**
+        ```python
+        @ff.ondemand_feature()
+        def avg_user_transactions():
+            pass
+        ```
+        """
+
+        return self.__registrar.ondemand_feature(
+            fn=fn,
+            name=name,
+            variant=variant,
+            owner=owner,
+            description=description,
+            tags=tags,
+            properties=properties,
+        )
+
 
 
 class SourceRegistrar:
@@ -1456,7 +1544,7 @@ class Registrar:
 
     def __init__(self):
         self.__state = ResourceState()
-        self.__resources = []
+        self.__resources = ResourceList()
         self.__default_owner = ""
         self.__run = get_random_name()
 
@@ -1464,7 +1552,7 @@ class Registrar:
         self.__resources.append(resource)
 
     def get_resources(self):
-        return self.__resources
+        return self.__resources.list()
 
     def register_user(
         self, name: str, tags: List[str] = [], properties: dict = {}
@@ -3369,12 +3457,12 @@ class Registrar:
                 raise Exception(
                     f"Could not add apply {resource.name}{resource_variant}: {e}"
                 )
-        self.__resources = []
+        self.__resources = ResourceList()
         return self.__state
 
     def clear_state(self):
         self.__state = ResourceState()
-        self.__resources = []
+        self.__resources = ResourceList()
 
     def get_state(self):
         """

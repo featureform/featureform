@@ -9,6 +9,7 @@ from .register import (
 from .serving import ServingClient
 from .constants import NO_RECORD_LIMIT
 from .names_generator import get_random_name
+from .resourcelist import ResourceList
 
 
 class Client(ResourceClient, ServingClient):
@@ -31,7 +32,13 @@ class Client(ResourceClient, ServingClient):
     """
 
     def __init__(
-        self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
+        self,
+        host=None,
+        local=False,
+        insecure=False,
+        cert_path=None,
+        dry_run=False,
+        interactive=None,
     ):
         ResourceClient.__init__(
             self,
@@ -47,6 +54,24 @@ class Client(ResourceClient, ServingClient):
             ServingClient.__init__(
                 self, host=host, local=local, insecure=insecure, cert_path=cert_path
             )
+
+        if interactive is None:
+            interactive = self.__is_notebook()
+
+        if interactive:
+            ResourceList.interactive_client = self
+
+    def __is_notebook(self):
+        try:
+            ipy = get_ipython().__class__
+            if (
+                ipy.__name__ in ["ZMQInteractiveShell", "TerminalInteractiveShell"]
+                or ipy.__module__ == "google.colab._shell"
+            ):
+                print("Notebook environment detected, defaulting to interactive mode.")
+                return True
+        except NameError:
+            return False
 
     def dataframe(
         self,

@@ -2,19 +2,24 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import base64
 import inspect
-import os
-from typing import List, Union
-import warnings
-import dill
 import json
 import math
-import types
-import base64
+import os
 import random
+import types
+import warnings
+from typing import List, Union, Dict
 
+import dill
 import numpy as np
 import pandas as pd
+from featureform import metadata
+from featureform.enums import ScalarType
+from featureform.proto import serving_pb2
+from featureform.proto import serving_pb2_grpc
+from featureform.providers import get_provider, Scalar, VectorType
 from pandas.core.generic import NDFrame
 from pandasql import sqldf
 from featureform.proto import serving_pb2
@@ -24,24 +29,21 @@ from featureform.enums import ScalarType
 from featureform import metadata
 from .register import FeatureColumnResource
 
+from .constants import NO_RECORD_LIMIT
+from .enums import FileFormat
+from .file_utils import absolute_file_paths
 from .local_cache import LocalCache
 from .local_utils import (
     get_sql_transformation_sources,
     feature_df_with_entity,
-    list_to_combined_df,
-    get_features_for_entity,
     feature_df_from_csv,
     label_df_from_csv,
     merge_feature_into_ts,
 )
-from .sqlite_metadata import SQLiteMetadata
-from featureform.proto import serving_pb2_grpc
-
 from .resources import Model, SourceType, ComputationMode
+from .sqlite_metadata import SQLiteMetadata
 from .tls import insecure_channel, secure_channel
 from .version import check_up_to_date
-from .enums import FileFormat
-from .constants import NO_RECORD_LIMIT
 
 
 def check_feature_type(features):
@@ -583,7 +585,7 @@ class LocalClientImpl:
     def features(
         self,
         feature_variant_list,
-        entities,
+        entities: Dict,
         model: Union[str, Model] = None,
         params: list = None,
     ):
@@ -593,9 +595,10 @@ class LocalClientImpl:
         self.entities = entities
         self.params = params if params else []
 
-        # This code assumes that the entities dictionary only has one entity
-        entity_name = list(entities.keys())[0]
-        entity_value = entities[entity_name]
+        self.__validate_entity_exists(entities, feature_variant_list)
+
+        entity_name = list(entities.keys())[0] if len(entities) > 0 else ""
+        entity_value = entities[entity_name] if len(entities) > 0 else ""
         features = self.add_features_to_list(
             feature_variant_list, entity_name, entity_value
         )
@@ -613,6 +616,27 @@ class LocalClientImpl:
 
         return features
 
+    def __validate_entity_exists(self, entities, feature_variant_list):
+        # validate entities exists if any of the features are not ondemand
+        if any(
+            [
+                self.db.get_feature_variant_mode(f_name, f_variant)
+                != ComputationMode.CLIENT_COMPUTED
+                for f_name, f_variant in feature_variant_list
+            ]
+        ):
+            if len(entities) == 0:
+                raise Exception("Entities are required for features (unless ondemand)")
+
+    def calculate_ondemand_feature(self, f_name, f_variant):
+        query = self.db.get_ondemand_feature_query(f_name, f_variant)
+        base64_bytes = query.encode("ascii")
+        query = base64.b64decode(base64_bytes)
+
+        code = dill.loads(bytearray(query))
+        func = types.FunctionType(code, globals(), "transformation")
+        return func(self, self.params, self.entities)
+
     def add_features_to_list(self, feature_variant_list, entity_name, entity_value):
         feature_list = []
 
@@ -622,16 +646,8 @@ class LocalClientImpl:
             f_mode = self.db.get_feature_variant_mode(f_name, f_variant)
 
             if f_mode == ComputationMode.CLIENT_COMPUTED:
-                feature_df = self.calculate_ondemand_feature(
-                    f_name, f_variant, entity_name
-                )
-                value = get_features_for_entity(
-                    entity_id=entity_name,
-                    entity_value=entity_value,
-                    all_feature_df=feature_df,
-                )
-
-                feature_list.extend(value)
+                output_value = self.calculate_ondemand_feature(f_name, f_variant)
+                feature_list.append(output_value)
             else:
                 self.compute_feature(f_name, f_variant, entity_name)
                 feature_df = self.get_feature_value(f_name, f_variant, entity_value)
@@ -648,6 +664,12 @@ class LocalClientImpl:
             "transformation", source_name, source_variant
         )
 
+        provider_obj = metadata.get_provider(feature["provider"])
+        provider_type = provider_obj.function
+        # This will be replaced to select the appropriate provider for each feature
+        provider = get_provider(provider_type)(provider_obj.config)
+        table_exists = provider.table_exists(f_name, f_variant)
+
         if (
             not any(
                 self._file_has_changed(
@@ -656,11 +678,10 @@ class LocalClientImpl:
                 for source_file in source_files_from_db
             )
             and len(source_files_from_db) > 0
+            and table_exists
         ):
             return
 
-        provider_obj = metadata.get_provider(feature["provider"])
-        provider_type = provider_obj.function
         if feature["entity"] != entity_name:
             raise ValueError(
                 f"Invalid entity {entity_name} for feature {source_name}-{source_variant}"
@@ -678,10 +699,7 @@ class LocalClientImpl:
                 source["definition"], entity_name, feature
             )
 
-        # This will be replaced to select the appropriate provider for each feature
-        provider = get_provider(provider_type)(provider_obj.config)
-
-        if provider.table_exists(f_name, f_variant):
+        if table_exists:
             table = provider.get_table(f_name, f_variant)
         else:
             if not feature["is_embedding"]:
@@ -774,25 +792,6 @@ class LocalClientImpl:
         feature_df.drop_duplicates(subset=[entity_id], keep="last", inplace=True)
         feature_df.set_index(entity_id)
         return feature_df
-
-    def calculate_ondemand_feature(self, f_name, f_variant, entity_id):
-        query = self.db.get_ondemand_feature_query(f_name, f_variant)
-        base64_bytes = query.encode("ascii")
-        query = base64.b64decode(base64_bytes)
-
-        code = dill.loads(bytearray(query))
-        func = types.FunctionType(code, globals(), "transformation")
-        output_value = func(self, self.params, self.entities)
-
-        feature_col_name = f"{f_name}.{f_variant}"
-        df = pd.DataFrame.from_dict(
-            {
-                entity_id: [self.entities.get(entity_id, "")],
-                feature_col_name: [output_value],
-            }
-        )
-
-        return df
 
     @staticmethod
     def convert_ts_df_to_dataset(label_row, trainingset_df, include_label_timestamp):

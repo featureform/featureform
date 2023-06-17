@@ -1779,7 +1779,9 @@ class TrainingSet:
         try:
             db.get_label_variant(self.label[0], self.label[1])
         except ValueError:
-            raise LabelNotFound(self.label[0], self.label[1], message="Failed to register training set.")
+            raise LabelNotFound(
+                self.label[0], self.label[1], message="Failed to register training set."
+            )
 
         for feature_name, feature_variant in self.features:
             try:
@@ -1793,7 +1795,11 @@ class TrainingSet:
             except InvalidTrainingSetFeatureComputationMode as e:
                 raise e
             except Exception as e:
-                raise FeatureNotFound(feature_name, feature_variant, message=f"Failed to register training set. Error: {e}")
+                raise FeatureNotFound(
+                    feature_name,
+                    feature_variant,
+                    message=f"Failed to register training set. Error: {e}",
+                )
 
             db.insert(
                 "training_set_features",
@@ -1812,7 +1818,11 @@ class TrainingSet:
             try:
                 db.get_feature_variant(feature_name, feature_variant)
             except Exception as e:
-                raise FeatureNotFound(feature_name, feature_variant, message=f"Failed to register training set. Error: {e}")
+                raise FeatureNotFound(
+                    feature_name,
+                    feature_variant,
+                    message=f"Failed to register training set. Error: {e}",
+                )
 
             db.insert(
                 "training_set_lag_features",

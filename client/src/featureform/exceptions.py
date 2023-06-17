@@ -21,7 +21,7 @@ class InvalidTrainingSetFeatureComputationMode(Exception):
 class FeatureNotFound(Exception):
     def __init__(self, feature_name, feature_variant, message=None):
         error_message = f"Feature '{feature_name}:{feature_variant}' not found. Verify that the feature is registered."
-        
+
         if message != None:
             error_message = f"{error_message} {message}"
 

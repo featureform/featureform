@@ -110,6 +110,7 @@ class TestFeaturesE2E(TestCase):
         for name, case in cases.feature_e2e.items():
             with self.subTest(msg=name):
                 print("TEST: ", name)
+                ff.register_local()
                 file_name = create_temp_file(case)
                 res = e2e_features(
                     file_name,
@@ -124,7 +125,7 @@ class TestFeaturesE2E(TestCase):
                 assert all(
                     elem in expected for elem in res
                 ), "Expected: {} Got: {}".format(expected, res)
-            # retry_delete()
+            retry_delete()
 
     def test_timestamp_doesnt_exist(self):
         case = {
@@ -137,12 +138,13 @@ class TestFeaturesE2E(TestCase):
             "value_cols": ["value"],
             "entity": "entity",
             "entity_loc": "entity",
-            "features": [("avg_transactions", "v13")],
+            "features": [("avg_transactions", "v13", "int")],
             "entities": [{"entity": "a"}, {"entity": "b"}, {"entity": "c"}],
             "expected": [[1], [2], [3]],
             "ts_col": "ts",
         }
         file_name = create_temp_file(case)
+        ff.register_local()
         with pytest.raises(KeyError) as err:
             e2e_features(
                 file_name,
@@ -161,15 +163,14 @@ class TestFeaturesE2E(TestCase):
         # Remove any lingering Databases
         try:
             ff.clear_state()
-            ff.register_local()
             shutil.rmtree(".featureform", onerror=del_rw)
         except:
             print("File Already Removed")
         yield
-        # try:
-        #     shutil.rmtree(".featureform", onerror=del_rw)
-        # except:
-        #     print("File Already Removed")
+        try:
+            shutil.rmtree(".featureform", onerror=del_rw)
+        except:
+            print("File Already Removed")
 
 
 class TestIndividualLabels(TestCase):
@@ -222,19 +223,19 @@ class TestIndividualLabels(TestCase):
             label_df_from_csv(case, file_name)
         assert "column does not exist" in str(err.value)
 
-    # @pytest.fixture(autouse=True)
-    # def run_before_and_after_tests(tmpdir):
-    #     """Fixture to execute asserts before and after a test is run"""
-    #     # Remove any lingering Databases
-    #     try:
-    #         shutil.rmtree(".featureform", onerror=del_rw)
-    #     except:
-    #         print("File Already Removed")
-    #     yield
-    #     try:
-    #         shutil.rmtree(".featureform", onerror=del_rw)
-    #     except:
-    #         print("File Already Removed")
+    @pytest.fixture(autouse=True)
+    def run_before_and_after_tests(tmpdir):
+        """Fixture to execute asserts before and after a test is run"""
+        # Remove any lingering Databases
+        try:
+            shutil.rmtree(".featureform", onerror=del_rw)
+        except:
+            print("File Already Removed")
+        yield
+        try:
+            shutil.rmtree(".featureform", onerror=del_rw)
+        except:
+            print("File Already Removed")
 
 
 class TestTransformation(TestCase):
@@ -402,21 +403,21 @@ class TestTransformation(TestCase):
         serve.impl.db.close()
         return res
 
-    # @pytest.fixture(autouse=True)
-    # def run_before_and_after_tests(tmpdir):
-    #     """Fixture to execute asserts before and after a test is run"""
-    #     # Remove any lingering Databases
-    #     try:
-    #         ff.clear_state()
-    #         shutil.rmtree(".featureform", onerror=del_rw)
-    #     except:
-    #         print("File Already Removed")
-    #     yield
-    #     try:
-    #         ff.clear_state()
-    #         shutil.rmtree(".featureform", onerror=del_rw)
-    #     except:
-    #         print("File Already Removed")
+    @pytest.fixture(autouse=True)
+    def run_before_and_after_tests(tmpdir):
+        """Fixture to execute asserts before and after a test is run"""
+        # Remove any lingering Databases
+        try:
+            ff.clear_state()
+            shutil.rmtree(".featureform", onerror=del_rw)
+        except:
+            print("File Already Removed")
+        yield
+        try:
+            ff.clear_state()
+            shutil.rmtree(".featureform", onerror=del_rw)
+        except:
+            print("File Already Removed")
 
 
 class TestTrainingSet(TestCase):
@@ -558,9 +559,9 @@ def replace_nans(row):
     return result
 
 
-# def clear_and_reset():
-#     ff.clear_state()
-#     shutil.rmtree(".featureform", onerror=del_rw)
+def clear_and_reset():
+    ff.clear_state()
+    shutil.rmtree(".featureform", onerror=del_rw)
 
 
 def del_rw(action, name, exc):
@@ -583,10 +584,12 @@ def create_temp_file(test_values):
 def e2e_features(
     file, entity_name, entity_loc, name_variants, value_cols, entities, ts_col
 ):
+    import uuid
+
     local = ff.local
     transactions = ff.local.register_file(
         name="transactions",
-        variant="v1",
+        variant=str(uuid.uuid4())[:8],
         description="A dataset of fraudulent transactions",
         path=file,
     )
@@ -601,7 +604,7 @@ def e2e_features(
                     "name": variant[0],
                     "variant": variant[1],
                     "column": value_cols[i],
-                    "type": "float32",
+                    "type": variant[2],
                 },
             ],
             timestamp_column=ts_col,
@@ -615,15 +618,15 @@ def e2e_features(
     return results
 
 
-# def retry_delete():
-#     for i in range(0, 100):
-#         try:
-#             shutil.rmtree(".featureform", onerror=del_rw)
-#             print("Table Deleted")
-#             break
-#         except Exception as e:
-#             print(f"Could not delete. Retrying...", e)
-#             time.sleep(1)
+def retry_delete():
+    for i in range(0, 100):
+        try:
+            shutil.rmtree(".featureform", onerror=del_rw)
+            print("Table Deleted")
+            break
+        except Exception as e:
+            print(f"Could not delete. Retrying...", e)
+            time.sleep(1)
 
 
 def test_read_directory():

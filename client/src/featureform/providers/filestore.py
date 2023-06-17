@@ -35,9 +35,11 @@ class LocalFileTable(OnlineStoreTable):
         return df
 
     def set(self, key, value):
-        df = pd.DataFrame(data={"entity": [key], "value": [value]}).astype(
-            {"entity": "str", "value": self.stype}
-        )
+        df = pd.DataFrame(data={"entity": [key], "value": [value]})
+        try:
+            df = df.astype({"entity": "str", "value": self.stype})
+        except:
+            raise ValueError(f"Could not cast feature to type {self.stype}")
         self.df = self.df.append(df)
 
     def get(self, key):

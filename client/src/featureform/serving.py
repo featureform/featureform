@@ -621,13 +621,20 @@ class LocalClientImpl:
                 feature_df = self.calculate_ondemand_feature(
                     f_name, f_variant, entity_name
                 )
+                value = get_features_for_entity(
+                    entity_id=entity_name,
+                    entity_value=entity_value,
+                    all_feature_df=feature_df,
+                )
+
+                feature_list.extend(value)
             else:
                 self.compute_feature(f_name, f_variant, entity_name)
                 feature_df = self.get_feature_value(f_name, f_variant, entity_value)
 
-            feature_list.append(feature_df)
+                feature_list.append(feature_df)
 
-        return feature_list
+        return np.array(feature_list)
 
     def compute_feature(self, f_name, f_variant, entity_name):
         feature = self.db.get_feature_variant(f_name, f_variant)
@@ -780,6 +787,7 @@ class LocalClientImpl:
                 feature_col_name: [output_value],
             }
         )
+
         return df
 
     @staticmethod

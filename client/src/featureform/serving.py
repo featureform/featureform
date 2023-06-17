@@ -4,7 +4,7 @@
 
 import inspect
 import os
-from typing import List, Union
+from typing import List, Union, Dict
 import warnings
 import dill
 import json
@@ -19,6 +19,9 @@ from pandas.core.generic import NDFrame
 from pandasql import sqldf
 from featureform.proto import serving_pb2
 from .file_utils import absolute_file_paths
+from featureform.providers import get_provider, Scalar, VectorType
+from featureform.enums import ScalarType
+from featureform import metadata
 
 from .local_cache import LocalCache
 from .local_utils import (
@@ -115,7 +118,9 @@ class ServingClient:
         """
         return self.impl.training_set(name, variant, include_label_timestamp, model)
 
-    def features(self, features, entities, model: Union[str, Model] = None):
+    def features(
+        self, features, entities: Dict = None, model: Union[str, Model] = None, params = None
+    ):
         """Returns the feature values for the specified entities.
 
         **Examples**:
@@ -159,7 +164,7 @@ class HostedClientImpl:
         return Dataset(self._stub).from_stub(name, variation, model)
 
     def features(
-        self, features, entities, model: Union[str, Model] = None, params: list = None
+        self, features, entities: Dict = None, model: Union[str, Model] = None, params: list = None
     ):
         req = serving_pb2.FeatureServeRequest()
         for name, value in entities.items():
@@ -184,7 +189,7 @@ class HostedClientImpl:
             if value_type == bytes:
                 code = dill.loads(bytearray(parsed_value))
                 func = types.FunctionType(code, globals(), "transformation")
-                parsed_value = func(self, params, entities)
+                parsed_value = func(self, params, {} if not entities else entities)
             # Vector features are returned as a Vector32 proto due
             # to the inability to use the `repeated` keyword in
             # in a `oneof` field

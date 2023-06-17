@@ -253,7 +253,7 @@ class TestResourceClient:
             """the average transaction amount for a user"""
             return (
                 "SELECT CustomerID as user_id, avg(TransactionAmount) "
-                "as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
+                "as avg_transaction_amt from {{transactions.quickstart}} GROUP BY user_id"
             )
 
         user = ff.register_entity("user")
@@ -275,13 +275,13 @@ class TestResourceClient:
 
         sql_average_user_transaction.register_resources(
             entity=user,
-            entity_column="CustomerID",
+            entity_column="user_id",
             inference_store=local,
             features=[
                 {
                     "name": "avg_transactions",
                     "variant": "sql",
-                    "column": "TransactionAmount",
+                    "column": "avg_transaction_amt",
                     "type": "float32",
                 },
             ],

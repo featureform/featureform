@@ -694,13 +694,13 @@ class EmptyConfig:
 @dataclass
 class LocalConfig:
     def software(self) -> str:
-        return "local"
+        return "localmode"
 
     def type(self) -> str:
         return "LOCAL_ONLINE"
 
     def serialize(self) -> bytes:
-        return bytes("", "utf-8")
+        return bytes(json.dumps({}), "utf-8")
 
 
 Config = Union[

@@ -13,7 +13,6 @@ import types
 import base64
 import random
 
-import featureform as ff
 import numpy as np
 import pandas as pd
 from pandas.core.generic import NDFrame
@@ -23,6 +22,7 @@ from .file_utils import absolute_file_paths
 from featureform.providers import get_provider, Scalar, VectorType
 from featureform.enums import ScalarType
 from featureform import metadata
+from .register import FeatureColumnResource
 
 from .local_cache import LocalCache
 from .local_utils import (
@@ -52,7 +52,7 @@ def check_feature_type(features):
         elif isinstance(feature, str):
             # TODO: Need to identify how to pull the run id
             checked_features.append((feature, "default"))
-        elif isinstance(feature, ff.register.FeatureColumnResource):
+        elif isinstance(feature, FeatureColumnResource):
             checked_features.append(feature.name_variant())
     return checked_features
 

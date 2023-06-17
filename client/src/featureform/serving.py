@@ -725,6 +725,9 @@ class LocalClientImpl:
     def progress_bar(self, total, current, prefix="", suffix="", length=30, fill="█"):
         import sys
 
+        if total == 0:
+            return
+
         percent = current / total
         filled_length = int(length * percent)
         bar = fill * filled_length + "-" * (length - filled_length)

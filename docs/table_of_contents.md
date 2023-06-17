@@ -21,6 +21,11 @@
 * [Interact with the CLI](getting-started/interact-with-the-cli.md)
 * [Exploring the Feature Registry](getting-started/exploring-the-feature-registry.md)
 
+## LLMs, Embeddings, and Vector Databases
+
+* [LLM Workflow](embeddings/llm-workflow-with-featureform.md)
+* [Building a Chatbot with OpenAI and a Vector Database](embeddings/building-a-chatbot-with-openai-and-a-vector-database.md)
+
 ## Providers
 
 ### Training/Offline Stores

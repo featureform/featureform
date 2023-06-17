@@ -381,9 +381,13 @@ def labels(rowData):
 
 
 def entities(rowData):
-    label_list = sqlObject.query_resource_variant(
-        "label_variant", "entity", rowData["name"]
-    )
+    try:
+        label_list = sqlObject.query_resource_variant(
+            "label_variant", "entity", rowData["name"]
+        )
+    except Exception as e:
+        print(f"No labels found for entity {rowData['name']} - {e}")
+        label_list = []
     training_set_list = set()
     for label in label_list:
         for training_set in sqlObject.get_training_set_variant_from_label(

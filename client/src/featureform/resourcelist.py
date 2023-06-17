@@ -3,6 +3,7 @@ class ResourceList:
 
     def __init__(self):
         self.__list = []
+        self.idx = 0
 
     def append(self, item):
         self.__list.append(item)
@@ -14,6 +15,3 @@ class ResourceList:
 
     def __iter__(self):
         return iter(self.__list)
-
-    def __next__(self):
-        return next(self.__list)

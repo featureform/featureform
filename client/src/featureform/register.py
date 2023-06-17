@@ -1063,6 +1063,9 @@ class DFTransformationDecorator:
         if self.name == "":
             self.name = fn.__name__
 
+        if not isinstance(self.inputs, list):
+            raise ValueError("Dataframe transformation inputs must be a list")
+
         for nv in self.inputs:
             if self.name is nv[0] and self.variant is nv[1]:
                 raise ValueError(
@@ -3239,6 +3242,8 @@ class Registrar:
             variant = self.__run
         if not isinstance(provider, str):
             provider = provider.name()
+        if not isinstance(inputs, list):
+            raise ValueError("Dataframe transformation inputs must be a list")
         for i, nv in enumerate(inputs):
             if isinstance(nv, str):
                 inputs[i] = (nv, self.__run)

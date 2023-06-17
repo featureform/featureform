@@ -3,7 +3,7 @@ from . import interactive_client
 
 class ResourceList:
     def __init__(self):
-	self.__list = []
+        self.__list = []
 
     def append(self, item):
         self.__list.append(item)
@@ -17,4 +17,4 @@ class ResourceList:
         return iter(self.__list)
 
     def __next__(self):
-	return next(self.__list)
+        return next(self.__list)

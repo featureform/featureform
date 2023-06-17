@@ -72,6 +72,7 @@ from .resources import (
     OnDemandFeature,
     WeaviateConfig,
 )
+from .resourcelist import ResourceList
 
 from .proto import metadata_pb2_grpc as ff_grpc
 from .search_local import search_local
@@ -1456,7 +1457,7 @@ class Registrar:
 
     def __init__(self):
         self.__state = ResourceState()
-        self.__resources = []
+        self.__resources = ResourceList()
         self.__default_owner = ""
         self.__run = get_random_name()
 
@@ -1464,7 +1465,7 @@ class Registrar:
         self.__resources.append(resource)
 
     def get_resources(self):
-        return self.__resources
+        return self.__resources.list()
 
     def register_user(
         self, name: str, tags: List[str] = [], properties: dict = {}
@@ -3369,12 +3370,12 @@ class Registrar:
                 raise Exception(
                     f"Could not add apply {resource.name}{resource_variant}: {e}"
                 )
-        self.__resources = []
+        self.__resources = ResourceList()
         return self.__state
 
     def clear_state(self):
         self.__state = ResourceState()
-        self.__resources = []
+        self.__resources = ResourceList()
 
     def get_state(self):
         """

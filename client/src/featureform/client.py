@@ -78,7 +78,8 @@ class Client(ResourceClient, ServingClient):
             name = source
         else:
             raise ValueError(
-                f"source must be of type SourceRegistrar, LocalSource, SubscriptableTransformation or str, not {type(source)}"
+                f"source must be of type SourceRegistrar, LocalSource, SubscriptableTransformation or str, not {type(source)}\n"
+                "use client.dataframe(name, variant) or client.dataframe(source) or client.dataframe(transformation)"
             )
         variant = get_random_name() if variant is None else variant
         return self.impl._get_source_as_df(name, variant, limit)

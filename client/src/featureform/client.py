@@ -60,7 +60,7 @@ class Client(ResourceClient, ServingClient):
         if interactive:
             ResourceList.interactive_client = self
 
-    def __is_notebook():
+    def __is_notebook(self):
         try:
             ipy = get_ipython().__class__
             if (

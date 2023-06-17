@@ -2,7 +2,7 @@
 
 The retrieval augmented generation workflow pulls information that’s relevant to the user’s query and feeds it into the LLM via the prompt. That information might be similar documents pulled from a vector database, or features looked up from an inference store.
 
-![](.gitbook/assets/rag-workflow-explained.png)
+![RAG workflow explained](../.gitbook/assets/rag-workflow-explained.png)
 
 ## Indexing Documents for Similarity Search
 It’s common to retrieve text that’s relevant to a user’s query. 

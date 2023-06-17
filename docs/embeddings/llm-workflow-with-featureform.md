@@ -3,7 +3,7 @@
 Large Language Models (LLMs) are pre-trained models that take a text prompt as input and generate a response based on the prompt.
 
 All LLM workflow revolved around the following operation:
-![](.gitbook/assets/llm-workflow.png)
+![LLM Workflow Explained](../.gitbook/assets/llm-workflow.png)
 
 To achieve our desired output, we can do one of two things:
 Improve the prompt, especially by adding additional context (Retrieval Augmented Generation)

@@ -3375,7 +3375,7 @@ class Registrar:
 
     def clear_state(self):
         self.__state = ResourceState()
-        self.__resources = []
+        self.__resources = ResourceList()
 
     def get_state(self):
         """

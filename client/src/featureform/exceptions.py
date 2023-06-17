@@ -16,3 +16,11 @@ class InvalidTrainingSetFeatureComputationMode(Exception):
             )
 
         Exception.__init__(self, message)
+
+
+class FeatureNotFound(Exception):
+    def __init__(self, feature_name, feature_variant, message=None):
+        if message == None:
+            message = f"Feature '{feature_name}:{feature_variant}' not found. Verify that the feature exists and is registered."
+
+        Exception.__init__(self, message)

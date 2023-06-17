@@ -141,12 +141,14 @@ class LocalCache:
         func,
     ) -> NDFrame:
         if os.path.exists(file_path):
-            return pd.read_pickle(file_path)
+            with open(file_path, "rb") as f:
+                return pd.read_pickle(f)
         else:
             # create the dir if not exists and write the file
             df = func()
             os.makedirs(self.cache_dir, exist_ok=True)
-            df.to_pickle(file_path)
+            with open(file_path, "wb") as f:
+                df.to_pickle(f)
             for source_file in source_files:
                 self.db.insert_or_update(
                     "resource_source_files",

@@ -1780,7 +1780,7 @@ class TrainingSet:
             db.get_label_variant(self.label[0], self.label[1])
         except ValueError:
             raise ValueError(
-                f"{self.label[0]} does not exist. Failed to register training set"
+                f"Label '{self.label[0]}:{self.label[1]}' does not exist. Failed to register training set."
             )
 
         for feature_name, feature_variant in self.features:
@@ -1796,7 +1796,7 @@ class TrainingSet:
                 raise e
             except Exception as e:
                 raise Exception(
-                    f"{feature_name}:{feature_variant} does not exist. Failed to register training set. Error: {e}"
+                    f"Feature '{feature_name}:{feature_variant}' does not exist. Failed to register training set. Error: {e}"
                 )
 
             db.insert(
@@ -1817,7 +1817,7 @@ class TrainingSet:
                 db.get_feature_variant(feature_name, feature_variant)
             except Exception as e:
                 raise Exception(
-                    f"{feature_name} does not exist. Failed to register training set. Error: {e}"
+                    f"Feature '{feature_name}:{feature_variant}' does not exist. Failed to register training set. Error: {e}"
                 )
 
             db.insert(

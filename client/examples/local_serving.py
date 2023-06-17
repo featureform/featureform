@@ -2,7 +2,7 @@ import featureform as ff
 
 client = ff.Client(local=True)
 
-training_set = client.training_set("fraud_training", "quickstart")
+training_set = client.training_set("fraud_training", "courageous_jones")
 i = 0
 for r in training_set:
     print(r)

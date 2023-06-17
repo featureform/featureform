@@ -2,42 +2,42 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import base64
 import inspect
-import os
-from typing import List, Union
-import warnings
-import dill
 import json
 import math
-import types
-import base64
+import os
 import random
+import types
+import warnings
+from typing import List, Union, Dict
 
+import dill
 import numpy as np
 import pandas as pd
+from featureform import metadata
+from featureform.proto import serving_pb2
+from featureform.proto import serving_pb2_grpc
+from featureform.providers import get_provider, Scalar, VectorType
 from pandas.core.generic import NDFrame
 from pandasql import sqldf
-from featureform.proto import serving_pb2
-from .file_utils import absolute_file_paths
+from .register import FeatureColumnResource
 
+from .constants import NO_RECORD_LIMIT
+from .enums import FileFormat, ScalarType
+from .file_utils import absolute_file_paths
 from .local_cache import LocalCache
 from .local_utils import (
     get_sql_transformation_sources,
     feature_df_with_entity,
-    list_to_combined_df,
-    get_features_for_entity,
     feature_df_from_csv,
     label_df_from_csv,
     merge_feature_into_ts,
 )
-from .sqlite_metadata import SQLiteMetadata
-from featureform.proto import serving_pb2_grpc
-
 from .resources import Model, SourceType, ComputationMode
+from .sqlite_metadata import SQLiteMetadata
 from .tls import insecure_channel, secure_channel
 from .version import check_up_to_date
-from .enums import FileFormat
-from .constants import NO_RECORD_LIMIT
 
 
 def check_feature_type(features):
@@ -46,7 +46,10 @@ def check_feature_type(features):
         if isinstance(feature, tuple):
             checked_features.append(feature)
         elif isinstance(feature, str):
+            # TODO: Need to identify how to pull the run id
             checked_features.append((feature, "default"))
+        elif isinstance(feature, FeatureColumnResource):
+            checked_features.append(feature.name_variant())
     return checked_features
 
 
@@ -92,7 +95,7 @@ class ServingClient:
     def training_set(
         self,
         name,
-        variant="default",
+        variant="",
         include_label_timestamp=False,
         model: Union[str, Model] = None,
     ):
@@ -115,7 +118,9 @@ class ServingClient:
         """
         return self.impl.training_set(name, variant, include_label_timestamp, model)
 
-    def features(self, features, entities, model: Union[str, Model] = None):
+    def features(
+        self, features, entities, model: Union[str, Model] = None, params: list = None
+    ):
         """Returns the feature values for the specified entities.
 
         **Examples**:
@@ -132,7 +137,7 @@ class ServingClient:
             features (numpy.Array): An Numpy array of feature values in the order given by the inputs
         """
         features = check_feature_type(features)
-        return self.impl.features(features, entities, model)
+        return self.impl.features(features, entities, model, params)
 
 
 class HostedClientImpl:
@@ -216,7 +221,7 @@ class HostedClientImpl:
         resp = self._stub.SourceColumns(req)
         return resp.columns
 
-    def _nearest(self, name, variant, vector, k):
+    def nearest(self, name, variant, vector, k):
         id = serving_pb2.FeatureID(name=name, version=variant)
         vec = serving_pb2.Vector32(value=vector)
         req = serving_pb2.NearestRequest(id=id, vector=vec, k=k)
@@ -574,7 +579,7 @@ class LocalClientImpl:
     def features(
         self,
         feature_variant_list,
-        entities,
+        entities: Dict,
         model: Union[str, Model] = None,
         params: list = None,
     ):
@@ -584,14 +589,15 @@ class LocalClientImpl:
         self.entities = entities
         self.params = params if params else []
 
-        # This code assumes that the entities dictionary only has one entity
-        entity_id = list(entities.keys())[0]
-        entity_value = entities[entity_id]
-        all_features_list = self.add_feature_dfs_to_list(
-            feature_variant_list, entity_id
+        self.__validate_entity_exists(entities, feature_variant_list)
+
+        entity_name = list(entities.keys())[0] if len(entities) > 0 else ""
+        entity_value = entities[entity_name] if len(entities) > 0 else ""
+        features = self.add_features_to_list(
+            feature_variant_list, entity_name, entity_value
         )
-        all_features_df = list_to_combined_df(all_features_list, entity_id)
-        features = get_features_for_entity(entity_id, entity_value, all_features_df)
+        # all_features_df = list_to_combined_df(all_features_list, entity_name)
+        # features = get_features_for_entity(entity_name, entity_value, all_features_df)
 
         if model is not None:
             for feature_name, feature_variant in feature_variant_list:
@@ -604,8 +610,29 @@ class LocalClientImpl:
 
         return features
 
-    def add_feature_dfs_to_list(self, feature_variant_list, entity_id):
-        feature_df_list = []
+    def __validate_entity_exists(self, entities, feature_variant_list):
+        # validate entities exists if any of the features are not ondemand
+        if any(
+            [
+                self.db.get_feature_variant_mode(f_name, f_variant)
+                != ComputationMode.CLIENT_COMPUTED
+                for f_name, f_variant in feature_variant_list
+            ]
+        ):
+            if len(entities) == 0:
+                raise Exception("Entities are required for features (unless ondemand)")
+
+    def calculate_ondemand_feature(self, f_name, f_variant):
+        query = self.db.get_ondemand_feature_query(f_name, f_variant)
+        base64_bytes = query.encode("ascii")
+        query = base64.b64decode(base64_bytes)
+
+        code = dill.loads(bytearray(query))
+        func = types.FunctionType(code, globals(), "transformation")
+        return func(self, self.params, self.entities)
+
+    def add_features_to_list(self, feature_variant_list, entity_name, entity_value):
+        feature_list = []
 
         for feature_variant in feature_variant_list:
             f_name = feature_variant[0]
@@ -613,37 +640,124 @@ class LocalClientImpl:
             f_mode = self.db.get_feature_variant_mode(f_name, f_variant)
 
             if f_mode == ComputationMode.CLIENT_COMPUTED:
-                feature_df = self.calculate_ondemand_feature(
-                    f_name, f_variant, entity_id
-                )
+                output_value = self.calculate_ondemand_feature(f_name, f_variant)
+                feature_list.append(output_value)
             else:
-                feature_df = self.get_precomputed_feature(f_name, f_variant, entity_id)
+                self.compute_feature(f_name, f_variant, entity_name)
+                feature_df = self.get_feature_value(f_name, f_variant, entity_value)
 
-            feature_df_list.append(feature_df)
+                feature_list.append(feature_df)
 
-        return feature_df_list
+        return np.array(feature_list)
 
-    def get_precomputed_feature(self, f_name, f_variant, entity_id):
+    def compute_feature(self, f_name, f_variant, entity_name):
         feature = self.db.get_feature_variant(f_name, f_variant)
         source_name, source_variant = feature["source_name"], feature["source_variant"]
-        if feature["entity"] != entity_id:
+
+        source_files_from_db = self.db.get_source_files_for_resource(
+            "transformation", source_name, source_variant
+        )
+
+        provider_obj = metadata.get_provider(feature["provider"])
+        provider_type = provider_obj.function
+        # This will be replaced to select the appropriate provider for each feature
+        provider = get_provider(provider_type)(provider_obj.config)
+        table_exists = provider.table_exists(f_name, f_variant)
+
+        if (
+            not any(
+                self._file_has_changed(
+                    source_file["updated_at"], source_file["file_path"]
+                )
+                for source_file in source_files_from_db
+            )
+            and len(source_files_from_db) > 0
+            and table_exists
+        ):
+            return
+
+        if feature["entity"] != entity_name:
             raise ValueError(
-                f"Invalid entity {entity_id} for feature {source_name}-{source_variant}"
+                f"Invalid entity {entity_name} for feature {source_name}-{source_variant}"
             )
         if (
             self.db.is_transformation(source_name, source_variant)
             != SourceType.PRIMARY_SOURCE.value
         ):
             feature_df = self.process_non_primary_df_transformation(
-                feature, source_name, source_variant, entity_id
+                feature, source_name, source_variant, entity_name
             )
         else:
             source = self.db.get_source_variant(source_name, source_variant)
             feature_df = feature_df_with_entity(
-                source["definition"], entity_id, feature
+                source["definition"], entity_name, feature
             )
 
-        return feature_df
+        if table_exists:
+            table = provider.get_table(f_name, f_variant)
+        else:
+            if not feature["is_embedding"]:
+                table = provider.create_table(
+                    f_name, f_variant, Scalar(ScalarType(feature["data_type"]))
+                )
+            else:
+                table = provider.create_index(
+                    f_name,
+                    f_variant,
+                    VectorType(
+                        ScalarType(feature["data_type"]), feature["dimension"], True
+                    ),
+                )
+
+        total = len(feature_df)
+        for index, row in feature_df.iterrows():
+            table.set(row[0], row[1])
+            self.progress_bar(
+                total,
+                index,
+                prefix="Updating Feature Table:",
+                suffix="Complete",
+                length=50,
+            )
+        self.progress_bar(
+            total, total, prefix="Updating Feature Table:", suffix="Complete", length=50
+        )
+        print("\n")
+        if provider_type == "LOCAL_ONLINE":
+            table.flush()
+
+    @staticmethod
+    def _file_has_changed(last_updated_at, file_path):
+        """
+        Currently using last updated at for determining if a file has changed. We can consider using the file hash
+        if this becomes a performance issue.
+        """
+        os_last_updated = os.path.getmtime(file_path)
+        return os_last_updated > float(last_updated_at)
+
+    def get_feature_value(self, f_name, f_variant, entity_value):
+        feature = self.db.get_feature_variant(f_name, f_variant)
+        provider_obj = metadata.get_provider(feature["provider"])
+        provider_type = provider_obj.function
+        provider = get_provider(provider_type)(provider_obj.config)
+        table = provider.get_table(f_name, f_variant)
+        value = table.get(entity_value)
+
+        return value
+
+    def progress_bar(self, total, current, prefix="", suffix="", length=30, fill="█"):
+        import sys
+
+        if total == 0:
+            return
+
+        percent = current / total
+        filled_length = int(length * percent)
+        bar = fill * filled_length + "-" * (length - filled_length)
+        sys.stdout.write(
+            "\r{} |{}| {}% {}".format(prefix, bar, int(percent * 100), suffix)
+        )
+        sys.stdout.flush()
 
     def process_non_primary_df_transformation(
         self, feature, source_name, source_variant, entity_id
@@ -672,24 +786,6 @@ class LocalClientImpl:
         feature_df.drop_duplicates(subset=[entity_id], keep="last", inplace=True)
         feature_df.set_index(entity_id)
         return feature_df
-
-    def calculate_ondemand_feature(self, f_name, f_variant, entity_id):
-        query = self.db.get_ondemand_feature_query(f_name, f_variant)
-        base64_bytes = query.encode("ascii")
-        query = base64.b64decode(base64_bytes)
-
-        code = dill.loads(bytearray(query))
-        func = types.FunctionType(code, globals(), "transformation")
-        output_value = func(self, self.params, self.entities)
-
-        feature_col_name = f"{f_name}.{f_variant}"
-        df = pd.DataFrame.from_dict(
-            {
-                entity_id: [self.entities.get(entity_id, "")],
-                feature_col_name: [output_value],
-            }
-        )
-        return df
 
     @staticmethod
     def convert_ts_df_to_dataset(label_row, trainingset_df, include_label_timestamp):
@@ -726,8 +822,18 @@ class LocalClientImpl:
         else:
             return df
 
-    def _nearest(self, name, variant, vector, k):
-        raise NotImplementedError
+    def nearest(self, name, variant, vector, k):
+        feature = self.db.get_feature_variant(name, variant)
+        self.compute_feature(name, variant, feature["entity"])
+        provider_obj = metadata.get_provider(feature["provider"])
+        provider_type = provider_obj.function
+        provider = get_provider(provider_type)(provider_obj.config)
+
+        if provider.table_exists(name, variant):
+            table = provider.get_table(name, variant)
+        else:
+            raise ValueError(f"Table does not exist for feature {name} ({variant})")
+        return table.nearest(name, variant, vector, k)
 
 
 class Stream:

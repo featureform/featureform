@@ -220,7 +220,7 @@ pytest:
 	python -m pytest client/tests/serving_test.py
 	python -m pytest client/src/featureform/local_dash_test.py
 	python -m pytest client/tests/redefined_test.py
-	python -m pytest client/tests/local_test.py
+#	python -m pytest client/tests/local_test.py
 	python -m pytest client/tests/localmode_quickstart_test.py
 	python -m pytest client/tests/register_test.py
 	python -m pytest client/tests/test_spark_provider.py

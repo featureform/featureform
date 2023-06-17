@@ -110,6 +110,7 @@ class TestFeaturesE2E(TestCase):
         for name, case in cases.feature_e2e.items():
             with self.subTest(msg=name):
                 print("TEST: ", name)
+                ff.register_local()
                 file_name = create_temp_file(case)
                 res = e2e_features(
                     file_name,
@@ -137,12 +138,13 @@ class TestFeaturesE2E(TestCase):
             "value_cols": ["value"],
             "entity": "entity",
             "entity_loc": "entity",
-            "features": [("avg_transactions", "v13")],
+            "features": [("avg_transactions", "v13", "int")],
             "entities": [{"entity": "a"}, {"entity": "b"}, {"entity": "c"}],
             "expected": [[1], [2], [3]],
             "ts_col": "ts",
         }
         file_name = create_temp_file(case)
+        ff.register_local()
         with pytest.raises(KeyError) as err:
             e2e_features(
                 file_name,
@@ -160,6 +162,7 @@ class TestFeaturesE2E(TestCase):
         """Fixture to execute asserts before and after a test is run"""
         # Remove any lingering Databases
         try:
+            ff.clear_state()
             shutil.rmtree(".featureform", onerror=del_rw)
         except:
             print("File Already Removed")
@@ -581,10 +584,12 @@ def create_temp_file(test_values):
 def e2e_features(
     file, entity_name, entity_loc, name_variants, value_cols, entities, ts_col
 ):
+    import uuid
+
     local = ff.local
     transactions = ff.local.register_file(
         name="transactions",
-        variant="v1",
+        variant=str(uuid.uuid4())[:8],
         description="A dataset of fraudulent transactions",
         path=file,
     )
@@ -599,7 +604,7 @@ def e2e_features(
                     "name": variant[0],
                     "variant": variant[1],
                     "column": value_cols[i],
-                    "type": "float32",
+                    "type": variant[2],
                 },
             ],
             timestamp_column=ts_col,

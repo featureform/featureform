@@ -77,22 +77,18 @@ def setup(tmp_path_factory):
         features=[("avg_transactions", "quickstart")],
     )
 
-    resource_client = ff.ResourceClient(local=True)
-    resource_client.apply()
+    client = ff.Client(local=True)
+    client.apply()
 
     serving_client = ff.ServingClient(local=True)
     serving_client.training_set("fraud_training", "quickstart")
 
-    yield SetupFixture(
-        transactions_file=str(temp_transactions), serving_client=serving_client
-    )
+    yield SetupFixture(transactions_file=str(temp_transactions), serving_client=client)
 
-    serving_client.impl.db.close()
-    clear_state()
+    # serving_client.impl.db.close()
 
 
 def clear_state():
-    ff.clear_state()
     shutil.rmtree(".featureform", onerror=del_rw)
 
 

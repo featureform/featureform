@@ -6,8 +6,8 @@ class ResourceList:
 
     def append(self, item):
         self.__list.append(item)
-        if interactive_client is not None:
-            interactive_client.apply()
+        if ResourceList.interactive_client is not None:
+            ResourceList.interactive_client.apply()
 
     def list(self):
         return self.__list

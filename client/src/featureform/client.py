@@ -94,6 +94,7 @@ class Client(ResourceClient, ServingClient):
         avg_user_transaction_df = transactions_df.groupby("CustomerID")["TransactionAmount"].mean()
         ```
         """
+        self.apply()
         if isinstance(
             source, (SourceRegistrar, LocalSource, SubscriptableTransformation)
         ):

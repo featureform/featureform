@@ -3814,20 +3814,23 @@ class ResourceClient:
 
         print(f"Applying Run: {get_run()}")
         resource_state = state()
-        if self._dry_run:
-            print(resource_state.sorted_list())
-            return
+        try:
+            if self._dry_run:
+                print(resource_state.sorted_list())
+                return
 
-        if self.local:
-            resource_state.create_all_local()
-        else:
-            resource_state.create_all(self._stub)
+            if self.local:
+                resource_state.create_all_local()
+            else:
+                resource_state.create_all(self._stub)
 
-        if not asynchronous and self._stub:
-            resources = resource_state.sorted_list()
-            display_statuses(self._stub, resources)
+            if not asynchronous and self._stub:
+                resources = resource_state.sorted_list()
+                display_statuses(self._stub, resources)
 
-        clear_state()
+        finally:
+            clear_state()
+            register_local()
 
     def get_user(self, name, local=False):
         """Get a user. Prints out name of user, and all resources associated with the user.

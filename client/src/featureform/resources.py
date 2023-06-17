@@ -1924,6 +1924,9 @@ class ResourceState:
     def __init__(self):
         self.__state = {}
 
+    def reset(self):
+        self.__state = {}
+
     @typechecked
     def add(self, resource: Resource) -> None:
         if hasattr(resource, "variant"):

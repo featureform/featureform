@@ -13,6 +13,7 @@ import types
 import base64
 import random
 
+import featureform as ff
 import numpy as np
 import pandas as pd
 from pandas.core.generic import NDFrame
@@ -50,6 +51,8 @@ def check_feature_type(features):
             checked_features.append(feature)
         elif isinstance(feature, str):
             checked_features.append((feature, "default"))
+        elif isinstance(feature, ff.register.FeatureColumnResource):
+            checked_features.append(feature.name_variant())
     return checked_features
 
 

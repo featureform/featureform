@@ -3756,8 +3756,10 @@ class Registrar:
 
         processed_features = []
         for feature in features:
-            if feature[1] == "":
+            if isinstance(feature, tuple) and feature[1] == "":
                 feature = (feature[0], self.__run)
+            elif isinstance(feature, FeatureColumnResource):
+                feature = feature.name_variant()
             processed_features.append(feature)
         resource = TrainingSet(
             name=name,
@@ -5106,6 +5108,9 @@ class ColumnResource:
         else:
             raise ValueError(f"Resource type {self.resource_type} not supported")
         return (features, labels)
+
+    def name_variant(self):
+        return (self.name, self.variant)
 
 
 class Variants:

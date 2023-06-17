@@ -1,6 +1,8 @@
 import featureform as ff
 from featureform import local, ScalarType
 
+ff.set_run("quickstart")
+
 transactions = local.register_file(
     name="transactions",
     description="A dataset of fraudulent transactions",

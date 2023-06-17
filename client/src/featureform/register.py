@@ -3875,7 +3875,10 @@ class ResourceClient:
 
         finally:
             clear_state()
+            tmp = ResourceList.interactive_client
+            ResourceList.interactive_client = None
             register_local()
+            ResourceList.interactive_client = tmp
 
     def get_user(self, name, local=False):
         """Get a user. Prints out name of user, and all resources associated with the user.

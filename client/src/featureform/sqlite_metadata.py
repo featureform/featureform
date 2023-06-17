@@ -3,6 +3,8 @@ import sqlite3
 from threading import Lock
 import os
 
+from .exceptions import FeatureNotFound
+
 
 class SyncSQLExecutor:
     def __init__(self, conn):
@@ -514,9 +516,15 @@ class SQLiteMetadata:
 
     def get_feature_variant_mode(self, name, variant):
         query = f"SELECT mode FROM feature_computation_mode WHERE name='{name}' AND variant='{variant}'"
-        return self.fetch_data_safe(query, "feature_computation_mode", name, variant)[
-            0
-        ]["mode"]
+
+        feature_metadata = self.fetch_data_safe(
+            query, "feature_computation_mode", name, variant
+        )
+
+        if len(feature_metadata) == 0:
+            raise FeatureNotFound(name, variant)
+
+        return feature_metadata[0]["mode"]
 
     def get_feature_variant_on_demand(self, name, variant):
         query = f"SELECT is_on_demand FROM feature_computation_mode WHERE name='{name}' AND variant='{variant}'"

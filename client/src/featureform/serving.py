@@ -16,21 +16,15 @@ import dill
 import numpy as np
 import pandas as pd
 from featureform import metadata
-from featureform.enums import ScalarType
 from featureform.proto import serving_pb2
 from featureform.proto import serving_pb2_grpc
 from featureform.providers import get_provider, Scalar, VectorType
 from pandas.core.generic import NDFrame
 from pandasql import sqldf
-from featureform.proto import serving_pb2
-from .file_utils import absolute_file_paths
-from featureform.providers import get_provider, Scalar, VectorType
-from featureform.enums import ScalarType
-from featureform import metadata
 from .register import FeatureColumnResource
 
 from .constants import NO_RECORD_LIMIT
-from .enums import FileFormat
+from .enums import FileFormat, ScalarType
 from .file_utils import absolute_file_paths
 from .local_cache import LocalCache
 from .local_utils import (

@@ -644,6 +644,12 @@ class LocalClientImpl:
             "transformation", source_name, source_variant
         )
 
+        provider_obj = metadata.get_provider(feature["provider"])
+        provider_type = provider_obj.function
+        # This will be replaced to select the appropriate provider for each feature
+        provider = get_provider(provider_type)(provider_obj.config)
+        table_exists = provider.table_exists(f_name, f_variant)
+
         if (
             not any(
                 self._file_has_changed(
@@ -652,11 +658,10 @@ class LocalClientImpl:
                 for source_file in source_files_from_db
             )
             and len(source_files_from_db) > 0
+            and table_exists
         ):
             return
 
-        provider_obj = metadata.get_provider(feature["provider"])
-        provider_type = provider_obj.function
         if feature["entity"] != entity_name:
             raise ValueError(
                 f"Invalid entity {entity_name} for feature {source_name}-{source_variant}"
@@ -674,10 +679,7 @@ class LocalClientImpl:
                 source["definition"], entity_name, feature
             )
 
-        # This will be replaced to select the appropriate provider for each feature
-        provider = get_provider(provider_type)(provider_obj.config)
-
-        if provider.table_exists(f_name, f_variant):
+        if table_exists:
             table = provider.get_table(f_name, f_variant)
         else:
             if not feature["is_embedding"]:

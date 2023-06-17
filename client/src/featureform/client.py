@@ -4,6 +4,7 @@ from .register import (
     SourceRegistrar,
     LocalSource,
     SubscriptableTransformation,
+    FeatureColumnResource,
 )
 from .serving import ServingClient
 from .constants import NO_RECORD_LIMIT
@@ -106,7 +107,7 @@ class Client(ResourceClient, ServingClient):
         variant = get_random_name() if variant is None else variant
         return self.impl._get_source_as_df(name, variant, limit)
 
-    def nearest(self, name, variant, vector, k):
+    def nearest(self, feature, vector, k):
         """
         Query the K nearest neighbors of a provider vector in the index of a registered feature variant
 
@@ -123,6 +124,17 @@ class Client(ResourceClient, ServingClient):
         print(nearest_neighbors) # prints a list of entities (e.g. ["entity1", "entity2", "entity3", "entity4", "entity5"])
         ```
         """
+        if isinstance(feature, tuple):
+            name, variant = feature
+        elif isinstance(feature, FeatureColumnResource):
+            name = feature.name
+            variant = feature.variant
+        else:
+            raise Exception(
+                f"the feature '{feature}' of type '{type(feature)}' is not support."
+                "Feature must be a tuple of (name, variant) or a FeatureColumnResource"
+            )
+
         if k < 1:
             raise ValueError(f"k must be a positive integer")
         return self.impl.nearest(name, variant, vector, k)

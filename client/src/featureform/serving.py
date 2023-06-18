@@ -11,6 +11,7 @@ import random
 import types
 import warnings
 from typing import List, Union, Dict
+import time
 
 import dill
 import numpy as np
@@ -708,6 +709,7 @@ class LocalClientImpl:
                         ScalarType(feature["data_type"]), feature["dimension"], True
                     ),
                 )
+                time.sleep(5)
 
         total = len(feature_df)
         for index, row in feature_df.iterrows():

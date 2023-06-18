@@ -702,6 +702,7 @@ class LocalClientImpl:
                     f_name, f_variant, Scalar(ScalarType(feature["data_type"]))
                 )
             else:
+                print("Creating index")
                 table = provider.create_index(
                     f_name,
                     f_variant,
@@ -709,7 +710,9 @@ class LocalClientImpl:
                         ScalarType(feature["data_type"]), feature["dimension"], True
                     ),
                 )
-                time.sleep(5)
+                print("Waiting for index to finalize")
+                time.sleep(60)
+                print("Index Ready")
 
         total = len(feature_df)
         for index, row in feature_df.iterrows():

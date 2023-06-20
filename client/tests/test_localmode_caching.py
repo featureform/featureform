@@ -1,7 +1,6 @@
 import os.path
 import shutil
 import stat
-from typing import Tuple, Callable, Any
 
 import featureform as ff
 import pandas as pd
@@ -85,10 +84,10 @@ def setup(tmp_path_factory):
 
     yield SetupFixture(transactions_file=str(temp_transactions), serving_client=client)
 
-    # serving_client.impl.db.close()
 
-
+@pytest.fixture(autouse=True)
 def clear_state():
+    yield
     shutil.rmtree(".featureform", onerror=del_rw)
 
 

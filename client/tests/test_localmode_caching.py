@@ -86,7 +86,7 @@ def setup(tmp_path_factory):
 
 
 @pytest.fixture(autouse=True)
-def clear_state():
+def cleanup():
     yield
     shutil.rmtree(".featureform", onerror=del_rw)
 

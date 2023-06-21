@@ -84,6 +84,8 @@ def setup(tmp_path_factory):
 
     yield SetupFixture(transactions_file=str(temp_transactions), serving_client=client)
 
+    client.impl.db.close()
+
 
 @pytest.fixture(autouse=True)
 def cleanup():

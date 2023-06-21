@@ -1,20 +1,20 @@
 import csv
+import os
 import shutil
+import stat
 import sys
 import time
 from tempfile import NamedTemporaryFile
 from unittest import TestCase
 from unittest.mock import MagicMock
-import os, stat
-import numpy as np
 
+import numpy as np
 import pandas as pd
 import pytest
 from featureform.local_utils import feature_df_with_entity, label_df_from_csv
 
 sys.path.insert(0, "client/src/")
 from featureform import ResourceClient, ServingClient
-from featureform.serving import LocalClientImpl
 import serving_cases as cases
 import featureform as ff
 from featureform.serving import LocalClientImpl, check_feature_type, Row
@@ -582,7 +582,7 @@ def create_temp_file(test_values):
 
 
 def e2e_features(
-        file, entity_name, entity_loc, name_variant_type, value_cols, entities, ts_col
+    file, entity_name, entity_loc, name_variant_type, value_cols, entities, ts_col
 ):
     import uuid
 

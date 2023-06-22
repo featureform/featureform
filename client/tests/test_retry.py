@@ -45,7 +45,7 @@ def test_args_kwargs():
 
     retried_foo = add_exponential_retry(foo)
 
-    assert retried_foo('hello', 'world', c='!') == ('hello', 'world', '!')
+    assert retried_foo("hello", "world", c="!") == ("hello", "world", "!")
 
 
 def test_max_attempts():

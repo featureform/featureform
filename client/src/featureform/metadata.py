@@ -1,13 +1,12 @@
-import json
-
 from .sqlite_metadata import SQLiteMetadata
-from .resources import Provider, EmptyConfig, PineconeConfig
+from .resources import Provider, EmptyConfig, PineconeConfig, WeaviateConfig
 
 
 def get_provider_config(provider_type):
     ptype = {
         "LOCAL_ONLINE": EmptyConfig,
         "PINECONE_ONLINE": PineconeConfig,
+        "WEAVIATE_ONLINE": WeaviateConfig,
     }
     return ptype[provider_type]()
 

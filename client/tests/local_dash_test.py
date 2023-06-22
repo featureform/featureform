@@ -1,9 +1,10 @@
 import pytest
 import os
-from .cli import app
 import json
 import shutil
 import stat
+
+from featureform.cli import app
 
 features = [
     {
@@ -1958,7 +1959,7 @@ def setup():
     import subprocess
 
     apply = subprocess.run(
-        ["featureform", "apply", "client/examples/local_quickstart.py", "--local"]
+        ["featureform", "apply", "/Users/aliolfat/Development/featureform/client/examples/local_quickstart.py", "--local"]
     )
     yield apply
 
@@ -2052,13 +2053,19 @@ def test_user(client):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def test_cleanup():
-    def del_rw(action, name, exc):
-        os.chmod(name, stat.S_IWRITE)
-        os.remove(name)
-
+def setup_and_teardown():
+    cleanup()
     yield
+    cleanup()
+
+
+def cleanup():
     try:
         shutil.rmtree(".featureform", onerror=del_rw)
-    except:
+    except FileNotFoundError:
         print("File Already Removed")
+
+
+def del_rw(action, name, exc):
+    os.chmod(name, stat.S_IWRITE)
+    os.remove(name)

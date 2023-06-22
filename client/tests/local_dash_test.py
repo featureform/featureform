@@ -1,9 +1,9 @@
-import pytest
-import os
 import json
+import os
 import shutil
 import stat
 
+import pytest
 from featureform.cli import app
 
 features = [
@@ -1959,7 +1959,12 @@ def setup():
     import subprocess
 
     apply = subprocess.run(
-        ["featureform", "apply", "/Users/aliolfat/Development/featureform/client/examples/local_quickstart.py", "--local"]
+        [
+            "featureform",
+            "apply",
+            "client/examples/local_quickstart.py",
+            "--local",
+        ]
     )
     yield apply
 

@@ -693,15 +693,20 @@ class LocalClientImpl:
                 source["definition"], entity_name, feature
             )
 
+        from retry import add_exponential_retry
+
         if table_exists:
-            table = provider.get_table(f_name, f_variant)
+            get_table_with_retries = add_exponential_retry(provider.get_table)
+            table = get_table_with_retries(f_name, f_variant)
         else:
             if not feature["is_embedding"]:
-                table = provider.create_table(
+                create_table_with_retries = add_exponential_retry(provider.create_table)
+                table = create_table_with_retries(
                     f_name, f_variant, Scalar(ScalarType(feature["data_type"]))
                 )
             else:
-                table = provider.create_index(
+                create_index_with_retries = add_exponential_retry(provider.create_index)
+                table = create_index_with_retries(
                     f_name,
                     f_variant,
                     VectorType(

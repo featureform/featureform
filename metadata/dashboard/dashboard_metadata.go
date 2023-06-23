@@ -1074,6 +1074,72 @@ func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64
 	return primary.IterateSegment(limit)
 }
 
+type VariantDuck interface {
+	Name() string
+	Variant() string
+	Tags() metadata.Tags
+}
+
+type TagResult struct {
+	Name    string   `json:"name"`
+	Variant string   `json:"variant"`
+	Tags    []string `json:"tags"`
+}
+
+func GetTagResult(param VariantDuck) TagResult {
+	return TagResult{
+		Name:    param.Name(),
+		Variant: param.Variant(),
+		Tags:    param.Tags(),
+	}
+}
+
+func (m *MetadataServer) GetTagError(err error, c *gin.Context, resourceType string) *FetchError {
+	fetchError := &FetchError{StatusCode: 500, Type: resourceType}
+	m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+	return fetchError
+}
+
+func (m *MetadataServer) SetFoundVariantJSON(foundVariant VariantDuck, err error, c *gin.Context, resourceType string) {
+	if err != nil {
+		fetchError := m.GetTagError(err, c, resourceType)
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+	}
+	c.JSON(http.StatusOK, GetTagResult(foundVariant))
+}
+
+func (m *MetadataServer) GetTags(c *gin.Context) {
+	name := c.Param("resource")
+	resourceType := c.Param("type")
+	nameVariant := metadata.NameVariant{Name: name, Variant: "default"}
+	switch resourceType {
+	case "features":
+		foundVariant, err := m.client.GetFeatureVariant(context.Background(), nameVariant)
+		m.SetFoundVariantJSON(foundVariant, err, c, resourceType)
+	case "labels":
+		foundVariant, err := m.client.GetLabelVariant(context.Background(), nameVariant)
+		m.SetFoundVariantJSON(foundVariant, err, c, resourceType)
+	case "training-sets":
+		foundVariant, err := m.client.GetTrainingSetVariant(context.Background(), nameVariant)
+		m.SetFoundVariantJSON(foundVariant, err, c, resourceType)
+	case "sources":
+		foundVariant, err := m.client.GetSourceVariant(context.Background(), nameVariant)
+		m.SetFoundVariantJSON(foundVariant, err, c, resourceType)
+	case "entities":
+		foundVariant, err := m.client.GetEntity(context.Background(), name)
+		m.SetFoundVariantJSON(foundVariant, err, c, resourceType)
+	case "users":
+		foundVariant, err := m.client.GetUser(context.Background(), name)
+		m.SetFoundVariantJSON(foundVariant, err, c, resourceType)
+	case "models":
+		foundVariant, err := m.client.GetModel(context.Background(), name)
+		m.SetFoundVariantJSON(foundVariant, err, c, resourceType)
+	case "providers":
+		foundVariant, err := m.client.GetProvider(context.Background(), name)
+		m.SetFoundVariantJSON(foundVariant, err, c, resourceType)
+	}
+}
+
 func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
@@ -1083,6 +1149,7 @@ func (m *MetadataServer) Start(port string) {
 	router.GET("/data/search", m.GetSearch)
 	router.GET("/data/version", m.GetVersionMap)
 	router.GET("/data/sourcedata", m.GetSourceData)
+	router.GET("/data/:type/:resource/tags", m.GetTags)
 
 	router.Run(port)
 }
@@ -1101,6 +1168,10 @@ func main() {
 		Port:   searchPort,
 		ApiKey: searchApiKey,
 	})
+	if err != nil {
+		logger.Panicw("Failed to create new meil search", err)
+	}
+
 	searchClient = sc
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	logger.Infof("Looking for metadata at: %s\n", metadataAddress)

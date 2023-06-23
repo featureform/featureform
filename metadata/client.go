@@ -1536,6 +1536,22 @@ type User struct {
 	fetchPropertiesFn
 }
 
+func (e Entity) Variant() string {
+	return ""
+}
+
+func (u User) Variant() string {
+	return ""
+}
+
+func (m Model) Variant() string {
+	return ""
+}
+
+func (p Provider) Variant() string {
+	return ""
+}
+
 func wrapProtoUser(serialized *pb.User) *User {
 	return &User{
 		serialized:           serialized,

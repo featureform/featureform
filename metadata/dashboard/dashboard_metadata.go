@@ -1140,6 +1140,29 @@ func (m *MetadataServer) GetTags(c *gin.Context) {
 	}
 }
 
+type TagRequestBody struct {
+	Tags []string
+}
+
+func (m *MetadataServer) PostTags(c *gin.Context) {
+	var requestBody TagRequestBody
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetTagError(err, c, "PostTags - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	//todox: process the request and add to the resource
+	result := metadata.UnionTags(nil, nil)
+	fmt.Println(result)
+
+	c.JSON(http.StatusOK, TagResult{
+		Name:    "Post Name",
+		Variant: "Post Variant",
+		Tags:    requestBody.Tags,
+	})
+}
+
 func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
@@ -1150,6 +1173,7 @@ func (m *MetadataServer) Start(port string) {
 	router.GET("/data/version", m.GetVersionMap)
 	router.GET("/data/sourcedata", m.GetSourceData)
 	router.GET("/data/:type/:resource/tags", m.GetTags)
+	router.POST("/data/:type/:resource/tags", m.PostTags)
 
 	router.Run(port)
 }

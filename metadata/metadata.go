@@ -463,7 +463,7 @@ func (resource *sourceVariantResource) Update(lookup ResourceLookup, updateRes R
 	if !ok {
 		return errors.New("failed to deserialize existing source variant record")
 	}
-	resource.serialized.Tags = unionTags(resource.serialized.Tags, variantUpdate.Tags)
+	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
 }
@@ -599,7 +599,7 @@ func (resource *featureVariantResource) Update(lookup ResourceLookup, updateRes 
 	if !ok {
 		return errors.New("failed to deserialize existing feature variant record")
 	}
-	resource.serialized.Tags = unionTags(resource.serialized.Tags, variantUpdate.Tags)
+	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
 }
@@ -728,7 +728,7 @@ func (resource *labelVariantResource) Update(lookup ResourceLookup, updateRes Re
 	if !ok {
 		return errors.New("failed to deserialize existing label variant record")
 	}
-	resource.serialized.Tags = unionTags(resource.serialized.Tags, variantUpdate.Tags)
+	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
 }
@@ -855,7 +855,7 @@ func (resource *trainingSetVariantResource) Update(lookup ResourceLookup, update
 	if !ok {
 		return errors.New("failed to deserialize existing training set variant record")
 	}
-	resource.serialized.Tags = unionTags(resource.serialized.Tags, variantUpdate.Tags)
+	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
 }
@@ -930,7 +930,7 @@ func (resource *modelResource) Update(lookup ResourceLookup, updateRes Resource)
 	}
 	resource.serialized.Features = unionNameVariants(resource.serialized.Features, modelUpdate.Features)
 	resource.serialized.Trainingsets = unionNameVariants(resource.serialized.Trainingsets, modelUpdate.Trainingsets)
-	resource.serialized.Tags = unionTags(resource.serialized.Tags, modelUpdate.Tags)
+	resource.serialized.Tags = UnionTags(resource.serialized.Tags, modelUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, modelUpdate.Properties)
 	return nil
 }
@@ -996,7 +996,7 @@ func (resource *userResource) Update(lookup ResourceLookup, updateRes Resource) 
 	if !ok {
 		return errors.New("failed to deserialize existing user record")
 	}
-	resource.serialized.Tags = unionTags(resource.serialized.Tags, userUpdate.Tags)
+	resource.serialized.Tags = UnionTags(resource.serialized.Tags, userUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, userUpdate.Properties)
 	return nil
 }
@@ -1070,7 +1070,7 @@ func (resource *providerResource) Update(lookup ResourceLookup, resourceUpdate R
 	}
 	resource.serialized.SerializedConfig = providerUpdate.SerializedConfig
 	resource.serialized.Description = providerUpdate.Description
-	resource.serialized.Tags = unionTags(resource.serialized.Tags, providerUpdate.Tags)
+	resource.serialized.Tags = UnionTags(resource.serialized.Tags, providerUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, providerUpdate.Properties)
 	return nil
 }
@@ -1160,7 +1160,7 @@ func (resource *entityResource) Update(lookup ResourceLookup, updateRes Resource
 	if !ok {
 		return errors.New("failed to deserialize existing training entity record")
 	}
-	resource.serialized.Tags = unionTags(resource.serialized.Tags, entityUpdate.Tags)
+	resource.serialized.Tags = UnionTags(resource.serialized.Tags, entityUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, entityUpdate.Properties)
 	return nil
 }

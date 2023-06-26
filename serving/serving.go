@@ -110,7 +110,7 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServeRequest) (*pb.FeatureRow, error) {
 	features := req.GetFeatures()
 	entities := req.GetEntities()
-	serv.Logger.Infow("Serving features", "Features", features, "Entities", entities)
+	//serv.Logger.Infow("Serving features", "Features", features, "Entities", entities)
 	entityMap := make(map[string][]string)
 	for _, entity := range entities {
 		entityMap[entity.GetName()] = entity.GetValue()
@@ -140,6 +140,9 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 			}
 			vals <- val
 		}(i, feature)
+		if len(errc) > 0 {
+			break
+		}
 	}
 
 	results := make([]*pb.ValueList, len(req.GetFeatures()))

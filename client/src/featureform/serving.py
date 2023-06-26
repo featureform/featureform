@@ -21,6 +21,8 @@ from featureform.proto import serving_pb2_grpc
 from featureform.providers import get_provider, Scalar, VectorType
 from pandas.core.generic import NDFrame
 from pandasql import sqldf
+
+from . import progress_bar
 from .register import FeatureColumnResource
 
 from .constants import NO_RECORD_LIMIT
@@ -712,14 +714,14 @@ class LocalClientImpl:
         total = len(feature_df)
         for index, row in feature_df.iterrows():
             table.set(row[0], row[1])
-            self.progress_bar(
+            progress_bar(
                 total,
                 index,
                 prefix="Updating Feature Table:",
                 suffix="Complete",
                 length=50,
             )
-        self.progress_bar(
+        progress_bar(
             total, total, prefix="Updating Feature Table:", suffix="Complete", length=50
         )
         print("\n")
@@ -744,20 +746,6 @@ class LocalClientImpl:
         value = table.get(entity_value)
 
         return value
-
-    def progress_bar(self, total, current, prefix="", suffix="", length=30, fill="█"):
-        import sys
-
-        if total == 0:
-            return
-
-        percent = current / total
-        filled_length = int(length * percent)
-        bar = fill * filled_length + "-" * (length - filled_length)
-        sys.stdout.write(
-            "\r{} |{}| {}% {}".format(prefix, bar, int(percent * 100), suffix)
-        )
-        sys.stdout.flush()
 
     def process_non_primary_df_transformation(
         self, feature, source_name, source_variant, entity_id

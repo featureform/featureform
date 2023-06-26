@@ -179,6 +179,11 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 			return nil, fmt.Errorf("metadata lookup failed: %w", err)
 		}
 		meta = metaFeature
+		fmt.Println("SETTING KEY FOR FEATURE: ", serv.getNVCacheKey(name, variant))
+		serv.Features.Range(func(key, value interface{}) bool {
+			fmt.Println(key, value, "->", serv.getNVCacheKey(name, variant))
+			return true
+		})
 		serv.Features.Store(serv.getNVCacheKey(name, variant), meta)
 	}
 

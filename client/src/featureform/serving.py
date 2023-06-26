@@ -237,6 +237,12 @@ class LocalClientImpl:
         self.local_cache = LocalCache(self.db)
         check_up_to_date(True, "serving")
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.db.close()
+
     def get_training_set_dataframe(
         self, label, label_df, training_set_name, training_set_variant
     ) -> NDFrame:
@@ -822,6 +828,9 @@ class LocalClientImpl:
         else:
             raise ValueError(f"Table does not exist for feature {name} ({variant})")
         return table.nearest(name, variant, vector, k)
+
+    def close(self):
+        self.db.close()
 
 
 class Stream:

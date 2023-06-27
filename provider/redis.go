@@ -42,7 +42,7 @@ func NewRedisOnlineStore(options *pc.RedisConfig) *redisOnlineStore {
 		Addr:     options.Addr,
 		Password: options.Password,
 		DB:       options.DB,
-		PoolSize: 10000,
+		PoolSize: 100000,
 	}
 	redisClient := redis.NewClient(redisOptions)
 	return &redisOnlineStore{redisClient, options.Prefix, BaseProvider{
@@ -104,12 +104,16 @@ func (table redisOnlineTable) Set(entity string, value interface{}) error {
 }
 
 func (table redisOnlineTable) Get(entity string) (interface{}, error) {
+	clients, err := table.client.Info(context.Background(), "clients").Result()
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(clients)
 	val := table.client.HGet(context.TODO(), table.key.String(), entity)
 	if val.Err() != nil {
 		return nil, fmt.Errorf("could not get value for entity: %s: %w", entity, val.Err())
 	}
 	var result interface{}
-	var err error
 	switch table.valueType {
 	case NilType, String:
 		result, err = val.Result()

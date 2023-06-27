@@ -213,14 +213,44 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 				serv.Tables.Store(serv.getNVCacheKey(name, variant), table)
 				featureTable = table
 			}
+			//for _, entityVal := range entity {
+			//	val, err := featureTable.(provider.OnlineStoreTable).Get(entityVal)
+			//	if err != nil {
+			//		logger.Errorw("entity not found", "Error", err)
+			//		obs.SetError()
+			//		return nil, fmt.Errorf("entity not found: %w", err)
+			//	}
+			//	values = append(values, val)
+			//}
+			valCh := make(chan interface{}, len(entity))
+			errCh := make(chan error, len(entity))
+
 			for _, entityVal := range entity {
-				val, err := featureTable.(provider.OnlineStoreTable).Get(entityVal)
-				if err != nil {
+				// Start a goroutine for each entity
+				go func(ev string) {
+					val, err := featureTable.(provider.OnlineStoreTable).Get(ev)
+					if err != nil {
+						// Push error into the error channel
+						errCh <- fmt.Errorf("entity not found: %w", err)
+						return
+					}
+					// If no error, push value into the value channel
+					valCh <- val
+				}(entityVal)
+			}
+
+			// Collect results
+			for range entity {
+				select {
+				case err := <-errCh:
+					// If we get an error, stop and return it
 					logger.Errorw("entity not found", "Error", err)
 					obs.SetError()
-					return nil, fmt.Errorf("entity not found: %w", err)
+					return nil, err
+				case val := <-valCh:
+					// Otherwise, add the value to the slice
+					values = append(values, val)
 				}
-				values = append(values, val)
 			}
 		} else {
 			providerEntry, err := meta.FetchProvider(serv.Metadata, ctx)
@@ -258,14 +288,44 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 				serv.Tables.Store(serv.getNVCacheKey(name, variant), table)
 				featureTable = table
 			}
+			//for _, entityVal := range entity {
+			//	val, err := featureTable.(provider.OnlineStoreTable).Get(entityVal)
+			//	if err != nil {
+			//		logger.Errorw("entity not found", "Error", err)
+			//		obs.SetError()
+			//		return nil, fmt.Errorf("entity not found: %w", err)
+			//	}
+			//	values = append(values, val)
+			//}
+			valCh := make(chan interface{}, len(entity))
+			errCh := make(chan error, len(entity))
+
 			for _, entityVal := range entity {
-				val, err := featureTable.(provider.OnlineStoreTable).Get(entityVal)
-				if err != nil {
+				// Start a goroutine for each entity
+				go func(ev string) {
+					val, err := featureTable.(provider.OnlineStoreTable).Get(ev)
+					if err != nil {
+						// Push error into the error channel
+						errCh <- fmt.Errorf("entity not found: %w", err)
+						return
+					}
+					// If no error, push value into the value channel
+					valCh <- val
+				}(entityVal)
+			}
+
+			// Collect results
+			for range entity {
+				select {
+				case err := <-errCh:
+					// If we get an error, stop and return it
 					logger.Errorw("entity not found", "Error", err)
 					obs.SetError()
-					return nil, fmt.Errorf("entity not found: %w", err)
+					return nil, err
+				case val := <-valCh:
+					// Otherwise, add the value to the slice
+					values = append(values, val)
 				}
-				values = append(values, val)
 			}
 		}
 	case metadata.CLIENT_COMPUTED:

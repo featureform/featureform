@@ -1256,12 +1256,12 @@ type EtcdStorageProvider struct {
 }
 
 func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
-	client, err := sp.Config.initClient()
+	client, err := sp.Config.InitClient()
 	if err != nil {
 		return nil, fmt.Errorf("could not init etcd client: %v", err)
 	}
-	lookup := etcdResourceLookup{
-		connection: EtcdStorage{
+	lookup := EtcdResourceLookup{
+		Connection: EtcdStorage{
 			Client: client,
 		},
 	}

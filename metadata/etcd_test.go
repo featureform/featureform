@@ -48,7 +48,7 @@ func (etcd *Etcd) clearDatabase() {
 	}
 }
 
-func Test_etcdResourceLookup_Set(t *testing.T) {
+func Test_EtcdResourceLookup_Set(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
@@ -78,15 +78,15 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := tt.fields.Etcd.initClient()
+			client, err := tt.fields.Etcd.InitClient()
 			store := EtcdStorage{
 				Client: client,
 			}
 			if err != nil {
 				t.Fatalf("Set() could not initialize client: %s", err)
 			}
-			lookup := etcdResourceLookup{
-				connection: store,
+			lookup := EtcdResourceLookup{
+				Connection: store,
 			}
 			if err := lookup.Set(tt.args.id, tt.args.res); (err != nil) != tt.wantErr {
 				t.Fatalf("Set() error = %v, wantErr %v", err, tt.wantErr)
@@ -128,7 +128,7 @@ func Test_etcdResourceLookup_Set(t *testing.T) {
 	t.Cleanup(connect.clearDatabase)
 }
 
-func Test_etcdResourceLookup_Lookup(t *testing.T) {
+func Test_EtcdResourceLookup_Lookup(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
@@ -182,15 +182,15 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 		cancel()
 
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := tt.fields.Etcd.initClient()
+			client, err := tt.fields.Etcd.InitClient()
 			store := EtcdStorage{
 				Client: client,
 			}
 			if err != nil {
 				t.Fatalf("Lookup() could not initialize client: %s", err)
 			}
-			lookup := etcdResourceLookup{
-				connection: store,
+			lookup := EtcdResourceLookup{
+				Connection: store,
 			}
 			got, err := lookup.Lookup(tt.args.id)
 
@@ -208,7 +208,7 @@ func Test_etcdResourceLookup_Lookup(t *testing.T) {
 	t.Cleanup(connect.clearDatabase)
 }
 
-func Test_etcdResourceLookup_Has(t *testing.T) {
+func Test_EtcdResourceLookup_Has(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
@@ -274,15 +274,15 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 			cancel()
 		}
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := tt.fields.Etcd.initClient()
+			client, err := tt.fields.Etcd.InitClient()
 			store := EtcdStorage{
 				Client: client,
 			}
 			if err != nil {
 				t.Fatalf("Has() could not initialize client: %s", err)
 			}
-			lookup := etcdResourceLookup{
-				connection: store,
+			lookup := EtcdResourceLookup{
+				Connection: store,
 			}
 			got, err := lookup.Has(tt.args.id)
 			if (err != nil) != tt.wantErr {
@@ -299,7 +299,7 @@ func Test_etcdResourceLookup_Has(t *testing.T) {
 	t.Cleanup(connect.clearDatabase)
 }
 
-func Test_etcdResourceLookup_ListForType(t *testing.T) {
+func Test_EtcdResourceLookup_ListForType(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
@@ -362,15 +362,15 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := tt.fields.Etcd.initClient()
+			client, err := tt.fields.Etcd.InitClient()
 			store := EtcdStorage{
 				Client: client,
 			}
 			if err != nil {
 				t.Fatalf("ListForType() could not initialize client: %s", err)
 			}
-			lookup := etcdResourceLookup{
-				connection: store,
+			lookup := EtcdResourceLookup{
+				Connection: store,
 			}
 			got, err := lookup.ListForType(tt.args.t)
 			if (err != nil) != tt.wantErr {
@@ -389,7 +389,7 @@ func Test_etcdResourceLookup_ListForType(t *testing.T) {
 	t.Cleanup(connect.clearDatabase)
 }
 
-func Test_etcdResourceLookup_List(t *testing.T) {
+func Test_EtcdResourceLookup_List(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
@@ -448,15 +448,15 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := tt.fields.Etcd.initClient()
+			client, err := tt.fields.Etcd.InitClient()
 			store := EtcdStorage{
 				Client: client,
 			}
 			if err != nil {
 				t.Fatalf("List() could not initialize client: %s", err)
 			}
-			lookup := etcdResourceLookup{
-				connection: store,
+			lookup := EtcdResourceLookup{
+				Connection: store,
 			}
 			got, err := lookup.List()
 			if (err != nil) != tt.wantErr {
@@ -475,7 +475,7 @@ func Test_etcdResourceLookup_List(t *testing.T) {
 	t.Cleanup(connect.clearDatabase)
 }
 
-func Test_etcdResourceLookup_Submap(t *testing.T) {
+func Test_EtcdResourceLookup_Submap(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
@@ -550,15 +550,15 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 
-			client, err := tt.fields.Etcd.initClient()
+			client, err := tt.fields.Etcd.InitClient()
 			store := EtcdStorage{
 				Client: client,
 			}
 			if err != nil {
 				t.Fatalf("Submap() could not initialize client: %s", err)
 			}
-			lookup := etcdResourceLookup{
-				connection: store,
+			lookup := EtcdResourceLookup{
+				Connection: store,
 			}
 
 			got, err := lookup.Submap(tt.args.ids)
@@ -596,7 +596,7 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 	t.Cleanup(connect.clearDatabase)
 }
 
-func Test_etcdResourceLookup_findResourceType(t *testing.T) {
+func Test_EtcdResourceLookup_findResourceType(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
@@ -629,15 +629,15 @@ func Test_etcdResourceLookup_findResourceType(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
-			client, err := config.initClient()
+			client, err := config.InitClient()
 			store := EtcdStorage{
 				Client: client,
 			}
 			if err != nil {
 				t.Fatalf("createEmptyResource() could not initialize client: %s", err)
 			}
-			lookup := etcdResourceLookup{
-				connection: store,
+			lookup := EtcdResourceLookup{
+				Connection: store,
 			}
 			got, err := lookup.createEmptyResource(tt.args.t)
 			if (err != nil) != tt.wantErr {
@@ -675,7 +675,7 @@ func TestEtcdConfig_Put(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config := EtcdConfig{[]EtcdNode{{Host: tt.fields.Host, Port: tt.fields.Port}}}
-			c, err := config.initClient()
+			c, err := config.InitClient()
 			if err != nil && !tt.wantErr {
 				t.Errorf("Put() could not initialize client: %v", err)
 			} else if err != nil && tt.wantErr {
@@ -713,7 +713,7 @@ func TestEtcdConfig_Get(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config := EtcdConfig{[]EtcdNode{{Host: tt.fields.Host, Port: tt.fields.Port}}}
-			c, err := config.initClient()
+			c, err := config.InitClient()
 			if err != nil && !tt.wantErr {
 				t.Errorf("Get() could not initialize client: %v", err)
 			} else if err != nil && tt.wantErr {
@@ -755,7 +755,7 @@ func TestEtcdConfig_GetWithPrefix(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
-			client, err := config.initClient()
+			client, err := config.InitClient()
 			if err != nil && !tt.wantErr {
 				t.Errorf("GetWithPrefix() could not initialize client: %v", err)
 			} else if err != nil && tt.wantErr {
@@ -799,7 +799,7 @@ func TestEtcdConfig_GetCountWithPrefix(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
-			client, err := config.initClient()
+			client, err := config.InitClient()
 			if err != nil {
 				t.Fatalf("GetCountWithPrefix() could not initialize client: %s", err)
 			}
@@ -850,7 +850,7 @@ func TestEtcdConfig_ParseResource(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
-			client, err := config.initClient()
+			client, err := config.InitClient()
 			store := EtcdStorage{
 				Client: client,
 			}

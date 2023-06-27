@@ -12,32 +12,78 @@ import (
 	"strings"
 
 	help "github.com/featureform/helpers"
+	"github.com/featureform/metadata"
+	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/metadata/search"
 	"github.com/featureform/proto"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/serving"
-	"github.com/pkg/errors"
-
-	"github.com/featureform/metadata"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
 var searchClient search.Searcher
 
+type StorageProvider interface {
+	GetResourceLookup() (metadata.ResourceLookup, error)
+}
+
+type LocalStorageProvider struct {
+}
+
+func (sp LocalStorageProvider) GetResourceLookup() (metadata.ResourceLookup, error) {
+	lookup := make(metadata.LocalResourceLookup)
+	return lookup, nil
+}
+
+type EtcdStorageProvider struct {
+	Config metadata.EtcdConfig
+}
+
+func (sp EtcdStorageProvider) GetResourceLookup() (metadata.ResourceLookup, error) {
+	client, err := sp.Config.InitClient()
+	if err != nil {
+		return nil, fmt.Errorf("could not init etcd client: %v", err)
+	}
+	lookup := metadata.EtcdResourceLookup{
+		Connection: metadata.EtcdStorage{
+			Client: client,
+		},
+	}
+	return lookup, nil
+}
+
 type MetadataServer struct {
-	client *metadata.Client
-	logger *zap.SugaredLogger
+	lookup          metadata.ResourceLookup
+	client          *metadata.Client
+	logger          *zap.SugaredLogger
+	StorageProvider StorageProvider
 }
 
 func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client) (*MetadataServer, error) {
 	logger.Debug("Creating new metadata server")
+	etcdHost := help.GetEnv("ETCD_HOST", "featureform-etcd")
+	etcdPort := help.GetEnv("ETCD_PORT", "2379")
+	storageProvider := metadata.EtcdStorageProvider{
+		Config: metadata.EtcdConfig{
+			Nodes: []metadata.EtcdNode{
+				{Host: etcdHost, Port: etcdPort},
+			},
+		},
+	}
+	lookup, err := storageProvider.GetResourceLookup()
+	if err != nil {
+		return nil, fmt.Errorf("could not configure storage provider: %v", err)
+	}
 	return &MetadataServer{
-		client: client,
-		logger: logger,
+		client:          client,
+		logger:          logger,
+		StorageProvider: storageProvider,
+		lookup:          lookup,
 	}, nil
 }
 
@@ -1151,10 +1197,22 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
+	fmt.Println(m.lookup)
+	objID := metadata.ResourceID{
+		Name:    "average_user_transaction",
+		Variant: "default",
+		Type:    metadata.SOURCE_VARIANT,
+	}
+	resource, err := m.lookup.Lookup(objID)
+	fmt.Println(resource)
+	fmt.Println(err)
 
-	//todox: process the request and add to the resource
-	result := metadata.UnionTags(nil, nil)
-	fmt.Println(result)
+	m.lookup.Set(objID, resource)
+
+	destination := pb.Tags{Tag: []string{"Test 1", "Test 2"}}
+	source := pb.Tags{Tag: []string{"Test 3", "Test 4"}}
+	result := metadata.UnionTags(&destination, &source)
+	fmt.Println(result.Tag)
 
 	c.JSON(http.StatusOK, TagResult{
 		Name:    "Post Name",

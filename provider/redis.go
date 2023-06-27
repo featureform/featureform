@@ -42,7 +42,7 @@ func NewRedisOnlineStore(options *pc.RedisConfig) *redisOnlineStore {
 		Addr:     options.Addr,
 		Password: options.Password,
 		DB:       options.DB,
-		PoolSize: 1000,
+		PoolSize: 10000,
 	}
 	redisClient := redis.NewClient(redisOptions)
 	return &redisOnlineStore{redisClient, options.Prefix, BaseProvider{

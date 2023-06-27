@@ -8,12 +8,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
+
 	help "github.com/featureform/helpers"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/pkg/errors"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/proto"
-	"time"
 )
 
 type StorageType string
@@ -28,7 +29,7 @@ type EtcdNode struct {
 	Port string
 }
 
-//Configuration For ETCD Cluster
+// Configuration For ETCD Cluster
 type EtcdConfig struct {
 	Nodes []EtcdNode
 }
@@ -120,12 +121,12 @@ type EtcdStorage struct {
 	Client *clientv3.Client
 }
 
-//Create Resource Lookup Using ETCD
+// Create Resource Lookup Using ETCD
 type etcdResourceLookup struct {
 	connection EtcdStorage
 }
 
-//Wrapper around Resource/Job messages. Allows top level storage for info about saved value
+// Wrapper around Resource/Job messages. Allows top level storage for info about saved value
 type EtcdRow struct {
 	ResourceType ResourceType //Resource Type. For use when getting stored keys
 	//ResourceType string
@@ -148,12 +149,12 @@ func (config EtcdConfig) MakeAddresses() []string {
 	return addresses
 }
 
-//Uses Storage Type as prefix so Resources and Jobs can be queried more easily
+// Uses Storage Type as prefix so Resources and Jobs can be queried more easily
 func createKey(id ResourceID) string {
 	return fmt.Sprintf("%s__%s__%s", id.Type, id.Name, id.Variant)
 }
 
-//Puts K/V into ETCD
+// Puts K/V into ETCD
 func (s EtcdStorage) Put(key string, value string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	defer cancel()
@@ -180,7 +181,7 @@ func (s EtcdStorage) genericGet(key string, withPrefix bool) (*clientv3.GetRespo
 	return resp, nil
 }
 
-//Gets value from ETCD using a key
+// Gets value from ETCD using a key
 func (s EtcdStorage) Get(key string) ([]byte, error) {
 	resp, err := s.genericGet(key, false)
 	if err != nil {
@@ -192,9 +193,9 @@ func (s EtcdStorage) Get(key string) ([]byte, error) {
 	return resp.Kvs[0].Value, nil
 }
 
-//Gets values from ETCD using a prefix key.
-//Any value with a key starting with the 'key' argument will be queried.
-//All stored values can be retrieved using an empty string as the 'key'
+// Gets values from ETCD using a prefix key.
+// Any value with a key starting with the 'key' argument will be queried.
+// All stored values can be retrieved using an empty string as the 'key'
 func (s EtcdStorage) GetWithPrefix(key string) ([][]byte, error) {
 	resp, err := s.genericGet(key, true)
 	if err != nil {
@@ -207,8 +208,8 @@ func (s EtcdStorage) GetWithPrefix(key string) ([][]byte, error) {
 	return response, nil
 }
 
-//Returns number of keys that match key prefix
-//See GetWithPrefix for more details on prefix
+// Returns number of keys that match key prefix
+// See GetWithPrefix for more details on prefix
 func (s EtcdStorage) GetCountWithPrefix(key string) (int64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	defer cancel()
@@ -219,9 +220,9 @@ func (s EtcdStorage) GetCountWithPrefix(key string) (int64, error) {
 	return resp.Count, nil
 }
 
-//Takes a populated ETCD storage struct and a resource
-//Checks to make sure the given ETCD Storage Object contains a Resource, not job
-//Deserializes Resource value into the provided Resource object
+// Takes a populated ETCD storage struct and a resource
+// Checks to make sure the given ETCD Storage Object contains a Resource, not job
+// Deserializes Resource value into the provided Resource object
 func (s EtcdStorage) ParseResource(res EtcdRow, resType Resource) (Resource, error) {
 	if res.StorageType != RESOURCE {
 		return nil, fmt.Errorf("payload is not resource type")
@@ -242,7 +243,7 @@ func (s EtcdStorage) ParseResource(res EtcdRow, resType Resource) (Resource, err
 	return resType, nil
 }
 
-//Returns an empty Resource Object of the given type to unmarshal etcd value into
+// Returns an empty Resource Object of the given type to unmarshal etcd value into
 func (lookup etcdResourceLookup) createEmptyResource(t ResourceType) (Resource, error) {
 	var resource Resource
 	switch t {
@@ -288,7 +289,7 @@ func (lookup etcdResourceLookup) createEmptyResource(t ResourceType) (Resource, 
 	return resource, nil
 }
 
-//Serializes the entire ETCD Storage Object to be put into ETCD
+// Serializes the entire ETCD Storage Object to be put into ETCD
 func (lookup etcdResourceLookup) serializeResource(res Resource) ([]byte, error) {
 	p, err := proto.Marshal(res.Proto())
 	if err != nil {
@@ -306,7 +307,7 @@ func (lookup etcdResourceLookup) serializeResource(res Resource) ([]byte, error)
 	return serialMsg, nil
 }
 
-//Deserializes object into ETCD Storage Object
+// Deserializes object into ETCD Storage Object
 func (lookup etcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 	var tmp EtcdRowTemp
 	if err := json.Unmarshal(value, &tmp); err != nil {
@@ -426,7 +427,7 @@ func (lookup etcdResourceLookup) Set(id ResourceID, res Resource) error {
 }
 
 func (lookup etcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error) {
-	resources := make(localResourceLookup, len(ids))
+	resources := make(LocalResourceLookup, len(ids))
 
 	for _, id := range ids {
 		key := createKey(id)

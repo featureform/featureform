@@ -8,14 +8,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	pb "github.com/featureform/metadata/proto"
-	clientv3 "go.etcd.io/etcd/client/v3"
-	"google.golang.org/protobuf/proto"
-	tspb "google.golang.org/protobuf/types/known/timestamppb"
 	"log"
 	"reflect"
 	"testing"
 	"time"
+
+	pb "github.com/featureform/metadata/proto"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/protobuf/proto"
+	tspb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Etcd struct {
@@ -512,7 +513,7 @@ func Test_etcdResourceLookup_Submap(t *testing.T) {
 			Created: tspb.Now(),
 		}}}
 
-	resources := localResourceLookup{
+	resources := LocalResourceLookup{
 		ids[0]: featureResources[0],
 		ids[1]: featureResources[1],
 		ids[2]: featureResources[2],

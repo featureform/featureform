@@ -209,6 +209,7 @@ func (err *ResourceExists) GRPCStatus() *status.Status {
 	return status.New(codes.AlreadyExists, err.Error())
 }
 
+// todox:
 type Resource interface {
 	Notify(ResourceLookup, operation, Resource) error
 	ID() ResourceID
@@ -259,9 +260,9 @@ func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
 	return wrapper.Searcher.Upsert(doc)
 }
 
-type localResourceLookup map[ResourceID]Resource
+type LocalResourceLookup map[ResourceID]Resource
 
-func (lookup localResourceLookup) Lookup(id ResourceID) (Resource, error) {
+func (lookup LocalResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	res, has := lookup[id]
 	if !has {
 		return nil, &ResourceNotFound{id, nil}
@@ -269,18 +270,18 @@ func (lookup localResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	return res, nil
 }
 
-func (lookup localResourceLookup) Has(id ResourceID) (bool, error) {
+func (lookup LocalResourceLookup) Has(id ResourceID) (bool, error) {
 	_, has := lookup[id]
 	return has, nil
 }
 
-func (lookup localResourceLookup) Set(id ResourceID, res Resource) error {
+func (lookup LocalResourceLookup) Set(id ResourceID, res Resource) error {
 	lookup[id] = res
 	return nil
 }
 
-func (lookup localResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error) {
-	resources := make(localResourceLookup, len(ids))
+func (lookup LocalResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error) {
+	resources := make(LocalResourceLookup, len(ids))
 	for _, id := range ids {
 		resource, has := lookup[id]
 		if !has {
@@ -291,7 +292,7 @@ func (lookup localResourceLookup) Submap(ids []ResourceID) (ResourceLookup, erro
 	return resources, nil
 }
 
-func (lookup localResourceLookup) ListForType(t ResourceType) ([]Resource, error) {
+func (lookup LocalResourceLookup) ListForType(t ResourceType) ([]Resource, error) {
 	resources := make([]Resource, 0)
 	for id, res := range lookup {
 		if id.Type == t {
@@ -301,7 +302,7 @@ func (lookup localResourceLookup) ListForType(t ResourceType) ([]Resource, error
 	return resources, nil
 }
 
-func (lookup localResourceLookup) List() ([]Resource, error) {
+func (lookup LocalResourceLookup) List() ([]Resource, error) {
 	resources := make([]Resource, 0, len(lookup))
 	for _, res := range lookup {
 		resources = append(resources, res)
@@ -309,7 +310,7 @@ func (lookup localResourceLookup) List() ([]Resource, error) {
 	return resources, nil
 }
 
-func (lookup localResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
+func (lookup LocalResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
 	res, has := lookup[id]
 	if !has {
 		return &ResourceNotFound{id, nil}
@@ -321,11 +322,11 @@ func (lookup localResourceLookup) SetStatus(id ResourceID, status pb.ResourceSta
 	return nil
 }
 
-func (lookup localResourceLookup) SetJob(id ResourceID, schedule string) error {
+func (lookup LocalResourceLookup) SetJob(id ResourceID, schedule string) error {
 	return nil
 }
 
-func (lookup localResourceLookup) SetSchedule(id ResourceID, schedule string) error {
+func (lookup LocalResourceLookup) SetSchedule(id ResourceID, schedule string) error {
 	res, has := lookup[id]
 	if !has {
 		return &ResourceNotFound{id, nil}
@@ -337,7 +338,7 @@ func (lookup localResourceLookup) SetSchedule(id ResourceID, schedule string) er
 	return nil
 }
 
-func (lookup localResourceLookup) HasJob(id ResourceID) (bool, error) {
+func (lookup LocalResourceLookup) HasJob(id ResourceID) (bool, error) {
 	return false, nil
 }
 
@@ -357,7 +358,7 @@ func (resource *sourceResource) Schedule() string {
 }
 
 func (resource *sourceResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	return make(localResourceLookup), nil
+	return make(LocalResourceLookup), nil
 }
 
 func (resource *sourceResource) Proto() proto.Message {
@@ -484,7 +485,7 @@ func (resource *featureResource) Schedule() string {
 }
 
 func (resource *featureResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	return make(localResourceLookup), nil
+	return make(LocalResourceLookup), nil
 }
 
 func (resource *featureResource) Proto() proto.Message {
@@ -620,7 +621,7 @@ func (resource *labelResource) Schedule() string {
 }
 
 func (resource *labelResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	return make(localResourceLookup), nil
+	return make(LocalResourceLookup), nil
 }
 
 func (resource *labelResource) Proto() proto.Message {
@@ -749,7 +750,7 @@ func (resource *trainingSetResource) Schedule() string {
 }
 
 func (resource *trainingSetResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	return make(localResourceLookup), nil
+	return make(LocalResourceLookup), nil
 }
 
 func (resource *trainingSetResource) Proto() proto.Message {
@@ -951,7 +952,7 @@ func (resource *userResource) Schedule() string {
 }
 
 func (resource *userResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	return make(localResourceLookup), nil
+	return make(LocalResourceLookup), nil
 }
 
 func (resource *userResource) Proto() proto.Message {
@@ -1017,7 +1018,7 @@ func (resource *providerResource) Schedule() string {
 }
 
 func (resource *providerResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	return make(localResourceLookup), nil
+	return make(LocalResourceLookup), nil
 }
 
 func (resource *providerResource) Proto() proto.Message {
@@ -1122,7 +1123,7 @@ func (resource *entityResource) Schedule() string {
 }
 
 func (resource *entityResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	return make(localResourceLookup), nil
+	return make(LocalResourceLookup), nil
 }
 
 func (resource *entityResource) Proto() proto.Message {
@@ -1246,7 +1247,7 @@ type LocalStorageProvider struct {
 }
 
 func (sp LocalStorageProvider) GetResourceLookup() (ResourceLookup, error) {
-	lookup := make(localResourceLookup)
+	lookup := make(LocalResourceLookup)
 	return lookup, nil
 }
 

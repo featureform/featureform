@@ -26,7 +26,6 @@ from featureform.serving import LocalClientImpl
 
 
 path = os.path.join(os.path.dirname(__file__), "dashboard")
-localClientImpl = LocalClientImpl()
 
 dashboard_app = Blueprint(
     "dashboard_app", __name__, static_folder=path + "/out/", static_url_path=""
@@ -86,21 +85,21 @@ def source_data():
         return response
 
     try:
-        localClientImpl = LocalClientImpl()
-        source_data = {"columns": [], "rows": []}
-        df = localClientImpl.get_input_df(name, variant)
-        if isinstance(df, pd.Series):
-            df = df.to_frame()
-            df.reset_index(inplace=True)
-        for column in df.columns:
-            source_data["columns"].append(column)
-        for _, currentRow in df.iterrows():
-            n = n + 1
-            if n > limit:
-                break
-            currentRow = currentRow.fillna("NaN")
-            source_data["rows"].append(currentRow.to_list())
-        return json.dumps(source_data, allow_nan=False)
+        with LocalClientImpl() as localClientImpl:
+            source_data = {"columns": [], "rows": []}
+            df = localClientImpl.get_input_df(name, variant)
+            if isinstance(df, pd.Series):
+                df = df.to_frame()
+                df.reset_index(inplace=True)
+            for column in df.columns:
+                source_data["columns"].append(column)
+            for _, currentRow in df.iterrows():
+                n = n + 1
+                if n > limit:
+                    break
+                currentRow = currentRow.fillna("NaN")
+                source_data["rows"].append(currentRow.to_list())
+            return json.dumps(source_data, allow_nan=False)
     except ValueError as e:
         error = f"Error 500: {e}"
         response = Response(

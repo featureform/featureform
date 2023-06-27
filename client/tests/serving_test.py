@@ -1,20 +1,20 @@
 import csv
+import os
 import shutil
+import stat
 import sys
 import time
 from tempfile import NamedTemporaryFile
 from unittest import TestCase
 from unittest.mock import MagicMock
-import os, stat
-import numpy as np
 
+import numpy as np
 import pandas as pd
 import pytest
 from featureform.local_utils import feature_df_with_entity, label_df_from_csv
 
 sys.path.insert(0, "client/src/")
 from featureform import ResourceClient, ServingClient
-from featureform.serving import LocalClientImpl
 import serving_cases as cases
 import featureform as ff
 from featureform.serving import LocalClientImpl, check_feature_type, Row
@@ -582,7 +582,7 @@ def create_temp_file(test_values):
 
 
 def e2e_features(
-    file, entity_name, entity_loc, name_variants, value_cols, entities, ts_col
+    file, entity_name, entity_loc, name_variant_type, value_cols, entities, ts_col
 ):
     import uuid
 
@@ -594,17 +594,17 @@ def e2e_features(
         path=file,
     )
     entity = ff.register_entity(entity_name)
-    for i, variant in enumerate(name_variants):
+    for i, (name, variant, type) in enumerate(name_variant_type):
         transactions.register_resources(
             entity=entity,
             entity_column=entity_loc,
             inference_store=local,
             features=[
                 {
-                    "name": variant[0],
-                    "variant": variant[1],
+                    "name": name,
+                    "variant": variant,
                     "column": value_cols[i],
-                    "type": variant[2],
+                    "type": type,
                 },
             ],
             timestamp_column=ts_col,
@@ -612,8 +612,9 @@ def e2e_features(
     ResourceClient(local=True).apply()
     client = ServingClient(local=True)
     results = []
+    name_variant = [(name, variant) for name, variant, type in name_variant_type]
     for entity in entities:
-        results.append(client.features(name_variants, entity))
+        results.append(client.features(name_variant, entity))
 
     return results
 

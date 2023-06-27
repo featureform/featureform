@@ -44,3 +44,16 @@ def format_rows(
 def format_pg(s=""):
     print(divider)
     print(s)
+
+
+def progress_bar(total, current, prefix="", suffix="", length=30, fill="#"):
+    import sys
+
+    if total == 0:
+        return
+
+    percent = current / total
+    filled_length = int(length * percent)
+    bar = fill * filled_length + "-" * (length - filled_length)
+    sys.stdout.write("\r{} |{}| {}% {}".format(prefix, bar, int(percent * 100), suffix))
+    sys.stdout.flush()

@@ -104,15 +104,11 @@ func (table redisOnlineTable) Set(entity string, value interface{}) error {
 }
 
 func (table redisOnlineTable) Get(entity string) (interface{}, error) {
-	clients, err := table.client.Info(context.Background(), "clients").Result()
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println(clients)
 	val := table.client.HGet(context.TODO(), table.key.String(), entity)
 	if val.Err() != nil {
 		return nil, fmt.Errorf("could not get value for entity: %s: %w", entity, val.Err())
 	}
+	var err error
 	var result interface{}
 	switch table.valueType {
 	case NilType, String:

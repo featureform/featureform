@@ -80,7 +80,9 @@ def setup(tmp_path_factory):
         client.apply()
         client.training_set("fraud_training", variant)  # this will create the cache
 
-        yield SetupFixture(transactions_file=str(temp_transactions), serving_client=client)
+        yield SetupFixture(
+            transactions_file=str(temp_transactions), serving_client=client
+        )
 
 
 @pytest.fixture(autouse=True)

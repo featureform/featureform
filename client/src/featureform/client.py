@@ -88,8 +88,7 @@ class Client(ResourceClient, ServingClient):
         Query the K nearest neighbors of a provider vector in the index of a registered feature variant
 
         Args:
-            name (str): Feature name
-            variant (str): Feature variant
+            feature (Union[FeatureColumnResource, tuple(str, str)]): Feature object or tuple of Feature name and variant
             vector (List[float]): Query vector
             k (int): Number of nearest neighbors to return
 

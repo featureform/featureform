@@ -116,7 +116,7 @@ class ServingClient:
             variant (str): Variant of training set to be retrieved
 
         Returns:
-            training set (Dataset): A training set iterator
+            training_set (Dataset): A training set iterator
         """
         return self.impl.training_set(name, variant, include_label_timestamp, model)
 

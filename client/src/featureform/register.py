@@ -870,7 +870,7 @@ class LocalSource:
         Returns the local source as a pandas datafame.
 
         Returns:
-        dataframe (pandas.Dataframe): A pandas Dataframe
+            dataframe (pandas.Dataframe): A pandas Dataframe
         """
         return pd.read_csv(self.path)
 
@@ -1478,7 +1478,7 @@ class LabelColumnResource(ColumnResource):
 
 
 class Registrar:
-    """These functions are used to register new resources and retrieving existing resources. Retrieved resources can be used to register additional resources. If information on these resources is needed (e.g. retrieve the names of all variants of a feature), use the [Resource Client](resource_client.md) instead.
+    """These functions are used to register new resources and retrieving existing resources. Retrieved resources can be used to register additional resources. If information on these resources is needed (e.g. retrieve the names of all variants of a feature), use the [Resource Client](client.md) instead.
 
     ``` py title="definitions.py"
     import featureform as ff
@@ -2171,7 +2171,6 @@ class Registrar:
             team (str): the name of the team registering the filestore
             account_name (str): Azure account name
             account_key (str): Secret azure account key
-            config (AzureConfig): an azure config object (can be used in place of container name and account name)
             tags (List[str]): Optional grouping mechanism for resources
             properties (dict): Optional grouping mechanism for resources
         Returns:
@@ -2456,7 +2455,7 @@ class Registrar:
             team (str): Name of team
             host (str): DNS name of Cassandra
             port (str): Port
-            user (str): User
+            username (str): Username
             password (str): Password
             consistency (str): Consistency
             replication (int): Replication
@@ -3513,9 +3512,7 @@ class Registrar:
             labels (List[ColumnMapping]): List of ColumnMapping objects (dictionaries containing the keys: name, variant, column, resource_type)
             description (str): Description
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
-
+            
         Returns:
             resource (ResourceRegistrar): resource
         """

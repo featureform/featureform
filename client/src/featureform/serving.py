@@ -141,6 +141,10 @@ class ServingClient:
         features = check_feature_type(features)
         return self.impl.features(features, entities, model, params)
 
+    def close(self):
+        """Closes the connection to the Featureform instance."""
+        self.impl.close()
+
 
 class HostedClientImpl:
     def __init__(self, host=None, insecure=False, cert_path=None):
@@ -151,8 +155,8 @@ class HostedClientImpl:
                 " variable FEATUREFORM_HOST must be set."
             )
         check_up_to_date(False, "serving")
-        channel = self._create_channel(host, insecure, cert_path)
-        self._stub = serving_pb2_grpc.FeatureStub(channel)
+        self._channel = self._create_channel(host, insecure, cert_path)
+        self._stub = serving_pb2_grpc.FeatureStub(self._channel)
 
     def _create_channel(self, host, insecure, cert_path):
         if insecure:
@@ -230,11 +234,14 @@ class HostedClientImpl:
         resp = self._stub.Nearest(req)
         return resp.entities
 
+    def close(self):
+        self._channel.close()
+
 
 class LocalClientImpl:
     def __init__(self):
         self.db = SQLiteMetadata()
-        self.local_cache = LocalCache(self.db)
+        self.local_cache = LocalCache()
         check_up_to_date(True, "serving")
 
     def __enter__(self):

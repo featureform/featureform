@@ -1957,7 +1957,6 @@ def remove_keys(obj, rubbish):
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    cleanup()
     import subprocess
 
     apply = subprocess.run(

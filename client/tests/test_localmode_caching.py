@@ -76,11 +76,11 @@ def setup(tmp_path_factory):
         features=[("avg_transactions", variant)],
     )
 
-    client = ff.Client(local=True)
-    client.apply()
-    client.training_set("fraud_training", variant)  # this will create the cache
+    with ff.Client(local=True) as client:
+        client.apply()
+        client.training_set("fraud_training", variant)  # this will create the cache
 
-    yield SetupFixture(transactions_file=str(temp_transactions), serving_client=client)
+        yield SetupFixture(transactions_file=str(temp_transactions), serving_client=client)
 
 
 @pytest.fixture(autouse=True)

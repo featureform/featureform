@@ -114,3 +114,14 @@ class Client(ResourceClient, ServingClient):
         if k < 1:
             raise ValueError(f"k must be a positive integer")
         return self.impl.nearest(name, variant, vector, k)
+
+    def close(self):
+        self.impl.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
+

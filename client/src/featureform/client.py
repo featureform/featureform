@@ -1,4 +1,7 @@
 from typing import Union
+
+from .constants import NO_RECORD_LIMIT
+from .names_generator import get_random_name
 from .register import (
     ResourceClient,
     SourceRegistrar,
@@ -7,8 +10,6 @@ from .register import (
     FeatureColumnResource,
 )
 from .serving import ServingClient
-from .constants import NO_RECORD_LIMIT
-from .names_generator import get_random_name
 
 
 class Client(ResourceClient, ServingClient):
@@ -123,5 +124,3 @@ class Client(ResourceClient, ServingClient):
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
-
-

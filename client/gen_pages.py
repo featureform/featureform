@@ -35,7 +35,7 @@ excluded_files = [
     "version.py",
     "file_utils.py",
     "metadata.py",
-    "providers"
+    "providers",
 ]
 
 for filename in os.listdir("./src/featureform"):

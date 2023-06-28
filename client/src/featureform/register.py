@@ -3512,7 +3512,7 @@ class Registrar:
             labels (List[ColumnMapping]): List of ColumnMapping objects (dictionaries containing the keys: name, variant, column, resource_type)
             description (str): Description
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
-            
+
         Returns:
             resource (ResourceRegistrar): resource
         """

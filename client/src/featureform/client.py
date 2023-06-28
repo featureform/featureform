@@ -117,6 +117,9 @@ class Client(ResourceClient, ServingClient):
         return self.impl.nearest(name, variant, vector, k)
 
     def close(self):
+        """
+        Closes the client, closes channel for hosted mode and db for local mode
+        """
         self.impl.close()
 
     def __enter__(self):

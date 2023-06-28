@@ -45,6 +45,7 @@ type EtcdStorageProvider struct {
 }
 
 func (sp EtcdStorageProvider) GetResourceLookup() (metadata.ResourceLookup, error) {
+
 	client, err := sp.Config.InitClient()
 	if err != nil {
 		return nil, fmt.Errorf("could not init etcd client: %v", err)
@@ -1215,7 +1216,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 		return
 	}
 
-	setTags(foundResource, &pb.Tags{Tag: requestBody.Tags})
+	replaceTags(foundResource, &pb.Tags{Tag: requestBody.Tags})
 
 	m.lookup.Set(objID, foundResource)
 
@@ -1226,12 +1227,13 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	})
 }
 
-func setTags(currentResource metadata.Resource, newTagList *pb.Tags) error {
+func replaceTags(currentResource metadata.Resource, newTagList *pb.Tags) error {
 	deserialized := currentResource.Proto()
 	variantUpdate, ok := deserialized.(*pb.SourceVariant) //todox: switch?
 	if !ok {
-		return errors.New("setTags - Failed to deserialize variant")
+		return errors.New("replaceTags - Failed to deserialize variant")
 	}
+	variantUpdate.Tags.Reset()
 	variantUpdate.Tags = newTagList
 	// variantUpdate.Tags = metadata.UnionTags(variantUpdate.Tags, newTagList)
 	return nil

@@ -1197,28 +1197,44 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
-	fmt.Println(m.lookup)
+
+	name := c.Param("resource")
+	variant := "default"
+	resourceType := metadata.SOURCE_VARIANT
+
 	objID := metadata.ResourceID{
-		Name:    "average_user_transaction",
-		Variant: "default",
-		Type:    metadata.SOURCE_VARIANT,
+		Name:    name,
+		Variant: variant,
+		Type:    resourceType,
 	}
-	resource, err := m.lookup.Lookup(objID)
-	fmt.Println(resource)
-	fmt.Println(err)
+	foundResource, err := m.lookup.Lookup(objID)
 
-	m.lookup.Set(objID, resource)
+	if err != nil {
+		fetchError := m.GetTagError(err, c, "PostTags - Error finding the resource with resourceID")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
 
-	destination := pb.Tags{Tag: []string{"Test 1", "Test 2"}}
-	source := pb.Tags{Tag: []string{"Test 3", "Test 4"}}
-	result := metadata.UnionTags(&destination, &source)
-	fmt.Println(result.Tag)
+	setTags(foundResource, &pb.Tags{Tag: requestBody.Tags})
+
+	m.lookup.Set(objID, foundResource)
 
 	c.JSON(http.StatusOK, TagResult{
 		Name:    "Post Name",
 		Variant: "Post Variant",
 		Tags:    requestBody.Tags,
 	})
+}
+
+func setTags(currentResource metadata.Resource, newTagList *pb.Tags) error {
+	deserialized := currentResource.Proto()
+	variantUpdate, ok := deserialized.(*pb.SourceVariant) //todox: switch?
+	if !ok {
+		return errors.New("setTags - Failed to deserialize variant")
+	}
+	variantUpdate.Tags = newTagList
+	// variantUpdate.Tags = metadata.UnionTags(variantUpdate.Tags, newTagList)
+	return nil
 }
 
 func (m *MetadataServer) Start(port string) {

@@ -1,6 +1,6 @@
-import Breadcrumbs from '@material-ui/core/Breadcrumbs';
-import { makeStyles } from '@material-ui/core/styles';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+import Breadcrumbs from '@mui/material/Breadcrumbs';
+import { makeStyles } from '@mui/styles';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import React from 'react';

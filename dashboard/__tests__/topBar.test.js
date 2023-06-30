@@ -1,4 +1,4 @@
-import { ThemeProvider } from '@material-ui/core';
+import { ThemeProvider } from '@mui/styles';
 import { cleanup, render } from '@testing-library/react';
 import 'jest-canvas-mock';
 import React from 'react';
@@ -35,6 +35,7 @@ describe('TopBar version tests', () => {
   };
 
   beforeEach(() => {
+    console.warn = jest.fn();
     jest.resetAllMocks();
   });
 

@@ -7,6 +7,21 @@ from fnmatch import fnmatch
 
 
 class ScalarType(Enum):
+    """
+    ScalarType is an enum of all the scalar types supported by Featureform.
+
+    Attributes:
+        NIL: An empty string representing no specified type.
+        INT: A string representing an integer type.
+        INT32: A string representing a 32-bit integer type.
+        INT64: A string representing a 64-bit integer type.
+        FLOAT32: A string representing a 32-bit float type.
+        FLOAT64: A string representing a 64-bit float type.
+        STRING: A string representing a string type.
+        BOOL: A string representing a boolean type.
+        DATETIME: A string representing a datetime type.
+    """
+
     NIL = ""
     INT = "int"
     INT32 = "int32"
@@ -17,8 +32,35 @@ class ScalarType(Enum):
     BOOL = "bool"
     DATETIME = "datetime"
 
+    @classmethod
+    def has_value(cls, value):
+        try:
+            cls(value)
+            return True
+        except ValueError:
+            return False
+
+    @classmethod
+    def get_values(cls):
+        return [e.value for e in cls]
+
 
 class ResourceStatus(Enum):
+    """
+    ResourceStatus is an enumeration representing the possible states that a
+    resource may occupy within an application.
+
+    Each status is represented as a string, which provides a human-readable
+    representation for each of the stages in the lifecycle of a resource.
+
+    Attributes:
+        NO_STATUS (str): The state of a resource that cannot have another status.
+        CREATED (str): The state after a resource has been successfully created.
+        PENDING (str): The state indicating that the resource is in the process of being prepared, but is not yet ready.
+        READY (str): The state indicating that the resource has been successfully prepared and is now ready for use.
+        FAILED (str): The state indicating that an error occurred during the creation or preparation of the resource.
+    """
+
     NO_STATUS = "NO_STATUS"
     CREATED = "CREATED"
     PENDING = "PENDING"
@@ -51,6 +93,7 @@ class OperationType(Enum):
 @dataclass
 class SourceType(str, Enum):
     PRIMARY_SOURCE = "PRIMARY"
+    DIRECTORY = "DIRECTORY"
     DF_TRANSFORMATION = "DF"
     SQL_TRANSFORMATION = "SQL"
 

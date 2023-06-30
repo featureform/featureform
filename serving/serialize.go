@@ -56,7 +56,7 @@ func serializedRow(features []interface{}, label interface{}) (*pb.TrainingDataR
 	return r.Serialized(), nil
 }
 
-func serializedSourceRow(row []interface{}) (*pb.SourceDataRow, error) {
+func SerializedSourceRow(row []interface{}) (*pb.SourceDataRow, error) {
 	r, err := newSourceRow(row)
 	if err != nil {
 		return nil, err

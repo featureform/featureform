@@ -12,6 +12,7 @@ from featureform.register import (
     SQLTransformation,
     PrimaryData,
     Location,
+    SQLTable,
 )
 from featureform.resources import (
     Feature,
@@ -67,7 +68,7 @@ sql_definition_obj = SQLTransformation(sql_query)
 
 df_definition_obj = DFTransformation(query=df_query, inputs=df_name_variants)
 
-primary_definition_obj = PrimaryData(Location(primary_table_name))
+primary_definition_obj = PrimaryData(SQLTable(primary_table_name))
 
 
 # Fetches status from proto for same response that client would give

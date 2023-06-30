@@ -266,6 +266,16 @@ export default class ResourcesAPI {
           });
   }
 
+  fetchSourceModalData(name, variant = 'default') {
+    return name === null
+      ? {}
+      : fetch(`${API_URL}/data/sourcedata?name=${name}&variant=${variant}`)
+          .then((res) => res.json())
+          .catch((error) => {
+            console.error(error);
+          });
+  }
+
   fetchVariantSearchStub() {
     const fetchAddress = '/data/lists/search_results_example.json';
 

@@ -1,6 +1,6 @@
-import { Container, Grid, Typography } from '@material-ui/core';
-import Chip from '@material-ui/core/Chip';
-import { makeStyles } from '@material-ui/core/styles';
+import { Container, Grid, Typography } from '@mui/material';
+import Chip from '@mui/material/Chip';
+import { makeStyles } from '@mui/styles';
 import React, { useEffect } from 'react';
 import { connect } from 'react-redux';
 import QueryDropdown from './QueryDropdown';

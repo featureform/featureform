@@ -7,7 +7,10 @@ theme:
         accent: "pink"
 plugins:
 - search
-- mkdocstrings
+- mkdocstrings:
+    handlers:
+        python:
+            paths: [src]
 - gen-files:
     scripts:
     - gen_pages.py

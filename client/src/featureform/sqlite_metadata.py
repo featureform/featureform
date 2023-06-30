@@ -1,7 +1,9 @@
 import json
+import os
 import sqlite3
 from threading import Lock
-import os
+
+from .exceptions import FeatureNotFound
 
 
 class SyncSQLExecutor:
@@ -31,8 +33,8 @@ class SyncSQLExecutor:
 
 
 class SQLiteMetadata:
-    def __init__(self):
-        self.path = ".featureform/SQLiteDB"
+    def __init__(self, path=".featureform/SQLiteDB"):
+        self.path = path
         if not os.path.exists(self.path):
             os.makedirs(self.path)
         raw_conn = sqlite3.connect(self.path + "/metadata.db", check_same_thread=False)
@@ -58,6 +60,8 @@ class SQLiteMetadata:
           source_value text,
           source_name text NOT NULL,
           source_variant text NOT NULL,
+          is_embedding bool, 
+          dimension int,
 
           PRIMARY KEY(name, variant),
 
@@ -512,9 +516,15 @@ class SQLiteMetadata:
 
     def get_feature_variant_mode(self, name, variant):
         query = f"SELECT mode FROM feature_computation_mode WHERE name='{name}' AND variant='{variant}'"
-        return self.fetch_data_safe(query, "feature_computation_mode", name, variant)[
-            0
-        ]["mode"]
+
+        feature_metadata = self.fetch_data_safe(
+            query, "feature_computation_mode", name, variant
+        )
+
+        if len(feature_metadata) == 0:
+            raise FeatureNotFound(name, variant)
+
+        return feature_metadata[0]["mode"]
 
     def get_feature_variant_on_demand(self, name, variant):
         query = f"SELECT is_on_demand FROM feature_computation_mode WHERE name='{name}' AND variant='{variant}'"
@@ -763,3 +773,9 @@ class SQLiteMetadata:
             is_update = True
 
         return (query, is_update)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()

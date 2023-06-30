@@ -1,11 +1,11 @@
-import Button from '@material-ui/core/Button';
-import Chip from '@material-ui/core/Chip';
-import Container from '@material-ui/core/Container';
-import Grid from '@material-ui/core/Grid';
-import { makeStyles } from '@material-ui/core/styles';
-import Typography from '@material-ui/core/Typography';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
+import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import Container from '@mui/material/Container';
+import Grid from '@mui/material/Grid';
 import Rating from '@mui/material/Rating';
+import Typography from '@mui/material/Typography';
+import { makeStyles, ThemeProvider } from '@mui/styles';
 import MaterialTable, {
   MTableBody,
   MTableHeader,
@@ -20,6 +20,7 @@ import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
 import sql from 'react-syntax-highlighter/dist/cjs/languages/prism/sql';
 import { providerLogos } from '../../api/resources';
 import Resource from '../../api/resources/Resource.js';
+import { deepCopy } from '../../helper';
 import theme from '../../styles/theme';
 
 SyntaxHighlighter.registerLanguage('python', python);
@@ -197,11 +198,10 @@ export const ResourceListView = ({
   let router = useRouter();
   const initialLoad = resources == null && !loading;
   const initRes = resources || [];
-  const copy = (res) => res.map((o) => ({ ...o }));
   const noVariants = !Resource[type].hasVariants;
   // MaterialTable can't handle immutable object, we have to make a copy
   // https://github.com/mbrn/material-table/issues/666
-  const mutableRes = copy(initRes);
+  const mutableRes = deepCopy(initRes);
 
   function detailRedirect(e, data) {
     e.stopPropagation();
@@ -211,111 +211,116 @@ export const ResourceListView = ({
   let rowVariants = {};
   return (
     <div>
-      <MaterialTable
-        {...(!noVariants
-          ? {
-              detailPanel: (row) => {
-                return (
-                  <VariantTable
-                    name={row.name}
-                    row={row}
-                    type={type}
-                    setVariant={setVariant}
-                  />
-                );
-              },
+      <ThemeProvider theme={theme}>
+        <MaterialTable
+          {...(!noVariants
+            ? {
+                detailPanel: (row) => {
+                  return (
+                    <VariantTable
+                      name={row.name}
+                      row={row}
+                      type={type}
+                      setVariant={setVariant}
+                    />
+                  );
+                },
+              }
+            : {})}
+          className={classes.table}
+          title={
+            <Typography variant='h4'>
+              <b>{Resource[type].typePlural}</b>
+            </Typography>
+          }
+          columns={
+            Object.keys(columnFormats).includes(title)
+              ? columnFormats[title]
+              : columnFormats['default']
+          }
+          data={mutableRes.map((row) => {
+            //mapping each row to have the same object format
+            //whether or not resource type has variants
+            //Expected format for resource without variants: {"name": <name>, "description": <description> }
+            //Expected format for resource with variants:
+            ///    {
+            //  "default-variant": <default variant>
+            // ...data pertaining to active variant (default variant by default)
+            //  "variants": <data for all variants> (used in variant dropdown view)
+            //}
+            let rowData = {};
+            if (!row.variants) {
+              for (const [key, data] of Object.entries(row)) {
+                rowData[key] = data;
+              }
+              return rowData;
             }
-          : {})}
-        className={classes.table}
-        title={
-          <Typography variant='h4'>
-            <b>{Resource[type].typePlural}</b>
-          </Typography>
-        }
-        columns={
-          Object.keys(columnFormats).includes(title)
-            ? columnFormats[title]
-            : columnFormats['default']
-        }
-        data={mutableRes.map((row) => {
-          //mapping each row to have the same object format
-          //whether or not resource type has variants
-          //Expected format for resource without variants: {"name": <name>, "description": <description> }
-          //Expected format for resource with variants:
-          ///    {
-          //  "default-variant": <default variant>
-          // ...data pertaining to active variant (default variant by default)
-          //  "variants": <data for all variants> (used in variant dropdown view)
-          //}
-          let rowData = {};
-          if (!row.variants) {
-            for (const [key, data] of Object.entries(row)) {
+            let rowVariant;
+            if (!activeVariants[row.name]) {
+              rowVariant = row['default-variant'];
+            } else {
+              rowVariant = activeVariants[row.name];
+            }
+            for (const [key, data] of Object.entries(
+              row.variants[rowVariant]
+            )) {
               rowData[key] = data;
             }
+            let variantList = [];
+            Object.values(row.variants).forEach((variantValue) => {
+              variantList.push(variantValue);
+            });
+            rowData['variants'] = variantList;
+            rowData['default-variant'] = row['default-variant'];
             return rowData;
-          }
-          let rowVariant;
-          if (!activeVariants[row.name]) {
-            rowVariant = row['default-variant'];
-          } else {
-            rowVariant = activeVariants[row.name];
-          }
-          for (const [key, data] of Object.entries(row.variants[rowVariant])) {
-            rowData[key] = data;
-          }
-          let variantList = [];
-          Object.values(row.variants).forEach((variantValue) => {
-            variantList.push(variantValue);
-          });
-          rowData['variants'] = variantList;
-          rowData['default-variant'] = row['default-variant'];
-          return rowData;
-        })}
-        isLoading={initialLoad || loading || failed}
-        onRowClick={detailRedirect}
-        components={{
-          Container: (props) => (
-            <Container maxWidth='xl' className={classes.root} {...props} />
-          ),
-          Body: (props) => (
-            <MTableBody
-              style={{ borderRadius: 16 }}
-              className={classes.tableBody}
-              {...props}
-            />
-          ),
-          Header: (props) => (
-            <MTableHeader className={classes.tableBody} {...props} />
-          ),
-          Toolbar: (props) => (
-            <div className={classes.tableToolbar}>
-              <MTableToolbar {...props} />
-            </div>
-          ),
-        }}
-        options={{
-          search: true,
-          draggable: false,
-          headerStyle: {
-            backgroundColor: 'white',
-            color: theme.palette.primary.main,
-            marginLeft: 3,
-          },
-          rowStyle: {
-            opacity: 1,
-            borderRadius: 16,
-          },
-        }}
-        {...(!(initialLoad || loading || failed)
-          ? {
-              localization: {
-                body: {
-                  emptyDataSourceMessage: <NoDataMessage type={title} />,
+          })}
+          isLoading={initialLoad || loading || failed}
+          onRowClick={detailRedirect}
+          components={{
+            Container: (props) => (
+              <Container maxWidth='xl' className={classes.root} {...props} />
+            ),
+            Body: (props) => (
+              <MTableBody
+                style={{ borderRadius: 16 }}
+                className={classes.tableBody}
+                {...props}
+              />
+            ),
+            Header: (props) => (
+              <MTableHeader className={classes.tableBody} {...props} />
+            ),
+            Toolbar: (props) => (
+              <div className={classes.tableToolbar}>
+                <MTableToolbar {...props} />
+              </div>
+            ),
+          }}
+          options={{
+            loadingType: 'overlay',
+            search: true,
+            draggable: false,
+            headerStyle: {
+              backgroundColor: 'white',
+              color: theme.palette.primary.main,
+              marginLeft: 3,
+            },
+            rowStyle: {
+              opacity: 1,
+              borderRadius: 16,
+            },
+          }}
+          {...(!(initialLoad || loading || failed)
+            ? {
+                localization: {
+                  body: {
+                    emptyDataSourceMessage: <NoDataMessage type={title} />,
+                  },
                 },
-              },
-            }
-          : {})}
-      />
+              }
+            : {})}
+        />
+      </ThemeProvider>
     </div>
   );
 };
@@ -326,10 +331,11 @@ export const TagList = ({
   tagClass,
   toggleTag,
 }) => (
-  <Grid container direction='row'>
-    {tags.map((tag) => (
+  <Grid data-testid='tagContainerId' container direction='row'>
+    {tags.map((tag, index) => (
       <Chip
         key={tag}
+        data-testid={`${tag}-${index}`}
         className={tagClass}
         color={activeTags[tag] ? 'secondary' : 'default'}
         onClick={(event) => {
@@ -363,61 +369,63 @@ export const VariantTable = ({ name, setVariant, type, row }) => {
   const ROW_HEIGHT = 5;
   return (
     <div className={classes.variantTableContainer}>
-      <MaterialTable
-        className={classes.variantTable}
-        title={
-          <Typography variant='h6'>
-            <b></b>
-          </Typography>
-        }
-        onRowClick={variantChangeRedirect}
-        components={{
-          Container: (props) => (
-            <Container
-              maxWidth='xl'
-              className={classes.variantTable}
-              {...props}
-            />
-          ),
-          Body: (props) => (
-            <MTableBody
-              style={{ borderRadius: 16 }}
-              className={classes.tableBody}
-              {...props}
-            />
-          ),
-          Header: (props) => (
-            <MTableHeader className={classes.tableBody} {...props} />
-          ),
-          Toolbar: (props) => (
-            <div className={classes.tableToolbar}>
-              <MTableToolbar {...props} />
-            </div>
-          ),
-        }}
-        columns={[
-          { title: 'Variants', field: 'variant' },
-          { title: 'Description', field: 'description' },
-        ]}
-        data={myVariants}
-        options={{
-          search: true,
-          pageSize: row.variants.length,
-          maxHeight: `${MAX_ROW_SHOW * ROW_HEIGHT}em`,
-          toolbar: false,
-          draggable: false,
-          headerStyle: {
-            backgroundColor: 'white',
-            color: theme.palette.primary.main,
-            marginLeft: 3,
-          },
-          rowStyle: {
-            opacity: 1,
-            borderRadius: 16,
-            height: `${ROW_HEIGHT}em`,
-          },
-        }}
-      />
+      <ThemeProvider theme={theme}>
+        <MaterialTable
+          className={classes.variantTable}
+          title={
+            <Typography variant='h6'>
+              <b></b>
+            </Typography>
+          }
+          onRowClick={variantChangeRedirect}
+          components={{
+            Container: (props) => (
+              <Container
+                maxWidth='xl'
+                className={classes.variantTable}
+                {...props}
+              />
+            ),
+            Body: (props) => (
+              <MTableBody
+                style={{ borderRadius: 16 }}
+                className={classes.tableBody}
+                {...props}
+              />
+            ),
+            Header: (props) => (
+              <MTableHeader className={classes.tableBody} {...props} />
+            ),
+            Toolbar: (props) => (
+              <div className={classes.tableToolbar}>
+                <MTableToolbar {...props} />
+              </div>
+            ),
+          }}
+          columns={[
+            { title: 'Variants', field: 'variant' },
+            { title: 'Description', field: 'description' },
+          ]}
+          data={myVariants}
+          options={{
+            search: true,
+            pageSize: row.variants.length,
+            maxHeight: `${MAX_ROW_SHOW * ROW_HEIGHT}em`,
+            toolbar: false,
+            draggable: false,
+            headerStyle: {
+              backgroundColor: 'white',
+              color: theme.palette.primary.main,
+              marginLeft: 3,
+            },
+            rowStyle: {
+              opacity: 1,
+              borderRadius: 16,
+              height: `${ROW_HEIGHT}em`,
+            },
+          }}
+        />
+      </ThemeProvider>
     </div>
   );
 };

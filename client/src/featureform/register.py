@@ -3786,7 +3786,14 @@ class Registrar:
 
 
 class ResourceClient:
-    """The resource client is used to retrieve information on specific resources (entities, providers, features, labels, training sets, models, users). If retrieved resources are needed to register additional resources (e.g. registering a feature from a source), use the [Client](client.md) functions instead.
+    """
+    The resource client is used to retrieve information on specific resources (entities, providers, features, labels, training sets, models, users). If retrieved resources are needed to register additional resources (e.g. registering a feature from a source), use the [Client](client.md) functions instead.
+
+    Args:
+        host (str): The hostname of the Featureform instance. Exclude if using Localmode.
+        local (bool): True if using Localmode.
+        insecure (bool): True if connecting to an insecure Featureform endpoint. False if using a self-signed or public TLS certificate
+        cert_path (str): The path to a public certificate if using a self-signed certificate.
 
     **Using the Resource Client:**
     ``` py title="definitions.py"
@@ -3803,14 +3810,6 @@ class ResourceClient:
     def __init__(
         self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
     ):
-        """Initialise a Resource Client object.
-
-        Args:
-            host (str): The hostname of the Featureform instance. Exclude if using Localmode.
-            local (bool): True if using Localmode.
-            insecure (bool): True if connecting to an insecure Featureform endpoint. False if using a self-signed or public TLS certificate
-            cert_path (str): The path to a public certificate if using a self-signed certificate.
-        """
         # This line ensures that the warning is only raised if ResourceClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
         is_instantiated_directed = inspect.stack()[1].function != "__init__"
@@ -3964,16 +3963,16 @@ class ResourceClient:
 
         name: "user"
         features {
-        name: "avg_transactions"
-        variant: "quickstart"
+            name: "avg_transactions"
+            variant: "quickstart"
         }
         labels {
-        name: "fraudulent"
-        variant: "quickstart"
+            name: "fraudulent"
+            variant: "quickstart"
         }
         trainingsets {
-        name: "fraud_training"
-        variant: "quickstart"
+            name: "fraud_training"
+            variant: "quickstart"
         }
         ```
         """

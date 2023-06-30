@@ -16,6 +16,8 @@ import dill
 import numpy as np
 import pandas as pd
 from featureform import metadata
+from featureform.db import get_local_db
+from featureform.metadata_respository import MetadataRepositoryLocalImpl
 from featureform.proto import serving_pb2
 from featureform.proto import serving_pb2_grpc
 from featureform.providers import get_provider, Scalar, VectorType
@@ -116,7 +118,7 @@ class ServingClient:
             variant (str): Variant of training set to be retrieved
 
         Returns:
-            training_set (Dataset): A training set iterator
+            training set (Dataset): A training set iterator
         """
         return self.impl.training_set(name, variant, include_label_timestamp, model)
 
@@ -241,7 +243,9 @@ class HostedClientImpl:
 class LocalClientImpl:
     def __init__(self):
         self.db = SQLiteMetadata()
-        self.local_cache = LocalCache()
+        self.new_db = get_local_db()
+        self.metadata_repo = MetadataRepositoryLocalImpl(self.new_db)
+        self.local_cache = LocalCache(self.metadata_repo)
         check_up_to_date(True, "serving")
 
     def __enter__(self):

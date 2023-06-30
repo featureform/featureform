@@ -125,6 +125,8 @@ class WeaviateConfig:
         return "WEAVIATE_ONLINE"
 
     def serialize(self) -> bytes:
+        if self.url == "":
+            raise Exception("URL cannot be empty")
         config = {
             "URL": self.url,
             "ApiKey": self.api_key,

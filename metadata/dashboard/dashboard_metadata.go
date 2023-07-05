@@ -1229,13 +1229,12 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 
 func replaceTags(currentResource metadata.Resource, newTagList *pb.Tags) error {
 	deserialized := currentResource.Proto()
-	variantUpdate, ok := deserialized.(*pb.SourceVariant) //todox: switch?
+	variantUpdate, ok := deserialized.(*pb.SourceVariant) //todox: create a switch for the types
 	if !ok {
 		return errors.New("replaceTags - Failed to deserialize variant")
 	}
 	variantUpdate.Tags.Reset()
 	variantUpdate.Tags = newTagList
-	// variantUpdate.Tags = metadata.UnionTags(variantUpdate.Tags, newTagList)
 	return nil
 }
 

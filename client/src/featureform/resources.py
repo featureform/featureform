@@ -12,9 +12,12 @@ from typing import List, Tuple, Union, Optional
 
 import dill
 import grpc
+
+
 from .sqlite_metadata import SQLiteMetadata
 from google.protobuf.duration_pb2 import Duration
 
+from .lib.validation import Validation
 from featureform.proto import metadata_pb2 as pb
 from dataclasses import dataclass, field
 from .version import check_up_to_date
@@ -27,11 +30,6 @@ NameVariant = Tuple[str, str]
 # Constants for Pyspark Versions
 MAJOR_VERSION = "3"
 MINOR_VERSIONS = ["7", "8", "9", "10", "11"]
-
-
-@typechecked
-def valid_name_variant(nvar: NameVariant) -> bool:
-    return nvar[0] != "" and nvar[1] != ""
 
 
 @typechecked
@@ -1687,13 +1685,10 @@ class TrainingSet:
         self.schedule = schedule
 
     def __post_init__(self):
-        if not valid_name_variant(self.label):
-            raise ValueError("Label must be set")
-        if len(self.features) == 0:
-            raise ValueError("A training-set must have atleast one feature")
+        Validation.validate_name_variant(self.label, "Label")
+        Validation.validate_non_empty_list(self.features, "A training-set must have atleast one feature")
         for feature in self.features:
-            if not valid_name_variant(feature):
-                raise ValueError("Invalid Feature")
+            Validation.validate_name_variant(feature, "Feature")
 
     @staticmethod
     def operation_type() -> OperationType:

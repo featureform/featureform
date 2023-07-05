@@ -33,13 +33,10 @@ from .local_cache import LocalCache
 from .local_utils import (
     get_sql_transformation_sources,
     feature_df_with_entity,
-    list_to_combined_df,
-    get_features_for_entity,
     feature_df_from_csv,
     label_df_from_csv,
     merge_feature_into_ts,
 )
-from .sqlite_metadata import SQLiteMetadata
 from featureform.proto import serving_pb2_grpc
 
 from .resources import Model, SourceType, ComputationMode
@@ -798,24 +795,6 @@ class LocalClientImpl:
         feature_df.drop_duplicates(subset=[entity_id], keep="last", inplace=True)
         feature_df.set_index(entity_id)
         return feature_df
-
-    def calculate_ondemand_feature(self, f_name, f_variant, entity_id):
-        query = self.db.get_ondemand_feature_query(f_name, f_variant)
-        base64_bytes = query.encode("ascii")
-        query = base64.b64decode(base64_bytes)
-
-        code = dill.loads(bytearray(query))
-        func = types.FunctionType(code, globals(), "transformation")
-        output_value = func(self, self.params, self.entities)
-
-        feature_col_name = f"{f_name}.{f_variant}"
-        df = pd.DataFrame.from_dict(
-            {
-                entity_id: [self.entities.get(entity_id, "")],
-                feature_col_name: [output_value],
-            }
-        )
-        return df
 
     @staticmethod
     def convert_ts_df_to_dataset(label_row, trainingset_df, include_label_timestamp):

@@ -709,7 +709,12 @@ func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feat
 
 func (serv *OnlineServer) SourceColumns(ctx context.Context, req *srv.SourceColumnRequest) (*srv.SourceDataColumns, error) {
 	serv.Logger.Infow("Serving Source Columns", "id", req.Id.String())
-	return serv.client.SourceColumns(ctx, req)
+	result, err := serv.client.SourceColumns(ctx, req)
+	// print out the type of the err
+	if err != nil {
+		serv.Logger.Errorw("Failed to serve source columns", "error", err, "error_type", fmt.Sprintf("%T", err))
+	}
+	return result, err
 }
 
 func (serv *OnlineServer) Nearest(ctx context.Context, req *srv.NearestRequest) (*srv.NearestResponse, error) {

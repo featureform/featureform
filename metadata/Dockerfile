@@ -1,7 +1,7 @@
 # RUN docker build -f ./metadata/Dockerfile . -t metadata from /serving
 # docker tag metadata:latest featureformcom/metadata:latest
 # docker push featureformcom/metadata:latest
-FROM golang:1.18-alpine
+FROM golang:1.18-alpine as builder
 
 WORKDIR /app
 
@@ -22,11 +22,12 @@ COPY ./provider/provider_config/ ./provider/provider_config/
 COPY ./provider/provider_type/ ./provider/provider_type/
 COPY ./config/ ./config/
 
-RUN go build ./metadata/main/server.go
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+RUN go build -gcflags="all=-N -l" ./metadata/main/server.go
 
 FROM alpine
 
-COPY --from=0 ./app/server /server
+COPY --from=builder ./app/server /server
 
-EXPOSE 8080
-ENTRYPOINT ["./server"]
+EXPOSE 8080 40002
+ENTRYPOINT ["/go/bin/dlv", "--listen=:40002", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "./server"]

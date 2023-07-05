@@ -31,11 +31,11 @@ func MockJsonGet(c *gin.Context, params gin.Params) {
 	c.Params = params
 }
 
-func MockJsonPost(c *gin.Context, params gin.Params) {
+func MockJsonPost(c *gin.Context, params gin.Params, tagList []string) {
 	c.Request.Method = "POST"
 	c.Request.Header.Set("Content-Type", "application/json")
 	tags := TagRequestBody{
-		Tags: []string{"test tag 1", "test tag 2"},
+		Tags: tagList,
 	}
 	jsonValue, _ := json.Marshal(tags)
 	c.Request.Body = io.NopCloser(bytes.NewBuffer(jsonValue))
@@ -60,20 +60,24 @@ func TestVersionMap(t *testing.T) {
 }
 
 func TestPostTags(t *testing.T) {
+	name := "transactions"
+	variant := "default"
+	tagList := []string{"test tag 40", "test tag 66"}
+
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
 	params := []gin.Param{
 		{
 			Key:   "resource",
-			Value: "transactions",
+			Value: name,
 		},
 	}
 
-	MockJsonPost(ctx, params)
+	MockJsonPost(ctx, params, tagList)
 
 	res := metadata.ResourceID{
-		Name:    "transactions",
-		Variant: "default",
+		Name:    name,
+		Variant: variant,
 		Type:    metadata.SOURCE_VARIANT,
 	}
 
@@ -98,7 +102,7 @@ func TestPostTags(t *testing.T) {
 	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
 
 	assert.Equal(t, http.StatusOK, mockRecorder.Code)
-	assert.Equal(t, "Post Name", data.Name)
-	assert.Equal(t, "Post Variant", data.Variant)
-	assert.Equal(t, []string{"test tag 1", "test tag 2"}, data.Tags)
+	assert.Equal(t, name, data.Name)
+	assert.Equal(t, variant, data.Variant)
+	assert.Equal(t, tagList, data.Tags)
 }

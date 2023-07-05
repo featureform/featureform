@@ -1221,8 +1221,8 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	m.lookup.Set(objID, foundResource)
 
 	c.JSON(http.StatusOK, TagResult{
-		Name:    "Post Name",
-		Variant: "Post Variant",
+		Name:    name,
+		Variant: variant,
 		Tags:    requestBody.Tags,
 	})
 }

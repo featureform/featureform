@@ -269,7 +269,7 @@ func (lookup EtcdResourceLookup) createEmptyResource(t ResourceType) (Resource, 
 		resource = &providerResource{&pb.Provider{}}
 		break
 	case SOURCE:
-		resource = &sourceResource{&pb.Source{}}
+		resource = &SourceResource{&pb.Source{}}
 		break
 	case SOURCE_VARIANT:
 		resource = &sourceVariantResource{&pb.SourceVariant{}}

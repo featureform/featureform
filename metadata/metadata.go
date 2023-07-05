@@ -342,30 +342,30 @@ func (lookup LocalResourceLookup) HasJob(id ResourceID) (bool, error) {
 	return false, nil
 }
 
-type sourceResource struct {
+type SourceResource struct {
 	serialized *pb.Source
 }
 
-func (resource *sourceResource) ID() ResourceID {
+func (resource *SourceResource) ID() ResourceID {
 	return ResourceID{
 		Name: resource.serialized.Name,
 		Type: SOURCE,
 	}
 }
 
-func (resource *sourceResource) Schedule() string {
+func (resource *SourceResource) Schedule() string {
 	return ""
 }
 
-func (resource *sourceResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *SourceResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	return make(LocalResourceLookup), nil
 }
 
-func (resource *sourceResource) Proto() proto.Message {
+func (resource *SourceResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *sourceResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *SourceResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
 	otherId := that.ID()
 	isVariant := otherId.Type == SOURCE_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -375,16 +375,16 @@ func (this *sourceResource) Notify(lookup ResourceLookup, op operation, that Res
 	return nil
 }
 
-func (resource *sourceResource) UpdateStatus(status pb.ResourceStatus) error {
+func (resource *SourceResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
 	return nil
 }
 
-func (resource *sourceResource) UpdateSchedule(schedule string) error {
+func (resource *SourceResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (resource *sourceResource) Update(lookup ResourceLookup, updateRes Resource) error {
+func (resource *SourceResource) Update(lookup ResourceLookup, updateRes Resource) error {
 	return &ResourceExists{updateRes.ID()}
 }
 
@@ -1398,7 +1398,7 @@ func (serv *MetadataServer) ListSources(_ *pb.Empty, stream pb.Metadata_ListSour
 func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variant *pb.SourceVariant) (*pb.Empty, error) {
 	variant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &sourceVariantResource{variant}, func(name, variant string) Resource {
-		return &sourceResource{
+		return &SourceResource{
 			&pb.Source{
 				Name:           name,
 				DefaultVariant: variant,

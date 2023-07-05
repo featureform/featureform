@@ -1188,7 +1188,7 @@ func (m *MetadataServer) GetTags(c *gin.Context) {
 }
 
 type TagRequestBody struct {
-	Tags []string
+	Tags []string `json:"tags"`
 }
 
 func (m *MetadataServer) PostTags(c *gin.Context) {

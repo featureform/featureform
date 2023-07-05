@@ -620,7 +620,7 @@ func Test_EtcdResourceLookup_findResourceType(t *testing.T) {
 		{"Test User", fields{}, args{USER}, &userResource{&pb.User{}}, false},
 		{"Test Entity", fields{}, args{ENTITY}, &entityResource{&pb.Entity{}}, false},
 		{"Test Provider", fields{}, args{PROVIDER}, &providerResource{&pb.Provider{}}, false},
-		{"Test Source", fields{}, args{SOURCE}, &sourceResource{&pb.Source{}}, false},
+		{"Test Source", fields{}, args{SOURCE}, &SourceResource{&pb.Source{}}, false},
 		{"Test Source Variant", fields{}, args{SOURCE_VARIANT}, &sourceVariantResource{&pb.SourceVariant{}}, false},
 		{"Test Training Set", fields{}, args{TRAINING_SET}, &trainingSetResource{&pb.TrainingSet{}}, false},
 		{"Test Training Set Variant", fields{}, args{TRAINING_SET_VARIANT}, &trainingSetVariantResource{&pb.TrainingSetVariant{}}, false},

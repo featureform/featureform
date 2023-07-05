@@ -1,4 +1,7 @@
 from typing import Union
+
+from .constants import NO_RECORD_LIMIT
+from .names_generator import get_random_name
 from .register import (
     ResourceClient,
     SourceRegistrar,
@@ -7,8 +10,6 @@ from .register import (
     FeatureColumnResource,
 )
 from .serving import ServingClient
-from .constants import NO_RECORD_LIMIT
-from .names_generator import get_random_name
 
 
 class Client(ResourceClient, ServingClient):
@@ -88,8 +89,7 @@ class Client(ResourceClient, ServingClient):
         Query the K nearest neighbors of a provider vector in the index of a registered feature variant
 
         Args:
-            name (str): Feature name
-            variant (str): Feature variant
+            feature (Union[FeatureColumnResource, tuple(str, str)]): Feature object or tuple of Feature name and variant
             vector (List[float]): Query vector
             k (int): Number of nearest neighbors to return
 
@@ -114,3 +114,15 @@ class Client(ResourceClient, ServingClient):
         if k < 1:
             raise ValueError(f"k must be a positive integer")
         return self.impl.nearest(name, variant, vector, k)
+
+    def close(self):
+        """
+        Closes the client, closes channel for hosted mode and db for local mode
+        """
+        self.impl.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()

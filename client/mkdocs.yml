@@ -1,13 +1,26 @@
 site_name: Featureform API Reference
+
+# Repository
+repo_name: featureform/featureform
+repo_url: https://github.com/featureform/featureform
+edit_uri: ""
+
 theme:
     name: "material"
+    favicon: "images/featureform.png"
     palette:
-        scheme: "slate"
-        primary: "pink"
-        accent: "pink"
+        scheme: default
+        primary: custom
+        accent: custom
+extra_css:
+  - stylesheets/extra.css
+
 plugins:
 - search
-- mkdocstrings
+- mkdocstrings:
+    handlers:
+        python:
+            paths: [src]
 - gen-files:
     scripts:
     - gen_pages.py

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc/status"
 	"io"
 	"net"
 	"net/http"
@@ -710,9 +711,9 @@ func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feat
 func (serv *OnlineServer) SourceColumns(ctx context.Context, req *srv.SourceColumnRequest) (*srv.SourceDataColumns, error) {
 	serv.Logger.Infow("Serving Source Columns", "id", req.Id.String())
 	result, err := serv.client.SourceColumns(ctx, req)
-	// print out the type of the err
 	if err != nil {
-		serv.Logger.Errorw("Failed to serve source columns", "error", err, "error_type", fmt.Sprintf("%T", err))
+		serv.Logger.Error("Failed to serve source columns")
+		serv.handleError(err)
 	}
 	return result, err
 }
@@ -789,6 +790,22 @@ func (serv *ApiServer) GracefulStop() error {
 	serv.grpcServer = nil
 	serv.listener = nil
 	return nil
+}
+
+func (serv *OnlineServer) handleError(err error) {
+	st, ok := status.FromError(err)
+	if ok {
+		// The error was a status error, and you can access its code and message.
+		switch st.Code() {
+		case codes.Unavailable:
+			serv.Logger.Errorw("Couldn't connect to feature server, is it running?", "error", st.Details())
+		default:
+			serv.Logger.Errorw("gRPC Error - Code:", st.Code(), "Message:", st.Message())
+		}
+	} else {
+		// The error was not a status error.
+		serv.Logger.Errorw("Unknown error", "error", err)
+	}
 }
 
 func handleHealthCheck(w http.ResponseWriter, r *http.Request) {

@@ -1141,15 +1141,15 @@ func GetTagResult(param VariantDuck) TagResult {
 	}
 }
 
-func (m *MetadataServer) GetTagError(err error, c *gin.Context, resourceType string) *FetchError {
-	fetchError := &FetchError{StatusCode: 500, Type: resourceType}
+func (m *MetadataServer) GetTagError(code int, err error, c *gin.Context, resourceType string) *FetchError {
+	fetchError := &FetchError{StatusCode: code, Type: resourceType}
 	m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 	return fetchError
 }
 
 func (m *MetadataServer) SetFoundVariantJSON(foundVariant VariantDuck, err error, c *gin.Context, resourceType string) {
 	if err != nil {
-		fetchError := m.GetTagError(err, c, resourceType)
+		fetchError := m.GetTagError(500, err, c, resourceType)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 	}
 	c.JSON(http.StatusOK, GetTagResult(foundVariant))
@@ -1194,7 +1194,7 @@ type TagRequestBody struct {
 func (m *MetadataServer) PostTags(c *gin.Context) {
 	var requestBody TagRequestBody
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(err, c, "PostTags - Error binding the request body")
+		fetchError := m.GetTagError(500, err, c, "PostTags - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1211,7 +1211,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	foundResource, err := m.lookup.Lookup(objID)
 
 	if err != nil {
-		fetchError := m.GetTagError(err, c, "PostTags - Error finding the resource with resourceID")
+		fetchError := m.GetTagError(400, err, c, "PostTags - Error finding the resource with resourceID")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}

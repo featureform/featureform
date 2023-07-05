@@ -1239,16 +1239,9 @@ func replaceTags(currentResource metadata.Resource, newTagList *pb.Tags) error {
 	return nil
 }
 
-func (m *MetadataServer) TestSample(c *gin.Context) {
-	fmt.Println(c.Param("type"))
-	fmt.Println(c.Param("resource"))
-	c.JSON(http.StatusOK, "TestSample")
-}
-
 func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
-
 	router.GET("/data/:type", m.GetMetadataList)
 	router.GET("/data/:type/:resource", m.GetMetadata)
 	router.GET("/data/search", m.GetSearch)
@@ -1256,8 +1249,6 @@ func (m *MetadataServer) Start(port string) {
 	router.GET("/data/sourcedata", m.GetSourceData)
 	router.GET("/data/:type/:resource/tags", m.GetTags)
 	router.POST("/data/:type/:resource/tags", m.PostTags)
-	router.GET("/TestSample", m.TestSample)
-
 	router.Run(port)
 }
 

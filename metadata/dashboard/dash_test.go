@@ -15,9 +15,9 @@ import (
 	"go.uber.org/zap"
 )
 
-func GetTestGinContext(w *httptest.ResponseRecorder) *gin.Context {
+func GetTestGinContext(mockRecorder *httptest.ResponseRecorder) *gin.Context {
 	gin.SetMode(gin.TestMode)
-	ctx, _ := gin.CreateTestContext(w)
+	ctx, _ := gin.CreateTestContext(mockRecorder)
 	ctx.Request = &http.Request{
 		Header: make(http.Header),
 		URL:    &url.URL{},
@@ -43,8 +43,8 @@ func MockJsonPost(c *gin.Context, params gin.Params) {
 }
 
 func TestVersionMap(t *testing.T) {
-	w := httptest.NewRecorder()
-	ctx := GetTestGinContext(w)
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
 	MockJsonGet(ctx, nil)
 	serv := MetadataServer{}
 
@@ -53,15 +53,15 @@ func TestVersionMap(t *testing.T) {
 	serv.GetVersionMap(ctx)
 
 	var data map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &data)
+	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
 
-	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, http.StatusOK, mockRecorder.Code)
 	assert.Equal(t, version, data["version"])
 }
 
 func TestPostTags(t *testing.T) {
-	w := httptest.NewRecorder()
-	ctx := GetTestGinContext(w)
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
 	params := []gin.Param{
 		{
 			Key:   "resource",
@@ -95,9 +95,9 @@ func TestPostTags(t *testing.T) {
 	serv.PostTags(ctx)
 
 	var data TagResult
-	json.Unmarshal(w.Body.Bytes(), &data)
+	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
 
-	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, http.StatusOK, mockRecorder.Code)
 	assert.Equal(t, "Post Name", data.Name)
 	assert.Equal(t, "Post Variant", data.Variant)
 	assert.Equal(t, []string{"test tag 1", "test tag 2"}, data.Tags)

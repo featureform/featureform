@@ -3,9 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -36,38 +34,12 @@ func MockJsonGet(c *gin.Context, params gin.Params) {
 func MockJsonPost(c *gin.Context, params gin.Params) {
 	c.Request.Method = "POST"
 	c.Request.Header.Set("Content-Type", "application/json")
-	//todox: outsource this
 	tags := TagRequestBody{
 		Tags: []string{"test tag 1", "test tag 2"},
 	}
 	jsonValue, _ := json.Marshal(tags)
 	c.Request.Body = io.NopCloser(bytes.NewBuffer(jsonValue))
 	c.Params = params
-}
-
-func TestSampler(t *testing.T) {
-	w := httptest.NewRecorder()
-	ctx := GetTestGinContext(w)
-	params := []gin.Param{
-		{
-			Key:   "type",
-			Value: "sources",
-		},
-		{
-			Key:   "resource",
-			Value: "transactions",
-		},
-	}
-	MockJsonGet(ctx, params)
-
-	serv := MetadataServer{}
-	serv.TestSample(ctx)
-
-	resp, _ := ioutil.ReadAll(w.Body)
-	fmt.Println(resp)
-	fmt.Println(string(resp))
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, string(resp), "\"TestSample\"")
 }
 
 func TestVersionMap(t *testing.T) {

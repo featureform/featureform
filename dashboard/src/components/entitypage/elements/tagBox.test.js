@@ -1,5 +1,5 @@
 import { ThemeProvider } from '@mui/material/styles';
-import { cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import 'jest-canvas-mock';
 import React from 'react';
@@ -140,7 +140,9 @@ describe('Tag Box Tests', () => {
 
     //when: the user types a new tag name, and hits enter
     const foundInputField = helper.getByTestId(TAG_INPUT_ID);
-    await userEvent.type(foundInputField, `${newTag}${USER_EVENT_ENTER}`);
+    await act(() =>
+      userEvent.type(foundInputField, `${newTag}${USER_EVENT_ENTER}`)
+    );
 
     //expect: the old tags and new tag are present
     updatedTags.forEach((tagName) => {

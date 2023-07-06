@@ -209,7 +209,6 @@ func (err *ResourceExists) GRPCStatus() *status.Status {
 	return status.New(codes.AlreadyExists, err.Error())
 }
 
-// todox:
 type Resource interface {
 	Notify(ResourceLookup, operation, Resource) error
 	ID() ResourceID

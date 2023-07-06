@@ -14,7 +14,7 @@ jest.mock('../../../hooks/dataAPI', () => ({
   },
 }));
 
-describe('Search Input Tests', () => {
+describe('Tag Box Tests', () => {
   const TAG_INPUT_ID = 'tagInputId';
   const CHIP_DELETE_ID = 'CancelIcon';
   const TAG_DISPLAY_FIELD_BTN = 'displayTextBtnId';

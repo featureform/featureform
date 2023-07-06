@@ -19,7 +19,6 @@ describe('Tag Box Tests', () => {
   const CHIP_DELETE_ID = 'CancelIcon';
   const TAG_DISPLAY_FIELD_BTN = 'displayTextBtnId';
   const USER_EVENT_ENTER = '{enter}';
-
   const TEST_TITLE = 'test title';
   const TEST_TYPE = 'test type';
   const TEST_RESOURCE_NAME = 'test resource name';
@@ -44,7 +43,6 @@ describe('Tag Box Tests', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
-    console.error = jest.fn();
   });
 
   afterEach(() => {
@@ -133,8 +131,9 @@ describe('Tag Box Tests', () => {
     //given: an existing list
     const existingTags = ['original tag 1', 'original tag 2'];
     const newTag = 'brandNewTag';
+    const updatedTags = [...existingTags, newTag];
     dataAPIMock.postTags.mockResolvedValueOnce({
-      tags: [...existingTags, newTag],
+      tags: updatedTags,
     });
     const helper = render(getTestBody(existingTags));
     fireEvent.click(helper.getByTestId(TAG_DISPLAY_FIELD_BTN));
@@ -144,7 +143,6 @@ describe('Tag Box Tests', () => {
     await userEvent.type(foundInputField, `${newTag}${USER_EVENT_ENTER}`);
 
     //expect: the old tags and new tag are present
-    const updatedTags = [...existingTags, newTag];
     updatedTags.forEach((tagName) => {
       const foundTag = helper.getByText(tagName, { exact: false });
       expect(foundTag.nodeName).toBe(SPAN_NODE);

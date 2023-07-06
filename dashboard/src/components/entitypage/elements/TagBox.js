@@ -37,15 +37,17 @@ const TagBox = ({
   const classes = useStyles();
   const [tagName, setTagName] = React.useState('');
   const [tagList, setTagsList] = React.useState(tags);
-  const [openText, setOpenText] = React.useState(false);
+  const [displayTextOpen, setDisplayTextOpen] = React.useState(false);
 
   const dataAPI = useDataAPI();
   async function handleNewTag(event) {
     event.preventDefault();
-    let updatedList = [...tagList, tagName];
-    let data = await dataAPI.postTags(type, resourceName, updatedList);
-    if (data?.tags) {
-      setTagsList(data.tags);
+    if (tagName?.trim()) {
+      let updatedList = [...tagList.filter((t) => t != tagName), tagName];
+      let data = await dataAPI.postTags(type, resourceName, updatedList);
+      if (data?.tags) {
+        setTagsList(data.tags);
+      }
     }
   }
 
@@ -58,7 +60,8 @@ const TagBox = ({
   }
 
   const toggleOpenText = () => {
-    setOpenText(!openText);
+    setDisplayTextOpen(!displayTextOpen);
+    setTagName('');
   };
 
   return (
@@ -66,10 +69,10 @@ const TagBox = ({
       <Typography variant='h6' component='h5' gutterBottom>
         {title}
         <Button size='small' variant='text' onClick={toggleOpenText}>
-          {openText ? <RemoveOutlinedIcon /> : <AddBoxOutlinedIcon />}
+          {displayTextOpen ? <RemoveOutlinedIcon /> : <AddBoxOutlinedIcon />}
         </Button>
       </Typography>
-      {openText ? (
+      {displayTextOpen ? (
         <>
           <TextField
             id='tagInputId'

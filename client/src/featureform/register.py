@@ -76,6 +76,7 @@ from .search_local import search_local
 from .sqlite_metadata import SQLiteMetadata
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
+from .lib.validation import Validation
 
 NameVariant = Tuple[str, str]
 
@@ -1401,12 +1402,14 @@ class Variants:
 
     def validate_variant_names(self):
         for variant_key, resource in self.resources.items():
-            if resource.variant == None:
+            if resource.variant == "":
                 resource.variant = variant_key
-            if resource.variant != variant_key:
-                raise ValueError(
-                    f"Variant name {variant_key} does not match resource variant name {resource.variant}"
-                )
+
+            validation = Validation(resource.variant)
+            validation.validate(
+                lambda rv: rv != variant_key,
+                f"Variant name {variant_key} does not match resource variant name {resource.variant}"
+            )
 
     def register(self):
         for resource in self.resources.values():
@@ -5011,178 +5014,6 @@ class ResourceClient:
             return search_local(processed_query)
         else:
             return search(processed_query, self._host)
-
-
-class ColumnResource:
-    """
-    Base class for all column resources. This class is not meant to be instantiated directly.
-    In the original syntax, features and labels were registered using the `register_resources`
-    method on the sources (e.g. SQL/DF transformation or tables sources); however, in the new
-    Class API syntax, features and labels can now be declared as class attributes on an entity
-    class. This means that all possible params for either resource must be passed into this base
-    class prior to calling `register_column_resources` on the registrar.
-    """
-
-    def __init__(
-        self,
-        transformation_args: tuple,
-        type: Union[ScalarType, str],
-        resource_type: str,
-        entity: Union[Entity, str],
-        variant: str,
-        owner: Union[str, UserRegistrar],
-        inference_store: Union[str, OnlineProvider, FileStoreProvider],
-        timestamp_column: str,
-        description: str,
-        schedule: str,
-        tags: List[str],
-        properties: Dict[str, str],
-    ):
-        registrar, source_name_variant, columns = transformation_args
-        self.type = type if isinstance(type, str) else type.value
-        self.registrar = registrar
-        self.source = source_name_variant
-        self.entity_column = columns[0]
-        self.source_column = columns[1]
-        self.resource_type = resource_type
-        self.entity = entity
-        self.variant = variant
-        self.owner = owner
-        self.inference_store = inference_store
-        if not timestamp_column and len(columns) == 3:
-            self.timestamp_column = columns[2]
-        elif timestamp_column and len(columns) == 3:
-            raise Exception("Timestamp column specified twice.")
-        else:
-            self.timestamp_column = timestamp_column
-        self.description = description
-        self.schedule = schedule
-        self.tags = tags
-        self.properties = properties
-
-    def register(self):
-        features, labels = self.get_resources_by_type(self.resource_type)
-
-        self.registrar.register_column_resources(
-            source=self.source,
-            entity=self.entity,
-            entity_column=self.entity_column,
-            owner=self.owner,
-            inference_store=self.inference_store,
-            features=features,
-            labels=labels,
-            timestamp_column=self.timestamp_column,
-            schedule=self.schedule,
-        )
-
-    def get_resources_by_type(
-        self, resource_type: str
-    ) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
-        resources = [
-            {
-                "name": self.name,
-                "variant": self.variant,
-                "column": self.source_column,
-                "type": self.type,
-                "description": self.description,
-                "tags": self.tags,
-                "properties": self.properties,
-            }
-        ]
-
-        if resource_type == "feature":
-            features = resources
-            labels = []
-        elif resource_type == "label":
-            features = []
-            labels = resources
-        else:
-            raise ValueError(f"Resource type {self.resource_type} not supported")
-        return (features, labels)
-
-    def name_variant(self):
-        return (self.name, self.variant)
-
-
-class Variants:
-    def __init__(self, resources: Dict[str, ColumnResource]):
-        self.resources = resources
-        self.validate_variant_names()
-
-    def validate_variant_names(self):
-        for variant_key, resource in self.resources.items():
-            if resource.variant == "default":
-                resource.variant = variant_key
-            if resource.variant != variant_key:
-                raise ValueError(
-                    f"Variant name {variant_key} does not match resource variant name {resource.variant}"
-                )
-
-    def register(self):
-        for resource in self.resources.values():
-            resource.register()
-
-
-class FeatureColumnResource(ColumnResource):
-    def __init__(
-        self,
-        transformation_args: tuple,
-        type: Union[ScalarType, str],
-        entity: Union[Entity, str] = "",
-        variant="",
-        owner: str = "",
-        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
-        timestamp_column: str = "",
-        description: str = "",
-        schedule: str = "",
-        tags: List[str] = [],
-        properties: Dict[str, str] = {},
-    ):
-        super().__init__(
-            transformation_args=transformation_args,
-            type=type,
-            resource_type="feature",
-            entity=entity,
-            variant=variant,
-            owner=owner,
-            inference_store=inference_store,
-            timestamp_column=timestamp_column,
-            description=description,
-            schedule=schedule,
-            tags=tags,
-            properties=properties,
-        )
-
-
-class LabelColumnResource(ColumnResource):
-    def __init__(
-        self,
-        transformation_args: tuple,
-        type: Union[ScalarType, str],
-        entity: Union[Entity, str] = "",
-        variant="",
-        owner: str = "",
-        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
-        timestamp_column: str = "",
-        description: str = "",
-        schedule: str = "",
-        tags: List[str] = [],
-        properties: Dict[str, str] = {},
-    ):
-        super().__init__(
-            transformation_args=transformation_args,
-            type=type,
-            resource_type="label",
-            entity=entity,
-            variant=variant,
-            owner=owner,
-            inference_store=inference_store,
-            timestamp_column=timestamp_column,
-            description=description,
-            schedule=schedule,
-            tags=tags,
-            properties=properties,
-        )
 
 
 class EmbeddingColumnResource(ColumnResource):

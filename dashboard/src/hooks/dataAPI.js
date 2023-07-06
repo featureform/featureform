@@ -1,6 +1,23 @@
+let hostname = 'localhost';
+let port = 3000;
+if (typeof window !== 'undefined') {
+  hostname = window.location.hostname;
+  port = window.location.port;
+}
+var API_URL = '//' + hostname + ':' + port;
+if (process.env.REACT_APP_API_URL) {
+  API_URL = process.env.REACT_APP_API_URL.trim();
+}
+
+//if you want to override the api url (in any environment local to your machine, set this in ".env.local")
+//.env.local is not tracked in source
+if (process.env.NEXT_PUBLIC_REACT_APP_API_URL) {
+  API_URL = process.env.NEXT_PUBLIC_REACT_APP_API_URL.trim();
+}
+
 export function useDataAPI() {
   const getTags = async (type = '', resourceName = '') => {
-    const address = `http://localhost/data/${type}/${resourceName}/tags`;
+    const address = `${API_URL}/data/${type}/${resourceName}/tags`;
     await fetch(url);
     const result = await fetch(address, {
       headers: {
@@ -16,7 +33,7 @@ export function useDataAPI() {
   };
 
   const postTags = async (type = '', resourceName = '', tagList = []) => {
-    const address = `http://localhost/data/${type}/${resourceName}/tags`;
+    const address = `${API_URL}/data/${type}/${resourceName}/tags`;
     const result = await fetch(address, {
       method: 'POST',
       headers: {

@@ -27,6 +27,7 @@ import { VariantTable } from '../resource-list/ResourceListView.js';
 import AttributeBox from './elements/AttributeBox';
 import MetricsDropdown from './elements/MetricsDropdown';
 import StatsDropdown from './elements/StatsDropdown';
+import TagBox from './elements/TagBox.js';
 import VariantControl from './elements/VariantControl';
 
 SyntaxHighlighter.registerLanguage('python', python);
@@ -567,14 +568,16 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                       </div>
                     )}
                   </Grid>
-                  {metadata['tags']?.length > 0 && (
-                    <Grid item xs>
-                      <AttributeBox
-                        attributes={metadata['tags']}
-                        title={'Tags'}
-                      />
-                    </Grid>
-                  )}
+
+                  <Grid item xs>
+                    <TagBox
+                      resourceName={name}
+                      variant={variant}
+                      type={resourceType._urlPath}
+                      tags={metadata['tags']}
+                      title={'Tags'}
+                    />
+                  </Grid>
                   {Object.keys(metadata['properties'] || {}).length > 0 && (
                     <Grid item xs>
                       {

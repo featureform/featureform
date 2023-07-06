@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc/status"
 	"io"
 	"net"
@@ -792,19 +793,26 @@ func (serv *ApiServer) GracefulStop() error {
 	return nil
 }
 
-func (serv *OnlineServer) handleError(err error) {
+func (serv *OnlineServer) handleError(err error) error {
+	if err == nil {
+		return nil
+	}
 	st, ok := status.FromError(err)
 	if ok {
 		// The error was a status error, and you can access its code and message.
+		errorMessage := st.Message()
 		switch st.Code() {
 		case codes.Unavailable:
-			serv.Logger.Errorw("Couldn't connect to feature server, is it running?", "error", st.Details())
+			errorMessage = "Couldn't connect to feature server, is it running?"
 		default:
-			serv.Logger.Errorw("gRPC Error - Code:", st.Code(), "Message:", st.Message())
+			errorMessage = "gRPC Error"
 		}
+		serv.Logger.Errorw("gRPC Error", "message", errorMessage, "details", st.Details())
+		return errors.Wrap(err, "gRPC Error: "+errorMessage)
 	} else {
-		// The error was not a status error.
+		// The error was not a grpc status error.
 		serv.Logger.Errorw("Unknown error", "error", err)
+		return errors.Wrap(err, "Unknown error: "+err.Error())
 	}
 }
 

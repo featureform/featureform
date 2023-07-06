@@ -1408,7 +1408,8 @@ class Variants:
             validator = Validator()
             validator.add_validation(
                 resource.variant == variant_key,
-                f"Variant name {variant_key} does not match resource variant name {resource.variant}")
+                f"Variant name {variant_key} does not match resource variant name {resource.variant}",
+            )
             validator.raise_or_pass()
 
     def register(self):

@@ -1686,7 +1686,9 @@ class TrainingSet:
 
     def __post_init__(self):
         Validator.validate_name_variant(self.label, "Label")
-        Validator.validate_non_empty_list(self.features, "A training-set must have at least one feature")
+        Validator.validate_non_empty_list(
+            self.features, "A training-set must have at least one feature"
+        )
         for feature in self.features:
             Validator.validate_name_variant(feature, "Feature")
 

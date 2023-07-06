@@ -15,8 +15,10 @@ class Validator:
 
     def raise_or_pass(self):
         if self.validation_error_messages:
-            error_messages = ';'.join(self.validation_error_messages)
-            raise ValueError(f'{self.validation_context} Validation failed with errors: {error_messages}')
+            error_messages = ";".join(self.validation_error_messages)
+            raise ValueError(
+                f"{self.validation_context} Validation failed with errors: {error_messages}"
+            )
         else:
             pass
 

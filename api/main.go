@@ -804,7 +804,7 @@ func (serv *OnlineServer) handleError(err error) error {
 			errorMessage = "gRPC Error"
 		}
 		serv.Logger.Errorw("gRPC Error", "message", errorMessage, "details", st.Details())
-		return errors.Wrap(err, "gRPC Error: "+errorMessage)
+		return errors.Wrap(err, "API-Server/gRPC Error: "+errorMessage)
 	} else {
 		// The error was not a grpc status error.
 		serv.Logger.Errorw("Unknown error", "error", err)

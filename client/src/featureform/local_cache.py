@@ -46,7 +46,9 @@ class LocalCache:
         source_files: Set[str] = (
             set(map(lambda x: x["file_path"], source_files_from_db))
             if source_files_from_db
-            else self.metadata_repository.get_source_files_for_source(source_name, source_variant)
+            else self.metadata_repository.get_source_files_for_source(
+                source_name, source_variant
+            )
         )
 
         return self._get_or_put(
@@ -56,7 +58,7 @@ class LocalCache:
             cache_file_path,
             source_files,
             func,
-            )
+        )
 
     @typechecked
     def get_or_put_training_set(
@@ -151,11 +153,11 @@ class LocalCache:
             return df
 
     def _invalidate_cache_if_source_files_changed(
-            self, source_files_from_db, cache_file_path
+        self, source_files_from_db, cache_file_path
     ):
         if any(
-                self._file_has_changed(source_file["updated_at"], source_file["file_path"])
-                for source_file in source_files_from_db
+            self._file_has_changed(source_file["updated_at"], source_file["file_path"])
+            for source_file in source_files_from_db
         ):
             if os.path.exists(cache_file_path):
                 os.remove(cache_file_path)

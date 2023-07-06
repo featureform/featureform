@@ -14,7 +14,7 @@ class DB:
             db_uri,
             echo=verbose,
             poolclass=SingletonThreadPool,
-            pool_recycle=1800  # 30 minutes
+            pool_recycle=1800,  # 30 minutes
         )
         self.session_factory = sessionmaker(bind=self.engine)
         self.Session = scoped_session(self.session_factory)

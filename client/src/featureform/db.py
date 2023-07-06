@@ -37,8 +37,24 @@ class DB:
 
     def insert_or_update(self, tablename, keys, cols, *args):
         """
-        Upserts a row into the table. `keys` indicate columns that are unique
-        and `cols` are the columns that are updated.
+            Upserts a row into the table.
+
+            Example:
+                insert_or_update(
+                    "resource_source_files", # tablename
+                    ["resource_type", "name", "variant", "file_path"], # unique columns
+                    ["updated_at"], # columns to update
+                    resource_type, # all column values
+                    resource_name,
+                    resource_variant,
+                    source_file,
+                    str(os.path.getmtime(source_file)),
+                )
+
+        :param tablename: name of the table
+        :param keys: all unique columns
+        :param cols: all columns to be updated
+        :param args: all column values
         """
         query = (
             f"INSERT INTO {tablename} VALUES {str(args)} "

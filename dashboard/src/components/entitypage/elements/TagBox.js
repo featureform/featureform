@@ -1,4 +1,6 @@
-import { TextField } from '@mui/material';
+import AddBoxOutlinedIcon from '@mui/icons-material/AddBoxOutlined';
+import RemoveOutlinedIcon from '@mui/icons-material/RemoveOutlined';
+import { Button, TextField } from '@mui/material';
 import Chip from '@mui/material/Chip';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
@@ -35,6 +37,7 @@ const TagBox = ({
   const classes = useStyles();
   const [tagName, setTagName] = React.useState('');
   const [tagList, setTagsList] = React.useState(tags);
+  const [openText, setOpenText] = React.useState(false);
 
   const dataAPI = useDataAPI();
   async function handleNewTag(event) {
@@ -48,49 +51,58 @@ const TagBox = ({
 
   async function handleDeleteTag(deleteTag = '') {
     let updatedList = tagList.filter((tagName) => tagName != deleteTag);
-    //todox: pass in the type and variant properties
     let data = await dataAPI.postTags(type, resourceName, updatedList);
     if (data?.tags) {
       setTagsList(data.tags);
     }
   }
 
+  const toggleOpenText = () => {
+    setOpenText(!openText);
+  };
+
   return (
     <Container className={classes.attributeContainer}>
       <Typography variant='h6' component='h5' gutterBottom>
         {title}
+        <Button size='small' variant='text' onClick={toggleOpenText}>
+          {openText ? <RemoveOutlinedIcon /> : <AddBoxOutlinedIcon />}
+        </Button>
       </Typography>
-      <TextField
-        id='tagInputId'
-        label='New Tag'
-        variant='standard'
-        onChange={(event) => {
-          const rawText = event.target.value;
-          if (rawText === '') {
-            // user is deleting the text field. allow this and clear out state
-            setTagName(rawText);
-            return;
-          }
-          const tagName = event.target.value ?? '';
-          if (tagName.trim()) {
-            setTagName(tagName.trim());
-          }
-        }}
-        value={tagName}
-        onKeyDown={(event) => {
-          if (event.key === ENTER_KEY && setTagName) {
-            handleNewTag(event);
-            setTagName('');
-          }
-        }}
-      />
-      <br />
+      {openText ? (
+        <>
+          <TextField
+            id='tagInputId'
+            label='New Tag'
+            variant='standard'
+            onChange={(event) => {
+              const rawText = event.target.value;
+              if (rawText === '') {
+                setTagName(rawText);
+                return;
+              }
+              const tagName = event.target.value ?? '';
+              if (tagName.trim()) {
+                setTagName(tagName.trim());
+              }
+            }}
+            value={tagName}
+            onKeyDown={(event) => {
+              if (event.key === ENTER_KEY && setTagName) {
+                handleNewTag(event);
+                setTagName('');
+              }
+            }}
+          />
+          <br />
+        </>
+      ) : null}
       {tagList.map((tag) => (
         <Chip
           label={tag}
           key={tag}
           className={classes.chip}
-          style={{ marginTop: '20px' }}
+          style={{ marginTop: '10px' }}
           variant='outlined'
           onDelete={() => handleDeleteTag(tag)}
         />

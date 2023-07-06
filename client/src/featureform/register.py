@@ -76,7 +76,7 @@ from .search_local import search_local
 from .sqlite_metadata import SQLiteMetadata
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
-from .lib.validation import Validation
+from .lib.validator import Validator
 
 NameVariant = Tuple[str, str]
 
@@ -1405,11 +1405,11 @@ class Variants:
             if resource.variant == "":
                 resource.variant = variant_key
 
-            validation = Validation(resource.variant)
-            validation.validate(
-                lambda rv: rv != variant_key,
-                f"Variant name {variant_key} does not match resource variant name {resource.variant}"
-            )
+            validator = Validator()
+            validator.add_validation(
+                resource.variant == variant_key,
+                f"Variant name {variant_key} does not match resource variant name {resource.variant}")
+            validator.raise_or_pass()
 
     def register(self):
         for resource in self.resources.values():

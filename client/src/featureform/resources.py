@@ -17,7 +17,7 @@ import grpc
 from .sqlite_metadata import SQLiteMetadata
 from google.protobuf.duration_pb2 import Duration
 
-from .lib.validation import Validation
+from .lib.validator import Validator
 from featureform.proto import metadata_pb2 as pb
 from dataclasses import dataclass, field
 from .version import check_up_to_date
@@ -1685,10 +1685,10 @@ class TrainingSet:
         self.schedule = schedule
 
     def __post_init__(self):
-        Validation.validate_name_variant(self.label, "Label")
-        Validation.validate_non_empty_list(self.features, "A training-set must have atleast one feature")
+        Validator.validate_name_variant(self.label, "Label")
+        Validator.validate_non_empty_list(self.features, "A training-set must have at least one feature")
         for feature in self.features:
-            Validation.validate_name_variant(feature, "Feature")
+            Validator.validate_name_variant(feature, "Feature")
 
     @staticmethod
     def operation_type() -> OperationType:

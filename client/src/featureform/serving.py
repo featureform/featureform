@@ -13,6 +13,7 @@ import warnings
 from typing import List, Union, Dict
 
 import dill
+import grpc
 import numpy as np
 import pandas as pd
 from featureform import metadata
@@ -1000,17 +1001,22 @@ class Dataset:
         if self._dataframe is not None:
             return self._dataframe
         else:
-            name = self._stream.name
-            variant = self._stream.version
-            stub = self._stream._stub
-            id = serving_pb2.TrainingDataID(name=name, version=variant)
-            req = serving_pb2.TrainingDataRequest(id=id)
-            cols = stub.TrainingDataColumns(req)
-            data = [r.to_dict(cols.features, cols.label) for r in self._stream]
-            self._dataframe = pd.DataFrame(
-                data=data, columns=[*cols.features, cols.label]
-            )
-            return self._dataframe
+            try:
+                name = self._stream.name
+                variant = self._stream.version
+                stub = self._stream._stub
+                id = serving_pb2.TrainingDataID(name=name, version=variant)
+                req = serving_pb2.TrainingDataRequest(id=id)
+                cols = stub.TrainingDataColumns(req)
+                data = [r.to_dict(cols.features, cols.label) for r in self._stream]
+                self._dataframe = pd.DataFrame(
+                    data=data, columns=[*cols.features, cols.label]
+                )
+                return self._dataframe
+            except grpc.RpcError as e:
+                # `e.code()` returns grpc.StatusCode object
+                # `e.details()` returns description of the error
+                raise Exception(f"gRPC error occurred. Code: {e.code()}, Details: {e.details()}")
 
     def from_dataframe(dataframe, include_label_timestamp):
         stream = LocalStream(dataframe.values.tolist(), include_label_timestamp)

@@ -68,14 +68,18 @@ const TagBox = ({
     <Container className={classes.attributeContainer}>
       <Typography variant='h6' component='h5' gutterBottom>
         {title}
-        <Button size='small' variant='text' onClick={toggleOpenText}>
+        <Button
+          size='small'
+          variant='text'
+          data-testid='displayTextBtnId'
+          onClick={toggleOpenText}
+        >
           {displayTextOpen ? <RemoveOutlinedIcon /> : <AddBoxOutlinedIcon />}
         </Button>
       </Typography>
       {displayTextOpen ? (
         <>
           <TextField
-            id='tagInputId'
             label='New Tag'
             variant='standard'
             onChange={(event) => {
@@ -96,6 +100,10 @@ const TagBox = ({
                 setTagName('');
               }
             }}
+            inputProps={{
+              'aria-label': 'search',
+              'data-testid': 'tagInputId',
+            }}
           />
           <br />
         </>
@@ -104,6 +112,7 @@ const TagBox = ({
         <Chip
           label={tag}
           key={tag}
+          data-testid={tag + 'id'}
           className={classes.chip}
           style={{ marginTop: '10px' }}
           variant='outlined'

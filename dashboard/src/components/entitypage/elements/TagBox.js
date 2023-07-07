@@ -69,6 +69,15 @@ const TagBox = ({
     setTagName('');
   };
 
+  React.useEffect(async () => {
+    let data = await dataAPI.getTags(type, resourceName, variant);
+    if (data?.tags) {
+      setTagsList(data.tags);
+      setDisplayTextOpen(false);
+      setTagName('');
+    }
+  }, [variant]);
+
   return (
     <Container className={classes.attributeContainer}>
       <Typography variant='h6' component='h5' gutterBottom>

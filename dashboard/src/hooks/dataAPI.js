@@ -17,8 +17,9 @@ if (process.env.NEXT_PUBLIC_REACT_APP_API_URL) {
 
 export function useDataAPI() {
   const getTags = async (type = '', resourceName = '', variant = '') => {
-    const address = `${API_URL}/data/${type}/${resourceName}/tags`;
+    const address = `${API_URL}/data/${type}/${resourceName}/gettags`;
     const result = await fetch(address, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },

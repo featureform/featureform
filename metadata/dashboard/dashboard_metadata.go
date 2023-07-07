@@ -1323,7 +1323,7 @@ func (m *MetadataServer) Start(port string) {
 	router.GET("/data/search", m.GetSearch)
 	router.GET("/data/version", m.GetVersionMap)
 	router.GET("/data/sourcedata", m.GetSourceData)
-	router.GET("/data/:type/:resource/tags", m.GetTags)
+	router.POST("/data/:type/:resource/gettags", m.GetTags)
 	router.POST("/data/:type/:resource/tags", m.PostTags)
 	router.Run(port)
 }

@@ -9,11 +9,11 @@ const homePageSlice = createSlice({
         disabled: false,
       },
       {
-        type: 'Feature',
+        type: 'Entity',
         disabled: false,
       },
       {
-        type: 'Entity',
+        type: 'Feature',
         disabled: false,
       },
       {

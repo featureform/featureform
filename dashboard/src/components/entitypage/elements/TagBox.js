@@ -44,7 +44,12 @@ const TagBox = ({
     event.preventDefault();
     if (tagName?.trim()) {
       let updatedList = [...tagList.filter((t) => t != tagName), tagName];
-      let data = await dataAPI.postTags(type, resourceName, updatedList);
+      let data = await dataAPI.postTags(
+        type,
+        resourceName,
+        variant,
+        updatedList
+      );
       if (data?.tags) {
         setTagsList(data.tags);
       }
@@ -53,7 +58,7 @@ const TagBox = ({
 
   async function handleDeleteTag(deleteTag = '') {
     let updatedList = tagList.filter((tagName) => tagName != deleteTag);
-    let data = await dataAPI.postTags(type, resourceName, updatedList);
+    let data = await dataAPI.postTags(type, resourceName, variant, updatedList);
     if (data?.tags) {
       setTagsList(data.tags);
     }

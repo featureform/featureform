@@ -21,6 +21,7 @@ describe('Tag Box Tests', () => {
   const USER_EVENT_ENTER = '{enter}';
   const TEST_TITLE = 'test title';
   const TEST_TYPE = 'test type';
+  const TEST_VARIANT = 'myVariant';
   const TEST_RESOURCE_NAME = 'test resource name';
 
   const INPUT_NODE = 'INPUT';
@@ -32,6 +33,7 @@ describe('Tag Box Tests', () => {
         <ThemeProvider theme={TEST_THEME}>
           <TagBox
             type={TEST_TYPE}
+            variant={TEST_VARIANT}
             resourceName={TEST_RESOURCE_NAME}
             title={TEST_TITLE}
             tags={tags}
@@ -93,6 +95,7 @@ describe('Tag Box Tests', () => {
     expect(dataAPIMock.postTags).toHaveBeenCalledWith(
       TEST_TYPE,
       TEST_RESOURCE_NAME,
+      TEST_VARIANT,
       [newTag]
     );
   });
@@ -123,6 +126,7 @@ describe('Tag Box Tests', () => {
     expect(dataAPIMock.postTags).toHaveBeenCalledWith(
       TEST_TYPE,
       TEST_RESOURCE_NAME,
+      TEST_VARIANT,
       [] //empty list
     );
   });

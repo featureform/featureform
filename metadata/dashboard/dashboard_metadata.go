@@ -1158,6 +1158,7 @@ func (m *MetadataServer) SetFoundVariantJSON(foundVariant VariantDuck, err error
 func (m *MetadataServer) GetTags(c *gin.Context) {
 	name := c.Param("resource")
 	resourceType := c.Param("type")
+	//todox: pass in the variant
 	nameVariant := metadata.NameVariant{Name: name, Variant: "default"}
 	switch resourceType {
 	case "features":
@@ -1224,6 +1225,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	}
 	resourceType := getResourceType(resourceTypeParam)
 	name := c.Param("resource")
+	//todox: pass in the variant value
 	variant := "default"
 
 	objID := metadata.ResourceID{

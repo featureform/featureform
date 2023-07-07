@@ -364,13 +364,13 @@ func (resource *SourceResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *SourceResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	otherId := that.ID()
-	isVariant := otherId.Type == SOURCE_VARIANT && otherId.Name == this.serialized.Name
+func (resource *SourceResource) Notify(lookup ResourceLookup, op operation, resourceParam Resource) error {
+	otherId := resourceParam.ID()
+	isVariant := otherId.Type == SOURCE_VARIANT && otherId.Name == resource.serialized.Name
 	if !isVariant {
 		return nil
 	}
-	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
+	resource.serialized.Variants = append(resource.serialized.Variants, otherId.Variant)
 	return nil
 }
 
@@ -430,11 +430,11 @@ func (resource *sourceVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *sourceVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	id := that.ID()
+func (resource *sourceVariantResource) Notify(lookup ResourceLookup, op operation, resourceParam Resource) error {
+	id := resourceParam.ID()
 	t := id.Type
 	key := id.Proto()
-	serialized := this.serialized
+	serialized := resource.serialized
 	switch t {
 	case TRAINING_SET_VARIANT:
 		serialized.Trainingsets = append(serialized.Trainingsets, key)
@@ -491,13 +491,13 @@ func (resource *featureResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	otherId := that.ID()
-	isVariant := otherId.Type == FEATURE_VARIANT && otherId.Name == this.serialized.Name
+func (resource *featureResource) Notify(lookup ResourceLookup, op operation, resourceParam Resource) error {
+	otherId := resourceParam.ID()
+	isVariant := otherId.Type == FEATURE_VARIANT && otherId.Name == resource.serialized.Name
 	if !isVariant {
 		return nil
 	}
-	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
+	resource.serialized.Variants = append(resource.serialized.Variants, otherId.Variant)
 	return nil
 }
 
@@ -568,17 +568,17 @@ func (resource *featureVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	if !PRECOMPUTED.Equals(this.serialized.Mode) {
+func (resource *featureVariantResource) Notify(lookup ResourceLookup, op operation, resourceParam Resource) error {
+	if !PRECOMPUTED.Equals(resource.serialized.Mode) {
 		return nil
 	}
-	id := that.ID()
+	id := resourceParam.ID()
 	relevantOp := op == create_op && id.Type == TRAINING_SET_VARIANT
 	if !relevantOp {
 		return nil
 	}
 	key := id.Proto()
-	this.serialized.Trainingsets = append(this.serialized.Trainingsets, key)
+	resource.serialized.Trainingsets = append(resource.serialized.Trainingsets, key)
 	return nil
 }
 
@@ -627,13 +627,13 @@ func (resource *labelResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	otherId := that.ID()
-	isVariant := otherId.Type == LABEL_VARIANT && otherId.Name == this.serialized.Name
+func (resource *labelResource) Notify(lookup ResourceLookup, op operation, resourceParam Resource) error {
+	otherId := resourceParam.ID()
+	isVariant := otherId.Type == LABEL_VARIANT && otherId.Name == resource.serialized.Name
 	if !isVariant {
 		return nil
 	}
-	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
+	resource.serialized.Variants = append(resource.serialized.Variants, otherId.Variant)
 	return nil
 }
 
@@ -702,14 +702,14 @@ func (resource *labelVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	id := that.ID()
+func (resource *labelVariantResource) Notify(lookup ResourceLookup, op operation, resourceParam Resource) error {
+	id := resourceParam.ID()
 	releventOp := op == create_op && id.Type == TRAINING_SET_VARIANT
 	if !releventOp {
 		return nil
 	}
 	key := id.Proto()
-	this.serialized.Trainingsets = append(this.serialized.Trainingsets, key)
+	resource.serialized.Trainingsets = append(resource.serialized.Trainingsets, key)
 	return nil
 }
 
@@ -756,13 +756,13 @@ func (resource *trainingSetResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	otherId := that.ID()
-	isVariant := otherId.Type == TRAINING_SET_VARIANT && otherId.Name == this.serialized.Name
+func (resource *trainingSetResource) Notify(lookup ResourceLookup, op operation, resourceParam Resource) error {
+	otherId := resourceParam.ID()
+	isVariant := otherId.Type == TRAINING_SET_VARIANT && otherId.Name == resource.serialized.Name
 	if !isVariant {
 		return nil
 	}
-	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
+	resource.serialized.Variants = append(resource.serialized.Variants, otherId.Variant)
 	return nil
 }
 
@@ -834,7 +834,7 @@ func (resource *trainingSetVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (resource *trainingSetVariantResource) Notify(lookup ResourceLookup, op operation, resourceParam Resource) error {
 	return nil
 }
 
@@ -910,7 +910,7 @@ func (resource *modelResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *modelResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (resource *modelResource) Notify(lookup ResourceLookup, op operation, resourceParam Resource) error {
 	return nil
 }
 
@@ -958,16 +958,16 @@ func (resource *userResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	if isDep, err := isDirectDependency(lookup, this, that); err != nil {
+func (resource *userResource) Notify(lookup ResourceLookup, op operation, resourceParam Resource) error {
+	if isDep, err := isDirectDependency(lookup, resourceParam, resourceParam); err != nil {
 		return err
 	} else if !isDep {
 		return nil
 	}
-	id := that.ID()
+	id := resourceParam.ID()
 	key := id.Proto()
 	t := id.Type
-	serialized := this.serialized
+	serialized := resource.serialized
 	switch t {
 	case TRAINING_SET_VARIANT:
 		serialized.Trainingsets = append(serialized.Trainingsets, key)
@@ -1024,16 +1024,16 @@ func (resource *providerResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *providerResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	if isDep, err := isDirectDependency(lookup, this, that); err != nil {
+func (resource *providerResource) Notify(lookup ResourceLookup, op operation, resourceParam Resource) error {
+	if isDep, err := isDirectDependency(lookup, resourceParam, resourceParam); err != nil {
 		return err
 	} else if !isDep {
 		return nil
 	}
-	id := that.ID()
+	id := resourceParam.ID()
 	key := id.Proto()
 	t := id.Type
-	serialized := this.serialized
+	serialized := resource.serialized
 	switch t {
 	case SOURCE_VARIANT:
 		serialized.Sources = append(serialized.Sources, key)
@@ -1129,11 +1129,11 @@ func (resource *entityResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	id := that.ID()
+func (resource *entityResource) Notify(lookup ResourceLookup, op operation, resourceParam Resource) error {
+	id := resourceParam.ID()
 	key := id.Proto()
 	t := id.Type
-	serialized := this.serialized
+	serialized := resource.serialized
 	switch t {
 	case TRAINING_SET_VARIANT:
 		serialized.Trainingsets = append(serialized.Trainingsets, key)

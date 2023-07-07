@@ -1155,11 +1155,20 @@ func (m *MetadataServer) SetFoundVariantJSON(foundVariant VariantDuck, err error
 	c.JSON(http.StatusOK, GetTagResult(foundVariant))
 }
 
+type TagGetBody struct {
+	Variant string `json:"variant"`
+}
+
 func (m *MetadataServer) GetTags(c *gin.Context) {
 	name := c.Param("resource")
 	resourceType := c.Param("type")
-	//todox: pass in the variant
-	nameVariant := metadata.NameVariant{Name: name, Variant: "default"}
+	var requestBody TagGetBody
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetTagError(500, err, c, "GetTags - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	nameVariant := metadata.NameVariant{Name: name, Variant: requestBody.Variant}
 	switch resourceType {
 	case "features":
 		foundVariant, err := m.client.GetFeatureVariant(context.Background(), nameVariant)
@@ -1188,8 +1197,9 @@ func (m *MetadataServer) GetTags(c *gin.Context) {
 	}
 }
 
-type TagRequestBody struct {
-	Tags []string `json:"tags"`
+type TagPostBody struct {
+	Tags    []string `json:"tags"`
+	Variant string   `json:"variant"`
 }
 
 func getResourceType(resourceTypeString string) metadata.ResourceType {
@@ -1216,7 +1226,7 @@ func getResourceType(resourceTypeString string) metadata.ResourceType {
 }
 
 func (m *MetadataServer) PostTags(c *gin.Context) {
-	var requestBody TagRequestBody
+	var requestBody TagPostBody
 	resourceTypeParam := c.Param("type")
 	if err := c.BindJSON(&requestBody); err != nil {
 		fetchError := m.GetTagError(500, err, c, "PostTags - Error binding the request body")
@@ -1225,8 +1235,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	}
 	resourceType := getResourceType(resourceTypeParam)
 	name := c.Param("resource")
-	//todox: pass in the variant value
-	variant := "default"
+	variant := requestBody.Variant
 
 	objID := metadata.ResourceID{
 		Name:    name,

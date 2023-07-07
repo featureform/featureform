@@ -22,6 +22,7 @@ export function useDataAPI() {
       headers: {
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ variant: variant }),
     })
       .then((res) => res.json())
       .catch((error) => {
@@ -43,7 +44,7 @@ export function useDataAPI() {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ tags: tagList }),
+      body: JSON.stringify({ tags: tagList, variant: variant }),
     })
       .then((res) => res.json())
       .catch((error) => {

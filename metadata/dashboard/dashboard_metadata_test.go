@@ -29,15 +29,21 @@ func MockJsonGet(c *gin.Context, params gin.Params) {
 	c.Request.Method = "GET"
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Params = params
+	getBody := TagGetBody{
+		Variant: "default",
+	}
+	jsonValue, _ := json.Marshal(getBody)
+	c.Request.Body = io.NopCloser(bytes.NewBuffer(jsonValue))
 }
 
 func MockJsonPost(c *gin.Context, params gin.Params, tagList []string) {
 	c.Request.Method = "POST"
 	c.Request.Header.Set("Content-Type", "application/json")
-	tags := TagRequestBody{
-		Tags: tagList,
+	postBody := TagPostBody{
+		Tags:    tagList,
+		Variant: "default",
 	}
-	jsonValue, _ := json.Marshal(tags)
+	jsonValue, _ := json.Marshal(postBody)
 	c.Request.Body = io.NopCloser(bytes.NewBuffer(jsonValue))
 	c.Params = params
 }

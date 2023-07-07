@@ -1112,7 +1112,7 @@ func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64
 	return primary.IterateSegment(limit)
 }
 
-type VariantDuck interface {
+type VariantResult interface {
 	Name() string
 	Variant() string
 	Tags() metadata.Tags
@@ -1124,7 +1124,7 @@ type TagResult struct {
 	Tags    []string `json:"tags"`
 }
 
-func GetTagResult(param VariantDuck) TagResult {
+func GetTagResult(param VariantResult) TagResult {
 	return TagResult{
 		Name:    param.Name(),
 		Variant: param.Variant(),
@@ -1138,7 +1138,7 @@ func (m *MetadataServer) GetTagError(code int, err error, c *gin.Context, resour
 	return fetchError
 }
 
-func (m *MetadataServer) SetFoundVariantJSON(foundVariant VariantDuck, err error, c *gin.Context, resourceType string) {
+func (m *MetadataServer) SetFoundVariantJSON(foundVariant VariantResult, err error, c *gin.Context, resourceType string) {
 	if err != nil {
 		fetchError := m.GetTagError(500, err, c, resourceType)
 		c.JSON(fetchError.StatusCode, fetchError.Error())

@@ -1191,17 +1191,40 @@ type TagRequestBody struct {
 	Tags []string `json:"tags"`
 }
 
+func getResourceType(resourceTypeString string) metadata.ResourceType {
+	var resourceType metadata.ResourceType
+	switch resourceTypeString {
+	case "features":
+		resourceType = metadata.FEATURE_VARIANT
+	case "labels":
+		resourceType = metadata.LABEL_VARIANT
+	case "training-sets":
+		resourceType = metadata.TRAINING_SET_VARIANT
+	case "sources":
+		resourceType = metadata.SOURCE_VARIANT
+	case "entities":
+		resourceType = metadata.ENTITY
+	case "users":
+		resourceType = metadata.USER
+	case "models":
+		resourceType = metadata.MODEL
+	case "providers":
+		resourceType = metadata.PROVIDER
+	}
+	return resourceType
+}
+
 func (m *MetadataServer) PostTags(c *gin.Context) {
 	var requestBody TagRequestBody
+	resourceTypeParam := c.Param("type")
 	if err := c.BindJSON(&requestBody); err != nil {
 		fetchError := m.GetTagError(500, err, c, "PostTags - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
-
+	resourceType := getResourceType(resourceTypeParam)
 	name := c.Param("resource")
 	variant := "default"
-	resourceType := metadata.SOURCE_VARIANT
 
 	objID := metadata.ResourceID{
 		Name:    name,
@@ -1216,7 +1239,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 		return
 	}
 
-	replaceTags(foundResource, &pb.Tags{Tag: requestBody.Tags})
+	replaceTags(resourceTypeParam, foundResource, &pb.Tags{Tag: requestBody.Tags})
 
 	m.lookup.Set(objID, foundResource)
 
@@ -1227,14 +1250,66 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	})
 }
 
-func replaceTags(currentResource metadata.Resource, newTagList *pb.Tags) error {
+func replaceTags(resourceTypeParam string, currentResource metadata.Resource, newTagList *pb.Tags) error {
 	deserialized := currentResource.Proto()
-	variantUpdate, ok := deserialized.(*pb.SourceVariant) //todox: create a switch for the types
-	if !ok {
-		return errors.New("replaceTags - Failed to deserialize variant")
+	switch resourceTypeParam {
+	case "features":
+		variantUpdate, ok := deserialized.(*pb.FeatureVariant)
+		if !ok {
+			return errors.New("replaceTags - Failed to deserialize variant")
+		}
+		variantUpdate.Tags.Reset()
+		variantUpdate.Tags = newTagList
+	case "labels":
+		variantUpdate, ok := deserialized.(*pb.LabelVariant)
+		if !ok {
+			return errors.New("replaceTags - Failed to deserialize variant")
+		}
+		variantUpdate.Tags.Reset()
+		variantUpdate.Tags = newTagList
+	case "training-sets":
+		variantUpdate, ok := deserialized.(*pb.TrainingSetVariant)
+		if !ok {
+			return errors.New("replaceTags - Failed to deserialize variant")
+		}
+		variantUpdate.Tags.Reset()
+		variantUpdate.Tags = newTagList
+	case "sources":
+		variantUpdate, ok := deserialized.(*pb.SourceVariant)
+		if !ok {
+			return errors.New("replaceTags - Failed to deserialize variant")
+		}
+		variantUpdate.Tags.Reset()
+		variantUpdate.Tags = newTagList
+	case "entities":
+		variantUpdate, ok := deserialized.(*pb.Entity)
+		if !ok {
+			return errors.New("replaceTags - Failed to deserialize variant")
+		}
+		variantUpdate.Tags.Reset()
+		variantUpdate.Tags = newTagList
+	case "users":
+		variantUpdate, ok := deserialized.(*pb.User)
+		if !ok {
+			return errors.New("replaceTags - Failed to deserialize variant")
+		}
+		variantUpdate.Tags.Reset()
+		variantUpdate.Tags = newTagList
+	case "models":
+		variantUpdate, ok := deserialized.(*pb.Model)
+		if !ok {
+			return errors.New("replaceTags - Failed to deserialize variant")
+		}
+		variantUpdate.Tags.Reset()
+		variantUpdate.Tags = newTagList
+	case "providers":
+		variantUpdate, ok := deserialized.(*pb.Provider)
+		if !ok {
+			return errors.New("replaceTags - Failed to deserialize variant")
+		}
+		variantUpdate.Tags.Reset()
+		variantUpdate.Tags = newTagList
 	}
-	variantUpdate.Tags.Reset()
-	variantUpdate.Tags = newTagList
 	return nil
 }
 

@@ -43,6 +43,7 @@ from .resources import Model, SourceType, ComputationMode
 from .sqlite_metadata import SQLiteMetadata
 from .tls import insecure_channel, secure_channel
 from .version import check_up_to_date
+from .exceptions import grpc_exception_summary
 
 
 def check_feature_type(features):
@@ -74,7 +75,9 @@ class ServingClient:
     ```
     """
 
-    def __init__(self, host=None, local=False, insecure=False, cert_path=None):
+    def __init__(
+        self, host=None, local=False, insecure=False, cert_path=None, debug=False
+    ):
         # This line ensures that the warning is only raised if ServingClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
         is_instantiated_directed = inspect.stack()[1].function != "__init__"
@@ -93,9 +96,9 @@ class ServingClient:
         if local and host:
             raise ValueError("Host and local cannot both be set")
         if local:
-            self.impl = LocalClientImpl()
+            self.impl = LocalClientImpl(debug)
         else:
-            self.impl = HostedClientImpl(host, insecure, cert_path)
+            self.impl = HostedClientImpl(host, insecure, cert_path, debug)
 
     def training_set(
         self,
@@ -150,7 +153,7 @@ class ServingClient:
 
 
 class HostedClientImpl:
-    def __init__(self, host=None, insecure=False, cert_path=None):
+    def __init__(self, host=None, insecure=False, cert_path=None, debug=False):
         host = host or os.getenv("FEATUREFORM_HOST")
         if host is None:
             raise ValueError(
@@ -160,6 +163,7 @@ class HostedClientImpl:
         check_up_to_date(False, "serving")
         self._channel = self._create_channel(host, insecure, cert_path)
         self._stub = serving_pb2_grpc.FeatureStub(self._channel)
+        self.debug = debug
 
     def _create_channel(self, host, insecure, cert_path):
         if insecure:
@@ -170,7 +174,7 @@ class HostedClientImpl:
     def training_set(
         self, name, variation, include_label_timestamp, model: Union[str, Model] = None
     ):
-        return Dataset(self._stub).from_stub(name, variation, model)
+        return Dataset(self._stub, debug=self.debug).from_stub(name, variation, model)
 
     def features(
         self, features, entities, model: Union[str, Model] = None, params: list = None
@@ -190,7 +194,10 @@ class HostedClientImpl:
         try:
             resp = self._stub.FeatureServe(req)
         except grpc.RpcError as e:
-            raise Exception(f"Code: {e.code()}: {e.details()}") from None
+            if self.debug:
+                raise Exception(f"Code: {e.code()}: {e.details()}")
+            else:
+                raise print(f"Code: {e.code()}: {e.details()}")
 
         feature_values = []
         for val in resp.values:
@@ -246,9 +253,10 @@ class HostedClientImpl:
 
 
 class LocalClientImpl:
-    def __init__(self):
+    def __init__(self, debug=False):
         self.db = SQLiteMetadata()
         self.local_cache = LocalCache()
+        self.debug = debug
         check_up_to_date(True, "serving")
 
     def __enter__(self):
@@ -807,7 +815,9 @@ class LocalClientImpl:
 
         label_col = trainingset_df.pop("label")
         trainingset_df = trainingset_df.assign(label=label_col)
-        return Dataset.from_dataframe(trainingset_df, include_label_timestamp)
+        return Dataset.from_dataframe(
+            trainingset_df, include_label_timestamp, debug=self.debug
+        )
 
     def _register_model(
         self,
@@ -849,7 +859,9 @@ class LocalClientImpl:
 
 
 class Stream:
-    def __init__(self, stub, name, version, model: Union[str, Model] = None):
+    def __init__(
+        self, stub, name, version, model: Union[str, Model] = None, debug=False
+    ):
         req = serving_pb2.TrainingDataRequest()
         req.id.name = name
         req.id.version = version
@@ -860,6 +872,7 @@ class Stream:
         self._stub = stub
         self._req = req
         self._iter = stub.TrainingData(req)
+        self.debug = debug
 
     def __iter__(self):
         return self
@@ -868,7 +881,7 @@ class Stream:
         try:
             return Row(next(self._iter))
         except grpc.RpcError as e:
-            raise Exception(f"Code: {e.code()}: {e.details()}") from None
+            grpc_exception_summary(e, self.debug)
 
     def restart(self):
         self._iter = self._stub.TrainingData(self._req)
@@ -972,7 +985,7 @@ class Batch:
 
 
 class Dataset:
-    def __init__(self, stream, dataframe=None):
+    def __init__(self, stream, dataframe=None, debug=False):
         """Repeats the Dataset for the specified number of times
 
         Args:
@@ -983,9 +996,10 @@ class Dataset:
         """
         self._stream = stream
         self._dataframe = dataframe
+        self.debug = debug
 
     def from_stub(self, name, version, model: Union[str, Model] = None):
-        stream = Stream(self._stream, name, version, model)
+        stream = Stream(self._stream, name, version, model, self.debug)
         return Dataset(stream)
 
     def dataframe(self) -> pd.DataFrame:

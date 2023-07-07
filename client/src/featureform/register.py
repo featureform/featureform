@@ -3808,7 +3808,13 @@ class ResourceClient:
     """
 
     def __init__(
-        self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
+        self,
+        host=None,
+        local=False,
+        insecure=False,
+        cert_path=None,
+        dry_run=False,
+        debug=False,
     ):
         # This line ensures that the warning is only raised if ResourceClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
@@ -3821,6 +3827,7 @@ class ResourceClient:
         self._dry_run = dry_run
         self._stub = None
         self.local = local
+        self.debug = debug
 
         if dry_run:
             return
@@ -3858,11 +3865,11 @@ class ResourceClient:
             if self.local:
                 resource_state.create_all_local()
             else:
-                resource_state.create_all(self._stub)
+                resource_state.create_all(self._stub, self.debug)
 
             if not asynchronous and self._stub:
                 resources = resource_state.sorted_list()
-                display_statuses(self._stub, resources)
+                display_statuses(self._stub, resources, self.debug)
 
         finally:
             clear_state()

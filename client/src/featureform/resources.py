@@ -2001,7 +2001,7 @@ class ResourceState:
             client.compute_feature(feature.name, feature.variant, feature.entity)
         return
 
-    def create_all(self, stub) -> None:
+    def create_all(self, stub, debug) -> None:
         check_up_to_date(False, "register")
         for resource in self.sorted_list():
             if resource.type() == "provider" and resource.name == "local-mode":
@@ -2032,7 +2032,7 @@ class ResourceState:
                     print(f"{resource.name}{resource_variant} already exists.")
                     continue
 
-                raise Exception(f"Code: {e.code()}: {e.details()}")
+                grpc_exception_summary(e, debug)
 
 
 ## Executor Providers

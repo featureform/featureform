@@ -35,3 +35,12 @@ class LabelNotFound(Exception):
             error_message = f"{error_message} {message}"
 
         Exception.__init__(self, error_message)
+
+
+def grpc_exception_summary(exception, debug):
+    exception_string = f"\nCode: {exception.code()}\n{exception.details()}"
+    if debug:
+        raise Exception(exception_string) from None
+    else:
+        print(exception_string)
+        exit(1)

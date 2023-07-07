@@ -65,17 +65,8 @@ type MetadataServer struct {
 	StorageProvider StorageProvider
 }
 
-func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client) (*MetadataServer, error) {
+func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client, storageProvider *metadata.EtcdStorageProvider) (*MetadataServer, error) {
 	logger.Debug("Creating new metadata server")
-	etcdHost := help.GetEnv("ETCD_HOST", "featureform-etcd")
-	etcdPort := help.GetEnv("ETCD_PORT", "2379")
-	storageProvider := metadata.EtcdStorageProvider{
-		Config: metadata.EtcdConfig{
-			Nodes: []metadata.EtcdNode{
-				{Host: etcdHost, Port: etcdPort},
-			},
-		},
-	}
 	lookup, err := storageProvider.GetResourceLookup()
 	if err != nil {
 		return nil, fmt.Errorf("could not configure storage provider: %v", err)
@@ -1363,7 +1354,17 @@ func main() {
 		logger.Panicw("Failed to connect", "error", err)
 	}
 
-	metadata_server, err := NewMetadataServer(logger, client)
+	etcdHost := help.GetEnv("ETCD_HOST", "featureform-etcd")
+	etcdPort := help.GetEnv("ETCD_PORT", "2379")
+	storageProvider := metadata.EtcdStorageProvider{
+		Config: metadata.EtcdConfig{
+			Nodes: []metadata.EtcdNode{
+				{Host: etcdHost, Port: etcdPort},
+			},
+		},
+	}
+
+	metadata_server, err := NewMetadataServer(logger, client, &storageProvider)
 	if err != nil {
 		logger.Panicw("Failed to create server", "error", err)
 	}

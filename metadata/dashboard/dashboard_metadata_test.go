@@ -62,6 +62,7 @@ func TestVersionMap(t *testing.T) {
 func TestPostTags(t *testing.T) {
 	name := "transactions"
 	variant := "default"
+	resourceType := "sources"
 	tagList := []string{"test tag 40", "test tag 66"}
 
 	mockRecorder := httptest.NewRecorder()
@@ -70,6 +71,10 @@ func TestPostTags(t *testing.T) {
 		{
 			Key:   "resource",
 			Value: name,
+		},
+		{
+			Key:   "type",
+			Value: resourceType,
 		},
 	}
 

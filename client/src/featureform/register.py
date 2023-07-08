@@ -1,6 +1,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+import builtins
 import inspect
 import warnings
 from datetime import timedelta
@@ -1326,8 +1327,12 @@ class ColumnResource:
         schedule: str,
         tags: List[str],
         properties: Dict[str, str],
-        variant: str = "",
     ):
+        if builtins.type(self) is ColumnResource:
+            raise Exception(
+                "ColumnResource is an abstract class and cannot be instantiated directly"
+            )
+
         registrar, source_name_variant, columns = transformation_args
         self.type = type if isinstance(type, str) else type.value
         self.registrar = registrar
@@ -1438,7 +1443,6 @@ class FeatureColumnResource(ColumnResource):
             type=type,
             resource_type="feature",
             entity=entity,
-            variant=variant,
             owner=owner,
             inference_store=inference_store,
             timestamp_column=timestamp_column,
@@ -1470,7 +1474,6 @@ class LabelColumnResource(ColumnResource):
             type=type,
             resource_type="label",
             entity=entity,
-            variant=variant,
             owner=owner,
             inference_store=inference_store,
             timestamp_column=timestamp_column,
@@ -5024,7 +5027,6 @@ class EmbeddingColumnResource(ColumnResource):
         dims: int,
         vector_db: Union[str, OnlineProvider, FileStoreProvider],
         entity: Union[Entity, str] = "",
-        variant="",
         owner: str = "",
         timestamp_column: str = "",
         description: str = "",
@@ -5037,7 +5039,6 @@ class EmbeddingColumnResource(ColumnResource):
             type=ScalarType.FLOAT32,
             resource_type="feature",
             entity=entity,
-            variant=variant,
             owner=owner,
             inference_store=vector_db,
             timestamp_column=timestamp_column,

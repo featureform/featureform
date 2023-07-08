@@ -62,6 +62,25 @@ def test_variants_naming_consistency(provider_source_fxt, is_local, request):
     label_column = "IsFraud" if is_local else "isfraud"
     label_entity_column = "CustomerID" if is_local else "customerid"
 
+    # default variant value on the resources should be overwritten with variant api specified variant
+    variants = ff.Variants(
+        {
+            "quickstart": ff.Label(
+                source[[label_entity_column, label_column]],
+                description="Whether a user's transaction is fraudulent.",
+                type=ff.Bool,
+            ),
+            "quickstart_v2": ff.Label(
+                source[[label_entity_column, label_column]],
+                description="Whether a user's transaction is fraudulent.",
+                type=ff.Bool,
+            ),
+        }
+    )
+
+    assert variants.resources["quickstart"].variant == "quickstart"
+    assert variants.resources["quickstart_v2"].variant == "quickstart_v2"
+
     with pytest.raises(ValueError):
         ff.Variants(
             {
@@ -191,6 +210,31 @@ def test_specifying_timestamp_column_twice(provider_source_fxt, is_local, reques
             type=ff.Bool,
             timestamp_column=timestamp_column,
         )
+
+
+def test_variant_is_mismatching_string_in_feature_declaration():
+    local = ff.register_local()
+
+    @ff.local.df_transformation(
+        variant="quickstart", inputs=[("transactions", "quickstart")]
+    )
+    def average_user_transaction(transactions):
+        return transactions.groupby("CustomerID")["TransactionAmount"].mean()
+
+    with pytest.raises(ValueError):
+
+        @ff.entity
+        class User:
+            avg_transactions = ff.Variants(
+                {
+                    "quickstart": ff.Feature(
+                        average_user_transaction[["CustomerID", "TransactionAmount"]],
+                        variant="quickstart_v2",
+                        type=ff.Float32,
+                        inference_store=local,
+                    )
+                }
+            )
 
 
 @pytest.fixture(autouse=True)

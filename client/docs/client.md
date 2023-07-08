@@ -1,1 +1,1 @@
-:::src.featureform.client
+::: featureform.client.Client

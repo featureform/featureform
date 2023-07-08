@@ -176,6 +176,15 @@ def version(local):
 
 @cli.command()
 def dash():
+    run_dashboard()
+
+
+@cli.command()
+def dashboard():
+    run_dashboard()
+
+
+def run_dashboard():
     app.run(threaded=True, port=os.getenv("LOCALMODE_DASHBOARD_PORT", 3000))
 
 

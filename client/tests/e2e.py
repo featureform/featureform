@@ -69,11 +69,13 @@ sources = [
                 "specifications": {},
                 "owner": "default_user",
                 "provider": "postgres-quickstart",
+                "schedule": "",
                 "variant": "quickstart",
                 "labels": None,
                 "features": None,
                 "training-sets": None,
                 "status": "READY",
+                "table": "",
                 "error": "",
                 "definition": "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id",
                 "tags": [],
@@ -94,11 +96,13 @@ sources = [
                 "specifications": {},
                 "owner": "default_user",
                 "provider": "postgres-quickstart",
+                "schedule": "",
                 "variant": "kaggle",
                 "labels": None,
                 "features": None,
                 "training-sets": None,
                 "status": "READY",
+                "table": "",
                 "error": "",
                 "definition": "Transactions",
                 "tags": [],
@@ -266,6 +270,8 @@ def remove_timestamps(json_value):
     for res in json_value:
         for v in res["variants"]:
             del res["variants"][v]["created"]
+            if "lastUpdated" in res["variants"][v]:
+                del res["variants"][v]["lastUpdated"]
     return json_value
 
 

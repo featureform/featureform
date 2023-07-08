@@ -1632,3 +1632,123 @@ func (serv *MetadataServer) genericList(t ResourceType, send sendFn) error {
 	}
 	return nil
 }
+
+type TrainingSetVariantResource struct {
+	Created     time.Time                           `json:"created"`
+	Description string                              `json:"description"`
+	Name        string                              `json:"name"`
+	Owner       string                              `json:"owner"`
+	Provider    string                              `json:"provider"`
+	Variant     string                              `json:"variant"`
+	Label       NameVariant                         `json:"label"`
+	Features    map[string][]FeatureVariantResource `json:"features"`
+	Status      string                              `json:"status"`
+	Error       string                              `json:"error"`
+	Tags        Tags                                `json:"tags"`
+	Properties  Properties                          `json:"properties"`
+}
+
+type FeatureVariantResource struct {
+	Created      time.Time                               `json:"created"`
+	Description  string                                  `json:"description"`
+	Entity       string                                  `json:"entity"`
+	Name         string                                  `json:"name"`
+	Owner        string                                  `json:"owner"`
+	Provider     string                                  `json:"provider"`
+	DataType     string                                  `json:"data-type"`
+	Variant      string                                  `json:"variant"`
+	Status       string                                  `json:"status"`
+	Error        string                                  `json:"error"`
+	Location     map[string]string                       `json:"location"`
+	Source       NameVariant                             `json:"source"`
+	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
+	Tags         Tags                                    `json:"tags"`
+	Properties   Properties                              `json:"properties"`
+	Mode         string                                  `json:"mode"`
+	IsOnDemand   bool                                    `json:"is-on-demand"`
+}
+
+type LabelVariantResource struct {
+	Created      time.Time                               `json:"created"`
+	Description  string                                  `json:"description"`
+	Entity       string                                  `json:"entity"`
+	Name         string                                  `json:"name"`
+	Owner        string                                  `json:"owner"`
+	Provider     string                                  `json:"provider"`
+	DataType     string                                  `json:"data-type"`
+	Variant      string                                  `json:"variant"`
+	Location     map[string]string                       `json:"location"`
+	Source       NameVariant                             `json:"source"`
+	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
+	Status       string                                  `json:"status"`
+	Error        string                                  `json:"error"`
+	Tags         Tags                                    `json:"tags"`
+	Properties   Properties                              `json:"properties"`
+}
+
+type SourceVariantResource struct {
+	Name           string                                  `json:"name"`
+	Variant        string                                  `json:"variant"`
+	Definition     string                                  `json:"definition"`
+	Owner          string                                  `json:"owner"`
+	Description    string                                  `json:"description"`
+	Provider       string                                  `json:"provider"`
+	Created        time.Time                               `json:"created"`
+	Status         string                                  `json:"status"`
+	Table          string                                  `json:"table"`
+	TrainingSets   map[string][]TrainingSetVariantResource `json:"training-sets"`
+	Features       map[string][]FeatureVariantResource     `json:"features"`
+	Labels         map[string][]LabelVariantResource       `json:"labels"`
+	LastUpdated    time.Time                               `json:"lastUpdated"`
+	Schedule       string                                  `json:"schedule"`
+	Tags           Tags                                    `json:"tags"`
+	Properties     Properties                              `json:"properties"`
+	SourceType     string                                  `json:"source-type"`
+	Error          string                                  `json:"error"`
+	Specifications map[string]string                       `json:"specifications"`
+}
+
+func getSourceString(variant *SourceVariant) string {
+	if variant.IsSQLTransformation() {
+		return variant.SQLTransformationQuery()
+	} else {
+		return variant.PrimaryDataSQLTableName()
+	}
+}
+
+func getSourceType(variant *SourceVariant) string {
+	if variant.IsSQLTransformation() {
+		return "SQL Transformation"
+	} else if variant.IsDFTransformation() {
+		return "Dataframe Transformation"
+	} else {
+		return "Primary Table"
+	}
+}
+
+func getSourceArgs(variant *SourceVariant) map[string]string {
+	if variant.HasKubernetesArgs() {
+		return variant.TransformationArgs().Format()
+	}
+	return map[string]string{}
+}
+
+func SourceShallowMap(variant *SourceVariant) SourceVariantResource {
+	return SourceVariantResource{
+		Name:           variant.Name(),
+		Variant:        variant.Variant(),
+		Definition:     getSourceString(variant),
+		Owner:          variant.Owner(),
+		Description:    variant.Description(),
+		Provider:       variant.Provider(),
+		Created:        variant.Created(),
+		Status:         variant.Status().String(),
+		LastUpdated:    variant.LastUpdated(),
+		Schedule:       variant.Schedule(),
+		Tags:           variant.Tags(),
+		SourceType:     getSourceType(variant),
+		Properties:     variant.Properties(),
+		Error:          variant.Error(),
+		Specifications: getSourceArgs(variant),
+	}
+}

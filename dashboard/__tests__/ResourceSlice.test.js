@@ -14,23 +14,23 @@ describe('fetchResourcesThunk', () => {
 
   it('fetches resources with dispatch', async () => {
     const reduxStore = newTestStore();
-    const mockApi = {
+    const apiMock = {
       fetchResources: jest.fn(() => wrapInPromise(testData)),
     };
     const data = await reduxStore.dispatch(
-      fetchResources({ api: mockApi, type: dataType, strict: false })
+      fetchResources({ api: apiMock, type: dataType, strict: false })
     );
     expect(data.payload).toEqual(testData);
   });
 
   it('sets resources state with dispatch', async () => {
     const reduxStore = newTestStore();
-    const mockApi = {
+    const apiMock = {
       fetchResources: jest.fn(() => wrapInPromise(testData)),
     };
     // fulfilled (or rejected) will be called after this returns. Not waiting
     // for this results in a race condition.
-    await reduxStore.dispatch(fetchResources({ api: mockApi, type: dataType }));
+    await reduxStore.dispatch(fetchResources({ api: apiMock, type: dataType }));
     const state = reduxStore.getState();
     const resources = state.resourceList[dataType].resources;
     expect(resources).toEqual(testData);
@@ -43,16 +43,16 @@ describe('fetchResourcesThunk', () => {
     mockFetchResources
       .mockReturnValueOnce(defer.promise)
       .mockReturnValueOnce(wrapInPromise(['abc']));
-    const mockApi = {
+    const apiMock = {
       fetchResources: mockFetchResources,
     };
     // Don't await here since it'll wait for us to resolve the promise, hence
     // deadlock.
     const origDispatch = reduxStore.dispatch(
-      fetchResources({ api: mockApi, type: dataType })
+      fetchResources({ api: apiMock, type: dataType })
     );
     // The second promise is resolved, so we can await it.
-    await reduxStore.dispatch(fetchResources({ api: mockApi, type: dataType }));
+    await reduxStore.dispatch(fetchResources({ api: apiMock, type: dataType }));
     /*eslint-disable jest/valid-expect-in-promise*/
     defer.resolve({ data: testData });
     origDispatch.then(() => {

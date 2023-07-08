@@ -1,8 +1,8 @@
-import Container from '@material-ui/core/Container';
-import Grid from '@material-ui/core/Grid';
-import InputBase from '@material-ui/core/InputBase';
-import { createStyles, makeStyles } from '@material-ui/core/styles';
-import SearchIcon from '@material-ui/icons/Search';
+import SearchIcon from '@mui/icons-material/Search';
+import Container from '@mui/material/Container';
+import Grid from '@mui/material/Grid';
+import InputBase from '@mui/material/InputBase';
+import { createStyles, makeStyles } from '@mui/styles';
 import { useRouter } from 'next/router';
 import React, { useEffect } from 'react';
 
@@ -20,16 +20,16 @@ const useStyles = makeStyles((theme) =>
       width: '328px',
       height: '36px',
       left: `calc(50% - 328px/2)`,
-      background: `rgba(92, 15, 172, 0.7)`,
+      background: `#FFFFFF`,
       borderRadius: `28px`,
     },
     border: {
-      border: `2px solid ${theme.palette.border.alternate}`,
+      border: `2px solid grey`,
       borderRadius: 16,
       '&:hover': {
-        border: `2px solid black`,
+        border: `2px solid grey `,
       },
-      color: '#FFFFFF',
+      color: '#000000',
     },
     inputRoot: {
       borderRadius: 16,
@@ -38,10 +38,10 @@ const useStyles = makeStyles((theme) =>
       transition: theme.transitions.create('width'),
       width: '100%',
       display: 'flex',
-      color: '#FFFFFF',
+      color: '#grey',
     },
     inputColor: {
-      color: '#FFFFFF',
+      color: '000000',
     },
     inputInputHome: {
       paddingLeft: theme.spacing(4),
@@ -52,7 +52,7 @@ const useStyles = makeStyles((theme) =>
       justifyContent: 'center',
       display: 'flex',
       alignSelf: 'flex-end',
-      color: '#FFFFFF',
+      color: '#000000',
     },
     inputTopBar: {
       width: '100%',
@@ -60,7 +60,7 @@ const useStyles = makeStyles((theme) =>
       background: 'transparent',
       boxShadow: 'none',
       alignSelf: 'center',
-      color: '#FFFFFF',
+      color: '#000000',
     },
   })
 );

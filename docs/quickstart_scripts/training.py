@@ -1,6 +1,6 @@
-from featureform import ServingClient
+from featureform import Client
 
-client = ServingClient(insecure=True)
+client = Client(insecure=True)
 dataset = client.training_set("fraud_training")
 
 for i, batch in enumerate(dataset):

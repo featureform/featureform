@@ -56,15 +56,6 @@ def list_to_combined_df(features_list, entity_id):
         print("Set is empty")
 
 
-def get_features_for_entity(entity_id, entity_value, all_feature_df):
-    entity = all_feature_df.loc[all_feature_df[entity_id] == entity_value].copy()
-    entity.drop(columns=entity_id, inplace=True)
-    if len(entity.values) > 0:
-        return entity.values[0]
-    else:
-        raise Exception(f"No matching entities for {entity_id}: {entity_value}")
-
-
 def feature_df_with_entity(source_path, entity_id, feature):
     name_variant = f"{feature['name']}.{feature['variant']}"
     df = pd.read_csv(str(source_path))

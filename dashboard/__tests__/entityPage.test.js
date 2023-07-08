@@ -1,4 +1,4 @@
-import { ThemeProvider } from '@material-ui/core/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import { configureStore, createSlice } from '@reduxjs/toolkit';
 import { cleanup, render } from '@testing-library/react';
 import 'jest-canvas-mock';

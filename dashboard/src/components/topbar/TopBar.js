@@ -1,11 +1,11 @@
-import { Box } from '@material-ui/core';
-import AppBar from '@material-ui/core/AppBar';
-import IconButton from '@material-ui/core/IconButton';
-import Menu from '@material-ui/core/Menu';
-import MenuItem from '@material-ui/core/MenuItem';
-import { makeStyles } from '@material-ui/core/styles';
-import Toolbar from '@material-ui/core/Toolbar';
-import AccountCircle from '@material-ui/icons/AccountCircle';
+import AccountCircle from '@mui/icons-material/AccountCircle';
+import { Box } from '@mui/material';
+import AppBar from '@mui/material/AppBar';
+import IconButton from '@mui/material/IconButton';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import Toolbar from '@mui/material/Toolbar';
+import { makeStyles } from '@mui/styles';
 import { useRouter } from 'next/router';
 import React, { useEffect } from 'react';
 import SearchBar from '../search/SearchBar';
@@ -22,7 +22,7 @@ const useStyles = makeStyles((theme) => ({
     width: '100%',
     height: '70px',
     left: '0px',
-    background: `linear-gradient(270deg, #6BF77A 0%, #7A14E5 37.22%)`,
+    background: `#FC195C`,
     borderBottom: `1px solid #E5E5E5`,
   },
   instanceLogo: {

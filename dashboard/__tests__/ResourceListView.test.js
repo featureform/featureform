@@ -1,47 +1,68 @@
-import Chip from '@material-ui/core/Chip';
+import { cleanup, render } from '@testing-library/react';
 import Adapter from '@wojtekmaj/enzyme-adapter-react-17';
-import { configure, mount, shallow } from 'enzyme';
+import { configure } from 'enzyme';
 import produce from 'immer';
-// Necessary to get MaterialTable to work correctly.
 import 'jest-canvas-mock';
 import React from 'react';
-import {
-  ResourceListView,
-  TagList,
-} from '../src/components/resource-list/ResourceListView';
+import { ResourceListView } from '../src/components/resource-list/ResourceListView';
+import { deepCopy } from '../src/helper';
 
 configure({ adapter: new Adapter() });
 
-describe('ResourceListView', () => {
-  it('sets resources to [] by default', () => {
-    const list = shallow(<ResourceListView title='test' type='Feature' />);
-    expect(list.children().props().data).toEqual([]);
+describe('ResourceListView tests', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
   });
 
-  it('passes through resources', () => {
-    const list = shallow(
+  afterEach(() => {
+    cleanup();
+  });
+
+  const NO_RECORDS = 'No records to display';
+  const PROGRESS_BAR = 'progressbar';
+  const SVG_NODE = 'svg';
+  const SPAN_NODE = 'SPAN';
+  const TD_NODE = 'TD';
+
+  test('The resource list renders correctly when no data is present', () => {
+    //given:
+    const helper = render(<ResourceListView title='test' type='Feature' />);
+
+    //when:
+    const foundNoRecords = helper.getByText(NO_RECORDS);
+
+    //then:
+    expect(foundNoRecords.nodeName).toBe(TD_NODE);
+  });
+
+  test('The resouce list correctly renders the name and description columns', () => {
+    //given: a row with data
+    const helper = render(
       <ResourceListView
         title='test'
         type='Feature'
         resources={[
           {
             name: 'abc',
+            description: 'my description',
             revision: 'Invalid Date',
             'default-variant': 'first-variant',
           },
         ]}
       />
     );
-    expect(list.children().props().data).toEqual([
-      {
-        name: 'abc',
-        revision: 'Invalid Date',
-        'default-variant': 'first-variant',
-      },
-    ]);
+
+    //when:
+    const foundName = helper.getByText('abc');
+    const foundDesc = helper.getByText('my description');
+
+    //then:
+    expect(foundName.nodeName).toBe(TD_NODE);
+    expect(foundDesc.nodeName).toBe(TD_NODE);
   });
 
-  it('makes resources mutable', () => {
+  test('deepCopy takes an immutable object and makes it mutable', () => {
+    //given:
     const immutData = produce([], (draft) => {
       draft.push({
         name: 'abc',
@@ -49,27 +70,45 @@ describe('ResourceListView', () => {
         variants: { 'first-variant': {}, 'second-variant': {} },
       });
     });
-    const list = shallow(
-      <ResourceListView title='test' resources={immutData} type='Feature' />
+
+    //when:
+    const mutableCopy = deepCopy(immutData);
+    mutableCopy[0].name = 'change from the original name';
+
+    //then:
+    expect(Object.isFrozen(immutData)).toBeTruthy();
+    expect(immutData[0].name).not.toBe(mutableCopy[0].name);
+    expect(Object.isExtensible(mutableCopy)).toBeTruthy();
+  });
+
+  test('When resources are empty, set isLoading to true and verify the progress bar', async () => {
+    //given:
+    const helper = render(<ResourceListView title='test' type='Feature' />);
+
+    //when:
+    const foundNoRecords = await helper.findByText(NO_RECORDS);
+    const foundProgressBar = await helper.findByRole(PROGRESS_BAR);
+
+    //then:
+    expect(foundNoRecords.nodeName).toBe(TD_NODE);
+    expect(foundProgressBar.nodeName).toBe(SPAN_NODE);
+    expect(foundProgressBar.firstChild.nodeName).toBe(SVG_NODE);
+  });
+
+  test('When the loading prop is true, ensure the progress bar is rendered', async () => {
+    const helper = render(
+      <ResourceListView title='test' type='Feature' loading={true} />
     );
-    expect(Object.isFrozen(immutData)).toBe(true);
-    expect(Object.isFrozen(list.children().props().data)).toBe(false);
+    const foundNoRecords = await helper.findByText(NO_RECORDS);
+    const foundProgressBar = await helper.findByRole(PROGRESS_BAR);
+
+    expect(foundNoRecords.nodeName).toBe(TD_NODE);
+    expect(foundProgressBar.nodeName).toBe(SPAN_NODE);
+    expect(foundProgressBar.firstChild.nodeName).toBe(SVG_NODE);
   });
 
-  it("sets isLoading when resources isn't set", () => {
-    const list = shallow(<ResourceListView title='test' type='Feature' />);
-    expect(list.children().props().isLoading).toEqual(true);
-  });
-
-  it('sets isLoading when loading', () => {
-    const list = shallow(
-      <ResourceListView title='test' loading={true} type='Feature' />
-    );
-    expect(list.children().props().isLoading).toEqual(true);
-  });
-
-  it('sets isLoading when failed', () => {
-    const list = shallow(
+  test('When failed, set isLoading to true', async () => {
+    const helper = render(
       <ResourceListView
         title='test'
         loading={false}
@@ -77,38 +116,11 @@ describe('ResourceListView', () => {
         type='Feature'
       />
     );
-    expect(list.children().props().isLoading).toEqual(true);
-  });
+    const foundNoRecords = await helper.findByText(NO_RECORDS);
+    const foundProgressBar = await helper.findByRole(PROGRESS_BAR);
 
-  describe('TagList', () => {
-    const exampleTags = ['a', 'b', 'c'];
-
-    it('renders correctly with no tags', () => {
-      const list = shallow(<TagList />);
-      expect(list.children().length).toBe(0);
-    });
-
-    it('renders correctly with no active tags', () => {
-      const list = shallow(
-        <TagList tagClass='class-here' tags={exampleTags} />
-      );
-      expect(list).toMatchSnapshot();
-    });
-
-    it('highlights active tags', () => {
-      const list = mount(
-        <TagList activeTags={{ [exampleTags[1]]: true }} tags={exampleTags} />
-      );
-      const chips = list.find(Chip);
-      expect(chips.at(0).prop('color')).toBe('default');
-      expect(chips.at(1).prop('color')).toBe('secondary');
-    });
-
-    it('toggles tag on click', () => {
-      const toggle = jest.fn();
-      const list = mount(<TagList tags={exampleTags} toggleTag={toggle} />);
-      list.find(Chip).at(0).simulate('click');
-      expect(toggle).toHaveBeenCalledWith(exampleTags[0]);
-    });
+    expect(foundNoRecords.nodeName).toBe(TD_NODE);
+    expect(foundProgressBar.nodeName).toBe(SPAN_NODE);
+    expect(foundProgressBar.firstChild.nodeName).toBe(SVG_NODE);
   });
 });

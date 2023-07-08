@@ -23,6 +23,19 @@ excluded_files = [
     "get_test.py",
     "list_local.py",
     "tls.py",
+    "constants.py",
+    "exceptions.py",
+    "local_utils.py",
+    "names_generator.py",
+    "parse.py",
+    "search.py",
+    "search_local.py",
+    "status_display.py",
+    "local_cache.py",
+    "version.py",
+    "file_utils.py",
+    "metadata.py",
+    "providers",
 ]
 
 for filename in os.listdir("./src/featureform"):
@@ -35,6 +48,6 @@ for filename in os.listdir("./src/featureform"):
     mdFile = f"{file}.md"
 
     with mkdocs_gen_files.open(mdFile, "w") as f:
-        print(f":::src.featureform.{file}", file=f)
+        print(f"::: featureform.{file}", file=f)
 
     mkdocs_gen_files.set_edit_path(mdFile, "gen_pages.py")

@@ -699,8 +699,8 @@ class SQLiteMetadata:
         query = f"SELECT tag_list FROM tags WHERE name='{name}' and variant='{variant}' and type='{type}'"
         return self.fetch_data_safe(query, type, name, variant)
 
-    def update_tags(self, name, variant, type, tagList=[]):
-        query = f"UPDATE tags SET tag_list='{tagList}' WHERE name='{name}' and variant='{variant}' and type='{type}'"
+    def update_tags(self, name, variant, type, tagList):
+        query = f"UPDATE tags SET tag_list='{tagList}' WHERE name='{name}' and variant='{variant}' and type='{type}';"
         self.__conn.execute(query)
         self.__conn.commit()
 

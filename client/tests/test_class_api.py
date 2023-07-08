@@ -62,6 +62,25 @@ def test_variants_naming_consistency(provider_source_fxt, is_local, request):
     label_column = "IsFraud" if is_local else "isfraud"
     label_entity_column = "CustomerID" if is_local else "customerid"
 
+    # default variant value on the resources should be overwritten with variant api specified variant
+    variants = ff.Variants(
+        {
+            "quickstart": ff.Label(
+                source[[label_entity_column, label_column]],
+                description="Whether a user's transaction is fraudulent.",
+                type=ff.Bool,
+            ),
+            "quickstart_v2": ff.Label(
+                source[[label_entity_column, label_column]],
+                description="Whether a user's transaction is fraudulent.",
+                type=ff.Bool,
+            ),
+        }
+    )
+
+    assert variants.resources["quickstart"].variant == "quickstart"
+    assert variants.resources["quickstart_v2"].variant == "quickstart_v2"
+
     with pytest.raises(ValueError):
         ff.Variants(
             {

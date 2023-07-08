@@ -216,7 +216,7 @@ We can use the feature registry to search, monitor, and discover our machine lea
 
 # Contributing
 
-* To contribute to Embeddinghub, please check out [Contribution docs](https://github.com/featureform/featureform/blob/main/CONTRIBUTING.md).
+* To contribute to Featureform, please check out [Contribution docs](https://github.com/featureform/featureform/blob/main/CONTRIBUTING.md).
 * Welcome to our community, join us on [Slack](https://join.slack.com/t/featureform-community/shared_invite/zt-xhqp2m4i-JOCaN1vRN2NDXSVif10aQg).
 
 <br />

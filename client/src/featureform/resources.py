@@ -115,8 +115,8 @@ class PineconeConfig:
 @typechecked
 @dataclass
 class WeaviateConfig:
-    url: str
-    api_key: str
+    url: str = ""
+    api_key: str = ""
 
     def software(self) -> str:
         return "weaviate"
@@ -125,11 +125,19 @@ class WeaviateConfig:
         return "WEAVIATE_ONLINE"
 
     def serialize(self) -> bytes:
+        if self.url == "":
+            raise Exception("URL cannot be empty")
         config = {
             "URL": self.url,
             "ApiKey": self.api_key,
         }
         return bytes(json.dumps(config), "utf-8")
+
+    def deserialize(self, config):
+        config = json.loads(config)
+        self.url = config["URL"]
+        self.api_key = config["ApiKey"]
+        return self
 
 
 @typechecked

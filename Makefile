@@ -212,13 +212,13 @@ stop_postgres:
 pytest:
 	-rm -r .featureform
 	curl -C - https://featureform-demo-files.s3.amazonaws.com/transactions_short.csv -o transactions.csv
+	python -m pytest client/tests/local_dash_test.py
 	python -m pytest client/tests/status_test.py
 	python -m pytest client/tests/test_cli.py
 	python -m pytest client/tests/resources_test.py
 	python -m pytest client/tests/register_test.py
 	python -m pytest client/tests/provider_config_test.py
 	python -m pytest client/tests/serving_test.py
-	python -m pytest client/src/featureform/local_dash_test.py
 	python -m pytest client/tests/redefined_test.py
 #	python -m pytest client/tests/local_test.py
 	python -m pytest client/tests/localmode_quickstart_test.py

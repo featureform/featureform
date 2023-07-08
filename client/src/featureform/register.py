@@ -1,27 +1,26 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
-from os.path import exists
-from datetime import timedelta
-
-from typeguard import typechecked
-from typing import Dict, Tuple, Callable, List, Union
-import warnings
 import inspect
+import warnings
+from datetime import timedelta
+from os.path import exists
 from pathlib import Path
+from typing import Dict, Tuple, Callable, List, Union
 
 import dill
 import pandas as pd
+from typeguard import typechecked
 
-
+from .enums import FileFormat
+from .file_utils import absolute_file_paths
 from .get import *
-from .parse import *
-from .list import *
 from .get_local import *
+from .list import *
 from .list_local import *
-from .sqlite_metadata import SQLiteMetadata
-from .status_display import display_statuses
-from .tls import insecure_channel, secure_channel
+from .names_generator import get_random_name
+from .parse import *
+from .proto import metadata_pb2_grpc as ff_grpc
 from .resources import (
     PineconeConfig,
     ScalarType,
@@ -72,13 +71,11 @@ from .resources import (
     OnDemandFeature,
     WeaviateConfig,
 )
-
-from .proto import metadata_pb2_grpc as ff_grpc
-from .search_local import search_local
 from .search import search
-from .enums import FileFormat
-from .names_generator import get_random_name
-from .file_utils import absolute_file_paths
+from .search_local import search_local
+from .sqlite_metadata import SQLiteMetadata
+from .status_display import display_statuses
+from .tls import insecure_channel, secure_channel
 
 NameVariant = Tuple[str, str]
 
@@ -873,7 +870,7 @@ class LocalSource:
         Returns the local source as a pandas datafame.
 
         Returns:
-        dataframe (pandas.Dataframe): A pandas Dataframe
+            dataframe (pandas.Dataframe): A pandas Dataframe
         """
         return pd.read_csv(self.path)
 
@@ -941,7 +938,7 @@ class SubscriptableTransformation:
     feature = ff.Feature(average_user_transaction[["user_id", "avg_transaction_amt"]])
     ```
 
-    Given the function type does not implement __getitem__ we need to wrap it in a class that 
+    Given the function type does not implement __getitem__ we need to wrap it in a class that
     enables this behavior while still maintaining the original function signature and behavior.
     """
 
@@ -1481,7 +1478,7 @@ class LabelColumnResource(ColumnResource):
 
 
 class Registrar:
-    """These functions are used to register new resources and retrieving existing resources. Retrieved resources can be used to register additional resources. If information on these resources is needed (e.g. retrieve the names of all variants of a feature), use the [Resource Client](resource_client.md) instead.
+    """These functions are used to register new resources and retrieving existing resources. Retrieved resources can be used to register additional resources. If information on these resources is needed (e.g. retrieve the names of all variants of a feature), use the [Resource Client](client.md) instead.
 
     ``` py title="definitions.py"
     import featureform as ff
@@ -2174,7 +2171,6 @@ class Registrar:
             team (str): the name of the team registering the filestore
             account_name (str): Azure account name
             account_key (str): Secret azure account key
-            config (AzureConfig): an azure config object (can be used in place of container name and account name)
             tags (List[str]): Optional grouping mechanism for resources
             properties (dict): Optional grouping mechanism for resources
         Returns:
@@ -2459,7 +2455,7 @@ class Registrar:
             team (str): Name of team
             host (str): DNS name of Cassandra
             port (str): Port
-            user (str): User
+            username (str): Username
             password (str): Password
             consistency (str): Consistency
             replication (int): Replication
@@ -3516,8 +3512,6 @@ class Registrar:
             labels (List[ColumnMapping]): List of ColumnMapping objects (dictionaries containing the keys: name, variant, column, resource_type)
             description (str): Description
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
 
         Returns:
             resource (ResourceRegistrar): resource
@@ -3792,7 +3786,14 @@ class Registrar:
 
 
 class ResourceClient:
-    """The resource client is used to retrieve information on specific resources (entities, providers, features, labels, training sets, models, users). If retrieved resources are needed to register additional resources (e.g. registering a feature from a source), use the [Client](client.md) functions instead.
+    """
+    The resource client is used to retrieve information on specific resources (entities, providers, features, labels, training sets, models, users). If retrieved resources are needed to register additional resources (e.g. registering a feature from a source), use the [Client](client.md) functions instead.
+
+    Args:
+        host (str): The hostname of the Featureform instance. Exclude if using Localmode.
+        local (bool): True if using Localmode.
+        insecure (bool): True if connecting to an insecure Featureform endpoint. False if using a self-signed or public TLS certificate
+        cert_path (str): The path to a public certificate if using a self-signed certificate.
 
     **Using the Resource Client:**
     ``` py title="definitions.py"
@@ -3809,14 +3810,6 @@ class ResourceClient:
     def __init__(
         self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
     ):
-        """Initialise a Resource Client object.
-
-        Args:
-            host (str): The hostname of the Featureform instance. Exclude if using Localmode.
-            local (bool): True if using Localmode.
-            insecure (bool): True if connecting to an insecure Featureform endpoint. False if using a self-signed or public TLS certificate
-            cert_path (str): The path to a public certificate if using a self-signed certificate.
-        """
         # This line ensures that the warning is only raised if ResourceClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
         is_instantiated_directed = inspect.stack()[1].function != "__init__"
@@ -3970,16 +3963,16 @@ class ResourceClient:
 
         name: "user"
         features {
-        name: "avg_transactions"
-        variant: "quickstart"
+            name: "avg_transactions"
+            variant: "quickstart"
         }
         labels {
-        name: "fraudulent"
-        variant: "quickstart"
+            name: "fraudulent"
+            variant: "quickstart"
         }
         trainingsets {
-        name: "fraud_training"
-        variant: "quickstart"
+            name: "fraud_training"
+            variant: "quickstart"
         }
         ```
         """
@@ -5321,7 +5314,6 @@ get_s3 = global_registrar.get_s3
 get_gcs = global_registrar.get_gcs
 ondemand_feature = global_registrar.ondemand_feature
 ResourceStatus = ResourceStatus
-
 
 Nil = ScalarType.NIL
 String = ScalarType.STRING

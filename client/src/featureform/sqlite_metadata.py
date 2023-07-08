@@ -1,7 +1,7 @@
 import json
+import os
 import sqlite3
 from threading import Lock
-import os
 
 from .exceptions import FeatureNotFound
 
@@ -773,3 +773,9 @@ class SQLiteMetadata:
             is_update = True
 
         return (query, is_update)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()

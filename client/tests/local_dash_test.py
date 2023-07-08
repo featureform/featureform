@@ -1,9 +1,11 @@
-import pytest
-import os
-from .cli import app
 import json
+import os
 import shutil
 import stat
+
+import featureform
+import pytest
+from featureform.cli import app
 
 features = [
     {
@@ -1953,14 +1955,19 @@ def remove_keys(obj, rubbish):
     return obj
 
 
-def test_setup():
+@pytest.fixture(scope="module", autouse=True)
+def setup():
     import subprocess
 
     apply = subprocess.run(
-        ["featureform", "apply", "client/examples/local_quickstart.py", "--local"]
+        [
+            "featureform",
+            "apply",
+            "client/examples/local_quickstart.py",
+            "--local",
+        ]
     )
-    print("The exit code was: %d" % apply.returncode)
-    assert apply.returncode == 0, f"OUT: {apply.stdout}, ERR: {apply.stderr}"
+    yield apply
 
 
 @pytest.fixture
@@ -1982,6 +1989,11 @@ def check_objs(path, test_obj, client):
         actual = {obj["name"]: obj for obj in removed_created_json}
         expected = {obj["name"]: obj for obj in test_obj}
         assert actual == expected
+
+
+def test_apply_exit_code(setup):
+    apply = setup
+    assert apply.returncode == 0, f"OUT: {apply.stdout}, ERR: {apply.stderr}"
 
 
 def test_version(client):
@@ -2046,12 +2058,21 @@ def test_user(client):
     check_objs("/data/entities/user", user, client)
 
 
-def test_cleanup():
-    def del_rw(action, name, exc):
-        os.chmod(name, stat.S_IWRITE)
-        os.remove(name)
+@pytest.fixture(scope="module", autouse=True)
+def setup_and_teardown():
+    yield
+    cleanup()
 
+
+def cleanup():
+    client = featureform.ServingClient(local=True)
+    client.impl.db.close()
     try:
         shutil.rmtree(".featureform", onerror=del_rw)
-    except:
+    except FileNotFoundError:
         print("File Already Removed")
+
+
+def del_rw(action, name, exc):
+    os.chmod(name, stat.S_IWRITE)
+    os.remove(name)

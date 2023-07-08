@@ -994,10 +994,25 @@ jobs:
         with:
           name: compiled-workdir
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      #
+      # https://github.com/actions/setup-python/issues/682
+      # Python 3.7.17 in MacOSX will raise "No module named _bz2" exception, so pinning to 3.7.16
+      #
+      # Previous setup, revert back to the below once th3 issue is fixed:
+      # - name: Set up Python
+      #   uses: actions/setup-python@v4
+      #   with:
+      #     python-version: ${{ matrix.python-version }}
+      #
+      - uses: actions/setup-python@v4
+        if: matrix.os != 'macos-latest' || ( matrix.os == 'macos-latest' && matrix.python-version != '3.7' )
         with:
           python-version: ${{ matrix.python-version }}
+      - uses: actions/setup-python@v4
+        if: matrix.os == 'macos-latest' && matrix.python-version == '3.7'
+        with:
+          python-version: "3.7.16"
+
       - name: Install pytest
         run: pip install pytest protobuf==3.20.1 python-dotenv pytest-mock
 

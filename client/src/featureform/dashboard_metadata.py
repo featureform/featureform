@@ -112,6 +112,57 @@ def source_data():
         )
 
 
+@dashboard_app.route("/data/<type>/<resource>/gettags", methods=["POST"])
+@cross_origin(allow_headers=["Content-Type"])
+def get_tags(type, resource):
+    try:
+        response = {"name": resource, "variant": request.json["variant"], "tags": []}
+        with SQLiteMetadata() as sqlObject:
+            tags = sqlObject.get_tags(resource, response["variant"], type)
+            if len(tags):
+                response["tags"] = json.loads(tags[0][0])
+            return json.dumps(response, allow_nan=False)
+    except Exception as e:
+        error = f"Error 500: {e}"
+        return Response(
+            response=json.dumps(error), status=500, mimetype="application/json"
+        )
+
+
+@dashboard_app.route("/data/<type>/<resource>/tags", methods=["POST"])
+@cross_origin(allow_headers=["Content-Type"])
+def post_tags(type, resource):
+    try:
+        response = {
+            "name": resource,
+            "variant": request.json["variant"],
+            "tags": request.json["tags"],
+        }
+        with SQLiteMetadata() as sqlObject:
+            tags = sqlObject.get_tags(resource, response["variant"], type)
+            if len(tags) == 0:  # no record exists, create
+                sqlObject.insert(
+                    "tags",
+                    response["name"],
+                    response["variant"],
+                    type,
+                    json.dumps(response["tags"]),
+                )
+            else:  # update the existing record
+                sqlObject.update_tags(
+                    resource,
+                    response["variant"],
+                    type,
+                    json.dumps(response["tags"]),
+                )
+            return json.dumps(response, allow_nan=False)
+    except Exception as e:
+        error = f"Error 500: {e}"
+        return Response(
+            response=json.dumps(error), status=500, mimetype="application/json"
+        )
+
+
 def variant_organiser(allVariantList):
     variantsDict = dict()
 

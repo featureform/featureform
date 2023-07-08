@@ -47,7 +47,7 @@ export default function SourceDialog({
         variant='outlined'
         onClick={handleClickOpen}
       >
-        Open Table Source
+        Preview Result
       </Button>
       <Dialog
         fullWidth={true}

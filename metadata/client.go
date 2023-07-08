@@ -1536,6 +1536,10 @@ type User struct {
 	fetchPropertiesFn
 }
 
+func (u User) Variant() string {
+	return ""
+}
+
 func wrapProtoUser(serialized *pb.User) *User {
 	return &User{
 		serialized:           serialized,
@@ -1584,6 +1588,10 @@ type Provider struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
+}
+
+func (p Provider) Variant() string {
+	return ""
 }
 
 func wrapProtoProvider(serialized *pb.Provider) *Provider {
@@ -1653,6 +1661,10 @@ type Model struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
+}
+
+func (m Model) Variant() string {
+	return ""
 }
 
 func wrapProtoModel(serialized *pb.Model) *Model {
@@ -2135,6 +2147,10 @@ type Entity struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
+}
+
+func (e Entity) Variant() string {
+	return ""
 }
 
 func wrapProtoEntity(serialized *pb.Entity) *Entity {

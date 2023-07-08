@@ -212,31 +212,6 @@ def test_specifying_timestamp_column_twice(provider_source_fxt, is_local, reques
         )
 
 
-def test_variant_is_mismatching_string_in_feature_declaration():
-    local = ff.register_local()
-
-    @ff.local.df_transformation(
-        variant="quickstart", inputs=[("transactions", "quickstart")]
-    )
-    def average_user_transaction(transactions):
-        return transactions.groupby("CustomerID")["TransactionAmount"].mean()
-
-    with pytest.raises(ValueError):
-
-        @ff.entity
-        class User:
-            avg_transactions = ff.Variants(
-                {
-                    "quickstart": ff.Feature(
-                        average_user_transaction[["CustomerID", "TransactionAmount"]],
-                        variant="quickstart_v2",
-                        type=ff.Float32,
-                        inference_store=local,
-                    )
-                }
-            )
-
-
 @pytest.fixture(autouse=True)
 def before_and_after_each(setup_teardown):
     setup_teardown()

@@ -16,8 +16,6 @@ rules:
     resources:
       - ingresses
     verbs: ["get", "list", "watch"]
-  - nonResourceURLs: ["/metrics"]
-    verbs: ["get"]
 ---
 apiVersion: v1
 kind: ServiceAccount

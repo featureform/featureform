@@ -20,6 +20,7 @@ import json from 'react-syntax-highlighter/dist/cjs/languages/prism/json';
 import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
 import sql from 'react-syntax-highlighter/dist/cjs/languages/prism/sql';
 import { okaidia } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import { format } from 'sql-formatter';
 import Resource from '../../api/resources/Resource.js';
 import theme from '../../styles/theme/index.js';
 import SourceDialog from '../dialog/SourceDialog';
@@ -242,6 +243,20 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
   if (metadata['source']) {
     metadata['source'] = metadata['source'].Name;
     metadata['source-variant'] = metadata['source'].Variant;
+  }
+
+  function getFormattedSQL(sqlString = '') {
+    let stringResult = sqlString;
+    try {
+      stringResult = format(sqlString.replace('{{', '').replace('}}', ''), {
+        language: 'sql',
+      });
+    } catch {
+      console.error('There was an error formatting the sql string');
+      console.error(stringResult);
+      stringResult = sqlString;
+    }
+    return stringResult;
   }
 
   const convertTimestampToDate = (timestamp_string) => {
@@ -477,7 +492,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                             language={'sql'}
                             style={okaidia}
                           >
-                            {metadata['definition']}
+                            {getFormattedSQL(metadata['definition'])}
                           </SyntaxHighlighter>
                         ) : (
                           <Typography variant='h7'>

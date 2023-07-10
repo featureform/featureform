@@ -12,32 +12,70 @@ import (
 	"strings"
 
 	help "github.com/featureform/helpers"
+	"github.com/featureform/metadata"
+	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/metadata/search"
 	"github.com/featureform/proto"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/serving"
-	"github.com/pkg/errors"
-
-	"github.com/featureform/metadata"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
 var searchClient search.Searcher
 
-type MetadataServer struct {
-	client *metadata.Client
-	logger *zap.SugaredLogger
+type StorageProvider interface {
+	GetResourceLookup() (metadata.ResourceLookup, error)
 }
 
-func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client) (*MetadataServer, error) {
+type LocalStorageProvider struct {
+}
+
+func (sp LocalStorageProvider) GetResourceLookup() (metadata.ResourceLookup, error) {
+	lookup := make(metadata.LocalResourceLookup)
+	return lookup, nil
+}
+
+type EtcdStorageProvider struct {
+	Config metadata.EtcdConfig
+}
+
+func (sp EtcdStorageProvider) GetResourceLookup() (metadata.ResourceLookup, error) {
+
+	client, err := sp.Config.InitClient()
+	if err != nil {
+		return nil, fmt.Errorf("could not init etcd client: %v", err)
+	}
+	lookup := metadata.EtcdResourceLookup{
+		Connection: metadata.EtcdStorage{
+			Client: client,
+		},
+	}
+	return lookup, nil
+}
+
+type MetadataServer struct {
+	lookup          metadata.ResourceLookup
+	client          *metadata.Client
+	logger          *zap.SugaredLogger
+	StorageProvider StorageProvider
+}
+
+func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client, storageProvider *metadata.EtcdStorageProvider) (*MetadataServer, error) {
 	logger.Debug("Creating new metadata server")
+	lookup, err := storageProvider.GetResourceLookup()
+	if err != nil {
+		return nil, fmt.Errorf("could not configure storage provider: %v", err)
+	}
 	return &MetadataServer{
-		client: client,
-		logger: logger,
+		client:          client,
+		logger:          logger,
+		StorageProvider: storageProvider,
+		lookup:          lookup,
 	}, nil
 }
 
@@ -1074,16 +1112,219 @@ func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64
 	return primary.IterateSegment(limit)
 }
 
+type VariantResult interface {
+	Name() string
+	Variant() string
+	Tags() metadata.Tags
+}
+
+type TagResult struct {
+	Name    string   `json:"name"`
+	Variant string   `json:"variant"`
+	Tags    []string `json:"tags"`
+}
+
+func GetTagResult(param VariantResult) TagResult {
+	return TagResult{
+		Name:    param.Name(),
+		Variant: param.Variant(),
+		Tags:    param.Tags(),
+	}
+}
+
+func (m *MetadataServer) GetTagError(code int, err error, c *gin.Context, resourceType string) *FetchError {
+	fetchError := &FetchError{StatusCode: code, Type: resourceType}
+	m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+	return fetchError
+}
+
+func (m *MetadataServer) SetFoundVariantJSON(foundVariant VariantResult, err error, c *gin.Context, resourceType string) {
+	if err != nil {
+		fetchError := m.GetTagError(500, err, c, resourceType)
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+	}
+	c.JSON(http.StatusOK, GetTagResult(foundVariant))
+}
+
+type TagGetBody struct {
+	Variant string `json:"variant"`
+}
+
+func (m *MetadataServer) GetTags(c *gin.Context) {
+	name := c.Param("resource")
+	resourceType := c.Param("type")
+	var requestBody TagGetBody
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetTagError(500, err, c, "GetTags - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	nameVariant := metadata.NameVariant{Name: name, Variant: requestBody.Variant}
+	switch resourceType {
+	case "features":
+		foundVariant, err := m.client.GetFeatureVariant(context.Background(), nameVariant)
+		m.SetFoundVariantJSON(foundVariant, err, c, resourceType)
+	case "labels":
+		foundVariant, err := m.client.GetLabelVariant(context.Background(), nameVariant)
+		m.SetFoundVariantJSON(foundVariant, err, c, resourceType)
+	case "training-sets":
+		foundVariant, err := m.client.GetTrainingSetVariant(context.Background(), nameVariant)
+		m.SetFoundVariantJSON(foundVariant, err, c, resourceType)
+	case "sources":
+		foundVariant, err := m.client.GetSourceVariant(context.Background(), nameVariant)
+		m.SetFoundVariantJSON(foundVariant, err, c, resourceType)
+	case "entities":
+		foundVariant, err := m.client.GetEntity(context.Background(), name)
+		m.SetFoundVariantJSON(foundVariant, err, c, resourceType)
+	case "users":
+		foundVariant, err := m.client.GetUser(context.Background(), name)
+		m.SetFoundVariantJSON(foundVariant, err, c, resourceType)
+	case "models":
+		foundVariant, err := m.client.GetModel(context.Background(), name)
+		m.SetFoundVariantJSON(foundVariant, err, c, resourceType)
+	case "providers":
+		foundVariant, err := m.client.GetProvider(context.Background(), name)
+		m.SetFoundVariantJSON(foundVariant, err, c, resourceType)
+	}
+}
+
+type TagPostBody struct {
+	Tags    []string `json:"tags"`
+	Variant string   `json:"variant"`
+}
+
+func getResourceType(resourceTypeString string) metadata.ResourceType {
+	var resourceType metadata.ResourceType
+	switch resourceTypeString {
+	case "features":
+		resourceType = metadata.FEATURE_VARIANT
+	case "labels":
+		resourceType = metadata.LABEL_VARIANT
+	case "training-sets":
+		resourceType = metadata.TRAINING_SET_VARIANT
+	case "sources":
+		resourceType = metadata.SOURCE_VARIANT
+	case "entities":
+		resourceType = metadata.ENTITY
+	case "users":
+		resourceType = metadata.USER
+	case "models":
+		resourceType = metadata.MODEL
+	case "providers":
+		resourceType = metadata.PROVIDER
+	}
+	return resourceType
+}
+
+func (m *MetadataServer) PostTags(c *gin.Context) {
+	var requestBody TagPostBody
+	resourceTypeParam := c.Param("type")
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetTagError(500, err, c, "PostTags - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	resourceType := getResourceType(resourceTypeParam)
+	name := c.Param("resource")
+	variant := requestBody.Variant
+
+	objID := metadata.ResourceID{
+		Name:    name,
+		Variant: variant,
+		Type:    resourceType,
+	}
+	foundResource, err := m.lookup.Lookup(objID)
+
+	if err != nil {
+		fetchError := m.GetTagError(400, err, c, "PostTags - Error finding the resource with resourceID")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	replaceTags(resourceTypeParam, foundResource, &pb.Tags{Tag: requestBody.Tags})
+
+	m.lookup.Set(objID, foundResource)
+
+	c.JSON(http.StatusOK, TagResult{
+		Name:    name,
+		Variant: variant,
+		Tags:    requestBody.Tags,
+	})
+}
+
+func replaceTags(resourceTypeParam string, currentResource metadata.Resource, newTagList *pb.Tags) error {
+	deserialized := currentResource.Proto()
+	switch resourceTypeParam {
+	case "features":
+		variantUpdate, ok := deserialized.(*pb.FeatureVariant)
+		if !ok {
+			return errors.New("replaceTags - Failed to deserialize variant")
+		}
+		variantUpdate.Tags.Reset()
+		variantUpdate.Tags = newTagList
+	case "labels":
+		variantUpdate, ok := deserialized.(*pb.LabelVariant)
+		if !ok {
+			return errors.New("replaceTags - Failed to deserialize variant")
+		}
+		variantUpdate.Tags.Reset()
+		variantUpdate.Tags = newTagList
+	case "training-sets":
+		variantUpdate, ok := deserialized.(*pb.TrainingSetVariant)
+		if !ok {
+			return errors.New("replaceTags - Failed to deserialize variant")
+		}
+		variantUpdate.Tags.Reset()
+		variantUpdate.Tags = newTagList
+	case "sources":
+		variantUpdate, ok := deserialized.(*pb.SourceVariant)
+		if !ok {
+			return errors.New("replaceTags - Failed to deserialize variant")
+		}
+		variantUpdate.Tags.Reset()
+		variantUpdate.Tags = newTagList
+	case "entities":
+		variantUpdate, ok := deserialized.(*pb.Entity)
+		if !ok {
+			return errors.New("replaceTags - Failed to deserialize variant")
+		}
+		variantUpdate.Tags.Reset()
+		variantUpdate.Tags = newTagList
+	case "users":
+		variantUpdate, ok := deserialized.(*pb.User)
+		if !ok {
+			return errors.New("replaceTags - Failed to deserialize variant")
+		}
+		variantUpdate.Tags.Reset()
+		variantUpdate.Tags = newTagList
+	case "models":
+		variantUpdate, ok := deserialized.(*pb.Model)
+		if !ok {
+			return errors.New("replaceTags - Failed to deserialize variant")
+		}
+		variantUpdate.Tags.Reset()
+		variantUpdate.Tags = newTagList
+	case "providers":
+		variantUpdate, ok := deserialized.(*pb.Provider)
+		if !ok {
+			return errors.New("replaceTags - Failed to deserialize variant")
+		}
+		variantUpdate.Tags.Reset()
+		variantUpdate.Tags = newTagList
+	}
+	return nil
+}
+
 func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
-
 	router.GET("/data/:type", m.GetMetadataList)
 	router.GET("/data/:type/:resource", m.GetMetadata)
 	router.GET("/data/search", m.GetSearch)
 	router.GET("/data/version", m.GetVersionMap)
 	router.GET("/data/sourcedata", m.GetSourceData)
-
+	router.POST("/data/:type/:resource/gettags", m.GetTags)
+	router.POST("/data/:type/:resource/tags", m.PostTags)
 	router.Run(port)
 }
 
@@ -1101,6 +1342,10 @@ func main() {
 		Port:   searchPort,
 		ApiKey: searchApiKey,
 	})
+	if err != nil {
+		logger.Panicw("Failed to create new meil search", err)
+	}
+
 	searchClient = sc
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	logger.Infof("Looking for metadata at: %s\n", metadataAddress)
@@ -1109,7 +1354,17 @@ func main() {
 		logger.Panicw("Failed to connect", "error", err)
 	}
 
-	metadata_server, err := NewMetadataServer(logger, client)
+	etcdHost := help.GetEnv("ETCD_HOST", "featureform-etcd")
+	etcdPort := help.GetEnv("ETCD_PORT", "2379")
+	storageProvider := metadata.EtcdStorageProvider{
+		Config: metadata.EtcdConfig{
+			Nodes: []metadata.EtcdNode{
+				{Host: etcdHost, Port: etcdPort},
+			},
+		},
+	}
+
+	metadata_server, err := NewMetadataServer(logger, client, &storageProvider)
 	if err != nil {
 		logger.Panicw("Failed to create server", "error", err)
 	}

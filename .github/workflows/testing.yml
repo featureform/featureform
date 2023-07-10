@@ -22,6 +22,9 @@ env:
   REDSHIFT_DATABASE: dev
   SPARK_LOCAL_SCRIPT_PATH: scripts/spark/offline_store_spark_runner.py
   PYTHON_LOCAL_INIT_PATH: scripts/spark/python_packages.sh
+  PINECONE_PROJECT_ID: ${{ secrets.PINECONE_PROJECT_ID }}
+  PINECONE_ENVIRONMENT: ${{ secrets.PINECONE_ENVIRONMENT }}
+  PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
 
 jobs:
   setup:

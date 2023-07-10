@@ -37,6 +37,7 @@
     "react-router-dom": "^5.3.0",
     "react-select": "^5.4.0",
     "react-syntax-highlighter": "^13.5.3",
+    "sql-formatter": "^12.2.3",
     "styled-components": "^5.3.6"
   },
   "scripts": {

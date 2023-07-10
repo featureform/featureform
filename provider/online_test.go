@@ -51,7 +51,7 @@ type testMember struct {
 	integrationTest bool
 }
 
-var provider = flag.String("provider", "all", "provider to perform test on")
+var provider = flag.String("provider", "", "provider to perform test on")
 
 func TestOnlineStores(t *testing.T) {
 	err := godotenv.Load("../.env")
@@ -484,8 +484,8 @@ func TestOnlineVectorStores(t *testing.T) {
 
 	// RediSearch (hosted)
 	redisInsecureInit := func() pc.RedisConfig {
-		redisearchPort := os.Getenv("REDISEARCH_INSECURE_PORT")
-		insecureAddr := fmt.Sprintf("%s:%s", "localhost", redisearchPort)
+		//redisearchPort := os.Getenv("REDISEARCH_INSECURE_PORT")
+		insecureAddr := fmt.Sprintf("%s:%s", "localhost", "6379")
 		redisInsecureConfig := &pc.RedisConfig{
 			Addr: insecureAddr,
 		}

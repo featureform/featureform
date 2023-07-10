@@ -198,7 +198,7 @@ func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType V
 	return table, nil
 }
 
-func (store *redisOnlineStore) DeleteIndex(feature, variant string, vectorType VectorType) error {
+func (store *redisOnlineStore) DeleteIndex(feature, variant string) error {
 	return nil
 }
 

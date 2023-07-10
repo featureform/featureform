@@ -484,8 +484,8 @@ func TestOnlineVectorStores(t *testing.T) {
 
 	// RediSearch (hosted)
 	redisInsecureInit := func() pc.RedisConfig {
-		//redisearchPort := os.Getenv("REDISEARCH_INSECURE_PORT")
-		insecureAddr := fmt.Sprintf("%s:%s", "localhost", "6379")
+		redisearchPort := os.Getenv("REDISEARCH_INSECURE_PORT")
+		insecureAddr := fmt.Sprintf("%s:%s", "localhost", redisearchPort)
 		redisInsecureConfig := &pc.RedisConfig{
 			Addr: insecureAddr,
 		}

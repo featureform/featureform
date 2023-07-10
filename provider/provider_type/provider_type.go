@@ -15,6 +15,7 @@ const (
 	DynamoDBOnline  Type = "DYNAMODB_ONLINE"
 	BlobOnline      Type = "BLOB_ONLINE"
 	MongoDBOnline   Type = "MONGODB_ONLINE"
+	PineconeOnline  Type = "PINECONE_ONLINE"
 
 	// Offline
 	MemoryOffline    Type = "MEMORY_OFFLINE"
@@ -39,6 +40,7 @@ var AllProviderTypes = []Type{
 	BlobOnline,
 	MongoDBOnline,
 	MemoryOffline,
+	PineconeOnline,
 	PostgresOffline,
 	SnowflakeOffline,
 	RedshiftOffline,

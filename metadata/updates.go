@@ -27,7 +27,7 @@ func unionNameVariants(destination, source []*pb.NameVariant) []*pb.NameVariant 
 	return destination
 }
 
-func unionTags(destination, source *pb.Tags) *pb.Tags {
+func UnionTags(destination, source *pb.Tags) *pb.Tags {
 	set := make(map[string]bool)
 
 	for _, tag := range destination.GetTag() {

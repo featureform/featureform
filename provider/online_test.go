@@ -51,7 +51,7 @@ type testMember struct {
 	integrationTest bool
 }
 
-var provider = flag.String("provider", "all", "provider to perform test on")
+var provider = flag.String("provider", "", "provider to perform test on")
 
 func TestOnlineStores(t *testing.T) {
 	err := godotenv.Load("../.env")

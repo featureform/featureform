@@ -18,6 +18,7 @@ func init() {
 		pt.CassandraOnline:  cassandraOnlineStoreFactory,
 		pt.FirestoreOnline:  firestoreOnlineStoreFactory,
 		pt.DynamoDBOnline:   dynamodbOnlineStoreFactory,
+		pt.PineconeOnline:   pineconeOnlineStoreFactory,
 		pt.MemoryOffline:    memoryOfflineStoreFactory,
 		pt.PostgresOffline:  postgresOfflineStoreFactory,
 		pt.SnowflakeOffline: snowflakeOfflineStoreFactory,

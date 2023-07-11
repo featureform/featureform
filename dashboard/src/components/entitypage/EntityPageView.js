@@ -35,6 +35,20 @@ SyntaxHighlighter.registerLanguage('python', python);
 SyntaxHighlighter.registerLanguage('sql', sql);
 SyntaxHighlighter.registerLanguage('json', json);
 
+export function getFormattedSQL(sqlString = '') {
+  let stringResult = sqlString;
+  try {
+    stringResult = format(sqlString.replace('{{', '').replace('}}', ''), {
+      language: 'sql',
+    });
+  } catch {
+    console.error('There was an error formatting the sql string');
+    console.error(stringResult);
+    stringResult = sqlString;
+  }
+  return stringResult;
+}
+
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
 

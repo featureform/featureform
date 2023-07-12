@@ -578,6 +578,7 @@ class LocalProvider:
         self,
         name,
         path,
+        continue_on_invalid_file: bool = True,
         description="",
         variant: str = "",
         owner="",
@@ -606,6 +607,7 @@ class LocalProvider:
             description (str): Description of the directory
             path (str): Path to directory
             variant (str): Directory variant
+            continue_on_invalid_file (bool): If true, will ignore invalid files and continue
             owner (str): Owner of the file
 
         Returns:
@@ -619,9 +621,12 @@ class LocalProvider:
             try:
                 Path(absolute_fn).read_text()
             except Exception as e:
-                raise IOError(
-                    f"Cannot read file {absolute_fn}: {e}\nFile must be a text file"
-                )
+                if continue_on_invalid_file:
+                    print(f"Ignoring file {absolute_fn}: {e}")
+                else:
+                    raise IOError(
+                        f"Cannot read file {absolute_fn}: {e}\nFile must be a text file"
+                    )
 
         if owner == "":
             owner = self.__registrar.must_get_default_owner()

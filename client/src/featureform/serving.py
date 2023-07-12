@@ -409,28 +409,33 @@ class LocalClientImpl:
             == SourceType.DIRECTORY
         ):
             source = self.db.get_source_variant(source_name, source_variant)
-            directory = source["definition"]
-            return self.read_directory(directory)
+            directory = json.loads(source["definition"])
+            return self.read_directory(
+                directory["path"], directory["continue_on_error"]
+            )
 
         else:
             df = self.process_transformation(source_name, source_variant)
         return df
 
-    def read_directory(self, directory):
+    def read_directory(self, directory, continue_on_error):
         if not os.path.isdir(directory):
             raise Exception(f"Path {directory} is not a directory")
 
         file_names = []
         file_body = []
         for absolute_fn, relative_fn in absolute_file_paths(directory):
-            file_names.append(relative_fn)
             with open(absolute_fn, "r") as f:
                 try:
                     file_body.append(f.read())
+                    file_names.append(relative_fn)
                 except Exception as e:
-                    raise Exception(
-                        f"Cannot read file {absolute_fn}: {e}\nFiles must be text files"
-                    )
+                    if continue_on_error:
+                        print(f"Ignoring file {absolute_fn}: {e}")
+                    else:
+                        raise IOError(
+                            f"Cannot read file {absolute_fn}: {e}\nFile must be a text file"
+                        )
         df = pd.DataFrame(data={"filename": file_names, "body": file_body})
         return df
 

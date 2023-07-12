@@ -636,7 +636,7 @@ class LocalProvider:
         self.__registrar.register_primary_data(
             name=name,
             variant=variant,
-            location=Directory(path),
+            location=Directory(path, continue_on_invalid_file),
             provider=self.__provider.name,
             owner=owner,
             description=description,

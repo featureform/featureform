@@ -873,6 +873,7 @@ class SQLTable:
 @dataclass
 class Directory:
     path: str
+    continue_on_invalid_file: bool
 
 
 Location = Union[SQLTable, Directory]
@@ -1051,7 +1052,12 @@ class Source:
             self.definition = self.definition.query
         elif type(self.definition) == PrimaryData:
             if isinstance(self.definition.location, Directory):
-                self.definition = self.definition.path()
+                self.definition = json.dumps(
+                    {
+                        "path": self.definition.location.path,
+                        "continue_on_error": self.definition.location.continue_on_invalid_file,
+                    }
+                )
                 self.is_transformation = SourceType.DIRECTORY.value
             elif isinstance(self.definition.location, SQLTable):
                 self.definition = self.definition.name()

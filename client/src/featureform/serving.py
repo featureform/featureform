@@ -471,6 +471,10 @@ class LocalClientImpl:
                     dataframes.append(self.get_input_df(source_name, source_variant))
                 func = types.FunctionType(code, globals(), "transformation")
                 new_data = func(*dataframes)
+                if new_data is None:
+                    raise ValueError(
+                        f"Transformation {name} ({variant}) returned None. Please return a dataframe."
+                    )
             return new_data
 
         return self.local_cache.get_or_put(

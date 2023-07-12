@@ -3865,6 +3865,7 @@ class ResourceClient:
                 display_statuses(self._stub, resources)
 
         finally:
+            set_run(get_random_name())
             clear_state()
             register_local()
 

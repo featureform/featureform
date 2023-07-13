@@ -43,15 +43,23 @@ from .version import check_up_to_date
 
 
 def check_feature_type(features):
-    checked_features = []
-    for feature in features:
+    def validate_feature(feature):
         if isinstance(feature, tuple):
-            checked_features.append(feature)
-        elif isinstance(feature, str):
-            # TODO: Need to identify how to pull the run id
-            checked_features.append((feature, "default"))
+            return feature
         elif isinstance(feature, FeatureColumnResource):
-            checked_features.append(feature.name_variant())
+            return feature.name_variant()
+        else:
+            raise ValueError(
+                "Feature name must be a tuple of (feature_name, feature_type) or FeatureColumnResource object."
+            )
+
+    if isinstance(features, tuple):
+        return [features]
+
+    checked_features = []
+    if isinstance(features, list):
+        for feature in features:
+            checked_features.append(validate_feature(feature))
     return checked_features
 
 

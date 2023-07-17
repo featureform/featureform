@@ -4,16 +4,22 @@ import { cleanup, render } from '@testing-library/react';
 import 'jest-canvas-mock';
 import React from 'react';
 import EntityPage from '../src/components/entitypage/EntityPage';
+import { getFormattedSQL } from '../src/components/entitypage/EntityPageView';
 import ReduxWrapper from '../src/components/redux/wrapper/ReduxWrapper';
 import TEST_THEME from '../src/styles/theme';
 
-jest.mock(
-  '../src/components/entitypage/EntityPageView',
-  () =>
-    function MockView() {
+jest.mock('../src/components/entitypage/EntityPageView', () => {
+  const originalModule = jest.requireActual(
+    '../src/components/entitypage/EntityPageView'
+  );
+  return {
+    __esModule: true,
+    ...originalModule,
+    default: function MockView() {
       return <div data-testid='entityPageViewId' />;
-    }
-);
+    },
+  };
+});
 
 describe('Entity Page Tests', () => {
   const LOADING_DOTS_ID = 'loadingDotsId';
@@ -139,5 +145,35 @@ describe('Entity Page Tests', () => {
     expect(notFoundDiv).toBeDefined();
     expect(foundFoundElem.nodeName).toBe('H1');
     expect(apiMock.fetchEntity).toHaveBeenCalledTimes(1);
+  });
+
+  test('The sql formatter function correctly formats a valid metadata SQL string', async () => {
+    //given: a metadata definition sql string
+    let sql =
+      'SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{ transactions.tender_shannon }} GROUP BY user_id';
+    let expectedSQL =
+      'SELECT\n  CustomerID as user_id,\n  avg(TransactionAmount) as avg_transaction_amt\nfrom\n  transactions.tender_shannon\nGROUP BY\n  user_id';
+
+    //when: the function is invoked
+    let formattedSql = getFormattedSQL(sql);
+
+    //then:
+    expect(formattedSql).toBe(expectedSQL);
+  });
+
+  test('When the sql formatter function throws an exception, the original table transformation sql string returns', async () => {
+    //given:
+    console.error = jest.fn();
+    let originalInvalidSQL = 'this is not valid SQL!';
+
+    //when: the function is invoked
+    let attemptedFormatSql = getFormattedSQL(originalInvalidSQL);
+
+    //then: the error is handled and the original string is returned as safety
+    expect(console.error).toHaveBeenCalledWith(
+      'There was an error formatting the sql string'
+    );
+    expect(console.error).toHaveBeenCalledWith(originalInvalidSQL);
+    expect(attemptedFormatSql).toBe(originalInvalidSQL);
   });
 });

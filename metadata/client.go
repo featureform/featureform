@@ -1988,6 +1988,13 @@ func (variant *SourceVariant) parseKubernetesArgs() KubernetesArgs {
 	}
 }
 
+func (variant *SourceVariant) DFTransformationQuerySource() string {
+	if !variant.IsDFTransformation() {
+		return ""
+	}
+	return variant.serialized.GetTransformation().GetDFTransformation().GetSource()
+}
+
 func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
 	return &SourceVariant{
 		serialized:           serialized,

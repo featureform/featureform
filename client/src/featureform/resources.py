@@ -931,6 +931,7 @@ class DFTransformation(Transformation):
     query: bytes
     inputs: list
     args: K8sArgs = None
+    source: str = ""
 
     def type(self):
         return SourceType.DF_TRANSFORMATION.value
@@ -940,6 +941,7 @@ class DFTransformation(Transformation):
             DFTransformation=pb.DFTransformation(
                 query=self.query,
                 inputs=[pb.NameVariant(name=v[0], variant=v[1]) for v in self.inputs],
+                source=self.source,
             )
         )
 

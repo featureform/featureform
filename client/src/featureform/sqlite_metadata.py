@@ -166,6 +166,7 @@ class SQLiteMetadata:
           transformation text,
           inputs text, 
           definition  BLOB,
+          source text,
           PRIMARY KEY(name, variant),
           FOREIGN KEY(provider) REFERENCES providers(name),
           FOREIGN KEY(name) REFERENCES sources(name));"""

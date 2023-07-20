@@ -207,9 +207,7 @@ def run_dashboard():
 )
 @click.option("--no-wait", is_flag=True, help="Applies the resources asynchronously")
 @click.option("--debug", is_flag=True, help="Shows additional debug information")
-def apply(host, cert, insecure, local, files, dry_run, no_wait, debug):
-    if debug:
-        logging.basicConfig(level=logging.DEBUG)
+def apply(host, cert, insecure, local, files, dry_run, no_wait):
     for file in files:
         if os.path.isfile(file):
             read_file(file)

@@ -2,8 +2,13 @@
 gRPC client for FeatureForm service
 """
 import logging
+import os
 
 import grpc
+
+
+class ResourceExistsError(Exception):
+    pass
 
 
 class GrpcStub:
@@ -20,13 +25,22 @@ class GrpcStub:
                     # Call the method from our stub
                     return getattr(self._stub, name)(*args, **kwargs)
                 except grpc.RpcError as e:
-                    # Handle the error however you want
+
+                    if e.code() == grpc.StatusCode.ALREADY_EXISTS:
+                        raise ResourceExistsError()
+
                     logging.debug(
-                        f"gRPC error occurred in {name}. Code: {e.code()}, Details: {e.details()}"
+                        f"gRPC error occurred using stub {name}. Code: {e.code()}, Details: {e.details()}",
+                        exc_info=True
                     )
-                    raise Exception(
-                        f"gRPC error occurred in {name}. Code: {e.code()}, Details: {e.details()}"
-                    ) from None
+
+                    message = (
+                        f"gRPC error occurred using stub: {name}.\n"
+                        f"Code: {e.code()}\n"
+                        f"Details: {e.details()}"
+                    )
+
+                    raise Exception(message) from None
 
             return wrapper
 

@@ -31,7 +31,6 @@ ServingClient = ServingClient
 ResourceClient = ResourceClient
 Client = Client
 
-
 # Executor Credentials
 DatabricksCredentials = DatabricksCredentials
 EMRCredentials = EMRCredentials
@@ -47,6 +46,8 @@ Label = LabelColumnResource
 Variants = Variants
 Embedding = EmbeddingColumnResource
 
+if os.getenv('FEATUREFORM_DEBUG') == 'True':
+    logging.basicConfig(level=logging.DEBUG)
 
 local = register_local()
 register_user("default_user").make_default_owner()

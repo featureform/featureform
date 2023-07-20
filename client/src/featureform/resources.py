@@ -12,6 +12,8 @@ from typing import List, Tuple, Union, Optional
 
 import dill
 import grpc
+
+from .grpc import ResourceExistsError
 from .sqlite_metadata import SQLiteMetadata
 from google.protobuf.duration_pb2 import Duration
 
@@ -2001,7 +2003,7 @@ class ResourceState:
             client.compute_feature(feature.name, feature.variant, feature.entity)
         return
 
-    def create_all(self, stub, debug) -> None:
+    def create_all(self, stub) -> None:
         check_up_to_date(False, "register")
         for resource in self.sorted_list():
             if resource.type() == "provider" and resource.name == "local-mode":
@@ -2027,8 +2029,7 @@ class ResourceState:
                         f"Creating {resource.type()} {resource.name}{resource_variant}"
                     )
                     resource._create(stub)
-            except grpc.RpcError as e:
-                if e.code() == grpc.StatusCode.ALREADY_EXISTS:
+            except ResourceExistsError:
                     print(f"{resource.name}{resource_variant} already exists.")
                     continue
 

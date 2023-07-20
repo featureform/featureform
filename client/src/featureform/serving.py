@@ -248,7 +248,7 @@ class HostedClientImpl:
 
 
 class LocalClientImpl:
-    def __init__(self, debug=False):
+    def __init__(self):
         self.db = SQLiteMetadata()
         self.local_cache = LocalCache()
         check_up_to_date(True, "serving")

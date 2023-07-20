@@ -158,6 +158,7 @@ class SQLiteTest:
             variant     text,
             status      text,
             definition  text,
+            source      text,
             PRIMARY KEY(sourceName, variant),
             FOREIGN KEY(provider) REFERENCES providers(name),
             FOREIGN KEY(sourceName) REFERENCES sources(name));"""

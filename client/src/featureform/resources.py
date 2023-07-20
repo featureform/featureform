@@ -930,8 +930,8 @@ class SQLTransformation(Transformation):
 class DFTransformation(Transformation):
     query: bytes
     inputs: list
-    args: K8sArgs = None
     source: str = ""
+    args: K8sArgs = None
 
     def type(self):
         return SourceType.DF_TRANSFORMATION.value
@@ -969,7 +969,7 @@ class Source:
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
-
+    source: str = ""
     inputs = ([],)
     error: Optional[str] = None
 
@@ -1006,6 +1006,7 @@ class Source:
             properties={k: v for k, v in source.properties.property.items()},
             status=source.status.Status._enum_type.values[source.status.status].name,
             error=source.status.error_message,
+            source=source.source,
         )
 
     def _get_source_definition(self, source):
@@ -1039,15 +1040,18 @@ class Source:
             provider=self.provider,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            source=self.source,
             **defArgs,
         )
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
         if type(self.definition) == DFTransformation:
+            source_code = self.definition.source
             self.is_transformation = SourceType.DF_TRANSFORMATION.value
             self.inputs = self.definition.inputs
             self.definition = self.definition.query
+            self.source = source_code
         elif type(self.definition) == SQLTransformation:
             self.is_transformation = SourceType.SQL_TRANSFORMATION.value
             self.definition = self.definition.query
@@ -1076,6 +1080,7 @@ class Source:
             self.is_transformation,
             json.dumps(self.inputs),
             self.definition,
+            self.source,
         )
         if len(self.tags):
             db.upsert(

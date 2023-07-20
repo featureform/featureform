@@ -339,7 +339,7 @@ def source_variant(variantData):
                 except ValueError:
                     continue
             if variantRow["transformation"] == SourceType.DF_TRANSFORMATION.value:
-                definition = str(variantRow["definition"], "latin-1")
+                definition = str(variantRow["source"])
             else:
                 definition = variantRow["definition"]
             sourceVariant = SourceVariantResource(

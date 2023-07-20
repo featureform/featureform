@@ -686,7 +686,7 @@ class SQLiteMetadata:
         return res[0] if res else None
 
     def insert_source(self, tablename, *args):
-        stmt = f"INSERT OR IGNORE INTO {tablename} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        stmt = f"INSERT OR IGNORE INTO {tablename} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         self.__conn.execute_stmt(stmt, args)
         self.__conn.commit()
 

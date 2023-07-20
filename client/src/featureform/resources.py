@@ -1048,9 +1048,10 @@ class Source:
     def _create_local(self, db) -> None:
         if type(self.definition) == DFTransformation:
             self.is_transformation = SourceType.DF_TRANSFORMATION.value
+            source_text = self.definition.source_text
             self.inputs = self.definition.inputs
             self.definition = self.definition.query
-            self.source = self.definition.source_text
+            self.source_text = source_text
         elif type(self.definition) == SQLTransformation:
             self.is_transformation = SourceType.SQL_TRANSFORMATION.value
             self.definition = self.definition.query

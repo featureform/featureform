@@ -1083,7 +1083,7 @@ class DFTransformationDecorator:
         description: str = "",
         inputs: list = [],
         args: Union[K8sArgs, None] = None,
-        source: str = "",
+        source_text: str = "",
     ):
         self.registrar = registrar
         self.name = name
@@ -1096,7 +1096,7 @@ class DFTransformationDecorator:
         self.properties = properties
         self.variant = variant
         self.query = b""
-        self.source = source
+        self.source_text = source_text
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:
@@ -1113,7 +1113,7 @@ class DFTransformationDecorator:
                     f"Transformation cannot be input for itself: {self.name} {self.variant}"
                 )
         self.query = dill.dumps(fn.__code__)
-        self.source = dill.source.getsource(fn)
+        self.source_text = dill.source.getsource(fn)
         return SubscriptableTransformation(
             fn,
             self.registrar,
@@ -1127,7 +1127,10 @@ class DFTransformationDecorator:
             name=self.name,
             variant=self.variant,
             definition=DFTransformation(
-                query=self.query, inputs=self.inputs, args=self.args, source=self.source
+                query=self.query,
+                inputs=self.inputs,
+                args=self.args,
+                source_text=self.source_text,
             ),
             owner=self.owner,
             provider=self.provider,
@@ -4468,7 +4471,7 @@ class ResourceClient:
             status=source.status.Status._enum_type.values[source.status.status].name,
             tags=[],
             properties={},
-            source=source.source,
+            source=source.source_text,
         )
 
     def _get_source_definition(self, source):

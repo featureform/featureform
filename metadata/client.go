@@ -1992,7 +1992,7 @@ func (variant *SourceVariant) DFTransformationQuerySource() string {
 	if !variant.IsDFTransformation() {
 		return ""
 	}
-	return variant.serialized.GetTransformation().GetDFTransformation().GetSource()
+	return variant.serialized.GetTransformation().GetDFTransformation().GetSourceText()
 }
 
 func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {

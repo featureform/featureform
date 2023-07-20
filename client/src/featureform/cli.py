@@ -1,6 +1,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+import logging
 
 import click
 from .client import Client
@@ -207,6 +208,8 @@ def run_dashboard():
 @click.option("--no-wait", is_flag=True, help="Applies the resources asynchronously")
 @click.option("--debug", is_flag=True, help="Shows additional debug information")
 def apply(host, cert, insecure, local, files, dry_run, no_wait, debug):
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
     for file in files:
         if os.path.isfile(file):
             read_file(file)
@@ -223,7 +226,6 @@ def apply(host, cert, insecure, local, files, dry_run, no_wait, debug):
         insecure=insecure,
         cert_path=cert,
         dry_run=dry_run,
-        debug=debug,
     )
     asynchronous = no_wait
     client.apply(asynchronous=asynchronous)

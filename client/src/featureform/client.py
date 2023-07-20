@@ -38,7 +38,6 @@ class Client(ResourceClient, ServingClient):
         insecure=False,
         cert_path=None,
         dry_run=False,
-        debug=False,
     ):
         ResourceClient.__init__(
             self,
@@ -47,7 +46,6 @@ class Client(ResourceClient, ServingClient):
             insecure=insecure,
             cert_path=cert_path,
             dry_run=dry_run,
-            debug=debug,
         )
         # Given both ResourceClient and ServingClient are instantiated together, if dry_run is True, then
         # the ServingClient cannot be instantiated due to a conflict the local and host arguments.
@@ -58,7 +56,6 @@ class Client(ResourceClient, ServingClient):
                 local=local,
                 insecure=insecure,
                 cert_path=cert_path,
-                debug=debug,
             )
 
     def dataframe(

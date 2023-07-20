@@ -16,6 +16,7 @@ from .enums import FileFormat
 from .file_utils import absolute_file_paths
 from .get import *
 from .get_local import *
+from .grpc import GrpcStub
 from .list import *
 from .list_local import *
 from .names_generator import get_random_name
@@ -3845,7 +3846,7 @@ class ResourceClient:
                 channel = insecure_channel(host)
             else:
                 channel = secure_channel(host, cert_path)
-            self._stub = ff_grpc.ApiStub(channel)
+            self._stub = GrpcStub(ff_grpc.ApiStub(channel))
             self._host = host
 
     def apply(self, asynchronous=True):
@@ -3865,11 +3866,11 @@ class ResourceClient:
             if self.local:
                 resource_state.create_all_local()
             else:
-                resource_state.create_all(self._stub, self.debug)
+                resource_state.create_all(self._stub)
 
             if not asynchronous and self._stub:
                 resources = resource_state.sorted_list()
-                display_statuses(self._stub, resources, self.debug)
+                display_statuses(self._stub, resources)
 
         finally:
             clear_state()

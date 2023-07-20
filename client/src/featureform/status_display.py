@@ -24,8 +24,8 @@ MAX_NUM_RUNNING_DOTS = 10
 SECONDS_BETWEEN_STATUS_CHECKS = 2
 
 
-def display_statuses(stub: ApiStub, resources: List[Resource], debug):
-    StatusDisplayer(stub, resources, debug).display()
+def display_statuses(stub: ApiStub, resources: List[Resource]):
+    StatusDisplayer(stub, resources).display()
 
 
 @dataclass
@@ -75,12 +75,11 @@ class StatusDisplayer:
         "FAILED": "red",
     }
 
-    def __init__(self, stub: ApiStub, resources: List[Resource], debug=False):
+    def __init__(self, stub: ApiStub, resources: List[Resource]):
         filtered_resources = filter(
             lambda r: type(r) in self.RESOURCE_TYPES_TO_CHECK, resources
         )
         self.stub = stub
-        self.debug = debug
 
         # A more intuitive way to is to store OrderedDict[Resource, DisplayStatus] but you can't hash Resource easily
         self.resource_to_status_list: List[Tuple[Resource, DisplayStatus]] = []

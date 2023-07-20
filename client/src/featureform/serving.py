@@ -23,7 +23,7 @@ from pandas.core.generic import NDFrame
 import grpc
 from pandasql import sqldf
 
-from . import progress_bar
+from . import progress_bar, GrpcStub
 from .register import FeatureColumnResource
 
 from .constants import NO_RECORD_LIMIT
@@ -76,7 +76,7 @@ class ServingClient:
     """
 
     def __init__(
-        self, host=None, local=False, insecure=False, cert_path=None, debug=False
+        self, host=None, local=False, insecure=False, cert_path=None
     ):
         # This line ensures that the warning is only raised if ServingClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
@@ -96,9 +96,9 @@ class ServingClient:
         if local and host:
             raise ValueError("Host and local cannot both be set")
         if local:
-            self.impl = LocalClientImpl(debug)
+            self.impl = LocalClientImpl()
         else:
-            self.impl = HostedClientImpl(host, insecure, cert_path, debug)
+            self.impl = HostedClientImpl(host, insecure, cert_path)
 
     def training_set(
         self,
@@ -162,7 +162,7 @@ class HostedClientImpl:
             )
         check_up_to_date(False, "serving")
         self._channel = self._create_channel(host, insecure, cert_path)
-        self._stub = serving_pb2_grpc.FeatureStub(self._channel)
+        self._stub = GrpcStub(serving_pb2_grpc.FeatureStub(self._channel))
         self.debug = debug
 
     def _create_channel(self, host, insecure, cert_path):
@@ -191,13 +191,8 @@ class HostedClientImpl:
 
         if model is not None:
             req.model.name = model if isinstance(model, str) else model.name
-        try:
-            resp = self._stub.FeatureServe(req)
-        except grpc.RpcError as e:
-            if self.debug:
-                raise Exception(f"Code: {e.code()}: {e.details()}")
-            else:
-                raise print(f"Code: {e.code()}: {e.details()}")
+
+        resp = self._stub.FeatureServe(req)
 
         feature_values = []
         for val in resp.values:
@@ -256,7 +251,6 @@ class LocalClientImpl:
     def __init__(self, debug=False):
         self.db = SQLiteMetadata()
         self.local_cache = LocalCache()
-        self.debug = debug
         check_up_to_date(True, "serving")
 
     def __enter__(self):
@@ -878,10 +872,7 @@ class Stream:
         return self
 
     def __next__(self):
-        try:
-            return Row(next(self._iter))
-        except grpc.RpcError as e:
-            grpc_exception_summary(e, self.debug)
+        return Row(next(self._iter))
 
     def restart(self):
         self._iter = self._stub.TrainingData(self._req)

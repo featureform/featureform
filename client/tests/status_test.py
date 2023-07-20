@@ -37,6 +37,7 @@ pb_ready = pb.ResourceStatus.Status.READY
 pb_failed = pb.ResourceStatus.Status.FAILED
 sql_query = "SELECT * FROM NONE"
 df_query = dill.dumps(my_func)
+df_source_text = "function myFunction()"
 df_name_variants = [("name", "variant")]
 primary_table_name = "my_table"
 
@@ -55,6 +56,7 @@ df_definition_proto = pb.SourceVariant(
             inputs=[
                 pb.NameVariant(name=nv[0], variant=nv[1]) for nv in df_name_variants
             ],
+            source_text=df_source_text,
         )
     ),
 )

@@ -7,7 +7,7 @@ colorama==0.4.6
 exceptiongroup==1.1.0
 ghp-import==2.1.0
 griffe==0.25.4
-grpcio==1.51.1
+grpcio==1.53.0
 grpcio-tools==1.51.1
 idna==3.4
 importlib-metadata==6.0.0

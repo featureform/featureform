@@ -20,6 +20,7 @@ import json from 'react-syntax-highlighter/dist/cjs/languages/prism/json';
 import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
 import sql from 'react-syntax-highlighter/dist/cjs/languages/prism/sql';
 import { okaidia } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import { format } from 'sql-formatter';
 import Resource from '../../api/resources/Resource.js';
 import theme from '../../styles/theme/index.js';
 import SourceDialog from '../dialog/SourceDialog';
@@ -27,11 +28,26 @@ import { VariantTable } from '../resource-list/ResourceListView.js';
 import AttributeBox from './elements/AttributeBox';
 import MetricsDropdown from './elements/MetricsDropdown';
 import StatsDropdown from './elements/StatsDropdown';
+import TagBox from './elements/TagBox.js';
 import VariantControl from './elements/VariantControl';
 
 SyntaxHighlighter.registerLanguage('python', python);
 SyntaxHighlighter.registerLanguage('sql', sql);
 SyntaxHighlighter.registerLanguage('json', json);
+
+export function getFormattedSQL(sqlString = '') {
+  let stringResult = sqlString;
+  try {
+    stringResult = format(sqlString.replace('{{', '').replace('}}', ''), {
+      language: 'sql',
+    });
+  } catch {
+    console.error('There was an error formatting the sql string');
+    console.error(stringResult);
+    stringResult = sqlString;
+  }
+  return stringResult;
+}
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -241,6 +257,20 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
   if (metadata['source']) {
     metadata['source'] = metadata['source'].Name;
     metadata['source-variant'] = metadata['source'].Variant;
+  }
+
+  function getFormattedSQL(sqlString = '') {
+    let stringResult = sqlString;
+    try {
+      stringResult = format(sqlString.replace('{{', '').replace('}}', ''), {
+        language: 'sql',
+      });
+    } catch {
+      console.error('There was an error formatting the sql string');
+      console.error(stringResult);
+      stringResult = sqlString;
+    }
+    return stringResult;
   }
 
   const convertTimestampToDate = (timestamp_string) => {
@@ -476,7 +506,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                             language={'sql'}
                             style={okaidia}
                           >
-                            {metadata['definition']}
+                            {getFormattedSQL(metadata['definition'])}
                           </SyntaxHighlighter>
                         ) : (
                           <Typography variant='h7'>
@@ -567,14 +597,16 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                       </div>
                     )}
                   </Grid>
-                  {metadata['tags']?.length > 0 && (
-                    <Grid item xs>
-                      <AttributeBox
-                        attributes={metadata['tags']}
-                        title={'Tags'}
-                      />
-                    </Grid>
-                  )}
+
+                  <Grid item xs>
+                    <TagBox
+                      resourceName={name}
+                      variant={variant}
+                      type={resourceType._urlPath}
+                      tags={metadata['tags']}
+                      title={'Tags'}
+                    />
+                  </Grid>
                   {Object.keys(metadata['properties'] || {}).length > 0 && (
                     <Grid item xs>
                       {

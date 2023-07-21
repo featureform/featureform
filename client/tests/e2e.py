@@ -262,8 +262,7 @@ def check_results(endpoint, expected):
         else:
             retries += 1
             time.sleep(RETRY_WAIT)
-    print("todox: json resp.")
-    print(json_ret)
+
     assert json_ret == expected
 
 

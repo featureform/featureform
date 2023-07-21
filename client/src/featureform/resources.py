@@ -1006,7 +1006,6 @@ class Source:
             properties={k: v for k, v in source.properties.property.items()},
             status=source.status.Status._enum_type.values[source.status.status].name,
             error=source.status.error_message,
-            source_text=source.source_text,
         )
 
     def _get_source_definition(self, source):

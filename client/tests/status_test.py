@@ -37,7 +37,7 @@ pb_ready = pb.ResourceStatus.Status.READY
 pb_failed = pb.ResourceStatus.Status.FAILED
 sql_query = "SELECT * FROM NONE"
 df_query = dill.dumps(my_func)
-df_source_text = "function myFunction()"
+df_source_text = dill.source.getsource(my_func)
 df_name_variants = [("name", "variant")]
 primary_table_name = "my_table"
 
@@ -68,7 +68,9 @@ primary_definition_proto = pb.SourceVariant(
 
 sql_definition_obj = SQLTransformation(sql_query)
 
-df_definition_obj = DFTransformation(query=df_query, inputs=df_name_variants)
+df_definition_obj = DFTransformation(
+    query=df_query, inputs=df_name_variants, source_text=df_source_text
+)
 
 primary_definition_obj = PrimaryData(SQLTable(primary_table_name))
 

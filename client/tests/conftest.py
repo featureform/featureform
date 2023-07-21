@@ -134,10 +134,13 @@ def df_transformation_src(
         return True
 
     query = dill.dumps(test_func.__code__)
+    source_text = dill.source.getsource(test_func)
     src = Source(
         name="sql_transformation",
         variant="default",
-        definition=DFTransformation(query, inputs=[("name", "variant")]),
+        definition=DFTransformation(
+            query=query, inputs=[("name", "variant")], source_text=source_text
+        ),
         owner="tester",
         provider="spark",
         description="doc string",

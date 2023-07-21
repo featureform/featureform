@@ -930,8 +930,8 @@ class SQLTransformation(Transformation):
 class DFTransformation(Transformation):
     query: bytes
     inputs: list
-    source_text: str = ""
     args: K8sArgs = None
+    source_text: str = ""
 
     def type(self):
         return SourceType.DF_TRANSFORMATION.value

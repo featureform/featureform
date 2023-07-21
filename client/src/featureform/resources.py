@@ -1041,7 +1041,6 @@ class Source:
             provider=self.provider,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
-            source_text=self.source_text,
             **defArgs,
         )
         stub.CreateSourceVariant(serialized)

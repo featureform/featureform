@@ -3872,7 +3872,6 @@ class ResourceClient:
             if not asynchronous and self._stub:
                 resources = resource_state.sorted_list()
                 display_statuses(self._stub, resources)
-
         finally:
             clear_state()
             register_local()

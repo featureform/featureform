@@ -2,29 +2,24 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import sys
-import json
-import time
 import base64
-from enum import Enum
-from typeguard import typechecked
+import json
+import sys
+import time
 from typing import List, Tuple, Union, Optional
 
 import dill
 import grpc
-
-from .grpc import ResourceExistsError
-from .sqlite_metadata import SQLiteMetadata
+from dataclasses import field
 from google.protobuf.duration_pb2 import Duration
 
-from featureform.proto import metadata_pb2 as pb
-from dataclasses import dataclass, field
-from .version import check_up_to_date
-from .exceptions import *
 from .enums import *
+from .exceptions import *
+from .grpc import ResourceExistsError
+from .sqlite_metadata import SQLiteMetadata
+from .version import check_up_to_date
 
 NameVariant = Tuple[str, str]
-
 
 # Constants for Pyspark Versions
 MAJOR_VERSION = "3"
@@ -2039,8 +2034,8 @@ class ResourceState:
                     )
                     resource._create(stub)
             except ResourceExistsError:
-                    print(f"{resource.name}{resource_variant} already exists.")
-                    continue
+                print(f"{resource.name}{resource_variant} already exists.")
+                continue
 
 
 ## Executor Providers

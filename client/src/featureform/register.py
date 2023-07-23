@@ -77,6 +77,12 @@ from .sqlite_metadata import SQLiteMetadata
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
 
+REGISTER_RESOURCES_WARNING = (
+    "The 'register_resources' method on sources is deprecated. "
+    "Please use the Class API (i.e. the 'ff.entity' decorator and 'ff.Feature' and 'ff.Label' classes) "
+    "to register features and labels instead."
+)
+
 NameVariant = Tuple[str, str]
 
 s3_config = S3StoreConfig("", "", AWSCredentials("id", "secret"))
@@ -911,6 +917,8 @@ class LocalSource:
         Returns:
             registrar (ResourceRegister): Registrar
         """
+        warnings.warn(REGISTER_RESOURCES_WARNING, PendingDeprecationWarning)
+
         return self.registrar.register_column_resources(
             source=(self.name, self.variant),
             entity=entity,
@@ -1056,6 +1064,8 @@ class SQLTransformationDecorator:
         description: str = "",
         schedule: str = "",
     ):
+        warnings.warn(REGISTER_RESOURCES_WARNING, PendingDeprecationWarning)
+
         return self.registrar.register_column_resources(
             source=(self.name, self.variant),
             entity=entity,
@@ -1145,6 +1155,8 @@ class DFTransformationDecorator:
         timestamp_column: str = "",
         description: str = "",
     ):
+        warnings.warn(REGISTER_RESOURCES_WARNING, PendingDeprecationWarning)
+
         return self.registrar.register_column_resources(
             source=(self.name, self.variant),
             entity=entity,
@@ -1210,6 +1222,8 @@ class ColumnSourceRegistrar(SourceRegistrar):
         Returns:
             registrar (ResourceRegister): Registrar
         """
+        warnings.warn(REGISTER_RESOURCES_WARNING, PendingDeprecationWarning)
+
         return self.registrar().register_column_resources(
             source=self,
             entity=entity,

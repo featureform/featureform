@@ -4,10 +4,10 @@ description: A quick start guide for Featureform on GCP using Terraform.
 
 # Quickstart (GCP)
 
-This quickstart will walk through creating a few simple features, labels, and a training set using BigQuery and Firestore. 
+This quickstart will walk through creating a few simple features, labels, and a training set using BigQuery and Firestore.
 We will use a transaction fraud training set.
 
-### Requirements
+## Requirements
 
 - Python 3.7+
 - [Terraform v1.2.7+](https://www.terraform.io/downloads)
@@ -17,16 +17,19 @@ We will use a transaction fraud training set.
 - An available domain/subdomain you own that can be pointed at your cluster IP
 
 ## Step 1: Clone the Featureform Repo
+
 ```shell
 https://github.com/featureform/featureform.git
 cd featureform/terraform/gcp
 ```
 
 ## Step 2: Create GCP Services
+
 We'll start BigQuery, Firestore, and Google Kubernetes Engine (GKE). (Specific services can be enabled/disabled as needed in
 terraform.auto.tfvars)
 
 We need to set:
+
 ```shell
 export PROJECT_ID=<your-project-id>           # Your GCP Project ID
 export DATASET_ID=featureform                 # The BigQuery Dataset we'll use
@@ -34,7 +37,9 @@ export BUCKET_NAME=<your-bucket-name>         # A GCP Storage Bucket where we ca
 export COLLECTION_ID=featureform_collection   # A Firestore Collection ID
 export FEATUREFORM_HOST=<your-domain-name>    # The domain name that you own
 ```
+
 ### Set our CLI to our current project
+
 ```shell
 cd gcp_services
 gcloud auth application-default login   # Gives Terraform access to GCP
@@ -48,6 +53,7 @@ terraform apply -auto-approve \
 ```
 
 ## Step 3: Configure Kubectl
+
 We need to load the GKE config into our kubeconfig.
 
 ```shell
@@ -55,6 +61,7 @@ gcloud container clusters get-credentials $(terraform output -raw kubernetes_clu
 ```
 
 ## Step 4: Install Featureform
+
 We'll use terraform to install Featureform on our GKE cluster.
 
 ```shell
@@ -64,20 +71,23 @@ terraform init; terraform apply -auto-approve -var="featureform_hostname=$FEATUR
 
 ## Step 5: Direct Your Domain To Featureform
 
-Featureform automatically provisions a public certificate for your domain name. 
+Featureform automatically provisions a public certificate for your domain name.
 
 To connect, you need to point your domain name at the Featureform GKE Cluster.
 
 We can get the IP Address for the cluster using:
+
 ```shell
 kubectl get ingress | grep "grpc-ingress" | awk {'print $4'} | column -t
 ```
 
 You need to add 2 records to your DNS provider for the (sub)domain you intend to use:
+
 1. A CAA record for letsencrypt.org value: `0 issuewild "letsencrypt.org"`. This allows letsencrypt to automatically generate a public certificate
 2. An A record with the value of the outputted value from above
 
 ## Step 6: Load Demo Data
+
 We can load some demo data into BigQuery that we can transform and serve.
 
 ```shell
@@ -90,11 +100,12 @@ bq load --autodetect --source_format=CSV $DATASET_ID.Transactions gs://$BUCKET_N
 
 ## Step 7: Install the Featureform SDK
 
-```
+```shell
 pip install featureform
 ```
 
 ## Step 8: Register providers
+
 GCP Registered providers require a GCP Credentials file for a user that has permissions for Firestore and BigQuery.
 
 {% code title="definitions.py" %}
@@ -123,11 +134,12 @@ bigquery = ff.register_bigquery(
     credentials_path="<path-to-bigquery-credentials-file>"
 )
 ```
+
 {% endcode %}
 
 Once we create our config file, we can apply it to our Featureform deployment.
 
-```bash
+```shell
 featureform apply definitions.py
 ```
 
@@ -138,6 +150,7 @@ We will create a user profile for us, and set it as the default owner for all th
 Now we'll register our  user fraud dataset in Featureform.
 
 {% code title="definitions.py" %}
+
 ```python
 transactions = bigquery.register_table(
     name="transactions",
@@ -145,11 +158,13 @@ transactions = bigquery.register_table(
     table="Transactions", # This is the table's name in BigQuery
 )
 ```
+
 {% endcode %}
 
 Next, we'll define a SQL transformation on our dataset.
 
 {% code title="definitions.py" %}
+
 ```python
 @bigquery.sql_transformation()
 def average_user_transaction():
@@ -157,37 +172,37 @@ def average_user_transaction():
            "as avg_transaction_amt from {{transactions.default}} GROUP BY user_id"
     
 ```
+
 {% endcode %}
 
 Next, we'll register a passenger entity to associate with a feature and label.
 
 {% code title="definitions.py" %}
-```python
-# Register a column from our transformation as a feature
-user = ff.register_entity("user")
 
-average_user_transaction.register_resources(
-    entity=user,
-    entity_column="user_id",
-    inference_store=firestore,
-    features=[
-        {"name": "avg_transactions", "column": "avg_transaction_amt", "type": "float32"},
-    ],
-)
-# Register label from our base Transactions table
-transactions.register_resources(
-    entity=user,
-    entity_column="customerid",
-    labels=[
-        {"name": "fraudulent", "column": "isfraud", "type": "bool"},
-    ],
-)
+```python
+@ff.entity
+class User:
+    # Register a column from our transformation as a feature
+    avg_transactions = ff.Feature(
+        average_user_transaction[["user_id", "avg_transaction_amt"]],
+        variant: "quickstart",
+        type=ff.Float32,
+        inference_store=redis
+    )
+    # Register label from our base Transactions table
+    fraudulent = ff.Label(
+        transactions[["customerid", "isfraud"]],
+        variant: "quickstart",
+        type=ff.Bool,
+    )
 ```
+
 {% endcode %}
 
 Finally, we'll join together the feature and label into a training set.
 
 {% code title="definitions.py" %}
+
 ```python
 ff.register_training_set(
     "fraud_training",
@@ -195,11 +210,12 @@ ff.register_training_set(
     features=["avg_transactions"],
 )
 ```
+
 {% endcode %}
 
 Now that our definitions are complete, we can apply it to our Featureform instance.
 
-```bash
+```shell
 featureform apply definitions.py
 ```
 
@@ -218,6 +234,7 @@ for batch in training_set:
 ```
 
 Example Output:
+
 ```text
 Features: [279.76] , Label: False
 Features: [254.] , Label: False
@@ -238,7 +255,9 @@ client = ff.ServingClient()
 fpf = client.features(["avg_transactions"], {"user": "C1011381"})
 print(fpf)
 ```
+
 Example Output:
+
 ```text
 [1500.0]
 ```

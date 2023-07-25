@@ -261,10 +261,19 @@ export const ResourceListView = ({
             } else {
               rowVariant = activeVariants[row.name];
             }
-            for (const [key, data] of Object.entries(
-              row.variants[rowVariant]
-            )) {
-              rowData[key] = data;
+            if (row?.variants && row.variants[rowVariant]) {
+              for (const [key, data] of Object.entries(
+                row.variants[rowVariant]
+              )) {
+                rowData[key] = data;
+              }
+            } else {
+              console.warn(
+                `The current default rowVariant (${rowVariant}) is not present in the variants list:`,
+                row.variants
+                  ? Object.keys(row.variants)
+                  : 'row.variants is undefined.'
+              );
             }
             let variantList = [];
             Object.values(row.variants).forEach((variantValue) => {

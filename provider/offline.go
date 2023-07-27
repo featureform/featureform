@@ -342,7 +342,17 @@ type GenericRecord []interface{}
 
 func (rec ResourceRecord) check() error {
 	if rec.Entity == "" {
-		return errors.New("resourceRecord must have Entity set")
+		return errors.New("ResourceRecord must have Entity set")
+	}
+	return nil
+}
+
+func (rec *ResourceRecord) SetEntity(entity interface{}) error {
+	switch entity := entity.(type) {
+	case string:
+		rec.Entity = entity
+	default:
+		return fmt.Errorf("entity must be a string; received %T", entity)
 	}
 	return nil
 }

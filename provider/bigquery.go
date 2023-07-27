@@ -615,7 +615,10 @@ func (it *bqFeatureIterator) Next() bool {
 
 	var currValue ResourceRecord
 	valueColType := it.iter.Schema[1].Type
-	currValue.Entity = rowValue[0].(string)
+	if err := currValue.SetEntity(rowValue[0]); err != nil {
+		it.err = err
+		return false
+	}
 	currValue.Value = it.query.castTableItemType(rowValue[1], valueColType)
 	currValue.TS = rowValue[2].(time.Time)
 

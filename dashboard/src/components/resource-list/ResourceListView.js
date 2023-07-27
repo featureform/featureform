@@ -297,6 +297,8 @@ export const ResourceListView = ({
             ),
           }}
           options={{
+            pageSize: 10,
+            emptyRowsWhenPaging: true,
             loadingType: 'overlay',
             search: true,
             draggable: false,
@@ -408,8 +410,9 @@ export const VariantTable = ({ name, setVariant, type, row }) => {
           ]}
           data={myVariants}
           options={{
+            pageSize: 10,
+            emptyRowsWhenPaging: false,
             search: true,
-            pageSize: row.variants.length,
             maxHeight: `${MAX_ROW_SHOW * ROW_HEIGHT}em`,
             toolbar: false,
             draggable: false,

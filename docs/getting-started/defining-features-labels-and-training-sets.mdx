@@ -51,6 +51,10 @@ class Customer:
     )
 ```
 
+### Entity Column Type
+
+**NOTE:** Currently, the data type of a feature's entity column (e.g. `"CustomerID"`) _must_ be a string.
+
 ## Registering Training Sets
 
 Once we have our features and labels registered, we can create a training set. Training set creation works by joining a label with a set of features via their entity value and timestamp. For each row of the label, the entity value is used to look up all of the feature values in the training set. When a timestamp is included in the label and the feature, the training set will contain the latest feature value where the feature's timestamp is less than the label's.

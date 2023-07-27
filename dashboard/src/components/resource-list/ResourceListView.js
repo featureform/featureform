@@ -351,7 +351,14 @@ export const TagList = ({
   </Grid>
 );
 
-export const VariantTable = ({ name, setVariant, type, row }) => {
+export const VariantTable = ({
+  name,
+  setVariant,
+  type,
+  row,
+  pageSizeProp = 10,
+  emptyRowsProp = false,
+}) => {
   const classes = useStyles();
   let router = useRouter();
   function variantChangeRedirect(e, data) {
@@ -410,8 +417,8 @@ export const VariantTable = ({ name, setVariant, type, row }) => {
           ]}
           data={myVariants}
           options={{
-            pageSize: 10,
-            emptyRowsWhenPaging: false,
+            pageSize: pageSizeProp,
+            emptyRowsWhenPaging: emptyRowsProp,
             search: true,
             maxHeight: `${MAX_ROW_SHOW * ROW_HEIGHT}em`,
             toolbar: false,

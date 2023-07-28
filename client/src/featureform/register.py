@@ -45,17 +45,17 @@ from .resources import (
     GCSFileStoreConfig,
     User,
     Location,
-    Source,
+    SourceVariant,
     PrimaryData,
     SQLTable,
     Directory,
     SQLTransformation,
     DFTransformation,
     Entity,
-    Feature,
-    Label,
+    FeatureVariant,
+    LabelVariant,
     ResourceColumnMapping,
-    TrainingSet,
+    TrainingSetVariant,
     ProviderReference,
     EntityReference,
     SourceReference,
@@ -68,7 +68,7 @@ from .resources import (
     HDFSConfig,
     K8sResourceSpecs,
     FilePrefix,
-    OnDemandFeature,
+    OnDemandFeatureVariant,
     WeaviateConfig,
 )
 from .search import search
@@ -1028,8 +1028,8 @@ class SQLTransformationDecorator:
             raise ValueError("Query cannot be an empty string")
         self.query = add_variant_to_name(query, self.run)
 
-    def to_source(self) -> Source:
-        return Source(
+    def to_source(self) -> SourceVariant:
+        return SourceVariant(
             name=self.name,
             variant=self.variant,
             definition=SQLTransformation(self.query, self.args),
@@ -1119,8 +1119,8 @@ class DFTransformationDecorator:
             self.name_variant,
         )
 
-    def to_source(self) -> Source:
-        return Source(
+    def to_source(self) -> SourceVariant:
+        return SourceVariant(
             name=self.name,
             variant=self.variant,
             definition=DFTransformation(self.query, self.inputs, self.args),
@@ -1583,7 +1583,7 @@ class Registrar:
             )
         else:
             fakeDefinition = PrimaryData(location=SQLTable(name=""))
-            fakeSource = Source(
+            fakeSource = SourceVariant(
                 name=name,
                 variant=variant,
                 definition=fakeDefinition,
@@ -3068,7 +3068,7 @@ class Registrar:
             variant = self.__run
         if not isinstance(provider, str):
             provider = provider.name()
-        source = Source(
+        source = SourceVariant(
             name=name,
             variant=variant,
             definition=PrimaryData(location=location),
@@ -3119,7 +3119,7 @@ class Registrar:
             variant = self.__run
         if not isinstance(provider, str):
             provider = provider.name()
-        source = Source(
+        source = SourceVariant(
             name=name,
             variant=variant,
             definition=SQLTransformation(query, args),
@@ -3229,7 +3229,7 @@ class Registrar:
         for i, nv in enumerate(inputs):
             if not isinstance(nv, tuple):
                 inputs[i] = nv.name_variant()
-        source = Source(
+        source = SourceVariant(
             name=name,
             variant=variant,
             definition=DFTransformation(query, inputs, args),
@@ -3374,7 +3374,7 @@ class Registrar:
             owner = self.must_get_default_owner()
         if variant == "":
             variant = self.__run
-        decorator = OnDemandFeature(
+        decorator = OnDemandFeatureVariant(
             name=name,
             variant=variant,
             owner=owner,
@@ -3562,7 +3562,7 @@ class Registrar:
             desc = feature.get("description", "")
             feature_tags = feature.get("tags", [])
             feature_properties = feature.get("properties", {})
-            resource = Feature(
+            resource = FeatureVariant(
                 name=feature["name"],
                 variant=variant,
                 source=source,
@@ -3600,7 +3600,7 @@ class Registrar:
             desc = label.get("description", "")
             label_tags = label.get("tags", [])
             label_properties = label.get("properties", {})
-            resource = Label(
+            resource = LabelVariant(
                 name=label["name"],
                 variant=variant,
                 source=source,
@@ -3753,7 +3753,7 @@ class Registrar:
             elif isinstance(feature, FeatureColumnResource):
                 feature = feature.name_variant()
             processed_features.append(feature)
-        resource = TrainingSet(
+        resource = TrainingSetVariant(
             name=name,
             variant=variant,
             description=description,
@@ -4088,7 +4088,7 @@ class ResourceClient:
             feature = x
             break
 
-        return Feature(
+        return FeatureVariant(
             name=feature.name,
             variant=feature.variant,
             source=(feature.source.name, feature.source.variant),
@@ -4211,7 +4211,7 @@ class ResourceClient:
             label = x
             break
 
-        return Label(
+        return LabelVariant(
             name=label.name,
             variant=label.variant,
             source=(label.source.name, label.source.variant),
@@ -4334,7 +4334,7 @@ class ResourceClient:
             ts = x
             break
 
-        return TrainingSet(
+        return TrainingSetVariant(
             name=ts.name,
             variant=ts.variant,
             owner=ts.owner,
@@ -4453,7 +4453,7 @@ class ResourceClient:
 
         definition = self._get_source_definition(source)
 
-        return Source(
+        return SourceVariant(
             name=source.name,
             definition=definition,
             owner=source.owner,

@@ -1081,7 +1081,6 @@ class Source:
             self.is_transformation,
             json.dumps(self.inputs),
             self.definition,
-            self.source_text,
         )
 
         if should_insert_text:

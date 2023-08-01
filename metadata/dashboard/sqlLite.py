@@ -158,10 +158,18 @@ class SQLiteTest:
             variant     text,
             status      text,
             definition  text,
-            source_text text,
             PRIMARY KEY(sourceName, variant),
             FOREIGN KEY(provider) REFERENCES providers(name),
             FOREIGN KEY(sourceName) REFERENCES sources(name));"""
+        )
+
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS source_variant_text(
+            created     text,
+            sourceName  text NOT NULL,
+            variant     text NOT NULL,
+            source_text text,
+            PRIMARY KEY(sourceName, variant));"""
         )
 
         conn.execute(

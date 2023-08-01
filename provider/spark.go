@@ -1179,8 +1179,8 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string,
 	return argList
 }
 
-func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
-	return blobRegisterPrimary(id, sourceName, spark.Logger, spark.Store)
+func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourcePath string) (PrimaryTable, error) {
+	return blobRegisterPrimary(id, sourcePath, spark.Logger, spark.Store)
 }
 
 func (spark *SparkOfflineStore) pysparkArgs(destinationURI string, templatedQuery string, sourceList []string, jobType JobType) *[]string {
@@ -1463,7 +1463,14 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), false)
 	spark.Logger.Debugw("Retrieved transformation source", "ResourceID", id, "transformationPath", transformationPath)
-	return &FileStorePrimaryTable{spark.Store, transformationPath, true, id}, nil
+	// Unlike a primary source, which comes across with the fully specified storage URI, transformations are relative paths
+	// stored in the feature/ dir
+	filePath, err := NewFilepath(spark.Store.FilestoreType(), "", "", transformationPath)
+	if err != nil {
+		return nil, fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), transformationPath)
+	}
+	spark.Logger.Debugw("Retrieved transformation source", "id", id, "filePath", filePath)
+	return &FileStorePrimaryTable{spark.Store, filePath, true, id}, nil
 }
 
 func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig) error {

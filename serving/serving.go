@@ -153,9 +153,13 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int64) (provider.GenericTableIterator, error) {
 	ctx := context.TODO()
 	serv.Logger.Infow("Getting Source Variant Iterator", "name", name, "variant", variant)
-	sv, err := serv.Metadata.GetSourceVariant(ctx, metadata.NameVariant{name, variant})
+	sv, err := serv.Metadata.GetSourceVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get source variant")
+	}
+	// TODO: Determine if we want to add a backoff here to wait for the source
+	if sv.Status() != metadata.READY {
+		return nil, fmt.Errorf("source variant is not ready")
 	}
 	providerEntry, err := sv.FetchProvider(serv.Metadata, ctx)
 	serv.Logger.Debugw("Fetched Source Variant Provider", "name", providerEntry.Name(), "type", providerEntry.Type())
@@ -173,19 +177,31 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	var primary provider.PrimaryTable
 	var providerErr error
 	if sv.IsTransformation() {
+		serv.Logger.Debugw("Getting transformation table", "name", name, "variant", variant)
 		t, err := store.GetTransformationTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Transformation})
 		if err != nil {
+			serv.Logger.Errorw("Could not get transformation table", "name", name, "variant", variant, "Error", err)
 			providerErr = err
 		} else {
-			providerErr = nil
-			primary = t.(provider.PrimaryTable)
+			// TransformationTable inherits from PrimaryTable, which is where
+			// IterateSegment is defined; we assert this type to get access to
+			// the method. This assertion should never fail.
+			if tbl, isPrimaryTable := t.(provider.PrimaryTable); !isPrimaryTable {
+				serv.Logger.Errorw("transformation table is not a primary table", "name", name, "variant", variant)
+				providerErr = fmt.Errorf("transformation table is not a primary table")
+			} else {
+				primary = tbl
+			}
 		}
 	} else {
+		serv.Logger.Debugw("Getting primary table", "name", name, "variant", variant)
 		primary, providerErr = store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary})
 	}
 	if providerErr != nil {
+		serv.Logger.Errorw("Could not get primary table", "name", name, "variant", variant, "Error", providerErr)
 		return nil, errors.Wrap(err, "could not get primary table")
 	}
+	serv.Logger.Debugw("Getting source data iterator", "name", name, "variant", variant)
 	return primary.IterateSegment(limit)
 }
 
@@ -298,6 +314,10 @@ func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceColu
 	it, err := serv.getSourceDataIterator(name, variant, 0) // Set limit to zero to fetch columns only
 	if err != nil {
 		return nil, err
+	}
+	if it == nil {
+		serv.Logger.Errorf("source data iterator is nil", "Name", name, "Variant", variant, "Error", err)
+		return nil, fmt.Errorf("could not fetch source data due to error; check the data source registration to ensure it is valid")
 	}
 	defer it.Close()
 	return &pb.SourceDataColumns{

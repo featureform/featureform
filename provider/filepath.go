@@ -14,11 +14,15 @@ import (
 )
 
 type Filepath interface {
+	// Returns the name of the bucket (S3) or container (Azure Blob Storage)
 	Bucket() string
 	Prefix() string
+	// Returns the key to the object (S3) or blob (Azure Blob Storage)
 	Path() string
 	FullPathWithBucket() string
 	FullPathWithoutBucket() string
+	// Consumes a URI (e.g. abfss://<container>@<storage_account>/path/to/file) and parses it into
+	// the specific parts that the implementation expects.
 	ParseFullPath(path string) error
 }
 
@@ -26,6 +30,14 @@ func NewFilepath(storeType pc.FileStoreType, bucket string, prefix string, path 
 	switch storeType {
 	case S3:
 		return &S3Filepath{
+			filePath: filePath{
+				bucket: strings.Trim(bucket, "/"),
+				prefix: strings.Trim(prefix, "/"),
+				path:   strings.TrimPrefix(path, "/"),
+			},
+		}, nil
+	case Azure:
+		return &AzureFilepath{
 			filePath: filePath{
 				bucket: strings.Trim(bucket, "/"),
 				prefix: strings.Trim(prefix, "/"),
@@ -133,19 +145,13 @@ func (azure *AzureFilepath) FullPathWithBucket() string {
 
 func (azure *AzureFilepath) ParseFullPath(fullPath string) error {
 	abfssRegex := regexp.MustCompile(`abfss://(.+?)@(.+?)\.dfs.core.windows.net/(.+)`)
-	matches := abfssRegex.FindStringSubmatch(fullPath)
-
-	// If the regex matches all parts of the ABFS path, then we can parse the
-	// bucket, storage account, and path components. Otherwise, we can just set
-	// the path for standard Azure Blob Storage paths.
-	if len(matches) == 4 {
+	if matches := abfssRegex.FindStringSubmatch(fullPath); len(matches) != 4 {
+		return fmt.Errorf("could not parse full path '%s'", fullPath)
+	} else {
 		azure.filePath.bucket = matches[1]
 		azure.storageAccount = matches[2]
 		azure.filePath.path = matches[3]
-	} else {
-		azure.filePath.path = fullPath
 	}
-
 	return nil
 }
 

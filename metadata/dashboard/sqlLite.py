@@ -166,10 +166,10 @@ class SQLiteTest:
         conn.execute(
             """CREATE TABLE IF NOT EXISTS source_variant_text(
             created     text,
-            sourceName  text NOT NULL,
+            source_name  text NOT NULL,
             variant     text NOT NULL,
             source_text text,
-            PRIMARY KEY(sourceName, variant));"""
+            PRIMARY KEY(source_name, variant));"""
         )
 
         conn.execute(

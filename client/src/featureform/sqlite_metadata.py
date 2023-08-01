@@ -175,10 +175,10 @@ class SQLiteMetadata:
         self.__conn.execute(
             """CREATE TABLE IF NOT EXISTS source_variant_text(
             created     text,
-            sourceName  text NOT NULL,
+            source_name  text NOT NULL,
             variant     text NOT NULL,
             source_text text,
-            PRIMARY KEY(sourceName, variant));"""
+            PRIMARY KEY(source_name, variant));"""
         )
 
         # sources table
@@ -706,7 +706,7 @@ class SQLiteMetadata:
         self.__conn.commit()
 
     def get_source_variant_text(self, name, variant):
-        stmt = f"SELECT source_text FROM source_variant_text WHERE sourceName='{name}' AND variant='{variant}'"
+        stmt = f"SELECT source_text FROM source_variant_text WHERE source_name='{name}' AND variant='{variant}'"
         result = self.__conn.execute(stmt)
         self.__conn.commit()
         res = result.fetchone()

@@ -560,6 +560,7 @@ func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant
 	c.Logger.Info("Running primary table job on resource: ", resID)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Primary}
 	sourceName := transformSource.PrimaryDataSQLTableName()
+	fmt.Println("====================>>>>> Coordinator.runPrimaryTableJob ", sourceName)
 	if sourceName == "" {
 		return fmt.Errorf("no source name set")
 	}

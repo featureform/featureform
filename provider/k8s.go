@@ -972,10 +972,13 @@ func (tbl *FileStorePrimaryTable) GetName() string {
 func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 	path := tbl.sourcePath
 	keyParts := strings.Split(path, ".")
+	fmt.Println("====================>>>>> FileStorePrimaryTable.IterateSegment (PATH): ", path)
+	fmt.Println("====================>>>>> FileStorePrimaryTable.IterateSegment: (KEY PARTS)", keyParts)
+	fmt.Println("====================>>>>> FileStorePrimaryTable.IterateSegment: (tbl.store.id)", tbl.id)
 	if len(keyParts) == 1 {
 		return nil, fmt.Errorf("expected a file but got a directory: %s", keyParts[0])
 	}
-	b, err := tbl.store.Read(path)
+	b, err := tbl.store.Read(path) // path/to/key
 	if err != nil {
 		return nil, fmt.Errorf("could not read file: %w", err)
 	}
@@ -1048,7 +1051,7 @@ func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, source
 
 func blobRegisterPrimary(id ResourceID, sourceName string, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
-	logger.Infow("Checking if resource key exists", "key", resourceKey)
+	logger.Infow("Checking if resource key exists", "key", resourceKey) // ucbhackathoncontainer/featureform/Primary/members_2/bupa_member_dedupe_3
 	primaryExists, err := store.Exists(resourceKey)
 	if err != nil {
 		logger.Errorw("Error checking if primary exists", "error", err)
@@ -1326,7 +1329,7 @@ func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogger) (PrimaryTable, error) {
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	logger.Debugw("Getting primary table", "id", id)
-
+	logger.Debugw("Getting primary table", "resourceKey", id)
 	table, err := store.Read(resourceKey)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching primary table: %v", err)
@@ -1376,7 +1379,9 @@ func fileStoreGetMaterialization(id MaterializationID, store FileStore, logger *
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	logger.Debugw("Getting materialization", "id", id)
 	materializationPath := store.PathWithPrefix(fileStoreResourcePath(materializationID), false)
+	fmt.Println("====================>>>>> fileStoreGetMaterialization (materializationPath): ", materializationPath)
 	materializationExactPath, err := store.NewestFileOfType(materializationPath, Parquet)
+	fmt.Println("====================>>>>> fileStoreGetMaterialization (materializationExactPath): ", materializationExactPath)
 	if err != nil {
 		logger.Errorw("Could not fetch materialization resource key", "error", err)
 		return nil, fmt.Errorf("could not fetch materialization resource key: %v", err)

@@ -1045,7 +1045,10 @@ class Source:
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
+        should_insert_text = False
+        source_text = ""
         if type(self.definition) == DFTransformation:
+            should_insert_text = True
             self.is_transformation = SourceType.DF_TRANSFORMATION.value
             source_text = self.definition.source_text
             self.inputs = self.definition.inputs
@@ -1065,7 +1068,6 @@ class Source:
                 raise ValueError(
                     f"Invalid Primary Data Type {self.definition.location}"
                 )
-
         db.insert_source(
             "source_variant",
             str(time.time()),
@@ -1081,6 +1083,12 @@ class Source:
             self.definition,
             self.source_text,
         )
+
+        if should_insert_text:
+            db.insert_source_variant_text(
+                str(time.time()), self.name, self.variant, source_text
+            )
+
         if len(self.tags):
             db.upsert(
                 "tags", self.name, self.variant, "source_variant", json.dumps(self.tags)

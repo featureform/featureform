@@ -1,4 +1,9 @@
-from featureform.providers import get_provider, OnlineStore, OnlineTable, LocalFileStore
+from featureform.providers import (
+    get_provider,
+    OnlineStore,
+    OnlineStoreTable,
+    LocalFileStore,
+)
 from featureform.register import ScalarType
 import pytest
 import uuid
@@ -23,7 +28,7 @@ class TestOnlineProvider:
         store = get_provider(provider)
         assert isinstance(store, OnlineStore)
         table = store.create_table(name, variant, t)
-        assert isinstance(table, OnlineTable)
+        assert isinstance(table, OnlineStoreTable)
 
     @pytest.mark.parametrize(
         "name,variant,t",
@@ -34,7 +39,7 @@ class TestOnlineProvider:
         store.create_table(name, variant, t)
         assert isinstance(store, OnlineStore)
         table = store.get_table(name, variant)
-        assert isinstance(table, OnlineTable)
+        assert isinstance(table, OnlineStoreTable)
 
     @pytest.mark.parametrize(
         "name,variant,values,t",

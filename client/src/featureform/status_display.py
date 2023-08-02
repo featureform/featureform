@@ -3,19 +3,21 @@ from typing import Type, Tuple, List
 
 from dataclasses import dataclass
 from featureform.proto.metadata_pb2_grpc import ApiStub
-from featureform.resources import (
-    Feature,
-    OnDemandFeature,
-    TrainingSet,
-    Label,
-    Source,
-    Provider,
-    Resource,
-)
+
 from rich.console import Console
 from rich.live import Live
 from rich.table import Table
 from rich.text import Text
+
+from client.src.featureform.resources import (
+    Resource,
+    Provider,
+    FeatureVariant,
+    OnDemandFeatureVariant,
+    TrainingSetVariant,
+    LabelVariant,
+    SourceVariant,
+)
 
 # maximum number of dots printing when featureform apply for Running...
 MAX_NUM_RUNNING_DOTS = 10
@@ -57,11 +59,11 @@ class DisplayStatus:
 
 class StatusDisplayer:
     RESOURCE_TYPES_TO_CHECK = {
-        Feature,
-        OnDemandFeature,
-        TrainingSet,
-        Label,
-        Source,
+        FeatureVariant,
+        OnDemandFeatureVariant,
+        TrainingSetVariant,
+        LabelVariant,
+        SourceVariant,
         Provider,
     }
 

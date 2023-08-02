@@ -241,6 +241,13 @@ pytest:
 	-rm -r .featureform
 	-rm -f transactions.csv
 
+pytest_coverage:
+	-rm -r .featureform
+	curl -C - https://featureform-demo-files.s3.amazonaws.com/transactions_short.csv -o transactions.csv
+	python -m pytest -v -s -m 'local' --cov=client/src/featureform client/tests/ --cov-report=xml
+	-rm -r .featureform
+	-rm -f transactions.csv
+
 jupyter: update_python
 	pip3 install jupyter nbconvert matplotlib pandas scikit-learn requests
 	jupyter nbconvert --to notebook --execute notebooks/Fraud_Detection_Example.ipynb

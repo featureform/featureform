@@ -9,7 +9,7 @@ from rich.live import Live
 from rich.table import Table
 from rich.text import Text
 
-from client.src.featureform.resources import (
+from featureform.resources import (
     Resource,
     Provider,
     FeatureVariant,

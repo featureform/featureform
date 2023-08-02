@@ -24,7 +24,6 @@ from .enums import *
 
 NameVariant = Tuple[str, str]
 
-
 # Constants for Pyspark Versions
 MAJOR_VERSION = "3"
 MINOR_VERSIONS = ["7", "8", "9", "10", "11"]
@@ -951,6 +950,7 @@ class DFTransformation(Transformation):
 
 
 SourceDefinition = Union[PrimaryData, Transformation, str]
+
 
 @typechecked
 @dataclass

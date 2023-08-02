@@ -1344,16 +1344,19 @@ func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogger) (PrimaryTable, error) {
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	logger.Debugw("Getting primary table", "id", id)
-	logger.Debugw("Getting primary table", "resourceKey", id)
+	logger.Debugw("Getting primary table", "resourceKey", resourceKey)
 	table, err := store.Read(resourceKey)
+	logger.Debugw("Read primary table", "table", string(table))
 	if err != nil {
 		return nil, fmt.Errorf("error fetching primary table: %v", err)
 	}
+	logger.Debugw("Creating empty filepath")
 	filePath, err := NewEmptyFilepath(store.FilestoreType())
 	if err != nil {
 		logger.Errorw("Could not create empty filepath", "error", err, "storeType", store.FilestoreType(), "resourceKey", resourceKey)
 		return nil, err
 	}
+	logger.Debugw("Parsing full path")
 	// NOTE: Not completely certain ParseFullPath is the right method to use here
 	filePath.ParseFullPath(string(table))
 	logger.Debugw("Successfully retrieved primary table", "id", id)

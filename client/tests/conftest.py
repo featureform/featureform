@@ -26,7 +26,7 @@ from featureform.resources import (
     Provider,
     PrimaryData,
     Location,
-    Source,
+    SourceVariant,
     SQLTransformation,
     DFTransformation,
     SQLTable,
@@ -91,7 +91,7 @@ def ff_registrar():
 
 @pytest.fixture(scope="module")
 def primary_dataset(ff_registrar):
-    src = Source(
+    src = SourceVariant(
         name="primary",
         variant="default",
         definition=PrimaryData(location=SQLTable("tableName")),
@@ -107,7 +107,7 @@ def primary_dataset(ff_registrar):
 
 @pytest.fixture(scope="module")
 def sql_transformation_src(ff_registrar):
-    src = Source(
+    src = SourceVariant(
         name="sql_transformation",
         variant="default",
         definition=SQLTransformation("SELECT * FROM {{ name.variant }}"),
@@ -134,7 +134,7 @@ def df_transformation_src(
         return True
 
     query = dill.dumps(test_func.__code__)
-    src = Source(
+    src = SourceVariant(
         name="sql_transformation",
         variant="default",
         definition=DFTransformation(query, inputs=[("name", "variant")]),

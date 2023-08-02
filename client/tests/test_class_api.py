@@ -28,7 +28,8 @@ def test_class_api_syntax(provider_source_fxt, is_local, is_insecure, request):
     arrange_resources(provider, source, inference_store, is_local, is_insecure)
     original_syntax_state = list(
         filter(
-            lambda r: isinstance(r, (Entity, FeatureVariant, LabelVariant)), ff.state().sorted_list()
+            lambda r: isinstance(r, (Entity, FeatureVariant, LabelVariant)),
+            ff.state().sorted_list(),
         )
     )
 
@@ -39,7 +40,8 @@ def test_class_api_syntax(provider_source_fxt, is_local, is_insecure, request):
     )
     class_syntax_state = list(
         filter(
-            lambda r: isinstance(r, (Entity, FeatureVariant, LabelVariant)), ff.state().sorted_list()
+            lambda r: isinstance(r, (Entity, FeatureVariant, LabelVariant)),
+            ff.state().sorted_list(),
         )
     )
 

@@ -23,12 +23,12 @@ from featureform.resources import (
     User,
     Provider,
     Entity,
-    Feature,
-    Label,
-    TrainingSet,
+    FeatureVariant,
+    LabelVariant,
+    TrainingSetVariant,
     PrimaryData,
     SQLTable,
-    Source,
+    SourceVariant,
     ResourceColumnMapping,
     DynamodbConfig,
     Schedule,
@@ -414,7 +414,7 @@ def test_k8s_df_provider_empty(registrar, mock_provider):
 
 
 def init_feature(input):
-    Feature(
+    FeatureVariant(
         name="feature",
         variant="v1",
         source=("a", "b"),
@@ -458,7 +458,7 @@ def test_valid_feature_column_types(input, fail):
 
 
 def init_label(input):
-    Label(
+    LabelVariant(
         name="feature",
         variant="v1",
         source=("a", "b"),
@@ -507,7 +507,7 @@ def all_resources_set(redis_provider):
         redis_provider,
         User(name="Featureform", tags=[], properties={}),
         Entity(name="user", description="A user", tags=[], properties={}),
-        Source(
+        SourceVariant(
             name="primary",
             variant="abc",
             definition=PrimaryData(location=SQLTable("table")),
@@ -517,7 +517,7 @@ def all_resources_set(redis_provider):
             tags=[],
             properties={},
         ),
-        Feature(
+        FeatureVariant(
             name="feature",
             variant="v1",
             source=("a", "b"),
@@ -534,7 +534,7 @@ def all_resources_set(redis_provider):
             tags=[],
             properties={},
         ),
-        Label(
+        LabelVariant(
             name="label",
             variant="v1",
             source=("a", "b"),
@@ -551,7 +551,7 @@ def all_resources_set(redis_provider):
             tags=[],
             properties={},
         ),
-        TrainingSet(
+        TrainingSetVariant(
             name="training-set",
             variant="v1",
             description="desc",
@@ -568,7 +568,7 @@ def all_resources_set(redis_provider):
 @pytest.fixture
 def all_resources_strange_order(redis_provider):
     return [
-        TrainingSet(
+        TrainingSetVariant(
             name="training-set",
             variant="v1",
             description="desc",
@@ -579,7 +579,7 @@ def all_resources_strange_order(redis_provider):
             tags=[],
             properties={},
         ),
-        Label(
+        LabelVariant(
             name="label",
             variant="v1",
             source=("a", "b"),
@@ -596,7 +596,7 @@ def all_resources_strange_order(redis_provider):
             tags=[],
             properties={},
         ),
-        Feature(
+        FeatureVariant(
             name="feature",
             variant="v1",
             source=("a", "b"),
@@ -614,7 +614,7 @@ def all_resources_strange_order(redis_provider):
             properties={},
         ),
         Entity(name="user", description="A user", tags=[], properties={}),
-        Source(
+        SourceVariant(
             name="primary",
             variant="abc",
             definition=PrimaryData(location=SQLTable("table")),
@@ -690,7 +690,7 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
             tags=[],
             properties={},
         ),
-        Source(
+        SourceVariant(
             name="primary",
             variant="abc",
             definition=PrimaryData(location=SQLTable("table")),
@@ -701,7 +701,7 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
             properties={},
         ),
         Entity(name="user", description="A user", tags=[], properties={}),
-        Feature(
+        FeatureVariant(
             name="feature",
             variant="v1",
             source=("a", "b"),
@@ -718,7 +718,7 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
             tags=[],
             properties={},
         ),
-        Label(
+        LabelVariant(
             name="label",
             variant="v1",
             source=("a", "b"),
@@ -735,7 +735,7 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
             tags=[],
             properties={},
         ),
-        TrainingSet(
+        TrainingSetVariant(
             name="training-set",
             variant="v1",
             description="desc",
@@ -840,7 +840,7 @@ def test_invalid_users():
 )
 def test_invalid_training_set(args):
     with pytest.raises((ValueError, TypeError)):
-        TrainingSet(**args)
+        TrainingSetVariant(**args)
 
 
 def test_add_all_resources_with_schedule(all_resources_strange_order, redis_config):
@@ -860,7 +860,7 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             tags=[],
             properties={},
         ),
-        Source(
+        SourceVariant(
             name="primary",
             variant="abc",
             definition=PrimaryData(location=SQLTable("table")),
@@ -878,7 +878,7 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             properties={},
         ),
         Entity(name="user", description="A user", tags=[], properties={}),
-        Feature(
+        FeatureVariant(
             name="feature",
             variant="v1",
             source=("a", "b"),
@@ -902,7 +902,7 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             tags=[],
             properties={},
         ),
-        Label(
+        LabelVariant(
             name="label",
             variant="v1",
             source=("a", "b"),
@@ -919,7 +919,7 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             tags=[],
             properties={},
         ),
-        TrainingSet(
+        TrainingSetVariant(
             name="training-set",
             variant="v1",
             description="desc",

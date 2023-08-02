@@ -11,6 +11,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -1150,8 +1151,9 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 	}
 	k8s.logger.Debugw("Running SQL transformation", "target_table", config.TargetTableID, "query", config.Query)
 	runnerArgs := k8s.pandasRunnerArgs(transformationDestination, updatedQuery, sources, Transform)
-
 	runnerArgs = addResourceID(runnerArgs, config.TargetTableID)
+	//_, err := validateArgs(runnerArgs)
+
 	args, err := k8s.checkArgs(config.Args)
 	if err != nil {
 		return fmt.Errorf("could not check args: %w", err)
@@ -1164,6 +1166,10 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 	k8s.logger.Debugw("Successfully ran SQL transformation", "target_table", config.TargetTableID, "query", config.Query)
 	return nil
 }
+
+//func validateArgs(args map[string]string) (map[string]string, error) {
+//
+//}
 
 func (k8s *K8sOfflineStore) checkArgs(args metadata.TransformationArgs) (metadata.KubernetesArgs, error) {
 	k8sArgs, ok := args.(metadata.KubernetesArgs)
@@ -1263,7 +1269,10 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
 		fileResourcePath := k8s.store.PathWithPrefix(fileStoreResourcePath(fileResourceId), false)
-		exactFileResourcePath, err := k8s.store.NewestFileOfType(fileResourcePath, Parquet)
+		k8s.logger.Debugw("Retrieved transformation source", "ResourceId", fileResourceId, "fileResourcePath", fileResourcePath)
+		// get file type of source
+		sourceFileExtension := FileType(filepath.Ext(fileResourcePath))
+		exactFileResourcePath, err := k8s.store.NewestFileOfType(fileResourcePath, sourceFileExtension)
 		k8s.logger.Debugw("Retrieved latest file path", "exactFileResourcePath", exactFileResourcePath)
 		if err != nil {
 			k8s.logger.Errorw("Could not get newest blob", "location", fileResourcePath, "error", err)
@@ -1559,7 +1568,8 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		return nil, fmt.Errorf("could not convert offline table with id %v to k8sResourceTable", id)
 	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
-	destinationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(materializationID), false)
+	featureResourcePath := fileStoreResourcePath(materializationID)
+	destinationPath := k8s.store.PathWithPrefix(featureResourcePath, false)
 	materializationNewestFile, err := k8s.store.NewestFileOfType(destinationPath, Parquet)
 	k8s.logger.Debugw("Running Materialization", "id", id, "destinationPath", destinationPath, "materializationNewestFile", materializationNewestFile)
 	materializationExists := materializationNewestFile != ""
@@ -1576,7 +1586,11 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 	}
 	materializationQuery := k8s.query.materializationCreate(k8sResourceTable.schema)
 	sourcePath := k8s.store.PathWithPrefix(k8sResourceTable.schema.SourceTable, false)
-	newestSourcePath, err := k8s.store.NewestFileOfType(sourcePath, Parquet)
+	// get source path file type; note, it's possible it doesn't have it
+	fileType := GetFileType(sourcePath)
+	k8s.logger.Debugw("File Type", "fileType", fileType)
+	newestSourcePath, err := k8s.store.NewestFileOfType(sourcePath, fileType)
+	k8s.logger.Debugw("Retrieved newest source path", "sourcePath", sourcePath, "newestSourcePath", newestSourcePath)
 	if err != nil {
 		k8s.logger.Errorw("Could not determine newest source file for materialization", "sourcePath", sourcePath, "error", err)
 		return nil, fmt.Errorf("error determining newest source file: %v", err)
@@ -1664,7 +1678,8 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 		return fmt.Errorf("could not get schema of label %s: %v", def.Label, err)
 	}
 	labelPath := labelSchema.SourceTable
-	latestLabelFile, err := k8s.store.NewestFileOfType(labelPath, Parquet)
+	fileType := GetFileType(labelPath)
+	latestLabelFile, err := k8s.store.NewestFileOfType(labelPath, fileType)
 	k8s.logger.Debugw("Latest label file", "labelPath", labelPath, "latestLabelFile", latestLabelFile)
 	if err != nil {
 		k8s.logger.Errorw("Could not get latest label file", "error", err)
@@ -1678,7 +1693,8 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 			return fmt.Errorf("could not get schema of feature %s: %v", feature, err)
 		}
 		featurePath := featureSchema.SourceTable
-		latestFeatureFile, err := k8s.store.NewestFileOfType(featurePath, Parquet)
+		fileType := GetFileType(featurePath)
+		latestFeatureFile, err := k8s.store.NewestFileOfType(featurePath, fileType)
 		k8s.logger.Debugw("Latest feature file", "featurePath", featurePath, "latestFeatureFile", latestFeatureFile)
 		if err != nil {
 			k8s.logger.Errorw("Could not get latest feature file", "error", err)
@@ -1688,8 +1704,8 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := k8s.query.trainingSetCreate(def, featureSchemas, labelSchema)
-	k8s.logger.Debugw("Training set query", "SourceFiles", sourcePaths)
-	k8s.logger.Debugw("Source list", "list", trainingSetQuery)
+	k8s.logger.Debugw("Source List", "SourceFiles", sourcePaths)
+	k8s.logger.Debugw("Training Set Query", "list", trainingSetQuery)
 	pandasArgs := k8s.pandasRunnerArgs(k8s.store.PathWithPrefix(destinationPath, false), trainingSetQuery, sourcePaths, CreateTrainingSet)
 	pandasArgs = addResourceID(pandasArgs, def.ID)
 	k8s.logger.Debugw("Creating training set", "definition", def)

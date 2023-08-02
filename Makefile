@@ -244,7 +244,7 @@ pytest:
 pytest_coverage:
 	-rm -r .featureform
 	curl -C - https://featureform-demo-files.s3.amazonaws.com/transactions_short.csv -o transactions.csv
-	python -m pytest -v -s -m 'local' --cov=client/src/featureform client/tests/ --cov-report=xml
+	python -m pytest -v -s -m 'local' --cov=client/src/featureform client/tests/  --cov-report=html --cov-report=term --cov-report=xml --cov-config=client/.coveragerc
 	-rm -r .featureform
 	-rm -f transactions.csv
 

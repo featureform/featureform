@@ -1369,7 +1369,7 @@ func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogg
 	logger.Debugw("Getting primary table", "id", id)
 	logger.Debugw("Getting primary table", "resourceKey", resourceKey)
 	table, err := store.Read(resourceKey)
-	logger.Debugw("Read primary table", "table", string(table))
+	logger.Debugw("Read primary table", "table", string(table), "error", err)
 	if err != nil {
 		logger.Errorf("Error reading primary table: %v", err)
 		return nil, fmt.Errorf("error fetching primary table: %v", err)

@@ -297,6 +297,9 @@ func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceColu
 	serv.Logger.Infow("Getting source columns", "Name", name, "Variant", variant)
 	it, err := serv.getSourceDataIterator(name, variant, 0) // Set limit to zero to fetch columns only
 	serv.Logger.Debugw("Got source columns iterator", "Name", name, "Variant", variant)
+	if it == nil {
+		return nil, fmt.Errorf("iterator is nil")
+	}
 	if err != nil {
 		return nil, err
 	}

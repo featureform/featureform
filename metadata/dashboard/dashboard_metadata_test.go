@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/featureform/metadata"
+	"github.com/featureform/provider"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -116,4 +117,41 @@ func TestPostTags(t *testing.T) {
 	assert.Equal(t, name, data.Name)
 	assert.Equal(t, variant, data.Variant)
 	assert.Equal(t, tagList, data.Tags)
+}
+
+func MockGetSourceGet(c *gin.Context, params gin.Params, u url.Values) {
+	c.Request.Method = "GET"
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = params
+	c.Request.URL.RawQuery = u.Encode()
+}
+
+func TestGetSourceData(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	u := url.Values{}
+	u.Add("name", "nameParamValue")
+	u.Add("variant", "variantParamValue")
+	MockGetSourceGet(ctx, nil, u)
+
+	logger := zap.NewExample().Sugar()
+	client := &metadata.Client{
+		GrpcConn: metadata.MetadataServerMock{},
+	}
+	serv := MetadataServer{
+		client: client,
+		logger: logger,
+	}
+
+	serv.GetSourceData(ctx)
+
+	iterator := provider.UnitTestIterator{}
+	var data SourceDataResponse
+	rowValues := []string{"row value", "row value"}
+	expectedRows := [][]string{rowValues}
+
+	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
+	assert.Equal(t, http.StatusOK, mockRecorder.Code)
+	assert.Equal(t, iterator.Columns(), data.Columns)
+	assert.Equal(t, expectedRows, data.Rows)
 }

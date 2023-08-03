@@ -1463,9 +1463,11 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), false)
 	spark.Logger.Debugw("Retrieved transformation source", "ResourceID", id, "transformationPath", transformationPath)
-	filePath, err := NewEmptyFilepath(spark.Store.FilestoreType())
+	// Unlike a primary source, which comes across with the fully specified storage URI, transformations are relative paths
+	// stored in the feature/ dir
+	filePath, err := NewFilepath(spark.Store.FilestoreType(), "", "", transformationPath)
 	if err != nil {
-		return nil, fmt.Errorf("Could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), transformationPath)
+		return nil, fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), transformationPath)
 	}
 	return &FileStorePrimaryTable{spark.Store, filePath, true, id}, nil
 }

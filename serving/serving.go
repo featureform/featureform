@@ -296,10 +296,11 @@ func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceColu
 	name, variant := id.GetName(), id.GetVersion()
 	serv.Logger.Infow("Getting source columns", "Name", name, "Variant", variant)
 	it, err := serv.getSourceDataIterator(name, variant, 0) // Set limit to zero to fetch columns only
+	serv.Logger.Debugw("Got source columns iterator", "Name", name, "Variant", variant)
 	if err != nil {
 		return nil, err
 	}
-	defer it.Close()
+	// defer it.Close()
 	return &pb.SourceDataColumns{
 		Columns: it.Columns(),
 	}, nil

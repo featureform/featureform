@@ -527,10 +527,13 @@ func (store *genericFileStore) Writer(key string) (*blob.Writer, error) {
 }
 
 func (store *genericFileStore) Read(key string) ([]byte, error) {
+	fmt.Println("********** READING FROM BUCKET **********", key)
 	data, err := store.bucket.ReadAll(context.TODO(), key)
 	if err != nil {
+		fmt.Println(fmt.Errorf("!!!!! could not read from bucket: %v", err))
 		return nil, err
 	}
+	fmt.Println("********** SUCCESSFULLY READ FROM BUCKET **********", key, string(data))
 	return data, nil
 }
 
@@ -1368,6 +1371,7 @@ func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogg
 	table, err := store.Read(resourceKey)
 	logger.Debugw("Read primary table", "table", string(table))
 	if err != nil {
+		logger.Errorf("Error reading primary table: %v", err)
 		return nil, fmt.Errorf("error fetching primary table: %v", err)
 	}
 	logger.Debugw("Creating empty filepath")

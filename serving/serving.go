@@ -157,6 +157,9 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get source variant")
 	}
+	if sv.Status() != metadata.READY {
+		return nil, fmt.Errorf("source variant is not ready")
+	}
 	providerEntry, err := sv.FetchProvider(serv.Metadata, ctx)
 	serv.Logger.Debugw("Fetched Source Variant Provider", "name", providerEntry.Name(), "type", providerEntry.Type())
 	if err != nil {
@@ -303,7 +306,7 @@ func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceColu
 	if err != nil {
 		return nil, err
 	}
-	// defer it.Close()
+	defer it.Close()
 	return &pb.SourceDataColumns{
 		Columns: it.Columns(),
 	}, nil

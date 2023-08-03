@@ -176,12 +176,19 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	var primary provider.PrimaryTable
 	var providerErr error
 	if sv.IsTransformation() {
+		serv.Logger.Debugw("Getting Transformation Table", "name", name, "variant", variant)
 		t, err := store.GetTransformationTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Transformation})
 		if err != nil {
 			providerErr = err
 		} else {
-			providerErr = nil
-			primary = t.(provider.PrimaryTable)
+			// TransformationTable inherits from PrimaryTable, which is where
+			// IterateSegment is defined; we assert this type to get access to
+			// the method. This assertion should never fail.
+			if tbl, isPrimaryTable := t.(provider.PrimaryTable); !isPrimaryTable {
+				providerErr = fmt.Errorf("transformation table is not a primary table")
+			} else {
+				primary = tbl
+			}
 		}
 	} else {
 		primary, providerErr = store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary})
@@ -189,6 +196,7 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	if providerErr != nil {
 		return nil, errors.Wrap(err, "could not get primary table")
 	}
+	serv.Logger.Debugw("Getting source data iterator", "name", name, "variant", variant)
 	return primary.IterateSegment(limit)
 }
 

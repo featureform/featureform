@@ -533,7 +533,7 @@ func (store *genericFileStore) Read(key string) ([]byte, error) {
 		fmt.Println(fmt.Errorf("!!!!! could not read from bucket: %v", err))
 		return nil, err
 	}
-	fmt.Println("********** SUCCESSFULLY READ FROM BUCKET **********", key, string(data))
+	fmt.Println("********** SUCCESSFULLY READ FROM BUCKET **********", key, len(data))
 	return data, nil
 }
 

@@ -126,7 +126,7 @@ func MockGetSourceGet(c *gin.Context, params gin.Params, u url.Values) {
 	c.Request.URL.RawQuery = u.Encode()
 }
 
-func TestGetSourceData(t *testing.T) {
+func TestGetSourceDataReturnsData(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
 	u := url.Values{}
@@ -154,4 +154,27 @@ func TestGetSourceData(t *testing.T) {
 	assert.Equal(t, http.StatusOK, mockRecorder.Code)
 	assert.Equal(t, iterator.Columns(), data.Columns)
 	assert.Equal(t, expectedRows, data.Rows)
+}
+
+func TestGetSourceMissingNameOrVariantErrors(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	u := url.Values{}
+	u.Add("name", "")    //intentionally blank
+	u.Add("variant", "") //intentionally blank
+	MockGetSourceGet(ctx, nil, u)
+
+	logger := zap.NewExample().Sugar()
+	serv := MetadataServer{
+		logger: logger,
+	}
+
+	serv.GetSourceData(ctx)
+
+	var actualErrorMsg string
+	expectedMsg := "Error 400: Failed to fetch GetSourceData - Could not find the name or variant query parameters"
+	json.Unmarshal(mockRecorder.Body.Bytes(), &actualErrorMsg)
+
+	assert.Equal(t, http.StatusBadRequest, mockRecorder.Code)
+	assert.Equal(t, expectedMsg, actualErrorMsg)
 }

@@ -156,7 +156,7 @@ func TestGetSourceDataReturnsData(t *testing.T) {
 	assert.Equal(t, expectedRows, data.Rows)
 }
 
-func TestGetSourceMissingNameOrVariantErrors(t *testing.T) {
+func TestGetSourceMissingNameOrVariantParamErrors(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
 	u := url.Values{}
@@ -177,4 +177,24 @@ func TestGetSourceMissingNameOrVariantErrors(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, mockRecorder.Code)
 	assert.Equal(t, expectedMsg, actualErrorMsg)
+}
+
+func TestGetSourceFaultyOrNilGrpcClientPanic(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	u := url.Values{}
+	u.Add("name", "nameParamValue")
+	u.Add("variant", "variantParamValue")
+	MockGetSourceGet(ctx, nil, u)
+
+	logger := zap.NewExample().Sugar()
+	serv := MetadataServer{
+		logger: logger,
+	}
+
+	didPanic := func() {
+		serv.GetSourceData(ctx)
+	}
+
+	assert.Panics(t, didPanic)
 }

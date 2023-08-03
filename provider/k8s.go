@@ -24,6 +24,7 @@ import (
 	_ "gocloud.dev/blob/memblob"
 	"golang.org/x/exp/slices"
 
+	re "github.com/avast/retry-go/v4"
 	cfg "github.com/featureform/config"
 	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
@@ -495,11 +496,30 @@ func (store *genericFileStore) DeleteAll(dir string) error {
 }
 
 func (store *genericFileStore) Write(key string, data []byte) error {
-	err := store.bucket.WriteAll(context.TODO(), key, data, nil)
+	ctx := context.TODO()
+	fmt.Printf("====================>>>>> Writing data (%s) to bucket: %s\n", string(data), key)
+	err := store.bucket.WriteAll(ctx, key, data, nil)
 	if err != nil {
 		return err
 	}
-	return nil
+	err = re.Do(
+		func() error {
+			fmt.Printf("====================>>>>> Reading from bucket: %s\n", key)
+			blob, errRetr := store.bucket.ReadAll(ctx, key)
+			fmt.Printf("====================>>>>> Read data (%s) from bucket: %s\n", string(data), key)
+			if errRetr != nil {
+				return re.Unrecoverable(errRetr)
+			} else if !bytes.Equal(blob, data) {
+				return fmt.Errorf("blob read from bucket does not match blob written to bucket")
+			}
+			return nil
+		},
+		re.DelayType(func(n uint, err error, config *re.Config) time.Duration {
+			return re.BackOffDelay(n, err, config)
+		}),
+		re.Attempts(10),
+	)
+	return err
 }
 
 func (store *genericFileStore) Writer(key string) (*blob.Writer, error) {

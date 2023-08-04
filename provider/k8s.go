@@ -1008,6 +1008,7 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 			return nil, fmt.Errorf("could not find newest file of type %s: %w", Parquet, err)
 		}
 		fmt.Println("?????????????????? NEWEST FILE OF TYPE: ", filename)
+		key = filename
 	}
 	b, err := tbl.store.Read(key)
 	if err != nil {

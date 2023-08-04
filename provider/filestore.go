@@ -44,9 +44,25 @@ const (
 )
 
 func (ft FileType) Matches(file string) bool {
-	ext := filepath.Ext(file)
-	ext = strings.ReplaceAll(ext, ".", "")
+	ext := GetFileExtension(file)
 	return FileType(ext) == ft
+}
+
+func GetFileType(file string) FileType {
+	// check to see if its any of the constants
+	for _, fileType := range []FileType{Parquet, CSV, DB} {
+		if fileType.Matches(file) {
+			print(fileType)
+			return fileType
+		}
+	}
+	// defaults to parquet
+	return Parquet
+}
+
+func GetFileExtension(file string) string {
+	ext := filepath.Ext(file)
+	return strings.ReplaceAll(ext, ".", "")
 }
 
 const (

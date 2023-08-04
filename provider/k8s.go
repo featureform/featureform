@@ -1583,7 +1583,6 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 	sourcePath := k8s.store.PathWithPrefix(k8sResourceTable.schema.SourceTable, false)
 	// get source path file type; note, it's possible it doesn't have it
 	fileType := GetFileType(sourcePath)
-	k8s.logger.Debugw("File Type", "fileType", fileType)
 	newestSourcePath, err := k8s.store.NewestFileOfType(sourcePath, fileType)
 	k8s.logger.Debugw("Retrieved newest source path", "sourcePath", sourcePath, "newestSourcePath", newestSourcePath)
 	if err != nil {

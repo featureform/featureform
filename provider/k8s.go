@@ -998,8 +998,16 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 	fmt.Println("====================>>>>> FileStorePrimaryTable.IterateSegment (PATH): ", key)
 	fmt.Println("====================>>>>> FileStorePrimaryTable.IterateSegment: (KEY PARTS)", keyParts)
 	fmt.Println("====================>>>>> FileStorePrimaryTable.IterateSegment: (tbl.store.id)", tbl.id)
-	if len(keyParts) == 1 {
+	if len(keyParts) == 1 && !tbl.isTransformation {
 		return nil, fmt.Errorf("expected a file but got a directory: %s", keyParts[0])
+	} else {
+		// if this is a transformation, we need to access the directory that's named using a timestamp
+		// and then go into that directory looking for a parquet file
+		filename, err := tbl.store.NewestFileOfType(key, Parquet)
+		if err != nil {
+			return nil, fmt.Errorf("could not find newest file of type %s: %w", Parquet, err)
+		}
+		fmt.Println("?????????????????? NEWEST FILE OF TYPE: ", filename)
 	}
 	b, err := tbl.store.Read(key)
 	if err != nil {

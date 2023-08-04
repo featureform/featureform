@@ -34,6 +34,14 @@ func NewFilepath(storeType pc.FileStoreType, bucket string, prefix string, path 
 				path:   strings.TrimPrefix(path, "/"),
 			},
 		}, nil
+	case Azure:
+		return &AzureFilepath{
+			filePath: filePath{
+				bucket: strings.Trim(bucket, "/"),
+				prefix: strings.Trim(prefix, "/"),
+				path:   strings.TrimPrefix(path, "/"),
+			},
+		}, nil
 	default:
 		return nil, fmt.Errorf("unknown store type '%s'", storeType)
 	}

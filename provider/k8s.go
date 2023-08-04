@@ -1152,7 +1152,6 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 	k8s.logger.Debugw("Running SQL transformation", "target_table", config.TargetTableID, "query", config.Query)
 	runnerArgs := k8s.pandasRunnerArgs(transformationDestination, updatedQuery, sources, Transform)
 	runnerArgs = addResourceID(runnerArgs, config.TargetTableID)
-	//_, err := validateArgs(runnerArgs)
 
 	args, err := k8s.checkArgs(config.Args)
 	if err != nil {
@@ -1166,10 +1165,6 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 	k8s.logger.Debugw("Successfully ran SQL transformation", "target_table", config.TargetTableID, "query", config.Query)
 	return nil
 }
-
-//func validateArgs(args map[string]string) (map[string]string, error) {
-//
-//}
 
 func (k8s *K8sOfflineStore) checkArgs(args metadata.TransformationArgs) (metadata.KubernetesArgs, error) {
 	k8sArgs, ok := args.(metadata.KubernetesArgs)

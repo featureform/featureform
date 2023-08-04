@@ -1009,6 +1009,8 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 		}
 		fmt.Println("?????????????????? NEWEST FILE OF TYPE: ", filename)
 		key = filename
+		keyParts = strings.Split(key, ".")
+		fmt.Println("?????????????????? NEWEST FILE OF TYPE: (KEY PARTS)", keyParts)
 	}
 	b, err := tbl.store.Read(key)
 	if err != nil {

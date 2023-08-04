@@ -185,12 +185,14 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 			// TransformationTable inherits from PrimaryTable, which is where
 			// IterateSegment is defined; we assert this type to get access to
 			// the method. This assertion should never fail.
+			serv.Logger.Debugw("Asserting transformation table is a primary table", "name", name, "variant", variant)
 			if tbl, isPrimaryTable := t.(provider.PrimaryTable); !isPrimaryTable {
 				serv.Logger.Errorw("transformation table is not a primary table", "name", name, "variant", variant)
 				providerErr = fmt.Errorf("transformation table is not a primary table")
 			} else {
 				primary = tbl
 			}
+			serv.Logger.Debugw("Got transformation table", "name", name, "variant", variant)
 		}
 	} else {
 		primary, providerErr = store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary})

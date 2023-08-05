@@ -14,13 +14,15 @@ import (
 )
 
 type Filepath interface {
-	// TODO: add documentation to explain this should return bucket (S3)/container (Azure Blob Storage) name
+	// Returns the name of the bucket (S3) or container (Azure Blob Storage)
 	Bucket() string
 	Prefix() string
-	// TODO: add documentation to explain this should return the object (S3)/key (Azure Blob Storage) name
+	// Returns the key to the object (S3) or blob (Azure Blob Storage)
 	Path() string
 	FullPathWithBucket() string
 	FullPathWithoutBucket() string
+	// Consumes a URI (e.g. abfss://<container>@<storage_account>/path/to/file) and parses it into
+	// the specific parts that the implementation expects.
 	ParseFullPath(path string) error
 }
 

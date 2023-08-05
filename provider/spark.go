@@ -1469,7 +1469,7 @@ func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (Transform
 	if err != nil {
 		return nil, fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), transformationPath)
 	}
-	spark.Logger.Debugw("!!!!!-----!!!!! Retrieved transformation source", "ResourceID", id, "filePath", filePath)
+	spark.Logger.Debugw("Retrieved transformation source", "id", id, "filePath", filePath)
 	return &FileStorePrimaryTable{spark.Store, filePath, true, id}, nil
 }
 

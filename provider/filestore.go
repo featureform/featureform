@@ -215,7 +215,7 @@ func NewS3FileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
-// TODO: look into this as a cause of the root cause root slash directory in S3
+// TODO: Move this logic into Filepath interface
 func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
 	pathContainsS3Prefix := strings.HasPrefix(path, s3aPrefix)
 	pathContainsWorkingDirectory := s3.Path != "" && strings.HasPrefix(path, s3.Path)

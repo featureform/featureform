@@ -47,5 +47,38 @@
     "Port": "port",
     "Path": "/path",
     "Username": "username"
+  },
+  "OnlineBlobConfig": { "Type": "store_type", "Config": {} },
+  "CassandraConfig": {
+    "Keyspace": "keyspace",
+    "Addr": "host:port",
+    "Username": "username",
+    "Password": "password",
+    "Consistency": "consistency",
+    "Replication": "replication"
+  },
+  "DynamodbConfig": {
+    "Region": "region",
+    "AccessKey": "access_key",
+    "SecretKey": "secret_key"
+  },
+  "MongoDBConfig": {
+    "Username": "username",
+    "Password": "password",
+    "Host": "host",
+    "Port": "port",
+    "Database": "database",
+    "Throughput": 1
+  },
+  "SnowflakeConfig": {
+    "Username": "username",
+    "Password": "password",
+    "Organization": "organization",
+    "AccountLocator": "",
+    "Account": "account",
+    "Schema": "schema",
+    "Database": "",
+    "Warehouse": "warehouse",
+    "Role": "role"
   }
 }

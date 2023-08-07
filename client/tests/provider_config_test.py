@@ -16,6 +16,11 @@ from featureform.resources import (
     S3StoreConfig,
     AWSCredentials,
     HDFSConfig,
+    OnlineBlobConfig,
+    CassandraConfig,
+    DynamodbConfig,
+    MongoDBConfig,
+    SnowflakeConfig,
 )
 
 connection_configs = json.load(open("provider/connection/connection_configs.json"))
@@ -117,6 +122,14 @@ def test_hdfs():
     assert json.loads(serialized_config) == expected_config
 
 
+def test_onlineblob():
+    expected_config = connection_configs["OnlineBlobConfig"]
+    conf = OnlineBlobConfig(store_type="store_type", store_config=dict())
+    serialized_config = conf.serialize()
+    print(serialized_config)
+    assert json.loads(serialized_config) == expected_config
+
+
 def test_firestore():
     expected_config = connection_configs["Firestore"]
     conf = FirestoreConfig(
@@ -125,6 +138,65 @@ def test_firestore():
         credentials_path="provider/connection/gcp_test_credentials.json",
     )
     serialized_config = conf.serialize()
+    assert json.loads(serialized_config) == expected_config
+
+
+def test_cassandra():
+    expected_config = connection_configs["CassandraConfig"]
+    conf = CassandraConfig(
+        keyspace="keyspace",
+        host="host",
+        port="port",
+        username="username",
+        password="password",
+        consistency="consistency",
+        replication="replication",
+    )
+    serialized_config = conf.serialize()
+    print(serialized_config)
+    assert json.loads(serialized_config) == expected_config
+
+
+def test_dynamodb():
+    expected_config = connection_configs["DynamodbConfig"]
+    conf = DynamodbConfig(
+        region="region",
+        access_key="access_key",
+        secret_key="secret_key",
+    )
+    serialized_config = conf.serialize()
+    print(serialized_config)
+    assert json.loads(serialized_config) == expected_config
+
+
+def test_mongodb():
+    expected_config = connection_configs["MongoDBConfig"]
+    conf = MongoDBConfig(
+        username="username",
+        password="password",
+        host="host",
+        port="port",
+        database="database",
+        throughput=1,
+    )
+    serialized_config = conf.serialize()
+    print(serialized_config)
+    assert json.loads(serialized_config) == expected_config
+
+
+def test_snowflake():
+    expected_config = connection_configs["SnowflakeConfig"]
+    conf = SnowflakeConfig(
+        username="username",
+        password="password",
+        schema="schema",
+        account="account",
+        organization="organization",
+        warehouse="warehouse",
+        role="role",
+    )
+    serialized_config = conf.serialize()
+    print(serialized_config)
     assert json.loads(serialized_config) == expected_config
 
 

@@ -1,10 +1,10 @@
 {
   "BigQuery": {
-      "ProjectID": "some-project-id",
-      "DatasetID": "some-dataset-id",
-      "Credentials": {
-        "Project": "some-project-id",
-        "SecretKey": "my-secret-key"
+    "ProjectID": "some-project-id",
+    "DatasetID": "some-dataset-id",
+    "Credentials": {
+      "Project": "some-project-id",
+      "SecretKey": "my-secret-key"
     }
   },
   "Firestore": {
@@ -14,5 +14,38 @@
       "Project": "some-project-id",
       "SecretKey": "my-secret-key"
     }
+  },
+  "RedisConfig": { "Addr": "host:port", "Password": "password", "DB": 1 },
+  "PineconeConfig": {
+    "ProjectID": 1,
+    "Environment": "local",
+    "ApiKey": "api_key"
+  },
+  "WeaviateConfig": { "URL": "url", "ApiKey": "api_key" },
+  "GCSFileStoreConfig": {
+    "BucketName": "bucket_name",
+    "BucketPath": "bucket_path",
+    "Credentials": {
+      "ProjectId": "id",
+      "JSON": { "username": "username", "password:": "password" }
+    }
+  },
+  "AzureFileStoreConfig": {
+    "AccountName": "name",
+    "AccountKey": "key",
+    "ContainerName": "name",
+    "Path": "/path"
+  },
+  "S3StoreConfig": {
+    "Credentials": { "AWSAccessKeyId": "id", "AWSSecretKey": "key" },
+    "BucketRegion": "bucket_region",
+    "BucketPath": "bucket_path",
+    "Path": ""
+  },
+  "HDFSConfig": {
+    "Host": "host",
+    "Port": "port",
+    "Path": "/path",
+    "Username": "username"
   }
 }

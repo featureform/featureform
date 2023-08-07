@@ -533,6 +533,7 @@ func (store *genericFileStore) Read(key string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("Read (%d) bytes of object with key (%s)\n", len(data), key)
 	return data, nil
 }
 

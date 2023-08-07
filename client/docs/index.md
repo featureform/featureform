@@ -15,4 +15,3 @@ If you've read the documentation and still have questions, checkout our [main do
 
 You can also join our community on [Slack](https://join.slack.com/t/featureform-community/shared_invite/zt-xhqp2m4i-JOCaN1vRN2NDXSVif10aQg)
 and [GitHub](https://github.com/featureform/featureform)!
-

@@ -15,8 +15,23 @@ theme:
 extra_css:
   - stylesheets/extra.css
 
+nav:
+  - Home: index.md
+  - Register:
+    - Providers: providers.md
+    - Sources: sources.md
+    - Features: features.md
+    - Training Sets: training_sets.md
+  - Apply:
+      - Client: client.md
+      - CLI: cli.md
+  - Serve: serve.md
+  - Get: get.md
+  - Deployment Feature Compatibility: compatibility.md
+
 plugins:
 - search
+- section-index
 - mkdocstrings:
     handlers:
         python:
@@ -24,8 +39,8 @@ plugins:
 - gen-files:
     scripts:
     - gen_pages.py
-- literate-nav:
-      nav_file: index.md
+#- literate-nav:
+#      nav_file: index.md
 markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true

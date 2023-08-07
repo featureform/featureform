@@ -1,8 +1,6 @@
-# Registration
-
-## Providers
+# Providers
 ### Azure Blob Store
-::: featureform.register.Registrar.register_blob_store 
+::: featureform.register.Registrar.register_blob_store
     handler: python
     options:
         show_root_heading: false
@@ -46,6 +44,13 @@
 
 ### HDFS
 ::: featureform.register.Registrar.register_hdfs
+    handler: python
+    options:
+        show_root_heading: false
+        show_root_toc_entry: false
+
+### Kubernetes Pandas Runner
+::: featureform.register.Registrar.register_k8s
     handler: python
     options:
         show_root_heading: false
@@ -121,28 +126,3 @@
     options:
         show_root_heading: false
         show_root_toc_entry: false
-
-## Primary Sources
-
-## Transformations
-
-
-::: featureform.register.ResourceClient
-    handler: python
-    options:
-      show_root_heading: true
-
-::: featureform.register.Registrar
-    handler: python
-    options:
-        show_root_heading: true
-
-::: featureform.register.OfflineSQLProvider
-    handler: python
-    options:
-        show_root_heading: true
-
-::: featureform.register.ColumnSourceRegistrar
-    handler: python
-    options:
-        show_root_heading: true

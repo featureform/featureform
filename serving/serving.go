@@ -159,7 +159,7 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	}
 	// TODO: Determine if we want to add a backoff here to wait for the source
 	if sv.Status() != metadata.READY {
-		return nil, fmt.Errorf("source variant is not ready")
+		return nil, fmt.Errorf("source variant is not ready; current status is %v", sv.Status())
 	}
 	providerEntry, err := sv.FetchProvider(serv.Metadata, ctx)
 	serv.Logger.Debugw("Fetched Source Variant Provider", "name", providerEntry.Name(), "type", providerEntry.Type())

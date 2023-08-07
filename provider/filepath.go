@@ -146,7 +146,7 @@ func (azure *AzureFilepath) FullPathWithBucket() string {
 func (azure *AzureFilepath) ParseFullPath(fullPath string) error {
 	abfssRegex := regexp.MustCompile(`abfss://(.+?)@(.+?)\.dfs.core.windows.net/(.+)`)
 	if matches := abfssRegex.FindStringSubmatch(fullPath); len(matches) != 4 {
-		return fmt.Errorf("could not parse full path '%s'", fullPath)
+		return fmt.Errorf("could not parse full path '%s'; expected format abfss://<container/bucket>@<storage_account>.dfs.core.windows.net/path", fullPath)
 	} else {
 		azure.filePath.bucket = matches[1]
 		azure.storageAccount = matches[2]

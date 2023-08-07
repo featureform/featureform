@@ -1,7 +1,5 @@
 import json
 import sys
-import pytest
-import os
 
 sys.path.insert(0, "client/src/")
 from featureform.resources import (
@@ -21,25 +19,13 @@ from featureform.resources import (
     DynamodbConfig,
     MongoDBConfig,
     SnowflakeConfig,
+    PostgresConfig,
+    SparkConfig,
+    K8sConfig,
 )
 
 connection_configs = json.load(open("provider/connection/connection_configs.json"))
 mock_credentials = json.load(open("provider/connection/mock_credentials.json"))
-
-# get rid of this line:
-# expected_config = connection_configs["WeaviateConfig"]
-# test each of the connections is there, etc. scrape/store the config classes somehow?
-
-
-def test_bigquery():
-    expected_config = connection_configs["BigQuery"]
-    conf = BigQueryConfig(
-        project_id=expected_config["ProjectID"],
-        dataset_id=expected_config["DatasetID"],
-        credentials_path="provider/connection/gcp_test_credentials.json",
-    )
-    serialized_config = conf.serialize()
-    assert json.loads(serialized_config) == expected_config
 
 
 def test_redis():
@@ -58,7 +44,6 @@ def test_pinecone():
     expected_config = connection_configs["PineconeConfig"]
     conf = PineconeConfig(project_id=1, environment="local", api_key="api_key")
     serialized_config = conf.serialize()
-    print(serialized_config)
     assert json.loads(serialized_config) == expected_config
 
 
@@ -80,7 +65,6 @@ def test_gcsfilestore():
         bucket_path="bucket_path",
     )
     serialized_config = conf.serialize()
-    print(serialized_config)
     assert json.loads(serialized_config) == expected_config
 
 
@@ -90,7 +74,6 @@ def test_azurefilestore():
         account_name="name", account_key="key", container_name="name", root_path="/path"
     )
     serialized_config = conf.serialize()
-    print(serialized_config)
     assert json.loads(serialized_config) == expected_config
 
 
@@ -102,7 +85,6 @@ def test_s3store():
         credentials=AWSCredentials(aws_access_key_id="id", aws_secret_access_key="key"),
     )
     serialized_config = conf.serialize()
-    print(serialized_config)
     assert json.loads(serialized_config) == expected_config
 
 
@@ -110,7 +92,6 @@ def test_hdfs():
     expected_config = connection_configs["HDFSConfig"]
     conf = HDFSConfig(host="host", port="port", path="/path", username="username")
     serialized_config = conf.serialize()
-    print(serialized_config)
     assert json.loads(serialized_config) == expected_config
 
 
@@ -118,7 +99,6 @@ def test_hdfs():
     expected_config = connection_configs["HDFSConfig"]
     conf = HDFSConfig(host="host", port="port", path="/path", username="username")
     serialized_config = conf.serialize()
-    print(serialized_config)
     assert json.loads(serialized_config) == expected_config
 
 
@@ -126,7 +106,6 @@ def test_onlineblob():
     expected_config = connection_configs["OnlineBlobConfig"]
     conf = OnlineBlobConfig(store_type="store_type", store_config=dict())
     serialized_config = conf.serialize()
-    print(serialized_config)
     assert json.loads(serialized_config) == expected_config
 
 
@@ -153,7 +132,6 @@ def test_cassandra():
         replication="replication",
     )
     serialized_config = conf.serialize()
-    print(serialized_config)
     assert json.loads(serialized_config) == expected_config
 
 
@@ -165,7 +143,6 @@ def test_dynamodb():
         secret_key="secret_key",
     )
     serialized_config = conf.serialize()
-    print(serialized_config)
     assert json.loads(serialized_config) == expected_config
 
 
@@ -180,7 +157,6 @@ def test_mongodb():
         throughput=1,
     )
     serialized_config = conf.serialize()
-    print(serialized_config)
     assert json.loads(serialized_config) == expected_config
 
 
@@ -196,15 +172,51 @@ def test_snowflake():
         role="role",
     )
     serialized_config = conf.serialize()
-    print(serialized_config)
     assert json.loads(serialized_config) == expected_config
 
 
-"""
-    def test_():
-    expected_config = connection_configs["_Config"]
-    conf = _Config(project_id=1, environment="local", api_key="api_key")
+def test_postgres():
+    expected_config = connection_configs["PostgresConfig"]
+    conf = PostgresConfig(
+        host="host",
+        port="port",
+        database="database",
+        user="username",
+        password="password",
+    )
     serialized_config = conf.serialize()
-    print(serialized_config)
     assert json.loads(serialized_config) == expected_config
-"""
+
+
+def test_bigquery():
+    expected_config = connection_configs["BigQuery"]
+    conf = BigQueryConfig(
+        project_id=expected_config["ProjectID"],
+        dataset_id=expected_config["DatasetID"],
+        credentials_path="provider/connection/gcp_test_credentials.json",
+    )
+    serialized_config = conf.serialize()
+    assert json.loads(serialized_config) == expected_config
+
+
+def test_spark():
+    expected_config = connection_configs["SparkConfig"]
+    conf = SparkConfig(
+        executor_type="executor_type",
+        executor_config="executor_config",
+        store_type="store_type",
+        store_config="store_config",
+    )
+    serialized_config = conf.serialize()
+    assert json.loads(serialized_config) == expected_config
+
+
+def test_k8sconfig():
+    expected_config = connection_configs["K8sConfig"]
+    conf = K8sConfig(
+        store_type="store_type",
+        store_config="store_config",
+        docker_image="docker_image",
+    )
+    serialized_config = conf.serialize()
+    assert json.loads(serialized_config) == expected_config

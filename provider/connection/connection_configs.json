@@ -1,20 +1,4 @@
 {
-  "BigQuery": {
-    "ProjectID": "some-project-id",
-    "DatasetID": "some-dataset-id",
-    "Credentials": {
-      "Project": "some-project-id",
-      "SecretKey": "my-secret-key"
-    }
-  },
-  "Firestore": {
-    "ProjectID": "some-project-id",
-    "Collection": "some-collection-id",
-    "Credentials": {
-      "Project": "some-project-id",
-      "SecretKey": "my-secret-key"
-    }
-  },
   "RedisConfig": { "Addr": "host:port", "Password": "password", "DB": 1 },
   "PineconeConfig": {
     "ProjectID": 1,
@@ -49,6 +33,14 @@
     "Username": "username"
   },
   "OnlineBlobConfig": { "Type": "store_type", "Config": {} },
+  "Firestore": {
+    "ProjectID": "some-project-id",
+    "Collection": "some-collection-id",
+    "Credentials": {
+      "Project": "some-project-id",
+      "SecretKey": "my-secret-key"
+    }
+  },
   "CassandraConfig": {
     "Keyspace": "keyspace",
     "Addr": "host:port",
@@ -80,5 +72,34 @@
     "Database": "",
     "Warehouse": "warehouse",
     "Role": "role"
-  }
+  },
+  "PostgresConfig": {
+    "Host": "host",
+    "Port": "port",
+    "Username": "username",
+    "Password": "password",
+    "Database": "database"
+  },
+  "BigQuery": {
+    "ProjectID": "some-project-id",
+    "DatasetID": "some-dataset-id",
+    "Credentials": {
+      "Project": "some-project-id",
+      "SecretKey": "my-secret-key"
+    }
+  },
+  "SparkConfig": {
+    "ExecutorType": "executor_type",
+    "StoreType": "store_type",
+    "ExecutorConfig": "executor_config",
+    "StoreConfig": "store_config"
+  },
+  "K8sConfig": {
+    "ExecutorType": "K8S",
+    "ExecutorConfig": { "docker_image": "docker_image" },
+    "StoreType": "store_type",
+    "StoreConfig": "store_config"
+  },
+  "EmptyConfig": {},
+  "LocalConfig": {}
 }

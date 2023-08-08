@@ -108,5 +108,6 @@
     "StoreConfig": "store_config"
   },
   "EmptyConfig": {},
-  "LocalConfig": {}
+  "LocalConfig": {},
+  "MemoryConfig": {}
 }

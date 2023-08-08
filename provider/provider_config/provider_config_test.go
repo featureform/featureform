@@ -65,14 +65,10 @@ func TestRedis(t *testing.T) {
 	}
 
 	config := jsonDict["RedisConfig"].(map[string]interface{})
-	addr := config["Addr"].(string)
-	password := config["Password"].(string)
-	db := int(config["DB"].(float64))
-
 	instance := RedisConfig{
-		Addr:     addr,
-		Password: password,
-		DB:       db,
+		Addr:     config["Addr"].(string),
+		Password: config["Password"].(string),
+		DB:       int(config["DB"].(float64)),
 	}
 
 	assert.NotNil(t, instance)
@@ -92,14 +88,36 @@ func TestPinecone(t *testing.T) {
 	}
 
 	config := jsonDict["PineconeConfig"].(map[string]interface{})
-	projectId := strconv.FormatFloat(config["ProjectID"].(float64), 'f', -1, 64)
-	env := config["Environment"].(string)
-	apiKey := config["ApiKey"].(string)
-
 	instance := PineconeConfig{
-		ProjectID:   projectId,
-		Environment: env,
-		ApiKey:      apiKey,
+		ProjectID:   strconv.FormatFloat(config["ProjectID"].(float64), 'f', -1, 64),
+		Environment: config["Environment"].(string),
+		ApiKey:      config["ApiKey"].(string),
+	}
+
+	assert.NotNil(t, instance)
+}
+
+func TestCassandra(t *testing.T) {
+	connectionConfigs, err := getConnectionConfigs()
+	if err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	var jsonDict map[string]interface{}
+	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	config := jsonDict["CassandraConfig"].(map[string]interface{})
+	instance := CassandraConfig{
+		Keyspace:    config["Keyspace"].(string),
+		Addr:        config["Addr"].(string),
+		Username:    config["Username"].(string),
+		Password:    config["Password"].(string),
+		Consistency: config["Consistency"].(string),
+		Replication: int(config["Replication"].(float64)),
 	}
 
 	assert.NotNil(t, instance)

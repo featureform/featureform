@@ -47,7 +47,7 @@
     "Username": "username",
     "Password": "password",
     "Consistency": "consistency",
-    "Replication": "replication"
+    "Replication": 1
   },
   "DynamodbConfig": {
     "Region": "region",

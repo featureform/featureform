@@ -145,7 +145,7 @@ def test_cassandra():
         username="username",
         password="password",
         consistency="consistency",
-        replication="replication",
+        replication=1,
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config

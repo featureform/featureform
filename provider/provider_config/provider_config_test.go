@@ -78,7 +78,7 @@ func TestRedis(t *testing.T) {
 	assert.NotNil(t, instance)
 }
 
-func TestGCS(t *testing.T) {
+func TestPinecone(t *testing.T) {
 	connectionConfigs, err := getConnectionConfigs()
 	if err != nil {
 		println(err)

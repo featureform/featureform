@@ -22,10 +22,26 @@ from featureform.resources import (
     PostgresConfig,
     SparkConfig,
     K8sConfig,
+    RedshiftConfig,
 )
+import featureform.resources as class_list
+import inspect
 
 connection_configs = json.load(open("provider/connection/connection_configs.json"))
 mock_credentials = json.load(open("provider/connection/mock_credentials.json"))
+
+
+def test_config_list():
+    """assert that each config is present, if this test fails
+    you likely forgot to add a test and associated config schema in connection_configs.json
+    """
+    config_list = [
+        x
+        for x in dir(class_list)
+        if inspect.isclass(getattr(class_list, x)) and x.endswith("Config")
+    ]
+    for config_class in config_list:
+        assert config_class in connection_configs
 
 
 def test_redis():
@@ -110,7 +126,7 @@ def test_onlineblob():
 
 
 def test_firestore():
-    expected_config = connection_configs["Firestore"]
+    expected_config = connection_configs["FirestoreConfig"]
     conf = FirestoreConfig(
         project_id="some-project-id",
         collection="some-collection-id",
@@ -188,8 +204,21 @@ def test_postgres():
     assert json.loads(serialized_config) == expected_config
 
 
+def test_redshift():
+    expected_config = connection_configs["RedshiftConfig"]
+    conf = RedshiftConfig(
+        host="host",
+        port="port",
+        database="database",
+        user="username",
+        password="password",
+    )
+    serialized_config = conf.serialize()
+    assert json.loads(serialized_config) == expected_config
+
+
 def test_bigquery():
-    expected_config = connection_configs["BigQuery"]
+    expected_config = connection_configs["BigQueryConfig"]
     conf = BigQueryConfig(
         project_id=expected_config["ProjectID"],
         dataset_id=expected_config["DatasetID"],

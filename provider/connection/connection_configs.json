@@ -33,7 +33,7 @@
     "Username": "username"
   },
   "OnlineBlobConfig": { "Type": "store_type", "Config": {} },
-  "Firestore": {
+  "FirestoreConfig": {
     "ProjectID": "some-project-id",
     "Collection": "some-collection-id",
     "Credentials": {
@@ -80,7 +80,14 @@
     "Password": "password",
     "Database": "database"
   },
-  "BigQuery": {
+  "RedshiftConfig": {
+    "Host": "host",
+    "Port": "port",
+    "Username": "username",
+    "Password": "password",
+    "Database": "database"
+  },
+  "BigQueryConfig": {
     "ProjectID": "some-project-id",
     "DatasetID": "some-dataset-id",
     "Credentials": {

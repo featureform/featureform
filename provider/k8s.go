@@ -508,7 +508,7 @@ func (store *genericFileStore) Write(key string, data []byte) error {
 	err = re.Do(
 		func() error {
 			blob, errRetr := store.bucket.ReadAll(ctx, key)
-			fmt.Printf("Read data (%s) from bucket (%s) after write\n", string(data), key)
+			fmt.Printf("Read (%d) bytes from bucket (%s) after write\n", len(data), key)
 			if errRetr != nil {
 				return re.Unrecoverable(errRetr)
 			} else if !bytes.Equal(blob, data) {
@@ -1364,7 +1364,6 @@ func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (Transformatio
 		k8s.logger.Errorw("Could not create empty filepath", "error", err, "storeType", k8s.store.FilestoreType(), "transformationPath", transformationPath)
 		return nil, err
 	}
-	filePath.ParseFullPath(transformationPath)
 	return &FileStorePrimaryTable{k8s.store, filePath, true, id}, nil
 }
 

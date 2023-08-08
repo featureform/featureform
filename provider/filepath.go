@@ -26,6 +26,7 @@ type Filepath interface {
 	ParseFullPath(path string) error
 }
 
+// TODO: Add support for additional params, such as service account (Azure Blob Storage)
 func NewFilepath(storeType pc.FileStoreType, bucket string, prefix string, path string) (Filepath, error) {
 	switch storeType {
 	case S3:
@@ -41,7 +42,7 @@ func NewFilepath(storeType pc.FileStoreType, bucket string, prefix string, path 
 			filePath: filePath{
 				bucket: strings.Trim(bucket, "/"),
 				prefix: strings.Trim(prefix, "/"),
-				path:   strings.TrimPrefix(path, "/"),
+				path:   strings.Trim(path, "/"),
 			},
 		}, nil
 	default:
@@ -148,9 +149,9 @@ func (azure *AzureFilepath) ParseFullPath(fullPath string) error {
 	if matches := abfssRegex.FindStringSubmatch(fullPath); len(matches) != 4 {
 		return fmt.Errorf("could not parse full path '%s'; expected format abfss://<container/bucket>@<storage_account>.dfs.core.windows.net/path", fullPath)
 	} else {
-		azure.filePath.bucket = matches[1]
-		azure.storageAccount = matches[2]
-		azure.filePath.path = matches[3]
+		azure.filePath.bucket = strings.Trim(matches[1], "/")
+		azure.storageAccount = strings.Trim(matches[2], "/")
+		azure.filePath.path = strings.Trim(matches[3], "/")
 	}
 	return nil
 }

@@ -1461,13 +1461,15 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 }
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), false)
+	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), true)
 	spark.Logger.Debugw("Retrieved transformation source", "ResourceID", id, "transformationPath", transformationPath)
-	// Unlike a primary source, which comes across with the fully specified storage URI, transformations are relative paths
-	// stored in the feature/ dir
-	filePath, err := NewFilepath(spark.Store.FilestoreType(), "", "", transformationPath)
+	filePath, err := NewEmptyFilepath(spark.Store.FilestoreType())
 	if err != nil {
 		return nil, fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), transformationPath)
+	}
+	err = filePath.ParseFullPath(transformationPath)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), transformationPath)
 	}
 	spark.Logger.Debugw("Retrieved transformation source", "id", id, "filePath", filePath)
 	return &FileStorePrimaryTable{spark.Store, filePath, true, id}, nil
@@ -1525,9 +1527,19 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		return nil, fmt.Errorf("materialization already exists")
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-
-	latestSourcePath, err := spark.Store.NewestFileOfType(sparkResourceTable.schema.SourceTable, Parquet)
+	filepath, err := NewEmptyFilepath(spark.Store.FilestoreType())
+	if err != nil {
+		return nil, fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)
+	}
+	err = filepath.ParseFullPath(sparkResourceTable.schema.SourceTable)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse full path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)
+	}
+	spark.Logger.Debugw("Parsed source table path:", "sourceTablePath", filepath.Path())
+	latestSourcePath, err := spark.Store.NewestFileOfType(filepath.Path(), Parquet)
+	spark.Logger.Debugw("Fetched newest file of type", "latestSourcePath", latestSourcePath, "fileType", Parquet)
 	sourcePath := spark.Store.PathWithPrefix(latestSourcePath, true)
+	spark.Logger.Debugw("Constructed source path for Spark job", "sourcePath", sourcePath)
 	if err != nil {
 		return nil, fmt.Errorf("could not get latest source file: %v", err)
 	}

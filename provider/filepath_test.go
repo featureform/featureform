@@ -314,8 +314,10 @@ func TestNewFilepathAndParseFullPath(t *testing.T) {
 			t.Fatalf("NewFilepath failed: %s", err)
 		}
 		b := &AzureFilepath{}
-		b.ParseFullPath(test.FullPath)
-
+		err = b.ParseFullPath(test.FullPath)
+		if err != nil {
+			t.Fatalf("ParseFullPath failed: %s", err)
+		}
 		if a.FullPathWithoutBucket() != b.FullPathWithoutBucket() {
 			t.Fatalf("FullPathWithoutBucket failed; expected '%s' and '%s' to be equal", a.FullPathWithoutBucket(), b.FullPathWithoutBucket())
 		}

@@ -1004,7 +1004,7 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 		// but there is an additional directory that's named using a timestamp that contains the transformation file
 		// we need to access. NewestFileOfType will recursively search for the newest file of the given type (i.e.
 		// parquet) given a path (i.e. `key`).
-		filename, err := tbl.store.NewestFileOfType(key, Parquet) // TODO: determine if we can actually assume Parquet here
+		filename, err := tbl.store.NewestFileOfType(key, Parquet)
 		if err != nil {
 			return nil, fmt.Errorf("could not find newest file of type %s: %w", Parquet, err)
 		}
@@ -1111,7 +1111,11 @@ func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLo
 		logger.Errorw("Could not create empty filepath", "error", err, "storeType", store.FilestoreType(), "sourcePath", sourcePath)
 		return nil, err
 	}
-	filePath.ParseFullPath(sourcePath)
+	err = filePath.ParseFullPath(sourcePath)
+	if err != nil {
+		logger.Errorw("Could not parse full path", "error", err, "sourcePath", sourcePath)
+		return nil, err
+	}
 	logger.Debugw("Successfully registered primary table", "id", id, "source", sourcePath)
 	return &FileStorePrimaryTable{store, filePath, false, id}, nil
 }
@@ -1357,9 +1361,18 @@ func (k8s *K8sOfflineStore) getResourceInformationFromFilePath(path string) (str
 }
 
 func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	transformationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(id), false)
+	transformationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(id), true)
 	k8s.logger.Debugw("Retrieved transformation source", "ResourceId", id, "transformationPath", transformationPath)
-	filePath, err := NewFilepath(k8s.store.FilestoreType(), "", "", transformationPath)
+	filePath, err := NewEmptyFilepath(k8s.store.FilestoreType())
+	if err != nil {
+		k8s.logger.Errorw("Could not create empty filepath", "error", err, "storeType", k8s.store.FilestoreType(), "transformationPath", transformationPath)
+		return nil, err
+	}
+	err = filePath.ParseFullPath(transformationPath)
+	if err != nil {
+		k8s.logger.Errorw("Could not parse full path", "error", err, "transformationPath", transformationPath)
+		return nil, err
+	}
 	if err != nil {
 		k8s.logger.Errorw("Could not create empty filepath", "error", err, "storeType", k8s.store.FilestoreType(), "transformationPath", transformationPath)
 		return nil, err
@@ -1391,7 +1404,11 @@ func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogg
 		logger.Errorw("Could not create empty filepath", "error", err, "storeType", store.FilestoreType(), "resourceKey", resourceKey)
 		return nil, err
 	}
-	filePath.ParseFullPath(string(table))
+	err = filePath.ParseFullPath(string(table))
+	if err != nil {
+		logger.Errorw("Could not parse full path", "error", err, "table", string(table))
+		return nil, err
+	}
 	logger.Debugw("Successfully retrieved primary table", "id", id)
 	return &FileStorePrimaryTable{store, filePath, false, id}, nil
 }

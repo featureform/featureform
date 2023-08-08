@@ -24,7 +24,7 @@ from featureform.resources import (
     K8sConfig,
     RedshiftConfig,
 )
-import featureform.resources as class_list
+import featureform.resources as resources
 import inspect
 
 connection_configs = json.load(open("provider/connection/connection_configs.json"))
@@ -37,8 +37,8 @@ def test_config_list():
     """
     config_list = [
         x
-        for x in dir(class_list)
-        if inspect.isclass(getattr(class_list, x)) and x.endswith("Config")
+        for x in dir(resources)
+        if inspect.isclass(getattr(resources, x)) and x.endswith("Config")
     ]
     for config_class in config_list:
         assert config_class in connection_configs

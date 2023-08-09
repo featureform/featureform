@@ -1518,8 +1518,10 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		return nil, fmt.Errorf("materialization already exists")
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-
-	latestSourcePath, err := spark.Store.NewestFileOfType(sparkResourceTable.schema.SourceTable, Parquet)
+	sourceTable := sparkResourceTable.schema.SourceTable
+	fileType := GetFileType(sourceTable)
+	spark.Logger.Debugw("Getting latest source file", "sourceTable", sourceTable, "fileType", fileType)
+	latestSourcePath, err := spark.Store.NewestFileOfType(sourceTable, fileType)
 	sourcePath := spark.Store.PathWithPrefix(latestSourcePath, true)
 	if err != nil {
 		return nil, fmt.Errorf("could not get latest source file: %v", err)
@@ -1595,7 +1597,9 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Could not get schema of label in spark store", "label", def.Label, "error", err)
 		return fmt.Errorf("could not get schema of label %s: %v", def.Label, err)
 	}
-	latestLabelPath, err := spark.Store.NewestFileOfType(labelSchema.SourceTable, Parquet)
+	labelSource := labelSchema.SourceTable
+	labelFileType := GetFileType(labelSource)
+	latestLabelPath, err := spark.Store.NewestFileOfType(labelSource, labelFileType)
 	if err != nil {
 		spark.Logger.Errorw("Could not get latest label file", "label", def.Label, "error", err)
 		return fmt.Errorf("could not get latest label file: %v", err)
@@ -1608,7 +1612,11 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 			spark.Logger.Errorw("Could not get schema of feature in spark store", "feature", feature, "error", err)
 			return fmt.Errorf("could not get schema of feature %s: %v", feature, err)
 		}
-		latestFeaturePath, err := spark.Store.NewestFileOfType(featureSchema.SourceTable, Parquet)
+		featureSource := featureSchema.SourceTable
+		featureFileType := GetFileType(featureSource)
+		spark.Logger.Debugw("Feature source", "source", featureSource, "fileType", featureFileType)
+		latestFeaturePath, err := spark.Store.NewestFileOfType(featureSource, featureFileType)
+		spark.Logger.Debugw("Latest feature path", "path", latestFeaturePath)
 		if err != nil {
 			spark.Logger.Errorw("Could not get latest feature file", "feature", feature, "error", err)
 			return fmt.Errorf("could not get latest feature file: %v", err)

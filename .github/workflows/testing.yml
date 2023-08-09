@@ -1,5 +1,10 @@
 name: Testing
-on: [pull_request]
+on:
+  pull_request:
+    - types: opened
+  push:
+    branches:
+      - main
 concurrency:
   group: ${{ github.head_ref }}-testing
   cancel-in-progress: true
@@ -981,6 +986,7 @@ jobs:
     name: Test Localmode
     needs: setup
     runs-on: ${{ matrix.os }}
+    if: github.ref != 'refs/heads/main'
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest] #osx-arm64 currently not working. Ticket made with github

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
 	"testing"
 
 	pt "github.com/featureform/provider/provider_type"
@@ -218,7 +217,7 @@ func TestPinecone(t *testing.T) {
 
 	config := jsonDict["PineconeConfig"].(map[string]interface{})
 	instance := PineconeConfig{
-		ProjectID:   strconv.FormatFloat(config["ProjectID"].(float64), 'f', -1, 64),
+		ProjectID:   config["ProjectID"].(string),
 		Environment: config["Environment"].(string),
 		ApiKey:      config["ApiKey"].(string),
 	}

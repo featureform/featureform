@@ -1,6 +1,8 @@
 import json
 import sys
 
+import pytest
+
 sys.path.insert(0, "client/src/")
 from featureform.resources import (
     BigQueryConfig,
@@ -120,7 +122,13 @@ def test_hdfs():
 
 def test_onlineblob():
     expected_config = connection_configs["OnlineBlobConfig"]
-    conf = OnlineBlobConfig(store_type="store_type", store_config=dict())
+    config = {
+        "AccountName": "name",
+        "AccountKey": "key",
+        "ContainerName": "name",
+        "Path": "/path",
+    }
+    conf = OnlineBlobConfig(store_type="LOCAL_FILESYSTEM", store_config=config)
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config
 
@@ -233,7 +241,7 @@ def test_spark():
     conf = SparkConfig(
         executor_type="executor_type",
         executor_config="executor_config",
-        store_type="store_type",
+        store_type="LOCAL_FILESYSTEM",
         store_config="store_config",
     )
     serialized_config = conf.serialize()

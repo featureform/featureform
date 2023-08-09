@@ -110,7 +110,7 @@
     "StoreConfig": "store_config"
   },
   "K8sConfig": {
-    "ExecutorType": "LOCAL_FILESYSTEM",
+    "ExecutorType": "K8S",
     "ExecutorConfig": { "docker_image": "docker_image" },
     "StoreType": "store_type",
     "StoreConfig": "store_config"

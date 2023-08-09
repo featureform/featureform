@@ -362,11 +362,10 @@ func TestBigQuery(t *testing.T) {
 	}
 
 	config := jsonDict["BigQueryConfig"].(map[string]interface{})
-	credentials := config["Credentials"].(map[string]interface{})
 	instance := BigQueryConfig{
 		ProjectId:   config["ProjectID"].(string),
 		DatasetId:   config["DatasetID"].(string),
-		Credentials: credentials,
+		Credentials: config["Credentials"].(map[string]interface{}),
 	}
 
 	assert.NotNil(t, instance)

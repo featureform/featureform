@@ -240,6 +240,13 @@ jobs:
           name: provider-online-coverage-reports
           path: ./coverage
 
+      - name: Install grpc_tools
+        run: pip install pinecone-cli
+
+      - name: Delete Pinecone Index
+        if: always()
+        run: pinecli list-indexes --apikey="${{ secrets.PINECONE_API_KEY }}" | while read -r index; do pinecli delete-index --apikey="${{ secrets.PINECONE_API_KEY }}" --disable-safety  $index ; done
+
   provider-offline:
     name: Offline Provider Testing
     timeout-minutes: 60

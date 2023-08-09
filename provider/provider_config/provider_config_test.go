@@ -280,4 +280,71 @@ func TestSnowflake(t *testing.T) {
 	assert.NotNil(t, instance)
 }
 
-// follow the order on provider_type.go!
+func TestRedshift(t *testing.T) {
+	connectionConfigs, err := getConnectionConfigs()
+	if err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	var jsonDict map[string]interface{}
+	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	config := jsonDict["RedshiftConfig"].(map[string]interface{})
+	instance := RedshiftConfig{
+		Endpoint: config["Host"].(string),
+		Port:     config["Port"].(string),
+		Username: config["Username"].(string),
+		Password: config["Password"].(string),
+		Database: config["Database"].(string),
+	}
+
+	assert.NotNil(t, instance)
+}
+
+type SparkDummy struct {
+}
+
+func (SparkDummy) Serialize() ([]byte, error) {
+	return []byte{}, nil
+}
+
+func (SparkDummy) Deserialize(config SerializedConfig) error {
+	return nil
+}
+
+func (SparkDummy) IsExecutorConfig() bool {
+	return true
+}
+
+func (SparkDummy) IsFileStoreConfig() bool {
+	return true
+}
+
+func TestSpark(t *testing.T) {
+	connectionConfigs, err := getConnectionConfigs()
+	if err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	var jsonDict map[string]interface{}
+	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	config := jsonDict["SparkConfig"].(map[string]interface{})
+	execType := config["ExecutorType"].(string)
+	instance := SparkConfig{
+		ExecutorType:   SparkExecutorType(execType),
+		ExecutorConfig: SparkDummy{},
+		StoreType:      FileStoreType(config["StoreType"].(string)),
+		StoreConfig:    SparkDummy{},
+	}
+
+	assert.NotNil(t, instance)
+}

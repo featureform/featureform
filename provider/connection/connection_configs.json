@@ -105,7 +105,7 @@
   },
   "SparkConfig": {
     "ExecutorType": "executor_type",
-    "StoreType": "store_type",
+    "StoreType": "LOCAL_FILESYSTEM",
     "ExecutorConfig": "executor_config",
     "StoreConfig": "store_config"
   },

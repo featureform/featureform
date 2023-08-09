@@ -414,9 +414,6 @@ func (store *genericFileStore) PathWithPrefix(path string, remote bool) string {
 	}
 }
 
-// TODO: add a comment that explains that this method will recursively search for the newest file of the
-// specific type given a path (i.e. `prefix`). Our code doesn't make this clear nor does the underlying
-// library code we're leveraging to read blobs.
 func (store *genericFileStore) NewestFileOfType(prefix string, fileType FileType) (string, error) {
 	opts := blob.ListOptions{
 		Prefix: prefix,
@@ -1004,7 +1001,11 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 		// but there is an additional directory that's named using a timestamp that contains the transformation file
 		// we need to access. NewestFileOfType will recursively search for the newest file of the given type (i.e.
 		// parquet) given a path (i.e. `key`).
-		filename, err := tbl.store.NewestFileOfType(key, Parquet)
+		fileExtension := keyParts[len(keyParts)-1]
+		if !IsValidFileType(fileExtension) {
+			return nil, fmt.Errorf("invalid file extension: %s", fileExtension)
+		}
+		filename, err := tbl.store.NewestFileOfType(key, GetFileType(fileExtension))
 		if err != nil {
 			return nil, fmt.Errorf("could not find newest file of type %s: %w", Parquet, err)
 		}

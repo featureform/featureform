@@ -32,7 +32,15 @@
     "Path": "/path",
     "Username": "username"
   },
-  "OnlineBlobConfig": { "Type": "store_type", "Config": {} },
+  "OnlineBlobConfig": {
+    "Type": "LOCAL_FILESYSTEM",
+    "Config": {
+      "AccountName": "name",
+      "AccountKey": "key",
+      "ContainerName": "name",
+      "Path": "/path"
+    }
+  },
   "FirestoreConfig": {
     "ProjectID": "some-project-id",
     "Collection": "some-collection-id",

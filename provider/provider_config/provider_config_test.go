@@ -122,3 +122,162 @@ func TestCassandra(t *testing.T) {
 
 	assert.NotNil(t, instance)
 }
+
+func TestFirestore(t *testing.T) {
+	connectionConfigs, err := getConnectionConfigs()
+	if err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	var jsonDict map[string]interface{}
+	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	config := jsonDict["FirestoreConfig"].(map[string]interface{})
+	credentials := config["Credentials"].(map[string]interface{})
+	instance := FirestoreConfig{
+		Collection:  config["Collection"].(string),
+		ProjectID:   config["ProjectID"].(string),
+		Credentials: credentials,
+	}
+
+	assert.NotNil(t, instance)
+}
+
+func TestDynamo(t *testing.T) {
+	connectionConfigs, err := getConnectionConfigs()
+	if err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	var jsonDict map[string]interface{}
+	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	config := jsonDict["DynamodbConfig"].(map[string]interface{})
+	instance := DynamodbConfig{
+		Region:    config["Region"].(string),
+		AccessKey: config["AccessKey"].(string),
+		SecretKey: config["SecretKey"].(string),
+	}
+
+	assert.NotNil(t, instance)
+}
+
+func TestBlob(t *testing.T) {
+	connectionConfigs, err := getConnectionConfigs()
+	if err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	var jsonDict map[string]interface{}
+	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	config := jsonDict["OnlineBlobConfig"].(map[string]interface{})
+	blobType := config["Type"].(string)
+	credentials := config["Config"].(map[string]interface{})
+	azureConfig := AzureFileStoreConfig{
+		AccountName:   credentials["AccountName"].(string),
+		AccountKey:    credentials["AccountKey"].(string),
+		ContainerName: credentials["ContainerName"].(string),
+		Path:          credentials["Path"].(string),
+	}
+	instance := OnlineBlobConfig{
+		Type:   FileStoreType(blobType),
+		Config: azureConfig,
+	}
+
+	assert.NotNil(t, instance)
+}
+
+func TestMongo(t *testing.T) {
+	connectionConfigs, err := getConnectionConfigs()
+	if err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	var jsonDict map[string]interface{}
+	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	config := jsonDict["MongoDBConfig"].(map[string]interface{})
+	instance := MongoDBConfig{
+		Username:   config["Username"].(string),
+		Password:   config["Password"].(string),
+		Host:       config["Host"].(string),
+		Port:       config["Port"].(string),
+		Database:   config["Database"].(string),
+		Throughput: int(config["Throughput"].(float64)),
+	}
+
+	assert.NotNil(t, instance)
+}
+
+func TestPostgres(t *testing.T) {
+	connectionConfigs, err := getConnectionConfigs()
+	if err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	var jsonDict map[string]interface{}
+	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	config := jsonDict["PostgresConfig"].(map[string]interface{})
+	instance := PostgresConfig{
+		Host:     config["Host"].(string),
+		Port:     config["Port"].(string),
+		Username: config["Username"].(string),
+		Password: config["Password"].(string),
+		Database: config["Database"].(string),
+	}
+
+	assert.NotNil(t, instance)
+}
+
+func TestSnowflake(t *testing.T) {
+	connectionConfigs, err := getConnectionConfigs()
+	if err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	var jsonDict map[string]interface{}
+	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	config := jsonDict["SnowflakeConfig"].(map[string]interface{})
+	instance := SnowflakeConfig{
+		Username:       config["Username"].(string),
+		Password:       config["Password"].(string),
+		Organization:   config["Organization"].(string),
+		AccountLocator: config["AccountLocator"].(string),
+		Account:        config["Account"].(string),
+		Schema:         config["Schema"].(string),
+		Database:       config["Database"].(string),
+		Warehouse:      config["Warehouse"].(string),
+		Role:           config["Role"].(string),
+	}
+
+	assert.NotNil(t, instance)
+}
+
+// follow the order on provider_type.go!

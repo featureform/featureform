@@ -60,6 +60,15 @@ func GetFileType(file string) FileType {
 	return Parquet
 }
 
+func IsValidFileType(file string) bool {
+	for _, fileType := range []FileType{Parquet, CSV, DB} {
+		if fileType.Matches(file) {
+			return true
+		}
+	}
+	return false
+}
+
 func GetFileExtension(file string) string {
 	ext := filepath.Ext(file)
 	return strings.ReplaceAll(ext, ".", "")
@@ -238,7 +247,6 @@ func NewS3FileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
-// TODO: Move this logic into Filepath interface
 func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
 	pathContainsS3Prefix := strings.HasPrefix(path, s3aPrefix)
 	pathContainsWorkingDirectory := s3.Path != "" && strings.HasPrefix(path, s3.Path)

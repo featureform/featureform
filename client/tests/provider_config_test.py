@@ -50,7 +50,7 @@ def test_redis():
     expected_config = connection_configs["RedisConfig"]
     conf = RedisConfig(
         host="host",
-        port="port",
+        port=1,
         password="password",
         db=1,
     )
@@ -60,7 +60,7 @@ def test_redis():
 
 def test_pinecone():
     expected_config = connection_configs["PineconeConfig"]
-    conf = PineconeConfig(project_id=1, environment="local", api_key="api_key")
+    conf = PineconeConfig(project_id="1", environment="local", api_key="api_key")
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config
 
@@ -240,9 +240,9 @@ def test_spark():
     expected_config = connection_configs["SparkConfig"]
     conf = SparkConfig(
         executor_type="executor_type",
-        executor_config="executor_config",
+        executor_config=dict(),
         store_type="LOCAL_FILESYSTEM",
-        store_config="store_config",
+        store_config=dict(),
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config
@@ -252,7 +252,7 @@ def test_k8sconfig():
     expected_config = connection_configs["K8sConfig"]
     conf = K8sConfig(
         store_type="store_type",
-        store_config="store_config",
+        store_config=dict(),
         docker_image="docker_image",
     )
     serialized_config = conf.serialize()

@@ -1,7 +1,7 @@
 {
-  "RedisConfig": { "Addr": "host:port", "Password": "password", "DB": 1 },
+  "RedisConfig": { "Addr": "host:1", "Password": "password", "DB": 1 },
   "PineconeConfig": {
-    "ProjectID": 1,
+    "ProjectID": "1",
     "Environment": "local",
     "ApiKey": "api_key"
   },
@@ -106,14 +106,14 @@
   "SparkConfig": {
     "ExecutorType": "executor_type",
     "StoreType": "LOCAL_FILESYSTEM",
-    "ExecutorConfig": "executor_config",
-    "StoreConfig": "store_config"
+    "ExecutorConfig": {},
+    "StoreConfig": {}
   },
   "K8sConfig": {
     "ExecutorType": "K8S",
     "ExecutorConfig": { "docker_image": "docker_image" },
     "StoreType": "store_type",
-    "StoreConfig": "store_config"
+    "StoreConfig": {}
   },
   "EmptyConfig": {},
   "LocalConfig": {},

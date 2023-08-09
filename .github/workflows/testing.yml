@@ -1,9 +1,9 @@
 name: Testing
 on:
-  - pull_request
-  - push:
-      branches:
-        - main
+  pull_request:
+  push:
+    branches:
+      - main
 concurrency:
   group: ${{ github.head_ref }}-testing
   cancel-in-progress: true

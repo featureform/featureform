@@ -74,29 +74,6 @@ func TestRedis(t *testing.T) {
 	assert.NotNil(t, instance)
 }
 
-func TestPinecone(t *testing.T) {
-	connectionConfigs, err := getConnectionConfigs()
-	if err != nil {
-		println(err)
-		t.FailNow()
-	}
-
-	var jsonDict map[string]interface{}
-	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
-		println(err)
-		t.FailNow()
-	}
-
-	config := jsonDict["PineconeConfig"].(map[string]interface{})
-	instance := PineconeConfig{
-		ProjectID:   strconv.FormatFloat(config["ProjectID"].(float64), 'f', -1, 64),
-		Environment: config["Environment"].(string),
-		ApiKey:      config["ApiKey"].(string),
-	}
-
-	assert.NotNil(t, instance)
-}
-
 func TestCassandra(t *testing.T) {
 	connectionConfigs, err := getConnectionConfigs()
 	if err != nil {
@@ -221,6 +198,29 @@ func TestMongo(t *testing.T) {
 		Port:       config["Port"].(string),
 		Database:   config["Database"].(string),
 		Throughput: int(config["Throughput"].(float64)),
+	}
+
+	assert.NotNil(t, instance)
+}
+
+func TestPinecone(t *testing.T) {
+	connectionConfigs, err := getConnectionConfigs()
+	if err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	var jsonDict map[string]interface{}
+	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	config := jsonDict["PineconeConfig"].(map[string]interface{})
+	instance := PineconeConfig{
+		ProjectID:   strconv.FormatFloat(config["ProjectID"].(float64), 'f', -1, 64),
+		Environment: config["Environment"].(string),
+		ApiKey:      config["ApiKey"].(string),
 	}
 
 	assert.NotNil(t, instance)
@@ -436,6 +436,82 @@ func TestS3(t *testing.T) {
 		BucketRegion: config["BucketRegion"].(string),
 		BucketPath:   config["BucketPath"].(string),
 		Path:         config["Path"].(string),
+	}
+
+	assert.NotNil(t, instance)
+}
+
+func TestGCS(t *testing.T) {
+	connectionConfigs, err := getConnectionConfigs()
+	if err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	var jsonDict map[string]interface{}
+	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	config := jsonDict["GCSFileStoreConfig"].(map[string]interface{})
+	credentials := config["Credentials"].(map[string]interface{})
+	gcpCredentials := GCPCredentials{
+		ProjectId: credentials["ProjectId"].(string),
+		JSON:      credentials["JSON"].(map[string]interface{}),
+	}
+	instance := GCSFileStoreConfig{
+		Credentials: gcpCredentials,
+		BucketName:  config["BucketName"].(string),
+		BucketPath:  config["BucketPath"].(string),
+	}
+
+	assert.NotNil(t, instance)
+}
+
+func TestHDFSConfig(t *testing.T) {
+	connectionConfigs, err := getConnectionConfigs()
+	if err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	var jsonDict map[string]interface{}
+	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	config := jsonDict["HDFSConfig"].(map[string]interface{})
+	instance := HDFSFileStoreConfig{
+		Host:     config["Host"].(string),
+		Port:     config["Port"].(string),
+		Path:     config["Path"].(string),
+		Username: config["Username"].(string),
+	}
+
+	assert.NotNil(t, instance)
+}
+
+func TestAzure(t *testing.T) {
+	connectionConfigs, err := getConnectionConfigs()
+	if err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	var jsonDict map[string]interface{}
+	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	config := jsonDict["AzureFileStoreConfig"].(map[string]interface{})
+	instance := AzureFileStoreConfig{
+		AccountName:   config["AccountName"].(string),
+		AccountKey:    config["AccountKey"].(string),
+		ContainerName: config["ContainerName"].(string),
+		Path:          config["Path"].(string),
 	}
 
 	assert.NotNil(t, instance)

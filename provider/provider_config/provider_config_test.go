@@ -348,3 +348,95 @@ func TestSpark(t *testing.T) {
 
 	assert.NotNil(t, instance)
 }
+
+func TestBigQuery(t *testing.T) {
+	connectionConfigs, err := getConnectionConfigs()
+	if err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	var jsonDict map[string]interface{}
+	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	config := jsonDict["BigQueryConfig"].(map[string]interface{})
+	credentials := config["Credentials"].(map[string]interface{})
+	instance := BigQueryConfig{
+		ProjectId:   config["ProjectID"].(string),
+		DatasetId:   config["DatasetID"].(string),
+		Credentials: credentials,
+	}
+
+	assert.NotNil(t, instance)
+}
+
+type K8sDummy struct {
+}
+
+func (K8sDummy) Serialize() ([]byte, error) {
+	return []byte{}, nil
+}
+
+func (K8sDummy) Deserialize(config SerializedConfig) error {
+	return nil
+}
+
+func (K8sDummy) IsFileStoreConfig() bool {
+	return true
+}
+
+func TestK8S(t *testing.T) {
+	connectionConfigs, err := getConnectionConfigs()
+	if err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	var jsonDict map[string]interface{}
+	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	config := jsonDict["K8sConfig"].(map[string]interface{})
+	instance := K8sConfig{
+		ExecutorType:   ExecutorType(config["ExecutorType"].(string)),
+		ExecutorConfig: K8sDummy{},
+		StoreType:      FileStoreType(config["StoreType"].(string)),
+		StoreConfig:    K8sDummy{},
+	}
+
+	assert.NotNil(t, instance)
+}
+
+func TestS3(t *testing.T) {
+	connectionConfigs, err := getConnectionConfigs()
+	if err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	var jsonDict map[string]interface{}
+	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	config := jsonDict["S3StoreConfig"].(map[string]interface{})
+	credendials := config["Credentials"].(map[string]interface{})
+	awsCreds := AWSCredentials{
+		AWSAccessKeyId: credendials["AWSAccessKeyId"].(string),
+		AWSSecretKey:   credendials["AWSSecretKey"].(string),
+	}
+	instance := S3FileStoreConfig{
+		Credentials:  awsCreds,
+		BucketRegion: config["BucketRegion"].(string),
+		BucketPath:   config["BucketPath"].(string),
+		Path:         config["Path"].(string),
+	}
+
+	assert.NotNil(t, instance)
+}

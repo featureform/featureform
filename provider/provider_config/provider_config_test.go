@@ -32,6 +32,11 @@ var providerMap = map[string]string{
 	"MEMORY_OFFLINE":    "MemoryConfig",
 }
 
+/*
+assert that each config is present, if this test fails
+you likely added a config, but forgot to add a test and associated config schema in connection_configs.json.
+The file is used in provider_config_test.(go|py), offline_test.go, and online_test.go.
+*/
 func TestAllProviderTypesHasMapEntry(t *testing.T) {
 	proList := pt.AllProviderTypes
 

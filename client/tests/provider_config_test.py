@@ -35,7 +35,8 @@ mock_credentials = json.load(open("provider/connection/mock_credentials.json"))
 
 def test_config_list():
     """assert that each config is present, if this test fails
-    you likely forgot to add a test and associated config schema in connection_configs.json
+    you likely added a config, but forgot to add a test and associated config schema in connection_configs.json.
+    The file is used in provider_config_test.(go|py), offline_test.go, and online_test.go.
     """
     config_list = [
         x

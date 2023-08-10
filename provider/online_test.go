@@ -418,7 +418,7 @@ func TestFirestoreConfig_Deserialize(t *testing.T) {
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
-	testConfig := payload["Firestore"].(map[string]interface{})
+	testConfig := payload["FirestoreConfig"].(map[string]interface{})
 
 	fsconfig := pc.FirestoreConfig{
 		ProjectID:   testConfig["ProjectID"].(string),

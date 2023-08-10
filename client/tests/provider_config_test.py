@@ -33,6 +33,7 @@ connection_configs = json.load(open("provider/connection/connection_configs.json
 mock_credentials = json.load(open("provider/connection/mock_credentials.json"))
 
 
+@pytest.mark.local
 def test_config_list():
     """assert that each config is present, if this test fails
     you likely added a config, but forgot to add a test and associated config schema in connection_configs.json.
@@ -47,6 +48,7 @@ def test_config_list():
         assert config_class in connection_configs
 
 
+@pytest.mark.local
 def test_redis():
     expected_config = connection_configs["RedisConfig"]
     conf = RedisConfig(
@@ -59,6 +61,7 @@ def test_redis():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_pinecone():
     expected_config = connection_configs["PineconeConfig"]
     conf = PineconeConfig(project_id="1", environment="local", api_key="api_key")
@@ -66,6 +69,7 @@ def test_pinecone():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_weaviate():
     expected_config = connection_configs["WeaviateConfig"]
     conf = WeaviateConfig(url="url", api_key="api_key")
@@ -73,6 +77,7 @@ def test_weaviate():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_gcsfilestore():
     expected_config = connection_configs["GCSFileStoreConfig"]
     conf = GCSFileStoreConfig(
@@ -87,6 +92,7 @@ def test_gcsfilestore():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_azurefilestore():
     expected_config = connection_configs["AzureFileStoreConfig"]
     conf = AzureFileStoreConfig(
@@ -96,6 +102,7 @@ def test_azurefilestore():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_s3store():
     expected_config = connection_configs["S3StoreConfig"]
     conf = S3StoreConfig(
@@ -107,6 +114,7 @@ def test_s3store():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_hdfs():
     expected_config = connection_configs["HDFSConfig"]
     conf = HDFSConfig(host="host", port="port", path="/path", username="username")
@@ -114,6 +122,7 @@ def test_hdfs():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_hdfs():
     expected_config = connection_configs["HDFSConfig"]
     conf = HDFSConfig(host="host", port="port", path="/path", username="username")
@@ -121,6 +130,7 @@ def test_hdfs():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_onlineblob():
     expected_config = connection_configs["OnlineBlobConfig"]
     config = {
@@ -134,6 +144,7 @@ def test_onlineblob():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_firestore():
     expected_config = connection_configs["FirestoreConfig"]
     conf = FirestoreConfig(
@@ -145,6 +156,7 @@ def test_firestore():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_cassandra():
     expected_config = connection_configs["CassandraConfig"]
     conf = CassandraConfig(
@@ -160,6 +172,7 @@ def test_cassandra():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_dynamodb():
     expected_config = connection_configs["DynamodbConfig"]
     conf = DynamodbConfig(
@@ -171,6 +184,7 @@ def test_dynamodb():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_mongodb():
     expected_config = connection_configs["MongoDBConfig"]
     conf = MongoDBConfig(
@@ -185,6 +199,7 @@ def test_mongodb():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_snowflake():
     expected_config = connection_configs["SnowflakeConfig"]
     conf = SnowflakeConfig(
@@ -200,6 +215,7 @@ def test_snowflake():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_postgres():
     expected_config = connection_configs["PostgresConfig"]
     conf = PostgresConfig(
@@ -213,6 +229,7 @@ def test_postgres():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_redshift():
     expected_config = connection_configs["RedshiftConfig"]
     conf = RedshiftConfig(
@@ -226,6 +243,7 @@ def test_redshift():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_bigquery():
     expected_config = connection_configs["BigQueryConfig"]
     conf = BigQueryConfig(
@@ -237,6 +255,7 @@ def test_bigquery():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_spark():
     expected_config = connection_configs["SparkConfig"]
     conf = SparkConfig(
@@ -249,6 +268,7 @@ def test_spark():
     assert json.loads(serialized_config) == expected_config
 
 
+@pytest.mark.local
 def test_k8sconfig():
     expected_config = connection_configs["K8sConfig"]
     conf = K8sConfig(

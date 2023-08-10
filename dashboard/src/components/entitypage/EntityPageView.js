@@ -705,12 +705,16 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                         name={row.name}
                         row={row}
                         setVariant={setVariant}
+                        pageSizeProp={5}
+                        emptyRowsProp={false}
                       />
                     );
                   }}
                   title={capitalize(resourceType)}
                   options={{
                     toolbar: false,
+                    pageSize: 5,
+                    emptyRowsWhenPaging: false,
                     headerStyle: {
                       backgroundColor: theme.palette.border.main,
                       marginLeft: 3,

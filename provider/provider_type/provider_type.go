@@ -29,6 +29,7 @@ const (
 	GCS              Type = "GCS"
 	HDFS             Type = "HDFS"
 	AZURE            Type = "AZURE"
+	UNIT_TEST        Type = "UNIT_TEST"
 )
 
 var AllProviderTypes = []Type{
@@ -51,4 +52,5 @@ var AllProviderTypes = []Type{
 	GCS,
 	HDFS,
 	AZURE,
+	UNIT_TEST,
 }

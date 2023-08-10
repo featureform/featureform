@@ -96,7 +96,7 @@ ENV SPARK_LOCAL_SCRIPT_PATH=$SPARK_FILEPATH
 ENV PYTHON_LOCAL_INIT_PATH=$SPARK_PYTHON_PACKAGES
 
 # Setup Etcd
-RUN git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
+RUN git clone -b v3.5.9 https://github.com/etcd-io/etcd.git
 WORKDIR /app/etcd
 RUN ./build
 WORKDIR /app

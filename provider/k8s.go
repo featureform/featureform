@@ -994,9 +994,11 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 	keyParts := strings.Split(key, ".")
 	// The length of keyParts is 1 if the key is a paht to a directory. This case is invalid
 	// in the case of a primary table; however, we expect this case in the case of a transformation.
-	if len(keyParts) == 1 && !tbl.isTransformation {
-		return nil, fmt.Errorf("expected a file but got a directory: %s", keyParts[0])
-	} else {
+	if len(keyParts) == 1 {
+		// The key should only be a directory in the case of transformations.
+		if !tbl.isTransformation {
+			return nil, fmt.Errorf("expected a file but got a directory: %s", keyParts[0])
+		}
 		// The file structure in cloud storage for transformations is /featureform/Transformation/<NAME>/<VARIANT>
 		// but there is an additional directory that's named using a timestamp that contains the transformation file
 		// we need to access. NewestFileOfType will recursively search for the newest file of the given type (i.e.
@@ -1009,6 +1011,7 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 		key = filename
 		keyParts = strings.Split(key, ".")
 	}
+	fmt.Printf("Reading file at key %s in file store type %s", key, tbl.store.FilestoreType())
 	b, err := tbl.store.Read(key)
 	if err != nil {
 		return nil, fmt.Errorf("could not read file: %w", err)

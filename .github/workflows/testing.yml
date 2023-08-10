@@ -1,5 +1,9 @@
 name: Testing
-on: [pull_request]
+on:
+  pull_request:
+  push:
+    branches:
+      - main
 concurrency:
   group: ${{ github.head_ref }}-testing
   cancel-in-progress: true
@@ -981,6 +985,7 @@ jobs:
     name: Test Localmode
     needs: setup
     runs-on: ${{ matrix.os }}
+    if: github.ref != 'refs/heads/main'
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest] #osx-arm64 currently not working. Ticket made with github
@@ -1021,6 +1026,37 @@ jobs:
 
       - name: Run Tests
         run: make pytest
+
+  client-coverage:
+    name: Client Test Coverage
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install pytest and pytest-cov
+        run: pip install pytest protobuf==3.20.1 python-dotenv pytest-mock pytest-cov
+
+      - name: Install featureform
+        run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
+
+      - name: Generate Coverage Report
+        run: make pytest_coverage
+
+      - name: Upload Coverage Report
+        uses: codecov/codecov-action@v2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          root_dir: ./
+          files: ./coverage.xml
+          name: client-coverage
+          verbose: true
 
   notebook:
     name: Test Notebook

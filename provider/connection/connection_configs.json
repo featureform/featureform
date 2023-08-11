@@ -117,5 +117,6 @@
   },
   "EmptyConfig": {},
   "LocalConfig": {},
-  "MemoryConfig": {}
+  "MemoryConfig": {},
+  "UnitTestConfig": {}
 }

@@ -1,4 +1,4 @@
-dill==0.3.5.1
+dill>=0.3.6
 pandas==1.3.5
 pandasql==0.7.3
 pyarrow==9.0.0

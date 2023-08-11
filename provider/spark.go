@@ -1620,6 +1620,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		return fmt.Errorf("could not get latest label file: %v", err)
 	}
 	labelPath := spark.Store.PathWithPrefix(latestLabelPath, true)
+	spark.Logger.Debugw("================>>>>> Label path", "labelSchema.SourceTable", labelSchema.SourceTable, "latestLabelPath", latestLabelPath, "labelPath", labelPath)
 	sourcePaths = append(sourcePaths, labelPath)
 	for _, feature := range def.Features {
 		featureSchema, err := spark.registeredResourceSchema(feature)
@@ -1633,6 +1634,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 			return fmt.Errorf("could not get latest feature file: %v", err)
 		}
 		featurePath := spark.Store.PathWithPrefix(latestFeaturePath, true)
+		spark.Logger.Debugw("================>>>>> Feature path", "featureSchema.SourceTable", featureSchema.SourceTable, "latestFeaturePath", latestFeaturePath, "featurePath", featurePath)
 		sourcePaths = append(sourcePaths, featurePath)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
@@ -1651,7 +1653,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Could not get training set resource key in offline store")
 		return fmt.Errorf("training Set result does not exist in offline store")
 	}
-	spark.Logger.Debugw("Succesfully created training set:", "definition", def)
+	spark.Logger.Debugw("Successfully created training set:", "definition", def)
 	return nil
 }
 

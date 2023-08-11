@@ -1011,7 +1011,7 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 		key = filename
 		keyParts = strings.Split(key, ".")
 	}
-	fmt.Printf("Reading file at key %s in file store type %s", key, tbl.store.FilestoreType())
+	fmt.Printf("Reading file at key %s in file store type %s\n", key, tbl.store.FilestoreType())
 	b, err := tbl.store.Read(key)
 	if err != nil {
 		return nil, fmt.Errorf("could not read file: %w", err)

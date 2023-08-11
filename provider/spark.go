@@ -1616,50 +1616,20 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Could not get schema of label in spark store", "label", def.Label, "error", err)
 		return fmt.Errorf("could not get schema of label %s: %v", def.Label, err)
 	}
-	filepath, err := NewEmptyFilepath(spark.Store.FilestoreType())
-	if err != nil {
-		return fmt.Errorf("could not create empty filepath for label source table due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), labelSchema.SourceTable)
-	}
-	err = filepath.ParseFullPath(labelSchema.SourceTable)
-	if err != nil {
-		return fmt.Errorf("could not parse full path to label source table due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), labelSchema.SourceTable)
-	}
-	fileType, err := filepath.Ext()
-	if err != nil {
-		return fmt.Errorf("could not get file type of label source table due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), labelSchema.SourceTable)
-	}
-	latestLabelPath, err := spark.Store.NewestFileOfType(filepath.Path(), fileType)
-	if err != nil {
-		spark.Logger.Errorw("Could not get latest label file", "label", def.Label, "error", err)
-		return fmt.Errorf("could not get latest label file: %v", err)
-	}
-	labelPath := spark.Store.PathWithPrefix(latestLabelPath, true)
-	spark.Logger.Debugw("================>>>>> Label path", "filepath.Path()", filepath.Path(), "labelSchema.SourceTable", labelSchema.SourceTable, "latestLabelPath", latestLabelPath, "labelPath", labelPath)
-	sourcePaths = append(sourcePaths, labelPath)
+	// NOTE: labelSchema.SourceTable will be the absolute path to the label source table
+	// TODO: Determine how to handle backwards compatibility with old label source tables
+	spark.Logger.Debugw("================>>>>> LABEL SOURCE TABLE", "labelSchema.SourceTable", labelSchema.SourceTable)
+	sourcePaths = append(sourcePaths, labelSchema.SourceTable)
 	for _, feature := range def.Features {
 		featureSchema, err := spark.registeredResourceSchema(feature)
 		if err != nil {
 			spark.Logger.Errorw("Could not get schema of feature in spark store", "feature", feature, "error", err)
 			return fmt.Errorf("could not get schema of feature %s: %v", feature, err)
 		}
-		filepath, err := NewEmptyFilepath(spark.Store.FilestoreType())
-		if err != nil {
-			return fmt.Errorf("could not create empty filepath for feature source table due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), featureSchema.SourceTable)
-		}
-		err = filepath.ParseFullPath(featureSchema.SourceTable)
-		if err != nil {
-			return fmt.Errorf("could not parse full path to feature source table due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), featureSchema.SourceTable)
-		}
-		// TODO: Handle case when there are multiple files in the source table
-		latestFeaturePath, err := spark.Store.NewestFileOfType(filepath.Path(), Parquet)
-		if err != nil {
-			spark.Logger.Errorw("Could not get latest feature file", "feature", feature, "error", err)
-			return fmt.Errorf("could not get latest feature file: %v", err)
-		}
-		// TODO: Move file store path logic into Filepath interface
-		featurePath := spark.Store.PathWithPrefix(latestFeaturePath, true)
-		spark.Logger.Debugw("================>>>>> Feature path", "filepath.Path()", filepath.Path(), "featureSchema.SourceTable", featureSchema.SourceTable, "latestFeaturePath", latestFeaturePath, "featurePath", featurePath)
-		sourcePaths = append(sourcePaths, featurePath)
+		// NOTE: labelSchema.SourceTable will be the absolute path to the label source table
+		// TODO: Determine how to handle backwards compatibility with old label source tables
+		spark.Logger.Debugw("================>>>>> FEATURE SOURCE TABLE", "featureSchema.SourceTable", featureSchema.SourceTable)
+		sourcePaths = append(sourcePaths, featureSchema.SourceTable)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)

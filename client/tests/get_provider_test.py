@@ -1,7 +1,7 @@
 import os
 import pytest
 
-from client.src.featureform.register import (
+from featureform.register import (
     EntityRegistrar,
     LocalProvider,
     OnlineProvider,

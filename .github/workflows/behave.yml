@@ -15,3 +15,6 @@ jobs:
         file: ./Dockerfile
         tags: featureform
         push: false
+
+    - name: Run Container
+      run: docker run -p 7878:7878 -p 80:80 featureform

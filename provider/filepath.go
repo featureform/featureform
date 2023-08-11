@@ -24,6 +24,7 @@ type Filepath interface {
 	// Consumes a URI (e.g. abfss://<container>@<storage_account>/path/to/file) and parses it into
 	// the specific parts that the implementation expects.
 	ParseFullPath(path string) error
+	Ext() (FileType, error)
 }
 
 // TODO: Add support for additional params, such as service account (Azure Blob Storage)
@@ -122,6 +123,18 @@ func (fp *filePath) ParseFullPath(fullPath string) error {
 	return nil
 }
 
+func (fp *filePath) Ext() (FileType, error) {
+	pathComponents := strings.Split(fp.path, ".")
+	if len(pathComponents) < 2 {
+		return "", fmt.Errorf("could not determine file type from path '%s'", fp.path)
+	}
+	ext := pathComponents[len(pathComponents)-1]
+	if !IsValidFileType(ext) {
+		return "", fmt.Errorf("invalid file type '%s'", ext)
+	}
+	return FileType(ext), nil
+}
+
 type S3Filepath struct {
 	filePath
 }
@@ -133,6 +146,10 @@ func (s3 *S3Filepath) FullPathWithBucket() string {
 	}
 
 	return fmt.Sprintf("s3://%s%s/%s", s3.bucket, prefix, s3.path)
+}
+
+func (s3 *S3Filepath) Ext() (FileType, error) {
+	return s3.filePath.Ext()
 }
 
 type AzureFilepath struct {
@@ -147,13 +164,17 @@ func (azure *AzureFilepath) FullPathWithBucket() string {
 func (azure *AzureFilepath) ParseFullPath(fullPath string) error {
 	abfssRegex := regexp.MustCompile(`abfss://(.+?)@(.+?)\.dfs.core.windows.net/(.+)`)
 	if matches := abfssRegex.FindStringSubmatch(fullPath); len(matches) != 4 {
-		return fmt.Errorf("could not parse full path '%s'; expected format abfss://<container/bucket>@<storage_account>.dfs.core.windows.net/path", fullPath)
+		return fmt.Errorf("invalid path '%s'; expected format abfss://<container/bucket>@<storage_account>.dfs.core.windows.net/path", fullPath)
 	} else {
 		azure.filePath.bucket = strings.Trim(matches[1], "/")
 		azure.storageAccount = strings.Trim(matches[2], "/")
 		azure.filePath.path = strings.Trim(matches[3], "/")
 	}
 	return nil
+}
+
+func (azure *AzureFilepath) Ext() (FileType, error) {
+	return azure.filePath.Ext()
 }
 
 type GCSFilepath struct {

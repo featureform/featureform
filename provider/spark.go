@@ -1624,14 +1624,17 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	if err != nil {
 		return fmt.Errorf("could not parse full path to label source table due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), labelSchema.SourceTable)
 	}
-	// TODO: Handle case when label file is not parquet
-	latestLabelPath, err := spark.Store.NewestFileOfType(filepath.Path(), Parquet)
+	fileType, err := filepath.Ext()
+	if err != nil {
+		return fmt.Errorf("could not get file type of label source table due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), labelSchema.SourceTable)
+	}
+	latestLabelPath, err := spark.Store.NewestFileOfType(filepath.Path(), fileType)
 	if err != nil {
 		spark.Logger.Errorw("Could not get latest label file", "label", def.Label, "error", err)
 		return fmt.Errorf("could not get latest label file: %v", err)
 	}
 	labelPath := spark.Store.PathWithPrefix(latestLabelPath, true)
-	spark.Logger.Debugw("================>>>>> Label path", "labelSchema.SourceTable", labelSchema.SourceTable, "latestLabelPath", latestLabelPath, "labelPath", labelPath)
+	spark.Logger.Debugw("================>>>>> Label path", "filepath.Path()", filepath.Path(), "labelSchema.SourceTable", labelSchema.SourceTable, "latestLabelPath", latestLabelPath, "labelPath", labelPath)
 	sourcePaths = append(sourcePaths, labelPath)
 	for _, feature := range def.Features {
 		featureSchema, err := spark.registeredResourceSchema(feature)
@@ -1655,7 +1658,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		}
 		// TODO: Move file store path logic into Filepath interface
 		featurePath := spark.Store.PathWithPrefix(latestFeaturePath, true)
-		spark.Logger.Debugw("================>>>>> Feature path", "featureSchema.SourceTable", featureSchema.SourceTable, "latestFeaturePath", latestFeaturePath, "featurePath", featurePath)
+		spark.Logger.Debugw("================>>>>> Feature path", "filepath.Path()", filepath.Path(), "featureSchema.SourceTable", featureSchema.SourceTable, "latestFeaturePath", latestFeaturePath, "featurePath", featurePath)
 		sourcePaths = append(sourcePaths, featurePath)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}

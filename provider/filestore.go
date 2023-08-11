@@ -60,9 +60,9 @@ func GetFileType(file string) FileType {
 	return Parquet
 }
 
-func IsValidFileType(file string) bool {
+func IsValidFileType(ext string) bool {
 	for _, fileType := range []FileType{Parquet, CSV, DB} {
-		if fileType.Matches(file) {
+		if FileType(ext) == fileType {
 			return true
 		}
 	}

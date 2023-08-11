@@ -453,12 +453,12 @@ class DynamodbConfig:
 @typechecked
 @dataclass
 class MongoDBConfig:
-    username: str
-    password: str
-    host: str
-    port: str
-    database: str
-    throughput: int
+    username: str = ""
+    password: str = ""
+    host: str = ""
+    port: str = ""
+    database: str = ""
+    throughput: int = 0
 
     def software(self) -> str:
         return "mongodb"

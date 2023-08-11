@@ -1966,7 +1966,7 @@ class Registrar:
         with open(filename, "w") as f:
             json.dumps(json_data, f)
 
-    def get_entity(self, name, local=False):
+    def get_entity(self, name, is_local=False):
         """Get an entity. The returned object can be used to register additional resources.
 
         **Examples**:
@@ -1989,7 +1989,7 @@ class Registrar:
         """
         get = EntityReference(name=name, obj=None)
         self.__resources.append(get)
-        fakeEntity = Entity(name=name, description="")
+        fakeEntity = Entity(name=name, description="", tags=[], properties=[])
         return EntityRegistrar(self, fakeEntity)
 
     def register_redis(

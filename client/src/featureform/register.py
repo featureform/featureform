@@ -1939,22 +1939,25 @@ class Registrar:
         provider = Provider(
             name=name,
             function="OFFLINE",
-            description=description,
-            team=team,
+            description="description",
+            team="team",
             config=s3_config,
         )
-        return FileStoreProvider(provider, s3_config, s3_config.type())
+        return FileStoreProvider(
+            registrar=self,
+            provider=provider,
+            config=s3_config,
+            store_type=s3_config.type(),
+        )
 
     def get_gcs(self, name):
         get = ProviderReference(name=name, provider_type="GCS", obj=None)
         self.__resources.append(get)
 
-        filename = "fake_secrets.json"
-        if not exists(filename):
-            self._create_mock_creds_file(filename, {"test": "creds"})
+        filePath = "provider/connection/mock_credentials.json"
 
-        fake_creds = GCPCredentials("id", filename)
-        fakeConfig = GCSStoreConfig(
+        fake_creds = GCPCredentials(project_id="id", credentials_path=filePath)
+        fakeConfig = GCSFileStoreConfig(
             bucket_name="", bucket_path="", credentials=fake_creds
         )
         fakeProvider = Provider(

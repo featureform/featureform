@@ -9,7 +9,7 @@
         show_root_toc_entry: false
 
 ## Feature
-::: featureform.register.FeatureColumnResource
+::: featureform.register.FeatureColumnResource.__init__
     handler: python
     options:
         show_root_heading: false
@@ -17,7 +17,7 @@
         show_root_toc_entry: false
 
 ## Label
-::: featureform.register.LabelColumnResource
+::: featureform.register.LabelColumnResource.__init__
     handler: python
     options:
         show_root_heading: false
@@ -25,7 +25,7 @@
         show_root_toc_entry: false
 
 ## Embedding
-::: featureform.register.EmbeddingColumnResource
+::: featureform.register.EmbeddingColumnResource.__init__
     handler: python
     options:
         show_root_heading: false

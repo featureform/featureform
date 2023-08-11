@@ -17,6 +17,7 @@ extra_css:
 
 nav:
   - Home: index.md
+  - Installation: installation.md
   - Register:
     - Providers: providers.md
     - Sources: sources.md

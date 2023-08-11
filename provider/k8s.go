@@ -2,35 +2,30 @@ package provider
 
 import (
 	"bytes"
-	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"github.com/featureform/metadata"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	dp "github.com/novln/docker-parser"
-	"github.com/segmentio/parquet-go"
 	"go.uber.org/zap"
-	"gocloud.dev/blob"
 	_ "gocloud.dev/blob/fileblob"
 	_ "gocloud.dev/blob/memblob"
 	"golang.org/x/exp/slices"
 
-	re "github.com/avast/retry-go/v4"
 	cfg "github.com/featureform/config"
+	"github.com/featureform/filestore"
 	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/logging"
-	"github.com/featureform/metadata"
 	pc "github.com/featureform/provider/provider_config"
 )
 
@@ -377,19 +372,17 @@ func NewKubernetesExecutor(config Config, logger *zap.SugaredLogger) (Executor, 
 }
 
 type FileStore interface {
-	Write(key string, data []byte) error
-	Writer(key string) (*blob.Writer, error)
-	Read(key string) ([]byte, error)
-	Serve(key string) (Iterator, error)
-	Exists(key string) (bool, error)
-	Delete(key string) error
-	DeleteAll(dir string) error
-	NewestFileOfType(prefix string, fileType FileType) (string, error)
-	PathWithPrefix(path string, remote bool) string
-	NumRows(key string) (int64, error)
+	Write(key filestore.Filepath, data []byte) error
+	Read(key filestore.Filepath) ([]byte, error)
+	Serve(key filestore.Filepath) (Iterator, error)
+	Exists(key filestore.Filepath) (bool, error)
+	Delete(key filestore.Filepath) error
+	DeleteAll(dir filestore.Filepath) error
+	NewestFileOfType(prefix filestore.Filepath, fileType filestore.FileType) (filestore.Filepath, error)
+	NumRows(key filestore.Filepath) (int64, error)
 	Close() error
-	Upload(sourcePath string, destPath string) error
-	Download(sourcePath string, destPath string) error
+	Upload(sourcePath filestore.Filepath, destPath filestore.Filepath) error
+	Download(sourcePath filestore.Filepath, destPath filestore.Filepath) error
 	FilestoreType() pc.FileStoreType
 	AddEnvVars(envVars map[string]string) map[string]string
 }
@@ -398,188 +391,6 @@ type Iterator interface {
 	Next() (map[string]interface{}, error)
 	FeatureColumns() []string
 	LabelColumn() string
-}
-
-type genericFileStore struct {
-	bucket *blob.Bucket
-	path   string
-}
-
-func (store *genericFileStore) PathWithPrefix(path string, remote bool) string {
-	// What does this mean? Change this as check for local file
-	if len(store.path) > 4 && store.path[0:4] == "file" {
-		return fmt.Sprintf("%s%s", store.path[len("file:///"):], strings.TrimPrefix(path, "/"))
-	} else {
-		return path
-	}
-}
-
-func (store *genericFileStore) NewestFileOfType(prefix string, fileType FileType) (string, error) {
-	opts := blob.ListOptions{
-		Prefix: prefix,
-	}
-	listIterator := store.bucket.List(&opts)
-	mostRecentTime := time.UnixMilli(0)
-	mostRecentKey := ""
-	for {
-		if newObj, err := listIterator.Next(context.TODO()); err == nil {
-			mostRecentTime, mostRecentKey = store.getMoreRecentFile(newObj, fileType, mostRecentTime, mostRecentKey)
-		} else if err == io.EOF {
-			return mostRecentKey, nil
-		} else {
-			return "", err
-		}
-	}
-}
-
-func (store *genericFileStore) getMoreRecentFile(newObj *blob.ListObject, expectedFileType FileType, oldTime time.Time, oldKey string) (time.Time, string) {
-	pathParts := strings.Split(newObj.Key, ".")
-	fileType := pathParts[len(pathParts)-1]
-	if fileType == string(expectedFileType) && !newObj.IsDir && store.isMostRecentFile(newObj, oldTime) {
-		return newObj.ModTime, newObj.Key
-	}
-	return oldTime, oldKey
-}
-
-func (store *genericFileStore) isMostRecentFile(listObj *blob.ListObject, time time.Time) bool {
-	return listObj.ModTime.After(time) || listObj.ModTime.Equal(time)
-}
-
-func (store *genericFileStore) outputFileList(prefix string) []string {
-	opts := blob.ListOptions{
-		Prefix:    prefix,
-		Delimiter: "/",
-	}
-	listIterator := store.bucket.List(&opts)
-	mostRecentOutputPartTime := "0000-00-00 00:00:00.000000"
-	mostRecentOutputPartPath := ""
-	for listObj, err := listIterator.Next(context.TODO()); err == nil; listObj, err = listIterator.Next(context.TODO()) {
-		if listObj == nil {
-			return []string{}
-		}
-		dirParts := strings.Split(listObj.Key[:len(listObj.Key)-1], "/")
-		timestamp := dirParts[len(dirParts)-1]
-		if listObj.IsDir && timestamp > mostRecentOutputPartTime {
-			mostRecentOutputPartTime = timestamp
-			mostRecentOutputPartPath = listObj.Key
-		}
-	}
-	opts = blob.ListOptions{
-		Prefix: mostRecentOutputPartPath,
-	}
-	partsIterator := store.bucket.List(&opts)
-	partsList := make([]string, 0)
-	for listObj, err := partsIterator.Next(context.TODO()); err == nil; listObj, err = partsIterator.Next(context.TODO()) {
-		pathParts := strings.Split(listObj.Key, ".")
-
-		fileType := pathParts[len(pathParts)-1]
-		if fileType == "parquet" {
-			partsList = append(partsList, listObj.Key)
-		}
-	}
-	sort.Strings(partsList)
-	return partsList
-}
-
-func (store *genericFileStore) DeleteAll(dir string) error {
-	opts := blob.ListOptions{
-		Prefix: dir,
-	}
-	listIterator := store.bucket.List(&opts)
-	for listObj, err := listIterator.Next(context.TODO()); err == nil; listObj, err = listIterator.Next(context.TODO()) {
-		if !listObj.IsDir {
-			if err := store.bucket.Delete(context.TODO(), listObj.Key); err != nil {
-				return fmt.Errorf("failed to delete object %s in directory %s: %v", listObj.Key, dir, err)
-			}
-		}
-	}
-	return nil
-}
-
-func (store *genericFileStore) Write(key string, data []byte) error {
-	ctx := context.TODO()
-	err := store.bucket.WriteAll(ctx, key, data, nil)
-	if err != nil {
-		return err
-	}
-	err = re.Do(
-		func() error {
-			blob, errRetr := store.bucket.ReadAll(ctx, key)
-			fmt.Printf("Read (%d) bytes from bucket (%s) after write\n", len(data), key)
-			if errRetr != nil {
-				return re.Unrecoverable(errRetr)
-			} else if !bytes.Equal(blob, data) {
-				return fmt.Errorf("blob read from bucket does not match blob written to bucket")
-			}
-			return nil
-		},
-		re.DelayType(func(n uint, err error, config *re.Config) time.Duration {
-			return re.BackOffDelay(n, err, config)
-		}),
-		re.Attempts(10),
-	)
-	return err
-}
-
-func (store *genericFileStore) Writer(key string) (*blob.Writer, error) {
-	return store.bucket.NewWriter(context.TODO(), key, nil)
-}
-
-func (store *genericFileStore) Read(key string) ([]byte, error) {
-	data, err := store.bucket.ReadAll(context.TODO(), key)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Printf("Read (%d) bytes of object with key (%s)\n", len(data), key)
-	return data, nil
-}
-
-func (store *genericFileStore) ServeDirectory(dir string) (Iterator, error) {
-	fileParts := store.outputFileList(dir)
-	if len(fileParts) == 0 {
-		return nil, fmt.Errorf("no files in given directory")
-	}
-	// assume file type is parquet
-	return parquetIteratorOverMultipleFiles(fileParts, store)
-}
-
-func (store *genericFileStore) Upload(sourcePath string, destPath string) error {
-	content, err := ioutil.ReadFile(sourcePath)
-	if err != nil {
-		return fmt.Errorf("cannot read %s file: %v", sourcePath, err)
-	}
-
-	err = store.Write(destPath, content)
-	if err != nil {
-		return fmt.Errorf("cannot upload %s file to %s destination: %v", sourcePath, destPath, err)
-	}
-
-	return nil
-}
-
-func (store *genericFileStore) Download(sourcePath string, destPath string) error {
-	content, err := store.Read(sourcePath)
-	if err != nil {
-		return fmt.Errorf("cannot read %s file: %v", sourcePath, err)
-	}
-
-	f, err := os.Create(destPath)
-	if err != nil {
-		return fmt.Errorf("cannot create %s file: %v", destPath, err)
-	}
-	defer f.Close()
-
-	f.Write(content)
-
-	return nil
-}
-
-func (store *genericFileStore) FilestoreType() pc.FileStoreType {
-	return Memory
-}
-
-func (store *genericFileStore) AddEnvVars(envVars map[string]string) map[string]string {
-	return envVars
 }
 
 func convertToParquetBytes(list []any) ([]byte, error) {
@@ -657,40 +468,6 @@ func (p *ParquetIteratorMultipleFiles) Next() (map[string]interface{}, error) {
 		return p.fileIterator.Next()
 	}
 	return nextRow, nil
-}
-
-func (store *genericFileStore) Serve(key string) (Iterator, error) {
-	keyParts := strings.Split(key, ".")
-	if len(keyParts) == 1 {
-		return store.ServeDirectory(key)
-	}
-	b, err := store.bucket.ReadAll(context.TODO(), key)
-	if err != nil {
-		return nil, fmt.Errorf("could not read file: %w", err)
-	}
-	switch fileType := keyParts[len(keyParts)-1]; fileType {
-	case "parquet":
-		return parquetIteratorFromBytes(b)
-	case "csv":
-		return nil, fmt.Errorf("csv iterator not implemented")
-	default:
-		return nil, fmt.Errorf("unsupported file type")
-	}
-
-}
-
-func (store *genericFileStore) NumRows(key string) (int64, error) {
-	b, err := store.bucket.ReadAll(context.TODO(), key)
-	if err != nil {
-		return 0, err
-	}
-	keyParts := strings.Split(key, ".")
-	switch fileType := keyParts[len(keyParts)-1]; fileType {
-	case "parquet":
-		return getParquetNumRows(b)
-	default:
-		return 0, fmt.Errorf("unsupported file type")
-	}
 }
 
 type csvIterator struct {
@@ -916,18 +693,7 @@ func parquetIteratorFromBytes(b []byte) (Iterator, error) {
 	}, nil
 }
 
-func (store *genericFileStore) Exists(key string) (bool, error) {
-	return store.bucket.Exists(context.TODO(), key)
-}
-
-func (store *genericFileStore) Delete(key string) error {
-	return store.bucket.Delete(context.TODO(), key)
-}
-
-func (store *genericFileStore) Close() error {
-	return store.bucket.Close()
-}
-
+//Move this function to the resource ID
 func ResourcePrefix(id ResourceID) string {
 	return fmt.Sprintf("featureform/%s/%s/%s", id.Type, id.Name, id.Variant)
 }

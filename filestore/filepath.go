@@ -2,23 +2,67 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package provider
+package filestore
 
 import (
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 
 	pc "github.com/featureform/provider/provider_config"
 )
 
+type FileType string
+
+const (
+	Parquet FileType = "parquet"
+	CSV     FileType = "csv"
+	DB      FileType = "db"
+)
+
+func (ft FileType) Matches(file string) bool {
+	ext := GetFileExtension(file)
+	return FileType(ext) == ft
+}
+
+func GetFileType(file string) FileType {
+	// check to see if its any of the constants
+	for _, fileType := range []FileType{Parquet, CSV, DB} {
+		if fileType.Matches(file) {
+			print(fileType)
+			return fileType
+		}
+	}
+	// defaults to parquet
+	return Parquet
+}
+
+func IsValidFileType(file string) bool {
+	for _, fileType := range []FileType{Parquet, CSV, DB} {
+		if fileType.Matches(file) {
+			return true
+		}
+	}
+	return false
+}
+
+func GetFileExtension(file string) string {
+	ext := filepath.Ext(file)
+	return strings.ReplaceAll(ext, ".", "")
+}
+
 type Filepath interface {
 	// Returns the name of the bucket (S3) or container (Azure Blob Storage)
 	Bucket() string
-	Prefix() string
+	KeyPrefix() string
+	// Returns the absolute path without a scheme, host, or bucket
+	Key() string
+	IsDir() bool
+	Ext() FileType
 	// Returns the key to the object (S3) or blob (Azure Blob Storage)
-	Path() string
+	//	Path() string
 	FullPathWithBucket() string
 	FullPathWithoutBucket() string
 	// Consumes a URI (e.g. abfss://<container>@<storage_account>/path/to/file) and parses it into

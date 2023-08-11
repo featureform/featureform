@@ -1,10 +1,16 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	re "github.com/avast/retry-go/v4"
+	"github.com/featureform/filestore"
+	"io"
+	"io/ioutil"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -15,7 +21,6 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 
 	"io/fs"
-	"path/filepath"
 	"time"
 
 	"gocloud.dev/blob"
@@ -34,45 +39,6 @@ const (
 	GCS        pc.FileStoreType = "GCS"
 	HDFS       pc.FileStoreType = "HDFS"
 )
-
-type FileType string
-
-const (
-	Parquet FileType = "parquet"
-	CSV     FileType = "csv"
-	DB      FileType = "db"
-)
-
-func (ft FileType) Matches(file string) bool {
-	ext := GetFileExtension(file)
-	return FileType(ext) == ft
-}
-
-func GetFileType(file string) FileType {
-	// check to see if its any of the constants
-	for _, fileType := range []FileType{Parquet, CSV, DB} {
-		if fileType.Matches(file) {
-			print(fileType)
-			return fileType
-		}
-	}
-	// defaults to parquet
-	return Parquet
-}
-
-func IsValidFileType(file string) bool {
-	for _, fileType := range []FileType{Parquet, CSV, DB} {
-		if fileType.Matches(file) {
-			return true
-		}
-	}
-	return false
-}
-
-func GetFileExtension(file string) string {
-	ext := filepath.Ext(file)
-	return strings.ReplaceAll(ext, ".", "")
-}
 
 const (
 	gsPrefix        = "gs://"
@@ -96,11 +62,19 @@ func NewLocalFileStore(config Config) (FileStore, error) {
 	if err != nil {
 		return nil, err
 	}
+	filepath, err := filestore.NewEmptyFilepath(FileSystem)
+	if err != nil {
+		return nil, err
+	}
+	err = filepath.ParseFullPath(fileStoreConfig.DirPath)
+	if err != nil {
+		return nil, err
+	}
 	return &LocalFileStore{
 		DirPath: fileStoreConfig.DirPath[len("file:///"):],
 		genericFileStore: genericFileStore{
 			bucket: bucket,
-			path:   fileStoreConfig.DirPath,
+			path:   filepath,
 		},
 	}, nil
 }
@@ -139,24 +113,24 @@ func (store *AzureFileStore) AsAzureStore() *AzureFileStore {
 	return store
 }
 
-func (store *AzureFileStore) PathWithPrefix(path string, remote bool) string {
-	pathContainsAzureBlobPrefix := strings.HasPrefix(path, azureBlobPrefix)
-	pathContainsWorkingDirectory := store.Path != "" && strings.HasPrefix(path, store.Path)
-
-	if !remote {
-		if len(path) != 0 && !pathContainsWorkingDirectory {
-			return fmt.Sprintf("%s/%s", store.Path, strings.TrimPrefix(path, "/"))
-		}
-	} else if remote && !pathContainsAzureBlobPrefix {
-		azureBlobPathPrefix := ""
-		if !pathContainsWorkingDirectory {
-			azureBlobPathPrefix = fmt.Sprintf("/%s/", strings.TrimSuffix(store.Path, "/"))
-		}
-		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s%s", store.ContainerName, store.AccountName, strings.TrimPrefix(azureBlobPathPrefix, "/"), strings.TrimPrefix(path, "/"))
-	}
-
-	return path
-}
+//func (store *AzureFileStore) PathWithPrefix(path filestore.Filepath, remote bool) filestore.Filepath {
+//	pathContainsAzureBlobPrefix := strings.HasPrefix(path, azureBlobPrefix)
+//	pathContainsWorkingDirectory := store.Path != "" && strings.HasPrefix(path, store.Path)
+//
+//	if !remote {
+//		if len(path) != 0 && !pathContainsWorkingDirectory {
+//			return fmt.Sprintf("%s/%s", store.Path, strings.TrimPrefix(path, "/"))
+//		}
+//	} else if remote && !pathContainsAzureBlobPrefix {
+//		azureBlobPathPrefix := ""
+//		if !pathContainsWorkingDirectory {
+//			azureBlobPathPrefix = fmt.Sprintf("/%s/", strings.TrimSuffix(store.Path, "/"))
+//		}
+//		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s%s", store.ContainerName, store.AccountName, strings.TrimPrefix(azureBlobPathPrefix, "/"), strings.TrimPrefix(path, "/"))
+//	}
+//
+//	return path
+//}
 
 func (store *AzureFileStore) FilestoreType() pc.FileStoreType {
 	return Azure
@@ -271,17 +245,8 @@ func (s3 *S3FileStore) AddEnvVars(envVars map[string]string) map[string]string {
 	return envVars
 }
 
-func (s3 *S3FileStore) Read(key string) ([]byte, error) {
-	fp, err := NewEmptyFilepath(S3)
-	if err != nil {
-		return nil, fmt.Errorf("error creating filepath: %v", err)
-	}
-	err = fp.ParseFullPath(key)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse path: %v", err)
-	}
-	key = fp.Path()
-	data, err := s3.bucket.ReadAll(context.TODO(), key)
+func (s3 *S3FileStore) Read(path filestore.Filepath) ([]byte, error) {
+	data, err := s3.bucket.ReadAll(context.TODO(), path.Key())
 	if err != nil {
 		return nil, err
 	}
@@ -427,13 +392,6 @@ type HDFSFileStore struct {
 	Path   string
 }
 
-// addPrefix ads a required "/" to the start of the filepath. It first attempts to remove any existing
-// ones to avoid adding a double slash
-func (fs *HDFSFileStore) addPrefix(key string) string {
-	key = strings.TrimPrefix(key, "/")
-	return fmt.Sprintf("/%s", key)
-}
-
 func (fs *HDFSFileStore) alreadyExistsError(err error) bool {
 	return strings.Contains(err.Error(), "file already exists")
 }
@@ -442,18 +400,18 @@ func (fs *HDFSFileStore) doesNotExistsError(err error) bool {
 	return strings.Contains(err.Error(), "file does not exist")
 }
 
-func (fs *HDFSFileStore) removeFile(key string) (*hdfs.FileWriter, error) {
-	if err := fs.Client.Remove(key); err != nil && fs.doesNotExistsError(err) {
-		return fs.getFile(key)
+func (fs *HDFSFileStore) removeFile(path filestore.Filepath) (*hdfs.FileWriter, error) {
+	if err := fs.Client.Remove(path.Key()); err != nil && fs.doesNotExistsError(err) {
+		return fs.getFile(path)
 	} else if err != nil {
-		return nil, fmt.Errorf("could not remove file %s: %v", key, err)
+		return nil, fmt.Errorf("could not remove file %s: %v", path.Key(), err)
 	}
-	return fs.getFile(key)
+	return fs.getFile(path)
 }
 
-func (fs *HDFSFileStore) getFile(key string) (*hdfs.FileWriter, error) {
-	if w, err := fs.Client.Create(key); err != nil && fs.alreadyExistsError(err) {
-		return fs.removeFile(key)
+func (fs *HDFSFileStore) getFile(path filestore.Filepath) (*hdfs.FileWriter, error) {
+	if w, err := fs.Client.Create(path.Key()); err != nil && fs.alreadyExistsError(err) {
+		return fs.removeFile(path)
 	} else if err != nil {
 		return nil, fmt.Errorf("could not get file: %v", err)
 	} else {
@@ -466,33 +424,27 @@ func (fs *HDFSFileStore) isFile(key string) bool {
 	return len(parsedPath) == 1
 }
 
-func (fs *HDFSFileStore) getParentDirectories(key string) string {
-	parsedPath := strings.Split(key, "/")
-	return strings.TrimSuffix(key, parsedPath[len(parsedPath)-1])
-}
-
-func (fs *HDFSFileStore) getFileWriter(key string) (*hdfs.FileWriter, error) {
-	if w, err := fs.getFile(key); err != nil {
+func (fs *HDFSFileStore) getFileWriter(path filestore.Filepath) (*hdfs.FileWriter, error) {
+	if w, err := fs.getFile(path); err != nil {
 		return nil, fmt.Errorf("could get writer: %v", err)
 	} else {
 		return w, nil
 	}
 }
 
-func (fs *HDFSFileStore) createFile(key string) (*hdfs.FileWriter, error) {
-	if fs.isFile(key) {
-		return fs.getFileWriter(key)
+func (fs *HDFSFileStore) createFile(path filestore.Filepath) (*hdfs.FileWriter, error) {
+	if !path.IsDir() {
+		return fs.getFileWriter(path)
 	}
-	path := fs.getParentDirectories(key)
-	err := fs.Client.MkdirAll(path, os.ModeDir)
+	err := fs.Client.MkdirAll(path.KeyPrefix(), os.ModeDir)
 	if err != nil {
 		return nil, fmt.Errorf("could not create all: %v", err)
 	}
-	return fs.getFileWriter(key)
+	return fs.getFileWriter(path)
 }
 
-func (fs *HDFSFileStore) Write(key string, data []byte) error {
-	file, err := fs.createFile(fs.addPrefix(key))
+func (fs *HDFSFileStore) Write(path filestore.Filepath, data []byte) error {
+	file, err := fs.createFile(path)
 	if err != nil {
 		return fmt.Errorf("could not create file: %v", err)
 	}
@@ -507,37 +459,32 @@ func (fs *HDFSFileStore) Write(key string, data []byte) error {
 	return nil
 }
 
-func (fs *HDFSFileStore) Writer(key string) (*blob.Writer, error) {
-	return nil, fmt.Errorf("not implemented")
+func (fs *HDFSFileStore) Read(path filestore.Filepath) ([]byte, error) {
+	return fs.Client.ReadFile(path.Key())
 }
 
-func (fs *HDFSFileStore) Read(key string) ([]byte, error) {
-	return fs.Client.ReadFile(fs.addPrefix(key))
-}
-
-func (fs *HDFSFileStore) ServeDirectory(dir string) (Iterator, error) {
-	files, err := fs.Client.ReadDir(dir)
+func (fs *HDFSFileStore) ServeDirectory(path filestore.Filepath) (Iterator, error) {
+	files, err := fs.Client.ReadDir(path.Key())
 	if err != nil {
 		return nil, err
 	}
 	var fileParts []string
 	for _, file := range files {
-		fileParts = append(fileParts, fmt.Sprintf("%s/%s", dir, file.Name()))
+		fileParts = append(fileParts, fmt.Sprintf("%s/%s", path.KeyPrefix(), file.Name()))
 	}
 	// assume file type is parquet
 	return parquetIteratorOverMultipleFiles(fileParts, fs)
 }
 
-func (fs *HDFSFileStore) Serve(key string) (Iterator, error) {
-	keyParts := strings.Split(key, ".")
-	if len(keyParts) == 1 {
-		return fs.ServeDirectory(fs.addPrefix(key))
+func (fs *HDFSFileStore) Serve(path filestore.Filepath) (Iterator, error) {
+	if path.IsDir() {
+		return fs.ServeDirectory(path)
 	}
-	b, err := fs.Client.ReadFile(fs.addPrefix(key))
+	b, err := fs.Client.ReadFile(path.Key())
 	if err != nil {
 		return nil, fmt.Errorf("could not read file: %w", err)
 	}
-	switch fileType := keyParts[len(keyParts)-1]; fileType {
+	switch path.KeyPrefix() {
 	case "parquet":
 		return parquetIteratorFromBytes(b)
 	case "csv":
@@ -546,8 +493,8 @@ func (fs *HDFSFileStore) Serve(key string) (Iterator, error) {
 		return nil, fmt.Errorf("unsupported file type")
 	}
 }
-func (fs *HDFSFileStore) Exists(key string) (bool, error) {
-	_, err := fs.Client.Stat(fs.addPrefix(key))
+func (fs *HDFSFileStore) Exists(path filestore.Filepath) (bool, error) {
+	_, err := fs.Client.Stat(path.Key())
 	fmt.Println("CHECKING EXISTS", err)
 	if err != nil && strings.Contains(err.Error(), "file does not exist") {
 		return false, nil
@@ -557,18 +504,18 @@ func (fs *HDFSFileStore) Exists(key string) (bool, error) {
 	return true, nil
 }
 
-func (fs *HDFSFileStore) Delete(key string) error {
-	return fs.Client.Remove(fs.addPrefix(key))
+func (fs *HDFSFileStore) Delete(path filestore.Filepath) error {
+	return fs.Client.Remove(path.Key())
 }
 
-func (fs *HDFSFileStore) deleteFile(file os.FileInfo, dir string) error {
+func (fs *HDFSFileStore) deleteFile(file os.FileInfo, dir filestore.Filepath) error {
 	if file.IsDir() {
-		err := fs.DeleteAll(fmt.Sprintf("%s/%s", dir, file.Name()))
+		err := fs.DeleteAll(dir)
 		if err != nil {
 			return fmt.Errorf("could not delete directory: %v", err)
 		}
 	} else {
-		err := fs.Delete(fmt.Sprintf("%s/%s", dir, file.Name()))
+		err := fs.Delete(dir)
 		if err != nil {
 			return fmt.Errorf("could not delete file: %v", err)
 		}
@@ -576,8 +523,8 @@ func (fs *HDFSFileStore) deleteFile(file os.FileInfo, dir string) error {
 	return nil
 }
 
-func (fs *HDFSFileStore) DeleteAll(dir string) error {
-	files, err := fs.Client.ReadDir(fs.addPrefix(dir))
+func (fs *HDFSFileStore) DeleteAll(dir filestore.Filepath) error {
+	files, err := fs.Client.ReadDir(dir.Key())
 	if err != nil {
 		return err
 	}
@@ -586,7 +533,7 @@ func (fs *HDFSFileStore) DeleteAll(dir string) error {
 			return fmt.Errorf("could not delete: %v", err)
 		}
 	}
-	return fs.Client.Remove(fs.addPrefix(dir))
+	return fs.Client.Remove(dir.Key())
 }
 
 func (fs *HDFSFileStore) isPartialPath(prefix, path string) bool {
@@ -597,30 +544,38 @@ func (fs *HDFSFileStore) containsPrefix(prefix, path string) bool {
 	return strings.Contains(path, prefix)
 }
 
-func (fs *HDFSFileStore) isMoreRecentFile(newFileTime, oldFileTime time.Time, fileType FileType, path string) bool {
+func (fs *HDFSFileStore) isMoreRecentFile(newFileTime, oldFileTime time.Time, fileType filestore.FileType, path string) bool {
 	return (newFileTime.After(oldFileTime) || newFileTime.Equal(oldFileTime)) && fileType.Matches(path)
 }
 
-func (hdfs *HDFSFileStore) NewestFileOfType(prefix string, fileType FileType) (string, error) {
+func (hdfs *HDFSFileStore) NewestFileOfType(rootpath filestore.Filepath, fileType filestore.FileType) (filestore.Filepath, error) {
 	var lastModTime time.Time
 	var lastModName string
 	err := hdfs.Client.Walk("/", func(path string, info fs.FileInfo, err error) error {
-		if hdfs.isPartialPath(prefix, path) {
+		if hdfs.isPartialPath(rootpath.Key(), path) {
 			return nil
 		}
-		if hdfs.containsPrefix(prefix, path) && hdfs.isMoreRecentFile(info.ModTime(), lastModTime, fileType, path) {
+		if hdfs.containsPrefix(rootpath.Key(), path) && hdfs.isMoreRecentFile(info.ModTime(), lastModTime, fileType, path) {
 			lastModTime = info.ModTime()
 			lastModName = strings.TrimPrefix(path, "/")
 		}
 		return nil
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if lastModName == "" {
-		return lastModName, nil
+		return nil, fmt.Errorf("could not find file")
 	}
-	return lastModName, nil
+	filepath, err := filestore.NewEmptyFilepath(HDFS)
+	if err != nil {
+		return nil, err
+	}
+	err = filepath.ParseFullPath(lastModName)
+	if err != nil {
+		return nil, err
+	}
+	return filepath, nil
 }
 
 func (fs *HDFSFileStore) PathWithPrefix(path string, remote bool) string {
@@ -637,8 +592,8 @@ func (fs *HDFSFileStore) PathWithPrefix(path string, remote bool) string {
 	}
 }
 
-func (fs *HDFSFileStore) NumRows(key string) (int64, error) {
-	file, err := fs.Read(key)
+func (fs *HDFSFileStore) NumRows(path filestore.Filepath) (int64, error) {
+	file, err := fs.Read(path)
 	if err != nil {
 		return 0, err
 	}
@@ -651,11 +606,11 @@ func (fs *HDFSFileStore) NumRows(key string) (int64, error) {
 func (fs *HDFSFileStore) Close() error {
 	return fs.Client.Close()
 }
-func (fs *HDFSFileStore) Upload(sourcePath string, destPath string) error {
-	return fs.Client.CopyToRemote(sourcePath, fs.addPrefix(destPath))
+func (fs *HDFSFileStore) Upload(sourcePath filestore.Filepath, destPath filestore.Filepath) error {
+	return fs.Client.CopyToRemote(sourcePath.Key(), destPath.Key())
 }
-func (fs *HDFSFileStore) Download(sourcePath string, destPath string) error {
-	return fs.Client.CopyToLocal(fs.addPrefix(sourcePath), destPath)
+func (fs *HDFSFileStore) Download(sourcePath filestore.Filepath, destPath filestore.Filepath) error {
+	return fs.Client.CopyToLocal(sourcePath.Key(), destPath.Key())
 }
 func (fs *HDFSFileStore) AsAzureStore() *AzureFileStore {
 	return nil
@@ -667,4 +622,229 @@ func (fs *HDFSFileStore) FilestoreType() pc.FileStoreType {
 
 func (fs *HDFSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
 	panic("HDFS Filestore is not supported for K8s at the moment.")
+}
+
+type genericFileStore struct {
+	bucket *blob.Bucket
+	path   filestore.Filepath
+}
+
+func (store *genericFileStore) NewestFileOfType(path filestore.Filepath, fileType filestore.FileType) (filestore.Filepath, error) {
+	opts := blob.ListOptions{
+		Prefix: path.Key(),
+	}
+	listIterator := store.bucket.List(&opts)
+	mostRecentTime := time.UnixMilli(0)
+	mostRecentKey := ""
+	for {
+		if newObj, err := listIterator.Next(context.TODO()); err == nil {
+			mostRecentTime, mostRecentKey = store.getMoreRecentFile(newObj, fileType, mostRecentTime, mostRecentKey)
+		} else if err == io.EOF {
+			path, err := filestore.NewEmptyFilepath(store.FilestoreType())
+			if err != nil {
+				return nil, err
+			}
+			err = path.ParseFullPath(mostRecentKey)
+			if err != nil {
+				return nil, err
+			}
+			return path, nil
+		} else {
+			return nil, err
+		}
+	}
+}
+
+func (store *genericFileStore) getMoreRecentFile(newObj *blob.ListObject, expectedFileType filestore.FileType, oldTime time.Time, oldKey string) (time.Time, string) {
+	pathParts := strings.Split(newObj.Key, ".")
+	fileType := pathParts[len(pathParts)-1]
+	if fileType == string(expectedFileType) && !newObj.IsDir && store.isMostRecentFile(newObj, oldTime) {
+		return newObj.ModTime, newObj.Key
+	}
+	return oldTime, oldKey
+}
+
+func (store *genericFileStore) isMostRecentFile(listObj *blob.ListObject, time time.Time) bool {
+	return listObj.ModTime.After(time) || listObj.ModTime.Equal(time)
+}
+
+func (store *genericFileStore) outputFileList(path filestore.Filepath) []string {
+	opts := blob.ListOptions{
+		Prefix:    path.Key(),
+		Delimiter: "/",
+	}
+	listIterator := store.bucket.List(&opts)
+	mostRecentOutputPartTime := "0000-00-00 00:00:00.000000"
+	mostRecentOutputPartPath := ""
+	for listObj, err := listIterator.Next(context.TODO()); err == nil; listObj, err = listIterator.Next(context.TODO()) {
+		if listObj == nil {
+			return []string{}
+		}
+		dirParts := strings.Split(listObj.Key[:len(listObj.Key)-1], "/")
+		timestamp := dirParts[len(dirParts)-1]
+		if listObj.IsDir && timestamp > mostRecentOutputPartTime {
+			mostRecentOutputPartTime = timestamp
+			mostRecentOutputPartPath = listObj.Key
+		}
+	}
+	opts = blob.ListOptions{
+		Prefix: mostRecentOutputPartPath,
+	}
+	partsIterator := store.bucket.List(&opts)
+	partsList := make([]string, 0)
+	for listObj, err := partsIterator.Next(context.TODO()); err == nil; listObj, err = partsIterator.Next(context.TODO()) {
+		pathParts := strings.Split(listObj.Key, ".")
+
+		fileType := pathParts[len(pathParts)-1]
+		if fileType == "parquet" {
+			partsList = append(partsList, listObj.Key)
+		}
+	}
+	sort.Strings(partsList)
+	return partsList
+}
+
+func (store *genericFileStore) DeleteAll(path filestore.Filepath) error {
+	opts := blob.ListOptions{
+		Prefix: path.Key(),
+	}
+	listIterator := store.bucket.List(&opts)
+	for listObj, err := listIterator.Next(context.TODO()); err == nil; listObj, err = listIterator.Next(context.TODO()) {
+		if !listObj.IsDir {
+			if err := store.bucket.Delete(context.TODO(), listObj.Key); err != nil {
+				return fmt.Errorf("failed to delete object %s in directory %s: %v", listObj.Key, path.Key(), err)
+			}
+		}
+	}
+	return nil
+}
+
+func (store *genericFileStore) Write(path filestore.Filepath, data []byte) error {
+	ctx := context.TODO()
+	err := store.bucket.WriteAll(ctx, path.Key(), data, nil)
+	if err != nil {
+		return err
+	}
+	err = re.Do(
+		func() error {
+			blob, errRetr := store.bucket.ReadAll(ctx, path.Key())
+			fmt.Printf("Read (%d) bytes from bucket (%s) after write\n", len(data), path.Key())
+			if errRetr != nil {
+				return re.Unrecoverable(errRetr)
+			} else if !bytes.Equal(blob, data) {
+				return fmt.Errorf("blob read from bucket does not match blob written to bucket")
+			}
+			return nil
+		},
+		re.DelayType(func(n uint, err error, config *re.Config) time.Duration {
+			return re.BackOffDelay(n, err, config)
+		}),
+		re.Attempts(10),
+	)
+	return err
+}
+
+func (store *genericFileStore) Read(path filestore.Filepath) ([]byte, error) {
+	data, err := store.bucket.ReadAll(context.TODO(), path.Key())
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("Read (%d) bytes of object with key (%s)\n", len(data), path.Key())
+	return data, nil
+}
+
+func (store *genericFileStore) ServeDirectory(dir filestore.Filepath) (Iterator, error) {
+	fileParts := store.outputFileList(dir)
+	if len(fileParts) == 0 {
+		return nil, fmt.Errorf("no files in given directory")
+	}
+	// assume file type is parquet
+	return parquetIteratorOverMultipleFiles(fileParts, store)
+}
+
+func (store *genericFileStore) Upload(sourcePath filestore.Filepath, destPath filestore.Filepath) error {
+	content, err := ioutil.ReadFile(sourcePath.Key())
+	if err != nil {
+		return fmt.Errorf("cannot read %s file: %v", sourcePath, err)
+	}
+
+	err = store.Write(destPath, content)
+	if err != nil {
+		return fmt.Errorf("cannot upload %s file to %s destination: %v", sourcePath, destPath, err)
+	}
+
+	return nil
+}
+
+func (store *genericFileStore) Download(sourcePath filestore.Filepath, destPath filestore.Filepath) error {
+	content, err := store.Read(sourcePath)
+	if err != nil {
+		return fmt.Errorf("cannot read %s file: %v", sourcePath, err)
+	}
+
+	f, err := os.Create(destPath.Key())
+	if err != nil {
+		return fmt.Errorf("cannot create %s file: %v", destPath, err)
+	}
+	defer f.Close()
+
+	f.Write(content)
+
+	return nil
+}
+
+func (store *genericFileStore) FilestoreType() pc.FileStoreType {
+	return Memory
+}
+
+func (store *genericFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+	return envVars
+}
+
+func (store *genericFileStore) Exists(path filestore.Filepath) (bool, error) {
+	return store.bucket.Exists(context.TODO(), path.Key())
+}
+
+func (store *genericFileStore) Delete(path filestore.Filepath) error {
+	return store.bucket.Delete(context.TODO(), path.Key())
+}
+
+func (store *genericFileStore) Close() error {
+	return store.bucket.Close()
+}
+
+func (store *genericFileStore) ServeFile(path filestore.Filepath) (Iterator, error) {
+	b, err := store.bucket.ReadAll(context.TODO(), path.Key())
+	if err != nil {
+		return nil, fmt.Errorf("could not read file: %w", err)
+	}
+	switch path.Ext() {
+	case "parquet":
+		return parquetIteratorFromBytes(b)
+	case "csv":
+		return nil, fmt.Errorf("csv iterator not implemented")
+	default:
+		return nil, fmt.Errorf("unsupported file type")
+	}
+}
+
+func (store *genericFileStore) Serve(path filestore.Filepath) (Iterator, error) {
+	if path.IsDir() {
+		return store.ServeDirectory(path)
+	} else {
+		return store.ServeFile(path)
+	}
+}
+
+func (store *genericFileStore) NumRows(path filestore.Filepath) (int64, error) {
+	b, err := store.bucket.ReadAll(context.TODO(), path.Key())
+	if err != nil {
+		return 0, err
+	}
+	switch path.Ext() {
+	case "parquet":
+		return getParquetNumRows(b)
+	default:
+		return 0, fmt.Errorf("unsupported file type")
+	}
 }

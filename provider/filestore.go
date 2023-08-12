@@ -675,3 +675,22 @@ func (fs *HDFSFileStore) FilestoreType() pc.FileStoreType {
 func (fs *HDFSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
 	panic("HDFS Filestore is not supported for K8s at the moment.")
 }
+
+// ExistsByUrl checks if a source url i.e "abfss://test@testingstoragegen.dfs.core.windows.net/featureform/tests/ice_cream.parquet" exists in the file store.
+func ExistsByUrl(store FileStore, sourceUrl string) (bool, error) {
+	filePathParts, err := NewEmptyFilepath(store.FilestoreType())
+	if err != nil {
+		return true, fmt.Errorf("could not create empty file path: %w", err)
+	}
+	if err := filePathParts.ParseFullPath(sourceUrl); err != nil {
+		return true, fmt.Errorf("could not parse full path: %w", err)
+	}
+	sourceExists, err := store.Exists(filePathParts.Path())
+	if err != nil {
+		return true, fmt.Errorf("error checking if source exists in store: %w", err)
+	}
+	if !sourceExists {
+		return false, nil
+	}
+	return true, nil
+}

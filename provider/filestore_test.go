@@ -8,15 +8,11 @@
 package provider
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 	"os"
 	"testing"
-
-	"github.com/joho/godotenv"
-
-	pc "github.com/featureform/provider/provider_config"
 )
 
 func TestFileStore(t *testing.T) {
@@ -25,7 +21,7 @@ func TestFileStore(t *testing.T) {
 		fmt.Println(err)
 	}
 
-	fileStores, err := getFileStores()
+	fileStores := getFileStores(t)
 	if err != nil {
 		t.Fatalf("could not get filestores: %s", err)
 	}
@@ -43,6 +39,27 @@ func TestFileStore(t *testing.T) {
 			}
 		}
 	})
+}
+
+func getFileStores(t *testing.T) map[string]FileStore {
+	err := godotenv.Load("../.env")
+	if err != nil {
+		t.Fatalf("could not load env: %s", err)
+	}
+
+	localFileStore := getLocalFileStore(t)
+	s3FileStore := getS3FileStore(t, false)
+	azureFileStore := getAzureFileStore(t, false)
+	gcsFileStore := getGCSFileStore(t, false)
+
+	fileStoresMap := map[string]FileStore{
+		"local": localFileStore,
+		"s3":    s3FileStore,
+		"azure": azureFileStore,
+		"gcs":   gcsFileStore,
+	}
+
+	return fileStoresMap
 }
 
 func testPathPrefix(t *testing.T, store FileStore, storeName string) {
@@ -168,147 +185,60 @@ func testPathPrefix(t *testing.T, store FileStore, storeName string) {
 	}
 }
 
-func getFileStores() (map[string]FileStore, error) {
-	localFileStore, err := getLocalFileStore()
+func TestDoesSourceUrlExist(t *testing.T) {
+	err := godotenv.Load("../.env")
 	if err != nil {
-		return nil, fmt.Errorf("could not get local filestore: %v", err)
+		t.Fatalf("could not load env: %s", err)
 	}
 
-	s3FileStore, err := getS3FileStore()
-	if err != nil {
-		return nil, fmt.Errorf("could not get s3 filestore: %v", err)
+	tests := []struct {
+		name  string
+		store FileStore
+	}{
+		{"Azure", getAzureFileStore(t, false)},
+		{"S3", getS3FileStore(t, false)},
+		{"GCP", getGCSFileStore(t, false)},
 	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 
-	azureFileStore, err := getAzureFileStore()
-	if err != nil {
-		return nil, fmt.Errorf("could not get azure filestore: %v", err)
+			fileNameToCreate := fmt.Sprintf("%s.parquet", uuid.New().String())
+			sourcePathForFile := tt.store.PathWithPrefix(fileNameToCreate, false)
+			if err := tt.store.Write(sourcePathForFile, []byte("test")); err != nil {
+				t.Fatalf("could not write to store: %s", err)
+			}
+			existingSourceUrl := tt.store.PathWithPrefix(sourcePathForFile, true)
+			if err != nil {
+				t.Fatalf("could not get existing source url: %s", err)
+			}
+			sourceUrlExists, err := tt.store.SourceUrlExists(existingSourceUrl)
+			if err != nil {
+				t.Errorf("SourceUrlExists() returned error: %v", err)
+				return
+			}
+			if !sourceUrlExists {
+				t.Errorf("SourceUrlExists() returned false for existing file")
+				return
+			}
+
+			nonExistentFileName := fmt.Sprintf("%s.parquet", uuid.New().String())
+			sourcePathForFile = tt.store.PathWithPrefix(nonExistentFileName, false)
+			sourceUrlForNonExistentFile := tt.store.PathWithPrefix(nonExistentFileName, true)
+
+			sourceUrlExists, err = tt.store.ExistsByUrl(tt.store, sourceUrlForNonExistentFile)
+			if err != nil {
+				t.Errorf("ExistsByUrl() returned error: %v", err)
+				return
+			}
+			if sourceUrlExists {
+				t.Errorf("ExistsByUrl() returned true for non-existant file")
+				return
+			}
+
+			// cleanup
+			if err := tt.store.Delete(sourcePathForFile); err != nil {
+				t.Fatalf("could not delete existing source key: %s", err)
+			}
+		})
 	}
-
-	gcsFileStore, err := getGCSFileStore()
-	if err != nil {
-		return nil, fmt.Errorf("could not get gcs filestore: %v", err)
-	}
-
-	fileStoresMap := map[string]FileStore{
-		"local": localFileStore,
-		"s3":    s3FileStore,
-		"azure": azureFileStore,
-		"gcs":   gcsFileStore,
-	}
-
-	return fileStoresMap, nil
-}
-
-func getLocalFileStore() (FileStore, error) {
-	config := pc.LocalFileStoreConfig{
-		DirPath: "file:///tmp/",
-	}
-
-	serializedConfig, err := config.Serialize()
-	if err != nil {
-		return nil, fmt.Errorf("could not serialized local config: %s", err)
-	}
-	fileStore, err := NewLocalFileStore(serializedConfig)
-	if err != nil {
-		return nil, fmt.Errorf("could not initialize local filestore: %s", err)
-	}
-
-	return fileStore, nil
-}
-
-func getS3FileStore() (FileStore, error) {
-	s3Config := pc.S3FileStoreConfig{
-		Credentials: pc.AWSCredentials{
-			AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-			AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-		},
-		BucketRegion: os.Getenv("S3_BUCKET_REGION"),
-		BucketPath:   os.Getenv("S3_BUCKET_PATH"),
-		Path:         "featureform-unit-test",
-	}
-
-	serializedConfig, err := s3Config.Serialize()
-	if err != nil {
-		return nil, fmt.Errorf("could not serialized s3 config: %s", err)
-	}
-	fileStore, err := NewS3FileStore(serializedConfig)
-	if err != nil {
-		return nil, fmt.Errorf("could not initialize s3 filestore: %s", err)
-	}
-
-	return fileStore, nil
-}
-
-func getHDFSFileStore() (FileStore, error) {
-	hdfsConfig := pc.HDFSFileStoreConfig{
-		Host:     "localhost",
-		Port:     "9000",
-		Username: "hduser",
-		Path:     "/tmp/",
-	}
-
-	serializedConfig, err := hdfsConfig.Serialize()
-	if err != nil {
-		return nil, fmt.Errorf("could not serialized hdfs config: %s", err)
-	}
-	fileStore, err := NewHDFSFileStore(serializedConfig)
-	if err != nil {
-		return nil, fmt.Errorf("could not initialize hdfs filestore: %s", err)
-	}
-
-	return fileStore, nil
-}
-
-func getAzureFileStore() (FileStore, error) {
-	azureConfig := &pc.AzureFileStoreConfig{
-		AccountName:   os.Getenv("AZURE_ACCOUNT_NAME"),
-		AccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
-		ContainerName: os.Getenv("AZURE_CONTAINER_NAME"),
-		Path:          "featureform-unit-test",
-	}
-
-	serializedConfig, err := azureConfig.Serialize()
-	if err != nil {
-		return nil, fmt.Errorf("could not serialized azure config: %s", err)
-	}
-	fileStore, err := NewAzureFileStore(serializedConfig)
-	if err != nil {
-		return nil, fmt.Errorf("could not initialize azure filestore: %s", err)
-	}
-
-	return fileStore, nil
-}
-
-func getGCSFileStore() (FileStore, error) {
-	credsFile := os.Getenv("GCP_CREDENTIALS_FILE")
-	content, err := ioutil.ReadFile(credsFile)
-	if err != nil {
-		return nil, fmt.Errorf("Error when opening file: %v", err)
-	}
-
-	var creds map[string]interface{}
-	err = json.Unmarshal(content, &creds)
-	if err != nil {
-		return nil, fmt.Errorf("Error during Unmarshal() creds: %v", err)
-	}
-
-	gcsConfig := pc.GCSFileStoreConfig{
-		BucketName: os.Getenv("GCS_BUCKET_NAME"),
-		BucketPath: "featureform-unit-test",
-		Credentials: pc.GCPCredentials{
-			ProjectId: os.Getenv("GCP_PROJECT_ID"),
-			JSON:      creds,
-		},
-	}
-
-	serializedConfig, err := gcsConfig.Serialize()
-	if err != nil {
-		return nil, fmt.Errorf("could not serialized gcs config: %v", err)
-	}
-	fileStore, err := NewGCSFileStore(serializedConfig)
-	if err != nil {
-		return nil, fmt.Errorf("could not initialize gcs filestore: %s", err)
-	}
-
-	return fileStore, nil
 }

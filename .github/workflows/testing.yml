@@ -88,56 +88,56 @@ jobs:
       - name: Run Golang Unit Tests
         run: make test_go_unit
 
-  search:
-    name: Search Testing
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.18
-
-      - name: Install Search Container
-        run: docker pull getmeili/meilisearch:v1.0
-
-      - name: Start Search
-        run: |
-          docker run -d -p $MEILISEARCH_PORT:7700 getmeili/meilisearch:v1.0
-
-      - name: Make Coverage Directory
-        working-directory: ./
-        run: mkdir ./coverage
-
-      - name: Testing
-        working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile ./coverage/cover.out.tmp ./metadata/search/...
-
-      - name: Convert Coverage Test Results
-        if: always()
-        working-directory: ./coverage
-        run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
-          go tool cover -html=cover.out -o cover.html
-
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          files: ./coverage/cover.out
-          name: search-coverage
-          verbose: true
-
-      - name: Archive code coverage results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: search-coverage-reports
-          path: ./coverage
+#  search:
+#    name: Search Testing
+#    needs: setup
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Download Working Compiled Directories
+#        uses: actions/download-artifact@v3
+#        with:
+#          name: compiled-workdir
+#
+#      - name: Set up Go
+#        uses: actions/setup-go@v2
+#        with:
+#          go-version: 1.18
+#
+#      - name: Install Search Container
+#        run: docker pull getmeili/meilisearch:v1.0
+#
+#      - name: Start Search
+#        run: |
+#          docker run -d -p $MEILISEARCH_PORT:7700 getmeili/meilisearch:v1.0
+#
+#      - name: Make Coverage Directory
+#        working-directory: ./
+#        run: mkdir ./coverage
+#
+#      - name: Testing
+#        working-directory: ./
+#        run: go test -v -coverpkg=./... -coverprofile ./coverage/cover.out.tmp ./metadata/search/...
+#
+#      - name: Convert Coverage Test Results
+#        if: always()
+#        working-directory: ./coverage
+#        run: |
+#          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
+#          go tool cover -html=cover.out -o cover.html
+#
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          files: ./coverage/cover.out
+#          name: search-coverage
+#          verbose: true
+#
+#      - name: Archive code coverage results
+#        if: always()
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: search-coverage-reports
+#          path: ./coverage
 
   provider-online:
     name: Online Provider Testing
@@ -412,6 +412,13 @@ jobs:
         with:
           go-version: 1.18
 
+      - name: Install Search Container
+        run: docker pull getmeili/meilisearch:v1.0
+
+      - name: Start Search
+        run: |
+          docker run -d -p $MEILISEARCH_PORT:7700 getmeili/meilisearch:v1.0
+
       # Should be switched to a container, but the available etcd containers
       # haven't been running easily locally yet. Will create a custom one
       # in the future
@@ -433,7 +440,7 @@ jobs:
           ETCD_HOST: ${{ env.ETCD_HOST }}
           ETCD_PORT: ${{ env.ETCD_PORT }}
         working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./metadata/
+        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./metadata/...
 
       - name: Convert Coverage Test Results
         if: always()

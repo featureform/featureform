@@ -11,7 +11,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go.uber.org/zap/zaptest"
 	"math/rand"
+	"regexp"
+
 	// "os"
 	"bytes"
 	"encoding/csv"
@@ -2879,4 +2882,429 @@ func createEMRAndS3(bucketName string) (SparkExecutor, SparkFileStore, error) {
 		return nil, nil, fmt.Errorf("could not create new EMR executor: %v", err)
 	}
 	return emr, s3, nil
+}
+
+func TestCreateSparkFileStore(t *testing.T) {
+	type args struct {
+		name   string
+		config Config
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    SparkFileStore
+		wantErr bool
+	}{
+		{"Invalid Storage Provider", args{"invalid", Config{}}, nil, true},
+		{"Invalid Config", args{"S3", Config{}}, nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := CreateSparkFileStore(tt.args.name, tt.args.config)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CreateSparkFileStore() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("CreateSparkFileStore() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSparkFilestore(t *testing.T) {
+	testCases := []struct {
+		name                string
+		store               SparkFileStore
+		ExpectedConfig      []string
+		ExpectedCredentials []string
+		ExpectedPackages    []string
+		ExpectedType        string
+	}{
+		{
+			name:                "Local No Args",
+			store:               SparkLocalFileStore{LocalFileStore: &LocalFileStore{}},
+			ExpectedConfig:      []string{},
+			ExpectedCredentials: []string{},
+			ExpectedPackages:    []string{},
+			ExpectedType:        "local",
+		},
+		{
+			name:                "S3 No Args",
+			store:               SparkS3FileStore{S3FileStore: &S3FileStore{}},
+			ExpectedConfig:      []string{"--spark_config", "\"fs.s3a.access.key=\"", "--spark_config", "\"fs.s3a.secret.key=\"", "--spark_config", "\"fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\"", "--spark_config", "\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\""},
+			ExpectedCredentials: []string{"--credential", "\"aws_bucket_name=\"", "--credential", "\"aws_region=\"", "--credential", "\"aws_access_key_id=\"", "--credential", "\"aws_secret_access_key=\""},
+			ExpectedPackages:    []string{"--packages", "org.apache.spark:spark-hadoop-cloud_2.12:3.2.0", "--exclude-packages", "com.google.guava:guava"},
+			ExpectedType:        "s3",
+		},
+		{
+			name: "S3 With Args",
+			store: SparkS3FileStore{S3FileStore: &S3FileStore{
+				Credentials: pc.AWSCredentials{
+					AWSAccessKeyId: "access_key",
+					AWSSecretKey:   "secret_key",
+				},
+				BucketRegion: "us-east-1",
+				Path:         "path",
+			}},
+			ExpectedConfig:      []string{"--spark_config", "\"fs.s3a.access.key=access_key\"", "--spark_config", "\"fs.s3a.secret.key=secret_key\"", "--spark_config", "\"fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\"", "--spark_config", "\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\""},
+			ExpectedCredentials: []string{"--credential", "\"aws_bucket_name=\"", "--credential", "\"aws_region=us-east-1\"", "--credential", "\"aws_access_key_id=access_key\"", "--credential", "\"aws_secret_access_key=secret_key\""},
+			ExpectedPackages:    []string{"--packages", "org.apache.spark:spark-hadoop-cloud_2.12:3.2.0", "--exclude-packages", "com.google.guava:guava"},
+			ExpectedType:        "s3",
+		},
+		{
+			name:                "Azure No Args",
+			store:               SparkAzureFileStore{AzureFileStore: &AzureFileStore{}},
+			ExpectedConfig:      []string{"--spark_config", "\"fs.azure.account.key..dfs.core.windows.net=\""},
+			ExpectedCredentials: []string{"--credential", "\"azure_connection_string=\"", "--credential", "\"azure_container_name=\""},
+			ExpectedPackages:    []string{"--packages", "\"org.apache.hadoop:hadoop-azure:3.2.0\""},
+			ExpectedType:        "azure_blob_store",
+		},
+		{
+			name: "Azure With Args",
+			store: SparkAzureFileStore{AzureFileStore: &AzureFileStore{
+				AccountName:      "account_name",
+				AccountKey:       "account_key",
+				ConnectionString: "connection_str",
+				ContainerName:    "container_name",
+			}},
+			ExpectedConfig:      []string{"--spark_config", "\"fs.azure.account.key.account_name.dfs.core.windows.net=account_key\""},
+			ExpectedCredentials: []string{"--credential", "\"azure_connection_string=connection_str\"", "--credential", "\"azure_container_name=container_name\""},
+			ExpectedPackages:    []string{"--packages", "\"org.apache.hadoop:hadoop-azure:3.2.0\""},
+			ExpectedType:        "azure_blob_store",
+		},
+		{
+			name:                "GCS No Args",
+			store:               SparkGCSFileStore{GCSFileStore: &GCSFileStore{}},
+			ExpectedConfig:      []string{"--spark_config", "fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem", "--spark_config", "fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS", "--spark_config", "fs.gs.auth.service.account.enable=true", "--spark_config", "fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem", "--spark_config", "fs.gs.auth.type=SERVICE_ACCOUNT_JSON_KEYFILE"},
+			ExpectedCredentials: []string{"--credential", "\"gcp_project_id=\"", "--credential", "\"gcp_bucket_name=\"", "--credential", "\"gcp_credentials=\""},
+			ExpectedPackages:    []string{"--packages", "com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.0", "--jars", "/app/provider/scripts/spark/jars/gcs-connector-hadoop2-2.2.11-shaded.jar"},
+			ExpectedType:        "google_cloud_storage",
+		},
+		{
+			name: "GCS With Args",
+			store: SparkGCSFileStore{GCSFileStore: &GCSFileStore{
+				Bucket: "bucket",
+				Path:   "path",
+				Credentials: pc.GCPCredentials{
+					ProjectId: "project_id",
+					JSON: map[string]interface{}{
+						"key": "value",
+					},
+				},
+			}},
+			ExpectedConfig:      []string{"--spark_config", "fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem", "--spark_config", "fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS", "--spark_config", "fs.gs.auth.service.account.enable=true", "--spark_config", "fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem", "--spark_config", "fs.gs.auth.type=SERVICE_ACCOUNT_JSON_KEYFILE"},
+			ExpectedCredentials: []string{"--credential", "\"gcp_project_id=project_id\"", "--credential", "\"gcp_bucket_name=bucket\"", "--credential", "\"gcp_credentials=\""},
+			ExpectedPackages:    []string{"--packages", "com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.0", "--jars", "/app/provider/scripts/spark/jars/gcs-connector-hadoop2-2.2.11-shaded.jar"},
+			ExpectedType:        "google_cloud_storage",
+		},
+		{
+			name:                "HDFS No Args",
+			store:               SparkHDFSFileStore{HDFSFileStore: &HDFSFileStore{}},
+			ExpectedConfig:      []string{},
+			ExpectedCredentials: []string{},
+			ExpectedPackages:    []string{},
+			ExpectedType:        "hdfs",
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			if !reflect.DeepEqual(tt.store.SparkConfig(), tt.ExpectedConfig) {
+				t.Errorf("SparkFileStore.SparkConfig() = %#v, want %#v", tt.store.SparkConfig(), tt.ExpectedConfig)
+			}
+			if !reflect.DeepEqual(tt.store.CredentialsConfig(), tt.ExpectedCredentials) {
+				t.Errorf("SparkFileStore.CredentialsConfig() = %#v, want %#v", tt.store.CredentialsConfig(), tt.ExpectedCredentials)
+			}
+			if !reflect.DeepEqual(tt.store.Packages(), tt.ExpectedPackages) {
+				t.Errorf("SparkFileStore.Packages() = %#v, want %#v", tt.store.Packages(), tt.ExpectedPackages)
+			}
+			if tt.store.Type() != tt.ExpectedType {
+				t.Errorf("SparkFileStore.Type() = %v, want %v", tt.store.Type(), tt.ExpectedType)
+			}
+		})
+	}
+}
+
+func TestSparkGenericExecutor_getYarnCommand(t *testing.T) {
+	type fields struct {
+		master        string
+		deployMode    string
+		pythonVersion string
+		coreSite      string
+		yarnSite      string
+		logger        *zap.SugaredLogger
+	}
+	type args struct {
+		args string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{"Basic",
+			fields{
+				master:        "yarn",
+				deployMode:    "cluster",
+				pythonVersion: "3.7.16",
+				coreSite:      "core-site.xml",
+				yarnSite:      "yarn-site.xml",
+			},
+			args{"--arg1 --arg2"},
+			`^pyenv global 3\\.7\\.16 && export HADOOP_CONF_DIR=(.+) &&  pyenv exec --arg1 --arg2; rm -r (.+)$`,
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &SparkGenericExecutor{
+				master:        tt.fields.master,
+				deployMode:    tt.fields.deployMode,
+				pythonVersion: tt.fields.pythonVersion,
+				coreSite:      tt.fields.coreSite,
+				yarnSite:      tt.fields.yarnSite,
+				logger:        tt.fields.logger,
+			}
+			got, err := s.getYarnCommand(tt.args.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getYarnCommand() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			// Uses regex to see if everything matches except the filepath since its generated
+			re := regexp.MustCompile(tt.want)
+			matches := re.FindStringSubmatch(got)
+			if len(matches) == 3 {
+				t.Errorf("getYarnCommand() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSparkGenericExecutorArgs(t *testing.T) {
+	type SubmitArgs struct {
+		DestPath   string
+		Query      string
+		SourceList []string
+		JobType    JobType
+	}
+	type DFArgs struct {
+		OutputURI string
+		Code      string
+		Sources   []string
+	}
+	store := SparkLocalFileStore{}
+	testCases := []struct {
+		name                  string
+		executor              SparkExecutor
+		SubmitArgs            SubmitArgs
+		DFArgs                DFArgs
+		ExpectedPythonFileURI string
+		ExpectedSubmitArgs    []string
+		ExpectedDFArgs        []string
+	}{
+		{
+			name: "Generic",
+			executor: &SparkGenericExecutor{
+				master:     "yarn",
+				deployMode: "cluster",
+				logger:     zaptest.NewLogger(t).Sugar(),
+			},
+			SubmitArgs: SubmitArgs{
+				DestPath:   "path/to/dest",
+				Query:      "SELECT * FROM table",
+				SourceList: []string{"source1", "source2"},
+				JobType:    Materialize,
+			},
+			DFArgs: DFArgs{
+				OutputURI: "path/to/output",
+				Code:      "code",
+				Sources:   []string{"source1", "source2"},
+			},
+			ExpectedPythonFileURI: "",
+			ExpectedSubmitArgs:    []string{"spark-submit", "--deploy-mode", "cluster", "--master", "yarn", "/app/provider/scripts/spark/offline_store_spark_runner.py", "sql", "--output_uri", "path/to/dest", "--sql_query", "'SELECT * FROM table'", "--job_type", "'Materialization'", "--store_type", "local", "--source_list", "source1", "source2"},
+			ExpectedDFArgs:        []string{"spark-submit", "--deploy-mode", "cluster", "--master", "yarn", "/app/provider/scripts/spark/offline_store_spark_runner.py", "df", "--output_uri", "path/to/output", "--code", "code", "--store_type", "local", "--source", "source1", "source2"},
+		},
+		{
+			name:     "Databricks",
+			executor: &DatabricksExecutor{},
+			SubmitArgs: SubmitArgs{
+				DestPath:   "path/to/dest",
+				Query:      "SELECT * FROM table",
+				SourceList: []string{"source1", "source2"},
+				JobType:    Materialize,
+			},
+			DFArgs: DFArgs{
+				OutputURI: "path/to/output",
+				Code:      "code",
+				Sources:   []string{"source1", "source2"},
+			},
+			ExpectedPythonFileURI: "featureform/scripts/spark/offline_store_spark_runner.py",
+			ExpectedSubmitArgs:    []string{"sql", "--output_uri", "path/to/dest", "--sql_query", "SELECT * FROM table", "--job_type", "Materialization", "--store_type", "local", "--source_list", "source1", "source2"},
+			ExpectedDFArgs:        []string{"df", "--output_uri", "path/to/output", "--code", "code", "--store_type", "local", "--source", "source1", "source2"},
+		},
+		{
+			name: "EMR",
+			executor: &EMRExecutor{
+				logger: zaptest.NewLogger(t).Sugar(),
+			},
+			SubmitArgs: SubmitArgs{
+				DestPath:   "path/to/dest",
+				Query:      "SELECT * FROM table",
+				SourceList: []string{"source1", "source2"},
+				JobType:    Materialize,
+			},
+			DFArgs: DFArgs{
+				OutputURI: "path/to/output",
+				Code:      "code",
+				Sources:   []string{"source1", "source2"},
+			},
+			ExpectedPythonFileURI: "",
+			ExpectedSubmitArgs:    []string{"spark-submit", "--deploy-mode", "client", "featureform/scripts/spark/offline_store_spark_runner.py", "sql", "--output_uri", "path/to/dest", "--sql_query", "SELECT * FROM table", "--job_type", "Materialization", "--store_type", "local", "--source_list", "source1", "source2"},
+			ExpectedDFArgs:        []string{"spark-submit", "--deploy-mode", "client", "featureform/scripts/spark/offline_store_spark_runner.py", "df", "--output_uri", "path/to/output", "--code", "code", "--store_type", "local", "--source", "source1", "source2"},
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			pythonURI := tt.executor.PythonFileURI(store)
+			if !reflect.DeepEqual(pythonURI, tt.ExpectedPythonFileURI) {
+				t.Errorf("SparkExecutor.PythonFileURI() = %#v, want %#v", pythonURI, tt.ExpectedPythonFileURI)
+			}
+			submitArgs := tt.executor.SparkSubmitArgs(tt.SubmitArgs.DestPath, tt.SubmitArgs.Query, tt.SubmitArgs.SourceList, tt.SubmitArgs.JobType, store)
+			if !reflect.DeepEqual(submitArgs, tt.ExpectedSubmitArgs) {
+				t.Errorf("SparkExecutor.SubmitArgs() = %#v, want %#v", submitArgs, tt.ExpectedSubmitArgs)
+			}
+			dfArgs, err := tt.executor.GetDFArgs(tt.DFArgs.OutputURI, tt.DFArgs.Code, tt.DFArgs.Sources, store)
+			if err != nil {
+				t.Errorf("SparkExecutor.GetDFArgs() = %#v, want %#v", err, nil)
+			}
+			if !reflect.DeepEqual(dfArgs, tt.ExpectedDFArgs) {
+				t.Errorf("SparkExecutor.GetDFArgs() = %#v, want %#v", dfArgs, tt.ExpectedDFArgs)
+			}
+		})
+	}
+}
+
+func TestSparkOfflineStore_getResourceInformationFromFilePath(t *testing.T) {
+	type fields struct {
+		Executor     SparkExecutor
+		Store        SparkFileStore
+		Logger       *zap.SugaredLogger
+		query        *defaultPythonOfflineQueries
+		BaseProvider BaseProvider
+	}
+	type args struct {
+		path string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+		want1  string
+		want2  string
+	}{
+		{
+			"Short S3",
+			fields{},
+			args{"s3://bucket/path/to/file"},
+			"",
+			"",
+			"",
+		},
+		{
+			"Long S3",
+			fields{},
+			args{"s3://bucket/long/path/to/file"},
+			"path",
+			"to",
+			"file",
+		},
+		{
+			"Short S3a",
+			fields{},
+			args{"s3a://bucket/path/to/file"},
+			"",
+			"",
+			"",
+		},
+		{
+			"Long S3a",
+			fields{},
+			args{"s3a://bucket/long/path/to/file"},
+			"path",
+			"to",
+			"file",
+		},
+		{
+			"Short hdfs",
+			fields{},
+			args{"hdfs://bucket/path/to/file"},
+			"",
+			"",
+			"",
+		},
+		{
+			"Long hdfs",
+			fields{},
+			args{"hdfs://bucket/long/path/to/file"},
+			"path",
+			"to",
+			"file",
+		},
+		{
+			"Featureform Path Short",
+			fields{},
+			args{"featureform/something"},
+			"",
+			"",
+			"",
+		},
+		{
+			"Featureform Path Long",
+			fields{},
+			args{"featureform/long/path/to/file"},
+			"long",
+			"path",
+			"to",
+		},
+		{
+			"Featureform__ Path Short",
+			fields{},
+			args{"featureform_"},
+			"",
+			"",
+			"",
+		},
+		{
+			"Featureform__ Path Long",
+			fields{},
+			args{"featureform__long__path__to"},
+			"_long",
+			"path",
+			"to",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spark := &SparkOfflineStore{
+				Executor:     tt.fields.Executor,
+				Store:        tt.fields.Store,
+				Logger:       tt.fields.Logger,
+				query:        tt.fields.query,
+				BaseProvider: tt.fields.BaseProvider,
+			}
+			got, got1, got2 := spark.getResourceInformationFromFilePath(tt.args.path)
+			if got != tt.want {
+				t.Errorf("getResourceInformationFromFilePath() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("getResourceInformationFromFilePath() got1 = %v, want %v", got1, tt.want1)
+			}
+			if got2 != tt.want2 {
+				t.Errorf("getResourceInformationFromFilePath() got2 = %v, want %v", got2, tt.want2)
+			}
+		})
+	}
 }

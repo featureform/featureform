@@ -75,6 +75,33 @@ type AzureFileStore struct {
 	genericFileStore
 }
 
+func (store *AzureFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
+	fp := filestore.AzureFilepath{
+		StorageAccount: store.AccountName,
+	}
+	fp.SetBucket(store.ContainerName)
+	fp.SetKey(key)
+	err := fp.Validate()
+	if err != nil {
+		return nil, err
+	}
+	return &fp, nil
+}
+
+func (store *AzureFileStore) CreateDirPath(key string) (filestore.Filepath, error) {
+	fp := filestore.AzureFilepath{
+		StorageAccount: store.AccountName,
+	}
+	fp.SetBucket(store.ContainerName)
+	fp.SetKey(key)
+	fp.SetIsDir(true)
+	err := fp.Validate()
+	if err != nil {
+		return nil, err
+	}
+	return &fp, nil
+}
+
 func (store *AzureFileStore) configString() string {
 	return fmt.Sprintf("fs.azure.account.key.%s.dfs.core.windows.net=%s", store.AccountName, store.AccountKey)
 }
@@ -197,6 +224,29 @@ func NewS3FileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
+func (s3 *S3FileStore) CreateFilePath(key string) (filestore.Filepath, error) {
+	fp := filestore.S3Filepath{}
+	fp.SetBucket(s3.Bucket)
+	fp.SetKey(key)
+	err := fp.Validate()
+	if err != nil {
+		return nil, err
+	}
+	return &fp, nil
+}
+
+func (s3 *S3FileStore) CreateDirPath(key string) (filestore.Filepath, error) {
+	fp := filestore.S3Filepath{}
+	fp.SetBucket(s3.Bucket)
+	fp.SetKey(key)
+	fp.SetIsDir(true)
+	err := fp.Validate()
+	if err != nil {
+		return nil, err
+	}
+	return &fp, nil
+}
+
 func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
 	pathContainsS3Prefix := strings.HasPrefix(path, s3aPrefix)
 	pathContainsWorkingDirectory := s3.Path != "" && strings.HasPrefix(path, s3.Path)
@@ -241,6 +291,29 @@ type GCSFileStore struct {
 	Path        string
 	Credentials pc.GCPCredentials
 	genericFileStore
+}
+
+func (gs *GCSFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
+	fp := filestore.GCSFilepath{}
+	fp.SetBucket(gs.Bucket)
+	fp.SetKey(key)
+	err := fp.Validate()
+	if err != nil {
+		return nil, err
+	}
+	return &fp, nil
+}
+
+func (gs *GCSFileStore) CreateDirPath(key string) (filestore.Filepath, error) {
+	fp := filestore.GCSFilepath{}
+	fp.SetBucket(gs.Bucket)
+	fp.SetKey(key)
+	fp.SetIsDir(true)
+	err := fp.Validate()
+	if err != nil {
+		return nil, err
+	}
+	return &fp, nil
 }
 
 func (gs *GCSFileStore) PathWithPrefix(path string, remote bool) string {

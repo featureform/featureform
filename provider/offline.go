@@ -64,6 +64,10 @@ type ResourceID struct {
 	Type          OfflineResourceType
 }
 
+func (id *ResourceID) FilestorePath() string {
+	return fmt.Sprintf("featureform/%s/%s/%s", id.Type, id.Name, id.Variant)
+}
+
 func (id *ResourceID) check(expectedType OfflineResourceType, otherTypes ...OfflineResourceType) error {
 	if id.Name == "" {
 		return errors.New("ResourceID must have Name set")

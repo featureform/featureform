@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/featureform/metadata"
+	"github.com/segmentio/parquet-go"
 	"io"
 	"math"
 	"os"
@@ -383,8 +384,11 @@ type FileStore interface {
 	Close() error
 	Upload(sourcePath filestore.Filepath, destPath filestore.Filepath) error
 	Download(sourcePath filestore.Filepath, destPath filestore.Filepath) error
-	FilestoreType() pc.FileStoreType
+	FilestoreType() filestore.FileStoreType
 	AddEnvVars(envVars map[string]string) map[string]string
+	// CreateFilePath creates a new filepath object with the bucket and scheme from a Key
+	CreateFilePath(key string) (filestore.Filepath, error)
+	CreateDirPath(key string) (filestore.Filepath, error)
 }
 
 type Iterator interface {
@@ -693,7 +697,7 @@ func parquetIteratorFromBytes(b []byte) (Iterator, error) {
 	}, nil
 }
 
-//Move this function to the resource ID
+// Move this function to the resource ID
 func ResourcePrefix(id ResourceID) string {
 	return fmt.Sprintf("featureform/%s/%s/%s", id.Type, id.Name, id.Variant)
 }

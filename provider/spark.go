@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/featureform/filestore"
 	"net/http"
 	"path/filepath"
 
@@ -138,24 +139,6 @@ func (s3 SparkS3FileStore) Packages() []string {
 
 func (s3 SparkS3FileStore) Type() string {
 	return "s3"
-}
-
-func (s3 SparkS3FileStore) PathWithPrefix(path string, remote bool) string {
-	pathContainsS3Prefix := strings.HasPrefix(path, s3aPrefix)
-	pathContainsWorkingDirectory := s3.Path != "" && strings.HasPrefix(path, s3.Path)
-
-	if !remote {
-		if len(path) != 0 && !pathContainsWorkingDirectory {
-			return fmt.Sprintf("%s/%s", s3.Path, strings.TrimPrefix(path, "/"))
-		}
-	} else if remote && !pathContainsS3Prefix {
-		s3PathPrefix := ""
-		if !pathContainsWorkingDirectory {
-			s3PathPrefix = fmt.Sprintf("/%s", s3.Path)
-		}
-		return fmt.Sprintf("%s%s%s/%s", s3aPrefix, s3.Bucket, s3PathPrefix, strings.TrimPrefix(path, "/"))
-	}
-	return path
 }
 
 func NewSparkAzureFileStore(config Config) (SparkFileStore, error) {
@@ -366,18 +349,19 @@ func (e *EMRExecutor) PythonFileURI(store SparkFileStore) string {
 	return ""
 }
 
-func (db *DatabricksExecutor) PythonFileURI(store SparkFileStore) string {
+// Need the bucket from here
+func (db *DatabricksExecutor) PythonFileURI(store SparkFileStore) (filestore.Filepath, error) {
 	filePath := config.GetSparkRemoteScriptPath()
-	return store.PathWithPrefix(filePath, true)
+	return store.CreateFilePath(filePath)
 }
 
-func readAndUploadFile(filePath string, storePath string, store SparkFileStore) error {
+func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath, store SparkFileStore) error {
 	fileExists, _ := store.Exists(storePath)
 	if fileExists {
 		return nil
 	}
 
-	f, err := os.Open(filePath)
+	f, err := os.Open(filePath.Key())
 	if err != nil {
 		return fmt.Errorf("could not open file: %v", err)
 	}
@@ -406,7 +390,10 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 	pythonLocalInitScriptPath := config.GetPythonLocalInitPath()
 	pythonRemoteInitScriptPath := config.GetPythonRemoteInitPath()
 
-	remoteScriptPathWithPrefix := store.PathWithPrefix(sparkRemoteScriptPath, false)
+	remoteScriptPathWithPrefix, err := store.CreateFilePath(sparkRemoteScriptPath)
+	if err != nil {
+		return fmt.Errorf("could not create remote script path: %v", err)
+	}
 	err := readAndUploadFile(sparkLocalScriptPath, remoteScriptPathWithPrefix, store)
 	if err != nil {
 		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath, remoteScriptPathWithPrefix, err)
@@ -415,8 +402,10 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 	if err != nil || !sparkExists {
 		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", remoteScriptPathWithPrefix, err)
 	}
-
-	remoteInitScriptPathWithPrefix := store.PathWithPrefix(pythonRemoteInitScriptPath, false)
+	remoteInitScriptPathWithPrefix, err := store.CreateFilePath(pythonRemoteInitScriptPath)
+	if err != nil {
+		return fmt.Errorf("could not create remote init script path: %v", err)
+	}
 	err = readAndUploadFile(pythonLocalInitScriptPath, remoteInitScriptPathWithPrefix, store)
 	if err != nil {
 		return fmt.Errorf("could not upload '%s' to '%s': %v", pythonLocalInitScriptPath, remoteInitScriptPathWithPrefix, err)
@@ -680,9 +669,9 @@ func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 type SparkExecutor interface {
 	RunSparkJob(args []string, store SparkFileStore) error
 	InitializeExecutor(store SparkFileStore) error
-	PythonFileURI(store SparkFileStore) string
-	SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string
-	GetDFArgs(outputURI string, code string, sources []string, store SparkFileStore) ([]string, error)
+	PythonFileURI(store SparkFileStore) (filestore.Filepath, error)
+	SparkSubmitArgs(destPath filestore.Filepath, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string
+	GetDFArgs(outputURI filestore.Filepath, code string, sources []string, store SparkFileStore) ([]string, error)
 }
 
 type EMRExecutor struct {
@@ -696,7 +685,7 @@ func (e EMRExecutor) InitializeExecutor(store SparkFileStore) error {
 	e.logger.Info("Uploading PySpark script to filestore")
 	sparkLocalScriptPath := config.GetSparkLocalScriptPath()
 	sparkRemoteScriptPath := config.GetSparkRemoteScriptPath()
-	sparkScriptPathWithPrefix := store.PathWithPrefix(sparkRemoteScriptPath, false)
+	sparkScriptPathWithPrefix := store.CreateFilePath(sparkRemoteScriptPath)
 
 	err := readAndUploadFile(sparkLocalScriptPath, sparkScriptPathWithPrefix, store)
 	if err != nil {
@@ -722,7 +711,10 @@ func (s *SparkGenericExecutor) InitializeExecutor(store SparkFileStore) error {
 	s.logger.Info("Uploading PySpark script to filestore")
 	sparkLocalScriptPath := config.GetSparkLocalScriptPath()
 	sparkRemoteScriptPath := config.GetSparkRemoteScriptPath()
-	sparkScriptPathWithPrefix := store.PathWithPrefix(sparkRemoteScriptPath, false)
+	sparkScriptPathWithPrefix, err := store.CreateFilePath(sparkRemoteScriptPath)
+	if err != nil {
+		return fmt.Errorf("could not create file path: %v", err)
+	}
 
 	err := readAndUploadFile(sparkLocalScriptPath, sparkScriptPathWithPrefix, store)
 	if err != nil {
@@ -805,8 +797,8 @@ func (s *SparkGenericExecutor) PythonFileURI(store SparkFileStore) string {
 	return ""
 }
 
-func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
-	s.logger.Debugw("SparkSubmitArgs", "destPath", destPath, "cleanQuery", cleanQuery, "sourceList", sourceList, "jobType", jobType, "store", store)
+func (s *SparkGenericExecutor) SparkSubmitArgs(destPath filestore.Filepath, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
+	s.logger.Debugw("SparkSubmitArgs", "destPath", destPath.PathWithBucket(), "cleanQuery", cleanQuery, "sourceList", sourceList, "jobType", jobType, "store", store)
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
@@ -823,7 +815,7 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 		sparkScriptPathEnv,
 		"sql",
 		"--output_uri",
-		destPath,
+		destPath.PathWithBucket(),
 		"--sql_query",
 		fmt.Sprintf("'%s'", cleanQuery),
 		"--job_type",
@@ -844,7 +836,7 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(destPath string, cleanQuery strin
 	return argList
 }
 
-func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources []string, store SparkFileStore) ([]string, error) {
+func (s *SparkGenericExecutor) GetDFArgs(outputURI filestore.Filepath, code string, sources []string, store SparkFileStore) ([]string, error) {
 	argList := []string{
 		"spark-submit",
 		"--deploy-mode",
@@ -862,7 +854,7 @@ func (s *SparkGenericExecutor) GetDFArgs(outputURI string, code string, sources 
 		sparkScriptPathEnv,
 		"df",
 		"--output_uri",
-		outputURI,
+		outputURI.PathWithBucket(),
 		"--code",
 		code,
 		"--store_type",
@@ -1077,7 +1069,7 @@ func (e *EMRExecutor) waitForLogFile(logFile string) error {
 	}
 }
 
-func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
+func (e *EMRExecutor) SparkSubmitArgs(destPath filestore.Filepath, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
 	e.logger.Debugw("SparkSubmitArgs", "destPath", destPath, "cleanQuery", cleanQuery, "sourceList", sourceList, "jobType", jobType, "store", store)
 	argList := []string{
 		"spark-submit",
@@ -1089,12 +1081,15 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath string, cleanQuery string, source
 	argList = append(argList, packageArgs...) // adding any packages needed for filestores
 
 	sparkScriptPathEnv := config.GetSparkRemoteScriptPath()
-	sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
+	sparkScriptPath, err := store.CreateFilePath(sparkScriptPathEnv)
+	if err != nil {
+		return fmt.Errorf("could not create file path for '%s': %v", sparkScriptPathEnv, err)
+	}
 	scriptArgs := []string{
-		sparkScriptPath,
+		sparkScriptPath.PathWithBucket(),
 		"sql",
 		"--output_uri",
-		store.PathWithPrefix(destPath, true),
+		destPath.PathWithBucket(),
 		"--sql_query",
 		cleanQuery,
 		"--job_type",
@@ -1156,11 +1151,11 @@ func removeEspaceCharacters(values []string) []string {
 	return values
 }
 
-func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
+func (d *DatabricksExecutor) SparkSubmitArgs(destPath filestore.Filepath, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore) []string {
 	argList := []string{
 		"sql",
 		"--output_uri",
-		destPath,
+		destPath.PathWithBucket(),
 		"--sql_query",
 		cleanQuery,
 		"--job_type",
@@ -1213,10 +1208,12 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 		spark.Logger.Errorw("Could not generate updated query for spark transformation", err)
 		return err
 	}
+	transformationDestination, err := spark.Store.CreateDirPath(config.TargetTableID.FilestorePath())
+	if err != nil {
+		return fmt.Errorf("could not create file path for spark transformation: %v", err)
+	}
 
-	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
-	bucketTransformationDest := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false)
-	newestTransformationFile, err := spark.Store.NewestFileOfType(bucketTransformationDest, Parquet)
+	newestTransformationFile, err := spark.Store.NewestFileOfType(transformationDestination, Parquet)
 	if err != nil {
 		return fmt.Errorf("could not get newest transformation file: %v", err)
 	}
@@ -1244,9 +1241,12 @@ func GetTransformationFileLocation(id ResourceID) string {
 }
 
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
-	transformationDestination := spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), true)
+	transformationDestination, err := spark.Store.CreateFilePath(config.TargetTableID.FilestorePath())
+	if err != nil {
+		return fmt.Errorf("could not create file path for spark transformation: %v", err)
+	}
 	spark.Logger.Infow("Transformation Destination", "dest", transformationDestination)
-	transformationDestinationWithSlash := strings.Join([]string{transformationDestination, ""}, "/")
+	transformationDestinationWithSlash := strings.Join([]string{transformationDestination.PathWithBucket(), ""}, "/")
 	spark.Logger.Infow("Transformation Destination With Slash", "dest", transformationDestinationWithSlash)
 	transformationFile, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(ResourcePrefix(config.TargetTableID), false), Parquet)
 	if err != nil {
@@ -1410,11 +1410,14 @@ func (e *EMRExecutor) GetDFArgs(outputURI string, code string, sources []string,
 	argList = append(argList, packageArgs...) // adding any packages needed for filestores
 
 	sparkScriptPathEnv := config.GetSparkRemoteScriptPath()
-	sparkScriptPath := store.PathWithPrefix(sparkScriptPathEnv, true)
-	codePath := strings.Replace(code, s3aPrefix, s3Prefix, -1)
+	sparkScriptPath, err := store.CreateFilePath(sparkScriptPathEnv)
+	if err != nil {
+		return nil, fmt.Errorf("could not create spark script path: %v", err)
+	}
+	codePath := strings.Replace(code, filestore.s3aPrefix, filestore.s3Prefix, -1)
 
 	scriptArgs := []string{
-		sparkScriptPath,
+		sparkScriptPath.PathWithBucket(),
 		"df",
 		"--output_uri",
 		outputURI,
@@ -1461,18 +1464,12 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 }
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), true)
-	spark.Logger.Debugw("Retrieved transformation source", "ResourceID", id, "transformationPath", transformationPath)
-	filePath, err := NewEmptyFilepath(spark.Store.FilestoreType())
+	transformationPath, err := spark.Store.CreateFilePath(id.FilestorePath())
 	if err != nil {
-		return nil, fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), transformationPath)
+		return nil, fmt.Errorf("could not create file path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), id.FilestorePath())
 	}
-	err = filePath.ParseFullPath(transformationPath)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), transformationPath)
-	}
-	spark.Logger.Debugw("Retrieved transformation source", "id", id, "filePath", filePath)
-	return &FileStorePrimaryTable{spark.Store, filePath, true, id}, nil
+	spark.Logger.Debugw("Retrieved transformation source", "id", id, "filePath", transformationPath.PathWithBucket())
+	return &FileStorePrimaryTable{spark.Store, transformationPath.PathWithBucket(), true, id}, nil
 }
 
 func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig) error {
@@ -1513,7 +1510,10 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 
 	// get destination path for the materialization
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
-	destinationPath := spark.Store.PathWithPrefix(ResourcePrefix(materializationID), true)
+	destinationPath, err := spark.Store.CreateFilePath(materializationID.FilestorePath())
+	if err != nil {
+		return nil, fmt.Errorf("could not create file path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), materializationID.FilestorePath())
+	}
 	materializationNewestFile, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(fileStoreResourcePath(materializationID), false), Parquet)
 	if err != nil {
 		return nil, fmt.Errorf("could not get newest materialization file: %v", err)
@@ -1596,12 +1596,15 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	}
 	sourcePaths := make([]string, 0)
 	featureSchemas := make([]ResourceSchema, 0)
-	destinationPath := spark.Store.PathWithPrefix(ResourcePrefix(def.ID), true)
-	trainingSetNewestFile, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(fileStoreResourcePath(def.ID), false), Parquet)
+	destinationPath, err := spark.Store.CreateDirPath(def.ID.FilestorePath())
+	if err != nil {
+		return fmt.Errorf("could not create destination path: %v", err)
+	}
+	trainingSetNewestFile, err := spark.Store.NewestFileOfType(destinationPath, filestore.Parquet)
 	if err != nil {
 		return fmt.Errorf("Error getting training set newest file: %v", err)
 	}
-	trainingSetExists := trainingSetNewestFile != ""
+	trainingSetExists := trainingSetNewestFile.PathWithBucket() != ""
 	if trainingSetExists && !isUpdate {
 		spark.Logger.Errorw("Training set already exists", "id", def.ID)
 		return fmt.Errorf("spark training set already exists: %v", def.ID)
@@ -1614,26 +1617,24 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Could not get schema of label in spark store", "label", def.Label, "error", err)
 		return fmt.Errorf("could not get schema of label %s: %v", def.Label, err)
 	}
-	latestLabelPath, err := spark.Store.NewestFileOfType(labelSchema.SourceTable, Parquet)
+	labelPath, err := spark.Store.NewestFileOfType(labelSchema.SourceTable, filestore.Parquet)
 	if err != nil {
 		spark.Logger.Errorw("Could not get latest label file", "label", def.Label, "error", err)
 		return fmt.Errorf("could not get latest label file: %v", err)
 	}
-	labelPath := spark.Store.PathWithPrefix(latestLabelPath, true)
-	sourcePaths = append(sourcePaths, labelPath)
+	sourcePaths = append(sourcePaths, labelPath.PathWithBucket())
 	for _, feature := range def.Features {
 		featureSchema, err := spark.registeredResourceSchema(feature)
 		if err != nil {
 			spark.Logger.Errorw("Could not get schema of feature in spark store", "feature", feature, "error", err)
 			return fmt.Errorf("could not get schema of feature %s: %v", feature, err)
 		}
-		latestFeaturePath, err := spark.Store.NewestFileOfType(featureSchema.SourceTable, Parquet)
+		featurePath, err := spark.Store.NewestFileOfType(featureSchema.SourceTable, filestore.Parquet)
 		if err != nil {
 			spark.Logger.Errorw("Could not get latest feature file", "feature", feature, "error", err)
 			return fmt.Errorf("could not get latest feature file: %v", err)
 		}
-		featurePath := spark.Store.PathWithPrefix(latestFeaturePath, true)
-		sourcePaths = append(sourcePaths, featurePath)
+		sourcePaths = append(sourcePaths, featurePath.PathWithBucket())
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
@@ -1643,11 +1644,11 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Spark submit training set job failed to run", "definition", def.ID, "error", err)
 		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
 	}
-	newestTrainingSet, err := spark.Store.NewestFileOfType(spark.Store.PathWithPrefix(ResourcePrefix(def.ID), false), Parquet)
+	newestTrainingSet, err := spark.Store.NewestFileOfType(destinationPath, filestore.Parquet)
 	if err != nil {
 		return fmt.Errorf("could not check that training set was created: %v", err)
 	}
-	if newestTrainingSet == "" {
+	if newestTrainingSet.PathWithBucket() == "" {
 		spark.Logger.Errorw("Could not get training set resource key in offline store")
 		return fmt.Errorf("training Set result does not exist in offline store")
 	}

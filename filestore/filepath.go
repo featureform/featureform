@@ -76,11 +76,15 @@ func GetFileExtension(file string) string {
 
 type Filepath interface {
 	Scheme() string
+	SetScheme(scheme string)
 	// Returns the name of the bucket (S3) or container (Azure Blob Storage)
 	Bucket() string
+	SetBucket(bucket string)
 	// Returns the absolute path without a scheme, host, or bucket
 	Key() string
+	SetKey(key string)
 	KeyPrefix() string
+	SetIsDir(isDir bool)
 	IsDir() bool
 	Ext() FileType
 	// Returns the key to the object (S3) or blob (Azure Blob Storage)
@@ -94,12 +98,12 @@ type Filepath interface {
 	IsValid() bool
 }
 
-//// TODO: Add support for additional params, such as service account (Azure Blob Storage)
+////// TODO: Add support for additional params, such as service account (Azure Blob Storage)
 //func NewFilepath(storeType pc.FileStoreType, bucket string, path string) (Filepath, error) {
 //	switch storeType {
-//	case pc.S3:
+//	case S3:
 //		return &S3Filepath{
-//			filePath: filePath{
+//			FilePath: FilePath{
 //				bucket: strings.Trim(bucket, "/"),
 //				prefix: strings.Trim(prefix, "/"),
 //				path:   strings.TrimPrefix(path, "/"),
@@ -107,7 +111,7 @@ type Filepath interface {
 //		}, nil
 //	case pc.Azure:
 //		return &AzureFilepath{
-//			filePath: filePath{
+//			FilePath: FilePath{
 //				bucket: strings.Trim(bucket, "/"),
 //				prefix: strings.Trim(prefix, "/"),
 //				path:   strings.Trim(path, "/"),
@@ -121,11 +125,11 @@ type Filepath interface {
 func NewEmptyFilepath(storeType FileStoreType) (Filepath, error) {
 	switch storeType {
 	case S3:
-		return &S3Filepath{filePath{isDir: false}}, nil
+		return &S3Filepath{FilePath{isDir: false}}, nil
 	case Azure:
 		return &AzureFilepath{}, nil
 	case GCS:
-		return &GCSFilepath{filePath{isDir: false}}, nil
+		return &GCSFilepath{FilePath{isDir: false}}, nil
 	case Memory:
 		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
 	case FileSystem:
@@ -142,11 +146,11 @@ func NewEmptyFilepath(storeType FileStoreType) (Filepath, error) {
 func NewEmptyDirpath(storeType FileStoreType) (Filepath, error) {
 	switch storeType {
 	case S3:
-		return &S3Filepath{filePath{isDir: true}}, nil
+		return &S3Filepath{FilePath{isDir: true}}, nil
 	case Azure:
 		return &AzureFilepath{}, nil
 	case GCS:
-		return &GCSFilepath{filePath{isDir: true}}, nil
+		return &GCSFilepath{FilePath{isDir: true}}, nil
 	case Memory:
 		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
 	case FileSystem:
@@ -160,7 +164,7 @@ func NewEmptyDirpath(storeType FileStoreType) (Filepath, error) {
 	}
 }
 
-type filePath struct {
+type FilePath struct {
 	scheme  string
 	bucket  string
 	key     string
@@ -168,35 +172,51 @@ type filePath struct {
 	isValid bool
 }
 
-func (fp *filePath) Scheme() string {
+func (fp *FilePath) SetScheme(scheme string) {
+	fp.scheme = scheme
+}
+
+func (fp *FilePath) Scheme() string {
 	return fp.scheme
 }
 
-func (fp *filePath) Bucket() string {
+func (fp *FilePath) SetBucket(bucket string) {
+	fp.bucket = bucket
+}
+
+func (fp *FilePath) Bucket() string {
 	return fp.bucket
 }
 
-func (fp *filePath) Key() string {
+func (fp *FilePath) SetKey(key string) {
+	fp.key = key
+}
+
+func (fp *FilePath) Key() string {
 	return fp.key
 }
 
-func (fp *filePath) KeyPrefix() string {
+func (fp *FilePath) KeyPrefix() string {
 	return filepath.Dir(fp.key)
 }
 
-func (fp *filePath) Ext() FileType {
+func (fp *FilePath) Ext() FileType {
 	return FileType(filepath.Ext(fp.key))
 }
 
-func (fp *filePath) PathWithBucket() string {
+func (fp *FilePath) PathWithBucket() string {
 	return fp.key
 }
 
-func (fp *filePath) IsDir() bool {
+func (fp *FilePath) SetIsDir(isDir bool) {
+	fp.isDir = isDir
+}
+
+func (fp *FilePath) IsDir() bool {
 	return fp.isDir
 }
 
-func (fp *filePath) ParseFilePath(fullPath string) error {
+func (fp *FilePath) ParseFilePath(fullPath string) error {
 	err := fp.parsePath(fullPath)
 	if err != nil {
 		return fmt.Errorf("file: %v", err)
@@ -205,7 +225,7 @@ func (fp *filePath) ParseFilePath(fullPath string) error {
 	return nil
 }
 
-func (fp *filePath) ParseDirPath(fullPath string) error {
+func (fp *FilePath) ParseDirPath(fullPath string) error {
 	err := fp.parsePath(fullPath)
 	if err != nil {
 		return fmt.Errorf("dir: %v", err)
@@ -214,7 +234,7 @@ func (fp *filePath) ParseDirPath(fullPath string) error {
 	return nil
 }
 
-func (fp *filePath) checkSchemes(scheme string) error {
+func (fp *FilePath) checkSchemes(scheme string) error {
 	for _, s := range ValidSchemes {
 		if s == scheme {
 			return nil
@@ -223,7 +243,7 @@ func (fp *filePath) checkSchemes(scheme string) error {
 	return fmt.Errorf("invalid scheme '%s', must be one of %v", scheme, ValidSchemes)
 }
 
-func (fp *filePath) parsePath(fullPath string) error {
+func (fp *FilePath) parsePath(fullPath string) error {
 	// Parse the URI into a url.URL object.
 	u, err := url.Parse(fullPath)
 	if err != nil {
@@ -246,12 +266,12 @@ func (fp *filePath) parsePath(fullPath string) error {
 	return nil
 }
 
-func (fp *filePath) IsValid() bool {
+func (fp *FilePath) IsValid() bool {
 	return fp.isValid
 }
 
 type S3Filepath struct {
-	filePath
+	FilePath
 }
 
 func (s3 *S3Filepath) Validate() error {
@@ -278,12 +298,12 @@ func (s3 *S3Filepath) PathWithBucket() string {
 }
 
 type AzureFilepath struct {
-	storageAccount string
-	filePath
+	StorageAccount string
+	FilePath
 }
 
 func (azure *AzureFilepath) PathWithBucket() string {
-	return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s", azure.bucket, azure.storageAccount, azure.key)
+	return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s", azure.bucket, azure.StorageAccount, azure.key)
 }
 
 func (azure *AzureFilepath) ParseFullPath(fullPath string) error {
@@ -291,9 +311,9 @@ func (azure *AzureFilepath) ParseFullPath(fullPath string) error {
 	if matches := abfssRegex.FindStringSubmatch(fullPath); len(matches) != 4 {
 		return fmt.Errorf("could not parse full path '%s'; expected format abfss://<container/bucket>@<storage_account>.dfs.core.windows.net/path", fullPath)
 	} else {
-		azure.filePath.bucket = strings.Trim(matches[1], "/")
-		azure.storageAccount = strings.Trim(matches[2], "/")
-		azure.filePath.key = strings.Trim(matches[3], "/")
+		azure.FilePath.bucket = strings.Trim(matches[1], "/")
+		azure.StorageAccount = strings.Trim(matches[2], "/")
+		azure.FilePath.key = strings.Trim(matches[3], "/")
 	}
 	return nil
 }
@@ -302,7 +322,7 @@ func (azure *AzureFilepath) Validate() error {
 	if azure.scheme != "abfss://" {
 		return fmt.Errorf("invalid scheme '%s', must be 'abfss://'", azure.scheme)
 	}
-	if azure.storageAccount == "" {
+	if azure.StorageAccount == "" {
 		return fmt.Errorf("storage account cannot be empty")
 	}
 	if azure.bucket == "" {
@@ -320,7 +340,7 @@ func (azure *AzureFilepath) Validate() error {
 }
 
 type GCSFilepath struct {
-	filePath
+	FilePath
 }
 
 func (gcs *GCSFilepath) PathWithBucket() string {

@@ -38,7 +38,7 @@ import (
 //			Prefix:    "elasticmapreduce",
 //			Path:      "path/to/file",
 //			ExpectedPath: &S3Filepath{
-//				filePath: filePath{
+//				FilePath: FilePath{
 //					bucket: "bucket",
 //					prefix: "elasticmapreduce",
 //					path:   "path/to/file",
@@ -53,7 +53,7 @@ import (
 //			Prefix:    "/elasticmapreduce/",
 //			Path:      "/path/to/file/",
 //			ExpectedPath: &S3Filepath{
-//				filePath: filePath{
+//				FilePath: FilePath{
 //					bucket: "bucket",
 //					prefix: "elasticmapreduce",
 //					path:   "path/to/file/",
@@ -77,7 +77,7 @@ import (
 //			Prefix:    "elasticmapreduce",
 //			Path:      "path/to/file",
 //			ExpectedPath: &AzureFilepath{
-//				filePath: filePath{
+//				FilePath: FilePath{
 //					bucket: "bucket",
 //					prefix: "elasticmapreduce",
 //					path:   "path/to/file",
@@ -155,7 +155,7 @@ import (
 //			StoreType: S3,
 //			FullPath:  "s3://bucket/elasticmapreduce/path/to/file",
 //			ExpectedPath: &S3Filepath{
-//				filePath: filePath{
+//				FilePath: FilePath{
 //					bucket: "bucket",
 //					prefix: "",
 //					path:   "elasticmapreduce/path/to/file",
@@ -168,7 +168,7 @@ import (
 //			StoreType: S3,
 //			FullPath:  "s3://bucket/elasticmapreduce/path/to/file/",
 //			ExpectedPath: &S3Filepath{
-//				filePath: filePath{
+//				FilePath: FilePath{
 //					bucket: "bucket",
 //					prefix: "",
 //					path:   "elasticmapreduce/path/to/file/",
@@ -181,7 +181,7 @@ import (
 //			StoreType: GCS,
 //			FullPath:  "gs://bucket/elasticmapreduce/path/to/file",
 //			ExpectedPath: &GCSFilepath{
-//				filePath: filePath{
+//				FilePath: FilePath{
 //					bucket: "bucket",
 //					prefix: "",
 //					path:   "elasticmapreduce/path/to/file",
@@ -194,8 +194,8 @@ import (
 //			StoreType: Azure,
 //			FullPath:  "abfss://container@account.dfs.core.windows.net/elasticmapreduce/path/to/file",
 //			ExpectedPath: &AzureFilepath{
-//				storageAccount: "account",
-//				filePath: filePath{
+//				StorageAccount: "account",
+//				FilePath: FilePath{
 //					bucket: "container",
 //					prefix: "",
 //					path:   "elasticmapreduce/path/to/file",
@@ -208,8 +208,8 @@ import (
 //			StoreType: Azure,
 //			FullPath:  "abfss://container@account.dfs.core.windows.net/elasticmapreduce/path/to/file/",
 //			ExpectedPath: &AzureFilepath{
-//				storageAccount: "account",
-//				filePath: filePath{
+//				StorageAccount: "account",
+//				FilePath: FilePath{
 //					bucket: "container",
 //					prefix: "",
 //					path:   "elasticmapreduce/path/to/file",
@@ -228,19 +228,19 @@ import (
 //	}
 //
 //	runTestCase := func(t *testing.T, test TestCase) {
-//		var filePath Filepath
+//		var FilePath Filepath
 //		var err error
 //		switch test.StoreType {
 //		case FileSystem:
 //			t.Skip()
 //		case S3:
-//			filePath = &S3Filepath{}
-//			err = filePath.ParseFullPath(test.FullPath)
+//			FilePath = &S3Filepath{}
+//			err = FilePath.ParseFullPath(test.FullPath)
 //		case GCS:
 //			t.Skip()
 //		case Azure:
-//			filePath = &AzureFilepath{}
-//			err = filePath.ParseFullPath(test.FullPath)
+//			FilePath = &AzureFilepath{}
+//			err = FilePath.ParseFullPath(test.FullPath)
 //		case HDFS:
 //			t.Skip()
 //		}
@@ -254,20 +254,20 @@ import (
 //				t.Fatalf("expected error '%s' but got '%s'", test.ExpectedError, err)
 //			}
 //		} else if !test.ExpectedFailure && err == nil {
-//			if filePath.FullPathWithBucket() != test.ExpectedPath.FullPathWithBucket() {
-//				t.Fatalf("FullPathWithBucket failed; expected '%s' but got '%s'", test.ExpectedPath.FullPathWithBucket(), filePath.FullPathWithBucket())
+//			if FilePath.FullPathWithBucket() != test.ExpectedPath.FullPathWithBucket() {
+//				t.Fatalf("FullPathWithBucket failed; expected '%s' but got '%s'", test.ExpectedPath.FullPathWithBucket(), FilePath.FullPathWithBucket())
 //			}
-//			if filePath.FullPathWithoutBucket() != test.ExpectedPath.FullPathWithoutBucket() {
-//				t.Fatalf("FullPathWithoutBucket failed; expected '%s' but got '%s'", test.ExpectedPath.FullPathWithoutBucket(), filePath.FullPathWithoutBucket())
+//			if FilePath.FullPathWithoutBucket() != test.ExpectedPath.FullPathWithoutBucket() {
+//				t.Fatalf("FullPathWithoutBucket failed; expected '%s' but got '%s'", test.ExpectedPath.FullPathWithoutBucket(), FilePath.FullPathWithoutBucket())
 //			}
-//			if filePath.Bucket() != test.ExpectedPath.Bucket() {
-//				t.Fatalf("Bucket failed; expected '%s' but got '%s'", test.ExpectedPath.Bucket(), filePath.Bucket())
+//			if FilePath.Bucket() != test.ExpectedPath.Bucket() {
+//				t.Fatalf("Bucket failed; expected '%s' but got '%s'", test.ExpectedPath.Bucket(), FilePath.Bucket())
 //			}
-//			if filePath.Prefix() != test.ExpectedPath.Prefix() {
-//				t.Fatalf("Prefix failed; expected '%s' but got '%s'", test.ExpectedPath.Prefix(), filePath.Prefix())
+//			if FilePath.Prefix() != test.ExpectedPath.Prefix() {
+//				t.Fatalf("Prefix failed; expected '%s' but got '%s'", test.ExpectedPath.Prefix(), FilePath.Prefix())
 //			}
-//			if filePath.Path() != test.ExpectedPath.Path() {
-//				t.Fatalf("Path failed; expected '%s' but got '%s'", test.ExpectedPath.Path(), filePath.Path())
+//			if FilePath.Path() != test.ExpectedPath.Path() {
+//				t.Fatalf("Path failed; expected '%s' but got '%s'", test.ExpectedPath.Path(), FilePath.Path())
 //			}
 //		}
 //	}
@@ -293,8 +293,8 @@ import (
 //			StoreType: Azure,
 //			FullPath:  "abfss://container@account.dfs.core.windows.net/elasticmapreduce/path/to/file/",
 //			ExpectedPath: &AzureFilepath{
-//				storageAccount: "account",
-//				filePath: filePath{
+//				StorageAccount: "account",
+//				FilePath: FilePath{
 //					bucket: "container",
 //					prefix: "",
 //					path:   "elasticmapreduce/path/to/file/",
@@ -344,7 +344,7 @@ func TestValidateFilepaths(t *testing.T) {
 			"S3 Valid",
 			S3,
 			&S3Filepath{
-				filePath: filePath{
+				FilePath: FilePath{
 					bucket: "bucket",
 					scheme: "s3://",
 					key:    "my/path/",
@@ -355,7 +355,7 @@ func TestValidateFilepaths(t *testing.T) {
 			"S3a Valid",
 			S3,
 			&S3Filepath{
-				filePath: filePath{
+				FilePath: FilePath{
 					bucket: "bucket",
 					scheme: "s3a://",
 					key:    "my/path/",
@@ -366,7 +366,7 @@ func TestValidateFilepaths(t *testing.T) {
 			"S3 Invalid Bucket",
 			S3,
 			&S3Filepath{
-				filePath: filePath{
+				FilePath: FilePath{
 					bucket: "",
 					scheme: "s3://",
 					key:    "my/path/",
@@ -377,7 +377,7 @@ func TestValidateFilepaths(t *testing.T) {
 			"S3 Invalid Scheme",
 			S3,
 			&S3Filepath{
-				filePath: filePath{
+				FilePath: FilePath{
 					bucket: "bucket",
 					scheme: "",
 					key:    "my/path/",
@@ -388,7 +388,7 @@ func TestValidateFilepaths(t *testing.T) {
 			"S3 Invalid Key",
 			S3,
 			&S3Filepath{
-				filePath: filePath{
+				FilePath: FilePath{
 					bucket: "bucket",
 					scheme: "s3://",
 					key:    "",
@@ -399,8 +399,8 @@ func TestValidateFilepaths(t *testing.T) {
 			"Azure Valid",
 			Azure,
 			&AzureFilepath{
-				storageAccount: "account",
-				filePath: filePath{
+				StorageAccount: "account",
+				FilePath: FilePath{
 					bucket: "bucket",
 					scheme: "abfss://",
 					key:    "my/path/",
@@ -411,8 +411,8 @@ func TestValidateFilepaths(t *testing.T) {
 			"Azure Invalid Storage Account",
 			Azure,
 			&AzureFilepath{
-				storageAccount: "",
-				filePath: filePath{
+				StorageAccount: "",
+				FilePath: FilePath{
 					bucket: "bucket",
 					scheme: "abfss://",
 					key:    "my/path/",
@@ -423,8 +423,8 @@ func TestValidateFilepaths(t *testing.T) {
 			"Azure Invalid Bucket",
 			Azure,
 			&AzureFilepath{
-				storageAccount: "storageaccount",
-				filePath: filePath{
+				StorageAccount: "storageaccount",
+				FilePath: FilePath{
 					bucket: "",
 					scheme: "abfss://",
 					key:    "my/path/",
@@ -435,8 +435,8 @@ func TestValidateFilepaths(t *testing.T) {
 			"Azure Invalid Scheme",
 			Azure,
 			&AzureFilepath{
-				storageAccount: "storageaccount",
-				filePath: filePath{
+				StorageAccount: "storageaccount",
+				FilePath: FilePath{
 					bucket: "bucket",
 					scheme: "",
 					key:    "my/path/",
@@ -447,8 +447,8 @@ func TestValidateFilepaths(t *testing.T) {
 			"Azure Invalid Key",
 			Azure,
 			&AzureFilepath{
-				storageAccount: "storageaccount",
-				filePath: filePath{
+				StorageAccount: "storageaccount",
+				FilePath: FilePath{
 					bucket: "bucket",
 					scheme: "abfss://",
 					key:    "",
@@ -459,7 +459,7 @@ func TestValidateFilepaths(t *testing.T) {
 			"GCS Valid",
 			GCS,
 			&GCSFilepath{
-				filePath: filePath{
+				FilePath: FilePath{
 					bucket: "bucket",
 					scheme: "gs://",
 					key:    "my/path/",
@@ -470,7 +470,7 @@ func TestValidateFilepaths(t *testing.T) {
 			"GCS Invalid Bucket",
 			GCS,
 			&GCSFilepath{
-				filePath: filePath{
+				FilePath: FilePath{
 					bucket: "",
 					scheme: "gs://",
 					key:    "my/path/",
@@ -481,7 +481,7 @@ func TestValidateFilepaths(t *testing.T) {
 			"GCS Invalid Scheme",
 			GCS,
 			&GCSFilepath{
-				filePath: filePath{
+				FilePath: FilePath{
 					bucket: "bucket",
 					scheme: "",
 					key:    "my/path/",
@@ -492,7 +492,7 @@ func TestValidateFilepaths(t *testing.T) {
 			"GCS Invalid Key",
 			GCS,
 			&S3Filepath{
-				filePath: filePath{
+				FilePath: FilePath{
 					bucket: "bucket",
 					scheme: "gs://",
 					key:    "",
@@ -529,7 +529,7 @@ func TestNewEmptyPath(t *testing.T) {
 			"S3",
 			S3,
 			&S3Filepath{
-				filePath: filePath{
+				FilePath: FilePath{
 					bucket: "bucket",
 					scheme: "s3://",
 					key:    "my/path/something",
@@ -548,7 +548,7 @@ func TestNewEmptyPath(t *testing.T) {
 			"S3 Extra Slashes",
 			S3,
 			&S3Filepath{
-				filePath: filePath{
+				FilePath: FilePath{
 					bucket: "/bucket/",
 					scheme: "s3://",
 					key:    "/my/path/something/",
@@ -567,7 +567,7 @@ func TestNewEmptyPath(t *testing.T) {
 			"S3 Directory",
 			S3,
 			&S3Filepath{
-				filePath: filePath{
+				FilePath: FilePath{
 					bucket: "bucket",
 					scheme: "s3://",
 					key:    "my/path/something",
@@ -586,8 +586,8 @@ func TestNewEmptyPath(t *testing.T) {
 			"Azure",
 			Azure,
 			&AzureFilepath{
-				storageAccount: "storageaccount",
-				filePath: filePath{
+				StorageAccount: "storageaccount",
+				FilePath: FilePath{
 					bucket: "bucket",
 					scheme: "abfss://",
 					key:    "my/path/something",
@@ -606,8 +606,8 @@ func TestNewEmptyPath(t *testing.T) {
 			"Azure Extra Slashes",
 			Azure,
 			&AzureFilepath{
-				storageAccount: "storageaccount",
-				filePath: filePath{
+				StorageAccount: "storageaccount",
+				FilePath: FilePath{
 					bucket: "/bucket/",
 					scheme: "abfss://",
 					key:    "/my/path/something/",
@@ -626,8 +626,8 @@ func TestNewEmptyPath(t *testing.T) {
 			"Azure Directory",
 			Azure,
 			&AzureFilepath{
-				storageAccount: "storageaccount",
-				filePath: filePath{
+				StorageAccount: "storageaccount",
+				FilePath: FilePath{
 					bucket: "bucket",
 					scheme: "abfss://",
 					key:    "my/path/something",
@@ -646,7 +646,7 @@ func TestNewEmptyPath(t *testing.T) {
 			"GCS",
 			GCS,
 			&GCSFilepath{
-				filePath: filePath{
+				FilePath: FilePath{
 					bucket: "bucket",
 					scheme: "gs://",
 					key:    "my/path/something",
@@ -665,7 +665,7 @@ func TestNewEmptyPath(t *testing.T) {
 			"GCS Extra Slashes",
 			S3,
 			&GCSFilepath{
-				filePath: filePath{
+				FilePath: FilePath{
 					bucket: "/bucket/",
 					scheme: "gs://",
 					key:    "/my/path/something/",
@@ -684,7 +684,7 @@ func TestNewEmptyPath(t *testing.T) {
 			"GCS Directory",
 			GCS,
 			&GCSFilepath{
-				filePath: filePath{
+				FilePath: FilePath{
 					bucket: "bucket",
 					scheme: "gs://",
 					key:    "my/path/something",

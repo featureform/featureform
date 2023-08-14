@@ -10,17 +10,38 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	pc "github.com/featureform/provider/provider_config"
 )
 
 type FileType string
+
+type FileStoreType string
+
+const (
+	Memory     FileStoreType = "MEMORY"
+	FileSystem FileStoreType = "LOCAL_FILESYSTEM"
+	Azure      FileStoreType = "AZURE"
+	S3         FileStoreType = "S3"
+	GCS        FileStoreType = "GCS"
+	HDFS       FileStoreType = "HDFS"
+)
 
 const (
 	Parquet FileType = "parquet"
 	CSV     FileType = "csv"
 	DB      FileType = "db"
 )
+
+const (
+	gsPrefix        = "gs://"
+	s3Prefix        = "s3://"
+	s3aPrefix       = "s3a://"
+	azureBlobPrefix = "abfss://"
+	HDFSPrefix      = "hdfs://"
+)
+
+var ValidSchemes = []string{
+	gsPrefix, s3Prefix, s3aPrefix, azureBlobPrefix, HDFSPrefix,
+}
 
 func (ft FileType) Matches(file string) bool {
 	ext := GetFileExtension(file)
@@ -54,60 +75,84 @@ func GetFileExtension(file string) string {
 }
 
 type Filepath interface {
+	Scheme() string
 	// Returns the name of the bucket (S3) or container (Azure Blob Storage)
 	Bucket() string
-	KeyPrefix() string
 	// Returns the absolute path without a scheme, host, or bucket
 	Key() string
+	KeyPrefix() string
 	IsDir() bool
 	Ext() FileType
 	// Returns the key to the object (S3) or blob (Azure Blob Storage)
 	//	Path() string
-	FullPathWithBucket() string
-	FullPathWithoutBucket() string
+	PathWithBucket() string
 	// Consumes a URI (e.g. abfss://<container>@<storage_account>/path/to/file) and parses it into
 	// the specific parts that the implementation expects.
-	ParseFullPath(path string) error
+	ParseFilePath(path string) error
+	ParseDirPath(path string) error
+	Validate() error
+	IsValid() bool
 }
 
-// TODO: Add support for additional params, such as service account (Azure Blob Storage)
-func NewFilepath(storeType pc.FileStoreType, bucket string, prefix string, path string) (Filepath, error) {
+//// TODO: Add support for additional params, such as service account (Azure Blob Storage)
+//func NewFilepath(storeType pc.FileStoreType, bucket string, path string) (Filepath, error) {
+//	switch storeType {
+//	case pc.S3:
+//		return &S3Filepath{
+//			filePath: filePath{
+//				bucket: strings.Trim(bucket, "/"),
+//				prefix: strings.Trim(prefix, "/"),
+//				path:   strings.TrimPrefix(path, "/"),
+//			},
+//		}, nil
+//	case pc.Azure:
+//		return &AzureFilepath{
+//			filePath: filePath{
+//				bucket: strings.Trim(bucket, "/"),
+//				prefix: strings.Trim(prefix, "/"),
+//				path:   strings.Trim(path, "/"),
+//			},
+//		}, nil
+//	default:
+//		return nil, fmt.Errorf("unknown store type '%s'", storeType)
+//	}
+//}
+
+func NewEmptyFilepath(storeType FileStoreType) (Filepath, error) {
 	switch storeType {
 	case S3:
-		return &S3Filepath{
-			filePath: filePath{
-				bucket: strings.Trim(bucket, "/"),
-				prefix: strings.Trim(prefix, "/"),
-				path:   strings.TrimPrefix(path, "/"),
-			},
-		}, nil
+		return &S3Filepath{filePath{isDir: false}}, nil
 	case Azure:
-		return &AzureFilepath{
-			filePath: filePath{
-				bucket: strings.Trim(bucket, "/"),
-				prefix: strings.Trim(prefix, "/"),
-				path:   strings.Trim(path, "/"),
-			},
-		}, nil
+		return &AzureFilepath{}, nil
+	case GCS:
+		return &GCSFilepath{filePath{isDir: false}}, nil
+	case Memory:
+		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
+	case FileSystem:
+		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
+	//case DB:
+	//	return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
+	case HDFS:
+		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
 	default:
 		return nil, fmt.Errorf("unknown store type '%s'", storeType)
 	}
 }
 
-func NewEmptyFilepath(storeType pc.FileStoreType) (Filepath, error) {
+func NewEmptyDirpath(storeType FileStoreType) (Filepath, error) {
 	switch storeType {
 	case S3:
-		return &S3Filepath{}, nil
+		return &S3Filepath{filePath{isDir: true}}, nil
 	case Azure:
 		return &AzureFilepath{}, nil
 	case GCS:
-		return &GCSFilepath{}, nil
+		return &GCSFilepath{filePath{isDir: true}}, nil
 	case Memory:
 		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
 	case FileSystem:
 		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
-	case pc.DB:
-		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
+	//case DB:
+	//	return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
 	case HDFS:
 		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
 	default:
@@ -116,41 +161,69 @@ func NewEmptyFilepath(storeType pc.FileStoreType) (Filepath, error) {
 }
 
 type filePath struct {
-	bucket string
-	prefix string
-	path   string
+	scheme  string
+	bucket  string
+	key     string
+	isDir   bool
+	isValid bool
+}
+
+func (fp *filePath) Scheme() string {
+	return fp.scheme
 }
 
 func (fp *filePath) Bucket() string {
 	return fp.bucket
 }
 
-func (fp *filePath) Prefix() string {
-	return fp.prefix
+func (fp *filePath) Key() string {
+	return fp.key
 }
 
-func (fp *filePath) Path() string {
-	return fp.path
+func (fp *filePath) KeyPrefix() string {
+	return filepath.Dir(fp.key)
 }
 
-func (fp *filePath) FullPathWithBucket() string {
-	prefix := ""
-	if fp.prefix != "" {
-		prefix = fmt.Sprintf("/%s", fp.prefix)
+func (fp *filePath) Ext() FileType {
+	return FileType(filepath.Ext(fp.key))
+}
+
+func (fp *filePath) PathWithBucket() string {
+	return fp.key
+}
+
+func (fp *filePath) IsDir() bool {
+	return fp.isDir
+}
+
+func (fp *filePath) ParseFilePath(fullPath string) error {
+	err := fp.parsePath(fullPath)
+	if err != nil {
+		return fmt.Errorf("file: %v", err)
 	}
-
-	return fmt.Sprintf("%s%s/%s", fp.bucket, prefix, fp.path)
+	fp.isDir = false
+	return nil
 }
 
-func (fp *filePath) FullPathWithoutBucket() string {
-	prefix := ""
-	if fp.prefix != "" {
-		prefix = fmt.Sprintf("%s/", fp.prefix)
+func (fp *filePath) ParseDirPath(fullPath string) error {
+	err := fp.parsePath(fullPath)
+	if err != nil {
+		return fmt.Errorf("dir: %v", err)
 	}
-	return fmt.Sprintf("%s%s", prefix, fp.path)
+	fp.isDir = true
+	return nil
 }
 
-func (fp *filePath) ParseFullPath(fullPath string) error {
+func (fp *filePath) checkSchemes(scheme string) error {
+	for _, s := range ValidSchemes {
+		if s == scheme {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid scheme '%s', must be one of %v", scheme, ValidSchemes)
+}
+
+func (fp *filePath) parsePath(fullPath string) error {
 	// Parse the URI into a url.URL object.
 	u, err := url.Parse(fullPath)
 	if err != nil {
@@ -161,22 +234,47 @@ func (fp *filePath) ParseFullPath(fullPath string) error {
 	bucket := u.Host
 	path := strings.TrimPrefix(u.Path, "/")
 
+	err = fp.checkSchemes(u.Scheme)
+	if err != nil {
+		return err
+	} else {
+		fp.scheme = u.Scheme
+	}
+
 	fp.bucket = bucket
-	fp.path = path
+	fp.key = path
 	return nil
+}
+
+func (fp *filePath) IsValid() bool {
+	return fp.isValid
 }
 
 type S3Filepath struct {
 	filePath
 }
 
-func (s3 *S3Filepath) FullPathWithBucket() string {
-	prefix := ""
-	if s3.prefix != "" {
-		prefix = fmt.Sprintf("/%s", s3.prefix)
+func (s3 *S3Filepath) Validate() error {
+	if s3.scheme != "s3://" && s3.scheme != "s3a://" {
+		return fmt.Errorf("invalid scheme '%s', must be 's3:// or 's3a://'", s3.scheme)
+	}
+	if s3.bucket == "" {
+		return fmt.Errorf("bucket cannot be empty")
+	} else {
+		s3.bucket = strings.Trim(s3.bucket, "/")
+	}
+	if s3.key == "" {
+		return fmt.Errorf("key cannot be empty")
+	} else {
+		s3.key = strings.Trim(s3.key, "/")
 	}
 
-	return fmt.Sprintf("s3://%s%s/%s", s3.bucket, prefix, s3.path)
+	s3.isValid = true
+	return nil
+}
+
+func (s3 *S3Filepath) PathWithBucket() string {
+	return fmt.Sprintf("%s%s/%s", s3.scheme, s3.bucket, s3.key)
 }
 
 type AzureFilepath struct {
@@ -184,8 +282,8 @@ type AzureFilepath struct {
 	filePath
 }
 
-func (azure *AzureFilepath) FullPathWithBucket() string {
-	return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s", azure.filePath.bucket, azure.storageAccount, azure.filePath.path)
+func (azure *AzureFilepath) PathWithBucket() string {
+	return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s", azure.bucket, azure.storageAccount, azure.key)
 }
 
 func (azure *AzureFilepath) ParseFullPath(fullPath string) error {
@@ -195,8 +293,29 @@ func (azure *AzureFilepath) ParseFullPath(fullPath string) error {
 	} else {
 		azure.filePath.bucket = strings.Trim(matches[1], "/")
 		azure.storageAccount = strings.Trim(matches[2], "/")
-		azure.filePath.path = strings.Trim(matches[3], "/")
+		azure.filePath.key = strings.Trim(matches[3], "/")
 	}
+	return nil
+}
+
+func (azure *AzureFilepath) Validate() error {
+	if azure.scheme != "abfss://" {
+		return fmt.Errorf("invalid scheme '%s', must be 'abfss://'", azure.scheme)
+	}
+	if azure.storageAccount == "" {
+		return fmt.Errorf("storage account cannot be empty")
+	}
+	if azure.bucket == "" {
+		return fmt.Errorf("bucket cannot be empty")
+	} else {
+		azure.bucket = strings.Trim(azure.bucket, "/")
+	}
+	if azure.key == "" {
+		return fmt.Errorf("key cannot be empty")
+	} else {
+		azure.key = strings.Trim(azure.key, "/")
+	}
+	azure.isValid = true
 	return nil
 }
 
@@ -204,11 +323,24 @@ type GCSFilepath struct {
 	filePath
 }
 
-func (gcs *GCSFilepath) FullPathWithBucket() string {
-	prefix := ""
-	if gcs.prefix != "" {
-		prefix = fmt.Sprintf("/%s", gcs.prefix)
-	}
+func (gcs *GCSFilepath) PathWithBucket() string {
+	return fmt.Sprintf("%s%s/%s", gcs.scheme, gcs.bucket, gcs.key)
+}
 
-	return fmt.Sprintf("gs://%s%s/%s", gcs.bucket, prefix, gcs.path)
+func (gcs *GCSFilepath) Validate() error {
+	if gcs.scheme != "gs://" {
+		return fmt.Errorf("invalid scheme '%s', must be 'gs://'", gcs.scheme)
+	}
+	if gcs.bucket == "" {
+		return fmt.Errorf("bucket cannot be empty")
+	} else {
+		gcs.bucket = strings.Trim(gcs.bucket, "/")
+	}
+	if gcs.key == "" {
+		return fmt.Errorf("key cannot be empty")
+	} else {
+		gcs.key = strings.Trim(gcs.key, "/")
+	}
+	gcs.isValid = true
+	return nil
 }

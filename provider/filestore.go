@@ -31,23 +31,6 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
-const (
-	Memory     pc.FileStoreType = "MEMORY"
-	FileSystem pc.FileStoreType = "LOCAL_FILESYSTEM"
-	Azure      pc.FileStoreType = "AZURE"
-	S3         pc.FileStoreType = "S3"
-	GCS        pc.FileStoreType = "GCS"
-	HDFS       pc.FileStoreType = "HDFS"
-)
-
-const (
-	gsPrefix        = "gs://"
-	s3Prefix        = "s3://"
-	s3aPrefix       = "s3a://"
-	azureBlobPrefix = "abfss://"
-	HDFSPrefix      = "hdfs://"
-)
-
 type LocalFileStore struct {
 	DirPath string
 	genericFileStore

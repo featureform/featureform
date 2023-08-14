@@ -1616,20 +1616,42 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Could not get schema of label in spark store", "label", def.Label, "error", err)
 		return fmt.Errorf("could not get schema of label %s: %v", def.Label, err)
 	}
-	// NOTE: labelSchema.SourceTable will be the absolute path to the label source table
-	// TODO: Determine how to handle backwards compatibility with old label source tables
-	spark.Logger.Debugw("================>>>>> LABEL SOURCE TABLE", "labelSchema.SourceTable", labelSchema.SourceTable)
-	sourcePaths = append(sourcePaths, labelSchema.SourceTable)
+	// NOTE: labelSchema.SourceTable should be the absolute path to the label source table
+	labelSourcePath := labelSchema.SourceTable
+	filepath, err := NewEmptyFilepath(spark.Store.FilestoreType())
+	if err != nil {
+		return fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), labelSchema.SourceTable)
+	}
+	err = filepath.ParseFullPath(labelSourcePath)
+	if err != nil {
+		// Labels derived from transformations registered prior to PR #947 will not have a full path; given Spark requires an absolute path, we will
+		// assume an error here means the value of SourceTable is just the relative path and attempt to construct the absolute path
+		// prior to adding it to the list of source paths
+		labelSourcePath = spark.Store.PathWithPrefix(labelSchema.SourceTable, true)
+	}
+	spark.Logger.Debugw("================>>>>> LABEL SOURCE TABLE", "labelSourcePath", labelSourcePath)
+	sourcePaths = append(sourcePaths, labelSourcePath)
 	for _, feature := range def.Features {
 		featureSchema, err := spark.registeredResourceSchema(feature)
 		if err != nil {
 			spark.Logger.Errorw("Could not get schema of feature in spark store", "feature", feature, "error", err)
 			return fmt.Errorf("could not get schema of feature %s: %v", feature, err)
 		}
-		// NOTE: labelSchema.SourceTable will be the absolute path to the label source table
-		// TODO: Determine how to handle backwards compatibility with old label source tables
-		spark.Logger.Debugw("================>>>>> FEATURE SOURCE TABLE", "featureSchema.SourceTable", featureSchema.SourceTable)
-		sourcePaths = append(sourcePaths, featureSchema.SourceTable)
+		featureSourcePath := featureSchema.SourceTable
+		// NOTE: featureSchema.SourceTable should be the absolute path to the feature source table
+		filepath, err := NewEmptyFilepath(spark.Store.FilestoreType())
+		if err != nil {
+			return fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), featureSchema.SourceTable)
+		}
+		// Features registered prior to PR #947 will not have a full path; given Spark requires an absolute path, we will
+		// assume an error here means the value of SourceTable is just the relative path and attempt to construct the absolute path
+		// prior to adding it to the list of source paths
+		err = filepath.ParseFullPath(featureSourcePath)
+		if err != nil {
+			featureSourcePath = spark.Store.PathWithPrefix(featureSchema.SourceTable, true)
+		}
+		spark.Logger.Debugw("================>>>>> FEATURE SOURCE TABLE", "featureSourcePath", featureSourcePath)
+		sourcePaths = append(sourcePaths, featureSourcePath)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)

@@ -991,13 +991,14 @@ func (tbl *FileStorePrimaryTable) GetName() string {
 
 func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 	key := tbl.source.Path()
-	keyParts := strings.Split(key, ".")
-	// The length of keyParts is 1 if the key is a paht to a directory. This case is invalid
-	// in the case of a primary table; however, we expect this case in the case of a transformation.
-	if len(keyParts) == 1 {
+	ext, err := tbl.source.Ext()
+	if err != nil {
+		return nil, fmt.Errorf("could not get extension: %w", err)
+	}
+	if tbl.source.IsDir() {
 		// The key should only be a directory in the case of transformations.
 		if !tbl.isTransformation {
-			return nil, fmt.Errorf("expected a file but got a directory: %s", keyParts[0])
+			return nil, fmt.Errorf("expected a file but got a directory: %s", key)
 		}
 		// The file structure in cloud storage for transformations is /featureform/Transformation/<NAME>/<VARIANT>
 		// but there is an additional directory that's named using a timestamp that contains the transformation file
@@ -1009,20 +1010,24 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 		}
 		// We need to update key and keyParts with the result of NewestFileOfType for the Read below to succeed.
 		key = filename
-		keyParts = strings.Split(key, ".")
+		pathComponents := strings.Split(key, ".")
+		if !IsValidFileType(pathComponents[len(pathComponents)-1]) {
+			return nil, fmt.Errorf("invalid file type '%s'", ext)
+		}
+		ext = FileType(pathComponents[len(pathComponents)-1])
 	}
 	fmt.Printf("Reading file at key %s in file store type %s\n", key, tbl.store.FilestoreType())
 	b, err := tbl.store.Read(key)
 	if err != nil {
 		return nil, fmt.Errorf("could not read file: %w", err)
 	}
-	switch fileType := keyParts[len(keyParts)-1]; fileType {
+	switch ext {
 	case "parquet":
 		return newParquetIterator(b, n)
 	case "csv":
 		return newCSVIterator(b, n)
 	default:
-		return nil, fmt.Errorf("unsupported file type: %s", fileType)
+		return nil, fmt.Errorf("unsupported file type: %s", ext)
 	}
 }
 

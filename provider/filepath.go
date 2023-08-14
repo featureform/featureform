@@ -25,6 +25,7 @@ type Filepath interface {
 	// the specific parts that the implementation expects.
 	ParseFullPath(path string) error
 	Ext() (FileType, error)
+	IsDir() bool
 }
 
 // TODO: Add support for additional params, such as service account (Azure Blob Storage)
@@ -135,6 +136,11 @@ func (fp *filePath) Ext() (FileType, error) {
 	return FileType(ext), nil
 }
 
+func (fp *filePath) IsDir() bool {
+	pathComponents := strings.Split(fp.path, ".")
+	return len(pathComponents) == 1
+}
+
 type S3Filepath struct {
 	filePath
 }
@@ -146,10 +152,6 @@ func (s3 *S3Filepath) FullPathWithBucket() string {
 	}
 
 	return fmt.Sprintf("s3://%s%s/%s", s3.bucket, prefix, s3.path)
-}
-
-func (s3 *S3Filepath) Ext() (FileType, error) {
-	return s3.filePath.Ext()
 }
 
 type AzureFilepath struct {
@@ -171,10 +173,6 @@ func (azure *AzureFilepath) ParseFullPath(fullPath string) error {
 		azure.filePath.path = strings.Trim(matches[3], "/")
 	}
 	return nil
-}
-
-func (azure *AzureFilepath) Ext() (FileType, error) {
-	return azure.filePath.Ext()
 }
 
 type GCSFilepath struct {

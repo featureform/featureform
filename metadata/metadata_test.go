@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -2026,4 +2027,70 @@ func TestSourceShallowMapOK(t *testing.T) {
 	assertEqual(t, slices.Contains(sourceVariantResource.Tags, "test.active"), true)
 	assertEqual(t, slices.Contains(sourceVariantResource.Tags, "test.inactive"), true)
 	assertEqual(t, sv.Properties()["test.map.key"], sourceVariantResource.Properties["test.map.key"])
+}
+
+func TestUpdateProviderConfig(t *testing.T) {
+	s3Config := pc.S3FileStoreConfig{
+		Credentials: pc.AWSCredentials{
+			AWSAccessKeyId: "somekey",
+			AWSSecretKey:   "TXkgbmV3IGZpbGUgY29udGVudHM=",
+		},
+		BucketRegion: "us-east-1",
+		BucketPath:   "testbucket",
+		Path:         "some/path",
+	}
+
+	updatedConfig := pc.S3FileStoreConfig{
+		Credentials: pc.AWSCredentials{
+			AWSAccessKeyId: "somekey",
+			AWSSecretKey:   "TXkgbmV3IGZpbGUgY29udGVudHM=",
+		},
+		BucketRegion: "us-east-1",
+		BucketPath:   "IM_CHANGING_THIS_BUCKET_NAME",
+		Path:         "some/path",
+	}
+	serializedConfig, err := s3Config.Serialize()
+	if err != nil {
+		t.Fatalf("Failed to serialize config: %s", err)
+	}
+	serializedUpdatedConfig, err := updatedConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Failed to serialize config: %s", err)
+	}
+	providerDef := ProviderDef{
+		Name:             "tests3",
+		Description:      "test s3",
+		Type:             string(pt.S3),
+		Software:         "s3",
+		Team:             "fraud",
+		SerializedConfig: serializedConfig,
+	}
+	changedProviderDef := ProviderDef{
+		Name:             "tests3",
+		Description:      "test s3",
+		Type:             string(pt.S3),
+		Software:         "s3",
+		Team:             "fraud",
+		SerializedConfig: serializedUpdatedConfig,
+	}
+	ctx := testContext{
+		Defs: []ResourceDef{providerDef},
+	}
+	client, err := ctx.Create(t)
+	if err != nil {
+		t.Fatalf("Failed to create resources: %s", err)
+	}
+	defer ctx.Destroy()
+	err = client.CreateProvider(context.Background(), providerDef)
+	if err != nil {
+		return
+	}
+	err = client.CreateProvider(context.Background(), changedProviderDef)
+	if err != nil {
+		// check error message
+		errorMessage := "seems that you've changed the provider config. Please use a different name for this provider"
+		if !strings.Contains(err.Error(), errorMessage) {
+			t.Fatalf("Expected error message to contain: %s, got: %s", errorMessage, err.Error())
+		}
+	}
 }

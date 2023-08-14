@@ -7,6 +7,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"github.com/google/go-cmp/cmp"
 	"io"
 	"net"
 	"strings"
@@ -1444,7 +1445,17 @@ func (serv *MetadataServer) ListProviders(_ *pb.Empty, stream pb.Metadata_ListPr
 }
 
 func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Provider) (*pb.Empty, error) {
-	return serv.genericCreate(ctx, &providerResource{provider}, nil)
+	// hack until we have a nice abstraction for the config updates
+	provResource := &providerResource{provider}
+	id := provResource.ID()
+	existing, _ := serv.lookup.Lookup(id)
+	// cast existing to provider resource
+	if existing != nil {
+		if diff := cmp.Diff(existing.(*providerResource).serialized.SerializedConfig, provider.SerializedConfig); diff != "" {
+			return nil, fmt.Errorf("seems that you've changed the provider config. Please use a different name for this provider")
+		}
+	}
+	return serv.genericCreate(ctx, provResource, nil)
 }
 
 func (serv *MetadataServer) GetProviders(stream pb.Metadata_GetProvidersServer) error {

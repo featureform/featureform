@@ -124,10 +124,12 @@ func (fp *filePath) ParseFullPath(fullPath string) error {
 	return nil
 }
 
+// Get the file extension from the path; if no extension is found, default to Parquet.
+// This method will fail for extensions that are not currently supported (e.g. .avro)
 func (fp *filePath) Ext() (FileType, error) {
 	pathComponents := strings.Split(fp.path, ".")
 	if len(pathComponents) < 2 {
-		return "", fmt.Errorf("could not determine file type from path '%s'", fp.path)
+		return Parquet, nil
 	}
 	ext := pathComponents[len(pathComponents)-1]
 	if !IsValidFileType(ext) {

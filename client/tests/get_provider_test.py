@@ -41,9 +41,14 @@ def test_registrar_get_redis():
 @pytest.mark.local
 def test_registrar_get_mongodb():
     reg = Registrar()
-    # todox: should we change this to include username, port, etc.?
     result = reg.get_mongodb(
         name="unit-test",
+        username="username",
+        password="password",
+        database="db",
+        host="host",
+        port="port",
+        throughput=1,
     )
     assert isinstance(result, OnlineProvider)
 

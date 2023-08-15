@@ -2,18 +2,16 @@ import os
 import pytest
 
 from featureform.register import (
-    EntityRegistrar,
-    LocalProvider,
     OnlineProvider,
     FileStoreProvider,
     OfflineSQLProvider,
     OfflineSparkProvider,
     OfflineK8sProvider,
-    ColumnSourceRegistrar,
     Registrar,
+    LocalProvider,
 )
 
-from featureform.resources import AWSCredentials, GCPCredentials
+from featureform.resources import AWSCredentials, GCPCredentials, SparkCredentials
 
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
@@ -284,3 +282,81 @@ def test_register_redshift():
     )
     assert isinstance(result, OfflineSQLProvider)
 
+
+@pytest.mark.local
+def test_register_bigquery():
+    reg = Registrar()
+    result = reg.register_bigquery(
+        name="name",
+        description="description",
+        team="team",
+        project_id="id",
+        dataset_id="id",
+        credentials_path="/path",
+        tags=[],
+        properties={},
+    )
+    assert isinstance(result, OfflineSQLProvider)
+
+
+@pytest.mark.local
+def test_register_spark():
+    reg = Registrar()
+    spark_credentials = SparkCredentials(
+        master="local",
+        deploy_mode="client",
+        python_version="3.8",
+    )
+
+    aws_creds = AWSCredentials(
+        aws_access_key_id="id",
+        aws_secret_access_key="key",
+    )
+
+    s3 = reg.register_s3(
+        name="quickstart",
+        credentials=aws_creds,
+        bucket_path="/path",
+        bucket_region="/region",
+        path="/path",
+    )
+    result = reg.register_spark(
+        name="name",
+        executor=spark_credentials,
+        filestore=s3,
+        team="team",
+        tags=[],
+        properties={},
+    )
+    assert isinstance(result, OfflineSparkProvider)
+
+
+@pytest.mark.local
+def test_register_k8s():
+    reg = Registrar()
+    aws_creds = AWSCredentials(
+        aws_access_key_id="id",
+        aws_secret_access_key="key",
+    )
+    s3 = reg.register_s3(
+        name="quickstart",
+        credentials=aws_creds,
+        bucket_path="/path",
+        bucket_region="/region",
+        path="/path",
+    )
+    result = reg.register_k8s(
+        name="name",
+        store=s3,
+        description="description",
+        docker_image="image",
+        team="team",
+        tags=[],
+        properties={},
+    )
+    assert isinstance(result, OfflineK8sProvider)
+
+
+@pytest.mark.local
+def test_register_local():
+    assert isinstance(Registrar().register_local(), LocalProvider)

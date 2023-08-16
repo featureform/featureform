@@ -533,9 +533,11 @@ func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVar
 		return fmt.Errorf("map name: %v sources: %v", err, sources)
 	}
 
-	sourceMapping := []provider.SourceMapping{}
-	for nameVariantClient, transformationTableName := range sourceMap {
-		sourceMapping = append(sourceMapping, provider.SourceMapping{Template: nameVariantClient, Source: transformationTableName})
+	sourceMapping := make([]provider.SourceMapping, len(sources))
+	for i, nv := range sources {
+		sourceKey := nv.ClientString()
+		tableName := sourceMap[sourceKey]
+		sourceMapping[i] = provider.SourceMapping{Template: sourceKey, Source: tableName}
 	}
 
 	c.Logger.Debugw("Created transformation query")

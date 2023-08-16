@@ -30,6 +30,7 @@ var providerMap = map[string]string{
 	"HDFS":              "HDFSConfig",
 	"AZURE":             "AzureFileStoreConfig",
 	"MEMORY_OFFLINE":    "MemoryConfig",
+	"UNIT_TEST":         "UnitTestConfig",
 }
 
 /*

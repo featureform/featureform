@@ -1629,7 +1629,6 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		// prior to adding it to the list of source paths
 		labelSourcePath = spark.Store.PathWithPrefix(labelSchema.SourceTable, true)
 	}
-	spark.Logger.Debugw("================>>>>> LABEL SOURCE TABLE", "labelSourcePath", labelSourcePath)
 	sourcePaths = append(sourcePaths, labelSourcePath)
 	for _, feature := range def.Features {
 		featureSchema, err := spark.registeredResourceSchema(feature)
@@ -1650,7 +1649,6 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		if err != nil {
 			featureSourcePath = spark.Store.PathWithPrefix(featureSchema.SourceTable, true)
 		}
-		spark.Logger.Debugw("================>>>>> FEATURE SOURCE TABLE", "featureSourcePath", featureSourcePath)
 		sourcePaths = append(sourcePaths, featureSourcePath)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}

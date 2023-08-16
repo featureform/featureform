@@ -533,11 +533,9 @@ func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVar
 		return fmt.Errorf("map name: %v sources: %v", err, sources)
 	}
 
-	sourceMapping := make([]provider.SourceMapping, len(sources))
-	for i, nv := range sources {
-		sourceKey := nv.ClientString()
-		tableName := sourceMap[sourceKey]
-		sourceMapping[i] = provider.SourceMapping{Template: sourceKey, Source: tableName}
+	sourceMapping, err := getOrderedSourceMappings(sources, sourceMap)
+	if err != nil {
+		return fmt.Errorf("failed to get ordered source mappings due to %v", err)
 	}
 
 	c.Logger.Debugw("Created transformation query")
@@ -556,6 +554,19 @@ func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVar
 	}
 
 	return nil
+}
+
+func getOrderedSourceMappings(sources []metadata.NameVariant, sourceMap map[string]string) ([]provider.SourceMapping, error) {
+	sourceMapping := make([]provider.SourceMapping, len(sources))
+	for i, nv := range sources {
+		sourceKey := nv.ClientString()
+		tableName, hasKey := sourceMap[sourceKey]
+		if !hasKey {
+			return nil, fmt.Errorf("key %s not in source map", sourceKey)
+		}
+		sourceMapping[i] = provider.SourceMapping{Template: sourceKey, Source: tableName}
+	}
+	return sourceMapping, nil
 }
 
 func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string) error {

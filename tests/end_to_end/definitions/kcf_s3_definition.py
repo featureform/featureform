@@ -85,27 +85,21 @@ def ice_cream_entity_transformation(df):
     return df
 
 
-@k8s.df_transformation(
-    variant=VERSION, inputs=[ice_cream]
-)
+@k8s.df_transformation(variant=VERSION, inputs=[ice_cream])
 def ordering_transformation_1(df):
     """a transformation to test out ordering"""
     df["transformation_1"] = "true"
     return df
 
 
-@k8s.df_transformation(
-    variant=VERSION, inputs=[ice_cream]
-)
+@k8s.df_transformation(variant=VERSION, inputs=[ice_cream])
 def ordering_transformation_2(df):
     """a transformation to test out ordering"""
     df["transformation_2"] = "true"
     return df
 
 
-@k8s.df_transformation(
-    variant=VERSION, inputs=[ice_cream]
-)
+@k8s.df_transformation(variant=VERSION, inputs=[ice_cream])
 def ordering_transformation_3(df):
     """a transformation to test out ordering"""
     df["transformation_3"] = "true"
@@ -113,7 +107,12 @@ def ordering_transformation_3(df):
 
 
 @k8s.df_transformation(
-    variant=VERSION, inputs=[ordering_transformation_1, ordering_transformation_2, ordering_transformation_3]
+    variant=VERSION,
+    inputs=[
+        ordering_transformation_1,
+        ordering_transformation_2,
+        ordering_transformation_3,
+    ],
 )
 def test_ordering(df1, df2, df3):
     """a transformation to test out ordering"""

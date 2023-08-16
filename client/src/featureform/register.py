@@ -2746,6 +2746,7 @@ class Registrar:
             user (str): User
             password (str): Password
             database (str): Database
+            sslmode (str): SSL mode
             tags (List[str]): Optional grouping mechanism for resources
             properties (dict): Optional grouping mechanism for resources
 

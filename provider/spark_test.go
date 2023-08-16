@@ -3198,12 +3198,12 @@ func TestSparkOfflineStore_getResourceInformationFromFilePath(t *testing.T) {
 		path string
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   string
-		want1  string
-		want2  string
+		name                string
+		fields              fields
+		args                args
+		expectedFileType    string
+		expectedFileName    string
+		expectedFileVariant string
 	}{
 		{
 			"Short S3",
@@ -3295,15 +3295,15 @@ func TestSparkOfflineStore_getResourceInformationFromFilePath(t *testing.T) {
 				query:        tt.fields.query,
 				BaseProvider: tt.fields.BaseProvider,
 			}
-			got, got1, got2 := spark.getResourceInformationFromFilePath(tt.args.path)
-			if got != tt.want {
-				t.Errorf("getResourceInformationFromFilePath() got = %v, want %v", got, tt.want)
+			fileType, fileName, fileVariant := spark.getResourceInformationFromFilePath(tt.args.path)
+			if fileType != tt.expectedFileType {
+				t.Errorf("getResourceInformationFromFilePath() fileType = %v, want %v", fileType, tt.expectedFileType)
 			}
-			if got1 != tt.want1 {
-				t.Errorf("getResourceInformationFromFilePath() got1 = %v, want %v", got1, tt.want1)
+			if fileName != tt.expectedFileName {
+				t.Errorf("getResourceInformationFromFilePath() fileName = %v, want %v", fileName, tt.expectedFileName)
 			}
-			if got2 != tt.want2 {
-				t.Errorf("getResourceInformationFromFilePath() got2 = %v, want %v", got2, tt.want2)
+			if fileVariant != tt.expectedFileVariant {
+				t.Errorf("getResourceInformationFromFilePath() fileName = %v, want %v", fileName, tt.expectedFileVariant)
 			}
 		})
 	}

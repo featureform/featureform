@@ -10,6 +10,7 @@ import pytest
 sys.path.insert(0, "client/src/")
 
 
+import featureform as ff
 from featureform.register import (
     Registrar,
     OfflineSparkProvider,
@@ -32,7 +33,11 @@ from featureform.resources import (
     SQLTable,
 )
 from featureform.enums import FileFormat
-import featureform as ff
+from featureform.deploy import (
+    DOCKER_CONFIG,
+    DockerDeployment,
+)
+
 
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
@@ -362,3 +367,32 @@ def hosted_sql_provider_and_source():
         return (provider, source, redis)
 
     return get_hosted
+
+
+@pytest.fixture(scope="module")
+def docker_deployment_config():
+    featureform_config = DOCKER_CONFIG(name="featureform", image="featureformcom/featureform:latest", port={"7878/tcp": 7878, "80/tcp": 80}, detach_mode=True)
+    return [featureform_config]
+
+
+@pytest.fixture(scope="module")
+def docker_quickstart_deployment_config():
+    featureform_config = DOCKER_CONFIG(name="featureform", image="featureformcom/featureform:latest", port={"7878/tcp": 7878, "80/tcp": 80}, detach_mode=True)
+    quickstart_postgres = DOCKER_CONFIG(name="quickstart-postgres", image="featureformcom/postgres", port={"5432/tcp": 5432}, detach_mode=True)
+    quickstart_redis = DOCKER_CONFIG(name="quickstart-redis", image="redis:latest", port={"6379/tcp": 6379}, detach_mode=True)
+    return [featureform_config, quickstart_postgres, quickstart_redis]
+
+
+@pytest.fixture(scope="module")
+def docker_deployment():
+    return DockerDeployment(False)
+
+
+@pytest.fixture(scope="module")
+def docker_quickstart_deployment():
+    return DockerDeployment(True)
+
+
+@pytest.fixture(scope="module")
+def docker_deployment_status():
+    return None

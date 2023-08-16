@@ -2,15 +2,20 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import click
-from .client import Client
-from .list import *
-from .get import *
 import os
-from flask import Flask
-from .dashboard_metadata import dashboard_app
+import click
 import validators
 import urllib.request
+from flask import Flask
+
+
+from .client import Client
+from .deploy import (
+    DockerDeployment,
+)
+from .list import *
+from .get import *
+from .dashboard_metadata import dashboard_app
 from .version import get_package_version
 from .tls import get_version_local, get_version_hosted
 
@@ -247,6 +252,25 @@ def search(query, host, cert, insecure, local):
                 else ""
             )
             format_rows(r["name"], r["variant"], r["resource_type"])
+
+
+@cli.command()
+@click.argument(
+    "deploy_type",
+    required=True,
+    default="docker",
+    type=click.Choice(["docker", "kubernetes"]),
+)
+@click.option("--quickstart", is_flag=True, help="Install Featureform Quickstart as well")
+def deploy(deploy_type, quickstart):
+    print("Deploying Featureform...", quickstart, deploy_type)
+    if deploy_type == "docker":
+        deployment = DockerDeployment(quickstart)
+    else:
+        raise ValueError("Invalid deployment type: Supported types are 'docker'")
+
+    deployment_status = deployment.start()
+    return deployment_status
 
 
 def read_file(file):

@@ -26,7 +26,6 @@ from featureform.resources import (
     Provider,
     PrimaryData,
     Location,
-    SourceVariant,
     SQLTransformation,
     DFTransformation,
     SQLTable,

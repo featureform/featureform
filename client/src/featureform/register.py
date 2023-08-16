@@ -2719,6 +2719,7 @@ class Registrar:
         user: str = "postgres",
         password: str = "password",
         database: str = "postgres",
+        sslmode: str = "disable",
         tags: List[str] = None,
         properties: dict = None,
     ):
@@ -2752,7 +2753,12 @@ class Registrar:
             postgres (OfflineSQLProvider): Provider
         """
         config = PostgresConfig(
-            host=host, port=port, database=database, user=user, password=password
+            host=host,
+            port=port,
+            database=database,
+            user=user,
+            password=password,
+            sslmode=sslmode,
         )
         provider = Provider(
             name=name,

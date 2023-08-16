@@ -12,6 +12,7 @@ type PostgresConfig struct {
 	Username string `json:"Username"`
 	Password string `json:"Password"`
 	Database string `json:"Database"`
+	SSLMode  string `json:"SSLMode"`
 }
 
 func (pg *PostgresConfig) Deserialize(config SerializedConfig) error {
@@ -35,6 +36,7 @@ func (pg PostgresConfig) MutableFields() ss.StringSet {
 		"Username": true,
 		"Password": true,
 		"Port":     true,
+		"SSLMode":  true,
 	}
 }
 

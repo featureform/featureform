@@ -114,12 +114,14 @@ def setup() -> MetadataRepository:
     yield MetadataRepositoryLocalImpl(db)
 
 
+@pytest.mark.local
 def test_create_model(setup):
     repo = setup
     repo.create_resource(model)
     assert repo.get_model("model") == model
 
 
+@pytest.mark.local
 def test_get_models(setup):
     repo = setup
     repo.create_resource(model)
@@ -132,12 +134,14 @@ def test_get_models(setup):
     assert model2 in models
 
 
+@pytest.mark.local
 def test_create_entity(setup):
     repo = setup
     repo.create_resource(entity)
     assert repo.get_entity("entity") == entity
 
 
+@pytest.mark.local
 def test_get_entities(setup):
     repo = setup
     repo.create_resource(entity)
@@ -150,12 +154,14 @@ def test_get_entities(setup):
     assert entity2 in entities
 
 
+@pytest.mark.local
 def test_create_provider(setup):
     repo = setup
     repo.create_resource(provider)
     assert repo.get_provider("provider") == provider
 
 
+@pytest.mark.local
 def test_get_providers(setup):
     repo = setup
     repo.create_resource(provider)
@@ -168,12 +174,14 @@ def test_get_providers(setup):
     assert provider2 in providers
 
 
+@pytest.mark.local
 def test_create_source_variant(setup):
     repo = setup
     repo.create_resource(source_variant)
     assert repo.get_source_variant("source", "variant1") == source_variant
 
 
+@pytest.mark.local
 def test_get_sources(setup):
     repo = setup
     repo.create_resource(source_variant)
@@ -185,12 +193,14 @@ def test_get_sources(setup):
     assert sources[0].variants == ["variant1", "variant2"]
 
 
+@pytest.mark.local
 def test_create_label_variant(setup):
     repo = setup
     repo.create_resource(label_variant)
     assert repo.get_label_variant("label", "variant1") == label_variant
 
 
+@pytest.mark.local
 def test_get_labels(setup):
     repo = setup
     repo.create_resource(label_variant)
@@ -206,12 +216,14 @@ def test_get_labels(setup):
     )
 
 
+@pytest.mark.local
 def test_create_feature_variant(setup):
     repo = setup
     repo.create_resource(feature_variant)
     assert repo.get_feature_variant("feature", "variant1") == feature_variant
 
 
+@pytest.mark.local
 def test_get_features(setup):
     repo = setup
     repo.create_resource(feature_variant)
@@ -227,6 +239,7 @@ def test_get_features(setup):
     )
 
 
+@pytest.mark.local
 def test_create_training_set_variant(setup):
     repo = setup
     repo.create_resource(label_variant)
@@ -235,6 +248,7 @@ def test_create_training_set_variant(setup):
     assert repo.get_training_set_variant("training_set", "variant1") == training_set_variant
 
 
+@pytest.mark.local
 def test_get_training_sets(setup):
     repo = setup
     repo.create_resource(label_variant)
@@ -252,6 +266,7 @@ def test_get_training_sets(setup):
     )
 
 
+@pytest.mark.local
 def test_create_user(setup):
     repo: MetadataRepository = setup
     repo.create_resource(test_user)
@@ -259,6 +274,7 @@ def test_create_user(setup):
     assert retrieved_user == test_user
 
 
+@pytest.mark.local
 def test_get_users(setup):
     repo: MetadataRepository = setup
 

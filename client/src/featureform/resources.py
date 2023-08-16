@@ -931,6 +931,7 @@ class DFTransformation(Transformation):
     query: bytes
     inputs: list
     args: K8sArgs = None
+    source_text: str = ""
 
     def type(self):
         return SourceType.DF_TRANSFORMATION.value
@@ -940,6 +941,7 @@ class DFTransformation(Transformation):
             DFTransformation=pb.DFTransformation(
                 query=self.query,
                 inputs=[pb.NameVariant(name=v[0], variant=v[1]) for v in self.inputs],
+                source_text=self.source_text,
             )
         )
 
@@ -967,7 +969,7 @@ class SourceVariant:
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
-
+    source_text: str = ""
     inputs = ([],)
     error: Optional[str] = None
 
@@ -1020,6 +1022,7 @@ class SourceVariant:
             return DFTransformation(
                 query=transformation.query,
                 inputs=[(input.name, input.variant) for input in transformation.inputs],
+                source_text=transformation.source_text,
             )
         elif source.transformation.SQLTransformation.query != "":
             return SQLTransformation(source.transformation.SQLTransformation.query)
@@ -1042,10 +1045,15 @@ class SourceVariant:
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
+        should_insert_text = False
+        source_text = ""
         if type(self.definition) == DFTransformation:
+            should_insert_text = True
             self.is_transformation = SourceType.DF_TRANSFORMATION.value
+            source_text = self.definition.source_text
             self.inputs = self.definition.inputs
             self.definition = self.definition.query
+            self.source_text = source_text
         elif type(self.definition) == SQLTransformation:
             self.is_transformation = SourceType.SQL_TRANSFORMATION.value
             self.definition = self.definition.query
@@ -1060,7 +1068,6 @@ class SourceVariant:
                 raise ValueError(
                     f"Invalid Primary Data Type {self.definition.location}"
                 )
-
         db.insert_source(
             "source_variant",
             str(time.time()),
@@ -1075,6 +1082,12 @@ class SourceVariant:
             json.dumps(self.inputs),
             self.definition,
         )
+
+        if should_insert_text:
+            db.insert_source_variant_text(
+                str(time.time()), self.name, self.variant, source_text
+            )
+
         if len(self.tags):
             db.upsert(
                 "tags", self.name, self.variant, "source_variant", json.dumps(self.tags)

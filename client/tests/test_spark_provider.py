@@ -159,12 +159,15 @@ def test_df_transformation(
     decorator(df_transformation)
 
     query = dill.dumps(df_transformation.__code__)
+    source_text = dill.source.getsource(df_transformation)
 
     decorator_src = decorator.to_source()
     expected_src = SourceVariant(
         name=name,
         variant=variant,
-        definition=DFTransformation(query=query, inputs=inputs),
+        definition=DFTransformation(
+            query=query, inputs=inputs, source_text=source_text
+        ),
         owner="tester",
         provider="spark",
         description="doc string",

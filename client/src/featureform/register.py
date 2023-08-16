@@ -1632,16 +1632,7 @@ class Registrar:
         )
         return OnlineProvider(self, mock_provider)
 
-    def get_mongodb(
-        self,
-        name: str,
-        username: str,
-        password: str,
-        database: str,
-        host: str,
-        port: str,
-        throughput: int,
-    ):
+    def get_mongodb(self, name: str):
         """Get a MongoDB provider. The returned object can be used to register additional resources.
 
         **Examples**:
@@ -1664,7 +1655,7 @@ class Registrar:
             mongodb (OnlineProvider): Provider
         """
         mock_config = MongoDBConfig(
-            username, password, host, port, database, throughput
+            username="", password="", host="", port="", database="", throughput=1
         )
         mock_provider = Provider(
             name=name, function="ONLINE", description="", team="", config=mock_config

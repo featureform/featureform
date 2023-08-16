@@ -79,7 +79,7 @@ func CreateSparkFileStore(name string, config Config) (SparkFileStore, error) {
 	}
 	FileStore, err := factory(config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid config for %s: %v", name, err)
 	}
 	return FileStore, nil
 }

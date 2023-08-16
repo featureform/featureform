@@ -154,7 +154,6 @@ def test_indexing_with_more_than_three_columns(provider_source_fxt, is_local, re
     ]
     _, source, _ = request.getfixturevalue(provider_source_fxt)(custom_marks)
     label_entity_column = "CustomerID" if is_local else "customerid"
-    label_entity_column = "CustomerID" if is_local else "customerid"
     label_timestamp_column = "Timestamp" if is_local else "timestamp"
 
     with pytest.raises(Exception, match="Found unrecognized columns"):

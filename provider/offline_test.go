@@ -3526,7 +3526,7 @@ func TestBigQueryConfig_Deserialize(t *testing.T) {
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
-	testConfig := payload["BigQuery"].(map[string]interface{})
+	testConfig := payload["BigQueryConfig"].(map[string]interface{})
 
 	bgconfig := pc.BigQueryConfig{
 		ProjectId:   testConfig["ProjectID"].(string),

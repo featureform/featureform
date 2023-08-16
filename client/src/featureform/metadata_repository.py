@@ -101,7 +101,7 @@ class MetadataRepository(ABC):
     def get_tags_for_resource(
         self, name: str, variant: str, resource_type: str
     ) -> List[str]:
-        pass
+        raise NotImplementedError
 
 
 class MetadataRepositoryLocalImpl(MetadataRepository):

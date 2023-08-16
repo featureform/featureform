@@ -27,75 +27,75 @@ from .resources import (
 class MetadataRepository(ABC):
     @abstractmethod
     def create_resource(self, resource: Resource):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def update_resource(self, resource):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_feature_variant(self, name: str, variant: str) -> FeatureVariant:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_features(self) -> List[Feature]:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_label_variant(self, name: str, variant: str) -> LabelVariant:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_labels(self) -> List[Label]:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_source_variant(self, name: str, variant: str) -> SourceVariant:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_sources(self) -> List[Source]:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_training_set_variant(self, name: str, variant: str) -> TrainingSetVariant:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_training_sets(self) -> List[TrainingSet]:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_entity(self, name: str) -> Entity:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_entities(self) -> List[Entity]:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_model(self, name: str) -> Model:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_models(self) -> List[Model]:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_provider(self, name: str) -> Provider:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_providers(self) -> List[Provider]:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_user(self, name: str) -> User:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_users(self) -> List[User]:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_tags_for_resource(

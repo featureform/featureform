@@ -1581,7 +1581,7 @@ class Registrar:
             )
         else:
             mock_definition = PrimaryData(location=SQLTable(name=""))
-            mock_source = Source(
+            mock_source = SourceVariant(
                 name=name,
                 variant=variant,
                 definition=mock_definition,

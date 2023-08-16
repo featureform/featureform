@@ -1,6 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 from typing import List
+
 from typeguard import typechecked
 
 from . import SQLiteMetadata
@@ -309,7 +310,9 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             name=entity_row["name"],
             description=entity_row["description"],
             tags=json.loads(entity_row["tags"]) if entity_row["tags"] else [],
-            properties=json.loads(entity_row["properties"]) if entity_row["properties"] else {},
+            properties=json.loads(entity_row["properties"])
+            if entity_row["properties"]
+            else {},
         )
 
     def get_entities(self) -> List[Entity]:

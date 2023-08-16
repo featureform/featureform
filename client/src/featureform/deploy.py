@@ -27,6 +27,7 @@ class Deployment:
 
 
 class DockerDeployment(Deployment):
+    # TODO: Add support for custom ports, better formatted text output
     def __init__(self, quickstart: bool):
         super().__init__(quickstart)
         self._client = docker.from_env()

@@ -15,10 +15,10 @@ from featureform.register import (
     SQLTable,
 )
 from featureform.resources import (
-    Feature,
-    Label,
-    TrainingSet,
-    Source,
+    FeatureVariant,
+    LabelVariant,
+    TrainingSetVariant,
+    SourceVariant,
     Transformation,
     ResourceColumnMapping,
     ResourceStatus,
@@ -97,7 +97,7 @@ def test_feature_status(mocker, status, expected, ready):
     mocker.patch.object(
         ResourceClient,
         "get_feature",
-        return_value=Feature(
+        return_value=FeatureVariant(
             name="name",
             variant="",
             source=("some", "source"),
@@ -133,7 +133,7 @@ def test_label_status(mocker, status, expected, ready):
     mocker.patch.object(
         ResourceClient,
         "get_label",
-        return_value=Label(
+        return_value=LabelVariant(
             name="name",
             variant="",
             source=("some", "source"),
@@ -169,7 +169,7 @@ def test_training_set_status(mocker, status, expected, ready):
     mocker.patch.object(
         ResourceClient,
         "get_training_set",
-        return_value=TrainingSet(
+        return_value=TrainingSetVariant(
             name="",
             variant="",
             owner="",
@@ -203,7 +203,7 @@ def test_source_status(mocker, status, expected, ready):
     mocker.patch.object(
         ResourceClient,
         "get_source",
-        return_value=Source(
+        return_value=SourceVariant(
             name="",
             variant="",
             definition=Transformation(),

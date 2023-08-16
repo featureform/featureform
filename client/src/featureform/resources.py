@@ -6,9 +6,10 @@ import sys
 import json
 import time
 import base64
+from abc import ABC
 from enum import Enum
 from typeguard import typechecked
-from typing import List, Tuple, Union, Optional
+from typing import List, Tuple, Union, Optional, Dict
 
 import dill
 import grpc
@@ -22,7 +23,6 @@ from .exceptions import *
 from .enums import *
 
 NameVariant = Tuple[str, str]
-
 
 # Constants for Pyspark Versions
 MAJOR_VERSION = "3"
@@ -956,7 +956,7 @@ SourceDefinition = Union[PrimaryData, Transformation, str]
 
 @typechecked
 @dataclass
-class Source:
+class SourceVariant:
     name: str
     definition: SourceDefinition
     owner: str
@@ -995,7 +995,7 @@ class Source:
         source = next(stub.GetSourceVariants(iter([name_variant])))
         definition = self._get_source_definition(source)
 
-        return Source(
+        return SourceVariant(
             name=source.name,
             definition=definition,
             owner=source.owner,
@@ -1179,7 +1179,7 @@ ResourceLocation = ResourceColumnMapping
 
 @typechecked
 @dataclass
-class Feature:
+class FeatureVariant:
     name: str
     source: NameVariant
     value_type: str
@@ -1222,11 +1222,11 @@ class Feature:
     def type() -> str:
         return "feature"
 
-    def get(self, stub) -> "Feature":
+    def get(self, stub) -> "FeatureVariant":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
         feature = next(stub.GetFeatureVariants(iter([name_variant])))
 
-        return Feature(
+        return FeatureVariant(
             name=feature.name,
             variant=feature.variant,
             source=(feature.source.name, feature.source.variant),
@@ -1337,7 +1337,7 @@ class Feature:
 
 @typechecked
 @dataclass
-class OnDemandFeature:
+class OnDemandFeatureVariant:
     owner: str
     variant: str
     tags: List[str] = field(default_factory=list)
@@ -1432,11 +1432,11 @@ class OnDemandFeature:
             is_on_demand,
         )
 
-    def get(self, stub) -> "OnDemandFeature":
+    def get(self, stub) -> "OnDemandFeatureVariant":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
         ondemand_feature = next(stub.GetFeatureVariants(iter([name_variant])))
 
-        return OnDemandFeature(
+        return OnDemandFeatureVariant(
             name=ondemand_feature.name,
             variant=ondemand_feature.variant,
             owner=ondemand_feature.owner,
@@ -1464,7 +1464,7 @@ class OnDemandFeature:
 
 @typechecked
 @dataclass
-class Label:
+class LabelVariant:
     name: str
     source: NameVariant
     value_type: str
@@ -1494,11 +1494,11 @@ class Label:
     def type() -> str:
         return "label"
 
-    def get(self, stub) -> "Label":
+    def get(self, stub) -> "LabelVariant":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
         label = next(stub.GetLabelVariants(iter([name_variant])))
 
-        return Label(
+        return LabelVariant(
             name=label.name,
             variant=label.variant,
             source=(label.source.name, label.source.variant),
@@ -1646,7 +1646,7 @@ class ProviderReference:
 class SourceReference:
     name: str
     variant: str
-    obj: Union[Source, None]
+    obj: Union[SourceVariant, None]
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -1675,7 +1675,7 @@ class SourceReference:
 
 @typechecked
 @dataclass
-class TrainingSet:
+class TrainingSetVariant:
     name: str
     owner: str
     label: NameVariant
@@ -1721,7 +1721,7 @@ class TrainingSet:
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
         ts = next(stub.GetTrainingSetVariants(iter([name_variant])))
 
-        return TrainingSet(
+        return TrainingSetVariant(
             name=ts.name,
             variant=ts.variant,
             owner=ts.owner,
@@ -1917,16 +1917,16 @@ Resource = Union[
     Provider,
     Entity,
     User,
-    Feature,
-    Label,
-    TrainingSet,
-    Source,
+    FeatureVariant,
+    LabelVariant,
+    TrainingSetVariant,
+    SourceVariant,
     Schedule,
     ProviderReference,
     SourceReference,
     EntityReference,
     Model,
-    OnDemandFeature,
+    OnDemandFeatureVariant,
 ]
 
 
@@ -2004,7 +2004,7 @@ class ResourceState:
         check_up_to_date(True, "register")
         features = []
         for resource in self.sorted_list():
-            if isinstance(resource, Feature):
+            if isinstance(resource, FeatureVariant):
                 features.append(resource)
             resource_variant = (
                 f" {resource.variant}" if hasattr(resource, "variant") else ""

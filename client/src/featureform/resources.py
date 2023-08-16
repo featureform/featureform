@@ -754,8 +754,8 @@ class Provider:
     config: Config
     function: str
     status: str = "NO_STATUS"
-    tags: list = None
-    properties: dict = None
+    tags: list = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
     error: Optional[str] = None
 
     def __post_init__(self):
@@ -831,8 +831,8 @@ class Provider:
 @dataclass
 class User:
     name: str
-    tags: list
-    properties: dict
+    tags: list = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -956,6 +956,14 @@ SourceDefinition = Union[PrimaryData, Transformation, str]
 
 @typechecked
 @dataclass
+class Source:
+    name: str
+    default_variant: str
+    variants: List[str]
+
+
+@typechecked
+@dataclass
 class SourceVariant:
     name: str
     definition: SourceDefinition
@@ -965,7 +973,7 @@ class SourceVariant:
     tags: list
     properties: dict
     variant: str
-    status: str = "NO_STATUS"
+    status: str = "ready"  # this is no status by default but it always stores ready
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
@@ -1123,8 +1131,8 @@ class SourceVariant:
 class Entity:
     name: str
     description: str
-    tags: list
-    properties: dict
+    tags: list = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -1175,6 +1183,14 @@ class ResourceColumnMapping:
 
 
 ResourceLocation = ResourceColumnMapping
+
+
+@typechecked
+@dataclass
+class Feature:
+    name: str
+    default_variant: str
+    variants: List[str]
 
 
 @typechecked
@@ -1464,6 +1480,14 @@ class OnDemandFeatureVariant:
 
 @typechecked
 @dataclass
+class Label:
+    name: str
+    default_variant: str
+    variants: List[str]
+
+
+@typechecked
+@dataclass
 class LabelVariant:
     name: str
     source: NameVariant
@@ -1675,6 +1699,14 @@ class SourceReference:
 
 @typechecked
 @dataclass
+class TrainingSet:
+    name: str
+    default_variant: str
+    variants: List[str]
+
+
+@typechecked
+@dataclass
 class TrainingSetVariant:
     name: str
     owner: str
@@ -1683,8 +1715,8 @@ class TrainingSetVariant:
     description: str
     variant: str
     feature_lags: list = field(default_factory=list)
-    tags: list = None
-    properties: dict = None
+    tags: list = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
     schedule: str = ""
     schedule_obj: Schedule = None
     provider: str = ""
@@ -1873,8 +1905,8 @@ class TrainingSetVariant:
 @dataclass
 class Model:
     name: str
-    tags: list
-    properties: dict
+    tags: list = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
 
     @staticmethod
     def operation_type() -> OperationType:

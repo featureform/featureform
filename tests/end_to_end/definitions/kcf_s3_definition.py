@@ -85,6 +85,47 @@ def ice_cream_entity_transformation(df):
     return df
 
 
+@k8s.df_transformation(
+    variant=VERSION, inputs=[ice_cream]
+)
+def ordering_transformation_1(df):
+    """a transformation to test out ordering"""
+    df["transformation_1"] = "true"
+    return df
+
+
+@k8s.df_transformation(
+    variant=VERSION, inputs=[ice_cream]
+)
+def ordering_transformation_2(df):
+    """a transformation to test out ordering"""
+    df["transformation_2"] = "true"
+    return df
+
+
+@k8s.df_transformation(
+    variant=VERSION, inputs=[ice_cream]
+)
+def ordering_transformation_3(df):
+    """a transformation to test out ordering"""
+    df["transformation_3"] = "true"
+    return df
+
+
+@k8s.df_transformation(
+    variant=VERSION, inputs=[ordering_transformation_1, ordering_transformation_2, ordering_transformation_3]
+)
+def test_ordering(df1, df2, df3):
+    """a transformation to test out ordering"""
+    df1 = df1[["time_index", "dairy_flow_rate", "transformation_1"]]
+    df2 = df2[["time_index", "sugar_flow_rate", "transformation_2"]]
+    df3 = df3[["time_index", "oven_temperature", "transformation_3"]]
+
+    df = df1.merge(df2, on="time_index").merge(df3, on="time_index")
+
+    return df
+
+
 farm = ff.register_entity("farm")
 
 # Register a column from our transformation as a feature
@@ -99,6 +140,33 @@ ice_cream_entity_transformation.register_resources(
             "variant": FEATURE_VARIANT,
             "column": "quality_score",
             "type": "float32",
+        },
+    ],
+)
+
+test_ordering.register_resources(
+    entity=farm,
+    entity_column="entity",
+    timestamp_column="time_index",
+    inference_store=redis,
+    features=[
+        {
+            "name": "ordering_test_1",
+            "variant": VERSION,
+            "column": "transformation_1",
+            "type": "string",
+        },
+        {
+            "name": "ordering_test_2",
+            "variant": VERSION,
+            "column": "transformation_2",
+            "type": "string",
+        },
+        {
+            "name": "ordering_test_3",
+            "variant": VERSION,
+            "column": "transformation_3",
+            "type": "string",
         },
     ],
 )
@@ -124,5 +192,8 @@ ff.register_training_set(
     label=(f"ice_cream_label_{VERSION}", FEATURE_VARIANT),
     features=[
         (FEATURE_NAME, FEATURE_VARIANT),
+        ("ordering_test_1", VERSION),
+        ("ordering_test_2", VERSION),
+        ("ordering_test_3", VERSION),
     ],
 )

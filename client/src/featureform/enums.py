@@ -45,7 +45,7 @@ class ScalarType(Enum):
         return [e.value for e in cls]
 
 
-class ResourceStatus(Enum):
+class ResourceStatus(str, Enum):
     """
     ResourceStatus is an enumeration representing the possible states that a
     resource may occupy within an application.

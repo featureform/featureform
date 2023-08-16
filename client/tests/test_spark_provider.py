@@ -6,7 +6,7 @@ from featureform.register import ColumnSourceRegistrar, OfflineSparkProvider, Re
 from featureform.resources import (
     DFTransformation,
     Provider,
-    Source,
+    SourceVariant,
     SparkConfig,
     SQLTransformation,
     DatabricksCredentials,
@@ -89,7 +89,7 @@ def test_sql_transformation(name, variant, sql, spark_provider):
     decorator = spark_provider.sql_transformation(name=name, variant=variant)
     decorator(transformation)
 
-    assert decorator.to_source() == Source(
+    assert decorator.to_source() == SourceVariant(
         name=name,
         variant=variant,
         definition=SQLTransformation(query=sql),
@@ -116,7 +116,7 @@ def test_sql_transformation_without_variant(sql, spark_provider):
     decorator = spark_provider.sql_transformation(variant=variant)
     decorator(transformation)
 
-    assert decorator.to_source() == Source(
+    assert decorator.to_source() == SourceVariant(
         name=transformation.__name__,
         variant=variant,
         definition=SQLTransformation(query=sql),
@@ -161,7 +161,7 @@ def test_df_transformation(
     query = dill.dumps(df_transformation.__code__)
 
     decorator_src = decorator.to_source()
-    expected_src = Source(
+    expected_src = SourceVariant(
         name=name,
         variant=variant,
         definition=DFTransformation(query=query, inputs=inputs),

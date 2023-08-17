@@ -104,7 +104,7 @@ func (fs *LocalFileStore) PathWithPrefix(path string, remote bool) string {
 	if fs.DirPath == "" {
 		return fmt.Sprintf("/%s", strings.TrimPrefix(path, "/"))
 	}
-	return fmt.Sprintf("%s/%s", fs.DirPath, path)
+	return fmt.Sprintf("%s/%s", strings.TrimSuffix(fs.DirPath, "/"), strings.Trim(path, "/"))
 }
 
 type AzureFileStore struct {

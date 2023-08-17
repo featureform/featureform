@@ -542,6 +542,7 @@ class PostgresConfig:
     database: str
     user: str
     password: str
+    sslmode: str
 
     def software(self) -> str:
         return "postgres"
@@ -556,6 +557,7 @@ class PostgresConfig:
             "Username": self.user,
             "Password": self.password,
             "Database": self.database,
+            "SSLMode": self.sslmode,
         }
         return bytes(json.dumps(config), "utf-8")
 

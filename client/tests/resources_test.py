@@ -52,6 +52,7 @@ def postgres_config():
         database="db",
         user="user",
         password="p4ssw0rd",
+        sslmode="disable",
     )
 
 

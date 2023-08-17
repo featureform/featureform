@@ -149,6 +149,8 @@ class SourceVariantResource:
             "tags": tags,
             "properties": properties,
         }
+        self.name = name
+        self.variant = variant
 
     def toDictionary(self):
         return self.__dictionary

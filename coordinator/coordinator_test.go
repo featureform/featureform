@@ -44,6 +44,7 @@ var postgresConfig = pc.PostgresConfig{
 	Database: help.GetEnv("POSTGRES_DB", "postgres"),
 	Username: help.GetEnv("POSTGRES_USER", "postgres"),
 	Password: help.GetEnv("POSTGRES_PASSWORD", "password"),
+	SSLMode:  "disable",
 }
 
 var redisPort = help.GetEnv("REDIS_INSECURE_PORT", "6379")

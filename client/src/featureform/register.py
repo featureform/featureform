@@ -3835,7 +3835,7 @@ class ResourceClient:
         """
         Apply all definitions, creating and retrieving all specified resources.
 
-        @param asynchronous: Wait for all resources to be ready before returning.
+        @param asynchronous: Flag to determine whether the client should wait for resources to be in either a READY or FAILED state before returning. Defaults to True to avoid blocking the client.
         """
 
         print(f"Applying Run: {get_run()}")

@@ -60,6 +60,15 @@ func GetFileType(file string) FileType {
 	return Parquet
 }
 
+func IsValidFileType(ext string) bool {
+	for _, fileType := range []FileType{Parquet, CSV, DB} {
+		if FileType(ext) == fileType {
+			return true
+		}
+	}
+	return false
+}
+
 func GetFileExtension(file string) string {
 	ext := filepath.Ext(file)
 	return strings.ReplaceAll(ext, ".", "")

@@ -159,7 +159,7 @@ class SourceVariantResource:
     @property
     def name(self):
         return self.__dictionary["name"]
-    
+
     @property
     def variant(self):
         return self.__dictionary["variant"]

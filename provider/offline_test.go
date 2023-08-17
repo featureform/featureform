@@ -67,6 +67,7 @@ func TestOfflineStores(t *testing.T) {
 			Database: db,
 			Username: user,
 			Password: password,
+			SSLMode:  "disable",
 		}
 		return postgresConfig.Serialize()
 	}

@@ -1723,7 +1723,12 @@ class Registrar:
             postgres (OfflineSQLProvider): Provider
         """
         mock_config = PostgresConfig(
-            host="", port="", database="", user="", password="", sslmode="",
+            host="",
+            port="",
+            database="",
+            user="",
+            password="",
+            sslmode="",
         )
         mock_provider = Provider(
             name=name, function="OFFLINE", description="", team="", config=mock_config

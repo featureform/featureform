@@ -144,7 +144,7 @@ jobs:
     environment: Integration testing
     needs: setup
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     services:
       redis-insecure:
         image: redis
@@ -1061,6 +1061,7 @@ jobs:
   notebook:
     name: Test Notebook
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v2
 

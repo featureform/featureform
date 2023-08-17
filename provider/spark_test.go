@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/featureform/config"
 	"go.uber.org/zap/zaptest"
 	"math/rand"
 	"regexp"
@@ -3094,7 +3095,11 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 		Code      string
 		Sources   []string
 	}
-	store := SparkLocalFileStore{}
+	store := SparkLocalFileStore{
+		LocalFileStore: &LocalFileStore{
+			DirPath: "",
+		},
+	}
 	testCases := []struct {
 		name                  string
 		executor              SparkExecutor
@@ -3123,8 +3128,8 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 				Sources:   []string{"source1", "source2"},
 			},
 			ExpectedPythonFileURI: "",
-			ExpectedSubmitArgs:    []string{"spark-submit", "--deploy-mode", "cluster", "--master", "yarn", "/app/provider/scripts/spark/offline_store_spark_runner.py", "sql", "--output_uri", "path/to/dest", "--sql_query", "'SELECT * FROM table'", "--job_type", "'Materialization'", "--store_type", "local", "--source_list", "source1", "source2"},
-			ExpectedDFArgs:        []string{"spark-submit", "--deploy-mode", "cluster", "--master", "yarn", "/app/provider/scripts/spark/offline_store_spark_runner.py", "df", "--output_uri", "path/to/output", "--code", "code", "--store_type", "local", "--source", "source1", "source2"},
+			ExpectedSubmitArgs:    []string{"spark-submit", "--deploy-mode", "cluster", "--master", "yarn", config.GetSparkLocalScriptPath(), "sql", "--output_uri", "path/to/dest", "--sql_query", "'SELECT * FROM table'", "--job_type", "'Materialization'", "--store_type", "local", "--source_list", "source1", "source2"},
+			ExpectedDFArgs:        []string{"spark-submit", "--deploy-mode", "cluster", "--master", "yarn", config.GetSparkLocalScriptPath(), "df", "--output_uri", "path/to/output", "--code", "code", "--store_type", "local", "--source", "source1", "source2"},
 		},
 		{
 			name:     "Databricks",
@@ -3140,7 +3145,7 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 				Code:      "code",
 				Sources:   []string{"source1", "source2"},
 			},
-			ExpectedPythonFileURI: "featureform/scripts/spark/offline_store_spark_runner.py",
+			ExpectedPythonFileURI: "/featureform/scripts/spark/offline_store_spark_runner.py",
 			ExpectedSubmitArgs:    []string{"sql", "--output_uri", "path/to/dest", "--sql_query", "SELECT * FROM table", "--job_type", "Materialization", "--store_type", "local", "--source_list", "source1", "source2"},
 			ExpectedDFArgs:        []string{"df", "--output_uri", "path/to/output", "--code", "code", "--store_type", "local", "--source", "source1", "source2"},
 		},
@@ -3161,8 +3166,8 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 				Sources:   []string{"source1", "source2"},
 			},
 			ExpectedPythonFileURI: "",
-			ExpectedSubmitArgs:    []string{"spark-submit", "--deploy-mode", "client", "featureform/scripts/spark/offline_store_spark_runner.py", "sql", "--output_uri", "path/to/dest", "--sql_query", "SELECT * FROM table", "--job_type", "Materialization", "--store_type", "local", "--source_list", "source1", "source2"},
-			ExpectedDFArgs:        []string{"spark-submit", "--deploy-mode", "client", "featureform/scripts/spark/offline_store_spark_runner.py", "df", "--output_uri", "path/to/output", "--code", "code", "--store_type", "local", "--source", "source1", "source2"},
+			ExpectedSubmitArgs:    []string{"spark-submit", "--deploy-mode", "client", "/featureform/scripts/spark/offline_store_spark_runner.py", "sql", "--output_uri", "/path/to/dest", "--sql_query", "SELECT * FROM table", "--job_type", "Materialization", "--store_type", "local", "--source_list", "source1", "source2"},
+			ExpectedDFArgs:        []string{"spark-submit", "--deploy-mode", "client", "/featureform/scripts/spark/offline_store_spark_runner.py", "df", "--output_uri", "/path/to/output", "--code", "code", "--store_type", "local", "--source", "source1", "source2"},
 		},
 	}
 	for _, tt := range testCases {

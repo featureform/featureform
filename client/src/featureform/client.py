@@ -54,6 +54,7 @@ class Client(ResourceClient, ServingClient):
         source: Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str],
         variant: Union[str, None] = None,
         limit=NO_RECORD_LIMIT,
+        asynchronous=False,
     ):
         """
         Compute a dataframe from a registered source or transformation
@@ -62,6 +63,7 @@ class Client(ResourceClient, ServingClient):
             source (Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
             variant (str): The source variant; defaults to a Docker-style random name and is ignored if source argument is not a string
             limit (int): The maximum number of records to return; defaults to NO_RECORD_LIMIT
+            asynchronous (bool): @param asynchronous: Flag to determine whether the client should wait for resources to be in either a READY or FAILED state before returning. Defaults to False to ensure that newly registered resources are in a READY state prior to serving them as dataframes.
 
         **Example:**
         ```py title="definitions.py"
@@ -70,7 +72,7 @@ class Client(ResourceClient, ServingClient):
         avg_user_transaction_df = transactions_df.groupby("CustomerID")["TransactionAmount"].mean()
         ```
         """
-        self.apply()
+        self.apply(asynchronous=asynchronous)
         if isinstance(
             source, (SourceRegistrar, LocalSource, SubscriptableTransformation)
         ):

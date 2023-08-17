@@ -1179,8 +1179,8 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath string, cleanQuery string,
 	return argList
 }
 
-func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
-	return blobRegisterPrimary(id, sourceName, spark.Logger, spark.Store)
+func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourcePath string) (PrimaryTable, error) {
+	return blobRegisterPrimary(id, sourcePath, spark.Logger, spark.Store)
 }
 
 func (spark *SparkOfflineStore) pysparkArgs(destinationURI string, templatedQuery string, sourceList []string, jobType JobType) *[]string {
@@ -1461,9 +1461,18 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI string, code string, sources []
 }
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), false)
+	transformationPath := spark.Store.PathWithPrefix(fileStoreResourcePath(id), true)
 	spark.Logger.Debugw("Retrieved transformation source", "ResourceID", id, "transformationPath", transformationPath)
-	return &FileStorePrimaryTable{spark.Store, transformationPath, true, id}, nil
+	filePath, err := NewEmptyFilepath(spark.Store.FilestoreType())
+	if err != nil {
+		return nil, fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), transformationPath)
+	}
+	err = filePath.ParseFullPath(transformationPath)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), transformationPath)
+	}
+	spark.Logger.Debugw("Retrieved transformation source", "id", id, "filePath", filePath)
+	return &FileStorePrimaryTable{spark.Store, filePath, true, id}, nil
 }
 
 func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig) error {
@@ -1518,9 +1527,21 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		return nil, fmt.Errorf("materialization already exists")
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-
-	latestSourcePath, err := spark.Store.NewestFileOfType(sparkResourceTable.schema.SourceTable, Parquet)
+	filepath, err := NewEmptyFilepath(spark.Store.FilestoreType())
+	if err != nil {
+		return nil, fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)
+	}
+	err = filepath.ParseFullPath(sparkResourceTable.schema.SourceTable)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse full path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)
+	}
+	spark.Logger.Debugw("Parsed source table path:", "sourceTablePath", filepath.Path())
+	// TODO: Handle case where there are multiple files in the source table
+	latestSourcePath, err := spark.Store.NewestFileOfType(filepath.Path(), Parquet)
+	spark.Logger.Debugw("Fetched newest file of type", "latestSourcePath", latestSourcePath, "fileType", Parquet)
+	// TODO: Move file store path logic into Filepath interface
 	sourcePath := spark.Store.PathWithPrefix(latestSourcePath, true)
+	spark.Logger.Debugw("Constructed source path for Spark job", "sourcePath", sourcePath)
 	if err != nil {
 		return nil, fmt.Errorf("could not get latest source file: %v", err)
 	}
@@ -1595,26 +1616,40 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Could not get schema of label in spark store", "label", def.Label, "error", err)
 		return fmt.Errorf("could not get schema of label %s: %v", def.Label, err)
 	}
-	latestLabelPath, err := spark.Store.NewestFileOfType(labelSchema.SourceTable, Parquet)
+	// NOTE: labelSchema.SourceTable should be the absolute path to the label source table
+	labelSourcePath := labelSchema.SourceTable
+	filepath, err := NewEmptyFilepath(spark.Store.FilestoreType())
 	if err != nil {
-		spark.Logger.Errorw("Could not get latest label file", "label", def.Label, "error", err)
-		return fmt.Errorf("could not get latest label file: %v", err)
+		return fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), labelSchema.SourceTable)
 	}
-	labelPath := spark.Store.PathWithPrefix(latestLabelPath, true)
-	sourcePaths = append(sourcePaths, labelPath)
+	err = filepath.ParseFullPath(labelSourcePath)
+	if err != nil {
+		// Labels derived from transformations registered prior to PR #947 will not have a full path; given Spark requires an absolute path, we will
+		// assume an error here means the value of SourceTable is just the relative path and attempt to construct the absolute path
+		// prior to adding it to the list of source paths
+		labelSourcePath = spark.Store.PathWithPrefix(labelSchema.SourceTable, true)
+	}
+	sourcePaths = append(sourcePaths, labelSourcePath)
 	for _, feature := range def.Features {
 		featureSchema, err := spark.registeredResourceSchema(feature)
 		if err != nil {
 			spark.Logger.Errorw("Could not get schema of feature in spark store", "feature", feature, "error", err)
 			return fmt.Errorf("could not get schema of feature %s: %v", feature, err)
 		}
-		latestFeaturePath, err := spark.Store.NewestFileOfType(featureSchema.SourceTable, Parquet)
+		featureSourcePath := featureSchema.SourceTable
+		// NOTE: featureSchema.SourceTable should be the absolute path to the feature source table
+		filepath, err := NewEmptyFilepath(spark.Store.FilestoreType())
 		if err != nil {
-			spark.Logger.Errorw("Could not get latest feature file", "feature", feature, "error", err)
-			return fmt.Errorf("could not get latest feature file: %v", err)
+			return fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), featureSchema.SourceTable)
 		}
-		featurePath := spark.Store.PathWithPrefix(latestFeaturePath, true)
-		sourcePaths = append(sourcePaths, featurePath)
+		// Features registered prior to PR #947 will not have a full path; given Spark requires an absolute path, we will
+		// assume an error here means the value of SourceTable is just the relative path and attempt to construct the absolute path
+		// prior to adding it to the list of source paths
+		err = filepath.ParseFullPath(featureSourcePath)
+		if err != nil {
+			featureSourcePath = spark.Store.PathWithPrefix(featureSchema.SourceTable, true)
+		}
+		sourcePaths = append(sourcePaths, featureSourcePath)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
@@ -1632,7 +1667,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Could not get training set resource key in offline store")
 		return fmt.Errorf("training Set result does not exist in offline store")
 	}
-	spark.Logger.Debugw("Succesfully created training set:", "definition", def)
+	spark.Logger.Debugw("Successfully created training set:", "definition", def)
 	return nil
 }
 

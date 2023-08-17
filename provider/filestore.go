@@ -100,6 +100,10 @@ func (fs *LocalFileStore) FilestoreType() pc.FileStoreType {
 	return FileSystem
 }
 
+func (fs *LocalFileStore) PathWithPrefix(path string, remote bool) string {
+	return path
+}
+
 type AzureFileStore struct {
 	AccountName      string
 	AccountKey       string

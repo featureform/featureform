@@ -171,6 +171,16 @@ class SQLiteMetadata:
           FOREIGN KEY(name) REFERENCES sources(name));"""
         )
 
+        # source variant text
+        self.__conn.execute(
+            """CREATE TABLE IF NOT EXISTS source_variant_text(
+            created     text,
+            source_name  text NOT NULL,
+            variant     text NOT NULL,
+            source_text text,
+            PRIMARY KEY(source_name, variant));"""
+        )
+
         # sources table
         self.__conn.execute(
             """CREATE TABLE IF NOT EXISTS sources(
@@ -689,6 +699,18 @@ class SQLiteMetadata:
         stmt = f"INSERT OR IGNORE INTO {tablename} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         self.__conn.execute_stmt(stmt, args)
         self.__conn.commit()
+
+    def insert_source_variant_text(self, *args):
+        stmt = f"INSERT OR IGNORE INTO source_variant_text VALUES (?, ?, ?, ?)"
+        self.__conn.execute_stmt(stmt, args)
+        self.__conn.commit()
+
+    def get_source_variant_text(self, name, variant):
+        stmt = f"SELECT source_text FROM source_variant_text WHERE source_name='{name}' AND variant='{variant}'"
+        result = self.__conn.execute(stmt)
+        self.__conn.commit()
+        res = result.fetchone()
+        return res[0] if res else ""
 
     def insert(self, tablename, *args):
         query = f"INSERT OR IGNORE INTO {tablename} VALUES {str(args)}"

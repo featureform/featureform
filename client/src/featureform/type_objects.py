@@ -42,6 +42,7 @@ class FeatureVariantResource:
     def toJsonLiteral(self):
         return json.dumps(self.__dictionary)
 
+
 class FeatureResource:
     def __init__(
         self, name="", defaultVariant="", type="", variants=None, allVariants=[]

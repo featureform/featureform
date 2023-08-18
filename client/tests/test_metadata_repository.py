@@ -20,7 +20,12 @@ from featureform.resources import (
     EmptyConfig,
     SourceVariant,
     PrimaryData,
-    SQLTable, Label, Model, Entity, TrainingSetVariant, TrainingSet,
+    SQLTable,
+    Label,
+    Model,
+    Entity,
+    TrainingSetVariant,
+    TrainingSet,
 )
 
 test_user = User(name="test_user", tags=["tag1"], properties={"key1": "value1"})
@@ -85,8 +90,8 @@ label_variant = LabelVariant(
 training_set_variant = TrainingSetVariant(
     name="training_set",
     owner="fake_owner",
-    label=('label', 'variant1'),
-    features=[('feature', 'variant1')],
+    label=("label", "variant1"),
+    features=[("feature", "variant1")],
     description="fake description",
     variant="variant1",
     tags=["tag1"],
@@ -245,7 +250,10 @@ def test_create_training_set_variant(setup):
     repo.create_resource(label_variant)
     repo.create_resource(feature_variant)
     repo.create_resource(training_set_variant)
-    assert repo.get_training_set_variant("training_set", "variant1") == training_set_variant
+    assert (
+        repo.get_training_set_variant("training_set", "variant1")
+        == training_set_variant
+    )
 
 
 @pytest.mark.local

@@ -142,6 +142,20 @@ func TestOfflineStores(t *testing.T) {
 		return serialBQConfig, bigQueryConfig
 	}
 
+	sparkInit := func() (pc.SerializedConfig, pc.SparkConfig) {
+		var sparkConfig = pc.SparkConfig{
+			ExecutorType:   pc.SparkGeneric,
+			ExecutorConfig: &pc.SparkGenericConfig{},
+			StoreType:      pc.Azure,
+			StoreConfig:    &pc.AzureFileStoreConfig{},
+		}
+		serializedConfig, err := sparkConfig.Serialize()
+		if err != nil {
+			t.Fatalf("Cannot serialize Spark config: %v", err)
+		}
+		return serializedConfig, sparkConfig
+	}
+
 	testList := []testMember{}
 
 	if *provider == "memory" || *provider == "" {
@@ -170,6 +184,10 @@ func TestOfflineStores(t *testing.T) {
 		t.Cleanup(func() {
 			destroyRedshiftDatabase(redshiftConfig)
 		})
+	}
+	if *provider == "spark" || *provider == "" {
+		serialSparkConfig, _ := sparkInit()
+		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
 	}
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,

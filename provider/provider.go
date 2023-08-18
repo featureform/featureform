@@ -28,7 +28,7 @@ func init() {
 		pt.K8sOffline:       k8sOfflineStoreFactory,
 		pt.BlobOnline:       blobOnlineStoreFactory,
 		pt.MongoDBOnline:    mongoOnlineStoreFactory,
-		pt.UNIT_TEST:        unitTestStoreFactory,
+		pt.UNIT_TEST:        localOnlineStoreFactory,
 	}
 	for name, factory := range unregisteredFactories {
 		if err := RegisterFactory(name, factory); err != nil {

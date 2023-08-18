@@ -944,6 +944,10 @@ func (tbl *BlobOfflineTable) Write(ResourceRecord) error {
 	return fmt.Errorf("not yet implemented")
 }
 
+func (tbl *BlobOfflineTable) WriteBatch([]ResourceRecord) error {
+	return fmt.Errorf("not yet implemented")
+}
+
 func (k8s *K8sOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
 	return blobRegisterResource(id, schema, k8s.logger, k8s.store)
 }
@@ -982,6 +986,10 @@ type FileStorePrimaryTable struct {
 }
 
 func (tbl *FileStorePrimaryTable) Write(GenericRecord) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (tbl *FileStorePrimaryTable) WriteBatch([]GenericRecord) error {
 	return fmt.Errorf("not implemented")
 }
 

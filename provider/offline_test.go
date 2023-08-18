@@ -642,11 +642,10 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			t.Fatalf("Failed to create table: %s", err)
 		}
 
-		for _, rec := range test.WriteRecords {
-			if err := table.Write(rec); err != nil {
-				t.Fatalf("Failed to write record %v: %s", rec, err)
-			}
+		if err := table.WriteBatch(test.WriteRecords); err != nil {
+			t.Fatalf("Failed to write batch: %s", err)
 		}
+
 		mat, err := store.CreateMaterialization(id)
 		if err != nil {
 			t.Fatalf("Failed to create materialization: %s", err)
@@ -951,11 +950,11 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
-		for _, rec := range test.WriteRecords {
-			if err := table.Write(rec); err != nil {
-				t.Fatalf("Failed to write record %v: %s", rec, err)
-			}
+
+		if err := table.WriteBatch(test.WriteRecords); err != nil {
+			t.Fatalf("Failed to write batch: %s", err)
 		}
+
 		mat, err := store.CreateMaterialization(id)
 		if err != nil {
 			t.Fatalf("Failed to create materialization: %s", err)
@@ -965,11 +964,11 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Failed to get materialization: %s", err)
 		}
-		for _, rec := range test.UpdateRecords {
-			if err := table.Write(rec); err != nil {
-				t.Fatalf("Failed to write record %v: %s", rec, err)
-			}
+
+		if err := table.WriteBatch(test.UpdateRecords); err != nil {
+			t.Fatalf("Failed to write batch: %s", err)
 		}
+
 		mat, err = store.UpdateMaterialization(id)
 		if err != nil {
 			t.Fatalf("Failed to update materialization: %s", err)
@@ -1005,7 +1004,7 @@ func testWriteInvalidResourceRecord(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
-	if err := table.Write(ResourceRecord{}); err == nil {
+	if err := table.WriteBatch([]ResourceRecord{{}}); err == nil {
 		t.Fatalf("Succeeded in writing invalid resource record")
 	}
 }
@@ -1269,10 +1268,8 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 			if err != nil {
 				t.Fatalf("Failed to create table: %s", err)
 			}
-			for _, rec := range recs {
-				if err := table.Write(rec); err != nil {
-					t.Fatalf("Failed to write record %v: %v", rec, err)
-				}
+			if err := table.WriteBatch(recs); err != nil {
+				t.Fatalf("Failed to write batch: %v", err)
 			}
 		}
 		labelID := randomID(Label)
@@ -1280,11 +1277,10 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
-		for _, rec := range test.LabelRecords {
-			if err := labelTable.Write(rec); err != nil {
-				t.Fatalf("Failed to write record %v", rec)
-			}
+		if err := labelTable.WriteBatch(test.LabelRecords); err != nil {
+			t.Fatalf("Failed to write batch: %v", err)
 		}
+
 		def := TrainingSetDef{
 			ID:       randomID(TrainingSet),
 			Label:    labelID,
@@ -1636,10 +1632,8 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 			if err != nil {
 				t.Fatalf("Failed to create table: %s", err)
 			}
-			for _, rec := range recs {
-				if err := table.Write(rec); err != nil {
-					t.Fatalf("Failed to write record %v: %v", rec, err)
-				}
+			if err := table.WriteBatch(recs); err != nil {
+				t.Fatalf("Failed to write records %v: %v", recs, err)
 			}
 		}
 		labelID := randomID(Label)
@@ -1647,10 +1641,8 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
-		for _, rec := range test.LabelRecords {
-			if err := labelTable.Write(rec); err != nil {
-				t.Fatalf("Failed to write record %v", rec)
-			}
+		if err := labelTable.WriteBatch(test.LabelRecords); err != nil {
+			t.Fatalf("Failed to write records %v: %v", test.LabelRecords, err)
 		}
 		def := TrainingSetDef{
 			ID:       randomID(TrainingSet),
@@ -1701,10 +1693,8 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 			t.Fatalf("Training set has different number of rows %d %d", len(test.ExpectedRows), i)
 		}
 		for i, table := range featureTables {
-			for _, rec := range test.UpdatedFeatureRecords[i] {
-				if err := table.Write(rec); err != nil {
-					t.Errorf("Could not write update record: %v", rec)
-				}
+			if err := table.WriteBatch(test.UpdatedFeatureRecords[i]); err != nil {
+				t.Fatalf("Failed to write records %v: %v", test.UpdatedFeatureRecords[i], err)
 			}
 		}
 		if err := store.UpdateTrainingSet(def); err != nil {
@@ -1886,13 +1876,17 @@ func testTrainingSetDefShorthand(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
-	fTable.Write(ResourceRecord{Entity: "a", Value: "feature"})
+	if err := fTable.WriteBatch([]ResourceRecord{{Entity: "a", Value: "feature"}}); err != nil {
+		t.Fatalf("Failed to write record: %s", err)
+	}
 	lId := randomID(Label)
 	lTable, err := store.CreateResourceTable(lId, schema)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
-	lTable.Write(ResourceRecord{Entity: "a", Value: "label"})
+	if err := lTable.WriteBatch([]ResourceRecord{{Entity: "a", Value: "label"}}); err != nil {
+		t.Fatalf("Failed to write record: %s", err)
+	}
 	// TrainingSetDef can be done in shorthand without types. Their types should
 	// be set automatically by the check() function.
 	lId.Type = NoType
@@ -2069,10 +2063,8 @@ func testPrimaryTableWrite(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not get Primary table: %v", err)
 		}
-		for _, record := range test.Records {
-			if err := table.Write(record); err != nil {
-				t.Fatalf("Could not write: %v", err)
-			}
+		if err := table.WriteBatch(test.Records); err != nil {
+			t.Fatalf("Could not write: %v", err)
 		}
 	}
 
@@ -2188,10 +2180,8 @@ func testTransform(t *testing.T, store OfflineStore) {
 			t.Fatalf("Could not initialize table: %v", err)
 		}
 
-		for _, value := range test.Records {
-			if err := table.Write(value); err != nil {
-				t.Fatalf("Could not write value: %v: %v", err, value)
-			}
+		if err := table.WriteBatch(test.Records); err != nil {
+			t.Fatalf("Could not write: %v", err)
 		}
 
 		tableName := getTableName(t.Name(), table.GetName())
@@ -2343,10 +2333,8 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not initialize table: %v", err)
 		}
-		for _, value := range test.Records {
-			if err := table.Write(value); err != nil {
-				t.Fatalf("Could not write value: %v: %v", err, value)
-			}
+		if err := table.WriteBatch(test.Records); err != nil {
+			t.Fatalf("Could not write value: %v", err)
 		}
 
 		tableName := getTableName(t.Name(), table.GetName())
@@ -2390,11 +2378,10 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not get primary table: %v", err)
 		}
-		for _, rec := range test.UpdatedRecords {
-			if err := table.Write(rec); err != nil {
-				t.Errorf("could not write to table: %v", err)
-			}
+		if err := table.WriteBatch(test.UpdatedRecords); err != nil {
+			t.Fatalf("Could not write value: %v", err)
 		}
+
 		if err := store.UpdateTransformation(test.Config); err != nil {
 			t.Errorf("could not update transformation: %v", err)
 		}
@@ -2566,10 +2553,8 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not initialize table: %v", err)
 		}
-		for _, value := range test.Records {
-			if err := table.Write(value); err != nil {
-				t.Fatalf("Could not write value: %v: %v", err, value)
-			}
+		if err := table.WriteBatch(test.Records); err != nil {
+			t.Fatalf("Could not write records: %v", err)
 		}
 
 		tableName := getTableName(t.Name(), table.GetName())
@@ -2618,11 +2603,10 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not get primary table: %v", err)
 		}
-		for _, rec := range test.UpdatedRecords {
-			if err := table.Write(rec); err != nil {
-				t.Errorf("could not write to table: %v", err)
-			}
+		if err := table.WriteBatch(test.UpdatedRecords); err != nil {
+			t.Fatalf("Could not write updated records: %v", err)
 		}
+
 		if err := store.UpdateTransformation(test.Config); err != nil {
 			t.Errorf("could not update transformation: %v", err)
 		}
@@ -2731,10 +2715,8 @@ func testTransformCreateFeature(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not initialize table: %v", err)
 		}
-		for _, value := range test.Records {
-			if err := table.Write(value); err != nil {
-				t.Fatalf("Could not write value: %v: %v", err, value)
-			}
+		if err := table.WriteBatch(test.Records); err != nil {
+			t.Fatalf("Could not write records: %v", err)
 		}
 
 		tableName := getTableName(t.Name(), table.GetName())
@@ -2879,10 +2861,8 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Fatalf("Could not initialize table: %v", err)
 	}
-	for _, value := range tests["First"].Records {
-		if err := table.Write(value); err != nil {
-			t.Fatalf("Could not write value: %v: %v", err, value)
-		}
+	if err := table.WriteBatch(tests["First"].Records); err != nil {
+		t.Fatalf("Could not write batch: %v", err)
 	}
 
 	tableName := getTableName(t.Name(), table.GetName())
@@ -3042,10 +3022,8 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Fatalf("Could not initialize table: %v", err)
 	}
-	for _, value := range tests["First"].Records {
-		if err := table.Write(value); err != nil {
-			t.Fatalf("Could not write value: %v: %v", err, value)
-		}
+	if err := table.WriteBatch(tests["First"].Records); err != nil {
+		t.Fatalf("Could not write batch: %v", err)
 	}
 
 	tableName := getTableName(t.Name(), table.GetName())
@@ -3117,11 +3095,10 @@ func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 		{"d", 4, "four", time.UnixMilli(3)},
 		{"e", 5, "five", time.UnixMilli(4)},
 	}
-	for _, record := range records {
-		if err := table.Write(record); err != nil {
-			t.Fatalf("Could not write record: %v", err)
-		}
+	if err := table.WriteBatch(records); err != nil {
+		t.Fatalf("Could not write batch: %v", err)
 	}
+
 	featureID := ResourceID{
 		Name: uuid.NewString(),
 		Type: Feature,
@@ -3152,10 +3129,8 @@ func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 		{"i", 9, "nine", time.UnixMilli(3)},
 		{"j", 10, "ten", time.UnixMilli(4)},
 	}
-	for _, record := range updatedRecords {
-		if err := table.Write(record); err != nil {
-			t.Fatalf("Could not write record: %v", err)
-		}
+	if err := table.WriteBatch(updatedRecords); err != nil {
+		t.Fatalf("Could not write batch: %v", err)
 	}
 	err = store.DeleteMaterialization(mat.ID())
 	if err != nil {
@@ -3208,11 +3183,10 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 		{"d", 4, "four", true},
 		{"e", 5, "five", false},
 	}
-	for _, record := range records {
-		if err := table.Write(record); err != nil {
-			t.Fatalf("Could not write record: %v", err)
-		}
+	if err := table.WriteBatch(records); err != nil {
+		t.Fatalf("Could not write batch: %v", err)
 	}
+
 	featureID := ResourceID{
 		Name: uuid.NewString(),
 		Type: Feature,
@@ -3343,10 +3317,8 @@ func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 		{"d", 4, "four", time.UnixMilli(3)},
 		{"e", 5, "five", time.UnixMilli(4)},
 	}
-	for _, record := range records {
-		if err := table.Write(record); err != nil {
-			t.Fatalf("Could not write record: %v", err)
-		}
+	if err := table.WriteBatch(records); err != nil {
+		t.Fatalf("Could not write batch: %v", err)
 	}
 	primaryCopyID := ResourceID{
 		Name: uuid.NewString(),
@@ -3738,10 +3710,8 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 			if err != nil {
 				t.Fatalf("Failed to create table: %s", err)
 			}
-			for _, rec := range recs {
-				if err := table.Write(rec); err != nil {
-					t.Fatalf("Failed to write record %v: %v", rec, err)
-				}
+			if err := table.WriteBatch(recs); err != nil {
+				t.Fatalf("Failed to write record %v: %v", recs, err)
 			}
 		}
 		labelID := randomID(Label)
@@ -3749,10 +3719,8 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
-		for _, rec := range test.LabelRecords {
-			if err := labelTable.Write(rec); err != nil {
-				t.Fatalf("Failed to write record %v", rec)
-			}
+		if err := labelTable.WriteBatch(test.LabelRecords); err != nil {
+			t.Fatalf("Failed to write record %v", test.LabelRecords)
 		}
 		lagFeatureList := make([]LagFeatureDef, 0)
 		for _, lagFeatureDef := range test.LagFeatures {

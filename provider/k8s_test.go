@@ -634,8 +634,8 @@ func testPathWithPrefix(t *testing.T, store FileStore) {
 	fileFileStore, ok := store.(*LocalFileStore)
 	if ok {
 		filePathWithPrefix := fileFileStore.PathWithPrefix(randomKey, false)
-		if filePathWithPrefix != fmt.Sprintf("%s%s", fileFileStore.DirPath, randomKey) {
-			t.Fatalf("Incorrect path with prefix. Expected %s, got %s", fmt.Sprintf("%s%s", fileFileStore.DirPath, randomKey), filePathWithPrefix)
+		if filePathWithPrefix != fmt.Sprintf("%s/%s", fileFileStore.DirPath, randomKey) {
+			t.Fatalf("Incorrect path with prefix. Expected:\n%s\ngot:\n%s", fmt.Sprintf("%s/%s", fileFileStore.DirPath, randomKey), filePathWithPrefix)
 		}
 	}
 	hdfsStore, ok := store.(*HDFSFileStore)

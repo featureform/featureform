@@ -45,17 +45,17 @@ from .resources import (
     GCSFileStoreConfig,
     User,
     Location,
-    Source,
+    SourceVariant,
     PrimaryData,
     SQLTable,
     Directory,
     SQLTransformation,
     DFTransformation,
     Entity,
-    Feature,
-    Label,
+    FeatureVariant,
+    LabelVariant,
     ResourceColumnMapping,
-    TrainingSet,
+    TrainingSetVariant,
     ProviderReference,
     EntityReference,
     SourceReference,
@@ -68,7 +68,7 @@ from .resources import (
     HDFSConfig,
     K8sResourceSpecs,
     FilePrefix,
-    OnDemandFeature,
+    OnDemandFeatureVariant,
     WeaviateConfig,
 )
 from .search import search
@@ -1028,8 +1028,8 @@ class SQLTransformationDecorator:
             raise ValueError("Query cannot be an empty string")
         self.query = add_variant_to_name(query, self.run)
 
-    def to_source(self) -> Source:
-        return Source(
+    def to_source(self) -> SourceVariant:
+        return SourceVariant(
             name=self.name,
             variant=self.variant,
             definition=SQLTransformation(self.query, self.args),
@@ -1083,6 +1083,7 @@ class DFTransformationDecorator:
         description: str = "",
         inputs: list = [],
         args: Union[K8sArgs, None] = None,
+        source_text: str = "",
     ):
         self.registrar = registrar
         self.name = name
@@ -1095,6 +1096,7 @@ class DFTransformationDecorator:
         self.properties = properties
         self.variant = variant
         self.query = b""
+        self.source_text = source_text
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:
@@ -1111,6 +1113,7 @@ class DFTransformationDecorator:
                     f"Transformation cannot be input for itself: {self.name} {self.variant}"
                 )
         self.query = dill.dumps(fn.__code__)
+        self.source_text = dill.source.getsource(fn)
         return SubscriptableTransformation(
             fn,
             self.registrar,
@@ -1119,11 +1122,16 @@ class DFTransformationDecorator:
             self.name_variant,
         )
 
-    def to_source(self) -> Source:
-        return Source(
+    def to_source(self) -> SourceVariant:
+        return SourceVariant(
             name=self.name,
             variant=self.variant,
-            definition=DFTransformation(self.query, self.inputs, self.args),
+            definition=DFTransformation(
+                query=self.query,
+                inputs=self.inputs,
+                args=self.args,
+                source_text=self.source_text,
+            ),
             owner=self.owner,
             provider=self.provider,
             description=self.description,
@@ -1581,7 +1589,7 @@ class Registrar:
             )
         else:
             mock_definition = PrimaryData(location=SQLTable(name=""))
-            mock_source = Source(
+            mock_source = SourceVariant(
                 name=name,
                 variant=variant,
                 definition=mock_definition,
@@ -1632,7 +1640,7 @@ class Registrar:
         )
         return OnlineProvider(self, mock_provider)
 
-    def get_mongodb(self, name):
+    def get_mongodb(self, name: str):
         """Get a MongoDB provider. The returned object can be used to register additional resources.
 
         **Examples**:
@@ -1654,7 +1662,9 @@ class Registrar:
         Returns:
             mongodb (OnlineProvider): Provider
         """
-        mock_config = MongoDBConfig()
+        mock_config = MongoDBConfig(
+            username="", password="", host="", port="", database="", throughput=1
+        )
         mock_provider = Provider(
             name=name, function="ONLINE", description="", team="", config=mock_config
         )
@@ -1713,7 +1723,12 @@ class Registrar:
             postgres (OfflineSQLProvider): Provider
         """
         mock_config = PostgresConfig(
-            host="", port="", database="", user="", password=""
+            host="",
+            port="",
+            database="",
+            user="",
+            password="",
+            sslmode="",
         )
         mock_provider = Provider(
             name=name, function="OFFLINE", description="", team="", config=mock_config
@@ -2719,6 +2734,7 @@ class Registrar:
         user: str = "postgres",
         password: str = "password",
         database: str = "postgres",
+        sslmode: str = "disable",
         tags: List[str] = None,
         properties: dict = None,
     ):
@@ -2745,6 +2761,7 @@ class Registrar:
             user (str): User
             password (str): Password
             database (str): Database
+            sslmode (str): SSL mode
             tags (List[str]): Optional grouping mechanism for resources
             properties (dict): Optional grouping mechanism for resources
 
@@ -2752,7 +2769,12 @@ class Registrar:
             postgres (OfflineSQLProvider): Provider
         """
         config = PostgresConfig(
-            host=host, port=port, database=database, user=user, password=password
+            host=host,
+            port=port,
+            database=database,
+            user=user,
+            password=password,
+            sslmode=sslmode,
         )
         provider = Provider(
             name=name,
@@ -3036,7 +3058,7 @@ class Registrar:
             variant = self.__run
         if not isinstance(provider, str):
             provider = provider.name()
-        source = Source(
+        source = SourceVariant(
             name=name,
             variant=variant,
             definition=PrimaryData(location=location),
@@ -3087,7 +3109,7 @@ class Registrar:
             variant = self.__run
         if not isinstance(provider, str):
             provider = provider.name()
-        source = Source(
+        source = SourceVariant(
             name=name,
             variant=variant,
             definition=SQLTransformation(query, args),
@@ -3197,7 +3219,7 @@ class Registrar:
         for i, nv in enumerate(inputs):
             if not isinstance(nv, tuple):
                 inputs[i] = nv.name_variant()
-        source = Source(
+        source = SourceVariant(
             name=name,
             variant=variant,
             definition=DFTransformation(query, inputs, args),
@@ -3342,7 +3364,7 @@ class Registrar:
             owner = self.must_get_default_owner()
         if variant == "":
             variant = self.__run
-        decorator = OnDemandFeature(
+        decorator = OnDemandFeatureVariant(
             name=name,
             variant=variant,
             owner=owner,
@@ -3530,7 +3552,7 @@ class Registrar:
             desc = feature.get("description", "")
             feature_tags = feature.get("tags", [])
             feature_properties = feature.get("properties", {})
-            resource = Feature(
+            resource = FeatureVariant(
                 name=feature["name"],
                 variant=variant,
                 source=source,
@@ -3568,7 +3590,7 @@ class Registrar:
             desc = label.get("description", "")
             label_tags = label.get("tags", [])
             label_properties = label.get("properties", {})
-            resource = Label(
+            resource = LabelVariant(
                 name=label["name"],
                 variant=variant,
                 source=source,
@@ -3721,7 +3743,7 @@ class Registrar:
             elif isinstance(feature, FeatureColumnResource):
                 feature = feature.name_variant()
             processed_features.append(feature)
-        resource = TrainingSet(
+        resource = TrainingSetVariant(
             name=name,
             variant=variant,
             description=description,
@@ -3813,7 +3835,7 @@ class ResourceClient:
         """
         Apply all definitions, creating and retrieving all specified resources.
 
-        @param asynchronous: Wait for all resources to be ready before returning.
+        @param asynchronous: Flag to determine whether the client should wait for resources to be in either a READY or FAILED state before returning. Defaults to True to avoid blocking the client.
         """
 
         print(f"Applying Run: {get_run()}")
@@ -4056,7 +4078,7 @@ class ResourceClient:
             feature = x
             break
 
-        return Feature(
+        return FeatureVariant(
             name=feature.name,
             variant=feature.variant,
             source=(feature.source.name, feature.source.variant),
@@ -4179,7 +4201,7 @@ class ResourceClient:
             label = x
             break
 
-        return Label(
+        return LabelVariant(
             name=label.name,
             variant=label.variant,
             source=(label.source.name, label.source.variant),
@@ -4302,7 +4324,7 @@ class ResourceClient:
             ts = x
             break
 
-        return TrainingSet(
+        return TrainingSetVariant(
             name=ts.name,
             variant=ts.variant,
             owner=ts.owner,
@@ -4421,7 +4443,7 @@ class ResourceClient:
 
         definition = self._get_source_definition(source)
 
-        return Source(
+        return SourceVariant(
             name=source.name,
             definition=definition,
             owner=source.owner,
@@ -4431,6 +4453,7 @@ class ResourceClient:
             status=source.status.Status._enum_type.values[source.status.status].name,
             tags=[],
             properties={},
+            source=source.source_text,
         )
 
     def _get_source_definition(self, source):
@@ -4447,6 +4470,7 @@ class ResourceClient:
             return DFTransformation(
                 query=transformation.query,
                 inputs=[(input.name, input.variant) for input in transformation.inputs],
+                source_text=transformation.source_text,
             )
         elif source.transformation.SQLTransformation.query != "":
             return SQLTransformation(source.transformation.SQLTransformation.query)

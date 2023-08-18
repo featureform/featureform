@@ -224,6 +224,7 @@ def test_postgres():
         database="database",
         user="username",
         password="password",
+        sslmode="sslmode",
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config

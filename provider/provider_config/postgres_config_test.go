@@ -12,6 +12,7 @@ func TestPostgresConfigMutableFields(t *testing.T) {
 		"Username": true,
 		"Password": true,
 		"Port":     true,
+		"SSLMode":  true,
 	}
 
 	config := PostgresConfig{
@@ -20,6 +21,7 @@ func TestPostgresConfigMutableFields(t *testing.T) {
 		Username: "postgres",
 		Password: "password",
 		Database: "postgres",
+		SSLMode:  "disable",
 	}
 	actual := config.MutableFields()
 
@@ -46,6 +48,7 @@ func TestPostgresConfigDifferingFields(t *testing.T) {
 				Username: "postgres",
 				Password: "password",
 				Database: "postgres",
+				SSLMode:  "disable",
 			},
 			b: PostgresConfig{
 				Host:     "0.0.0.0",
@@ -53,6 +56,7 @@ func TestPostgresConfigDifferingFields(t *testing.T) {
 				Username: "postgres",
 				Password: "password",
 				Database: "postgres",
+				SSLMode:  "disable",
 			},
 		}, ss.StringSet{}},
 		{"Differing Fields", args{
@@ -62,6 +66,7 @@ func TestPostgresConfigDifferingFields(t *testing.T) {
 				Username: "postgres",
 				Password: "password",
 				Database: "postgres",
+				SSLMode:  "disable",
 			},
 			b: PostgresConfig{
 				Host:     "127.0.0.1",
@@ -69,11 +74,13 @@ func TestPostgresConfigDifferingFields(t *testing.T) {
 				Username: "root",
 				Password: "password",
 				Database: "transaction",
+				SSLMode:  "require",
 			},
 		}, ss.StringSet{
 			"Host":     true,
 			"Username": true,
 			"Database": true,
+			"SSLMode":  true,
 		}},
 	}
 

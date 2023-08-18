@@ -164,6 +164,15 @@ class SQLiteTest:
         )
 
         conn.execute(
+            """CREATE TABLE IF NOT EXISTS source_variant_text(
+            created     text,
+            source_name  text NOT NULL,
+            variant     text NOT NULL,
+            source_text text,
+            PRIMARY KEY(source_name, variant));"""
+        )
+
+        conn.execute(
             """ INSERT INTO source_variant VALUES
             ("2020-08-10T13:49:51.141Z", "Sulfur Dioxide that is trapped",                   "Non_free_Sulfur_Dioxide", "JSON", "Simba Khadder", "Sample online provider", "first-variant",       "CREATED", "wine_id"),
             ("2020-08-10T13:49:51.141Z", "Sulfur Dioxide that is trapped, streaming derived", "Non_free_Sulfur_Dioxide", "JSON", "Simba Khadder", "Sample online provider", "streaming-variant", "CREATED", "wine_id"),

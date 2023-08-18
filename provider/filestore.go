@@ -60,6 +60,15 @@ func GetFileType(file string) FileType {
 	return Parquet
 }
 
+func IsValidFileType(ext string) bool {
+	for _, fileType := range []FileType{Parquet, CSV, DB} {
+		if FileType(ext) == fileType {
+			return true
+		}
+	}
+	return false
+}
+
 func GetFileExtension(file string) string {
 	ext := filepath.Ext(file)
 	return strings.ReplaceAll(ext, ".", "")
@@ -98,6 +107,13 @@ func NewLocalFileStore(config Config) (FileStore, error) {
 
 func (fs *LocalFileStore) FilestoreType() pc.FileStoreType {
 	return FileSystem
+}
+
+func (fs *LocalFileStore) PathWithPrefix(path string, remote bool) string {
+	if fs.DirPath == "" {
+		return fmt.Sprintf("/%s", strings.TrimPrefix(path, "/"))
+	}
+	return fmt.Sprintf("%s/%s", strings.TrimSuffix(fs.DirPath, "/"), strings.Trim(path, "/"))
 }
 
 type AzureFileStore struct {

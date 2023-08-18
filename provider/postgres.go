@@ -31,7 +31,7 @@ func postgresOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	queries.setVariableBinding(PostgresBindingStyle)
 	sgConfig := SQLOfflineStoreConfig{
 		Config:        config,
-		ConnectionURL: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", sc.Username, sc.Password, sc.Host, sc.Port, sc.Database),
+		ConnectionURL: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", sc.Username, sc.Password, sc.Host, sc.Port, sc.Database, sc.SSLMode),
 		Driver:        "postgres",
 		ProviderType:  pt.PostgresOffline,
 		QueryImpl:     &queries,

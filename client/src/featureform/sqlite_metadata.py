@@ -37,13 +37,10 @@ class SQLiteMetadata:
         self.path = path
         if not os.path.exists(self.path):
             os.makedirs(self.path)
-
-        with sqlite3.connect(
-            f"{self.path}/metadata.db", check_same_thread=False
-        ) as raw_conn:
-            raw_conn.row_factory = sqlite3.Row
-            self.__conn = SyncSQLExecutor(raw_conn)
-            self.createTables()
+        raw_conn = sqlite3.connect(f"{self.path}/metadata.db", check_same_thread=False)
+        raw_conn.row_factory = sqlite3.Row
+        self.__conn = SyncSQLExecutor(raw_conn)
+        self.createTables()
 
     def createTables(self):
         # Features variant table

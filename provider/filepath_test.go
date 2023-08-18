@@ -75,13 +75,19 @@ func TestNewFilepath(t *testing.T) {
 			ExpectedError:   fmt.Errorf("unknown store type '%s'", GCS),
 		},
 		"AzureBlobStoreFilePath": {
-			StoreType:       Azure,
-			Bucket:          "bucket",
-			Prefix:          "elasticmapreduce",
-			Path:            "path/to/file",
-			ExpectedPath:    nil,
-			ExpectedFailure: true,
-			ExpectedError:   fmt.Errorf("unknown store type '%s'", Azure),
+			StoreType: Azure,
+			Bucket:    "bucket",
+			Prefix:    "elasticmapreduce",
+			Path:      "path/to/file",
+			ExpectedPath: &AzureFilepath{
+				filePath: filePath{
+					bucket: "bucket",
+					prefix: "elasticmapreduce",
+					path:   "path/to/file",
+				},
+			},
+			ExpectedFailure: false,
+			ExpectedError:   nil,
 		},
 		"HDFSFilePath": {
 			StoreType:       HDFS,
@@ -201,6 +207,20 @@ func TestParseFullPath(t *testing.T) {
 			ExpectedFailure: false,
 			ExpectedError:   nil,
 		},
+		"AzureBlobStoreFilePathWithTrailingSlash": {
+			StoreType: Azure,
+			FullPath:  "abfss://container@account.dfs.core.windows.net/elasticmapreduce/path/to/file/",
+			ExpectedPath: &AzureFilepath{
+				storageAccount: "account",
+				filePath: filePath{
+					bucket: "container",
+					prefix: "",
+					path:   "elasticmapreduce/path/to/file",
+				},
+			},
+			ExpectedFailure: false,
+			ExpectedError:   nil,
+		},
 		"HDFSFilePath": {
 			StoreType:       HDFS,
 			FullPath:        "hdfs://host/elasticmapreduce/path/to/file",
@@ -252,6 +272,60 @@ func TestParseFullPath(t *testing.T) {
 			if filePath.Path() != test.ExpectedPath.Path() {
 				t.Fatalf("Path failed; expected '%s' but got '%s'", test.ExpectedPath.Path(), filePath.Path())
 			}
+		}
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			runTestCase(t, test)
+		})
+	}
+}
+
+func TestNewFilepathAndParseFullPath(t *testing.T) {
+	type TestCase struct {
+		StoreType       pc.FileStoreType
+		FullPath        string
+		ExpectedPath    Filepath
+		ExpectedFailure bool
+		ExpectedError   error
+	}
+
+	tests := map[string]TestCase{
+		"AzureBlobStoreFilePathWithTrailingSlash": {
+			StoreType: Azure,
+			FullPath:  "abfss://container@account.dfs.core.windows.net/elasticmapreduce/path/to/file/",
+			ExpectedPath: &AzureFilepath{
+				storageAccount: "account",
+				filePath: filePath{
+					bucket: "container",
+					prefix: "",
+					path:   "elasticmapreduce/path/to/file/",
+				},
+			},
+			ExpectedFailure: false,
+			ExpectedError:   nil,
+		},
+	}
+
+	runTestCase := func(t *testing.T, test TestCase) {
+		a, err := NewFilepath(test.StoreType, test.ExpectedPath.Bucket(), test.ExpectedPath.Prefix(), test.ExpectedPath.Path())
+		if err != nil {
+			t.Fatalf("NewFilepath failed: %s", err)
+		}
+		b := &AzureFilepath{}
+		err = b.ParseFullPath(test.FullPath)
+		if err != nil {
+			t.Fatalf("ParseFullPath failed: %s", err)
+		}
+		if a.FullPathWithoutBucket() != b.FullPathWithoutBucket() {
+			t.Fatalf("FullPathWithoutBucket failed; expected '%s' and '%s' to be equal", a.FullPathWithoutBucket(), b.FullPathWithoutBucket())
+		}
+		if a.Bucket() != b.Bucket() {
+			t.Fatalf("Bucket failed; expected '%s' and '%s' to be equal", a.Bucket(), b.Bucket())
+		}
+		if a.Path() != b.Path() {
+			t.Fatalf("Path failed; expected '%s' and '%s' to be equal", a.Path(), b.Path())
 		}
 	}
 

@@ -1723,7 +1723,12 @@ class Registrar:
             postgres (OfflineSQLProvider): Provider
         """
         mock_config = PostgresConfig(
-            host="", port="", database="", user="", password=""
+            host="",
+            port="",
+            database="",
+            user="",
+            password="",
+            sslmode="",
         )
         mock_provider = Provider(
             name=name, function="OFFLINE", description="", team="", config=mock_config
@@ -2729,6 +2734,7 @@ class Registrar:
         user: str = "postgres",
         password: str = "password",
         database: str = "postgres",
+        sslmode: str = "disable",
         tags: List[str] = None,
         properties: dict = None,
     ):
@@ -2755,6 +2761,7 @@ class Registrar:
             user (str): User
             password (str): Password
             database (str): Database
+            sslmode (str): SSL mode
             tags (List[str]): Optional grouping mechanism for resources
             properties (dict): Optional grouping mechanism for resources
 
@@ -2762,7 +2769,12 @@ class Registrar:
             postgres (OfflineSQLProvider): Provider
         """
         config = PostgresConfig(
-            host=host, port=port, database=database, user=user, password=password
+            host=host,
+            port=port,
+            database=database,
+            user=user,
+            password=password,
+            sslmode=sslmode,
         )
         provider = Provider(
             name=name,
@@ -3823,7 +3835,7 @@ class ResourceClient:
         """
         Apply all definitions, creating and retrieving all specified resources.
 
-        @param asynchronous: Wait for all resources to be ready before returning.
+        @param asynchronous: Flag to determine whether the client should wait for resources to be in either a READY or FAILED state before returning. Defaults to True to avoid blocking the client.
         """
 
         print(f"Applying Run: {get_run()}")

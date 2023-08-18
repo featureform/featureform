@@ -1356,7 +1356,7 @@ func main() {
 		logger.Panicw("Failed to connect", "error", err)
 	}
 
-	etcdHost := help.GetEnv("ETCD_HOST", "featureform-etcd")
+	etcdHost := help.GetEnv("ETCD_HOST", "localhost")
 	etcdPort := help.GetEnv("ETCD_PORT", "2379")
 	storageProvider := metadata.EtcdStorageProvider{
 		Config: metadata.EtcdConfig{

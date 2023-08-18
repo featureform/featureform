@@ -114,9 +114,8 @@ def del_rw(action, name, exc):
 
 @pytest.fixture(scope="function")
 def setup() -> MetadataRepository:
-    db = SQLiteMetadata()
-
-    yield MetadataRepositoryLocalImpl(db)
+    with SQLiteMetadata() as db:
+        yield MetadataRepositoryLocalImpl(db)
 
 
 @pytest.mark.local

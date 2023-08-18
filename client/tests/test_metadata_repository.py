@@ -3,15 +3,15 @@ import shutil
 import stat
 from dataclasses import replace
 
-from client.src.featureform import SQLiteMetadata, FeatureVariant, ScalarType
-from client.src.featureform.metadata_repository import (
+from featureform import SQLiteMetadata, FeatureVariant, ScalarType
+from featureform.metadata_repository import (
     MetadataRepository,
     MetadataRepositoryLocalImpl,
 )
 
 import pytest
 
-from client.src.featureform.resources import (
+from featureform.resources import (
     ResourceLocation,
     Feature,
     User,

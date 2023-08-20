@@ -122,4 +122,8 @@ ENV ETCD_ARCH=""
 EXPOSE 7878
 EXPOSE 80
 
+
+COPY print_status.sh print_status.sh
+RUN chmod +x print_status.sh
+
 CMD ["/usr/bin/supervisord"]

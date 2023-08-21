@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/sync/syncmap"
 	"sort"
 	"strings"
 	"time"
@@ -295,10 +296,12 @@ func (rec ResourceRecord) check() error {
 
 type OfflineTable interface {
 	Write(ResourceRecord) error
+	WriteBatch([]ResourceRecord) error
 }
 
 type PrimaryTable interface {
 	Write(GenericRecord) error
+	WriteBatch([]GenericRecord) error
 	GetName() string
 	IterateSegment(n int64) (GenericTableIterator, error)
 	NumRows() (int64, error)
@@ -341,9 +344,9 @@ type TableColumn struct {
 }
 
 type memoryOfflineStore struct {
-	tables           map[ResourceID]*memoryOfflineTable
-	materializations map[MaterializationID]*memoryMaterialization
-	trainingSets     map[ResourceID]trainingRows
+	tables           syncmap.Map
+	materializations syncmap.Map
+	trainingSets     syncmap.Map
 	BaseProvider
 }
 
@@ -353,9 +356,9 @@ func memoryOfflineStoreFactory(serializedConfig pc.SerializedConfig) (Provider, 
 
 func NewMemoryOfflineStore() *memoryOfflineStore {
 	return &memoryOfflineStore{
-		tables:           make(map[ResourceID]*memoryOfflineTable),
-		materializations: make(map[MaterializationID]*memoryMaterialization),
-		trainingSets:     make(map[ResourceID]trainingRows),
+		tables:           syncmap.Map{},
+		materializations: syncmap.Map{},
+		trainingSets:     syncmap.Map{},
 		BaseProvider: BaseProvider{
 			ProviderType:   pt.MemoryOffline,
 			ProviderConfig: []byte{},
@@ -399,11 +402,11 @@ func (store *memoryOfflineStore) CreateResourceTable(id ResourceID, schema Table
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}
-	if _, has := store.tables[id]; has {
+	if _, has := store.tables.Load(id); has {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	table := newMemoryOfflineTable()
-	store.tables[id] = table
+	store.tables.Store(id, table)
 	return table, nil
 }
 
@@ -412,11 +415,11 @@ func (store *memoryOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, 
 }
 
 func (store *memoryOfflineStore) getMemoryResourceTable(id ResourceID) (*memoryOfflineTable, error) {
-	table, has := store.tables[id]
+	table, has := store.tables.Load(id)
 	if !has {
 		return nil, &TableNotFound{id.Name, id.Variant}
 	}
-	return table, nil
+	return table.(*memoryOfflineTable), nil
 }
 
 // Used to implement sort.Interface for sorting.
@@ -442,18 +445,20 @@ func (store *memoryOfflineStore) CreateMaterialization(id ResourceID) (Materiali
 	if err != nil {
 		return nil, err
 	}
-	matData := make(materializedRecords, 0, len(table.entityMap))
-	for _, records := range table.entityMap {
+	var matData materializedRecords
+	table.entityMap.Range(func(key, value interface{}) bool {
+		records := value.([]ResourceRecord)
 		matRec := latestRecord(records)
 		matData = append(matData, matRec)
-	}
+		return true
+	})
 	sort.Sort(matData)
 	matId := MaterializationID(uuid.NewString())
 	mat := &memoryMaterialization{
 		id:   matId,
 		data: matData,
 	}
-	store.materializations[matId] = mat
+	store.materializations.Store(matId, mat)
 	return mat, nil
 }
 
@@ -466,11 +471,11 @@ func (err *MaterializationNotFound) Error() string {
 }
 
 func (store *memoryOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
-	mat, has := store.materializations[id]
+	mat, has := store.materializations.Load(id)
 	if !has {
 		return nil, &MaterializationNotFound{id}
 	}
-	return mat, nil
+	return mat.(Materialization), nil
 }
 
 func (store *memoryOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
@@ -478,10 +483,10 @@ func (store *memoryOfflineStore) UpdateMaterialization(id ResourceID) (Materiali
 }
 
 func (store *memoryOfflineStore) DeleteMaterialization(id MaterializationID) error {
-	if _, has := store.materializations[id]; !has {
+	if _, has := store.materializations.Load(id); !has {
 		return &MaterializationNotFound{id}
 	}
-	delete(store.materializations, id)
+	store.materializations.Delete(id)
 	return nil
 }
 
@@ -512,7 +517,7 @@ func (store *memoryOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 		features[i] = feature
 	}
 	labelRecs := label.records()
-	trainingData := make([]trainingRow, len(labelRecs))
+	trainingData := make(trainingRows, len(labelRecs))
 	for i, rec := range labelRecs {
 		featureVals := make([]interface{}, len(features))
 		for i, feature := range features {
@@ -524,7 +529,7 @@ func (store *memoryOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 			Label:    labelVal,
 		}
 	}
-	store.trainingSets[def.ID] = trainingData
+	store.trainingSets.Store(def.ID, trainingData)
 	return nil
 }
 
@@ -536,11 +541,11 @@ func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetItera
 	if err := id.check(TrainingSet); err != nil {
 		return nil, err
 	}
-	data, has := store.trainingSets[id]
+	data, has := store.trainingSets.Load(id)
 	if !has {
 		return nil, &TrainingSetNotFound{id}
 	}
-	return data.Iterator(), nil
+	return data.(trainingRows).Iterator(), nil
 }
 func (store *memoryOfflineStore) Close() error {
 	return nil
@@ -603,29 +608,30 @@ func (it *memoryTrainingRowsIterator) Label() interface{} {
 }
 
 type memoryOfflineTable struct {
-	entityMap map[string][]ResourceRecord
+	entityMap syncmap.Map
 }
 
 func newMemoryOfflineTable() *memoryOfflineTable {
 	return &memoryOfflineTable{
-		entityMap: make(map[string][]ResourceRecord),
+		entityMap: syncmap.Map{},
 	}
 }
 
 func (table *memoryOfflineTable) records() []ResourceRecord {
 	allRecs := make([]ResourceRecord, 0)
-	for _, recs := range table.entityMap {
-		allRecs = append(allRecs, recs...)
-	}
+	table.entityMap.Range(func(key, value interface{}) bool {
+		allRecs = append(allRecs, value.([]ResourceRecord)...)
+		return true
+	})
 	return allRecs
 }
 
 func (table *memoryOfflineTable) getLastValueBefore(entity string, ts time.Time) interface{} {
-	recs, has := table.entityMap[entity]
+	recs, has := table.entityMap.Load(entity)
 	if !has {
 		return nil
 	}
-	sortedRecs := ResourceRecords(recs)
+	sortedRecs := ResourceRecords(recs.([]ResourceRecord))
 	sort.Sort(sortedRecs)
 	lastIdx := len(sortedRecs) - 1
 	for i, rec := range sortedRecs {
@@ -651,17 +657,27 @@ func (table *memoryOfflineTable) Write(rec ResourceRecord) error {
 		return err
 	}
 
-	if recs, has := table.entityMap[rec.Entity]; has {
+	if records, has := table.entityMap.Load(rec.Entity); has {
 		// Replace any record with the same timestamp/entity pair.
+		recs := records.([]ResourceRecord)
 		for i, existingRec := range recs {
 			if existingRec.TS == rec.TS {
 				recs[i] = rec
 				return nil
 			}
 		}
-		table.entityMap[rec.Entity] = append(recs, rec)
+		table.entityMap.Store(rec.Entity, append(recs, rec))
 	} else {
-		table.entityMap[rec.Entity] = []ResourceRecord{rec}
+		table.entityMap.Store(rec.Entity, []ResourceRecord{rec})
+	}
+	return nil
+}
+
+func (table *memoryOfflineTable) WriteBatch(recs []ResourceRecord) error {
+	for _, rec := range recs {
+		if err := table.Write(rec); err != nil {
+			return err
+		}
 	}
 	return nil
 }

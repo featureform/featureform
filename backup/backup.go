@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"time"
+
+	"github.com/featureform/filestore"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
-	"io/ioutil"
-	"time"
 )
 
 const SnapshotFilename = "snapshot.json"
@@ -71,14 +73,17 @@ func (b *BackupManager) Restore(prefix string) error {
 	return nil
 }
 
-func (b *BackupManager) RestoreFrom(filename string) error {
+// The change from `filename string` to `filename filestore.Filepath` feels overkill, especially
+// consider that other methods continue to use `filename string`; however, LatestBackupName() returns
+// the result of NewestFileOfType, which is Filepath, so something's gotta give.
+func (b *BackupManager) RestoreFrom(filename filestore.Filepath) error {
 	err := b.Provider.Init()
 	if err != nil {
 		return fmt.Errorf("could not initialize provider: %v", err)
 	}
 	b.Logger.Info("Downloading Restore File")
 
-	err = b.Provider.Download(filename, SnapshotFilename)
+	err = b.Provider.Download(filename.Key(), SnapshotFilename)
 	if err != nil {
 		return fmt.Errorf("could not download snapshot file %s: %v", filename, err)
 	}

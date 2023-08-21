@@ -17,6 +17,6 @@ jobs:
         with:
           # This data can be any valid JSON from a previous step in the GitHub Action
           payload: |
-          ./.github/helpers/open_prs.sh
+            ./.github/helpers/open_prs.sh
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

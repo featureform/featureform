@@ -1,6 +1,9 @@
 name: Slack PR Notify
 on: push
 
+env:
+  GH_TOKEN: ${{ github.token }}
+
 jobs:
   notify-job:
     name: Notify
@@ -12,16 +15,12 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Generate JSON
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: echo "DATA=$(./.github/helpers/open_prs.sh)" >> $GITHUB_ENV
 
       - name: Check JSON
         run: echo $DATA
 
       - name: Send custom JSON data to Slack workflow
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} -d "$(./.github/helpers/open_prs.sh)"
 #        id: slack
 #        uses: slackapi/slack-github-action@v1.24.0

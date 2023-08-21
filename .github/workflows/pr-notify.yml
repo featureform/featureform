@@ -1,4 +1,4 @@
-name: Testing
+name: Slack PR Notify
 on: push
 
 jobs:

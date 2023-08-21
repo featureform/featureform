@@ -196,7 +196,7 @@ func init() {
 	}
 }
 
-func k8sOfflineStoreFactory(config pc.SerializedConfig) (OfflineStore, error) {
+func k8sOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	k8 := pc.K8sConfig{}
 	logger := logging.NewLogger("kubernetes")
 	if err := k8.Deserialize(config); err != nil {

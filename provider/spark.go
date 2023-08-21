@@ -631,7 +631,7 @@ func (store *SparkOfflineStore) Close() error {
 	return nil
 }
 
-func sparkOfflineStoreFactory(config pc.SerializedConfig) (OfflineStore, error) {
+func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.SparkConfig{}
 	logger := logging.NewLogger("spark")
 	if err := sc.Deserialize(config); err != nil {

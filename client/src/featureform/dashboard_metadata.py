@@ -77,12 +77,10 @@ def source_data():
     name = request.args["name"]
     variant = request.args["variant"]
     if name == "" or variant == "":
-        error = f"Error 400: GetSourceData - Could not find the name({name}) or variant({variant}) query parameters"
-        response = Response(
+        error = f"Error 400: GetSourceData - Could not find the name({name}) or variant({variant}) query parameters."
+        return Response(
             response=json.dumps(error), status=400, mimetype="application/json"
         )
-        return response
-
     try:
         with LocalClientImpl() as localClientImpl:
             source_data = {"columns": [], "rows": []}

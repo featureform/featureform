@@ -6,7 +6,7 @@ from featureform import ResourceClient
 from featureform.serving import LocalClientImpl
 from flask import Blueprint, Response, request
 from flask_cors import CORS, cross_origin
-
+from .metadata_repository import MetadataRepositoryLocalImpl, Feature, FeatureVariant
 from .resources import SourceType
 from .sqlite_metadata import SQLiteMetadata
 from .type_objects import (
@@ -99,12 +99,6 @@ def source_data():
                 currentRow = currentRow.fillna("NaN")
                 source_data["rows"].append(currentRow.to_list())
             return json.dumps(source_data, allow_nan=False)
-    except ValueError as e:
-        error = f"Error 500: {e}"
-        response = Response(
-            response=json.dumps(error), status=500, mimetype="application/json"
-        )
-        return response
     except Exception as e:
         error = f"Error 500: {e}"
         return Response(
@@ -117,11 +111,11 @@ def source_data():
 def get_tags(type, resource):
     try:
         response = {"name": resource, "variant": request.json["variant"], "tags": []}
-        with SQLiteMetadata() as sqlObject:
-            tags = sqlObject.get_tags(resource, response["variant"], type)
-            if len(tags):
-                response["tags"] = json.loads(tags[0][0])
-            return json.dumps(response, allow_nan=False)
+        db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+        tags = db.get_tags_for_resource(response["name"], response["variant"], type)
+        if len(tags):
+            response["tags"] = json.loads(tags)
+        return json.dumps(response, allow_nan=False)
     except Exception as e:
         error = f"Error 500: {e}"
         return Response(
@@ -138,24 +132,34 @@ def post_tags(type, resource):
             "variant": request.json["variant"],
             "tags": request.json["tags"],
         }
-        with SQLiteMetadata() as sqlObject:
-            tags = sqlObject.get_tags(resource, response["variant"], type)
-            if len(tags) == 0:  # no record exists, create
-                sqlObject.insert(
-                    "tags",
-                    response["name"],
-                    response["variant"],
-                    type,
-                    json.dumps(response["tags"]),
-                )
-            else:  # update the existing record
-                sqlObject.update_tags(
-                    resource,
-                    response["variant"],
-                    type,
-                    json.dumps(response["tags"]),
-                )
-            return json.dumps(response, allow_nan=False)
+        db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+
+        if type == "features":
+            found_resource = db.get_feature_variant(
+                response["name"], response["variant"]
+            )
+        elif type == "training_sets":
+            found_resource = db.get_training_set_variant(
+                response["name"], response["variant"]
+            )
+        elif type == "sources":
+            found_resource = db.get_source_variant(
+                response["name"], response["variant"]
+            )
+        elif type == "labels":
+            found_resource = db.get_label_variant(response["name"], response["variant"])
+        elif type == "entities":
+            found_resource = db.get_entity(response["name"])
+        elif type == "models":
+            found_resource = db.get_model(response["name"])
+        elif type == "users":
+            found_resource = db.get_user(response["name"])
+        elif type == "providers":
+            found_resource = db.get_provider(response["name"])
+
+            found_resource.tags = response["tags"]
+            db.update_resource(found_resource)
+        return json.dumps(response, allow_nan=False)
     except Exception as e:
         error = f"Error 500: {e}"
         return Response(
@@ -176,7 +180,7 @@ def variant_organiser(allVariantList):
     return variantsDict
 
 
-def feature_variant(variantData):
+def feature_variant(variantData: FeatureVariant):
     variantsDict = dict()
     allVariantList = []
     variants = []
@@ -213,20 +217,21 @@ def feature_variant(variantData):
     return variantsDict, allVariantList, variants
 
 
-def features(featureRow):
-    with SQLiteMetadata() as sqlObject:
-        variantData = feature_variant(
-            sqlObject.query_resource_variant(
-                "feature_variant", "name", featureRow["name"]
-            )
+def collect_features(feature: Feature):
+    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    variantList = []
+    for variantName in feature["variants"]:
+        found_variant = db.get_feature_variant(
+            name=feature["name"], variant=variantName
         )
+        variantList.append(feature_variant(found_variant))
 
     return FeatureResource(
-        featureRow["name"],
-        featureRow["default_variant"],
-        "Feature",
-        variantData[0],
-        variantData[1],
+        name=feature["name"],
+        defaultVariant=feature["default_variant"],
+        type="Feature",
+        allVariants=feature["variants"],
+        variants=variantList,
     ).toDictionary()
 
 
@@ -236,10 +241,11 @@ def training_set_variant(variantData):
     variants = []
     for variantRow in variantData:
         try:
-            with SQLiteMetadata() as sqlObject:
-                feature_list = sqlObject.get_training_set_features(
-                    variantRow["name"], variantRow["variant"]
-                )
+            db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+            # todox: replace db method
+            feature_list = db.get_training_set_variant(
+                variantRow["name"], variantRow["variant"]
+            )
         except ValueError:
             feature_list = []
 
@@ -266,23 +272,20 @@ def training_set_variant(variantData):
 
 def getTrainingSetFeatures(feature_list):
     feature_variant_tuple = []
-    with SQLiteMetadata() as sqlObject:
-        for feature in feature_list:
-            feature_variant_tuple.append(
-                sqlObject.get_feature_variant(
-                    feature["feature_name"], feature["feature_variant"]
-                )
-            )
-        return feature_variant_tuple
+    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    for feature in feature_list:
+        feature_variant_tuple.append(
+            db.get_feature_variant(feature["feature_name"], feature["feature_variant"])
+        )
+    return feature_variant_tuple
 
 
 def training_sets(rowData):
-    with SQLiteMetadata() as sqlObject:
-        variantData = training_set_variant(
-            sqlObject.query_resource_variant(
-                "training_set_variant", "name", rowData["name"]
-            )
-        )
+    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    # todox: replace db method
+    variantData = training_set_variant(
+        db.get_training_set_variant(rowData["name"], rowData["variant"])
+    )
     return TrainingSetResource(
         "TrainingSet",
         rowData["default_variant"],
@@ -296,54 +299,59 @@ def source_variant(variantData):
     variantDict = dict()
     allVariantList = []
     variants = []
-    with SQLiteMetadata() as sqlObject:
-        for variantRow in variantData:
+    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    # todox: replace db method
+    for variantRow in variantData:
+        try:
+            feature_list = db.get_source_variant(
+                variantRow["name"], variantRow["variant"]
+            )
+        except ValueError:
+            feature_list = []
+        training_set_list = set()
+        for f in feature_list:
             try:
-                feature_list = sqlObject.get_feature_variants_from_source(
-                    variantRow["name"], variantRow["variant"]
+                # todox: this method grabs training sets, but starting at the feature level.
+                # verify that we can call 'get_training_set_variant' direclty using the feature name + variant
+                features_training_set_list = db.get_training_set_from_features(
+                    f["name"], f["variant"]
                 )
-            except ValueError:
-                feature_list = []
-            training_set_list = set()
-            for f in feature_list:
-                try:
-                    features_training_set_list = (
-                        sqlObject.get_training_set_from_features(
-                            f["name"], f["variant"]
+                for training_set in features_training_set_list:
+                    training_set_list.add(
+                        db.get_training_set_variant(
+                            training_set["training_set_name"],
+                            training_set["training_set_variant"],
                         )
                     )
-                    for training_set in features_training_set_list:
-                        training_set_list.add(
-                            sqlObject.get_training_set_variant(
-                                training_set["training_set_name"],
-                                training_set["training_set_variant"],
-                            )
-                        )
-                except ValueError:
-                    continue
-            try:
-                label_list = sqlObject.get_label_variants_from_source(
-                    variantRow["name"], variantRow["variant"]
-                )
             except ValueError:
-                label_list = []
-            for l in label_list:
-                try:
-                    labels_training_set_list = (
-                        sqlObject.get_training_set_variant_from_label(
-                            l["name"], l["variant"]
-                        )
-                    )
-                    for training_set in labels_training_set_list:
-                        training_set_list.add(training_set)
-                except ValueError:
-                    continue
-            if variantRow["transformation"] == SourceType.DF_TRANSFORMATION.value:
-                definition = sqlObject.get_source_variant_text(
-                    variantRow["name"], variantRow["variant"]
+                continue
+        try:
+            label_list = db.get_labels()
+            label_list = label_list.filter(
+                lambda x: x["name"] == variantRow["name"]
+                and x["variant"] == variantRow["variant"],
+                label_list,
+            )
+        except ValueError:
+            label_list = []
+        for l in label_list:
+            try:
+                training_set_list = db.get_training_sets()
+                training_set_list = training_set_list = training_set_list.filter(
+                    lambda x: x["name"] == l["name"] and x["variant"] == l["variant"]
                 )
-            else:
-                definition = variantRow["definition"]
+
+                for training_set in training_set_list:
+                    training_set_list.add(training_set)
+            except ValueError:
+                continue
+        if variantRow["transformation"] == SourceType.DF_TRANSFORMATION.value:
+            # todox: replace method
+            definition = db.get_source_variant_text(
+                variantRow["name"], variantRow["variant"]
+            )
+        else:
+            definition = variantRow["definition"]
             sourceVariant = SourceVariantResource(
                 variantRow["created"],
                 variantRow["description"],
@@ -372,16 +380,19 @@ def source_variant(variantData):
 
 
 def sources(rowData):
-    with SQLiteMetadata() as sqlObject:
-        variantData = source_variant(
-            sqlObject.query_resource_variant("source_variant", "name", rowData["name"])
-        )
+    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    # todox: replace db method. do we need a get resource_variant list?
+    source_list = db.get_sources()
+    found_source = source_list.filter(
+        lambda x: x["name"] == rowData["name"], source_list
+    )
+    # todox: what do do about this guy?
     return SourceResource(
         "Source",
         rowData["default_variant"],
         rowData["name"],
-        variantData[0],
-        variantData[1],
+        found_source.variants,
+        found_source.variants,  # todox: how do we handle all-variants vs the resource variant list?
     ).toDictionary()
 
 
@@ -390,212 +401,201 @@ def label_variant(variantData):
     allVariantList = []
     variants = []
 
-    with SQLiteMetadata() as sqlObject:
-        for variantRow in variantData:
-            labelTuple = str((variantRow["name"], variantRow["variant"]))
-            labelVariant = LabelVariantResource(
-                variantRow["created"],
-                variantRow["description"],
-                variantRow["entity"],
-                variantRow["name"],
-                variantRow["owner"],
-                variantRow["provider"],
-                variantRow["data_type"],
-                variantRow["variant"],
-                {
-                    "entity": variantRow["source_entity"],
-                    "value": variantRow["source_value"],
-                    "timestamp": variantRow["source_timestamp"],
-                },
-                variantRow["status"],
-                {
-                    "Name": variantRow["source_name"],
-                    "Variant": variantRow["source_variant"],
-                },
-                variant_organiser(
-                    training_set_variant(
-                        sqlObject.get_training_set_variant_from_label(
-                            variantRow["name"], variantRow["variant"]
-                        )
-                    )[2]
-                ),
-                json.loads(variantRow["tags"])
-                if variantRow["tags"] is not None
-                else [],
-                json.loads(variantRow["properties"])
-                if variantRow["properties"] is not None
-                else {},
-            ).toDictionary()
+    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    # todox: replace db method
+    for variantRow in variantData:
+        labelVariant = LabelVariantResource(
+            variantRow["created"],
+            variantRow["description"],
+            variantRow["entity"],
+            variantRow["name"],
+            variantRow["owner"],
+            variantRow["provider"],
+            variantRow["data_type"],
+            variantRow["variant"],
+            {
+                "entity": variantRow["source_entity"],
+                "value": variantRow["source_value"],
+                "timestamp": variantRow["source_timestamp"],
+            },
+            variantRow["status"],
+            {
+                "Name": variantRow["source_name"],
+                "Variant": variantRow["source_variant"],
+            },
+            variant_organiser(
+                training_set_variant(
+                    # todox: verify this return
+                    db.get_training_set_variant(
+                        variantRow["name"], variantRow["variant"]
+                    )
+                )
+            ),
+            json.loads(variantRow["tags"]) if variantRow["tags"] is not None else [],
+            json.loads(variantRow["properties"])
+            if variantRow["properties"] is not None
+            else {},
+        ).toDictionary()
 
-            allVariantList.append(variantRow["variant"])
-            variantDict[variantRow["variant"]] = labelVariant
-            variants.append(labelVariant)
+        allVariantList.append(variantRow["variant"])
+        variantDict[variantRow["variant"]] = labelVariant
+        variants.append(labelVariant)
         return variantDict, allVariantList, variants
 
 
 def labels(rowData):
-    with SQLiteMetadata() as sqlObject:
-        variantData = label_variant(
-            sqlObject.query_resource_variant("label_variant", "name", rowData["name"])
-        )
+    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    # todox: replace db method
+    label_list = db.get_labels()
+    found_variant = label_list.filter(
+        lambda x: x["name"] == rowData["name"] and x["variant"] == rowData["variant"],
+        label_list,
+    )
     return LabelResource(
         "Label",
         rowData["default_variant"],
         rowData["name"],
-        variantData[0],
-        variantData[1],
+        found_variant.variant,
+        found_variant.variant,  # todox: same issue as before, need to map the previous all-variants & variants with the new repo return
     ).toDictionary()
 
 
 def entities(rowData):
-    with SQLiteMetadata() as sqlObject:
-        try:
-            label_list = sqlObject.query_resource_variant(
-                "label_variant", "entity", rowData["name"]
-            )
-        except Exception as e:
-            print(f"No labels found for entity {rowData['name']} - {e}")
-            label_list = []
-        training_set_list = set()
-        for label in label_list:
-            for training_set in sqlObject.get_training_set_variant_from_label(
-                label["name"], label["variant"]
-            ):
-                training_set_list.add(training_set)
-        return EntityResource(
-            rowData["name"],
-            rowData["type"],
-            rowData["description"],
-            rowData["status"],
-            variant_organiser(
-                feature_variant(
-                    sqlObject.query_resource_variant(
-                        "feature_variant", "entity", rowData["name"]
-                    )
-                )[2]
-            ),
-            variant_organiser(label_variant(label_list)[2]),
-            variant_organiser(training_set_variant(training_set_list)[2]),
-            json.loads(rowData["tags"]) if rowData["tags"] is not None else [],
-            json.loads(rowData["properties"])
-            if rowData["properties"] is not None
-            else {},
-        ).toDictionary()
+    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    # todox: replace db method
+    try:
+        label_list = db.get_labels()
+        found_variant = label_list.filter(
+            lambda x: x["name"] == rowData["name"]
+            and x["variant"] == rowData["variant"],
+            label_list,
+        )
+    except Exception as e:
+        print(f"No labels found for entity {rowData['name']} - {e}")
+        label_list = []
+    training_set_list = set()
+    for label in label_list:
+        for training_set in db.get_training_set_variant_from_label(
+            label["name"], label["variant"]
+        ):
+            training_set_list.add(training_set)
+    return EntityResource(
+        rowData["name"],
+        rowData["type"],
+        rowData["description"],
+        rowData["status"],
+        variant_organiser(
+            feature_variant(
+                db.query_resource_variant("feature_variant", "entity", rowData["name"])
+            )[2]
+        ),
+        variant_organiser(label_variant(label_list)[2]),
+        variant_organiser(training_set_variant(training_set_list)[2]),
+        json.loads(rowData["tags"]) if rowData["tags"] is not None else [],
+        json.loads(rowData["properties"]) if rowData["properties"] is not None else {},
+    ).toDictionary()
 
 
 def models(rowData):
-    with SQLiteMetadata() as sqlObject:
-        return ModelResource(
-            rowData["name"],
-            "Model",
-            rowData["description"],
-            rowData["status"],
-            variant_organiser(
-                feature_variant(
-                    sqlObject.query_resource_variant(
-                        "feature_variant", "name", rowData["name"]
-                    )
-                )[2]
-            ),
-            variant_organiser(
-                label_variant(
-                    sqlObject.query_resource_variant(
-                        "label_variant", "variant", rowData["name"]
-                    )
-                )[2]
-            ),
-            variant_organiser(
-                training_set_variant(
-                    sqlObject.query_resource_variant(
-                        "training_set_variant", "name", rowData["name"]
-                    )
-                )[2]
-            ),
-            json.loads(rowData["tags"]) if rowData["tags"] is not None else [],
-            json.loads(rowData["properties"])
-            if rowData["properties"] is not None
-            else {},
-        ).toDictionary()
+    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    # todox: replace db method
+    feature_variant_list = db.get_features()
+    feature_variant_list = feature_variant_list.filter(
+        lambda x: x["name"] == rowData["name"]
+    )
+    label_variant_list = db.get_labels()
+    label_variant_list = label_variant_list.filter(
+        lambda x: x["name"] == rowData["name"]
+    )
+    training_set_variant_list = db.get_labels()
+    training_set_variant_list = training_set_variant_list.filter(
+        lambda x: x["name"] == rowData["name"]
+    )
+
+    return ModelResource(
+        rowData["name"],
+        "Model",
+        rowData["description"],
+        rowData["status"],
+        variant_organiser(feature_variant_list),
+        variant_organiser(label_variant_list),
+        variant_organiser(training_set_variant_list),
+        json.loads(rowData["tags"]) if rowData["tags"] is not None else [],
+        json.loads(rowData["properties"]) if rowData["properties"] is not None else {},
+    ).toDictionary()
 
 
 def users(rowData):
-    with SQLiteMetadata() as sqlObject:
-        return UserResource(
-            rowData["name"],
-            rowData["type"],
-            rowData["status"],
-            variant_organiser(
-                feature_variant(
-                    sqlObject.query_resource_variant(
-                        "feature_variant", "owner", rowData["name"]
-                    )
-                )[2]
-            ),
-            variant_organiser(
-                label_variant(
-                    sqlObject.query_resource_variant(
-                        "label_variant", "owner", rowData["name"]
-                    )
-                )[2]
-            ),
-            variant_organiser(
-                training_set_variant(
-                    sqlObject.query_resource_variant(
-                        "training_set_variant", "owner", rowData["name"]
-                    )
-                )[2]
-            ),
-            variant_organiser(
-                source_variant(
-                    sqlObject.query_resource_variant(
-                        "source_variant", "owner", rowData["name"]
-                    )
-                )[2]
-            ),
-            json.loads(rowData["tags"]) if rowData["tags"] is not None else [],
-            json.loads(rowData["properties"])
-            if rowData["properties"] is not None
-            else {},
-        ).toDictionary()
+    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    feature_variant_list = db.get_features()
+    feature_variant_list = feature_variant_list.filter(
+        lambda x: x["name"] == rowData["name"]
+    )
+    label_variant_list = db.get_labels()
+    label_variant_list = label_variant_list.filter(
+        lambda x: x["name"] == rowData["name"]
+    )
+    training_set_variant_list = db.get_labels()
+    training_set_variant_list = training_set_variant_list.filter(
+        lambda x: x["name"] == rowData["name"]
+    )
+
+    # todox: replace db method
+    return UserResource(
+        rowData["name"],
+        rowData["type"],
+        rowData["status"],
+        variant_organiser(feature_variant_list),
+        variant_organiser(label_variant_list),
+        variant_organiser(training_set_variant_list),
+        variant_organiser(
+            source_variant(
+                db.query_resource_variant(
+                    "source_variant", "owner", rowData["name"]
+                )  # todox: get source variants method needed again
+            )[2]
+        ),
+        json.loads(rowData["tags"]) if rowData["tags"] is not None else [],
+        json.loads(rowData["properties"]) if rowData["properties"] is not None else {},
+    ).toDictionary()
 
 
 def providers(rowData):
-    with SQLiteMetadata() as sqlObject:
-        try:
-            source_list = sqlObject.query_resource_variant(
-                "source_variant", "provider", rowData["name"]
-            )
-        except ValueError:
-            source_list = []
-        try:
-            feature_list = sqlObject.query_resource_variant(
-                "feature_variant", "provider", rowData["name"]
-            )
-        except ValueError:
-            feature_list = []
-        try:
-            label_list = sqlObject.query_resource_variant(
-                "label_variant", "provider", rowData["name"]
-            )
-        except ValueError:
-            label_list = []
-        return ProviderResource(
-            rowData["name"],
-            rowData["type"],
-            rowData["description"],
-            rowData["provider_type"],
-            rowData["software"],
-            rowData["team"],
-            variant_organiser(source_variant(source_list)[2]),
-            rowData["status"],
-            rowData["serialized_config"],
-            variant_organiser(feature_variant(feature_list)[2]),
-            variant_organiser(label_variant(label_list)[2]),
-            json.loads(rowData["tags"]) if rowData["tags"] is not None else [],
-            json.loads(rowData["properties"])
-            if rowData["properties"] is not None
-            else {},
-        ).toDictionary()
+    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    # todox: replace db method
+    try:
+        source_list = db.query_resource_variant(
+            "source_variant", "provider", rowData["name"]
+        )
+    except ValueError:
+        source_list = []
+    try:
+        feature_list = db.query_resource_variant(
+            "feature_variant", "provider", rowData["name"]
+        )
+    except ValueError:
+        feature_list = []
+    try:
+        label_list = db.query_resource_variant(
+            "label_variant", "provider", rowData["name"]
+        )
+    except ValueError:
+        label_list = []
+    return ProviderResource(
+        rowData["name"],
+        rowData["type"],
+        rowData["description"],
+        rowData["provider_type"],
+        rowData["software"],
+        rowData["team"],
+        variant_organiser(source_variant(source_list)[2]),
+        rowData["status"],
+        rowData["serialized_config"],
+        variant_organiser(feature_variant(feature_list)[2]),
+        variant_organiser(label_variant(label_list)[2]),
+        json.loads(rowData["tags"]) if rowData["tags"] is not None else [],
+        json.loads(rowData["properties"]) if rowData["properties"] is not None else {},
+    ).toDictionary()
 
 
 @dashboard_app.route("/data/<type>", methods=["POST", "GET"])
@@ -617,26 +617,30 @@ def GetMetadataList(type):
             response=json.dumps(errorData), status=400, mimetype="application/json"
         )
         return response
-    with SQLiteMetadata() as sqlObject:
-        tableDataCursor = sqlObject.get_type_table(type)
+    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    # todox: test each return. refactor the features(), entities(), etc helper methods.
+    # new impl db.get_features returns a Feature obj: name, default_variant, variants List[str].
+    # each helper method expects more data than what the new repo provides from the base resource list (non-variant list)
     allData = []
-    for row in tableDataCursor:
-        if type == "features":
-            allData.append(features(row))
-        elif type == "training_sets":
-            allData.append(training_sets(row))
-        elif type == "sources":
-            allData.append(sources(row))
-        elif type == "labels":
-            allData.append(labels(row))
-        elif type == "entities":
-            allData.append(entities(row))
-        elif type == "models":
-            allData.append(models(row))
-        elif type == "users":
-            allData.append(users(row))
-        elif type == "providers":
-            allData.append(providers(row))
+    if type == "features":
+        all_features = db.get_features()
+        for feature in all_features:
+            allData.append(collect_features(feature))
+
+    # elif type == "training_sets":
+    #     allData.append(training_sets(db.get_training_sets()))
+    # elif type == "sources":
+    #     allData.append(sources(db.get_sources()))
+    # elif type == "labels":
+    #     allData.append(labels(db.get_labels()))
+    # elif type == "entities":
+    #     allData.append(entities(db.get_entities()))
+    # elif type == "models":
+    #     allData.append(models(db.get_models()))
+    # elif type == "users":
+    #     allData.append(users(db.get_users()))
+    # elif type == "providers":
+    #     allData.append(providers(db.get_providers()))
 
     response = Response(
         response=json.dumps(allData), status=200, mimetype="application/json"
@@ -669,10 +673,11 @@ def GetMetadata(type, resource):
         "users",
         "providers",
     ]
-    with SQLiteMetadata() as sqlObject:
-        row = sqlObject.query_resource(
-            type, "name", "".join(resource), should_fetch_tags_and_properties
-        )[0]
+    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    # todox: replace db method
+    row = db.query_resource(
+        type, "name", "".join(resource), should_fetch_tags_and_properties
+    )[0]
 
     if type == "features":
         dataAsList = features(row)

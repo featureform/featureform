@@ -815,6 +815,15 @@ func (table *sqlPrimaryTable) Write(rec GenericRecord) error {
 	return nil
 }
 
+func (table *sqlPrimaryTable) WriteBatch(recs []GenericRecord) error {
+	for _, rec := range recs {
+		if err := table.Write(rec); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (table *sqlPrimaryTable) getColumnNameString() string {
 	columns := make([]string, 0)
 	for _, column := range table.schema.Columns {
@@ -941,6 +950,15 @@ func (table *sqlOfflineTable) Write(rec ResourceRecord) error {
 	} else if n > 0 {
 		updateQuery := table.query.writeUpdate(tb)
 		if _, err := table.db.Exec(updateQuery, rec.Value, rec.Entity, rec.TS); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (table *sqlOfflineTable) WriteBatch(recs []ResourceRecord) error {
+	for _, rec := range recs {
+		if err := table.Write(rec); err != nil {
 			return err
 		}
 	}

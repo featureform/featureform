@@ -146,6 +146,16 @@ func (pt *bqPrimaryTable) Write(rec GenericRecord) error {
 	return err
 }
 
+func (pt *bqPrimaryTable) WriteBatch(recs []GenericRecord) error {
+	for _, rec := range recs {
+		err := pt.Write(rec)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (pt *bqPrimaryTable) getNonNullRecords(rec GenericRecord) ([]bigquery.QueryParameter, []TableColumn, string) {
 	recordsParameter := make([]bigquery.QueryParameter, 0)
 	recordColumns := make([]TableColumn, 0)
@@ -682,6 +692,15 @@ func (table *bqOfflineTable) Write(rec ResourceRecord) error {
 	_, err = bqQ.Read(table.query.getContext())
 
 	return err
+}
+
+func (table *bqOfflineTable) WriteBatch(recs []ResourceRecord) error {
+	for _, rec := range recs {
+		if err := table.Write(rec); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type bqOfflineStore struct {

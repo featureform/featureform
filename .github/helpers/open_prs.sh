@@ -29,7 +29,7 @@ for pr in "${filtered_prs[@]}"; do
     last_modified=$(( (current_date - updated_at_seconds) / 86400 ))
 
     # Combine title and URL for the PR name
-    name="$url : ($title) "
+    name="$title ($url )"
 
     # Output the PR data as a JSON string
     printf "\\n%s :\n\tAuthor: %s | Opened: %d days ago | Last Modified: %d days ago\n" "$name" "$author" "$days_open" "$last_modified" | sed 's/"/\\"/g' # Escape any existing double quotes

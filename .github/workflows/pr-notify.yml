@@ -11,12 +11,18 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Generate JSON
+        run: echo "DATA=./.github/helpers/open_prs.sh" >> $GITHUB_ENV
+
+      - name: Check JSON
+        run: echo $DATA
+
       - name: Send custom JSON data to Slack workflow
         id: slack
         uses: slackapi/slack-github-action@v1.24.0
         with:
           # This data can be any valid JSON from a previous step in the GitHub Action
           payload: |
-            ./.github/helpers/open_prs.sh
+            $DATA
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

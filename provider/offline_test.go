@@ -142,12 +142,15 @@ func TestOfflineStores(t *testing.T) {
 		return serialBQConfig, bigQueryConfig
 	}
 
+	// TODO start with local spark and azure, then move on to s3, gcs
 	sparkInit := func() (pc.SerializedConfig, pc.SparkConfig) {
 		var sparkConfig = pc.SparkConfig{
-			ExecutorType:   pc.SparkGeneric,
-			ExecutorConfig: &pc.SparkGenericConfig{},
-			StoreType:      pc.Azure,
-			StoreConfig:    &pc.AzureFileStoreConfig{},
+			ExecutorType: pc.SparkGeneric,
+			ExecutorConfig: &pc.SparkGenericConfig{
+				Master: "local[*]",
+			},
+			StoreType:   pc.Azure,
+			StoreConfig: &pc.AzureFileStoreConfig{},
 		}
 		serializedConfig, err := sparkConfig.Serialize()
 		if err != nil {

@@ -989,7 +989,9 @@ func (tbl *FileStorePrimaryTable) Write(GenericRecord) error {
 	return fmt.Errorf("not implemented")
 }
 
+// TODO: @erik
 func (tbl *FileStorePrimaryTable) WriteBatch([]GenericRecord) error {
+	//tbl.store.Write("path", "bytes")
 	return fmt.Errorf("not implemented")
 }
 

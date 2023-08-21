@@ -1,5 +1,7 @@
 name: Slack PR Notify
-on: push
+on:
+  schedule:
+    - cron: '0 9 * * 1-5'
 
 env:
   GH_TOKEN: ${{ github.token }}

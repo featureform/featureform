@@ -1,142 +1,142 @@
 package provider
 
+// import (
 //
-//import (
 //	pc "github.com/featureform/provider/provider_config"
 //	pt "github.com/featureform/provider/provider_type"
-//)
 //
-//type UnitTestProvider struct {
-//	ProviderType   pt.Type
-//	ProviderConfig pc.SerializedConfig
-//}
+// )
 //
-//func (u UnitTestProvider) AsOnlineStore() (OnlineStore, error) {
-//	return MockUnitTestStore{}, nil
-//}
-//
-//func (u UnitTestProvider) AsOfflineStore() (OfflineStore, error) {
-//	return MockUnitTestOfflineStore{}, nil
-//}
-//
-//func (u UnitTestProvider) Type() pt.Type {
-//	return u.ProviderType
-//}
-//
-//func (u UnitTestProvider) Config() pc.SerializedConfig {
-//	return u.ProviderConfig
-//}
-//
-//type UnitTestStore interface {
-//	GetTable(feature, variant string) (UnitTestTable, error)
-//	CreateTable(feature, variant string, valueType ValueType) (UnitTestTable, error)
-//	DeleteTable(feature, variant string) error
-//	Close() error
-//	Provider
-//}
-//
-//type UnitTestTable interface {
-//	Set(entity string, value interface{}) error
-//	Get(entity string) (interface{}, error)
-//}
-//
-//func unitTestStoreFactory(pc.SerializedConfig) (Provider, error) {
-//	return NewUnitTestStore(), nil
-//}
-//
-//type MockUnitTestStore struct {
-//	UnitTestProvider
-//}
-//
-//type MockUnitTestOfflineStore struct {
-//	UnitTestProvider
-//}
-//
-//type MockUnitTestTable struct {
-//}
-//
-//func NewUnitTestStore() *MockUnitTestStore {
-//	return &MockUnitTestStore{
-//		UnitTestProvider: UnitTestProvider{
-//			ProviderType:   "UNIT_TEST",
-//			ProviderConfig: []byte{},
-//		},
+//	type UnitTestProvider struct {
+//		ProviderType   pt.Type
+//		ProviderConfig pc.SerializedConfig
 //	}
-//}
 //
-///*
-//ONLINE STORE
-//*/
-//
-//func (m MockUnitTestStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
-//	return &MockUnitTestTable{}, nil
-//}
-//
-//func (m MockUnitTestStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
-//	return &MockUnitTestTable{}, nil
-//}
-//
-//func (m MockUnitTestStore) DeleteTable(feature, variant string) error {
-//	return nil
-//}
-//
-//func (m MockUnitTestStore) Close() error {
-//	return nil
-//}
-//
-//func (m MockUnitTestTable) Get(entity string) (interface{}, error) {
-//	return nil, nil
-//}
-//
-//func (m MockUnitTestTable) Set(entity string, value interface{}) error {
-//	return nil
-//}
-//
-///*
-//OFFLINE UNIT STORE
-//*/
-//
-//func (M MockUnitTestOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
-//	return nil, nil
-//}
-//
-//type MockPrimaryTable struct {
-//}
-//
-//func (MockPrimaryTable) GetName() string {
-//	return ""
-//}
-//
-//type UnitTestIterator struct {
-//	currentValue GenericRecord
-//	nextCount    int
-//}
-//
-//func (u *UnitTestIterator) Next() bool {
-//	if u.nextCount < len(u.Columns()) {
-//		u.nextCount++
-//		return true
-//	} else {
-//		return false
+//	func (u UnitTestProvider) AsOnlineStore() (OnlineStore, error) {
+//		return MockUnitTestStore{}, nil
 //	}
-//}
 //
-//func (u *UnitTestIterator) Values() GenericRecord {
-//	return u.currentValue
-//}
+//	func (u UnitTestProvider) AsOfflineStore() (OfflineStore, error) {
+//		return MockUnitTestOfflineStore{}, nil
+//	}
 //
-//func (UnitTestIterator) Columns() []string {
-//	return []string{"column1, column2"}
-//}
+//	func (u UnitTestProvider) Type() pt.Type {
+//		return u.ProviderType
+//	}
 //
-//func (UnitTestIterator) Err() error {
-//	return nil
-//}
+//	func (u UnitTestProvider) Config() pc.SerializedConfig {
+//		return u.ProviderConfig
+//	}
 //
-//func (UnitTestIterator) Close() error {
-//	return nil
-//}
+//	type UnitTestStore interface {
+//		GetTable(feature, variant string) (UnitTestTable, error)
+//		CreateTable(feature, variant string, valueType ValueType) (UnitTestTable, error)
+//		DeleteTable(feature, variant string) error
+//		Close() error
+//		Provider
+//	}
 //
+//	type UnitTestTable interface {
+//		Set(entity string, value interface{}) error
+//		Get(entity string) (interface{}, error)
+//	}
+//
+//	func unitTestStoreFactory(pc.SerializedConfig) (Provider, error) {
+//		return NewUnitTestStore(), nil
+//	}
+//
+//	type MockUnitTestStore struct {
+//		UnitTestProvider
+//	}
+//
+//	type MockUnitTestOfflineStore struct {
+//		UnitTestProvider
+//	}
+//
+// type MockUnitTestTable struct {
+// }
+//
+//	func NewUnitTestStore() *MockUnitTestStore {
+//		return &MockUnitTestStore{
+//			UnitTestProvider: UnitTestProvider{
+//				ProviderType:   "UNIT_TEST",
+//				ProviderConfig: []byte{},
+//			},
+//		}
+//	}
+//
+// /*
+// ONLINE STORE
+// */
+//
+//	func (m MockUnitTestStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
+//		return &MockUnitTestTable{}, nil
+//	}
+//
+//	func (m MockUnitTestStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+//		return &MockUnitTestTable{}, nil
+//	}
+//
+//	func (m MockUnitTestStore) DeleteTable(feature, variant string) error {
+//		return nil
+//	}
+//
+//	func (m MockUnitTestStore) Close() error {
+//		return nil
+//	}
+//
+//	func (m MockUnitTestTable) Get(entity string) (interface{}, error) {
+//		return nil, nil
+//	}
+//
+//	func (m MockUnitTestTable) Set(entity string, value interface{}) error {
+//		return nil
+//	}
+//
+// /*
+// OFFLINE UNIT STORE
+// */
+//
+//	func (M MockUnitTestOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+//		return nil, nil
+//	}
+//
+// type MockPrimaryTable struct {
+// }
+//
+//	func (MockPrimaryTable) GetName() string {
+//		return ""
+//	}
+type UnitTestIterator struct {
+	currentValue GenericRecord
+	nextCount    int
+}
+
+func (u *UnitTestIterator) Next() bool {
+	if u.nextCount < len(u.Columns()) {
+		u.nextCount++
+		return true
+	} else {
+		return false
+	}
+}
+
+func (u *UnitTestIterator) Values() GenericRecord {
+	return u.currentValue
+}
+
+func (UnitTestIterator) Columns() []string {
+	return []string{"column1, column2"}
+}
+
+func (UnitTestIterator) Err() error {
+	return nil
+}
+
+func (UnitTestIterator) Close() error {
+	return nil
+}
+
 //func (MockPrimaryTable) IterateSegment(int64) (GenericTableIterator, error) {
 //	records := make(GenericRecord, 2)
 //	records[0] = "row value"
@@ -152,6 +152,10 @@ package provider
 //}
 //
 //func (MockPrimaryTable) Write(GenericRecord) error {
+//	return nil
+//}
+//
+//func (MockPrimaryTable) WriteBatch([]GenericRecord) error {
 //	return nil
 //}
 //
@@ -227,6 +231,10 @@ package provider
 //type MockOfflineTable struct{}
 //
 //func (m MockOfflineTable) Write(ResourceRecord) error {
+//	return nil
+//}
+//
+//func (m MockOfflineTable) WriteBatch(ResourceRecord) error {
 //	return nil
 //}
 //

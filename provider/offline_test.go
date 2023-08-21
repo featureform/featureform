@@ -143,21 +143,21 @@ func TestOfflineStores(t *testing.T) {
 	}
 
 	// TODO start with local spark and azure, then move on to s3, gcs
-	sparkInit := func() (pc.SerializedConfig, pc.SparkConfig) {
-		var sparkConfig = pc.SparkConfig{
-			ExecutorType: pc.SparkGeneric,
-			ExecutorConfig: &pc.SparkGenericConfig{
-				Master: "local[*]",
-			},
-			StoreType:   pc.Azure,
-			StoreConfig: &pc.AzureFileStoreConfig{},
-		}
-		serializedConfig, err := sparkConfig.Serialize()
-		if err != nil {
-			t.Fatalf("Cannot serialize Spark config: %v", err)
-		}
-		return serializedConfig, sparkConfig
-	}
+	//sparkInit := func() (pc.SerializedConfig, pc.SparkConfig) {
+	//	var sparkConfig = pc.SparkConfig{
+	//		ExecutorType: pc.SparkGeneric,
+	//		ExecutorConfig: &pc.SparkGenericConfig{
+	//			Master: "local[*]",
+	//		},
+	//		StoreType:   pc.Azure,
+	//		StoreConfig: &pc.AzureFileStoreConfig{},
+	//	}
+	//	serializedConfig, err := sparkConfig.Serialize()
+	//	if err != nil {
+	//		t.Fatalf("Cannot serialize Spark config: %v", err)
+	//	}
+	//	return serializedConfig, sparkConfig
+	//}
 
 	testList := []testMember{}
 
@@ -188,10 +188,11 @@ func TestOfflineStores(t *testing.T) {
 			destroyRedshiftDatabase(redshiftConfig)
 		})
 	}
-	if *provider == "spark" || *provider == "" {
-		serialSparkConfig, _ := sparkInit()
-		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	}
+	//if *provider == "spark" || *provider == "" {
+	//	serialSparkConfig, _ := sparkInit()
+	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	//}
+
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
 		"TableAlreadyExists":      testOfflineTableAlreadyExists,

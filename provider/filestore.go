@@ -8,17 +8,16 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"sort"
 	"strings"
 
 	re "github.com/avast/retry-go/v4"
-	"github.com/featureform/filestore"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsv2cfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
 	hdfs "github.com/colinmarc/hdfs/v2"
+	filestore "github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 
 	"io/fs"
@@ -31,6 +30,31 @@ import (
 	"gocloud.dev/gcp"
 	"golang.org/x/oauth2/google"
 )
+
+type FileStore interface {
+	Write(key filestore.Filepath, data []byte) error
+	Read(key filestore.Filepath) ([]byte, error)
+	Serve(key filestore.Filepath) (Iterator, error)
+	Exists(key filestore.Filepath) (bool, error)
+	Delete(key filestore.Filepath) error
+	DeleteAll(dir filestore.Filepath) error
+	NewestFileOfType(prefix filestore.Filepath, fileType filestore.FileType) (filestore.Filepath, error)
+	NumRows(key filestore.Filepath) (int64, error)
+	Close() error
+	Upload(sourcePath filestore.Filepath, destPath filestore.Filepath) error
+	Download(sourcePath filestore.Filepath, destPath filestore.Filepath) error
+	FilestoreType() filestore.FileStoreType
+	AddEnvVars(envVars map[string]string) map[string]string
+	// CreateFilePath creates a new filepath object with the bucket and scheme from a Key
+	CreateFilePath(key string) (filestore.Filepath, error)
+	CreateDirPath(key string) (filestore.Filepath, error)
+}
+
+type Iterator interface {
+	Next() (map[string]interface{}, error)
+	FeatureColumns() []string
+	LabelColumn() string
+}
 
 type LocalFileStore struct {
 	DirPath string
@@ -46,11 +70,12 @@ func NewLocalFileStore(config Config) (FileStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	filepath, err := filestore.NewEmptyFilepath(FileSystem)
+	filepath, err := filestore.NewEmptyFilepath(filestore.FileSystem)
 	if err != nil {
 		return nil, err
 	}
-	err = filepath.ParseFullPath(fileStoreConfig.DirPath)
+	// TODO: double check that this is the appropriate method in this case
+	err = filepath.ParseDirPath(fileStoreConfig.DirPath)
 	if err != nil {
 		return nil, err
 	}
@@ -63,15 +88,8 @@ func NewLocalFileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
-func (fs *LocalFileStore) FilestoreType() pc.FileStoreType {
-	return FileSystem
-}
-
-func (fs *LocalFileStore) PathWithPrefix(path string, remote bool) string {
-	if fs.DirPath == "" {
-		return fmt.Sprintf("/%s", strings.TrimPrefix(path, "/"))
-	}
-	return fmt.Sprintf("%s/%s", strings.TrimSuffix(fs.DirPath, "/"), strings.Trim(path, "/"))
+func (fs *LocalFileStore) FilestoreType() filestore.FileStoreType {
+	return filestore.FileSystem
 }
 
 type AzureFileStore struct {
@@ -131,27 +149,8 @@ func (store *AzureFileStore) AsAzureStore() *AzureFileStore {
 	return store
 }
 
-//func (store *AzureFileStore) PathWithPrefix(path filestore.Filepath, remote bool) filestore.Filepath {
-//	pathContainsAzureBlobPrefix := strings.HasPrefix(path, azureBlobPrefix)
-//	pathContainsWorkingDirectory := store.Path != "" && strings.HasPrefix(path, store.Path)
-//
-//	if !remote {
-//		if len(path) != 0 && !pathContainsWorkingDirectory {
-//			return fmt.Sprintf("%s/%s", store.Path, strings.TrimPrefix(path, "/"))
-//		}
-//	} else if remote && !pathContainsAzureBlobPrefix {
-//		azureBlobPathPrefix := ""
-//		if !pathContainsWorkingDirectory {
-//			azureBlobPathPrefix = fmt.Sprintf("/%s/", strings.TrimSuffix(store.Path, "/"))
-//		}
-//		return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s%s", store.ContainerName, store.AccountName, strings.TrimPrefix(azureBlobPathPrefix, "/"), strings.TrimPrefix(path, "/"))
-//	}
-//
-//	return path
-//}
-
-func (store *AzureFileStore) FilestoreType() pc.FileStoreType {
-	return Azure
+func (store *AzureFileStore) FilestoreType() filestore.FileStoreType {
+	return filestore.Azure
 }
 
 func NewAzureFileStore(config Config) (FileStore, error) {
@@ -255,26 +254,8 @@ func (s3 *S3FileStore) CreateDirPath(key string) (filestore.Filepath, error) {
 	return &fp, nil
 }
 
-func (s3 *S3FileStore) PathWithPrefix(path string, remote bool) string {
-	pathContainsS3Prefix := strings.HasPrefix(path, s3aPrefix)
-	pathContainsWorkingDirectory := s3.Path != "" && strings.HasPrefix(path, s3.Path)
-
-	if !remote {
-		if len(path) != 0 && !pathContainsWorkingDirectory {
-			return fmt.Sprintf("%s/%s", s3.Path, strings.TrimPrefix(path, "/"))
-		}
-	} else if remote && !pathContainsS3Prefix {
-		s3PathPrefix := ""
-		if !pathContainsWorkingDirectory {
-			s3PathPrefix = fmt.Sprintf("/%s", s3.Path)
-		}
-		return fmt.Sprintf("%s%s%s/%s", s3Prefix, s3.Bucket, s3PathPrefix, strings.TrimPrefix(path, "/"))
-	}
-	return path
-}
-
-func (s3 *S3FileStore) FilestoreType() pc.FileStoreType {
-	return S3
+func (s3 *S3FileStore) FilestoreType() filestore.FileStoreType {
+	return filestore.S3
 }
 
 func (s3 *S3FileStore) AddEnvVars(envVars map[string]string) map[string]string {
@@ -324,27 +305,8 @@ func (gs *GCSFileStore) CreateDirPath(key string) (filestore.Filepath, error) {
 	return &fp, nil
 }
 
-func (gs *GCSFileStore) PathWithPrefix(path string, remote bool) string {
-	pathContainsGSPrefix := strings.HasPrefix(path, gsPrefix)
-	pathContainsWorkingDirectory := gs.Path != "" && strings.HasPrefix(path, gs.Path)
-
-	if !remote {
-		if len(path) != 0 && !pathContainsWorkingDirectory {
-			return fmt.Sprintf("%s/%s", gs.Path, strings.TrimPrefix(path, "/"))
-		}
-	} else if remote && !pathContainsGSPrefix {
-		gsPathPrefix := ""
-		if !pathContainsWorkingDirectory {
-			gsPathPrefix = fmt.Sprintf("/%s", gs.Path)
-		}
-		return fmt.Sprintf("gs://%s%s/%s", gs.Bucket, gsPathPrefix, strings.TrimPrefix(path, "/"))
-	}
-
-	return path
-}
-
-func (g *GCSFileStore) FilestoreType() pc.FileStoreType {
-	return GCS
+func (g *GCSFileStore) FilestoreType() filestore.FileStoreType {
+	return filestore.GCS
 }
 
 func (g *GCSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
@@ -443,17 +405,20 @@ func NewHDFSFileStore(config Config) (FileStore, error) {
 		return nil, fmt.Errorf("could not create hdfs client: %v", err)
 	}
 
+	// TODO: add updated HDFS implementation
+	filepath := filestore.HDFSFilepath{}
+
 	return &HDFSFileStore{
 		Client: client,
-		Path:   HDFSConfig.Path,
-		Host:   address,
+		Path:   filepath,
+		Host:   address, // authority (e.g. <host>:<port>)
 	}, nil
 }
 
 type HDFSFileStore struct {
 	Client *hdfs.Client
 	Host   string
-	Path   string
+	Path   filestore.HDFSFilepath
 }
 
 func (fs *HDFSFileStore) alreadyExistsError(err error) bool {
@@ -532,12 +497,16 @@ func (fs *HDFSFileStore) ServeDirectory(path filestore.Filepath) (Iterator, erro
 	if err != nil {
 		return nil, err
 	}
-	var fileParts []string
+	var filepaths []filestore.Filepath
 	for _, file := range files {
-		fileParts = append(fileParts, fmt.Sprintf("%s/%s", path.KeyPrefix(), file.Name()))
+		if filepath, err := fs.CreateFilePath(fmt.Sprintf("%s/%s", path.KeyPrefix(), file.Name())); err == nil {
+			filepaths = append(filepaths, filepath)
+		} else {
+			return nil, fmt.Errorf("could not create filepath: %v", err)
+		}
 	}
 	// assume file type is parquet
-	return parquetIteratorOverMultipleFiles(fileParts, fs)
+	return parquetIteratorOverMultipleFiles(filepaths, fs)
 }
 
 func (fs *HDFSFileStore) Serve(path filestore.Filepath) (Iterator, error) {
@@ -631,29 +600,16 @@ func (hdfs *HDFSFileStore) NewestFileOfType(rootpath filestore.Filepath, fileTyp
 	if lastModName == "" {
 		return nil, fmt.Errorf("could not find file")
 	}
-	filepath, err := filestore.NewEmptyFilepath(HDFS)
+	filepath, err := filestore.NewEmptyFilepath(filestore.HDFS)
 	if err != nil {
 		return nil, err
 	}
-	err = filepath.ParseFullPath(lastModName)
+	// TODO: determine if this is actually correct
+	err = filepath.ParseFilePath(lastModName)
 	if err != nil {
 		return nil, err
 	}
 	return filepath, nil
-}
-
-func (fs *HDFSFileStore) PathWithPrefix(path string, remote bool) string {
-	nofsPrefix := !strings.HasPrefix(path, HDFSPrefix)
-
-	if remote && nofsPrefix {
-		fsPath := ""
-		if fs.Path != "" {
-			fsPath = fmt.Sprintf("/%s", fs.Path)
-		}
-		return fmt.Sprintf("%s%s/%s/%s", HDFSPrefix, fs.Host, fsPath, strings.TrimPrefix(path, "/"))
-	} else {
-		return path
-	}
 }
 
 func (fs *HDFSFileStore) NumRows(path filestore.Filepath) (int64, error) {
@@ -680,12 +636,34 @@ func (fs *HDFSFileStore) AsAzureStore() *AzureFileStore {
 	return nil
 }
 
-func (fs *HDFSFileStore) FilestoreType() pc.FileStoreType {
-	return HDFS
+func (fs *HDFSFileStore) FilestoreType() filestore.FileStoreType {
+	return filestore.HDFS
 }
 
 func (fs *HDFSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
 	panic("HDFS Filestore is not supported for K8s at the moment.")
+}
+
+func (fs *HDFSFileStore) CreateDirPath(key string) (filestore.Filepath, error) {
+	fp := filestore.HDFSFilepath{}
+	fp.SetKey(key)
+	fp.SetIsDir(true)
+	err := fp.Validate()
+	if err != nil {
+		return nil, err
+	}
+	return &fp, nil
+}
+
+// TODO: implement
+func (fs *HDFSFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
+	fp := filestore.HDFSFilepath{}
+	// fp.SetKey(key)
+	// err := fp.Validate()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	return &fp, nil
 }
 
 type genericFileStore struct {
@@ -708,7 +686,8 @@ func (store *genericFileStore) NewestFileOfType(path filestore.Filepath, fileTyp
 			if err != nil {
 				return nil, err
 			}
-			err = path.ParseFullPath(mostRecentKey)
+			// TODO: determine if this is actually correct
+			err = path.ParseFilePath(mostRecentKey)
 			if err != nil {
 				return nil, err
 			}
@@ -732,7 +711,7 @@ func (store *genericFileStore) isMostRecentFile(listObj *blob.ListObject, time t
 	return listObj.ModTime.After(time) || listObj.ModTime.Equal(time)
 }
 
-func (store *genericFileStore) outputFileList(path filestore.Filepath) []string {
+func (store *genericFileStore) outputFileList(path filestore.Filepath) []filestore.Filepath {
 	opts := blob.ListOptions{
 		Prefix:    path.Key(),
 		Delimiter: "/",
@@ -742,7 +721,7 @@ func (store *genericFileStore) outputFileList(path filestore.Filepath) []string 
 	mostRecentOutputPartPath := ""
 	for listObj, err := listIterator.Next(context.TODO()); err == nil; listObj, err = listIterator.Next(context.TODO()) {
 		if listObj == nil {
-			return []string{}
+			return []filestore.Filepath{}
 		}
 		dirParts := strings.Split(listObj.Key[:len(listObj.Key)-1], "/")
 		timestamp := dirParts[len(dirParts)-1]
@@ -755,17 +734,23 @@ func (store *genericFileStore) outputFileList(path filestore.Filepath) []string 
 		Prefix: mostRecentOutputPartPath,
 	}
 	partsIterator := store.bucket.List(&opts)
-	partsList := make([]string, 0)
+	filepathList := make([]filestore.Filepath, 0)
 	for listObj, err := partsIterator.Next(context.TODO()); err == nil; listObj, err = partsIterator.Next(context.TODO()) {
 		pathParts := strings.Split(listObj.Key, ".")
 
 		fileType := pathParts[len(pathParts)-1]
 		if fileType == "parquet" {
-			partsList = append(partsList, listObj.Key)
+			// partsList = append(partsList, listObj.Key)
+			if filepath, err := store.CreateFilePath(listObj.Key); err == nil {
+				filepathList = append(filepathList, filepath)
+			} else {
+				fmt.Printf("Could not create filepath: %v\n", err)
+			}
 		}
 	}
-	sort.Strings(partsList)
-	return partsList
+	// TODO: implement sort for Filepath interface
+	// sort.Strings(partsList)
+	return filepathList
 }
 
 func (store *genericFileStore) DeleteAll(path filestore.Filepath) error {
@@ -857,8 +842,8 @@ func (store *genericFileStore) Download(sourcePath filestore.Filepath, destPath 
 	return nil
 }
 
-func (store *genericFileStore) FilestoreType() pc.FileStoreType {
-	return Memory
+func (store *genericFileStore) FilestoreType() filestore.FileStoreType {
+	return filestore.Memory
 }
 
 func (store *genericFileStore) AddEnvVars(envVars map[string]string) map[string]string {
@@ -911,4 +896,27 @@ func (store *genericFileStore) NumRows(path filestore.Filepath) (int64, error) {
 	default:
 		return 0, fmt.Errorf("unsupported file type")
 	}
+}
+
+// TODO: implement
+func (store *genericFileStore) CreateDirPath(key string) (filestore.Filepath, error) {
+	fp := filestore.FilePath{}
+	// fp.SetKey(key)
+	// fp.SetIsDir(true)
+	// err := fp.Validate()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	return &fp, nil
+}
+
+// TODO: implement
+func (store *genericFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
+	fp := filestore.FilePath{}
+	// fp.SetKey(key)
+	// err := fp.Validate()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	return &fp, nil
 }

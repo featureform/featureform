@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	filestore "github.com/featureform/filestore"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	"gocloud.dev/gcp"
@@ -15,7 +16,7 @@ type Provider interface {
 	Init() error
 	Upload(name, dest string) error
 	Download(src, dest string) error
-	LatestBackupName(prefix string) (string, error)
+	LatestBackupName(prefix string) (filestore.Filepath, error)
 }
 
 type Azure struct {
@@ -47,15 +48,35 @@ func (az *Azure) Init() error {
 }
 
 func (az *Azure) Upload(name, dest string) error {
-	return az.store.Upload(name, dest)
+	source, err := az.store.CreateFilePath(name)
+	if err != nil {
+		return fmt.Errorf("cannot create source file path: %v", err)
+	}
+	destination, err := az.store.CreateFilePath(dest)
+	if err != nil {
+		return fmt.Errorf("cannot create destination file path: %v", err)
+	}
+	return az.store.Upload(source, destination)
 }
 
 func (az *Azure) Download(src, dest string) error {
-	return az.store.Download(src, dest)
+	source, err := az.store.CreateFilePath(src)
+	if err != nil {
+		return fmt.Errorf("cannot create source file path: %v", err)
+	}
+	destination, err := az.store.CreateFilePath(dest)
+	if err != nil {
+		return fmt.Errorf("cannot create destination file path: %v", err)
+	}
+	return az.store.Download(source, destination)
 }
 
-func (az *Azure) LatestBackupName(prefix string) (string, error) {
-	return az.store.NewestFileOfType(prefix, provider.DB)
+func (az *Azure) LatestBackupName(prefix string) (filestore.Filepath, error) {
+	dirPath, err := az.store.CreateDirPath(prefix)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create dir path: %v", err)
+	}
+	return az.store.NewestFileOfType(dirPath, filestore.DB)
 }
 
 type S3 struct {
@@ -92,15 +113,35 @@ func (s3 *S3) Init() error {
 }
 
 func (s3 *S3) Upload(name, dest string) error {
-	return s3.store.Upload(name, dest)
+	source, err := s3.store.CreateFilePath(name)
+	if err != nil {
+		return fmt.Errorf("cannot create source file path: %v", err)
+	}
+	destination, err := s3.store.CreateFilePath(dest)
+	if err != nil {
+		return fmt.Errorf("cannot create destination file path: %v", err)
+	}
+	return s3.store.Upload(source, destination)
 }
 
 func (s3 *S3) Download(src, dest string) error {
-	return s3.store.Download(src, dest)
+	source, err := s3.store.CreateFilePath(src)
+	if err != nil {
+		return fmt.Errorf("cannot create source file path: %v", err)
+	}
+	destination, err := s3.store.CreateFilePath(dest)
+	if err != nil {
+		return fmt.Errorf("cannot create destination file path: %v", err)
+	}
+	return s3.store.Download(source, destination)
 }
 
-func (s3 *S3) LatestBackupName(prefix string) (string, error) {
-	return s3.store.NewestFileOfType(prefix, provider.DB)
+func (s3 *S3) LatestBackupName(prefix string) (filestore.Filepath, error) {
+	dirPath, err := s3.store.CreateDirPath(prefix)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create dir path: %v", err)
+	}
+	return s3.store.NewestFileOfType(dirPath, filestore.DB)
 }
 
 type Local struct {
@@ -126,15 +167,35 @@ func (fs *Local) Init() error {
 }
 
 func (fs *Local) Upload(name, dest string) error {
-	return fs.store.Upload(name, dest)
+	source, err := fs.store.CreateFilePath(name)
+	if err != nil {
+		return fmt.Errorf("cannot create source file path: %v", err)
+	}
+	destination, err := fs.store.CreateFilePath(dest)
+	if err != nil {
+		return fmt.Errorf("cannot create destination file path: %v", err)
+	}
+	return fs.store.Upload(source, destination)
 }
 
 func (fs *Local) Download(src, dest string) error {
-	return fs.store.Download(src, dest)
+	source, err := fs.store.CreateFilePath(src)
+	if err != nil {
+		return fmt.Errorf("cannot create source file path: %v", err)
+	}
+	destination, err := fs.store.CreateFilePath(dest)
+	if err != nil {
+		return fmt.Errorf("cannot create destination file path: %v", err)
+	}
+	return fs.store.Download(source, destination)
 }
 
-func (fs *Local) LatestBackupName(prefix string) (string, error) {
-	return fs.store.NewestFileOfType(prefix, provider.DB)
+func (fs *Local) LatestBackupName(prefix string) (filestore.Filepath, error) {
+	dirPath, err := fs.store.CreateDirPath(prefix)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create dir path: %v", err)
+	}
+	return fs.store.NewestFileOfType(dirPath, filestore.DB)
 }
 
 type GCS struct {
@@ -201,13 +262,33 @@ func (g *GCS) Init() error {
 }
 
 func (g *GCS) Upload(name, dest string) error {
-	return g.store.Upload(name, dest)
+	source, err := g.store.CreateFilePath(name)
+	if err != nil {
+		return fmt.Errorf("cannot create source file path: %v", err)
+	}
+	destination, err := g.store.CreateFilePath(dest)
+	if err != nil {
+		return fmt.Errorf("cannot create destination file path: %v", err)
+	}
+	return g.store.Upload(source, destination)
 }
 
 func (g *GCS) Download(src, dest string) error {
-	return g.store.Download(src, dest)
+	source, err := g.store.CreateFilePath(src)
+	if err != nil {
+		return fmt.Errorf("cannot create source file path: %v", err)
+	}
+	destination, err := g.store.CreateFilePath(dest)
+	if err != nil {
+		return fmt.Errorf("cannot create destination file path: %v", err)
+	}
+	return g.store.Download(source, destination)
 }
 
-func (g *GCS) LatestBackupName(prefix string) (string, error) {
-	return g.store.NewestFileOfType(prefix, provider.DB)
+func (g *GCS) LatestBackupName(prefix string) (filestore.Filepath, error) {
+	dirPath, err := g.store.CreateDirPath(prefix)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create dir path: %v", err)
+	}
+	return g.store.NewestFileOfType(dirPath, filestore.DB)
 }

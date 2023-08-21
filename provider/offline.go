@@ -131,7 +131,8 @@ const (
 
 type SourceMapping struct {
 	Template string
-	Source   string
+	// QUESTION: Should this be refactored to use Filepath?
+	Source string
 }
 
 type TransformationConfig struct {

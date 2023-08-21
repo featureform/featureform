@@ -32,15 +32,15 @@ const (
 )
 
 const (
-	gsPrefix        = "gs://"
-	s3Prefix        = "s3://"
-	s3aPrefix       = "s3a://"
-	azureBlobPrefix = "abfss://"
+	GSPrefix        = "gs://"
+	S3Prefix        = "s3://"
+	S3APrefix       = "s3a://"
+	AzureBlobPrefix = "abfss://"
 	HDFSPrefix      = "hdfs://"
 )
 
 var ValidSchemes = []string{
-	gsPrefix, s3Prefix, s3aPrefix, azureBlobPrefix, HDFSPrefix,
+	GSPrefix, S3Prefix, S3APrefix, AzureBlobPrefix, HDFSPrefix,
 }
 
 func (ft FileType) Matches(file string) bool {
@@ -75,20 +75,34 @@ func GetFileExtension(file string) string {
 }
 
 type Filepath interface {
+	// Scheme encompasses
+	// * protocol (e.g. s3://, gs://, abfss://)
+	// * host (e.g. <container>@<account>.dfs.core.windows.net for Azure Blob)
+	// * port (if applicable)
+	// This naming technically conflicts with the standard definition of "scheme," which
+	// is only the protocol _without_ the domain and port (i.e. authority); however, given
+	// we're not using these components independently and there's no single term to denote
+	// <SCHEME>://<HOST>:<PORT>, we're using "scheme" to encompass all three.
 	Scheme() string
 	SetScheme(scheme string)
+
 	// Returns the name of the bucket (S3) or container (Azure Blob Storage)
 	Bucket() string
 	SetBucket(bucket string)
-	// Returns the absolute path without a scheme, host, or bucket
+
+	// Returns the blob key, which is the relative path to the object (i.e. without the scheme or bucket/container)
 	Key() string
 	SetKey(key string)
+
+	// Returns the key prefix (i.e. the directory path to the object)
 	KeyPrefix() string
-	SetIsDir(isDir bool)
+
 	IsDir() bool
+	SetIsDir(isDir bool)
+
 	Ext() FileType
-	// Returns the key to the object (S3) or blob (Azure Blob Storage)
-	//	Path() string
+	// Returns the full path to the object, including the scheme and bucket/container
+	// TODO: rename to `ToURI`
 	PathWithBucket() string
 	// Consumes a URI (e.g. abfss://<container>@<storage_account>/path/to/file) and parses it into
 	// the specific parts that the implementation expects.
@@ -97,30 +111,6 @@ type Filepath interface {
 	Validate() error
 	IsValid() bool
 }
-
-////// TODO: Add support for additional params, such as service account (Azure Blob Storage)
-//func NewFilepath(storeType pc.FileStoreType, bucket string, path string) (Filepath, error) {
-//	switch storeType {
-//	case S3:
-//		return &S3Filepath{
-//			FilePath: FilePath{
-//				bucket: strings.Trim(bucket, "/"),
-//				prefix: strings.Trim(prefix, "/"),
-//				path:   strings.TrimPrefix(path, "/"),
-//			},
-//		}, nil
-//	case pc.Azure:
-//		return &AzureFilepath{
-//			FilePath: FilePath{
-//				bucket: strings.Trim(bucket, "/"),
-//				prefix: strings.Trim(prefix, "/"),
-//				path:   strings.Trim(path, "/"),
-//			},
-//		}, nil
-//	default:
-//		return nil, fmt.Errorf("unknown store type '%s'", storeType)
-//	}
-//}
 
 func NewEmptyFilepath(storeType FileStoreType) (Filepath, error) {
 	switch storeType {
@@ -270,6 +260,10 @@ func (fp *FilePath) IsValid() bool {
 	return fp.isValid
 }
 
+func (fp *FilePath) Validate() error {
+	return fmt.Errorf("not implemented")
+}
+
 type S3Filepath struct {
 	FilePath
 }
@@ -363,4 +357,12 @@ func (gcs *GCSFilepath) Validate() error {
 	}
 	gcs.isValid = true
 	return nil
+}
+
+type HDFSFilepath struct {
+	FilePath
+}
+
+func (hdfs *HDFSFilepath) Validate() error {
+	return fmt.Errorf("not implemented")
 }

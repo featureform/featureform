@@ -2,7 +2,7 @@ name: Slack PR Notify
 on: push
 
 jobs:
-  notify:
+  notify-job:
     name: Notify
     defaults:
       run:

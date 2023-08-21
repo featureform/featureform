@@ -14,11 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Generate JSON
-        run: echo "DATA=$(./.github/helpers/open_prs.sh)" >> $GITHUB_ENV
-
-      - name: Check JSON
-        run: echo $DATA
+#      - name: Generate JSON
+#        run: echo "DATA=$(./.github/helpers/open_prs.sh)" >> $GITHUB_ENV
+#
+#      - name: Check JSON
+#        run: echo $DATA
 
       - name: Send custom JSON data to Slack workflow
         run: curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} -d "$(./.github/helpers/open_prs.sh)"

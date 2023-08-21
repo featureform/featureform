@@ -1,0 +1,22 @@
+name: Testing
+on: push
+
+jobs:
+  notify:
+    name: Notify
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+    - name: Send custom JSON data to Slack workflow
+      id: slack
+      uses: slackapi/slack-github-action@v1.24.0
+      with:
+        # This data can be any valid JSON from a previous step in the GitHub Action
+        payload: |
+          ./.github/helpers/open_prs.sh
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

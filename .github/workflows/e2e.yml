@@ -516,7 +516,7 @@ jobs:
 
       - name: Dashboard Metadata Describe
         if: always()
-        run: kubectl describe -l app=featureform-dashboard-metadata
+        run: kubectl describe pod -l app=featureform-dashboard-metadata
 
       - name: ETCD Logs
         if: always()

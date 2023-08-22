@@ -7,7 +7,13 @@ from featureform import ResourceClient
 from featureform.serving import LocalClientImpl
 from flask import Blueprint, Response, request
 from flask_cors import CORS, cross_origin
-from .metadata_repository import MetadataRepositoryLocalImpl, Feature, FeatureVariant
+from .metadata_repository import (
+    MetadataRepositoryLocalImpl,
+    Feature,
+    FeatureVariant,
+    TrainingSet,
+    TrainingSetVariant,
+)
 from .resources import SourceType
 from .sqlite_metadata import SQLiteMetadata
 from .type_objects import (
@@ -181,81 +187,74 @@ def variant_organiser(all_variant_list):
 
 def build_feature_variant_resource(variant_data: FeatureVariant):
     feature_variant_resource = FeatureVariantResource(
-        datetime.datetime.now(),  # todox: look into this missing field
-        variant_data.description,
-        variant_data.entity,
-        variant_data.name,
-        variant_data.owner,
-        variant_data.provider,
-        variant_data.value_type,
-        variant_data.variant,
-        variant_data.status,
-        {
+        created=datetime.datetime.now(),  # todox: missing field
+        description=variant_data.description,
+        entity=variant_data.entity,
+        name=variant_data.name,
+        owner=variant_data.owner,
+        provider=variant_data.provider,
+        dataType=variant_data.value_type,
+        variant=variant_data.variant,
+        status=variant_data.status,
+        location={
             "entity": variant_data.location.entity,
             "value": variant_data.location.value,
             "timestamp": variant_data.location.timestamp,
         },
-        {
+        source={
             "Name": variant_data.source[0],  # todox: should be a prop instead of tuple?
             "Variant": variant_data.source[1],
         },
-        variant_data.tags if variant_data.tags is not None else [],
-        variant_data.properties if variant_data.properties is not None else {},
+        tags=variant_data.tags if variant_data.tags is not None else [],
+        properties=variant_data.properties
+        if variant_data.properties is not None
+        else {},
     ).toDictionary()
+
     return feature_variant_resource
 
 
 def collect_features(feature_main: Feature):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    variantList = []
-    for variantName in feature_main.variants:
+    variant_list = []
+    for variant_name in feature_main.variants:
         found_variant = db.get_feature_variant(
-            name=feature_main.name, variant=variantName
+            name=feature_main.name, variant=variant_name
         )
-        variantList.append(build_feature_variant_resource(found_variant))
-        
+        variant_list.append(build_feature_variant_resource(found_variant))
+
     return FeatureResource(
         name=feature_main.name,
         defaultVariant=feature_main.default_variant,
         type="Feature",
         allVariants=feature_main.variants,
-        variants=variantList,
+        variants=variant_list,
     ).toDictionary()
 
 
-def training_set_variant(variantData):
-    variantDict = dict()
-    allVariantList = []
-    variants = []
-    for variantRow in variantData:
-        try:
-            db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-            # todox: replace db method
-            feature_list = db.get_training_set_variant(
-                variantRow["name"], variantRow["variant"]
-            )
-        except ValueError:
-            feature_list = []
+def build_training_set_variant_resource(variant_data: TrainingSetVariant):
+    training_set_variant_resource = TrainingSetVariantResource(
+        created=datetime.datetime.now(),  # todox: missing field
+        description=variant_data.description,
+        name=variant_data.name,
+        owner=variant_data.owner,
+        variant=variant_data.variant,
+        label={
+            "Name": variant_data.label[0],  # todox: should be a prop instead of tuple?
+            "Variant": variant_data.label[1],
+        },
+        status=variant_data["status"],
+        # features=variant_organiser(
+        #     collect_features(getTrainingSetFeatures(feature_list))[2]
+        # ),
+        features=[],
+        tags=variant_data.tags if variant_data.tags is not None else [],
+        properties=variant_data.properties
+        if variant_data.properties is not None
+        else [],
+    ).toDictionary()
 
-        trainingSetVariant = TrainingSetVariantResource(
-            variantRow["created"],
-            variantRow["description"],
-            variantRow["name"],
-            variantRow["owner"],
-            variantRow["variant"],
-            {"Name": variantRow["label_name"], "Variant": variantRow["label_variant"]},
-            variantRow["status"],
-            variant_organiser(feature_variant(getTrainingSetFeatures(feature_list))[2]),
-            json.loads(variantRow["tags"]) if variantRow["tags"] is not None else [],
-            json.loads(variantRow["properties"])
-            if variantRow["properties"] is not None
-            else {},
-        ).toDictionary()
-        allVariantList.append(variantRow["variant"])
-        variantDict[variantRow["variant"]] = trainingSetVariant
-        variants.append(trainingSetVariant)
-
-    return variantDict, allVariantList, variants
+    return training_set_variant_resource
 
 
 def getTrainingSetFeatures(feature_list):
@@ -268,18 +267,21 @@ def getTrainingSetFeatures(feature_list):
     return feature_variant_tuple
 
 
-def training_sets(rowData):
+def collect_training_sets(training_set_main: TrainingSet):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    # todox: replace db method
-    variantData = training_set_variant(
-        db.get_training_set_variant(rowData["name"], rowData["variant"])
-    )
+    variant_list = []
+    for variant_name in training_set_main.variants:
+        found_variant = db.get_training_set_variant(
+            name=training_set_main.name, variant=variant_name
+        )
+        variant_list.append(build_training_set_variant_resource(found_variant))
+
     return TrainingSetResource(
-        "TrainingSet",
-        rowData["default_variant"],
-        rowData["name"],
-        variantData[0],
-        variantData[1],
+        name=training_set_main.name,
+        defaultVariant=training_set_main.default_variant,
+        type="TrainingSet",
+        allVariants=training_set_main.variants,
+        variants=variant_list,
     ).toDictionary()
 
 

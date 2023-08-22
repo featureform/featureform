@@ -1,3 +1,4 @@
+from datetime import datetime
 from ssl import create_default_context
 import json
 
@@ -36,29 +37,29 @@ class FeatureVariantResource:
             # Training Set[] is missing
         }
 
-    def toDictionary(self):
+    def to_dict(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def serialize(self):
         return json.dumps(self.__dictionary)
 
 
 class FeatureResource:
     def __init__(
-        self, name="", defaultVariant="", type="", variants=None, allVariants=[]
+        self, name="", default_variant="", type="", variants=None, all_variants=[]
     ):
         self.__dictionary = {
-            "all-variants": allVariants,
+            "allVariants": all_variants,
             "type": type,
-            "default-variant": defaultVariant,
+            "defaultVariant": default_variant,
             "name": name,
             "variants": variants,
         }
 
-    def toDictionary(self):
+    def to_dict(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def serialize(self):
         return json.dumps(self.__dictionary)
 
 
@@ -89,10 +90,10 @@ class TrainingSetVariantResource:
             "properties": properties,
         }
 
-    def toDictionary(self):
+    def to_dict(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def serialize(self):
         return json.dumps(self.__dictionary)
 
 
@@ -101,17 +102,17 @@ class TrainingSetResource:
         self, type="", defaultVariant="", name="", variants=None, allVariants=[]
     ):
         self.__dictionary = {
-            "all-variants": allVariants,
+            "allVariants": allVariants,
             "type": type,
-            "default-variant": defaultVariant,
+            "defaultVariant": defaultVariant,
             "name": name,
             "variants": variants,
         }
 
-    def toDictionary(self):
+    def to_dict(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def serialize(self):
         return json.dumps(self.__dictionary)
 
 
@@ -121,7 +122,7 @@ class SourceVariantResource:
         created=None,
         description="",
         name="",
-        sourceType="",
+        source_type="",
         owner="",
         provider="",
         variant="",
@@ -129,7 +130,7 @@ class SourceVariantResource:
         definition="",
         labels=None,
         features=None,
-        trainingSets=None,
+        training_sets=None,
         tags=[],
         properties={},
     ):
@@ -137,7 +138,7 @@ class SourceVariantResource:
             "created": created,
             "description": description,
             "name": name,
-            "source-type": sourceType,
+            "source-type": source_type,
             "owner": owner,
             "provider": provider,
             "variant": variant,
@@ -145,15 +146,15 @@ class SourceVariantResource:
             "definition": definition,
             "labels": labels,
             "features": features,
-            "training-sets": trainingSets,
+            "trainingSets": training_sets,
             "tags": tags,
             "properties": properties,
         }
 
-    def toDictionary(self):
+    def to_dict(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def serialize(self):
         return json.dumps(self.__dictionary)
 
     @property
@@ -167,20 +168,20 @@ class SourceVariantResource:
 
 class SourceResource:
     def __init__(
-        self, type="", defaultVariant="", name="", variants=None, allVariants=[]
+        self, type="", default_variant="", name="", variants=None, all_variants=[]
     ):
         self.__dictionary = {
-            "all-variants": allVariants,
+            "allVariants": default_variant,
             "type": type,
-            "default-variant": defaultVariant,
+            "defaultVariant": all_variants,
             "name": name,
             "variants": variants,
         }
 
-    def toDictionary(self):
+    def to_dict(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def serialize(self):
         return json.dumps(self.__dictionary)
 
 
@@ -198,7 +199,7 @@ class LabelVariantResource:
         location=None,
         status="",
         source=None,
-        trainingSets=None,
+        training_sets=None,
         tags=[],
         properties={},
     ):
@@ -214,35 +215,35 @@ class LabelVariantResource:
             "status": status,
             "location": location,
             "source": source,
-            "trainingSets": trainingSets,
+            "trainingSets": training_sets,
             "tags": tags,
             "properties": properties,
             #  source is missing
         }
 
-    def toDictionary(self):
+    def to_dict(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def serialize(self):
         return json.dumps(self.__dictionary)
 
 
 class LabelResource:
     def __init__(
-        self, type="", defaultVariant="", name="", variants=None, allVariants=[]
+        self, type="", default_variant="", name="", variants=None, all_variants=[]
     ):
         self.__dictionary = {
-            "all-variants": allVariants,
+            "allVariants": default_variant,
             "type": type,
-            "default-variant": defaultVariant,
+            "defaultVariant": all_variants,
             "name": name,
             "variants": variants,
         }
 
-    def toDictionary(self):
+    def to_dict(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def serialize(self):
         return json.dumps(self.__dictionary)
 
 
@@ -255,7 +256,7 @@ class EntityResource:
         status="",
         features=None,
         labels=None,
-        trainingSets=None,
+        training_sets=None,
         tags=[],
         properties={},
     ):
@@ -265,16 +266,16 @@ class EntityResource:
             "name": name,
             "features": features,
             "labels": labels,
-            "training-sets": trainingSets,
+            "training-sets": training_sets,
             "status": status,
             "tags": tags,
             "properties": properties,
         }
 
-    def toDictionary(self):
+    def to_dict(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def serialize(self):
         return json.dumps(self.__dictionary)
 
 
@@ -286,7 +287,7 @@ class UserResource:
         status="",
         features=None,
         labels=None,
-        trainingSets=None,
+        training_sets=None,
         sources=None,
         tags=[],
         properties={},
@@ -296,17 +297,17 @@ class UserResource:
             "type": type,
             "features": features,
             "labels": labels,
-            "training-sets": trainingSets,
+            "training-sets": training_sets,
             "sources": sources,
             "status": status,
             "tags": tags,
             "properties": properties,
         }
 
-    def toDictionary(self):
+    def to_dict(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def serialize(self):
         return json.dumps(self.__dictionary)
 
 
@@ -319,7 +320,7 @@ class ModelResource:
         status="",
         features=None,
         labels=None,
-        trainingSets=None,
+        training_sets=None,
         tags=[],
         properties={},
     ):
@@ -329,16 +330,16 @@ class ModelResource:
             "description": description,
             "features": features,
             "labels": labels,
-            "training-sets": trainingSets,
+            "trainingSets": training_sets,
             "status": status,
             "tags": tags,
             "properties": properties,
         }
 
-    def toDictionary(self):
+    def to_dict(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def serialize(self):
         return json.dumps(self.__dictionary)
 
 
@@ -348,12 +349,12 @@ class ProviderResource:
         name="",
         type="",
         description="",
-        providerType="",
+        provider_type="",
         software="",
         team="",
         sources=None,
         status="",
-        serializedConfig="",
+        serialized_config="",
         features=None,
         labels=None,
         tags=[],
@@ -364,7 +365,7 @@ class ProviderResource:
             "name": name,
             "type": type,
             "description": description,
-            "provider-type": providerType,
+            "provider-type": provider_type,
             "software": software,
             "team": team,
             "sources": sources,
@@ -373,13 +374,13 @@ class ProviderResource:
             # "training-sets":trainingSets,
             "status": status,
             #   Seems like we dont need serialised config
-            "serializedConfig": serializedConfig,
+            "serializedConfig": serialized_config,
             "tags": tags,
             "properties": properties,
         }
 
-    def toDictionary(self):
+    def to_dict(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def serialize(self):
         return json.dumps(self.__dictionary)

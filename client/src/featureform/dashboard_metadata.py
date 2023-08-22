@@ -205,7 +205,7 @@ def feature_variant(variantData):
             json.loads(variantRow["properties"])
             if variantRow["properties"] is not None
             else {},
-        ).toDictionary()
+        ).to_dict()
 
         allVariantList.append(variantRow["variant"])
         variantsDict[variantRow["variant"]] = featureVariant

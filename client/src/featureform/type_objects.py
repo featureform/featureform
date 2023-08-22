@@ -49,9 +49,9 @@ class FeatureResource:
         self, name="", default_variant="", type="", variants=None, all_variants=[]
     ):
         self.__dictionary = {
-            "allVariants": all_variants,
+            "all-variants": all_variants,
             "type": type,
-            "defaultVariant": default_variant,
+            "default-variant": default_variant,
             "name": name,
             "variants": variants,
         }
@@ -99,12 +99,12 @@ class TrainingSetVariantResource:
 
 class TrainingSetResource:
     def __init__(
-        self, type="", defaultVariant="", name="", variants=None, allVariants=[]
+        self, type="", default_variant="", name="", variants=None, all_variants=[]
     ):
         self.__dictionary = {
-            "allVariants": allVariants,
+            "all-variants": all_variants,
             "type": type,
-            "defaultVariant": defaultVariant,
+            "default-variant": default_variant,
             "name": name,
             "variants": variants,
         }
@@ -171,9 +171,9 @@ class SourceResource:
         self, type="", default_variant="", name="", variants=None, all_variants=[]
     ):
         self.__dictionary = {
-            "allVariants": default_variant,
+            "all-variants": default_variant,
             "type": type,
-            "defaultVariant": all_variants,
+            "default-variant": all_variants,
             "name": name,
             "variants": variants,
         }
@@ -233,9 +233,9 @@ class LabelResource:
         self, type="", default_variant="", name="", variants=None, all_variants=[]
     ):
         self.__dictionary = {
-            "allVariants": default_variant,
+            "all-variants": default_variant,
             "type": type,
-            "defaultVariant": all_variants,
+            "default-variant": all_variants,
             "name": name,
             "variants": variants,
         }

@@ -227,14 +227,14 @@ def features(featureRow):
         "Feature",
         variantData[0],
         variantData[1],
-    ).toDictionary()
+    ).to_dict()
 
 
-def training_set_variant(variantData):
+def training_set_variant(variant_data):
     variantDict = dict()
     allVariantList = []
     variants = []
-    for variantRow in variantData:
+    for variantRow in variant_data:
         try:
             with SQLiteMetadata() as sqlObject:
                 feature_list = sqlObject.get_training_set_features(
@@ -256,7 +256,7 @@ def training_set_variant(variantData):
             json.loads(variantRow["properties"])
             if variantRow["properties"] is not None
             else {},
-        ).toDictionary()
+        ).to_dict()
         allVariantList.append(variantRow["variant"])
         variantDict[variantRow["variant"]] = trainingSetVariant
         variants.append(trainingSetVariant)
@@ -289,7 +289,7 @@ def training_sets(rowData):
         rowData["name"],
         variantData[0],
         variantData[1],
-    ).toDictionary()
+    ).to_dict()
 
 
 def source_variant(variantData):
@@ -363,7 +363,7 @@ def source_variant(variantData):
                 json.loads(variantRow["properties"])
                 if variantRow["properties"] is not None
                 else {},
-            ).toDictionary()
+            ).to_dict()
             allVariantList.append(variantRow["variant"])
             variantDict[variantRow["variant"]] = sourceVariant
             variants.append(sourceVariant)
@@ -382,7 +382,7 @@ def sources(rowData):
         rowData["name"],
         variantData[0],
         variantData[1],
-    ).toDictionary()
+    ).to_dict()
 
 
 def label_variant(variantData):
@@ -425,7 +425,7 @@ def label_variant(variantData):
                 json.loads(variantRow["properties"])
                 if variantRow["properties"] is not None
                 else {},
-            ).toDictionary()
+            ).to_dict()
 
             allVariantList.append(variantRow["variant"])
             variantDict[variantRow["variant"]] = labelVariant
@@ -444,7 +444,7 @@ def labels(rowData):
         rowData["name"],
         variantData[0],
         variantData[1],
-    ).toDictionary()
+    ).to_dict()
 
 
 def entities(rowData):
@@ -480,7 +480,7 @@ def entities(rowData):
             json.loads(rowData["properties"])
             if rowData["properties"] is not None
             else {},
-        ).toDictionary()
+        ).to_dict()
 
 
 def models(rowData):
@@ -515,7 +515,7 @@ def models(rowData):
             json.loads(rowData["properties"])
             if rowData["properties"] is not None
             else {},
-        ).toDictionary()
+        ).to_dict()
 
 
 def users(rowData):
@@ -556,7 +556,7 @@ def users(rowData):
             json.loads(rowData["properties"])
             if rowData["properties"] is not None
             else {},
-        ).toDictionary()
+        ).to_dict()
 
 
 def providers(rowData):
@@ -595,7 +595,7 @@ def providers(rowData):
             json.loads(rowData["properties"])
             if rowData["properties"] is not None
             else {},
-        ).toDictionary()
+        ).to_dict()
 
 
 @dashboard_app.route("/data/<type>", methods=["POST", "GET"])

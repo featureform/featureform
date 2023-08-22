@@ -1819,9 +1819,7 @@ class Registrar:
         Returns:
             redshift (OfflineSQLProvider): Provider
         """
-        mock_config = RedshiftConfig(
-            host="", port="", database="", user="", password=""
-        )
+        mock_config = RedshiftConfig(host="", port=0, database="", user="", password="")
         mock_provider = Provider(
             name=name, function="OFFLINE", description="", team="", config=mock_config
         )
@@ -1972,7 +1970,7 @@ class Registrar:
         Returns:
             entity (EntityRegistrar): Entity
         """
-        fakeEntity = Entity(name=name, description="", tags=[], properties=[])
+        fakeEntity = Entity(name=name, description="", tags=[], properties={})
         return EntityRegistrar(self, fakeEntity)
 
     def register_redis(

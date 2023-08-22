@@ -162,7 +162,7 @@ def test_cassandra():
     conf = CassandraConfig(
         keyspace="keyspace",
         host="host",
-        port="port",
+        port=0,
         username="username",
         password="password",
         consistency="consistency",
@@ -235,7 +235,7 @@ def test_redshift():
     expected_config = connection_configs["RedshiftConfig"]
     conf = RedshiftConfig(
         host="host",
-        port="port",
+        port=0,
         database="database",
         user="username",
         password="password",

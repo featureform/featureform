@@ -404,7 +404,7 @@ class FirestoreConfig:
 class CassandraConfig:
     keyspace: str
     host: str
-    port: str
+    port: int
     username: str
     password: str
     consistency: str
@@ -566,7 +566,7 @@ class PostgresConfig:
 @dataclass
 class RedshiftConfig:
     host: str
-    port: str
+    port: int
     database: str
     user: str
     password: str
@@ -580,7 +580,7 @@ class RedshiftConfig:
     def serialize(self) -> bytes:
         config = {
             "Host": self.host,
-            "Port": self.port,
+            "Port": str(self.port),
             "Username": self.user,
             "Password": self.password,
             "Database": self.database,
@@ -714,6 +714,8 @@ class LocalConfig:
 
 
 Config = Union[
+    CassandraConfig,
+    DynamodbConfig,
     RedisConfig,
     PineconeConfig,
     SnowflakeConfig,

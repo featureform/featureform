@@ -14,15 +14,15 @@ import {
 } from '@mui/material';
 import * as React from 'react';
 
-const textEllipsis = {
-  whiteSpace: 'nowrap',
-  maxWidth: '230px',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  cursor: 'pointer',
-};
-
 export default function SourceDialogTable({ columns = [], rowList = [] }) {
+  const textEllipsis = {
+    whiteSpace: 'nowrap',
+    maxWidth: columns.length > 1 ? '230px' : '500px',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    cursor: 'pointer',
+  };
+
   const [open, setOpen] = React.useState(false);
   const closeSnackBar = (_, reason) => {
     if (reason === 'clickaway') {

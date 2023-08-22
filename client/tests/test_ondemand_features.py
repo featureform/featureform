@@ -5,7 +5,7 @@ import pytest
 import numpy as np
 
 import featureform as ff
-from featureform.resources import OnDemandFeature, ResourceStatus
+from featureform.resources import ResourceStatus, OnDemandFeatureVariant
 
 
 @pytest.fixture(autouse=True)
@@ -20,8 +20,8 @@ def test_ondemand_feature_decorator_class():
     name = "test_ondemand_feature"
     owner = "ff_tester"
 
-    decorator = OnDemandFeature(owner=owner, name=name, variant="default")
-    decorator_2 = OnDemandFeature(owner=owner, name=name, variant="default")
+    decorator = OnDemandFeatureVariant(owner=owner, name=name, variant="default")
+    decorator_2 = OnDemandFeatureVariant(owner=owner, name=name, variant="default")
 
     assert decorator.name_variant() == (name, "default")
     assert decorator.type() == "ondemand_feature"
@@ -34,7 +34,7 @@ def test_ondemand_feature_decorator_class():
 def test_ondemand_decorator():
     owner = "ff_tester"
 
-    @OnDemandFeature(owner=owner, variant="default")
+    @OnDemandFeatureVariant(owner=owner, variant="default")
     def test_fn():
         return 1 + 1
 
@@ -46,49 +46,68 @@ def test_ondemand_decorator():
 
 @pytest.mark.local
 @pytest.mark.parametrize(
+    # fmt: off
     "features,entity,expected_output",
     [
-        ([("avg_transactions", "quickstart")], {"user": "C8837983"}, [1875.0]),
-        ([("pi", "default")], {"user": "C8837983"}, [3.141592653589793]),
         (
-            [("avg_transactions", "quickstart"), ("pi", "default")],
-            {"user": "C8837983"},
-            [1875.0, 3.141592653589793],
+                [
+                    ("avg_transactions", "quickstart")
+                ],
+                {"user": "C8837983"},
+                [1875.0]
         ),
         (
-            [("pi", "default"), ("avg_transactions", "quickstart")],
-            {"user": "C8837983"},
-            [3.141592653589793, 1875.0],
+                [
+                    ("pi", "default")
+                ],
+                {"user": "C8837983"},
+                [3.141592653589793]
         ),
         (
-            [
-                ("avg_transactions", "quickstart"),
-                ("pi", "default"),
-                ("avg_transactions", "quickstart"),
-            ],
-            {"user": "C8837983"},
-            [1875.0, 3.141592653589793, 1875.0],
+                [
+                    ("avg_transactions", "quickstart"),
+                    ("pi", "default")
+                ],
+                {"user": "C8837983"},
+                [1875.0, 3.141592653589793]
         ),
         (
-            [
-                ("avg_transactions", "quickstart"),
-                ("pi", "default"),
-                ("avg_transactions", "quickstart"),
-                ("pi", "default"),
-            ],
-            {"user": "C8837983"},
-            [1875.0, 3.141592653589793, 1875.0, 3.141592653589793],
+                [
+                    ("pi", "default"),
+                    ("avg_transactions", "quickstart")
+                ],
+                {"user": "C8837983"},
+                [3.141592653589793, 1875.0]
         ),
         (
-            [
-                ("avg_transactions", "quickstart"),
-                ("pi", "default"),
-                ("pi", "pi_named"),
-                ("pi_called", "default"),
-            ],
-            {"user": "C8837983"},
-            [1875.0, 3.141592653589793, 3.141592653589793, 3.141592653589793],
+                [
+                    ("avg_transactions", "quickstart"),
+                    ("pi", "default"),
+                    ("avg_transactions", "quickstart")
+                ],
+                {"user": "C8837983"},
+                [1875.0, 3.141592653589793, 1875.0]
         ),
+        (
+                [
+                    ("avg_transactions", "quickstart"),
+                    ("pi", "default"),
+                    ("avg_transactions", "quickstart"),
+                    ("pi", "default")
+                ],
+                {"user": "C8837983"},
+                [1875.0, 3.141592653589793, 1875.0, 3.141592653589793]
+        ),
+        (
+                [
+                    ("pi", "default"),
+                    ("pi", "pi_named"),
+                    ("pi_called", "default")
+                ],
+                {},
+                [3.141592653589793, 3.141592653589793, 3.141592653589793]
+        ),
+        # fmt: on
         pytest.param([], {}, [], marks=pytest.mark.xfail),
         pytest.param([("pi", "default")], None, [], marks=pytest.mark.xfail),
     ],
@@ -128,7 +147,7 @@ def register_resources():
 
         return math.pi
 
-    @ff.ondemand_feature()
+    @local.ondemand_feature()
     def pi_called(serving_client, entities, params):
         import math
 

@@ -1,15 +1,16 @@
 import featureform as ff
-from featureform import local
+from featureform import local, ScalarType
+
+ff.set_run("quickstart")
 
 transactions = local.register_file(
     name="transactions",
-    variant="quickstart",
     description="A dataset of fraudulent transactions",
     path="transactions.csv",
 )
 
 
-@local.df_transformation(variant="quickstart", inputs=[("transactions", "quickstart")])
+@local.df_transformation(inputs=["transactions"])
 def average_user_transaction(transactions):
     """the average transaction amount for a user"""
     return transactions.groupby("CustomerID")["TransactionAmount"].mean()
@@ -23,9 +24,8 @@ average_user_transaction.register_resources(
     features=[
         {
             "name": "avg_transactions",
-            "variant": "quickstart",
             "column": "TransactionAmount",
-            "type": "float32",
+            "type": ScalarType.FLOAT32,
         },
     ],
 )
@@ -36,16 +36,14 @@ transactions.register_resources(
     labels=[
         {
             "name": "fraudulent",
-            "variant": "quickstart",
             "column": "IsFraud",
-            "type": "bool",
+            "type": ScalarType.BOOL,
         },
     ],
 )
 
 ff.register_training_set(
     "fraud_training",
-    "quickstart",
-    label=("fraudulent", "quickstart"),
-    features=[("avg_transactions", "quickstart")],
+    label="fraudulent",
+    features=["avg_transactions"],
 )

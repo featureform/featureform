@@ -123,4 +123,46 @@ describe('ResourceListView tests', () => {
     expect(foundProgressBar.nodeName).toBe(SPAN_NODE);
     expect(foundProgressBar.firstChild.nodeName).toBe(SVG_NODE);
   });
+
+  test('Warn the user if the default variant is missing from the all-variants list', async () => {
+    console.warn = jest.fn();
+    const missingDefault = 'MISSING DEFAULT!!!';
+    const variantList = ['eloquent_goldstine', 'sleepy_volhard'];
+    //the default variant is missing from the global list
+    const badJsonResponse = [
+      {
+        'all-variants': variantList,
+        type: 'Source',
+        'default-variant': missingDefault,
+        name: 'transactions',
+        variants: {
+          eloquent_goldstine: {
+            name: 'transactions',
+            variant: 'eloquent_goldstine',
+          },
+          sleepy_volhard: {
+            name: 'transactions',
+            variant: 'sleepy_volhard',
+          },
+        },
+      },
+    ];
+
+    const helper = render(
+      <ResourceListView
+        title='test'
+        loading={false}
+        failed={false}
+        type='Source'
+        resources={badJsonResponse}
+      />
+    );
+    const foundTitle = await helper.findByText('Sources');
+
+    expect(foundTitle.nodeName).toBeDefined();
+    expect(console.warn).toHaveBeenCalledWith(
+      `The current default rowVariant (${missingDefault}) is not present in the variants list:`,
+      variantList
+    );
+  });
 });

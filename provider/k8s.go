@@ -11,6 +11,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,6 +25,7 @@ import (
 	_ "gocloud.dev/blob/memblob"
 	"golang.org/x/exp/slices"
 
+	re "github.com/avast/retry-go/v4"
 	cfg "github.com/featureform/config"
 	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
@@ -495,11 +497,28 @@ func (store *genericFileStore) DeleteAll(dir string) error {
 }
 
 func (store *genericFileStore) Write(key string, data []byte) error {
-	err := store.bucket.WriteAll(context.TODO(), key, data, nil)
+	ctx := context.TODO()
+	err := store.bucket.WriteAll(ctx, key, data, nil)
 	if err != nil {
 		return err
 	}
-	return nil
+	err = re.Do(
+		func() error {
+			blob, errRetr := store.bucket.ReadAll(ctx, key)
+			fmt.Printf("Read (%d) bytes from bucket (%s) after write\n", len(data), key)
+			if errRetr != nil {
+				return re.Unrecoverable(errRetr)
+			} else if !bytes.Equal(blob, data) {
+				return fmt.Errorf("blob read from bucket does not match blob written to bucket")
+			}
+			return nil
+		},
+		re.DelayType(func(n uint, err error, config *re.Config) time.Duration {
+			return re.BackOffDelay(n, err, config)
+		}),
+		re.Attempts(10),
+	)
+	return err
 }
 
 func (store *genericFileStore) Writer(key string) (*blob.Writer, error) {
@@ -511,6 +530,7 @@ func (store *genericFileStore) Read(key string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("Read (%d) bytes of object with key (%s)\n", len(data), key)
 	return data, nil
 }
 
@@ -956,7 +976,7 @@ func blobRegisterResource(id ResourceID, schema ResourceSchema, logger *zap.Suga
 
 type FileStorePrimaryTable struct {
 	store            FileStore
-	sourcePath       string
+	source           Filepath
 	isTransformation bool
 	id               ResourceID
 }
@@ -966,31 +986,53 @@ func (tbl *FileStorePrimaryTable) Write(GenericRecord) error {
 }
 
 func (tbl *FileStorePrimaryTable) GetName() string {
-	return tbl.sourcePath
+	return tbl.source.FullPathWithBucket()
 }
 
 func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
-	path := tbl.sourcePath
-	keyParts := strings.Split(path, ".")
-	if len(keyParts) == 1 {
-		return nil, fmt.Errorf("expected a file but got a directory: %s", keyParts[0])
+	key := tbl.source.Path()
+	ext, err := tbl.source.Ext()
+	if err != nil {
+		return nil, fmt.Errorf("could not get extension: %w", err)
 	}
-	b, err := tbl.store.Read(path)
+	if tbl.source.IsDir() {
+		// The key should only be a directory in the case of transformations.
+		if !tbl.isTransformation {
+			return nil, fmt.Errorf("expected a file but got a directory: %s", key)
+		}
+		// The file structure in cloud storage for transformations is /featureform/Transformation/<NAME>/<VARIANT>
+		// but there is an additional directory that's named using a timestamp that contains the transformation file
+		// we need to access. NewestFileOfType will recursively search for the newest file of the given type (i.e.
+		// parquet) given a path (i.e. `key`).
+		filename, err := tbl.store.NewestFileOfType(key, Parquet)
+		if err != nil {
+			return nil, fmt.Errorf("could not find newest file of type %s: %w", Parquet, err)
+		}
+		// We need to update key and keyParts with the result of NewestFileOfType for the Read below to succeed.
+		key = filename
+		pathComponents := strings.Split(key, ".")
+		if !IsValidFileType(pathComponents[len(pathComponents)-1]) {
+			return nil, fmt.Errorf("invalid file type '%s'", ext)
+		}
+		ext = FileType(pathComponents[len(pathComponents)-1])
+	}
+	fmt.Printf("Reading file at key %s in file store type %s\n", key, tbl.store.FilestoreType())
+	b, err := tbl.store.Read(key)
 	if err != nil {
 		return nil, fmt.Errorf("could not read file: %w", err)
 	}
-	switch fileType := keyParts[len(keyParts)-1]; fileType {
+	switch ext {
 	case "parquet":
 		return newParquetIterator(b, n)
 	case "csv":
 		return newCSVIterator(b, n)
 	default:
-		return nil, fmt.Errorf("unsupported file type: %s", fileType)
+		return nil, fmt.Errorf("unsupported file type: %s", ext)
 	}
 }
 
 func (tbl *FileStorePrimaryTable) NumRows() (int64, error) {
-	return tbl.store.NumRows(tbl.sourcePath)
+	return tbl.store.NumRows(tbl.source.Path())
 }
 
 type FileStoreIterator struct {
@@ -1042,11 +1084,11 @@ func (it *FileStoreIterator) Close() error {
 	return nil
 }
 
-func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
-	return blobRegisterPrimary(id, sourceName, k8s.logger, k8s.store)
+func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourcePath string) (PrimaryTable, error) {
+	return blobRegisterPrimary(id, sourcePath, k8s.logger, k8s.store)
 }
 
-func blobRegisterPrimary(id ResourceID, sourceName string, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
+func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
 	logger.Infow("Checking if resource key exists", "key", resourceKey)
 	primaryExists, err := store.Exists(resourceKey)
@@ -1055,18 +1097,32 @@ func blobRegisterPrimary(id ResourceID, sourceName string, logger *zap.SugaredLo
 		return nil, fmt.Errorf("error checking if primary exists: %v", err)
 	}
 	if primaryExists {
-		logger.Errorw("Primary table already exists", "source", sourceName)
+		logger.Errorw("Primary table already exists", "source", sourcePath)
 		return nil, fmt.Errorf("primary already exists")
 	}
 
-	logger.Debugw("Registering primary table", "id", id, "source", sourceName)
-	if err := store.Write(resourceKey, []byte(sourceName)); err != nil {
+	logger.Debugw("Registering primary table", "id", id, "source", sourcePath)
+	// **NOTE:** The data we're writing to the blob store is the path to the primary source data file.
+	// This blob will be read by other processes (e.g. transformation jobs) to fetch where the primary
+	// data is stored prior to acting on it. You can verify this by accessing the object stored at
+	// /featureform/Primary/<NAME>/<VARIANT>
+	if err := store.Write(resourceKey, []byte(sourcePath)); err != nil {
 		logger.Errorw("Could not write primary table", "error", err)
 		return nil, err
 	}
 
-	logger.Debugw("Successfully registered primary table", "id", id, "source", sourceName)
-	return &FileStorePrimaryTable{store, sourceName, false, id}, nil
+	filePath, err := NewEmptyFilepath(store.FilestoreType())
+	if err != nil {
+		logger.Errorw("Could not create empty filepath", "error", err, "storeType", store.FilestoreType(), "sourcePath", sourcePath)
+		return nil, err
+	}
+	err = filePath.ParseFullPath(sourcePath)
+	if err != nil {
+		logger.Errorw("Could not parse full path", "error", err, "sourcePath", sourcePath)
+		return nil, err
+	}
+	logger.Debugw("Successfully registered primary table", "id", id, "source", sourcePath)
+	return &FileStorePrimaryTable{store, filePath, false, id}, nil
 }
 
 func (k8s *K8sOfflineStore) CreateTransformation(config TransformationConfig) error {
@@ -1150,8 +1206,8 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 	}
 	k8s.logger.Debugw("Running SQL transformation", "target_table", config.TargetTableID, "query", config.Query)
 	runnerArgs := k8s.pandasRunnerArgs(transformationDestination, updatedQuery, sources, Transform)
-
 	runnerArgs = addResourceID(runnerArgs, config.TargetTableID)
+
 	args, err := k8s.checkArgs(config.Args)
 	if err != nil {
 		return fmt.Errorf("could not check args: %w", err)
@@ -1263,7 +1319,10 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
 		fileResourcePath := k8s.store.PathWithPrefix(fileStoreResourcePath(fileResourceId), false)
-		exactFileResourcePath, err := k8s.store.NewestFileOfType(fileResourcePath, Parquet)
+		k8s.logger.Debugw("Retrieved transformation source", "ResourceId", fileResourceId, "fileResourcePath", fileResourcePath)
+		// get file type of source
+		sourceFileExtension := FileType(filepath.Ext(fileResourcePath))
+		exactFileResourcePath, err := k8s.store.NewestFileOfType(fileResourcePath, sourceFileExtension)
 		k8s.logger.Debugw("Retrieved latest file path", "exactFileResourcePath", exactFileResourcePath)
 		if err != nil {
 			k8s.logger.Errorw("Could not get newest blob", "location", fileResourcePath, "error", err)
@@ -1307,16 +1366,23 @@ func (k8s *K8sOfflineStore) getResourceInformationFromFilePath(path string) (str
 }
 
 func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	k8s.logger.Debugw("Getting transformation table", "id", id)
-	transformationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(id), false)
-	transformationExactPath, err := k8s.store.NewestFileOfType(transformationPath, Parquet)
+	transformationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(id), true)
+	k8s.logger.Debugw("Retrieved transformation source", "ResourceId", id, "transformationPath", transformationPath)
+	filePath, err := NewEmptyFilepath(k8s.store.FilestoreType())
 	if err != nil {
-		k8s.logger.Errorw("Could not get transformation table", "error", err)
-		return nil, fmt.Errorf("could not get transformation table (%v): %v", id, err)
+		k8s.logger.Errorw("Could not create empty filepath", "error", err, "storeType", k8s.store.FilestoreType(), "transformationPath", transformationPath)
+		return nil, err
 	}
-
-	k8s.logger.Debugw("Successfully retrieved transformation table", "id", id)
-	return &FileStorePrimaryTable{k8s.store, transformationExactPath, true, id}, nil
+	err = filePath.ParseFullPath(transformationPath)
+	if err != nil {
+		k8s.logger.Errorw("Could not parse full path", "error", err, "transformationPath", transformationPath)
+		return nil, err
+	}
+	if err != nil {
+		k8s.logger.Errorw("Could not create empty filepath", "error", err, "storeType", k8s.store.FilestoreType(), "transformationPath", transformationPath)
+		return nil, err
+	}
+	return &FileStorePrimaryTable{k8s.store, filePath, true, id}, nil
 }
 
 func (k8s *K8sOfflineStore) UpdateTransformation(config TransformationConfig) error {
@@ -1332,15 +1398,24 @@ func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 
 func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogger) (PrimaryTable, error) {
 	resourceKey := store.PathWithPrefix(fileStoreResourcePath(id), false)
-	logger.Debugw("Getting primary table", "id", id)
-
+	logger.Debugw("Getting primary table", "id", id, "resourceKey", resourceKey)
 	table, err := store.Read(resourceKey)
+	logger.Debugw("Read primary table", "table", string(table), "error", err)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching primary table: %v", err)
 	}
-
+	filePath, err := NewEmptyFilepath(store.FilestoreType())
+	if err != nil {
+		logger.Errorw("Could not create empty filepath", "error", err, "storeType", store.FilestoreType(), "resourceKey", resourceKey)
+		return nil, err
+	}
+	err = filePath.ParseFullPath(string(table))
+	if err != nil {
+		logger.Errorw("Could not parse full path", "error", err, "table", string(table))
+		return nil, err
+	}
 	logger.Debugw("Successfully retrieved primary table", "id", id)
-	return &FileStorePrimaryTable{store, string(table), false, id}, nil
+	return &FileStorePrimaryTable{store, filePath, false, id}, nil
 }
 
 func (k8s *K8sOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
@@ -1566,36 +1641,41 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		return nil, fmt.Errorf("could not convert offline table with id %v to k8sResourceTable", id)
 	}
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
-	destinationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(materializationID), false)
-	materializationExists, err := k8s.store.Exists(destinationPath)
+	featureResourcePath := fileStoreResourcePath(materializationID)
+	destinationPath := k8s.store.PathWithPrefix(featureResourcePath, false)
+	materializationNewestFile, err := k8s.store.NewestFileOfType(destinationPath, Parquet)
+	k8s.logger.Debugw("Running Materialization", "id", id, "destinationPath", destinationPath, "materializationNewestFile", materializationNewestFile)
+	materializationExists := materializationNewestFile != ""
 	if err != nil {
 		k8s.logger.Errorw("Could not determine whether materialization exists", err)
 		return nil, fmt.Errorf("error checking if materialization exists: %v", err)
 	}
 	if !isUpdate && materializationExists {
-		k8s.logger.Errorw("Attempted to materialize a materialization that already exists", id)
+		k8s.logger.Errorw("Attempted to materialize a materialization that already exists", "id", id)
 		return nil, fmt.Errorf("materialization already exists")
 	} else if isUpdate && !materializationExists {
-		k8s.logger.Errorw("Attempted to update a materialization that does not exist", id)
+		k8s.logger.Errorw("Attempted to update a materialization that does not exist", "id", id)
 		return nil, fmt.Errorf("materialization does not exist")
 	}
 	materializationQuery := k8s.query.materializationCreate(k8sResourceTable.schema)
 	sourcePath := k8s.store.PathWithPrefix(k8sResourceTable.schema.SourceTable, false)
-	k8sArgs := k8s.pandasRunnerArgs(destinationPath, materializationQuery, []string{sourcePath}, Materialize)
-
+	// get source path file type; note, it's possible it doesn't have it
+	fileType := GetFileType(sourcePath)
+	newestSourcePath, err := k8s.store.NewestFileOfType(sourcePath, fileType)
+	k8s.logger.Debugw("Retrieved newest source path", "sourcePath", sourcePath, "newestSourcePath", newestSourcePath)
+	if err != nil {
+		k8s.logger.Errorw("Could not determine newest source file for materialization", "sourcePath", sourcePath, "error", err)
+		return nil, fmt.Errorf("error determining newest source file: %v", err)
+	}
+	k8sArgs := k8s.pandasRunnerArgs(destinationPath, materializationQuery, []string{newestSourcePath}, Materialize)
 	k8sArgs = addResourceID(k8sArgs, id)
-	k8s.logger.Debugw("Creating materialization", "id", id)
 	if err := k8s.executor.ExecuteScript(k8sArgs, nil); err != nil {
-		k8s.logger.Errorw("Job failed to run", err)
+		k8s.logger.Errorw("Job failed to run", "error", err)
 		return nil, fmt.Errorf("job for materialization %v failed to run: %v", materializationID, err)
 	}
-	matPath := k8s.store.PathWithPrefix(fileStoreResourcePath(materializationID), false)
-	latestMatPath, err := k8s.store.NewestFileOfType(matPath, Parquet)
-	if err != nil {
-		return nil, fmt.Errorf("materialization does not exist; %v", err)
-	}
+
 	k8s.logger.Debugw("Successfully created materialization", "id", id)
-	return &FileStoreMaterialization{materializationID, k8s.store, latestMatPath}, nil
+	return &FileStoreMaterialization{materializationID, k8s.store, materializationNewestFile}, nil
 }
 
 func (k8s *K8sOfflineStore) DeleteMaterialization(id MaterializationID) error {
@@ -1637,7 +1717,7 @@ func (k8s *K8sOfflineStore) registeredResourceSchema(id ResourceID) (ResourceSch
 		k8s.logger.Errorw("could not convert offline table to blobResourceTable", "id", id)
 		return ResourceSchema{}, fmt.Errorf("could not convert offline table with id %v to blobResourceTable", id)
 	}
-	k8s.logger.Debugw("Successfully retrieved resource schema", "id", id)
+	k8s.logger.Debugw("Successfully retrieved resource schema", "id", id, "schema", blobResourceTable.schema)
 	return blobResourceTable.schema, nil
 }
 
@@ -1650,6 +1730,9 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	featureSchemas := make([]ResourceSchema, 0)
 	destinationPath := k8s.store.PathWithPrefix(fileStoreResourcePath(def.ID), false)
 	trainingSetExactPath, err := k8s.store.NewestFileOfType(destinationPath, Parquet)
+
+	k8s.logger.Debugw("Running Training Set", "id", def.ID, "destinationPath", destinationPath, "trainingSetExactPath", trainingSetExactPath)
+
 	if err != nil {
 		return fmt.Errorf("could not get training set path: %v", err)
 	}
@@ -1667,7 +1750,14 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 		return fmt.Errorf("could not get schema of label %s: %v", def.Label, err)
 	}
 	labelPath := labelSchema.SourceTable
-	sourcePaths = append(sourcePaths, labelPath)
+	fileType := GetFileType(labelPath)
+	latestLabelFile, err := k8s.store.NewestFileOfType(labelPath, fileType)
+	k8s.logger.Debugw("Latest label file", "labelPath", labelPath, "latestLabelFile", latestLabelFile)
+	if err != nil {
+		k8s.logger.Errorw("Could not get latest label file", "error", err)
+		return fmt.Errorf("could not get latest label file: %v", err)
+	}
+	sourcePaths = append(sourcePaths, latestLabelFile)
 	for _, feature := range def.Features {
 		featureSchema, err := k8s.registeredResourceSchema(feature)
 		if err != nil {
@@ -1675,12 +1765,19 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 			return fmt.Errorf("could not get schema of feature %s: %v", feature, err)
 		}
 		featurePath := featureSchema.SourceTable
-		sourcePaths = append(sourcePaths, featurePath)
+		fileType := GetFileType(featurePath)
+		latestFeatureFile, err := k8s.store.NewestFileOfType(featurePath, fileType)
+		k8s.logger.Debugw("Latest feature file", "featurePath", featurePath, "latestFeatureFile", latestFeatureFile)
+		if err != nil {
+			k8s.logger.Errorw("Could not get latest feature file", "error", err)
+			return fmt.Errorf("could not get latest feature file: %v", err)
+		}
+		sourcePaths = append(sourcePaths, latestFeatureFile)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := k8s.query.trainingSetCreate(def, featureSchemas, labelSchema)
-	k8s.logger.Debugw("Training set query", "query", sourcePaths)
-	k8s.logger.Debugw("Source list", "list", trainingSetQuery)
+	k8s.logger.Debugw("Source List", "SourceFiles", sourcePaths)
+	k8s.logger.Debugw("Training Set Query", "list", trainingSetQuery)
 	pandasArgs := k8s.pandasRunnerArgs(k8s.store.PathWithPrefix(destinationPath, false), trainingSetQuery, sourcePaths, CreateTrainingSet)
 	pandasArgs = addResourceID(pandasArgs, def.ID)
 	k8s.logger.Debugw("Creating training set", "definition", def)

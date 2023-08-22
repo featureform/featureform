@@ -1,7 +1,6 @@
 import os.path
 import shutil
 import stat
-from typing import Tuple, Callable, Any
 
 import featureform as ff
 import pandas as pd
@@ -22,18 +21,18 @@ class SetupFixture:
 
 @pytest.fixture(scope="function")
 def setup(tmp_path_factory):
+    variant = "cache_test"
+
     temp_dir = tmp_path_factory.mktemp("test_inputs")
     temp_transactions = temp_dir / "transactions.csv"
     shutil.copy(SOURCE_FILE, temp_transactions)
     transactions = local.register_file(
         name="transactions",
-        variant="quickstart",
+        variant=variant,
         path=str(temp_transactions),
     )
 
-    @local.df_transformation(
-        variant="quickstart", inputs=[("transactions", "quickstart")]
-    )
+    @local.df_transformation(variant=variant, inputs=[("transactions", variant)])
     def average_user_transaction(transactions):
         """the average transaction amount for a user"""
         return transactions.groupby("CustomerID")["TransactionAmount"].mean()
@@ -48,7 +47,7 @@ def setup(tmp_path_factory):
         features=[
             {
                 "name": "avg_transactions",
-                "variant": "quickstart",
+                "variant": variant,
                 "column": "TransactionAmount",
                 "type": "float32",
             },
@@ -63,7 +62,7 @@ def setup(tmp_path_factory):
         labels=[
             {
                 "name": "fraudulent",
-                "variant": "quickstart",
+                "variant": variant,
                 "column": "IsFraud",
                 "type": "bool",
             },
@@ -72,27 +71,23 @@ def setup(tmp_path_factory):
 
     ff.register_training_set(
         "fraud_training",
-        "quickstart",
-        label=("fraudulent", "quickstart"),
-        features=[("avg_transactions", "quickstart")],
+        variant,
+        label=("fraudulent", variant),
+        features=[("avg_transactions", variant)],
     )
 
-    resource_client = ff.ResourceClient(local=True)
-    resource_client.apply()
+    with ff.Client(local=True) as client:
+        client.apply()
+        client.training_set("fraud_training", variant)  # this will create the cache
 
-    serving_client = ff.ServingClient(local=True)
-    serving_client.training_set("fraud_training", "quickstart")
-
-    yield SetupFixture(
-        transactions_file=str(temp_transactions), serving_client=serving_client
-    )
-
-    serving_client.impl.db.close()
-    clear_state()
+        yield SetupFixture(
+            transactions_file=str(temp_transactions), serving_client=client
+        )
 
 
-def clear_state():
-    ff.clear_state()
+@pytest.fixture(autouse=True)
+def cleanup():
+    yield
     shutil.rmtree(".featureform", onerror=del_rw)
 
 
@@ -112,10 +107,10 @@ class TestLocalCache:
         cache_files = os.listdir(".featureform/cache")
 
         expected_cache_files = [
-            "transformation__average_user_transaction__quickstart.pkl",
-            "feature__avg_transactions__quickstart.pkl",
-            "label__fraudulent__quickstart.pkl",
-            "training_set__fraud_training__quickstart.pkl",
+            "transformation__average_user_transaction__cache_test.pkl",
+            "feature__avg_transactions__cache_test.pkl",
+            "label__fraudulent__cache_test.pkl",
+            "training_set__fraud_training__cache_test.pkl",
         ]
 
         assert os.path.exists(".featureform/cache")
@@ -130,13 +125,13 @@ class TestLocalCache:
 
         # make a change to the cached file
         label_df = pd.read_pickle(
-            ".featureform/cache/label__fraudulent__quickstart.pkl"
+            ".featureform/cache/label__fraudulent__cache_test.pkl"
         )
         label_df["label"] = None
-        label_df.to_pickle(".featureform/cache/label__fraudulent__quickstart.pkl")
+        label_df.to_pickle(".featureform/cache/label__fraudulent__cache_test.pkl")
 
         label = fixture.serving_client.impl.db.get_label_variant(
-            "fraudulent", "quickstart"
+            "fraudulent", "cache_test"
         )
         label_df = fixture.serving_client.impl.get_label_dataframe(label)
 
@@ -148,15 +143,15 @@ class TestLocalCache:
 
         # make a change to the cached file
         transformation_df = pd.read_pickle(
-            ".featureform/cache/transformation__average_user_transaction__quickstart.pkl"
+            ".featureform/cache/transformation__average_user_transaction__cache_test.pkl"
         )
         transformation_df["TransactionAmount"] = 0
         transformation_df.to_pickle(
-            ".featureform/cache/transformation__average_user_transaction__quickstart.pkl"
+            ".featureform/cache/transformation__average_user_transaction__cache_test.pkl"
         )
 
         transformation_df = fixture.serving_client.impl.process_transformation(
-            "average_user_transaction", "quickstart"
+            "average_user_transaction", "cache_test"
         )
 
         # ensure all values are 0
@@ -167,15 +162,15 @@ class TestLocalCache:
 
         # make a change to the cached file
         training_set_df = pd.read_pickle(
-            ".featureform/cache/training_set__fraud_training__quickstart.pkl"
+            ".featureform/cache/training_set__fraud_training__cache_test.pkl"
         )
         training_set_df["fraudulent"] = None
         training_set_df.to_pickle(
-            ".featureform/cache/training_set__fraud_training__quickstart.pkl"
+            ".featureform/cache/training_set__fraud_training__cache_test.pkl"
         )
 
         training_set = fixture.serving_client.training_set(
-            "fraud_training", "quickstart"
+            "fraud_training", "cache_test"
         )
         training_set_df = training_set.pandas()
 
@@ -193,7 +188,7 @@ class TestLocalCache:
         transactions.to_csv(fixture.transactions_file, index=False)
 
         label = fixture.serving_client.impl.db.get_label_variant(
-            "fraudulent", "quickstart"
+            "fraudulent", "cache_test"
         )
         label_df = fixture.serving_client.impl.get_label_dataframe(label)
 
@@ -212,7 +207,7 @@ class TestLocalCache:
         transactions.to_csv(fixture.transactions_file, index=False)
 
         training_set = fixture.serving_client.training_set(
-            "fraud_training", "quickstart"
+            "fraud_training", "cache_test"
         )
         training_set_df = training_set.pandas()
 
@@ -230,7 +225,7 @@ class TestLocalCache:
         transactions.to_csv(fixture.transactions_file, index=False)
 
         transformation_df = fixture.serving_client.impl.process_transformation(
-            "average_user_transaction", "quickstart"
+            "average_user_transaction", "cache_test"
         )
 
         # ensure all values are 0
@@ -248,9 +243,9 @@ class TestLocalCache:
         transactions.to_csv(fixture.transactions_file, index=False)
 
         feature = fixture.serving_client.impl.db.get_feature_variant(
-            "avg_transactions", "quickstart"
+            "avg_transactions", "cache_test"
         )
         feature_df = fixture.serving_client.impl.get_feature_dataframe(feature)
 
         # ensure all values are 0
-        assert feature_df["avg_transactions.quickstart"].all() == 0
+        assert feature_df["avg_transactions.cache_test"].all() == 0

@@ -18,6 +18,7 @@ func init() {
 		pt.CassandraOnline:  cassandraOnlineStoreFactory,
 		pt.FirestoreOnline:  firestoreOnlineStoreFactory,
 		pt.DynamoDBOnline:   dynamodbOnlineStoreFactory,
+		pt.PineconeOnline:   pineconeOnlineStoreFactory,
 		pt.MemoryOffline:    memoryOfflineStoreFactory,
 		pt.PostgresOffline:  postgresOfflineStoreFactory,
 		pt.SnowflakeOffline: snowflakeOfflineStoreFactory,
@@ -27,6 +28,7 @@ func init() {
 		pt.K8sOffline:       k8sOfflineStoreFactory,
 		pt.BlobOnline:       blobOnlineStoreFactory,
 		pt.MongoDBOnline:    mongoOnlineStoreFactory,
+		pt.UNIT_TEST:        unitTestStoreFactory,
 	}
 	for name, factory := range unregisteredFactories {
 		if err := RegisterFactory(name, factory); err != nil {

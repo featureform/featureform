@@ -44,6 +44,7 @@ var postgresConfig = pc.PostgresConfig{
 	Database: help.GetEnv("POSTGRES_DB", "postgres"),
 	Username: help.GetEnv("POSTGRES_USER", "postgres"),
 	Password: help.GetEnv("POSTGRES_PASSWORD", "password"),
+	SSLMode:  "disable",
 }
 
 var redisPort = help.GetEnv("REDIS_INSECURE_PORT", "6379")
@@ -1803,5 +1804,101 @@ func TestGetSourceMappingError(t *testing.T) {
 	_, err := getSourceMapping(templateString, wrongReplacements)
 	if err == nil {
 		t.Fatalf("getSourceMapping did not catch error: templateString {%v} and wrongReplacement {%v}", templateString, wrongReplacements)
+	}
+}
+
+func TestGetOrderedSourceMappings(t *testing.T) {
+	type testCase struct {
+		name              string
+		sources           []metadata.NameVariant
+		sourceMap         map[string]string
+		expectedSourceMap []provider.SourceMapping
+		expectError       bool
+	}
+
+	testCases := []testCase{
+		{
+			name: "test ordered source mappings",
+			sources: []metadata.NameVariant{
+				{Name: "name1", Variant: "variant1"},
+				{Name: "name2", Variant: "variant2"},
+			},
+			sourceMap: map[string]string{
+				"name1.variant1": "tableA",
+				"name2.variant2": "tableB",
+			},
+			expectedSourceMap: []provider.SourceMapping{
+				{
+					Template: "name1.variant1",
+					Source:   "tableA",
+				},
+				{
+					Template: "name2.variant2",
+					Source:   "tableB",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "test unordered source mappings",
+			sources: []metadata.NameVariant{
+				{Name: "name1", Variant: "variant1"},
+				{Name: "name2", Variant: "variant2"},
+				{Name: "name3", Variant: "variant3"},
+				{Name: "name4", Variant: "variant4"},
+			},
+			sourceMap: map[string]string{
+				"name2.variant2": "tableB",
+				"name4.variant4": "tableD",
+				"name1.variant1": "tableA",
+				"name3.variant3": "tableC",
+			},
+			expectedSourceMap: []provider.SourceMapping{
+				{
+					Template: "name1.variant1",
+					Source:   "tableA",
+				},
+				{
+					Template: "name2.variant2",
+					Source:   "tableB",
+				},
+				{
+					Template: "name3.variant3",
+					Source:   "tableC",
+				},
+				{
+					Template: "name4.variant4",
+					Source:   "tableD",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "test missing key in source map",
+			sources: []metadata.NameVariant{
+				{Name: "name1", Variant: "variant1"},
+				{Name: "name2", Variant: "variant2"},
+			},
+			sourceMap: map[string]string{
+				"name1.variant1": "tableA",
+			},
+			expectedSourceMap: nil,
+			expectError:       true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			sourceMap, err := getOrderedSourceMappings(tc.sources, tc.sourceMap)
+			if tc.expectError && err == nil {
+				t.Fatalf("Expected error, but did not get one")
+			}
+			if !tc.expectError && err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			if !reflect.DeepEqual(sourceMap, tc.expectedSourceMap) {
+				t.Fatalf("source mapping did not generate the SourceMapping correctly. Expected %v, got %v", sourceMap, tc.expectedSourceMap)
+			}
+		})
 	}
 }

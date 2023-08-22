@@ -88,7 +88,7 @@ func (properties Properties) Serialize() *pb.Properties {
 type Client struct {
 	Logger   *zap.SugaredLogger
 	conn     *grpc.ClientConn
-	grpcConn pb.MetadataClient
+	GrpcConn pb.MetadataClient
 }
 
 type ResourceDef interface {
@@ -100,7 +100,7 @@ func (client *Client) RequestScheduleChange(ctx context.Context, resID ResourceI
 	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
 	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
 	scheduleChangeRequest := pb.ScheduleChangeRequest{ResourceId: &resourceID, Schedule: schedule}
-	_, err := client.grpcConn.RequestScheduleChange(ctx, &scheduleChangeRequest)
+	_, err := client.GrpcConn.RequestScheduleChange(ctx, &scheduleChangeRequest)
 	return err
 }
 
@@ -109,7 +109,7 @@ func (client *Client) SetStatus(ctx context.Context, resID ResourceID, status Re
 	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
 	resourceStatus := pb.ResourceStatus{Status: pb.ResourceStatus_Status(status), ErrorMessage: errorMessage}
 	statusRequest := pb.SetStatusRequest{ResourceId: &resourceID, Status: &resourceStatus}
-	_, err := client.grpcConn.SetResourceStatus(ctx, &statusRequest)
+	_, err := client.GrpcConn.SetResourceStatus(ctx, &statusRequest)
 	return err
 }
 
@@ -146,7 +146,7 @@ func (client *Client) Create(ctx context.Context, def ResourceDef) error {
 }
 
 func (client *Client) ListFeatures(ctx context.Context) ([]*Feature, error) {
-	stream, err := client.grpcConn.ListFeatures(ctx, &pb.Empty{})
+	stream, err := client.GrpcConn.ListFeatures(ctx, &pb.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func (client *Client) GetFeature(ctx context.Context, feature string) (*Feature,
 }
 
 func (client *Client) GetFeatures(ctx context.Context, features []string) ([]*Feature, error) {
-	stream, err := client.grpcConn.GetFeatures(ctx)
+	stream, err := client.GrpcConn.GetFeatures(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +179,7 @@ func (client *Client) GetFeatures(ctx context.Context, features []string) ([]*Fe
 }
 
 func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant) ([]*FeatureVariant, error) {
-	stream, err := client.grpcConn.GetFeatureVariants(ctx)
+	stream, err := client.GrpcConn.GetFeatureVariants(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +295,7 @@ func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) 
 	default:
 		return fmt.Errorf("FeatureDef Columns has unexpected type %T", x)
 	}
-	_, err := client.grpcConn.CreateFeatureVariant(ctx, serialized)
+	_, err := client.GrpcConn.CreateFeatureVariant(ctx, serialized)
 	return err
 }
 
@@ -336,7 +336,7 @@ func (client *Client) parseFeatureVariantStream(stream featureVariantStream) ([]
 }
 
 func (client *Client) ListLabels(ctx context.Context) ([]*Label, error) {
-	stream, err := client.grpcConn.ListLabels(ctx, &pb.Empty{})
+	stream, err := client.GrpcConn.ListLabels(ctx, &pb.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +352,7 @@ func (client *Client) GetLabel(ctx context.Context, label string) (*Label, error
 }
 
 func (client *Client) GetLabels(ctx context.Context, labels []string) ([]*Label, error) {
-	stream, err := client.grpcConn.GetLabels(ctx)
+	stream, err := client.GrpcConn.GetLabels(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -408,12 +408,12 @@ func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) erro
 	default:
 		return fmt.Errorf("LabelDef Primary has unexpected type %T", x)
 	}
-	_, err := client.grpcConn.CreateLabelVariant(ctx, serialized)
+	_, err := client.GrpcConn.CreateLabelVariant(ctx, serialized)
 	return err
 }
 
 func (client *Client) GetLabelVariants(ctx context.Context, ids []NameVariant) ([]*LabelVariant, error) {
-	stream, err := client.grpcConn.GetLabelVariants(ctx)
+	stream, err := client.GrpcConn.GetLabelVariants(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -474,7 +474,7 @@ func (client *Client) parseLabelVariantStream(stream labelVariantStream) ([]*Lab
 }
 
 func (client *Client) ListTrainingSets(ctx context.Context) ([]*TrainingSet, error) {
-	stream, err := client.grpcConn.ListTrainingSets(ctx, &pb.Empty{})
+	stream, err := client.GrpcConn.ListTrainingSets(ctx, &pb.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -490,7 +490,7 @@ func (client *Client) GetTrainingSet(ctx context.Context, trainingSet string) (*
 }
 
 func (client *Client) GetTrainingSets(ctx context.Context, trainingSets []string) ([]*TrainingSet, error) {
-	stream, err := client.grpcConn.GetTrainingSets(ctx)
+	stream, err := client.GrpcConn.GetTrainingSets(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -537,7 +537,7 @@ func (client *Client) CreateTrainingSetVariant(ctx context.Context, def Training
 		Tags:        &pb.Tags{Tag: def.Tags},
 		Properties:  def.Properties.Serialize(),
 	}
-	_, err := client.grpcConn.CreateTrainingSetVariant(ctx, serialized)
+	_, err := client.GrpcConn.CreateTrainingSetVariant(ctx, serialized)
 	return err
 }
 
@@ -550,7 +550,7 @@ func (client *Client) GetTrainingSetVariant(ctx context.Context, id NameVariant)
 }
 
 func (client *Client) GetTrainingSetVariants(ctx context.Context, ids []NameVariant) ([]*TrainingSetVariant, error) {
-	stream, err := client.grpcConn.GetTrainingSetVariants(ctx)
+	stream, err := client.GrpcConn.GetTrainingSetVariants(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -603,7 +603,7 @@ func (client *Client) parseTrainingSetVariantStream(stream trainingSetVariantStr
 }
 
 func (client *Client) ListSources(ctx context.Context) ([]*Source, error) {
-	stream, err := client.grpcConn.ListSources(ctx, &pb.Empty{})
+	stream, err := client.GrpcConn.ListSources(ctx, &pb.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -619,7 +619,7 @@ func (client *Client) GetSource(ctx context.Context, source string) (*Source, er
 }
 
 func (client *Client) GetSources(ctx context.Context, sources []string) ([]*Source, error) {
-	stream, err := client.grpcConn.GetSources(ctx)
+	stream, err := client.GrpcConn.GetSources(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -767,12 +767,12 @@ func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) er
 	if err != nil {
 		return err
 	}
-	_, err = client.grpcConn.CreateSourceVariant(ctx, serialized)
+	_, err = client.GrpcConn.CreateSourceVariant(ctx, serialized)
 	return err
 }
 
 func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) ([]*SourceVariant, error) {
-	stream, err := client.grpcConn.GetSourceVariants(ctx)
+	stream, err := client.GrpcConn.GetSourceVariants(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("grpc connect: %w", err)
 	}
@@ -841,7 +841,7 @@ func (client *Client) parseSourceVariantStream(stream sourceVariantStream) ([]*S
 }
 
 func (client *Client) ListUsers(ctx context.Context) ([]*User, error) {
-	stream, err := client.grpcConn.ListUsers(ctx, &pb.Empty{})
+	stream, err := client.GrpcConn.ListUsers(ctx, &pb.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -857,7 +857,7 @@ func (client *Client) GetUser(ctx context.Context, user string) (*User, error) {
 }
 
 func (client *Client) GetUsers(ctx context.Context, users []string) ([]*User, error) {
-	stream, err := client.grpcConn.GetUsers(ctx)
+	stream, err := client.GrpcConn.GetUsers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -889,7 +889,7 @@ func (client *Client) CreateUser(ctx context.Context, def UserDef) error {
 		Tags:       &pb.Tags{Tag: def.Tags},
 		Properties: def.Properties.Serialize(),
 	}
-	_, err := client.grpcConn.CreateUser(ctx, serialized)
+	_, err := client.GrpcConn.CreateUser(ctx, serialized)
 	return err
 }
 
@@ -912,7 +912,7 @@ func (client *Client) parseUserStream(stream userStream) ([]*User, error) {
 }
 
 func (client *Client) ListProviders(ctx context.Context) ([]*Provider, error) {
-	stream, err := client.grpcConn.ListProviders(ctx, &pb.Empty{})
+	stream, err := client.GrpcConn.ListProviders(ctx, &pb.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -928,7 +928,7 @@ func (client *Client) GetProvider(ctx context.Context, provider string) (*Provid
 }
 
 func (client *Client) GetProviders(ctx context.Context, providers []string) ([]*Provider, error) {
-	stream, err := client.grpcConn.GetProviders(ctx)
+	stream, err := client.GrpcConn.GetProviders(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -971,7 +971,7 @@ func (client *Client) CreateProvider(ctx context.Context, def ProviderDef) error
 		Tags:             &pb.Tags{Tag: def.Tags},
 		Properties:       def.Properties.Serialize(),
 	}
-	_, err := client.grpcConn.CreateProvider(ctx, serialized)
+	_, err := client.GrpcConn.CreateProvider(ctx, serialized)
 	return err
 }
 
@@ -994,7 +994,7 @@ func (client *Client) parseProviderStream(stream providerStream) ([]*Provider, e
 }
 
 func (client *Client) ListEntities(ctx context.Context) ([]*Entity, error) {
-	stream, err := client.grpcConn.ListEntities(ctx, &pb.Empty{})
+	stream, err := client.GrpcConn.ListEntities(ctx, &pb.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -1010,7 +1010,7 @@ func (client *Client) GetEntity(ctx context.Context, entity string) (*Entity, er
 }
 
 func (client *Client) GetEntities(ctx context.Context, entities []string) ([]*Entity, error) {
-	stream, err := client.grpcConn.GetEntities(ctx)
+	stream, err := client.GrpcConn.GetEntities(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1045,7 +1045,7 @@ func (client *Client) CreateEntity(ctx context.Context, def EntityDef) error {
 		Tags:        &pb.Tags{Tag: def.Tags},
 		Properties:  def.Properties.Serialize(),
 	}
-	_, err := client.grpcConn.CreateEntity(ctx, serialized)
+	_, err := client.GrpcConn.CreateEntity(ctx, serialized)
 	return err
 }
 
@@ -1068,7 +1068,7 @@ func (client *Client) parseEntityStream(stream entityStream) ([]*Entity, error) 
 }
 
 func (client *Client) ListModels(ctx context.Context) ([]*Model, error) {
-	stream, err := client.grpcConn.ListModels(ctx, &pb.Empty{})
+	stream, err := client.GrpcConn.ListModels(ctx, &pb.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -1084,7 +1084,7 @@ func (client *Client) GetModel(ctx context.Context, model string) (*Model, error
 }
 
 func (client *Client) GetModels(ctx context.Context, models []string) ([]*Model, error) {
-	stream, err := client.grpcConn.GetModels(ctx)
+	stream, err := client.GrpcConn.GetModels(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1122,7 +1122,7 @@ func (client *Client) CreateModel(ctx context.Context, def ModelDef) error {
 		Tags:         &pb.Tags{Tag: def.Tags},
 		Properties:   def.Properties.Serialize(),
 	}
-	_, err := client.grpcConn.CreateModel(ctx, serialized)
+	_, err := client.GrpcConn.CreateModel(ctx, serialized)
 	return err
 }
 
@@ -1536,6 +1536,10 @@ type User struct {
 	fetchPropertiesFn
 }
 
+func (u User) Variant() string {
+	return ""
+}
+
 func wrapProtoUser(serialized *pb.User) *User {
 	return &User{
 		serialized:           serialized,
@@ -1584,6 +1588,10 @@ type Provider struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
+}
+
+func (p Provider) Variant() string {
+	return ""
 }
 
 func wrapProtoProvider(serialized *pb.Provider) *Provider {
@@ -1653,6 +1661,10 @@ type Model struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
+}
+
+func (m Model) Variant() string {
+	return ""
 }
 
 func wrapProtoModel(serialized *pb.Model) *Model {
@@ -1976,6 +1988,13 @@ func (variant *SourceVariant) parseKubernetesArgs() KubernetesArgs {
 	}
 }
 
+func (variant *SourceVariant) DFTransformationQuerySource() string {
+	if !variant.IsDFTransformation() {
+		return ""
+	}
+	return variant.serialized.GetTransformation().GetDFTransformation().GetSourceText()
+}
+
 func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
 	return &SourceVariant{
 		serialized:           serialized,
@@ -2137,6 +2156,10 @@ type Entity struct {
 	fetchPropertiesFn
 }
 
+func (e Entity) Variant() string {
+	return ""
+}
+
 func wrapProtoEntity(serialized *pb.Entity) *Entity {
 	return &Entity{
 		serialized:           serialized,
@@ -2191,7 +2214,7 @@ func NewClient(host string, logger *zap.SugaredLogger) (*Client, error) {
 	return &Client{
 		Logger:   logger,
 		conn:     conn,
-		grpcConn: client,
+		GrpcConn: client,
 	}, nil
 }
 

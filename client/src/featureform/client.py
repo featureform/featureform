@@ -1,13 +1,15 @@
 from typing import Union
+
+from .constants import NO_RECORD_LIMIT
+from .names_generator import get_random_name
 from .register import (
     ResourceClient,
     SourceRegistrar,
     LocalSource,
     SubscriptableTransformation,
+    FeatureColumnResource,
 )
 from .serving import ServingClient
-from .constants import NO_RECORD_LIMIT
-from .names_generator import get_random_name
 
 
 class Client(ResourceClient, ServingClient):
@@ -52,6 +54,7 @@ class Client(ResourceClient, ServingClient):
         source: Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str],
         variant: Union[str, None] = None,
         limit=NO_RECORD_LIMIT,
+        asynchronous=False,
     ):
         """
         Compute a dataframe from a registered source or transformation
@@ -60,6 +63,7 @@ class Client(ResourceClient, ServingClient):
             source (Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
             variant (str): The source variant; defaults to a Docker-style random name and is ignored if source argument is not a string
             limit (int): The maximum number of records to return; defaults to NO_RECORD_LIMIT
+            asynchronous (bool): @param asynchronous: Flag to determine whether the client should wait for resources to be in either a READY or FAILED state before returning. Defaults to False to ensure that newly registered resources are in a READY state prior to serving them as dataframes.
 
         **Example:**
         ```py title="definitions.py"
@@ -68,6 +72,7 @@ class Client(ResourceClient, ServingClient):
         avg_user_transaction_df = transactions_df.groupby("CustomerID")["TransactionAmount"].mean()
         ```
         """
+        self.apply(asynchronous=asynchronous)
         if isinstance(
             source, (SourceRegistrar, LocalSource, SubscriptableTransformation)
         ):
@@ -81,13 +86,12 @@ class Client(ResourceClient, ServingClient):
         variant = get_random_name() if variant is None else variant
         return self.impl._get_source_as_df(name, variant, limit)
 
-    def nearest(self, name, variant, vector, k):
+    def nearest(self, feature, vector, k):
         """
         Query the K nearest neighbors of a provider vector in the index of a registered feature variant
 
         Args:
-            name (str): Feature name
-            variant (str): Feature variant
+            feature (Union[FeatureColumnResource, tuple(str, str)]): Feature object or tuple of Feature name and variant
             vector (List[float]): Query vector
             k (int): Number of nearest neighbors to return
 
@@ -98,6 +102,29 @@ class Client(ResourceClient, ServingClient):
         print(nearest_neighbors) # prints a list of entities (e.g. ["entity1", "entity2", "entity3", "entity4", "entity5"])
         ```
         """
+        if isinstance(feature, tuple):
+            name, variant = feature
+        elif isinstance(feature, FeatureColumnResource):
+            name = feature.name
+            variant = feature.variant
+        else:
+            raise Exception(
+                f"the feature '{feature}' of type '{type(feature)}' is not support."
+                "Feature must be a tuple of (name, variant) or a FeatureColumnResource"
+            )
+
         if k < 1:
             raise ValueError(f"k must be a positive integer")
-        return self.impl._nearest(name, variant, vector, k)
+        return self.impl.nearest(name, variant, vector, k)
+
+    def close(self):
+        """
+        Closes the client, closes channel for hosted mode and db for local mode
+        """
+        self.impl.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()

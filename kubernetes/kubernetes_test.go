@@ -6,9 +6,14 @@ package kubernetes
 
 import (
 	"errors"
+	"github.com/featureform/metadata"
 	"github.com/google/uuid"
 	batchv1 "k8s.io/api/batch/v1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	watch "k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
+	"reflect"
 	"testing"
 )
 
@@ -274,93 +279,217 @@ func TestKubernetesRunnerScheduleFail(t *testing.T) {
 	}
 }
 
-func TestMonthlySchedule(t *testing.T) {
-	schedule, err := MonthlySchedule(1, 2, 3)
-	if err != nil {
-		t.Fatalf("triggered error on proper cron job parameters")
+func Test_validateJobLimits(t *testing.T) {
+	type args struct {
+		specs metadata.KubernetesResourceSpecs
 	}
-	if *schedule != CronSchedule("1 2 3 * *") {
-		t.Fatalf("Failed to create proper monthly cron schedule")
+	tests := []struct {
+		name    string
+		args    args
+		want    v1.ResourceRequirements
+		wantErr bool
+	}{
+		{
+			name: "CPU Request",
+			args: args{
+				metadata.KubernetesResourceSpecs{
+					CPURequest: "1",
+				},
+			},
+			want: func() v1.ResourceRequirements {
+				rsrcReq := v1.ResourceRequirements{
+					Requests: make(v1.ResourceList),
+					Limits:   make(v1.ResourceList),
+				}
+				rsrcReq.Requests[v1.ResourceCPU], _ = resource.ParseQuantity("1")
+				return rsrcReq
+			}(),
+			wantErr: false,
+		},
+		{
+			name: "CPU Limit",
+			args: args{
+				metadata.KubernetesResourceSpecs{
+					CPULimit: "1",
+				},
+			},
+			want: func() v1.ResourceRequirements {
+				rsrcReq := v1.ResourceRequirements{
+					Requests: make(v1.ResourceList),
+					Limits:   make(v1.ResourceList),
+				}
+				rsrcReq.Limits[v1.ResourceCPU], _ = resource.ParseQuantity("1")
+				return rsrcReq
+			}(),
+			wantErr: false,
+		},
+		{
+			name: "Memory Request",
+			args: args{
+				metadata.KubernetesResourceSpecs{
+					MemoryRequest: "1",
+				},
+			},
+			want: func() v1.ResourceRequirements {
+				rsrcReq := v1.ResourceRequirements{
+					Requests: make(v1.ResourceList),
+					Limits:   make(v1.ResourceList),
+				}
+				rsrcReq.Requests[v1.ResourceMemory], _ = resource.ParseQuantity("1")
+				return rsrcReq
+			}(),
+			wantErr: false,
+		},
+		{
+			name: "Memory Limit",
+			args: args{
+				metadata.KubernetesResourceSpecs{
+					MemoryLimit: "1",
+				},
+			},
+			want: func() v1.ResourceRequirements {
+				rsrcReq := v1.ResourceRequirements{
+					Requests: make(v1.ResourceList),
+					Limits:   make(v1.ResourceList),
+				}
+				rsrcReq.Limits[v1.ResourceMemory], _ = resource.ParseQuantity("1")
+				return rsrcReq
+			}(),
+			wantErr: false,
+		},
+		{
+			name: "Memory Limit Fail",
+			args: args{
+				metadata.KubernetesResourceSpecs{
+					MemoryLimit: "abc",
+				},
+			},
+			want: func() v1.ResourceRequirements {
+				rsrcReq := v1.ResourceRequirements{
+					Requests: make(v1.ResourceList),
+					Limits:   make(v1.ResourceList),
+				}
+				rsrcReq.Limits[v1.ResourceMemory], _ = resource.ParseQuantity("1")
+				return rsrcReq
+			}(),
+			wantErr: true,
+		},
 	}
-	if _, err := MonthlySchedule(99, 99, 99); err == nil {
-		t.Fatalf("Failed to trigger error on invalid monthly schedule")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := validateJobLimits(tt.args.specs)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateJobLimits() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			} else {
+				if err != nil {
+					return
+				}
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("validateJobLimits() got = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
-func TestWeeklySchedule(t *testing.T) {
-	schedule, err := WeeklySchedule(1, 2, 3)
-	if err != nil {
-		t.Fatalf("triggered error on proper cron job parameters")
+func TestKubernetesJobClient_GetJobName(t *testing.T) {
+	type fields struct {
+		Clientset *kubernetes.Clientset
+		JobName   string
+		Namespace string
 	}
-	if *schedule != CronSchedule("1 2 * * 3") {
-		t.Fatalf("Failed to create proper weekly cron schedule")
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{"Correct name", fields{&kubernetes.Clientset{}, "test", "test"}, "test"},
 	}
-	if _, err := WeeklySchedule(99, 99, 99); err == nil {
-		t.Fatalf("Failed to trigger error on invalid weekly schedule")
-	}
-}
-
-func TestDailySchedule(t *testing.T) {
-	schedule, err := DailySchedule(1, 2)
-	if err != nil {
-		t.Fatalf("triggered error on proper cron job parameters")
-	}
-	if *schedule != CronSchedule("1 2 * * *") {
-		t.Fatalf("Failed to create proper daily cron schedule")
-	}
-	if _, err := DailySchedule(99, 99); err == nil {
-		t.Fatalf("Failed to trigger error on invalid daily schedule")
-	}
-}
-
-func TestHourlySchedule(t *testing.T) {
-	schedule, err := HourlySchedule(1)
-	if err != nil {
-		t.Fatalf("triggered error on proper cron job parameters")
-	}
-	if *schedule != CronSchedule("1 * * * *") {
-		t.Fatalf("Failed to create proper hourly cron schedule")
-	}
-	if _, err := HourlySchedule(99); err == nil {
-		t.Fatalf("Failed to trigger error on invalid hourly schedule")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			k := KubernetesJobClient{
+				Clientset: tt.fields.Clientset,
+				JobName:   tt.fields.JobName,
+				Namespace: tt.fields.Namespace,
+			}
+			if got := k.GetJobName(); got != tt.want {
+				t.Errorf("GetJobName() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
-func TestEveryNMinutes(t *testing.T) {
-	schedule, err := EveryNMinutes(1)
-	if err != nil {
-		t.Fatalf("triggered error on proper cron job parameters")
+func TestKubernetesJobClient_getCronJobName(t *testing.T) {
+	type fields struct {
+		Clientset *kubernetes.Clientset
+		JobName   string
+		Namespace string
 	}
-	if *schedule != CronSchedule("*/1 * * * *") {
-		t.Fatalf("Failed to create proper every n minutes cron schedule")
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{"Correct name", fields{&kubernetes.Clientset{}, "test", "test"}, "cron-test"},
 	}
-	if _, err := EveryNMinutes(99); err == nil {
-		t.Fatalf("Failed to trigger error on invalid every n minutes schedule")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			k := KubernetesJobClient{
+				Clientset: tt.fields.Clientset,
+				JobName:   tt.fields.JobName,
+				Namespace: tt.fields.Namespace,
+			}
+			if got := k.getCronJobName(); got != tt.want {
+				t.Errorf("getCronJobName() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
-func TestEveryNHours(t *testing.T) {
-	schedule, err := EveryNHours(1)
-	if err != nil {
-		t.Fatalf("triggered error on proper cron job parameters")
+func TestNewKubernetesJobClient(t *testing.T) {
+	type args struct {
+		name      string
+		namespace string
 	}
-	if *schedule != CronSchedule("* */1 * * *") {
-		t.Fatalf("Failed to create proper every n minutes cron schedule")
+	tests := []struct {
+		name    string
+		args    args
+		want    *KubernetesJobClient
+		wantErr bool
+	}{
+		{"Expect Fail Not In Cluster", args{"test", "test"}, nil, true},
 	}
-	if _, err := EveryNHours(99); err == nil {
-		t.Fatalf("Failed to trigger error on invalid every n hours schedule")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NewKubernetesJobClient(tt.args.name, tt.args.namespace)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewKubernetesJobClient() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewKubernetesJobClient() got = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
-func TestEveryNDays(t *testing.T) {
-	schedule, err := EveryNDays(1)
-	if err != nil {
-		t.Fatalf("triggered error on proper cron job parameters")
+func Test_getConcurrencyPolicy(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  batchv1.ConcurrencyPolicy
+	}{
+		{"Allow", "Allow", batchv1.AllowConcurrent},
+		{"Forbid", "Forbid", batchv1.ForbidConcurrent},
+		{"Replace", "Replace", batchv1.ReplaceConcurrent},
+		{"Invalid", "Invalid", batchv1.AllowConcurrent},
 	}
-	if *schedule != CronSchedule("* * */1 * *") {
-		t.Fatalf("Failed to create proper every n minutes cron schedule")
-	}
-	if _, err := EveryNDays(99); err == nil {
-		t.Fatalf("Failed to trigger error on invalid every n days schedule")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getConcurrencyPolicy(tt.value); got != tt.want {
+				t.Errorf("getConcurrencyPolicy() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

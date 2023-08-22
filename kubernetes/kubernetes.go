@@ -12,7 +12,6 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/types"
 	"github.com/google/uuid"
-	"github.com/gorhill/cronexpr"
 	"io"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -52,47 +51,6 @@ func CreateJobName(id metadata.ResourceID, prefixes ...string) string {
 	}
 
 	return fmt.Sprintf("%s-%s", lowerCased, uuid.New().String()[:10])
-}
-
-func makeCronSchedule(schedule string) (*CronSchedule, error) {
-	if _, err := cronexpr.Parse(schedule); err != nil {
-		return nil, fmt.Errorf("invalid cron expression: %v", err)
-	}
-	cronSchedule := CronSchedule(schedule)
-	return &cronSchedule, nil
-}
-
-func MonthlySchedule(day, minute, hour int) (*CronSchedule, error) {
-	return makeCronSchedule(fmt.Sprintf("%d %d %d * *", day, minute, hour))
-}
-
-func WeeklySchedule(weekday, hour, minute int) (*CronSchedule, error) {
-	return makeCronSchedule(fmt.Sprintf("%d %d * * %d", weekday, hour, minute))
-}
-
-func DailySchedule(hour, minute int) (*CronSchedule, error) {
-	return makeCronSchedule(fmt.Sprintf("%d %d * * *", hour, minute))
-}
-
-func HourlySchedule(minute int) (*CronSchedule, error) {
-	return makeCronSchedule(fmt.Sprintf("%d * * * *", minute))
-}
-
-func EveryNMinutes(minutes int) (*CronSchedule, error) {
-	return makeCronSchedule(fmt.Sprintf("*/%d * * * *", minutes))
-}
-
-func EveryNHours(hours int) (*CronSchedule, error) {
-	return makeCronSchedule(fmt.Sprintf("* */%d * * *", hours))
-}
-
-func EveryNDays(days int) (*CronSchedule, error) {
-	return makeCronSchedule(fmt.Sprintf("* * */%d * *", days))
-
-}
-
-func EveryNMonths(months int) (*CronSchedule, error) {
-	return makeCronSchedule(fmt.Sprintf("* * * */%d *", months))
 }
 
 type CronRunner interface {
@@ -162,7 +120,7 @@ func newJobSpec(config KubernetesRunnerConfig, rsrcReqs v1.ResourceRequirements)
 	} else {
 		pullPolicy = v1.PullIfNotPresent
 	}
-  
+
 	return batchv1.JobSpec{
 		Completions:             &config.NumTasks,
 		Parallelism:             &config.NumTasks,
@@ -413,7 +371,8 @@ func (k KubernetesJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, err
 func (k KubernetesJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
 	successfulJobsHistoryLimit := helpers.GetEnvInt32("SUCCESSFUL_JOBS_HISTORY_LIMIT", 2)
 	failedJobsHistoryLimit := helpers.GetEnvInt32("FAILED_JOBS_HISTORY_LIMIT", 1)
-	concurrencyPolicy := getConcurrencyPolicy()
+	concurrencyPolicyEnv := helpers.GetEnv("JOBS_CONCURRENCY_POLICY", "Allow")
+	concurrencyPolicy := getConcurrencyPolicy(concurrencyPolicyEnv)
 
 	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
@@ -474,10 +433,9 @@ func NewKubernetesJobClient(name string, namespace string) (*KubernetesJobClient
 	return &KubernetesJobClient{Clientset: clientset, JobName: name, Namespace: namespace}, nil
 }
 
-func getConcurrencyPolicy() batchv1.ConcurrencyPolicy {
-	concurrencyPolicyEnv := helpers.GetEnv("JOBS_CONCURRENCY_POLICY", "Allow")
+func getConcurrencyPolicy(policy string) batchv1.ConcurrencyPolicy {
 	var concurrencyPolicy batchv1.ConcurrencyPolicy
-	switch concurrencyPolicyEnv {
+	switch policy {
 	case "Allow":
 		concurrencyPolicy = batchv1.AllowConcurrent
 	case "Forbid":
@@ -485,7 +443,7 @@ func getConcurrencyPolicy() batchv1.ConcurrencyPolicy {
 	case "Replace":
 		concurrencyPolicy = batchv1.ReplaceConcurrent
 	default:
-		fmt.Printf("invalid concurrency policy: %s, defaulting to Allow", concurrencyPolicyEnv)
+		fmt.Printf("invalid concurrency policy: %s, defaulting to Allow", policy)
 		return batchv1.AllowConcurrent
 	}
 	return concurrencyPolicy

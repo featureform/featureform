@@ -13,6 +13,10 @@ from .metadata_repository import (
     FeatureVariant,
     TrainingSet,
     TrainingSetVariant,
+    Source,
+    SourceVariant,
+    Label,
+    LabelVariant,
 )
 from .resources import SourceType
 from .sqlite_metadata import SQLiteMetadata
@@ -209,7 +213,7 @@ def build_feature_variant_resource(variant_data: FeatureVariant):
         properties=variant_data.properties
         if variant_data.properties is not None
         else {},
-    ).toDictionary()
+    ).to_dictionary()
 
     return feature_variant_resource
 
@@ -229,7 +233,7 @@ def collect_features(feature_main: Feature):
         type="Feature",
         allVariants=feature_main.variants,
         variants=variant_list,
-    ).toDictionary()
+    ).to_dictionary()
 
 
 def build_training_set_variant_resource(variant_data: TrainingSetVariant):
@@ -244,15 +248,12 @@ def build_training_set_variant_resource(variant_data: TrainingSetVariant):
             "Variant": variant_data.label[1],
         },
         status=variant_data["status"],
-        # features=variant_organiser(
-        #     collect_features(getTrainingSetFeatures(feature_list))[2]
-        # ),
         features=[],
         tags=variant_data.tags if variant_data.tags is not None else [],
         properties=variant_data.properties
         if variant_data.properties is not None
         else [],
-    ).toDictionary()
+    ).to_dictionary()
 
     return training_set_variant_resource
 
@@ -282,7 +283,7 @@ def collect_training_sets(training_set_main: TrainingSet):
         type="TrainingSet",
         allVariants=training_set_main.variants,
         variants=variant_list,
-    ).toDictionary()
+    ).to_dictionary()
 
 
 def source_variant(variantData):
@@ -361,7 +362,7 @@ def source_variant(variantData):
                 json.loads(variantRow["properties"])
                 if variantRow["properties"] is not None
                 else {},
-            ).toDictionary()
+            ).to_dictionary()
             allVariantList.append(variantRow["variant"])
             variantDict[variantRow["variant"]] = sourceVariant
             variants.append(sourceVariant)
@@ -369,21 +370,44 @@ def source_variant(variantData):
         return variantDict, allVariantList, variants
 
 
-def sources(rowData):
+def collect_sources(source_main: Source):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    # todox: replace db method. do we need a get resource_variant list?
-    source_list = db.get_sources()
-    found_source = source_list.filter(
-        lambda x: x["name"] == rowData["name"], source_list
-    )
-    # todox: what do do about this guy?
+    variant_list = []
+    for variant_name in source_main.variants:
+        found_variant = db.get_source_variant(
+            name=source_main.name, variant=variant_name
+        )
+        variant_list.append(build_source_variant_resource(found_variant))
+
     return SourceResource(
-        "Source",
-        rowData["default_variant"],
-        rowData["name"],
-        found_source.variants,
-        found_source.variants,  # todox: how do we handle all-variants vs the resource variant list?
-    ).toDictionary()
+        name=source_main.name,
+        defaultVariant=source_main.default_variant,
+        type="Source",
+        allVariants=source_main.variants,
+        variants=variant_list,
+    ).to_dictionary()
+
+
+def build_source_variant_resource(variant_data: SourceVariant):
+    source_variant_resource = SourceVariantResource(
+        created=datetime.datetime.now(),  # todox: missing field
+        description=variant_data.description,
+        name=variant_data.name,
+        owner=variant_data.owner,
+        variant=variant_data.variant,
+        label={
+            "Name": "todox",  # todox
+            "Variant": "todox",
+        },
+        status=variant_data.status,
+        features=[],
+        tags=variant_data.tags if variant_data.tags is not None else [],
+        properties=variant_data.properties
+        if variant_data.properties is not None
+        else [],
+    ).to_dictionary()
+
+    return source_variant_resource
 
 
 def label_variant(variantData):
@@ -425,7 +449,7 @@ def label_variant(variantData):
             json.loads(variantRow["properties"])
             if variantRow["properties"] is not None
             else {},
-        ).toDictionary()
+        ).to_dictionary()
 
         allVariantList.append(variantRow["variant"])
         variantDict[variantRow["variant"]] = labelVariant
@@ -433,21 +457,41 @@ def label_variant(variantData):
         return variantDict, allVariantList, variants
 
 
-def labels(rowData):
+def collect_labels(label_main: Label):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    # todox: replace db method
-    label_list = db.get_labels()
-    found_variant = label_list.filter(
-        lambda x: x["name"] == rowData["name"] and x["variant"] == rowData["variant"],
-        label_list,
-    )
+    variant_list = []
+    for variant_name in label_main.variants:
+        found_variant = db.get_label_variant(name=label_main.name, variant=variant_name)
+        variant_list.append(build_label_variant_resource(found_variant))
+
     return LabelResource(
-        "Label",
-        rowData["default_variant"],
-        rowData["name"],
-        found_variant.variant,
-        found_variant.variant,  # todox: same issue as before, need to map the previous all-variants & variants with the new repo return
-    ).toDictionary()
+        name=label_main.name,
+        defaultVariant=label_main.default_variant,
+        type="Feature",
+        allVariants=label_main.variants,
+        variants=variant_list,
+    ).to_dictionary()
+
+
+def build_label_variant_resource(variant_data: LabelVariant):
+    label_variant_resource = LabelVariantResource(
+        created=datetime.datetime.now(),  # todox: missing field
+        description=variant_data.description,
+        name=variant_data.name,
+        owner=variant_data.owner,
+        variant=variant_data.variant,
+        label={
+            "Name": "todox",  # todox: should be a prop instead of tuple?
+            "Variant": "todox",
+        },
+        status=variant_data["status"],
+        features=[],
+        tags=variant_data.tags if variant_data.tags is not None else [],
+        properties=variant_data.properties
+        if variant_data.properties is not None
+        else [],
+    ).to_dictionary()
+    return label_variant_resource
 
 
 def entities(rowData):
@@ -483,7 +527,7 @@ def entities(rowData):
         variant_organiser(training_set_variant(training_set_list)[2]),
         json.loads(rowData["tags"]) if rowData["tags"] is not None else [],
         json.loads(rowData["properties"]) if rowData["properties"] is not None else {},
-    ).toDictionary()
+    ).to_dictionary()
 
 
 def models(rowData):
@@ -512,7 +556,7 @@ def models(rowData):
         variant_organiser(training_set_variant_list),
         json.loads(rowData["tags"]) if rowData["tags"] is not None else [],
         json.loads(rowData["properties"]) if rowData["properties"] is not None else {},
-    ).toDictionary()
+    ).to_dictionary()
 
 
 def users(rowData):
@@ -547,7 +591,7 @@ def users(rowData):
         ),
         json.loads(rowData["tags"]) if rowData["tags"] is not None else [],
         json.loads(rowData["properties"]) if rowData["properties"] is not None else {},
-    ).toDictionary()
+    ).to_dictionary()
 
 
 def providers(rowData):
@@ -585,7 +629,7 @@ def providers(rowData):
         variant_organiser(label_variant(label_list)[2]),
         json.loads(rowData["tags"]) if rowData["tags"] is not None else [],
         json.loads(rowData["properties"]) if rowData["properties"] is not None else {},
-    ).toDictionary()
+    ).to_dictionary()
 
 
 @dashboard_app.route("/data/<type>", methods=["POST", "GET"])
@@ -670,24 +714,24 @@ def GetMetadata(type, resource):
     )[0]
 
     if type == "features":
-        dataAsList = features(row)
+        data_as_list = collect_features(row)
     elif type == "training_sets":
-        dataAsList = training_sets(row)
+        data_as_list = collect_training_sets(row)
     elif type == "sources":
-        dataAsList = sources(row)
+        data_as_list = sources(row)  # todox: create other collect methods as needed
     elif type == "labels":
-        dataAsList = labels(row)
+        data_as_list = labels(row)
     elif type == "entities":
-        dataAsList = entities(row)
+        data_as_list = entities(row)
     elif type == "models":
-        dataAsList = models(row)
+        data_as_list = models(row)
     elif type == "users":
-        dataAsList = users(row)
+        data_as_list = users(row)
     elif type == "providers":
-        dataAsList = providers(row)
+        data_as_list = providers(row)
 
     response = Response(
-        response=json.dumps(dataAsList), status=200, mimetype="application/json"
+        response=json.dumps(data_as_list), status=200, mimetype="application/json"
     )
     return response
 

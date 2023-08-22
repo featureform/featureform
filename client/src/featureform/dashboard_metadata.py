@@ -1,6 +1,7 @@
 import json
 import os
 
+import datetime
 import pandas as pd
 from featureform import ResourceClient
 from featureform.serving import LocalClientImpl
@@ -165,70 +166,59 @@ def post_tags(type, resource):
         )
 
 
-def variant_organiser(allVariantList):
-    variantsDict = dict()
+def variant_organiser(all_variant_list):
+    variants_dict = dict()
 
-    for variant in allVariantList:
+    for variant in all_variant_list:
         name = variant["name"]
-        if name in variantsDict:
-            variantsDict[name].append(variant)
+        if name in variants_dict:
+            variants_dict[name].append(variant)
         else:
-            variantsDict[name] = [variant]
+            variants_dict[name] = [variant]
 
-    return variantsDict
-
-
-def feature_variant(variantData: FeatureVariant):
-    variantsDict = dict()
-    allVariantList = []
-    variants = []
-
-    for variantRow in variantData:
-        featureVariant = FeatureVariantResource(
-            variantRow["created"],
-            variantRow["description"],
-            variantRow["entity"],
-            variantRow["name"],
-            variantRow["owner"],
-            variantRow["provider"],
-            variantRow["data_type"],
-            variantRow["variant"],
-            variantRow["status"],
-            {
-                "entity": variantRow["source_entity"],
-                "value": variantRow["source_value"],
-                "timestamp": variantRow["source_timestamp"],
-            },
-            {
-                "Name": variantRow["source_name"],
-                "Variant": variantRow["source_variant"],
-            },
-            json.loads(variantRow["tags"]) if variantRow["tags"] is not None else [],
-            json.loads(variantRow["properties"])
-            if variantRow["properties"] is not None
-            else {},
-        ).toDictionary()
-
-        allVariantList.append(variantRow["variant"])
-        variantsDict[variantRow["variant"]] = featureVariant
-        variants.append(featureVariant)
-    return variantsDict, allVariantList, variants
+    return variants_dict
 
 
-def collect_features(feature: Feature):
+def build_feature_variant_resource(variant_data: FeatureVariant):
+    feature_variant_resource = FeatureVariantResource(
+        datetime.datetime.now(),  # todox: look into this missing field
+        variant_data.description,
+        variant_data.entity,
+        variant_data.name,
+        variant_data.owner,
+        variant_data.provider,
+        variant_data.value_type,
+        variant_data.variant,
+        variant_data.status,
+        {
+            "entity": variant_data.location.entity,
+            "value": variant_data.location.value,
+            "timestamp": variant_data.location.timestamp,
+        },
+        {
+            "Name": variant_data.source[0],  # todox: should be a prop instead of tuple?
+            "Variant": variant_data.source[1],
+        },
+        variant_data.tags if variant_data.tags is not None else [],
+        variant_data.properties if variant_data.properties is not None else {},
+    ).toDictionary()
+    return feature_variant_resource
+
+
+def collect_features(feature_main: Feature):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
     variantList = []
-    for variantName in feature["variants"]:
+    for variantName in feature_main.variants:
         found_variant = db.get_feature_variant(
-            name=feature["name"], variant=variantName
+            name=feature_main.name, variant=variantName
         )
-        variantList.append(feature_variant(found_variant))
-
+        variantList.append(build_feature_variant_resource(found_variant))
+        
     return FeatureResource(
-        name=feature["name"],
-        defaultVariant=feature["default_variant"],
+        name=feature_main.name,
+        defaultVariant=feature_main.default_variant,
         type="Feature",
-        allVariants=feature["variants"],
+        allVariants=feature_main.variants,
         variants=variantList,
     ).toDictionary()
 

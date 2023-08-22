@@ -770,11 +770,11 @@ class LocalClientImpl:
             feature_df.reset_index(inplace=True)
         if not feature["source_entity"] in feature_df.columns:
             raise ValueError(
-                f"Could not set entity column. No column name {feature['source_entity']} exists in {source_name}-{source_variant}"
+                f"Could not set entity column. No column name {feature['source_entity']} exists in {source_name} ({source_variant})"
             )
         if not feature["source_value"] in feature_df.columns:
             raise ValueError(
-                f"Could not access feature value column. No column name {feature['source_value']} exists in {source_name}-{source_variant}"
+                f"Could not access feature value column. No column name '{feature['source_value']}' exists in {source_name} ({source_variant})"
             )
         feature_df = feature_df[[feature["source_entity"], feature["source_value"]]]
         feature_df.rename(

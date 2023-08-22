@@ -128,6 +128,7 @@ jobs:
       - uses: codecov/codecov-action@v2
         if: always()
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/cover.out
           name: search-coverage
           verbose: true
@@ -228,6 +229,7 @@ jobs:
       - uses: codecov/codecov-action@v2
         if: always()
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           root_dir: ./
           files: ./coverage/cover.out
           name: provider-online-coverage
@@ -315,6 +317,7 @@ jobs:
       - uses: codecov/codecov-action@v2
         if: always()
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           root_dir: ./
           files: ./coverage/cover.out
           name: provider-offline-coverage
@@ -384,6 +387,7 @@ jobs:
       - uses: codecov/codecov-action@v2
         if: always()
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           root_dir: ./
           files: ./coverage/cover.out
           name: provider-offline-coverage
@@ -445,6 +449,7 @@ jobs:
       - uses: codecov/codecov-action@v2
         if: always()
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           root_dir: ./
           files: ./coverage/cover.out
           name: metadata-coverage
@@ -552,6 +557,7 @@ jobs:
       - uses: codecov/codecov-action@v2
         if: always()
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           root_dir: ./
           files: ./coverage/cover.out
           name: metrics-coverage
@@ -597,6 +603,7 @@ jobs:
       - uses: codecov/codecov-action@v2
         if: always()
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           root_dir: ./
           files: ./coverage/cover.out
           name: helper-coverage
@@ -651,6 +658,7 @@ jobs:
       - uses: codecov/codecov-action@v2
         if: always()
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           root_dir: ./
           files: ./coverage/cover.out
           name: runner-coverage
@@ -696,6 +704,7 @@ jobs:
       - uses: codecov/codecov-action@v2
         if: always()
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           root_dir: ./
           files: ./coverage/cover.out
           name: serving-coverage
@@ -785,6 +794,7 @@ jobs:
       - uses: codecov/codecov-action@v2
         if: always()
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           root_dir: ./
           files: ./coverage/cover.out
           name: coordinator-coverage
@@ -969,6 +979,7 @@ jobs:
       - uses: codecov/codecov-action@v2
         if: always()
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           root_dir: ./
           files: ./coverage/cover.out
           name: k8s-coverage

@@ -259,9 +259,9 @@ func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
 	return wrapper.Searcher.Upsert(doc)
 }
 
-type localResourceLookup map[ResourceID]Resource
+type LocalResourceLookup map[ResourceID]Resource
 
-func (lookup localResourceLookup) Lookup(id ResourceID) (Resource, error) {
+func (lookup LocalResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	res, has := lookup[id]
 	if !has {
 		return nil, &ResourceNotFound{id, nil}
@@ -269,18 +269,18 @@ func (lookup localResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	return res, nil
 }
 
-func (lookup localResourceLookup) Has(id ResourceID) (bool, error) {
+func (lookup LocalResourceLookup) Has(id ResourceID) (bool, error) {
 	_, has := lookup[id]
 	return has, nil
 }
 
-func (lookup localResourceLookup) Set(id ResourceID, res Resource) error {
+func (lookup LocalResourceLookup) Set(id ResourceID, res Resource) error {
 	lookup[id] = res
 	return nil
 }
 
-func (lookup localResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error) {
-	resources := make(localResourceLookup, len(ids))
+func (lookup LocalResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error) {
+	resources := make(LocalResourceLookup, len(ids))
 	for _, id := range ids {
 		resource, has := lookup[id]
 		if !has {
@@ -291,7 +291,7 @@ func (lookup localResourceLookup) Submap(ids []ResourceID) (ResourceLookup, erro
 	return resources, nil
 }
 
-func (lookup localResourceLookup) ListForType(t ResourceType) ([]Resource, error) {
+func (lookup LocalResourceLookup) ListForType(t ResourceType) ([]Resource, error) {
 	resources := make([]Resource, 0)
 	for id, res := range lookup {
 		if id.Type == t {
@@ -301,7 +301,7 @@ func (lookup localResourceLookup) ListForType(t ResourceType) ([]Resource, error
 	return resources, nil
 }
 
-func (lookup localResourceLookup) List() ([]Resource, error) {
+func (lookup LocalResourceLookup) List() ([]Resource, error) {
 	resources := make([]Resource, 0, len(lookup))
 	for _, res := range lookup {
 		resources = append(resources, res)
@@ -309,7 +309,7 @@ func (lookup localResourceLookup) List() ([]Resource, error) {
 	return resources, nil
 }
 
-func (lookup localResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
+func (lookup LocalResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
 	res, has := lookup[id]
 	if !has {
 		return &ResourceNotFound{id, nil}
@@ -321,11 +321,11 @@ func (lookup localResourceLookup) SetStatus(id ResourceID, status pb.ResourceSta
 	return nil
 }
 
-func (lookup localResourceLookup) SetJob(id ResourceID, schedule string) error {
+func (lookup LocalResourceLookup) SetJob(id ResourceID, schedule string) error {
 	return nil
 }
 
-func (lookup localResourceLookup) SetSchedule(id ResourceID, schedule string) error {
+func (lookup LocalResourceLookup) SetSchedule(id ResourceID, schedule string) error {
 	res, has := lookup[id]
 	if !has {
 		return &ResourceNotFound{id, nil}
@@ -337,34 +337,34 @@ func (lookup localResourceLookup) SetSchedule(id ResourceID, schedule string) er
 	return nil
 }
 
-func (lookup localResourceLookup) HasJob(id ResourceID) (bool, error) {
+func (lookup LocalResourceLookup) HasJob(id ResourceID) (bool, error) {
 	return false, nil
 }
 
-type sourceResource struct {
+type SourceResource struct {
 	serialized *pb.Source
 }
 
-func (resource *sourceResource) ID() ResourceID {
+func (resource *SourceResource) ID() ResourceID {
 	return ResourceID{
 		Name: resource.serialized.Name,
 		Type: SOURCE,
 	}
 }
 
-func (resource *sourceResource) Schedule() string {
+func (resource *SourceResource) Schedule() string {
 	return ""
 }
 
-func (resource *sourceResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	return make(localResourceLookup), nil
+func (resource *SourceResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+	return make(LocalResourceLookup), nil
 }
 
-func (resource *sourceResource) Proto() proto.Message {
+func (resource *SourceResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *sourceResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *SourceResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
 	otherId := that.ID()
 	isVariant := otherId.Type == SOURCE_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -374,16 +374,16 @@ func (this *sourceResource) Notify(lookup ResourceLookup, op operation, that Res
 	return nil
 }
 
-func (resource *sourceResource) UpdateStatus(status pb.ResourceStatus) error {
+func (resource *SourceResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
 	return nil
 }
 
-func (resource *sourceResource) UpdateSchedule(schedule string) error {
+func (resource *SourceResource) UpdateSchedule(schedule string) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (resource *sourceResource) Update(lookup ResourceLookup, updateRes Resource) error {
+func (resource *SourceResource) Update(lookup ResourceLookup, updateRes Resource) error {
 	return &ResourceExists{updateRes.ID()}
 }
 
@@ -463,7 +463,7 @@ func (resource *sourceVariantResource) Update(lookup ResourceLookup, updateRes R
 	if !ok {
 		return errors.New("failed to deserialize existing source variant record")
 	}
-	resource.serialized.Tags = unionTags(resource.serialized.Tags, variantUpdate.Tags)
+	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
 }
@@ -484,7 +484,7 @@ func (resource *featureResource) Schedule() string {
 }
 
 func (resource *featureResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	return make(localResourceLookup), nil
+	return make(LocalResourceLookup), nil
 }
 
 func (resource *featureResource) Proto() proto.Message {
@@ -599,7 +599,7 @@ func (resource *featureVariantResource) Update(lookup ResourceLookup, updateRes 
 	if !ok {
 		return errors.New("failed to deserialize existing feature variant record")
 	}
-	resource.serialized.Tags = unionTags(resource.serialized.Tags, variantUpdate.Tags)
+	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
 }
@@ -620,7 +620,7 @@ func (resource *labelResource) Schedule() string {
 }
 
 func (resource *labelResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	return make(localResourceLookup), nil
+	return make(LocalResourceLookup), nil
 }
 
 func (resource *labelResource) Proto() proto.Message {
@@ -728,7 +728,7 @@ func (resource *labelVariantResource) Update(lookup ResourceLookup, updateRes Re
 	if !ok {
 		return errors.New("failed to deserialize existing label variant record")
 	}
-	resource.serialized.Tags = unionTags(resource.serialized.Tags, variantUpdate.Tags)
+	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
 }
@@ -749,7 +749,7 @@ func (resource *trainingSetResource) Schedule() string {
 }
 
 func (resource *trainingSetResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	return make(localResourceLookup), nil
+	return make(LocalResourceLookup), nil
 }
 
 func (resource *trainingSetResource) Proto() proto.Message {
@@ -855,7 +855,7 @@ func (resource *trainingSetVariantResource) Update(lookup ResourceLookup, update
 	if !ok {
 		return errors.New("failed to deserialize existing training set variant record")
 	}
-	resource.serialized.Tags = unionTags(resource.serialized.Tags, variantUpdate.Tags)
+	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
 }
@@ -930,7 +930,7 @@ func (resource *modelResource) Update(lookup ResourceLookup, updateRes Resource)
 	}
 	resource.serialized.Features = unionNameVariants(resource.serialized.Features, modelUpdate.Features)
 	resource.serialized.Trainingsets = unionNameVariants(resource.serialized.Trainingsets, modelUpdate.Trainingsets)
-	resource.serialized.Tags = unionTags(resource.serialized.Tags, modelUpdate.Tags)
+	resource.serialized.Tags = UnionTags(resource.serialized.Tags, modelUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, modelUpdate.Properties)
 	return nil
 }
@@ -951,7 +951,7 @@ func (resource *userResource) Schedule() string {
 }
 
 func (resource *userResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	return make(localResourceLookup), nil
+	return make(LocalResourceLookup), nil
 }
 
 func (resource *userResource) Proto() proto.Message {
@@ -996,7 +996,7 @@ func (resource *userResource) Update(lookup ResourceLookup, updateRes Resource) 
 	if !ok {
 		return errors.New("failed to deserialize existing user record")
 	}
-	resource.serialized.Tags = unionTags(resource.serialized.Tags, userUpdate.Tags)
+	resource.serialized.Tags = UnionTags(resource.serialized.Tags, userUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, userUpdate.Properties)
 	return nil
 }
@@ -1017,7 +1017,7 @@ func (resource *providerResource) Schedule() string {
 }
 
 func (resource *providerResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	return make(localResourceLookup), nil
+	return make(LocalResourceLookup), nil
 }
 
 func (resource *providerResource) Proto() proto.Message {
@@ -1070,7 +1070,7 @@ func (resource *providerResource) Update(lookup ResourceLookup, resourceUpdate R
 	}
 	resource.serialized.SerializedConfig = providerUpdate.SerializedConfig
 	resource.serialized.Description = providerUpdate.Description
-	resource.serialized.Tags = unionTags(resource.serialized.Tags, providerUpdate.Tags)
+	resource.serialized.Tags = UnionTags(resource.serialized.Tags, providerUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, providerUpdate.Properties)
 	return nil
 }
@@ -1122,7 +1122,7 @@ func (resource *entityResource) Schedule() string {
 }
 
 func (resource *entityResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
-	return make(localResourceLookup), nil
+	return make(LocalResourceLookup), nil
 }
 
 func (resource *entityResource) Proto() proto.Message {
@@ -1160,7 +1160,7 @@ func (resource *entityResource) Update(lookup ResourceLookup, updateRes Resource
 	if !ok {
 		return errors.New("failed to deserialize existing training entity record")
 	}
-	resource.serialized.Tags = unionTags(resource.serialized.Tags, entityUpdate.Tags)
+	resource.serialized.Tags = UnionTags(resource.serialized.Tags, entityUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, entityUpdate.Properties)
 	return nil
 }
@@ -1246,7 +1246,7 @@ type LocalStorageProvider struct {
 }
 
 func (sp LocalStorageProvider) GetResourceLookup() (ResourceLookup, error) {
-	lookup := make(localResourceLookup)
+	lookup := make(LocalResourceLookup)
 	return lookup, nil
 }
 
@@ -1255,12 +1255,12 @@ type EtcdStorageProvider struct {
 }
 
 func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
-	client, err := sp.Config.initClient()
+	client, err := sp.Config.InitClient()
 	if err != nil {
 		return nil, fmt.Errorf("could not init etcd client: %v", err)
 	}
-	lookup := etcdResourceLookup{
-		connection: EtcdStorage{
+	lookup := EtcdResourceLookup{
+		Connection: EtcdStorage{
 			Client: client,
 		},
 	}
@@ -1397,7 +1397,7 @@ func (serv *MetadataServer) ListSources(_ *pb.Empty, stream pb.Metadata_ListSour
 func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variant *pb.SourceVariant) (*pb.Empty, error) {
 	variant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &sourceVariantResource{variant}, func(name, variant string) Resource {
-		return &sourceResource{
+		return &SourceResource{
 			&pb.Source{
 				Name:           name,
 				DefaultVariant: variant,

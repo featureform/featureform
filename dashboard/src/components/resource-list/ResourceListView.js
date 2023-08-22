@@ -261,10 +261,19 @@ export const ResourceListView = ({
             } else {
               rowVariant = activeVariants[row.name];
             }
-            for (const [key, data] of Object.entries(
-              row.variants[rowVariant]
-            )) {
-              rowData[key] = data;
+            if (row?.variants && row.variants[rowVariant]) {
+              for (const [key, data] of Object.entries(
+                row.variants[rowVariant]
+              )) {
+                rowData[key] = data;
+              }
+            } else {
+              console.warn(
+                `The current default rowVariant (${rowVariant}) is not present in the variants list:`,
+                row.variants
+                  ? Object.keys(row.variants)
+                  : 'row.variants is undefined.'
+              );
             }
             let variantList = [];
             Object.values(row.variants).forEach((variantValue) => {
@@ -297,6 +306,8 @@ export const ResourceListView = ({
             ),
           }}
           options={{
+            pageSize: 10,
+            emptyRowsWhenPaging: true,
             loadingType: 'overlay',
             search: true,
             draggable: false,
@@ -349,7 +360,14 @@ export const TagList = ({
   </Grid>
 );
 
-export const VariantTable = ({ name, setVariant, type, row }) => {
+export const VariantTable = ({
+  name,
+  setVariant,
+  type,
+  row,
+  pageSizeProp = 10,
+  emptyRowsProp = false,
+}) => {
   const classes = useStyles();
   let router = useRouter();
   function variantChangeRedirect(e, data) {
@@ -408,8 +426,9 @@ export const VariantTable = ({ name, setVariant, type, row }) => {
           ]}
           data={myVariants}
           options={{
+            pageSize: pageSizeProp,
+            emptyRowsWhenPaging: emptyRowsProp,
             search: true,
-            pageSize: row.variants.length,
             maxHeight: `${MAX_ROW_SHOW * ROW_HEIGHT}em`,
             toolbar: false,
             draggable: false,

@@ -156,6 +156,14 @@ class SourceVariantResource:
     def toJsonLiteral(self):
         return json.dumps(self.__dictionary)
 
+    @property
+    def name(self):
+        return self.__dictionary["name"]
+
+    @property
+    def variant(self):
+        return self.__dictionary["variant"]
+
 
 class SourceResource:
     def __init__(

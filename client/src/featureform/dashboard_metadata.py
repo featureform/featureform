@@ -17,6 +17,7 @@ from .metadata_repository import (
     SourceVariant,
     Label,
     LabelVariant,
+    Entity,
 )
 from .resources import SourceType
 from .sqlite_metadata import SQLiteMetadata
@@ -494,39 +495,41 @@ def build_label_variant_resource(variant_data: LabelVariant):
     return label_variant_resource
 
 
-def entities(rowData):
+def collect_entities(entity_main: Entity):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    # todox: replace db method
     try:
+        entity_labels_list = []
         label_list = db.get_labels()
-        found_variant = label_list.filter(
-            lambda x: x["name"] == rowData["name"]
-            and x["variant"] == rowData["variant"],
-            label_list,
-        )
+        # todox: not a fan of the O2 loop. may need a 1-off customer sql method
+        for current_label in label_list:
+            for variant_name in current_label.variants:
+                found_label_variant = db.get_label_variant(
+                    name=current_label.name, variant=variant_name
+                )
+                if found_label_variant.entity == entity_main.name:
+                    entity_labels_list.append(found_label_variant)
     except Exception as e:
-        print(f"No labels found for entity {rowData['name']} - {e}")
-        label_list = []
-    training_set_list = set()
-    for label in label_list:
-        for training_set in db.get_training_set_variant_from_label(
-            label["name"], label["variant"]
-        ):
-            training_set_list.add(training_set)
+        print(f"No labels found for entity {entity_main.name} - {e}")
+        entity_labels_list = []
+    entity_training_set_list = []
+    training_set_list = db.get_training_sets()
+    # todox: same issue as above
+    for current_training_set in training_set_list:
+        for variant_name in current_training_set.variants:
+            found_training_set_variant = db.get_training_set_variant(
+                name=current_training_set.name, variant=variant_name
+            )
+            entity_training_set_list.append(found_training_set_variant)
     return EntityResource(
-        rowData["name"],
-        rowData["type"],
-        rowData["description"],
-        rowData["status"],
-        variant_organiser(
-            feature_variant(
-                db.query_resource_variant("feature_variant", "entity", rowData["name"])
-            )[2]
-        ),
-        variant_organiser(label_variant(label_list)[2]),
-        variant_organiser(training_set_variant(training_set_list)[2]),
-        json.loads(rowData["tags"]) if rowData["tags"] is not None else [],
-        json.loads(rowData["properties"]) if rowData["properties"] is not None else {},
+        name=entity_main.name,
+        type=entity_main.type,
+        description=entity_main["description"],
+        status=entity_main["status"],
+        features=[],
+        labels=entity_labels_list,
+        trainingSets=entity_training_set_list,
+        tags=entity_main.tags if entity_main.tags is not None else [],
+        properties=entity_main.properties if entity_main.properties is not None else [],
     ).to_dictionary()
 
 

@@ -4,7 +4,7 @@
 current_date=$(date +%s)
 
 # Fetch open PRs using the GitHub CLI
-PRs=$(gh pr list --json title,author,createdAt,updatedAt,url --state open)
+PRs=$(gh pr list --json title,author,createdAt,updatedAt,url --state open --limit 100)
 
 # Filter PRs based on criteria and save to a temporary array
 filtered_prs=()

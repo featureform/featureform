@@ -1,0 +1,20 @@
+name: Slack PR Notify
+on:
+  schedule:
+    - cron: '0 9 * * 1-5'
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  notify-job:
+    name: Notify
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Send custom JSON data to Slack workflow
+        run: curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} -d "$(./.github/helpers/open_prs.sh)"

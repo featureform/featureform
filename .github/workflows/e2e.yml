@@ -514,6 +514,10 @@ jobs:
         if: always()
         run: kubectl logs -l app=featureform-dashboard-metadata
 
+      - name: Dashboard Metadata Describe
+        if: always()
+        run: kubectl describe -l app=featureform-dashboard-metadata
+
       - name: ETCD Logs
         if: always()
         run: kubectl logs -l app.kubernetes.io/name=etcd

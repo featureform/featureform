@@ -390,6 +390,7 @@ test_e2e: update_python					## Runs End-to-End tests on minikube
 	kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=ingress-nginx --timeout=720s
 	kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=etcd --timeout=720s
 	kubectl wait --for=condition=READY=true pod -l chart=featureform --timeout=720s
+	kubectl wait --for=condition=READY=true pod -l app=featureform-dashboard-metadata --timeout=720s
 
 	-kubectl port-forward svc/featureform-ingress-nginx-controller 8000:443 7000:80 &
 	-kubectl port-forward svc/featureform-etcd 2379:2379 &

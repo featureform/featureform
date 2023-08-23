@@ -37,6 +37,10 @@ spec:
               value: {{ .Values.serving.host }}
             - name: SERVING_PORT
               value: {{ .Values.serving.port | quote }}
+            - name: ETCD_HOST
+              value: {{ .Values.etcd.host }}
+            - name: ETCD_PORT
+              value: {{ .Values.etcd.port | quote }}
             - name: POD_IP
               valueFrom:
                 fieldRef:

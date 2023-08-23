@@ -36,5 +36,9 @@ spec:
               value: {{ .Values.metadata.host }}
             - name: METADATA_PORT
               value: {{ .Values.metadata.port | quote }}
+            - name: ETCD_HOST
+              value: {{ .Values.etcd.host }}
+            - name: ETCD_PORT
+              value: {{ .Values.etcd.port | quote }}
           resources: {}
 status: {}

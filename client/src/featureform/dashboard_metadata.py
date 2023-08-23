@@ -294,7 +294,7 @@ def search_metadata():
 
 def build_feature_variant_resource(variant_data: FeatureVariant):
     feature_variant_resource = FeatureVariantResource(
-        created=datetime.datetime.now(),  # todox: missing field
+        created=variant_data.created,
         description=variant_data.description,
         entity=variant_data.entity,
         name=variant_data.name,
@@ -341,7 +341,7 @@ def collect_features(feature_main: Feature):
 
 def build_training_set_variant_resource(variant_data: TrainingSetVariant):
     training_set_variant_resource = TrainingSetVariantResource(
-        created=datetime.datetime.now(),  # todox: missing field
+        created=variant_data.created,
         description=variant_data.description,
         name=variant_data.name,
         owner=variant_data.owner,
@@ -359,16 +359,6 @@ def build_training_set_variant_resource(variant_data: TrainingSetVariant):
     ).to_dictionary()
 
     return training_set_variant_resource
-
-
-def getTrainingSetFeatures(feature_list):
-    feature_variant_tuple = []
-    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    for feature in feature_list:
-        feature_variant_tuple.append(
-            db.get_feature_variant(feature["feature_name"], feature["feature_variant"])
-        )
-    return feature_variant_tuple
 
 
 def collect_training_sets(training_set_main: TrainingSet):
@@ -409,15 +399,12 @@ def collect_sources(source_main: Source):
 
 def build_source_variant_resource(variant_data: SourceVariant):
     source_variant_resource = SourceVariantResource(
-        created=datetime.datetime.now(),  # todox: missing field
+        created=variant_data.created,
         description=variant_data.description,
         name=variant_data.name,
         owner=variant_data.owner,
         variant=variant_data.variant,
-        label={
-            "Name": "todox",  # todox
-            "Variant": "todox",
-        },
+        labels=[],
         status=variant_data.status,
         features=[],
         tags=variant_data.tags if variant_data.tags is not None else [],
@@ -452,10 +439,6 @@ def build_label_variant_resource(variant_data: LabelVariant):
         name=variant_data.name,
         owner=variant_data.owner,
         variant=variant_data.variant,
-        label={
-            "Name": "todox",  # todox: should be a prop instead of tuple?
-            "Variant": "todox",
-        },
         status=variant_data["status"],
         features=[],
         tags=variant_data.tags if variant_data.tags is not None else [],
@@ -537,8 +520,7 @@ def collect_models(model_obj: Model):
     return ModelResource(
         name=model_obj.name,
         type="Model",
-        description="todox",  # todox: missing prop
-        status="todox",  # todox: missing prop
+        description="todox",
         features=feature_list,
         labels=label_list,
         trainingSets=training_set_list,
@@ -580,8 +562,8 @@ def collect_users(user_obj: User):
     return UserResource(
         name=user_obj.name,
         type="Model",
-        description="todox",  # todox: missing prop
-        status="todox",  # todox: missing prop
+        description="todox",  # todox: missing prop in proto
+        status="todox",  # todox: missing prop in proto
         features=feature_list,
         labels=label_list,
         trainingSets=training_set_list,
@@ -621,10 +603,10 @@ def collect_providers(provider_obj: Provider):
 
     return ProviderResource(
         name=provider_obj.name,
-        type="todox",
+        type=provider_obj.type,
         description=provider_obj.description,
         providerType=provider_obj.type,
-        software="todox",
+        software=provider_obj.software,
         team=provider_obj.team,
         sources=provider_source_list,
         status=provider_obj.status,

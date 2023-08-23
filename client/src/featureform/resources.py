@@ -752,6 +752,8 @@ class Properties:
 class Provider:
     name: str
     description: str
+    type: str
+    software: str
     team: str
     config: Config
     function: str
@@ -967,6 +969,7 @@ class Source:
 @typechecked
 @dataclass
 class SourceVariant:
+    created: str
     name: str
     definition: SourceDefinition
     owner: str
@@ -1198,6 +1201,7 @@ class Feature:
 @typechecked
 @dataclass
 class FeatureVariant:
+    created: str
     name: str
     source: NameVariant
     value_type: str
@@ -1710,6 +1714,7 @@ class TrainingSet:
 @typechecked
 @dataclass
 class TrainingSetVariant:
+    created: str
     name: str
     owner: str
     label: NameVariant

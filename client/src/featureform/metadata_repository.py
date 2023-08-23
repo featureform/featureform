@@ -140,6 +140,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
     def get_feature_variant(self, name, variant) -> FeatureVariant:
         result = self.db.get_feature_variant(name, variant)
         return FeatureVariant(
+            created=result["created"],
             name=result["name"],
             variant=result["variant"],
             source=(result["source_name"], result["source_variant"]),
@@ -222,6 +223,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
     def get_source_variant(self, name: str, variant: str) -> SourceVariant:
         result = self.db.get_source_variant(name, variant)
         return SourceVariant(
+            created=result["created"],
             name=result["name"],
             definition=result["definition"],  # double check this
             variant=result["variant"],
@@ -260,6 +262,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             (r["feature_name"], r["feature_variant"]) for r in ts_feature_rows
         ]
         return TrainingSetVariant(  # does local mode use provider for TS
+            created=result["created"],
             name=result["name"],
             variant=result["variant"],
             owner=result["owner"],

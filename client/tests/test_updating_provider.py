@@ -18,7 +18,7 @@ from types import SimpleNamespace
         ),
     ],
 )
-def xtest_valid_provider_update(provider_source_fxt, is_local, is_insecure, request):
+def test_valid_provider_update(provider_source_fxt, is_local, is_insecure, request):
     custom_marks = [
         mark.name for mark in request.node.own_markers if mark.name != "parametrize"
     ]
@@ -115,7 +115,7 @@ def xtest_valid_provider_update(provider_source_fxt, is_local, is_insecure, requ
         ),
     ],
 )
-def xtest_invalid_provider_update(
+def test_invalid_provider_update(
     provider_source_fxt, is_local, is_insecure, request, capsys
 ):
     custom_marks = [

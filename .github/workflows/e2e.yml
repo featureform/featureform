@@ -371,8 +371,6 @@ jobs:
       - name: Run CLI
         run: |
           kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
-          export FEATUREFORM_HOST=localhost:443
-          export FEATUREFORM_CERT=tls.crt
       
       - name: create-json
         id: create-json-2

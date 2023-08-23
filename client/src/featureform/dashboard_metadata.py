@@ -113,7 +113,8 @@ def source_data():
                 source_data["rows"].append(currentRow.to_list())
             return json.dumps(source_data, allow_nan=False)
     except Exception as e:
-        error = f"Error 500: {e}"
+        print(e)
+        error = f"Error 500: Unable to retrieve source_data columns."
         return Response(
             response=json.dumps(error), status=500, mimetype="application/json"
         )
@@ -130,7 +131,8 @@ def get_tags(type, resource):
             response["tags"] = json.loads(tags)
         return json.dumps(response, allow_nan=False)
     except Exception as e:
-        error = f"Error 500: {e}"
+        print(e)
+        error = f"Error 500: Unable to retrieve tags from resource."
         return Response(
             response=json.dumps(error), status=500, mimetype="application/json"
         )
@@ -174,7 +176,8 @@ def post_tags(type, resource):
             db.update_resource(found_resource)
         return json.dumps(response, allow_nan=False)
     except Exception as e:
-        error = f"Error 500: {e}"
+        print(e)
+        error = f"Error 500: Unable to post tags to resource."
         return Response(
             response=json.dumps(error), status=500, mimetype="application/json"
         )

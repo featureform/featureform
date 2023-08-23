@@ -50,7 +50,7 @@ class DockerDeployment(Deployment):
         # TODO: Add support for custom ports
         featureform_deployment = DOCKER_CONFIG(
             name="featureform",
-            image=os.getenv("FEATUREFORM_DOCKER_IMAGE","featureformcom/featureform:latest"),
+            image=os.getenv("FEATUREFORM_DOCKER_IMAGE", "featureformcom/featureform:latest"),
             port={"7878/tcp": 7878, "80/tcp": 80},
             detach_mode=True,
             env=environment_variables,

@@ -398,14 +398,14 @@ test_e2e: update_python					## Runs End-to-End tests on minikube
 	while ! echo exit | nc localhost 7000; do sleep 10; done
 	while ! echo exit | nc localhost 2379; do sleep 10; done
 
-	# featureform apply --no-wait client/examples/quickstart.py --host localhost:8000 --cert tls.crt
-	# pytest client/tests/e2e.py
-	# pytest -m 'hosted' client/tests/test_serving_model.py
-	# pytest -m 'hosted' client/tests/test_getting_model.py
-	# pytest -m 'hosted' client/tests/test_updating_provider.py
-	# pytest -m 'hosted' client/tests/test_class_api.py
-	# pytest -m 'hosted' client/tests/test_source_dataframe.py
-	# pytest -m 'hosted' client/tests/test_training_set_dataframe.py
+	featureform apply --no-wait client/examples/quickstart.py --host localhost:8000 --cert tls.crt
+	pytest client/tests/e2e.py
+	pytest -m 'hosted' client/tests/test_serving_model.py
+	pytest -m 'hosted' client/tests/test_getting_model.py
+	pytest -m 'hosted' client/tests/test_updating_provider.py
+	pytest -m 'hosted' client/tests/test_class_api.py
+	pytest -m 'hosted' client/tests/test_source_dataframe.py
+	pytest -m 'hosted' client/tests/test_training_set_dataframe.py
 #	pytest -m 'hosted' client/tests/test_search.py
 
 	 echo "Starting end to end tests"

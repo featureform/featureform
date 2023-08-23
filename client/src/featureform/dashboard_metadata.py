@@ -672,7 +672,7 @@ def collect_providers(provider_obj: Provider):
 
 @dashboard_app.route("/data/<type>", methods=["POST", "GET"])
 @cross_origin(allow_headers=["Content-Type"])
-def GetMetadataList(type):
+def get_metadata_list(type):
     type = type.replace("-", "_")
     if type not in [
         "features",
@@ -684,45 +684,46 @@ def GetMetadataList(type):
         "users",
         "providers",
     ]:
-        errorData = f"invalid resource type: {type}"
+        error_data = f"Invalid resource type: {type}"
         response = Response(
-            response=json.dumps(errorData), status=400, mimetype="application/json"
+            response=json.dumps(error_data), status=400, mimetype="application/json"
         )
         return response
+
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
     # todox: test each return. refactor the features(), entities(), etc helper methods.
     # new impl db.get_features returns a Feature obj: name, default_variant, variants List[str].
     # each helper method expects more data than what the new repo provides from the base resource list (non-variant list)
-    allData = []
+    all_data = []
     if type == "features":
         all_features = db.get_features()
         for feature in all_features:
-            allData.append(collect_features(feature))
+            all_data.append(collect_features(feature))
 
-    # elif type == "training_sets":
-    #     allData.append(training_sets(db.get_training_sets()))
-    # elif type == "sources":
-    #     allData.append(sources(db.get_sources()))
-    # elif type == "labels":
-    #     allData.append(labels(db.get_labels()))
-    # elif type == "entities":
-    #     allData.append(entities(db.get_entities()))
-    # elif type == "models":
-    #     allData.append(models(db.get_models()))
-    # elif type == "users":
-    #     allData.append(users(db.get_users()))
-    # elif type == "providers":
-    #     allData.append(providers(db.get_providers()))
+    elif type == "training_sets":
+        all_data.append(db.get_training_sets())
+    elif type == "sources":
+        all_data.append(db.get_sources())
+    elif type == "labels":
+        all_data.append(db.get_labels())
+    elif type == "entities":
+        all_data.append(db.get_entities())
+    elif type == "models":
+        all_data.append(db.get_models())
+    elif type == "users":
+        all_data.append(db.get_users())
+    elif type == "providers":
+        all_data.append(db.get_providers())
 
     response = Response(
-        response=json.dumps(allData), status=200, mimetype="application/json"
+        response=json.dumps(all_data), status=200, mimetype="application/json"
     )
     return response
 
 
 @dashboard_app.route("/data/<type>/<resource>", methods=["POST", "GET"])
 @cross_origin(allow_headers=["Content-Type"])
-def GetMetadata(type, resource):
+def get_metadata(type, resource):
     type = type.replace("-", "_")
     if type not in [
         "features",
@@ -734,39 +735,38 @@ def GetMetadata(type, resource):
         "users",
         "providers",
     ]:
-        errorData = f"invalid resource type: {type}"
+        error_data = f"Invalid resource type: {type}"
         response = Response(
-            response=json.dumps(errorData), status=400, mimetype="application/json"
+            response=json.dumps(error_data), status=400, mimetype="application/json"
         )
         return response
-    should_fetch_tags_and_properties = type in [
-        "entities",
-        "models",
-        "users",
-        "providers",
-    ]
-    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    # todox: replace db method
-    row = db.query_resource(
-        type, "name", "".join(resource), should_fetch_tags_and_properties
-    )[0]
 
+    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    data_as_list = []
     if type == "features":
-        data_as_list = collect_features(row)
+        for feature in db.get_features():
+            data_as_list.append(collect_features(feature))
     elif type == "training_sets":
-        data_as_list = collect_training_sets(row)
+        for training_set in db.get_training_sets():
+            data_as_list.append(collect_training_sets(training_set))
     elif type == "sources":
-        data_as_list = sources(row)  # todox: create other collect methods as needed
+        for source in db.get_sources():
+            data_as_list.append(collect_sources(source))
     elif type == "labels":
-        data_as_list = labels(row)
+        for label in db.get_labels():
+            data_as_list.append(collect_labels(label))
     elif type == "entities":
-        data_as_list = entities(row)
+        for entity in db.get_entities():
+            data_as_list.append(collect_entities(entity))
     elif type == "models":
-        data_as_list = models(row)
+        for model in db.get_models():
+            data_as_list.append(collect_models(model))
     elif type == "users":
-        data_as_list = users(row)
+        for user in db.get_users():
+            data_as_list.append(collect_users(user))
     elif type == "providers":
-        data_as_list = providers(row)
+        for provider in db.get_providers():
+            data_as_list.append(collect_providers(provider))
 
     response = Response(
         response=json.dumps(data_as_list), status=200, mimetype="application/json"
@@ -776,7 +776,7 @@ def GetMetadata(type, resource):
 
 @dashboard_app.route("/data/search", methods=["GET"])
 @cross_origin(allow_headers=["Content-Type"])
-def SearchMetadata():
+def search_metadata():
     raw_query = request.args["q"]
     rc = ResourceClient(local=True)
     results = rc.search(raw_query, True)

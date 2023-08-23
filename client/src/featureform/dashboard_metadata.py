@@ -696,10 +696,7 @@ def get_metadata_list(type):
     # each helper method expects more data than what the new repo provides from the base resource list (non-variant list)
     all_data = []
     if type == "features":
-        all_features = db.get_features()
-        for feature in all_features:
-            all_data.append(collect_features(feature))
-
+        all_data.append(db.get_features())
     elif type == "training_sets":
         all_data.append(db.get_training_sets())
     elif type == "sources":

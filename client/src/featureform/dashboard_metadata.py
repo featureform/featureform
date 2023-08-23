@@ -458,7 +458,7 @@ def collect_entities(entity_main: Entity):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
     entity_labels_list = []
     label_list = db.get_labels()
-    # todox: not a fan of the O2 loop. may need a 1-off custome sql method
+    # todox: not a fan of the O2 loop. may need a 1-off custom sql method
     for current_label in label_list:
         for variant_name in current_label.variants:
             found_label_variant = db.get_label_variant(

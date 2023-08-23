@@ -5,7 +5,7 @@ import datetime
 import pandas as pd
 from featureform import ResourceClient
 from featureform.serving import LocalClientImpl
-from flask import Blueprint, Response, request
+from flask import Blueprint, Response, request, escape
 from flask_cors import CORS, cross_origin
 from .metadata_repository import (
     MetadataRepositoryLocalImpl,
@@ -126,7 +126,9 @@ def get_tags(type, resource):
     try:
         response = {"name": resource, "variant": request.json["variant"], "tags": []}
         db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-        tags = db.get_tags_for_resource(response["name"], response["variant"], type)
+        tags = db.get_tags_for_resource(
+            escape(response["name"]), escape(response["variant"]), type
+        )
         if len(tags):
             response["tags"] = json.loads(tags)
         return json.dumps(response, allow_nan=False)
@@ -172,7 +174,7 @@ def post_tags(type, resource):
         elif type == "providers":
             found_resource = db.get_provider(response["name"])
 
-            found_resource.tags = response["tags"]
+            found_resource.tags = escape(response["tags"])
             db.update_resource(found_resource)
         return json.dumps(response, allow_nan=False)
     except Exception as e:

@@ -180,6 +180,118 @@ def post_tags(type, resource):
         )
 
 
+@dashboard_app.route("/data/<type>", methods=["POST", "GET"])
+@cross_origin(allow_headers=["Content-Type"])
+def get_metadata_list(type):
+    type = type.replace("-", "_")
+    if type not in [
+        "features",
+        "training_sets",
+        "sources",
+        "labels",
+        "entities",
+        "models",
+        "users",
+        "providers",
+    ]:
+        error_data = f"Invalid resource type: {type}"
+        response = Response(
+            response=json.dumps(error_data), status=400, mimetype="application/json"
+        )
+        return response
+
+    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    all_data = []
+    if type == "features":
+        all_data.append(db.get_features())
+    elif type == "training_sets":
+        all_data.append(db.get_training_sets())
+    elif type == "sources":
+        all_data.append(db.get_sources())
+    elif type == "labels":
+        all_data.append(db.get_labels())
+    elif type == "entities":
+        all_data.append(db.get_entities())
+    elif type == "models":
+        all_data.append(db.get_models())
+    elif type == "users":
+        all_data.append(db.get_users())
+    elif type == "providers":
+        all_data.append(db.get_providers())
+
+    response = Response(
+        response=json.dumps(all_data), status=200, mimetype="application/json"
+    )
+    return response
+
+
+@dashboard_app.route("/data/<type>/<resource>", methods=["POST", "GET"])
+@cross_origin(allow_headers=["Content-Type"])
+def get_metadata(type, resource):
+    type = type.replace("-", "_")
+    if type not in [
+        "features",
+        "training_sets",
+        "sources",
+        "labels",
+        "entities",
+        "models",
+        "users",
+        "providers",
+    ]:
+        error_data = f"Invalid resource type: {type}"
+        response = Response(
+            response=json.dumps(error_data), status=400, mimetype="application/json"
+        )
+        return response
+
+    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    data_as_list = []
+    if type == "features":
+        for feature in db.get_features():
+            data_as_list.append(collect_features(feature))
+    elif type == "training_sets":
+        for training_set in db.get_training_sets():
+            data_as_list.append(collect_training_sets(training_set))
+    elif type == "sources":
+        for source in db.get_sources():
+            data_as_list.append(collect_sources(source))
+    elif type == "labels":
+        for label in db.get_labels():
+            data_as_list.append(collect_labels(label))
+    elif type == "entities":
+        for entity in db.get_entities():
+            data_as_list.append(collect_entities(entity))
+    elif type == "models":
+        for model in db.get_models():
+            data_as_list.append(collect_models(model))
+    elif type == "users":
+        for user in db.get_users():
+            data_as_list.append(collect_users(user))
+    elif type == "providers":
+        for provider in db.get_providers():
+            data_as_list.append(collect_providers(provider))
+
+    return Response(
+        response=json.dumps(data_as_list), status=200, mimetype="application/json"
+    )
+
+
+@dashboard_app.route("/data/search", methods=["GET"])
+@cross_origin(allow_headers=["Content-Type"])
+def search_metadata():
+    raw_query = request.args["q"]
+    rc = ResourceClient(local=True)
+    results = rc.search(raw_query, True)
+    payload = []
+    for r in results:
+        payload.append(
+            {"Name": r["name"], "Variant": r["variant"], "Type": r["resource_type"]}
+        )
+
+    return json.dumps(payload)
+
+
 def variant_organiser(all_variant_list):
     variants_dict = dict()
 
@@ -668,119 +780,3 @@ def collect_providers(provider_obj: Provider):
         if provider_obj.properties is not None
         else [],
     ).to_dictionary()
-
-
-@dashboard_app.route("/data/<type>", methods=["POST", "GET"])
-@cross_origin(allow_headers=["Content-Type"])
-def get_metadata_list(type):
-    type = type.replace("-", "_")
-    if type not in [
-        "features",
-        "training_sets",
-        "sources",
-        "labels",
-        "entities",
-        "models",
-        "users",
-        "providers",
-    ]:
-        error_data = f"Invalid resource type: {type}"
-        response = Response(
-            response=json.dumps(error_data), status=400, mimetype="application/json"
-        )
-        return response
-
-    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    # todox: test each return. refactor the features(), entities(), etc helper methods.
-    # new impl db.get_features returns a Feature obj: name, default_variant, variants List[str].
-    # each helper method expects more data than what the new repo provides from the base resource list (non-variant list)
-    all_data = []
-    if type == "features":
-        all_data.append(db.get_features())
-    elif type == "training_sets":
-        all_data.append(db.get_training_sets())
-    elif type == "sources":
-        all_data.append(db.get_sources())
-    elif type == "labels":
-        all_data.append(db.get_labels())
-    elif type == "entities":
-        all_data.append(db.get_entities())
-    elif type == "models":
-        all_data.append(db.get_models())
-    elif type == "users":
-        all_data.append(db.get_users())
-    elif type == "providers":
-        all_data.append(db.get_providers())
-
-    response = Response(
-        response=json.dumps(all_data), status=200, mimetype="application/json"
-    )
-    return response
-
-
-@dashboard_app.route("/data/<type>/<resource>", methods=["POST", "GET"])
-@cross_origin(allow_headers=["Content-Type"])
-def get_metadata(type, resource):
-    type = type.replace("-", "_")
-    if type not in [
-        "features",
-        "training_sets",
-        "sources",
-        "labels",
-        "entities",
-        "models",
-        "users",
-        "providers",
-    ]:
-        error_data = f"Invalid resource type: {type}"
-        response = Response(
-            response=json.dumps(error_data), status=400, mimetype="application/json"
-        )
-        return response
-
-    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    data_as_list = []
-    if type == "features":
-        for feature in db.get_features():
-            data_as_list.append(collect_features(feature))
-    elif type == "training_sets":
-        for training_set in db.get_training_sets():
-            data_as_list.append(collect_training_sets(training_set))
-    elif type == "sources":
-        for source in db.get_sources():
-            data_as_list.append(collect_sources(source))
-    elif type == "labels":
-        for label in db.get_labels():
-            data_as_list.append(collect_labels(label))
-    elif type == "entities":
-        for entity in db.get_entities():
-            data_as_list.append(collect_entities(entity))
-    elif type == "models":
-        for model in db.get_models():
-            data_as_list.append(collect_models(model))
-    elif type == "users":
-        for user in db.get_users():
-            data_as_list.append(collect_users(user))
-    elif type == "providers":
-        for provider in db.get_providers():
-            data_as_list.append(collect_providers(provider))
-
-    response = Response(
-        response=json.dumps(data_as_list), status=200, mimetype="application/json"
-    )
-    return response
-
-
-@dashboard_app.route("/data/search", methods=["GET"])
-@cross_origin(allow_headers=["Content-Type"])
-def search_metadata():
-    raw_query = request.args["q"]
-    rc = ResourceClient(local=True)
-    results = rc.search(raw_query, True)
-    payload = []
-    for r in results:
-        payload.append(
-            {"Name": r["name"], "Variant": r["variant"], "Type": r["resource_type"]}
-        )
-
-    return json.dumps(payload)

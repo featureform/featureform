@@ -18,6 +18,9 @@ from .metadata_repository import (
     Label,
     LabelVariant,
     Entity,
+    Model,
+    User,
+    Provider,
 )
 from .resources import SourceType
 from .sqlite_metadata import SQLiteMetadata
@@ -533,105 +536,137 @@ def collect_entities(entity_main: Entity):
     ).to_dictionary()
 
 
-def models(rowData):
+def collect_models(model_obj: Model):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    # todox: replace db method
-    feature_variant_list = db.get_features()
-    feature_variant_list = feature_variant_list.filter(
-        lambda x: x["name"] == rowData["name"]
-    )
-    label_variant_list = db.get_labels()
-    label_variant_list = label_variant_list.filter(
-        lambda x: x["name"] == rowData["name"]
-    )
-    training_set_variant_list = db.get_labels()
-    training_set_variant_list = training_set_variant_list.filter(
-        lambda x: x["name"] == rowData["name"]
-    )
+
+    model_feature_list = []
+    feature_list = db.get_features()
+    for current_feature in feature_list:
+        for variant_name in current_feature.variants:
+            found_variant = db.get_feature_variant(
+                name=current_feature.name, variant=variant_name
+            )
+            model_feature_list.append(found_variant)
+
+    model_label_list = []
+    label_list = db.get_labels()
+    for current_label in label_list:
+        for variant_name in current_label.variants:
+            found_variant = db.get_label_variant(
+                name=current_label.name, variant=variant_name
+            )
+            model_label_list.append(found_variant)
+
+    model_training_set_list = []
+    training_set_list = db.get_training_sets()
+    for current_training_set in training_set_list:
+        for variant_name in current_training_set.variants:
+            found_variant = db.get_training_set_variant(
+                name=current_training_set.name, variant=variant_name
+            )
+            model_training_set_list.append(found_variant)
 
     return ModelResource(
-        rowData["name"],
-        "Model",
-        rowData["description"],
-        rowData["status"],
-        variant_organiser(feature_variant_list),
-        variant_organiser(label_variant_list),
-        variant_organiser(training_set_variant_list),
-        json.loads(rowData["tags"]) if rowData["tags"] is not None else [],
-        json.loads(rowData["properties"]) if rowData["properties"] is not None else {},
+        name=model_obj.name,
+        type="Model",
+        description="todox",  # todox: missing prop
+        status="todox",  # todox: missing prop
+        features=feature_list,
+        labels=label_list,
+        trainingSets=training_set_list,
+        tags=model_obj.tags if model_obj.tags is not None else [],
+        properties=model_obj.properties if model_obj.properties is not None else [],
     ).to_dictionary()
 
 
-def users(rowData):
+def collect_users(user_obj: User):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    feature_variant_list = db.get_features()
-    feature_variant_list = feature_variant_list.filter(
-        lambda x: x["name"] == rowData["name"]
-    )
-    label_variant_list = db.get_labels()
-    label_variant_list = label_variant_list.filter(
-        lambda x: x["name"] == rowData["name"]
-    )
-    training_set_variant_list = db.get_labels()
-    training_set_variant_list = training_set_variant_list.filter(
-        lambda x: x["name"] == rowData["name"]
-    )
 
-    # todox: replace db method
+    model_feature_list = []
+    feature_list = db.get_features()
+    for current_feature in feature_list:
+        for variant_name in current_feature.variants:
+            found_variant = db.get_feature_variant(
+                name=current_feature.name, variant=variant_name
+            )
+            model_feature_list.append(found_variant)
+
+    model_label_list = []
+    label_list = db.get_labels()
+    for current_label in label_list:
+        for variant_name in current_label.variants:
+            found_variant = db.get_label_variant(
+                name=current_label.name, variant=variant_name
+            )
+            model_label_list.append(found_variant)
+
+    model_training_set_list = []
+    training_set_list = db.get_training_sets()
+    for current_training_set in training_set_list:
+        for variant_name in current_training_set.variants:
+            found_variant = db.get_training_set_variant(
+                name=current_training_set.name, variant=variant_name
+            )
+            model_training_set_list.append(found_variant)
+
     return UserResource(
-        rowData["name"],
-        rowData["type"],
-        rowData["status"],
-        variant_organiser(feature_variant_list),
-        variant_organiser(label_variant_list),
-        variant_organiser(training_set_variant_list),
-        variant_organiser(
-            source_variant(
-                db.query_resource_variant(
-                    "source_variant", "owner", rowData["name"]
-                )  # todox: get source variants method needed again
-            )[2]
-        ),
-        json.loads(rowData["tags"]) if rowData["tags"] is not None else [],
-        json.loads(rowData["properties"]) if rowData["properties"] is not None else {},
+        name=user_obj.name,
+        type="Model",
+        description="todox",  # todox: missing prop
+        status="todox",  # todox: missing prop
+        features=feature_list,
+        labels=label_list,
+        trainingSets=training_set_list,
+        tags=user_obj.tags if user_obj.tags is not None else [],
+        properties=user_obj.properties if user_obj.properties is not None else [],
     ).to_dictionary()
 
 
-def providers(rowData):
+def collect_providers(provider_obj: Provider):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    # todox: replace db method
-    try:
-        source_list = db.query_resource_variant(
-            "source_variant", "provider", rowData["name"]
-        )
-    except ValueError:
-        source_list = []
-    try:
-        feature_list = db.query_resource_variant(
-            "feature_variant", "provider", rowData["name"]
-        )
-    except ValueError:
-        feature_list = []
-    try:
-        label_list = db.query_resource_variant(
-            "label_variant", "provider", rowData["name"]
-        )
-    except ValueError:
-        label_list = []
+    provider_source_list = []
+    source_list = db.get_sources()
+    for current_source in source_list:
+        for variant_name in current_source.variants:
+            found_variant = db.get_source_variant(
+                name=current_source.name, variant=variant_name
+            )
+            provider_source_list.append(found_variant)
+
+    provider_feature_list = []
+    feature_list = db.get_features()
+    for current_feature in feature_list:
+        for variant_name in current_feature.variants:
+            found_variant = db.get_feature_variant(
+                name=current_feature.name, variant=variant_name
+            )
+            provider_feature_list.append(found_variant)
+
+    provider_label_list = []
+    label_list = db.get_labels()
+    for current_label in label_list:
+        for variant_name in current_label.variants:
+            found_variant = db.get_label_variant(
+                name=current_label.name, variant=variant_name
+            )
+            provider_label_list.append(found_variant)
+
     return ProviderResource(
-        rowData["name"],
-        rowData["type"],
-        rowData["description"],
-        rowData["provider_type"],
-        rowData["software"],
-        rowData["team"],
-        variant_organiser(source_variant(source_list)[2]),
-        rowData["status"],
-        rowData["serialized_config"],
-        variant_organiser(feature_variant(feature_list)[2]),
-        variant_organiser(label_variant(label_list)[2]),
-        json.loads(rowData["tags"]) if rowData["tags"] is not None else [],
-        json.loads(rowData["properties"]) if rowData["properties"] is not None else {},
+        name=provider_obj.name,
+        type="todox",
+        description=provider_obj.description,
+        providerType=provider_obj.type,
+        software="todox",
+        team=provider_obj.team,
+        sources=provider_source_list,
+        status=provider_obj.status,
+        serializedConfig=provider_obj.config,
+        features=provider_feature_list,
+        labels=provider_label_list,
+        tags=provider_obj.tags if provider_obj.tags is not None else [],
+        properties=provider_obj.properties
+        if provider_obj.properties is not None
+        else [],
     ).to_dictionary()
 
 

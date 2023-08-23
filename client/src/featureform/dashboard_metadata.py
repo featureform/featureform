@@ -292,19 +292,6 @@ def search_metadata():
     return json.dumps(payload)
 
 
-def variant_organiser(all_variant_list):
-    variants_dict = dict()
-
-    for variant in all_variant_list:
-        name = variant["name"]
-        if name in variants_dict:
-            variants_dict[name].append(variant)
-        else:
-            variants_dict[name] = [variant]
-
-    return variants_dict
-
-
 def build_feature_variant_resource(variant_data: FeatureVariant):
     feature_variant_resource = FeatureVariantResource(
         created=datetime.datetime.now(),  # todox: missing field

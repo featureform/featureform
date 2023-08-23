@@ -753,7 +753,6 @@ class Provider:
     name: str
     description: str
     type: str
-    software: str
     team: str
     config: Config
     function: str

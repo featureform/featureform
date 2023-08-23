@@ -606,7 +606,7 @@ def collect_providers(provider_obj: Provider):
         type=provider_obj.type,
         description=provider_obj.description,
         providerType=provider_obj.type,
-        software=provider_obj.software,
+        software=provider_obj.config.software,
         team=provider_obj.team,
         sources=provider_source_list,
         status=provider_obj.status,

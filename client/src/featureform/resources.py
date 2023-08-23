@@ -752,7 +752,6 @@ class Properties:
 class Provider:
     name: str
     description: str
-    type: str
     team: str
     config: Config
     function: str

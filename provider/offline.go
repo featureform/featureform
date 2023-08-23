@@ -8,10 +8,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/sync/syncmap"
 	"sort"
 	"strings"
 	"time"
+
+	"golang.org/x/sync/syncmap"
 
 	"github.com/mitchellh/mapstructure"
 
@@ -56,8 +57,8 @@ type FeatureLabelColumnType string
 
 const (
 	Entity FeatureLabelColumnType = "entity"
-	Value                         = "value"
-	TS                            = "ts"
+	Value  FeatureLabelColumnType = "value"
+	TS     FeatureLabelColumnType = "ts"
 )
 
 type ResourceID struct {
@@ -290,20 +291,34 @@ type ResourceRecord struct {
 	TS time.Time
 }
 
+// This generic version of ResourceRecord is only used for converting
+// ResourceRecord to a type that's interpretable by parquet-go. See
+// BlobOfflineTable.writeRecordsToParquetBytes for more details.
+type GenericResourceRecord[T any] struct {
+	Entity string
+	Value  T
+	TS     time.Time
+}
+
 type GenericRecord []interface{}
 
 func (rec ResourceRecord) check() error {
 	if rec.Entity == "" {
-		return errors.New("ResourceRecord must have Entity set.")
+		return errors.New("resourceRecord must have Entity set")
 	}
 	return nil
 }
 
+// This interface represents the contract for implementations that
+// write feature and label tables, which have a knowable schema.
 type OfflineTable interface {
 	Write(ResourceRecord) error
 	WriteBatch([]ResourceRecord) error
 }
 
+// The "primary" in the name here might be misleading.
+// This interface is meant to support generic tables,
+// such as those created by transformations.
 type PrimaryTable interface {
 	Write(GenericRecord) error
 	WriteBatch([]GenericRecord) error

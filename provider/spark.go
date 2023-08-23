@@ -726,10 +726,11 @@ type SparkGenericExecutor struct {
 
 func (s *SparkGenericExecutor) InitializeExecutor(store SparkFileStore) error {
 	s.logger.Info("Uploading PySpark script to filestore")
-	sparkLocalScriptPath, err := store.CreateFilePath(config.GetSparkLocalScriptPath())
-	if err != nil {
-		return fmt.Errorf("could not create file path: %v", err)
-	}
+	// We can't use CreateFilePath here because it calls Validate under the hood,
+	// which will always fail given it's a local file without a valid scheme or bucket, for example.
+	sparkLocalScriptPath := &filestore.LocalFilepath{}
+	sparkLocalScriptPath.SetKey(config.GetSparkLocalScriptPath())
+
 	sparkRemoteScriptPath, err := store.CreateFilePath(config.GetSparkRemoteScriptPath())
 	if err != nil {
 		return fmt.Errorf("could not create file path: %v", err)
@@ -737,7 +738,7 @@ func (s *SparkGenericExecutor) InitializeExecutor(store SparkFileStore) error {
 
 	err = readAndUploadFile(sparkLocalScriptPath, sparkRemoteScriptPath, store)
 	if err != nil {
-		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath, sparkRemoteScriptPath.PathWithBucket(), err)
+		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath.Key(), sparkRemoteScriptPath.PathWithBucket(), err)
 	}
 	scriptExists, err := store.Exists(sparkRemoteScriptPath)
 	if err != nil || !scriptExists {
@@ -1518,8 +1519,64 @@ func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, er
 	return fileStoreGetPrimary(id, spark.Store, spark.Logger)
 }
 
+// Unlike a resource table created from a source table, which is effectively a pointer in the filestore to the source table
+// with the names of the entity, value and timestamp columns, the resource table created by this method is the data itself.
+// This requires a means of differentiating between the two types of resource tables such that we know when/how to read one
+// versus the other.
+//
+// Currently, a resource table created from a source table is located at /featureform/Feature/<NAME DIR>/<VARIANT FILE>, where
+// <VARIANT FILE>:
+// * has no file extension
+// * is the serialization JSON representation of the struct ResourceSchema (i.e. {"Entity":"entity","Value":"value","TS":"ts","SourceTable":"abfss://..."})
+//
+// One option is the keep with the above pattern by populating "SourceTable" with the path to the source table contained in the
+// same directory (i.e. /featureform/Feature/<NAME DIR>/<VARIANT FILE>_src.parquet).
 func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
-	return nil, nil
+	if err := id.check(Feature, Label); err != nil {
+		return nil, fmt.Errorf("ID check failed: %v", err)
+	}
+	resourceTableFilepath, err := spark.Store.CreateFilePath(id.FilestorePath())
+	if err != nil {
+		return nil, fmt.Errorf("could not create file path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), id.FilestorePath())
+	}
+	if exists, err := spark.Store.Exists(resourceTableFilepath); err != nil {
+		return nil, fmt.Errorf("could not check if table exists: %v", err)
+	} else if exists {
+		return nil, &TableAlreadyExists{id.Name, id.Variant}
+	}
+	table := &BlobOfflineTable{
+		store: spark.Store,
+		schema: ResourceSchema{
+			// Create a URI in the same directory as the resource table that followers the naming convention <VARIANT>_src.parquet
+			SourceTable: fmt.Sprintf("%s_src.parquet", resourceTableFilepath.PathWithBucket()),
+		},
+	}
+	for _, col := range schema.Columns {
+		switch col.Name {
+		case string(Entity):
+			table.schema.Entity = col.Name
+		case string(Value):
+			table.schema.Value = col.Name
+		case string(TS):
+			table.schema.TS = col.Name
+		default:
+			// TODO: verify the assumption that col.Name should be:
+			// * Entity ("entity")
+			// * Value ("value")
+			// * TS ("ts")
+			// makes sense in the context of the schema
+			return nil, fmt.Errorf("unexpected column name: %s", col.Name)
+		}
+	}
+	data, err := table.schema.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("could not serialize schema: %v", err)
+	}
+	err = spark.Store.Write(resourceTableFilepath, data)
+	if err != nil {
+		return nil, fmt.Errorf("could not write schema to file: %v", err)
+	}
+	return table, nil
 }
 
 func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
@@ -1544,10 +1601,11 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 
 	// get destination path for the materialization
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
-	destinationPath, err := spark.Store.CreateFilePath(materializationID.FilestorePath())
+	destinationPath, err := spark.Store.CreateDirPath(materializationID.FilestorePath())
 	if err != nil {
 		return nil, fmt.Errorf("could not create file path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), materializationID.FilestorePath())
 	}
+	// TODO: deprecate NewestFileOfType and use List instead
 	materializationNewestFile, err := spark.Store.NewestFileOfType(destinationPath, filestore.Parquet)
 	if err != nil {
 		return nil, fmt.Errorf("could not get newest materialization file: %v", err)
@@ -1573,9 +1631,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	// TODO: Handle case where there are multiple files in the source table
 	latestSourcePath, err := spark.Store.NewestFileOfType(filepath, filestore.Parquet)
 	spark.Logger.Debugw("Fetched newest file of type", "latestSourcePath", latestSourcePath, "fileType", filestore.Parquet)
-	// TODO: Move file store path logic into Filepath interface
-	// sourcePath := spark.Store.PathWithPrefix(latestSourcePath, true)
-	spark.Logger.Debugw("Constructed source path for Spark job", "sourcePath", latestSourcePath.Key())
+	// spark.Logger.Debugw("Constructed source path for Spark job", "sourcePath", latestSourcePath.Key())
 	if err != nil {
 		return nil, fmt.Errorf("could not get latest source file: %v", err)
 	}

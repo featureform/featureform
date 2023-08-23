@@ -90,3 +90,7 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+etcd:
+  host: featureform-etcd
+  port: 2379

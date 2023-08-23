@@ -31,6 +31,7 @@ resource_types = [
 ]
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
+SUPPORTED_DEPLOY_TYPES = ["docker"]
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
@@ -259,15 +260,20 @@ def search(query, host, cert, insecure, local):
     "deploy_type",
     required=True,
     default="docker",
-    type=click.Choice(["docker", "kubernetes"]),
+    type=click.Choice(SUPPORTED_DEPLOY_TYPES, case_sensitive=False),
 )
-@click.option("--quickstart", is_flag=True, help="Install Featureform Quickstart as well")
+@click.option(
+    "--quickstart", is_flag=True, help="Install Featureform Quickstart as well"
+)
 def deploy(deploy_type, quickstart):
     print("Deploying Featureform...", quickstart, deploy_type)
-    if deploy_type == "docker":
+    if deploy_type.lower() == "docker":
         deployment = DockerDeployment(quickstart)
     else:
-        raise ValueError("Invalid deployment type: Supported types are 'docker'")
+        supported_types = ", ".join(SUPPORTED_DEPLOY_TYPES)
+        raise ValueError(
+            f"Invalid deployment type: Supported types are '{supported_types}'"
+        )
 
     deployment_status = deployment.start()
     return deployment_status

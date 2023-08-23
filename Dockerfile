@@ -123,3 +123,5 @@ EXPOSE 7878
 EXPOSE 80
 
 CMD ["/usr/bin/supervisord"]
+
+HEALTHCHECK --interval=30s --timeout=30s --start-period=10s --retries=3 CMD [ "curl --fail http://localhost || exit 1" ]

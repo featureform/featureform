@@ -1,10 +1,14 @@
 
+import os
+import platform
 from collections import namedtuple
 
 import docker
 
 
-DOCKER_CONFIG = namedtuple('Docker_Config', ['name', 'image', 'port', 'detach_mode'])
+DOCKER_CONFIG = namedtuple(
+    "Docker_Config", ["name", "image", "port", "detach_mode", "env"]
+)
 
 
 class Deployment:
@@ -19,10 +23,15 @@ class Deployment:
     def stop(self) -> bool:
         pass
 
-    def get_status(self) -> str:
+    def health_check(self):
+        pass
+
+    @property
+    def status(self) -> str:
         return self._status
 
-    def get_config(self) -> list:
+    @property
+    def config(self) -> list:
         return self._config
 
 
@@ -32,13 +41,20 @@ class DockerDeployment(Deployment):
         super().__init__(quickstart)
         self._client = docker.from_env()
 
+        environment_variables = {}
+
+        is_mac_m1_chip = platform.machine() == "arm64" and platform.system() == "Darwin"
+        if is_mac_m1_chip:
+            environment_variables["ETCD_ARCH"] = "ETCD_UNSUPPORTED_ARCH=arm64"
+
         # TODO: Add support for custom ports
         featureform_deployment = DOCKER_CONFIG(
-                                name="featureform",
-                                image="featureformcom/featureform:latest",
-                                port={"7878/tcp": 7878, "80/tcp": 80},
-                                detach_mode=True,
-                            )
+            name="featureform",
+            image=os.getenv("FEATUREFORM_DOCKER_IMAGE","featureformcom/featureform:latest"),
+            port={"7878/tcp": 7878, "80/tcp": 80},
+            detach_mode=True,
+            env=environment_variables,
+        )
 
         # TODO: Add support for custom ports
         quickstart_deployment = [
@@ -47,13 +63,15 @@ class DockerDeployment(Deployment):
                 image="featureformcom/postgres",
                 port={"5432/tcp": 5432},
                 detach_mode=True,
+                env={},
             ),
             DOCKER_CONFIG(
                 name="quickstart-redis",
                 image="redis:latest",
                 port={"6379/tcp": 6379},
                 detach_mode=True,
-            )
+                env={},
+            ),
         ]
 
         if self._quickstart:
@@ -76,13 +94,16 @@ class DockerDeployment(Deployment):
                     print(f"Container {config.name} already exists. Skipping...")
                     continue
                 elif e.status_code == 404:
-                    print(f"Container {config.name} not found. Creating new container...")
+                    print(
+                        f"Container {config.name} not found. Creating new container..."
+                    )
                     container = self._client.containers.run(
-                                    name=config.name,
-                                    image=config.image,
-                                    ports=config.port,
-                                    detach=config.detach_mode
-                                )
+                        name=config.name,
+                        image=config.image,
+                        ports=config.port,
+                        detach=config.detach_mode,
+                        environment=config.env,
+                    )
                     print(f"'{container.name}' container started")
                 else:
                     print("Error starting container: ", e)

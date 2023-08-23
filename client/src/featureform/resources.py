@@ -835,6 +835,7 @@ class Provider:
 @dataclass
 class User:
     name: str
+    status: str
     tags: list = field(default_factory=list)
     properties: dict = field(default_factory=dict)
 
@@ -1136,6 +1137,7 @@ class SourceVariant:
 class Entity:
     name: str
     description: str
+    status: str
     tags: list = field(default_factory=list)
     properties: dict = field(default_factory=dict)
 
@@ -1912,6 +1914,7 @@ class TrainingSetVariant:
 @dataclass
 class Model:
     name: str
+    description: str
     tags: list = field(default_factory=list)
     properties: dict = field(default_factory=dict)
 

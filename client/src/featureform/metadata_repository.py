@@ -120,6 +120,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
         model_row = self.db.get_model(name, should_fetch_tags_properties=True)
         return Model(
             name=model_row["name"],
+            description=model_row["description"],
             tags=json.loads(model_row["tags"]) if model_row["tags"] else [],
             properties=json.loads(model_row["properties"])
             if model_row["properties"]
@@ -312,6 +313,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
         return Entity(
             name=entity_row["name"],
             description=entity_row["description"],
+            status=entity_row["status"],
             tags=json.loads(entity_row["tags"]) if entity_row["tags"] else [],
             properties=json.loads(entity_row["properties"])
             if entity_row["properties"]
@@ -367,6 +369,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
         result = self.db.get_user(name, should_fetch_tags_properties=True)
         return User(
             name=result["name"],
+            status=result["status"],
             tags=json.loads(result["tags"]) if result["tags"] else [],
             properties=json.loads(result["properties"]) if result["properties"] else {},
         )

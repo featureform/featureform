@@ -292,6 +292,24 @@ def search_metadata():
     return json.dumps(payload)
 
 
+def collect_features(feature_main: Feature):
+    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    variant_list = []
+    for variant_name in feature_main.variants:
+        found_variant = db.get_feature_variant(
+            name=feature_main.name, variant=variant_name
+        )
+        variant_list.append(build_feature_variant_resource(found_variant))
+
+    return FeatureResource(
+        name=feature_main.name,
+        defaultVariant=feature_main.default_variant,
+        type="Feature",
+        allVariants=feature_main.variants,
+        variants=variant_list,
+    ).to_dictionary()
+
+
 def build_feature_variant_resource(variant_data: FeatureVariant):
     feature_variant_resource = FeatureVariantResource(
         created=variant_data.created,
@@ -321,20 +339,20 @@ def build_feature_variant_resource(variant_data: FeatureVariant):
     return feature_variant_resource
 
 
-def collect_features(feature_main: Feature):
+def collect_training_sets(training_set_main: TrainingSet):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
     variant_list = []
-    for variant_name in feature_main.variants:
-        found_variant = db.get_feature_variant(
-            name=feature_main.name, variant=variant_name
+    for variant_name in training_set_main.variants:
+        found_variant = db.get_training_set_variant(
+            name=training_set_main.name, variant=variant_name
         )
-        variant_list.append(build_feature_variant_resource(found_variant))
+        variant_list.append(build_training_set_variant_resource(found_variant))
 
-    return FeatureResource(
-        name=feature_main.name,
-        defaultVariant=feature_main.default_variant,
-        type="Feature",
-        allVariants=feature_main.variants,
+    return TrainingSetResource(
+        name=training_set_main.name,
+        defaultVariant=training_set_main.default_variant,
+        type="TrainingSet",
+        allVariants=training_set_main.variants,
         variants=variant_list,
     ).to_dictionary()
 
@@ -359,24 +377,6 @@ def build_training_set_variant_resource(variant_data: TrainingSetVariant):
     ).to_dictionary()
 
     return training_set_variant_resource
-
-
-def collect_training_sets(training_set_main: TrainingSet):
-    db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    variant_list = []
-    for variant_name in training_set_main.variants:
-        found_variant = db.get_training_set_variant(
-            name=training_set_main.name, variant=variant_name
-        )
-        variant_list.append(build_training_set_variant_resource(found_variant))
-
-    return TrainingSetResource(
-        name=training_set_main.name,
-        defaultVariant=training_set_main.default_variant,
-        type="TrainingSet",
-        allVariants=training_set_main.variants,
-        variants=variant_list,
-    ).to_dictionary()
 
 
 def collect_sources(source_main: Source):
@@ -451,20 +451,16 @@ def build_label_variant_resource(variant_data: LabelVariant):
 
 def collect_entities(entity_main: Entity):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    try:
-        entity_labels_list = []
-        label_list = db.get_labels()
-        # todox: not a fan of the O2 loop. may need a 1-off customer sql method
-        for current_label in label_list:
-            for variant_name in current_label.variants:
-                found_label_variant = db.get_label_variant(
-                    name=current_label.name, variant=variant_name
-                )
-                if found_label_variant.entity == entity_main.name:
-                    entity_labels_list.append(found_label_variant)
-    except Exception as e:
-        print(f"No labels found for entity {entity_main.name} - {e}")
-        entity_labels_list = []
+    entity_labels_list = []
+    label_list = db.get_labels()
+    # todox: not a fan of the O2 loop. may need a 1-off custome sql method
+    for current_label in label_list:
+        for variant_name in current_label.variants:
+            found_label_variant = db.get_label_variant(
+                name=current_label.name, variant=variant_name
+            )
+            if found_label_variant.entity == entity_main.name:
+                entity_labels_list.append(found_label_variant)
     entity_training_set_list = []
     training_set_list = db.get_training_sets()
     # todox: same issue as above
@@ -477,8 +473,8 @@ def collect_entities(entity_main: Entity):
     return EntityResource(
         name=entity_main.name,
         type=entity_main.type,
-        description=entity_main["description"],
-        status=entity_main["status"],
+        description=entity_main.description,
+        status=entity_main.status,
         features=[],
         labels=entity_labels_list,
         trainingSets=entity_training_set_list,
@@ -520,7 +516,7 @@ def collect_models(model_obj: Model):
     return ModelResource(
         name=model_obj.name,
         type="Model",
-        description="todox",
+        description=model_obj.description,
         features=feature_list,
         labels=label_list,
         trainingSets=training_set_list,
@@ -562,8 +558,7 @@ def collect_users(user_obj: User):
     return UserResource(
         name=user_obj.name,
         type="Model",
-        description="todox",  # todox: missing prop in proto
-        status="todox",  # todox: missing prop in proto
+        status=user_obj.status,
         features=feature_list,
         labels=label_list,
         trainingSets=training_set_list,

@@ -680,15 +680,74 @@ func fileStoreResourcePath(id ResourceID) string {
 }
 
 type BlobOfflineTable struct {
+	store  FileStore
 	schema ResourceSchema
 }
 
+// TODO: implement
 func (tbl *BlobOfflineTable) Write(ResourceRecord) error {
 	return fmt.Errorf("not yet implemented")
 }
 
-func (tbl *BlobOfflineTable) WriteBatch([]ResourceRecord) error {
-	return fmt.Errorf("not yet implemented")
+func (tbl *BlobOfflineTable) WriteBatch(records []ResourceRecord) error {
+	destination, err := filestore.NewEmptyFilepath(tbl.store.FilestoreType())
+	if err != nil {
+		return fmt.Errorf("could not create file path: %w", err)
+	}
+	if err := destination.ParseFilePath(tbl.schema.SourceTable); err != nil {
+		return fmt.Errorf("could not parse file path: %w", err)
+	}
+	data, err := tbl.writeRecordsToParquetBytes(records)
+	if err != nil {
+		return fmt.Errorf("could not write records to parquet bytes: %w", err)
+	}
+	return tbl.store.Write(destination, data)
+}
+
+// TODO: Add unit tests for this method
+func (tbl *BlobOfflineTable) convertToGenericResourceRecord(record *ResourceRecord) (interface{}, error) {
+	switch v := record.Value.(type) {
+	case int:
+		return &GenericResourceRecord[int]{Entity: record.Entity, Value: v, TS: record.TS}, nil
+	case int32:
+		return &GenericResourceRecord[int32]{Entity: record.Entity, Value: v, TS: record.TS}, nil
+	case int64:
+		return &GenericResourceRecord[int64]{Entity: record.Entity, Value: v, TS: record.TS}, nil
+	case float32:
+		return &GenericResourceRecord[float32]{Entity: record.Entity, Value: v, TS: record.TS}, nil
+	case float64:
+		return &GenericResourceRecord[float64]{Entity: record.Entity, Value: v, TS: record.TS}, nil
+	case string:
+		return &GenericResourceRecord[string]{Entity: record.Entity, Value: v, TS: record.TS}, nil
+	case bool:
+		return &GenericResourceRecord[bool]{Entity: record.Entity, Value: v, TS: record.TS}, nil
+	case time.Time:
+		return &GenericResourceRecord[time.Time]{Entity: record.Entity, Value: v, TS: record.TS}, nil
+	default:
+		return nil, fmt.Errorf("unsupported type: %T", v)
+	}
+}
+
+// TODO: Add unit tests for this method
+func (tbl *BlobOfflineTable) writeRecordsToParquetBytes(records []ResourceRecord) ([]byte, error) {
+	if len(records) == 0 {
+		return []byte{}, nil
+	}
+	parquetRecords := []any{}
+	for _, record := range records {
+		r, err := tbl.convertToGenericResourceRecord(&record)
+		if err != nil {
+			return nil, fmt.Errorf("could not convert record to generic resource record: %w", err)
+		}
+		parquetRecords = append(parquetRecords, r)
+	}
+	buf := new(bytes.Buffer)
+	schema := parquet.SchemaOf(parquetRecords[0])
+	err := parquet.Write[any](buf, parquetRecords, schema)
+	if err != nil {
+		return nil, fmt.Errorf("could not write parquet file to bytes: %v", err)
+	}
+	return buf.Bytes(), nil
 }
 
 func (k8s *K8sOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
@@ -721,7 +780,7 @@ func blobRegisterResource(id ResourceID, schema ResourceSchema, logger *zap.Suga
 		return nil, fmt.Errorf("error writing resource schema: %s: %s", schema, err)
 	}
 	logger.Debugw("Registered resource table", "resourceID", id, "for source", schema.SourceTable)
-	return &BlobOfflineTable{schema}, nil
+	return &BlobOfflineTable{schema: schema, store: store}, nil
 }
 
 type FileStorePrimaryTable struct {
@@ -731,13 +790,13 @@ type FileStorePrimaryTable struct {
 	id               ResourceID
 }
 
-func (tbl *FileStorePrimaryTable) Write(GenericRecord) error {
+// TODO: implement
+func (tbl *FileStorePrimaryTable) Write(record GenericRecord) error {
 	return fmt.Errorf("not implemented")
 }
 
-// TODO: @erik
-func (tbl *FileStorePrimaryTable) WriteBatch([]GenericRecord) error {
-	//tbl.store.Write("path", "bytes")
+// TODO: implement
+func (tbl *FileStorePrimaryTable) WriteBatch(records []GenericRecord) error {
 	return fmt.Errorf("not implemented")
 }
 
@@ -1182,9 +1241,14 @@ func (k8s *K8sOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error
 }
 
 func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.SugaredLogger) (OfflineTable, error) {
-	filepath, err := store.CreateFilePath(fileStoreResourcePath(id))
+	filepath, err := store.CreateFilePath(id.FilestorePath())
 	if err != nil {
 		return nil, fmt.Errorf("could not create file path: %w", err)
+	}
+	if exists, err := store.Exists(filepath); err != nil {
+		return nil, fmt.Errorf("could not check if table exists: %v", err)
+	} else if !exists {
+		return nil, &TableNotFound{id.Name, id.Variant}
 	}
 	logger.Debugw("Getting resource table", "id", id, "resourceKey", filepath.Key())
 	serializedSchema, err := store.Read(filepath)
@@ -1196,7 +1260,7 @@ func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.Sugar
 		return nil, fmt.Errorf("error deserializing resource table: %v", err)
 	}
 	logger.Debugw("Successfully fetched resource table", "id", id)
-	return &BlobOfflineTable{resourceSchema}, nil
+	return &BlobOfflineTable{schema: resourceSchema, store: store}, nil
 }
 
 func (k8s *K8sOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {

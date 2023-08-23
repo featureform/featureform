@@ -105,8 +105,14 @@ func (store *AzureFileStore) CreateFilePath(key string) (filestore.Filepath, err
 	fp := filestore.AzureFilepath{
 		StorageAccount: store.AccountName,
 	}
+	fp.SetScheme(filestore.AzureBlobPrefix)
 	fp.SetBucket(store.ContainerName)
-	fp.SetKey(key)
+	if store.Path != "" {
+		fp.SetKey(fmt.Sprintf("%s/%s", store.Path, key))
+	} else {
+		fp.SetKey(key)
+	}
+	fp.SetIsDir(false)
 	err := fp.Validate()
 	if err != nil {
 		return nil, err
@@ -118,6 +124,7 @@ func (store *AzureFileStore) CreateDirPath(key string) (filestore.Filepath, erro
 	fp := filestore.AzureFilepath{
 		StorageAccount: store.AccountName,
 	}
+	fp.SetScheme(filestore.AzureBlobPrefix)
 	fp.SetBucket(store.ContainerName)
 	fp.SetKey(key)
 	fp.SetIsDir(true)
@@ -183,7 +190,8 @@ func NewAzureFileStore(config Config) (FileStore, error) {
 		ContainerName:    azureStoreConfig.ContainerName,
 		Path:             azureStoreConfig.Path,
 		genericFileStore: genericFileStore{
-			bucket: bucket,
+			bucket:    bucket,
+			storeType: filestore.Azure,
 		},
 	}, nil
 }
@@ -667,8 +675,9 @@ func (fs *HDFSFileStore) CreateFilePath(key string) (filestore.Filepath, error) 
 }
 
 type genericFileStore struct {
-	bucket *blob.Bucket
-	path   filestore.Filepath
+	bucket    *blob.Bucket
+	path      filestore.Filepath
+	storeType filestore.FileStoreType
 }
 
 func (store *genericFileStore) NewestFileOfType(path filestore.Filepath, fileType filestore.FileType) (filestore.Filepath, error) {
@@ -686,8 +695,12 @@ func (store *genericFileStore) NewestFileOfType(path filestore.Filepath, fileTyp
 			if err != nil {
 				return nil, err
 			}
-			// TODO: determine if this is actually correct
-			err = path.ParseFilePath(mostRecentKey)
+			// TODO: Previously, his will fail with the following error if mostRecentKey is empty
+			// invalid scheme '://', must be one of [gs:// s3:// s3a:// abfss:// hdfs://]
+			if mostRecentKey == "" {
+				return path, nil
+			}
+			path, err = store.CreateFilePath(mostRecentKey)
 			if err != nil {
 				return nil, err
 			}
@@ -843,7 +856,11 @@ func (store *genericFileStore) Download(sourcePath filestore.Filepath, destPath 
 }
 
 func (store *genericFileStore) FilestoreType() filestore.FileStoreType {
-	return filestore.Memory
+	if store.storeType == "" {
+		return filestore.Memory
+	} else {
+		return store.storeType
+	}
 }
 
 func (store *genericFileStore) AddEnvVars(envVars map[string]string) map[string]string {

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
-	"regexp"
+
 	"strings"
 )
 
@@ -300,15 +300,24 @@ func (azure *AzureFilepath) PathWithBucket() string {
 	return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s", azure.bucket, azure.StorageAccount, azure.key)
 }
 
-func (azure *AzureFilepath) ParseFullPath(fullPath string) error {
-	abfssRegex := regexp.MustCompile(`abfss://(.+?)@(.+?)\.dfs.core.windows.net/(.+)`)
-	if matches := abfssRegex.FindStringSubmatch(fullPath); len(matches) != 4 {
-		return fmt.Errorf("could not parse full path '%s'; expected format abfss://<container/bucket>@<storage_account>.dfs.core.windows.net/path", fullPath)
-	} else {
-		azure.FilePath.bucket = strings.Trim(matches[1], "/")
-		azure.StorageAccount = strings.Trim(matches[2], "/")
-		azure.FilePath.key = strings.Trim(matches[3], "/")
+func (azure *AzureFilepath) ParseFilePath(fullPath string) error {
+	u, err := url.Parse(fullPath)
+	if err != nil {
+		return fmt.Errorf("could not parse full path '%s': %v", fullPath, err)
 	}
+	// Our scheme is the protocol + "://", so we need to suffix the scheme with "://"
+	// to ensure the comparison works.
+	err = azure.FilePath.checkSchemes(fmt.Sprintf("%s://", u.Scheme))
+	if err != nil {
+		return err
+	} else {
+		azure.FilePath.scheme = u.Scheme
+	}
+	azure.FilePath.scheme = u.Scheme
+	azure.FilePath.bucket = u.User.String()              // The container will be in the User field due to the format <scheme>://<container>@<storage_account>
+	azure.StorageAccount = strings.Split(u.Host, ".")[0] // The host will be in the format <storage_account>.dfs.core.windows.net
+	azure.FilePath.key = strings.TrimPrefix(u.Path, "/")
+	azure.FilePath.isDir = false
 	return nil
 }
 
@@ -365,4 +374,8 @@ type HDFSFilepath struct {
 
 func (hdfs *HDFSFilepath) Validate() error {
 	return fmt.Errorf("not implemented")
+}
+
+type LocalFilepath struct {
+	FilePath
 }

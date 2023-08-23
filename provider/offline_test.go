@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	fs "github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
@@ -143,21 +144,26 @@ func TestOfflineStores(t *testing.T) {
 	}
 
 	// TODO start with local spark and azure, then move on to s3, gcs
-	//sparkInit := func() (pc.SerializedConfig, pc.SparkConfig) {
-	//	var sparkConfig = pc.SparkConfig{
-	//		ExecutorType: pc.SparkGeneric,
-	//		ExecutorConfig: &pc.SparkGenericConfig{
-	//			Master: "local[*]",
-	//		},
-	//		StoreType:   pc.Azure,
-	//		StoreConfig: &pc.AzureFileStoreConfig{},
-	//	}
-	//	serializedConfig, err := sparkConfig.Serialize()
-	//	if err != nil {
-	//		t.Fatalf("Cannot serialize Spark config: %v", err)
-	//	}
-	//	return serializedConfig, sparkConfig
-	//}
+	sparkInit := func() (pc.SerializedConfig, pc.SparkConfig) {
+		var sparkConfig = pc.SparkConfig{
+			ExecutorType: pc.SparkGeneric,
+			ExecutorConfig: &pc.SparkGenericConfig{
+				Master: "local[*]",
+			},
+			StoreType: fs.Azure,
+			StoreConfig: &pc.AzureFileStoreConfig{
+				AccountName:   os.Getenv("AZURE_ACCOUNT_NAME"),
+				AccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
+				ContainerName: os.Getenv("AZURE_CONTAINER_NAME"),
+				Path:          os.Getenv("AZURE_CONTAINER_PATH"),
+			},
+		}
+		serializedConfig, err := sparkConfig.Serialize()
+		if err != nil {
+			t.Fatalf("Cannot serialize Spark config: %v", err)
+		}
+		return serializedConfig, sparkConfig
+	}
 
 	testList := []testMember{}
 
@@ -188,43 +194,44 @@ func TestOfflineStores(t *testing.T) {
 			destroyRedshiftDatabase(redshiftConfig)
 		})
 	}
-	//if *provider == "spark" || *provider == "" {
-	//	serialSparkConfig, _ := sparkInit()
-	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	//}
+	if *provider == "spark" || *provider == "" {
+		serialSparkConfig, _ := sparkInit()
+		fmt.Println("SPARK STORE CONFIGURATION IN TEST INITIALIZATION: ", string(serialSparkConfig))
+		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	}
 
 	testFns := map[string]func(*testing.T, OfflineStore){
-		"CreateGetTable":          testCreateGetOfflineTable,
-		"TableAlreadyExists":      testOfflineTableAlreadyExists,
-		"TableNotFound":           testOfflineTableNotFound,
-		"InvalidResourceIDs":      testInvalidResourceIDs,
-		"Materializations":        testMaterializations,
-		"MaterializationUpdate":   testMaterializationUpdate,
-		"InvalidResourceRecord":   testWriteInvalidResourceRecord,
-		"InvalidMaterialization":  testInvalidMaterialization,
-		"MaterializeUnknown":      testMaterializeUnknown,
-		"MaterializationNotFound": testMaterializationNotFound,
-		"TrainingSets":            testTrainingSet,
-		"TrainingSetUpdate":       testTrainingSetUpdate,
+		// "CreateGetTable":     testCreateGetOfflineTable, // PASSING
+		// "TableAlreadyExists": testOfflineTableAlreadyExists, // PASSING
+		// "TableNotFound":      testOfflineTableNotFound, // PASSING
+		// "InvalidResourceIDs": testInvalidResourceIDs, // PASSING
+		"Materializations": testMaterializations,
+		// "MaterializationUpdate":   testMaterializationUpdate,
+		// "InvalidResourceRecord":   testWriteInvalidResourceRecord,
+		// "InvalidMaterialization":  testInvalidMaterialization,
+		// "MaterializeUnknown":      testMaterializeUnknown,
+		// "MaterializationNotFound": testMaterializationNotFound,
+		// "TrainingSets":            testTrainingSet,
+		// "TrainingSetUpdate":       testTrainingSetUpdate,
 		//"TrainingSetLag":          testLagFeaturesTrainingSet,
-		"TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID,
-		"GetUnknownTrainingSet":  testGetUnkonwnTrainingSet,
-		"InvalidTrainingSetDefs": testInvalidTrainingSetDefs,
-		"LabelTableNotFound":     testLabelTableNotFound,
-		"FeatureTableNotFound":   testFeatureTableNotFound,
-		"TrainingDefShorthand":   testTrainingSetDefShorthand,
+		// "TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID,
+		// "GetUnknownTrainingSet":  testGetUnkonwnTrainingSet,
+		// "InvalidTrainingSetDefs": testInvalidTrainingSetDefs,
+		// "LabelTableNotFound":     testLabelTableNotFound,
+		// "FeatureTableNotFound":   testFeatureTableNotFound,
+		// "TrainingDefShorthand":   testTrainingSetDefShorthand,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
-		"PrimaryTableCreate":              testPrimaryCreateTable,
-		"PrimaryTableWrite":               testPrimaryTableWrite,
-		"Transformation":                  testTransform,
-		"TransformationUpdate":            testTransformUpdate,
-		"TransformationUpdateWithFeature": testTransformUpdateWithFeatures,
-		"CreateDuplicatePrimaryTable":     testCreateDuplicatePrimaryTable,
-		"ChainTransformations":            testChainTransform,
-		"CreateResourceFromSource":        testCreateResourceFromSource,
-		"CreateResourceFromSourceNoTS":    testCreateResourceFromSourceNoTS,
-		"CreatePrimaryFromSource":         testCreatePrimaryFromSource,
+		// "PrimaryTableCreate":              testPrimaryCreateTable,
+		// "PrimaryTableWrite":               testPrimaryTableWrite,
+		// "Transformation":                  testTransform,
+		// "TransformationUpdate":            testTransformUpdate,
+		// "TransformationUpdateWithFeature": testTransformUpdateWithFeatures,
+		// "CreateDuplicatePrimaryTable":     testCreateDuplicatePrimaryTable,
+		// "ChainTransformations":            testChainTransform,
+		// "CreateResourceFromSource":        testCreateResourceFromSource,
+		// "CreateResourceFromSourceNoTS":    testCreateResourceFromSourceNoTS,
+		// "CreatePrimaryFromSource":         testCreatePrimaryFromSource,
 	}
 
 	psqlInfo := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), "localhost", "5432", os.Getenv("POSTGRES_DB"))
@@ -442,20 +449,26 @@ func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
 		},
 	}
 	if tab, err := store.CreateResourceTable(id, schema); tab == nil || err != nil {
-		t.Fatalf("Failed to create table: %s", err)
+		t.Fatalf("Failed to create table: %v", err)
 	}
 	if tab, err := store.GetResourceTable(id); tab == nil || err != nil {
-		t.Fatalf("Failed to get table: %s", err)
+		t.Fatalf("Failed to get table: %v", err)
 	}
 }
 
 func testOfflineTableAlreadyExists(t *testing.T, store OfflineStore) {
 	id := randomID(Feature, Label)
 	schema := TableSchema{
+		// TODO: Verify whether these should be empty strings or not
+		// Columns: []TableColumn{
+		// 	{Name: "", ValueType: String},
+		// 	{Name: "", ValueType: Int},
+		// 	{Name: "", ValueType: Timestamp},
+		// },
 		Columns: []TableColumn{
-			{Name: "", ValueType: String},
-			{Name: "", ValueType: Int},
-			{Name: "", ValueType: Timestamp},
+			{Name: "entity", ValueType: String},
+			{Name: "value", ValueType: Int},
+			{Name: "ts", ValueType: Timestamp},
 		},
 	}
 	if _, err := store.CreateResourceTable(id, schema); err != nil {

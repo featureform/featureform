@@ -312,7 +312,7 @@ def local_provider_source():
 @pytest.fixture(scope="module")
 def serving_client():
     def get_clients_for_context(is_local, is_insecure):
-        return ff.ServingClient(local=is_local, insecure=is_insecure)
+        return ff.Client(local=is_local, insecure=is_insecure)
 
     return get_clients_for_context
 

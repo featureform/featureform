@@ -44,14 +44,14 @@ FEATURE_NAME, FEATURE_VARIANT, TRAININGSET_NAME, TRAININGSET_VARIANT = parse_ver
 )
 FEATURE_ENTITY, FEATURE_VALUE = parse_feature(read_file("feature.txt"))
 if (
-    FEATURE_NAME == None
-    or FEATURE_VARIANT == None
-    or TRAININGSET_NAME == None
-    or TRAININGSET_VARIANT == None
+    FEATURE_NAME is None
+    or FEATURE_VARIANT is None
+    or TRAININGSET_NAME is None
+    or TRAININGSET_VARIANT is None
 ):
     raise TypeError("VERSION is set to None.")
 
-client = ff.ServingClient()
+client = ff.Client()
 
 
 def serve_data():

@@ -261,29 +261,23 @@ def get_metadata(type, resource):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
     data_as_list = []
     if type == "features":
-        for feature in db.get_features():
-            data_as_list.append(collect_features(feature))
+        feature_list = db.get_features()
+        feature_list = filter(lambda rec: rec["name"] == resource, feature_list)
+        data_as_list.append(collect_features(feature_list[0]))
     elif type == "training_sets":
-        for training_set in db.get_training_sets():
-            data_as_list.append(collect_training_sets(training_set))
+        pass
     elif type == "sources":
-        for source in db.get_sources():
-            data_as_list.append(collect_sources(source))
+        pass
     elif type == "labels":
-        for label in db.get_labels():
-            data_as_list.append(collect_labels(label))
+        pass
     elif type == "entities":
-        for entity in db.get_entities():
-            data_as_list.append(collect_entities(entity))
+        pass
     elif type == "models":
-        for model in db.get_models():
-            data_as_list.append(collect_models(model))
+        pass
     elif type == "users":
-        for user in db.get_users():
-            data_as_list.append(collect_users(user))
+        pass
     elif type == "providers":
-        for provider in db.get_providers():
-            data_as_list.append(collect_providers(provider))
+        pass
 
     return Response(
         response=json.dumps(data_as_list), status=200, mimetype="application/json"

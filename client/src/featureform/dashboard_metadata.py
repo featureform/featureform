@@ -208,21 +208,29 @@ def get_metadata_list(type):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
     all_data = []
     if type == "features":
-        all_data.append(db.get_features())
+        for current in db.get_features():
+            all_data.append(current.to_dictionary())
     elif type == "training_sets":
-        all_data.append(db.get_training_sets())
+        for current in db.get_training_sets():
+            all_data.append(current.to_dictionary())
     elif type == "sources":
-        all_data.append(db.get_sources())
+        for current in db.get_sources():
+            all_data.append(current.to_dictionary())
     elif type == "labels":
-        all_data.append(db.get_labels())
+        for current in db.get_labels():
+            all_data.append(current.to_dictionary())
     elif type == "entities":
-        all_data.append(db.get_entities())
+        for current in db.get_entities():
+            all_data.append(current.to_dictionary())
     elif type == "models":
-        all_data.append(db.get_models())
+        for current in db.get_models():
+            all_data.append(current.to_dictionary())
     elif type == "users":
-        all_data.append(db.get_users())
+        for current in db.get_users():
+            all_data.append(current.to_dictionary())
     elif type == "providers":
-        all_data.append(db.get_providers())
+        for current in db.get_providers():
+            all_data.append(current.to_dictionary())
 
     response = Response(
         response=json.dumps(all_data), status=200, mimetype="application/json"

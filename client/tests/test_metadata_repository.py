@@ -28,11 +28,13 @@ from featureform.resources import (
     TrainingSet,
 )
 
-test_user = User(name="test_user", tags=["tag1"], properties={"key1": "value1"})
+test_user = User(
+    name="test_user", tags=["tag1"], properties={"key1": "value1"}, status="ready"
+)
 
 model = Model(name="model")
 
-entity = Entity(name="entity", description="fake description")
+entity = Entity(name="entity", description="fake description", status="ready")
 
 provider = Provider(
     name="provider",
@@ -40,13 +42,14 @@ provider = Provider(
     team="fake_team",
     config=EmptyConfig(),
     function="",
-    status="ready",  # look into this
+    status="ready",
 )
 
 resource_location = ResourceLocation(
     entity="Dummy Entity", value="Dummy Value", timestamp="12345"
 )
 feature_variant = FeatureVariant(
+    created=None,
     name="feature",
     source=("source", "variant1"),
     value_type=ScalarType.FLOAT32.value,
@@ -63,6 +66,7 @@ feature_variant = FeatureVariant(
 )
 
 source_variant = SourceVariant(
+    created=None,
     name="source",
     variant="variant1",
     definition=PrimaryData(location=SQLTable(name="")),
@@ -88,6 +92,7 @@ label_variant = LabelVariant(
 )
 
 training_set_variant = TrainingSetVariant(
+    created=None,
     name="training_set",
     owner="fake_owner",
     label=("label", "variant1"),

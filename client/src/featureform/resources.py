@@ -828,6 +828,19 @@ class Provider:
                 return False
         return True
 
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "description": self.description,
+            "team": self.team,
+            "config": "todox",
+            "function": "todox",
+            "status": self.status,
+            "tags": self.tags,
+            "properties": self.properties,
+            "error": self.error,
+        }
+
 
 @typechecked
 @dataclass
@@ -864,6 +877,14 @@ class User:
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "status": self.status,
+            "tags": self.tags,
+            "properties": self.properties,
+        }
 
 
 @typechecked
@@ -964,6 +985,13 @@ class Source:
     default_variant: str
     variants: List[str]
 
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "default_variant": self.default_variant,
+            "variants": self.variants,
+        }
+
 
 @typechecked
 @dataclass
@@ -1008,6 +1036,7 @@ class SourceVariant:
         definition = self._get_source_definition(source)
 
         return SourceVariant(
+            created=None,
             name=source.name,
             definition=definition,
             owner=source.owner,
@@ -1044,6 +1073,7 @@ class SourceVariant:
     def _create(self, stub) -> None:
         defArgs = self.definition.kwargs()
         serialized = pb.SourceVariant(
+            created=None,
             name=self.name,
             variant=self.variant,
             owner=self.owner,
@@ -1171,6 +1201,15 @@ class Entity:
                 return False
         return True
 
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "description": self.description,
+            "status": self.status,
+            "tags": self.tags,
+            "properties": self.properties,
+        }
+
 
 @typechecked
 @dataclass
@@ -1196,6 +1235,13 @@ class Feature:
     name: str
     default_variant: str
     variants: List[str]
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "default_variant": self.default_variant,
+            "variants": self.variants,
+        }
 
 
 @typechecked
@@ -1249,6 +1295,7 @@ class FeatureVariant:
         feature = next(stub.GetFeatureVariants(iter([name_variant])))
 
         return FeatureVariant(
+            created=None,
             name=feature.name,
             variant=feature.variant,
             source=(feature.source.name, feature.source.variant),
@@ -1491,6 +1538,13 @@ class Label:
     default_variant: str
     variants: List[str]
 
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "default_variant": self.default_variant,
+            "variants": self.variants,
+        }
+
 
 @typechecked
 @dataclass
@@ -1710,6 +1764,13 @@ class TrainingSet:
     default_variant: str
     variants: List[str]
 
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "default_variant": self.default_variant,
+            "variants": self.variants,
+        }
+
 
 @typechecked
 @dataclass
@@ -1761,6 +1822,7 @@ class TrainingSetVariant:
         ts = next(stub.GetTrainingSetVariants(iter([name_variant])))
 
         return TrainingSetVariant(
+            created=None,
             name=ts.name,
             variant=ts.variant,
             owner=ts.owner,
@@ -1789,6 +1851,7 @@ class TrainingSetVariant:
             feature_lags.append(feature_lag)
 
         serialized = pb.TrainingSetVariant(
+            created=None,
             name=self.name,
             variant=self.variant,
             description=self.description,
@@ -1912,7 +1975,7 @@ class TrainingSetVariant:
 @dataclass
 class Model:
     name: str
-    description: str
+    description: str = ""
     tags: list = field(default_factory=list)
     properties: dict = field(default_factory=dict)
 
@@ -1950,6 +2013,14 @@ class Model:
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "description": self.description,
+            "tags": self.tags,
+            "properties": self.properties,
+        }
 
 
 Resource = Union[

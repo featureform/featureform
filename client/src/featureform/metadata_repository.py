@@ -120,7 +120,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
         model_row = self.db.get_model(name, should_fetch_tags_properties=True)
         return Model(
             name=model_row["name"],
-            description=model_row["description"],
+            description="",
             tags=json.loads(model_row["tags"]) if model_row["tags"] else [],
             properties=json.loads(model_row["properties"])
             if model_row["properties"]
@@ -141,7 +141,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
     def get_feature_variant(self, name, variant) -> FeatureVariant:
         result = self.db.get_feature_variant(name, variant)
         return FeatureVariant(
-            created=result["created"],
+            created=None,
             name=result["name"],
             variant=result["variant"],
             source=(result["source_name"], result["source_variant"]),
@@ -224,7 +224,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
     def get_source_variant(self, name: str, variant: str) -> SourceVariant:
         result = self.db.get_source_variant(name, variant)
         return SourceVariant(
-            created=result["created"],
+            created=None,
             name=result["name"],
             definition=result["definition"],  # double check this
             variant=result["variant"],
@@ -263,7 +263,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             (r["feature_name"], r["feature_variant"]) for r in ts_feature_rows
         ]
         return TrainingSetVariant(  # does local mode use provider for TS
-            created=result["created"],
+            created=None,
             name=result["name"],
             variant=result["variant"],
             owner=result["owner"],
@@ -328,6 +328,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             Entity(
                 name=row["name"],
                 description=row["description"],
+                status=row["status"],
                 tags=json.loads(row["tags"]) if row["tags"] else [],
                 properties=json.loads(row["properties"]) if row["properties"] else {},
             )
@@ -379,6 +380,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
         return [
             User(
                 name=row["name"],
+                status=row["status"],
                 tags=json.loads(row["tags"]) if row["tags"] else [],
                 properties=json.loads(row["properties"]) if row["properties"] else {},
             )

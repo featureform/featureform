@@ -729,21 +729,22 @@ class LocalClientImpl:
                 )
 
         total = len(feature_df)
-        for index, row in feature_df.iterrows():
-            table.set(row[0], row[1])
-            progress_bar(
-                total,
-                index,
-                prefix="Updating Feature Table:",
-                suffix="Complete",
-                length=50,
-            )
+        if provider_type == "LOCAL_ONLINE":
+            table.set_batch(feature_df)
+        else:
+            for index, row in feature_df.iterrows():
+                table.set(row[0], row[1])
+                progress_bar(
+                    total,
+                    index,
+                    prefix="Updating Feature Table:",
+                    suffix="Complete",
+                    length=50,
+                )
         progress_bar(
             total, total, prefix="Updating Feature Table:", suffix="Complete", length=50
         )
         print("\n")
-        if provider_type == "LOCAL_ONLINE":
-            table.flush()
 
     @staticmethod
     def _file_has_changed(last_updated_at, file_path):

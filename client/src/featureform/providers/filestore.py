@@ -42,6 +42,16 @@ class LocalFileTable(OnlineStoreTable):
             raise ValueError(f"Could not cast feature to type {self.stype}")
         self.df = self.df.append(df)
 
+    def set_batch(self, df):
+        columns = df.columns
+        df = (
+            df.reset_index(drop=True)
+            .rename(columns={columns[0]: "entity", columns[1]: "value"})
+            .drop_duplicates("entity", keep="last")
+            .sort_values("entity", ascending=False)
+        )
+        df.to_csv(self.filepath, mode="w", index=False, header=True)
+
     def get(self, key):
         # The most efficient way to perform the upsert at the moment is to
         # create an array with new values to be inserted then process them

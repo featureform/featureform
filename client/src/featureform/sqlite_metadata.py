@@ -425,8 +425,8 @@ class SQLiteMetadata:
         resource_data = self.__conn.execute(query)
         self.__conn.commit()
         resource_data_list = resource_data.fetchall()
-        if len(resource_data_list) == 0 and column != "owner":
-            raise ValueError(f"{table} with {column}: {resource_name} not found")
+        if (len(resource_data_list)) == 0:
+            return []
         return resource_data_list
 
     def query_resource_variant(self, table, column, resource_name):

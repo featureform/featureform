@@ -86,7 +86,8 @@
     "Port": "port",
     "Username": "username",
     "Password": "password",
-    "Database": "database"
+    "Database": "database",
+    "SSLMode": "sslmode"
   },
   "RedshiftConfig": {
     "Host": "host",
@@ -117,5 +118,6 @@
   },
   "EmptyConfig": {},
   "LocalConfig": {},
-  "MemoryConfig": {}
+  "MemoryConfig": {},
+  "UnitTestConfig": {}
 }

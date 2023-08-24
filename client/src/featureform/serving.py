@@ -471,6 +471,10 @@ class LocalClientImpl:
                     dataframes.append(self.get_input_df(source_name, source_variant))
                 func = types.FunctionType(code, globals(), "transformation")
                 new_data = func(*dataframes)
+                if new_data is None:
+                    raise ValueError(
+                        f"Transformation {name} ({variant}) returned None. Please return a dataframe."
+                    )
             return new_data
 
         return self.local_cache.get_or_put(
@@ -770,11 +774,11 @@ class LocalClientImpl:
             feature_df.reset_index(inplace=True)
         if not feature["source_entity"] in feature_df.columns:
             raise ValueError(
-                f"Could not set entity column. No column name {feature['source_entity']} exists in {source_name}-{source_variant}"
+                f"Could not set entity column. No column name {feature['source_entity']} exists in {source_name} ({source_variant})"
             )
         if not feature["source_value"] in feature_df.columns:
             raise ValueError(
-                f"Could not access feature value column. No column name {feature['source_value']} exists in {source_name}-{source_variant}"
+                f"Could not access feature value column. No column name '{feature['source_value']}' exists in {source_name} ({source_variant})"
             )
         feature_df = feature_df[[feature["source_entity"], feature["source_value"]]]
         feature_df.rename(

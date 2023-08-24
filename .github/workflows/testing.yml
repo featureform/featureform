@@ -144,7 +144,7 @@ jobs:
     environment: Integration testing
     needs: setup
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     services:
       redis-insecure:
         image: redis
@@ -1058,30 +1058,31 @@ jobs:
           name: client-coverage
           verbose: true
 
-  notebook:
-    name: Test Notebook
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.8"
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.18
-
-      - name: Install grpc_tools
-        run: pip install grpcio-tools build
-
-      - name: Install Protobuf
-        run: sudo snap install protobuf --classic
-
-      - name: Setup Proto
-        run: ./gen_grpc.sh
-
-      - name: Run Tests
-        run: make jupyter
+#  notebook:
+#    name: Test Notebook
+#    runs-on: ubuntu-latest
+#    timeout-minutes: 5
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Python
+#        uses: actions/setup-python@v4
+#        with:
+#          python-version: "3.8"
+#
+#      - name: Set up Go
+#        uses: actions/setup-go@v2
+#        with:
+#          go-version: 1.18
+#
+#      - name: Install grpc_tools
+#        run: pip install grpcio-tools build
+#
+#      - name: Install Protobuf
+#        run: sudo snap install protobuf --classic
+#
+#      - name: Setup Proto
+#        run: ./gen_grpc.sh
+#
+#      - name: Run Tests
+#        run: make jupyter

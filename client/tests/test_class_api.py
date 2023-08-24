@@ -1,7 +1,7 @@
 import featureform as ff
 import pytest
 from featureform.register import Registrar, DFTransformationDecorator, ResourceRegistrar
-from featureform.resources import Entity, Feature, Label
+from featureform.resources import Entity, FeatureVariant, LabelVariant
 from featureform.names_generator import get_random_name
 
 
@@ -28,7 +28,8 @@ def test_class_api_syntax(provider_source_fxt, is_local, is_insecure, request):
     arrange_resources(provider, source, inference_store, is_local, is_insecure)
     original_syntax_state = list(
         filter(
-            lambda r: isinstance(r, (Entity, Feature, Label)), ff.state().sorted_list()
+            lambda r: isinstance(r, (Entity, FeatureVariant, LabelVariant)),
+            ff.state().sorted_list(),
         )
     )
 
@@ -39,7 +40,8 @@ def test_class_api_syntax(provider_source_fxt, is_local, is_insecure, request):
     )
     class_syntax_state = list(
         filter(
-            lambda r: isinstance(r, (Entity, Feature, Label)), ff.state().sorted_list()
+            lambda r: isinstance(r, (Entity, FeatureVariant, LabelVariant)),
+            ff.state().sorted_list(),
         )
     )
 
@@ -151,7 +153,6 @@ def test_indexing_with_more_than_three_columns(provider_source_fxt, is_local, re
         mark.name for mark in request.node.own_markers if mark.name != "parametrize"
     ]
     _, source, _ = request.getfixturevalue(provider_source_fxt)(custom_marks)
-    label_entity_column = "CustomerID" if is_local else "customerid"
     label_entity_column = "CustomerID" if is_local else "customerid"
     label_timestamp_column = "Timestamp" if is_local else "timestamp"
 

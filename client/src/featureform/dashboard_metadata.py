@@ -206,34 +206,34 @@ def get_metadata_list(type):
         return response
 
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    all_data = []
+    data_as_list = []
     if type == "features":
-        for current in db.get_features():
-            all_data.append(current.to_dictionary())
+        for feature in db.get_features():
+            data_as_list.append(collect_features(feature))
     elif type == "training_sets":
-        for current in db.get_training_sets():
-            all_data.append(current.to_dictionary())
+        for training_set in db.get_training_sets():
+            data_as_list.append(collect_training_sets(training_set))
     elif type == "sources":
-        for current in db.get_sources():
-            all_data.append(current.to_dictionary())
+        for source in db.get_sources():
+            data_as_list.append(collect_sources(source))
     elif type == "labels":
-        for current in db.get_labels():
-            all_data.append(current.to_dictionary())
+        for label in db.get_labels():
+            data_as_list.append(collect_labels(label))
     elif type == "entities":
-        for current in db.get_entities():
-            all_data.append(current.to_dictionary())
+        for entity in db.get_entities():
+            data_as_list.append(collect_entities(entity))
     elif type == "models":
-        for current in db.get_models():
-            all_data.append(current.to_dictionary())
+        for model in db.get_models():
+            data_as_list.append(collect_models(model))
     elif type == "users":
-        for current in db.get_users():
-            all_data.append(current.to_dictionary())
+        for user in db.get_users():
+            data_as_list.append(collect_users(user))
     elif type == "providers":
-        for current in db.get_providers():
-            all_data.append(current.to_dictionary())
+        for provider in db.get_providers():
+            data_as_list.append(collect_providers(provider))
 
     response = Response(
-        response=json.dumps(all_data), status=200, mimetype="application/json"
+        response=json.dumps(data_as_list), status=200, mimetype="application/json"
     )
     return response
 
@@ -371,6 +371,8 @@ def collect_training_sets(training_set_main: TrainingSet):
 
 
 def build_training_set_variant_resource(variant_data: TrainingSetVariant):
+    print("inside build_training_set_variant_resource()")
+    print(variant_data)
     training_set_variant_resource = TrainingSetVariantResource(
         created=variant_data.created,
         description=variant_data.description,

@@ -522,7 +522,7 @@ def build_label_resource(label_main: Label):
 
 def build_label_variant_resource(variant_data: LabelVariant):
     label_variant_resource = LabelVariantResource(
-        created="",  # todox: missing field
+        created="",
         description=variant_data.description,
         name=variant_data.name,
         owner=variant_data.owner,
@@ -709,7 +709,7 @@ def build_provider_resource(provider_obj: Provider):
         team=provider_obj.team,
         sources=provider_source_list,
         status=provider_obj.status,
-        serializedConfig="todox",
+        serializedConfig="",
         features=resources_list_to_dict(provider_feature_list),
         labels=resources_list_to_dict(provider_label_list),
         tags=provider_obj.tags if provider_obj.tags is not None else [],

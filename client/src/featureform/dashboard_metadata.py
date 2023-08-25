@@ -261,23 +261,45 @@ def get_metadata(type, resource):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
     data_as_list = []
     if type == "features":
-        feature_list = db.get_features()
-        feature_list = filter(lambda rec: rec["name"] == resource, feature_list)
-        data_as_list.append(collect_features(feature_list[0]))
+        records = db.get_features()
+        records = filter(lambda rec: rec["name"] == resource, records)
+        if len(records) > 0:
+            data_as_list.append(collect_features(records[0]))
     elif type == "training_sets":
-        pass
+        records = db.get_training_sets()
+        records = filter(lambda rec: rec["name"] == resource, records)
+        if len(records) > 0:
+            data_as_list.append(collect_training_sets(records[0]))
     elif type == "sources":
-        pass
+        records = db.get_sources()
+        records = filter(lambda rec: rec["name"] == resource, records)
+        if len(records) > 0:
+            data_as_list.append(collect_sources(records[0]))
     elif type == "labels":
-        pass
+        records = db.get_labels()
+        records = filter(lambda rec: rec["name"] == resource, records)
+        if len(records) > 0:
+            data_as_list.append(collect_labels(records[0]))
     elif type == "entities":
-        pass
+        records = db.get_entities()
+        records = filter(lambda rec: rec["name"] == resource, records)
+        if len(records) > 0:
+            data_as_list.append(collect_entities(records[0]))
     elif type == "models":
-        pass
+        records = db.get_models()
+        records = filter(lambda rec: rec["name"] == resource, records)
+        if len(records) > 0:
+            data_as_list.append(collect_models(records[0]))
     elif type == "users":
-        pass
+        records = db.get_users()
+        records = filter(lambda rec: rec["name"] == resource, records)
+        if len(records) > 0:
+            data_as_list.append(collect_users(records[0]))
     elif type == "providers":
-        pass
+        records = db.get_providers()
+        records = filter(lambda rec: rec["name"] == resource, records)
+        if len(records) > 0:
+            data_as_list.append(collect_providers(records[0]))
 
     return Response(
         response=json.dumps(data_as_list), status=200, mimetype="application/json"

@@ -571,32 +571,32 @@ def collect_models(model_obj: Model):
 def collect_users(user_obj: User):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
 
-    model_feature_list = []
+    user_feature_list = []
     feature_list = db.get_features()
     for current_feature in feature_list:
         for variant_name in current_feature.variants:
             found_variant = db.get_feature_variant(
                 name=current_feature.name, variant=variant_name
             )
-            model_feature_list.append(build_feature_variant_resource(found_variant))
+            user_feature_list.append(build_feature_variant_resource(found_variant))
 
-    model_label_list = []
+    user_label_list = []
     label_list = db.get_labels()
     for current_label in label_list:
         for variant_name in current_label.variants:
             found_variant = db.get_label_variant(
                 name=current_label.name, variant=variant_name
             )
-            model_label_list.append(build_label_variant_resource(found_variant))
+            user_label_list.append(build_label_variant_resource(found_variant))
 
-    model_training_set_list = []
+    user_training_set_list = []
     training_set_list = db.get_training_sets()
     for current_training_set in training_set_list:
         for variant_name in current_training_set.variants:
             found_variant = db.get_training_set_variant(
                 name=current_training_set.name, variant=variant_name
             )
-            model_training_set_list.append(
+            user_training_set_list.append(
                 build_training_set_variant_resource(found_variant)
             )
 
@@ -604,9 +604,9 @@ def collect_users(user_obj: User):
         name=user_obj.name,
         type="Model",
         status=user_obj.status,
-        features=feature_list,
-        labels=label_list,
-        trainingSets=training_set_list,
+        features=user_feature_list,
+        labels=user_label_list,
+        trainingSets=user_training_set_list,
         tags=user_obj.tags if user_obj.tags is not None else [],
         properties=user_obj.properties if user_obj.properties is not None else [],
     ).to_dictionary()
@@ -650,7 +650,7 @@ def collect_providers(provider_obj: Provider):
         team=provider_obj.team,
         sources=provider_source_list,
         status=provider_obj.status,
-        serializedConfig=provider_obj.config,
+        serializedConfig="todox",
         features=provider_feature_list,
         labels=provider_label_list,
         tags=provider_obj.tags if provider_obj.tags is not None else [],

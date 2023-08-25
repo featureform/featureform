@@ -207,28 +207,28 @@ def get_metadata_list(type):
     data_as_list = []
     if type == "features":
         for feature in db.get_features():
-            data_as_list.append(collect_features(feature))
+            data_as_list.append(build_feature_resource(feature))
     elif type == "training_sets":
         for training_set in db.get_training_sets():
-            data_as_list.append(collect_training_sets(training_set))
+            data_as_list.append(build_training_set_resource(training_set))
     elif type == "sources":
         for source in db.get_sources():
-            data_as_list.append(collect_sources(source))
+            data_as_list.append(build_source_resource(source))
     elif type == "labels":
         for label in db.get_labels():
-            data_as_list.append(collect_labels(label))
+            data_as_list.append(build_label_resource(label))
     elif type == "entities":
         for entity in db.get_entities():
-            data_as_list.append(collect_entities(entity))
+            data_as_list.append(build_entity_resource(entity))
     elif type == "models":
         for model in db.get_models():
-            data_as_list.append(collect_models(model))
+            data_as_list.append(build_model_resource(model))
     elif type == "users":
         for user in db.get_users():
-            data_as_list.append(collect_users(user))
+            data_as_list.append(build_user_resource(user))
     elif type == "providers":
         for provider in db.get_providers():
-            data_as_list.append(collect_providers(provider))
+            data_as_list.append(build_provider_resource(provider))
 
     response = Response(
         response=json.dumps(data_as_list), status=200, mimetype="application/json"
@@ -262,42 +262,42 @@ def get_metadata(type, resource):
         records = db.get_features()
         records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
-            data_as_list.append(collect_features(records[0]))
+            data_as_list.append(build_feature_resource(records[0]))
     elif type == "training_sets":
         records = db.get_training_sets()
         records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
-            data_as_list.append(collect_training_sets(records[0]))
+            data_as_list.append(build_training_set_resource(records[0]))
     elif type == "sources":
         records = db.get_sources()
         records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
-            data_as_list.append(collect_sources(records[0]))
+            data_as_list.append(build_source_resource(records[0]))
     elif type == "labels":
         records = db.get_labels()
         records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
-            data_as_list.append(collect_labels(records[0]))
+            data_as_list.append(build_label_resource(records[0]))
     elif type == "entities":
         records = db.get_entities()
         records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
-            data_as_list.append(collect_entities(records[0]))
+            data_as_list.append(build_entity_resource(records[0]))
     elif type == "models":
         records = db.get_models()
         records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
-            data_as_list.append(collect_models(records[0]))
+            data_as_list.append(build_model_resource(records[0]))
     elif type == "users":
         records = db.get_users()
         records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
-            data_as_list.append(collect_users(records[0]))
+            data_as_list.append(build_user_resource(records[0]))
     elif type == "providers":
         records = db.get_providers()
         records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
-            data_as_list.append(collect_providers(records[0]))
+            data_as_list.append(build_provider_resource(records[0]))
     return Response(
         response=json.dumps(data_as_list), status=200, mimetype="application/json"
     )
@@ -329,7 +329,7 @@ def variant_list_to_dict(variant_list):
     return variants_dict
 
 
-def collect_features(feature_main: Feature):
+def build_feature_resource(feature_main: Feature):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
     variant_list = []
     for variant_name in feature_main.variants:
@@ -376,7 +376,7 @@ def build_feature_variant_resource(variant_data: FeatureVariant):
     return feature_variant_resource
 
 
-def collect_training_sets(training_set_main: TrainingSet):
+def build_training_set_resource(training_set_main: TrainingSet):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
     variant_list = []
     for variant_name in training_set_main.variants:
@@ -416,7 +416,7 @@ def build_training_set_variant_resource(variant_data: TrainingSetVariant):
     return training_set_variant_resource
 
 
-def collect_sources(source_main: Source):
+def build_source_resource(source_main: Source):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
     variant_list = []
     for variant_name in source_main.variants:
@@ -453,7 +453,7 @@ def build_source_variant_resource(variant_data: SourceVariant):
     return source_variant_resource
 
 
-def collect_labels(label_main: Label):
+def build_label_resource(label_main: Label):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
     variant_list = []
     for variant_name in label_main.variants:
@@ -485,7 +485,7 @@ def build_label_variant_resource(variant_data: LabelVariant):
     return label_variant_resource
 
 
-def collect_entities(entity_main: Entity):
+def build_entity_resource(entity_main: Entity):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
     entity_labels_list = []
     label_list = db.get_labels()
@@ -524,7 +524,7 @@ def collect_entities(entity_main: Entity):
     ).to_dictionary()
 
 
-def collect_models(model_obj: Model):
+def build_model_resource(model_obj: Model):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
 
     model_feature_list = []
@@ -568,7 +568,7 @@ def collect_models(model_obj: Model):
     ).to_dictionary()
 
 
-def collect_users(user_obj: User):
+def build_user_resource(user_obj: User):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
 
     user_feature_list = []
@@ -612,7 +612,7 @@ def collect_users(user_obj: User):
     ).to_dictionary()
 
 
-def collect_providers(provider_obj: Provider):
+def build_provider_resource(provider_obj: Provider):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
     provider_source_list = []
     source_list = db.get_sources()

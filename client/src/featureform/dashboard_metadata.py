@@ -578,7 +578,7 @@ def build_entity_resource(entity_main: Entity):
         type=entity_main.type(),
         description=entity_main.description,
         status=entity_main.status,
-        features=resources_list_to_dict[entity_feature_list],
+        features=resources_list_to_dict(entity_feature_list),
         labels=resources_list_to_dict(entity_labels_list),
         trainingSets=resources_list_to_dict(entity_training_set_list),
         tags=entity_main.tags if entity_main.tags is not None else [],
@@ -662,6 +662,15 @@ def build_user_resource(user_obj: User):
                 build_training_set_variant_resource(found_variant)
             )
 
+    user_source_list = []
+    source_list = db.get_sources()
+    for current_source in source_list:
+        for variant_name in current_source.variants:
+            found_variant = db.get_source_variant(
+                name=current_source.name, variant=variant_name
+            )
+            user_source_list.append(build_source_variant_resource(found_variant))
+
     return UserResource(
         name=user_obj.name,
         type="User",
@@ -669,6 +678,7 @@ def build_user_resource(user_obj: User):
         features=resources_list_to_dict(user_feature_list),
         labels=resources_list_to_dict(user_label_list),
         trainingSets=resources_list_to_dict(user_training_set_list),
+        sources=resources_list_to_dict(user_source_list),
         tags=user_obj.tags if user_obj.tags is not None else [],
         properties=user_obj.properties if user_obj.properties is not None else [],
     ).to_dictionary()

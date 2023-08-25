@@ -126,7 +126,11 @@ func (store *AzureFileStore) CreateDirPath(key string) (filestore.Filepath, erro
 	}
 	fp.SetScheme(filestore.AzureBlobPrefix)
 	fp.SetBucket(store.ContainerName)
-	fp.SetKey(key)
+	if store.Path != "" {
+		fp.SetKey(fmt.Sprintf("%s/%s", store.Path, key))
+	} else {
+		fp.SetKey(key)
+	}
 	fp.SetIsDir(true)
 	err := fp.Validate()
 	if err != nil {
@@ -680,9 +684,10 @@ type genericFileStore struct {
 	storeType filestore.FileStoreType
 }
 
-func (store *genericFileStore) NewestFileOfType(path filestore.Filepath, fileType filestore.FileType) (filestore.Filepath, error) {
+// TODO: deprecate this in favor of List
+func (store *genericFileStore) NewestFileOfType(searchPath filestore.Filepath, fileType filestore.FileType) (filestore.Filepath, error) {
 	opts := blob.ListOptions{
-		Prefix: path.Key(),
+		Prefix: searchPath.Key(),
 	}
 	listIterator := store.bucket.List(&opts)
 	mostRecentTime := time.UnixMilli(0)
@@ -695,12 +700,18 @@ func (store *genericFileStore) NewestFileOfType(path filestore.Filepath, fileTyp
 			if err != nil {
 				return nil, err
 			}
-			// TODO: Previously, his will fail with the following error if mostRecentKey is empty
+			// TODO: Prior to adding this guard claus, the call to path.ParseFilePath would fail
+			// with the following error if mostRecentKey is empty:
 			// invalid scheme '://', must be one of [gs:// s3:// s3a:// abfss:// hdfs://]
 			if mostRecentKey == "" {
 				return path, nil
 			}
-			path, err = store.CreateFilePath(mostRecentKey)
+			// **NOTE:** this is a hack to address the fact that genericFileStore is ignorant of the scheme, bucket, etc.
+			// which means we're forced to use everything up to the path from the searchPath and replace its key with
+			// the latest key found at the prefix. The long-term fix could/should be to implement all Filepath methods on
+			// each implementation and call into the genericFileStore with additional parameters for the scheme, bucket, etc.
+			err = path.ParseFilePath(searchPath.PathWithBucket())
+			path.SetKey(mostRecentKey)
 			if err != nil {
 				return nil, err
 			}

@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/featureform/config"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -16,13 +15,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/featureform/config"
+
 	"github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	pc "github.com/featureform/provider/provider_config"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/mitchellh/mapstructure"
-	"github.com/segmentio/parquet-go"
+
+	"github.com/parquet-go/parquet-go"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 )

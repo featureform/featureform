@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/featureform/metadata"
-	"github.com/segmentio/parquet-go"
+	"github.com/parquet-go/parquet-go"
 
 	dp "github.com/novln/docker-parser"
 	"go.uber.org/zap"
@@ -399,7 +399,6 @@ type ParquetIteratorMultipleFiles struct {
 
 func parquetIteratorOverMultipleFiles(fileParts []filestore.Filepath, store FileStore) (Iterator, error) {
 	b, err := store.Read(fileParts[0])
-	//b, err := store.bucket.ReadAll(context.TODO(), fileParts[0])
 	if err != nil {
 		return nil, fmt.Errorf("could not read bucket: %w", err)
 	}
@@ -670,7 +669,8 @@ func parquetIteratorFromBytes(b []byte) (Iterator, error) {
 	}, nil
 }
 
-// TODO: Move this function to the resource ID
+// TODO: remove all remaining references to this function in favor of
+// ResourceID.FilestorePath
 func ResourcePrefix(id ResourceID) string {
 	return fmt.Sprintf("featureform/%s/%s/%s", id.Type, id.Name, id.Variant)
 }
@@ -708,21 +708,24 @@ func (tbl *BlobOfflineTable) WriteBatch(records []ResourceRecord) error {
 func (tbl *BlobOfflineTable) convertToGenericResourceRecord(record *ResourceRecord) (interface{}, error) {
 	switch v := record.Value.(type) {
 	case int:
-		return &GenericResourceRecord[int]{Entity: record.Entity, Value: v, TS: record.TS}, nil
+		// **NOTE:** github.com/parquet-go/parquet-go does not support int, so this value was being cast to int64
+		// at the time of writing to the filestore. This remains an issue for us given int is a valid ScalarType,
+		// so we'll need to determine how to handle this.
+		return &GenericResourceRecord[int32]{Entity: record.Entity, Value: int32(v), TS: record.TS.UTC().UnixMilli()}, nil
 	case int32:
-		return &GenericResourceRecord[int32]{Entity: record.Entity, Value: v, TS: record.TS}, nil
+		return &GenericResourceRecord[int32]{Entity: record.Entity, Value: v, TS: record.TS.UTC().UnixMilli()}, nil
 	case int64:
-		return &GenericResourceRecord[int64]{Entity: record.Entity, Value: v, TS: record.TS}, nil
+		return &GenericResourceRecord[int64]{Entity: record.Entity, Value: v, TS: record.TS.UTC().UnixMilli()}, nil
 	case float32:
-		return &GenericResourceRecord[float32]{Entity: record.Entity, Value: v, TS: record.TS}, nil
+		return &GenericResourceRecord[float32]{Entity: record.Entity, Value: v, TS: record.TS.UTC().UnixMilli()}, nil
 	case float64:
-		return &GenericResourceRecord[float64]{Entity: record.Entity, Value: v, TS: record.TS}, nil
+		return &GenericResourceRecord[float64]{Entity: record.Entity, Value: v, TS: record.TS.UTC().UnixMilli()}, nil
 	case string:
-		return &GenericResourceRecord[string]{Entity: record.Entity, Value: v, TS: record.TS}, nil
+		return &GenericResourceRecord[string]{Entity: record.Entity, Value: v, TS: record.TS.UTC().UnixMilli()}, nil
 	case bool:
-		return &GenericResourceRecord[bool]{Entity: record.Entity, Value: v, TS: record.TS}, nil
+		return &GenericResourceRecord[bool]{Entity: record.Entity, Value: v, TS: record.TS.UTC().UnixMilli()}, nil
 	case time.Time:
-		return &GenericResourceRecord[time.Time]{Entity: record.Entity, Value: v, TS: record.TS}, nil
+		return &GenericResourceRecord[time.Time]{Entity: record.Entity, Value: v, TS: record.TS.UTC().UnixMilli()}, nil
 	default:
 		return nil, fmt.Errorf("unsupported type: %T", v)
 	}
@@ -730,9 +733,6 @@ func (tbl *BlobOfflineTable) convertToGenericResourceRecord(record *ResourceReco
 
 // TODO: Add unit tests for this method
 func (tbl *BlobOfflineTable) writeRecordsToParquetBytes(records []ResourceRecord) ([]byte, error) {
-	if len(records) == 0 {
-		return []byte{}, nil
-	}
 	parquetRecords := []any{}
 	for _, record := range records {
 		r, err := tbl.convertToGenericResourceRecord(&record)
@@ -742,7 +742,15 @@ func (tbl *BlobOfflineTable) writeRecordsToParquetBytes(records []ResourceRecord
 		parquetRecords = append(parquetRecords, r)
 	}
 	buf := new(bytes.Buffer)
-	schema := parquet.SchemaOf(parquetRecords[0])
+	var schemaRecord interface{}
+	// If there are no records, we still need to write the schema to the parquet file
+	// to avoid Spark errors when reading the file.
+	if len(parquetRecords) > 0 {
+		schemaRecord = parquetRecords[0]
+	} else {
+		schemaRecord = &GenericResourceRecord[int16]{}
+	}
+	schema := parquet.SchemaOf(schemaRecord)
 	err := parquet.Write[any](buf, parquetRecords, schema)
 	if err != nil {
 		return nil, fmt.Errorf("could not write parquet file to bytes: %v", err)
@@ -1363,10 +1371,20 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 		iter.err = err
 		return false
 	}
-	ts, hasTimestamp := nextVal["ts"].(string)
+	ts, hasTimestamp := nextVal["ts"]
 	var timestamp time.Time
 	if hasTimestamp {
-		timestamp, err = iter.parseTimestamp(ts)
+		var tsInput string
+		switch t := ts.(type) {
+		case string:
+			tsInput = t
+		case int64:
+			if t < 0 {
+				t = 0
+			}
+			tsInput = time.Time(time.UnixMilli(t).UTC()).String()
+		}
+		timestamp, err = iter.parseTimestamp(tsInput)
 		if err != nil {
 			iter.err = err
 			return false

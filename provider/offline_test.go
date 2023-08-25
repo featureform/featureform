@@ -148,7 +148,9 @@ func TestOfflineStores(t *testing.T) {
 		var sparkConfig = pc.SparkConfig{
 			ExecutorType: pc.SparkGeneric,
 			ExecutorConfig: &pc.SparkGenericConfig{
-				Master: "local[*]",
+				Master:        "local",
+				DeployMode:    "client",
+				PythonVersion: "3.10.10",
 			},
 			StoreType: fs.Azure,
 			StoreConfig: &pc.AzureFileStoreConfig{
@@ -201,10 +203,10 @@ func TestOfflineStores(t *testing.T) {
 	}
 
 	testFns := map[string]func(*testing.T, OfflineStore){
-		// "CreateGetTable":     testCreateGetOfflineTable, // PASSING
+		// "CreateGetTable":     testCreateGetOfflineTable,     // PASSING
 		// "TableAlreadyExists": testOfflineTableAlreadyExists, // PASSING
-		// "TableNotFound":      testOfflineTableNotFound, // PASSING
-		// "InvalidResourceIDs": testInvalidResourceIDs, // PASSING
+		// "TableNotFound":      testOfflineTableNotFound,      // PASSING
+		// "InvalidResourceIDs": testInvalidResourceIDs,        // PASSING
 		"Materializations": testMaterializations,
 		// "MaterializationUpdate":   testMaterializationUpdate,
 		// "InvalidResourceRecord":   testWriteInvalidResourceRecord,

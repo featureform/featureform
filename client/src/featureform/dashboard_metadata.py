@@ -260,42 +260,42 @@ def get_metadata(type, resource):
     data_as_list = []
     if type == "features":
         records = db.get_features()
-        records = filter(lambda rec: rec["name"] == resource, records)
+        records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
             data_as_list.append(collect_features(records[0]))
     elif type == "training_sets":
         records = db.get_training_sets()
-        records = filter(lambda rec: rec["name"] == resource, records)
+        records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
             data_as_list.append(collect_training_sets(records[0]))
     elif type == "sources":
         records = db.get_sources()
-        records = filter(lambda rec: rec["name"] == resource, records)
+        records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
             data_as_list.append(collect_sources(records[0]))
     elif type == "labels":
         records = db.get_labels()
-        records = filter(lambda rec: rec["name"] == resource, records)
+        records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
             data_as_list.append(collect_labels(records[0]))
     elif type == "entities":
         records = db.get_entities()
-        records = filter(lambda rec: rec["name"] == resource, records)
+        records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
             data_as_list.append(collect_entities(records[0]))
     elif type == "models":
         records = db.get_models()
-        records = filter(lambda rec: rec["name"] == resource, records)
+        records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
             data_as_list.append(collect_models(records[0]))
     elif type == "users":
         records = db.get_users()
-        records = filter(lambda rec: rec["name"] == resource, records)
+        records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
             data_as_list.append(collect_users(records[0]))
     elif type == "providers":
         records = db.get_providers()
-        records = filter(lambda rec: rec["name"] == resource, records)
+        records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
             data_as_list.append(collect_providers(records[0]))
     return Response(

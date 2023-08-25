@@ -519,8 +519,8 @@ def build_entity_resource(entity_main: Entity):
         description=entity_main.description,
         status=entity_main.status,
         features=[],
-        labels=entity_labels_list,
-        trainingSets=entity_training_set_list,
+        labels=variant_list_to_dict(entity_labels_list),
+        trainingSets=variant_list_to_dict(entity_training_set_list),
         tags=entity_main.tags if entity_main.tags is not None else [],
         properties=entity_main.properties if entity_main.properties is not None else [],
     ).to_dictionary()
@@ -563,8 +563,8 @@ def build_model_resource(model_obj: Model):
         type="Model",
         description=model_obj.description,
         features=feature_list,
-        labels=label_list,
-        trainingSets=training_set_list,
+        labels=variant_list_to_dict(label_list),
+        trainingSets=variant_list_to_dict(training_set_list),
         tags=model_obj.tags if model_obj.tags is not None else [],
         properties=model_obj.properties if model_obj.properties is not None else [],
     ).to_dictionary()
@@ -607,8 +607,8 @@ def build_user_resource(user_obj: User):
         type="User",
         status=user_obj.status,
         features=user_feature_list,
-        labels=user_label_list,
-        trainingSets=user_training_set_list,
+        labels=variant_list_to_dict(user_label_list),
+        trainingSets=variant_list_to_dict(user_training_set_list),
         tags=user_obj.tags if user_obj.tags is not None else [],
         properties=user_obj.properties if user_obj.properties is not None else [],
     ).to_dictionary()
@@ -653,8 +653,8 @@ def build_provider_resource(provider_obj: Provider):
         sources=provider_source_list,
         status=provider_obj.status,
         serializedConfig="todox",
-        features=provider_feature_list,
-        labels=provider_label_list,
+        features=variant_list_to_dict(provider_feature_list),
+        labels=variant_list_to_dict(provider_label_list),
         tags=provider_obj.tags if provider_obj.tags is not None else [],
         properties=provider_obj.properties
         if provider_obj.properties is not None

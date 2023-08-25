@@ -204,34 +204,36 @@ def get_metadata_list(type):
         return response
 
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    data_as_list = []
+    metadata_object_list = []
     if type == "features":
         for feature in db.get_features():
-            data_as_list.append(build_feature_resource(feature))
+            metadata_object_list.append(build_feature_resource(feature))
     elif type == "training_sets":
         for training_set in db.get_training_sets():
-            data_as_list.append(build_training_set_resource(training_set))
+            metadata_object_list.append(build_training_set_resource(training_set))
     elif type == "sources":
         for source in db.get_sources():
-            data_as_list.append(build_source_resource(source))
+            metadata_object_list.append(build_source_resource(source))
     elif type == "labels":
         for label in db.get_labels():
-            data_as_list.append(build_label_resource(label))
+            metadata_object_list.append(build_label_resource(label))
     elif type == "entities":
         for entity in db.get_entities():
-            data_as_list.append(build_entity_resource(entity))
+            metadata_object_list.append(build_entity_resource(entity))
     elif type == "models":
         for model in db.get_models():
-            data_as_list.append(build_model_resource(model))
+            metadata_object_list.append(build_model_resource(model))
     elif type == "users":
         for user in db.get_users():
-            data_as_list.append(build_user_resource(user))
+            metadata_object_list.append(build_user_resource(user))
     elif type == "providers":
         for provider in db.get_providers():
-            data_as_list.append(build_provider_resource(provider))
+            metadata_object_list.append(build_provider_resource(provider))
 
     response = Response(
-        response=json.dumps(data_as_list), status=200, mimetype="application/json"
+        response=json.dumps(metadata_object_list),
+        status=200,
+        mimetype="application/json",
     )
     return response
 
@@ -257,49 +259,49 @@ def get_metadata(type, resource):
         return response
 
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    data_as_list = []
+    metadata_object = {}
     if type == "features":
         records = db.get_features()
         records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
-            data_as_list.append(build_feature_resource(records[0]))
+            metadata_object = build_feature_resource(records[0])
     elif type == "training_sets":
         records = db.get_training_sets()
         records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
-            data_as_list.append(build_training_set_resource(records[0]))
+            metadata_object = build_training_set_resource(records[0])
     elif type == "sources":
         records = db.get_sources()
         records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
-            data_as_list.append(build_source_resource(records[0]))
+            metadata_object = build_source_resource(records[0])
     elif type == "labels":
         records = db.get_labels()
         records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
-            data_as_list.append(build_label_resource(records[0]))
+            metadata_object = build_label_resource(records[0])
     elif type == "entities":
         records = db.get_entities()
         records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
-            data_as_list.append(build_entity_resource(records[0]))
+            metadata_object = build_entity_resource(records[0])
     elif type == "models":
         records = db.get_models()
         records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
-            data_as_list.append(build_model_resource(records[0]))
+            metadata_object = build_model_resource(records[0])
     elif type == "users":
         records = db.get_users()
         records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
-            data_as_list.append(build_user_resource(records[0]))
+            metadata_object = build_user_resource(records[0])
     elif type == "providers":
         records = db.get_providers()
         records = list(filter(lambda rec: rec.name == resource, records))
         if len(records) > 0:
-            data_as_list.append(build_provider_resource(records[0]))
+            metadata_object = build_provider_resource(records[0])
     return Response(
-        response=json.dumps(data_as_list), status=200, mimetype="application/json"
+        response=json.dumps(metadata_object), status=200, mimetype="application/json"
     )
 
 

@@ -1,7 +1,6 @@
 import json
 import os
 
-import datetime
 import pandas as pd
 from featureform import ResourceClient
 from featureform.serving import LocalClientImpl

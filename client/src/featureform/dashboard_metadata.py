@@ -465,7 +465,7 @@ def build_label_resource(label_main: Label):
     return LabelResource(
         name=label_main.name,
         defaultVariant=label_main.default_variant,
-        type="Feature",
+        type="Label",
         allVariants=label_main.variants,
         variants=variant_list_to_dict(variant_list),
     ).to_dictionary()
@@ -604,7 +604,7 @@ def build_user_resource(user_obj: User):
 
     return UserResource(
         name=user_obj.name,
-        type="Model",
+        type="User",
         status=user_obj.status,
         features=user_feature_list,
         labels=user_label_list,
@@ -645,7 +645,7 @@ def build_provider_resource(provider_obj: Provider):
 
     return ProviderResource(
         name=provider_obj.name,
-        type=provider_obj.type(),
+        type="Provider",
         description=provider_obj.description,
         providerType=provider_obj.type(),
         software=provider_obj.config.software(),

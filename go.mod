@@ -23,11 +23,11 @@ require (
 	github.com/mitchellh/mapstructure v1.4.3
 	github.com/mrz1836/go-sanitize v1.1.5
 	github.com/novln/docker-parser v1.0.0
+	github.com/parquet-go/parquet-go v0.17.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.2
 	github.com/prometheus/client_model v0.2.0
 	github.com/redis/rueidis v1.0.15-go1.18
-	github.com/segmentio/parquet-go v0.0.0-20230712180008-5d42db8f0d47
 	github.com/snowflakedb/gosnowflake v1.6.8
 	github.com/stretchr/testify v1.8.3
 	go.etcd.io/etcd/api/v3 v3.5.6

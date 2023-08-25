@@ -132,8 +132,7 @@ const (
 
 type SourceMapping struct {
 	Template string
-	// QUESTION: Should this be refactored to use Filepath?
-	Source string
+	Source   string
 }
 
 type TransformationConfig struct {
@@ -294,10 +293,13 @@ type ResourceRecord struct {
 // This generic version of ResourceRecord is only used for converting
 // ResourceRecord to a type that's interpretable by parquet-go. See
 // BlobOfflineTable.writeRecordsToParquetBytes for more details.
+// In addition to using generics to aid in parquet-go's encoding, int64
+// is used for the timestamp due to a Spark issue relating to time.Time:
+// org.apache.spark.sql.AnalysisException: Illegal Parquet type: INT64 (TIMESTAMP(NANOS,true))
 type GenericResourceRecord[T any] struct {
 	Entity string
 	Value  T
-	TS     time.Time
+	TS     int64
 }
 
 type GenericRecord []interface{}

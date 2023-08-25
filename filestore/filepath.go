@@ -52,7 +52,6 @@ func GetFileType(file string) FileType {
 	// check to see if its any of the constants
 	for _, fileType := range []FileType{Parquet, CSV, DB} {
 		if fileType.Matches(file) {
-			print(fileType)
 			return fileType
 		}
 	}
@@ -191,7 +190,10 @@ func (fp *FilePath) KeyPrefix() string {
 }
 
 func (fp *FilePath) Ext() FileType {
-	return FileType(filepath.Ext(fp.key))
+	ext := filepath.Ext(fp.key)
+	// filepath.Ext returns the extension with the "." prefix, so we need to trim it
+	// to match our FileType type.
+	return FileType(strings.TrimPrefix(ext, "."))
 }
 
 func (fp *FilePath) PathWithBucket() string {
@@ -220,6 +222,7 @@ func (fp *FilePath) ParseDirPath(fullPath string) error {
 	if err != nil {
 		return fmt.Errorf("dir: %v", err)
 	}
+	// TODO: consider removing the final piece of the path if it's a file
 	fp.isDir = true
 	return nil
 }
@@ -300,6 +303,8 @@ func (azure *AzureFilepath) PathWithBucket() string {
 	return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s", azure.bucket, azure.StorageAccount, azure.key)
 }
 
+// **NOTE**: Due to Azure Blob Storage's unique URI format, we need to re-implement this method
+// on the derived type to ensure we can properly handle the `bucket` field.
 func (azure *AzureFilepath) ParseFilePath(fullPath string) error {
 	u, err := url.Parse(fullPath)
 	if err != nil {
@@ -318,6 +323,19 @@ func (azure *AzureFilepath) ParseFilePath(fullPath string) error {
 	azure.StorageAccount = strings.Split(u.Host, ".")[0] // The host will be in the format <storage_account>.dfs.core.windows.net
 	azure.FilePath.key = strings.TrimPrefix(u.Path, "/")
 	azure.FilePath.isDir = false
+	return nil
+}
+
+func (azure *AzureFilepath) ParseDirPath(fullPath string) error {
+	err := azure.ParseFilePath(fullPath)
+	if err != nil {
+		return err
+	}
+	azure.FilePath.isDir = true
+	lastElem := filepath.Base(azure.FilePath.key)
+	if filepath.Ext(lastElem) != "" {
+		azure.FilePath.key = filepath.Dir(azure.FilePath.key)
+	}
 	return nil
 }
 

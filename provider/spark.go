@@ -1529,8 +1529,8 @@ func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, er
 // * has no file extension
 // * is the serialization JSON representation of the struct ResourceSchema (i.e. {"Entity":"entity","Value":"value","TS":"ts","SourceTable":"abfss://..."})
 //
-// One option is the keep with the above pattern by populating "SourceTable" with the path to the source table contained in the
-// same directory (i.e. /featureform/Feature/<NAME DIR>/<VARIANT FILE>_src.parquet).
+// One option is the keep with the above pattern by populating "SourceTable" with the path to a source table contained in a subdirectory of
+// the resource directory in the pattern Spark uses (i.e. /featureform/Feature/<NAME DIR>/<VARIANT DIR>/<DATETIME DIR>/src.parquet).
 func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
 		return nil, fmt.Errorf("ID check failed: %v", err)
@@ -1548,7 +1548,7 @@ func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableS
 		store: spark.Store,
 		schema: ResourceSchema{
 			// Create a URI in the same directory as the resource table that followers the naming convention <VARIANT>_src.parquet
-			SourceTable: fmt.Sprintf("%s_src.parquet", resourceTableFilepath.PathWithBucket()),
+			SourceTable: fmt.Sprintf("%s/%s/src.parquet", resourceTableFilepath.PathWithBucket(), time.Now().Format("2006-01-02-15-04-05-999999")),
 		},
 	}
 	for _, col := range schema.Columns {
@@ -1619,22 +1619,22 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		return nil, fmt.Errorf("materialization already exists")
 	}
 	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
-	filepath, err := filestore.NewEmptyFilepath(spark.Store.FilestoreType())
+	sourcePath, err := filestore.NewEmptyFilepath(spark.Store.FilestoreType())
 	if err != nil {
 		return nil, fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)
 	}
-	err = filepath.ParseFilePath(sparkResourceTable.schema.SourceTable)
+
+	err = sourcePath.ParseDirPath(sparkResourceTable.schema.SourceTable)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse full path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)
 	}
-	spark.Logger.Debugw("Parsed source table path:", "sourceTablePath", filepath.Key())
+	spark.Logger.Debugw("Parsed source table path:", "sourceTablePath", sourcePath.Key())
 	// TODO: Handle case where there are multiple files in the source table
-	latestSourcePath, err := spark.Store.NewestFileOfType(filepath, filestore.Parquet)
-	spark.Logger.Debugw("Fetched newest file of type", "latestSourcePath", latestSourcePath, "fileType", filestore.Parquet)
-	// spark.Logger.Debugw("Constructed source path for Spark job", "sourcePath", latestSourcePath.Key())
+	latestSourcePath, err := spark.Store.NewestFileOfType(sourcePath, filestore.Parquet)
 	if err != nil {
 		return nil, fmt.Errorf("could not get latest source file: %v", err)
 	}
+	spark.Logger.Debugw("Fetched newest file of type", "latestSourcePath", latestSourcePath.PathWithBucket(), "fileType", filestore.Parquet)
 	sparkArgs, err := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, []string{latestSourcePath.PathWithBucket()}, Materialize, spark.Store)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err)

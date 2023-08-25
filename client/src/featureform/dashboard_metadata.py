@@ -299,6 +299,17 @@ def search_metadata():
     return json.dumps(payload)
 
 
+def variant_list_to_dict(variant_list):
+    """Convert a variant list, into a dictionary with variant names as the dictionary keys"""
+    variants_dict = dict()
+
+    for variant in variant_list:
+        variant_name = variant["variant"]
+        variants_dict[variant_name] = variant
+
+    return variants_dict
+
+
 def collect_features(feature_main: Feature):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
     variant_list = []
@@ -313,7 +324,7 @@ def collect_features(feature_main: Feature):
         defaultVariant=feature_main.default_variant,
         type="Feature",
         allVariants=feature_main.variants,
-        variants=variant_list,
+        variants=variant_list_to_dict(variant_list),
     ).to_dictionary()
 
 
@@ -360,24 +371,22 @@ def collect_training_sets(training_set_main: TrainingSet):
         defaultVariant=training_set_main.default_variant,
         type="TrainingSet",
         allVariants=training_set_main.variants,
-        variants=variant_list,
+        variants=variant_list_to_dict(variant_list),
     ).to_dictionary()
 
 
 def build_training_set_variant_resource(variant_data: TrainingSetVariant):
-    print("inside build_training_set_variant_resource()")
-    print(variant_data)
     training_set_variant_resource = TrainingSetVariantResource(
-        created=variant_data.created,
+        created=variant_data.created if variant_data.created is not None else "",
         description=variant_data.description,
         name=variant_data.name,
         owner=variant_data.owner,
         variant=variant_data.variant,
         label={
-            "Name": variant_data.label[0],  # todox: should be a prop instead of tuple?
-            "Variant": variant_data.label[1],
+            "Name": "todox",  # todox: should be a prop instead of tuple?
+            "Variant": "todox",
         },
-        status=variant_data["status"],
+        status=variant_data.status,
         features=[],
         tags=variant_data.tags if variant_data.tags is not None else [],
         properties=variant_data.properties
@@ -402,7 +411,7 @@ def collect_sources(source_main: Source):
         defaultVariant=source_main.default_variant,
         type="Source",
         allVariants=source_main.variants,
-        variants=variant_list,
+        variants=variant_list_to_dict(variant_list),
     ).to_dictionary()
 
 
@@ -437,7 +446,7 @@ def collect_labels(label_main: Label):
         defaultVariant=label_main.default_variant,
         type="Feature",
         allVariants=label_main.variants,
-        variants=variant_list,
+        variants=variant_list_to_dict(variant_list),
     ).to_dictionary()
 
 
@@ -448,7 +457,7 @@ def build_label_variant_resource(variant_data: LabelVariant):
         name=variant_data.name,
         owner=variant_data.owner,
         variant=variant_data.variant,
-        status=variant_data["status"],
+        status=variant_data.status,
         features=[],
         tags=variant_data.tags if variant_data.tags is not None else [],
         properties=variant_data.properties

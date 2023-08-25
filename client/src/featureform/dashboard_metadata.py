@@ -543,10 +543,13 @@ def build_entity_resource(entity_main: Entity):
     feature_list = db.get_features()
     for current_feature in feature_list:
         for variant_name in current_feature.variants:
-            found_variant = db.get_feature_variant(
+            found_feature_variant = db.get_feature_variant(
                 name=current_feature.name, variant=variant_name
             )
-            entity_feature_list.append(build_feature_variant_resource(found_variant))
+            if found_feature_variant.entity == entity_main.name:
+                entity_feature_list.append(
+                    build_feature_variant_resource(found_feature_variant)
+                )
 
     entity_labels_list = []
     label_list = db.get_labels()

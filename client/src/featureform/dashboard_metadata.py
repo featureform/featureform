@@ -22,7 +22,6 @@ from .metadata_repository import (
     User,
     Provider,
 )
-from .resources import SourceType
 from .sqlite_metadata import SQLiteMetadata
 from .type_objects import (
     FeatureResource,
@@ -300,7 +299,6 @@ def get_metadata(type, resource):
         records = filter(lambda rec: rec["name"] == resource, records)
         if len(records) > 0:
             data_as_list.append(collect_providers(records[0]))
-
     return Response(
         response=json.dumps(data_as_list), status=200, mimetype="application/json"
     )
@@ -474,13 +472,12 @@ def collect_labels(label_main: Label):
 
 def build_label_variant_resource(variant_data: LabelVariant):
     label_variant_resource = LabelVariantResource(
-        created=datetime.datetime.now(),  # todox: missing field
+        created="",  # todox: missing field
         description=variant_data.description,
         name=variant_data.name,
         owner=variant_data.owner,
         variant=variant_data.variant,
         status=variant_data.status,
-        features=[],
         tags=variant_data.tags if variant_data.tags is not None else [],
         properties=variant_data.properties
         if variant_data.properties is not None
@@ -500,7 +497,10 @@ def collect_entities(entity_main: Entity):
                 name=current_label.name, variant=variant_name
             )
             if found_label_variant.entity == entity_main.name:
-                entity_labels_list.append(found_label_variant)
+                entity_labels_list.append(
+                    build_label_variant_resource(found_label_variant)
+                )
+
     entity_training_set_list = []
     training_set_list = db.get_training_sets()
     # todox: same issue as above
@@ -509,10 +509,12 @@ def collect_entities(entity_main: Entity):
             found_training_set_variant = db.get_training_set_variant(
                 name=current_training_set.name, variant=variant_name
             )
-            entity_training_set_list.append(found_training_set_variant)
+            entity_training_set_list.append(
+                build_training_set_variant_resource(found_training_set_variant)
+            )
     return EntityResource(
         name=entity_main.name,
-        type=entity_main.type,
+        type=entity_main.type(),
         description=entity_main.description,
         status=entity_main.status,
         features=[],
@@ -533,7 +535,7 @@ def collect_models(model_obj: Model):
             found_variant = db.get_feature_variant(
                 name=current_feature.name, variant=variant_name
             )
-            model_feature_list.append(found_variant)
+            model_feature_list.append(build_feature_variant_resource(found_variant))
 
     model_label_list = []
     label_list = db.get_labels()
@@ -542,7 +544,7 @@ def collect_models(model_obj: Model):
             found_variant = db.get_label_variant(
                 name=current_label.name, variant=variant_name
             )
-            model_label_list.append(found_variant)
+            model_label_list.append(build_label_variant_resource(found_variant))
 
     model_training_set_list = []
     training_set_list = db.get_training_sets()
@@ -551,7 +553,9 @@ def collect_models(model_obj: Model):
             found_variant = db.get_training_set_variant(
                 name=current_training_set.name, variant=variant_name
             )
-            model_training_set_list.append(found_variant)
+            model_training_set_list.append(
+                build_training_set_variant_resource(found_variant)
+            )
 
     return ModelResource(
         name=model_obj.name,
@@ -575,7 +579,7 @@ def collect_users(user_obj: User):
             found_variant = db.get_feature_variant(
                 name=current_feature.name, variant=variant_name
             )
-            model_feature_list.append(found_variant)
+            model_feature_list.append(build_feature_variant_resource(found_variant))
 
     model_label_list = []
     label_list = db.get_labels()
@@ -584,7 +588,7 @@ def collect_users(user_obj: User):
             found_variant = db.get_label_variant(
                 name=current_label.name, variant=variant_name
             )
-            model_label_list.append(found_variant)
+            model_label_list.append(build_label_variant_resource(found_variant))
 
     model_training_set_list = []
     training_set_list = db.get_training_sets()
@@ -593,7 +597,9 @@ def collect_users(user_obj: User):
             found_variant = db.get_training_set_variant(
                 name=current_training_set.name, variant=variant_name
             )
-            model_training_set_list.append(found_variant)
+            model_training_set_list.append(
+                build_training_set_variant_resource(found_variant)
+            )
 
     return UserResource(
         name=user_obj.name,
@@ -616,7 +622,7 @@ def collect_providers(provider_obj: Provider):
             found_variant = db.get_source_variant(
                 name=current_source.name, variant=variant_name
             )
-            provider_source_list.append(found_variant)
+            provider_source_list.append(build_source_variant_resource(found_variant))
 
     provider_feature_list = []
     feature_list = db.get_features()
@@ -625,7 +631,7 @@ def collect_providers(provider_obj: Provider):
             found_variant = db.get_feature_variant(
                 name=current_feature.name, variant=variant_name
             )
-            provider_feature_list.append(found_variant)
+            provider_feature_list.append(build_feature_variant_resource(found_variant))
 
     provider_label_list = []
     label_list = db.get_labels()
@@ -634,14 +640,14 @@ def collect_providers(provider_obj: Provider):
             found_variant = db.get_label_variant(
                 name=current_label.name, variant=variant_name
             )
-            provider_label_list.append(found_variant)
+            provider_label_list.append(build_label_variant_resource(found_variant))
 
     return ProviderResource(
         name=provider_obj.name,
-        type=provider_obj.type,
+        type=provider_obj.type(),
         description=provider_obj.description,
-        providerType=provider_obj.type,
-        software=provider_obj.config.software,
+        providerType=provider_obj.type(),
+        software=provider_obj.config.software(),
         team=provider_obj.team,
         sources=provider_source_list,
         status=provider_obj.status,

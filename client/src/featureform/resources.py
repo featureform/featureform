@@ -3,6 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import sys
+import os
 import json
 import time
 import base64
@@ -153,25 +154,25 @@ class AWSCredentials:
 
     def __init__(
         self,
-        aws_access_key_id: str = "",
-        aws_secret_access_key: str = "",
+        access_key: str = "",
+        secret_key: str = "",
     ):
-        empty_strings = aws_access_key_id == "" or aws_secret_access_key == ""
-        if empty_strings:
-            raise Exception(
-                "'AWSCredentials' requires all parameters: 'aws_access_key_id', 'aws_secret_access_key'"
-            )
+        if access_key == "":
+            raise Exception("'AWSCredentials' access_key cannot be empty")
 
-        self.aws_access_key_id = aws_access_key_id
-        self.aws_secret_access_key = aws_secret_access_key
+        if secret_key == "":
+            raise Exception("'AWSCredentials' secret_key cannot be empty")
+
+        self.aws_access_key_id = secret_key
+        self.aws_secret_access_key = secret_key
 
     def type(self):
         return "AWS_CREDENTIALS"
 
     def config(self):
         return {
-            "AWSAccessKeyId": self.aws_access_key_id,
-            "AWSSecretKey": self.aws_secret_access_key,
+            "AWSAccessKeyId": self.access_key,
+            "AWSSecretKey": self.secret_key,
         }
 
 
@@ -191,8 +192,20 @@ class GCPCredentials:
         project_id: str,
         credentials_path: str,
     ):
+        if project_id == "":
+            raise Exception("'GCPCredentials' project_id cannot be empty")
+
+        if credentials_path == "":
+            raise Exception("'GCPCredentials' credentials_path cannot be empty")
+
+        if not os.path.isfile(credentials_path):
+            raise Exception(
+                f"'GCPCredentials' credentials_path '{credentials_path}' file not found"
+            )
+
         self.project_id = project_id
-        self.credentials = json.load(open(credentials_path))
+        with open(credentials_path) as f:
+            self.credentials = json.load(f)
 
     def type(self):
         return "GCPCredentials"

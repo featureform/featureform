@@ -88,7 +88,7 @@ def get(host, cert, insecure, local, resource_type, name, variant):
         "user": client.get_user,
         "model": client.get_model,
         "entity": client.get_entity,
-        "provider": client.get_provider,
+        "provider": client.get_provider_legacy,
     }
 
     if resource_type in resource_get_functions_variant:

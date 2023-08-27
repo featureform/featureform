@@ -148,8 +148,8 @@ class AWSCredentials:
     AWS Credentials for accessing AWS Services
 
     Attributes:
-        aws_access_key_id (str): AWS Access Key ID
-        aws_secret_access_key (str): AWS Secret Access Key
+        access_key (str): AWS Access Key ID
+        secret_key (str): AWS Secret Access Key
     """
 
     def __init__(
@@ -163,8 +163,8 @@ class AWSCredentials:
         if secret_key == "":
             raise Exception("'AWSCredentials' secret_key cannot be empty")
 
-        self.aws_access_key_id = secret_key
-        self.aws_secret_access_key = secret_key
+        self.access_key = access_key
+        self.secret_key = secret_key
 
     def type(self):
         return "AWS_CREDENTIALS"
@@ -191,21 +191,28 @@ class GCPCredentials:
         self,
         project_id: str,
         credentials_path: str,
+        json_creds: Optional[Dict] = None,
     ):
         if project_id == "":
             raise Exception("'GCPCredentials' project_id cannot be empty")
 
-        if credentials_path == "":
-            raise Exception("'GCPCredentials' credentials_path cannot be empty")
-
-        if not os.path.isfile(credentials_path):
+        if credentials_path == "" and json_creds is None:
             raise Exception(
-                f"'GCPCredentials' credentials_path '{credentials_path}' file not found"
+                "'GCPCredentials' credentials_path cannot be empty or credentials cannot be None"
             )
 
         self.project_id = project_id
-        with open(credentials_path) as f:
-            self.credentials = json.load(f)
+        self.credentials_path = credentials_path
+        self.json_creds = json_creds
+        if credentials_path != "" and json_creds is None:
+            if not os.path.isfile(self.credentials_path):
+                raise Exception(
+                    f"'GCPCredentials' credentials_path '{self.credentials_path}' file not found"
+                )
+            with open(self.credentials_path) as f:
+                self.json_creds = json.load(f)
+        else:
+            self.json_creds = json_creds
 
     def type(self):
         return "GCPCredentials"
@@ -213,7 +220,7 @@ class GCPCredentials:
     def config(self):
         return {
             "ProjectId": self.project_id,
-            "JSON": self.credentials,
+            "JSON": self.json_creds,
         }
 
 
@@ -222,7 +229,7 @@ class GCPCredentials:
 class GCSFileStoreConfig:
     credentials: GCPCredentials
     bucket_name: str
-    bucket_path: str = ""
+    path: str = ""
 
     def software(self) -> str:
         return "gcs"
@@ -233,7 +240,7 @@ class GCSFileStoreConfig:
     def serialize(self) -> bytes:
         config = {
             "BucketName": self.bucket_name,
-            "BucketPath": self.bucket_path,
+            "BucketPath": self.path,
             "Credentials": self.credentials.config(),
         }
         return bytes(json.dumps(config), "utf-8")
@@ -241,7 +248,7 @@ class GCSFileStoreConfig:
     def config(self):
         return {
             "BucketName": self.bucket_name,
-            "BucketPath": self.bucket_path,
+            "BucketPath": self.path,
             "Credentials": self.credentials.config(),
         }
 
@@ -255,7 +262,7 @@ class AzureFileStoreConfig:
     account_name: str
     account_key: str
     container_name: str
-    root_path: str
+    path: str
 
     def software(self) -> str:
         return "azure"
@@ -268,7 +275,7 @@ class AzureFileStoreConfig:
             "AccountName": self.account_name,
             "AccountKey": self.account_key,
             "ContainerName": self.container_name,
-            "Path": self.root_path,
+            "Path": self.path,
         }
         return bytes(json.dumps(config), "utf-8")
 
@@ -277,7 +284,7 @@ class AzureFileStoreConfig:
             "AccountName": self.account_name,
             "AccountKey": self.account_key,
             "ContainerName": self.container_name,
-            "Path": self.root_path,
+            "Path": self.path,
         }
 
     def store_type(self):
@@ -289,16 +296,19 @@ class AzureFileStoreConfig:
 class S3StoreConfig:
     def __init__(
         self,
-        bucket_path: str,
+        bucket_name: str,
         bucket_region: str,
         credentials: AWSCredentials,
         path: str = "",
+        bucket_path: str = "",  # Deprecated
     ):
+        bucket_path = bucket_name
         bucket_path_ends_with_slash = len(bucket_path) != 0 and bucket_path[-1] == "/"
 
         if bucket_path_ends_with_slash:
             raise Exception("The 'bucket_path' cannot end with '/'.")
 
+        self.bucket_name = bucket_name
         self.bucket_path = bucket_path
         self.bucket_region = bucket_region
         self.credentials = credentials
@@ -311,10 +321,10 @@ class S3StoreConfig:
         return "S3"
 
     def serialize(self) -> bytes:
-        config = self.config()
+        config = self.to_json()
         return bytes(json.dumps(config), "utf-8")
 
-    def config(self):
+    def to_json(self):
         return {
             "Credentials": self.credentials.config(),
             "BucketRegion": self.bucket_region,
@@ -2135,7 +2145,7 @@ class DatabricksCredentials:
             and username_password_provided
         ):
             raise Exception(
-                "The DatabricksCredentials requires only one credentials set ('username' and 'password' or 'host' and 'token' set.)"
+                "'DatabricksCredentials' requires either 'username' and 'password' or 'host' and 'token' to be set"
             )
 
         if not cluster_id:
@@ -2163,6 +2173,11 @@ class EMRCredentials:
         self.emr_cluster_id = emr_cluster_id
         self.emr_cluster_region = emr_cluster_region
         self.credentials = credentials
+
+        if self.emr_cluster_id == "":
+            raise Exception("'EMRCredentials' emr_cluster_id cannot be empty")
+        if self.emr_cluster_region == "":
+            raise Exception("'EMRCredentials' emr_cluster_region cannot be empty")
 
     def type(self):
         return "EMR"
@@ -2226,7 +2241,7 @@ class SparkCredentials:
 
         if major != MAJOR_VERSION or minor not in MINOR_VERSIONS:
             raise Exception(
-                f"The Python version {version} is not supported. Currently, supported versions are 3.7-3.10."
+                f"The Python version {version} is not supported. Currently, supported versions are 3.7-3.11."
             )
 
         """
@@ -2247,9 +2262,9 @@ class SparkCredentials:
             self.core_site_path == "" or self.yarn_site_path == ""
         ):
             raise Exception(
-                "Yarn requires core-site.xml and yarn-site.xml files."
+                "Yarn requires core-site.xml and yarn-site.xml files. "
                 "Please copy these files from your Spark instance to local, then provide the local path in "
-                "core_site_path and yarn_site_path. "
+                "core_site_path and yarn_site_path."
             )
 
     def type(self):

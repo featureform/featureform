@@ -2,6 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 import inspect
+import json
 import warnings
 from datetime import timedelta
 from os.path import exists
@@ -479,7 +480,7 @@ class FileStoreProvider:
     def __init__(self, registrar, provider, config, store_type):
         self.__registrar = registrar
         self.__provider = provider
-        self.__config = config.config()
+        self.__config = config
         self.__store_type = store_type
 
     def name(self) -> str:
@@ -1904,7 +1905,7 @@ class Registrar:
 
     def get_s3(self, name):
         """
-        Get a S3 provider. The returned object can be used with other providers such as Spark and Databricks.
+        Get a S3 provider. The returned object can be used with other providers such as EMR, Spark, and Databricks.
         **Examples**:
         ``` py
 
@@ -1917,6 +1918,16 @@ class Registrar:
             filestore=s3,
         )
         ```
+
+        Values can be accessed like:
+        ``` py
+        s3 = ff.get_s3("s3-quickstart")
+        bucket_name = s3.bucket_name
+        bucket_region = s3.bucket_region
+        path = s3.path
+        ```
+
+
         Args:
             name (str): Name of S3 to be retrieved
         Returns:
@@ -2124,11 +2135,12 @@ class Registrar:
         account_name: str,
         account_key: str,
         container_name: str,
-        root_path: str,
+        path: str,
         description: str = "",
         team: str = "",
         tags: List[str] = [],
         properties: dict = {},
+        root_path: str = "",  # Deprecated
     ):
         """Register an azure blob store provider.
 
@@ -2140,7 +2152,7 @@ class Registrar:
         blob = ff.register_blob_store(
             name="azure-quickstart",
             container_name="my_company_container"
-            root_path="custom/path/in/container"
+            path="custom/path/in/container"
             account_name=<azure_account_name>
             account_key=<azure_account_key>
             description="An azure blob store provider to store offline and inference data"
@@ -2149,7 +2161,7 @@ class Registrar:
         Args:
             name (str): Name of Azure blob store to be registered
             container_name (str): Azure container name
-            root_path (str): custom path in container to store data
+            path (str): custom path in container to store data
             description (str): Description of Azure Blob provider to be registered
             team (str): the name of the team registering the filestore
             account_name (str): Azure account name
@@ -2160,12 +2172,12 @@ class Registrar:
             blob (StorageProvider): Provider
                 has all the functionality of OnlineProvider
         """
-
+        root_path = path
         azure_config = AzureFileStoreConfig(
             account_name=account_name,
             account_key=account_key,
             container_name=container_name,
-            root_path=root_path,
+            path=root_path,
         )
         config = OnlineBlobConfig(
             store_type="AZURE", store_config=azure_config.config()
@@ -2187,13 +2199,14 @@ class Registrar:
         self,
         name: str,
         credentials: AWSCredentials,
-        bucket_path: str,
+        bucket_name: str,
         bucket_region: str,
         path: str = "",
         description: str = "",
         team: str = "",
         tags: List[str] = [],
         properties: dict = {},
+        bucket_path: str = "",  # Deprecated
     ):
         """Register a S3 store provider.
 
@@ -2205,7 +2218,7 @@ class Registrar:
         s3 = ff.register_s3(
             name="s3-quickstart",
             credentials=aws_creds,
-            bucket_path="bucket_name",
+            bucket_name="bucket_name",
             bucket_region=<bucket_region>,
             path="path/to/store/featureform_files/in/",
             description="An s3 store provider to store offline"
@@ -2214,7 +2227,7 @@ class Registrar:
         Args:
             name (str): Name of S3 store to be registered
             credentials (AWSCredentials): AWS credentials to access the bucket
-            bucket_path (str): custom path including the bucket name
+            bucket_name (str): custom path including the bucket name
             bucket_region (str): aws region the bucket is located in
             path (str): the path used to store featureform files in
             description (str): Description of S3 provider to be registered
@@ -2226,8 +2239,9 @@ class Registrar:
                 has all the functionality of OfflineProvider
         """
 
+        bucket_path = bucket_name
         s3_config = S3StoreConfig(
-            bucket_path=bucket_path,
+            bucket_name=bucket_path,
             bucket_region=bucket_region,
             credentials=credentials,
             path=path,
@@ -2250,11 +2264,12 @@ class Registrar:
         name: str,
         credentials: GCPCredentials,
         bucket_name: str,
-        bucket_path: str = "",
+        path: str,
         description: str = "",
         team: str = "",
         tags: List[str] = [],
         properties: dict = {},
+        bucket_path: str = "",  # Deprecated
     ):
         """Register a GCS store provider.
                 **Examples**:
@@ -2263,7 +2278,7 @@ class Registrar:
             name="gcs-quickstart",
             credentials=gcp_creds,
             bucket_name="bucket_name",
-            bucket_path="featureform/path/",
+            path="featureform/path/",
             description="An gcs store provider to store offline"
         )
         ```
@@ -2271,7 +2286,7 @@ class Registrar:
             name (str): Name of GCS store to be registered
             credentials (GCPCredentials): GCP credentials to access the bucket
             bucket_name (str): The bucket name
-            bucket_path (str): Custom path to be used by featureform
+            path (str): Custom path to be used by featureform
             description (str): Description of GCS provider to be registered
             team (str): The name of the team registering the filestore
             tags (List[str]): Optional grouping mechanism for resources
@@ -2280,9 +2295,9 @@ class Registrar:
             gcs (FileStoreProvider): Provider
                 has all the functionality of OfflineProvider
         """
-
+        bucket_path = path
         gcs_config = GCSFileStoreConfig(
-            bucket_name=bucket_name, bucket_path=bucket_path, credentials=credentials
+            bucket_name=bucket_name, path=bucket_path, credentials=credentials
         )
         provider = Provider(
             name=name,
@@ -3991,7 +4006,82 @@ class ResourceClient:
 
         return model
 
-    def get_provider(self, name, local=False):
+    def get_provider(self, name):
+        if self.local:
+            raise Exception("Cannot get provider in local mode")
+        searchName = metadata_pb2.Name(name=name)
+        for x in self._stub.GetProviders(iter([searchName])):
+            deserialized = json.loads(x.serialized_config)
+            if x.type == "S3":
+                config = S3StoreConfig(
+                    bucket_name=deserialized["BucketPath"],
+                    bucket_region=deserialized["BucketRegion"],
+                    path=deserialized["Path"],
+                    credentials=AWSCredentials(
+                        access_key=deserialized["Credentials"]["AWSAccessKeyId"],
+                        secret_key=deserialized["Credentials"]["AWSSecretKey"],
+                    ),
+                )
+            elif x.type == "GCS":
+                deserialized = json.loads(x.serialized_config)
+                config = GCSFileStoreConfig(
+                    bucket_name=deserialized["BucketName"],
+                    path=deserialized["BucketPath"],
+                    credentials=GCPCredentials(
+                        project_id=deserialized["Credentials"]["ProjectId"],
+                        credentials_path="",
+                        json_creds=deserialized["Credentials"]["JSON"],
+                    ),
+                )
+            elif x.type == "BLOB_ONLINE":
+                deserialized = json.loads(x.serialized_config)["Config"]
+                print(deserialized)
+                config = OnlineBlobConfig(
+                    store_type="BLOB_ONLINE",
+                    store_config=AzureFileStoreConfig(
+                        account_name=deserialized["AccountName"],
+                        account_key=deserialized["AccountKey"],
+                        container_name=deserialized["ContainerName"],
+                        path=deserialized["Path"],
+                    ).config(),
+                )
+            else:
+                raise Exception(f"Cannot get provider of type {x.type}")
+
+            return FileStoreProvider(
+                registrar=self,
+                provider=Provider(
+                    name=x.name,
+                    function="OFFLINE",
+                    description=x.description,
+                    team="",
+                    config=config,
+                ),
+                store_type=x.type,
+                config=config,
+            )
+
+    def get_feature(self, name, variant):
+        name_variant = metadata_pb2.NameVariant(name=name, variant=variant)
+        feature = None
+        for x in self._stub.GetFeatureVariants(iter([name_variant])):
+            feature = x
+            break
+
+        return FeatureVariant(
+            name=feature.name,
+            variant=feature.variant,
+            source=(feature.source.name, feature.source.variant),
+            value_type=feature.type,
+            entity=feature.entity,
+            owner=feature.owner,
+            provider=feature.provider,
+            location=ResourceColumnMapping("", "", ""),
+            description=feature.description,
+            status=feature.status.Status._enum_type.values[feature.status.status].name,
+        )
+
+    def get_provider_legacy(self, name, local=False):
         """Get a provider. Prints out information on provider, and all resources associated with the provider.
 
         **Examples:**

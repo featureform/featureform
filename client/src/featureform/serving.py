@@ -16,8 +16,8 @@ import dill
 import numpy as np
 import pandas as pd
 from featureform import metadata
-from featureform.proto import serving_pb2
-from featureform.proto import serving_pb2_grpc
+from featureform.proto import serving_pb2, metadata_pb2
+from featureform.proto import serving_pb2_grpc, metadata_pb2_grpc
 from featureform.providers import get_provider, Scalar, VectorType
 from pandas.core.generic import NDFrame
 from pandasql import sqldf
@@ -839,6 +839,9 @@ class LocalClientImpl:
         else:
             raise ValueError(f"Table does not exist for feature {name} ({variant})")
         return table.nearest(name, variant, vector, k)
+
+    def get_provider(self, name, variant):
+        raise NotImplementedError
 
     def close(self):
         self.db.close()

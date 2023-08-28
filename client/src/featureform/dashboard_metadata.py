@@ -375,9 +375,10 @@ def build_feature_variant_resource(variant_data: FeatureVariant):
         variant=variant_data.variant,
         status=variant_data.status,
         location={
-            "entity": variant_data.location.entity,
-            "value": variant_data.location.value,
-            "timestamp": variant_data.location.timestamp,
+            "Entity": variant_data.location.entity,
+            "Value": variant_data.location.value,
+            "Source": "",
+            "TS": variant_data.location.timestamp,
         },
         source={
             "Name": variant_data.source[0],  # todox: should be a prop instead of tuple?
@@ -543,6 +544,12 @@ def build_label_variant_resource(variant_data: LabelVariant):
             "Name": variant_data.source[0],
             "Variant": variant_data.source[1],
         },
+        location={
+            "Entity": variant_data.location.entity,
+            "Value": variant_data.location.value,
+            "Source": "",
+            "TS": variant_data.location.timestamp,
+        },
         trainingSets=resources_list_to_dict(label_training_set_list),
         tags=variant_data.tags if variant_data.tags is not None else [],
         properties=variant_data.properties
@@ -591,7 +598,7 @@ def build_entity_resource(entity_main: Entity):
             )
     return EntityResource(
         name=entity_main.name,
-        type=entity_main.type(),
+        type=entity_main.type().capitalize(),
         description=entity_main.description,
         status=entity_main.status,
         features=resources_list_to_dict(entity_feature_list),

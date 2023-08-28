@@ -53,7 +53,7 @@ def index():
 
 
 @dashboard_app.route("/<type>")
-def type(type):
+def get_type(type):
     return dashboard_app.send_static_file("[type].html")
 
 
@@ -465,7 +465,7 @@ def build_source_resource(source_main: Source):
 
 def build_source_variant_resource(variant_data: SourceVariant):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-
+    source_training_set_list = []
     source_labels_list = []
     label_list = db.get_labels()
     for current_label in label_list:
@@ -474,9 +474,12 @@ def build_source_variant_resource(variant_data: SourceVariant):
                 name=current_label.name, variant=variant_name
             )
             if found_label_variant.entity == variant_data.name:
-                source_labels_list.append(
-                    build_label_variant_resource(found_label_variant)
+                label_variant_resource = build_label_variant_resource(
+                    found_label_variant
                 )
+                source_labels_list.append(label_variant_resource)
+                for current_training_set in label_variant_resource["trainingSets"]:
+                    source_training_set_list.add(current_training_set)
 
     source_feature_list = []
     feature_list = db.get_features()
@@ -487,15 +490,26 @@ def build_source_variant_resource(variant_data: SourceVariant):
             )
             source_feature_list.append(build_feature_variant_resource(found_variant))
 
+    definition_text = ""
+    source_text_result = db.get_source_variant_text(
+        name=variant_data.name, variant=variant_data.variant
+    )
+    if source_text_result != "":
+        definition_text = source_text_result
+
     source_variant_resource = SourceVariantResource(
         created=variant_data.created,
         description=variant_data.description,
         name=variant_data.name,
         owner=variant_data.owner,
+        definition=definition_text,
+        provider=variant_data.provider,
+        sourceType="",  # todox
         variant=variant_data.variant,
         labels=resources_list_to_dict(source_labels_list),
         status=variant_data.status,
         features=resources_list_to_dict(source_feature_list),
+        trainingSets=resources_list_to_dict(source_training_set_list),
         tags=variant_data.tags if variant_data.tags is not None else [],
         properties=variant_data.properties
         if variant_data.properties is not None

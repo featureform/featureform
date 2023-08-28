@@ -256,6 +256,10 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
 
         return sources
 
+    def get_source_variant_text(self, name: str, variant: str) -> str:
+        result = self.db.get_source_variant_text(name, variant)
+        return result
+
     def get_training_set_variant(self, name: str, variant: str) -> TrainingSetVariant:
         result = self.db.get_training_set_variant(name, variant)
         ts_feature_rows = self.db.get_training_set_features(name, variant)

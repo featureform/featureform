@@ -382,7 +382,7 @@ def build_feature_variant_resource(variant_data: FeatureVariant):
             "TS": variant_data.location.timestamp,
         },
         source={
-            "Name": variant_data.source[0],  # todox: should be a prop instead of tuple?
+            "Name": variant_data.source[0],
             "Variant": variant_data.source[1],
         },
         tags=variant_data.tags if variant_data.tags is not None else [],
@@ -432,8 +432,8 @@ def build_training_set_variant_resource(variant_data: TrainingSetVariant):
         owner=variant_data.owner,
         variant=variant_data.variant,
         label={
-            "Name": "todox",  # todox: should be a prop instead of tuple?
-            "Variant": "todox",
+            "Name": variant_data.label[0],
+            "Variant": variant_data.label[1],
         },
         status=variant_data.status,
         features=resources_list_to_dict(training_set_feature_list),

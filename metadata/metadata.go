@@ -180,7 +180,13 @@ type ResourceNotFound struct {
 func (err *ResourceNotFound) Error() string {
 	id := err.ID
 	name, variant, t := id.Name, id.Variant, id.Type
-	errMsg := fmt.Sprintf("%s Not Found.\nName: %s err: %v", t, name, err.E)
+	var errMsg string
+	if err.E != nil {
+		errMsg = fmt.Sprintf("%s Not Found.\nName: %s err: %v", t, name, err.E)
+	} else {
+		errMsg = fmt.Sprintf("%s Not Found.\nName: %s", t, name)
+	}
+
 	if variant != "" {
 		errMsg += "\nVariant: " + variant
 	}

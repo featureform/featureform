@@ -168,7 +168,12 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         code = get_code_from_file(code, store_type, credentials)
         func = types.FunctionType(code, globals(), "df_transformation")
         output_df = func(*func_parameters)
-
+    except Exception as e:
+        print(f"Issue with unpickling of the transformation: {e}")
+        raise Exception(
+            f"{e}: Check that local Python and spark Python versions match."
+        )
+    try:
         dt = datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
 

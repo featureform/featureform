@@ -1094,11 +1094,11 @@ func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLo
 	primaryExists, err := store.Exists(resourceKey)
 	if err != nil {
 		logger.Errorw("Error checking if primary exists", "error", err)
-		return nil, fmt.Errorf("error checking if primary exists: %v", err)
+		return nil, fmt.Errorf("failed to check if source exists: %v", err)
 	}
 	if primaryExists {
-		logger.Errorw("Primary table already exists", "source", sourcePath)
-		return nil, fmt.Errorf("primary already exists")
+		logger.Errorw("File already registered", "source", sourcePath)
+		return nil, fmt.Errorf("source has already been registered: %s", sourcePath)
 	}
 
 	logger.Debugw("Registering primary table", "id", id, "source", sourcePath)

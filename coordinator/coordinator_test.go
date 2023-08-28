@@ -1331,11 +1331,11 @@ func testCoordinatorTrainingSet(addr string) error {
 	if elapsed >= time.Duration(10)*time.Second {
 		return fmt.Errorf("timed out waiting for job to delete")
 	}
-	ts_complete, err := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: tsName, Variant: ""})
+	tsComplete, err := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: tsName, Variant: ""})
 	if err != nil {
-		return fmt.Errorf("could not get training set variant")
+		return fmt.Errorf("could not get training set: %v", err)
 	}
-	if metadata.READY != ts_complete.Status() {
+	if metadata.READY != tsComplete.Status() {
 		return fmt.Errorf("Training set not set to ready once job completes")
 	}
 	if err := coord.runTrainingSetJob(tsID, ""); err == nil {

@@ -69,6 +69,8 @@ source_variant = SourceVariant(
     created=None,
     name="source",
     variant="variant1",
+    source_type="Source",
+    transformation="PRIMARY",
     definition=PrimaryData(location=SQLTable(name="")),
     owner="fake_owner",
     provider="fake_provider",

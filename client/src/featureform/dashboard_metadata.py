@@ -36,6 +36,7 @@ from .type_objects import (
     LabelVariantResource,
     ProviderResource,
 )
+from .resources import SourceType
 from .version import get_package_version
 
 path = os.path.join(os.path.dirname(__file__), "dashboard")
@@ -491,11 +492,12 @@ def build_source_variant_resource(variant_data: SourceVariant):
             source_feature_list.append(build_feature_variant_resource(found_variant))
 
     definition_text = ""
-    source_text_result = db.get_source_variant_text(
-        name=variant_data.name, variant=variant_data.variant
-    )
-    if source_text_result != "":
-        definition_text = source_text_result
+    if variant_data.transformation == SourceType.DF_TRANSFORMATION.value:
+        definition_text = db.get_source_variant_text(
+            name=variant_data.name, variant=variant_data.variant
+        )
+    else:
+        definition_text = variant_data.definition
 
     source_variant_resource = SourceVariantResource(
         created=variant_data.created,
@@ -504,7 +506,7 @@ def build_source_variant_resource(variant_data: SourceVariant):
         owner=variant_data.owner,
         definition=definition_text,
         provider=variant_data.provider,
-        sourceType="",  # todox
+        sourceType=variant_data.source_type,
         variant=variant_data.variant,
         labels=resources_list_to_dict(source_labels_list),
         status=variant_data.status,

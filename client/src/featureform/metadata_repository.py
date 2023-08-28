@@ -230,6 +230,8 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             variant=result["variant"],
             owner=result["owner"],
             provider=result["provider"],
+            source_type=result["source_type"],
+            transformation=result["transformation"],
             description=result["description"],
             tags=json.loads(result["tags"]) if result["tags"] else [],
             properties=json.loads(result["properties"]) if result["properties"] else {},

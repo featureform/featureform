@@ -1010,6 +1010,8 @@ class SourceVariant:
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
     source_text: str = ""
+    source_type: str = ""
+    transformation: str = ""
     inputs = ([],)
     error: Optional[str] = None
 

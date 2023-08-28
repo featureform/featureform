@@ -546,11 +546,17 @@ func (q defaultPythonOfflineQueries) materializationCreate(schema ResourceSchema
 	if schema.TS == "" {
 		return fmt.Sprintf("SELECT %s AS entity, %s AS value, 0 as ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number FROM source_0", schema.Entity, schema.Value)
 	}
+	//return fmt.Sprintf(
+	//	"SELECT entity, value, ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number FROM "+
+	//		"(SELECT entity, value, ts, rn FROM (SELECT %s AS entity, %s AS value, %s AS ts, "+
+	//		"ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s DESC) AS rn FROM %s) t WHERE rn=1) t2",
+	//	schema.Entity, schema.Value, timestampColumn, schema.Entity, timestampColumn, "source_0")
 	return fmt.Sprintf(
-		"SELECT entity, value, ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number FROM "+
+		"SELECT entity, value, ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number, rn2 FROM "+
+			"(SELECT entity, value, ts, ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s DESC) AS rn2 FROM "+
 			"(SELECT entity, value, ts, rn FROM (SELECT %s AS entity, %s AS value, %s AS ts, "+
-			"ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s DESC) AS rn FROM %s) t WHERE rn=1) t2",
-		schema.Entity, schema.Value, timestampColumn, schema.Entity, timestampColumn, "source_0")
+			"ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn FROM %s) t ORDER BY rn DESC) t2 ) t3 WHERE rn2=1",
+		schema.Entity, timestampColumn, schema.Entity, schema.Value, timestampColumn, "source_0")
 }
 
 func featureColumnName(id ResourceID) string {
@@ -562,6 +568,7 @@ func (q defaultPythonOfflineQueries) trainingSetCreate(def TrainingSetDef, featu
 	joinQueries := make([]string, 0)
 	feature_timestamps := make([]string, 0)
 	for i, feature := range def.Features {
+		fmt.Printf("%d feature: %v\n", i, featureSchemas[i].Entity)
 		featureColumnName := featureColumnName(feature)
 		columns = append(columns, featureColumnName)
 		var featureWindowQuery string
@@ -590,9 +597,9 @@ func (q defaultPythonOfflineQueries) trainingSetCreate(def TrainingSetDef, featu
 		curIdx := lagFeaturesOffset + i + 1
 		var lagWindowQuery string
 		if featureSchemas[idx].TS == "" {
-			lagWindowQuery = fmt.Sprintf("SELECT * FROM (SELECT %s as t%d_entity, %s as %s, 0 as t%d_ts FROM %s) ORDER BY t%d_ts ASC", featureSchemas[idx].Entity, curIdx, featureSchemas[idx].Value, lagColumnName, curIdx, lagSource, curIdx)
+			lagWindowQuery = fmt.Sprintf("SELECT * FROM (SELECT \"%s\" as t%d_entity, \"%s\" as \"%s\", 0 as t%d_ts FROM %s) ORDER BY t%d_ts ASC", featureSchemas[idx].Entity, curIdx, featureSchemas[idx].Value, lagColumnName, curIdx, lagSource, curIdx)
 		} else {
-			lagWindowQuery = fmt.Sprintf("SELECT * FROM (SELECT %s as t%d_entity, %s as %s, %s as t%d_ts FROM %s) ORDER BY t%d_ts ASC", featureSchemas[idx].Entity, curIdx, featureSchemas[idx].Value, lagColumnName, featureSchemas[idx].TS, curIdx, lagSource, curIdx)
+			lagWindowQuery = fmt.Sprintf("SELECT * FROM (SELECT \"%s\" as t%d_entity, \"%s\" as \"%s\", \"%s\" as t%d_ts FROM %s) ORDER BY t%d_ts ASC", featureSchemas[idx].Entity, curIdx, featureSchemas[idx].Value, lagColumnName, featureSchemas[idx].TS, curIdx, lagSource, curIdx)
 		}
 		lagJoinQuery := fmt.Sprintf("LEFT OUTER JOIN (%s) t%d ON (t%d_entity = entity AND DATETIME(t%d_ts, '+%f seconds') <= label_ts)", lagWindowQuery, curIdx, curIdx, curIdx, timeDeltaSeconds)
 		joinQueries = append(joinQueries, lagJoinQuery)
@@ -602,17 +609,17 @@ func (q defaultPythonOfflineQueries) trainingSetCreate(def TrainingSetDef, featu
 	joinQueryString := strings.Join(joinQueries, " ")
 	var labelWindowQuery string
 	if labelSchema.TS == "" {
-		labelWindowQuery = fmt.Sprintf("SELECT %s AS entity, %s AS value, 0 AS label_ts FROM source_0", labelSchema.Entity, labelSchema.Value)
+		labelWindowQuery = fmt.Sprintf("SELECT \"%s\" AS entity, \"%s\" AS value, 0 AS label_ts FROM source_0", labelSchema.Entity, labelSchema.Value)
 	} else {
-		labelWindowQuery = fmt.Sprintf("SELECT %s AS entity, %s AS value, %s AS label_ts FROM source_0", labelSchema.Entity, labelSchema.Value, labelSchema.TS)
+		labelWindowQuery = fmt.Sprintf("SELECT \"%s\" AS entity, \"%s\" AS value, \"%s\" AS label_ts FROM source_0", labelSchema.Entity, labelSchema.Value, labelSchema.TS)
 	}
 	labelPartitionQuery := fmt.Sprintf("(SELECT * FROM (SELECT entity, value, label_ts FROM (%s) t ) t0)", labelWindowQuery)
 	labelJoinQuery := fmt.Sprintf("%s %s", labelPartitionQuery, joinQueryString)
 
 	timeStamps := strings.Join(feature_timestamps, ", ")
 	timeStampsDesc := strings.Join(feature_timestamps, " DESC,")
-	fullQuery := fmt.Sprintf("SELECT %s, value AS %s, entity, label_ts, %s, ROW_NUMBER() over (PARTITION BY entity, value, label_ts ORDER BY label_ts DESC, %s DESC) as row_number FROM (%s) tt", columnStr, featureColumnName(def.Label), timeStamps, timeStampsDesc, labelJoinQuery)
-	finalQuery := fmt.Sprintf("SELECT %s, %s FROM (SELECT * FROM (SELECT *, row_number FROM (%s) WHERE row_number=1 ))  ORDER BY label_ts", columnStr, featureColumnName(def.Label), fullQuery)
+	fullQuery := fmt.Sprintf("SELECT \"%s\", value AS \"%s\", entity, label_ts, \"%s\", ROW_NUMBER() over (PARTITION BY entity, value, label_ts ORDER BY label_ts DESC, %s DESC) as row_number FROM (%s) tt", columnStr, featureColumnName(def.Label), timeStamps, timeStampsDesc, labelJoinQuery)
+	finalQuery := fmt.Sprintf("SELECT \"%s\", \"%s\" FROM (SELECT * FROM (SELECT *, row_number FROM (%s) WHERE row_number=1 ))  ORDER BY label_ts", columnStr, featureColumnName(def.Label), fullQuery)
 	return finalQuery
 }
 
@@ -1512,7 +1519,15 @@ func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig
 }
 
 func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
-	return nil, nil
+	path, err := spark.Store.CreateFilePath(id.FilestorePath())
+	if err != nil {
+		return nil, err
+	}
+	err = spark.Store.Write(path, []byte(""))
+	if err != nil {
+		return nil, err
+	}
+	return &FileStorePrimaryTable{spark.Store, path, false, id}, nil
 }
 
 func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
@@ -1696,11 +1711,10 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	if err != nil {
 		return fmt.Errorf("could not create destination path: %v", err)
 	}
-	trainingSetNewestFile, err := spark.Store.NewestFileOfType(destinationPath, filestore.Parquet)
+	trainingSetExists, err := spark.Store.Exists(destinationPath)
 	if err != nil {
-		return fmt.Errorf("Error getting training set newest file: %v", err)
+		return fmt.Errorf("could not check if training set exists: %v", err)
 	}
-	trainingSetExists := trainingSetNewestFile.PathWithBucket() != ""
 	if trainingSetExists && !isUpdate {
 		spark.Logger.Errorw("Training set already exists", "id", def.ID)
 		return fmt.Errorf("spark training set already exists: %v", def.ID)

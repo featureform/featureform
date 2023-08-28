@@ -203,37 +203,37 @@ func TestOfflineStores(t *testing.T) {
 	}
 
 	testFns := map[string]func(*testing.T, OfflineStore){
-		// "CreateGetTable":     testCreateGetOfflineTable,     // PASSING
-		// "TableAlreadyExists": testOfflineTableAlreadyExists, // PASSING
-		// "TableNotFound":      testOfflineTableNotFound,      // PASSING
-		// "InvalidResourceIDs": testInvalidResourceIDs,        // PASSING
-		"Materializations": testMaterializations,
-		// "MaterializationUpdate":   testMaterializationUpdate,
-		// "InvalidResourceRecord":   testWriteInvalidResourceRecord,
-		// "InvalidMaterialization":  testInvalidMaterialization,
-		// "MaterializeUnknown":      testMaterializeUnknown,
-		// "MaterializationNotFound": testMaterializationNotFound,
-		// "TrainingSets":            testTrainingSet,
+		// "CreateGetTable":     testCreateGetOfflineTable,     	// PASSING
+		// "TableAlreadyExists": testOfflineTableAlreadyExists, 	// PASSING
+		// "TableNotFound":      testOfflineTableNotFound,      	// PASSING
+		// "InvalidResourceIDs": testInvalidResourceIDs,        	// PASSING
+		// "Materializations": testMaterializations,				// PASSING
+		// "MaterializationUpdate": testMaterializationUpdate,		// PASSING
+		// "InvalidResourceRecord": testWriteInvalidResourceRecord,	// PASSING
+		// "InvalidMaterialization": testInvalidMaterialization, 	// PASSING
+		// "MaterializeUnknown": testMaterializeUnknown,			// PASSING
+		//"MaterializationNotFound": testMaterializationNotFound,	// PASSING
+		//"TrainingSets": testTrainingSet,					    	// Training set is trying to find a schema somewhere but is return blank strings for feature names in the query
 		// "TrainingSetUpdate":       testTrainingSetUpdate,
 		//"TrainingSetLag":          testLagFeaturesTrainingSet,
-		// "TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID,
-		// "GetUnknownTrainingSet":  testGetUnkonwnTrainingSet,
-		// "InvalidTrainingSetDefs": testInvalidTrainingSetDefs,
-		// "LabelTableNotFound":     testLabelTableNotFound,
-		// "FeatureTableNotFound":   testFeatureTableNotFound,
-		// "TrainingDefShorthand":   testTrainingSetDefShorthand,
+		//"TrainingSetInvalidID": testGetTrainingSetInvalidResourceID, //PASSING
+		//"GetUnknownTrainingSet": testGetUnkonwnTrainingSet,		// PASSING
+		//"InvalidTrainingSetDefs": testInvalidTrainingSetDefs,		// PASSING
+		//"LabelTableNotFound": testLabelTableNotFound,				// PASSING
+		//"FeatureTableNotFound": testFeatureTableNotFound,			// PASSING
+		//"TrainingDefShorthand": testTrainingSetDefShorthand,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
-		// "PrimaryTableCreate":              testPrimaryCreateTable,
-		// "PrimaryTableWrite":               testPrimaryTableWrite,
+		//"PrimaryTableCreate": testPrimaryCreateTable,							// PASSING
+		//"PrimaryTableWrite": testPrimaryTableWrite,							// The rest rely on writebatch working for generic records
 		// "Transformation":                  testTransform,
 		// "TransformationUpdate":            testTransformUpdate,
 		// "TransformationUpdateWithFeature": testTransformUpdateWithFeatures,
 		// "CreateDuplicatePrimaryTable":     testCreateDuplicatePrimaryTable,
 		// "ChainTransformations":            testChainTransform,
-		// "CreateResourceFromSource":        testCreateResourceFromSource,
-		// "CreateResourceFromSourceNoTS":    testCreateResourceFromSourceNoTS,
-		// "CreatePrimaryFromSource":         testCreatePrimaryFromSource,
+		//"CreateResourceFromSource":     testCreateResourceFromSource,
+		//"CreateResourceFromSourceNoTS": testCreateResourceFromSourceNoTS,
+		//"CreatePrimaryFromSource":      testCreatePrimaryFromSource,
 	}
 
 	psqlInfo := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), "localhost", "5432", os.Getenv("POSTGRES_DB"))
@@ -638,6 +638,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			t.Fatalf("Failed to create segment: %s", err)
 		}
 		i := 0
+
 		expectedRows := test.ExpectedSegment
 		for seg.Next() {
 			actual := seg.Value()

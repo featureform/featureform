@@ -1226,7 +1226,7 @@ func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 }
 
 func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogger) (PrimaryTable, error) {
-	filepath, err := store.CreateFilePath(fileStoreResourcePath(id))
+	filepath, err := store.CreateFilePath(id.FilestorePath())
 	if err != nil {
 		return nil, fmt.Errorf("could not create file path: %w", err)
 	}
@@ -1335,12 +1335,13 @@ func (mat FileStoreMaterialization) IterateSegment(begin, end int64) (FeatureIte
 	if err != nil {
 		return nil, err
 	}
-	for i := int64(0); i < begin; i++ {
+	i := int64(0)
+	for i = 0; i < begin; i++ {
 		_, _ = iter.Next()
 	}
 	return &FileStoreFeatureIterator{
 		iter:   iter,
-		curIdx: 0,
+		curIdx: i,
 		maxIdx: end,
 	}, nil
 }
@@ -1393,7 +1394,7 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 	iter.cur = ResourceRecord{
 		Entity: nextVal["entity"].(string),
 		Value:  value,
-		TS:     timestamp,
+		TS:     timestamp.UTC(),
 	}
 	return true
 }
@@ -1425,6 +1426,9 @@ func (iter *FileStoreFeatureIterator) parseTimestamp(ts string) (time.Time, erro
 func (iter *FileStoreFeatureIterator) parseValue(value interface{}) (interface{}, error) {
 	valueMap, ok := value.(map[string]interface{})
 	if !ok {
+		if value, ok := value.(int32); ok {
+			return int(value), nil
+		}
 		return value, nil
 	}
 	list, ok := valueMap["list"]
@@ -1542,7 +1546,7 @@ func fileStoreDeleteMaterialization(id MaterializationID, store FileStore, logge
 	s := strings.Split(string(id), "/")
 	if len(s) != 3 {
 		logger.Errorw("Invalid materialization id", id)
-		return fmt.Errorf("invalid materialization id")
+		return &MaterializationNotFound{id}
 	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	materializationPath, err := store.CreateFilePath(fileStoreResourcePath(materializationID))
@@ -1671,25 +1675,31 @@ func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.Sugared
 		logger.Errorw("Could not create file path", "error", err)
 		return nil, fmt.Errorf("could not create file path: %w", err)
 	}
-	trainingSetExactPath, err := store.NewestFileOfType(filepath, filestore.Parquet)
+	trainingSetExists, err := store.Exists(filepath)
+	if !trainingSetExists {
+		return nil, &TrainingSetNotFound{id}
+	}
 	if err != nil {
-		return nil, fmt.Errorf("could not get training set: %v", err)
+		return nil, fmt.Errorf("failed to check if training set exists: %w", err)
 	}
-	if trainingSetExactPath.Key() == "" {
-		return nil, fmt.Errorf("the training set (%v at resource prefix: %s) does not exist", id, filepath.KeyPrefix())
-	}
+	//trainingSetExactPath, err := store.NewestFileOfType(filepath, filestore.Parquet)
+	//if err != nil {
+	//	return nil, fmt.Errorf("could not get training set: %v", err)
+	//}
+	//if trainingSetExactPath.Key() == "" {
+	//	return nil, fmt.Errorf("the training set (%v at resource prefix: %s) does not exist", id, filepath.KeyPrefix())
+	//}
 
-	iterator, err := store.Serve(trainingSetExactPath)
+	iterator, err := store.Serve(filepath)
 	if err != nil {
 		return nil, fmt.Errorf("could not serve training set: %w", err)
 	}
-	return &FileStoreTrainingSet{id: id, store: store, key: trainingSetExactPath.Key(), iter: iterator}, nil
+	return &FileStoreTrainingSet{id: id, store: store, iter: iterator}, nil
 }
 
 type FileStoreTrainingSet struct {
 	id       ResourceID
 	store    FileStore
-	key      string
 	iter     Iterator
 	Error    error
 	features []interface{}

@@ -314,6 +314,7 @@ def set_spark_configs(spark, configs):
     # used to set access credentials for Spark to the store.
 
     print("setting spark configs")
+    spark.conf.set("spark.sql.parquet.enableVectorizedReader", "false")
     for key, value in configs.items():
         spark.conf.set(key, value)
 

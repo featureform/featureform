@@ -640,6 +640,7 @@ def build_entity_resource(entity_main: Entity):
             entity_training_set_list.append(
                 build_training_set_variant_resource(found_training_set_variant)
             )
+
     return EntityResource(
         name=entity_main.name,
         type=entity_main.type().capitalize(),
@@ -663,7 +664,8 @@ def build_model_resource(model_obj: Model):
             found_variant = db.get_feature_variant(
                 name=current_feature.name, variant=variant_name
             )
-            model_feature_list.append(build_feature_variant_resource(found_variant))
+            if found_variant.name == model_obj.name:
+                model_feature_list.append(build_feature_variant_resource(found_variant))
 
     model_label_list = []
     label_list = db.get_labels()
@@ -672,7 +674,8 @@ def build_model_resource(model_obj: Model):
             found_variant = db.get_label_variant(
                 name=current_label.name, variant=variant_name
             )
-            model_label_list.append(build_label_variant_resource(found_variant))
+            if found_variant.variant == model_obj.name:
+                model_label_list.append(build_label_variant_resource(found_variant))
 
     model_training_set_list = []
     training_set_list = db.get_training_sets()
@@ -681,9 +684,10 @@ def build_model_resource(model_obj: Model):
             found_variant = db.get_training_set_variant(
                 name=current_training_set.name, variant=variant_name
             )
-            model_training_set_list.append(
-                build_training_set_variant_resource(found_variant)
-            )
+            if found_variant.name == model_obj.name:
+                model_training_set_list.append(
+                    build_training_set_variant_resource(found_variant)
+                )
 
     return ModelResource(
         name=model_obj.name,

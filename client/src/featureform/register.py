@@ -1526,7 +1526,7 @@ class Registrar:
         Returns:
             UserRegistrar: User
         """
-        user = User(name, tags, properties)
+        user = User(name=name, tags=tags, properties=properties)
         self.__resources.append(user)
         return UserRegistrar(self, user)
 

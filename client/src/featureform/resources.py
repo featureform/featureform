@@ -846,7 +846,7 @@ class Provider:
 @dataclass
 class User:
     name: str
-    status: str
+    status: str = ""
     tags: list = field(default_factory=list)
     properties: dict = field(default_factory=dict)
 

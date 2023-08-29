@@ -191,6 +191,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             value_type=result["data_type"],
             created=result["created"],
             entity=result["entity"],
+            status=result["status"],
             owner=result["owner"],
             provider=result["provider"],
             location=ResourceColumnMapping(

@@ -555,6 +555,8 @@ def build_label_variant_resource(variant_data: LabelVariant):
         name=variant_data.name,
         owner=variant_data.owner,
         variant=variant_data.variant,
+        entity=variant_data.entity,
+        dataType=variant_data.value_type,
         status=variant_data.status,
         source={
             "Name": variant_data.source[0],

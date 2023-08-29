@@ -17,7 +17,7 @@ from featureform.resources import (
     User,
     LabelVariant,
     Provider,
-    EmptyConfig,
+    LocalConfig,
     SourceVariant,
     PrimaryData,
     SQLTable,
@@ -40,7 +40,7 @@ provider = Provider(
     name="provider",
     description="fake description",
     team="fake_team",
-    config=EmptyConfig(),
+    config=LocalConfig(),
     function="",
     status="ready",
 )

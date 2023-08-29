@@ -759,7 +759,7 @@ def build_provider_resource(provider_obj: Provider):
         providerType=provider_obj.type(),
         software=provider_obj.config.software(),
         team=provider_obj.team,
-        sources=provider_source_list,
+        sources=resources_list_to_dict(provider_source_list),
         status=provider_obj.status,
         serializedConfig="",
         features=resources_list_to_dict(provider_feature_list),

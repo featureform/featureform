@@ -51,6 +51,10 @@ spec:
               value: {{ .Values.search.apikey | quote }}
             - name: FEATUREFORM_VERSION
               value: {{ .Values.global.version | default .Chart.AppVersion}}
+            - name: ETCD_HOST
+              value: {{ .Values.etcd.host }}
+            - name: ETCD_PORT
+              value: {{ .Values.etcd.port | quote }}
           ports:
             - name: http
               containerPort: 3001

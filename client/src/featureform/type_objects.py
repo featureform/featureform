@@ -352,7 +352,7 @@ class ProviderResource:
         team="",
         sources=None,
         status="",
-        serializedConfig="",
+        serializedConfig="{}",
         features=None,
         labels=None,
         tags=[],

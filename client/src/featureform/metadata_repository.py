@@ -21,7 +21,6 @@ from .resources import (
     TrainingSetVariant,
     User,
     ResourceColumnMapping,
-    EmptyConfig,
     TrainingSetFeatures,
 )
 

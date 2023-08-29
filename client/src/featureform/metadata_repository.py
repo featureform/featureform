@@ -7,6 +7,7 @@ from typeguard import typechecked
 from . import SQLiteMetadata
 from .resources import (
     Feature,
+    LocalConfig,
     Resource,
     FeatureVariant,
     Source,
@@ -350,7 +351,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             name=result["name"],
             description=result["description"],
             team=result["team"],
-            config=EmptyConfig(),  # TODO add proper deserializer for this
+            config=LocalConfig(),
             function="",  # look into this
             status=result["status"],
             tags=json.loads(result["tags"]) if result["tags"] else [],
@@ -366,7 +367,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
                 name=row["name"],
                 description=row["description"],
                 team=row["team"],
-                config=EmptyConfig(),  # TODO add proper deserializer for this
+                config=LocalConfig(),
                 function="",  # look into this
                 status=row["status"],
                 tags=json.loads(row["tags"]) if row["tags"] else [],

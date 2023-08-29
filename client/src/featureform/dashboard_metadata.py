@@ -763,7 +763,7 @@ def build_provider_resource(provider_obj: Provider):
         team=provider_obj.team,
         sources=resources_list_to_dict(provider_source_list),
         status=provider_obj.status,
-        serializedConfig=provider_obj.config.serialize(),
+        serializedConfig=str(provider_obj.config.serialize()),
         features=resources_list_to_dict(provider_feature_list),
         labels=resources_list_to_dict(provider_label_list),
         tags=provider_obj.tags if provider_obj.tags is not None else [],

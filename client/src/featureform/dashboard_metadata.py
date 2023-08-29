@@ -568,16 +568,14 @@ def build_label_resource(label_main: Label):
 
 def build_label_variant_resource(variant_data: LabelVariant):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+
     label_training_set_list = []
-    training_set_list = db.get_training_sets()
-    for current_training_set in training_set_list:
-        for variant_name in current_training_set.variants:
-            found_training_set_variant = db.get_training_set_variant(
-                name=current_training_set.name, variant=variant_name
-            )
-            label_training_set_list.append(
-                build_training_set_variant_resource(found_training_set_variant)
-            )
+    training_set_variant_list = db.get_training_set_variant_from_label(
+        label_name=variant_data.name, label_variant=variant_data.variant
+    )
+    for tsv in training_set_variant_list:
+        label_training_set_list.append(build_training_set_variant_resource(tsv))
+
     label_variant_resource = LabelVariantResource(
         created=variant_data.created,
         description=variant_data.description,

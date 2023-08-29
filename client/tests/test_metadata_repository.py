@@ -59,6 +59,7 @@ feature_variant = FeatureVariant(
     location=resource_location,
     description="fake description",
     variant="variant1",
+    status="ready",
     is_embedding=False,
     dims=0,
     tags=["tag1"],
@@ -90,6 +91,7 @@ label_variant = LabelVariant(
     location=resource_location,
     description="fake description",
     variant="variant1",
+    status="ready",
     tags=["tag1"],
     properties={"key1": "value1"},
 )

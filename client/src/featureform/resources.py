@@ -1167,7 +1167,7 @@ class SourceVariant:
 class Entity:
     name: str
     description: str
-    status: str
+    status: str = "NO_STATUS"
     tags: list = field(default_factory=list)
     properties: dict = field(default_factory=dict)
 

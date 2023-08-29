@@ -2338,5 +2338,20 @@ class SparkCredentials:
             "YarnSite": yarn_site,
         }
 
+@typechecked
+@dataclass
+class TrainingSetFeatures:
+    training_set_name: str
+    training_set_variant: str
+    feature_name: str
+    feature_variant: str
+
+    def to_dictionary(self):
+        return {
+            "training_set_name": self.training_set_name,
+            "training_set_variant": self.training_set_variant,
+            "feature_name": self.feature_name,
+            "feature_variant": self.feature_variant,
+        }
 
 ExecutorCredentials = Union[EMRCredentials, DatabricksCredentials, SparkCredentials]

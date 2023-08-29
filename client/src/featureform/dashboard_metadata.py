@@ -414,15 +414,14 @@ def build_training_set_resource(training_set_main: TrainingSet):
 def build_training_set_variant_resource(variant_data: TrainingSetVariant):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
     training_set_feature_list = []
-    feature_list = db.get_features()
-    for current_feature in feature_list:
-        for variant_name in current_feature.variants:
-            found_variant = db.get_feature_variant(
-                name=current_feature.name, variant=variant_name
-            )
-            training_set_feature_list.append(
-                build_feature_variant_resource(found_variant)
-            )
+    tsf_association_list = db.get_training_set_features(
+        name=variant_data.name, variant=variant_data.variant
+    )
+    for tsf in tsf_association_list:
+        found_feature_variant = db.get_feature_variant(
+            name=tsf.feature_name, variant=tsf.feature_variant
+        )
+        training_set_feature_list.append(found_feature_variant)
 
     training_set_variant_resource = TrainingSetVariantResource(
         created=variant_data.created if variant_data.created is not None else "",

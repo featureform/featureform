@@ -22,6 +22,7 @@ from .resources import (
     User,
     ResourceColumnMapping,
     EmptyConfig,
+    TrainingSetFeatures,
 )
 
 
@@ -103,6 +104,12 @@ class MetadataRepository(ABC):
     def get_tags_for_resource(
         self, name: str, variant: str, resource_type: str
     ) -> List[str]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_training_set_features(
+        self, name: str, variant: str
+    ) -> List[TrainingSetFeatures]:
         raise NotImplementedError
 
 
@@ -405,3 +412,20 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             return row_data[0][0]
         else:
             return []
+
+    def get_training_set_features(
+        self, name: str, variant: str
+    ) -> List[TrainingSetFeatures]:
+        db_result = self.db.get_training_set_features(name=name, variant=variant)
+        tsf_list = []
+        for row in db_result:
+            tsf_list.append(
+                TrainingSetFeatures(
+                    training_set_name=row["training_set_name"],
+                    training_set_variant=row["training_set_variant"],
+                    feature_name=row["feature_name"],
+                    feature_variant=row["feature_variant"],
+                )
+            )
+
+        return tsf_list

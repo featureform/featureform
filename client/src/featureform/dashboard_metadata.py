@@ -421,7 +421,9 @@ def build_training_set_variant_resource(variant_data: TrainingSetVariant):
         found_feature_variant = db.get_feature_variant(
             name=tsf.feature_name, variant=tsf.feature_variant
         )
-        training_set_feature_list.append(found_feature_variant)
+        training_set_feature_list.append(
+            build_feature_variant_resource(found_feature_variant)
+        )
 
     training_set_variant_resource = TrainingSetVariantResource(
         created=variant_data.created if variant_data.created is not None else "",
@@ -477,7 +479,7 @@ def build_source_variant_resource(variant_data: SourceVariant):
         try:
             # build the feature variant resource
             found_feature_variant = db.get_feature_variant(
-                curr_feature.feature_name, curr_feature.feature_variant
+                curr_feature.name, curr_feature.variant
             )
             feature_variant_resource_list.append(
                 build_feature_variant_resource(found_feature_variant)

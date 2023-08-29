@@ -456,7 +456,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
 
     def get_feature_variants_from_source(
         self, source_name: str, source_variant: str
-    ) -> List[TrainingSetFeatures]:
+    ) -> List[FeatureVariant]:
         db_result = self.db.get_feature_variants_from_source(
             name=source_name, variant=source_variant
         )
@@ -551,6 +551,12 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
         )
         training_set_variant_list = []
         for row in db_result:
+            ts_feature_rows = self.db.get_training_set_features(
+                row["name"], row["variant"]
+            )
+            feature_name_variants = [
+                (r["feature_name"], r["feature_variant"]) for r in ts_feature_rows
+            ]
             training_set_variant_list.append(
                 TrainingSetVariant(
                     created=row["created"],
@@ -558,7 +564,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
                     variant=row["variant"],
                     owner=row["owner"],
                     label=(row["label_name"], row["label_variant"]),
-                    features=[],
+                    features=feature_name_variants,
                     description=row["description"],
                     tags=json.loads(row["tags"]) if row["tags"] else [],
                     properties=json.loads(row["properties"])

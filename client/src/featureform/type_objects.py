@@ -214,7 +214,7 @@ class LabelVariantResource:
             "status": status,
             "location": location,
             "source": source,
-            "trainingSets": trainingSets,
+            "training-sets": trainingSets,
             "tags": tags,
             "properties": properties,
             #  source is missing
@@ -357,8 +357,8 @@ class ProviderResource:
         features=None,
         labels=None,
         tags=[],
-        properties={}
-        # trainingSets=None
+        properties={},
+        trainingSets=None,
     ):
         self.__dictionary = {
             "name": name,
@@ -370,7 +370,7 @@ class ProviderResource:
             "sources": sources,
             "features": features,
             "labels": labels,
-            # "training-sets":trainingSets,
+            "training-sets": trainingSets,
             "status": status,
             #   Seems like we dont need serialised config
             "serializedConfig": serializedConfig,

@@ -550,7 +550,7 @@ def build_label_variant_resource(variant_data: LabelVariant):
                 build_training_set_variant_resource(found_training_set_variant)
             )
     label_variant_resource = LabelVariantResource(
-        created="",
+        created=variant_data.created,
         description=variant_data.description,
         name=variant_data.name,
         owner=variant_data.owner,

@@ -1563,6 +1563,7 @@ class LabelVariant:
     location: ResourceLocation
     variant: str
     status: str = "NO_STATUS"
+    created: str = ""
     error: Optional[str] = None
 
     def __post_init__(self):

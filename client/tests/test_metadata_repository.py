@@ -80,6 +80,7 @@ source_variant = SourceVariant(
 )
 
 label_variant = LabelVariant(
+    created=None,
     name="label",
     source=("source", "variant1"),
     value_type=ScalarType.FLOAT32.value,
@@ -189,7 +190,9 @@ def test_get_providers(setup):
 def test_create_source_variant(setup):
     repo = setup
     repo.create_resource(source_variant)
-    assert repo.get_source_variant("source", "variant1") == source_variant
+    found_variant = repo.get_source_variant("source", "variant1")
+    found_variant.created = None
+    assert found_variant == source_variant
 
 
 @pytest.mark.local
@@ -208,7 +211,9 @@ def test_get_sources(setup):
 def test_create_label_variant(setup):
     repo = setup
     repo.create_resource(label_variant)
-    assert repo.get_label_variant("label", "variant1") == label_variant
+    found_variant = repo.get_label_variant("label", "variant1")
+    found_variant.created = None
+    assert found_variant == label_variant
 
 
 @pytest.mark.local
@@ -231,7 +236,9 @@ def test_get_labels(setup):
 def test_create_feature_variant(setup):
     repo = setup
     repo.create_resource(feature_variant)
-    assert repo.get_feature_variant("feature", "variant1") == feature_variant
+    found_variant = repo.get_feature_variant("feature", "variant1")
+    found_variant.created = None
+    assert found_variant == feature_variant
 
 
 @pytest.mark.local
@@ -256,10 +263,9 @@ def test_create_training_set_variant(setup):
     repo.create_resource(label_variant)
     repo.create_resource(feature_variant)
     repo.create_resource(training_set_variant)
-    assert (
-        repo.get_training_set_variant("training_set", "variant1")
-        == training_set_variant
-    )
+    found_variant = repo.get_training_set_variant("training_set", "variant1")
+    found_variant.created = None
+    assert found_variant == training_set_variant
 
 
 @pytest.mark.local

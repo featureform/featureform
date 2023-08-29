@@ -467,7 +467,7 @@ def build_source_resource(source_main: Source):
 def build_source_variant_resource(variant_data: SourceVariant):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
 
-    training_set_variant_resource_set = set()
+    training_set_variant_resource_list = []
     feature_variant_resource_list = []
     try:
         feature_list = db.get_feature_variants_from_source(
@@ -494,7 +494,7 @@ def build_source_variant_resource(variant_data: SourceVariant):
                 found_training_set = db.get_training_set_variant(
                     training_set.training_set_name, training_set.training_set_variant
                 )
-                training_set_variant_resource_set.add(
+                training_set_variant_resource_list.append(
                     build_training_set_variant_resource(found_training_set)
                 )
         except ValueError:
@@ -515,10 +515,26 @@ def build_source_variant_resource(variant_data: SourceVariant):
             training_set_variant_list = db.get_training_set_variant_from_label(
                 label_name=curr_label.name, label_variant=curr_label.variant
             )
+
+            # only add if not in list. set not hashable
             for tsv in training_set_variant_list:
-                training_set_variant_resource_set.add(
-                    build_training_set_variant_resource(tsv)
-                )
+                if (
+                    next(
+                        (
+                            item
+                            for item in training_set_variant_resource_list
+                            if (
+                                item["name"] == tsv.name
+                                and item["variant"] == tsv.variant
+                            )
+                        ),
+                        None,
+                    )
+                    == None
+                ):
+                    training_set_variant_resource_list.append(
+                        build_training_set_variant_resource(tsv)
+                    )
         except ValueError:
             continue
 
@@ -542,7 +558,7 @@ def build_source_variant_resource(variant_data: SourceVariant):
         labels=resources_list_to_dict(label_variant_resource_list),
         status=variant_data.status,
         features=resources_list_to_dict(feature_variant_resource_list),
-        trainingSets=resources_list_to_dict(training_set_variant_resource_set),
+        trainingSets=resources_list_to_dict(training_set_variant_resource_list),
         tags=variant_data.tags if variant_data.tags is not None else [],
         properties=variant_data.properties
         if variant_data.properties is not None

@@ -794,6 +794,7 @@ func blobRegisterResource(id ResourceID, schema ResourceSchema, logger *zap.Suga
 type FileStorePrimaryTable struct {
 	store            FileStore
 	source           filestore.Filepath
+	schema           TableSchema
 	isTransformation bool
 	id               ResourceID
 }
@@ -805,7 +806,23 @@ func (tbl *FileStorePrimaryTable) Write(record GenericRecord) error {
 
 // TODO: implement
 func (tbl *FileStorePrimaryTable) WriteBatch(records []GenericRecord) error {
-	return fmt.Errorf("not implemented")
+	destination, err := filestore.NewEmptyFilepath(tbl.store.FilestoreType())
+	if err != nil {
+		return fmt.Errorf("could not create file path: %w", err)
+	}
+	if err := destination.ParseFilePath(tbl.schema.SourceTable); err != nil {
+		return fmt.Errorf("could not parse file path: %w", err)
+	}
+	buf := new(bytes.Buffer)
+	schema := parquet.SchemaOf(tbl.schema.Interface())
+	fmt.Println("=====>>>>> SCHEMA: ", schema)
+	parquetRecords := tbl.schema.ToParquetRecords(records)
+	fmt.Println("=====>>>>> PARQUET RECORDS: ", parquetRecords[0])
+	err = parquet.Write[any](buf, parquetRecords, schema)
+	if err != nil {
+		return fmt.Errorf("could not write parquet file to bytes: %v", err)
+	}
+	return tbl.store.Write(destination, buf.Bytes())
 }
 
 func (tbl *FileStorePrimaryTable) GetName() string {
@@ -850,6 +867,15 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 
 func (tbl *FileStorePrimaryTable) NumRows() (int64, error) {
 	return tbl.store.NumRows(tbl.source)
+}
+
+func (tbl *FileStorePrimaryTable) GetSource() (filestore.Filepath, error) {
+	filepath, err := filestore.NewEmptyFilepath(tbl.store.FilestoreType())
+	if err != nil {
+		return nil, err
+	}
+	err = filepath.ParseFilePath(tbl.schema.SourceTable)
+	return filepath, err
 }
 
 type FileStoreIterator struct {
@@ -906,7 +932,7 @@ func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, source
 }
 
 func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
-	filepath, err := store.CreateFilePath(fileStoreResourcePath(id))
+	filepath, err := store.CreateFilePath(id.ToFilestorePath())
 	if err != nil {
 		return nil, fmt.Errorf("could not create file path: %w", err)
 	}
@@ -920,8 +946,9 @@ func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLo
 		logger.Errorw("Primary table already exists", "source", sourcePath)
 		return nil, fmt.Errorf("primary already exists")
 	}
-
 	logger.Debugw("Registering primary table", "id", id, "source", sourcePath)
+	// TODO: read the source file and write it's schema to the blob store (???)
+
 	// **NOTE:** The data we're writing to the blob store is the path to the primary source data file.
 	// This blob will be read by other processes (e.g. transformation jobs) to fetch where the primary
 	// data is stored prior to acting on it. You can verify this by accessing the object stored at
@@ -942,7 +969,8 @@ func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLo
 		return nil, err
 	}
 	logger.Debugw("Successfully registered primary table", "id", id, "source", sourcePath)
-	return &FileStorePrimaryTable{store, filePath, false, id}, nil
+	// TODO: populate schema
+	return &FileStorePrimaryTable{store, filePath, TableSchema{}, false, id}, nil
 }
 
 func (k8s *K8sOfflineStore) CreateTransformation(config TransformationConfig) error {
@@ -1211,7 +1239,8 @@ func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (Transformatio
 		k8s.logger.Errorw("Could not create empty filepath", "error", err, "storeType", k8s.store.FilestoreType(), "transformationPath", transformationFilepath.PathWithBucket())
 		return nil, err
 	}
-	return &FileStorePrimaryTable{k8s.store, transformationFilepath, true, id}, nil
+	// TODO: populate schema
+	return &FileStorePrimaryTable{k8s.store, transformationFilepath, TableSchema{}, true, id}, nil
 }
 
 func (k8s *K8sOfflineStore) UpdateTransformation(config TransformationConfig) error {
@@ -1226,7 +1255,7 @@ func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 }
 
 func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogger) (PrimaryTable, error) {
-	filepath, err := store.CreateFilePath(id.FilestorePath())
+	filepath, err := store.CreateFilePath(id.ToFilestorePath())
 	if err != nil {
 		return nil, fmt.Errorf("could not create file path: %w", err)
 	}
@@ -1237,7 +1266,11 @@ func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogg
 		return nil, fmt.Errorf("error fetching primary table: %v", err)
 	}
 	logger.Debugw("Successfully retrieved primary table", "id", id)
-	return &FileStorePrimaryTable{store, filepath, false, id}, nil
+	schema := TableSchema{}
+	if err := schema.Deserialize(table); err != nil {
+		return nil, fmt.Errorf("error deserializing primary table: %v", err)
+	}
+	return &FileStorePrimaryTable{store, filepath, schema, false, id}, nil
 }
 
 func (k8s *K8sOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
@@ -1249,7 +1282,7 @@ func (k8s *K8sOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error
 }
 
 func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.SugaredLogger) (OfflineTable, error) {
-	filepath, err := store.CreateFilePath(id.FilestorePath())
+	filepath, err := store.CreateFilePath(id.ToFilestorePath())
 	if err != nil {
 		return nil, fmt.Errorf("could not create file path: %w", err)
 	}

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -20,6 +21,8 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type OfflineResourceType int
@@ -66,8 +69,40 @@ type ResourceID struct {
 	Type          OfflineResourceType
 }
 
-func (id *ResourceID) FilestorePath() string {
+func (id *ResourceID) ToFilestorePath() string {
 	return fmt.Sprintf("featureform/%s/%s/%s", id.Type, id.Name, id.Variant)
+}
+
+// TODO: add unit tests
+func (id *ResourceID) FromFilestorePath(path string) error {
+	featureformRootPathPart := "featureform/"
+	idx := strings.Index(path, featureformRootPathPart)
+	if idx == -1 {
+		return fmt.Errorf("expected \"featureform\" root path part in path %s", path)
+	}
+	resourceParts := strings.Split(path[idx+len(featureformRootPathPart):], "/")
+	if len(resourceParts) < 3 {
+		return fmt.Errorf("expected path %s to contain OfflineResourceType/Name/Variant", strings.Join(resourceParts, "/"))
+	}
+	switch resourceParts[0] {
+	case "Label":
+		id.Type = OfflineResourceType(1)
+	case "Feature":
+		id.Type = OfflineResourceType(2)
+	case "TrainingSet":
+		id.Type = OfflineResourceType(3)
+	case "Primary":
+		id.Type = OfflineResourceType(4)
+	case "Transformation":
+		id.Type = OfflineResourceType(5)
+	case "Materialization":
+		id.Type = OfflineResourceType(6)
+	default:
+		return fmt.Errorf("unrecognized OfflineResourceType: %s", resourceParts[0])
+	}
+	id.Name = resourceParts[1]
+	id.Variant = resourceParts[2]
+	return nil
 }
 
 func (id *ResourceID) check(expectedType OfflineResourceType, otherTypes ...OfflineResourceType) error {
@@ -343,7 +378,7 @@ type ResourceSchema struct {
 func (schema *ResourceSchema) Serialize() ([]byte, error) {
 	config, err := json.Marshal(schema)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to serialize resource schema due to: %w", err)
 	}
 	return config, nil
 }
@@ -351,13 +386,117 @@ func (schema *ResourceSchema) Serialize() ([]byte, error) {
 func (schema *ResourceSchema) Deserialize(config []byte) error {
 	err := json.Unmarshal(config, schema)
 	if err != nil {
-		return fmt.Errorf("deserialize etcd config: %w", err)
+		return fmt.Errorf("failed to deserialize resource schema due to: %w", err)
 	}
 	return nil
 }
 
 type TableSchema struct {
 	Columns []TableColumn
+	// The complete URL that points to the location of the data file
+	SourceTable string
+}
+
+type TableSchemaJSONWrapper struct {
+	Columns     []TableColumnJSONWrapper
+	SourceTable string
+}
+
+// This method converts the list of columns into a struct type that can be
+// serialized by parquet-go. This is necessary because GenericRecord does not
+// hold enough information to create a valid parquet-go schema.
+func (schema *TableSchema) Interface() interface{} {
+	return schema.Value().Interface()
+}
+
+func (schema *TableSchema) Value() reflect.Value {
+	fields := make([]reflect.StructField, len(schema.Columns))
+	for i, col := range schema.Columns {
+		caser := cases.Title(language.English)
+		colType := col.Scalar().Type()
+		// fmt.Printf("COL %s TYPE BEFORE: %s\n", col.Name, colType.Name())
+
+		// **NOTE:** This check for time.Time avoids a known Spark issue:
+		// error: Illegal Parquet type: INT64 (TIMESTAMP(NANOS,true))
+		if colType.Name() == "Time" {
+			colType = reflect.TypeOf(int64(0))
+		}
+
+		// fmt.Printf("COL %s TYPE AFTER: %s\n", col.Name, colType.Name())
+
+		fields[i] = reflect.StructField{
+			Name: caser.String(col.Name),
+			Type: colType,
+		}
+	}
+	structType := reflect.StructOf(fields)
+	return reflect.New(structType)
+}
+
+func (schema *TableSchema) Serialize() ([]byte, error) {
+	wrapper := &TableSchemaJSONWrapper{
+		SourceTable: schema.SourceTable,
+		Columns:     make([]TableColumnJSONWrapper, len(schema.Columns)),
+	}
+	for i, col := range schema.Columns {
+		wrapper.Columns[i] = TableColumnJSONWrapper{
+			Name:      col.Name,
+			ValueType: ValueTypeJSONWrapper{col.ValueType},
+		}
+	}
+	config, err := json.Marshal(wrapper)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize table schema due to: %w", err)
+	}
+	return config, nil
+}
+
+func (schema *TableSchema) Deserialize(config []byte) error {
+	wrapper := &TableSchemaJSONWrapper{}
+	err := json.Unmarshal(config, wrapper)
+	if err != nil {
+		return fmt.Errorf("failed to deserialize table schema due to: %w", err)
+	}
+	schema.Columns = make([]TableColumn, len(wrapper.Columns))
+	for i, col := range wrapper.Columns {
+		schema.Columns[i] = TableColumn{
+			Name:      col.Name,
+			ValueType: col.ValueType.ValueType,
+		}
+	}
+	schema.SourceTable = wrapper.SourceTable
+	return nil
+}
+
+func (schema *TableSchema) ToParquetRecords(records []GenericRecord) []any {
+	parquetRecords := make([]any, len(records))
+	caser := cases.Title(language.English)
+	for i, r := range records {
+		val := schema.Value()
+		for j, v := range r {
+			// TODO: Determine if there's a better way of handling nil values to
+			// avoid modifying the data set with the zero value of the type (e.g. bool)
+			if v == nil {
+				continue
+			}
+			colName := caser.String(schema.Columns[j].Name)
+			fmt.Printf("***************************************\nCOLUMN NAME: %s\nVALUE: %v\nVALUE TYPE: %T\n***************************************\n", colName, v, v)
+
+			// **NOTE:** This check for time.Time avoids a known Spark issue:
+			// error: Illegal Parquet type: INT64 (TIMESTAMP(NANOS,true))
+			if t, ok := v.(*time.Time); ok {
+				v = t.UTC().UnixMilli()
+			}
+			val.Elem().FieldByName(colName).Set(reflect.ValueOf(v))
+		}
+		parquetRecords[i] = val.Interface()
+	}
+	return parquetRecords
+}
+
+type TableColumnJSONWrapper struct {
+	Name      string
+	ValueType ValueTypeJSONWrapper
 }
 
 type TableColumn struct {

@@ -464,30 +464,61 @@ def build_source_resource(source_main: Source):
 
 def build_source_variant_resource(variant_data: SourceVariant):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
-    source_training_set_list = []
-    source_labels_list = []
-    label_list = db.get_labels()
-    for current_label in label_list:
-        for variant_name in current_label.variants:
-            found_label_variant = db.get_label_variant(
-                name=current_label.name, variant=variant_name
-            )
-            if found_label_variant.entity == variant_data.name:
-                label_variant_resource = build_label_variant_resource(
-                    found_label_variant
-                )
-                source_labels_list.append(label_variant_resource)
-                for current_training_set in label_variant_resource["trainingSets"]:
-                    source_training_set_list.add(current_training_set)
 
-    source_feature_list = []
-    feature_list = db.get_features()
-    for current_feature in feature_list:
-        for variant_name in current_feature.variants:
-            found_variant = db.get_feature_variant(
-                name=current_feature.name, variant=variant_name
+    training_set_variant_resource_set = set()
+    feature_variant_resource_list = []
+    try:
+        feature_list = db.get_feature_variants_from_source(
+            source_name=variant_data.name, source_variant=variant_data.variant
+        )
+    except ValueError:
+        feature_list = []
+    for curr_feature in feature_list:
+        try:
+            # build the feature variant resource
+            found_feature_variant = db.get_feature_variant(
+                curr_feature.feature_name, curr_feature.feature_variant
             )
-            source_feature_list.append(build_feature_variant_resource(found_variant))
+            feature_variant_resource_list.append(
+                build_feature_variant_resource(found_feature_variant)
+            )
+
+            # find the feature training sets, add to trainint set()
+            training_set_feature_table_list = db.get_training_set_from_features(
+                found_feature_variant.name, found_feature_variant.variant
+            )
+
+            for training_set in training_set_feature_table_list:
+                found_training_set = db.get_training_set_variant(
+                    training_set.training_set_name, training_set.training_set_variant
+                )
+                training_set_variant_resource_set.add(
+                    build_training_set_variant_resource(found_training_set)
+                )
+        except ValueError:
+            continue
+
+    label_variant_resource_list = []
+    try:
+        label_list = db.get_label_variants_from_source(
+            source_name=variant_data.name, source_variant=variant_data.variant
+        )
+    except:
+        label_list = []
+    for curr_label in label_list:
+        try:
+            # build the label variant resource
+            label_variant_resource_list.append(build_label_variant_resource(curr_label))
+
+            training_set_variant_list = db.get_training_set_variant_from_label(
+                label_name=curr_label.name, label_variant=curr_label.variant
+            )
+            for tsv in training_set_variant_list:
+                training_set_variant_resource_set.add(
+                    build_training_set_variant_resource(tsv)
+                )
+        except ValueError:
+            continue
 
     definition_text = ""
     if variant_data.transformation == SourceType.DF_TRANSFORMATION.value:
@@ -506,10 +537,10 @@ def build_source_variant_resource(variant_data: SourceVariant):
         provider=variant_data.provider,
         sourceType=variant_data.source_type,
         variant=variant_data.variant,
-        labels=resources_list_to_dict(source_labels_list),
+        labels=resources_list_to_dict(label_variant_resource_list),
         status=variant_data.status,
-        features=resources_list_to_dict(source_feature_list),
-        trainingSets=resources_list_to_dict(source_training_set_list),
+        features=resources_list_to_dict(feature_variant_resource_list),
+        trainingSets=resources_list_to_dict(training_set_variant_resource_set),
         tags=variant_data.tags if variant_data.tags is not None else [],
         properties=variant_data.properties
         if variant_data.properties is not None

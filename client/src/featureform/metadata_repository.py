@@ -112,6 +112,30 @@ class MetadataRepository(ABC):
     ) -> List[TrainingSetFeatures]:
         raise NotImplementedError
 
+    @abstractmethod
+    def get_feature_variants_from_source(
+        self, source_name: str, source_variant: str
+    ) -> List[FeatureVariant]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_training_set_from_features(
+        self, feature_name: str, feature_variant: str
+    ) -> List[TrainingSetFeatures]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_label_variants_from_source(
+        self, source_name: str, source_variant: str
+    ) -> List[LabelVariant]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_training_set_variant_from_label(
+        self, label_name: str, label_variant: str
+    ) -> List[TrainingSetVariant]:
+        raise NotImplementedError
+
 
 class MetadataRepositoryLocalImpl(MetadataRepository):
     def __init__(self, db: SQLiteMetadata):
@@ -429,3 +453,119 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             )
 
         return tsf_list
+
+    def get_feature_variants_from_source(
+        self, source_name: str, source_variant: str
+    ) -> List[TrainingSetFeatures]:
+        db_result = self.db.get_feature_variants_from_source(
+            name=source_name, variant=source_variant
+        )
+        feature_variant_list = []
+        for row in db_result:
+            feature_variant_list.append(
+                FeatureVariant(
+                    created=row["created"],
+                    name=row["name"],
+                    variant=row["variant"],
+                    source=(row["source_name"], row["source_variant"]),
+                    value_type=row["data_type"],
+                    is_embedding=bool(row["is_embedding"]),
+                    dims=row["dimension"],
+                    entity=row["entity"],
+                    owner=row["owner"],
+                    provider=row["provider"],
+                    status=row["status"],
+                    location=ResourceColumnMapping(
+                        row["source_entity"],
+                        row["source_value"],
+                        row["source_timestamp"],
+                    ),
+                    description=row["description"],
+                    tags=json.loads(row["tags"]) if row["tags"] else [],
+                    properties=json.loads(row["properties"])
+                    if row["properties"]
+                    else {},
+                )
+            )
+
+        return feature_variant_list
+
+    def get_training_set_from_features(
+        self, feature_name: str, feature_variant: str
+    ) -> List[TrainingSetFeatures]:
+        db_result = self.db.get_training_set_from_features(
+            name=feature_name, variant=feature_variant
+        )
+        tsf_list = []
+        for row in db_result:
+            tsf_list.append(
+                TrainingSetFeatures(
+                    training_set_name=row["training_set_name"],
+                    training_set_variant=row["training_set_variant"],
+                    feature_name=row["feature_name"],
+                    feature_variant=row["feature_variant"],
+                )
+            )
+
+        return tsf_list
+
+    def get_label_variants_from_source(
+        self, source_name: str, source_variant: str
+    ) -> List[LabelVariant]:
+        db_result = self.db.get_label_variants_from_source(
+            name=source_name, variant=source_variant
+        )
+        label_variant_list = []
+        for row in db_result:
+            label_variant_list.append(
+                LabelVariant(
+                    name=row["name"],
+                    variant=row["variant"],
+                    source=(row["source_name"], row["source_variant"]),
+                    value_type=row["data_type"],
+                    created=row["created"],
+                    entity=row["entity"],
+                    status=row["status"],
+                    owner=row["owner"],
+                    provider=row["provider"],
+                    location=ResourceColumnMapping(
+                        row["source_entity"],
+                        row["source_value"],
+                        row["source_timestamp"],
+                    ),
+                    description=row["description"],
+                    tags=json.loads(row["tags"]) if row["tags"] else [],
+                    properties=json.loads(row["properties"])
+                    if row["properties"]
+                    else {},
+                )
+            )
+
+        return label_variant_list
+
+    def get_training_set_variant_from_label(
+        self, label_name: str, label_variant: str
+    ) -> List[TrainingSetVariant]:
+        db_result = self.db.get_training_set_variant_from_label(
+            name=label_name, variant=label_variant
+        )
+        training_set_variant_list = []
+        for row in db_result:
+            training_set_variant_list.append(
+                TrainingSetVariant(
+                    created=row["created"],
+                    name=row["name"],
+                    variant=row["variant"],
+                    owner=row["owner"],
+                    label=(row["label_name"], row["label_variant"]),
+                    features=[],  # not needed
+                    description=row["description"],
+                    tags=json.loads(row["tags"]) if row["tags"] else [],
+                    properties=json.loads(row["properties"])
+                    if row["properties"]
+                    else {},
+                    status=row["status"],
+                )
+            )
+
+        return training_set_variant_list

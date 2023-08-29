@@ -16,7 +16,6 @@ class FeatureVariantResource:
         status="",
         location=None,
         source=None,
-        trainingSets=None,
         tags=[],
         properties={},
     ):
@@ -34,7 +33,6 @@ class FeatureVariantResource:
             "source": source,
             "tags": tags,
             "properties": properties,
-            "training-sets": trainingSets,
         }
 
     def to_dictionary(self):
@@ -359,7 +357,6 @@ class ProviderResource:
         labels=None,
         tags=[],
         properties={},
-        trainingSets=None,
     ):
         self.__dictionary = {
             "name": name,
@@ -371,7 +368,6 @@ class ProviderResource:
             "sources": sources,
             "features": features,
             "labels": labels,
-            "training-sets": trainingSets,
             "status": status,
             #   Seems like we dont need serialised config
             "serializedConfig": serializedConfig,

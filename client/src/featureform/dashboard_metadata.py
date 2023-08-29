@@ -563,10 +563,9 @@ def build_label_variant_resource(variant_data: LabelVariant):
             "Variant": variant_data.source[1],
         },
         location={
-            "Entity": variant_data.location.entity,
-            "Value": variant_data.location.value,
-            "Source": "",
-            "TS": variant_data.location.timestamp,
+            "entity": variant_data.location.entity,
+            "value": variant_data.location.value,
+            "timestamp": variant_data.location.timestamp,
         },
         trainingSets=resources_list_to_dict(label_training_set_list),
         tags=variant_data.tags if variant_data.tags is not None else [],

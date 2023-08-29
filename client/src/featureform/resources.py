@@ -2338,6 +2338,7 @@ class SparkCredentials:
             "YarnSite": yarn_site,
         }
 
+
 @typechecked
 @dataclass
 class TrainingSetFeatures:
@@ -2353,5 +2354,6 @@ class TrainingSetFeatures:
             "feature_name": self.feature_name,
             "feature_variant": self.feature_variant,
         }
+
 
 ExecutorCredentials = Union[EMRCredentials, DatabricksCredentials, SparkCredentials]

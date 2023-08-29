@@ -48,6 +48,10 @@ service:
   type: ClusterIP
   port: 3001
 
+etcd:
+  host: featureform-etcd
+  port: 2379
+
 ingress:
   enabled: false
   className: ""

@@ -711,7 +711,8 @@ def build_user_resource(user_obj: User):
             found_variant = db.get_feature_variant(
                 name=current_feature.name, variant=variant_name
             )
-            user_feature_list.append(build_feature_variant_resource(found_variant))
+            if found_variant.owner == user_obj.name:
+                user_feature_list.append(build_feature_variant_resource(found_variant))
 
     user_label_list = []
     label_list = db.get_labels()
@@ -720,7 +721,8 @@ def build_user_resource(user_obj: User):
             found_variant = db.get_label_variant(
                 name=current_label.name, variant=variant_name
             )
-            user_label_list.append(build_label_variant_resource(found_variant))
+            if found_variant.owner == user_obj.name:
+                user_label_list.append(build_label_variant_resource(found_variant))
 
     user_training_set_list = []
     training_set_list = db.get_training_sets()
@@ -729,9 +731,10 @@ def build_user_resource(user_obj: User):
             found_variant = db.get_training_set_variant(
                 name=current_training_set.name, variant=variant_name
             )
-            user_training_set_list.append(
-                build_training_set_variant_resource(found_variant)
-            )
+            if found_variant.owner == user_obj.name:
+                user_training_set_list.append(
+                    build_training_set_variant_resource(found_variant)
+                )
 
     user_source_list = []
     source_list = db.get_sources()
@@ -740,7 +743,8 @@ def build_user_resource(user_obj: User):
             found_variant = db.get_source_variant(
                 name=current_source.name, variant=variant_name
             )
-            user_source_list.append(build_source_variant_resource(found_variant))
+            if found_variant.owner == user_obj.name:
+                user_source_list.append(build_source_variant_resource(found_variant))
 
     return UserResource(
         name=user_obj.name,
@@ -764,7 +768,10 @@ def build_provider_resource(provider_obj: Provider):
             found_variant = db.get_source_variant(
                 name=current_source.name, variant=variant_name
             )
-            provider_source_list.append(build_source_variant_resource(found_variant))
+            if found_variant.provider == provider_obj.name:
+                provider_source_list.append(
+                    build_source_variant_resource(found_variant)
+                )
 
     provider_feature_list = []
     feature_list = db.get_features()
@@ -773,7 +780,10 @@ def build_provider_resource(provider_obj: Provider):
             found_variant = db.get_feature_variant(
                 name=current_feature.name, variant=variant_name
             )
-            provider_feature_list.append(build_feature_variant_resource(found_variant))
+            if found_variant.provider == provider_obj.name:
+                provider_feature_list.append(
+                    build_feature_variant_resource(found_variant)
+                )
 
     provider_label_list = []
     label_list = db.get_labels()
@@ -782,7 +792,8 @@ def build_provider_resource(provider_obj: Provider):
             found_variant = db.get_label_variant(
                 name=current_label.name, variant=variant_name
             )
-            provider_label_list.append(build_label_variant_resource(found_variant))
+            if found_variant.provider == provider_obj.name:
+                provider_label_list.append(build_label_variant_resource(found_variant))
 
     return ProviderResource(
         name=provider_obj.name,

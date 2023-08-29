@@ -413,16 +413,25 @@ def build_training_set_resource(training_set_main: TrainingSet):
 
 def build_training_set_variant_resource(variant_data: TrainingSetVariant):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
+    # todo: we'll need a custom api method for this association.
     training_set_feature_list = []
-    feature_list = db.get_features()
-    for current_feature in feature_list:
-        for variant_name in current_feature.variants:
-            found_variant = db.get_feature_variant(
-                name=current_feature.name, variant=variant_name
+    try:
+        with SQLiteMetadata() as sqlObject:
+            training_set_feature_list = sqlObject.get_training_set_features(
+                name=variant_data.name, variant=variant_data.variant
             )
-            training_set_feature_list.append(
-                build_feature_variant_resource(found_variant)
-            )
+    except ValueError:
+        training_set_feature_list = []
+
+    found_training_set_feature_list = get_training_set_features(
+        training_set_feature_list
+    )
+    built_list = []
+    for current_feature in found_training_set_feature_list:
+        found_variant = db.get_feature_variant(
+            name=current_feature, variant=current_feature
+        )
+        built_list.append(build_feature_variant_resource(found_variant))
 
     training_set_variant_resource = TrainingSetVariantResource(
         created=variant_data.created if variant_data.created is not None else "",
@@ -435,7 +444,7 @@ def build_training_set_variant_resource(variant_data: TrainingSetVariant):
             "Variant": variant_data.label[1],
         },
         status=variant_data.status,
-        features=resources_list_to_dict(training_set_feature_list),
+        features=resources_list_to_dict(built_list),
         tags=variant_data.tags if variant_data.tags is not None else [],
         properties=variant_data.properties
         if variant_data.properties is not None
@@ -443,6 +452,18 @@ def build_training_set_variant_resource(variant_data: TrainingSetVariant):
     ).to_dictionary()
 
     return training_set_variant_resource
+
+
+def get_training_set_features(feature_list=[]):
+    feature_variant_list = []
+    with SQLiteMetadata() as sqlObject:
+        for feature in feature_list:
+            feature_variant_list.append(
+                sqlObject.get_feature_variant(
+                    feature["feature_name"], feature["feature_variant"]
+                )
+            )
+        return feature_variant_list
 
 
 def build_source_resource(source_main: Source):

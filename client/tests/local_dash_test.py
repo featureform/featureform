@@ -57,7 +57,7 @@ labels = [
                     "timestamp": "",
                 },
                 "source": {"Name": "transactions", "Variant": "quickstart"},
-                "trainingSets": {
+                "training-sets": {
                     "fraud_training": [
                         {
                             "description": "",
@@ -134,7 +134,7 @@ sources = [
                                 "timestamp": "",
                             },
                             "source": {"Name": "transactions", "Variant": "quickstart"},
-                            "trainingSets": {
+                            "training-sets": {
                                 "fraud_training": [
                                     {
                                         "description": "",
@@ -403,7 +403,7 @@ entities = [
                         "timestamp": "",
                     },
                     "source": {"Name": "transactions", "Variant": "quickstart"},
-                    "trainingSets": {
+                    "training-sets": {
                         "fraud_training": [
                             {
                                 "description": "",
@@ -541,7 +541,7 @@ users = [
                         "timestamp": "",
                     },
                     "source": {"Name": "transactions", "Variant": "quickstart"},
-                    "trainingSets": {
+                    "training-sets": {
                         "fraud_training": [
                             {
                                 "description": "",
@@ -657,7 +657,7 @@ users = [
                                     "Name": "transactions",
                                     "Variant": "quickstart",
                                 },
-                                "trainingSets": {
+                                "training-sets": {
                                     "fraud_training": [
                                         {
                                             "description": "",
@@ -856,7 +856,7 @@ providers = [
                                     "Name": "transactions",
                                     "Variant": "quickstart",
                                 },
-                                "trainingSets": {
+                                "training-sets": {
                                     "fraud_training": [
                                         {
                                             "description": "",
@@ -1107,7 +1107,7 @@ default_user = {
                     "timestamp": "",
                 },
                 "source": {"Name": "transactions", "Variant": "quickstart"},
-                "trainingSets": {
+                "training-sets": {
                     "fraud_training": [
                         {
                             "description": "",
@@ -1217,7 +1217,7 @@ default_user = {
                                 "timestamp": "",
                             },
                             "source": {"Name": "transactions", "Variant": "quickstart"},
-                            "trainingSets": {
+                            "training-sets": {
                                 "fraud_training": [
                                     {
                                         "description": "",
@@ -1425,7 +1425,7 @@ localmode = {
                                 "timestamp": "",
                             },
                             "source": {"Name": "transactions", "Variant": "quickstart"},
-                            "trainingSets": {
+                            "training-sets": {
                                 "fraud_training": [
                                     {
                                         "description": "",
@@ -1750,7 +1750,7 @@ user = {
                     "timestamp": "",
                 },
                 "source": {"Name": "transactions", "Variant": "quickstart"},
-                "trainingSets": {
+                "training-sets": {
                     "fraud_training": [
                         {
                             "description": "",
@@ -1854,7 +1854,7 @@ fraudulent = {
             "status": "ready",
             "location": {"entity": "CustomerID", "value": "IsFraud", "timestamp": ""},
             "source": {"Name": "transactions", "Variant": "quickstart"},
-            "trainingSets": {
+            "training-sets": {
                 "fraud_training": [
                     {
                         "description": "",

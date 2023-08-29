@@ -558,7 +558,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
                     variant=row["variant"],
                     owner=row["owner"],
                     label=(row["label_name"], row["label_variant"]),
-                    features=[],  # not needed
+                    features=[],
                     description=row["description"],
                     tags=json.loads(row["tags"]) if row["tags"] else [],
                     properties=json.loads(row["properties"])

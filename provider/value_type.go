@@ -7,6 +7,8 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"time"
 )
 
 type ValueType interface {
@@ -36,6 +38,31 @@ func (t ScalarType) Scalar() ScalarType {
 
 func (t ScalarType) IsVector() bool {
 	return false
+}
+
+func (t ScalarType) Type() reflect.Type {
+	switch t {
+	case Int:
+		return reflect.TypeOf(int(0))
+	case Int32:
+		return reflect.TypeOf(int32(0))
+	case Int64:
+		return reflect.TypeOf(int64(0))
+	case Float32:
+		return reflect.TypeOf(float32(0))
+	case Float64:
+		return reflect.TypeOf(float64(0))
+	case String:
+		return reflect.TypeOf(string(""))
+	case Bool:
+		return reflect.TypeOf(bool(false))
+	case Timestamp:
+		return reflect.TypeOf(time.Time{})
+	case Datetime:
+		return reflect.TypeOf(time.Time{})
+	default:
+		return nil
+	}
 }
 
 const (

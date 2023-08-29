@@ -376,10 +376,9 @@ def build_feature_variant_resource(variant_data: FeatureVariant):
         variant=variant_data.variant,
         status=variant_data.status,
         location={
-            "Entity": variant_data.location.entity,
-            "Value": variant_data.location.value,
-            "Source": "",
-            "TS": variant_data.location.timestamp,
+            "entity": variant_data.location.entity,
+            "value": variant_data.location.value,
+            "timestamp": variant_data.location.timestamp,
         },
         source={
             "Name": variant_data.source[0],

@@ -16,6 +16,7 @@ class FeatureVariantResource:
         status="",
         location=None,
         source=None,
+        trainingSets=None,
         tags=[],
         properties={},
     ):
@@ -33,7 +34,7 @@ class FeatureVariantResource:
             "source": source,
             "tags": tags,
             "properties": properties,
-            # Training Set[] is missing
+            "training-sets": trainingSets,
         }
 
     def to_dictionary(self):

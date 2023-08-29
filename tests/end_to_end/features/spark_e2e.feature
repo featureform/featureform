@@ -1,9 +1,10 @@
 Feature: Spark End to End
 
-    Scenario: Databricks End to End
+    Scenario Outline: Databricks End to End
       Given Featureform is installed
       When I create a "hosted" "insecure" client for "localhost:7878"
-      And I upload a file to blob store
+      And I generate a random variant name
+      And I upload a "<filesize>" "<filetype>" file to "<storage_provider>"
       And I register redis
       And I register databricks
       And I register the file
@@ -15,3 +16,10 @@ Feature: Spark End to End
       When I register a label
       And I register a training set
       Then I should be able to pull the trainingset as a dataframe
+
+      Examples: File Sizes
+      | filesize | filetype | storage_provider |
+      |  small   |   csv    |       azure      |
+      |  small   |  parquet |       azure      |
+#      |  large   |   csv    |       azure      |
+#      |  large   |  parquet |       azure      |

@@ -1546,12 +1546,15 @@ class Registrar:
             raise ValueError("Owner must be set or a default owner must be specified.")
         return owner
 
-    def set_run(self, run: str):
+    def set_run(self, run: str = ""):
         """Set run.
         Args:
             run (str): Name of a run to be set.
         """
-        self.__run = run
+        if run == "":
+            self.__run = get_random_name()
+        else:
+            self.__run = run
 
     def get_run(self) -> str:
         return self.__run
@@ -4035,7 +4038,6 @@ class ResourceClient:
                 )
             elif x.type == "BLOB_ONLINE":
                 deserialized = json.loads(x.serialized_config)["Config"]
-                print(deserialized)
                 config = OnlineBlobConfig(
                     store_type="BLOB_ONLINE",
                     store_config=AzureFileStoreConfig(

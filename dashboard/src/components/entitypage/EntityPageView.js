@@ -496,23 +496,40 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                         </div>
                       )}
                     {metadata['definition'] && (
+
                       <div>
                         <Typography variant='body1'>
                           <b>Origin:</b>
                         </Typography>
-                        {metadata['source-type'] === 'SQL Transformation' ? (
-                          <SyntaxHighlighter
-                            className={classes.syntax}
-                            language={'sql'}
-                            style={okaidia}
-                          >
-                            {getFormattedSQL(metadata['definition'])}
-                          </SyntaxHighlighter>
-                        ) : (
-                          <Typography variant='h7'>
-                            <b>{metadata['definition']}</b>
-                          </Typography>
-                        )}
+                        {(() => {
+                          if (metadata['source-type'] === 'SQL Transformation') {
+                            return (
+                                <SyntaxHighlighter
+                                    className={classes.syntax}
+                                    language={'sql'}
+                                    style={okaidia}
+                                >
+                                  {getFormattedSQL(metadata['definition'])}
+                                </SyntaxHighlighter>
+                            );
+                          } else if (metadata['source-type'] === 'Dataframe Transformation') {
+                            return (
+                                <SyntaxHighlighter
+                                    className={classes.syntax}
+                                    language={'python'}
+                                    style={okaidia}
+                                >
+                                  {metadata['definition']}
+                                </SyntaxHighlighter>
+                            );
+                          } else {
+                            return (
+                                <Typography variant='h7'>
+                                  <b>{metadata['definition']}</b>
+                                </Typography>
+                            );
+                          }
+                        })()}
                         <SourceDialog
                           api={api}
                           sourceName={name}

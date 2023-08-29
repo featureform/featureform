@@ -4,6 +4,11 @@ import featureform as ff
 import os
 
 
+@when("I generate a random variant name")
+def step_impl(context):
+    ff.set_run()
+
+
 @when("I register Spark")
 def step_impl(context):
     context.spark_name = "test_spark"
@@ -65,7 +70,7 @@ def step_impl(context):
 def step_impl(context):
     context.file = context.spark.register_file(
         name="transactions",
-        file_path="abfss://test@testingstoragegen.dfs.core.windows.net/data/transactions.csv",
+        file_path=f"abfss://test@testingstoragegen.dfs.core.windows.net/{context.filename}",
     )
     context.client.apply()
 
@@ -73,6 +78,9 @@ def step_impl(context):
 @then("I should be able to pull the file as a dataframe")
 def step_impl(context):
     df = context.client.dataframe(context.file)
+    assert (
+        len(df) == context.file_length
+    ), f"Expected {context.file_length} rows, got {len(df)} rows"
     print(len(df))
     print(df)
 
@@ -94,6 +102,9 @@ def step_impl(context):
 @then("I should be able to pull the transformation as a dataframe")
 def step_impl(context):
     df = context.client.dataframe(context.transformation)
+    assert (
+        len(df) == context.file_length
+    ), f"Expected {context.file_length} rows, got {len(df)} rows"
     print(len(df))
     print(df)
 

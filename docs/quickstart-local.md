@@ -81,7 +81,7 @@ def average_user_transaction(transactions):
 
 {% endcode %}
 
-Next, we'll register a passenger entity to associate with a feature and label.
+Next, we'll register a user entity to associate with a feature and label.
 
 {% code title="definitions.py" %}
 

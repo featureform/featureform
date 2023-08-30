@@ -1976,7 +1976,7 @@ class Registrar:
             entity (EntityRegistrar): Entity
         """
         fakeEntity = Entity(
-            name=name, description="", status="", tags=[], properties=[]
+            name=name, description="", status="", tags=[], properties={}
         )
         return EntityRegistrar(self, fakeEntity)
 

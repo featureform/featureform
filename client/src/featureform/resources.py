@@ -996,7 +996,6 @@ class Source:
 @typechecked
 @dataclass
 class SourceVariant:
-    created: str
     name: str
     definition: SourceDefinition
     owner: str
@@ -1005,6 +1004,7 @@ class SourceVariant:
     tags: list
     properties: dict
     variant: str
+    created: str = None
     status: str = "ready"  # this is no status by default but it always stores ready
     schedule: str = ""
     schedule_obj: Schedule = None
@@ -1249,7 +1249,6 @@ class Feature:
 @typechecked
 @dataclass
 class FeatureVariant:
-    created: str
     name: str
     source: NameVariant
     value_type: str
@@ -1259,6 +1258,7 @@ class FeatureVariant:
     location: ResourceLocation
     description: str
     variant: str
+    created: str = None
     is_embedding: bool = False
     dims: int = 0
     tags: list = None
@@ -1562,8 +1562,8 @@ class LabelVariant:
     properties: dict
     location: ResourceLocation
     variant: str
+    created: str = None
     status: str = "NO_STATUS"
-    created: str = ""
     error: Optional[str] = None
 
     def __post_init__(self):
@@ -1778,7 +1778,6 @@ class TrainingSet:
 @typechecked
 @dataclass
 class TrainingSetVariant:
-    created: str
     name: str
     owner: str
     label: NameVariant
@@ -1788,6 +1787,7 @@ class TrainingSetVariant:
     feature_lags: list = field(default_factory=list)
     tags: list = field(default_factory=list)
     properties: dict = field(default_factory=dict)
+    created: str = None
     schedule: str = ""
     schedule_obj: Schedule = None
     provider: str = ""

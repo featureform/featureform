@@ -260,7 +260,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
         return SourceVariant(
             created=result["created"],
             name=result["name"],
-            definition=result["definition"],  # double check this
+            definition=str(result["definition"]),
             variant=result["variant"],
             owner=result["owner"],
             provider=result["provider"],

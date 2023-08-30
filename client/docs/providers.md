@@ -1,26 +1,47 @@
 # Providers
-## Capability Matrix
 
-|                         Name                          | Offline | Online | Compute | Storage | Vector | Available in Localmode |
-|:-----------------------------------------------------:|:-------:|:------:|:-------:|:-------:|:------:|------------------------|
-|         [Azure Blob Store](#azure-blob-store)         |    x    |        |         |    x    |        |                        |
-|                 [BigQuery](#bigquery)                 |    x    |        |    x    |    x    |        |                        |
-|                [Cassandra](#cassandra)                |         |   x    |         |    x    |        |                        |
-|                 [DynamoDB](#dynamodb)                 |         |   x    |         |    x    |        |                        |
-|                [Firestore](#firestore)                |         |   x    |         |    x    |        |                        |
-|     [Google Cloud Storage](#google-cloud-storage)     |    x    |        |         |    x    |        |                        |
-|                     [HDFS](#hdfs)                     |    x    |        |         |    x    |        |                        |
-| [Kubernetes Pandas Runner](#kubernetes-pandas-runner) |    x    |        |    x    |         |        |                        |
-|           [Local Provider](#local-provider)           |    x    |        |    x    |    x    |        | x                      |
-|                  [MongoDB](#mongodb)                  |         |   x    |         |    x    |        |                        |
-|                 [Pinecone](#pinecone)                 |         |   x    |         |    x    |   x    | x                      |
-|                 [Postgres](#postgres)                 |    x    |        |    x    |    x    |        |                        |
-|                    [Redis](#redis)                    |         |   x    |         |    x    |   x    |                        |
-|                 [Redshift](#redshift)                 |    x    |        |    x    |    x    |        |                        |
-|                       [S3](#s3)                       |    x    |        |         |    x    |        |                        |
-|                [Snowflake](#snowflake)                |    x    |        |    x    |    x    |        |                        |
-|                    [Spark](#spark)                    |    x    |        |    x    |         |        |                        |
-|                 [Weaviate](#weaviate)                 |         |   x    |         |    x    |   x    | x                      |
+[//]: # (## Capability Matrix)
+
+[//]: # ()
+[//]: # (|                         Name                          | Offline | Online | Compute | Storage | Vector | Available in Localmode |)
+
+[//]: # (|:-----------------------------------------------------:|:-------:|:------:|:-------:|:-------:|:------:|------------------------|)
+
+[//]: # (|         [Azure Blob Store]&#40;#azure-blob-store&#41;         |    x    |        |         |    x    |        |                        |)
+
+[//]: # (|                 [BigQuery]&#40;#bigquery&#41;                 |    x    |        |    x    |    x    |        |                        |)
+
+[//]: # (|                [Cassandra]&#40;#cassandra&#41;                |         |   x    |         |    x    |        |                        |)
+
+[//]: # (|                 [DynamoDB]&#40;#dynamodb&#41;                 |         |   x    |         |    x    |        |                        |)
+
+[//]: # (|                [Firestore]&#40;#firestore&#41;                |         |   x    |         |    x    |        |                        |)
+
+[//]: # (|     [Google Cloud Storage]&#40;#google-cloud-storage&#41;     |    x    |        |         |    x    |        |                        |)
+
+[//]: # (|                     [HDFS]&#40;#hdfs&#41;                     |    x    |        |         |    x    |        |                        |)
+
+[//]: # (| [Kubernetes Pandas Runner]&#40;#kubernetes-pandas-runner&#41; |    x    |        |    x    |         |        |                        |)
+
+[//]: # (|           [Local Provider]&#40;#local-provider&#41;           |    x    |        |    x    |    x    |        | x                      |)
+
+[//]: # (|                  [MongoDB]&#40;#mongodb&#41;                  |         |   x    |         |    x    |        |                        |)
+
+[//]: # (|                 [Pinecone]&#40;#pinecone&#41;                 |         |   x    |         |    x    |   x    | x                      |)
+
+[//]: # (|                 [Postgres]&#40;#postgres&#41;                 |    x    |        |    x    |    x    |        |                        |)
+
+[//]: # (|                    [Redis]&#40;#redis&#41;                    |         |   x    |         |    x    |   x    |                        |)
+
+[//]: # (|                 [Redshift]&#40;#redshift&#41;                 |    x    |        |    x    |    x    |        |                        |)
+
+[//]: # (|                       [S3]&#40;#s3&#41;                       |    x    |        |         |    x    |        |                        |)
+
+[//]: # (|                [Snowflake]&#40;#snowflake&#41;                |    x    |        |    x    |    x    |        |                        |)
+
+[//]: # (|                    [Spark]&#40;#spark&#41;                    |    x    |        |    x    |         |        |                        |)
+
+[//]: # (|                 [Weaviate]&#40;#weaviate&#41;                 |         |   x    |         |    x    |   x    | x                      |)
 
 
 ## Provider Registration

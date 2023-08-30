@@ -1,3 +1,4 @@
+import pandas as pd
 from typing import Union
 
 from .constants import NO_RECORD_LIMIT
@@ -54,14 +55,9 @@ class Client(ResourceClient, ServingClient):
         source: Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str],
         variant: Union[str, None] = None,
         limit=NO_RECORD_LIMIT,
-    ):
+    ) -> pd.DataFrame:
         """
         Compute a dataframe from a registered source or transformation
-
-        Args:
-            source (Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
-            variant (str): The source variant; defaults to a Docker-style random name and is ignored if source argument is not a string
-            limit (int): The maximum number of records to return; defaults to NO_RECORD_LIMIT
 
         **Example:**
         ```py title="definitions.py"
@@ -69,6 +65,15 @@ class Client(ResourceClient, ServingClient):
 
         avg_user_transaction_df = transactions_df.groupby("CustomerID")["TransactionAmount"].mean()
         ```
+
+        Args:
+            source (Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
+            variant (str): The source variant; defaults to a Docker-style random name and is ignored if source argument is not a string
+            limit (int): The maximum number of records to return; defaults to NO_RECORD_LIMIT
+
+        Returns:
+            df (pandas.DataFrame): The dataframe computed from the source or transformation
+
         """
         self.apply()
         if isinstance(
@@ -88,17 +93,19 @@ class Client(ResourceClient, ServingClient):
         """
         Query the K nearest neighbors of a provider vector in the index of a registered feature variant
 
-        Args:
-            feature (Union[FeatureColumnResource, tuple(str, str)]): Feature object or tuple of Feature name and variant
-            vector (List[float]): Query vector
-            k (int): Number of nearest neighbors to return
-
         **Example:**
+
         ```py title="definitions.py"
         # Get the 5 nearest neighbors of the vector [0.1, 0.2, 0.3] in the index of the feature "my_feature" with variant "my_variant"
         nearest_neighbors = client.nearest("my_feature", "my_variant", [0.1, 0.2, 0.3], 5)
         print(nearest_neighbors) # prints a list of entities (e.g. ["entity1", "entity2", "entity3", "entity4", "entity5"])
         ```
+
+        Args:
+            feature (Union[FeatureColumnResource, tuple(str, str)]): Feature object or tuple of Feature name and variant
+            vector (List[float]): Query vector
+            k (int): Number of nearest neighbors to return
+
         """
         if isinstance(feature, tuple):
             name, variant = feature

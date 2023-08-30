@@ -142,8 +142,10 @@ class OfflineSQLProvider(OfflineProvider):
         **Example**
 
         ```
-        table =  register_table(
-            name="my_table",
+        postgres = ff.get_provider("my_postgres")
+        table =  postgres.register_table(
+            name="transactions",
+            variant="july_2023",
             table="transactions_table",
         ):
         ```
@@ -179,6 +181,34 @@ class OfflineSQLProvider(OfflineProvider):
         tags: List[str] = [],
         properties: dict = {},
     ):
+        """
+        Register a SQL transformation source.
+
+        The name of the function is the name of the resulting source.
+
+        Sources for the transformation can be specified by adding the Name and Variant in brackets '{{ name.variant }}'.
+        The correct source is substituted when the query is run.
+
+        **Examples**:
+
+        ``` py
+        postgres = get_provider("my_postgres")
+        @postgres.sql_transformation(variant="quickstart")
+        def average_user_transaction():
+            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.v1}} GROUP BY user_id"
+        ```
+
+        Args:
+            name (str): Name of source
+            variant (str): Name of variant
+            schedule (str): The frequency at which the transformation is run as a cron expression
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of primary data to be registered
+
+
+        Returns:
+            source (ColumnSourceRegistrar): Source
+        """
         return self.__registrar.sql_transformation(
             name=name,
             variant=variant,
@@ -192,7 +222,7 @@ class OfflineSQLProvider(OfflineProvider):
 
 
 class OfflineSparkProvider(OfflineProvider):
-    def __init__(self, registrar, provider):
+    def __init__(self, rOfflineSparkProvideregistrar, provider):
         super().__init__(registrar, provider)
         self.__registrar = registrar
         self.__provider = provider
@@ -209,10 +239,22 @@ class OfflineSparkProvider(OfflineProvider):
     ):
         """Register a Spark data source as a primary data source.
 
+        **Examples**
+
+        ```
+        spark = ff.get_provider("my_spark")
+        transactions = spark.register_file(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions",
+            file_path="s3://featureform-spark/featureform/transactions.parquet"
+        )
+        ```
+
         Args:
             name (str): Name of table to be registered
             variant (str): Name of variant to be registered
-            file_path (str): The path to file
+            file_path (str): The URI of the file
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of table to be registered
 
@@ -355,7 +397,19 @@ class OfflineK8sProvider(OfflineProvider):
         tags: List[str] = [],
         properties: dict = {},
     ):
-        """Register a blob data source path as a primary data source.
+        """Register a Kubernetes Runner data source as a primary data source.
+
+        **Examples**
+
+        ```
+        k8s = ff.get_provider("my_k8s")
+        transactions = k8s.register_file(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions",
+            file_path="s3://featureform-spark/featureform/transactions.parquet"
+        )
+        ```
 
         Args:
             name (str): Name of table to be registered
@@ -554,6 +608,7 @@ class LocalProvider:
             path="transactions.csv"
         )
         ```
+
         Args:
             name (str): Name for how to reference the file later
             description (str): Description of the file
@@ -602,12 +657,8 @@ class LocalProvider:
         properties: dict = {},
     ):
         """Register a directory.
-        When registering a directory, files can be interacted with as a table with columns "filename" and "body".
-        For example:
-        filename                  |            body
-        --------------------------|---------------------------------------
-        featureform_docs.txt      | Featureform allows data scientists....
-        featureform_home.txt      | The Open-Source Virtual Feature Store....
+        When registering a directory, files can be interacted with as a table with columns "filename" and "body". Where
+        filename column is the name of the file and the body column is the contents of the file.
 
 
         **Examples**:
@@ -618,6 +669,7 @@ class LocalProvider:
             path="scraper/"
         )
         ```
+
         Args:
             name (str): Name for how to reference the directory
             description (str): Description of the directory
@@ -781,6 +833,18 @@ class LocalProvider:
     ):
         """On Demand Feature decorator.
 
+        ```python
+        @ff.ondemand_feature(variant="quickstart")
+        def avg_user_transactions(client, params, entities):
+            return params[0] + params[1]
+
+
+        features = client.features([("avg_user_transactions", "quickstart"), params=[1, 2])
+        print(features)
+        # [3]
+        ```
+
+
         Args:
             variant (str): Name of variant
             name (str): Name of source
@@ -792,12 +856,7 @@ class LocalProvider:
         Returns:
             decorator (OnDemandFeature): decorator
 
-        **Examples**
-        ```python
-        @ff.ondemand_feature()
-        def avg_user_transactions():
-            pass
-        ```
+
         """
 
         return self.__registrar.ondemand_feature(
@@ -1465,7 +1524,7 @@ class FeatureColumnResource(ColumnResource):
             transformation_args (tuple): A transformation or source function and the columns name in the format: <transformation_function>[[<entity_column>, <value_column>, <timestamp_column (optional)>]]
             variant (str): An optional variant name for the feature.
             type (Union[ScalarType, str]): The type of the value in for the feature.
-            inference_store(Union[str, OnlineProvider]): Where to store for online serving.
+            inference_store (Union[str, OnlineProvider, FileStoreProvider]): Where to store for online serving.
         """
         self.variant = variant
         super().__init__(
@@ -1596,14 +1655,94 @@ class Registrar:
             raise ValueError("Owner must be set or a default owner must be specified.")
         return owner
 
-    def set_run(self, run: str):
-        """Set run.
+    def set_run(self, run: str = ""):
+        """
+
+        **Example 1**: Using set_run() without arguments will generate a random run name.
+        ``` py
+        import featureform as ff
+        ff.set_run()
+
+        postgres.register_table(
+            name="transactions",
+            table="transactions_table",
+        )
+
+        # Applying will register the source as name=transactions, variant=<randomly-generated>
+
+        ```
+
+        **Example 2**: Using set_run() with arguments will set the variant to the provided name.
+        ``` py
+        import featureform as ff
+        ff.set_run("last_30_days")
+
+        postgres.register_table(
+            name="transactions",
+            table="transactions_table",
+        )
+
+        # Applying will register the source as name=transactions, variant=last_30_days
+        ```
+
+        **Example 3**: Generated and set variant names can be used together
+        ``` py
+        import featureform as ff
+        ff.set_run()
+
+        file = spark.register_file(
+            name="transactions",
+            path="my/transactions.parquet",
+            variant="last_30_days"
+        )
+
+        @spark.df_transformation(inputs=[file]):
+        def customer_count(transactions):
+            return transactions.groupBy("CustomerID").count()
+
+
+        # Applying without a variant for the dataframe transformation will result in
+        # the transactions source having a variant of last_30_days and the transformation
+        # having a randomly generated variant
+        ```
+
+        **Example 4**: This also works within SQL Transformations
+        ``` py
+        import featureform as ff
+        ff.set_run("last_30_days")
+
+        @postgres.sql_transformation():
+        def my_transformation():
+            return "SELECT CustomerID, Amount FROM {{ transactions }}"
+
+        # The variant will be autofilled so the SQL query is returned as:
+        # "SELECT CustomerID, Amount FROM {{ transactions.last_30_days }}"
+        ```
+
         Args:
             run (str): Name of a run to be set.
         """
-        self.__run = run
+        if run == "":
+            self.__run = get_random_name()
+        else:
+            self.__run = run
 
     def get_run(self) -> str:
+        """
+        Get the current run name.
+
+        **Examples**:
+        ``` py
+        import featureform as ff
+
+        client = ff.Client()
+        f = client.features(("avg_transaction_amount", ff.get_run()), {"user": "123"})
+
+        ```
+
+        Returns:
+            run: The name of the current run
+        """
         return self.__run
 
     def get_source(self, name, variant, local=False):
@@ -2074,6 +2213,7 @@ class Registrar:
             description="A Redis deployment we created for the Featureform quickstart"
         )
         ```
+
         Args:
             name (str): (Immutable) Name of Redis provider to be registered
             host (str): (Immutable) Hostname for Redis
@@ -2125,6 +2265,7 @@ class Registrar:
             description="A Pinecone project for we Featureform embeddings"
         )
         ```
+
         Args:
             name (str): (Immutable) Name of Pinecone provider to be registered
             project_id (str): (Immutable) Pinecone project id
@@ -2134,6 +2275,7 @@ class Registrar:
             team (str): (Mutable) Name of team
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
             properties (dict): (Mutable) Optional grouping mechanism for resources
+
         Returns:
             pinecone (OnlineProvider): Provider
         """
@@ -2165,6 +2307,7 @@ class Registrar:
         properties: dict = None,
     ):
         """Register a Weaviate provider.
+
         **Examples**:
         ```
         weaviate = ff.register_weaviate(
@@ -2174,6 +2317,7 @@ class Registrar:
             description="A Weaviate project for using embeddings in Featureform"
         )
         ```
+
         Args:
             name (str): (Immutable) Name of Weaviate provider to be registered
             url (str): (Immutable) Endpoint of Weaviate cluster, either in the cloud or via another deployment operation
@@ -2182,6 +2326,7 @@ class Registrar:
             team (str): (Mutable) Name of team
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
             properties (dict): (Mutable) Optional grouping mechanism for resources
+
         Returns:
             weaviate (OnlineProvider): Provider
         """
@@ -2225,6 +2370,7 @@ class Registrar:
             description="An azure blob store provider to store offline and inference data"
         )
         ```
+
         Args:
             name (str): (Immutable) Name of Azure blob store to be registered
             container_name (str): (Immutable) Azure container name
@@ -2235,6 +2381,7 @@ class Registrar:
             team (str): (Mutable) The name of the team registering the filestore
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
             properties (dict): (Mutable) Optional grouping mechanism for resources
+
         Returns:
             blob (StorageProvider): Provider
                 has all the functionality of OnlineProvider
@@ -2293,6 +2440,7 @@ class Registrar:
             description="An s3 store provider to store offline"
         )
         ```
+
         Args:
             name (str): (Immutable) Name of S3 store to be registered
             credentials (AWSCredentials): (Mutable) AWS credentials to access the bucket
@@ -2303,6 +2451,7 @@ class Registrar:
             team (str): (Mutable) The name of the team registering the filestore
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
             properties (dict): (Mutable) Optional grouping mechanism for resources
+
         Returns:
             s3 (FileStoreProvider): Provider
                 has all the functionality of OfflineProvider
@@ -2340,7 +2489,8 @@ class Registrar:
         properties: dict = None,
     ):
         """Register a GCS store provider.
-                **Examples**:
+
+        **Examples**:
         ```
         gcs = ff.register_gcs(
             name="gcs-quickstart",
@@ -2350,6 +2500,7 @@ class Registrar:
             description="An gcs store provider to store offline"
         )
         ```
+
         Args:
             name (str): (Immutable) Name of GCS store to be registered
             credentials (GCPCredentials): (Mutable) GCP credentials to access the bucket
@@ -2359,6 +2510,7 @@ class Registrar:
             team (str): (Mutable) The name of the team registering the filestore
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
             properties (dict): (Mutable) Optional grouping mechanism for resources
+
         Returns:
             gcs (FileStoreProvider): Provider
                 has all the functionality of OfflineProvider
@@ -2407,6 +2559,7 @@ class Registrar:
             description="An hdfs store provider to store offline"
         )
         ```
+
         Args:
             name (str): (Immutable) Name of HDFS store to be registered
             host (str): (Immutable) The hostname for HDFS
@@ -2415,6 +2568,7 @@ class Registrar:
             username (str): (Mutable) A Username for HDFS
             description (str): (Mutable) Description of HDFS provider to be registered
             team (str): (Mutable) The name of the team registering HDFS
+
         Returns:
             hdfs (FileStoreProvider): Provider
         """
@@ -2457,6 +2611,7 @@ class Registrar:
             collection="quickstart-collection",
         )
         ```
+
         Args:
             name (str): (Immutable) Name of Firestore provider to be registered
             project_id (str): (Immutable) The Project name in GCP
@@ -2466,6 +2621,7 @@ class Registrar:
             team (str): (Mutable) The name of the team registering the filestore
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
             properties (dict): (Mutable) Optional grouping mechanism for resources
+
         Returns:
             firestore (OfflineSQLProvider): Provider
         """
@@ -2519,6 +2675,7 @@ class Registrar:
                 replication = 3
             )
         ```
+
         Args:
             name (str): (Immutable) Name of Cassandra provider to be registered
             host (str): (Immutable) DNS name of Cassandra
@@ -2579,6 +2736,7 @@ class Registrar:
             region="us-east-1"
         )
         ```
+
         Args:
             name (str): (Immutable) Name of DynamoDB provider to be registered
             access_key (str): (Mutable) An AWS Access Key with permissions to create DynamoDB tables
@@ -2637,6 +2795,7 @@ class Registrar:
             throughput=10000
         )
         ```
+
         Args:
             name (str): (Immutable) Name of MongoDB provider to be registered
             username (str): (Mutable) MongoDB username
@@ -2703,6 +2862,7 @@ class Registrar:
             description="A Snowflake deployment we created for the Featureform quickstart"
         )
         ```
+
         Args:
             name (str): (Immutable) Name of Snowflake provider to be registered
             username (str): (Mutable) Username
@@ -2774,6 +2934,7 @@ class Registrar:
             description="A Snowflake deployment we created for the Featureform quickstart"
         )
         ```
+
         Args:
             name (str): (Immutable) Name of Snowflake provider to be registered
             username (str): (Mutable) Username
@@ -2842,6 +3003,7 @@ class Registrar:
             database="postgres"
         )
         ```
+
         Args:
             name (str): (Immutable) Name of Postgres provider to be registered
             host (str): (Immutable) Hostname for Postgres
@@ -2901,6 +3063,7 @@ class Registrar:
             database="dev"
         )
         ```
+
         Args:
             name (str): (Immutable) Name of Redshift provider to be registered
             host (str): (Immutable) Hostname for Redshift
@@ -2956,6 +3119,7 @@ class Registrar:
             dataset_id="quickstart-dataset",
         )
         ```
+
         Args:
             name (str): (Immutable) Name of BigQuery provider to be registered
             project_id (str): (Immutable) The Project name in GCP
@@ -2999,6 +3163,7 @@ class Registrar:
         properties: dict = None,
     ):
         """Register a Spark on Executor provider.
+
         **Examples**:
         ```
         spark = ff.register_spark(
@@ -3009,6 +3174,7 @@ class Registrar:
             filestore=azure_blob_store
         )
         ```
+
         Args:
             name (str): (Immutable) Name of Spark provider to be registered
             executor (ExecutorCredentials): (Mutable) An Executor Provider used for the compute power
@@ -3039,7 +3205,7 @@ class Registrar:
             properties=properties,
         )
         self.__resources.append(provider)
-        return OfflineSparkProvider(self, provider)
+        return (self, provider)
 
     # TODO: Change things to either filestore or store
     def register_k8s(
@@ -3100,6 +3266,7 @@ class Registrar:
         ```
         local = ff.register_local()
         ```
+
         Returns:
             local (LocalProvider): Provider
         """
@@ -3431,6 +3598,15 @@ class Registrar:
     ):
         """On Demand Feature decorator.
 
+        **Examples**
+        ```python
+        import featureform as ff
+
+        @ff.ondemand_feature()
+        def avg_user_transactions(client, params, entities):
+            pass
+        ```
+
         Args:
             variant (str): Name of variant
             name (str): Name of source
@@ -3442,12 +3618,6 @@ class Registrar:
         Returns:
             decorator (OnDemandFeature): decorator
 
-        **Examples**
-        ```python
-        @ff.ondemand_feature()
-        def avg_user_transactions():
-            pass
-        ```
         """
 
         if not isinstance(owner, str):
@@ -3554,6 +3724,7 @@ class Registrar:
         ``` py
             user = ff.register_entity("user")
         ```
+
         Args:
             name (str): Name of entity to be registered
             description (str): Description of entity to be registered

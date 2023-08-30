@@ -1991,11 +1991,13 @@ def check_objs(path, test_obj, client):
         assert actual == expected
 
 
+@pytest.mark.local
 def test_apply_exit_code(setup):
     apply = setup
     assert apply.returncode == 0, f"OUT: {apply.stdout}, ERR: {apply.stderr}"
 
 
+@pytest.mark.local
 def test_version(client):
     response = client.get("data/version")
     assert response.status == "200 OK"
@@ -2004,56 +2006,69 @@ def test_version(client):
     assert json_obj["version"] is not None
 
 
+@pytest.mark.local
 def test_features(client):
     check_objs("/data/features", features, client)
 
 
+@pytest.mark.local
 def test_labels(client):
     check_objs("/data/labels", labels, client)
 
 
+@pytest.mark.local
 def test_sources(client):
     check_objs("/data/sources", sources, client)
 
 
+@pytest.mark.local
 def test_training_sets(client):
     check_objs("/data/training_sets", training_sets, client)
 
 
+@pytest.mark.local
 def test_entities(client):
     check_objs("/data/entities", entities, client)
 
 
+@pytest.mark.local
 def test_models(client):
     check_objs("/data/models", models, client)
 
 
+@pytest.mark.local
 def test_providers(client):
     check_objs("/data/providers", providers, client)
 
 
+@pytest.mark.local
 def test_default_user(client):
     check_objs("/data/users/default_user", default_user, client)
 
 
+@pytest.mark.local
 def test_localmode(client):
     check_objs("/data/providers/local-mode", localmode, client)
 
 
+@pytest.mark.local
 def test_average_user_transaction(client):
     check_objs(
         "/data/sources/average_user_transaction", average_user_transaction, client
     )
 
 
+@pytest.mark.local
 def test_fraudulent(client):
     check_objs("/data/labels/fraudulent", fraudulent, client)
 
 
+@pytest.mark.local
 def test_fraud_training(client):
     check_objs("/data/training_sets/fraud_training", fraud_training, client)
 
 
+@pytest.mark.local
 def test_user(client):
     check_objs("/data/entities/user", user, client)
 

@@ -4107,7 +4107,20 @@ class ResourceClient:
         """
         Apply all definitions, creating and retrieving all specified resources.
 
-        @param asynchronous: Wait for all resources to be ready before returning.
+        ```python
+        import featureform as ff
+        client = ff.Client()
+
+        ff.register_postgres(
+            host="localhost",
+            port=5432,
+        )
+
+        client.apply()
+        ```
+
+        Args:
+            asynchronous (bool): If True, apply will return immediately and not wait for resources to be created. If False, apply will wait for resources to be created and print out the status of each resource.
         """
 
         print(f"Applying Run: {get_run()}")

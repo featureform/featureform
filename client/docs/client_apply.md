@@ -1,6 +1,6 @@
 # Client
 
-::: featureform.client.Client
+::: featureform.register.ResourceClient.apply
     handler: python
     options:
         show_root_heading: false

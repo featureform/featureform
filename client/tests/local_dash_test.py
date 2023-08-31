@@ -2043,6 +2043,18 @@ def test_providers(client: FlaskClient):
 
 
 @pytest.mark.local
+def test_users(client: FlaskClient):
+    # wrap object in list
+    check_objs("/data/users", [default_user], client)
+
+
+@pytest.mark.local
+def test_feature_avg_transcations(client: FlaskClient):
+    # first features item
+    check_objs("/data/features/avg_transactions", features[0], client)
+
+
+@pytest.mark.local
 def test_default_user(client: FlaskClient):
     check_objs("/data/users/default_user", default_user, client)
 

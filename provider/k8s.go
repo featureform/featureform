@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -523,20 +524,25 @@ func newCSVIterator(b []byte, limit int64) (GenericTableIterator, error) {
 }
 
 type parquetIterator struct {
+	// TODO: adapt iterator to use GenericReader as Reader
+	// has been deprecated.
 	reader        *parquet.Reader
 	currentValues GenericRecord
 	err           error
-	columnNames   []string
-	limit         int64
-	idx           int64
+	// Using fields instead of column names gives us access to
+	// parquet field metadata, which we need to determine whether
+	// a field is a timestamp or not, for example
+	fields []parquet.Field
+	limit  int64
+	idx    int64
 }
 
 func (p *parquetIterator) Next() bool {
 	if p.idx >= p.limit {
 		return false
 	}
-	value := make(map[string]interface{})
-	err := p.reader.Read(&value)
+	row := make(map[string]interface{}, 0)
+	err := p.reader.Read(&row)
 	if err != nil {
 		if err == io.EOF {
 			return false
@@ -546,8 +552,28 @@ func (p *parquetIterator) Next() bool {
 		}
 	}
 	records := make(GenericRecord, 0)
-	for idx := range p.columnNames {
-		records = append(records, value[p.columnNames[idx]])
+	for _, f := range p.fields {
+		var recordVal interface{}
+		switch assertedVal := row[f.Name()].(type) {
+		// We're currently converting int32 to int to decrease/simplify the number of
+		// data types we support; however, this process should involve a larger discussion
+		// with the team to assess impact.
+		case int32:
+			recordVal = int(assertedVal)
+		case int64:
+			// Given we're instructing Spark to output timestamps as int64 (microseconds),
+			// we need to rely on the parquet schema's field metadata to determine whether
+			// the field is a timestamp or not. If it is, we need to convert it to its
+			// corresponding Go type (time.Time).
+			if reflect.DeepEqual(f.Type(), parquet.Timestamp(parquet.Millisecond).Type()) {
+				recordVal = time.UnixMilli(assertedVal).UTC()
+			} else {
+				recordVal = int(assertedVal)
+			}
+		default:
+			recordVal = assertedVal
+		}
+		records = append(records, recordVal)
 	}
 	p.currentValues = records
 	p.idx += 1
@@ -559,7 +585,11 @@ func (p *parquetIterator) Values() GenericRecord {
 }
 
 func (p *parquetIterator) Columns() []string {
-	return p.columnNames
+	columns := make([]string, len(p.fields))
+	for i, field := range p.fields {
+		columns[i] = field.Name()
+	}
+	return columns
 }
 
 func (p *parquetIterator) Err() error {
@@ -573,19 +603,14 @@ func (p *parquetIterator) Close() error {
 func newParquetIterator(b []byte, limit int64) (GenericTableIterator, error) {
 	file := bytes.NewReader(b)
 	r := parquet.NewReader(file)
-	columnList := r.Schema().Columns()
-	columnNames := make([]string, len(columnList))
-	for i, column := range columnList {
-		columnNames[i] = column[0]
-	}
 	if limit == -1 {
 		limit = math.MaxInt64
 	}
 	return &parquetIterator{
-		reader:      r,
-		columnNames: columnNames,
-		limit:       limit,
-		idx:         0,
+		reader: r,
+		fields: r.Schema().Fields(),
+		limit:  limit,
+		idx:    0,
 	}, nil
 }
 
@@ -669,12 +694,12 @@ func parquetIteratorFromBytes(b []byte) (Iterator, error) {
 	}, nil
 }
 
-// TODO: remove all remaining references to this function in favor of
-// ResourceID.FilestorePath
 func ResourcePrefix(id ResourceID) string {
 	return fmt.Sprintf("featureform/%s/%s/%s", id.Type, id.Name, id.Variant)
 }
 
+// TODO: remove all remaining references to this function in favor of
+// ResourceID.FilestorePath
 func fileStoreResourcePath(id ResourceID) string {
 	return ResourcePrefix(id)
 }
@@ -697,6 +722,41 @@ func (tbl *BlobOfflineTable) WriteBatch(records []ResourceRecord) error {
 	if err := destination.ParseFilePath(tbl.schema.SourceTable); err != nil {
 		return fmt.Errorf("could not parse file path: %w", err)
 	}
+	exists, err := tbl.store.Exists(destination)
+	if err != nil {
+		return fmt.Errorf("could not check if destination file exists: %w", err)
+	}
+	// It's very possible the resource table's data source already exists, in which case we'll
+	// need to read the existing data and append the new records to it.
+	if exists {
+		// **NOTE:**Consider a better way of handling records written to resource tables such that
+		// we don't rely on the order of rows in the file for materializations; currently, we're
+		// counting on the implicit ordering of rows once these files are read into Spark and
+		// queried for materializations.
+		// TODO: extract this into a separate method
+		recordToAppend := records
+		records = make([]ResourceRecord, 0)
+		iter, err := tbl.store.Serve(destination)
+		if err != nil {
+			return fmt.Errorf("could not serve file: %w", err)
+		}
+		for {
+			val, err := iter.Next()
+			if err != nil {
+				return fmt.Errorf("could not iterate over file: %w", err)
+			}
+			if val == nil {
+				break
+			}
+			record := ResourceRecord{
+				Entity: val["Entity"].(string),
+				Value:  val["Value"],
+				TS:     time.UnixMilli(int64(val["TS"].(int64))).UTC(),
+			}
+			records = append(records, record)
+		}
+		records = append(records, recordToAppend...)
+	}
 	data, err := tbl.writeRecordsToParquetBytes(records)
 	if err != nil {
 		return fmt.Errorf("could not write records to parquet bytes: %w", err)
@@ -711,21 +771,21 @@ func (tbl *BlobOfflineTable) convertToGenericResourceRecord(record *ResourceReco
 		// **NOTE:** github.com/parquet-go/parquet-go does not support int, so this value was being cast to int64
 		// at the time of writing to the filestore. This remains an issue for us given int is a valid ScalarType,
 		// so we'll need to determine how to handle this.
-		return &GenericResourceRecord[int32]{Entity: record.Entity, Value: int32(v), TS: record.TS.UTC().UnixMilli()}, nil
+		return &GenericResourceRecord[int32]{Entity: record.Entity, Value: int32(v), TS: record.TS}, nil
 	case int32:
-		return &GenericResourceRecord[int32]{Entity: record.Entity, Value: v, TS: record.TS.UTC().UnixMilli()}, nil
+		return &GenericResourceRecord[int32]{Entity: record.Entity, Value: v, TS: record.TS}, nil
 	case int64:
-		return &GenericResourceRecord[int64]{Entity: record.Entity, Value: v, TS: record.TS.UTC().UnixMilli()}, nil
+		return &GenericResourceRecord[int64]{Entity: record.Entity, Value: v, TS: record.TS}, nil
 	case float32:
-		return &GenericResourceRecord[float32]{Entity: record.Entity, Value: v, TS: record.TS.UTC().UnixMilli()}, nil
+		return &GenericResourceRecord[float32]{Entity: record.Entity, Value: v, TS: record.TS}, nil
 	case float64:
-		return &GenericResourceRecord[float64]{Entity: record.Entity, Value: v, TS: record.TS.UTC().UnixMilli()}, nil
+		return &GenericResourceRecord[float64]{Entity: record.Entity, Value: v, TS: record.TS}, nil
 	case string:
-		return &GenericResourceRecord[string]{Entity: record.Entity, Value: v, TS: record.TS.UTC().UnixMilli()}, nil
+		return &GenericResourceRecord[string]{Entity: record.Entity, Value: v, TS: record.TS}, nil
 	case bool:
-		return &GenericResourceRecord[bool]{Entity: record.Entity, Value: v, TS: record.TS.UTC().UnixMilli()}, nil
+		return &GenericResourceRecord[bool]{Entity: record.Entity, Value: v, TS: record.TS}, nil
 	case time.Time:
-		return &GenericResourceRecord[time.Time]{Entity: record.Entity, Value: v, TS: record.TS.UTC().UnixMilli()}, nil
+		return &GenericResourceRecord[time.Time]{Entity: record.Entity, Value: v, TS: record.TS}, nil
 	default:
 		return nil, fmt.Errorf("unsupported type: %T", v)
 	}
@@ -744,7 +804,7 @@ func (tbl *BlobOfflineTable) writeRecordsToParquetBytes(records []ResourceRecord
 	buf := new(bytes.Buffer)
 	var schemaRecord interface{}
 	// If there are no records, we still need to write the schema to the parquet file
-	// to avoid Spark errors when reading the file.
+	// to avoid Spark errors (e.g. "... failed to read footer ...") when reading the file.
 	if len(parquetRecords) > 0 {
 		schemaRecord = parquetRecords[0]
 	} else {
@@ -804,7 +864,6 @@ func (tbl *FileStorePrimaryTable) Write(record GenericRecord) error {
 	return fmt.Errorf("not implemented")
 }
 
-// TODO: implement
 func (tbl *FileStorePrimaryTable) WriteBatch(records []GenericRecord) error {
 	destination, err := filestore.NewEmptyFilepath(tbl.store.FilestoreType())
 	if err != nil {
@@ -815,9 +874,7 @@ func (tbl *FileStorePrimaryTable) WriteBatch(records []GenericRecord) error {
 	}
 	buf := new(bytes.Buffer)
 	schema := parquet.SchemaOf(tbl.schema.Interface())
-	fmt.Println("=====>>>>> SCHEMA: ", schema)
 	parquetRecords := tbl.schema.ToParquetRecords(records)
-	fmt.Println("=====>>>>> PARQUET RECORDS: ", parquetRecords[0])
 	err = parquet.Write[any](buf, parquetRecords, schema)
 	if err != nil {
 		return fmt.Errorf("could not write parquet file to bytes: %v", err)
@@ -846,7 +903,7 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 		}
 		// We need to update key and keyParts with the result of NewestFileOfType for the Read below to succeed.
 		source = transformation
-		if !filestore.IsValidFileType(string(transformation.Ext())) {
+		if transformation.Ext() != filestore.Parquet {
 			return nil, fmt.Errorf("invalid file type '%s'", transformation.Ext())
 		}
 	}
@@ -866,7 +923,11 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 }
 
 func (tbl *FileStorePrimaryTable) NumRows() (int64, error) {
-	return tbl.store.NumRows(tbl.source)
+	src, err := tbl.GetSource()
+	if err != nil {
+		return 0, err
+	}
+	return tbl.store.NumRows(src)
 }
 
 func (tbl *FileStorePrimaryTable) GetSource() (filestore.Filepath, error) {
@@ -1406,12 +1467,14 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 		return false
 	}
 	ts, hasTimestamp := nextVal["ts"]
-	var timestamp time.Time
+	timestamp := time.UnixMilli(0).UTC()
 	if hasTimestamp {
 		var tsInput string
 		switch t := ts.(type) {
 		case string:
 			tsInput = t
+		// TODO: Revisit this if you're able to solve the Spark error:
+		// Illegal Parquet type: INT64 (TIMESTAMP(NANOS,true))
 		case int64:
 			if t < 0 {
 				t = 0
@@ -1427,7 +1490,7 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 	iter.cur = ResourceRecord{
 		Entity: nextVal["entity"].(string),
 		Value:  value,
-		TS:     timestamp.UTC(),
+		TS:     timestamp,
 	}
 	return true
 }

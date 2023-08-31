@@ -544,7 +544,36 @@ func (q defaultPythonOfflineQueries) materializationCreate(schema ResourceSchema
 	timestampColumn := schema.TS
 	// without timestamp, assumes each entity only has single entry
 	if schema.TS == "" {
-		return fmt.Sprintf("SELECT %s AS entity, %s AS value, 0 as ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number FROM source_0", schema.Entity, schema.Value)
+		// Query is wrong: should order by row number desc and select distinct on entity
+		// return fmt.Sprintf("SELECT %s AS entity, %s AS value, 0 as ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number FROM source_0", schema.Entity, schema.Value)
+		return fmt.Sprintf(`WITH ordered_rows AS (
+				SELECT 
+					%s as entity,
+					%s as value,
+					-- 0 as ts, -- TODO: determine if we even need to add this zeroed-out timestamp column
+					ROW_NUMBER() over (PARTITION BY Entity ORDER BY (SELECT NULL)) as row_number
+				FROM
+					source_0
+			),
+			max_row_per_entity AS (
+				SELECT 
+					Entity as entity,
+					MAX(row_number) as max_row
+				FROM
+					ordered_rows
+				GROUP BY
+					entity
+			)
+			SELECT
+				ord.entity 
+				,ord.value 
+				--,ord.ts -- TODO: determine if we even need to add this zeroed-out timestamp column
+			FROM
+				max_row_per_entity maxr
+			JOIN ordered_rows ord
+				ON ord.entity = maxr.Entity AND ord.row_number = maxr.max_row
+			ORDER BY
+				maxr.max_row DESC`, schema.Entity, schema.Value)
 	}
 	//return fmt.Sprintf(
 	//	"SELECT entity, value, ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number FROM "+
@@ -1521,7 +1550,7 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI filestore.Filepath, code string
 }
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	transformationPath, err := spark.Store.CreateFilePath(id.ToFilestorePath())
+	transformationPath, err := spark.Store.CreateDirPath(id.ToFilestorePath())
 	if err != nil {
 		return nil, fmt.Errorf("could not create file path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), id.ToFilestorePath())
 	}
@@ -1688,7 +1717,11 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err)
 		return nil, fmt.Errorf("error with getting spark submit arguments %v", sparkArgs)
 	}
-	spark.Logger.Debugw("Creating materialization", "id", id)
+	if isUpdate {
+		spark.Logger.Debugw("Updating materialization", "id", id)
+	} else {
+		spark.Logger.Debugw("Creating materialization", "id", id)
+	}
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Spark submit job failed to run", "error", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)

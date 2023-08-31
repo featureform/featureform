@@ -977,3 +977,132 @@ func TestParquetIterator_vector32(t *testing.T) {
 		}
 	}
 }
+
+func TestPandasRunnerArgs(t *testing.T) {
+	azureStore := createFakeAzureFileStore(t)
+	azureCasted := azureStore.(*AzureFileStore)
+	s3Store := createFakeS3FileStore(t)
+	s3Casted := s3Store.(*S3FileStore)
+
+	expectedEnvVars := map[string]interface{}{
+		"OUTPUT_URI":          "some/path",
+		"SOURCES":             "source1,source2",
+		"TRANSFORMATION":      "some query",
+		"TRANSFORMATION_TYPE": "sql",
+	}
+
+	tests := []struct {
+		name                 string
+		store                FileStore
+		expectedStoreEnvVars map[string]string
+	}{
+		{"Azure", azureStore.(*AzureFileStore), map[string]string{"BLOB_STORE_TYPE": "azure", "AZURE_CONNECTION_STRING": azureCasted.ConnectionString, "AZURE_CONTAINER_NAME": azureCasted.ContainerName}},
+		{"S3", s3Store.(*S3FileStore), map[string]string{"BLOB_STORE_TYPE": "s3", "AWS_ACCESS_KEY_ID": s3Casted.Credentials.AWSAccessKeyId, "AWS_SECRET_KEY": s3Casted.Credentials.AWSSecretKey, "S3_BUCKET_REGION": s3Casted.BucketRegion, "S3_BUCKET_NAME": s3Casted.Bucket}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			k8s := &K8sOfflineStore{
+				&KubernetesExecutor{},
+				tt.store,
+				zaptest.NewLogger(t).Sugar(),
+				nil,
+				BaseProvider{},
+			}
+			envVars := k8s.pandasRunnerArgs("some/path", "some query", []string{"source1", "source2"})
+			for k, v := range tt.expectedStoreEnvVars {
+				if envVars[k] != v {
+					t.Errorf("expected %s to be \"%s\", got \"%s\"", k, v, envVars[k])
+				}
+			}
+			for k, v := range expectedEnvVars {
+				if envVars[k] != v {
+					t.Errorf("expected %s to be \"%s\", got \"%s\"", k, v, envVars[k])
+				}
+			}
+		})
+	}
+}
+
+func TestK8sGetDFArgs(t *testing.T) {
+	azureStore := createFakeAzureFileStore(t)
+	azureCasted := azureStore.(*AzureFileStore)
+	s3Store := createFakeS3FileStore(t)
+	s3Casted := s3Store.(*S3FileStore)
+
+	expectedEnvVars := map[string]interface{}{
+		"OUTPUT_URI":          "some/path",
+		"SOURCES":             "source1,source2",
+		"TRANSFORMATION":      "some code",
+		"TRANSFORMATION_TYPE": "df",
+	}
+
+	tests := []struct {
+		name                 string
+		store                FileStore
+		expectedStoreEnvVars map[string]string
+	}{
+		{"Azure", azureStore.(*AzureFileStore), map[string]string{"BLOB_STORE_TYPE": "azure", "AZURE_CONNECTION_STRING": azureCasted.ConnectionString, "AZURE_CONTAINER_NAME": azureCasted.ContainerName}},
+		{"S3", s3Store.(*S3FileStore), map[string]string{"BLOB_STORE_TYPE": "s3", "AWS_ACCESS_KEY_ID": s3Casted.Credentials.AWSAccessKeyId, "AWS_SECRET_KEY": s3Casted.Credentials.AWSSecretKey, "S3_BUCKET_REGION": s3Casted.BucketRegion, "S3_BUCKET_NAME": s3Casted.Bucket}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			k8s := &K8sOfflineStore{
+				&KubernetesExecutor{},
+				tt.store,
+				zaptest.NewLogger(t).Sugar(),
+				nil,
+				BaseProvider{},
+			}
+			envVars := k8s.getDFArgs("some/path", "some code", []SourceMapping{}, []string{"source1", "source2"})
+			for k, v := range tt.expectedStoreEnvVars {
+				if envVars[k] != v {
+					t.Errorf("expected %s to be \"%s\", got \"%s\"", k, v, envVars[k])
+				}
+			}
+			for k, v := range expectedEnvVars {
+				if envVars[k] != v {
+					t.Errorf("expected %s to be \"%s\", got \"%s\"", k, v, envVars[k])
+				}
+			}
+		})
+	}
+}
+
+func createFakeAzureFileStore(t *testing.T) FileStore {
+	azureStoreConfig := &pc.AzureFileStoreConfig{
+		AccountName:   "account_name",
+		AccountKey:    "YWNjb3VudF9rZXk=",
+		ContainerName: "test_container",
+		Path:          "test_path",
+	}
+	serializedAzureConfig, err := azureStoreConfig.Serialize()
+	if err != nil {
+		t.Fatalf("failed to serialize azure store config: %v", err)
+	}
+	azureFileStore, err := NewAzureFileStore(serializedAzureConfig)
+	if err != nil {
+		t.Fatalf("failed to create new azure blob store: %v", err)
+	}
+	return azureFileStore
+}
+
+func createFakeS3FileStore(t *testing.T) FileStore {
+	s3StoreConfig := &pc.S3FileStoreConfig{
+		Credentials: pc.AWSCredentials{
+			AWSAccessKeyId: "access_key_id",
+			AWSSecretKey:   "secret_key",
+		},
+		BucketPath:   "test_bucket",
+		BucketRegion: "test_region",
+		Path:         "test_path",
+	}
+	serializedS3Config, err := s3StoreConfig.Serialize()
+	if err != nil {
+		t.Fatalf("failed to serialize s3 store config: %v", err)
+	}
+	s3FileStore, err := NewS3FileStore(serializedS3Config)
+	if err != nil {
+		t.Fatalf("failed to create new s3 blob store: %v", err)
+	}
+	return s3FileStore
+}

@@ -27,7 +27,6 @@ import (
 
 	re "github.com/avast/retry-go/v4"
 	cfg "github.com/featureform/config"
-	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -391,6 +390,7 @@ type FileStore interface {
 	Upload(sourcePath string, destPath string) error
 	Download(sourcePath string, destPath string) error
 	FilestoreType() pc.FileStoreType
+	// AddEnvVars Adds FileStore specific env vars to the envVars map that's passed in
 	AddEnvVars(envVars map[string]string) map[string]string
 }
 
@@ -1140,19 +1140,7 @@ func (k8s *K8sOfflineStore) transformation(config TransformationConfig, isUpdate
 	}
 }
 
-func addETCDVars(envVars map[string]string) map[string]string {
-	etcdHost := helpers.GetEnv("ETCD_HOST", "localhost")
-	etcdPort := helpers.GetEnv("ETCD_PORT", "2379")
-	etcdPassword := helpers.GetEnv("ETCD_PASSWORD", "secretpassword")
-	etcdUsername := helpers.GetEnv("ETCD_USERNAME", "root")
-	envVars["ETCD_HOST"] = etcdHost
-	envVars["ETCD_PASSWORD"] = etcdPassword
-	envVars["ETCD_PORT"] = etcdPort
-	envVars["ETCD_USERNAME"] = etcdUsername
-	return envVars
-}
-
-func (k8s *K8sOfflineStore) pandasRunnerArgs(outputURI string, updatedQuery string, sources []string, jobType JobType) map[string]string {
+func (k8s *K8sOfflineStore) pandasRunnerArgs(outputURI string, updatedQuery string, sources []string) map[string]string {
 	sourceList := strings.Join(sources, ",")
 	envVars := map[string]string{
 		"OUTPUT_URI":          outputURI,
@@ -1205,7 +1193,7 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 	k8s.logger.Debugw("Running SQL transformation", "target_table", config.TargetTableID, "query", config.Query)
-	runnerArgs := k8s.pandasRunnerArgs(transformationDestination, updatedQuery, sources, Transform)
+	runnerArgs := k8s.pandasRunnerArgs(transformationDestination, updatedQuery, sources)
 	runnerArgs = addResourceID(runnerArgs, config.TargetTableID)
 
 	args, err := k8s.checkArgs(config.Args)
@@ -1667,7 +1655,7 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		k8s.logger.Errorw("Could not determine newest source file for materialization", "sourcePath", sourcePath, "error", err)
 		return nil, fmt.Errorf("error determining newest source file: %v", err)
 	}
-	k8sArgs := k8s.pandasRunnerArgs(destinationPath, materializationQuery, []string{newestSourcePath}, Materialize)
+	k8sArgs := k8s.pandasRunnerArgs(destinationPath, materializationQuery, []string{newestSourcePath})
 	k8sArgs = addResourceID(k8sArgs, id)
 	if err := k8s.executor.ExecuteScript(k8sArgs, nil); err != nil {
 		k8s.logger.Errorw("Job failed to run", "error", err)
@@ -1778,7 +1766,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	trainingSetQuery := k8s.query.trainingSetCreate(def, featureSchemas, labelSchema)
 	k8s.logger.Debugw("Source List", "SourceFiles", sourcePaths)
 	k8s.logger.Debugw("Training Set Query", "list", trainingSetQuery)
-	pandasArgs := k8s.pandasRunnerArgs(k8s.store.PathWithPrefix(destinationPath, false), trainingSetQuery, sourcePaths, CreateTrainingSet)
+	pandasArgs := k8s.pandasRunnerArgs(k8s.store.PathWithPrefix(destinationPath, false), trainingSetQuery, sourcePaths)
 	pandasArgs = addResourceID(pandasArgs, def.ID)
 	k8s.logger.Debugw("Creating training set", "definition", def)
 

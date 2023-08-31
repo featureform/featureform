@@ -113,7 +113,7 @@ def source_data():
             return json.dumps(source_data, allow_nan=False)
     except Exception as e:
         print(e)
-        error = f"Error 500: Unable to retrieve source_data columns."
+        error = "Error 500: Unable to retrieve source_data columns."
         return Response(
             response=json.dumps(error), status=500, mimetype="application/json"
         )

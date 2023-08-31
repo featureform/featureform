@@ -26,15 +26,6 @@ The **DASH** command is used to access the featureform dashboard. It returns a U
 
 The dashboard can be viewed at `http://localhost:3000` in your browser
 
-The Featureform dashboard:
-
-![Featureform dashboard](../.gitbook/assets/dashboard.png)
-
-Each button on the dashboard redirects you to a list of resources of that resource type.
-
-![List of registered features](../.gitbook/assets/feature-list.png)
-
-Each resource can then be clicked on to learn more.
 
 ## Get
 

@@ -1,4 +1,4 @@
-site_name: Featureform API Reference
+site_name: API Reference
 
 # Repository
 repo_name: featureform/featureform
@@ -8,6 +8,7 @@ edit_uri: ""
 theme:
     name: "material"
     favicon: "images/featureform.png"
+    logo: "images/featureform.png"
     palette:
         scheme: default
         primary: custom
@@ -18,12 +19,12 @@ extra_css:
 nav:
   - Home: index.md
   - Getting Started:
-    - Choosing a Deployment:
-      - Overview: deployment_overview.md
+#    - Choosing a Deployment:
+#      - Overview: deployment_overview.md
 #      - Localmode: localmode.md
 #      - Docker: docker.md
 #      - Kubernetes: kubernetes.md
-      - Deployment Comparison: compatibility.md
+#      - Deployment Comparison: compatibility.md
     - Installation:
       - Python: installation.md
       - Helm: https://docs.featureform.com/deployment/kubernetes
@@ -50,6 +51,7 @@ nav:
 #      - Sources as to Pandas: sources_as_dataframes.md
 #      - Streaming: streaming.md
 #      - Training Sets to Pandas: training_sets_as_dataframes.md
+  - Deployment Comparison: compatibility.md
 
 plugins:
 - search

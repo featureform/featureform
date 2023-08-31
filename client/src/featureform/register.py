@@ -1596,7 +1596,8 @@ class LabelColumnResource(ColumnResource):
 
 
 class Registrar:
-    """These functions are used to register new resources and retrieving existing resources. Retrieved resources can be used to register additional resources. If information on these resources is needed (e.g. retrieve the names of all variants of a feature), use the [Resource Client](client.md) instead.
+    """These functions are used to register new resources and retrieving existing resources.
+    Retrieved resources can be used to register additional resources.
 
     ``` py title="definitions.py"
     import featureform as ff
@@ -4049,7 +4050,8 @@ class Registrar:
 
 class ResourceClient:
     """
-    The resource client is used to retrieve information on specific resources (entities, providers, features, labels, training sets, models, users). If retrieved resources are needed to register additional resources (e.g. registering a feature from a source), use the [Client](client.md) functions instead.
+    The resource client is used to retrieve information on specific resources
+    (entities, providers, features, labels, training sets, models, users).
 
     Args:
         host (str): The hostname of the Featureform instance. Exclude if using Localmode.

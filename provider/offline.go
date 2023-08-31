@@ -334,7 +334,8 @@ type ResourceRecord struct {
 type GenericResourceRecord[T any] struct {
 	Entity string
 	Value  T
-	TS     int64
+	// TS     int64
+	TS time.Time `parquet:"TS,timestamp"`
 }
 
 type GenericRecord []interface{}
@@ -414,20 +415,32 @@ func (schema *TableSchema) Value() reflect.Value {
 	for i, col := range schema.Columns {
 		caser := cases.Title(language.English)
 		colType := col.Scalar().Type()
-		// fmt.Printf("COL %s TYPE BEFORE: %s\n", col.Name, colType.Name())
+		fmt.Printf("==========>>>>>>>>>> COL %s TYPE: %s\n", col.Name, colType.Name())
 
 		// **NOTE:** This check for time.Time avoids a known Spark issue:
 		// error: Illegal Parquet type: INT64 (TIMESTAMP(NANOS,true))
-		if colType.Name() == "Time" {
-			colType = reflect.TypeOf(int64(0))
-		}
+		// if colType.Name() == "Time" {
+		// 	colType = reflect.TypeOf(int64(0))
+		// }
 
 		// fmt.Printf("COL %s TYPE AFTER: %s\n", col.Name, colType.Name())
 
-		fields[i] = reflect.StructField{
+		// fields[i] = reflect.StructField{
+		// 	Name: caser.String(col.Name),
+		// 	Type: colType,
+		// 	Tag:  reflect.StructTag(fmt.Sprintf(`parquet:"%s,timestamp"`, col.Name)),
+		// }
+
+		f := reflect.StructField{
 			Name: caser.String(col.Name),
 			Type: colType,
 		}
+
+		if colType.Name() == "Time" {
+			f.Tag = reflect.StructTag(fmt.Sprintf(`parquet:"%s,timestamp"`, col.Name))
+		}
+
+		fields[i] = f
 	}
 	structType := reflect.StructOf(fields)
 	return reflect.New(structType)
@@ -471,25 +484,18 @@ func (schema *TableSchema) Deserialize(config []byte) error {
 func (schema *TableSchema) ToParquetRecords(records []GenericRecord) []any {
 	parquetRecords := make([]any, len(records))
 	caser := cases.Title(language.English)
-	for i, r := range records {
-		val := schema.Value()
-		for j, v := range r {
+	for i, record := range records {
+		parquetRecord := schema.Value()
+		for j, value := range record {
 			// TODO: Determine if there's a better way of handling nil values to
 			// avoid modifying the data set with the zero value of the type (e.g. bool)
-			if v == nil {
+			if value == nil {
 				continue
 			}
 			colName := caser.String(schema.Columns[j].Name)
-			fmt.Printf("***************************************\nCOLUMN NAME: %s\nVALUE: %v\nVALUE TYPE: %T\n***************************************\n", colName, v, v)
-
-			// **NOTE:** This check for time.Time avoids a known Spark issue:
-			// error: Illegal Parquet type: INT64 (TIMESTAMP(NANOS,true))
-			if t, ok := v.(*time.Time); ok {
-				v = t.UTC().UnixMilli()
-			}
-			val.Elem().FieldByName(colName).Set(reflect.ValueOf(v))
+			parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(value))
 		}
-		parquetRecords[i] = val.Interface()
+		parquetRecords[i] = parquetRecord.Interface()
 	}
 	return parquetRecords
 }

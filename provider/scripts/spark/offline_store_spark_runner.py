@@ -315,6 +315,12 @@ def set_spark_configs(spark, configs):
 
     print("setting spark configs")
     spark.conf.set("spark.sql.parquet.enableVectorizedReader", "false")
+    spark.conf.set("spark.sql.parquet.outputTimestampType", "TIMESTAMP_MILLIS")
+    # TODO: research implications/tradeoffs of setting these to CORRECTED, especially
+    # in combination with `outputTimestampType` above.
+    # See https://spark.apache.org/docs/latest/sql-data-sources-parquet.html#configuration
+    spark.conf.set("spark.sql.parquet.datetimeRebaseModeInRead", "CORRECTED")
+    spark.conf.set("spark.sql.parquet.datetimeRebaseModeInWrite", "CORRECTED")
     for key, value in configs.items():
         spark.conf.set(key, value)
 

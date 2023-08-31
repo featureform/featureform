@@ -60,6 +60,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ### Cassandra
@@ -67,6 +68,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ### DynamoDB
@@ -74,6 +76,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ### Firestore
@@ -81,6 +84,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ### Google Cloud Storage
@@ -88,6 +92,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ### HDFS
@@ -95,6 +100,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ### Kubernetes Pandas Runner
@@ -102,6 +108,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ### Local Provider
@@ -109,6 +116,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ### MongoDB
@@ -116,6 +124,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ### Pinecone
@@ -123,6 +132,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ### Postgres
@@ -130,6 +140,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ### Redis
@@ -137,6 +148,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ### Redshift
@@ -144,6 +156,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ### S3
@@ -151,6 +164,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ### Snowflake
@@ -159,6 +173,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 #### Legacy
@@ -166,6 +181,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ### Spark
@@ -173,6 +189,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ### Weaviate
@@ -180,6 +197,7 @@ This page provides reference and examples for how to register the various provid
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ## Credentials
@@ -192,6 +210,7 @@ Credentials are objects that can be reused in the same definitions file when reg
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 #### Google Cloud
@@ -199,6 +218,7 @@ Credentials are objects that can be reused in the same definitions file when reg
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 ### Spark
@@ -207,6 +227,7 @@ Credentials are objects that can be reused in the same definitions file when reg
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 
@@ -215,6 +236,7 @@ Credentials are objects that can be reused in the same definitions file when reg
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false
 
 #### EMR
@@ -222,4 +244,5 @@ Credentials are objects that can be reused in the same definitions file when reg
     handler: python
     options:
         show_root_heading: false
+        show_source: false
         show_root_toc_entry: false

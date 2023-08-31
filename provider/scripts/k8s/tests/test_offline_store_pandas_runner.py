@@ -9,7 +9,15 @@ import pandas
 import pytest
 from dotenv import load_dotenv
 
-from offline_store_pandas_runner import K8S_MODE, LOCAL, AZURE, S3, GCS, LOCAL_DATA_PATH
+from offline_store_pandas_runner import (
+    K8S_MODE,
+    LOCAL,
+    AZURE,
+    S3,
+    GCS,
+    POSTGRES,
+    LOCAL_DATA_PATH
+)
 from offline_store_pandas_runner import (
     main,
     get_args,
@@ -146,6 +154,7 @@ def test_get_args(variables, request):
         ("local_variables_success", LOCAL),
         ("k8s_df_variables_success", AZURE),
         ("k8s_s3_df_variables_success", S3),
+        ("k8s_postgres_df_variables_success", POSTGRES),
         pytest.param("k8s_df_variables_failure", AZURE, marks=pytest.mark.xfail),
         pytest.param("k8s_s3_df_variables_failure", S3, marks=pytest.mark.xfail),
         pytest.param("k8s_gs_df_variables_success", GCS, marks=pytest.mark.xfail),
@@ -173,6 +182,16 @@ def test_get_blob_credentials(variables, type, request):
             bucket_name=args.blob_credentials.bucket_name,
             bucket_region=args.blob_credentials.bucket_region,
         )
+    elif type == POSTGRES:
+        expected_output = Namespace(
+            type=POSTGRES,
+            host=args.blob_credentials.host,
+            port=args.blob_credentials.port,
+            username=args.blob_credentials.username,
+            password=args.blob_credentials.password,
+            database=args.blob_credentials.database,
+            sslmode=args.blob_credentials.sslmode,
+        )
 
     set_environment_variables(environment_variables, delete=True)
     assert credentials == expected_output
@@ -194,9 +213,9 @@ def test_blob_stores(variables, request):
     blob_store = get_blob_store(args.blob_credentials)
     set_environment_variables(environment_variables, delete=True)
 
-    assert blob_store != None
+    assert blob_store is not None
     assert blob_store.type == args.blob_credentials.type
-    assert blob_store.get_client() != None
+    assert blob_store.get_client() is not None
 
     if blob_store.type != LOCAL:
         unique_id = uuid.uuid4()
@@ -217,6 +236,39 @@ def test_blob_stores(variables, request):
         _ = blob_store.download(upload_directory, download_directory)
 
         assert os.path.isdir(f"{LOCAL_DATA_PATH}/{download_directory}")
+
+
+def test_postgres_blob_store(postgres_store, sample_transformation, sample_data):
+    source_table = f"primary_{sample_data.name}_{sample_data.variant}"
+    transformation_table = f"featureform__{sample_transformation.name}_{sample_transformation.variant}"
+    df_transformation_table = "featureform__transformations"
+
+    sample_transformation.df.to_sql(
+        df_transformation_table,
+        postgres_store.engine,
+        if_exists="append",
+        index=False
+    )
+
+    _ = postgres_store.write(
+        sample_data.df,
+        source_table,
+    )
+
+    transformation_name = f"{sample_transformation.name}__{sample_transformation.variant}"
+    transformation_func = postgres_store.get_transformation(transformation_name)
+    transformed_df = transformation_func(sample_data.df)
+
+    _ = postgres_store.write(
+        transformed_df,
+        transformation_table,
+    )
+
+    output_df = postgres_store.read(transformation_table)
+
+    assert len(output_df) == len(transformed_df)
+    assert len(output_df.columns) == len(transformed_df.columns)
+    assert output_df.equals(transformed_df)
 
 
 def set_environment_variables(variables, delete=False):

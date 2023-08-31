@@ -1030,6 +1030,7 @@ class SQLTransformationDecorator:
 
     def to_source(self) -> SourceVariant:
         return SourceVariant(
+            created=None,
             name=self.name,
             variant=self.variant,
             definition=SQLTransformation(self.query, self.args),
@@ -1124,6 +1125,7 @@ class DFTransformationDecorator:
 
     def to_source(self) -> SourceVariant:
         return SourceVariant(
+            created=None,
             name=self.name,
             variant=self.variant,
             definition=DFTransformation(
@@ -1524,7 +1526,7 @@ class Registrar:
         Returns:
             UserRegistrar: User
         """
-        user = User(name, tags, properties)
+        user = User(name=name, tags=tags, properties=properties)
         self.__resources.append(user)
         return UserRegistrar(self, user)
 
@@ -1590,6 +1592,7 @@ class Registrar:
         else:
             mock_definition = PrimaryData(location=SQLTable(name=""))
             mock_source = SourceVariant(
+                created=None,
                 name=name,
                 variant=variant,
                 definition=mock_definition,
@@ -1972,7 +1975,9 @@ class Registrar:
         Returns:
             entity (EntityRegistrar): Entity
         """
-        fakeEntity = Entity(name=name, description="", tags=[], properties=[])
+        fakeEntity = Entity(
+            name=name, description="", status="", tags=[], properties={}
+        )
         return EntityRegistrar(self, fakeEntity)
 
     def register_redis(
@@ -3059,6 +3064,7 @@ class Registrar:
         if not isinstance(provider, str):
             provider = provider.name()
         source = SourceVariant(
+            created=None,
             name=name,
             variant=variant,
             definition=PrimaryData(location=location),
@@ -3110,6 +3116,7 @@ class Registrar:
         if not isinstance(provider, str):
             provider = provider.name()
         source = SourceVariant(
+            created=None,
             name=name,
             variant=variant,
             definition=SQLTransformation(query, args),
@@ -3220,6 +3227,7 @@ class Registrar:
             if not isinstance(nv, tuple):
                 inputs[i] = nv.name_variant()
         source = SourceVariant(
+            created=None,
             name=name,
             variant=variant,
             definition=DFTransformation(query, inputs, args),
@@ -3472,7 +3480,11 @@ class Registrar:
             entity (EntityRegistrar): Entity
         """
         entity = Entity(
-            name=name, description=description, tags=tags, properties=properties
+            name=name,
+            description=description,
+            status="",
+            tags=tags,
+            properties=properties,
         )
         self.__resources.append(entity)
         return EntityRegistrar(self, entity)
@@ -3553,6 +3565,7 @@ class Registrar:
             feature_tags = feature.get("tags", [])
             feature_properties = feature.get("properties", {})
             resource = FeatureVariant(
+                created=None,
                 name=feature["name"],
                 variant=variant,
                 source=source,
@@ -3744,6 +3757,7 @@ class Registrar:
                 feature = feature.name_variant()
             processed_features.append(feature)
         resource = TrainingSetVariant(
+            created=None,
             name=name,
             variant=variant,
             description=description,
@@ -3770,7 +3784,7 @@ class Registrar:
         Returns:
             ModelRegistrar: Model
         """
-        model = Model(name, tags=tags, properties=properties)
+        model = Model(name, description="", tags=tags, properties=properties)
         self.__resources.append(model)
         return model
 
@@ -3987,7 +4001,7 @@ class ResourceClient:
                 model = None
             else:
                 # TODO: apply values from proto
-                model = Model(model_proto.name, tags=[], properties={})
+                model = Model(model_proto.name, description="", tags=[], properties={})
 
         return model
 
@@ -4079,6 +4093,7 @@ class ResourceClient:
             break
 
         return FeatureVariant(
+            created=None,
             name=feature.name,
             variant=feature.variant,
             source=(feature.source.name, feature.source.variant),
@@ -4325,6 +4340,7 @@ class ResourceClient:
             break
 
         return TrainingSetVariant(
+            created=None,
             name=ts.name,
             variant=ts.variant,
             owner=ts.owner,
@@ -4444,6 +4460,7 @@ class ResourceClient:
         definition = self._get_source_definition(source)
 
         return SourceVariant(
+            created=None,
             name=source.name,
             definition=definition,
             owner=source.owner,

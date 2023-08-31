@@ -90,6 +90,7 @@ def test_sql_transformation(name, variant, sql, spark_provider):
     decorator(transformation)
 
     assert decorator.to_source() == SourceVariant(
+        created=None,
         name=name,
         variant=variant,
         definition=SQLTransformation(query=sql),
@@ -117,6 +118,7 @@ def test_sql_transformation_without_variant(sql, spark_provider):
     decorator(transformation)
 
     assert decorator.to_source() == SourceVariant(
+        created=None,
         name=transformation.__name__,
         variant=variant,
         definition=SQLTransformation(query=sql),
@@ -163,6 +165,7 @@ def test_df_transformation(
 
     decorator_src = decorator.to_source()
     expected_src = SourceVariant(
+        created=None,
         name=name,
         variant=variant,
         definition=DFTransformation(

@@ -829,11 +829,25 @@ class Provider:
                 return False
         return True
 
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "description": self.description,
+            "team": self.team,
+            "config": "todox",
+            "function": "todox",
+            "status": self.status,
+            "tags": self.tags,
+            "properties": self.properties,
+            "error": self.error,
+        }
+
 
 @typechecked
 @dataclass
 class User:
     name: str
+    status: str = ""
     tags: list = field(default_factory=list)
     properties: dict = field(default_factory=dict)
 
@@ -864,6 +878,14 @@ class User:
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "status": self.status,
+            "tags": self.tags,
+            "properties": self.properties,
+        }
 
 
 @typechecked
@@ -964,6 +986,13 @@ class Source:
     default_variant: str
     variants: List[str]
 
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "default_variant": self.default_variant,
+            "variants": self.variants,
+        }
+
 
 @typechecked
 @dataclass
@@ -976,11 +1005,14 @@ class SourceVariant:
     tags: list
     properties: dict
     variant: str
+    created: str = None
     status: str = "ready"  # this is no status by default but it always stores ready
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
     source_text: str = ""
+    source_type: str = ""
+    transformation: str = ""
     inputs = ([],)
     error: Optional[str] = None
 
@@ -1007,6 +1039,7 @@ class SourceVariant:
         definition = self._get_source_definition(source)
 
         return SourceVariant(
+            created=None,
             name=source.name,
             definition=definition,
             owner=source.owner,
@@ -1043,6 +1076,7 @@ class SourceVariant:
     def _create(self, stub) -> None:
         defArgs = self.definition.kwargs()
         serialized = pb.SourceVariant(
+            created=None,
             name=self.name,
             variant=self.variant,
             owner=self.owner,
@@ -1134,6 +1168,7 @@ class SourceVariant:
 class Entity:
     name: str
     description: str
+    status: str = "NO_STATUS"
     tags: list = field(default_factory=list)
     properties: dict = field(default_factory=dict)
 
@@ -1169,6 +1204,15 @@ class Entity:
                 return False
         return True
 
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "description": self.description,
+            "status": self.status,
+            "tags": self.tags,
+            "properties": self.properties,
+        }
+
 
 @typechecked
 @dataclass
@@ -1195,6 +1239,13 @@ class Feature:
     default_variant: str
     variants: List[str]
 
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "default_variant": self.default_variant,
+            "variants": self.variants,
+        }
+
 
 @typechecked
 @dataclass
@@ -1208,6 +1259,7 @@ class FeatureVariant:
     location: ResourceLocation
     description: str
     variant: str
+    created: str = None
     is_embedding: bool = False
     dims: int = 0
     tags: list = None
@@ -1246,6 +1298,7 @@ class FeatureVariant:
         feature = next(stub.GetFeatureVariants(iter([name_variant])))
 
         return FeatureVariant(
+            created=None,
             name=feature.name,
             variant=feature.variant,
             source=(feature.source.name, feature.source.variant),
@@ -1488,6 +1541,13 @@ class Label:
     default_variant: str
     variants: List[str]
 
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "default_variant": self.default_variant,
+            "variants": self.variants,
+        }
+
 
 @typechecked
 @dataclass
@@ -1503,6 +1563,7 @@ class LabelVariant:
     properties: dict
     location: ResourceLocation
     variant: str
+    created: str = None
     status: str = "NO_STATUS"
     error: Optional[str] = None
 
@@ -1707,6 +1768,13 @@ class TrainingSet:
     default_variant: str
     variants: List[str]
 
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "default_variant": self.default_variant,
+            "variants": self.variants,
+        }
+
 
 @typechecked
 @dataclass
@@ -1720,6 +1788,7 @@ class TrainingSetVariant:
     feature_lags: list = field(default_factory=list)
     tags: list = field(default_factory=list)
     properties: dict = field(default_factory=dict)
+    created: str = None
     schedule: str = ""
     schedule_obj: Schedule = None
     provider: str = ""
@@ -1757,6 +1826,7 @@ class TrainingSetVariant:
         ts = next(stub.GetTrainingSetVariants(iter([name_variant])))
 
         return TrainingSetVariant(
+            created=None,
             name=ts.name,
             variant=ts.variant,
             owner=ts.owner,
@@ -1785,6 +1855,7 @@ class TrainingSetVariant:
             feature_lags.append(feature_lag)
 
         serialized = pb.TrainingSetVariant(
+            created=None,
             name=self.name,
             variant=self.variant,
             description=self.description,
@@ -1908,6 +1979,7 @@ class TrainingSetVariant:
 @dataclass
 class Model:
     name: str
+    description: str = ""
     tags: list = field(default_factory=list)
     properties: dict = field(default_factory=dict)
 
@@ -1945,6 +2017,14 @@ class Model:
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "description": self.description,
+            "tags": self.tags,
+            "properties": self.properties,
+        }
 
 
 Resource = Union[
@@ -2257,6 +2337,23 @@ class SparkCredentials:
             "PythonVersion": self.python_version,
             "CoreSite": core_site,
             "YarnSite": yarn_site,
+        }
+
+
+@typechecked
+@dataclass
+class TrainingSetFeatures:
+    training_set_name: str
+    training_set_variant: str
+    feature_name: str
+    feature_variant: str
+
+    def to_dictionary(self):
+        return {
+            "training_set_name": self.training_set_name,
+            "training_set_variant": self.training_set_variant,
+            "feature_name": self.feature_name,
+            "feature_variant": self.feature_variant,
         }
 
 

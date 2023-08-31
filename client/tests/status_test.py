@@ -98,6 +98,7 @@ def test_feature_status(mocker, status, expected, ready):
         ResourceClient,
         "get_feature",
         return_value=FeatureVariant(
+            created=None,
             name="name",
             variant="",
             source=("some", "source"),
@@ -170,6 +171,7 @@ def test_training_set_status(mocker, status, expected, ready):
         ResourceClient,
         "get_training_set",
         return_value=TrainingSetVariant(
+            created=None,
             name="",
             variant="",
             owner="",
@@ -204,6 +206,7 @@ def test_source_status(mocker, status, expected, ready):
         ResourceClient,
         "get_source",
         return_value=SourceVariant(
+            created=None,
             name="",
             variant="",
             definition=Transformation(),

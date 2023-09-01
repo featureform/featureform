@@ -120,7 +120,7 @@ func (id *ResourceID) check(expectedType OfflineResourceType, otherTypes ...Offl
 			return nil
 		}
 	}
-	return fmt.Errorf("Unexpected ResourceID Type")
+	return fmt.Errorf("unexpected ResourceID Type: %v", id.Type)
 }
 
 type LagFeatureDef struct {
@@ -360,6 +360,11 @@ type OfflineTable interface {
 type PrimaryTable interface {
 	Write(GenericRecord) error
 	WriteBatch([]GenericRecord) error
+	// TODO: Consider renaming this to GetSchema, which is more
+	// descriptive and general purpose. The SourceTable string
+	// could be used by callers that are only interested in the
+	// absolute path to the source table (i.e. the "name" in our
+	// current lexicon).
 	GetName() string
 	IterateSegment(n int64) (GenericTableIterator, error)
 	NumRows() (int64, error)
@@ -404,8 +409,9 @@ type TableSchemaJSONWrapper struct {
 }
 
 // This method converts the list of columns into a struct type that can be
-// serialized by parquet-go. This is necessary because GenericRecord does not
-// hold enough information to create a valid parquet-go schema.
+// serialized by parquet-go. This is necessary because GenericRecord, which
+// is of type []interface{}, does not hold the necessary metadata information
+// to create a valid parquet-go schema.
 func (schema *TableSchema) Interface() interface{} {
 	return schema.Value().Interface()
 }
@@ -415,27 +421,19 @@ func (schema *TableSchema) Value() reflect.Value {
 	for i, col := range schema.Columns {
 		caser := cases.Title(language.English)
 		colType := col.Scalar().Type()
-		fmt.Printf("==========>>>>>>>>>> COL %s TYPE: %s\n", col.Name, colType.Name())
-
-		// **NOTE:** This check for time.Time avoids a known Spark issue:
-		// error: Illegal Parquet type: INT64 (TIMESTAMP(NANOS,true))
-		// if colType.Name() == "Time" {
-		// 	colType = reflect.TypeOf(int64(0))
-		// }
-
-		// fmt.Printf("COL %s TYPE AFTER: %s\n", col.Name, colType.Name())
-
-		// fields[i] = reflect.StructField{
-		// 	Name: caser.String(col.Name),
-		// 	Type: colType,
-		// 	Tag:  reflect.StructTag(fmt.Sprintf(`parquet:"%s,timestamp"`, col.Name)),
-		// }
 
 		f := reflect.StructField{
+			// We need to title case the column name to ensure the fields are public
+			// in the struct we create.
 			Name: caser.String(col.Name),
 			Type: colType,
+			// At a minimum, we need to set the parquet tag to the column name so that when
+			// we read from the file, the field names match up with the column names as they
+			// are defined
+			Tag: reflect.StructTag(fmt.Sprintf(`parquet:"%s"`, col.Name)),
 		}
 
+		// TODO: use a better way of determining if a column is a timestamp
 		if colType.Name() == "Time" {
 			f.Tag = reflect.StructTag(fmt.Sprintf(`parquet:"%s,timestamp"`, col.Name))
 		}

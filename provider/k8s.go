@@ -31,11 +31,6 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 )
 
-// Hardcoded Go DateTime format, without milliseconds
-// or UTC components, used for attempting to parse
-// the timestamp column of an entity
-const baseDateFormat = "2006-01-02 15:04:05"
-
 type pandasOfflineQueries struct {
 	defaultPythonOfflineQueries
 }
@@ -632,21 +627,28 @@ func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 			return nil, err
 		}
 	}
-	// TODO: extend to support other all feature/label data types
-	// for _, f := range p.fields {
-	// 	switch assertedVal := row[f.Name()].(type) {
-	// 	case int32:
-	// 		row[f.Name()] = int(assertedVal)
-	// 	case int64:
-	// 		if reflect.DeepEqual(f.Type(), parquet.Timestamp(parquet.Millisecond).Type()) {
-	// 			row[f.Name()] = time.UnixMilli(assertedVal).UTC()
-	// 		} else {
-	// 			row[f.Name()] = int(assertedVal)
-	// 		}
-	// 	default:
-	// 		row[f.Name()] = assertedVal
-	// 	}
-	// }
+	for _, f := range p.fields {
+		switch assertedVal := row[f.Name()].(type) {
+		case int32:
+			row[f.Name()] = int(assertedVal)
+		case int64:
+			if reflect.DeepEqual(f.Type(), parquet.Timestamp(parquet.Millisecond).Type()) {
+				// This check for a negative value is necessary because Spark uses a different
+				// calendar than Go. For example. a 0 value in Spark starts at the year 0001; however,
+				// in Go, a 0 value starts at 1970. This means that if we don't check for negative
+				// values, we'll end up with a time.Time value that's prior to epoch start.
+				if assertedVal < 0 {
+					row[f.Name()] = time.UnixMilli(0).UTC()
+				} else {
+					row[f.Name()] = time.UnixMilli(assertedVal).UTC()
+				}
+			} else {
+				row[f.Name()] = int(assertedVal)
+			}
+		default:
+			row[f.Name()] = assertedVal
+		}
+	}
 	return row, nil
 }
 
@@ -782,7 +784,7 @@ func (tbl *BlobOfflineTable) append(iter Iterator, newRecords []ResourceRecord) 
 		record := ResourceRecord{
 			Entity: val["Entity"].(string),
 			Value:  val["Value"],
-			TS:     time.UnixMilli(int64(val["TS"].(int64))).UTC(),
+			TS:     val["TS"].(time.Time),
 		}
 		records = append(records, record)
 	}
@@ -848,30 +850,29 @@ func (k8s *K8sOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schem
 	return blobRegisterResourceFromSourceTable(id, schema, k8s.logger, k8s.store)
 }
 
-// The issue here is that the source schema could be a transformation ...
 func blobRegisterResourceFromSourceTable(id ResourceID, sourceSchema ResourceSchema, logger *zap.SugaredLogger, store FileStore) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
 		logger.Errorw("Failure checking ID", "error", err)
 		return nil, fmt.Errorf("ID check failed: %v", err)
 	}
-	filepath, err := store.CreateFilePath(id.ToFilestorePath())
+	destination, err := store.CreateFilePath(id.ToFilestorePath())
 	if err != nil {
 		return nil, fmt.Errorf("could not create file path: %w", err)
 	}
-	resourceExists, err := store.Exists(filepath)
+	resourceExists, err := store.Exists(destination)
 	if err != nil {
 		logger.Errorw("Error checking if resource exists", "error", err)
 		return nil, fmt.Errorf("error checking if resource registry exists: %v", err)
 	}
 	if resourceExists {
-		logger.Errorw("Resource already exists in blob store", "id", id, "ResourceKey", filepath.Key())
+		logger.Errorw("Resource already exists in blob store", "id", id, "ResourceKey", destination.Key())
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	serializedSchema, err := sourceSchema.Serialize()
 	if err != nil {
 		return nil, fmt.Errorf("error serializing resource schema: %s: %s", sourceSchema, err)
 	}
-	if err := store.Write(filepath, serializedSchema); err != nil {
+	if err := store.Write(destination, serializedSchema); err != nil {
 		return nil, fmt.Errorf("error writing resource schema: %s: %s", sourceSchema, err)
 	}
 	logger.Debugw("Registered resource table", "resourceID", id, "for source", sourceSchema.SourceTable)
@@ -1550,25 +1551,14 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 		iter.err = err
 		return false
 	}
-	ts, hasTimestamp := nextVal["ts"]
 	timestamp := time.UnixMilli(0).UTC()
+	ts, hasTimestamp := nextVal["ts"]
 	if hasTimestamp {
-		var tsInput string
-		switch t := ts.(type) {
-		case string:
-			tsInput = t
-		// TODO: Revisit this if you're able to solve the Spark error:
-		// Illegal Parquet type: INT64 (TIMESTAMP(NANOS,true))
-		case int64:
-			if t < 0 {
-				t = 0
-			}
-			tsInput = time.Time(time.UnixMilli(t).UTC()).String()
-		}
-		timestamp, err = iter.parseTimestamp(tsInput)
-		if err != nil {
-			iter.err = err
+		if ts, ok := ts.(time.Time); !ok {
+			iter.err = fmt.Errorf("expected timestamp to be of type time.Time, but got %T", ts)
 			return false
+		} else {
+			timestamp = ts
 		}
 	}
 	iter.cur = ResourceRecord{
@@ -1577,27 +1567,6 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 		TS:     timestamp,
 	}
 	return true
-}
-
-// Attempts to parse timestamp in one of the following formats:
-// 1. "2006-01-02 15:04:05.000000 UTC"
-// 2. "2006-01-02 15:04:05.000000"
-// 3. "2006-01-02 15:04:05.000000 +0000 UTC"
-// If any one of the three formats is valid, returns the parsed timestamp, otherwise it
-// returns an error
-func (iter *FileStoreFeatureIterator) parseTimestamp(ts string) (time.Time, error) {
-	formats := []string{
-		fmt.Sprintf("%s UTC", baseDateFormat),
-		baseDateFormat,
-		fmt.Sprintf("%s +0000 UTC", baseDateFormat),
-	}
-	for _, format := range formats {
-		timestamp, err := time.Parse(format, ts)
-		if err == nil {
-			return timestamp, nil
-		}
-	}
-	return time.Time{}, fmt.Errorf("could not parse timestamp: %v", ts)
 }
 
 // Attempts to parse value in one of the following formats:

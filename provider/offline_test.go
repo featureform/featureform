@@ -232,8 +232,8 @@ func TestOfflineStores(t *testing.T) {
 		"CreateDuplicatePrimaryTable":     testCreateDuplicatePrimaryTable,
 		"ChainTransformations":            testChainTransform,
 		"CreateResourceFromSource":        testCreateResourceFromSource,
-		// "CreateResourceFromSourceNoTS":    testCreateResourceFromSourceNoTS, // TODO: handle parquet data types to get this to pass
-		"CreatePrimaryFromSource": testCreatePrimaryFromSource,
+		"CreateResourceFromSourceNoTS":    testCreateResourceFromSourceNoTS,
+		"CreatePrimaryFromSource":         testCreatePrimaryFromSource,
 	}
 
 	psqlInfo := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), "localhost", "5432", os.Getenv("POSTGRES_DB"))
@@ -726,7 +726,6 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 		ExpectedUpdate                         []ResourceRecord
 	}
 
-	// TODO: Break this schema into two separate schemas, one with and one without a timestamp
 	schemaWithTimestamp := TableSchema{
 		Columns: []TableColumn{
 			{Name: "entity", ValueType: String},

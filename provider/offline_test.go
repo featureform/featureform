@@ -144,6 +144,7 @@ func TestOfflineStores(t *testing.T) {
 	sparkInit := func() (pc.SerializedConfig, pc.SparkConfig) {
 		var sparkConfig = pc.SparkConfig{
 			ExecutorType: pc.SparkGeneric,
+			// TODO:  add correct executor configurations
 			ExecutorConfig: &pc.SparkGenericConfig{
 				Master:        "local",
 				DeployMode:    "client",
@@ -195,43 +196,44 @@ func TestOfflineStores(t *testing.T) {
 	}
 	if *provider == "spark" || *provider == "" {
 		serialSparkConfig, _ := sparkInit()
-		fmt.Println("SPARK STORE CONFIGURATION IN TEST INITIALIZATION: ", string(serialSparkConfig))
 		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
 	}
 
 	testFns := map[string]func(*testing.T, OfflineStore){
-		// "CreateGetTable":          testCreateGetOfflineTable,      // PASSING
-		// "TableAlreadyExists":      testOfflineTableAlreadyExists,  // PASSING
-		// "TableNotFound":           testOfflineTableNotFound,       // PASSING
-		// "InvalidResourceIDs":      testInvalidResourceIDs,         // PASSING
-		// "Materializations":        testMaterializations,           // PASSING
-		"MaterializationUpdate": testMaterializationUpdate, // PASSING
-		// "InvalidResourceRecord":   testWriteInvalidResourceRecord, // PASSING
-		// "InvalidMaterialization":  testInvalidMaterialization,     // PASSING
-		// "MaterializeUnknown":      testMaterializeUnknown,         // PASSING
-		// "MaterializationNotFound": testMaterializationNotFound,    // PASSING
-		//"TrainingSets": testTrainingSet,					    	// Training set is trying to find a schema somewhere but is return blank strings for feature names in the query
+		"CreateGetTable":          testCreateGetOfflineTable,
+		"TableAlreadyExists":      testOfflineTableAlreadyExists,
+		"TableNotFound":           testOfflineTableNotFound,
+		"InvalidResourceIDs":      testInvalidResourceIDs,
+		"Materializations":        testMaterializations,
+		"MaterializationUpdate":   testMaterializationUpdate,
+		"InvalidResourceRecord":   testWriteInvalidResourceRecord,
+		"InvalidMaterialization":  testInvalidMaterialization,
+		"MaterializeUnknown":      testMaterializeUnknown,
+		"MaterializationNotFound": testMaterializationNotFound,
+
+		// "TrainingSets": testTrainingSet,
 		// "TrainingSetUpdate":       testTrainingSetUpdate,
 		//"TrainingSetLag":          testLagFeaturesTrainingSet,
-		// "TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID, //PASSING
-		// "GetUnknownTrainingSet":  testGetUnkonwnTrainingSet,           // PASSING
-		// "InvalidTrainingSetDefs": testInvalidTrainingSetDefs,          // PASSING
-		// "LabelTableNotFound":     testLabelTableNotFound,              // PASSING
-		// "FeatureTableNotFound":   testFeatureTableNotFound,            // PASSING
+
+		"TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID,
+		"GetUnknownTrainingSet":  testGetUnkonwnTrainingSet,
+		"InvalidTrainingSetDefs": testInvalidTrainingSetDefs,
+		"LabelTableNotFound":     testLabelTableNotFound,
+		"FeatureTableNotFound":   testFeatureTableNotFound,
+
 		//"TrainingDefShorthand": testTrainingSetDefShorthand,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
-		// "PrimaryTableCreate": testPrimaryCreateTable, // PASSING
-		// "PrimaryTableWrite":  testPrimaryTableWrite,  // PASSING
-		// "Transformation":     testTransform,          // PASSING
-		// "TransformationUpdate": testTransformUpdate,
-		// "TransformationUpdateWithFeature": testTransformUpdateWithFeatures,
-		// "CreateDuplicatePrimaryTable":     testCreateDuplicatePrimaryTable,
-		// "ChainTransformations":            testChainTransform,
-		// COMMONLY USED FUNCTIONS
-		//"CreateResourceFromSource":     testCreateResourceFromSource,
-		//"CreateResourceFromSourceNoTS": testCreateResourceFromSourceNoTS,
-		//"CreatePrimaryFromSource":      testCreatePrimaryFromSource,
+		"PrimaryTableCreate":              testPrimaryCreateTable,
+		"PrimaryTableWrite":               testPrimaryTableWrite,
+		"Transformation":                  testTransform,
+		"TransformationUpdate":            testTransformUpdate,
+		"TransformationUpdateWithFeature": testTransformUpdateWithFeatures,
+		"CreateDuplicatePrimaryTable":     testCreateDuplicatePrimaryTable,
+		"ChainTransformations":            testChainTransform,
+		"CreateResourceFromSource":        testCreateResourceFromSource,
+		// "CreateResourceFromSourceNoTS":    testCreateResourceFromSourceNoTS, // TODO: handle parquet data types to get this to pass
+		"CreatePrimaryFromSource": testCreatePrimaryFromSource,
 	}
 
 	psqlInfo := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), "localhost", "5432", os.Getenv("POSTGRES_DB"))
@@ -725,54 +727,60 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 	}
 
 	// TODO: Break this schema into two separate schemas, one with and one without a timestamp
-	schemaInt := TableSchema{
+	schemaWithTimestamp := TableSchema{
 		Columns: []TableColumn{
 			{Name: "entity", ValueType: String},
 			{Name: "value", ValueType: Int},
-			// {Name: "ts", ValueType: Timestamp},
+			{Name: "ts", ValueType: Timestamp},
+		},
+	}
+	schemaWithoutTimestamp := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "value", ValueType: Int},
 		},
 	}
 	tests := map[string]TestCase{
-		// "Empty": {
-		// 	WriteRecords:    []ResourceRecord{},
-		// 	UpdateRecords:   []ResourceRecord{},
-		// 	Schema:          schemaInt,
-		// 	SegmentStart:    0,
-		// 	SegmentEnd:      0,
-		// 	UpdatedRows:     0,
-		// 	ExpectedSegment: []ResourceRecord{},
-		// 	ExpectedUpdate:  []ResourceRecord{},
-		// },
-		// "NoOverlap": {
-		// 	WriteRecords: []ResourceRecord{
-		// 		{Entity: "a", Value: 1},
-		// 		{Entity: "b", Value: 2},
-		// 		{Entity: "c", Value: 3},
-		// 	},
-		// 	UpdateRecords: []ResourceRecord{
-		// 		{Entity: "d", Value: 4},
-		// 	},
-		// 	Schema:              schemaInt,
-		// 	ExpectedRows:        3,
-		// 	SegmentStart:        0,
-		// 	SegmentEnd:          3,
-		// 	UpdatedSegmentStart: 0,
-		// 	UpdatedSegmentEnd:   4,
-		// 	UpdatedRows:         4,
-		// 	// Have to expect time.UnixMilli(0).UTC() as it is the default value
-		// 	// if a resource does not have a set timestamp
-		// 	ExpectedSegment: []ResourceRecord{
-		// 		{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
-		// 		{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
-		// 		{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
-		// 	},
-		// 	ExpectedUpdate: []ResourceRecord{
-		// 		{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
-		// 		{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
-		// 		{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
-		// 		{Entity: "d", Value: 4, TS: time.UnixMilli(0).UTC()},
-		// 	},
-		// },
+		"Empty": {
+			WriteRecords:    []ResourceRecord{},
+			UpdateRecords:   []ResourceRecord{},
+			Schema:          schemaWithoutTimestamp,
+			SegmentStart:    0,
+			SegmentEnd:      0,
+			UpdatedRows:     0,
+			ExpectedSegment: []ResourceRecord{},
+			ExpectedUpdate:  []ResourceRecord{},
+		},
+		"NoOverlap": {
+			WriteRecords: []ResourceRecord{
+				{Entity: "a", Value: 1},
+				{Entity: "b", Value: 2},
+				{Entity: "c", Value: 3},
+			},
+			UpdateRecords: []ResourceRecord{
+				{Entity: "d", Value: 4},
+			},
+			Schema:              schemaWithoutTimestamp,
+			ExpectedRows:        3,
+			SegmentStart:        0,
+			SegmentEnd:          3,
+			UpdatedSegmentStart: 0,
+			UpdatedSegmentEnd:   4,
+			UpdatedRows:         4,
+			// Have to expect time.UnixMilli(0).UTC() as it is the default value
+			// if a resource does not have a set timestamp
+			ExpectedSegment: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+			},
+			ExpectedUpdate: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+				{Entity: "d", Value: 4, TS: time.UnixMilli(0).UTC()},
+			},
+		},
 		"SimpleOverwrite": {
 			WriteRecords: []ResourceRecord{
 				{Entity: "a", Value: 1},
@@ -784,7 +792,7 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 				{Entity: "a", Value: 3},
 				{Entity: "b", Value: 4},
 			},
-			Schema:              schemaInt,
+			Schema:              schemaWithoutTimestamp,
 			ExpectedRows:        3,
 			SegmentStart:        0,
 			SegmentEnd:          3,
@@ -804,95 +812,95 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 		},
 		// Added .UTC() b/c DeepEqual checks the timezone field of time.Time which can vary, resulting in false failures
 		// during tests even if time is correct
-		// "SimpleChanges": {
-		// 	WriteRecords: []ResourceRecord{
-		// 		{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
-		// 		{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
-		// 		{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
-		// 		{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
-		// 	},
-		// 	UpdateRecords: []ResourceRecord{
-		// 		{Entity: "a", Value: 4, TS: time.UnixMilli(4).UTC()},
-		// 	},
-		// 	Schema:              schemaInt,
-		// 	ExpectedRows:        3,
-		// 	SegmentStart:        0,
-		// 	SegmentEnd:          3,
-		// 	UpdatedSegmentStart: 0,
-		// 	UpdatedSegmentEnd:   3,
-		// 	UpdatedRows:         3,
-		// 	ExpectedSegment: []ResourceRecord{
-		// 		{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
-		// 		{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
-		// 		{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
-		// 	},
-		// 	ExpectedUpdate: []ResourceRecord{
-		// 		{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
-		// 		{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
-		// 		{Entity: "a", Value: 4, TS: time.UnixMilli(4).UTC()},
-		// 	},
-		// },
-		// "OutOfOrderWrites": {
-		// 	WriteRecords: []ResourceRecord{
-		// 		{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
-		// 		{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
-		// 		{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
-		// 		{Entity: "c", Value: 9, TS: time.UnixMilli(5).UTC()},
-		// 		{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
-		// 	},
-		// 	UpdateRecords: []ResourceRecord{
-		// 		{Entity: "a", Value: 6, TS: time.UnixMilli(12).UTC()},
-		// 	},
-		// 	Schema:              schemaInt,
-		// 	ExpectedRows:        3,
-		// 	SegmentStart:        0,
-		// 	SegmentEnd:          3,
-		// 	UpdatedSegmentStart: 0,
-		// 	UpdatedSegmentEnd:   3,
-		// 	UpdatedRows:         3,
-		// 	ExpectedSegment: []ResourceRecord{
-		// 		{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
-		// 		{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
-		// 		{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
-		// 	},
-		// 	ExpectedUpdate: []ResourceRecord{
-		// 		{Entity: "a", Value: 6, TS: time.UnixMilli(12).UTC()},
-		// 		{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
-		// 		{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
-		// 	},
-		// },
-		// "OutOfOrderOverwrites": {
-		// 	WriteRecords: []ResourceRecord{
-		// 		{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
-		// 		{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
-		// 		{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
-		// 		{Entity: "c", Value: 9, TS: time.UnixMilli(5).UTC()},
-		// 		{Entity: "b", Value: 12, TS: time.UnixMilli(2).UTC()},
-		// 		{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
-		// 		{Entity: "b", Value: 9, TS: time.UnixMilli(3).UTC()},
-		// 	},
-		// 	UpdateRecords: []ResourceRecord{
-		// 		{Entity: "a", Value: 5, TS: time.UnixMilli(20).UTC()},
-		// 		{Entity: "b", Value: 2, TS: time.UnixMilli(4).UTC()},
-		// 	},
-		// 	Schema:              schemaInt,
-		// 	ExpectedRows:        3,
-		// 	SegmentStart:        0,
-		// 	SegmentEnd:          3,
-		// 	UpdatedSegmentStart: 0,
-		// 	UpdatedSegmentEnd:   3,
-		// 	UpdatedRows:         3,
-		// 	ExpectedSegment: []ResourceRecord{
-		// 		{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
-		// 		{Entity: "b", Value: 9, TS: time.UnixMilli(3).UTC()},
-		// 		{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
-		// 	},
-		// 	ExpectedUpdate: []ResourceRecord{
-		// 		{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
-		// 		{Entity: "a", Value: 5, TS: time.UnixMilli(20).UTC()},
-		// 		{Entity: "b", Value: 2, TS: time.UnixMilli(4).UTC()},
-		// 	},
-		// },
+		"SimpleChanges": {
+			WriteRecords: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(0).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
+			},
+			UpdateRecords: []ResourceRecord{
+				{Entity: "a", Value: 4, TS: time.UnixMilli(4).UTC()},
+			},
+			Schema:              schemaWithTimestamp,
+			ExpectedRows:        3,
+			SegmentStart:        0,
+			SegmentEnd:          3,
+			UpdatedSegmentStart: 0,
+			UpdatedSegmentEnd:   3,
+			UpdatedRows:         3,
+			ExpectedSegment: []ResourceRecord{
+				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+			},
+			ExpectedUpdate: []ResourceRecord{
+				{Entity: "b", Value: 2, TS: time.UnixMilli(0).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(0).UTC()},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(4).UTC()},
+			},
+		},
+		"OutOfOrderWrites": {
+			WriteRecords: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+				{Entity: "c", Value: 9, TS: time.UnixMilli(5).UTC()},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
+			},
+			UpdateRecords: []ResourceRecord{
+				{Entity: "a", Value: 6, TS: time.UnixMilli(12).UTC()},
+			},
+			Schema:              schemaWithTimestamp,
+			ExpectedRows:        3,
+			SegmentStart:        0,
+			SegmentEnd:          3,
+			UpdatedSegmentStart: 0,
+			UpdatedSegmentEnd:   3,
+			UpdatedRows:         3,
+			ExpectedSegment: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+			},
+			ExpectedUpdate: []ResourceRecord{
+				{Entity: "a", Value: 6, TS: time.UnixMilli(12).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+			},
+		},
+		"OutOfOrderOverwrites": {
+			WriteRecords: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+				{Entity: "c", Value: 9, TS: time.UnixMilli(5).UTC()},
+				{Entity: "b", Value: 12, TS: time.UnixMilli(2).UTC()},
+				{Entity: "a", Value: 4, TS: time.UnixMilli(1).UTC()},
+				{Entity: "b", Value: 9, TS: time.UnixMilli(3).UTC()},
+			},
+			UpdateRecords: []ResourceRecord{
+				{Entity: "a", Value: 5, TS: time.UnixMilli(20).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(4).UTC()},
+			},
+			Schema:              schemaWithTimestamp,
+			ExpectedRows:        3,
+			SegmentStart:        0,
+			SegmentEnd:          3,
+			UpdatedSegmentStart: 0,
+			UpdatedSegmentEnd:   3,
+			UpdatedRows:         3,
+			ExpectedSegment: []ResourceRecord{
+				{Entity: "a", Value: 1, TS: time.UnixMilli(10).UTC()},
+				{Entity: "b", Value: 9, TS: time.UnixMilli(3).UTC()},
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+			},
+			ExpectedUpdate: []ResourceRecord{
+				{Entity: "c", Value: 3, TS: time.UnixMilli(7).UTC()},
+				{Entity: "a", Value: 5, TS: time.UnixMilli(20).UTC()},
+				{Entity: "b", Value: 2, TS: time.UnixMilli(4).UTC()},
+			},
+		},
 	}
 	testMaterialization := func(t *testing.T, mat Materialization, test TestCase) {
 		if numRows, err := mat.NumRows(); err != nil {
@@ -1339,7 +1347,7 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 			}
 
 			// Row order isn't guaranteed, we make sure one row is equivalent
-			// then we delete that row. This is ineffecient, but these test
+			// then we delete that row. This is inefficient, but these test
 			// cases should all be small enough not to matter.
 			found := false
 			for i, expRow := range expectedRows {
@@ -2272,11 +2280,6 @@ func testTransform(t *testing.T, store OfflineStore) {
 			}
 
 			if !found {
-				fmt.Printf("********** COMPARISON **********\nACTUAL VALUE: %v\nACTUAL TYPE: %T\nEXPECTED VALUE: %v\nEXPECTED TYPE: %T\n***********************************\n",
-					iterator.Values(),
-					iterator.Values()[5],
-					test.Expected,
-					test.Expected[0][5])
 				t.Fatalf("The %v value was not found in Expected Values: %v", iterator.Values(), test.Expected)
 			}
 		}
@@ -2315,8 +2318,9 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 	tests := map[string]TransformTest{
 		"Simple": {
 			PrimaryTable: ResourceID{
-				Name: uuid.NewString(),
-				Type: Primary,
+				Name:    uuid.NewString(),
+				Variant: uuid.NewString(),
+				Type:    Primary,
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
@@ -2342,8 +2346,9 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 			Config: TransformationConfig{
 				Type: SQLTransformation,
 				TargetTableID: ResourceID{
-					Name: uuid.NewString(),
-					Type: Transformation,
+					Name:    uuid.NewString(),
+					Variant: uuid.NewString(),
+					Type:    Transformation,
 				},
 				Query: "SELECT * FROM tb",
 				SourceMapping: []SourceMapping{
@@ -2353,17 +2358,20 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 					},
 				},
 			},
+			// TODO: determine if this change (i.e. nil -> false) will cause the SQL providers to fail
+			// The crux if the issue is that to build a serializable schema for the parquet writer, we
+			// need to use reflection, which will fail if we have a nil value for a bool column.
 			Expected: []GenericRecord{
 				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
 				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
-				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0).UTC()},
+				[]interface{}{"c", 3, 1.3, "third string", false, time.UnixMilli(0).UTC()}, // nil -> false
 				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
 				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
 			},
 			UpdatedExpected: []GenericRecord{
 				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
 				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
-				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0).UTC()},
+				[]interface{}{"c", 3, 1.3, "third string", false, time.UnixMilli(0).UTC()}, // nil -> false
 				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
 				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
 				[]interface{}{"d", 6, 1.6, "sixth string", false, time.UnixMilli(0).UTC()},
@@ -2373,8 +2381,9 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 	}
 
 	featureID := ResourceID{
-		Name: uuid.NewString(),
-		Type: Feature,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Feature,
 	}
 
 	testTransform := func(t *testing.T, test TransformTest) {
@@ -2386,8 +2395,7 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 			t.Fatalf("Could not write value: %v", err)
 		}
 
-		tableName := getTableName(t.Name(), table.GetName())
-		test.Config.Query = strings.Replace(test.Config.Query, "tb", tableName, 1)
+		modifyTransformationConfig(t, t.Name(), table.GetName(), store.Type(), &test.Config)
 		if err := store.CreateTransformation(test.Config); err != nil {
 			t.Fatalf("Could not create transformation: %v", err)
 		}
@@ -2522,8 +2530,9 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 			Config: TransformationConfig{
 				Type: SQLTransformation,
 				TargetTableID: ResourceID{
-					Name: uuid.NewString(),
-					Type: Transformation,
+					Name:    uuid.NewString(),
+					Variant: uuid.NewString(),
+					Type:    Transformation,
 				},
 				Query: "SELECT * FROM tb",
 				SourceMapping: []SourceMapping{
@@ -2533,17 +2542,20 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 					},
 				},
 			},
+			// TODO: determine if this change (i.e. nil -> false) will cause the SQL providers to fail
+			// The crux if the issue is that to build a serializable schema for the parquet writer, we
+			// need to use reflection, which will fail if we have a nil value for a bool column.
 			Expected: []GenericRecord{
 				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
 				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
-				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0).UTC()},
+				[]interface{}{"c", 3, 1.3, "third string", false, time.UnixMilli(0).UTC()}, // nil -> false
 				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
 				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
 			},
 			UpdatedExpected: []GenericRecord{
 				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
 				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
-				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0).UTC()},
+				[]interface{}{"c", 3, 1.3, "third string", false, time.UnixMilli(0).UTC()}, // nil -> false
 				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
 				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
 				[]interface{}{"d", 6, 1.6, "sixth string", false, time.UnixMilli(0).UTC()},
@@ -2579,8 +2591,9 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 			Config: TransformationConfig{
 				Type: SQLTransformation,
 				TargetTableID: ResourceID{
-					Name: uuid.NewString(),
-					Type: Transformation,
+					Name:    uuid.NewString(),
+					Variant: uuid.NewString(),
+					Type:    Transformation,
 				},
 				Query: "SELECT COUNT(*) as total_count FROM tb",
 				SourceMapping: []SourceMapping{
@@ -2685,7 +2698,7 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 				}
 			}
 			if !found {
-				t.Fatalf("Unexpected training row: %v, expected %v", iterator.Values(), test.UpdatedExpected)
+				t.Fatalf("Unexpected training row: %v, expected %v in updated transformation", iterator.Values(), test.UpdatedExpected)
 			}
 			i++
 		}
@@ -2799,8 +2812,9 @@ func testTransformCreateFeature(t *testing.T, store OfflineStore) {
 func testCreateDuplicatePrimaryTable(t *testing.T, store OfflineStore) {
 	table := uuid.NewString()
 	rec := ResourceID{
-		Name: table,
-		Type: Primary,
+		Name:    table,
+		Variant: uuid.NewString(),
+		Type:    Primary,
 	}
 	schema := TableSchema{
 		Columns: []TableColumn{
@@ -2830,11 +2844,13 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 	}
 
 	firstTransformName := uuid.NewString()
+	firstTransformVariant := uuid.NewString()
 	tests := map[string]TransformTest{
 		"First": {
 			PrimaryTable: ResourceID{
-				Name: uuid.NewString(),
-				Type: Primary,
+				Name:    uuid.NewString(),
+				Variant: uuid.NewString(),
+				Type:    Primary,
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
@@ -2856,8 +2872,9 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 			Config: TransformationConfig{
 				Type: SQLTransformation,
 				TargetTableID: ResourceID{
-					Name: firstTransformName,
-					Type: Transformation,
+					Name:    firstTransformName,
+					Variant: firstTransformVariant,
+					Type:    Transformation,
 				},
 				Query: "SELECT entity, int_col, flt_col, str_col FROM tb",
 				SourceMapping: []SourceMapping{
@@ -2877,8 +2894,9 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 		},
 		"Second": {
 			PrimaryTable: ResourceID{
-				Name: firstTransformName,
-				Type: Primary,
+				Name:    firstTransformName,
+				Variant: firstTransformVariant,
+				Type:    Primary,
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
@@ -2890,8 +2908,9 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 			Config: TransformationConfig{
 				Type: SQLTransformation,
 				TargetTableID: ResourceID{
-					Name: uuid.NewString(),
-					Type: Transformation,
+					Name:    uuid.NewString(),
+					Variant: uuid.NewString(),
+					Type:    Transformation,
 				},
 				Query: "SELECT COUNT(*) as total_count FROM tb",
 				SourceMapping: []SourceMapping{
@@ -2915,21 +2934,23 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not write batch: %v", err)
 	}
 
-	tableName := getTableName(t.Name(), table.GetName())
 	config := TransformationConfig{
 		Type: SQLTransformation,
 		TargetTableID: ResourceID{
-			Name: firstTransformName,
-			Type: Transformation,
+			Name:    firstTransformName,
+			Variant: firstTransformVariant,
+			Type:    Transformation,
 		},
-		Query: fmt.Sprintf("SELECT entity, int_col, flt_col, str_col FROM %s", tableName),
+		Query: "SELECT entity, int_col, flt_col, str_col FROM tb",
 		SourceMapping: []SourceMapping{
 			SourceMapping{
-				Template: tableName,
-				Source:   tableName,
+				Template: "tb",
+				Source:   "TBD",
 			},
 		},
 	}
+	modifyTransformationConfig(t, t.Name(), table.GetName(), store.Type(), &config)
+
 	if err := store.CreateTransformation(config); err != nil {
 		t.Fatalf("Could not create transformation: %v", err)
 	}
@@ -2972,22 +2993,24 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 		t.Fatalf("The number of records do not match for received (%v) and expected (%v)", tableSize, len(tests["First"].Expected))
 	}
 
-	tableName = getTableName(t.Name(), table.GetName())
 	secondTransformName := uuid.NewString()
+	secondTransformVariant := uuid.NewString()
 	config = TransformationConfig{
 		Type: SQLTransformation,
 		TargetTableID: ResourceID{
-			Name: secondTransformName,
-			Type: Transformation,
+			Name:    secondTransformName,
+			Variant: secondTransformVariant,
+			Type:    Transformation,
 		},
-		Query: fmt.Sprintf("SELECT Count(*) as total_count FROM %s", tableName),
+		Query: "SELECT Count(*) as total_count FROM tb",
 		SourceMapping: []SourceMapping{
 			SourceMapping{
-				Template: tableName,
-				Source:   tableName,
+				Template: "tb",
+				Source:   "TBD",
 			},
 		},
 	}
+	modifyTransformationConfig(t, t.Name(), table.GetName(), store.Type(), &config)
 	if err := store.CreateTransformation(config); err != nil {
 		t.Fatalf("Could not create transformation: %v", err)
 	}
@@ -3123,8 +3146,9 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 
 func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 	primaryID := ResourceID{
-		Name: uuid.NewString(),
-		Type: Primary,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Primary,
 	}
 	schema := TableSchema{
 		Columns: []TableColumn{
@@ -3150,8 +3174,9 @@ func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 	}
 
 	featureID := ResourceID{
-		Name: uuid.NewString(),
-		Type: Feature,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Feature,
 	}
 	recSchema := ResourceSchema{
 		Entity:      "col1",
@@ -3211,8 +3236,9 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 	}
 
 	primaryID := ResourceID{
-		Name: uuid.NewString(),
-		Type: Primary,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Primary,
 	}
 	schema := TableSchema{
 		Columns: []TableColumn{
@@ -3238,8 +3264,9 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 	}
 
 	featureID := ResourceID{
-		Name: uuid.NewString(),
-		Type: Feature,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Feature,
 	}
 	recSchema := ResourceSchema{
 		Entity:      "col1",
@@ -3256,8 +3283,9 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not get feature resource table: %v", err)
 	}
 	labelID := ResourceID{
-		Name: uuid.NewString(),
-		Type: Label,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Label,
 	}
 	labelSchema := ResourceSchema{
 		Entity:      "col1",
@@ -3274,8 +3302,9 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not get label resource table: %v", err)
 	}
 	tsetID := ResourceID{
-		Name: uuid.NewString(),
-		Type: TrainingSet,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    TrainingSet,
 	}
 	def := TrainingSetDef{
 		ID: tsetID,
@@ -3345,8 +3374,9 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 
 func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 	primaryID := ResourceID{
-		Name: uuid.NewString(),
-		Type: Primary,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Primary,
 	}
 	schema := TableSchema{
 		Columns: []TableColumn{
@@ -3371,14 +3401,26 @@ func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not write batch: %v", err)
 	}
 	primaryCopyID := ResourceID{
-		Name: uuid.NewString(),
-		Type: Primary,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Primary,
 	}
 
 	t.Log("Primary Name: ", primaryCopyID.Name)
 	// Need to sanitize name here b/c the the xxx-xxx format of the uuid. Cannot do it within
 	// register function because precreated tables do not necessarily use double quotes
 	tableName := sanitizeTableName(string(store.Type()), table.GetName())
+	// Currently, the assumption is that a primary table will always have an absolute path
+	// to the source data file in its schema; to keep with this assumption until we determine
+	// a better approach (e.g. handling directories of primary sources), we will use the
+	// GetSource method on the FileStorePrimaryTable to get the absolute path to the source.
+	if store.Type() == pt.SparkOffline {
+		sourceTablePath, err := table.(*FileStorePrimaryTable).GetSource()
+		if err != nil {
+			t.Fatalf("Could not get source table path: %v", err)
+		}
+		tableName = sourceTablePath.PathWithBucket()
+	}
 	_, err = store.RegisterPrimaryFromSourceTable(primaryCopyID, tableName)
 	if err != nil {
 		t.Fatalf("Could not register from Source Table: %s", err)
@@ -3522,7 +3564,6 @@ func TestReplaceSourceName(t *testing.T) {
 
 }
 
-// TODO: Start troubleshooting here
 func getTableName(testName string, tableName string) string {
 	if strings.Contains(testName, "BIGQUERY") {
 		prefix := fmt.Sprintf("%s.%s", os.Getenv("BIGQUERY_PROJECT_ID"), os.Getenv("BIGQUERY_DATASET_ID"))
@@ -3543,8 +3584,8 @@ func sanitizeTableName(testName string, tableName string) string {
 func modifyTransformationConfig(t *testing.T, testName, tableName string, providerType pt.Type, config *TransformationConfig) {
 	switch providerType {
 	case pt.SparkOffline:
-		// In contrast to the SQL provider, that only need to change the table name to perform the required transformation configuration,
-		// Spark implementation need to update the source mappings to ensure the source file is used in the transformation query
+		// In contrast to the SQL provider, that only needed change is the table name to perform the required transformation configuration,
+		// The Spark implementation needs to update the source mappings to ensure the source file is used in the transformation query.
 		config.SourceMapping[0].Source = tableName
 	case pt.MemoryOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.SnowflakeOffline, pt.RedshiftOffline:
 		tableName := getTableName(testName, tableName)

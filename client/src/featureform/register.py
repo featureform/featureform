@@ -465,6 +465,9 @@ class OfflineK8sProvider(OfflineProvider):
             properties=properties,
         )
 
+    def register_table():
+        pass
+
 
 class OnlineProvider:
     def __init__(self, registrar, provider):
@@ -2954,7 +2957,7 @@ class Registrar:
     def register_k8s(
         self,
         name: str,
-        store: FileStoreProvider,
+        store: FileStoreProvider, # make it to support OfflineSQLProvider too
         description: str = "",
         team: str = "",
         docker_image: str = "",
@@ -2983,6 +2986,8 @@ class Registrar:
         )
         ```
         """
+        # verify OfflineSQLProvider is postgres; not supported for others
+
         config = K8sConfig(
             store_type=store.store_type(),
             store_config=store.config(),

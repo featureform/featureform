@@ -936,7 +936,22 @@ jobs:
           AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
           S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_PATH }}
           S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
+          POSTGRES_HOST: "localhost"
+          POSTGRES_PORT: "5432"
+          POSTGRES_USERNAME: "postgres"
+          POSTGRES_PASSWORD: "password"
+          POSTGRES_DATABASE: "default"
+          POSTGRES_SSLMODE: "disable"
         run: make test_pandas
+      
+      - name: Upload K8s Coverage Report
+        uses: codecov/codecov-action@v2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          root_dir: ./
+          files: ./coverage.xml
+          name: k8s-pandas-coverage
+          verbose: true
 
       - name: Creating GCS Secret File
         id: create-json-2

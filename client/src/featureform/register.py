@@ -3,17 +3,18 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 import inspect
 import json
+import sys
 import warnings
 from datetime import timedelta
 from os.path import exists
 from pathlib import Path
 from typing import Dict, Tuple, Callable, List, Union
-
+from .exceptions import StubExceptionWrapper
 import dill
 import pandas as pd
 from typeguard import typechecked
 
-from .enums import FileFormat
+from .enums import FileFormat, ScalarType
 from .file_utils import absolute_file_paths
 from .get import *
 from .get_local import *
@@ -23,8 +24,6 @@ from .names_generator import get_random_name
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
 from .resources import (
-    PineconeConfig,
-    ScalarType,
     Model,
     ResourceState,
     Provider,
@@ -39,11 +38,8 @@ from .resources import (
     RedshiftConfig,
     BigQueryConfig,
     SparkConfig,
-    AzureFileStoreConfig,
     OnlineBlobConfig,
     K8sConfig,
-    S3StoreConfig,
-    GCSFileStoreConfig,
     User,
     Location,
     SourceVariant,
@@ -60,18 +56,23 @@ from .resources import (
     ProviderReference,
     EntityReference,
     SourceReference,
-    ExecutorCredentials,
     ResourceRedefinedError,
     ResourceStatus,
     K8sArgs,
-    AWSCredentials,
-    GCPCredentials,
-    HDFSConfig,
     K8sResourceSpecs,
     FilePrefix,
     OnDemandFeatureVariant,
-    WeaviateConfig,
 )
+
+from .providers.credentials import ExecutorCredentials, AWSCredentials, GCPCredentials
+from .providers.configs.vectordbs import WeaviateConfig, PineconeConfig
+from .providers.configs.filestores import (
+    S3StoreConfig,
+    AzureFileStoreConfig,
+    GCSFileStoreConfig,
+    HDFSConfig,
+)
+
 from .search import search
 from .search_local import search_local
 from .sqlite_metadata import SQLiteMetadata
@@ -2182,16 +2183,13 @@ class Registrar:
             container_name=container_name,
             path=root_path,
         )
-        config = OnlineBlobConfig(
-            store_type="AZURE", store_config=azure_config.config()
-        )
 
         provider = Provider(
             name=name,
             function="ONLINE",
             description=description,
             team=team,
-            config=config,
+            config=azure_config,
             tags=tags,
             properties=properties,
         )
@@ -3816,7 +3814,13 @@ class ResourceClient:
     """
 
     def __init__(
-        self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
+        self,
+        host=None,
+        local=False,
+        insecure=False,
+        cert_path=None,
+        dry_run=False,
+        debug=False,
     ):
         # This line ensures that the warning is only raised if ResourceClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
@@ -3846,7 +3850,7 @@ class ResourceClient:
                 channel = insecure_channel(host)
             else:
                 channel = secure_channel(host, cert_path)
-            self._stub = ff_grpc.ApiStub(channel)
+            self._stub = StubExceptionWrapper(ff_grpc.ApiStub(channel), debug=debug)
             self._host = host
 
     def apply(self, asynchronous=False):
@@ -4036,16 +4040,13 @@ class ResourceClient:
                         json_creds=deserialized["Credentials"]["JSON"],
                     ),
                 )
-            elif x.type == "BLOB_ONLINE":
-                deserialized = json.loads(x.serialized_config)["Config"]
-                config = OnlineBlobConfig(
-                    store_type="BLOB_ONLINE",
-                    store_config=AzureFileStoreConfig(
-                        account_name=deserialized["AccountName"],
-                        account_key=deserialized["AccountKey"],
-                        container_name=deserialized["ContainerName"],
-                        path=deserialized["Path"],
-                    ).config(),
+            elif x.type == "AZURE":
+                deserialized = json.loads(x.serialized_config)
+                config = AzureFileStoreConfig(
+                    account_name=deserialized["AccountName"],
+                    account_key=deserialized["AccountKey"],
+                    container_name=deserialized["ContainerName"],
+                    path=deserialized["Path"],
                 )
             else:
                 raise Exception(f"Cannot get provider of type {x.type}")

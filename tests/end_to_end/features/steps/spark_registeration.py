@@ -32,9 +32,61 @@ def step_impl(context):
     context.client.apply()
 
 
+@when(
+    'I register "{storage_provider}" filestore with bucket "{bucket}" and root path "{root_path}"'
+)
+def step_impl(context, storage_provider, bucket, root_path):
+    from dotenv import load_dotenv
+
+    run = ff.get_run()
+
+    if root_path == "empty":
+        root_path = ""
+
+    context.filestore = storage_provider
+    if storage_provider == "azure":
+        context.storage_provider = ff.register_blob_store(
+            name=f"azure-{run}",
+            account_name=os.getenv("AZURE_ACCOUNT_NAME", None),
+            account_key=os.getenv("AZURE_ACCOUNT_KEY", None),
+            container_name=bucket,
+            path=root_path,
+        )
+
+    elif storage_provider == "s3":
+        context.storage_provider = ff.register_s3(
+            name=f"s3-{run}",
+            credentials=ff.AWSCredentials(
+                access_key=os.getenv("AWS_ACCESS_KEY_ID", None),
+                secret_key=os.getenv("AWS_SECRET_ACCESS_KEY", None),
+            ),
+            bucket_name=bucket,
+            bucket_region="us-east-2",
+            path=root_path,
+        )
+
+    elif storage_provider == "gcs":
+        context.storage_provider = ff.register_gcs(
+            name=f"gcs-{run}",
+            credentials=ff.GCPCredentials(
+                project_id=os.getenv("GCP_PROJECT_ID"),
+                credentials_path=os.getenv("GCP_CREDENTIALS_FILE"),
+            ),
+            bucket_name=bucket,
+            path=root_path,
+        )
+
+    else:
+        raise NotImplementedError(
+            f"Storage provider {storage_provider} is not implemented"
+        )
+
+
 @when("I register databricks")
 def step_impl(context):
     from dotenv import load_dotenv
+
+    run = ff.get_run()
 
     load_dotenv("../../.env")
     databricks = ff.DatabricksCredentials(
@@ -43,22 +95,15 @@ def step_impl(context):
         cluster_id=os.getenv("DATABRICKS_CLUSTER", None),
     )
 
-    azure_blob = ff.register_blob_store(
-        name="k8s",
-        account_name=os.getenv("AZURE_ACCOUNT_NAME", None),
-        account_key=os.getenv("AZURE_ACCOUNT_KEY", None),
-        container_name=os.getenv("AZURE_CONTAINER_NAME", None),
-        path="end_to_end_tests/behave",
-    )
-
+    name = f"databricks-{context.filestore}-{run}"
     spark = ff.register_spark(
-        name="spark",
+        name=name,
         description="A Spark deployment we created for the Featureform quickstart",
         team="featureform-team",
         executor=databricks,
-        filestore=azure_blob.config(),
+        filestore=context.storage_provider,
     )
-    context.spark_name = "test_spark"
+    context.spark_name = name
     try:
         context.spark = spark
         context.client.apply()
@@ -70,19 +115,22 @@ def step_impl(context):
 def step_impl(context):
     context.file = context.spark.register_file(
         name="transactions",
-        file_path=f"abfss://test@testingstoragegen.dfs.core.windows.net/{context.filename}",
+        file_path=context.cloud_file_path,
     )
     context.client.apply()
 
 
 @then("I should be able to pull the file as a dataframe")
 def step_impl(context):
-    df = context.client.dataframe(context.file)
+    try:
+        df = context.client.dataframe(context.file)
+    except Exception as e:
+        context.exception = e
+        return
     assert (
         len(df) == context.file_length
     ), f"Expected {context.file_length} rows, got {len(df)} rows"
-    print(len(df))
-    print(df)
+    context.exception = None
 
 
 @when("I register a transformation")

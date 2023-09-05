@@ -4,7 +4,7 @@ import pinecone
 import numpy as np
 
 from .online_store import VectorStoreTable, VectorStore, ValueType, VectorType
-from ..resources import PineconeConfig
+from .configs.vectordbs import PineconeConfig
 from ..enums import ScalarType
 
 

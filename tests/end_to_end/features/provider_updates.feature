@@ -9,7 +9,7 @@ Feature: Provider Updates
     And I register S3 with name "<repl_name>", bucket_name "<repl_bucket_path>", bucket_region "<repl_region>", path "<repl_path>"
     And I get the provider with name "<name>"
     Then the S3 provider should have bucket_name "<exp_bucket_name>", bucket_region "<exp_bucket_region>", path "<exp_path>", access key "<exp_access_key>" and secret key "<exp_secret_key>"
-    And An exception "<exception>" should be raised
+    And An exception that "matches" "<exception>" should be raised
 
     Examples: Base Case
       | name  | bucket_name | bucket_region | path    | access_key   | secret_key   | repl_name  | repl_bucket_path | repl_path   | repl_region  | repl_access_key   | repl_secret_key   | exp_bucket_name | exp_bucket_region | exp_path  | exp_access_key   |  exp_secret_key  |
@@ -42,7 +42,7 @@ Feature: Provider Updates
     And I register Blob Store with name "<name>", account_name "<repl_account_name>", account_key "<repl_account_key>", container_name "<repl_container_name>", path "<repl_path>"
     And I get the provider with name "<name>"
     Then The blob store provider with name <name> should have account_name "<exp_account_name>", account_key "<exp_account_key>", container_name "<exp_container_name>", path "<exp_path>"
-    And An exception "<exception>" should be raised
+    And An exception that "matches" "<exception>" should be raised
     Examples: Base Case
       | name | account_name | account_key | container_name | path | repl_account_name | repl_account_key | repl_container_name | repl_path | exp_account_name | exp_account_key | exp_container_name | exp_path | exception |
       | blob | account_name | account_key | container_name | path |  account_name     |  account_key     |  container_name     | path      | account_name     | account_key     | container_name     | path     | None      |
@@ -62,9 +62,6 @@ Feature: Provider Updates
     Examples: Change Container Path
       | name  | account_name | account_key | container_name | path | repl_account_name | repl_account_key | repl_container_name | repl_path | exp_account_name | exp_account_key | exp_container_name | exp_path | exception |
       | blob2 | account_name | account_key | container_name | path |  account_name     |  account_key     |  container_name     | path2      | account_name     | account_key     | container_name    | path     | None      |
-
-
-
 
 
   Scenario Outline: Rotate GCS Credentials

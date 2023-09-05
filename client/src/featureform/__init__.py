@@ -18,19 +18,18 @@ warnings.simplefilter("default")
 
 from .register import *
 from .serving import ServingClient
-from .resources import (
+from .providers.credentials import (
     DatabricksCredentials,
     EMRCredentials,
-    AWSCredentials,
-    GCPCredentials,
     SparkCredentials,
 )
+from .providers.credentials import AWSCredentials, GCPCredentials
+
 from .client import Client
 
 ServingClient = ServingClient
 ResourceClient = ResourceClient
 Client = Client
-
 
 # Executor Credentials
 DatabricksCredentials = DatabricksCredentials
@@ -46,7 +45,6 @@ Feature = FeatureColumnResource
 Label = LabelColumnResource
 Variants = Variants
 Embedding = EmbeddingColumnResource
-
 
 local = register_local()
 register_user("default_user").make_default_owner()

@@ -24,6 +24,7 @@ from pandasql import sqldf
 
 from . import progress_bar
 from .register import FeatureColumnResource
+from .exceptions import StubExceptionWrapper
 
 from .constants import NO_RECORD_LIMIT
 from .enums import FileFormat, ScalarType
@@ -71,7 +72,9 @@ class ServingClient:
     ```
     """
 
-    def __init__(self, host=None, local=False, insecure=False, cert_path=None):
+    def __init__(
+        self, host=None, local=False, insecure=False, cert_path=None, debug=False
+    ):
         # This line ensures that the warning is only raised if ServingClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
         is_instantiated_directed = inspect.stack()[1].function != "__init__"
@@ -92,7 +95,7 @@ class ServingClient:
         if local:
             self.impl = LocalClientImpl()
         else:
-            self.impl = HostedClientImpl(host, insecure, cert_path)
+            self.impl = HostedClientImpl(host, insecure, cert_path, debug=debug)
 
     def training_set(
         self,
@@ -147,7 +150,7 @@ class ServingClient:
 
 
 class HostedClientImpl:
-    def __init__(self, host=None, insecure=False, cert_path=None):
+    def __init__(self, host=None, insecure=False, cert_path=None, debug=False):
         host = host or os.getenv("FEATUREFORM_HOST")
         if host is None:
             raise ValueError(
@@ -156,7 +159,9 @@ class HostedClientImpl:
             )
         check_up_to_date(False, "serving")
         self._channel = self._create_channel(host, insecure, cert_path)
-        self._stub = serving_pb2_grpc.FeatureStub(self._channel)
+        self._stub = StubExceptionWrapper(
+            serving_pb2_grpc.FeatureStub(self._channel), debug=debug
+        )
 
     def _create_channel(self, host, insecure, cert_path):
         if insecure:

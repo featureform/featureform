@@ -4,7 +4,7 @@ Feature: Spark Credentials
     Given Featureform is installed
     When I create dummy "<cloud_provider>" credentials
     And I create EMR credentials with Cluster ID "<emr_cluster_id>", Region "<emr_cluster_region>"
-    Then An exception "<exception>" should be raised
+    Then An exception that "matches" "<exception>" should be raised
     Examples:
       | emr_cluster_id        | emr_cluster_region         | cloud_provider | exception     |
       |       DUMMYID         |         us-east-1          |      AWS       |     None      |
@@ -16,7 +16,7 @@ Feature: Spark Credentials
   Scenario Outline: Databricks Credentials
     Given Featureform is installed
     When I create Databricks credentials with username "<username>", password "<password>", host "<host>", token "<token>", cluster ID "<cluster_id>"
-    Then An exception "<exception>" should be raised
+    Then An exception that "matches" "<exception>" should be raised
     Examples:
       | username | password | host | token | cluster_id | exception |
       |   dummy  |   dummy  | empty| empty |   dummy    |   None   |
@@ -34,7 +34,7 @@ Feature: Spark Credentials
   Scenario Outline: Generic Credentials
     Given Featureform is installed
     When I create Generic Spark credentials with master "<master>", deploy mode "<deploy_mode>", python version "<python_version>", core site path "<core_site_path>", yarn site path "<yarn_site_path>"
-    Then An exception "<exception>" should be raised
+    Then An exception that "matches" "<exception>" should be raised
     Examples: Versions
       | master | deploy_mode | python_version | core_site_path | yarn_site_path | exception |
       |  local[*] |     Client   |      3.6     |      empty     |     empty       |   The Python version 3.6 is not supported. Currently, supported versions are 3.7-3.11.    |

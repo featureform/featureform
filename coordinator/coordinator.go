@@ -1026,7 +1026,7 @@ func (c *Coordinator) getJob(mtx *concurrency.Mutex, key string) (*metadata.Coor
 	responseData := response.Responses[0]
 	responseKVs := responseData.GetResponseRange().GetKvs()
 	if len(responseKVs) == 0 {
-		return nil, &JobDoesNotExistError{key: key}
+		return nil, JobDoesNotExistError{key: key}
 	}
 	responseValue := responseKVs[0].Value //Only single response for single key
 	job := &metadata.CoordinatorJob{}

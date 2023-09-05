@@ -133,20 +133,21 @@ def step_impl(
         context.filestore.name() == name
     ), f"Expected name '{name}' but got '{context.filestore.name()}'"
     assert (
-        context.filestore.store_type() == "BLOB_ONLINE"
-    ), f"Expected store_type 'BLOB_ONLINE' but got '{context.filestore.store_type()}'"
+        context.filestore.store_type() == "AZURE"
+    ), f"Expected store_type 'AZURE' but got '{context.filestore.store_type()}'"
+
     # TODO: This really weird
-    config = context.filestore.config().config()
+    config = context.filestore.config()
     print(config)
     assert (
-        config["AccountName"] == exp_account_name
-    ), f"Expected account_name '{exp_account_name}' but got '{config['AccountName']}'"
+        config.account_name == exp_account_name
+    ), f"Expected account_name '{exp_account_name}' but got '{config.account_name}'"
     assert (
-        config["AccountKey"] == exp_account_key
-    ), f"Expected account_key '{exp_account_key}' but got '{config['AccountKey']}'"
+        config.account_key == exp_account_key
+    ), f"Expected account_key '{exp_account_key}' but got '{config.account_key}'"
     assert (
-        config["ContainerName"] == exp_container_name
-    ), f"Expected container_name '{exp_container_name}' but got '{config['ContainerName']}'"
+        config.container_name == exp_container_name
+    ), f"Expected container_name '{exp_container_name}' but got '{config.container_name}'"
     assert (
-        config["Path"] == exp_path
-    ), f"Expected path '{exp_path}' but got '{config['Path']}'"
+        config.path == exp_path
+    ), f"Expected path '{exp_path}' but got '{config.path}'"

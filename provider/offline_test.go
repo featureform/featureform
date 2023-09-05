@@ -211,17 +211,17 @@ func TestOfflineStores(t *testing.T) {
 		"MaterializeUnknown":      testMaterializeUnknown,
 		"MaterializationNotFound": testMaterializationNotFound,
 
-		// "TrainingSets": testTrainingSet,
-		// "TrainingSetUpdate":       testTrainingSetUpdate,
-		//"TrainingSetLag":          testLagFeaturesTrainingSet,
+		"TrainingSets":      testTrainingSet,
+		"TrainingSetUpdate": testTrainingSetUpdate,
+		"TrainingSetLag":    testLagFeaturesTrainingSet,
 
 		"TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID,
-		"GetUnknownTrainingSet":  testGetUnkonwnTrainingSet,
+		"GetUnknownTrainingSet":  testGetUnknownTrainingSet,
 		"InvalidTrainingSetDefs": testInvalidTrainingSetDefs,
 		"LabelTableNotFound":     testLabelTableNotFound,
 		"FeatureTableNotFound":   testFeatureTableNotFound,
 
-		//"TrainingDefShorthand": testTrainingSetDefShorthand,
+		"TrainingDefShorthand": testTrainingSetDefShorthand,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
 		"PrimaryTableCreate":              testPrimaryCreateTable,
@@ -1134,8 +1134,23 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 				// One feature with no records.
 				{},
 			},
-			LabelRecords:  []ResourceRecord{},
-			FeatureSchema: []TableSchema{{}},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+			},
+			LabelRecords: []ResourceRecord{},
+			LabelSchema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "value", ValueType: Int},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			},
 			// No rows expected
 			ExpectedRows: []expectedTrainingRow{},
 		},
@@ -1157,14 +1172,12 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: Int},
-						{Name: "label", ValueType: Bool},
 					},
 				},
 				{
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: String},
-						{Name: "label", ValueType: Bool},
 					},
 				},
 			},
@@ -1236,29 +1249,35 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: Int},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{},
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 			},
@@ -1272,6 +1291,7 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 				Columns: []TableColumn{
 					{Name: "entity", ValueType: String},
 					{Name: "value", ValueType: Int},
+					{Name: "ts", ValueType: Timestamp},
 				},
 			},
 			ExpectedRows: []expectedTrainingRow{
@@ -1413,9 +1433,22 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 				// One feature with no records.
 				{},
 			},
+			FeatureSchema: []TableSchema{{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "value", ValueType: Int},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			}},
 			LabelRecords:        []ResourceRecord{},
 			UpdatedLabelRecords: []ResourceRecord{},
-			FeatureSchema:       []TableSchema{{}},
+			LabelSchema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "value", ValueType: Int},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			},
 			// No rows expected
 			ExpectedRows:        []expectedTrainingRow{},
 			UpdatedExpectedRows: []expectedTrainingRow{},
@@ -1446,14 +1479,12 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: Int},
-						{Name: "label", ValueType: Bool},
 					},
 				},
 				{
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: String},
-						{Name: "label", ValueType: Bool},
 					},
 				},
 			},
@@ -1578,23 +1609,28 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{},
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 			},
@@ -1609,6 +1645,7 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 				Columns: []TableColumn{
 					{Name: "entity", ValueType: String},
 					{Name: "value", ValueType: Int},
+					{Name: "ts", ValueType: Timestamp},
 				},
 			},
 			ExpectedRows: []expectedTrainingRow{
@@ -1798,7 +1835,7 @@ func testGetTrainingSetInvalidResourceID(t *testing.T, store OfflineStore) {
 	}
 }
 
-func testGetUnkonwnTrainingSet(t *testing.T, store OfflineStore) {
+func testGetUnknownTrainingSet(t *testing.T, store OfflineStore) {
 	// This should default to TrainingSet
 	id := randomID(NoType)
 	if _, err := store.GetTrainingSet(id); err == nil {
@@ -3683,7 +3720,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: Int},
-						{Name: "label", ValueType: Bool},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 			},
@@ -3706,6 +3743,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 				Columns: []TableColumn{
 					{Name: "entity", ValueType: String},
 					{Name: "value", ValueType: Bool},
+					{Name: "ts", ValueType: Timestamp},
 				},
 			},
 			ExpectedRows: []expectedTrainingRow{
@@ -3745,6 +3783,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: Int},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 			},
@@ -3775,6 +3814,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 				Columns: []TableColumn{
 					{Name: "entity", ValueType: String},
 					{Name: "value", ValueType: Int},
+					{Name: "ts", ValueType: Timestamp},
 				},
 			},
 			ExpectedRows: []expectedTrainingRow{
@@ -3854,7 +3894,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 			}
 
 			// Row order isn't guaranteed, we make sure one row is equivalent
-			// then we delete that row. This is ineffecient, but these test
+			// then we delete that row. This is inefficient, but these test
 			// cases should all be small enough not to matter.
 			found := false
 			for i, expRow := range expectedRows {

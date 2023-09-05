@@ -6,9 +6,10 @@ import sys
 import json
 import time
 import base64
+from abc import ABC
 from enum import Enum
 from typeguard import typechecked
-from typing import List, Tuple, Union, Optional
+from typing import List, Tuple, Union, Optional, Dict
 
 import dill
 import grpc
@@ -22,7 +23,6 @@ from .exceptions import *
 from .enums import *
 
 NameVariant = Tuple[str, str]
-
 
 # Constants for Pyspark Versions
 MAJOR_VERSION = "3"
@@ -558,6 +558,7 @@ class PostgresConfig:
     database: str
     user: str
     password: str
+    sslmode: str
 
     def software(self) -> str:
         return "postgres"
@@ -572,6 +573,7 @@ class PostgresConfig:
             "Username": self.user,
             "Password": self.password,
             "Database": self.database,
+            "SSLMode": self.sslmode,
         }
         return bytes(json.dumps(config), "utf-8")
 
@@ -772,8 +774,8 @@ class Provider:
     config: Config
     function: str
     status: str = "NO_STATUS"
-    tags: list = None
-    properties: dict = None
+    tags: list = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
     error: Optional[str] = None
 
     def __post_init__(self):
@@ -844,13 +846,27 @@ class Provider:
                 return False
         return True
 
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "description": self.description,
+            "team": self.team,
+            "config": "todox",
+            "function": "todox",
+            "status": self.status,
+            "tags": self.tags,
+            "properties": self.properties,
+            "error": self.error,
+        }
+
 
 @typechecked
 @dataclass
 class User:
     name: str
-    tags: list
-    properties: dict
+    status: str = ""
+    tags: list = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -879,6 +895,14 @@ class User:
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "status": self.status,
+            "tags": self.tags,
+            "properties": self.properties,
+        }
 
 
 @typechecked
@@ -949,6 +973,7 @@ class DFTransformation(Transformation):
     query: bytes
     inputs: list
     args: K8sArgs = None
+    source_text: str = ""
 
     def type(self):
         return SourceType.DF_TRANSFORMATION.value
@@ -958,6 +983,7 @@ class DFTransformation(Transformation):
             DFTransformation=pb.DFTransformation(
                 query=self.query,
                 inputs=[pb.NameVariant(name=v[0], variant=v[1]) for v in self.inputs],
+                source_text=self.source_text,
             )
         )
 
@@ -974,6 +1000,21 @@ SourceDefinition = Union[PrimaryData, Transformation, str]
 @dataclass
 class Source:
     name: str
+    default_variant: str
+    variants: List[str]
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "default_variant": self.default_variant,
+            "variants": self.variants,
+        }
+
+
+@typechecked
+@dataclass
+class SourceVariant:
+    name: str
     definition: SourceDefinition
     owner: str
     provider: str
@@ -981,11 +1022,14 @@ class Source:
     tags: list
     properties: dict
     variant: str
-    status: str = "NO_STATUS"
+    created: str = None
+    status: str = "ready"  # this is no status by default but it always stores ready
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
-
+    source_text: str = ""
+    source_type: str = ""
+    transformation: str = ""
     inputs = ([],)
     error: Optional[str] = None
 
@@ -1011,7 +1055,8 @@ class Source:
         source = next(stub.GetSourceVariants(iter([name_variant])))
         definition = self._get_source_definition(source)
 
-        return Source(
+        return SourceVariant(
+            created=None,
             name=source.name,
             definition=definition,
             owner=source.owner,
@@ -1038,6 +1083,7 @@ class Source:
             return DFTransformation(
                 query=transformation.query,
                 inputs=[(input.name, input.variant) for input in transformation.inputs],
+                source_text=transformation.source_text,
             )
         elif source.transformation.SQLTransformation.query != "":
             return SQLTransformation(source.transformation.SQLTransformation.query)
@@ -1047,6 +1093,7 @@ class Source:
     def _create(self, stub) -> None:
         defArgs = self.definition.kwargs()
         serialized = pb.SourceVariant(
+            created=None,
             name=self.name,
             variant=self.variant,
             owner=self.owner,
@@ -1060,10 +1107,15 @@ class Source:
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
+        should_insert_text = False
+        source_text = ""
         if type(self.definition) == DFTransformation:
+            should_insert_text = True
             self.is_transformation = SourceType.DF_TRANSFORMATION.value
+            source_text = self.definition.source_text
             self.inputs = self.definition.inputs
             self.definition = self.definition.query
+            self.source_text = source_text
         elif type(self.definition) == SQLTransformation:
             self.is_transformation = SourceType.SQL_TRANSFORMATION.value
             self.definition = self.definition.query
@@ -1078,7 +1130,6 @@ class Source:
                 raise ValueError(
                     f"Invalid Primary Data Type {self.definition.location}"
                 )
-
         db.insert_source(
             "source_variant",
             str(time.time()),
@@ -1093,6 +1144,12 @@ class Source:
             json.dumps(self.inputs),
             self.definition,
         )
+
+        if should_insert_text:
+            db.insert_source_variant_text(
+                str(time.time()), self.name, self.variant, source_text
+            )
+
         if len(self.tags):
             db.upsert(
                 "tags", self.name, self.variant, "source_variant", json.dumps(self.tags)
@@ -1128,8 +1185,9 @@ class Source:
 class Entity:
     name: str
     description: str
-    tags: list
-    properties: dict
+    status: str = "NO_STATUS"
+    tags: list = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -1163,6 +1221,15 @@ class Entity:
                 return False
         return True
 
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "description": self.description,
+            "status": self.status,
+            "tags": self.tags,
+            "properties": self.properties,
+        }
+
 
 @typechecked
 @dataclass
@@ -1186,6 +1253,21 @@ ResourceLocation = ResourceColumnMapping
 @dataclass
 class Feature:
     name: str
+    default_variant: str
+    variants: List[str]
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "default_variant": self.default_variant,
+            "variants": self.variants,
+        }
+
+
+@typechecked
+@dataclass
+class FeatureVariant:
+    name: str
     source: NameVariant
     value_type: str
     entity: str
@@ -1194,6 +1276,7 @@ class Feature:
     location: ResourceLocation
     description: str
     variant: str
+    created: str = None
     is_embedding: bool = False
     dims: int = 0
     tags: list = None
@@ -1227,11 +1310,12 @@ class Feature:
     def type() -> str:
         return "feature"
 
-    def get(self, stub) -> "Feature":
+    def get(self, stub) -> "FeatureVariant":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
         feature = next(stub.GetFeatureVariants(iter([name_variant])))
 
-        return Feature(
+        return FeatureVariant(
+            created=None,
             name=feature.name,
             variant=feature.variant,
             source=(feature.source.name, feature.source.variant),
@@ -1342,7 +1426,7 @@ class Feature:
 
 @typechecked
 @dataclass
-class OnDemandFeature:
+class OnDemandFeatureVariant:
     owner: str
     variant: str
     tags: List[str] = field(default_factory=list)
@@ -1437,11 +1521,11 @@ class OnDemandFeature:
             is_on_demand,
         )
 
-    def get(self, stub) -> "OnDemandFeature":
+    def get(self, stub) -> "OnDemandFeatureVariant":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
         ondemand_feature = next(stub.GetFeatureVariants(iter([name_variant])))
 
-        return OnDemandFeature(
+        return OnDemandFeatureVariant(
             name=ondemand_feature.name,
             variant=ondemand_feature.variant,
             owner=ondemand_feature.owner,
@@ -1471,6 +1555,21 @@ class OnDemandFeature:
 @dataclass
 class Label:
     name: str
+    default_variant: str
+    variants: List[str]
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "default_variant": self.default_variant,
+            "variants": self.variants,
+        }
+
+
+@typechecked
+@dataclass
+class LabelVariant:
+    name: str
     source: NameVariant
     value_type: str
     entity: str
@@ -1481,6 +1580,7 @@ class Label:
     properties: dict
     location: ResourceLocation
     variant: str
+    created: str = None
     status: str = "NO_STATUS"
     error: Optional[str] = None
 
@@ -1499,11 +1599,11 @@ class Label:
     def type() -> str:
         return "label"
 
-    def get(self, stub) -> "Label":
+    def get(self, stub) -> "LabelVariant":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
         label = next(stub.GetLabelVariants(iter([name_variant])))
 
-        return Label(
+        return LabelVariant(
             name=label.name,
             variant=label.variant,
             source=(label.source.name, label.source.variant),
@@ -1651,7 +1751,7 @@ class ProviderReference:
 class SourceReference:
     name: str
     variant: str
-    obj: Union[Source, None]
+    obj: Union[SourceVariant, None]
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -1682,14 +1782,30 @@ class SourceReference:
 @dataclass
 class TrainingSet:
     name: str
+    default_variant: str
+    variants: List[str]
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "default_variant": self.default_variant,
+            "variants": self.variants,
+        }
+
+
+@typechecked
+@dataclass
+class TrainingSetVariant:
+    name: str
     owner: str
     label: NameVariant
     features: List[NameVariant]
     description: str
     variant: str
     feature_lags: list = field(default_factory=list)
-    tags: list = None
-    properties: dict = None
+    tags: list = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
+    created: str = None
     schedule: str = ""
     schedule_obj: Schedule = None
     provider: str = ""
@@ -1726,7 +1842,8 @@ class TrainingSet:
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
         ts = next(stub.GetTrainingSetVariants(iter([name_variant])))
 
-        return TrainingSet(
+        return TrainingSetVariant(
+            created=None,
             name=ts.name,
             variant=ts.variant,
             owner=ts.owner,
@@ -1755,6 +1872,7 @@ class TrainingSet:
             feature_lags.append(feature_lag)
 
         serialized = pb.TrainingSetVariant(
+            created=None,
             name=self.name,
             variant=self.variant,
             description=self.description,
@@ -1878,8 +1996,9 @@ class TrainingSet:
 @dataclass
 class Model:
     name: str
-    tags: list
-    properties: dict
+    description: str = ""
+    tags: list = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -1916,22 +2035,30 @@ class Model:
                 return False
         return True
 
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "description": self.description,
+            "tags": self.tags,
+            "properties": self.properties,
+        }
+
 
 Resource = Union[
     PrimaryData,
     Provider,
     Entity,
     User,
-    Feature,
-    Label,
-    TrainingSet,
-    Source,
+    FeatureVariant,
+    LabelVariant,
+    TrainingSetVariant,
+    SourceVariant,
     Schedule,
     ProviderReference,
     SourceReference,
     EntityReference,
     Model,
-    OnDemandFeature,
+    OnDemandFeatureVariant,
 ]
 
 
@@ -2009,7 +2136,7 @@ class ResourceState:
         check_up_to_date(True, "register")
         features = []
         for resource in self.sorted_list():
-            if isinstance(resource, Feature):
+            if isinstance(resource, FeatureVariant):
                 features.append(resource)
             resource_variant = (
                 f" {resource.variant}" if hasattr(resource, "variant") else ""
@@ -2307,6 +2434,23 @@ class SparkCredentials:
             "PythonVersion": self.python_version,
             "CoreSite": core_site,
             "YarnSite": yarn_site,
+        }
+
+
+@typechecked
+@dataclass
+class TrainingSetFeatures:
+    training_set_name: str
+    training_set_variant: str
+    feature_name: str
+    feature_variant: str
+
+    def to_dictionary(self):
+        return {
+            "training_set_name": self.training_set_name,
+            "training_set_variant": self.training_set_variant,
+            "feature_name": self.feature_name,
+            "feature_variant": self.feature_variant,
         }
 
 

@@ -45,17 +45,17 @@ from .resources import (
     GCSFileStoreConfig,
     User,
     Location,
-    Source,
+    SourceVariant,
     PrimaryData,
     SQLTable,
     Directory,
     SQLTransformation,
     DFTransformation,
     Entity,
-    Feature,
-    Label,
+    FeatureVariant,
+    LabelVariant,
     ResourceColumnMapping,
-    TrainingSet,
+    TrainingSetVariant,
     ProviderReference,
     EntityReference,
     SourceReference,
@@ -68,7 +68,7 @@ from .resources import (
     HDFSConfig,
     K8sResourceSpecs,
     FilePrefix,
-    OnDemandFeature,
+    OnDemandFeatureVariant,
     WeaviateConfig,
 )
 from .search import search
@@ -1104,8 +1104,9 @@ class SQLTransformationDecorator:
             raise ValueError("Query cannot be an empty string")
         self.query = add_variant_to_name(query, self.run)
 
-    def to_source(self) -> Source:
-        return Source(
+    def to_source(self) -> SourceVariant:
+        return SourceVariant(
+            created=None,
             name=self.name,
             variant=self.variant,
             definition=SQLTransformation(self.query, self.args),
@@ -1159,6 +1160,7 @@ class DFTransformationDecorator:
         description: str = "",
         inputs: list = [],
         args: Union[K8sArgs, None] = None,
+        source_text: str = "",
     ):
         self.registrar = registrar
         self.name = name
@@ -1171,6 +1173,7 @@ class DFTransformationDecorator:
         self.properties = properties
         self.variant = variant
         self.query = b""
+        self.source_text = source_text
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:
@@ -1187,6 +1190,7 @@ class DFTransformationDecorator:
                     f"Transformation cannot be input for itself: {self.name} {self.variant}"
                 )
         self.query = dill.dumps(fn.__code__)
+        self.source_text = dill.source.getsource(fn)
         return SubscriptableTransformation(
             fn,
             self.registrar,
@@ -1195,11 +1199,17 @@ class DFTransformationDecorator:
             self.name_variant,
         )
 
-    def to_source(self) -> Source:
-        return Source(
+    def to_source(self) -> SourceVariant:
+        return SourceVariant(
+            created=None,
             name=self.name,
             variant=self.variant,
-            definition=DFTransformation(self.query, self.inputs, self.args),
+            definition=DFTransformation(
+                query=self.query,
+                inputs=self.inputs,
+                args=self.args,
+                source_text=self.source_text,
+            ),
             owner=self.owner,
             provider=self.provider,
             description=self.description,
@@ -1635,7 +1645,7 @@ class Registrar:
         Returns:
             UserRegistrar: User
         """
-        user = User(name, tags, properties)
+        user = User(name=name, tags=tags, properties=properties)
         self.__resources.append(user)
         return UserRegistrar(self, user)
 
@@ -1768,8 +1778,6 @@ class Registrar:
         Returns:
             source (ColumnSourceRegistrar): Source
         """
-        get = SourceReference(name=name, variant=variant, obj=None)
-        self.__resources.append(get)
         if local:
             return LocalSource(
                 self,
@@ -1781,31 +1789,30 @@ class Registrar:
                 path="",
             )
         else:
-            fakeDefinition = PrimaryData(location=SQLTable(name=""))
-            fakeSource = Source(
+            mock_definition = PrimaryData(location=SQLTable(name=""))
+            mock_source = SourceVariant(
+                created=None,
                 name=name,
                 variant=variant,
-                definition=fakeDefinition,
+                definition=mock_definition,
                 owner="",
                 provider="",
                 description="",
                 tags=[],
                 properties={},
             )
-            return ColumnSourceRegistrar(self, fakeSource)
+            return ColumnSourceRegistrar(self, mock_source)
 
     def get_local_provider(self, name="local-mode"):
-        get = ProviderReference(name=name, provider_type="local", obj=None)
-        self.__resources.append(get)
-        fakeConfig = LocalConfig()
-        fakeProvider = Provider(
+        mock_config = LocalConfig()
+        mock_provider = Provider(
             name=name,
             function="LOCAL_ONLINE",
             description="",
             team="",
-            config=fakeConfig,
+            config=mock_config,
         )
-        return LocalProvider(self, fakeProvider)
+        return LocalProvider(self, mock_provider)
 
     def get_redis(self, name):
         """Get a Redis provider. The returned object can be used to register additional resources.
@@ -1829,15 +1836,13 @@ class Registrar:
         Returns:
             redis (OnlineProvider): Provider
         """
-        get = ProviderReference(name=name, provider_type="redis", obj=None)
-        self.__resources.append(get)
-        fakeConfig = RedisConfig(host="", port=123, password="", db=123)
-        fakeProvider = Provider(
-            name=name, function="ONLINE", description="", team="", config=fakeConfig
+        mock_config = RedisConfig(host="", port=123, password="", db=123)
+        mock_provider = Provider(
+            name=name, function="ONLINE", description="", team="", config=mock_config
         )
-        return OnlineProvider(self, fakeProvider)
+        return OnlineProvider(self, mock_provider)
 
-    def get_mongodb(self, name):
+    def get_mongodb(self, name: str):
         """Get a MongoDB provider. The returned object can be used to register additional resources.
 
         **Examples**:
@@ -1859,9 +1864,9 @@ class Registrar:
         Returns:
             mongodb (OnlineProvider): Provider
         """
-        get = ProviderReference(name=name, provider_type="mongodb", obj=None)
-        self.__resources.append(get)
-        mock_config = MongoDBConfig()
+        mock_config = MongoDBConfig(
+            username="", password="", host="", port="", database="", throughput=1
+        )
         mock_provider = Provider(
             name=name, function="ONLINE", description="", team="", config=mock_config
         )
@@ -1889,18 +1894,16 @@ class Registrar:
         Returns:
             azure_blob (FileStoreProvider): Provider
         """
-        get = ProviderReference(name=name, provider_type="AZURE", obj=None)
-        self.__resources.append(get)
         fake_azure_config = AzureFileStoreConfig(
             account_name="", account_key="", container_name="", root_path=""
         )
         fake_config = OnlineBlobConfig(
             store_type="AZURE", store_config=fake_azure_config.config()
         )
-        fakeProvider = Provider(
+        mock_provider = Provider(
             name=name, function="ONLINE", description="", team="", config=fake_config
         )
-        return FileStoreProvider(self, fakeProvider, fake_config, "AZURE")
+        return FileStoreProvider(self, mock_provider, fake_config, "AZURE")
 
     def get_postgres(self, name):
         """Get a Postgres provider. The returned object can be used to register additional resources.
@@ -1921,13 +1924,18 @@ class Registrar:
         Returns:
             postgres (OfflineSQLProvider): Provider
         """
-        get = ProviderReference(name=name, provider_type="postgres", obj=None)
-        self.__resources.append(get)
-        fakeConfig = PostgresConfig(host="", port="", database="", user="", password="")
-        fakeProvider = Provider(
-            name=name, function="OFFLINE", description="", team="", config=fakeConfig
+        mock_config = PostgresConfig(
+            host="",
+            port="",
+            database="",
+            user="",
+            password="",
+            sslmode="",
         )
-        return OfflineSQLProvider(self, fakeProvider)
+        mock_provider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=mock_config
+        )
+        return OfflineSQLProvider(self, mock_provider)
 
     def get_snowflake(self, name):
         """Get a Snowflake provider. The returned object can be used to register additional resources.
@@ -1948,9 +1956,7 @@ class Registrar:
         Returns:
             snowflake (OfflineSQLProvider): Provider
         """
-        get = ProviderReference(name=name, provider_type="snowflake", obj=None)
-        self.__resources.append(get)
-        fakeConfig = SnowflakeConfig(
+        mock_config = SnowflakeConfig(
             account="ff_fake",
             database="ff_fake",
             organization="ff_fake",
@@ -1958,10 +1964,10 @@ class Registrar:
             password="ff_fake",
             schema="ff_fake",
         )
-        fakeProvider = Provider(
-            name=name, function="OFFLINE", description="", team="", config=fakeConfig
+        mock_provider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=mock_config
         )
-        return OfflineSQLProvider(self, fakeProvider)
+        return OfflineSQLProvider(self, mock_provider)
 
     def get_snowflake_legacy(self, name: str):
         """Get a Snowflake provider. The returned object can be used to register additional resources.
@@ -1982,10 +1988,7 @@ class Registrar:
         Returns:
             snowflake_legacy (OfflineSQLProvider): Provider
         """
-        get = ProviderReference(name=name, provider_type="snowflake", obj=None)
-        self.__resources.append(get)
-
-        fakeConfig = SnowflakeConfig(
+        mock_config = SnowflakeConfig(
             account_locator="ff_fake",
             database="ff_fake",
             username="ff_fake",
@@ -1994,10 +1997,10 @@ class Registrar:
             warehouse="ff_fake",
             role="ff_fake",
         )
-        fakeProvider = Provider(
-            name=name, function="OFFLINE", description="", team="", config=fakeConfig
+        mock_provider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=mock_config
         )
-        return OfflineSQLProvider(self, fakeProvider)
+        return OfflineSQLProvider(self, mock_provider)
 
     def get_redshift(self, name):
         """Get a Redshift provider. The returned object can be used to register additional resources.
@@ -2018,13 +2021,13 @@ class Registrar:
         Returns:
             redshift (OfflineSQLProvider): Provider
         """
-        get = ProviderReference(name=name, provider_type="redshift", obj=None)
-        self.__resources.append(get)
-        fakeConfig = RedshiftConfig(host="", port="", database="", user="", password="")
-        fakeProvider = Provider(
-            name=name, function="OFFLINE", description="", team="", config=fakeConfig
+        mock_config = RedshiftConfig(
+            host="", port="", database="", user="", password=""
         )
-        return OfflineSQLProvider(self, fakeProvider)
+        mock_provider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=mock_config
+        )
+        return OfflineSQLProvider(self, mock_provider)
 
     def get_bigquery(self, name):
         """Get a BigQuery provider. The returned object can be used to register additional resources.
@@ -2045,13 +2048,11 @@ class Registrar:
         Returns:
             bigquery (OfflineSQLProvider): Provider
         """
-        get = ProviderReference(name=name, provider_type="bigquery", obj=None)
-        self.__resources.append(get)
-        fakeConfig = BigQueryConfig(project_id="", dataset_id="", credentials_path="")
-        fakeProvider = Provider(
-            name=name, function="OFFLINE", description="", team="", config=fakeConfig
+        mock_config = BigQueryConfig(project_id="", dataset_id="", credentials_path="")
+        mock_provider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=mock_config
         )
-        return OfflineSQLProvider(self, fakeProvider)
+        return OfflineSQLProvider(self, mock_provider)
 
     def get_spark(self, name):
         """Get a Spark provider. The returned object can be used to register additional resources.
@@ -2070,15 +2071,13 @@ class Registrar:
         Returns:
             spark (OfflineSQLProvider): Provider
         """
-        get = ProviderReference(name=name, provider_type="spark", obj=None)
-        self.__resources.append(get)
-        fakeConfig = SparkConfig(
+        mock_config = SparkConfig(
             executor_type="", executor_config={}, store_type="", store_config={}
         )
-        fakeProvider = Provider(
-            name=name, function="OFFLINE", description="", team="", config=fakeConfig
+        mock_provider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=mock_config
         )
-        return OfflineSparkProvider(self, fakeProvider)
+        return OfflineSparkProvider(self, mock_provider)
 
     def get_kubernetes(self, name):
         """
@@ -2099,14 +2098,11 @@ class Registrar:
         Returns:
             k8s_azure (OfflineK8sProvider): Provider
         """
-        get = ProviderReference(name=name, provider_type="k8s-azure", obj=None)
-        self.__resources.append(get)
-
-        fakeConfig = K8sConfig(store_type="", store_config={})
-        fakeProvider = Provider(
-            name=name, function="OFFLINE", description="", team="", config=fakeConfig
+        mock_config = K8sConfig(store_type="", store_config={})
+        mock_provider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=mock_config
         )
-        return OfflineK8sProvider(self, fakeProvider)
+        return OfflineK8sProvider(self, mock_provider)
 
     def get_s3(self, name):
         """
@@ -2128,44 +2124,36 @@ class Registrar:
         Returns:
             s3 (FileStore): Provider
         """
-        get = ProviderReference(name=name, provider_type="S3", obj=None)
-        self.__resources.append(get)
-
-        fake_creds = AWSCredentials("id", "secret")
-        fakeConfig = S3StoreConfig(
-            bucket_path="", bucket_region="", credentials=fake_creds
-        )
         provider = Provider(
             name=name,
             function="OFFLINE",
-            description=description,
-            team=team,
+            description="description",
+            team="team",
             config=s3_config,
         )
-        return FileStoreProvider(provider, s3_config, s3_config.type())
+        return FileStoreProvider(
+            registrar=self,
+            provider=provider,
+            config=s3_config,
+            store_type=s3_config.type(),
+        )
 
     def get_gcs(self, name):
-        get = ProviderReference(name=name, provider_type="GCS", obj=None)
-        self.__resources.append(get)
-
-        filename = "fake_secrets.json"
-        if not exists(filename):
-            self._create_mock_creds_file(filename, {"test": "creds"})
-
-        fake_creds = GCPCredentials("id", filename)
-        fakeConfig = GCSStoreConfig(
+        filePath = "provider/connection/mock_credentials.json"
+        fake_creds = GCPCredentials(project_id="id", credentials_path=filePath)
+        mock_config = GCSFileStoreConfig(
             bucket_name="", bucket_path="", credentials=fake_creds
         )
-        fakeProvider = Provider(
-            name=name, function="OFFLINE", description="", team="", config=fakeConfig
+        mock_provider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=mock_config
         )
-        return OfflineK8sProvider(self, fakeProvider)
+        return OfflineK8sProvider(self, mock_provider)
 
     def _create_mock_creds_file(self, filename, json_data):
         with open(filename, "w") as f:
             json.dumps(json_data, f)
 
-    def get_entity(self, name, local=False):
+    def get_entity(self, name, is_local=False):
         """Get an entity. The returned object can be used to register additional resources.
 
         **Examples**:
@@ -2186,9 +2174,9 @@ class Registrar:
         Returns:
             entity (EntityRegistrar): Entity
         """
-        get = EntityReference(name=name, obj=None)
-        self.__resources.append(get)
-        fakeEntity = Entity(name=name, description="")
+        fakeEntity = Entity(
+            name=name, description="", status="", tags=[], properties={}
+        )
         return EntityRegistrar(self, fakeEntity)
 
     def register_redis(
@@ -2987,6 +2975,7 @@ class Registrar:
         database: str,
         description: str = "",
         team: str = "",
+        sslmode: str = "disable",
         tags: List[str] = None,
         properties: dict = None,
     ):
@@ -3012,6 +3001,7 @@ class Registrar:
             user (str): (Mutable) User
             password (str): (Mutable) Password
             database (str): (Immutable) Database
+            sslmode (str): (Mutable) SSL mode
             description (str): (Mutable) Description of Postgres provider to be registered
             team (str): (Mutable) Name of team
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
@@ -3022,7 +3012,12 @@ class Registrar:
         """
         tags, properties = set_tags_properties(tags, properties)
         config = PostgresConfig(
-            host=host, port=port, database=database, user=user, password=password
+            host=host,
+            port=port,
+            database=database,
+            user=user,
+            password=password,
+            sslmode=sslmode,
         )
         provider = Provider(
             name=name,
@@ -3318,7 +3313,8 @@ class Registrar:
             variant = self.__run
         if not isinstance(provider, str):
             provider = provider.name()
-        source = Source(
+        source = SourceVariant(
+            created=None,
             name=name,
             variant=variant,
             definition=PrimaryData(location=location),
@@ -3369,7 +3365,8 @@ class Registrar:
             variant = self.__run
         if not isinstance(provider, str):
             provider = provider.name()
-        source = Source(
+        source = SourceVariant(
+            created=None,
             name=name,
             variant=variant,
             definition=SQLTransformation(query, args),
@@ -3479,7 +3476,8 @@ class Registrar:
         for i, nv in enumerate(inputs):
             if not isinstance(nv, tuple):
                 inputs[i] = nv.name_variant()
-        source = Source(
+        source = SourceVariant(
+            created=None,
             name=name,
             variant=variant,
             definition=DFTransformation(query, inputs, args),
@@ -3627,7 +3625,7 @@ class Registrar:
             owner = self.must_get_default_owner()
         if variant == "":
             variant = self.__run
-        decorator = OnDemandFeature(
+        decorator = OnDemandFeatureVariant(
             name=name,
             variant=variant,
             owner=owner,
@@ -3736,7 +3734,11 @@ class Registrar:
             entity (EntityRegistrar): Entity
         """
         entity = Entity(
-            name=name, description=description, tags=tags, properties=properties
+            name=name,
+            description=description,
+            status="",
+            tags=tags,
+            properties=properties,
         )
         self.__resources.append(entity)
         return EntityRegistrar(self, entity)
@@ -3816,7 +3818,8 @@ class Registrar:
             desc = feature.get("description", "")
             feature_tags = feature.get("tags", [])
             feature_properties = feature.get("properties", {})
-            resource = Feature(
+            resource = FeatureVariant(
+                created=None,
                 name=feature["name"],
                 variant=variant,
                 source=source,
@@ -3854,7 +3857,7 @@ class Registrar:
             desc = label.get("description", "")
             label_tags = label.get("tags", [])
             label_properties = label.get("properties", {})
-            resource = Label(
+            resource = LabelVariant(
                 name=label["name"],
                 variant=variant,
                 source=source,
@@ -4016,7 +4019,8 @@ class Registrar:
             elif isinstance(feature, FeatureColumnResource):
                 feature = feature.name_variant()
             processed_features.append(feature)
-        resource = TrainingSet(
+        resource = TrainingSetVariant(
+            created=None,
             name=name,
             variant=variant,
             description=description,
@@ -4043,7 +4047,7 @@ class Registrar:
         Returns:
             ModelRegistrar: Model
         """
-        model = Model(name, tags=tags, properties=properties)
+        model = Model(name, description="", tags=tags, properties=properties)
         self.__resources.append(model)
         return model
 
@@ -4123,6 +4127,7 @@ class ResourceClient:
 
         Args:
             asynchronous (bool): If True, apply will return immediately and not wait for resources to be created. If False, apply will wait for resources to be created and print out the status of each resource.
+
         """
 
         print(f"Applying Run: {get_run()}")
@@ -4274,7 +4279,7 @@ class ResourceClient:
                 model = None
             else:
                 # TODO: apply values from proto
-                model = Model(model_proto.name, tags=[], properties={})
+                model = Model(model_proto.name, description="", tags=[], properties={})
 
         return model
 
@@ -4365,7 +4370,8 @@ class ResourceClient:
             feature = x
             break
 
-        return Feature(
+        return FeatureVariant(
+            created=None,
             name=feature.name,
             variant=feature.variant,
             source=(feature.source.name, feature.source.variant),
@@ -4488,7 +4494,7 @@ class ResourceClient:
             label = x
             break
 
-        return Label(
+        return LabelVariant(
             name=label.name,
             variant=label.variant,
             source=(label.source.name, label.source.variant),
@@ -4611,7 +4617,8 @@ class ResourceClient:
             ts = x
             break
 
-        return TrainingSet(
+        return TrainingSetVariant(
+            created=None,
             name=ts.name,
             variant=ts.variant,
             owner=ts.owner,
@@ -4730,7 +4737,8 @@ class ResourceClient:
 
         definition = self._get_source_definition(source)
 
-        return Source(
+        return SourceVariant(
+            created=None,
             name=source.name,
             definition=definition,
             owner=source.owner,
@@ -4740,6 +4748,7 @@ class ResourceClient:
             status=source.status.Status._enum_type.values[source.status.status].name,
             tags=[],
             properties={},
+            source=source.source_text,
         )
 
     def _get_source_definition(self, source):
@@ -4756,6 +4765,7 @@ class ResourceClient:
             return DFTransformation(
                 query=transformation.query,
                 inputs=[(input.name, input.variant) for input in transformation.inputs],
+                source_text=transformation.source_text,
             )
         elif source.transformation.SQLTransformation.query != "":
             return SQLTransformation(source.transformation.SQLTransformation.query)

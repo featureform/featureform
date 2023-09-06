@@ -2423,9 +2423,9 @@ class Registrar:
         self,
         name: str,
         credentials: AWSCredentials,
-        bucket_name: str,
         bucket_region: str,
         path: str,
+        bucket_name: str = "",
         description: str = "",
         team: str = "",
         tags: List[str] = None,
@@ -2465,6 +2465,11 @@ class Registrar:
                 has all the functionality of OfflineProvider
         """
         tags, properties = set_tags_properties(tags, properties)
+
+        if bucket_path == "" and bucket_name == "":
+            raise ValueError("bucket_name required")
+        if bucket_name == "" and bucket_path != "":
+            bucket_name = bucket_path
 
         s3_config = S3StoreConfig(
             bucket_path=bucket_name,
@@ -3222,7 +3227,7 @@ class Registrar:
             properties=properties,
         )
         self.__resources.append(provider)
-        return (self, provider)
+        return OfflineSparkProvider(self, provider)
 
     # TODO: Change things to either filestore or store
     def register_k8s(

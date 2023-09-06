@@ -143,7 +143,10 @@ def test_register_firestore():
         name="name",
         collection="collection",
         project_id="id",
-        credentials_path="/path",
+        credentials=GCPCredentials(
+            project_id="id",
+            credentials_path="provider/connection/mock_credentials.json",
+        ),
         description="description",
         team="team",
         tags=[],
@@ -292,7 +295,10 @@ def test_register_bigquery():
         team="team",
         project_id="id",
         dataset_id="id",
-        credentials_path="/path",
+        credentials=GCPCredentials(
+            project_id="id",
+            credentials_path="provider/connection/mock_credentials.json",
+        ),
         tags=[],
         properties={},
     )

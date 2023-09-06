@@ -2502,7 +2502,7 @@ class Registrar:
         ```
         gcs = ff.register_gcs(
             name="gcs-quickstart",
-            credentials=gcp_creds,
+            credentials=ff.GCPCredentials(...),
             bucket_name="bucket_name",
             bucket_path="featureform/path/",
             description="An gcs store provider to store offline"
@@ -2560,10 +2560,10 @@ class Registrar:
         ```
         hdfs = ff.register_hdfs(
             name="hdfs-quickstart",
-            host=<port>,
-            port=<port>,
-            path=<path>,
-            username=<username>,
+            host="<host>",
+            port="<port>",
+            path="<path>",
+            username="<username>",
             description="An hdfs store provider to store offline"
         )
         ```
@@ -2617,6 +2617,7 @@ class Registrar:
             description="A Firestore deployment we created for the Featureform quickstart",
             project_id="quickstart-project",
             collection="quickstart-collection",
+            credentials=ff.GCPCredentials(...)
         )
         ```
 
@@ -5508,11 +5509,8 @@ def entity(cls):
         fraudulent = ff.Label()
     ```
 
-    Args:
-        cls (class): Class to be decorated
-
     Returns:
-        cls (class): Decorated class
+        entity (class): Decorated class
     """
     # 1. Use the lowercase name of the class as the entity name
     entity = register_entity(cls.__name__.lower())

@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -33,6 +34,7 @@ const (
 	S3         pc.FileStoreType = "S3"
 	GCS        pc.FileStoreType = "GCS"
 	HDFS       pc.FileStoreType = "HDFS"
+	POSTGRES   pc.FileStoreType = "POSTGRES"
 )
 
 type FileType string
@@ -674,4 +676,181 @@ func (fs *HDFSFileStore) FilestoreType() pc.FileStoreType {
 
 func (fs *HDFSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
 	panic("HDFS Filestore is not supported for K8s at the moment.")
+}
+
+func NewPostgresFileStore(config Config) (FileStore, error) {
+	config := pc.PostgresConfig{}
+	err := PostgresConfig.Deserialize(pc.SerializedConfig(config))
+	if err != nil {
+		return nil, fmt.Errorf("could not deserialize config: %v", err)
+	}
+
+	connectionURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", config.Username, config.Password, config.Host, config.Port, config.Database, config.SSLMode)
+
+	db, err := sql.Open("postgres", connectionURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PostgresFileStore{
+		db:     db,
+		query:  &postgresSQLQueries{},
+		config: config,
+	}, nil
+}
+
+type PostgresFileStore struct {
+	db     *sql.DB
+	query  OfflineTableQueries
+	config pc.PostgresConfig
+}
+
+func (fs *PostgresFileStore) Write(tableName string, data []byte) error {
+	// writes python file (we don't need to do that), df_transformations, and schema
+	// featureform__transformations table name (make it a constant)
+	// write to the table only
+	// nil otherwise
+	// maybe create a table for the schema
+	return fmt.Errorf("not implemented")
+}
+
+func (fs *PostgresFileStore) Writer(key string) (*blob.Writer, error) {
+	return nil, fmt.Errorf("not implemented") // not be needed
+}
+
+func (fs *PostgresFileStore) Read(tableName string) ([]byte, error) {
+	// return an interface called Offline File
+	query := fmt.Sprintf("SELECT * FROM %s", sanitize(tableName))
+	rows, err := fs.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("could not read table: %v", err)
+	}
+	defer rows.Close()
+
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (fs *PostgresFileStore) ServeDirectory(dir string) (Iterator, error) {
+	return nil, fmt.Errorf("not implemented") // might not be needed
+}
+
+func (fs *PostgresFileStore) Serve(key string) (Iterator, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (fs *PostgresFileStore) Exists(tableName string) (bool, error) {
+	n := -1
+	query := fs.query.tableExists()
+	err := fs.db.QueryRow(query, tableName).Scan(&n)
+	if n > 0 && err == nil {
+		return true, nil
+	} else if err != nil {
+		return false, fmt.Errorf("table exists check: %v", err)
+	}
+
+	return false, nil
+}
+
+func (fs *PostgresFileStore) Delete(tableName string) error {
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s;", tableName)
+	_, err := fs.db.Exec(query)
+	if err != nil {
+		return fmt.Errorf("could not delete table: %v", err)
+	}
+	return nil
+}
+
+func (fs *PostgresFileStore) DeleteAll(tableName string) error {
+	return fs.Delete(tableName)
+}
+
+func (fs *PostgresFileStore) NewestFileOfType(prefix string, fileType FileType) (string, error) {
+	return prefix, nil
+}
+
+func (fs *PostgresFileStore) PathWithPrefix(path string, remote bool) string {
+	return path
+}
+
+func (fs *PostgresFileStore) NumRows(tableName string) (int64, error) {
+	var n interface{}
+	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitize(tableName))
+	rows := fs.db.QueryRow(query)
+	err := rows.Scan(&n)
+	if err != nil {
+		return 0, err
+	}
+	if n == nil {
+		return 0, nil
+	}
+	intVar, err := fs.query.numRows(n)
+	if err != nil {
+		return 0, nil
+	}
+	return intVar, nil
+}
+
+func (fs *PostgresFileStore) Close() error {
+	return fs.db.Close()
+}
+func (fs *PostgresFileStore) Upload(sourcePath string, destPath string) error {
+	return fmt.Errorf("not implemented") // might not be needed
+}
+func (fs *PostgresFileStore) Download(sourcePath string, destPath string) error {
+	return fmt.Errorf("not implemented") // might not be needed
+}
+func (fs *PostgresFileStore) AsAzureStore() *AzureFileStore {
+	return nil
+}
+
+func (fs *PostgresFileStore) FilestoreType() pc.FileStoreType {
+	return POSTGRES
+}
+
+func (fs *PostgresFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+	envVars["BLOB_STORE_TYPE"] = "postgres"
+	envVars["POSTGRES_HOST"] = fs.config.Host
+	envVars["POSTGRES_PORT"] = fs.config.Port
+	envVars["POSTGRES_USERNAME"] = fs.config.Username
+	envVars["POSTGRES_PASSWORD"] = fs.config.Password
+	envVars["POSTGRES_DATABASE"] = fs.config.Database
+	envVars["POSTGRES_SSLMODE"] = fs.config.SSLMode
+	return envVars
+}
+
+func (fs *PostgresFileStore) CleanTableName(tableName string) string {
+	// Until Filepath has been implemented fully, we will replace filepath with
+	// Postgres table name.
+	// Example:
+	// 	/featureform/Transformation/Name/Variant/ -> featureform__transformation__name__variant
+
+	featureformIndices := fs.findAllSubstringIndices(tableName, "featureform")
+	startIndex := 0
+	if len(featureformIndices) == 1 {
+		startIndex = featureformIndices[0]
+	} else if len(featureformIndices) > 1 {
+		startIndex = featureformIndices[len(featureformIndices)-1]
+	}
+	paths := strings.Split(strings.Trim(tableName[startIndex:], "/"), "/")
+
+	if len(paths) >= 4 {
+		return strings.Join(paths[:4], "__")
+	} else {
+		return strings.Join(paths, "__")
+	}
+}
+
+func (fs *PostgresFileStore) findAllSubstringIndices(str string, substr string) []int {
+	indices := []int{}
+	index := -1
+	for {
+		index = strings.Index(str, substr)
+		if index == -1 {
+			break
+		}
+
+		indices = append(indices, index)
+		str = str[index+len(substr):]
+	}
+	return indices
 }

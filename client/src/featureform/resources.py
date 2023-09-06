@@ -550,8 +550,11 @@ class PostgresConfig:
     def type(self) -> str:
         return "POSTGRES_OFFLINE"
 
-    def serialize(self) -> bytes:
-        config = {
+    def store_type(self) -> str:
+        return self.type()
+
+    def config(self) -> dict:
+        return {
             "Host": self.host,
             "Port": self.port,
             "Username": self.user,
@@ -559,6 +562,9 @@ class PostgresConfig:
             "Database": self.database,
             "SSLMode": self.sslmode,
         }
+
+    def serialize(self) -> bytes:
+        config = self.config()
         return bytes(json.dumps(config), "utf-8")
 
 

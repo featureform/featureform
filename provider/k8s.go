@@ -890,6 +890,7 @@ func (s *parquetSchema) parseParquetColumnName(r *parquet.Reader) {
 		s.setColumn(colType, columnName)
 	}
 }
+
 func (s *parquetSchema) getColumnType(name string) columnType {
 	columnSections := strings.Split(name, "__")
 	return columnType(columnSections[0])

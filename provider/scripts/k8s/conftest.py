@@ -9,10 +9,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from azure.storage.blob import BlobServiceClient
 
-from offline_store_pandas_runner import (
-    POSTGRES,
-    PostgresStore
-)
+from offline_store_pandas_runner import POSTGRES, PostgresStore
 
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
@@ -258,9 +255,9 @@ def postgres_store():
 @pytest.fixture(scope="module")
 def sample_data():
     data = {
-        'Name': ['Alice', 'Bob', 'Charlie', 'David'],
-        'Age': [25, 30, 35, 28],
-        'City': ['New York', 'Los Angeles', 'Chicago', 'Houston']
+        "Name": ["Alice", "Bob", "Charlie", "David"],
+        "Age": [25, 30, 35, 28],
+        "City": ["New York", "Los Angeles", "Chicago", "Houston"],
     }
 
     return Namespace(

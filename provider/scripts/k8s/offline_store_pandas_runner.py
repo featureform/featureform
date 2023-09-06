@@ -95,9 +95,7 @@ class BlobStore:
         Returns:
             df: (pd.DataFrame) dataframe of the source file
         """
-        local_file = (
-                    "source.csv" if source.endswith(".csv") else "source"
-                )
+        local_file = "source.csv" if source.endswith(".csv") else "source"
         output_path = self.download(source, local_file)
 
         if output_path.endswith(".csv"):
@@ -316,13 +314,14 @@ class PostgresStore(BlobStore):
 
         transformationDF = pd.read_sql_query(sql_query, self.__engine)
 
-        print("retrieved transformation table", transformationDF['transformation'][0])
-        transformation = dill.loads(transformationDF['transformation'][0])
+        print("retrieved transformation table", transformationDF["transformation"][0])
+        transformation = dill.loads(transformationDF["transformation"][0])
         return transformation
 
     @property
     def engine(self):
         return self.__engine
+
 
 class LocalBlobStore(BlobStore):
     def __init__(self, store_credentials):

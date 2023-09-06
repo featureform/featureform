@@ -16,7 +16,7 @@ from offline_store_pandas_runner import (
     S3,
     GCS,
     POSTGRES,
-    LOCAL_DATA_PATH
+    LOCAL_DATA_PATH,
 )
 from offline_store_pandas_runner import (
     main,
@@ -240,14 +240,13 @@ def test_blob_stores(variables, request):
 
 def test_postgres_blob_store(postgres_store, sample_transformation, sample_data):
     source_table = f"primary_{sample_data.name}_{sample_data.variant}"
-    transformation_table = f"featureform__{sample_transformation.name}_{sample_transformation.variant}"
+    transformation_table = (
+        f"featureform__{sample_transformation.name}_{sample_transformation.variant}"
+    )
     df_transformation_table = "featureform__transformations"
 
     sample_transformation.df.to_sql(
-        df_transformation_table,
-        postgres_store.engine,
-        if_exists="append",
-        index=False
+        df_transformation_table, postgres_store.engine, if_exists="append", index=False
     )
 
     _ = postgres_store.write(
@@ -255,7 +254,9 @@ def test_postgres_blob_store(postgres_store, sample_transformation, sample_data)
         source_table,
     )
 
-    transformation_name = f"{sample_transformation.name}__{sample_transformation.variant}"
+    transformation_name = (
+        f"{sample_transformation.name}__{sample_transformation.variant}"
+    )
     transformation_func = postgres_store.get_transformation(transformation_name)
     transformed_df = transformation_func(sample_data.df)
 

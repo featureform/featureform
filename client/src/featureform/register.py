@@ -173,6 +173,9 @@ class OfflineSQLProvider(OfflineProvider):
             properties=properties,
         )
 
+    def provider_config(self):
+        return self.__provider.config
+
 
 class OfflineSparkProvider(OfflineProvider):
     def __init__(self, registrar, provider):
@@ -2957,7 +2960,7 @@ class Registrar:
     def register_k8s(
         self,
         name: str,
-        store: FileStoreProvider, # make it to support OfflineSQLProvider too
+        store: Union[FileStoreProvider, OfflineSQLProvider],
         description: str = "",
         team: str = "",
         docker_image: str = "",
@@ -2986,7 +2989,13 @@ class Registrar:
         )
         ```
         """
-        # verify OfflineSQLProvider is postgres; not supported for others
+
+        if isinstance(store, OfflineSQLProvider):
+            store = store.provider_config()
+            if store.type() != "POSTGRES_OFFLINE":
+                raise Exception(
+                    f"Not a valid store type for k8s: {store.type()}, must be Postgres or a file store."
+                )
 
         config = K8sConfig(
             store_type=store.store_type(),

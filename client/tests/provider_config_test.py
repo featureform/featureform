@@ -150,7 +150,10 @@ def test_firestore():
     conf = FirestoreConfig(
         project_id="some-project-id",
         collection="some-collection-id",
-        credentials_path="provider/connection/gcp_test_credentials.json",
+        credentials=GCPCredentials(
+            project_id="id",
+            credentials_path="provider/connection/gcp_test_credentials.json",
+        ),
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config
@@ -250,7 +253,10 @@ def test_bigquery():
     conf = BigQueryConfig(
         project_id=expected_config["ProjectID"],
         dataset_id=expected_config["DatasetID"],
-        credentials_path="provider/connection/gcp_test_credentials.json",
+        credentials=GCPCredentials(
+            project_id="id",
+            credentials_path="provider/connection/gcp_test_credentials.json",
+        ),
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config

@@ -2054,7 +2054,11 @@ class Registrar:
         Returns:
             bigquery (OfflineSQLProvider): Provider
         """
-        mock_config = BigQueryConfig(project_id="", dataset_id="", credentials_path="")
+        mock_config = BigQueryConfig(
+            project_id="",
+            dataset_id="",
+            credentials=GCPCredentials(project_id="", credentials_path=""),
+        )
         mock_provider = Provider(
             name=name, function="OFFLINE", description="", team="", config=mock_config
         )
@@ -5516,7 +5520,10 @@ def entity(cls):
     #    before the entity decorator, apply the entity name to their
     #    respective name dictionaries prior to registration
     for attr_name in cls.__dict__:
-        if isinstance(cls.__dict__[attr_name], ColumnResource):
+        if isinstance(
+            cls.__dict__[attr_name],
+            (FeatureColumnResource, LabelColumnResource, EmbeddingColumnResource),
+        ):
             resource = cls.__dict__[attr_name]
             resource.name = attr_name
             resource.entity = entity

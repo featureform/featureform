@@ -37,6 +37,7 @@ from featureform.resources import (
     K8sArgs,
     K8sResourceSpecs,
     SparkCredentials,
+    GCPCredentials,
 )
 
 from featureform.register import OfflineK8sProvider, Registrar, FileStoreProvider
@@ -155,7 +156,10 @@ def bigquery_config():
     return BigQueryConfig(
         project_id="bigquery-project",
         dataset_id="bigquery-dataset",
-        credentials_path=path,
+        credentials=GCPCredentials(
+            project_id="bigquery-project",
+            credentials_path=path,
+        ),
     )
 
 

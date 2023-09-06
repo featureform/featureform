@@ -154,7 +154,7 @@ class AWSCredentials:
 
         **Example**
         ```
-        aws_credentials = AWSCredentials(
+        aws_credentials = ff.AWSCredentials(
             aws_access_key_id="<AWS_ACCESS_KEY>",
             aws_secret_access_key="<AWS_SECRET_KEY>"
         )
@@ -197,7 +197,7 @@ class GCPCredentials:
 
         **Example**
         ```
-        gcp_credentials = GCPCredentials(
+        gcp_credentials = ff.GCPCredentials(
             project_id="<project_id>",
             credentials_path="<path_to_credentials>"
         )
@@ -208,7 +208,10 @@ class GCPCredentials:
             credentials_path (str): The path to the credentials file.
         """
         self.project_id = project_id
-        self.credentials = json.load(open(credentials_path))
+        if credentials_path == "":
+            self.credentials = {}  # Using this until get_bigquery() deprecated
+        else:
+            self.credentials = json.load(open(credentials_path))
 
     def type(self):
         return "GCPCredentials"
@@ -218,6 +221,9 @@ class GCPCredentials:
             "ProjectId": self.project_id,
             "JSON": self.credentials,
         }
+
+    def to_json(self):
+        return self.credentials
 
 
 @typechecked
@@ -410,7 +416,7 @@ class FirestoreConfig:
         config = {
             "Collection": self.collection,
             "ProjectID": self.project_id,
-            "Credentials": GCPCredentials.credentials,
+            "Credentials": self.credentials.to_json(),
         }
         return bytes(json.dumps(config), "utf-8")
 
@@ -621,7 +627,7 @@ class BigQueryConfig:
         config = {
             "ProjectID": self.project_id,
             "DatasetID": self.dataset_id,
-            "Credentials": GCPCredentials.credentials,
+            "Credentials": self.credentials.to_json(),
         }
         return bytes(json.dumps(config), "utf-8")
 
@@ -2194,11 +2200,11 @@ class ResourceState:
 class DatabricksCredentials:
     def __init__(
         self,
-        username: str,
-        password: str,
-        host: str,
-        token: str,
         cluster_id: str,
+        username: str = "",
+        password: str = "",
+        host: str = "",
+        token: str = "",
     ):
         """
 
@@ -2206,7 +2212,7 @@ class DatabricksCredentials:
 
         **Example**
         ```
-        databricks = DataBricksCredentials(
+        databricks = ff.DatabricksCredentials(
             username="<my_username>",
             password="<my_password>",
             host="<databricks_hostname>",
@@ -2279,7 +2285,7 @@ class EMRCredentials:
 
         **Example**
         ```
-        emr = EMRCredentials(
+        emr = ff.EMRCredentials(
             emr_cluster_id="<cluster_id>",
             emr_cluster_region="<cluster_region>",
             credentials="<AWS_Credentials>",
@@ -2329,7 +2335,7 @@ class SparkCredentials:
 
         **Example**
         ```
-        spark_credentials = SparkCredentials(
+        spark_credentials = ff.SparkCredentials(
             master="yarn",
             deploy_mode="cluster",
             python_version="3.7.12",

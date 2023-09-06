@@ -1,7 +1,7 @@
 # API Reference
 ### Welcome to the Featureform API Reference!
 
-Featureforms Python SDK provides a means to access hosted Featureform instances, as well as the ability to experiment in
+Featureform's Python API Reference provides a means to access hosted Featureform instances, as well as the ability to experiment in
 Localmode. 
 
 Using this SDK, you can [register](register.md) providers, sources, transformations, features, labels, and training sets 

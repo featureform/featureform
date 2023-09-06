@@ -2216,7 +2216,7 @@ class DatabricksCredentials:
 
         spark = ff.register_spark(
             name="spark",
-            executor="databricks",
+            executor=databricks,
             ...
         )
         ```
@@ -2287,7 +2287,7 @@ class EMRCredentials:
 
         spark = ff.register_spark(
             name="spark",
-            executor="emr",
+            executor=emr,
             ...
         )
         ```
@@ -2339,7 +2339,7 @@ class SparkCredentials:
 
         spark = ff.register_spark(
             name="spark",
-            executor="spark_credentials",
+            executor=spark_credentials,
             ...
         )
         ```
@@ -2347,7 +2347,7 @@ class SparkCredentials:
         Args:
             master (str): The hostname of the Spark cluster. (The same that would be passed to `spark-submit`).
             deploy_mode (str): The deploy mode of the Spark cluster. (The same that would be passed to `spark-submit`).
-            python_version (str): The Python version running on the cluster.
+            python_version (str): The Python version running on the cluster. Supports 3.7-3.11
             core_site_path (str): The path to the core-site.xml file. (For Yarn clusters only)
             yarn_site_path (str): The path to the yarn-site.xml file. (For Yarn clusters only)
         """

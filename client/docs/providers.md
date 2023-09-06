@@ -43,9 +43,55 @@
 
 [//]: # (|                 [Weaviate]&#40;#weaviate&#41;                 |         |   x    |         |    x    |   x    | x                      |)
 
+## Credentials
+Credentials are objects that can be reused in the same definitions file when registering providers in the same cloud.
+
+### Cloud Providers
+
+#### AWS
+::: featureform.resources.AWSCredentials.__init__
+    handler: python
+    options:
+        show_root_heading: false
+        show_source: false
+        show_root_toc_entry: false
+
+#### Google Cloud
+::: featureform.resources.GCPCredentials.__init__
+    handler: python
+    options:
+        show_root_heading: false
+        show_source: false
+        show_root_toc_entry: false
+
+### Spark
+#### Generic
+::: featureform.resources.SparkCredentials.__init__
+    handler: python 
+    options:
+        show_root_heading: false
+        show_source: false
+        show_root_toc_entry: false
+
+
+#### Databricks
+::: featureform.resources.DatabricksCredentials.__init__
+    handler: python
+    options:
+        show_root_heading: false
+        show_source: false
+        show_root_toc_entry: false
+
+#### EMR
+::: featureform.resources.EMRCredentials.__init__
+    handler: python
+    options:
+        show_root_heading: false
+        show_source: false
+        show_root_toc_entry: false
 
 ## Provider Registration
-This page provides reference and examples for how to register the various providers that FeatureForm supports.
+This page provides reference and examples for how to register the various providers that Featureform supports.
 
 ### Azure Blob Store
 ::: featureform.register.Registrar.register_blob_store
@@ -194,53 +240,6 @@ This page provides reference and examples for how to register the various provid
 
 ### Weaviate
 ::: featureform.register.Registrar.register_weaviate
-    handler: python
-    options:
-        show_root_heading: false
-        show_source: false
-        show_root_toc_entry: false
-
-## Credentials
-Credentials are objects that can be reused in the same definitions file when registering providers in the same cloud. 
-
-### Cloud Providers
-
-#### AWS
-::: featureform.resources.AWSCredentials.__init__
-    handler: python
-    options:
-        show_root_heading: false
-        show_source: false
-        show_root_toc_entry: false
-
-#### Google Cloud
-::: featureform.resources.GCPCredentials.__init__
-    handler: python
-    options:
-        show_root_heading: false
-        show_source: false
-        show_root_toc_entry: false
-
-### Spark
-#### Generic
-::: featureform.resources.SparkCredentials.__init__
-    handler: python
-    options:
-        show_root_heading: false
-        show_source: false
-        show_root_toc_entry: false
-
-
-#### Databricks
-::: featureform.resources.DatabricksCredentials.__init__
-    handler: python
-    options:
-        show_root_heading: false
-        show_source: false
-        show_root_toc_entry: false
-
-#### EMR
-::: featureform.resources.EMRCredentials.__init__
     handler: python
     options:
         show_root_heading: false

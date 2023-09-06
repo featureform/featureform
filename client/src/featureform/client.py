@@ -22,7 +22,7 @@ class Client(ResourceClient, ServingClient):
     import featureform as ff
     from featureform import Client
 
-    client = Client("http://localhost:8080")
+    client = Client()
 
     # Example 1: Get a registered provider
     redis = client.get_provider("redis-quickstart")
@@ -71,7 +71,7 @@ class Client(ResourceClient, ServingClient):
             source (Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
             variant (str): The source variant; defaults to a Docker-style random name and is ignored if source argument is not a string
             limit (int): The maximum number of records to return; defaults to NO_RECORD_LIMIT
-            asynchronous (bool): @param asynchronous: Flag to determine whether the client should wait for resources to be in either a READY or FAILED state before returning. Defaults to False to ensure that newly registered resources are in a READY state prior to serving them as dataframes.
+            asynchronous (bool): Flag to determine whether the client should wait for resources to be in either a READY or FAILED state before returning. Defaults to False to ensure that newly registered resources are in a READY state prior to serving them as dataframes.
 
         Returns:
             df (pandas.DataFrame): The dataframe computed from the source or transformation

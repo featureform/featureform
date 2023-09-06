@@ -2,6 +2,26 @@
 
 The Featureform CLI allows you to describe, list, and monitor your resources.
 
+## Connecting to a cluster
+
+To connect to a cluster through the CLI, you can either set environment variables or explicitly pass in the host and cert flags.
+The certificate is only required when using self-signed certificates.
+
+### With Environment Variables
+```shell
+export FEATUREFORM_HOST=<host>
+export FEATUREFORM_CERT=<cert>
+```
+then run:
+```shell
+featureform <command>
+```
+
+### With Flags
+```shell
+featureform <command> --host <host> --cert <cert>
+```
+
 ## Apply
 
 The **apply** command submits resource definitions to the Featureform instance.&#x20;
@@ -9,7 +29,7 @@ The **apply** command submits resource definitions to the Featureform instance.&
 The argument can either be a path to a local file or the url of a hosted file. Multiple files can be included at a time.
 
 ```shell
-featureform apply --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT <definitions.py>
+featureform apply <definitions.py>
 ```
 
 Upon success, all definitions in the **definitions.py** (or whatever you choose to call it) file will be sent to the Featureform instance, logged in the metadata, and materialized with the registered providers.
@@ -170,7 +190,7 @@ featureform list features --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
 featureform list features --insecure --host $FEATUREFORM_HOST
 ```
 
-In local mode:
+In localmode:
 
 ```shell
 featureform list features –-local

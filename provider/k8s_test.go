@@ -1,6 +1,3 @@
-//go:build k8s
-// +build k8s
-
 package provider
 
 import (
@@ -24,6 +21,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/mitchellh/mapstructure"
 
+	filestore "github.com/featureform/filestore"
 	"github.com/parquet-go/parquet-go"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
@@ -40,7 +38,7 @@ func TestDeserializeExecutorConfig(t *testing.T) {
 		ExecutorConfig: pc.ExecutorConfig{
 			DockerImage: "",
 		},
-		StoreType: pc.Azure,
+		StoreType: filestore.Azure,
 		StoreConfig: &pc.AzureFileStoreConfig{
 			AccountName:   "account name",
 			AccountKey:    "account key",
@@ -119,7 +117,6 @@ func TestBlobInterfaces(t *testing.T) {
 		"Test Delete":                   testDelete,
 		"Test Delete All":               testDeleteAll,
 		"Test Newest file":              testNewestFile,
-		"Test Path with prefix":         testPathWithPrefix,
 		"Test Num Rows":                 testNumRows,
 		"Test File Upload and Download": testFileUploadAndDownload,
 	}
@@ -148,7 +145,8 @@ func TestBlobInterfaces(t *testing.T) {
 		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
-		Path:          "testdirectory/testpath",
+		// Path:          "testdirectory/testpath",
+		Path: "refactor_filepath_tests",
 	}
 	serializedAzureConfig, err := azureStoreConfig.Serialize()
 	if err != nil {
@@ -200,8 +198,8 @@ func testFileUploadAndDownload(t *testing.T, store FileStore) {
 	testId := uuidWithoutDashes()
 	fileContent := "testing file upload"
 	sourceFile := fmt.Sprintf("fileUploadTest_%s.txt", testId)
-	destPath := fmt.Sprintf("fileUploadTest_%s.txt", testId)
-	localDestPath := fmt.Sprintf("fileDownloadTest_%s.txt", testId)
+	destFile := fmt.Sprintf("fileUploadTest_%s.txt", testId)
+	localDestFile := fmt.Sprintf("fileDownloadTest_%s.txt", testId)
 
 	f, err := os.Create(sourceFile)
 	if err != nil {
@@ -211,27 +209,38 @@ func testFileUploadAndDownload(t *testing.T, store FileStore) {
 
 	f.Write([]byte(fileContent))
 
-	err = store.Upload(sourceFile, destPath)
+	sourcePath := filestore.LocalFilepath{}
+	sourcePath.SetKey(sourceFile)
+
+	destinationPath, err := store.CreateFilePath(destFile)
+	if err != nil {
+		t.Fatalf("could not create destination file path because %v", err)
+	}
+
+	err = store.Upload(&sourcePath, destinationPath)
 	if err != nil {
 		t.Fatalf("could not upload file because %v", err)
 	}
 
-	exists, err := store.Exists(destPath)
+	exists, err := store.Exists(destinationPath)
 	if err != nil {
 		t.Fatalf("could not determine if file exists because %v", err)
 	}
 	if !exists {
-		t.Fatalf("could not upload file to %s", destPath)
+		t.Fatalf("could not upload file to %s", destinationPath.PathWithBucket())
 	}
 
-	err = store.Download(destPath, localDestPath)
+	localDestinationPath := filestore.LocalFilepath{}
+	localDestinationPath.SetKey(localDestFile)
+
+	err = store.Download(destinationPath, &localDestinationPath)
 	if err != nil {
-		t.Fatalf("could not download %s file to %s because %v", destPath, localDestPath, err)
+		t.Fatalf("could not download %s file to %s because %v", destinationPath.PathWithBucket(), localDestinationPath.PathWithBucket(), err)
 	}
 
-	content, err := ioutil.ReadFile(localDestPath)
+	content, err := ioutil.ReadFile(localDestinationPath.PathWithBucket())
 	if err != nil {
-		t.Fatalf("could not read local file at %s because %v", localDestPath, err)
+		t.Fatalf("could not read local file at %s because %v", localDestinationPath.PathWithBucket(), err)
 	}
 
 	if string(content) != fileContent {
@@ -242,29 +251,33 @@ func testFileUploadAndDownload(t *testing.T, store FileStore) {
 func testFilestoreReadAndWrite(t *testing.T, store FileStore) {
 	testWrite := []byte("example data")
 	testKey := uuidWithoutDashes()
-	exists, err := store.Exists(testKey)
+	testFilePath, err := store.CreateFilePath(testKey)
+	if err != nil {
+		t.Fatalf("Could not create test filepath: %v", err)
+	}
+	exists, err := store.Exists(testFilePath)
 	if exists {
 		t.Fatalf("Exists when not yet written")
 	}
-	if err := store.Write(testKey, testWrite); err != nil {
-		t.Fatalf("Failure writing data %s to key %s: %v", string(testWrite), testKey, err)
+	if err := store.Write(testFilePath, testWrite); err != nil {
+		t.Fatalf("Failure writing data %s to key %s: %v", string(testWrite), testFilePath.PathWithBucket(), err)
 	}
-	exists, err = store.Exists(testKey)
+	exists, err = store.Exists(testFilePath)
 	if err != nil {
 		t.Fatalf("Failure checking existence of key %s: %v", testKey, err)
 	}
 	if !exists {
 		t.Fatalf("Test key %s does not exist: %v", testKey, err)
 	}
-	readData, err := store.Read(testKey)
+	readData, err := store.Read(testFilePath)
 	if err != nil {
-		t.Fatalf("Could not read key %s from store: %v", testKey, err)
+		t.Fatalf("Could not read key %s from store: %v", testFilePath.PathWithBucket(), err)
 	}
 	if string(readData) != string(testWrite) {
 		t.Fatalf("Read data does not match written data: %s != %s", readData, testWrite)
 	}
-	if err := store.Delete(testKey); err != nil {
-		t.Fatalf("Failed to delete test file with key %s: %v", testKey, err)
+	if err := store.Delete(testFilePath); err != nil {
+		t.Fatalf("Failed to delete test file with key %s: %v", testFilePath.PathWithBucket(), err)
 	}
 }
 
@@ -304,7 +317,7 @@ func TestNewConfig(t *testing.T) {
 	k8sConfig := pc.K8sConfig{
 		ExecutorType:   pc.K8s,
 		ExecutorConfig: pc.ExecutorConfig{},
-		StoreType:      pc.Azure,
+		StoreType:      filestore.Azure,
 		StoreConfig: &pc.AzureFileStoreConfig{
 			AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 			AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
@@ -368,12 +381,15 @@ func Test_parquetIteratorFromReader(t *testing.T) {
 }
 
 func testExists(t *testing.T, store FileStore) {
-	randomKey := uuid.New().String()
+	randomFilePath, err := store.CreateFilePath(uuid.New().String())
+	if err != nil {
+		t.Fatalf("Could not create random file path: %v", err)
+	}
 	randomData := []byte(uuid.New().String())
-	if err := store.Write(randomKey, randomData); err != nil {
+	if err := store.Write(randomFilePath, randomData); err != nil {
 		t.Fatalf("Could not write key to filestore: %v", err)
 	}
-	exists, err := store.Exists(randomKey)
+	exists, err := store.Exists(randomFilePath)
 	if err != nil {
 		t.Fatalf("Could not check that key exists in filestore: %v", err)
 	}
@@ -381,14 +397,17 @@ func testExists(t *testing.T, store FileStore) {
 		t.Fatalf("Key written to file store does not exist")
 	}
 	// cleanup test
-	if store.Delete(randomKey); err != nil {
+	if store.Delete(randomFilePath); err != nil {
 		t.Fatalf("error deleting random key: %v", err)
 	}
 }
 
 func testNotExists(t *testing.T, store FileStore) {
-	randomKey := uuid.New().String()
-	exists, err := store.Exists(randomKey)
+	randomFilePath, err := store.CreateFilePath(uuid.New().String())
+	if err != nil {
+		t.Fatalf("Could not create random file path: %v", err)
+	}
+	exists, err := store.Exists(randomFilePath)
 	if err != nil {
 		t.Fatalf("Could not check that key exists in filestore: %v", err)
 	}
@@ -444,10 +463,14 @@ func testServe(t *testing.T, store FileStore) {
 		t.Fatalf("could not convert struct list to parquet bytes: %v", err)
 	}
 	randomParquetKey := fmt.Sprintf("%s.parquet", uuid.New().String())
-	if err := store.Write(randomParquetKey, parquetBytes); err != nil {
+	randomParqetFilePath, err := store.CreateFilePath(randomParquetKey)
+	if err != nil {
+		t.Fatalf("Could not create random file path: %v", err)
+	}
+	if err := store.Write(randomParqetFilePath, parquetBytes); err != nil {
 		t.Fatalf("Could not write parquet bytes to random key: %v", err)
 	}
-	iterator, err := store.Serve(randomParquetKey)
+	iterator, err := store.Serve(randomParqetFilePath)
 	if err != nil {
 		t.Fatalf("Could not get parquet iterator: %v", err)
 	}
@@ -476,7 +499,7 @@ func testServe(t *testing.T, store FileStore) {
 		}
 	}
 	// cleanup test
-	if err := store.Delete(randomParquetKey); err != nil {
+	if err := store.Delete(randomParqetFilePath); err != nil {
 		t.Fatalf("Could not delete parquet file: %v", err)
 	}
 }
@@ -484,7 +507,11 @@ func testServe(t *testing.T, store FileStore) {
 func testServeDirectory(t *testing.T, store FileStore) {
 	parquetNumRows := int64(5)
 	parquetNumFiles := int64(5)
-	randomDirectory := uuid.New().String()
+	randomDirKey := uuid.New().String()
+	randomDirectory, err := store.CreateDirPath(randomDirKey)
+	if err != nil {
+		t.Fatalf("Could not create random directory: %v", err)
+	}
 	randomStructs := make([][]any, parquetNumFiles)
 	for i := int64(0); i < parquetNumFiles; i++ {
 		randomStructs[i] = randomStructList(parquetNumRows)
@@ -493,8 +520,12 @@ func testServeDirectory(t *testing.T, store FileStore) {
 			t.Fatalf("error converting struct to parquet bytes")
 		}
 		randomKey := fmt.Sprintf("part000%d%s.parquet", i, uuid.New().String())
-		randomPath := fmt.Sprintf("%s/%s", randomDirectory, randomKey)
-		if err := store.Write(randomPath, parquetBytes); err != nil {
+		randomPath := fmt.Sprintf("%s/%s", randomDirKey, randomKey)
+		randomFilePath, err := store.CreateFilePath(randomPath)
+		if err != nil {
+			t.Fatalf("Could not create random file path: %v", err)
+		}
+		if err := store.Write(randomFilePath, parquetBytes); err != nil {
 			t.Fatalf("Could not write parquet bytes to path: %v", err)
 		}
 	}
@@ -533,22 +564,25 @@ func testServeDirectory(t *testing.T, store FileStore) {
 }
 
 func testDelete(t *testing.T, store FileStore) {
-	randomKey := uuid.New().String()
+	randomFilePath, err := store.CreateFilePath(uuid.New().String())
+	if err != nil {
+		t.Fatalf("Could not create random file path: %v", err)
+	}
 	randomData := []byte(uuid.New().String())
-	if err := store.Write(randomKey, randomData); err != nil {
+	if err := store.Write(randomFilePath, randomData); err != nil {
 		t.Fatalf("Could not write key to filestore: %v", err)
 	}
-	exists, err := store.Exists(randomKey)
+	exists, err := store.Exists(randomFilePath)
 	if err != nil {
 		t.Fatalf("Could not check that key exists in filestore: %v", err)
 	}
 	if !exists {
 		t.Fatalf("Key written to file store does not exist")
 	}
-	if err := store.Delete(randomKey); err != nil {
+	if err := store.Delete(randomFilePath); err != nil {
 		t.Fatalf("Could not delete key from filestore: %v", err)
 	}
-	exists, err = store.Exists(randomKey)
+	exists, err = store.Exists(randomFilePath)
 	if err != nil {
 		t.Fatalf("Could not check that key exists in filestore: %v", err)
 	}
@@ -560,19 +594,31 @@ func testDelete(t *testing.T, store FileStore) {
 
 func testDeleteAll(t *testing.T, store FileStore) {
 	randomListLength := 5
-	randomDirectory := uuid.New().String()
+	randomDirKey := uuid.New().String()
+	randomDirectory, err := store.CreateDirPath(randomDirKey)
+	if err != nil {
+		t.Fatalf("Could not create random directory: %v", err)
+	}
 	randomKeyList := make([]string, randomListLength)
 	for i := 0; i < randomListLength; i++ {
 		randomKeyList[i] = uuid.New().String()
-		randomPath := fmt.Sprintf("%s/%s", randomDirectory, randomKeyList[i])
 		randomData := []byte(uuid.New().String())
-		if err := store.Write(randomPath, randomData); err != nil {
+		randomPath := fmt.Sprintf("%s/%s", randomDirKey, randomKeyList[i])
+		randomFilePath, err := store.CreateFilePath(randomPath)
+		if err != nil {
+			t.Fatalf("Could not create random file path: %v", err)
+		}
+		if err := store.Write(randomFilePath, randomData); err != nil {
 			t.Fatalf("Could not write key to filestore: %v", err)
 		}
 	}
 	for i := 0; i < randomListLength; i++ {
-		randomPath := fmt.Sprintf("%s/%s", randomDirectory, randomKeyList[i])
-		exists, err := store.Exists(randomPath)
+		randomPath := fmt.Sprintf("%s/%s", randomDirKey, randomKeyList[i])
+		randomFilePath, err := store.CreateFilePath(randomPath)
+		if err != nil {
+			t.Fatalf("Could not create random file path: %v", err)
+		}
+		exists, err := store.Exists(randomFilePath)
 		if err != nil {
 			t.Fatalf("Could not check that key exists in filestore: %v", err)
 		}
@@ -585,7 +631,11 @@ func testDeleteAll(t *testing.T, store FileStore) {
 	}
 	for i := 0; i < randomListLength; i++ {
 		randomPath := fmt.Sprintf("%s/%s", randomDirectory, randomKeyList[i])
-		exists, err := store.Exists(randomPath)
+		randomFilePath, err := store.CreateFilePath(randomPath)
+		if err != nil {
+			t.Fatalf("Could not create random file path: %v", err)
+		}
+		exists, err := store.Exists(randomFilePath)
 		if err != nil {
 			t.Fatalf("Could not check that key exists in filestore: %v", err)
 		}
@@ -599,23 +649,31 @@ func testDeleteAll(t *testing.T, store FileStore) {
 func testNewestFile(t *testing.T, store FileStore) {
 	// write a bunch of blobs with different timestamps
 	randomListLength := 5
-	randomDirectory := uuid.New().String()
+	randomDirKey := uuid.New().String()
+	randomDirectory, err := store.CreateDirPath(randomDirKey)
+	if err != nil {
+		t.Fatalf("Could not create random directory: %v", err)
+	}
 	randomKeyList := make([]string, randomListLength)
 	for i := 0; i < randomListLength; i++ {
 		randomKeyList[i] = uuid.New().String()
-		randomPath := fmt.Sprintf("%s/%s.parquet", randomDirectory, randomKeyList[i])
 		randomData := []byte(uuid.New().String())
-		if err := store.Write(randomPath, randomData); err != nil {
+		randomPath := fmt.Sprintf("%s/%s.parquet", randomDirKey, randomKeyList[i])
+		randomFilePath, err := store.CreateFilePath(randomPath)
+		if err != nil {
+			t.Fatalf("Could not create random file path: %v", err)
+		}
+		if err := store.Write(randomFilePath, randomData); err != nil {
 			t.Fatalf("Could not write key to filestore: %v", err)
 		}
 		time.Sleep(1 * time.Second) // To guarantee ordering of created in metadata follows struct ordering
 	}
-	newestFile, err := store.NewestFileOfType(randomDirectory, Parquet)
+	newestFile, err := store.NewestFileOfType(randomDirectory, filestore.Parquet)
 	if err != nil {
 		t.Fatalf("Error getting newest file from directory: %v", err)
 	}
 	expectedNewestFile := fmt.Sprintf("%s/%s.parquet", randomDirectory, randomKeyList[randomListLength-1])
-	if newestFile != expectedNewestFile {
+	if newestFile.Key() != expectedNewestFile {
 		t.Fatalf("Newest file did not retrieve actual newest file. Expected '%s', got '%s'", expectedNewestFile, newestFile)
 	}
 	// cleanup test
@@ -624,38 +682,16 @@ func testNewestFile(t *testing.T, store FileStore) {
 	}
 }
 
-func testPathWithPrefix(t *testing.T, store FileStore) {
-	randomKey := uuid.New().String()
-	azureStore, ok := store.(*AzureFileStore)
-	if ok {
-		azurePathWithPrefix := azureStore.PathWithPrefix(randomKey, false)
-		if azurePathWithPrefix != fmt.Sprintf("%s/%s", azureStore.Path, randomKey) {
-			t.Fatalf("Incorrect path with prefix. Expected %s, got %s", fmt.Sprintf("%s/%s", azureStore.Path, randomKey), azurePathWithPrefix)
-		}
-	}
-	fileFileStore, ok := store.(*LocalFileStore)
-	if ok {
-		filePathWithPrefix := fileFileStore.PathWithPrefix(randomKey, false)
-		if filePathWithPrefix != fmt.Sprintf("%s/%s", fileFileStore.DirPath, randomKey) {
-			t.Fatalf("Incorrect path with prefix. Expected:\n%s\ngot:\n%s", fmt.Sprintf("%s/%s", fileFileStore.DirPath, randomKey), filePathWithPrefix)
-		}
-	}
-	hdfsStore, ok := store.(*HDFSFileStore)
-	if ok {
-		filePathWithPrefix := hdfsStore.PathWithPrefix(randomKey, false)
-		if filePathWithPrefix != fmt.Sprintf("%s%s", hdfsStore.Path, randomKey) {
-			t.Fatalf("Incorrect path with prefix. Expected %s, got %s", fmt.Sprintf("%s%s", hdfsStore.Path, randomKey), filePathWithPrefix)
-		}
-	}
-}
-
 func testNumRows(t *testing.T, store FileStore) {
 	parquetNumRows := int64(5)
 	randomStructList := randomStructList(parquetNumRows)
 	parquetBytes, err := convertToParquetBytes(randomStructList)
-	randomParquetPath := fmt.Sprintf("%s.parquet", uuid.New().String())
 	if err != nil {
 		t.Fatalf("Could not convert struct list to parquet bytes: %v", err)
+	}
+	randomParquetPath, err := store.CreateFilePath(fmt.Sprintf("%s.parquet", uuid.New().String()))
+	if err != nil {
+		t.Fatalf("Could not create random file path: %v", err)
 	}
 	if err := store.Write(randomParquetPath, parquetBytes); err != nil {
 		t.Fatalf("Could not write parquet bytes to path: %v", err)
@@ -691,7 +727,8 @@ func TestDatabricksInitialization(t *testing.T) {
 		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
 		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
 		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
-		Path:          "testdirectory/testpath",
+		// Path:          "testdirectory/testpath",
+		Path: "refactor_filepath_tests",
 	}
 	serializedAzureConfig, err := azureStoreConfig.Serialize()
 	if err != nil {

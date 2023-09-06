@@ -2206,7 +2206,7 @@ class DatabricksCredentials:
 
         **Example**
         ```
-        databricks = DataBricksCredentials(
+        databricks = DatabricksCredentials(
             username="<my_username>",
             password="<my_password>",
             host="<databricks_hostname>",

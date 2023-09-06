@@ -1258,6 +1258,7 @@ class FeatureVariant:
     location: ResourceLocation
     description: str
     variant: str
+    computation_mode: ComputationMode = ComputationMode.PRECOMPUTED
     created: str = None
     is_embedding: bool = False
     dims: int = 0
@@ -1307,6 +1308,7 @@ class FeatureVariant:
             entity=feature.entity,
             owner=feature.owner,
             provider=feature.provider,
+            mode=ComputationMode.from_proto(feature.mode),
             location=ResourceColumnMapping("", "", ""),
             description=feature.description,
             tags=list(feature.tags.tag),

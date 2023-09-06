@@ -81,6 +81,15 @@ class ComputationMode(Enum):
         elif self == ComputationMode.CLIENT_COMPUTED:
             return pb.ComputationMode.CLIENT_COMPUTED
 
+    @staticmethod
+    def from_proto(proto: int):
+        if proto == pb.ComputationMode.PRECOMPUTED:
+            return ComputationMode.PRECOMPUTED
+        elif proto == pb.ComputationMode.CLIENT_COMPUTED:
+            return ComputationMode.CLIENT_COMPUTED
+        else:
+            raise ValueError('No Computation Mode for this proto')
+
 
 @typechecked
 @dataclass

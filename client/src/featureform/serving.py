@@ -23,6 +23,7 @@ from pandas.core.generic import NDFrame
 from pandasql import sqldf
 
 from . import progress_bar
+from .metadata_repository import MetadataRepositoryLocalImpl
 from .register import FeatureColumnResource
 
 from .constants import NO_RECORD_LIMIT
@@ -241,6 +242,7 @@ class HostedClientImpl:
 class LocalClientImpl:
     def __init__(self):
         self.db = SQLiteMetadata()
+        self.metadata_repo = MetadataRepositoryLocalImpl(self.db)
         self.local_cache = LocalCache()
         check_up_to_date(True, "serving")
 
@@ -452,12 +454,9 @@ class LocalClientImpl:
 
     def process_transformation(self, name, variant):
         def get():
-            source = self.db.get_source_variant(name, variant)
-            if (
-                self.db.is_transformation(name, variant)
-                == SourceType.SQL_TRANSFORMATION.value
-            ):
-                query = source["definition"]
+            source = self.metadata_repo.get_source_variant(name, variant)
+            if source.is_transformation == SourceType.SQL_TRANSFORMATION.value:
+                query = source.definition
                 new_data = self.sql_transformation(query)
             else:
                 code = dill.loads(bytearray(source["definition"]))

@@ -25,7 +25,7 @@ from featureform.resources import (
     Model,
     Entity,
     TrainingSetVariant,
-    TrainingSet,
+    TrainingSet, EmptyConfig,
 )
 
 test_user = User(
@@ -40,9 +40,9 @@ provider = Provider(
     name="provider",
     description="fake description",
     team="fake_team",
-    config=LocalConfig(),
+    config=EmptyConfig(),
     function="",
-    status="ready",
+    status="ready",  # look into this
 )
 
 resource_location = ResourceLocation(
@@ -61,6 +61,7 @@ feature_variant = FeatureVariant(
     variant="variant1",
     status="ready",
     is_embedding=False,
+    mode=ComputationMode.CLIENT_COMPUTED,
     dims=0,
     tags=["tag1"],
     properties={"key1": "value1"},

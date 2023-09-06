@@ -171,6 +171,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
 
     def get_feature_variant(self, name, variant) -> FeatureVariant:
         result = self.db.get_feature_variant(name, variant)
+        mode = self.db.get_feature_variant_mode(name, variant)
         return FeatureVariant(
             created=result["created"],
             name=result["name"],
@@ -188,6 +189,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
                 result["source_value"],
                 result["source_timestamp"],
             ),
+            mode= mode["feature_computation_mode"],
             description=result["description"],
             tags=json.loads(result["tags"]) if result["tags"] else [],
             properties=json.loads(result["properties"]) if result["properties"] else {},
@@ -270,6 +272,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             tags=json.loads(result["tags"]) if result["tags"] else [],
             properties=json.loads(result["properties"]) if result["properties"] else {},
             status=result["status"],
+            is_transformation=result["is_transformation"],
         )
 
     def get_sources(self) -> List[Source]:
@@ -428,11 +431,9 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
         ]
 
     def get_tags_for_resource(self, name, variant, resource_type) -> List[str]:
-        row_data = self.db.get_tags(
-            name=name, variant=variant, resource_type=resource_type
-        )
-        if len(row_data):
-            return row_data[0][0]
+        tags = self.db.get_tags(name=name, variant=variant, resource_type=resource_type)
+        if len(tags):
+            return tags[0][0]
         else:
             return []
 

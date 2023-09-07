@@ -83,6 +83,14 @@ s3_config = S3StoreConfig("", "", AWSCredentials("id", "secret"))
 NON_INFERENCE_STORES = [s3_config.type()]
 
 
+def set_tags_properties(tags: List[str], properties: dict):
+    if tags is None:
+        tags = []
+    if properties is None:
+        properties = {}
+    return tags, properties
+
+
 class EntityRegistrar:
     def __init__(self, registrar, entity):
         self.__registrar = registrar
@@ -131,6 +139,17 @@ class OfflineSQLProvider(OfflineProvider):
     ):
         """Register a SQL table as a primary data source.
 
+        **Example**
+
+        ```
+        postgres = ff.get_provider("my_postgres")
+        table =  postgres.register_table(
+            name="transactions",
+            variant="july_2023",
+            table="transactions_table",
+        ):
+        ```
+
         Args:
             name (str): Name of table to be registered
             variant (str): Name of variant to be registered
@@ -162,6 +181,34 @@ class OfflineSQLProvider(OfflineProvider):
         tags: List[str] = [],
         properties: dict = {},
     ):
+        """
+        Register a SQL transformation source.
+
+        The name of the function is the name of the resulting source.
+
+        Sources for the transformation can be specified by adding the Name and Variant in brackets '{{ name.variant }}'.
+        The correct source is substituted when the query is run.
+
+        **Examples**:
+
+        ``` py
+        postgres = get_provider("my_postgres")
+        @postgres.sql_transformation(variant="quickstart")
+        def average_user_transaction():
+            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.v1}} GROUP BY user_id"
+        ```
+
+        Args:
+            name (str): Name of source
+            variant (str): Name of variant
+            schedule (str): The frequency at which the transformation is run as a cron expression
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of primary data to be registered
+
+
+        Returns:
+            source (ColumnSourceRegistrar): Source
+        """
         return self.__registrar.sql_transformation(
             name=name,
             variant=variant,
@@ -192,10 +239,22 @@ class OfflineSparkProvider(OfflineProvider):
     ):
         """Register a Spark data source as a primary data source.
 
+        **Examples**
+
+        ```
+        spark = ff.get_provider("my_spark")
+        transactions = spark.register_file(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions",
+            file_path="s3://featureform-spark/featureform/transactions.parquet"
+        )
+        ```
+
         Args:
             name (str): Name of table to be registered
             variant (str): Name of variant to be registered
-            file_path (str): The path to file
+            file_path (str): The URI of the file. Must be the full path
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of table to be registered
 
@@ -250,8 +309,7 @@ class OfflineSparkProvider(OfflineProvider):
         ``` py
         @spark.sql_transformation(variant="quickstart")
         def average_user_transaction():
-            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from" \
-            " {{transactions.v1}} GROUP BY user_id"
+            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.v1}} GROUP BY user_id"
         ```
 
         Args:
@@ -338,7 +396,19 @@ class OfflineK8sProvider(OfflineProvider):
         tags: List[str] = [],
         properties: dict = {},
     ):
-        """Register a blob data source path as a primary data source.
+        """Register a Kubernetes Runner data source as a primary data source.
+
+        **Examples**
+
+        ```
+        k8s = ff.get_provider("my_k8s")
+        transactions = k8s.register_file(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions",
+            file_path="s3://featureform-spark/featureform/transactions.parquet"
+        )
+        ```
 
         Args:
             name (str): Name of table to be registered
@@ -386,8 +456,7 @@ class OfflineK8sProvider(OfflineProvider):
         ``` py
         @k8s.sql_transformation(variant="quickstart")
         def average_user_transaction():
-            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from" \
-            " {{transactions.v1}} GROUP BY user_id"
+            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.v1}} GROUP BY user_id"
         ```
 
         Args:
@@ -427,7 +496,7 @@ class OfflineK8sProvider(OfflineProvider):
         properties: dict = {},
     ):
         """
-        Register a Dataframe transformation source. The k8s_azure.df_transformation decorator takes the contents
+        Register a Dataframe transformation source. The k8s.df_transformation decorator takes the contents
         of the following function and executes the code it contains at serving time.
 
         The name of the function is used as the name of the source when being registered.
@@ -436,8 +505,8 @@ class OfflineK8sProvider(OfflineProvider):
 
         **Examples**:
         ``` py
-        @k8s_azure.df_transformation(inputs=[("source", "one")])        # Sources are added as inputs
-        def average_user_transaction(df):                           # Sources can be manipulated by adding them as params
+        @k8s.df_transformation(inputs=[("source", "one")])        # Sources are added as inputs
+        def average_user_transaction(df):                         # Sources can be manipulated by adding them as params
             return df
         ```
 
@@ -537,6 +606,7 @@ class LocalProvider:
             path="transactions.csv"
         )
         ```
+
         Args:
             name (str): Name for how to reference the file later
             description (str): Description of the file
@@ -585,12 +655,9 @@ class LocalProvider:
         properties: dict = {},
     ):
         """Register a directory.
-        When registering a directory, files can be interacted with as a table with columns "filename" and "body".
-        For example:
-        filename                  |            body
-        --------------------------|---------------------------------------
-        featureform_docs.txt      | Featureform allows data scientists....
-        featureform_home.txt      | The Open-Source Virtual Feature Store....
+        When registering a directory, files can be interacted with as a table with columns "filename" and "body". Where
+        each row in the table is a file in the directory. The filename is the name of the file and the body is the
+        contents of the file.
 
 
         **Examples**:
@@ -601,6 +668,7 @@ class LocalProvider:
             path="scraper/"
         )
         ```
+
         Args:
             name (str): Name for how to reference the directory
             description (str): Description of the directory
@@ -679,7 +747,7 @@ class LocalProvider:
 
         **Examples**:
         ``` py
-        @local.df_transformation(inputs=[("source", "one"), ("source", "two")]) # Sources are added as inputs
+        @local.df_transformation(inputs=[("source", "one"), ("source", "two"), source_obj]) # Sources are added as inputs
         def average_user_transaction(df_one, df_two):                           # Sources can be manipulated by adding them as params
             return source_one.groupby("CustomerID")["TransactionAmount"].mean()
         ```
@@ -689,7 +757,7 @@ class LocalProvider:
             variant (str): Name of variant
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of primary data to be registered
-            inputs (list[Tuple(str, str)]): A list of Source NameVariant Tuples to input into the transformation
+            inputs (list[Union[Tuple(str, str),ColumnSourceRegistrar]]): A list of Source NameVariant Tuples to input into the transformation and/or a list of Source objects
 
         Returns:
             source (ColumnSourceRegistrar): Source
@@ -727,8 +795,7 @@ class LocalProvider:
         ``` py
         @local.sql_transformation(variant="quickstart")
         def average_user_transaction():
-            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from" \
-            " {{transactions.v1}} GROUP BY user_id"
+            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.v1}} GROUP BY user_id"
         ```
 
         Args:
@@ -755,14 +822,26 @@ class LocalProvider:
         self,
         fn=None,
         *,
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
         variant: str = "",
         name: str = "",
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
     ):
         """On Demand Feature decorator.
+
+        ```python
+        @ff.ondemand_feature(variant="quickstart")
+        def avg_user_transactions(client, params, entities):
+            return params[0] + params[1]
+
+
+        features = client.features([("avg_user_transactions", "quickstart"), params=[1, 2])
+        print(features)
+        # [3]
+        ```
+
 
         Args:
             variant (str): Name of variant
@@ -775,12 +854,7 @@ class LocalProvider:
         Returns:
             decorator (OnDemandFeature): decorator
 
-        **Examples**
-        ```python
-        @ff.ondemand_feature()
-        def avg_user_transactions():
-            pass
-        ```
+
         """
 
         return self.__registrar.ondemand_feature(
@@ -932,8 +1006,7 @@ class SubscriptableTransformation:
     ``` py
     @local.transformation(variant="quickstart")
     def average_user_transaction():
-        return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from" \
-        " {{transactions.v1}} GROUP BY user_id"
+        return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.v1}} GROUP BY user_id"
 
     feature = ff.Feature(average_user_transaction[["user_id", "avg_transaction_amt"]])
     ```
@@ -1438,6 +1511,28 @@ class FeatureColumnResource(ColumnResource):
         tags: List[str] = [],
         properties: Dict[str, str] = {},
     ):
+        """
+        Feature registration object.
+
+        **Example**
+        ```
+        @ff.entity
+        class Customer:
+        # Register a column from a transformation as a feature
+            transaction_amount = ff.Feature(
+                fare_per_family_member[["CustomerID", "Amount", "Transaction Time"]],
+                variant="quickstart",
+                type=ff.Float64,
+                inference_store=redis,
+            )
+        ```
+
+        Args:
+            transformation_args (tuple): A transformation or source function and the columns name in the format: <transformation_function>[[<entity_column>, <value_column>, <timestamp_column (optional)>]]
+            variant (str): An optional variant name for the feature.
+            type (Union[ScalarType, str]): The type of the value in for the feature.
+            inference_store (Union[str, OnlineProvider, FileStoreProvider]): Where to store for online serving.
+        """
         self.variant = variant
         super().__init__(
             transformation_args=transformation_args,
@@ -1470,6 +1565,26 @@ class LabelColumnResource(ColumnResource):
         tags: List[str] = [],
         properties: Dict[str, str] = {},
     ):
+        """
+        Label registration object.
+
+        **Example**
+        ```
+        @ff.entity
+        class Customer:
+        # Register a column from a transformation as a label
+            transaction_amount = ff.Label(
+                fare_per_family_member[["CustomerID", "Amount", "Transaction Time"]],
+                variant="quickstart",
+                type=ff.Float64
+            )
+        ```
+
+        Args:
+            transformation_args (tuple): A transformation or source function and the columns name in the format: <transformation_function>[[<entity_column>, <value_column>, <timestamp_column (optional)>]]
+            variant (str): An optional variant name for the label.
+            type (Union[ScalarType, str]): The type of the value in for the label.
+        """
         self.variant = variant
         super().__init__(
             transformation_args=transformation_args,
@@ -1488,7 +1603,8 @@ class LabelColumnResource(ColumnResource):
 
 
 class Registrar:
-    """These functions are used to register new resources and retrieving existing resources. Retrieved resources can be used to register additional resources. If information on these resources is needed (e.g. retrieve the names of all variants of a feature), use the [Resource Client](client.md) instead.
+    """These functions are used to register new resources and retrieving existing resources.
+    Retrieved resources can be used to register additional resources.
 
     ``` py title="definitions.py"
     import featureform as ff
@@ -1547,14 +1663,94 @@ class Registrar:
             raise ValueError("Owner must be set or a default owner must be specified.")
         return owner
 
-    def set_run(self, run: str):
-        """Set run.
+    def set_run(self, run: str = ""):
+        """
+
+        **Example 1**: Using set_run() without arguments will generate a random run name.
+        ``` py
+        import featureform as ff
+        ff.set_run()
+
+        postgres.register_table(
+            name="transactions",
+            table="transactions_table",
+        )
+
+        # Applying will register the source as name=transactions, variant=<randomly-generated>
+
+        ```
+
+        **Example 2**: Using set_run() with arguments will set the variant to the provided name.
+        ``` py
+        import featureform as ff
+        ff.set_run("last_30_days")
+
+        postgres.register_table(
+            name="transactions",
+            table="transactions_table",
+        )
+
+        # Applying will register the source as name=transactions, variant=last_30_days
+        ```
+
+        **Example 3**: Generated and set variant names can be used together
+        ``` py
+        import featureform as ff
+        ff.set_run()
+
+        file = spark.register_file(
+            name="transactions",
+            path="my/transactions.parquet",
+            variant="last_30_days"
+        )
+
+        @spark.df_transformation(inputs=[file]):
+        def customer_count(transactions):
+            return transactions.groupBy("CustomerID").count()
+
+
+        # Applying without a variant for the dataframe transformation will result in
+        # the transactions source having a variant of last_30_days and the transformation
+        # having a randomly generated variant
+        ```
+
+        **Example 4**: This also works within SQL Transformations
+        ``` py
+        import featureform as ff
+        ff.set_run("last_30_days")
+
+        @postgres.sql_transformation():
+        def my_transformation():
+            return "SELECT CustomerID, Amount FROM {{ transactions }}"
+
+        # The variant will be autofilled so the SQL query is returned as:
+        # "SELECT CustomerID, Amount FROM {{ transactions.last_30_days }}"
+        ```
+
         Args:
             run (str): Name of a run to be set.
         """
-        self.__run = run
+        if run == "":
+            self.__run = get_random_name()
+        else:
+            self.__run = run
 
     def get_run(self) -> str:
+        """
+        Get the current run name.
+
+        **Examples**:
+        ``` py
+        import featureform as ff
+
+        client = ff.Client()
+        f = client.features(("avg_transaction_amount", ff.get_run()), {"user": "123"})
+
+        ```
+
+        Returns:
+            run: The name of the current run
+        """
         return self.__run
 
     def get_source(self, name, variant, local=False):
@@ -1571,6 +1767,7 @@ class Registrar:
             ],
         )
         ```
+
         Args:
             name (str): Name of source to be retrieved
             variant (str): Name of variant of source to be retrieved
@@ -1631,6 +1828,7 @@ class Registrar:
             ],
         )
         ```
+
         Args:
             name (str): Name of Redis provider to be retrieved
 
@@ -1659,6 +1857,7 @@ class Registrar:
             ],
         )
         ```
+
         Args:
             name (str): Name of MongoDB provider to be retrieved
 
@@ -1674,7 +1873,7 @@ class Registrar:
         return OnlineProvider(self, mock_provider)
 
     def get_blob_store(self, name):
-        """Get a Azure Blob provider. The returned object can be used to register additional resources.
+        """Get an Azure Blob provider. The returned object can be used to register additional resources.
 
         **Examples**:
         ``` py
@@ -1689,6 +1888,7 @@ class Registrar:
             ],
         )
         ```
+
         Args:
             name (str): Name of Azure blob provider to be retrieved
 
@@ -1719,6 +1919,7 @@ class Registrar:
             table="Transactions",  # This is the table's name in Postgres
         )
         ```
+
         Args:
             name (str): Name of Postgres provider to be retrieved
 
@@ -1751,6 +1952,7 @@ class Registrar:
             table="Transactions",  # This is the table's name in Postgres
         )
         ```
+
         Args:
             name (str): Name of Snowflake provider to be retrieved
 
@@ -1783,6 +1985,7 @@ class Registrar:
             table="Transactions",  # This is the table's name in Postgres
         )
         ```
+
         Args:
             name (str): Name of Snowflake provider to be retrieved
 
@@ -1816,6 +2019,7 @@ class Registrar:
             table="Transactions",  # This is the table's name in Postgres
         )
         ```
+
         Args:
             name (str): Name of Redshift provider to be retrieved
 
@@ -1823,7 +2027,7 @@ class Registrar:
             redshift (OfflineSQLProvider): Provider
         """
         mock_config = RedshiftConfig(
-            host="", port="", database="", user="", password=""
+            host="", port=5432, database="", user="", password=""
         )
         mock_provider = Provider(
             name=name, function="OFFLINE", description="", team="", config=mock_config
@@ -1843,13 +2047,18 @@ class Registrar:
             table="Transactions",  # This is the table's name in BigQuery
         )
         ```
+
         Args:
             name (str): Name of BigQuery provider to be retrieved
 
         Returns:
             bigquery (OfflineSQLProvider): Provider
         """
-        mock_config = BigQueryConfig(project_id="", dataset_id="", credentials_path="")
+        mock_config = BigQueryConfig(
+            project_id="",
+            dataset_id="",
+            credentials=GCPCredentials(project_id="", credentials_path=""),
+        )
         mock_provider = Provider(
             name=name, function="OFFLINE", description="", team="", config=mock_config
         )
@@ -1857,6 +2066,7 @@ class Registrar:
 
     def get_spark(self, name):
         """Get a Spark provider. The returned object can be used to register additional resources.
+
         **Examples**:
         ``` py
         spark = ff.get_spark("spark-quickstart")
@@ -1867,8 +2077,10 @@ class Registrar:
             file_path="s3://bucket/path/to/file/transactions.parquet",  # This is the path to file
         )
         ```
+
         Args:
             name (str): Name of Spark provider to be retrieved
+
         Returns:
             spark (OfflineSQLProvider): Provider
         """
@@ -1882,22 +2094,24 @@ class Registrar:
 
     def get_kubernetes(self, name):
         """
-        Get a k8s Azure provider. The returned object can be used to register additional resources.
+        Get a k8s provider. The returned object can be used to register additional resources.
         **Examples**:
         ``` py
 
-        k8s_azure = ff.get_kubernetes("k8s-azure-quickstart")
-        transactions = k8s_azure.register_file(
+        k8s = ff.get_kubernetes("k8s-azure-quickstart")
+        transactions = k8s.register_file(
             name="transactions",
             variant="kaggle",
             description="Fraud Dataset From Kaggle",
             path="path/to/blob",
         )
         ```
+
         Args:
-            name (str): Name of k8s Azure provider to be retrieved
+            name (str): Name of k8s provider to be retrieved
+
         Returns:
-            k8s_azure (OfflineK8sProvider): Provider
+            k8s (OfflineK8sProvider): Provider
         """
         mock_config = K8sConfig(store_type="", store_config={})
         mock_provider = Provider(
@@ -1920,8 +2134,10 @@ class Registrar:
             filestore=s3,
         )
         ```
+
         Args:
             name (str): Name of S3 to be retrieved
+
         Returns:
             s3 (FileStore): Provider
         """
@@ -1958,6 +2174,7 @@ class Registrar:
         """Get an entity. The returned object can be used to register additional resources.
 
         **Examples**:
+
         ``` py
         entity = get_entity("user")
         transactions.register_resources(
@@ -1968,6 +2185,7 @@ class Registrar:
             ],
         )
         ```
+
         Args:
             name (str): Name of entity to be retrieved
             local (bool): If localmode is being used
@@ -1983,12 +2201,12 @@ class Registrar:
     def register_redis(
         self,
         name: str,
+        host: str,
+        port: int,
+        password: str,
+        db: int = 0,
         description: str = "",
         team: str = "",
-        host: str = "0.0.0.0",
-        port: int = 6379,
-        password: str = "",
-        db: int = 0,
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -1998,25 +2216,30 @@ class Registrar:
         ```
         redis = ff.register_redis(
             name="redis-quickstart",
-            host="quickstart-redis",  # The internal dns name for redis
+            host="quickstart-redis",
             port=6379,
+            password="password",
             description="A Redis deployment we created for the Featureform quickstart"
         )
         ```
+
         Args:
-            name (str): Name of Redis provider to be registered
-            description (str): Description of Redis provider to be registered
-            team (str): Name of team
-            host (str): Internal DNS name for Redis
-            port (int): Redis port
-            password (str): Redis password
-            db (str): Redis database
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
+            name (str): (Immutable) Name of Redis provider to be registered
+            host (str): (Immutable) Hostname for Redis
+            db (str): (Immutable) Redis database number
+            port (int): (Mutable) Redis port
+            password (str): (Mutable) Redis password
+            description (str): (Mutable) Description of Redis provider to be registered
+            team (str): (Mutable) Name of team
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
 
         Returns:
             redis (OnlineProvider): Provider
         """
+        tag, properties = set_tags_properties(tags, properties)
+        print("REDIS TAGS: ", tags)
+        print("REDIS PROPERTIES: ", properties)
         config = RedisConfig(host=host, port=port, password=password, db=db)
         provider = Provider(
             name=name,
@@ -2042,28 +2265,32 @@ class Registrar:
         properties: dict = {},
     ):
         """Register a Pinecone provider.
+
         **Examples**:
         ```
         pinecone = ff.register_pinecone(
             name="pinecone-quickstart",
             project_id="2g13ek7",
             environment="us-west4-gcp-free",
-            api_key="e4egd064-1vb6-497f-aadf-7547atbb517f"
-            description="A Pinecone project for we Featureform embeddings"
+            api_key="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
         )
         ```
+
         Args:
-            name (str): Name of Pinecone provider to be registered
-            project_id (str): Pinecone project id
-            environment (str): Pinecone environment
-            api_key (str): Pinecone api key
-            description (str): Description of Pinecone provider to be registered
-            team (str): Name of team
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
+            name (str): (Immutable) Name of Pinecone provider to be registered
+            project_id (str): (Immutable) Pinecone project id
+            environment (str): (Immutable) Pinecone environment
+            api_key (str): (Mutable) Pinecone api key
+            description (str): (Mutable) Description of Pinecone provider to be registered
+            team (str): (Mutable) Name of team
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
+
         Returns:
             pinecone (OnlineProvider): Provider
         """
+
+        tags, properties = set_tags_properties(tags, properties)
         config = PineconeConfig(
             project_id=project_id, environment=environment, api_key=api_key
         )
@@ -2090,6 +2317,7 @@ class Registrar:
         properties: dict = {},
     ):
         """Register a Weaviate provider.
+
         **Examples**:
         ```
         weaviate = ff.register_weaviate(
@@ -2099,14 +2327,16 @@ class Registrar:
             description="A Weaviate project for using embeddings in Featureform"
         )
         ```
+
         Args:
-            name (str): Name of Weaviate provider to be registered
-            url (str): Endpoint of Weaviate cluster, either in the cloud or via another deployment operation
-            api_key (str): Weaviate api key
-            description (str): Description of Weaviate provider to be registered
-            team (str): Name of team
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
+            name (str): (Immutable) Name of Weaviate provider to be registered
+            url (str): (Immutable) Endpoint of Weaviate cluster, either in the cloud or via another deployment operation
+            api_key (str): (Mutable) Weaviate api key
+            description (str): (Mutable) Description of Weaviate provider to be registered
+            team (str): (Mutable) Name of team
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
+
         Returns:
             weaviate (OnlineProvider): Provider
         """
@@ -2132,13 +2362,12 @@ class Registrar:
         root_path: str,
         description: str = "",
         team: str = "",
-        tags: List[str] = [],
-        properties: dict = {},
+        tags=None,
+        properties=None,
     ):
-        """Register an azure blob store provider.
+        """Register an Azure Blob Store provider.
 
-        This has the functionality of an online store and can be used as a parameter
-        to a k8s or spark provider
+        Azure Blob Storage can be used as the storage component for Spark or the Featureform Pandas Runner.
 
         **Examples**:
         ```
@@ -2151,21 +2380,24 @@ class Registrar:
             description="An azure blob store provider to store offline and inference data"
         )
         ```
+
         Args:
-            name (str): Name of Azure blob store to be registered
-            container_name (str): Azure container name
-            root_path (str): custom path in container to store data
-            description (str): Description of Azure Blob provider to be registered
-            team (str): the name of the team registering the filestore
-            account_name (str): Azure account name
-            account_key (str): Secret azure account key
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
+            name (str): (Immutable) Name of Azure blob store to be registered
+            container_name (str): (Immutable) Azure container name
+            root_path (str): (Immutable) A custom path in container to store data
+            account_name (str): (Immutable) Azure account name
+            account_key (str):  (Mutable) Secret azure account key
+            description (str): (Mutable) Description of Azure Blob provider to be registered
+            team (str): (Mutable) The name of the team registering the filestore
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
+
         Returns:
             blob (StorageProvider): Provider
                 has all the functionality of OnlineProvider
         """
 
+        tags, properties = set_tags_properties(tags, properties)
         azure_config = AzureFileStoreConfig(
             account_name=account_name,
             account_key=account_key,
@@ -2188,17 +2420,19 @@ class Registrar:
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, azure_config, "AZURE")
 
+    # TODO: Add deprecated warning for bucket_path
     def register_s3(
         self,
         name: str,
         credentials: AWSCredentials,
-        bucket_path: str,
         bucket_region: str,
-        path: str = "",
+        path: str,
+        bucket_name: str = "",
         description: str = "",
         team: str = "",
         tags: List[str] = [],
         properties: dict = {},
+        bucket_path: str = "",
     ):
         """Register a S3 store provider.
 
@@ -2210,29 +2444,37 @@ class Registrar:
         s3 = ff.register_s3(
             name="s3-quickstart",
             credentials=aws_creds,
-            bucket_path="bucket_name",
+            bucket_name="bucket_name",
             bucket_region=<bucket_region>,
             path="path/to/store/featureform_files/in/",
             description="An s3 store provider to store offline"
         )
         ```
+
         Args:
-            name (str): Name of S3 store to be registered
-            credentials (AWSCredentials): AWS credentials to access the bucket
-            bucket_path (str): custom path including the bucket name
-            bucket_region (str): aws region the bucket is located in
-            path (str): the path used to store featureform files in
-            description (str): Description of S3 provider to be registered
-            team (str): the name of the team registering the filestore
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
+            name (str): (Immutable) Name of S3 store to be registered
+            bucket_name (str): (Immutable) AWS Bucket Name
+            bucket_region (str): (Immutable) AWS region the bucket is located in
+            path (str): (Immutable) The path used to store featureform files in
+            credentials (AWSCredentials): (Mutable) AWS credentials to access the bucket
+            description (str): (Mutable) Description of S3 provider to be registered
+            team (str): (Mutable) The name of the team registering the filestore
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
+
         Returns:
             s3 (FileStoreProvider): Provider
                 has all the functionality of OfflineProvider
         """
+        tags, properties = set_tags_properties(tags, properties)
+
+        if bucket_path == "" and bucket_name == "":
+            raise ValueError("bucket_name required")
+        if bucket_name == "" and bucket_path != "":
+            bucket_name = bucket_path
 
         s3_config = S3StoreConfig(
-            bucket_path=bucket_path,
+            bucket_path=bucket_name,
             bucket_region=bucket_region,
             credentials=credentials,
             path=path,
@@ -2253,39 +2495,42 @@ class Registrar:
     def register_gcs(
         self,
         name: str,
-        credentials: GCPCredentials,
         bucket_name: str,
-        bucket_path: str = "",
+        bucket_path: str,
+        credentials: GCPCredentials,
         description: str = "",
         team: str = "",
         tags: List[str] = [],
         properties: dict = {},
     ):
         """Register a GCS store provider.
-                **Examples**:
+
+        **Examples**:
         ```
         gcs = ff.register_gcs(
             name="gcs-quickstart",
-            credentials=gcp_creds,
+            credentials=ff.GCPCredentials(...),
             bucket_name="bucket_name",
             bucket_path="featureform/path/",
             description="An gcs store provider to store offline"
         )
         ```
+
         Args:
-            name (str): Name of GCS store to be registered
-            credentials (GCPCredentials): GCP credentials to access the bucket
-            bucket_name (str): The bucket name
-            bucket_path (str): Custom path to be used by featureform
-            description (str): Description of GCS provider to be registered
-            team (str): The name of the team registering the filestore
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
+            name (str): (Immutable) Name of GCS store to be registered
+            bucket_name (str): (Immutable) The bucket name
+            bucket_path (str): (Immutable) Custom path to be used by featureform
+            credentials (GCPCredentials): (Mutable) GCP credentials to access the bucket
+            description (str): (Mutable) Description of GCS provider to be registered
+            team (str): (Mutable) The name of the team registering the filestore
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
+
         Returns:
             gcs (FileStoreProvider): Provider
                 has all the functionality of OfflineProvider
         """
-
+        tags, properties = set_tags_properties(tags, properties)
         gcs_config = GCSFileStoreConfig(
             bucket_name=bucket_name, bucket_path=bucket_path, credentials=credentials
         )
@@ -2322,21 +2567,23 @@ class Registrar:
         ```
         hdfs = ff.register_hdfs(
             name="hdfs-quickstart",
-            host=<port>,
-            port=<port>,
-            path=<path>,
-            username=<username>
+            host="<host>",
+            port="<port>",
+            path="<path>",
+            username="<username>",
             description="An hdfs store provider to store offline"
         )
         ```
+
         Args:
-            name (str): Name of HDFS store to be registered
-            host (str): The hostname for HDFS
-            port (str): The IPC port for the Namenode for HDFS. (Typically 8020 or 9000)
-            path (str): A storage path within HDFS
-            username (str): A Username for HDFS
-            description (str): Description of HDFS provider to be registered
-            team (str): The name of the team registering HDFS
+            name (str): (Immutable) Name of HDFS store to be registered
+            host (str): (Immutable) The hostname for HDFS
+            path (str): (Immutable) A storage path within HDFS
+            port (str): (Mutable) The IPC port for the Namenode for HDFS. (Typically 8020 or 9000)
+            username (str): (Mutable) A Username for HDFS
+            description (str): (Mutable) Description of HDFS provider to be registered
+            team (str): (Mutable) The name of the team registering HDFS
+
         Returns:
             hdfs (FileStoreProvider): Provider
         """
@@ -2355,12 +2602,14 @@ class Registrar:
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, hdfs_config, hdfs_config.type())
 
+    # TODO: Set Deprecation Warning For Credentials Path
     def register_firestore(
         self,
         name: str,
         collection: str,
         project_id: str,
-        credentials_path: str,
+        credentials: GCPCredentials,
+        credentials_path: str = "",
         description: str = "",
         team: str = "",
         tags: List[str] = [],
@@ -2375,24 +2624,28 @@ class Registrar:
             description="A Firestore deployment we created for the Featureform quickstart",
             project_id="quickstart-project",
             collection="quickstart-collection",
+            credentials=ff.GCPCredentials(...)
         )
         ```
+
         Args:
-            name (str): Name of Firestore provider to be registered
-            description (str): Description of Firestore provider to be registered
-            team (str): The name of the team registering the filestore
-            project_id (str): The Project name in GCP
-            collection (str): The Collection name in Firestore under the given project ID
-            credentials_path (str): A path to a Google Credentials file with access permissions for Firestore
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
+            name (str): (Immutable) Name of Firestore provider to be registered
+            project_id (str): (Immutable) The Project name in GCP
+            collection (str): (Immutable) The Collection name in Firestore under the given project ID
+            credentials (GCPCredentials): (Mutable) GCP credentials to access Firestore
+            description (str): (Mutable) Description of Firestore provider to be registered
+            team (str): (Mutable) The name of the team registering the filestore
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
+
         Returns:
             firestore (OfflineSQLProvider): Provider
         """
+        tags, properties = set_tags_properties(tags, properties)
         config = FirestoreConfig(
             collection=collection,
             project_id=project_id,
-            credentials_path=credentials_path,
+            credentials=credentials,
         )
         provider = Provider(
             name=name,
@@ -2406,18 +2659,19 @@ class Registrar:
         self.__resources.append(provider)
         return OnlineProvider(self, provider)
 
+    # TODO: Check these fields
     def register_cassandra(
         self,
         name: str,
-        description: str = "",
-        team: str = "",
-        host: str = "0.0.0.0",
-        port: int = 9042,
-        username: str = "cassandra",
-        password: str = "cassandra",
-        keyspace: str = "",
+        host: str,
+        port: int,
+        username: str,
+        password: str,
+        keyspace: str,
         consistency: str = "THREE",
         replication: int = 3,
+        description: str = "",
+        team: str = "",
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -2437,18 +2691,19 @@ class Registrar:
                 replication = 3
             )
         ```
+
         Args:
-            name (str): Name of Cassandra provider to be registered
-            description (str): Description of Cassandra provider to be registered
-            team (str): Name of team
-            host (str): DNS name of Cassandra
-            port (str): Port
-            username (str): Username
-            password (str): Password
-            consistency (str): Consistency
-            replication (int): Replication
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
+            name (str): (Immutable) Name of Cassandra provider to be registered
+            host (str): (Immutable) DNS name of Cassandra
+            port (str): (Mutable) Port
+            username (str): (Mutable) Username
+            password (str): (Mutable) Password
+            consistency (str): (Mutable) Consistency
+            replication (int): (Mutable) Replication
+            description (str): (Mutable) Description of Cassandra provider to be registered
+            team (str): (Mutable) Name of team
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
 
         Returns:
             cassandra (OnlineProvider): Provider
@@ -2477,11 +2732,11 @@ class Registrar:
     def register_dynamodb(
         self,
         name: str,
+        access_key: str,
+        secret_key: str,
+        region: str,
         description: str = "",
         team: str = "",
-        access_key: str = None,
-        secret_key: str = None,
-        region: str = None,
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -2492,24 +2747,26 @@ class Registrar:
         dynamodb = ff.register_dynamodb(
             name="dynamodb-quickstart",
             description="A Dynamodb deployment we created for the Featureform quickstart",
-            access_key="$ACCESS_KEY",
-            secret_key="$SECRET_KEY",
+            access_key="<AWS_ACCESS_KEY>",
+            secret_key="<AWS_SECRET_KEY>",
             region="us-east-1"
         )
         ```
+
         Args:
-            name (str): Name of DynamoDB provider to be registered
-            description (str): Description of DynamoDB provider to be registered
-            team (str): Name of team
-            access_key (str): Access key
-            secret_key (str): Secret key
-            region (str): Region
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
+            name (str): (Immutable) Name of DynamoDB provider to be registered
+            region (str): (Immutable) Region to create dynamo tables
+            access_key (str): (Mutable) An AWS Access Key with permissions to create DynamoDB tables
+            secret_key (str): (Mutable) An AWS Secret Key with permissions to create DynamoDB tables
+            description (str): (Mutable) Description of DynamoDB provider to be registered
+            team (str): (Mutable) Name of team
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
 
         Returns:
             dynamodb (OnlineProvider): Provider
         """
+        tags, properties = set_tags_properties(tags, properties)
         config = DynamodbConfig(
             access_key=access_key, secret_key=secret_key, region=region
         )
@@ -2528,14 +2785,14 @@ class Registrar:
     def register_mongodb(
         self,
         name: str,
+        username: str,
+        password: str,
+        database: str,
+        host: str,
+        port: str,
+        throughput: int = 1000,
         description: str = "",
         team: str = "",
-        username: str = None,
-        password: str = None,
-        database: str = None,
-        host: str = None,
-        port: str = None,
-        throughput: int = 1000,
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -2546,31 +2803,32 @@ class Registrar:
         mongodb = ff.register_mongodb(
             name="mongodb-quickstart",
             description="A MongoDB deployment",
-            team="myteam"
             username="my_username",
             password="myPassword",
             database="featureform_database"
             host="my-mongodb.host.com",
-            port="10225"
+            port="10225",
             throughput=10000
         )
         ```
+
         Args:
-            name (str): Name of MongoDB provider to be registered
-            description (str): Description of MongoDB provider to be registered
-            team (str): Name of team
-            username (str): MongoDB username
-            password (str): MongoDB password
-            database (str): MongoDB database
-            host (str): MongoDB hostname
-            port (str): MongoDB port
-            throughput (int): The maximum RU limit for autoscaling
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
+            name (str): (Immutable) Name of MongoDB provider to be registered
+            database (str): (Immutable) MongoDB database
+            host (str): (Immutable) MongoDB hostname
+            port (str): (Immutable) MongoDB port
+            username (str): (Mutable) MongoDB username
+            password (str): (Mutable) MongoDB password
+            throughput (int): (Mutable) The maximum RU limit for autoscaling in CosmosDB
+            description (str): (Mutable) Description of MongoDB provider to be registered
+            team (str): (Mutable) Name of team
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
 
         Returns:
             mongodb (OnlineProvider): Provider
         """
+        tags, properties = set_tags_properties(tags, properties)
         config = MongoDBConfig(
             username=username,
             password=password,
@@ -2613,30 +2871,32 @@ class Registrar:
         snowflake = ff.register_snowflake_legacy(
             name="snowflake-quickstart",
             username="snowflake",
-            password="password", #pragma: allowlist secret
+            password="password",
             account_locator="account-locator",
             database="snowflake",
             schema="PUBLIC",
             description="A Snowflake deployment we created for the Featureform quickstart"
         )
         ```
+
         Args:
-            name (str): Name of Snowflake provider to be registered
-            username (str): Username
-            password (str): Password
-            account_locator (str): Account Locator
-            database (str): Database
-            schema (str): Schema
-            description (str): Description of Snowflake provider to be registered
-            team (str): Name of team
-            warehouse (str): Specifies the virtual warehouse to use by default for queries, loading, etc.
-            role (str): Specifies the role to use by default for accessing Snowflake objects in the client session
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
+            name (str): (Immutable) Name of Snowflake provider to be registered
+            account_locator (str): (Immutable) Account Locator
+            schema (str): (Immutable) Schema
+            database (str): (Immutable) Database
+            username (str): (Mutable) Username
+            password (str): (Mutable) Password
+            warehouse (str): (Mutable) Specifies the virtual warehouse to use by default for queries, loading, etc.
+            role (str): (Mutable) Specifies the role to use by default for accessing Snowflake objects in the client session
+            description (str): (Mutable) Description of Snowflake provider to be registered
+            team (str): (Mutable) Name of team
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
 
         Returns:
             snowflake (OfflineSQLProvider): Provider
         """
+        tags, properties = set_tags_properties(tags, properties)
         config = SnowflakeConfig(
             account_locator=account_locator,
             database=database,
@@ -2658,6 +2918,7 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
+    # TODO: Recheck mutable fields
     def register_snowflake(
         self,
         name: str,
@@ -2689,24 +2950,26 @@ class Registrar:
             description="A Snowflake deployment we created for the Featureform quickstart"
         )
         ```
+
         Args:
-            name (str): Name of Snowflake provider to be registered
-            username (str): Username
-            password (str): Password
-            account (str): Account
-            organization (str): Organization
-            database (str): Database
-            schema (str): Schema
-            description (str): Description of Snowflake provider to be registered
-            team (str): Name of team
-            warehouse (str): Specifies the virtual warehouse to use by default for queries, loading, etc.
-            role (str): Specifies the role to use by default for accessing Snowflake objects in the client session
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
+            name (str): (Immutable) Name of Snowflake provider to be registered
+            account (str): (Immutable) Account
+            organization (str): (Immutable) Organization
+            database (str): (Immutable) Database
+            schema (str): (Immutable) Schema
+            username (str): (Mutable) Username
+            password (str): (Mutable) Password
+            warehouse (str): (Mutable) Specifies the virtual warehouse to use by default for queries, loading, etc.
+            role (str): (Mutable) Specifies the role to use by default for accessing Snowflake objects in the client session
+            description (str): (Mutable) Description of Snowflake provider to be registered
+            team (str): (Mutable) Name of team
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
 
         Returns:
             snowflake (OfflineSQLProvider): Provider
         """
+        tags, properties = set_tags_properties(tags, properties)
         config = SnowflakeConfig(
             account=account,
             database=database,
@@ -2732,16 +2995,16 @@ class Registrar:
     def register_postgres(
         self,
         name: str,
+        host: str,
+        port: str,
+        user: str,
+        password: str,
+        database: str,
         description: str = "",
         team: str = "",
-        host: str = "0.0.0.0",
-        port: str = "5432",
-        user: str = "postgres",
-        password: str = "password",
-        database: str = "postgres",
         sslmode: str = "disable",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a Postgres provider.
 
@@ -2757,22 +3020,24 @@ class Registrar:
             database="postgres"
         )
         ```
+
         Args:
-            name (str): Name of Postgres provider to be registered
-            description (str): Description of Postgres provider to be registered
-            team (str): Name of team
-            host (str): Internal DNS name of Postgres
-            port (str): Port
-            user (str): User
-            password (str): Password
-            database (str): Database
-            sslmode (str): SSL mode
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
+            name (str): (Immutable) Name of Postgres provider to be registered
+            host (str): (Immutable) Hostname for Postgres
+            database (str): (Immutable) Database
+            port (str): (Mutable) Port
+            user (str): (Mutable) User
+            password (str): (Mutable) Password
+            sslmode (str): (Mutable) SSL mode
+            description (str): (Mutable) Description of Postgres provider to be registered
+            team (str): (Mutable) Name of team
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
 
         Returns:
             postgres (OfflineSQLProvider): Provider
         """
+        tags, properties = set_tags_properties(tags, properties)
         config = PostgresConfig(
             host=host,
             port=port,
@@ -2797,13 +3062,13 @@ class Registrar:
     def register_redshift(
         self,
         name: str,
+        host: str,
+        port: int,
+        user: str,
+        password: str,
+        database: str,
         description: str = "",
         team: str = "",
-        host: str = "",
-        port: int = 5432,
-        user: str = "redshift",
-        password: str = "password",
-        database: str = "dev",
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -2821,21 +3086,23 @@ class Registrar:
             database="dev"
         )
         ```
+
         Args:
-            name (str): Name of Redshift provider to be registered
-            description (str): Description of Redshift provider to be registered
-            team (str): Name of team
-            host (str): Internal DNS name of Redshift
-            port (str): Port
-            user (str): User
-            password (str): Password
-            database (str): Database
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
+            name (str): (Immutable) Name of Redshift provider to be registered
+            host (str): (Immutable) Hostname for Redshift
+            database (str): (Immutable) Redshift database
+            port (str): (Mutable) Port
+            user (str): (Mutable) User
+            password (str): (Mutable) Redshift password
+            description (str): (Mutable) Description of Redshift provider to be registered
+            team (str): (Mutable) Name of team
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
 
         Returns:
             redshift (OfflineSQLProvider): Provider
         """
+        tags, properties = set_tags_properties(tags, properties)
         config = RedshiftConfig(
             host=host, port=port, database=database, user=user, password=password
         )
@@ -2851,14 +3118,16 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
+    # TODO: Add deprected warning for credentials_path
     def register_bigquery(
         self,
         name: str,
+        project_id: str,
+        dataset_id: str,
+        credentials: GCPCredentials,
+        credentials_path: str = "",
         description: str = "",
         team: str = "",
-        project_id: str = "",
-        dataset_id: str = "",
-        credentials_path: str = "",
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -2871,25 +3140,29 @@ class Registrar:
             description="A BigQuery deployment we created for the Featureform quickstart",
             project_id="quickstart-project",
             dataset_id="quickstart-dataset",
+            credentials=GCPCredentials(...)
         )
         ```
+
         Args:
-            name (str): Name of BigQuery provider to be registered
-            description (str): Description of BigQuery provider to be registered
-            team (str): Name of team
-            project_id (str): The Project name in GCP
-            dataset_id (str): The Dataset name in GCP under the Project Id
-            credentials_path (str): A path to a Google Credentials file with access permissions for BigQuery
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
+            name (str): (Immutable) Name of BigQuery provider to be registered
+            project_id (str): (Immutable) The Project name in GCP
+            dataset_id (str): (Immutable) The Dataset name in GCP under the Project Id
+            credentials (GCPCredentials): (Mutable) GCP credentials to access BigQuery
+            description (str): (Mutable) Description of BigQuery provider to be registered
+            team (str): (Mutable) Name of team
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
 
         Returns:
             bigquery (OfflineSQLProvider): Provider
         """
+        tags, properties = set_tags_properties(tags, properties)
+
         config = BigQueryConfig(
             project_id=project_id,
             dataset_id=dataset_id,
-            credentials_path=credentials_path,
+            credentials=credentials,
         )
         provider = Provider(
             name=name,
@@ -2914,6 +3187,7 @@ class Registrar:
         properties: dict = {},
     ):
         """Register a Spark on Executor provider.
+
         **Examples**:
         ```
         spark = ff.register_spark(
@@ -2924,19 +3198,20 @@ class Registrar:
             filestore=azure_blob_store
         )
         ```
+
         Args:
-            name (str): Name of Spark provider to be registered
-            executor (ExecutorCredentials): an Executor Provider used for the compute power
-            filestore: (FileStoreProvider): a FileStoreProvider used for storage of data
-            description (str): Description of Spark provider to be registered
-            team (str): Name of team
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
+            name (str): (Immutable) Name of Spark provider to be registered
+            executor (ExecutorCredentials): (Mutable) An Executor Provider used for the compute power
+            filestore (FileStoreProvider): (Mutable) A FileStoreProvider used for storage of data
+            description (str): (Mutable) Description of Spark provider to be registered
+            team (str): (Mutable) Name of team
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
 
         Returns:
             spark (OfflineSparkProvider): Provider
         """
-
+        tags, properties = set_tags_properties(tags, properties)
         config = SparkConfig(
             executor_type=executor.type(),
             executor_config=executor.config(),
@@ -2956,6 +3231,7 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineSparkProvider(self, provider)
 
+    # TODO: Change things to either filestore or store
     def register_k8s(
         self,
         name: str,
@@ -2967,27 +3243,26 @@ class Registrar:
         properties: dict = {},
     ):
         """
-        Register an offline store provider to run on featureform's own k8s deployment
-
-        Args:
-            name (str): Name of provider
-            store (FileStoreProvider): Reference to registered file store provider
-            description (str): Description of primary data to be registered
-            team (str): A string parameter describing the team that owns the provider
-            docker_image (str): A custom docker image using the base image featureformcom/k8s_runner
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
+        Register an offline store provider to run on Featureform's own k8s deployment.
         **Examples**:
         ```
-        k8s = ff.register_k8s(
+        spark = ff.register_k8s(
             name="k8s",
-            description="Native featureform kubernetes compute",
-            store=azure_blob,
-            team="featureform-team",
+            store=AzureBlobStore(),
             docker_image="my-repo/image:version"
         )
         ```
+
+        Args:
+            name (str): (Immutable) Name of provider
+            store (FileStoreProvider): (Mutable) Reference to registered file store provider
+            docker_image (str): (Mutable) A custom docker image using the base image featureformcom/k8s_runner
+            description (str): (Mutable) Description of primary data to be registered
+            team (str): (Mutable) A string parameter describing the team that owns the provider
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
         """
+        tags, properties = set_tags_properties(tags, properties)
         config = K8sConfig(
             store_type=store.store_type(),
             store_config=store.config(),
@@ -3008,11 +3283,14 @@ class Registrar:
 
     def register_local(self):
         """Register a Local provider.
+        The local provider is automatically registered when Featureform is imported. This method is not needed in most
+        cases.
 
         **Examples**:
         ```
-            local = register_local()
+        local = ff.register_local()
         ```
+
         Returns:
             local (LocalProvider): Provider
         """
@@ -3338,14 +3616,23 @@ class Registrar:
         self,
         fn=None,
         *,
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
         variant: str = "",
         name: str = "",
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
     ):
         """On Demand Feature decorator.
+
+        **Examples**
+        ```python
+        import featureform as ff
+
+        @ff.ondemand_feature()
+        def avg_user_transactions(client, params, entities):
+            pass
+        ```
 
         Args:
             variant (str): Name of variant
@@ -3358,12 +3645,6 @@ class Registrar:
         Returns:
             decorator (OnDemandFeature): decorator
 
-        **Examples**
-        ```python
-        @ff.ondemand_feature()
-        def avg_user_transactions():
-            pass
-        ```
         """
 
         if not isinstance(owner, str):
@@ -3470,6 +3751,7 @@ class Registrar:
         ``` py
             user = ff.register_entity("user")
         ```
+
         Args:
             name (str): Name of entity to be registered
             description (str): Description of entity to be registered
@@ -3693,6 +3975,15 @@ class Registrar:
     ):
         """Register a training set.
 
+        **Example**:
+        ```
+        ff.register_training_set(
+            name="my_training_set",
+            label=("label", "v1"),
+            features=[("feature1", "v1"), ("feature2", "v1")],
+        )
+        ```
+
         Args:
             name (str): Name of training set to be registered
             variant (str): Name of variant to be registered
@@ -3791,7 +4082,8 @@ class Registrar:
 
 class ResourceClient:
     """
-    The resource client is used to retrieve information on specific resources (entities, providers, features, labels, training sets, models, users). If retrieved resources are needed to register additional resources (e.g. registering a feature from a source), use the [Client](client.md) functions instead.
+    The resource client is used to retrieve information on specific resources
+    (entities, providers, features, labels, training sets, models, users).
 
     Args:
         host (str): The hostname of the Featureform instance. Exclude if using Localmode.
@@ -3849,7 +4141,21 @@ class ResourceClient:
         """
         Apply all definitions, creating and retrieving all specified resources.
 
-        @param asynchronous: Flag to determine whether the client should wait for resources to be in either a READY or FAILED state before returning. Defaults to True to avoid blocking the client.
+        ```python
+        import featureform as ff
+        client = ff.Client()
+
+        ff.register_postgres(
+            host="localhost",
+            port=5432,
+        )
+
+        client.apply()
+        ```
+
+        Args:
+            asynchronous (bool): If True, apply will return immediately and not wait for resources to be created. If False, apply will wait for resources to be created and print out the status of each resource.
+
         """
 
         print(f"Applying Run: {get_run()}")
@@ -5132,68 +5438,6 @@ class Variants:
             resource.register()
 
 
-class FeatureColumnResource(ColumnResource):
-    def __init__(
-        self,
-        transformation_args: tuple,
-        type: Union[ScalarType, str],
-        entity: Union[Entity, str] = "",
-        variant="",
-        owner: str = "",
-        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
-        timestamp_column: str = "",
-        description: str = "",
-        schedule: str = "",
-        tags: List[str] = [],
-        properties: Dict[str, str] = {},
-    ):
-        super().__init__(
-            transformation_args=transformation_args,
-            type=type,
-            resource_type="feature",
-            entity=entity,
-            variant=variant,
-            owner=owner,
-            inference_store=inference_store,
-            timestamp_column=timestamp_column,
-            description=description,
-            schedule=schedule,
-            tags=tags,
-            properties=properties,
-        )
-
-
-class LabelColumnResource(ColumnResource):
-    def __init__(
-        self,
-        transformation_args: tuple,
-        type: Union[ScalarType, str],
-        entity: Union[Entity, str] = "",
-        variant="",
-        owner: str = "",
-        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
-        timestamp_column: str = "",
-        description: str = "",
-        schedule: str = "",
-        tags: List[str] = [],
-        properties: Dict[str, str] = {},
-    ):
-        super().__init__(
-            transformation_args=transformation_args,
-            type=type,
-            resource_type="label",
-            entity=entity,
-            variant=variant,
-            owner=owner,
-            inference_store=inference_store,
-            timestamp_column=timestamp_column,
-            description=description,
-            schedule=schedule,
-            tags=tags,
-            properties=properties,
-        )
-
-
 class EmbeddingColumnResource(ColumnResource):
     def __init__(
         self,
@@ -5209,6 +5453,30 @@ class EmbeddingColumnResource(ColumnResource):
         tags: List[str] = [],
         properties: Dict[str, str] = {},
     ):
+        """
+        Embedding Feature registration object.
+
+        **Example**
+        ```
+        @ff.entity
+        class Speaker:
+        # Register a column from a transformation as a label
+            transaction_amount = ff.Embedding(
+                vectorize_comments[["PK", "Vector"]],
+                dims=384,
+                vector_db=pinecone,
+                description="Embeddings created from speakers' comments in episodes",
+                variant="v1"
+            )
+        ```
+
+        Args:
+            transformation_args (tuple): A transformation or source function and the columns name in the format: <transformation_function>[[<entity_column>, <value_column>]]
+            dims (int): Dimensionality of the embedding.
+            vector_db (Union[str, OnlineProvider]): The name of the vector database to store the embeddings in.
+            variant (str): An optional variant name for the feature.
+            description (str): An optional description for the feature.
+        """
         super().__init__(
             transformation_args=transformation_args,
             type=ScalarType.FLOAT32,
@@ -5248,11 +5516,8 @@ def entity(cls):
         fraudulent = ff.Label()
     ```
 
-    Args:
-        cls (class): Class to be decorated
-
     Returns:
-        cls (class): Decorated class
+        entity (class): Decorated class
     """
     # 1. Use the lowercase name of the class as the entity name
     entity = register_entity(cls.__name__.lower())
@@ -5260,7 +5525,10 @@ def entity(cls):
     #    before the entity decorator, apply the entity name to their
     #    respective name dictionaries prior to registration
     for attr_name in cls.__dict__:
-        if isinstance(cls.__dict__[attr_name], ColumnResource):
+        if isinstance(
+            cls.__dict__[attr_name],
+            (FeatureColumnResource, LabelColumnResource, EmbeddingColumnResource),
+        ):
             resource = cls.__dict__[attr_name]
             resource.name = attr_name
             resource.entity = entity

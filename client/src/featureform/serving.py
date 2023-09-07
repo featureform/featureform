@@ -61,8 +61,8 @@ class ServingClient:
     **Using the Serving Client:**
     ``` py
     import featureform as ff
-    from featureform import ServingClient
-    client = ServingClient(host="localhost:8000")
+    from featureform import Client
+    client = Client()
     # example:
     dataset = client.training_set("fraud_training", "quickstart")
     training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
@@ -111,6 +111,7 @@ class ServingClient:
             for feature_batch in training_dataset:
                 # Train model
         ```
+
         Args:
             name (str): Name of training set to be retrieved
             variant (str): Variant of training set to be retrieved
@@ -127,10 +128,11 @@ class ServingClient:
 
         **Examples**:
         ``` py
-            client = ff.Client(local=True)
+            client = ff.Client()
             fpf = client.features([("avg_transactions", "quickstart")], {"user": "C1410926"})
             # Run features through model
         ```
+
         Args:
             features (list[(str, str)], list[str]): List of Name Variant Tuples
             entities (dict): Dictionary of entity name/value pairs
@@ -1040,6 +1042,7 @@ class Dataset:
             for feature_batch in training_dataset:
                 # Train model
         ```
+
         Args:
             num (int): The number of times the dataset will be repeated
 
@@ -1066,6 +1069,7 @@ class Dataset:
             for feature_batch in training_dataset:
                 # Train model
         ```
+
         Args:
             buffer_size (int): The number of Dataset rows to be randomly swapped
 
@@ -1090,6 +1094,7 @@ class Dataset:
             for feature_batch in training_dataset:
                 # Train model
         ```
+
         Args:
             batch_size (int): The number of items to be added to each batch
 

@@ -197,7 +197,7 @@ func (fp *FilePath) Ext() FileType {
 }
 
 func (fp *FilePath) PathWithBucket() string {
-	return fp.key
+	return fmt.Sprintf("%s%s/%s", fp.scheme, fp.bucket, fp.key)
 }
 
 func (fp *FilePath) SetIsDir(isDir bool) {
@@ -222,7 +222,12 @@ func (fp *FilePath) ParseDirPath(fullPath string) error {
 	if err != nil {
 		return fmt.Errorf("dir: %v", err)
 	}
-	// TODO: consider removing the final piece of the path if it's a file
+	// To ensure consistency, we check to see if the last element has an extension, and if so,
+	// we remove it to ensure we're always dealing with a directory path.
+	lastElem := filepath.Base(fp.key)
+	if filepath.Ext(lastElem) != "" {
+		fp.key = filepath.Dir(fp.key)
+	}
 	fp.isDir = true
 	return nil
 }
@@ -240,18 +245,20 @@ func (fp *FilePath) parsePath(fullPath string) error {
 	// Parse the URI into a url.URL object.
 	u, err := url.Parse(fullPath)
 	if err != nil {
-		return fmt.Errorf("could not parse fullpath '%s': %v", fullPath, err)
+		return fmt.Errorf("could not parse full path '%s': %v", fullPath, err)
 	}
-
 	// Extract the bucket and path components from the URI.
 	bucket := u.Host
 	path := strings.TrimPrefix(u.Path, "/")
-
-	err = fp.checkSchemes(u.Scheme)
+	// url.Parse returns the scheme without the "://" suffix, so we need to add it back
+	// to ensure comparison with our hardcoded schemes works, as well as building the
+	// absolute path.
+	scheme := fmt.Sprintf("%s://", u.Scheme)
+	err = fp.checkSchemes(scheme)
 	if err != nil {
 		return err
 	} else {
-		fp.scheme = u.Scheme
+		fp.scheme = scheme
 	}
 
 	fp.bucket = bucket

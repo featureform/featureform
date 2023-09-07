@@ -1446,7 +1446,7 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 		id := ResourceID{}
 		err := id.FromFilestorePath(path)
 		if err != nil {
-			spark.Logger.Errorf("could not construct ResourceID for path %s due to %v", path, err)
+			spark.Logger.Errorf("could not construct ResourceID for Azure Blob Storage path %s due to %v", path, err)
 			return "", "", ""
 		}
 		fileType, fileName, fileVariant = strings.ToLower(id.Type.String()), id.Name, id.Variant
@@ -1457,11 +1457,13 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 		}
 		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
 	} else if strings.HasPrefix(path, filestore.S3APrefix) {
-		filePaths := strings.Split(path[len(filestore.S3Prefix):], "/")
-		if len(filePaths) <= 4 {
+		id := ResourceID{}
+		err := id.FromFilestorePath(path)
+		if err != nil {
+			spark.Logger.Errorf("could not construct ResourceID for S3A path %s due to %v", path, err)
 			return "", "", ""
 		}
-		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
+		fileType, fileName, fileVariant = strings.ToLower(id.Type.String()), id.Name, id.Variant
 	} else if strings.HasPrefix(path, filestore.HDFSPrefix) {
 		filePaths := strings.Split(path[len(filestore.HDFSPrefix):], "/")
 		if len(filePaths) <= 4 {
@@ -1702,7 +1704,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	if err != nil {
 		return nil, fmt.Errorf("could not parse full path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)
 	}
-	spark.Logger.Debugw("Parsed source table path:", "sourceTablePath", sourcePath.Key())
+	spark.Logger.Debugw("Parsed source table path:", "sourceTablePath", sourcePath.PathWithBucket(), "sourceTable", sparkResourceTable.schema.SourceTable)
 	// TODO: Handle case where there are multiple files in the source table
 	latestSourcePath, err := spark.Store.NewestFileOfType(sourcePath, filestore.Parquet)
 	if err != nil {
@@ -1762,7 +1764,7 @@ func (spark *SparkOfflineStore) getResourceSchema(id ResourceID) (ResourceSchema
 		spark.Logger.Errorw("could not convert offline table to sparkResourceTable", "id", id)
 		return ResourceSchema{}, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
 	}
-	spark.Logger.Debugw("Succesfully retrieved resource schema", "id", id)
+	spark.Logger.Debugw("Successfully retrieved resource schema", "id", id)
 	return sparkResourceTable.schema, nil
 }
 
@@ -1856,7 +1858,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Could not get training set resource key in offline store")
 		return fmt.Errorf("training Set result does not exist in offline store")
 	}
-	spark.Logger.Debugw("Successfully created training set:", "definition", def)
+	spark.Logger.Debugw("Successfully created training set", "definition", def, "newestTrainingSet", newestTrainingSet.PathWithBucket())
 	return nil
 }
 

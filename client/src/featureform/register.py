@@ -2027,7 +2027,7 @@ class Registrar:
             redshift (OfflineSQLProvider): Provider
         """
         mock_config = RedshiftConfig(
-            host="", port="", database="", user="", password=""
+            host="", port=5432, database="", user="", password=""
         )
         mock_provider = Provider(
             name=name, function="OFFLINE", description="", team="", config=mock_config

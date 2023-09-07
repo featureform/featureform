@@ -276,7 +276,7 @@ def test_register_redshift():
         description="description",
         team="team",
         host="host",
-        port=1,
+        port=0,
         user="user",
         password="pass",
         database="db",

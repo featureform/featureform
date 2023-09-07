@@ -143,19 +143,27 @@ class WeaviateConfig:
 @typechecked
 @dataclass
 class AWSCredentials:
-    """
-    AWS Credentials for accessing AWS Services
-
-    Attributes:
-        aws_access_key_id (str): AWS Access Key ID
-        aws_secret_access_key (str): AWS Secret Access Key
-    """
-
     def __init__(
         self,
-        aws_access_key_id: str = "",
-        aws_secret_access_key: str = "",
+        aws_access_key_id: str,
+        aws_secret_access_key: str,
     ):
+        """
+
+        Credentials for an AWS.
+
+        **Example**
+        ```
+        aws_credentials = ff.AWSCredentials(
+            aws_access_key_id="<AWS_ACCESS_KEY>",
+            aws_secret_access_key="<AWS_SECRET_KEY>"
+        )
+        ```
+
+        Args:
+            aws_access_key_id (str): AWS Access Key.
+            aws_secret_access_key (str): AWS Secret Key.
+        """
         empty_strings = aws_access_key_id == "" or aws_secret_access_key == ""
         if empty_strings:
             raise Exception(
@@ -178,21 +186,32 @@ class AWSCredentials:
 @typechecked
 @dataclass
 class GCPCredentials:
-    """
-    GCP Credentials for accessing GCP Services
-
-    Attributes:
-        project_id (str): GCP Project ID
-        credentials_path (str): Path to GCP Credentials JSON file
-    """
-
     def __init__(
         self,
         project_id: str,
         credentials_path: str,
     ):
+        """
+
+        Credentials for an GCP.
+
+        **Example**
+        ```
+        gcp_credentials = ff.GCPCredentials(
+            project_id="<project_id>",
+            credentials_path="<path_to_credentials>"
+        )
+        ```
+
+        Args:
+            project_id (str): The project id.
+            credentials_path (str): The path to the credentials file.
+        """
         self.project_id = project_id
-        self.credentials = json.load(open(credentials_path))
+        if credentials_path == "":
+            self.credentials = {}  # Using this until get_bigquery() deprecated
+        else:
+            self.credentials = json.load(open(credentials_path))
 
     def type(self):
         return "GCPCredentials"
@@ -202,6 +221,9 @@ class GCPCredentials:
             "ProjectId": self.project_id,
             "JSON": self.credentials,
         }
+
+    def to_json(self):
+        return self.credentials
 
 
 @typechecked
@@ -382,7 +404,7 @@ class OnlineBlobConfig:
 class FirestoreConfig:
     collection: str
     project_id: str
-    credentials_path: str
+    credentials: GCPCredentials
 
     def software(self) -> str:
         return "firestore"
@@ -394,7 +416,7 @@ class FirestoreConfig:
         config = {
             "Collection": self.collection,
             "ProjectID": self.project_id,
-            "Credentials": json.load(open(self.credentials_path)),
+            "Credentials": self.credentials.to_json(),
         }
         return bytes(json.dumps(config), "utf-8")
 
@@ -404,7 +426,7 @@ class FirestoreConfig:
 class CassandraConfig:
     keyspace: str
     host: str
-    port: str
+    port: int
     username: str
     password: str
     consistency: str
@@ -566,7 +588,7 @@ class PostgresConfig:
 @dataclass
 class RedshiftConfig:
     host: str
-    port: str
+    port: int
     database: str
     user: str
     password: str
@@ -580,7 +602,7 @@ class RedshiftConfig:
     def serialize(self) -> bytes:
         config = {
             "Host": self.host,
-            "Port": self.port,
+            "Port": str(self.port),
             "Username": self.user,
             "Password": self.password,
             "Database": self.database,
@@ -593,7 +615,7 @@ class RedshiftConfig:
 class BigQueryConfig:
     project_id: str
     dataset_id: str
-    credentials_path: str
+    credentials: GCPCredentials
 
     def software(self) -> str:
         return "bigquery"
@@ -605,7 +627,7 @@ class BigQueryConfig:
         config = {
             "ProjectID": self.project_id,
             "DatasetID": self.dataset_id,
-            "Credentials": json.load(open(self.credentials_path)),
+            "Credentials": self.credentials.to_json(),
         }
         return bytes(json.dumps(config), "utf-8")
 
@@ -733,6 +755,8 @@ Config = Union[
     EmptyConfig,
     HDFSConfig,
     WeaviateConfig,
+    DynamodbConfig,
+    CassandraConfig,
 ]
 
 
@@ -2176,12 +2200,40 @@ class ResourceState:
 class DatabricksCredentials:
     def __init__(
         self,
+        cluster_id: str,
         username: str = "",
         password: str = "",
         host: str = "",
         token: str = "",
-        cluster_id: str = "",
     ):
+        """
+
+        Credentials for a Databricks cluster.
+
+        **Example**
+        ```
+        databricks = ff.DatabricksCredentials(
+            username="<my_username>",
+            password="<my_password>",
+            host="<databricks_hostname>",
+            token="<databricks_token>",
+            cluster_id="<databricks_cluster>",
+        )
+
+        spark = ff.register_spark(
+            name="spark",
+            executor=databricks,
+            ...
+        )
+        ```
+
+        Args:
+            username (str): Username for a Databricks cluster.
+            password (str): Password for a Databricks cluster.
+            host (str): The hostname of a Databricks cluster.
+            token (str): The token for a Databricks cluster.
+            cluster_id (str): ID of an existing Databricks cluster.
+        """
         self.username = username
         self.password = password
         self.host = host
@@ -2227,6 +2279,30 @@ class EMRCredentials:
     def __init__(
         self, emr_cluster_id: str, emr_cluster_region: str, credentials: AWSCredentials
     ):
+        """
+
+        Credentials for an EMR cluster.
+
+        **Example**
+        ```
+        emr = ff.EMRCredentials(
+            emr_cluster_id="<cluster_id>",
+            emr_cluster_region="<cluster_region>",
+            credentials="<AWS_Credentials>",
+        )
+
+        spark = ff.register_spark(
+            name="spark",
+            executor=emr,
+            ...
+        )
+        ```
+
+        Args:
+            emr_cluster_id (str): ID of an existing EMR cluster.
+            emr_cluster_region (str): Region of an existing EMR cluster.
+            credentials (AWSCredentials): Credentials for an AWS account with access to the cluster
+        """
         self.emr_cluster_id = emr_cluster_id
         self.emr_cluster_region = emr_cluster_region
         self.credentials = credentials
@@ -2249,10 +2325,38 @@ class SparkCredentials:
         self,
         master: str,
         deploy_mode: str,
-        python_version: str = "",
+        python_version: str,
         core_site_path: str = "",
         yarn_site_path: str = "",
     ):
+        """
+
+        Credentials for a Generic Spark Cluster
+
+        **Example**
+        ```
+        spark_credentials = ff.SparkCredentials(
+            master="yarn",
+            deploy_mode="cluster",
+            python_version="3.7.12",
+            core_site_path="core-site.xml",
+            yarn_site_path="yarn-site.xml"
+        )
+
+        spark = ff.register_spark(
+            name="spark",
+            executor=spark_credentials,
+            ...
+        )
+        ```
+
+        Args:
+            master (str): The hostname of the Spark cluster. (The same that would be passed to `spark-submit`).
+            deploy_mode (str): The deploy mode of the Spark cluster. (The same that would be passed to `spark-submit`).
+            python_version (str): The Python version running on the cluster. Supports 3.7-3.11
+            core_site_path (str): The path to the core-site.xml file. (For Yarn clusters only)
+            yarn_site_path (str): The path to the yarn-site.xml file. (For Yarn clusters only)
+        """
         self.master = master.lower()
         self.deploy_mode = deploy_mode.lower()
         self.core_site_path = core_site_path

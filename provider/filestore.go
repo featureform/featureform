@@ -238,15 +238,26 @@ func NewS3FileStore(config Config) (FileStore, error) {
 		Credentials:  s3StoreConfig.Credentials,
 		Path:         s3StoreConfig.Path,
 		genericFileStore: genericFileStore{
-			bucket: bucket,
+			bucket:    bucket,
+			storeType: filestore.S3,
 		},
 	}, nil
 }
 
 func (s3 *S3FileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 	fp := filestore.S3Filepath{}
+	// **NOTE:** It's possible we'll need to change this default based on whether the
+	// user employs EMR as their Spark executor; however, for all things outside of EMR,
+	// it appears s3a:// should be the default scheme.
+	// See here for details: https://stackoverflow.com/questions/69984233/spark-s3-write-s3-vs-s3a-connectors
+	fp.SetScheme(filestore.S3APrefix)
 	fp.SetBucket(s3.Bucket)
-	fp.SetKey(key)
+	if s3.Path != "" {
+		fp.SetKey(fmt.Sprintf("%s/%s", s3.Path, key))
+	} else {
+		fp.SetKey(key)
+	}
+	fp.SetIsDir(false)
 	err := fp.Validate()
 	if err != nil {
 		return nil, err
@@ -256,8 +267,17 @@ func (s3 *S3FileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 
 func (s3 *S3FileStore) CreateDirPath(key string) (filestore.Filepath, error) {
 	fp := filestore.S3Filepath{}
+	// **NOTE:** It's possible we'll need to change this default based on whether the
+	// user employs EMR as their Spark executor; however, for all things outside of EMR,
+	// it appears s3a:// should be the default scheme.
+	// See here for details: https://stackoverflow.com/questions/69984233/spark-s3-write-s3-vs-s3a-connectors
+	fp.SetScheme(filestore.S3APrefix)
 	fp.SetBucket(s3.Bucket)
-	fp.SetKey(key)
+	if s3.Path != "" {
+		fp.SetKey(fmt.Sprintf("%s/%s", s3.Path, key))
+	} else {
+		fp.SetKey(key)
+	}
 	fp.SetIsDir(true)
 	err := fp.Validate()
 	if err != nil {
@@ -285,6 +305,30 @@ func (s3 *S3FileStore) Read(path filestore.Filepath) ([]byte, error) {
 		return nil, err
 	}
 	return data, nil
+}
+
+// Unlike Azure Blob Storage, which does return true for "partial keys" (i.e. keys that are prefixes of other keys,
+// which we're treating as a directory path), S3 does not. To sidestep this difference in behavior, we've added
+// `Exists` to `S3FileStore`, which uses `List` with a key prefix under the hood to determine whether there are
+// objects "under" the partial key/path.
+// The assumption here is:
+// * If the iterator returns the `EOF` error upon the first iteration, the "key" doesn't exist
+// * If the iterator returns a non-`EOF` error, the "key" may or may not exist; however, we have to address the error
+// * If neither the `EOF` nor non-`EOF` error is returned, the "key" exists and we break from the loop to avoid unnecessary iteration
+func (s3 *S3FileStore) Exists(path filestore.Filepath) (bool, error) {
+	iter := s3.bucket.List(&blob.ListOptions{Prefix: path.Key()})
+	i := 0
+	for {
+		_, err := iter.Next(context.Background())
+		if err == io.EOF && i == 0 {
+			return false, nil
+		} else if err != nil {
+			return false, err
+		} else {
+			i++
+			return true, nil
+		}
+	}
 }
 
 type GCSFileStore struct {
@@ -700,7 +744,7 @@ func (store *genericFileStore) NewestFileOfType(searchPath filestore.Filepath, f
 			if err != nil {
 				return nil, err
 			}
-			// TODO: Prior to adding this guard claus, the call to path.ParseFilePath would fail
+			// TODO: Prior to adding this guard clause, the call to path.ParseFilePath would fail
 			// with the following error if mostRecentKey is empty:
 			// invalid scheme '://', must be one of [gs:// s3:// s3a:// abfss:// hdfs://]
 			if mostRecentKey == "" {
@@ -711,10 +755,10 @@ func (store *genericFileStore) NewestFileOfType(searchPath filestore.Filepath, f
 			// the latest key found at the prefix. The long-term fix could/should be to implement all Filepath methods on
 			// each implementation and call into the genericFileStore with additional parameters for the scheme, bucket, etc.
 			err = path.ParseFilePath(searchPath.PathWithBucket())
-			path.SetKey(mostRecentKey)
 			if err != nil {
 				return nil, err
 			}
+			path.SetKey(mostRecentKey)
 			return path, nil
 		} else {
 			return nil, err

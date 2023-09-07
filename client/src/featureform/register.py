@@ -822,8 +822,8 @@ class LocalProvider:
         self,
         fn=None,
         *,
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
         variant: str = "",
         name: str = "",
         owner: Union[str, UserRegistrar] = "",
@@ -2207,8 +2207,8 @@ class Registrar:
         db: int = 0,
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a Redis provider.
 
@@ -2238,6 +2238,8 @@ class Registrar:
             redis (OnlineProvider): Provider
         """
         tag, properties = set_tags_properties(tags, properties)
+        print("REDIS TAGS: ", tags)
+        print("REDIS PROPERTIES: ", properties)
         config = RedisConfig(host=host, port=port, password=password, db=db)
         provider = Provider(
             name=name,
@@ -2259,8 +2261,8 @@ class Registrar:
         api_key: str,
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a Pinecone provider.
 
@@ -2311,8 +2313,8 @@ class Registrar:
         api_key: str,
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a Weaviate provider.
 
@@ -2428,8 +2430,8 @@ class Registrar:
         bucket_name: str = "",
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
         bucket_path: str = "",
     ):
         """Register a S3 store provider.
@@ -2498,8 +2500,8 @@ class Registrar:
         credentials: GCPCredentials,
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a GCS store provider.
 
@@ -2553,8 +2555,8 @@ class Registrar:
         path: str = "",
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a HDFS store provider.
 
@@ -2610,8 +2612,8 @@ class Registrar:
         credentials_path: str = "",
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a Firestore provider.
 
@@ -2670,8 +2672,8 @@ class Registrar:
         replication: int = 3,
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a Cassandra provider.
 
@@ -2735,8 +2737,8 @@ class Registrar:
         region: str,
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a DynamoDB provider.
 
@@ -2791,8 +2793,8 @@ class Registrar:
         throughput: int = 1000,
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a MongoDB provider.
 
@@ -2859,8 +2861,8 @@ class Registrar:
         team: str = "",
         warehouse: str = "",
         role: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a Snowflake provider using legacy credentials.
 
@@ -2930,8 +2932,8 @@ class Registrar:
         team: str = "",
         warehouse: str = "",
         role: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a Snowflake provider.
 
@@ -3001,8 +3003,8 @@ class Registrar:
         description: str = "",
         team: str = "",
         sslmode: str = "disable",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a Postgres provider.
 
@@ -3067,8 +3069,8 @@ class Registrar:
         database: str,
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a Redshift provider.
 
@@ -3126,8 +3128,8 @@ class Registrar:
         credentials_path: str = "",
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a BigQuery provider.
 
@@ -3181,8 +3183,8 @@ class Registrar:
         filestore: FileStoreProvider,
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a Spark on Executor provider.
 
@@ -3237,8 +3239,8 @@ class Registrar:
         description: str = "",
         team: str = "",
         docker_image: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """
         Register an offline store provider to run on Featureform's own k8s deployment.
@@ -3614,8 +3616,8 @@ class Registrar:
         self,
         fn=None,
         *,
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: List[str] = [],
+        properties: dict = {},
         variant: str = "",
         name: str = "",
         owner: Union[str, UserRegistrar] = "",

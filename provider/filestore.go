@@ -266,24 +266,12 @@ func (s3 *S3FileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 }
 
 func (s3 *S3FileStore) CreateDirPath(key string) (filestore.Filepath, error) {
-	fp := filestore.S3Filepath{}
-	// **NOTE:** It's possible we'll need to change this default based on whether the
-	// user employs EMR as their Spark executor; however, for all things outside of EMR,
-	// it appears s3a:// should be the default scheme.
-	// See here for details: https://stackoverflow.com/questions/69984233/spark-s3-write-s3-vs-s3a-connectors
-	fp.SetScheme(filestore.S3APrefix)
-	fp.SetBucket(s3.Bucket)
-	if s3.Path != "" {
-		fp.SetKey(fmt.Sprintf("%s/%s", s3.Path, key))
-	} else {
-		fp.SetKey(key)
-	}
-	fp.SetIsDir(true)
-	err := fp.Validate()
+	fp, err := s3.CreateFilePath(key)
 	if err != nil {
 		return nil, err
 	}
-	return &fp, nil
+	fp.SetIsDir(true)
+	return fp, nil
 }
 
 func (s3 *S3FileStore) FilestoreType() filestore.FileStoreType {
@@ -307,30 +295,6 @@ func (s3 *S3FileStore) Read(path filestore.Filepath) ([]byte, error) {
 	return data, nil
 }
 
-// Unlike Azure Blob Storage, which does return true for "partial keys" (i.e. keys that are prefixes of other keys,
-// which we're treating as a directory path), S3 does not. To sidestep this difference in behavior, we've added
-// `Exists` to `S3FileStore`, which uses `List` with a key prefix under the hood to determine whether there are
-// objects "under" the partial key/path.
-// The assumption here is:
-// * If the iterator returns the `EOF` error upon the first iteration, the "key" doesn't exist
-// * If the iterator returns a non-`EOF` error, the "key" may or may not exist; however, we have to address the error
-// * If neither the `EOF` nor non-`EOF` error is returned, the "key" exists and we break from the loop to avoid unnecessary iteration
-func (s3 *S3FileStore) Exists(path filestore.Filepath) (bool, error) {
-	iter := s3.bucket.List(&blob.ListOptions{Prefix: path.Key()})
-	i := 0
-	for {
-		_, err := iter.Next(context.Background())
-		if err == io.EOF && i == 0 {
-			return false, nil
-		} else if err != nil {
-			return false, err
-		} else {
-			i++
-			return true, nil
-		}
-	}
-}
-
 type GCSFileStore struct {
 	Bucket      string
 	Path        string
@@ -340,8 +304,14 @@ type GCSFileStore struct {
 
 func (gs *GCSFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 	fp := filestore.GCSFilepath{}
+	fp.SetScheme(filestore.GSPrefix)
 	fp.SetBucket(gs.Bucket)
-	fp.SetKey(key)
+	if gs.Path != "" {
+		fp.SetKey(fmt.Sprintf("%s/%s", gs.Path, key))
+	} else {
+		fp.SetKey(key)
+	}
+	fp.SetIsDir(false)
 	err := fp.Validate()
 	if err != nil {
 		return nil, err
@@ -350,15 +320,12 @@ func (gs *GCSFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 }
 
 func (gs *GCSFileStore) CreateDirPath(key string) (filestore.Filepath, error) {
-	fp := filestore.GCSFilepath{}
-	fp.SetBucket(gs.Bucket)
-	fp.SetKey(key)
-	fp.SetIsDir(true)
-	err := fp.Validate()
+	fp, err := gs.CreateFilePath(key)
 	if err != nil {
 		return nil, err
 	}
-	return &fp, nil
+	fp.SetIsDir(true)
+	return fp, nil
 }
 
 func (g *GCSFileStore) FilestoreType() filestore.FileStoreType {
@@ -430,7 +397,8 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 		Path:        GCSConfig.BucketPath,
 		Credentials: GCSConfig.Credentials,
 		genericFileStore: genericFileStore{
-			bucket: bucket,
+			bucket:    bucket,
+			storeType: filestore.GCS,
 		},
 	}, nil
 }
@@ -922,8 +890,28 @@ func (store *genericFileStore) AddEnvVars(envVars map[string]string) map[string]
 	return envVars
 }
 
+// Unlike Azure Blob Storage, which does return true for "partial keys" (i.e. keys that are prefixes of other keys,
+// which we're treating as a directory path), S3 and GCS does not. To sidestep this difference in behavior, we've added
+// `Exists` to `S3FileStore`, which uses `List` with a key prefix under the hood to determine whether there are
+// objects "under" the partial key/path.
+// The assumption here is:
+// * If the iterator returns the `EOF` error upon the first iteration, the "key" doesn't exist
+// * If the iterator returns a non-`EOF` error, the "key" may or may not exist; however, we have to address the error
+// * If neither the `EOF` nor non-`EOF` error is returned, the "key" exists and we break from the loop to avoid unnecessary iteration
 func (store *genericFileStore) Exists(path filestore.Filepath) (bool, error) {
-	return store.bucket.Exists(context.TODO(), path.Key())
+	iter := store.bucket.List(&blob.ListOptions{Prefix: path.Key()})
+	i := 0
+	for {
+		_, err := iter.Next(context.Background())
+		if err == io.EOF && i == 0 {
+			return false, nil
+		} else if err != nil {
+			return false, err
+		} else {
+			i++
+			return true, nil
+		}
+	}
 }
 
 func (store *genericFileStore) Delete(path filestore.Filepath) error {

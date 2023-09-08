@@ -1446,8 +1446,44 @@ func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.Sugar
 	if err := resourceSchema.Deserialize(serializedSchema); err != nil {
 		return nil, fmt.Errorf("error deserializing resource table: %v", err)
 	}
+	if store.FilestoreType() == filestore.GCS {
+		src, err := completePrimarySourceTablePathForGCS(resourceSchema.SourceTable, store)
+		if err != nil {
+			return nil, fmt.Errorf("could not complete primary source table path for GCS: %w", err)
+		}
+		if src != nil {
+			resourceSchema.SourceTable = src.PathWithBucket()
+		}
+	}
 	logger.Debugw("Successfully fetched resource table", "id", id)
 	return &BlobOfflineTable{schema: resourceSchema, store: store}, nil
+}
+
+// **NOTE:** This is a temporary fix for GCS. The primary source table path is stored in the resource schema,
+// which will contain only a directory path for resources other than a primary source. For example, or a Label that was
+// created from a primary source, the value for `SourceTable` on the label schema will be:
+// `featureform/Primary/<NAME>/<VARIANT>`
+// This has been the pattern for all file stores given that Spark can recursively discover files "under" this
+// directory path; however, in the case of GCS, Spark was interpreting this source path _as_ a parquet file,
+// which results in a failure to read the file. To fix this, we need to get the remainder of the primary source's
+// path to the parquet file and append it to the source path stored in the resource schema.
+func completePrimarySourceTablePathForGCS(sourceTable string, store FileStore) (filestore.Filepath, error) {
+	srcID := ResourceID{}
+	if err := srcID.FromFilestorePath(sourceTable); err != nil {
+		return nil, fmt.Errorf("could not parse resource table to id: %v", err)
+	}
+	if srcID.Type == Primary {
+		srcPath, err := store.CreateDirPath(srcID.ToFilestorePath())
+		if err != nil {
+			return nil, fmt.Errorf("could not create dir path: %w", err)
+		}
+		src, err := store.NewestFileOfType(srcPath, filestore.Parquet)
+		if err != nil {
+			return nil, fmt.Errorf("could not get newest blob from GCS: %s: %v", srcPath, err)
+		}
+		return src, nil
+	}
+	return nil, nil
 }
 
 func (k8s *K8sOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {

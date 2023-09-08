@@ -1470,6 +1470,14 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 			return "", "", ""
 		}
 		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
+	} else if strings.HasPrefix(path, filestore.GSPrefix) {
+		id := ResourceID{}
+		err := id.FromFilestorePath(path)
+		if err != nil {
+			spark.Logger.Errorf("could not construct ResourceID for Google Cloud Storage path %s due to %v", path, err)
+			return "", "", ""
+		}
+		fileType, fileName, fileVariant = strings.ToLower(id.Type.String()), id.Name, id.Variant
 	} else if containsSlashes {
 		filePaths := strings.Split(path[len("featureform/"):], "/")
 		if len(filePaths) <= 2 {
@@ -1581,7 +1589,7 @@ func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSc
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	// Create a URL in the same directory as the primary table that follows the naming convention <VARIANT>_src.parquet
-	schema.SourceTable = fmt.Sprintf("%s/%s/src.parquet", primaryTableFilepath.PathWithBucket(), time.Now().Format("2006-01-02-15-04-05-999999"))
+	schema.SourceTable = fmt.Sprintf("%s/%s/src.parquet", primaryTableFilepath.PathWithBucket(), time.Now().Format("2006-01-02-15-04-05"))
 	data, err := schema.Serialize()
 	if err != nil {
 		return nil, err

@@ -198,7 +198,8 @@ def run_dashboard():
     "--dry-run", is_flag=True, help="Checks the definitions without applying them"
 )
 @click.option("--no-wait", is_flag=True, help="Applies the resources asynchronously")
-def apply(host, cert, insecure, local, files, dry_run, no_wait):
+@click.option("--debug", is_flag=True, help="Enable verbose errors")
+def apply(host, cert, insecure, local, files, dry_run, no_wait, debug):
     for file in files:
         if os.path.isfile(file):
             read_file(file)
@@ -210,7 +211,12 @@ def apply(host, cert, insecure, local, files, dry_run, no_wait):
             )
 
     client = Client(
-        host=host, local=local, insecure=insecure, cert_path=cert, dry_run=dry_run
+        host=host,
+        local=local,
+        insecure=insecure,
+        cert_path=cert,
+        dry_run=dry_run,
+        debug=debug,
     )
     asynchronous = no_wait
     client.apply(asynchronous=asynchronous)
@@ -235,8 +241,11 @@ def apply(host, cert, insecure, local, files, dry_run, no_wait):
 )
 @click.option("--insecure", is_flag=True, help="Disables TLS verification")
 @click.option("--local", is_flag=True, help="Enable local mode")
-def search(query, host, cert, insecure, local):
-    client = Client(host=host, local=local, insecure=insecure, cert_path=cert)
+@click.option("--debug", is_flag=True, help="Enable verbose errors")
+def search(query, host, cert, insecure, local, debug):
+    client = Client(
+        host=host, local=local, insecure=insecure, cert_path=cert, debug=debug
+    )
     results = client.search(query, local)
     if local:
         format_rows("NAME", "VARIANT", "TYPE")

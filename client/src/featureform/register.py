@@ -12,6 +12,7 @@ import dill
 import pandas as pd
 from typeguard import typechecked
 
+from .exceptions import StubExceptionWrapper
 from .enums import FileFormat
 from .file_utils import absolute_file_paths
 from .get import *
@@ -4104,7 +4105,13 @@ class ResourceClient:
     """
 
     def __init__(
-        self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
+        self,
+        host=None,
+        local=False,
+        insecure=False,
+        cert_path=None,
+        dry_run=False,
+        debug=False,
     ):
         # This line ensures that the warning is only raised if ResourceClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
@@ -4134,7 +4141,7 @@ class ResourceClient:
                 channel = insecure_channel(host)
             else:
                 channel = secure_channel(host, cert_path)
-            self._stub = ff_grpc.ApiStub(channel)
+            self._stub = StubExceptionWrapper(ff_grpc.ApiStub(channel), debug=debug)
             self._host = host
 
     def apply(self, asynchronous=True):

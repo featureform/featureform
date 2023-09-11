@@ -210,7 +210,9 @@ func testFileUploadAndDownload(t *testing.T, store FileStore) {
 	f.Write([]byte(fileContent))
 
 	sourcePath := filestore.LocalFilepath{}
-	sourcePath.SetKey(sourceFile)
+	if err := sourcePath.SetKey(sourceFile); err != nil {
+		t.Fatalf("could not set source path because %v", err)
+	}
 
 	destinationPath, err := store.CreateFilePath(destFile)
 	if err != nil {
@@ -231,7 +233,9 @@ func testFileUploadAndDownload(t *testing.T, store FileStore) {
 	}
 
 	localDestinationPath := filestore.LocalFilepath{}
-	localDestinationPath.SetKey(localDestFile)
+	if err := localDestinationPath.SetKey(localDestFile); err != nil {
+		t.Fatalf("could not set local destination path because %v", err)
+	}
 
 	err = store.Download(destinationPath, &localDestinationPath)
 	if err != nil {

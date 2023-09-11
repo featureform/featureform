@@ -47,8 +47,8 @@ func (az *Azure) Init() error {
 	return nil
 }
 
-func (az *Azure) Upload(name, dest string) error {
-	source, err := az.store.CreateFilePath(name)
+func (az *Azure) Upload(src, dest string) error {
+	source, err := az.store.CreateFilePath(src)
 	if err != nil {
 		return fmt.Errorf("cannot create source file path: %v", err)
 	}
@@ -112,8 +112,8 @@ func (s3 *S3) Init() error {
 	return nil
 }
 
-func (s3 *S3) Upload(name, dest string) error {
-	source, err := s3.store.CreateFilePath(name)
+func (s3 *S3) Upload(src, dest string) error {
+	source, err := s3.store.CreateFilePath(src)
 	if err != nil {
 		return fmt.Errorf("cannot create source file path: %v", err)
 	}

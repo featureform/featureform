@@ -48,17 +48,6 @@ func (ft FileType) Matches(file string) bool {
 	return FileType(ext) == ft
 }
 
-func GetFileType(file string) FileType {
-	// check to see if its any of the constants
-	for _, fileType := range []FileType{Parquet, CSV, DB} {
-		if fileType.Matches(file) {
-			return fileType
-		}
-	}
-	// defaults to parquet
-	return Parquet
-}
-
 func IsValidFileType(file string) bool {
 	for _, fileType := range []FileType{Parquet, CSV, DB} {
 		if fileType.Matches(file) {
@@ -83,15 +72,15 @@ type Filepath interface {
 	// we're not using these components independently and there's no single term to denote
 	// <SCHEME>://<HOST>:<PORT>, we're using "scheme" to encompass all three.
 	Scheme() string
-	SetScheme(scheme string)
+	SetScheme(scheme string) error
 
 	// Returns the name of the bucket (S3) or container (Azure Blob Storage)
 	Bucket() string
-	SetBucket(bucket string)
+	SetBucket(bucket string) error
 
 	// Returns the blob key, which is the relative path to the object (i.e. without the scheme or bucket/container)
 	Key() string
-	SetKey(key string)
+	SetKey(key string) error
 
 	// Returns the key prefix (i.e. the directory path to the object)
 	KeyPrefix() string
@@ -99,7 +88,9 @@ type Filepath interface {
 	IsDir() bool
 	SetIsDir(isDir bool)
 
+	// Returns the file extension (e.g. "parquet", "csv", etc. of the object)
 	Ext() FileType
+
 	// Returns the full path to the object, including the scheme and bucket/container
 	// TODO: rename to `ToURI`
 	PathWithBucket() string
@@ -107,6 +98,7 @@ type Filepath interface {
 	// the specific parts that the implementation expects.
 	ParseFilePath(path string) error
 	ParseDirPath(path string) error
+
 	Validate() error
 	IsValid() bool
 }
@@ -161,24 +153,36 @@ type FilePath struct {
 	isValid bool
 }
 
-func (fp *FilePath) SetScheme(scheme string) {
+func (fp *FilePath) SetScheme(scheme string) error {
+	if err := fp.checkSchemes(scheme); err != nil {
+		return err
+	}
 	fp.scheme = scheme
+	return nil
 }
 
 func (fp *FilePath) Scheme() string {
 	return fp.scheme
 }
 
-func (fp *FilePath) SetBucket(bucket string) {
+func (fp *FilePath) SetBucket(bucket string) error {
+	if bucket == "" {
+		return fmt.Errorf("bucket cannot be empty")
+	}
 	fp.bucket = bucket
+	return nil
 }
 
 func (fp *FilePath) Bucket() string {
 	return fp.bucket
 }
 
-func (fp *FilePath) SetKey(key string) {
-	fp.key = key
+func (fp *FilePath) SetKey(key string) error {
+	fp.key = strings.Trim(key, "/")
+	if key == "" {
+		return fmt.Errorf("key cannot be empty")
+	}
+	return nil
 }
 
 func (fp *FilePath) Key() string {
@@ -287,7 +291,7 @@ func (s3 *S3Filepath) Validate() error {
 	} else {
 		s3.bucket = strings.Trim(s3.bucket, "/")
 	}
-	if s3.key == "" {
+	if s3.key == "" || s3.key == "/" {
 		return fmt.Errorf("key cannot be empty")
 	} else {
 		s3.key = strings.Trim(s3.key, "/")
@@ -307,7 +311,7 @@ type AzureFilepath struct {
 }
 
 func (azure *AzureFilepath) PathWithBucket() string {
-	return fmt.Sprintf("abfss://%s@%s.dfs.core.windows.net/%s", azure.bucket, azure.StorageAccount, azure.key)
+	return fmt.Sprintf("%s%s@%s.dfs.core.windows.net/%s", azure.scheme, azure.bucket, azure.StorageAccount, azure.key)
 }
 
 // **NOTE**: Due to Azure Blob Storage's unique URI format, we need to re-implement this method
@@ -319,13 +323,12 @@ func (azure *AzureFilepath) ParseFilePath(fullPath string) error {
 	}
 	// Our scheme is the protocol + "://", so we need to suffix the scheme with "://"
 	// to ensure the comparison works.
-	err = azure.FilePath.checkSchemes(fmt.Sprintf("%s://", u.Scheme))
+	scheme := fmt.Sprintf("%s://", u.Scheme)
+	err = azure.FilePath.checkSchemes(scheme)
 	if err != nil {
 		return err
-	} else {
-		azure.FilePath.scheme = u.Scheme
 	}
-	azure.FilePath.scheme = u.Scheme
+	azure.FilePath.scheme = scheme
 	azure.FilePath.bucket = u.User.String()              // The container will be in the User field due to the format <scheme>://<container>@<storage_account>
 	azure.StorageAccount = strings.Split(u.Host, ".")[0] // The host will be in the format <storage_account>.dfs.core.windows.net
 	azure.FilePath.key = strings.TrimPrefix(u.Path, "/")

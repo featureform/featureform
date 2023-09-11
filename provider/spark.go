@@ -387,13 +387,17 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 	// We can't use CreateFilePath here because it calls Validate under the hood,
 	// which will always fail given it's a local file without a valid scheme or bucket, for example.
 	sparkLocalScriptPath := &filestore.LocalFilepath{}
-	sparkLocalScriptPath.SetKey(config.GetSparkLocalScriptPath())
+	if err := sparkLocalScriptPath.SetKey(config.GetSparkLocalScriptPath()); err != nil {
+		return fmt.Errorf("could not create local script path: %v", err)
+	}
 	sparkRemoteScriptPath, err := store.CreateFilePath(config.GetSparkRemoteScriptPath())
 	if err != nil {
 		return fmt.Errorf("could not create remote script path: %v", err)
 	}
 	pythonLocalInitScriptPath := &filestore.LocalFilepath{}
-	pythonLocalInitScriptPath.SetKey(config.GetPythonLocalInitPath())
+	if err := pythonLocalInitScriptPath.SetKey(config.GetPythonLocalInitPath()); err != nil {
+		return fmt.Errorf("could not create local init script path: %v", err)
+	}
 	if err != nil {
 		return fmt.Errorf("could not create local init script path: %v", err)
 	}
@@ -731,7 +735,9 @@ type EMRExecutor struct {
 func (e EMRExecutor) InitializeExecutor(store SparkFileStore) error {
 	e.logger.Info("Uploading PySpark script to filestore")
 	sparkLocalScriptPath := &filestore.LocalFilepath{}
-	sparkLocalScriptPath.SetKey(config.GetSparkLocalScriptPath())
+	if err := sparkLocalScriptPath.SetKey(config.GetSparkLocalScriptPath()); err != nil {
+		return fmt.Errorf("could not create local script path: %v", err)
+	}
 	sparkRemoteScriptPath, err := store.CreateFilePath(config.GetSparkRemoteScriptPath())
 	if err != nil {
 		return fmt.Errorf("could not create file path: %v", err)
@@ -762,7 +768,9 @@ func (s *SparkGenericExecutor) InitializeExecutor(store SparkFileStore) error {
 	// We can't use CreateFilePath here because it calls Validate under the hood,
 	// which will always fail given it's a local file without a valid scheme or bucket, for example.
 	sparkLocalScriptPath := &filestore.LocalFilepath{}
-	sparkLocalScriptPath.SetKey(config.GetSparkLocalScriptPath())
+	if err := sparkLocalScriptPath.SetKey(config.GetSparkLocalScriptPath()); err != nil {
+		return fmt.Errorf("could not create local script path: %v", err)
+	}
 
 	sparkRemoteScriptPath, err := store.CreateFilePath(config.GetSparkRemoteScriptPath())
 	if err != nil {
@@ -1424,10 +1432,18 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 		}
 
 		transformationPath, err := spark.Store.NewestFileOfType(transformationDirPath, filestore.Parquet)
-		if err != nil || transformationPath.Key() == "" {
+		if err != nil {
 			return "", fmt.Errorf("could not get transformation file path: %v", err)
 		}
-
+		exists, err := spark.Store.Exists(transformationPath)
+		if err != nil {
+			spark.Logger.Errorf("could not check if transformation file exists: %v", err)
+			return "", fmt.Errorf("could not check if transformation file exists: %v", err)
+		}
+		if !exists {
+			spark.Logger.Errorf("transformation file does not exist: %s", transformationPath.PathWithBucket())
+			return "", fmt.Errorf("transformation file does not exist: %s", transformationPath.PathWithBucket())
+		}
 		return transformationPath.PathWithBucket(), nil
 	} else {
 		return filePath, fmt.Errorf("could not find path for %s; fileType: %s, fileName: %s, fileVariant: %s", path, fileType, fileName, fileVariant)
@@ -1732,8 +1748,17 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
 	}
 	materializationFilepath, err := spark.Store.NewestFileOfType(destinationPath, filestore.Parquet)
-	if err != nil || materializationFilepath.Key() == "" {
+	if err != nil {
 		return nil, fmt.Errorf("could not get newest materialization file: %v", err)
+	}
+	exists, err := spark.Store.Exists(materializationFilepath)
+	if err != nil {
+		spark.Logger.Errorf("could not check if materialization file exists: %v", err)
+		return nil, fmt.Errorf("could not check if materialization file exists: %v", err)
+	}
+	if !exists {
+		spark.Logger.Errorf("materialization file does not exist: %s", materializationFilepath.PathWithBucket())
+		return nil, fmt.Errorf("materialization file does not exist: %s", materializationFilepath.PathWithBucket())
 	}
 	spark.Logger.Debugw("Successfully created materialization", "id", id)
 	return &FileStoreMaterialization{materializationID, spark.Store, materializationFilepath.Key()}, nil

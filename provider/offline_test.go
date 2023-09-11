@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
-	fs "github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
@@ -154,12 +153,12 @@ func TestOfflineStores(t *testing.T) {
 		}
 		var sparkConfig = pc.SparkConfig{
 			// LOCAL SPARK (GENERIC)
-			// ExecutorType: pc.SparkGeneric,
-			// ExecutorConfig: &pc.SparkGenericConfig{
-			// 	Master:        "local",
-			// 	DeployMode:    "client",
-			// 	PythonVersion: "3.10.10",
-			// },
+			ExecutorType: pc.SparkGeneric,
+			ExecutorConfig: &pc.SparkGenericConfig{
+				Master:        "local",
+				DeployMode:    "client",
+				PythonVersion: "3.10.10",
+			},
 			// DATABRICKS
 			// ExecutorType: pc.Databricks,
 			// ExecutorConfig: &pc.DatabricksConfig{
@@ -168,34 +167,34 @@ func TestOfflineStores(t *testing.T) {
 			// 	Cluster: os.Getenv("DATABRICKS_CLUSTER"),
 			// },
 			// EMR
-			ExecutorType: pc.EMR,
-			ExecutorConfig: &pc.EMRConfig{
-				Credentials: pc.AWSCredentials{
-					AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-					AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-				},
-				ClusterRegion: os.Getenv("EMR_CLUSTER_REGION"),
-				ClusterName:   os.Getenv("EMR_CLUSTER_ID"),
-			},
-			// AZURE
-			// StoreType: fs.Azure,
-			// StoreConfig: &pc.AzureFileStoreConfig{
-			// 	AccountName:   os.Getenv("AZURE_ACCOUNT_NAME"),
-			// 	AccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
-			// 	ContainerName: os.Getenv("AZURE_CONTAINER_NAME"),
-			// 	Path:          os.Getenv("AZURE_CONTAINER_PATH"),
+			// ExecutorType: pc.EMR,
+			// ExecutorConfig: &pc.EMRConfig{
+			// 	Credentials: pc.AWSCredentials{
+			// 		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+			// 		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+			// 	},
+			// 	ClusterRegion: os.Getenv("EMR_CLUSTER_REGION"),
+			// 	ClusterName:   os.Getenv("EMR_CLUSTER_ID"),
 			// },
-			// S3
-			StoreType: fs.S3,
-			StoreConfig: &pc.S3FileStoreConfig{
-				Credentials: pc.AWSCredentials{
-					AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-					AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-				},
-				BucketRegion: os.Getenv("S3_BUCKET_REGION"),
-				BucketPath:   os.Getenv("S3_BUCKET_PATH"),
-				Path:         os.Getenv(""),
+			// AZURE
+			StoreType: fs.Azure,
+			StoreConfig: &pc.AzureFileStoreConfig{
+				AccountName:   os.Getenv("AZURE_ACCOUNT_NAME"),
+				AccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
+				ContainerName: os.Getenv("AZURE_CONTAINER_NAME"),
+				Path:          os.Getenv("AZURE_CONTAINER_PATH"),
 			},
+			// S3
+			// StoreType: fs.S3,
+			// StoreConfig: &pc.S3FileStoreConfig{
+			// 	Credentials: pc.AWSCredentials{
+			// 		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+			// 		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+			// 	},
+			// 	BucketRegion: os.Getenv("S3_BUCKET_REGION"),
+			// 	BucketPath:   os.Getenv("S3_BUCKET_PATH"),
+			// 	Path:         os.Getenv(""),
+			// },
 			// GCS
 			// StoreType: fs.GCS,
 			// StoreConfig: &pc.GCSFileStoreConfig{
@@ -249,40 +248,40 @@ func TestOfflineStores(t *testing.T) {
 	}
 
 	testFns := map[string]func(*testing.T, OfflineStore){
-		// "CreateGetTable":          testCreateGetOfflineTable,
-		// "TableAlreadyExists":      testOfflineTableAlreadyExists,
-		// "TableNotFound":           testOfflineTableNotFound,
-		// "InvalidResourceIDs":      testInvalidResourceIDs,
-		// "Materializations":        testMaterializations,
-		// "MaterializationUpdate":   testMaterializationUpdate,
-		// "InvalidResourceRecord":   testWriteInvalidResourceRecord,
-		// "InvalidMaterialization":  testInvalidMaterialization,
-		// "MaterializeUnknown":      testMaterializeUnknown,
-		// "MaterializationNotFound": testMaterializationNotFound,
+		"CreateGetTable":          testCreateGetOfflineTable,
+		"TableAlreadyExists":      testOfflineTableAlreadyExists,
+		"TableNotFound":           testOfflineTableNotFound,
+		"InvalidResourceIDs":      testInvalidResourceIDs,
+		"Materializations":        testMaterializations,
+		"MaterializationUpdate":   testMaterializationUpdate,
+		"InvalidResourceRecord":   testWriteInvalidResourceRecord,
+		"InvalidMaterialization":  testInvalidMaterialization,
+		"MaterializeUnknown":      testMaterializeUnknown,
+		"MaterializationNotFound": testMaterializationNotFound,
 
-		// "TrainingSets":      testTrainingSet,
-		// "TrainingSetUpdate": testTrainingSetUpdate,
+		"TrainingSets":      testTrainingSet,
+		"TrainingSetUpdate": testTrainingSetUpdate,
 		// "TrainingSetLag":    testLagFeaturesTrainingSet, // KNOWN ISSUE TO RESOLVE
 
-		// "TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID,
-		// "GetUnknownTrainingSet":  testGetUnknownTrainingSet,
-		// "InvalidTrainingSetDefs": testInvalidTrainingSetDefs,
-		// "LabelTableNotFound":     testLabelTableNotFound,
-		// "FeatureTableNotFound":   testFeatureTableNotFound,
+		"TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID,
+		"GetUnknownTrainingSet":  testGetUnknownTrainingSet,
+		"InvalidTrainingSetDefs": testInvalidTrainingSetDefs,
+		"LabelTableNotFound":     testLabelTableNotFound,
+		"FeatureTableNotFound":   testFeatureTableNotFound,
 
-		// "TrainingDefShorthand": testTrainingSetDefShorthand,
+		"TrainingDefShorthand": testTrainingSetDefShorthand,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
-		// "PrimaryTableCreate":              testPrimaryCreateTable,
-		// "PrimaryTableWrite":               testPrimaryTableWrite,
-		// "Transformation":                  testTransform,
-		// "TransformationUpdate":            testTransformUpdate,
-		// "TransformationUpdateWithFeature": testTransformUpdateWithFeatures,
-		// "CreateDuplicatePrimaryTable":     testCreateDuplicatePrimaryTable,
-		// "ChainTransformations":            testChainTransform,
-		// "CreateResourceFromSource":        testCreateResourceFromSource,
-		"CreateResourceFromSourceNoTS": testCreateResourceFromSourceNoTS,
-		// "CreatePrimaryFromSource":         testCreatePrimaryFromSource,
+		"PrimaryTableCreate":              testPrimaryCreateTable,
+		"PrimaryTableWrite":               testPrimaryTableWrite,
+		"Transformation":                  testTransform,
+		"TransformationUpdate":            testTransformUpdate,
+		"TransformationUpdateWithFeature": testTransformUpdateWithFeatures,
+		"CreateDuplicatePrimaryTable":     testCreateDuplicatePrimaryTable,
+		"ChainTransformations":            testChainTransform,
+		"CreateResourceFromSource":        testCreateResourceFromSource,
+		"CreateResourceFromSourceNoTS":    testCreateResourceFromSourceNoTS,
+		"CreatePrimaryFromSource":         testCreatePrimaryFromSource,
 	}
 
 	psqlInfo := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), "localhost", "5432", os.Getenv("POSTGRES_DB"))

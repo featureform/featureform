@@ -289,13 +289,15 @@ class PostgresStore(BlobStore):
         pass
 
     def read(self, table_name):
-        sql_query = f"SELECT * FROM {table_name}"
+        clean_table_name = self.__clean_table_name(table_name)
+        sql_query = f"SELECT * FROM {clean_table_name}"
         return pd.read_sql_query(sql_query, self.__engine)
 
     def write(self, df, table_name):
+        clean_table_name = self.__clean_table_name(table_name)
         try:
             df.to_sql(
-                table_name,
+                clean_table_name,
                 self.__engine,
                 if_exists="replace",
                 index=False,
@@ -305,18 +307,32 @@ class PostgresStore(BlobStore):
             print(e)
             raise e
 
-    def get_transformation(self, transformation):
-        name, variant = transformation.split("__")
+    def __clean_table_name(self, table_name):
+        # this is a temporary fix for the table name issue
+        # if the table contains featureform/{TYPE}/{NAME}/{VARIANT}
+        # then we convert it to featureform_{TYPE}__{NAME}__{VARIANT}
+        # because postgres does not allow / in the table name
 
+        name_parts = table_name.split("/")
+        if name_parts[0] == "featureform" and len(name_parts) == 4:
+            featureform_prefix = name_parts[0]
+            table_type = name_parts[1]
+            name = name_parts[2]
+            variant = name_parts[3]
+            table_name = f"{featureform_prefix}_{table_type}__{name}__{variant}"
+        else:
+            return table_name
+
+    def get_transformation(self, transformation):
         sql_query = f"""SELECT metadata
                         FROM {self.__metadata_table}
-                        WHERE name='{name}' AND variant='{variant}'
+                        WHERE key='{transformation}'
                     """
 
         transformationDF = pd.read_sql_query(sql_query, self.__engine)
 
-        print("retrieved transformation table", transformationDF["transformation"][0])
-        transformation = dill.loads(transformationDF["transformation"][0])
+        print("retrieved transformation table", transformationDF["metadata"][0])
+        transformation = dill.loads(transformationDF["metadata"][0])
         return transformation
 
     @property

@@ -6,7 +6,8 @@ ENV POSTGRES_PASSWORD=mypassword
 ENV POSTGRES_DB=postgres
 
 # Update the package list and install PostgreSQL client
-RUN apt-get update && apt-get install -y postgresql-client
+RUN apt-get update && apt-get install -y postgresql-client gcc libpq-dev \
+    && apt-get clean
 
 WORKDIR /usr/app/src
 

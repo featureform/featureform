@@ -313,6 +313,7 @@ class PostgresStore(BlobStore):
         # then we convert it to featureform_{TYPE}__{NAME}__{VARIANT}
         # because postgres does not allow / in the table name
 
+        print(f"cleaning table name: {table_name}")
         name_parts = table_name.split("/")
         if name_parts[0] == "featureform" and len(name_parts) == 4:
             featureform_prefix = name_parts[0]
@@ -320,8 +321,9 @@ class PostgresStore(BlobStore):
             name = name_parts[2]
             variant = name_parts[3]
             table_name = f"{featureform_prefix}_{table_type}__{name}__{variant}"
-        else:
-            return table_name
+            print(f"cleaned table name: {table_name}")
+
+        return table_name
 
     def get_transformation(self, transformation):
         sql_query = f"""SELECT metadata

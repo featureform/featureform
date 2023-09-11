@@ -1,5 +1,6 @@
 import os
 import types
+import shutil
 
 from datetime import datetime
 from argparse import Namespace
@@ -9,6 +10,7 @@ import dill
 import boto3
 import pandas as pd
 from pandasql import sqldf
+from sqlalchemy import create_engine
 from azure.storage.blob import BlobServiceClient
 
 LOCAL_MODE = "local"
@@ -19,6 +21,7 @@ LOCAL = "local"
 AZURE = "azure"
 GCS = "gcs"
 S3 = "s3"
+POSTGRES = "postgres"
 
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
@@ -49,10 +52,12 @@ class BlobStore:
         return response
 
     def upload_file(self, file_path, blob_path):
-        return "response"
+        shutil.copy(file_path, blob_path)
+        return blob_path
 
     def upload_directory(self, directory_path, blob_path):
-        pass
+        shutil.copytree(directory_path, blob_path)
+        return blob_path
 
     def download(self, blob_path, file_path):
         print(f"downloading {blob_path} to {LOCAL_DATA_PATH}/{file_path}")
@@ -76,10 +81,63 @@ class BlobStore:
         return response
 
     def download_file(self, blob_path, file_path):
-        pass
+        return blob_path
 
     def download_directory(self, blob_path, directory_path):
-        pass
+        return blob_path
+
+    def read(self, source):
+        """
+        Reads the source file from the blob store and returns a dataframe.
+        Parameters:
+            source: (str) path to the source file
+
+        Returns:
+            df: (pd.DataFrame) dataframe of the source file
+        """
+        local_file = "source.csv" if source.endswith(".csv") else "source"
+        output_path = self.download(source, local_file)
+
+        if output_path.endswith(".csv"):
+            df = pd.read_csv(output_path)
+        else:
+            df = pd.read_parquet(output_path)
+
+        return df
+
+    def write(self, df, resource):
+        """
+        Writes the dataframe to the blob store.
+        Parameters:
+            df: (pd.DataFrame) dataframe of the file
+            resource: (str) path to the resource file
+        """
+        local_output = f"{LOCAL_DATA_PATH}/output.parquet"
+        df.to_parquet(local_output)
+
+        # upload blob to blob store
+        output_uri = self.upload(local_output, resource)
+        return output_uri
+
+    def get_transformation(self, transformation):
+        """
+        Retrieves the transformation code from the blob store.
+        Parameters:
+            transformation: (str) path to the transformation file
+
+        Returns:
+            transformation: (code) python code object
+        """
+        df_path = "transformation.pkl"
+
+        print(f"retrieving code from {transformation} in {self.type}")
+        code_path = self.download(transformation, df_path)
+
+        print("executing transformation code")
+        code = get_code_from_file(code_path)
+
+        func = types.FunctionType(code, globals(), "df_transformation")
+        return func
 
 
 class S3BlobStore(BlobStore):
@@ -194,12 +252,76 @@ class AzureBlobStore(BlobStore):
 
             blob_client = self._client.get_blob_client(b)
 
-            ## Download
+            # Download
             with open(f"{directory_path}/{b.name.split('/')[-1]}", "wb") as my_blob:
                 download_stream = blob_client.download_blob()
                 my_blob.write(download_stream.readall())
 
         return directory_path
+
+
+class PostgresStore(BlobStore):
+    def __init__(self, store_credentials):
+        super().__init__(store_credentials)
+        self.__engine = self._create_engine()
+        self.__metadata_table = store_credentials.metadata_table
+
+    def _create_engine(self):
+        user = self._credentials.username
+        password = self._credentials.password
+        host = self._credentials.host
+        database = self._credentials.database
+        sslmode = self._credentials.sslmode
+        return create_engine(
+            f"postgresql://{user}:{password}@{host}/{database}?sslmode={sslmode}"
+        )
+
+    def upload_file(self, local_filename, blob_path):
+        pass
+
+    def upload_directory(self, directory_path, blob_path):
+        pass
+
+    def download_file(self, blob_path, local_file_path):
+        pass
+
+    def download_directory(self, blob_path, directory_path):
+        pass
+
+    def read(self, table_name):
+        sql_query = f"SELECT * FROM {table_name}"
+        return pd.read_sql_query(sql_query, self.__engine)
+
+    def write(self, df, table_name):
+        try:
+            df.to_sql(
+                table_name,
+                self.__engine,
+                if_exists="replace",
+                index=False,
+            )
+            return table_name
+        except Exception as e:
+            print(e)
+            raise e
+
+    def get_transformation(self, transformation):
+        name, variant = transformation.split("__")
+
+        sql_query = f"""SELECT metadata
+                        FROM {self.__metadata_table}
+                        WHERE name='{name}' AND variant='{variant}'
+                    """
+
+        transformationDF = pd.read_sql_query(sql_query, self.__engine)
+
+        print("retrieved transformation table", transformationDF["transformation"][0])
+        transformation = dill.loads(transformationDF["transformation"][0])
+        return transformation
+
+    @property
+    def engine(self):
+        return self.__engine
 
 
 class LocalBlobStore(BlobStore):
@@ -252,41 +374,22 @@ def execute_sql_job(mode, output_uri, transformation, source_list, blob_store):
         blob_store:     BlobStore (blob store object)
 
     Returns:
-        output_uri_with_timestamp: string (output path of blob storage)
+        output_uri: string (output path of blob storage)
     """
     try:
         for i, source in enumerate(source_list):
-            if blob_store.type == LOCAL:
-                output_path = source
-            else:
-                # download blob to local & set source to local path
-                local_file = (
-                    f"source_{i}.csv" if source.endswith(".csv") else f"source_{i}"
-                )
-                output_path = blob_store.download(source, local_file)
-
-            if output_path.endswith(".csv"):
-                globals()[f"source_{i}"] = pd.read_csv(output_path)
-            else:
-                globals()[f"source_{i}"] = pd.read_parquet(output_path)
+            globals()[f"source_{i}"] = blob_store.read(source)
 
         pysqldf = lambda q: sqldf(q, globals())
         transformation_df = pysqldf(transformation)
-        output_dataframe = set_bool_columns(transformation_df)
+        output_df = set_bool_columns(transformation_df)
 
-        dt = datetime.now()
-        output_uri_with_timestamp = f"{output_uri}/{dt}.parquet"
+        if blob_store.type != POSTGRES:
+            dt = datetime.now()
+            output_uri = f"{output_uri.rstrip('/')}/{dt}.parquet"
 
-        if blob_store.type == LOCAL:
-            os.makedirs(output_uri, exist_ok=True)
-            output_dataframe.to_parquet(output_uri_with_timestamp)
-        else:
-            local_output = f"{LOCAL_DATA_PATH}/output.parquet"
-            output_dataframe.to_parquet(local_output)
-            # upload blob to blob store
-            output_uri = blob_store.upload(local_output, output_uri_with_timestamp)
-
-        return output_uri_with_timestamp
+        output_uri = blob_store.write(output_df, output_uri)
+        return output_uri
     except (IOError, OSError) as e:
         print(e)
         raise e
@@ -310,56 +413,25 @@ def execute_df_job(mode, output_uri, code, sources, blob_store):
     func_parameters = []
     print(f"reading '{len(sources)}' source files")
     for i, source in enumerate(sources):
-        if blob_store.type == LOCAL:
-            source_path = source
-        else:
-            # download blob to local & set source to local path
-            local_file = f"source_{i}.csv" if source.endswith(".csv") else f"source_{i}"
-
-            print(f"downloading {source} to {local_file}")
-            source_path = blob_store.download(source, local_file)
-
-        print(f"reading '{source}' source file into dataframe")
-        if source_path.endswith(".csv"):
-            func_parameters.append(pd.read_csv(source_path))
-        else:
-            func_parameters.append(pd.read_parquet(source_path))
+        func_parameters.append(blob_store.read(source))
 
     try:
-        df_path = "transformation.pkl"
-
-        print(f"retrieving code from {code} in {blob_store.type}")
-        if blob_store.type == LOCAL:
-            code_path = code
-        else:
-            code_path = blob_store.download(code, df_path)
-
-        print("executing transformation code")
-        code = get_code_from_file(mode, code_path)
-        func = types.FunctionType(code, globals(), "df_transformation")
+        func = blob_store.get_transformation(code)
         output_df = pd.DataFrame(func(*func_parameters))
 
-        dt = datetime.now()
-        output_uri_with_timestamp = f"{output_uri}/{dt}.parquet"
+        if blob_store.type != POSTGRES:
+            dt = datetime.now()
+            output_uri = f"{output_uri.rstrip('/')}/{dt}.parquet"
 
-        print(f"storing output dataframe to {output_uri_with_timestamp}")
-        if blob_store.type == LOCAL:
-            os.makedirs(output_uri, exist_ok=True)
-            output_df.to_parquet(output_uri_with_timestamp)
-        else:
-            local_output = f"{LOCAL_DATA_PATH}/output.parquet"
-            output_df.to_parquet(local_output)
+        output_uri = blob_store.write(output_df, output_uri)
 
-            # upload blob to blob store
-            output_uri = blob_store.upload(local_output, output_uri_with_timestamp)
-
-        return output_uri_with_timestamp
+        return output_uri
     except (IOError, OSError) as e:
         print(f"Issue with execution of the transformation: {e}")
         raise e
 
 
-def get_code_from_file(mode, file_path):
+def get_code_from_file(file_path):
     """
     Reads the code from a pkl file into a python code object.
     Then this object will be used to execute the transformation.
@@ -371,7 +443,7 @@ def get_code_from_file(mode, file_path):
     Returns:
         code: code object that could be executed
     """
-    print(f"Retrieving transformation code from '{file_path}' file in {mode} mode.")
+    print(f"Retrieving transformation code from '{file_path}' file.")
     code = None
     with open(file_path, "rb") as f:
         f.seek(0)
@@ -396,6 +468,8 @@ def get_blob_store(store_credentials):
         return AzureBlobStore(store_credentials)
     elif store_credentials.type == LOCAL:
         return LocalBlobStore(store_credentials)
+    elif store_credentials.type == POSTGRES:
+        return PostgresStore(store_credentials)
     else:
         raise Exception(f"blob store type {store_credentials.type} is not supported.")
 
@@ -526,6 +600,17 @@ def get_blob_credentials(mode, blob_store_type):
         )
     elif mode == K8S_MODE and blob_store_type == GCS:
         raise NotImplementedError("gcs blob store is not supported yet.")
+    elif mode == K8S_MODE and blob_store_type == POSTGRES:
+        return Namespace(
+            type=POSTGRES,
+            host=os.getenv("POSTGRES_HOST"),
+            port=os.getenv("POSTGRES_PORT"),
+            username=os.getenv("POSTGRES_USERNAME"),
+            password=os.getenv("POSTGRES_PASSWORD"),
+            database=os.getenv("POSTGRES_DATABASE"),
+            sslmode=os.getenv("POSTGRES_SSLMODE"),
+            metadata_table=os.getenv("POSTGRES_METADATA_TABLE"),
+        )
     else:
         return Namespace(
             type=LOCAL,

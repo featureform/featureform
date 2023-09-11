@@ -323,7 +323,7 @@ class PostgresStore(BlobStore):
             table_name = f"{featureform_prefix}_{table_type}__{name}__{variant}"
             print(f"cleaned table name: {table_name}")
 
-        return table_name
+        return table_name.lower()  # lowercase to keep it consistent with go code. 
 
     def get_transformation(self, transformation):
         sql_query = f"""SELECT metadata

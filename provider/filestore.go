@@ -105,38 +105,33 @@ func (store *AzureFileStore) CreateFilePath(key string) (filestore.Filepath, err
 	fp := filestore.AzureFilepath{
 		StorageAccount: store.AccountName,
 	}
-	fp.SetScheme(filestore.AzureBlobPrefix)
+	if err := fp.SetScheme(filestore.AzureBlobPrefix); err != nil {
+		return nil, err
+	}
 	fp.SetBucket(store.ContainerName)
+	var err error
 	if store.Path != "" {
-		fp.SetKey(fmt.Sprintf("%s/%s", store.Path, key))
+		err = fp.SetKey(fmt.Sprintf("%s/%s", store.Path, key))
 	} else {
-		fp.SetKey(key)
+		err = fp.SetKey(key)
+	}
+	if err != nil {
+		return nil, err
 	}
 	fp.SetIsDir(false)
-	err := fp.Validate()
-	if err != nil {
+	if err := fp.Validate(); err != nil {
 		return nil, err
 	}
 	return &fp, nil
 }
 
 func (store *AzureFileStore) CreateDirPath(key string) (filestore.Filepath, error) {
-	fp := filestore.AzureFilepath{
-		StorageAccount: store.AccountName,
-	}
-	fp.SetScheme(filestore.AzureBlobPrefix)
-	fp.SetBucket(store.ContainerName)
-	if store.Path != "" {
-		fp.SetKey(fmt.Sprintf("%s/%s", store.Path, key))
-	} else {
-		fp.SetKey(key)
-	}
-	fp.SetIsDir(true)
-	err := fp.Validate()
+	fp, err := store.CreateFilePath(key)
 	if err != nil {
 		return nil, err
 	}
-	return &fp, nil
+	fp.SetIsDir(true)
+	return fp, nil
 }
 
 func (store *AzureFileStore) configString() string {
@@ -250,16 +245,23 @@ func (s3 *S3FileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 	// user employs EMR as their Spark executor; however, for all things outside of EMR,
 	// it appears s3a:// should be the default scheme.
 	// See here for details: https://stackoverflow.com/questions/69984233/spark-s3-write-s3-vs-s3a-connectors
-	fp.SetScheme(filestore.S3APrefix)
-	fp.SetBucket(s3.Bucket)
+	if err := fp.SetScheme(filestore.S3APrefix); err != nil {
+		return nil, err
+	}
+	if err := fp.SetBucket(s3.Bucket); err != nil {
+		return nil, err
+	}
+	var err error
 	if s3.Path != "" {
-		fp.SetKey(fmt.Sprintf("%s/%s", s3.Path, key))
+		err = fp.SetKey(fmt.Sprintf("%s/%s", s3.Path, key))
 	} else {
-		fp.SetKey(key)
+		err = fp.SetKey(key)
+	}
+	if err != nil {
+		return nil, err
 	}
 	fp.SetIsDir(false)
-	err := fp.Validate()
-	if err != nil {
+	if err := fp.Validate(); err != nil {
 		return nil, err
 	}
 	return &fp, nil
@@ -304,16 +306,23 @@ type GCSFileStore struct {
 
 func (gs *GCSFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 	fp := filestore.GCSFilepath{}
-	fp.SetScheme(filestore.GSPrefix)
-	fp.SetBucket(gs.Bucket)
+	if err := fp.SetScheme(filestore.GSPrefix); err != nil {
+		return nil, err
+	}
+	if err := fp.SetBucket(gs.Bucket); err != nil {
+		return nil, err
+	}
+	var err error
 	if gs.Path != "" {
-		fp.SetKey(fmt.Sprintf("%s/%s", gs.Path, key))
+		err = fp.SetKey(fmt.Sprintf("%s/%s", gs.Path, key))
 	} else {
-		fp.SetKey(key)
+		err = fp.SetKey(key)
+	}
+	if err != nil {
+		return nil, err
 	}
 	fp.SetIsDir(false)
-	err := fp.Validate()
-	if err != nil {
+	if err := fp.Validate(); err != nil {
 		return nil, err
 	}
 	return &fp, nil
@@ -550,6 +559,7 @@ func (fs *HDFSFileStore) Serve(path filestore.Filepath) (Iterator, error) {
 		return nil, fmt.Errorf("unsupported file type")
 	}
 }
+
 func (fs *HDFSFileStore) Exists(path filestore.Filepath) (bool, error) {
 	_, err := fs.Client.Stat(path.Key())
 	fmt.Println("CHECKING EXISTS", err)
@@ -726,7 +736,9 @@ func (store *genericFileStore) NewestFileOfType(searchPath filestore.Filepath, f
 			if err != nil {
 				return nil, err
 			}
-			path.SetKey(mostRecentKey)
+			if err := path.SetKey(mostRecentKey); err != nil {
+				return nil, err
+			}
 			return path, nil
 		} else {
 			return nil, err

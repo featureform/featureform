@@ -386,7 +386,7 @@ func convertToParquetBytes(list []any) ([]byte, error) {
 
 type ParquetIteratorMultipleFiles struct {
 	fileList       []filestore.Filepath
-	currentFile    int64
+	currentIndex   int64
 	fileIterator   Iterator
 	featureColumns []string
 	labelColumn    string
@@ -404,7 +404,7 @@ func parquetIteratorOverMultipleFiles(fileParts []filestore.Filepath, store File
 	}
 	return &ParquetIteratorMultipleFiles{
 		fileList:     fileParts,
-		currentFile:  int64(0),
+		currentIndex: int64(0),
 		fileIterator: iterator,
 		store:        store,
 	}, nil
@@ -424,11 +424,11 @@ func (p *ParquetIteratorMultipleFiles) Next() (map[string]interface{}, error) {
 		return nil, err
 	}
 	if nextRow == nil {
-		if p.currentFile+1 == int64(len(p.fileList)) {
+		if p.currentIndex+1 == int64(len(p.fileList)) {
 			return nil, nil
 		}
-		p.currentFile += 1
-		b, err := p.store.Read(p.fileList[p.currentFile])
+		p.currentIndex += 1
+		b, err := p.store.Read(p.fileList[p.currentIndex])
 		if err != nil {
 			return nil, err
 		}
@@ -1334,9 +1334,14 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 			k8s.logger.Errorw("Could not get newest blob", "location", fileResourcePath, "error", err)
 			return "", fmt.Errorf("could not get newest blob: %s: %v", fileResourcePath, err)
 		}
-		if exactFileResourcePath.Key() == "" {
+		exists, err := k8s.store.Exists(exactFileResourcePath)
+		if err != nil {
 			k8s.logger.Errorw("Issue getting transformation table", "id", fileResourceId)
 			return "", fmt.Errorf("could not get the transformation table for {%v} at {%s}", fileResourceId, fileResourcePath)
+		}
+		if !exists {
+			k8s.logger.Errorw("Transformation table does not exist", "id", fileResourceId)
+			return "", fmt.Errorf("expected transformation {%v} at {%s} does not exist", fileResourceId, fileResourcePath)
 		}
 		return exactFileResourcePath.PathWithBucket(), nil
 	} else {
@@ -1687,7 +1692,7 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 	}
 	materializationNewestFile, err := k8s.store.NewestFileOfType(destinationPath, filestore.Parquet)
 	k8s.logger.Debugw("Running Materialization", "id", id, "destinationPath", destinationPath, "materializationNewestFile", materializationNewestFile)
-	materializationExists := materializationNewestFile.Key() != ""
+	materializationExists, err := k8s.store.Exists(materializationNewestFile)
 	if err != nil {
 		k8s.logger.Errorw("Could not determine whether materialization exists", err)
 		return nil, fmt.Errorf("error checking if materialization exists: %v", err)
@@ -1784,7 +1789,11 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	if err != nil {
 		return fmt.Errorf("could not get training set path: %v", err)
 	}
-	trainingSetExists := !(trainingSetExactPath.Key() == "")
+	trainingSetExists, err := k8s.store.Exists(trainingSetExactPath)
+	if err != nil {
+		k8s.logger.Errorw("Could not determine whether training set exists", err)
+		return fmt.Errorf("error checking if training set exists: %v", err)
+	}
 	if !isUpdate && trainingSetExists {
 		k8s.logger.Errorw("Training set already exists", "id", def.ID)
 		return fmt.Errorf("k8s training set already exists: %v", def.ID)
@@ -1871,8 +1880,8 @@ func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.Sugared
 	if err != nil {
 		return nil, fmt.Errorf("could not get training set: %v", err)
 	}
-	if trainingSetExactPath.Key() == "" {
-		return nil, fmt.Errorf("the training set (%v at resource prefix: %s) does not exist", id, filepath.KeyPrefix())
+	if err := trainingSetExactPath.Validate(); err != nil {
+		return nil, fmt.Errorf("the training set (%v at resource prefix: %s) does not exist or is not a valid file path", id, filepath.PathWithBucket())
 	}
 	iterator, err := store.Serve(trainingSetExactPath)
 	if err != nil {

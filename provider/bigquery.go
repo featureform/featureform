@@ -148,8 +148,7 @@ func (pt *bqPrimaryTable) Write(rec GenericRecord) error {
 
 func (pt *bqPrimaryTable) WriteBatch(recs []GenericRecord) error {
 	for _, rec := range recs {
-		err := pt.Write(rec)
-		if err != nil {
+		if err := pt.Write(rec); err != nil {
 			return err
 		}
 	}

@@ -316,14 +316,14 @@ class PostgresStore(BlobStore):
         print(f"cleaning table name: {table_name}")
         name_parts = table_name.split("/")
         if name_parts[0] == "featureform" and len(name_parts) == 4:
-            featureform_prefix = name_parts[0]
-            table_type = name_parts[1]
-            name = name_parts[2]
-            variant = name_parts[3]
+            featureform_prefix = name_parts[0].lower()
+            table_type = name_parts[1].lower()
+            name = name_parts[2].lower()
+            variant = name_parts[3].lower()
             table_name = f"{featureform_prefix}_{table_type}__{name}__{variant}"
             print(f"cleaned table name: {table_name}")
 
-        return table_name.lower()  # lowercase to keep it consistent with go code. 
+        return table_name
 
     def get_transformation(self, transformation):
         sql_query = f"""SELECT metadata

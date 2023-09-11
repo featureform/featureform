@@ -333,7 +333,7 @@ class PostgresStore(BlobStore):
 
         transformationDF = pd.read_sql_query(sql_query, self.__engine)
 
-        print("retrieved transformation table", transformationDF["metadata"][0])
+        print(f"retrieved '{transformation}' transformation table: {str(transformationDF['metadata'][0])}, {type(transformationDF['metadata'][0])}")
         transformation = dill.loads(transformationDF["metadata"][0])
         return transformation
 
@@ -435,6 +435,7 @@ def execute_df_job(mode, output_uri, code, sources, blob_store):
 
     try:
         func = blob_store.get_transformation(code)
+        print("executing transformation code", func, type(func))
         output_df = pd.DataFrame(func(*func_parameters))
 
         if blob_store.type != POSTGRES:

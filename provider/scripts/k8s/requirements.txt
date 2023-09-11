@@ -11,4 +11,3 @@ python-dotenv==0.20.0
 azure-storage-blob==12.13.1
 sqlalchemy<2.0.0
 boto3==1.26.85
-libpq-dev==9.0.0

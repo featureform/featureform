@@ -384,16 +384,16 @@ func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath
 }
 
 func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
-	sparkLocalScriptPath, err := store.CreateFilePath(config.GetSparkLocalScriptPath())
-	if err != nil {
-		return fmt.Errorf("could not create local script path: %v", err)
-	}
+	// We can't use CreateFilePath here because it calls Validate under the hood,
+	// which will always fail given it's a local file without a valid scheme or bucket, for example.
+	sparkLocalScriptPath := &filestore.LocalFilepath{}
+	sparkLocalScriptPath.SetKey(config.GetSparkLocalScriptPath())
 	sparkRemoteScriptPath, err := store.CreateFilePath(config.GetSparkRemoteScriptPath())
 	if err != nil {
 		return fmt.Errorf("could not create remote script path: %v", err)
 	}
-
-	pythonLocalInitScriptPath, err := store.CreateFilePath(config.GetPythonLocalInitPath())
+	pythonLocalInitScriptPath := &filestore.LocalFilepath{}
+	pythonLocalInitScriptPath.SetKey(config.GetPythonLocalInitPath())
 	if err != nil {
 		return fmt.Errorf("could not create local init script path: %v", err)
 	}
@@ -404,7 +404,7 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 	}
 	err = readAndUploadFile(sparkLocalScriptPath, sparkRemoteScriptPath, store)
 	if err != nil {
-		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath, sparkRemoteScriptPath.PathWithBucket(), err)
+		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath.Key(), sparkRemoteScriptPath.PathWithBucket(), err)
 	}
 	sparkExists, err := store.Exists(sparkRemoteScriptPath)
 	if err != nil || !sparkExists {
@@ -416,7 +416,7 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 	}
 	err = readAndUploadFile(pythonLocalInitScriptPath, remoteInitScriptPathWithPrefix, store)
 	if err != nil {
-		return fmt.Errorf("could not upload '%s' to '%s': %v", pythonLocalInitScriptPath, remoteInitScriptPathWithPrefix, err)
+		return fmt.Errorf("could not upload '%s' to '%s': %v", pythonLocalInitScriptPath.Key(), remoteInitScriptPathWithPrefix, err)
 	}
 	initExists, err := store.Exists(remoteInitScriptPathWithPrefix)
 	if err != nil || !initExists {
@@ -730,10 +730,8 @@ type EMRExecutor struct {
 
 func (e EMRExecutor) InitializeExecutor(store SparkFileStore) error {
 	e.logger.Info("Uploading PySpark script to filestore")
-	sparkLocalScriptPath, err := store.CreateFilePath(config.GetSparkLocalScriptPath())
-	if err != nil {
-		return fmt.Errorf("could not create file path: %v", err)
-	}
+	sparkLocalScriptPath := &filestore.LocalFilepath{}
+	sparkLocalScriptPath.SetKey(config.GetSparkLocalScriptPath())
 	sparkRemoteScriptPath, err := store.CreateFilePath(config.GetSparkRemoteScriptPath())
 	if err != nil {
 		return fmt.Errorf("could not create file path: %v", err)
@@ -741,7 +739,7 @@ func (e EMRExecutor) InitializeExecutor(store SparkFileStore) error {
 
 	err = readAndUploadFile(sparkLocalScriptPath, sparkRemoteScriptPath, store)
 	if err != nil {
-		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath, sparkRemoteScriptPath.PathWithBucket(), err)
+		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath.Key(), sparkRemoteScriptPath.PathWithBucket(), err)
 	}
 	scriptExists, err := store.Exists(sparkRemoteScriptPath)
 	if err != nil || !scriptExists {

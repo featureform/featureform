@@ -1,5 +1,13 @@
 FROM python:3.10-slim
 
+# Set environment variables for PostgreSQL
+ENV POSTGRES_USER=myuser
+ENV POSTGRES_PASSWORD=mypassword
+ENV POSTGRES_DB=postgres
+
+# Update the package list and install PostgreSQL client
+RUN apt-get update && apt-get install -y postgresql-client
+
 WORKDIR /usr/app/src
 
 COPY provider/scripts/k8s/offline_store_pandas_runner.py ./

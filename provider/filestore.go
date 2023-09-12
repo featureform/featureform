@@ -732,7 +732,7 @@ func (store *genericFileStore) NewestFileOfType(searchPath filestore.Filepath, f
 			// which means we're forced to use everything up to the path from the searchPath and replace its key with
 			// the latest key found at the prefix. The long-term fix could/should be to implement all Filepath methods on
 			// each implementation and call into the genericFileStore with additional parameters for the scheme, bucket, etc.
-			err = path.ParseFilePath(searchPath.PathWithBucket())
+			err = path.ParseFilePath(searchPath.ToURI())
 			if err != nil {
 				return nil, err
 			}

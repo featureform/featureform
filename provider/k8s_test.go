@@ -229,7 +229,7 @@ func testFileUploadAndDownload(t *testing.T, store FileStore) {
 		t.Fatalf("could not determine if file exists because %v", err)
 	}
 	if !exists {
-		t.Fatalf("could not upload file to %s", destinationPath.PathWithBucket())
+		t.Fatalf("could not upload file to %s", destinationPath.ToURI())
 	}
 
 	localDestinationPath := filestore.LocalFilepath{}
@@ -239,12 +239,12 @@ func testFileUploadAndDownload(t *testing.T, store FileStore) {
 
 	err = store.Download(destinationPath, &localDestinationPath)
 	if err != nil {
-		t.Fatalf("could not download %s file to %s because %v", destinationPath.PathWithBucket(), localDestinationPath.PathWithBucket(), err)
+		t.Fatalf("could not download %s file to %s because %v", destinationPath.ToURI(), localDestinationPath.ToURI(), err)
 	}
 
-	content, err := ioutil.ReadFile(localDestinationPath.PathWithBucket())
+	content, err := ioutil.ReadFile(localDestinationPath.ToURI())
 	if err != nil {
-		t.Fatalf("could not read local file at %s because %v", localDestinationPath.PathWithBucket(), err)
+		t.Fatalf("could not read local file at %s because %v", localDestinationPath.ToURI(), err)
 	}
 
 	if string(content) != fileContent {
@@ -264,7 +264,7 @@ func testFilestoreReadAndWrite(t *testing.T, store FileStore) {
 		t.Fatalf("Exists when not yet written")
 	}
 	if err := store.Write(testFilePath, testWrite); err != nil {
-		t.Fatalf("Failure writing data %s to key %s: %v", string(testWrite), testFilePath.PathWithBucket(), err)
+		t.Fatalf("Failure writing data %s to key %s: %v", string(testWrite), testFilePath.ToURI(), err)
 	}
 	exists, err = store.Exists(testFilePath)
 	if err != nil {
@@ -275,13 +275,13 @@ func testFilestoreReadAndWrite(t *testing.T, store FileStore) {
 	}
 	readData, err := store.Read(testFilePath)
 	if err != nil {
-		t.Fatalf("Could not read key %s from store: %v", testFilePath.PathWithBucket(), err)
+		t.Fatalf("Could not read key %s from store: %v", testFilePath.ToURI(), err)
 	}
 	if string(readData) != string(testWrite) {
 		t.Fatalf("Read data does not match written data: %s != %s", readData, testWrite)
 	}
 	if err := store.Delete(testFilePath); err != nil {
-		t.Fatalf("Failed to delete test file with key %s: %v", testFilePath.PathWithBucket(), err)
+		t.Fatalf("Failed to delete test file with key %s: %v", testFilePath.ToURI(), err)
 	}
 }
 

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	fs "github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
@@ -177,13 +178,13 @@ func TestOfflineStores(t *testing.T) {
 			// 	ClusterName:   os.Getenv("EMR_CLUSTER_ID"),
 			// },
 			// AZURE
-			StoreType: fs.Azure,
-			StoreConfig: &pc.AzureFileStoreConfig{
-				AccountName:   os.Getenv("AZURE_ACCOUNT_NAME"),
-				AccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
-				ContainerName: os.Getenv("AZURE_CONTAINER_NAME"),
-				Path:          os.Getenv("AZURE_CONTAINER_PATH"),
-			},
+			// StoreType: fs.Azure,
+			// StoreConfig: &pc.AzureFileStoreConfig{
+			// 	AccountName:   os.Getenv("AZURE_ACCOUNT_NAME"),
+			// 	AccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
+			// 	ContainerName: os.Getenv("AZURE_CONTAINER_NAME"),
+			// 	Path:          os.Getenv("AZURE_CONTAINER_PATH"),
+			// },
 			// S3
 			// StoreType: fs.S3,
 			// StoreConfig: &pc.S3FileStoreConfig{
@@ -196,15 +197,15 @@ func TestOfflineStores(t *testing.T) {
 			// 	Path:         os.Getenv(""),
 			// },
 			// GCS
-			// StoreType: fs.GCS,
-			// StoreConfig: &pc.GCSFileStoreConfig{
-			// 	BucketName: os.Getenv("GCS_BUCKET_NAME"),
-			// 	BucketPath: "",
-			// 	Credentials: pc.GCPCredentials{
-			// 		ProjectId: os.Getenv("GCP_PROJECT_ID"),
-			// 		JSON:      creds,
-			// 	},
-			// },
+			StoreType: fs.GCS,
+			StoreConfig: &pc.GCSFileStoreConfig{
+				BucketName: os.Getenv("GCS_BUCKET_NAME"),
+				BucketPath: "",
+				Credentials: pc.GCPCredentials{
+					ProjectId: os.Getenv("GCP_PROJECT_ID"),
+					JSON:      creds,
+				},
+			},
 		}
 		serializedConfig, err := sparkConfig.Serialize()
 		if err != nil {
@@ -3501,7 +3502,7 @@ func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not get source table path: %v", err)
 		}
-		tableName = sourceTablePath.PathWithBucket()
+		tableName = sourceTablePath.ToURI()
 	}
 	_, err = store.RegisterPrimaryFromSourceTable(primaryCopyID, tableName)
 	if err != nil {

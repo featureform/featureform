@@ -962,7 +962,7 @@ func (tbl *FileStorePrimaryTable) append(iter Iterator, newRecords []GenericReco
 }
 
 func (tbl *FileStorePrimaryTable) GetName() string {
-	return tbl.source.PathWithBucket()
+	return tbl.source.ToURI()
 }
 
 func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
@@ -1195,14 +1195,14 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 	}
 	exists := transformationDestinationExactPath != nil
 	if !isUpdate && exists {
-		k8s.logger.Errorw("Creation when transformation already exists", "target_table", config.TargetTableID, "destination", filepath.PathWithBucket())
+		k8s.logger.Errorw("Creation when transformation already exists", "target_table", config.TargetTableID, "destination", filepath.ToURI())
 		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, filepath)
 	} else if isUpdate && !exists {
-		k8s.logger.Errorw("Update job attempted when transformation does not exist", "target_table", config.TargetTableID, "destination", filepath.PathWithBucket())
-		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, filepath.PathWithBucket())
+		k8s.logger.Errorw("Update job attempted when transformation does not exist", "target_table", config.TargetTableID, "destination", filepath.ToURI())
+		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, filepath.ToURI())
 	}
 	k8s.logger.Debugw("Running SQL transformation", "target_table", config.TargetTableID, "query", config.Query)
-	runnerArgs := k8s.pandasRunnerArgs(filepath.PathWithBucket(), updatedQuery, sources, Transform)
+	runnerArgs := k8s.pandasRunnerArgs(filepath.ToURI(), updatedQuery, sources, Transform)
 	runnerArgs = addResourceID(runnerArgs, config.TargetTableID)
 
 	args, err := k8s.checkArgs(config.Args)
@@ -1242,11 +1242,11 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 	}
 
 	if !isUpdate && exists {
-		k8s.logger.Errorw("Transformation already exists", "target_table", config.TargetTableID, "destination", filepath.PathWithBucket())
-		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, filepath.PathWithBucket())
+		k8s.logger.Errorw("Transformation already exists", "target_table", config.TargetTableID, "destination", filepath.ToURI())
+		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, filepath.ToURI())
 	} else if isUpdate && !exists {
-		k8s.logger.Errorw("Transformation doesn't exists at destination and you are trying to update", "target_table", config.TargetTableID, "destination", filepath.PathWithBucket())
-		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, filepath.PathWithBucket())
+		k8s.logger.Errorw("Transformation doesn't exists at destination and you are trying to update", "target_table", config.TargetTableID, "destination", filepath.ToURI())
+		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, filepath.ToURI())
 	}
 
 	key := fmt.Sprintf("%s%s", fileStoreResourcePath(config.TargetTableID), "transformation.pkl")
@@ -1259,7 +1259,7 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 		return fmt.Errorf("could not upload file: %v", err)
 	}
 
-	dfArgs := k8s.getDFArgs(filepath.PathWithBucket(), transformationFilepath.PathWithBucket(), config.SourceMapping, sources)
+	dfArgs := k8s.getDFArgs(filepath.ToURI(), transformationFilepath.ToURI(), config.SourceMapping, sources)
 	dfArgs = addResourceID(dfArgs, config.TargetTableID)
 	k8s.logger.Debugw("Running DF transformation", "target_table", config.TargetTableID)
 	args, err := k8s.checkArgs(config.Args)
@@ -1343,7 +1343,7 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 			k8s.logger.Errorw("Transformation table does not exist", "id", fileResourceId)
 			return "", fmt.Errorf("expected transformation {%v} at {%s} does not exist", fileResourceId, fileResourcePath)
 		}
-		return exactFileResourcePath.PathWithBucket(), nil
+		return exactFileResourcePath.ToURI(), nil
 	} else {
 		return filePath, fmt.Errorf("could not find path for %s; fileType: %s, fileName: %s, fileVariant: %s", path, fileType, fileName, fileVariant)
 	}
@@ -1381,13 +1381,13 @@ func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (Transformatio
 		k8s.logger.Errorw("Could not create file path", "error", err, "fileStoreResourcePath", fileStoreResourcePath(id))
 		return nil, err
 	}
-	k8s.logger.Debugw("Retrieved transformation source", "ResourceId", id, "transformationPath", transformationFilepath.PathWithBucket())
+	k8s.logger.Debugw("Retrieved transformation source", "ResourceId", id, "transformationPath", transformationFilepath.ToURI())
 	if err != nil {
-		k8s.logger.Errorw("Could not parse full path", "error", err, "transformationPath", transformationFilepath.PathWithBucket())
+		k8s.logger.Errorw("Could not parse full path", "error", err, "transformationPath", transformationFilepath.ToURI())
 		return nil, err
 	}
 	if err != nil {
-		k8s.logger.Errorw("Could not create empty filepath", "error", err, "storeType", k8s.store.FilestoreType(), "transformationPath", transformationFilepath.PathWithBucket())
+		k8s.logger.Errorw("Could not create empty filepath", "error", err, "storeType", k8s.store.FilestoreType(), "transformationPath", transformationFilepath.ToURI())
 		return nil, err
 	}
 	// TODO: populate schema
@@ -1457,7 +1457,7 @@ func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.Sugar
 			return nil, fmt.Errorf("could not complete primary source table path for GCS: %w", err)
 		}
 		if src != nil {
-			resourceSchema.SourceTable = src.PathWithBucket()
+			resourceSchema.SourceTable = src.ToURI()
 		}
 	}
 	logger.Debugw("Successfully fetched resource table", "id", id)
@@ -1717,7 +1717,7 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		k8s.logger.Errorw("Could not determine newest source file for materialization", "sourcePath", sourcePath, "error", err)
 		return nil, fmt.Errorf("error determining newest source file: %v", err)
 	}
-	k8sArgs := k8s.pandasRunnerArgs(destinationPath.PathWithBucket(), materializationQuery, []string{newestSourcePath.PathWithBucket()}, Materialize)
+	k8sArgs := k8s.pandasRunnerArgs(destinationPath.ToURI(), materializationQuery, []string{newestSourcePath.ToURI()}, Materialize)
 	k8sArgs = addResourceID(k8sArgs, id)
 	if err := k8s.executor.ExecuteScript(k8sArgs, nil); err != nil {
 		k8s.logger.Errorw("Job failed to run", "error", err)
@@ -1818,7 +1818,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 		k8s.logger.Errorw("Could not get latest label file", "error", err)
 		return fmt.Errorf("could not get latest label file: %v", err)
 	}
-	sourcePaths = append(sourcePaths, labelFilepath.PathWithBucket())
+	sourcePaths = append(sourcePaths, labelFilepath.ToURI())
 	for _, feature := range def.Features {
 		featureSchema, err := k8s.registeredResourceSchema(feature)
 		if err != nil {
@@ -1837,13 +1837,13 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 			k8s.logger.Errorw("Could not get latest feature file", "error", err)
 			return fmt.Errorf("could not get latest feature file: %v", err)
 		}
-		sourcePaths = append(sourcePaths, featureFilepath.PathWithBucket())
+		sourcePaths = append(sourcePaths, featureFilepath.ToURI())
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := k8s.query.trainingSetCreate(def, featureSchemas, labelSchema)
 	k8s.logger.Debugw("Source List", "SourceFiles", sourcePaths)
 	k8s.logger.Debugw("Training Set Query", "list", trainingSetQuery)
-	pandasArgs := k8s.pandasRunnerArgs(destinationPath.PathWithBucket(), trainingSetQuery, sourcePaths, CreateTrainingSet)
+	pandasArgs := k8s.pandasRunnerArgs(destinationPath.ToURI(), trainingSetQuery, sourcePaths, CreateTrainingSet)
 	pandasArgs = addResourceID(pandasArgs, def.ID)
 	k8s.logger.Debugw("Creating training set", "definition", def)
 
@@ -1881,7 +1881,7 @@ func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.Sugared
 		return nil, fmt.Errorf("could not get training set: %v", err)
 	}
 	if err := trainingSetExactPath.Validate(); err != nil {
-		return nil, fmt.Errorf("the training set (%v at resource prefix: %s) does not exist or is not a valid file path", id, filepath.PathWithBucket())
+		return nil, fmt.Errorf("the training set (%v at resource prefix: %s) does not exist or is not a valid file path", id, filepath.ToURI())
 	}
 	iterator, err := store.Serve(trainingSetExactPath)
 	if err != nil {

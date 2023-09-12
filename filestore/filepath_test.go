@@ -1,6 +1,3 @@
-//go:build filepath
-// +build filepath
-
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -401,8 +398,8 @@ func TestNewEmptyPath(t *testing.T) {
 			if tt.ExpectedIsDir != tt.filePath.IsDir() {
 				t.Errorf("expected is dir %t but got %t", tt.ExpectedIsDir, tt.filePath.IsDir())
 			}
-			if tt.ExpectedFullPath != tt.filePath.PathWithBucket() {
-				t.Errorf("expected full path %s but got %s", tt.ExpectedFullPath, tt.filePath.PathWithBucket())
+			if tt.ExpectedFullPath != tt.filePath.ToURI() {
+				t.Errorf("expected full path %s but got %s", tt.ExpectedFullPath, tt.filePath.ToURI())
 			}
 		})
 	}

@@ -92,8 +92,7 @@ type Filepath interface {
 	Ext() FileType
 
 	// Returns the full path to the object, including the scheme and bucket/container
-	// TODO: rename to `ToURI`
-	PathWithBucket() string
+	ToURI() string
 	// Consumes a URI (e.g. abfss://<container>@<storage_account>/path/to/file) and parses it into
 	// the specific parts that the implementation expects.
 	ParseFilePath(path string) error
@@ -200,7 +199,7 @@ func (fp *FilePath) Ext() FileType {
 	return FileType(strings.TrimPrefix(ext, "."))
 }
 
-func (fp *FilePath) PathWithBucket() string {
+func (fp *FilePath) ToURI() string {
 	return fmt.Sprintf("%s%s/%s", fp.scheme, fp.bucket, fp.key)
 }
 
@@ -301,7 +300,7 @@ func (s3 *S3Filepath) Validate() error {
 	return nil
 }
 
-func (s3 *S3Filepath) PathWithBucket() string {
+func (s3 *S3Filepath) ToURI() string {
 	return fmt.Sprintf("%s%s/%s", s3.scheme, s3.bucket, s3.key)
 }
 
@@ -310,7 +309,7 @@ type AzureFilepath struct {
 	FilePath
 }
 
-func (azure *AzureFilepath) PathWithBucket() string {
+func (azure *AzureFilepath) ToURI() string {
 	return fmt.Sprintf("%s%s@%s.dfs.core.windows.net/%s", azure.scheme, azure.bucket, azure.StorageAccount, azure.key)
 }
 
@@ -374,7 +373,7 @@ type GCSFilepath struct {
 	FilePath
 }
 
-func (gcs *GCSFilepath) PathWithBucket() string {
+func (gcs *GCSFilepath) ToURI() string {
 	return fmt.Sprintf("%s%s/%s", gcs.scheme, gcs.bucket, gcs.key)
 }
 

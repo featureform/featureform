@@ -334,8 +334,9 @@ class PostgresStore(BlobStore):
         transformationDF = pd.read_sql_query(sql_query, self.__engine)
 
         print(f"retrieved '{transformation}' transformation table: {str(transformationDF['metadata'][0])}, {type(transformationDF['metadata'][0])}")
-        transformation = dill.loads(transformationDF["metadata"][0])
-        return transformation
+        transformation = dill.loads(bytes(transformationDF["metadata"][0]))
+        func = types.FunctionType(transformation, globals(), "df_transformation")
+        return func
 
     @property
     def engine(self):

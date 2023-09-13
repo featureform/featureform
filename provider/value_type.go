@@ -40,22 +40,24 @@ func (t ScalarType) IsVector() bool {
 	return false
 }
 
+// This method is used in encoding our supported data types to parquet.
+// It returns a pointer type for scalar values to allow for nullability.
 func (t ScalarType) Type() reflect.Type {
 	switch t {
 	case Int:
-		return reflect.TypeOf(int(0))
+		return reflect.PointerTo(reflect.TypeOf(int(0)))
 	case Int32:
-		return reflect.TypeOf(int32(0))
+		return reflect.PointerTo(reflect.TypeOf(int32(0)))
 	case Int64:
-		return reflect.TypeOf(int64(0))
+		return reflect.PointerTo(reflect.TypeOf(int64(0)))
 	case Float32:
-		return reflect.TypeOf(float32(0))
+		return reflect.PointerTo(reflect.TypeOf(float32(0)))
 	case Float64:
-		return reflect.TypeOf(float64(0))
+		return reflect.PointerTo(reflect.TypeOf(float64(0)))
 	case String:
-		return reflect.TypeOf(string(""))
+		return reflect.PointerTo(reflect.TypeOf(string("")))
 	case Bool:
-		return reflect.TypeOf(bool(false))
+		return reflect.PointerTo(reflect.TypeOf(bool(false)))
 	case Timestamp:
 		return reflect.TypeOf(time.Time{})
 	case Datetime:

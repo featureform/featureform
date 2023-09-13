@@ -1,6 +1,3 @@
-//go:build online
-// +build online
-
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -10,7 +7,6 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"time"
@@ -24,6 +20,7 @@ import (
 	"github.com/featureform/helpers"
 
 	"github.com/alicebob/miniredis"
+	fs "github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
@@ -44,14 +41,12 @@ type OnlineResource struct {
 	Type   ValueType
 }
 
-type testMember struct {
+type onlineTestMember struct {
 	t               pt.Type
 	subType         string
 	c               pc.SerializedConfig
 	integrationTest bool
 }
-
-var provider = flag.String("provider", "", "provider to perform test on")
 
 func TestOnlineStores(t *testing.T) {
 	err := godotenv.Load("../.env")
@@ -156,7 +151,7 @@ func TestOnlineStores(t *testing.T) {
 			Path:          "featureform/onlinetesting",
 		}
 		blobConfig := &pc.OnlineBlobConfig{
-			Type:   pc.Azure,
+			Type:   fs.Azure,
 			Config: azureConfig,
 		}
 		return *blobConfig
@@ -174,36 +169,36 @@ func TestOnlineStores(t *testing.T) {
 		return *mongoConfig
 	}
 
-	testList := []testMember{}
+	testList := []onlineTestMember{}
 
 	if *provider == "memory" || *provider == "" {
-		testList = append(testList, testMember{pt.LocalOnline, "", []byte{}, false})
+		testList = append(testList, onlineTestMember{pt.LocalOnline, "", []byte{}, false})
 	}
 	if *provider == "redis_mock" || *provider == "" {
 		miniRedis := mockRedis()
 		defer miniRedis.Close()
-		testList = append(testList, testMember{pt.RedisOnline, "_MOCK", redisMockInit(miniRedis).Serialized(), false})
+		testList = append(testList, onlineTestMember{pt.RedisOnline, "_MOCK", redisMockInit(miniRedis).Serialized(), false})
 	}
 	if *provider == "redis_insecure" || *provider == "" {
-		testList = append(testList, testMember{pt.RedisOnline, "_INSECURE", redisInsecureInit().Serialized(), true})
+		testList = append(testList, onlineTestMember{pt.RedisOnline, "_INSECURE", redisInsecureInit().Serialized(), true})
 	}
 	if *provider == "redis_secure" || *provider == "" {
-		testList = append(testList, testMember{pt.RedisOnline, "_SECURE", redisSecureInit().Serialized(), true})
+		testList = append(testList, onlineTestMember{pt.RedisOnline, "_SECURE", redisSecureInit().Serialized(), true})
 	}
 	if *provider == "cassandra" || *provider == "" {
-		testList = append(testList, testMember{pt.CassandraOnline, "", cassandraInit().Serialized(), true})
+		testList = append(testList, onlineTestMember{pt.CassandraOnline, "", cassandraInit().Serialized(), true})
 	}
 	if *provider == "firestore" || *provider == "" {
-		testList = append(testList, testMember{pt.FirestoreOnline, "", firestoreInit().Serialize(), true})
+		testList = append(testList, onlineTestMember{pt.FirestoreOnline, "", firestoreInit().Serialize(), true})
 	}
 	if *provider == "dynamo" || *provider == "" {
-		testList = append(testList, testMember{pt.DynamoDBOnline, "", dynamoInit().Serialized(), true})
+		testList = append(testList, onlineTestMember{pt.DynamoDBOnline, "", dynamoInit().Serialized(), true})
 	}
 	if *provider == "azure_blob" || *provider == "" {
-		testList = append(testList, testMember{pt.BlobOnline, "_AZURE", blobAzureInit().Serialized(), true})
+		testList = append(testList, onlineTestMember{pt.BlobOnline, "_AZURE", blobAzureInit().Serialized(), true})
 	}
 	if *provider == "mongodb" || *provider == "" {
-		testList = append(testList, testMember{pt.MongoDBOnline, "", mongoDBInit().Serialized(), true})
+		testList = append(testList, onlineTestMember{pt.MongoDBOnline, "", mongoDBInit().Serialized(), true})
 	}
 
 	for _, testItem := range testList {
@@ -504,14 +499,14 @@ func TestOnlineVectorStores(t *testing.T) {
 		return *pineconeConfig
 	}
 
-	testList := []testMember{}
+	testList := []onlineTestMember{}
 
 	if *provider == "redis_vector" || *provider == "" {
-		testList = append(testList, testMember{pt.RedisOnline, "_VECTOR", redisInsecureInit().Serialized(), true})
+		testList = append(testList, onlineTestMember{pt.RedisOnline, "_VECTOR", redisInsecureInit().Serialized(), true})
 	}
 
 	if *provider == "pinecone" || *provider == "" {
-		testList = append(testList, testMember{pt.PineconeOnline, "", pineconeInit().Serialize(), true})
+		testList = append(testList, onlineTestMember{pt.PineconeOnline, "", pineconeInit().Serialize(), true})
 	}
 
 	for _, testItem := range testList {

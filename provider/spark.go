@@ -1024,7 +1024,7 @@ func (e *EMRExecutor) RunSparkJob(args []string, store SparkFileStore) error {
 		return err
 	}
 	stepId := resp.StepIds[0]
-	var waitDuration time.Duration = time.Second * 500
+	var waitDuration time.Duration = time.Hour * 3
 	e.logger.Debugw("Waiting for EMR job to complete")
 	stepCompleteWaiter := emr.NewStepCompleteWaiter(e.client)
 	_, err = stepCompleteWaiter.WaitForOutput(context.TODO(), &emr.DescribeStepInput{

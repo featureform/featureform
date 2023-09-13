@@ -177,7 +177,7 @@ func (fp *FilePath) Bucket() string {
 }
 
 func (fp *FilePath) SetKey(key string) error {
-	fp.key = strings.Trim(key, "/")
+	fp.key = strings.TrimSuffix(key, "/")
 	if key == "" {
 		return fmt.Errorf("key cannot be empty")
 	}

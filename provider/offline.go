@@ -429,13 +429,14 @@ func (schema *TableSchema) Value() reflect.Value {
 			Type: colType,
 			// At a minimum, we need to set the parquet tag to the column name so that when
 			// we read from the file, the field names match up with the column names as they
-			// are defined
-			Tag: reflect.StructTag(fmt.Sprintf(`parquet:"%s"`, col.Name)),
+			// are defined; additionally, we set the optional tag to ensure that the field
+			// is nullable in the parquet file.
+			Tag: reflect.StructTag(fmt.Sprintf(`parquet:"%s,optional"`, col.Name)),
 		}
 
 		// TODO: use a better way of determining if a column is a timestamp
 		if colType.Name() == "Time" {
-			f.Tag = reflect.StructTag(fmt.Sprintf(`parquet:"%s,timestamp"`, col.Name))
+			f.Tag = reflect.StructTag(fmt.Sprintf(`parquet:"%s,optional,timestamp"`, col.Name))
 		}
 
 		fields[i] = f
@@ -485,13 +486,31 @@ func (schema *TableSchema) ToParquetRecords(records []GenericRecord) []any {
 	for i, record := range records {
 		parquetRecord := schema.Value()
 		for j, value := range record {
-			// TODO: Determine if there's a better way of handling nil values to
-			// avoid modifying the data set with the zero value of the type (e.g. bool)
+			// if a value is nil, we skip it so that the zero value for the pointer
+			// type is used instead, which will preserve the null value when the parquet
+			// file is read back.
 			if value == nil {
 				continue
 			}
 			colName := caser.String(schema.Columns[j].Name)
-			parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(value))
+			switch v := value.(type) {
+			case int:
+				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
+			case int32:
+				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
+			case int64:
+				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
+			case float32:
+				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
+			case float64:
+				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
+			case string:
+				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
+			case bool:
+				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
+			default:
+				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(value))
+			}
 		}
 		parquetRecords[i] = parquetRecord.Interface()
 	}

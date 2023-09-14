@@ -48,9 +48,9 @@ func (az *Azure) Init() error {
 }
 
 func (az *Azure) Upload(src, dest string) error {
-	source, err := az.store.CreateFilePath(src)
-	if err != nil {
-		return fmt.Errorf("cannot create source file path: %v", err)
+	source := &filestore.LocalFilepath{}
+	if err := source.SetKey(src); err != nil {
+		return fmt.Errorf("cannot set source key: %v", err)
 	}
 	destination, err := az.store.CreateFilePath(dest)
 	if err != nil {
@@ -64,15 +64,15 @@ func (az *Azure) Download(src, dest string) error {
 	if err != nil {
 		return fmt.Errorf("cannot create source file path: %v", err)
 	}
-	destination, err := az.store.CreateFilePath(dest)
-	if err != nil {
-		return fmt.Errorf("cannot create destination file path: %v", err)
+	destination := &filestore.LocalFilepath{}
+	if err := destination.SetKey(dest); err != nil {
+		return fmt.Errorf("cannot set destination key: %v", err)
 	}
 	return az.store.Download(source, destination)
 }
 
-func (az *Azure) LatestBackupName(prefix string) (filestore.Filepath, error) {
-	dirPath, err := az.store.CreateDirPath(prefix)
+func (az *Azure) LatestBackupName(dir string) (filestore.Filepath, error) {
+	dirPath, err := az.store.CreateDirPath(dir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create dir path: %v", err)
 	}
@@ -113,9 +113,9 @@ func (s3 *S3) Init() error {
 }
 
 func (s3 *S3) Upload(src, dest string) error {
-	source, err := s3.store.CreateFilePath(src)
-	if err != nil {
-		return fmt.Errorf("cannot create source file path: %v", err)
+	source := &filestore.LocalFilepath{}
+	if err := source.SetKey(src); err != nil {
+		return fmt.Errorf("cannot set source key: %v", err)
 	}
 	destination, err := s3.store.CreateFilePath(dest)
 	if err != nil {
@@ -129,15 +129,15 @@ func (s3 *S3) Download(src, dest string) error {
 	if err != nil {
 		return fmt.Errorf("cannot create source file path: %v", err)
 	}
-	destination, err := s3.store.CreateFilePath(dest)
-	if err != nil {
-		return fmt.Errorf("cannot create destination file path: %v", err)
+	destination := &filestore.LocalFilepath{}
+	if err := destination.SetKey(dest); err != nil {
+		return fmt.Errorf("cannot set destination key: %v", err)
 	}
 	return s3.store.Download(source, destination)
 }
 
-func (s3 *S3) LatestBackupName(prefix string) (filestore.Filepath, error) {
-	dirPath, err := s3.store.CreateDirPath(prefix)
+func (s3 *S3) LatestBackupName(dir string) (filestore.Filepath, error) {
+	dirPath, err := s3.store.CreateDirPath(dir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create dir path: %v", err)
 	}
@@ -190,8 +190,8 @@ func (fs *Local) Download(src, dest string) error {
 	return fs.store.Download(source, destination)
 }
 
-func (fs *Local) LatestBackupName(prefix string) (filestore.Filepath, error) {
-	dirPath, err := fs.store.CreateDirPath(prefix)
+func (fs *Local) LatestBackupName(dir string) (filestore.Filepath, error) {
+	dirPath, err := fs.store.CreateDirPath(dir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create dir path: %v", err)
 	}
@@ -261,10 +261,10 @@ func (g *GCS) Init() error {
 	return nil
 }
 
-func (g *GCS) Upload(name, dest string) error {
-	source, err := g.store.CreateFilePath(name)
-	if err != nil {
-		return fmt.Errorf("cannot create source file path: %v", err)
+func (g *GCS) Upload(src, dest string) error {
+	source := &filestore.LocalFilepath{}
+	if err := source.SetKey(src); err != nil {
+		return fmt.Errorf("cannot set source key: %v", err)
 	}
 	destination, err := g.store.CreateFilePath(dest)
 	if err != nil {
@@ -278,15 +278,15 @@ func (g *GCS) Download(src, dest string) error {
 	if err != nil {
 		return fmt.Errorf("cannot create source file path: %v", err)
 	}
-	destination, err := g.store.CreateFilePath(dest)
-	if err != nil {
-		return fmt.Errorf("cannot create destination file path: %v", err)
+	destination := &filestore.LocalFilepath{}
+	if err := destination.SetKey(dest); err != nil {
+		return fmt.Errorf("cannot set destination key: %v", err)
 	}
 	return g.store.Download(source, destination)
 }
 
-func (g *GCS) LatestBackupName(prefix string) (filestore.Filepath, error) {
-	dirPath, err := g.store.CreateDirPath(prefix)
+func (g *GCS) LatestBackupName(dir string) (filestore.Filepath, error) {
+	dirPath, err := g.store.CreateDirPath(dir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create dir path: %v", err)
 	}

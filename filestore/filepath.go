@@ -32,15 +32,16 @@ const (
 )
 
 const (
-	GSPrefix        = "gs://"
-	S3Prefix        = "s3://"
-	S3APrefix       = "s3a://"
-	AzureBlobPrefix = "abfss://"
-	HDFSPrefix      = "hdfs://"
+	GSPrefix         = "gs://"
+	S3Prefix         = "s3://"
+	S3APrefix        = "s3a://"
+	AzureBlobPrefix  = "abfss://"
+	HDFSPrefix       = "hdfs://"
+	FileSystemPrefix = "file://"
 )
 
 var ValidSchemes = []string{
-	GSPrefix, S3Prefix, S3APrefix, AzureBlobPrefix, HDFSPrefix,
+	GSPrefix, S3Prefix, S3APrefix, AzureBlobPrefix, HDFSPrefix, FileSystemPrefix,
 }
 
 func (ft FileType) Matches(file string) bool {
@@ -113,7 +114,7 @@ func NewEmptyFilepath(storeType FileStoreType) (Filepath, error) {
 	case Memory:
 		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
 	case FileSystem:
-		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
+		return &LocalFilepath{FilePath{isDir: false}}, nil
 	//case DB:
 	//	return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
 	case HDFS:
@@ -274,7 +275,21 @@ func (fp *FilePath) IsValid() bool {
 }
 
 func (fp *FilePath) Validate() error {
-	return fmt.Errorf("not implemented")
+	if fp.scheme == "" {
+		return fmt.Errorf("scheme cannot be empty")
+	}
+	if fp.bucket == "" {
+		return fmt.Errorf("bucket cannot be empty")
+	} else {
+		fp.bucket = strings.Trim(fp.bucket, "/")
+	}
+	if fp.key == "" {
+		return fmt.Errorf("key cannot be empty")
+	} else {
+		fp.key = strings.Trim(fp.key, "/")
+	}
+	fp.isValid = true
+	return nil
 }
 
 type S3Filepath struct {

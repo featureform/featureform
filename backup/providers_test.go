@@ -2,11 +2,12 @@ package backup
 
 import (
 	"errors"
+	"os"
+	"testing"
+
 	help "github.com/featureform/helpers"
 	"github.com/featureform/provider"
 	"github.com/joho/godotenv"
-	"os"
-	"testing"
 )
 
 func TestLocalInit(t *testing.T) {
@@ -106,7 +107,11 @@ func TestAzure_Init(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			az := &Azure{
-				store: tt.fields.store,
+				AccountName:   tt.fields.AzureStorageAccount,
+				AccountKey:    tt.fields.AzureStorageKey,
+				ContainerName: tt.fields.AzureContainerName,
+				Path:          tt.fields.AzureStoragePath,
+				store:         tt.fields.store,
 			}
 			if err := az.Init(); (err != nil) != tt.wantErr {
 				t.Errorf("Init() error = %v, wantErr %v", err, tt.wantErr)
@@ -128,7 +133,7 @@ func TestAzure_Upload(t *testing.T) {
 		store               provider.FileStore
 	}
 	type args struct {
-		name string
+		src  string
 		dest string
 	}
 	tests := []struct {
@@ -154,9 +159,13 @@ func TestAzure_Upload(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			az := &Azure{
-				store: tt.fields.store,
+				AccountName:   tt.fields.AzureStorageAccount,
+				AccountKey:    tt.fields.AzureStorageKey,
+				ContainerName: tt.fields.AzureContainerName,
+				Path:          tt.fields.AzureStoragePath,
+				store:         tt.fields.store,
 			}
-			if f, err := os.Create(tt.args.name); err != nil {
+			if f, err := os.Create(tt.args.src); err != nil {
 				t.Fatalf("Create error = %v", err)
 			} else {
 				f.Close()
@@ -164,7 +173,69 @@ func TestAzure_Upload(t *testing.T) {
 			if err := az.Init(); (err != nil) != tt.wantErr {
 				t.Fatalf("Init() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if err := az.Upload(tt.args.name, tt.args.dest); (err != nil) != tt.wantErr {
+			if err := az.Upload(tt.args.src, tt.args.dest); (err != nil) != tt.wantErr {
+				t.Errorf("Upload() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestAzure_Download(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	_ = godotenv.Load(".env")
+	type fields struct {
+		AzureStorageAccount string
+		AzureStorageKey     string
+		AzureContainerName  string
+		AzureStoragePath    string
+		store               provider.FileStore
+	}
+	type args struct {
+		src  string
+		dest string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			"Simple Upload",
+			fields{
+				AzureStorageAccount: help.GetEnv("AZURE_STORAGE_ACCOUNT", ""),
+				AzureStorageKey:     help.GetEnv("AZURE_STORAGE_TOKEN", ""),
+				AzureContainerName:  help.GetEnv("AZURE_CONTAINER_NAME", ""),
+				AzureStoragePath:    help.GetEnv("AZURE_STORAGE_PATH", ""),
+			},
+			args{
+				"downloadtest/src.json",
+				"dest.json"},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			az := &Azure{
+				AccountName:   tt.fields.AzureStorageAccount,
+				AccountKey:    tt.fields.AzureStorageKey,
+				ContainerName: tt.fields.AzureContainerName,
+				Path:          tt.fields.AzureStoragePath,
+				store:         tt.fields.store,
+			}
+			if err := az.Init(); (err != nil) != tt.wantErr {
+				t.Fatalf("Init() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			src, err := az.store.CreateFilePath(tt.args.src)
+			if err != nil {
+				t.Fatalf("CreateFilePath error = %v", err)
+			}
+			if err := az.store.Write(src, []byte(`[{"Key":"a2V5MQ==","Value":"dmFsdWUx"},{"Key":"a2V5Mg==","Value":"dmFsdWUy"},{"Key":"a2V5Mw==","Value":"dmFsdWUz"}]`)); err != nil {
+				t.Fatalf("Write error = %v", err)
+			}
+			if err := az.Download(tt.args.src, tt.args.dest); (err != nil) != tt.wantErr {
 				t.Errorf("Upload() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

@@ -1,6 +1,3 @@
-//go:build spark
-// +build spark
-
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -11,10 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/featureform/config"
-	"go.uber.org/zap/zaptest"
 	"math/rand"
 	"regexp"
+
+	"github.com/featureform/config"
+	fs "github.com/featureform/filestore"
+	"go.uber.org/zap/zaptest"
 
 	// "os"
 	"bytes"
@@ -61,7 +60,11 @@ func uploadCSVTable(store FileStore, path string, tables interface{}) error {
 	if err := w.Error(); err != nil {
 		return fmt.Errorf("error writing csv: %v", err)
 	}
-	if err := store.Write(path, buf.Bytes()); err != nil {
+	destination, err := store.CreateFilePath(path)
+	if err != nil {
+		return fmt.Errorf("could not create file path: %v", err)
+	}
+	if err := store.Write(destination, buf.Bytes()); err != nil {
 		return fmt.Errorf("could not write parquet file to path: %v", err)
 	}
 	return nil
@@ -83,7 +86,11 @@ func uploadParquetTable(store FileStore, path string, tables interface{}) error 
 	}
 	fmt.Println("parquet bytes:")
 	fmt.Println(parquetBytes)
-	if err := store.Write(path, parquetBytes); err != nil {
+	destination, err := store.CreateFilePath(path)
+	if err != nil {
+		return fmt.Errorf("could not create file path: %v", err)
+	}
+	if err := store.Write(destination, parquetBytes); err != nil {
 		return fmt.Errorf("could not write parquet file to path: %v", err)
 	}
 	return nil
@@ -1245,13 +1252,13 @@ func testGetSourcePath(t *testing.T, store *SparkOfflineStore) {
 		{
 			"PrimaryPathSuccess",
 			"featureform_primary__test_name__14e4cd5e183d44968a6cf22f2f61d945",
-			store.Store.PathWithPrefix("featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/part-00000-9d3cb5a3-4b9c-4109-afa3-a75759bfcf89-c000.snappy.parquet", true),
+			"featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/part-00000-9d3cb5a3-4b9c-4109-afa3-a75759bfcf89-c000.snappy.parquet",
 			false,
 		},
 		{
 			"TransformationPathSuccess",
 			"featureform_transformation__028f6213-77a8-43bb-9d91-dd7e9ee96102__test_variant",
-			store.Store.PathWithPrefix("featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384", true),
+			"featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384",
 			false,
 		},
 		{
@@ -1273,13 +1280,13 @@ func testGetSourcePath(t *testing.T, store *SparkOfflineStore) {
 		t.Run(ttConst.name, func(t *testing.T) {
 			t.Parallel()
 			time.Sleep(time.Second * 15)
-			retreivedPath, err := store.getSourcePath(ttConst.sourcePath)
+			actualPath, err := store.getSourcePath(ttConst.sourcePath)
 			if !ttConst.expectedFailure && err != nil {
 				t.Fatalf("getSourcePath could not get the path because %s.", err)
 			}
 
-			if !ttConst.expectedFailure && !reflect.DeepEqual(ttConst.expectedPath, retreivedPath) {
-				t.Fatalf("getSourcePath could not find the expected path. Expected \"%s\", got \"%s\".", ttConst.expectedPath, retreivedPath)
+			if !ttConst.expectedFailure && !reflect.DeepEqual(ttConst.expectedPath, actualPath) {
+				t.Fatalf("getSourcePath could not find the expected path. Expected \"%s\", got \"%s\".", ttConst.expectedPath, actualPath)
 			}
 		})
 	}
@@ -1366,7 +1373,7 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 				"--credential",
 				fmt.Sprintf("azure_container_name=%s", azureStore.containerName()),
 				"--source",
-				store.Store.PathWithPrefix("featureform-spark-testing/featureform/testprimary/testFile.csv", true),
+				"featureform-spark-testing/featureform/testprimary/testFile.csv",
 			},
 			false,
 		},
@@ -1386,7 +1393,11 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 	for _, tt := range cases {
 		ttConst := tt
 		t.Run(ttConst.name, func(t *testing.T) {
-			args, err := store.Executor.GetDFArgs(ttConst.outputURI, ttConst.code, ttConst.mapping, store.Store)
+			output, err := store.Store.CreateFilePath(ttConst.outputURI)
+			if err != nil {
+				t.Fatalf("could not create output path %s", err)
+			}
+			args, err := store.Executor.GetDFArgs(output, ttConst.code, ttConst.mapping, store.Store)
 
 			if !ttConst.expectedFailure && err != nil {
 				t.Fatalf("could not get df args %s", err)
@@ -1552,7 +1563,7 @@ func getDatabricksOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 	SparkOfflineConfig := pc.SparkConfig{
 		ExecutorType:   pc.Databricks,
 		ExecutorConfig: &databricksConfig,
-		StoreType:      pc.Azure,
+		StoreType:      fs.Azure,
 		StoreConfig:    &azureConfig,
 	}
 
@@ -2791,8 +2802,14 @@ func TestEMRErrorMessages(t *testing.T) {
 		t.Fatalf("could not create emr and/or s3 connection: %v", err)
 	}
 
-	localScriptPath := "scripts/spark/tests/test_files/scripts/test_emr_error.py"
-	remoteScriptPath := "unit_tests/scripts/tests/test_emr_error.py"
+	localScriptPath := &fs.LocalFilepath{}
+	if err := localScriptPath.SetKey("scripts/spark/tests/test_files/scripts/test_emr_error.py"); err != nil {
+		t.Fatalf("could not set local script path: %v", err)
+	}
+	remoteScriptPath, err := s3.CreateFilePath("unit_tests/scripts/tests/test_emr_error.py")
+	if err != nil {
+		t.Fatalf("could not create remote script path: %v", err)
+	}
 	err = readAndUploadFile(localScriptPath, remoteScriptPath, s3)
 	if err != nil {
 		t.Fatalf("could not upload '%s' to '%s': %v", localScriptPath, remoteScriptPath, err)
@@ -3172,15 +3189,29 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			pythonURI := tt.executor.PythonFileURI(store)
+			pythonURI, err := tt.executor.PythonFileURI(store)
+			if err != nil {
+				t.Errorf("SparkExecutor.PythonFileURI() = %#v, want %#v", err, nil)
+			}
 			if !reflect.DeepEqual(pythonURI, tt.ExpectedPythonFileURI) {
 				t.Errorf("SparkExecutor.PythonFileURI() = %#v, want %#v", pythonURI, tt.ExpectedPythonFileURI)
 			}
-			submitArgs := tt.executor.SparkSubmitArgs(tt.SubmitArgs.DestPath, tt.SubmitArgs.Query, tt.SubmitArgs.SourceList, tt.SubmitArgs.JobType, store)
+			destination, err := store.CreateDirPath(tt.SubmitArgs.DestPath)
+			if err != nil {
+				t.Errorf("SparkExecutor.CreateDirPath() = %#v, want %#v", err, nil)
+			}
+			submitArgs, err := tt.executor.SparkSubmitArgs(destination, tt.SubmitArgs.Query, tt.SubmitArgs.SourceList, tt.SubmitArgs.JobType, store)
+			if err != nil {
+				t.Errorf("SparkExecutor.SparkSubmitArgs() = %#v, want %#v", err, nil)
+			}
 			if !reflect.DeepEqual(submitArgs, tt.ExpectedSubmitArgs) {
 				t.Errorf("SparkExecutor.SubmitArgs() = %#v, want %#v", submitArgs, tt.ExpectedSubmitArgs)
 			}
-			dfArgs, err := tt.executor.GetDFArgs(tt.DFArgs.OutputURI, tt.DFArgs.Code, tt.DFArgs.Sources, store)
+			output, err := store.CreateDirPath(tt.DFArgs.OutputURI)
+			if err != nil {
+				t.Errorf("SparkExecutor.CreateDirPath() = %#v, want %#v", err, nil)
+			}
+			dfArgs, err := tt.executor.GetDFArgs(output, tt.DFArgs.Code, tt.DFArgs.Sources, store)
 			if err != nil {
 				t.Errorf("SparkExecutor.GetDFArgs() = %#v, want %#v", err, nil)
 			}

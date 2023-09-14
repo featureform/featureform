@@ -733,6 +733,7 @@ Config = Union[
     EmptyConfig,
     HDFSConfig,
     WeaviateConfig,
+    DynamodbConfig,
 ]
 
 

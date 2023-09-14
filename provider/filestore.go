@@ -74,7 +74,6 @@ func NewLocalFileStore(config Config) (FileStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO: double check that this is the appropriate method in this case
 	err = filepath.ParseDirPath(fileStoreConfig.DirPath)
 	if err != nil {
 		return nil, err
@@ -82,8 +81,9 @@ func NewLocalFileStore(config Config) (FileStore, error) {
 	return &LocalFileStore{
 		DirPath: fileStoreConfig.DirPath[len("file:///"):],
 		genericFileStore: genericFileStore{
-			bucket: bucket,
-			path:   filepath,
+			bucket:    bucket,
+			path:      filepath,
+			storeType: filestore.FileSystem,
 		},
 	}, nil
 }
@@ -111,7 +111,7 @@ func (store *AzureFileStore) CreateFilePath(key string) (filestore.Filepath, err
 	fp.SetBucket(store.ContainerName)
 	var err error
 	if store.Path != "" {
-		err = fp.SetKey(fmt.Sprintf("%s/%s", store.Path, key))
+		err = fp.SetKey(fmt.Sprintf("%s/%s", store.Path, strings.Trim(key, "/")))
 	} else {
 		err = fp.SetKey(key)
 	}
@@ -722,7 +722,7 @@ func (store *genericFileStore) NewestFileOfType(searchPath filestore.Filepath, f
 			if err != nil {
 				return nil, err
 			}
-			// TODO: Prior to adding this guard clause, the call to path.ParseFilePath would fail
+			// Prior to adding this guard clause, the call to path.ParseFilePath would fail
 			// with the following error if mostRecentKey is empty:
 			// invalid scheme '://', must be one of [gs:// s3:// s3a:// abfss:// hdfs://]
 			if mostRecentKey == "" {
@@ -970,25 +970,32 @@ func (store *genericFileStore) NumRows(path filestore.Filepath) (int64, error) {
 	}
 }
 
-// TODO: implement
 func (store *genericFileStore) CreateDirPath(key string) (filestore.Filepath, error) {
-	fp := filestore.FilePath{}
-	// fp.SetKey(key)
-	// fp.SetIsDir(true)
-	// err := fp.Validate()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	return &fp, nil
+	fp, err := store.CreateFilePath(key)
+	if err != nil {
+		return nil, err
+	}
+	fp.SetIsDir(true)
+	return fp, nil
 }
 
-// TODO: implement
 func (store *genericFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 	fp := filestore.FilePath{}
-	// fp.SetKey(key)
-	// err := fp.Validate()
-	// if err != nil {
-	// 	return nil, err
-	// }
+	if store.FilestoreType() != filestore.FileSystem {
+		return nil, fmt.Errorf("filestore type: %v; use store-specific implementation instead", store.FilestoreType())
+	}
+	if err := fp.SetScheme(filestore.FileSystemPrefix); err != nil {
+		return nil, err
+	}
+	if err := fp.SetBucket(store.path.Bucket()); err != nil {
+		return nil, err
+	}
+	if err := fp.SetKey(key); err != nil {
+		return nil, err
+	}
+	if err := fp.Validate(); err != nil {
+		return nil, err
+	}
+	fp.SetIsDir(false)
 	return &fp, nil
 }

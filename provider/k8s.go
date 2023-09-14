@@ -892,7 +892,6 @@ func (tbl *FileStorePrimaryTable) Write(record GenericRecord) error {
 	return fmt.Errorf("not implemented")
 }
 
-// TODO: implement check for existence and appending to existing file
 func (tbl *FileStorePrimaryTable) WriteBatch(records []GenericRecord) error {
 	destination, err := filestore.NewEmptyFilepath(tbl.store.FilestoreType())
 	if err != nil {

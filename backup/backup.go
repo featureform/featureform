@@ -52,40 +52,41 @@ func (b *BackupManager) SaveTo(filename string) error {
 	return nil
 }
 
-func (b *BackupManager) Restore(prefix string) error {
+func (b *BackupManager) Restore(filenamePrefix string) error {
 	b.Logger.Info("Starting Restore")
 	err := b.Provider.Init()
 	if err != nil {
 		return fmt.Errorf("could not initialize provider: %v", err)
 	}
 
-	b.Logger.Infof("Getting Latest Backup With Prefix `%s`", prefix)
-	filename, err := b.Provider.LatestBackupName(prefix)
+	b.Logger.Infof("Getting Latest Backup With Prefix `%s`", filenamePrefix)
+	filename, err := b.Provider.LatestBackupName(filenamePrefix)
 	if err != nil {
 		return fmt.Errorf("could not get latest backup: %v", err)
 	}
 
-	b.Logger.Infof("Restoring with file: %s", filename)
+	b.Logger.Infof("Restoring with file: %s", filename.ToURI())
 	err = b.RestoreFrom(filename)
 	if err != nil {
-		return fmt.Errorf("could not restore file %s: %v", filename, err)
+		return fmt.Errorf("could not restore file %s: %v", filename.ToURI(), err)
 	}
 	return nil
 }
 
-// The change from `filename string` to `filename filestore.Filepath` feels overkill, especially
-// consider that other methods continue to use `filename string`; however, LatestBackupName() returns
-// the result of NewestFileOfType, which is Filepath, so something's gotta give.
-func (b *BackupManager) RestoreFrom(filename filestore.Filepath) error {
+func (b *BackupManager) RestoreFrom(source filestore.Filepath) error {
 	err := b.Provider.Init()
 	if err != nil {
 		return fmt.Errorf("could not initialize provider: %v", err)
 	}
 	b.Logger.Info("Downloading Restore File")
+	destination := &filestore.LocalFilepath{}
+	if err := destination.SetKey(SnapshotFilename); err != nil {
+		return fmt.Errorf("cannot set destination key: %v", err)
+	}
 
-	err = b.Provider.Download(filename.Key(), SnapshotFilename)
+	err = b.Provider.Download(source, destination)
 	if err != nil {
-		return fmt.Errorf("could not download snapshot file %s: %v", filename, err)
+		return fmt.Errorf("could not download snapshot file %s: %v", source.ToURI(), err)
 	}
 
 	b.Logger.Info("Loading Snapshot")

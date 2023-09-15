@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	fs "github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/provider"
 	"github.com/joho/godotenv"
@@ -236,7 +237,11 @@ func TestAzure_Download(t *testing.T) {
 			if err := az.store.Write(src, []byte(`[{"Key":"a2V5MQ==","Value":"dmFsdWUx"},{"Key":"a2V5Mg==","Value":"dmFsdWUy"},{"Key":"a2V5Mw==","Value":"dmFsdWUz"}]`)); err != nil {
 				t.Fatalf("Write error = %v", err)
 			}
-			if err := az.Download(tt.args.src, tt.args.dest); (err != nil) != tt.wantErr {
+			dest := &fs.LocalFilepath{}
+			if err := dest.SetKey(tt.args.dest); err != nil {
+				t.Fatalf("SetKey error = %v", err)
+			}
+			if err := az.Download(src, dest); (err != nil) != tt.wantErr {
 				t.Errorf("Upload() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

@@ -14,9 +14,14 @@ import (
 
 type Provider interface {
 	Init() error
-	Upload(name, dest string) error
-	Download(src, dest string) error
-	LatestBackupName(prefix string) (filestore.Filepath, error)
+	// **NOTE:** Upload accepts strings instead of filestore.Filepath because
+	// the store, which could create a filestore-specific filepath, is not exposed
+	// by the Provider interface, and it seems unnecessary to expose it at this time.
+	// In contrast, Download accepts a filestore.Filepath because the LatestBackupName
+	// returns a filestore.Filepath and dest is an instance of filestore.LocalFilepath.
+	Upload(src, dest string) error
+	Download(src, dest filestore.Filepath) error
+	LatestBackupName(filenamePrefix string) (filestore.Filepath, error)
 }
 
 type Azure struct {
@@ -59,16 +64,8 @@ func (az *Azure) Upload(src, dest string) error {
 	return az.store.Upload(source, destination)
 }
 
-func (az *Azure) Download(src, dest string) error {
-	source, err := az.store.CreateFilePath(src)
-	if err != nil {
-		return fmt.Errorf("cannot create source file path: %v", err)
-	}
-	destination := &filestore.LocalFilepath{}
-	if err := destination.SetKey(dest); err != nil {
-		return fmt.Errorf("cannot set destination key: %v", err)
-	}
-	return az.store.Download(source, destination)
+func (az *Azure) Download(src, dest filestore.Filepath) error {
+	return az.store.Download(src, dest)
 }
 
 func (az *Azure) LatestBackupName(dir string) (filestore.Filepath, error) {
@@ -124,16 +121,8 @@ func (s3 *S3) Upload(src, dest string) error {
 	return s3.store.Upload(source, destination)
 }
 
-func (s3 *S3) Download(src, dest string) error {
-	source, err := s3.store.CreateFilePath(src)
-	if err != nil {
-		return fmt.Errorf("cannot create source file path: %v", err)
-	}
-	destination := &filestore.LocalFilepath{}
-	if err := destination.SetKey(dest); err != nil {
-		return fmt.Errorf("cannot set destination key: %v", err)
-	}
-	return s3.store.Download(source, destination)
+func (s3 *S3) Download(src, dest filestore.Filepath) error {
+	return s3.store.Download(src, dest)
 }
 
 func (s3 *S3) LatestBackupName(dir string) (filestore.Filepath, error) {
@@ -166,10 +155,10 @@ func (fs *Local) Init() error {
 	return nil
 }
 
-func (fs *Local) Upload(name, dest string) error {
-	source, err := fs.store.CreateFilePath(name)
-	if err != nil {
-		return fmt.Errorf("cannot create source file path: %v", err)
+func (fs *Local) Upload(src, dest string) error {
+	source := &filestore.LocalFilepath{}
+	if err := source.SetKey(src); err != nil {
+		return fmt.Errorf("cannot set source key: %v", err)
 	}
 	destination, err := fs.store.CreateFilePath(dest)
 	if err != nil {
@@ -178,16 +167,8 @@ func (fs *Local) Upload(name, dest string) error {
 	return fs.store.Upload(source, destination)
 }
 
-func (fs *Local) Download(src, dest string) error {
-	source, err := fs.store.CreateFilePath(src)
-	if err != nil {
-		return fmt.Errorf("cannot create source file path: %v", err)
-	}
-	destination, err := fs.store.CreateFilePath(dest)
-	if err != nil {
-		return fmt.Errorf("cannot create destination file path: %v", err)
-	}
-	return fs.store.Download(source, destination)
+func (fs *Local) Download(src, dest filestore.Filepath) error {
+	return fs.store.Download(src, dest)
 }
 
 func (fs *Local) LatestBackupName(dir string) (filestore.Filepath, error) {
@@ -273,16 +254,8 @@ func (g *GCS) Upload(src, dest string) error {
 	return g.store.Upload(source, destination)
 }
 
-func (g *GCS) Download(src, dest string) error {
-	source, err := g.store.CreateFilePath(src)
-	if err != nil {
-		return fmt.Errorf("cannot create source file path: %v", err)
-	}
-	destination := &filestore.LocalFilepath{}
-	if err := destination.SetKey(dest); err != nil {
-		return fmt.Errorf("cannot set destination key: %v", err)
-	}
-	return g.store.Download(source, destination)
+func (g *GCS) Download(src, dest filestore.Filepath) error {
+	return g.store.Download(src, dest)
 }
 
 func (g *GCS) LatestBackupName(dir string) (filestore.Filepath, error) {

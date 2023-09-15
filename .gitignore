@@ -39,3 +39,6 @@ coverage.xml
 # Backup Tests output
 backup/*.json
 backup/*.json.attrs
+*.db
+*.db.attrs
+snapshot.json

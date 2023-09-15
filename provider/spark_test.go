@@ -2812,7 +2812,7 @@ func TestEMRErrorMessages(t *testing.T) {
 	}
 	err = readAndUploadFile(localScriptPath, remoteScriptPath, s3)
 	if err != nil {
-		t.Fatalf("could not upload '%s' to '%s': %v", localScriptPath, remoteScriptPath, err)
+		t.Fatalf("could not upload '%s' to '%s': %v", localScriptPath.ToURI(), remoteScriptPath.ToURI(), err)
 	}
 
 	type TestCase struct {

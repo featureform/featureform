@@ -140,76 +140,88 @@ func TestOfflineStores(t *testing.T) {
 		return serialBQConfig, bigQueryConfig
 	}
 
-	// TODO start with local spark and azure, then move on to s3, gcs
-	sparkInit := func() (pc.SerializedConfig, pc.SparkConfig) {
-		credsFile := os.Getenv("GCP_CREDENTIALS_FILE")
-		content, err := ioutil.ReadFile(credsFile)
-		if err != nil {
-			t.Errorf("Error when opening file: %v", err)
+	sparkInit := func(t *testing.T, executorType pc.SparkExecutorType, storeType fs.FileStoreType) (pc.SerializedConfig, pc.SparkConfig) {
+		var executorConfig pc.SparkExecutorConfig
+
+		switch executorType {
+		case pc.SparkGeneric:
+			executorConfig = &pc.SparkGenericConfig{
+				Master:        os.Getenv("GENERIC_SPARK_MASTER"),
+				DeployMode:    os.Getenv("GENERIC_SPARK_DEPLOY_MODE"),
+				PythonVersion: os.Getenv("GENERIC_SPARK_PYTHON_VERSION"),
+			}
+		case pc.Databricks:
+			executorConfig = &pc.DatabricksConfig{
+				Host:    os.Getenv("DATABRICKS_HOST"),
+				Token:   os.Getenv("DATABRICKS_TOKEN"),
+				Cluster: os.Getenv("DATABRICKS_CLUSTER"),
+			}
+		case pc.EMR:
+			executorConfig = &pc.EMRConfig{
+				Credentials: pc.AWSCredentials{
+					AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+					AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+				},
+				ClusterRegion: os.Getenv("EMR_CLUSTER_REGION"),
+				ClusterName:   os.Getenv("EMR_CLUSTER_ID"),
+			}
+		default:
+			t.Fatalf("Invalid executor type: %v", executorType)
 		}
-		var creds map[string]interface{}
-		err = json.Unmarshal(content, &creds)
-		if err != nil {
-			t.Errorf("Error during Unmarshal() creds: %v", err)
-		}
-		var sparkConfig = pc.SparkConfig{
-			// LOCAL SPARK (GENERIC)
-			ExecutorType: pc.SparkGeneric,
-			ExecutorConfig: &pc.SparkGenericConfig{
-				Master:        "local",
-				DeployMode:    "client",
-				PythonVersion: "3.10.10",
-			},
-			// DATABRICKS
-			// ExecutorType: pc.Databricks,
-			// ExecutorConfig: &pc.DatabricksConfig{
-			// 	Host:    os.Getenv("DATABRICKS_HOST"),
-			// 	Token:   os.Getenv("DATABRICKS_TOKEN"),
-			// 	Cluster: os.Getenv("DATABRICKS_CLUSTER"),
-			// },
-			// EMR
-			// ExecutorType: pc.EMR,
-			// ExecutorConfig: &pc.EMRConfig{
-			// 	Credentials: pc.AWSCredentials{
-			// 		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-			// 		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-			// 	},
-			// 	ClusterRegion: os.Getenv("EMR_CLUSTER_REGION"),
-			// 	ClusterName:   os.Getenv("EMR_CLUSTER_ID"),
-			// },
-			// AZURE
-			// StoreType: fs.Azure,
-			// StoreConfig: &pc.AzureFileStoreConfig{
-			// 	AccountName:   os.Getenv("AZURE_ACCOUNT_NAME"),
-			// 	AccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
-			// 	ContainerName: os.Getenv("AZURE_CONTAINER_NAME"),
-			// 	Path:          os.Getenv("AZURE_CONTAINER_PATH"),
-			// },
-			// S3
-			// StoreType: fs.S3,
-			// StoreConfig: &pc.S3FileStoreConfig{
-			// 	Credentials: pc.AWSCredentials{
-			// 		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-			// 		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-			// 	},
-			// 	BucketRegion: os.Getenv("S3_BUCKET_REGION"),
-			// 	BucketPath:   os.Getenv("S3_BUCKET_PATH"),
-			// 	Path:         os.Getenv(""),
-			// },
-			// GCS
-			StoreType: fs.GCS,
-			StoreConfig: &pc.GCSFileStoreConfig{
+
+		var fileStoreConfig pc.SparkFileStoreConfig
+		switch storeType {
+		case fs.S3:
+			fileStoreConfig = &pc.S3FileStoreConfig{
+				Credentials: pc.AWSCredentials{
+					AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+					AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+				},
+				BucketRegion: os.Getenv("S3_BUCKET_REGION"),
+				BucketPath:   os.Getenv("S3_BUCKET_PATH"),
+				Path:         os.Getenv(""),
+			}
+		case fs.GCS:
+			credsFile := os.Getenv("GCP_CREDENTIALS_FILE")
+			content, err := ioutil.ReadFile(credsFile)
+			if err != nil {
+				t.Errorf("Error when opening file: %v", err)
+			}
+			var creds map[string]interface{}
+			err = json.Unmarshal(content, &creds)
+			if err != nil {
+				t.Errorf("Error during Unmarshal() creds: %v", err)
+			}
+
+			fileStoreConfig = &pc.GCSFileStoreConfig{
 				BucketName: os.Getenv("GCS_BUCKET_NAME"),
 				BucketPath: "",
 				Credentials: pc.GCPCredentials{
 					ProjectId: os.Getenv("GCP_PROJECT_ID"),
 					JSON:      creds,
 				},
-			},
+			}
+		case fs.Azure:
+			fileStoreConfig = &pc.AzureFileStoreConfig{
+				AccountName:   os.Getenv("AZURE_ACCOUNT_NAME"),
+				AccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
+				ContainerName: os.Getenv("AZURE_CONTAINER_NAME"),
+				Path:          os.Getenv("AZURE_CONTAINER_PATH"),
+			}
+		default:
+			t.Fatalf("Invalid store type: %v", storeType)
 		}
+
+		var sparkConfig = pc.SparkConfig{
+			ExecutorType:   executorType,
+			ExecutorConfig: executorConfig,
+			StoreType:      storeType,
+			StoreConfig:    fileStoreConfig,
+		}
+
 		serializedConfig, err := sparkConfig.Serialize()
 		if err != nil {
-			t.Fatalf("Cannot serialize Spark config: %v", err)
+			t.Fatalf("Cannot serialize Spark config with %s executor and %s files tore: %v", executorType, storeType, err)
 		}
 		return serializedConfig, sparkConfig
 	}
@@ -243,8 +255,28 @@ func TestOfflineStores(t *testing.T) {
 			destroyRedshiftDatabase(redshiftConfig)
 		})
 	}
-	if *provider == "spark" || *provider == "" {
-		serialSparkConfig, _ := sparkInit()
+	if *provider == "spark-generic-s3" || *provider == "" {
+		serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.S3)
+		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	}
+	if *provider == "spark-generic-abs" || *provider == "" {
+		serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.Azure)
+		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	}
+	if *provider == "spark-generic-gcs" || *provider == "" {
+		serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.GCS)
+		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	}
+	if *provider == "spark-databricks-s3" || *provider == "" {
+		serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.S3)
+		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	}
+	if *provider == "spark-databricks-abs" || *provider == "" {
+		serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.Azure)
+		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	}
+	if *provider == "spark-emr-s3" || *provider == "" {
+		serialSparkConfig, _ := sparkInit(t, pc.EMR, fs.S3)
 		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
 	}
 
@@ -259,11 +291,9 @@ func TestOfflineStores(t *testing.T) {
 		"InvalidMaterialization":  testInvalidMaterialization,
 		"MaterializeUnknown":      testMaterializeUnknown,
 		"MaterializationNotFound": testMaterializationNotFound,
-
-		"TrainingSets":      testTrainingSet,
-		"TrainingSetUpdate": testTrainingSetUpdate,
-		// "TrainingSetLag":    testLagFeaturesTrainingSet, // KNOWN ISSUE TO RESOLVE
-
+		"TrainingSets":            testTrainingSet,
+		"TrainingSetUpdate":       testTrainingSetUpdate,
+		// "TrainingSetLag": testLagFeaturesTrainingSet,
 		"TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID,
 		"GetUnknownTrainingSet":  testGetUnknownTrainingSet,
 		"InvalidTrainingSetDefs": testInvalidTrainingSetDefs,
@@ -2259,10 +2289,7 @@ func testTransform(t *testing.T, store OfflineStore) {
 			Expected: []GenericRecord{
 				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
 				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
-				// TODO: determine if this change (i.e. nil -> false) will cause the SQL providers to fail
-				// The crux if the issue is that to build a serializable schema for the parquet writer, we
-				// need to use reflection, which will fail if we have a nil value for a bool column.
-				[]interface{}{"c", 3, 1.3, "third string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0).UTC()},
 				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
 				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
 			},
@@ -2441,20 +2468,17 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 					},
 				},
 			},
-			// TODO: determine if this change (i.e. nil -> false) will cause the SQL providers to fail
-			// The crux if the issue is that to build a serializable schema for the parquet writer, we
-			// need to use reflection, which will fail if we have a nil value for a bool column.
 			Expected: []GenericRecord{
 				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
 				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
-				[]interface{}{"c", 3, 1.3, "third string", false, time.UnixMilli(0).UTC()}, // nil -> false
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0).UTC()},
 				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
 				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
 			},
 			UpdatedExpected: []GenericRecord{
 				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
 				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
-				[]interface{}{"c", 3, 1.3, "third string", false, time.UnixMilli(0).UTC()}, // nil -> false
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0).UTC()},
 				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
 				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
 				[]interface{}{"d", 6, 1.6, "sixth string", false, time.UnixMilli(0).UTC()},
@@ -2625,20 +2649,17 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 					},
 				},
 			},
-			// TODO: determine if this change (i.e. nil -> false) will cause the SQL providers to fail
-			// The crux if the issue is that to build a serializable schema for the parquet writer, we
-			// need to use reflection, which will fail if we have a nil value for a bool column.
 			Expected: []GenericRecord{
 				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
 				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
-				[]interface{}{"c", 3, 1.3, "third string", false, time.UnixMilli(0).UTC()}, // nil -> false
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0).UTC()},
 				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
 				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
 			},
 			UpdatedExpected: []GenericRecord{
 				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
 				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
-				[]interface{}{"c", 3, 1.3, "third string", false, time.UnixMilli(0).UTC()}, // nil -> false
+				[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0).UTC()},
 				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
 				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
 				[]interface{}{"d", 6, 1.6, "sixth string", false, time.UnixMilli(0).UTC()},

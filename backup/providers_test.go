@@ -120,6 +120,7 @@ func TestAzure_Init(t *testing.T) {
 	}
 }
 
+// TODO: convert into file-store agnostic test and add cases for other file stores
 func TestAzure_Upload(t *testing.T) {
 	if testing.Short() {
 		t.Skip()

@@ -480,6 +480,8 @@ func (schema *TableSchema) Deserialize(config []byte) error {
 	return nil
 }
 
+// *NOTE:* pointer types are used for all the scalar types to ensure they
+// can be nullable in the parquet file.
 func (schema *TableSchema) ToParquetRecords(records []GenericRecord) []any {
 	parquetRecords := make([]any, len(records))
 	caser := cases.Title(language.English)
@@ -492,6 +494,8 @@ func (schema *TableSchema) ToParquetRecords(records []GenericRecord) []any {
 			if value == nil {
 				continue
 			}
+			// To ensure the struct fields are public and accessible to other methods,
+			// we need to title case them when setting them.
 			colName := caser.String(schema.Columns[j].Name)
 			switch v := value.(type) {
 			case int:

@@ -42,3 +42,6 @@ backup/*.json.attrs
 *.db
 *.db.attrs
 snapshot.json
+
+# Offline Tests
+provider/generic_records_*.parquet

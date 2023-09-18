@@ -39,6 +39,7 @@ type FileStore interface {
 	Delete(key filestore.Filepath) error
 	DeleteAll(dir filestore.Filepath) error
 	NewestFileOfType(prefix filestore.Filepath, fileType filestore.FileType) (filestore.Filepath, error)
+	List(dirPath filestore.Filepath, fileType filestore.FileType) ([]filestore.Filepath, error)
 	NumRows(key filestore.Filepath) (int64, error)
 	Close() error
 	Upload(sourcePath filestore.Filepath, destPath filestore.Filepath) error
@@ -646,6 +647,10 @@ func (hdfs *HDFSFileStore) NewestFileOfType(rootpath filestore.Filepath, fileTyp
 	return filepath, nil
 }
 
+func (fs *HDFSFileStore) List(dirPath filestore.Filepath, fileType filestore.FileType) ([]filestore.Filepath, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
 func (fs *HDFSFileStore) NumRows(path filestore.Filepath) (int64, error) {
 	file, err := fs.Read(path)
 	if err != nil {
@@ -753,6 +758,48 @@ func (store *genericFileStore) getMoreRecentFile(newObj *blob.ListObject, expect
 		return newObj.ModTime, newObj.Key
 	}
 	return oldTime, oldKey
+}
+
+func (store *genericFileStore) List(searchPath filestore.Filepath, fileType filestore.FileType) ([]filestore.Filepath, error) {
+	opts := blob.ListOptions{
+		Prefix: searchPath.Key(),
+	}
+	files := make([]filestore.Filepath, 0)
+	iter := store.bucket.List(&opts)
+	var err error
+	for {
+		if obj, err := iter.Next(context.TODO()); err == nil {
+			path, err := filestore.NewEmptyFilepath(store.FilestoreType())
+			if err != nil {
+				break
+			}
+			// **NOTE:** this is a hack to address the fact that genericFileStore is ignorant of the scheme, bucket, etc.
+			// which means we're forced to use everything up to the path from the searchPath and replace its key with
+			// the latest key found at the prefix. The long-term fix could/should be to implement all Filepath methods on
+			// each implementation and call into the genericFileStore with additional parameters for the scheme, bucket, etc.
+			err = path.ParseFilePath(searchPath.ToURI())
+			if err != nil {
+				break
+			}
+			if err = path.SetKey(obj.Key); err != nil {
+				break
+			}
+			if err = path.Validate(); err != nil {
+				break
+			}
+			if path.Ext() != fileType {
+				err = fmt.Errorf("file type %s does not match expected file type %s", path.Ext(), fileType)
+				break
+			}
+			files = append(files, path)
+		} else if err == io.EOF {
+			err = nil
+			break
+		} else {
+			break
+		}
+	}
+	return files, err
 }
 
 func (store *genericFileStore) isMostRecentFile(listObj *blob.ListObject, time time.Time) bool {

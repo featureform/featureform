@@ -34,7 +34,7 @@ import (
 type FileStore interface {
 	Write(key filestore.Filepath, data []byte) error
 	Read(key filestore.Filepath) ([]byte, error)
-	Serve(key filestore.Filepath) (Iterator, error)
+	Serve(keys []filestore.Filepath) (Iterator, error)
 	Exists(key filestore.Filepath) (bool, error)
 	Delete(key filestore.Filepath) error
 	DeleteAll(dir filestore.Filepath) error
@@ -526,35 +526,27 @@ func (fs *HDFSFileStore) Read(path filestore.Filepath) ([]byte, error) {
 	return fs.Client.ReadFile(path.Key())
 }
 
-func (fs *HDFSFileStore) ServeDirectory(path filestore.Filepath) (Iterator, error) {
-	files, err := fs.Client.ReadDir(path.Key())
-	if err != nil {
-		return nil, err
-	}
-	var filepaths []filestore.Filepath
-	for _, file := range files {
-		if filepath, err := fs.CreateFilePath(fmt.Sprintf("%s/%s", path.KeyPrefix(), file.Name())); err == nil {
-			filepaths = append(filepaths, filepath)
-		} else {
-			return nil, fmt.Errorf("could not create filepath: %v", err)
-		}
-	}
+func (fs *HDFSFileStore) ServeDirectory(files []filestore.Filepath) (Iterator, error) {
 	// assume file type is parquet
-	return parquetIteratorOverMultipleFiles(filepaths, fs)
+	return parquetIteratorOverMultipleFiles(files, fs)
 }
 
-func (fs *HDFSFileStore) Serve(path filestore.Filepath) (Iterator, error) {
-	if path.IsDir() {
-		return fs.ServeDirectory(path)
+func (fs *HDFSFileStore) Serve(files []filestore.Filepath) (Iterator, error) {
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no files to serve")
 	}
-	b, err := fs.Client.ReadFile(path.Key())
+	if len(files) > 1 {
+		return fs.ServeDirectory(files)
+	}
+	file := files[0]
+	b, err := fs.Client.ReadFile(file.Key())
 	if err != nil {
 		return nil, fmt.Errorf("could not read file: %w", err)
 	}
-	switch path.KeyPrefix() {
-	case "parquet":
+	switch file.Ext() {
+	case filestore.Parquet:
 		return parquetIteratorFromBytes(b)
-	case "csv":
+	case filestore.CSV:
 		return nil, fmt.Errorf("could not find CSV reader")
 	default:
 		return nil, fmt.Errorf("unsupported file type")
@@ -744,6 +736,8 @@ func (store *genericFileStore) NewestFileOfType(searchPath filestore.Filepath, f
 			if err := path.SetKey(mostRecentKey); err != nil {
 				return nil, err
 			}
+			// TODO: consider reevaluating whether a path is a directory or file path when setting the key
+			path.SetIsDir(false)
 			return path, nil
 		} else {
 			return nil, err
@@ -766,11 +760,13 @@ func (store *genericFileStore) List(searchPath filestore.Filepath, fileType file
 	}
 	files := make([]filestore.Filepath, 0)
 	iter := store.bucket.List(&opts)
-	var err error
+	var iterError error
 	for {
 		if obj, err := iter.Next(context.TODO()); err == nil {
 			path, err := filestore.NewEmptyFilepath(store.FilestoreType())
 			if err != nil {
+				fmt.Println("could not get empty filepath", err)
+				iterError = err
 				break
 			}
 			// **NOTE:** this is a hack to address the fact that genericFileStore is ignorant of the scheme, bucket, etc.
@@ -779,73 +775,37 @@ func (store *genericFileStore) List(searchPath filestore.Filepath, fileType file
 			// each implementation and call into the genericFileStore with additional parameters for the scheme, bucket, etc.
 			err = path.ParseFilePath(searchPath.ToURI())
 			if err != nil {
+				fmt.Println("could not parse filepath", err)
+				iterError = err
 				break
 			}
 			if err = path.SetKey(obj.Key); err != nil {
+				fmt.Printf("could not set key %s: %v", obj.Key, err)
+				iterError = err
 				break
 			}
 			if err = path.Validate(); err != nil {
+				fmt.Println("could not validate", err)
+				iterError = err
 				break
 			}
-			if path.Ext() != fileType {
-				err = fmt.Errorf("file type %s does not match expected file type %s", path.Ext(), fileType)
-				break
+			if path.Ext() == fileType {
+				files = append(files, path)
 			}
-			files = append(files, path)
 		} else if err == io.EOF {
-			err = nil
+			fmt.Printf("EOF for %s reached\n", searchPath.Key())
+			iterError = nil
 			break
 		} else {
+			fmt.Printf("error iterating over search path %s: %v", searchPath.Key(), err)
 			break
 		}
 	}
-	return files, err
+	return files, iterError
 }
 
 func (store *genericFileStore) isMostRecentFile(listObj *blob.ListObject, time time.Time) bool {
 	return listObj.ModTime.After(time) || listObj.ModTime.Equal(time)
-}
-
-func (store *genericFileStore) outputFileList(path filestore.Filepath) []filestore.Filepath {
-	opts := blob.ListOptions{
-		Prefix:    path.Key(),
-		Delimiter: "/",
-	}
-	listIterator := store.bucket.List(&opts)
-	mostRecentOutputPartTime := "0000-00-00 00:00:00.000000"
-	mostRecentOutputPartPath := ""
-	for listObj, err := listIterator.Next(context.TODO()); err == nil; listObj, err = listIterator.Next(context.TODO()) {
-		if listObj == nil {
-			return []filestore.Filepath{}
-		}
-		dirParts := strings.Split(listObj.Key[:len(listObj.Key)-1], "/")
-		timestamp := dirParts[len(dirParts)-1]
-		if listObj.IsDir && timestamp > mostRecentOutputPartTime {
-			mostRecentOutputPartTime = timestamp
-			mostRecentOutputPartPath = listObj.Key
-		}
-	}
-	opts = blob.ListOptions{
-		Prefix: mostRecentOutputPartPath,
-	}
-	partsIterator := store.bucket.List(&opts)
-	filepathList := make([]filestore.Filepath, 0)
-	for listObj, err := partsIterator.Next(context.TODO()); err == nil; listObj, err = partsIterator.Next(context.TODO()) {
-		pathParts := strings.Split(listObj.Key, ".")
-
-		fileType := pathParts[len(pathParts)-1]
-		if fileType == "parquet" {
-			// partsList = append(partsList, listObj.Key)
-			if filepath, err := store.CreateFilePath(listObj.Key); err == nil {
-				filepathList = append(filepathList, filepath)
-			} else {
-				fmt.Printf("Could not create filepath: %v\n", err)
-			}
-		}
-	}
-	// TODO: implement sort for Filepath interface
-	// sort.Strings(partsList)
-	return filepathList
 }
 
 func (store *genericFileStore) DeleteAll(path filestore.Filepath) error {
@@ -897,13 +857,9 @@ func (store *genericFileStore) Read(path filestore.Filepath) ([]byte, error) {
 	return data, nil
 }
 
-func (store *genericFileStore) ServeDirectory(dir filestore.Filepath) (Iterator, error) {
-	fileParts := store.outputFileList(dir)
-	if len(fileParts) == 0 {
-		return nil, fmt.Errorf("no files in given directory")
-	}
+func (store *genericFileStore) ServeDirectory(files []filestore.Filepath) (Iterator, error) {
 	// assume file type is parquet
-	return parquetIteratorOverMultipleFiles(fileParts, store)
+	return parquetIteratorOverMultipleFiles(files, store)
 }
 
 func (store *genericFileStore) Upload(sourcePath filestore.Filepath, destPath filestore.Filepath) error {
@@ -996,11 +952,11 @@ func (store *genericFileStore) ServeFile(path filestore.Filepath) (Iterator, err
 	}
 }
 
-func (store *genericFileStore) Serve(path filestore.Filepath) (Iterator, error) {
-	if path.IsDir() {
-		return store.ServeDirectory(path)
+func (store *genericFileStore) Serve(files []filestore.Filepath) (Iterator, error) {
+	if len(files) > 1 {
+		return store.ServeDirectory(files)
 	} else {
-		return store.ServeFile(path)
+		return store.ServeFile(files[0])
 	}
 }
 

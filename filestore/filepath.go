@@ -37,13 +37,14 @@ const (
 	GSPrefix         = "gs://"
 	S3Prefix         = "s3://"
 	S3APrefix        = "s3a://"
+	S3NPrefix        = "s3n://"
 	AzureBlobPrefix  = "abfss://"
 	HDFSPrefix       = "hdfs://"
 	FileSystemPrefix = "file://"
 )
 
 var ValidSchemes = []string{
-	GSPrefix, S3Prefix, S3APrefix, AzureBlobPrefix, HDFSPrefix, FileSystemPrefix,
+	GSPrefix, S3Prefix, S3APrefix, S3NPrefix, AzureBlobPrefix, HDFSPrefix, FileSystemPrefix,
 }
 
 func (ft FileType) Matches(file string) bool {
@@ -303,8 +304,8 @@ type S3Filepath struct {
 }
 
 func (s3 *S3Filepath) Validate() error {
-	if s3.scheme != "s3://" && s3.scheme != "s3a://" {
-		return fmt.Errorf("invalid scheme '%s', must be 's3:// or 's3a://'", s3.scheme)
+	if s3.scheme != "s3://" && s3.scheme != "s3a://" && s3.scheme != "s3n://" {
+		return fmt.Errorf("invalid scheme '%s', must be 's3:// or 's3a://' or 's3n://'", s3.scheme)
 	}
 	if s3.bucket == "" {
 		return fmt.Errorf("bucket cannot be empty")
@@ -430,6 +431,31 @@ func (hdfs *HDFSFilepath) Validate() error {
 
 type LocalFilepath struct {
 	FilePath
+}
+
+func (local *LocalFilepath) SetBucket(bucket string) error {
+	fmt.Println("setting bucket for local file path")
+	if bucket != "" {
+		return fmt.Errorf("bucket must be empty for local filepaths")
+	}
+	return nil
+}
+
+func (local *LocalFilepath) Validate() error {
+	fmt.Println("validating local file path")
+	if local.scheme == "" {
+		return fmt.Errorf("scheme cannot be empty")
+	}
+	if local.bucket != "" {
+		return fmt.Errorf("bucket must be empty")
+	}
+	if local.key == "" {
+		return fmt.Errorf("key cannot be empty")
+	} else {
+		local.key = strings.Trim(local.key, "/")
+	}
+	local.isValid = true
+	return nil
 }
 
 type FilePathGroupingType string

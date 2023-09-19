@@ -93,6 +93,28 @@ func (fs *LocalFileStore) FilestoreType() filestore.FileStoreType {
 	return filestore.FileSystem
 }
 
+func (fs *LocalFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
+	fp := filestore.LocalFilepath{}
+	if fs.FilestoreType() != filestore.FileSystem {
+		return nil, fmt.Errorf("filestore type: %v; use store-specific implementation instead", fs.FilestoreType())
+	}
+	if err := fp.SetScheme(filestore.FileSystemPrefix); err != nil {
+		return nil, err
+	}
+	fmt.Println("BUCKET", fs.path.Bucket())
+	if err := fp.SetBucket(fs.path.Bucket()); err != nil {
+		return nil, err
+	}
+	if err := fp.SetKey(key); err != nil {
+		return nil, err
+	}
+	if err := fp.Validate(); err != nil {
+		return nil, err
+	}
+	fp.SetIsDir(false)
+	return &fp, nil
+}
+
 type AzureFileStore struct {
 	AccountName      string
 	AccountKey       string
@@ -990,6 +1012,7 @@ func (store *genericFileStore) CreateFilePath(key string) (filestore.Filepath, e
 	if err := fp.SetScheme(filestore.FileSystemPrefix); err != nil {
 		return nil, err
 	}
+	fmt.Println("BUCKET", store.path.Bucket())
 	if err := fp.SetBucket(store.path.Bucket()); err != nil {
 		return nil, err
 	}

@@ -419,7 +419,7 @@ func (tbl *BlobOfflineTable) WriteBatch(records []ResourceRecord) error {
 		// we don't rely on the order of rows in the file for materializations; currently, we're
 		// counting on the implicit ordering of rows once these files are read into Spark and
 		// queried for materializations.
-		iter, err := tbl.store.Serve(destination)
+		iter, err := tbl.store.Serve([]filestore.Filepath{destination})
 		if err != nil {
 			return fmt.Errorf("could not serve file: %w", err)
 		}
@@ -570,7 +570,7 @@ func (tbl *FileStorePrimaryTable) WriteBatch(records []GenericRecord) error {
 		return fmt.Errorf("could not check if destination file exists: %w", err)
 	}
 	if exists {
-		iter, err := tbl.store.Serve(destination)
+		iter, err := tbl.store.Serve([]filestore.Filepath{destination})
 		if err != nil {
 			return fmt.Errorf("could not serve file: %w", err)
 		}
@@ -630,38 +630,45 @@ func (tbl *FileStorePrimaryTable) GetName() string {
 }
 
 func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
-	source := tbl.source
-	if source.IsDir() {
+	sources := []filestore.Filepath{tbl.source}
+	if tbl.source.IsDir() {
 		// The key should only be a directory in the case of transformations.
 		if !tbl.isTransformation {
-			return nil, fmt.Errorf("expected a file but got a directory: %s", source.Key())
+			return nil, fmt.Errorf("expected a file but got a directory: %s", tbl.source.Key())
 		}
 		// The file structure in cloud storage for transformations is /featureform/Transformation/<NAME>/<VARIANT>
 		// but there is an additional directory that's named using a timestamp that contains the transformation file
 		// we need to access. NewestFileOfType will recursively search for the newest file of the given type (i.e.
 		// parquet) given a path (i.e. `key`).
-		transformation, err := tbl.store.NewestFileOfType(tbl.source, filestore.Parquet)
+		transformations, err := tbl.store.List(tbl.source, filestore.Parquet)
 		if err != nil {
 			return nil, fmt.Errorf("could not find newest file of type %s: %w", filestore.Parquet, err)
 		}
-		// We need to update key and keyParts with the result of NewestFileOfType for the Read below to succeed.
-		source = transformation
-		if transformation.Ext() != filestore.Parquet {
-			return nil, fmt.Errorf("invalid file type '%s'", transformation.Ext())
+		groups, err := filestore.NewFilePathGroup(transformations, filestore.DateTimeDirectoryGrouping)
+		if err != nil {
+			return nil, fmt.Errorf("could not group files by datetime: %w", err)
 		}
+		newestFiles, err := groups.GetFirst()
+		if err != nil {
+			return nil, fmt.Errorf("could not get newest files: %w", err)
+		}
+		sources = newestFiles
 	}
-	fmt.Printf("Reading file at key %s in file store type %s\n", source.Key(), tbl.store.FilestoreType())
-	b, err := tbl.store.Read(source)
-	if err != nil {
-		return nil, fmt.Errorf("could not read file: %w", err)
-	}
-	switch source.Ext() {
+	switch sources[0].Ext() {
 	case "parquet":
-		return newParquetIterator(b, n)
+		return newMultipleFileParquetIterator(sources, tbl.store, n)
 	case "csv":
+		if len(sources) > 1 {
+			return nil, fmt.Errorf("multiple CSV files found for table (%v)", tbl.id)
+		}
+		fmt.Printf("Reading file at key %s in file store type %s\n", sources[0].Key(), tbl.store.FilestoreType())
+		b, err := tbl.store.Read(sources[0])
+		if err != nil {
+			return nil, fmt.Errorf("could not read file: %w", err)
+		}
 		return newCSVIterator(b, n)
 	default:
-		return nil, fmt.Errorf("unsupported file type: %s", source.Ext())
+		return nil, fmt.Errorf("unsupported file type: %s", sources[0].Ext())
 	}
 }
 
@@ -1158,15 +1165,23 @@ func (mat FileStoreMaterialization) NumRows() (int64, error) {
 }
 
 func (mat FileStoreMaterialization) IterateSegment(begin, end int64) (FeatureIterator, error) {
-	materializationFilepath, err := mat.store.CreateFilePath(fileStoreResourcePath(mat.id))
+	searchPath, err := mat.store.CreateFilePath(fileStoreResourcePath(mat.id))
 	if err != nil {
 		return nil, fmt.Errorf("could not create file path: %w", err)
 	}
-	latestMaterializationPath, err := mat.store.NewestFileOfType(materializationFilepath, filestore.Parquet)
+	files, err := mat.store.List(searchPath, filestore.Parquet)
 	if err != nil {
 		return nil, fmt.Errorf("could not get materialization iterate segment: %v", err)
 	}
-	iter, err := mat.store.Serve(latestMaterializationPath)
+	groups, err := filestore.NewFilePathGroup(files, filestore.DateTimeDirectoryGrouping)
+	if err != nil {
+		return nil, fmt.Errorf("could not groups files by datetime directory: %v", err)
+	}
+	newestFiles, err := groups.GetFirst()
+	if err != nil {
+		return nil, fmt.Errorf("could not get newest files: %v", err)
+	}
+	iter, err := mat.store.Serve(newestFiles)
 	if err != nil {
 		return nil, err
 	}
@@ -1355,11 +1370,17 @@ func fileStoreDeleteMaterialization(id MaterializationID, store FileStore, logge
 	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	materializationPath, err := store.CreateFilePath(fileStoreResourcePath(materializationID))
-	materializationExactPath, err := store.NewestFileOfType(materializationPath, filestore.Parquet)
 	if err != nil {
-		return fmt.Errorf("materialization does not exist: %v", err)
+		return fmt.Errorf("could not create file path for materialization %v: %w", id, err)
 	}
-	return store.Delete(materializationExactPath)
+	exits, err := store.Exists(materializationPath)
+	if err != nil {
+		return fmt.Errorf("could not check if materialization %v exists: %v", materializationID, err)
+	}
+	if !exits {
+		return &MaterializationNotFound{id}
+	}
+	return store.DeleteAll(materializationPath)
 }
 
 func (k8s *K8sOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
@@ -1491,14 +1512,19 @@ func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.Sugared
 	if err != nil {
 		return nil, fmt.Errorf("failed to check if training set exists: %w", err)
 	}
-	trainingSetExactPath, err := store.NewestFileOfType(filepath, filestore.Parquet)
+	files, err := store.List(filepath, filestore.Parquet)
 	if err != nil {
 		return nil, fmt.Errorf("could not get training set: %v", err)
 	}
-	if err := trainingSetExactPath.Validate(); err != nil {
-		return nil, fmt.Errorf("the training set (%v at resource prefix: %s) does not exist or is not a valid file path", id, filepath.ToURI())
+	groups, err := filestore.NewFilePathGroup(files, filestore.DateTimeDirectoryGrouping)
+	if err != nil {
+		return nil, fmt.Errorf("could not group files by datetime directory: %v", err)
 	}
-	iterator, err := store.Serve(trainingSetExactPath)
+	newestFiles, err := groups.GetFirst()
+	if err != nil {
+		return nil, fmt.Errorf("could not get newest files: %v", err)
+	}
+	iterator, err := store.Serve(newestFiles)
 	if err != nil {
 		return nil, fmt.Errorf("could not serve training set: %w", err)
 	}

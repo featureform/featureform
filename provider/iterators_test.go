@@ -81,7 +81,7 @@ func TestMultipleFileParquetIterator(t *testing.T) {
 
 	wd, err := os.Getwd()
 	if err != nil {
-		t.Fatalf("error getting executable path: %v", err)
+		t.Fatalf("error getting working directory: %v", err)
 	}
 	dirPath := fmt.Sprintf("{\"DirPath\": \"file:///%s/\"}", wd)
 	localFileStore, err := NewLocalFileStore([]byte(dirPath))

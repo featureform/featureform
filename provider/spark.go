@@ -1269,12 +1269,10 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	if err != nil {
 		return fmt.Errorf("could not create file path for spark transformation: %v", err)
 	}
-
-	newestTransformationFile, err := spark.Store.NewestFileOfType(transformationDestination, filestore.Parquet)
+	transformationExists, err := spark.Store.Exists(transformationDestination)
 	if err != nil {
-		return fmt.Errorf("could not get newest transformation file: %v", err)
+		return fmt.Errorf("could not check if transformation exists: %v", err)
 	}
-	transformationExists := newestTransformationFile.Key() != ""
 	if !isUpdate && transformationExists {
 		spark.Logger.Errorw("Creation when transformation already exists", config.TargetTableID, transformationDestination)
 		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
@@ -1704,11 +1702,10 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	if err != nil {
 		return nil, fmt.Errorf("could not create file path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), materializationID.ToFilestorePath())
 	}
-	materializationNewestFile, err := spark.Store.NewestFileOfType(destinationPath, filestore.Parquet)
+	materializationExists, err := spark.Store.Exists(destinationPath)
 	if err != nil {
-		return nil, fmt.Errorf("could not get newest materialization file: %v", err)
+		return nil, fmt.Errorf("could check if materialization exists: %v", err)
 	}
-	materializationExists := materializationNewestFile.Key() != ""
 	if materializationExists && !isUpdate {
 		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", "id", id)
 		return nil, fmt.Errorf("materialization already exists")

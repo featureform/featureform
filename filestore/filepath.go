@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"sort"
+	"time"
 
 	"strings"
 )
@@ -217,7 +219,6 @@ func (fp *FilePath) ParseFilePath(fullPath string) error {
 	if err != nil {
 		return fmt.Errorf("file: %v", err)
 	}
-	fp.isDir = false
 	return nil
 }
 
@@ -267,6 +268,11 @@ func (fp *FilePath) parsePath(fullPath string) error {
 
 	fp.bucket = bucket
 	fp.key = path
+	if fp.Ext() == "" {
+		fp.isDir = true
+	} else {
+		fp.isDir = false
+	}
 	return nil
 }
 
@@ -346,7 +352,11 @@ func (azure *AzureFilepath) ParseFilePath(fullPath string) error {
 	azure.FilePath.bucket = u.User.String()              // The container will be in the User field due to the format <scheme>://<container>@<storage_account>
 	azure.StorageAccount = strings.Split(u.Host, ".")[0] // The host will be in the format <storage_account>.dfs.core.windows.net
 	azure.FilePath.key = strings.TrimPrefix(u.Path, "/")
-	azure.FilePath.isDir = false
+	if azure.FilePath.Ext() == "" {
+		azure.FilePath.isDir = true
+	} else {
+		azure.FilePath.isDir = false
+	}
 	return nil
 }
 
@@ -420,4 +430,91 @@ func (hdfs *HDFSFilepath) Validate() error {
 
 type LocalFilepath struct {
 	FilePath
+}
+
+type FilePathGroupingType string
+
+const (
+	DateTimeDirectoryGrouping FilePathGroupingType = "DATETIME_DIRECTORY"
+)
+
+type FilePathGroup struct {
+	Groups     map[string][]Filepath
+	SortedKeys []string
+}
+
+func (fg FilePathGroup) GetFirst() ([]Filepath, error) {
+	if len(fg.SortedKeys) == 0 {
+		return nil, fmt.Errorf("no groups found")
+	}
+	return fg.Groups[fg.SortedKeys[0]], nil
+}
+
+func (fg FilePathGroup) GetLast() ([]Filepath, error) {
+	if len(fg.SortedKeys) == 0 {
+		return nil, fmt.Errorf("no groups found")
+	}
+	return fg.Groups[fg.SortedKeys[len(fg.SortedKeys)-1]], nil
+}
+
+// Currently, grouping files by date time directory written out by Spark is the only use case
+// for grouping files; however, this method can be extended to support other grouping types
+// in the future.
+func NewFilePathGroup(files []Filepath, grouping FilePathGroupingType) (FilePathGroup, error) {
+	switch grouping {
+	case DateTimeDirectoryGrouping:
+		group, err := groupByDateTimeDirectory(files)
+		if err != nil {
+			return FilePathGroup{}, err
+		}
+		return group, nil
+	default:
+		return FilePathGroup{}, fmt.Errorf("unknown grouping '%s'", grouping)
+	}
+}
+
+func groupByDateTimeDirectory(files []Filepath) (FilePathGroup, error) {
+	groups := make(map[string][]Filepath, 0)
+	for _, file := range files {
+		pathParts := strings.Split(file.Key(), "/")
+		// The path to a file follows the format:
+		// <OPTIONAL PATH>/featureform/<TYPE>/<NAME DIR>/<VARIANT DIR>/<DATETIME DIR>/<FILENAME>
+		// so there should be at least 6 path components.
+		if len(pathParts) < 6 {
+			return FilePathGroup{}, fmt.Errorf("expected 5 path components: %s", file.Key())
+		}
+		// The datetime directory is the second to last path component and follows the format:
+		// <YEAR>-<MONTH>-<DAY>-<HOUR>-<MINUTE>-<SECOND>-<FRACTIONAL SECONDS>
+		datetime := pathParts[len(pathParts)-2]
+		fractionalSecondsIdx := strings.LastIndex(datetime, "-")
+		// The format written out by Spark presents issues for parsing the datetime due to the fractional
+		// seconds component; given we're only interested in validating that this part of the path is a
+		// valid datetime, we'll remove the fractional seconds component.
+		_, err := time.Parse("2006-01-02-15-04-05", datetime[:fractionalSecondsIdx])
+		if err != nil {
+			return FilePathGroup{}, fmt.Errorf("expected path component %s to be a valid datetime: %v", datetime, err)
+		}
+		if _, exists := groups[datetime]; !exists {
+			groups[datetime] = []Filepath{file}
+		} else {
+			groups[datetime] = append(groups[datetime], file)
+		}
+	}
+	keys := make([]string, 0)
+	for key := range groups {
+		keys = append(keys, key)
+	}
+	// To avoid have the consume have to sort the keys, we'll sort them here in descending order.
+	// **Note**: This method relies on the lexicographical ordering of the datetime strings.
+	// Given the format "YYYY-MM-DD-HH-MM-SS-FFFFFF", this approach will works; however, if this
+	// format changes, this method will need to be updated (e.g. parsing the complete datetime and
+	// sorting by the resulting time.Time object)
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] > keys[j] // The ">" operator ensures descending order
+	})
+
+	return FilePathGroup{
+		Groups:     groups,
+		SortedKeys: keys,
+	}, nil
 }

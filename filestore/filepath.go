@@ -434,7 +434,6 @@ type LocalFilepath struct {
 }
 
 func (local *LocalFilepath) SetBucket(bucket string) error {
-	fmt.Println("setting bucket for local file path")
 	if bucket != "" {
 		return fmt.Errorf("bucket must be empty for local filepaths")
 	}
@@ -442,7 +441,6 @@ func (local *LocalFilepath) SetBucket(bucket string) error {
 }
 
 func (local *LocalFilepath) Validate() error {
-	fmt.Println("validating local file path")
 	if local.scheme == "" {
 		return fmt.Errorf("scheme cannot be empty")
 	}

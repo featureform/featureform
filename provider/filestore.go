@@ -101,7 +101,6 @@ func (fs *LocalFileStore) CreateFilePath(key string) (filestore.Filepath, error)
 	if err := fp.SetScheme(filestore.FileSystemPrefix); err != nil {
 		return nil, err
 	}
-	fmt.Println("BUCKET", fs.path.Bucket())
 	if err := fp.SetBucket(fs.path.Bucket()); err != nil {
 		return nil, err
 	}
@@ -113,6 +112,15 @@ func (fs *LocalFileStore) CreateFilePath(key string) (filestore.Filepath, error)
 	}
 	fp.SetIsDir(false)
 	return &fp, nil
+}
+
+func (fs *LocalFileStore) CreateDirPath(key string) (filestore.Filepath, error) {
+	fp, err := fs.CreateFilePath(key)
+	if err != nil {
+		return nil, err
+	}
+	fp.SetIsDir(true)
+	return fp, nil
 }
 
 type AzureFileStore struct {

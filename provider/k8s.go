@@ -362,24 +362,6 @@ func NewKubernetesExecutor(config Config, logger *zap.SugaredLogger) (Executor, 
 	}, nil
 }
 
-func convertToParquetBytes(list []any) ([]byte, error) {
-	// TODO possibly accepts single struct instead of list, have to be able to accept either, or another function
-	if len(list) == 0 {
-		return nil, fmt.Errorf("list is empty")
-	}
-	schema := parquet.SchemaOf(list[0])
-	buf := new(bytes.Buffer)
-	err := parquet.Write[any](
-		buf,
-		list,
-		schema,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("could not write parquet file to bytes: %v", err)
-	}
-	return buf.Bytes(), nil
-}
-
 func ResourcePrefix(id ResourceID) string {
 	return fmt.Sprintf("featureform/%s/%s/%s", id.Type, id.Name, id.Variant)
 }

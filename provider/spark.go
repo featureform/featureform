@@ -1463,11 +1463,13 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 		}
 		fileType, fileName, fileVariant = strings.ToLower(id.Type.String()), id.Name, id.Variant
 	} else if strings.HasPrefix(path, filestore.S3Prefix) {
-		filePaths := strings.Split(path[len(filestore.S3Prefix):], "/")
-		if len(filePaths) <= 4 {
+		id := ResourceID{}
+		err := id.FromFilestorePath(path)
+		if err != nil {
+			spark.Logger.Errorf("could not construct ResourceID for S3 path %s due to %v", path, err)
 			return "", "", ""
 		}
-		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
+		fileType, fileName, fileVariant = strings.ToLower(id.Type.String()), id.Name, id.Variant
 	} else if strings.HasPrefix(path, filestore.S3APrefix) {
 		id := ResourceID{}
 		err := id.FromFilestorePath(path)

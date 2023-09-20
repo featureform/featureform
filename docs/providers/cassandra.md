@@ -13,6 +13,7 @@ First we have to add a declarative Cassandra configuration in Python. In the fol
 {% code title="cassandra_config.py" %}
 ```python
 import featureform as ff
+
 ff.register_cassandra(
     name = "cassandra",
     description = "Example inference store",
@@ -24,21 +25,9 @@ ff.register_cassandra(
     consistency = "THREE",
     replication = 3
 )
+
+client.apply()
 ```
 {% endcode %}
 
-Once our config file is complete, we can apply it to our Featureform deployment
-
-```bash
-featureform apply cassandra_config.py --host $FEATUREFORM_HOST
-```
-
-We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry](../getting-started/exploring-the-feature-registry.md).
-
-### Mutable Configuration Fields
-
-* `description`
-* `username`
-* `password`
-* `consistency`
-* `replication`
+We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry or via the CLI](../getting-started/search-monitor-discovery-feature-registry-ui-cli.md).

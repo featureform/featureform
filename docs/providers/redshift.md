@@ -8,7 +8,7 @@ Featureform supports [Redshift](https://aws.amazon.com/redshift/) as an Offline 
 
 #### Tables
 
-Table sources are used directly via a view. Featureform will never write to a primary source.
+Table sources are used directly via a view. Featureform will never write to a primary data set.
 
 ### Transformation Sources
 
@@ -43,21 +43,10 @@ ff.register_postgres(
     password = "password",
     database = "redshift",
 )
+
+client.apply()
 ```
 
 {% endcode %}
 
-Once our config file is complete, we can apply it to our Featureform deployment
-
-```bash
-featureform apply redshift_config.py --host $FEATUREFORM_HOST
-```
-
-We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry](../getting-started/exploring-the-feature-registry.md).
-
-### Mutable Configuration Fields
-
-* `description`
-* `username`
-* `password`
-* `port`
+We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry or via the CLI](../getting-started/search-monitor-discovery-feature-registry-ui-cli.md).

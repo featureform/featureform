@@ -14,6 +14,7 @@ First we have to add a declarative Firestore configuration in Python. In the fol
 
 ```python
 import featureform as ff
+
 ff.register_firestore(
     name = "firestore",
     description = "Example inference store",
@@ -22,19 +23,10 @@ ff.register_firestore(
     projectID = "",
     credentials = ""
 )
+
+ client.apply()
 ```
 
 {% endcode %}
 
-Once our config file is complete, we can apply it to our Featureform deployment
-
-```bash
-featureform apply firestore_config.py --host $FEATUREFORM_HOST
-```
-
-We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry](../getting-started/exploring-the-feature-registry.md).
-
-### Mutable Configuration Fields
-
-* `description`
-* `credentials`
+We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry or via the CLI](../getting-started/search-monitor-discovery-feature-registry-ui-cli.md).

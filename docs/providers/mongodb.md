@@ -1,6 +1,6 @@
 # MongoDB
 
-Featureform supports [MongoDB](https://www.mongodb.com/) as an Inference Store.
+Featureform supports [MongoDB](https://www.mongodb.com/) as an [Inference Store](inference-store.md).
 
 ## Implementation
 
@@ -19,6 +19,7 @@ Optionally, maximum throughput can be set when using Cosmos DB for MongoDB with 
 
 ```python
 import featureform as ff
+
 mongo = ff.register_mongodb(
     name="mongodb",
     host="my.mongo.host.com",
@@ -28,22 +29,10 @@ mongo = ff.register_mongodb(
     database="my_database",
     throughput=1000
 )
+
+client.apply()
 ```
 
 {% endcode %}
 
-Once our config file is complete, we can apply it to our Featureform deployment
-
-```bash
-featureform apply mongodb_config.py --host $FEATUREFORM_HOST
-```
-
-We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry](../getting-started/exploring-the-feature-registry.md).
-
-### Mutable Configuration Fields
-
-* `description`
-* `username`
-* `password`
-* `port`
-* `throughput`
+We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry or via the CLI](../getting-started/search-monitor-discovery-feature-registry-ui-cli.md).

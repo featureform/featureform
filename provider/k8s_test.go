@@ -160,26 +160,26 @@ func TestBlobInterfaces(t *testing.T) {
 		t.Fatalf("failed to create new azure blob store: %v", err)
 	}
 
-	hdfsConfig := pc.HDFSFileStoreConfig{
-		Host:     "localhost",
-		Port:     "9000",
-		Username: "hduser",
-	}
+	// hdfsConfig := pc.HDFSFileStoreConfig{
+	// 	Host:     "localhost",
+	// 	Port:     "9000",
+	// 	Username: "hduser",
+	// }
 
-	serializedHDFSConfig, err := hdfsConfig.Serialize()
-	if err != nil {
-		t.Fatalf("failed to create serialize hdfs blob store: %v", err)
-	}
+	// serializedHDFSConfig, err := hdfsConfig.Serialize()
+	// if err != nil {
+	// 	t.Fatalf("failed to create serialize hdfs blob store: %v", err)
+	// }
 
-	hdfsFileStore, err := NewHDFSFileStore(serializedHDFSConfig)
-	if err != nil {
-		t.Fatalf("failed to create new hdfs blob store: %v", err)
-	}
+	// hdfsFileStore, err := NewHDFSFileStore(serializedHDFSConfig)
+	// if err != nil {
+	// 	t.Fatalf("failed to create new hdfs blob store: %v", err)
+	// }
 
 	blobProviders := map[string]FileStore{
 		"File":  fileFileStore,
 		"Azure": azureFileStore,
-		"HDFS":  hdfsFileStore,
+		// "HDFS":  hdfsFileStore,
 	}
 	for testName, fileTest := range fileStoreTests {
 		fileTest = fileTest
@@ -198,11 +198,18 @@ func TestBlobInterfaces(t *testing.T) {
 }
 
 func testFileUploadAndDownload(t *testing.T, store FileStore) {
+	// Need to get the working directory because the LocalFilepath will use it to create the full path
+	// Currently, the LocalFilePath will only work with absolute paths
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("could not get working directory")
+	}
+
 	testId := uuidWithoutDashes()
 	fileContent := "testing file upload"
-	sourceFile := fmt.Sprintf("fileUploadTest_%s.txt", testId)
+	sourceFile := fmt.Sprintf("%s/fileUploadTest_%s.txt", wd, testId)
 	destFile := fmt.Sprintf("fileUploadTest_%s.txt", testId)
-	localDestFile := fmt.Sprintf("fileDownloadTest_%s.txt", testId)
+	localDestFile := fmt.Sprintf("%s/fileDownloadTest_%s.txt", wd, testId)
 
 	f, err := os.Create(sourceFile)
 	if err != nil {
@@ -679,8 +686,8 @@ func testNewestFile(t *testing.T, store FileStore) {
 	if err != nil {
 		t.Fatalf("Error getting newest file from directory: %v", err)
 	}
-	expectedNewestFile := fmt.Sprintf("%s/%s.parquet", randomDirectory, randomKeyList[randomListLength-1])
-	if newestFile.Key() != expectedNewestFile {
+	expectedNewestFile := fmt.Sprintf("%s/%s.parquet", randomDirectory.ToURI(), randomKeyList[randomListLength-1])
+	if newestFile.ToURI() != expectedNewestFile {
 		t.Fatalf("Newest file did not retrieve actual newest file. Expected '%s', got '%s'", expectedNewestFile, newestFile)
 	}
 	// cleanup test

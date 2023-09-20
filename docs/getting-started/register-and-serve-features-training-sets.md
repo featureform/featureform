@@ -67,7 +67,7 @@ class User:
 
 #### Without a Timestamp
 
-Some labels are set once per entity and remain static. For example, you might have a label indicating whether a user is a bot or not. You define it in a manner similar to a [feature](feature.md) by specifying the dataset and columns for the entity and the value. Optionally, you can set the variant and specify the type as one of: `ff.Int`, `ff.Int32`, `ff.Int64`, `ff.Float32`, `ff.Float64`, `ff.Timestamp`, `ff.String`, `ff.Bool`. Unlike a Feature, you should not specify an inference store since labels are never served for inference.
+Some labels are set once per entity and remain static. For example, you might have a label indicating whether a user is a bot or not. You define it in a manner similar to a [feature](../abstractions/feature.md) by specifying the dataset and columns for the entity and the value. Optionally, you can set the variant and specify the type as one of: `ff.Int`, `ff.Int32`, `ff.Int64`, `ff.Float32`, `ff.Float64`, `ff.Timestamp`, `ff.String`, `ff.Bool`. Unlike a Feature, you should not specify an inference store since labels are never served for inference.
 
 
 

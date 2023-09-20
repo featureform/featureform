@@ -34,9 +34,4 @@ client.apply()
 
 Once our config file is complete, we can apply it to our Featureform deployment. Afterwards we can set it as the [Inference Store](inference-store.md) or [Vector DB](vector-db.md) when defining a [feature](../abstractions/feature.md) or [embedding](../abstractions/embedding.md) respectively.
 
-We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry or via the CLI](../getting-started/search/monitor-discovery-feature-registry-ui-cli.md).
-
-### Mutable Configuration Fields
-
-* `description`
-* `password`
+We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry or via the CLI](../getting-started/search-monitor-discovery-feature-registry-ui-cli.md).

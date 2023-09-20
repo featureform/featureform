@@ -59,4 +59,4 @@ client.apply()
 ts = client.training_set("fraud_training", "quickstart").dataframe()
 ```
 
-Additionally, it's worth noting that when working with the [streaming data API](streaming) in Featureform Enterprise, timestamps are tracked, and you have the capability to backfill data for point-in-time correct training sets as well. This comprehensive approach ensures the integrity of historical features in your machine learning workflows.
+Additionally, it's worth noting that when working with the [streaming data API](streaming.md) in Featureform Enterprise, timestamps are tracked, and you have the capability to backfill data for point-in-time correct training sets as well. This comprehensive approach ensures the integrity of historical features in your machine learning workflows.

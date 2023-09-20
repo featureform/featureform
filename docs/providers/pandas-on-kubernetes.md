@@ -4,7 +4,7 @@ Featureform supports running [Pandas](https://pandas.pydata.org/) on [Kubernetes
 
 ## Implementation <a href="#implementation" id="implementation"></a>
 
-Since featureform is deployed natively on a Kubernetes cluster, it can leverage its own cluster to compute transformations and training sets. Featureform however does not handle storage in non-local mode, so it is necessary to separately register a file store provider like [S3](s3.md) to store the results of its computation.
+Since featureform is deployed natively on a Kubernetes cluster, it can leverage its own cluster to compute transformations and training sets. Featureform however does not handle storage in non-local mode, so it is necessary to separately register a file store provider like [S3](aws-s3.md) to store the results of its computation.
 
 ## Requirements
 

@@ -1,6 +1,6 @@
 # Azure Blobs
 
-Featureform supports [AWS S3](https://aws.amazon.com/s3/) as a [File Store](object-and-file-store.md)
+Featureform supports [AWS S3](https://aws.amazon.com/s3/) as a [File Store](object-and-file-stores.md)
 
 ## Configuration
 
@@ -25,4 +25,4 @@ client.apply()
 
 {% endcode %}
 
-We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry or via the CLI](../getting-started/search/monitor-discovery-feature-registry-ui-cli.md).
+We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry or via the CLI](../getting-started/search-monitor-discovery-feature-registry-ui-cli.md).

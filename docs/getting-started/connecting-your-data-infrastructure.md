@@ -8,7 +8,7 @@ The two main types of [infrastructure providers](../providers/overview.md) are t
 
 ### Inference Store
 
-An [inference store](../providers/infernece-store.md) allows feature values to be looked up at inference time. Featureform maintains the current value of each feature per entity in the inference store and provides a Python API for serving.
+An [inference store](../providers/inference-store.md) allows feature values to be looked up at inference time. Featureform maintains the current value of each feature per entity in the inference store and provides a Python API for serving.
 
 #### Choosing an Inference Store
 

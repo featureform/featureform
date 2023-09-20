@@ -8,7 +8,7 @@ Featureform boasts support for three languages for transformations: SQL, Datafra
 
 Featureform supports SQL transformations on providers like Snowflake, Spark, and Postgres, which natively support SQL. Given our orchestration approach that aligns with your data infrastructure, SQL transformations use the same SQL dialect as your provider. Our syntax incorporates a "mustache syntax" for referencing other registered Featureform data sets: `{{name.variant}}` or simply `{{name}}`.
 
-To register a SQL transformation, utilize the `sql_transformation` method provided by an [offline store provider](../providers/offline-store.md). Decorate a Python function that returns a formatted SQL string. By default, the function name is used as the data set's name, and a [variant](../versioning-and-variants.md) is automatically generated. Both the name and variant can be overridden using kwargs of the same names in `sql_transformation`. Additionally, the function's docstring serves as the data set's description.
+To register a SQL transformation, utilize the `sql_transformation` method provided by an [offline store provider](../providers/offline-store.md). Decorate a Python function that returns a formatted SQL string. By default, the function name is used as the data set's name, and a [variant](../concepts/versioning-and-variants.md) is automatically generated. Both the name and variant can be overridden using kwargs of the same names in `sql_transformation`. Additionally, the function's docstring serves as the data set's description.
 
 Example:
 

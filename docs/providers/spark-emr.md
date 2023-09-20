@@ -12,7 +12,7 @@ Features registered on the Spark Offline Store can be materialized to an Inferen
 
 ## Requirements
 
-* [AWS S3 Bucket](s3)
+* [AWS S3 Bucket](aws-s3.md)
 * [AWS EMR Cluster running Spark >=2.4.8](https://docs.aws.amazon.com/emr/index.html)
 
 ## Configuration <a href="#configuration" id="configuration"></a>

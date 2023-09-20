@@ -1,4 +1,4 @@
-# Entities: Organizing Features and Labels
+# Entities
 
 An **entity** serves as a collection of semantically related features and labels. Users define entities to map to the domain of their specific use cases. For instance, in the context of a ride-hailing service, entities could include "customers" and "drivers," grouping related features and labels associated with these respective entities.
 

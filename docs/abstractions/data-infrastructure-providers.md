@@ -1,4 +1,4 @@
-# Data Infrastructure Provider: Your Data's Backbone
+# Data Infrastructure Provider
 
 Featureform functions as a Virtual Feature Store, strategically positioned atop your existing data infrastructure. It acts orchestrator, conducting your infrastructure to construct and serve the features you define. Importantly, this approach means your data remains within your infrastructure—it's not stored in Featureform. Moreover, transformations occur using the same language and performance capabilities as if Featureform were not in the picture. To operate in this framework, you need to register and configure your data infrastructure.
 

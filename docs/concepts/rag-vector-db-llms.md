@@ -46,6 +46,6 @@ RAG to inject context/information
 
 # Where to go from here
 
-Check out our [deep-dive into retrieval augmented generation](building-a-chatbot-with-openai-and-a-vector-database.md)!
+Check out our [deep-dive into retrieval augmented generation](../embeddings/building-a-chatbot-with-openai-and-a-vector-database.md)!
 
 Or check out a [full project on github](https://github.com/featureform/Featureform-LLM-Hackathon-Project-Examples/tree/main/projects/Q%26A%20Chatbot)!

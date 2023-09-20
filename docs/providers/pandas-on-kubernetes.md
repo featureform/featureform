@@ -1,22 +1,22 @@
 # Kubernetes
 
-Featureform supports [Kubernetes](https://kubernetes.io/) as an Offline Store.
+Featureform supports running [Pandas](https://pandas.pydata.org/) on [Kubernetes](https://kubernetes.io/) as an Offline Store.
 
 ## Implementation <a href="#implementation" id="implementation"></a>
 
-Since featureform is deployed natively on a Kubernetes cluster, it can leverage its own cluster to compute transformations and training sets. Featureform however does not handle storage in non-local mode, so it is necessary to separately register a file store provider like [Azure](azure.md) to store the results of its computation.
+Since featureform is deployed natively on a Kubernetes cluster, it can leverage its own cluster to compute transformations and training sets. Featureform however does not handle storage in non-local mode, so it is necessary to separately register a file store provider like [S3](aws-s3.md) to store the results of its computation.
 
 ## Requirements
 
-* [Remote file storage (eg. Azure Blob Storage)](azure.md)
+* [Remote file storage (eg. S3)](object-and-file-stores.md)
 
 ### Transformation Sources
 
-Using Kubernetes as an Offline Store, you can [define new transformations](../getting-started/transforming-data.md) via [SQL and Pandas DataFrames](https://spark.apache.org/docs/latest/sql-programming-guide.html). Using either these transformations or preexisting tables in your file store, a user can chain transformations and register columns in the resulting tables as new features and labels.
+Using Kubernetes as an Offline Store, you can define new transformations via SQL and Pandas DataFrames. Using either these transformations or preexisting tables in your file store, a user can chain transformations and register columns in the resulting tables as new features and labels.
 
 ### Training Sets and Inference Store Materialization
 
-Any column in a preexisting table or user-created transformation can be registered as a feature or label. These features and labels can be used, as with any other Offline Store, for [creating training sets and inference serving.](../getting-started/defining-features-labels-and-training-sets.md)
+Any column in a preexisting table or user-created transformation can be registered as a feature or label. These features and labels can be used, as with any other Offline Store, for creating training sets and inference serving.
 
 ## Configuration <a href="#configuration" id="configuration"></a>
 
@@ -45,13 +45,6 @@ k8s_store = ff.register_k8s(
 ```
 
 {% endcode %}
-
-### Mutable Configuration Fields
-
-* `description`
-* `docker_image`
-
-For your file store provider documentation for its mutable fields.
 
 ### Dataframe Transformations
 

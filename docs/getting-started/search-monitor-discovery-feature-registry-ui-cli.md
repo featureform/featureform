@@ -8,19 +8,19 @@ Once we have everything registered (e.g. features, training sets, providers), we
 
 The homepage contains links to:
 
-* [**Sources**](overview.md#source): Both primary sources and transformed sources, from streams to files to tables.
-* [**Features**](overview.md#feature): Inputs to models, transformed from raw data. To be [served for inference](serving-for-inference-and-training.md#serving-for-inference).
+* [**Sources**](registering-transforming-and-interacting-with-data-sets.md): Both primary data sets and transformations, from streams to files to tables.
+* [**Features**](../abstractions/feature.md): Inputs to models, transformed from raw data. To be served for inference.
   * e.g. Raw data about all user transactions can be transformed into features such as _**avg\_transaction\_amt**_ and _**user\_account\_age**_.
-* [**Entities**](overview.md#entity): Higher-level groupings of features, dependent on where a set of features originates from.&#x20;
+* [**Entities**](../abstractions/entity.md): Higher-level groupings of features, dependent on where a set of features originates from.&#x20;
   * e.g. user\_account\_age and avg\_transaction\_amt are both features under the _**user entity**_.
-* [**Labels**](overview.md#label): Features that indicate the "correct answer" of a model prediction, or what the model aims to predict.
+* [**Labels**](../abstractions/label.md): Features that indicate the "correct answer" of a model prediction, or what the model aims to predict.
   * e.g.  The **is\_fraud label** is true if the transaction is fraudulent, and false if the transaction is not fraudulent.
-* [**Training Sets**](overview.md#training-set): Sets of features matched with the respective labels. To be [served for training](serving-for-inference-and-training.md#serving-for-training).&#x20;
+* [**Training Sets**](../abstractions/training-set.md): Sets of features matched with the respective labels. To be served for training.&#x20;
   * e.g. The _**is\_fraud training set**_ contains a set of features __ (amt\_spent, avg\_transaction\_amt, number\_of\_fraud, etc.) and labels.
-* [**Models**](overview.md#model): Programs that can make predictions on a previously unseen dataset, after being trained with training sets.&#x20;
+* [**Models**](model-to-feature-lineage.md): Programs that can make predictions on a previously unseen dataset, after being trained with training sets.&#x20;
   * e.g. The **user\_fraud\_random\_forest model** is a classifier, predicting whether a user committed fraud.
-* [**Providers**](overview.md#provider): Data infrastructure used for storage or computation.
-* **Users:** Individual data scientists who create, share, or reuse features and models.
+* [**Providers**](../providers/overview.md): Data infrastructure used for storage or computation.
+* [**Users:**](../concepts/governance-and-access-control.md) Individual data scientists who create, share, or reuse features and models.
 
 ## Resource Pages: Features, Sources, Labels, Training Sets
 
@@ -62,7 +62,7 @@ Click on the providers to pull up the sources, features, labels, and training se
 
 ## Models
 
-The models page shows all model names, which the user can optionally provide at serving time (see [example](serving-for-inference-and-training.md#model-registration)). Featureform tracks which features and training sets are associated with which model names. However, **models are not stored.**
+The models page shows all model names, which the user can [optionally provide at serving time](model-to-feature-lineage.md). Featureform tracks which features and training sets are associated with which model names. However, **models are not stored.**
 
 ![Models page of the Feature Registry](<../.gitbook/assets/image (8).png>)
 

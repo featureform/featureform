@@ -1,4 +1,4 @@
-# Overview
+# Abstractions
 
 ## Introduction
 
@@ -12,33 +12,17 @@ Those real components can then be served for training and inference, and the log
 
 Featureform coordinates a set of infrastructure providers to act together as a feature store. Before transformations, features, and other resources can be defined, an initial set of providers must be configured. This is done via a Python API and applied via the Featureform CLI.
 
-{% content-ref url="registering-infrastructure-providers.md" %}
-[registering-infrastructure-providers.md](registering-infrastructure-providers.md)
-{% endcontent-ref %}
-
 ### Define Features, Labels, and Training Sets
 
 Once the infrastructure is configured, features and training sets can be created. This begins by registering a set of primary data sources, often followed by defining a DAG of transformations. Once the transformed sources are created, features and training sets can be defined. Other metadata such as descriptions, variants, and names are also defined in this step. In the enterprise editions, governance rules that the organization created will be enforced here. All these steps are done via a Python API and applied via the Featureform CLI.
-
-{% content-ref url="defining-features-labels-and-training-sets.md" %}
-[defining-features-labels-and-training-sets.md](defining-features-labels-and-training-sets.md)
-{% endcontent-ref %}
 
 ### Serve for Inference and Training
 
 Once the training sets and features have been created, they can be served. Featureform provides a Dataset API for training and an Inference API for feature serving.
 
-{% content-ref url="serving-for-inference-and-training.md" %}
-[serving-for-inference-and-training.md](serving-for-inference-and-training.md)
-{% endcontent-ref %}
-
 ### Explore the Feature Registry
 
 Whether working alone locally or as part of a large enterprise organization, Featureform resources can be explored via the Feature registry. It provides data lineage, transformation logic, ownership, and more. A user can see which models are using which features, which features are stored on which providers, and other cross-sections of exploring the metadata.
-
-{% content-ref url="exploring-the-feature-registry.md" %}
-[exploring-the-feature-registry.md](exploring-the-feature-registry.md)
-{% endcontent-ref %}
 
 ## Resource Types
 
@@ -76,8 +60,8 @@ A label is a value that a model should predict at training time. It is linked wi
 
 ### Training Set
 
-A training set is composed of one label and one or more features. The labels and features are joined together by their entity fields. If they are linked with timestamp fields, [point-in-time correct training sets](defining-features-labels-and-training-sets.md#point-in-time-correctness) will be created.
+A training set is composed of one label and one or more features. The labels and features are joined together by their entity fields. If they are linked with timestamp fields, point-in-time correct training sets will be created.
 
 ### Model
 
-A model name is a logical grouping mechanism for features and training sets. Models can be registered independently of features or training sets _or_ they can be [registered at the time of serving these resources for training or inference](serving-for-inference-and-training.md#model-registration).
+A model name is a logical grouping mechanism for features and training sets. Models can be registered independently of features or training sets _or_ they can be registered at the time of serving these resources for training or inference.

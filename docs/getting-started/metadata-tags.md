@@ -13,7 +13,7 @@ Featureform allows users to apply metadata tags to resources to logically group 
 
 ## Example Config
 
-In this example, we'll add tags and properties to all the resources included in the [Quickstart (Docker)](quickstart-docker.md):
+In this example, we'll add tags and properties to all the resources included in the [Docker Quickstart](../deployment/quickstart-docker.md):
 
 {% code title="providers.py" %}
 

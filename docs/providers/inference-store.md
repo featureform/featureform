@@ -1,6 +1,6 @@
 # Inference Store: Fast and Efficient Real-Time Feature Serving
 
-The Inference Store provider, sometimes referred to as the online store, is the component responsible for serving features in real-time for inference purposes. It stores the most recently processed value of each feature, indexed by its associated [Entity](../abstractions/entity). Essentially, the inference store functions as a cache of up-to-date pre-processed feature values, allowing for rapid look-ups. You can access features from the inference store using the `client.features` API as shown below:
+The Inference Store provider, sometimes referred to as the online store, is the component responsible for serving features in real-time for inference purposes. It stores the most recently processed value of each feature, indexed by its associated [Entity](../abstractions/entity.md). Essentially, the inference store functions as a cache of up-to-date pre-processed feature values, allowing for rapid look-ups. You can access features from the inference store using the `client.features` API as shown below:
 
 ```python
 client.features([(name, variant)], entities={entity: value})

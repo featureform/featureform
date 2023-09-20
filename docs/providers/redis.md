@@ -2,7 +2,7 @@
 
 **The RedisSearch module is required to use Redis as a Vector DB**
 
-Featureform supports [Redis](https://redis.io/) as an [Inference Store](inference-store) and a [Vector DB](vector-db)
+Featureform supports [Redis](https://redis.io/) as an [Inference Store](inference-store.md) and a [Vector DB](vector-db.md)
 
 ## Implementation
 
@@ -32,9 +32,9 @@ client.apply()
 
 {% endcode %}
 
-Once our config file is complete, we can apply it to our Featureform deployment. Afterwards we can set it as the [Inference Store](inference-store) or [Vector DB](vector-db) when defining a [feature](../abstractions/feature) or [embedding](../abstractions/embedding) respectively.
+Once our config file is complete, we can apply it to our Featureform deployment. Afterwards we can set it as the [Inference Store](inference-store.md) or [Vector DB](vector-db.md) when defining a [feature](../abstractions/feature.md) or [embedding](../abstractions/embedding.md) respectively.
 
-We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry or via the CLI](../getting-started/search/monitor-discovery-feature-registry-ui-cli).
+We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry or via the CLI](../getting-started/search/monitor-discovery-feature-registry-ui-cli.md).
 
 ### Mutable Configuration Fields
 

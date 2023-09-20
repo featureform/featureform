@@ -20,7 +20,7 @@ pip install featureform
 
 ## Step 2: Deploy EKS
 
-You can follow our [Minikube](../minikube.md) or [Kubernetes](kubernetes.md) deployment guide. This will walk through a simple AWS deployment of Featureform with our quick start Helm chart containing Postgres and Redis.
+You can follow our [Docker](docker-quickstart.md) or [Kubernetes](kubernetes.md) deployment guide. This will walk through a simple AWS deployment of Featureform with our quick start Helm chart containing Postgres and Redis.
 
 Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) and [`eksctl`](https://eksctl.io/introduction/#installation) then run the following command to create an EKS cluster.
 

@@ -4,12 +4,12 @@ Featureform supports [Databricks](https://www.databricks.com) as an Offline Stor
 
 ## Implementation <a href="#implementation" id="implementation"></a>
 
-With Databricks, you can leverage your Databricks cluster to compute transformations and training sets. Featureform however does not handle storage in non-local mode, so it is necessary to separately register a [file store provider](object-and-file-stores) like [S3](azure-blob-stored) to store the results of its computation.
+With Databricks, you can leverage your Databricks cluster to compute transformations and training sets. Featureform however does not handle storage in non-local mode, so it is necessary to separately register a [file store provider](object-and-file-stores.md) like [S3](azure-blob-stored.md) to store the results of its computation.
 
 ## Requirements
 
 * Databricks Cluster
-* [Remote file storage (eg. Azure Blob Storage)](object-and-file-stores)
+* [Remote file storage (eg. Azure Blob Storage)](object-and-file-stores.md)
 
 ### Required Azure Configurations
 
@@ -107,5 +107,5 @@ transactions = spark.register_file(
 Because Featureform supports the generic implementation of Spark, transformations written in SQL and Dataframe operations for the different Spark providers will be very similar except for the file_path or table name.
 
 {% content-ref url="../providers/spark.md" %}
-[Spark](spark)
+[Spark](spark.md)
 {% endcontent-ref %}

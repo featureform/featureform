@@ -1,6 +1,6 @@
 # Pinecone
 
-Featureform supports [Weaviate](https://weaviate.io/) as a [Vector DB](vector-db).
+Featureform supports [Weaviate](https://weaviate.io/) as a [Vector DB](vector-db.md).
 
 ## Configuration
 
@@ -19,6 +19,6 @@ weaviate = ff.register_weaviate(
 client.apply()
 ```
 
-Once our config file is complete, we can apply it to our Featureform deployment. Afterwards we can set it as the [Vector DB](vector-db) when defining an [embedding](../abstractions/embedding).
+Once our config file is complete, we can apply it to our Featureform deployment. Afterwards we can set it as the [Vector DB](vector-db.md) when defining an [embedding](../abstractions/embedding.md).
 
-We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry or via the CLI](../getting-started/search/monitor-discovery-feature-registry-ui-cli).
+We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry or via the CLI](../getting-started/search/monitor-discovery-feature-registry-ui-cli.md).

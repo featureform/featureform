@@ -1,10 +1,10 @@
 # Training Sets
 
-Models require training, a process that typically involves feeding in a set of [features](features) with known [labels](labels). During training, the model makes inferences based on these features, and the labels are used to adjust the model's weights.
+Models require training, a process that typically involves feeding in a set of [features](features.md) with known [labels](labels.md). During training, the model makes inferences based on these features, and the labels are used to adjust the model's weights.
 
 ## Anatomy of a Training Set
 
-A training set consists of a single label paired with one or more features. Below is an example of registering a training set named "fraud_training" with the [variant](../concepts/versioning-and-variants) "quickstart." It comprises the "fraudulent/quickstart" label and a single feature "avg_transactions/quickstart."
+A training set consists of a single label paired with one or more features. Below is an example of registering a training set named "fraud_training" with the [variant](../concepts/versioning-and-variants.md) "quickstart." It comprises the "fraudulent/quickstart" label and a single feature "avg_transactions/quickstart."
 
 ```python
 @ff.entity
@@ -38,7 +38,7 @@ ts = client.training_set("fraud_training", "quickstart").dataframe()
 
 ## How a Label gets joined With Features into a Training Set
 
-Training sets are constructed by pairing [features](features) and [labels](labels) using their [entity](entity) key. The process involves looping through the labels and, for each feature, selecting the row with the same entity key as the label. To create [point-in-time correct training sets](../concepts/point-in-time-correctness-historical-features-timeseries-data), the feature value is obtained from the row with a timestamp closest to, but less than, the label timestamp. This ensures that the feature value aligns with the label's time.
+Training sets are constructed by pairing [features](features.md) and [labels](labels.md) using their [entity](entity.md) key. The process involves looping through the labels and, for each feature, selecting the row with the same entity key as the label. To create [point-in-time correct training sets](../concepts/point-in-time-correctness-historical-features-timeseries-data.md), the feature value is obtained from the row with a timestamp closest to, but less than, the label timestamp. This ensures that the feature value aligns with the label's time.
 
 ## Working with Training Sets
 

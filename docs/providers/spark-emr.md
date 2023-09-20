@@ -8,7 +8,7 @@ The AWS Spark Offline store implements [AWS Elastic Map Reduce (EMR)](https://aw
 
 Using Spark for computation, Featureform leverages EMR to compute user defined transformations and training sets. The user can author new tables and iterate through training sets sourced directly from S3.
 
-Features registered on the Spark Offline Store can be materialized to an Inference Store (ex: [Redis](redis)) for real-time feature serving.
+Features registered on the Spark Offline Store can be materialized to an Inference Store (ex: [Redis](redis.md)) for real-time feature serving.
 
 ## Requirements
 
@@ -64,5 +64,5 @@ Because Featureform supports the generic implementation of Spark, transformation
 Examples of Dataframe transformations for both SQL and Dataframe operations can be found in the main Spark providers page.
 
 {% content-ref url="../providers/spark.md" %}
-[Spark](spark)
+[Spark](spark.md)
 {% endcontent-ref %}

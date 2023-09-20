@@ -4,7 +4,7 @@ An **entity** serves as a collection of semantically related features and labels
 
 Entities play vital roles in:
 
-1. **Defining and Storing Features and Labels**: The `featureform` library provides an `entity` decorator that can be applied to classes. This decorator allows you to associate features and labels with the entity using Featureform data sets that you've defined earlier. A feature typically comprises at least two columns: an entity column (similar to an index or primary key) and a value column. Optionally, it can include a third column for timestamps, which becomes essential for constructing [point-in-time correct training sets](../concepts/point-in-time-correctness-historical-features-timeseries-data).
+1. **Defining and Storing Features and Labels**: The `featureform` library provides an `entity` decorator that can be applied to classes. This decorator allows you to associate features and labels with the entity using Featureform data sets that you've defined earlier. A feature typically comprises at least two columns: an entity column (similar to an index or primary key) and a value column. Optionally, it can include a third column for timestamps, which becomes essential for constructing [point-in-time correct training sets](../concepts/point-in-time-correctness-historical-features-timeseries-data.md).
 
    For example, consider a "User" entity with an "age" feature and a "credit score" label associated with it:
 

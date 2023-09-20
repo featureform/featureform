@@ -1,6 +1,6 @@
 # Vector Database
 
-A Vector Database provider is designed to facilitate nearest neighbor lookups. It shares several similarities with an inference store but is distinguished by its support for the `client.nearest` API. Configuration is typically done when registering an [embedding](../abstractions/embedding) associated with an [entity](../abstractions/entity). This setup enables efficient retrieval of nearest neighbors based on feature vectors.
+A Vector Database provider is designed to facilitate nearest neighbor lookups. It shares several similarities with an inference store but is distinguished by its support for the `client.nearest` API. Configuration is typically done when registering an [embedding](../abstractions/embedding.md) associated with an [entity](../abstractions/entity.md). This setup enables efficient retrieval of nearest neighbors based on feature vectors.
 
 ```python
 client.nearest([(name, variant)], vec, numResults)

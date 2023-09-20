@@ -4,7 +4,7 @@ Featureform coordinates a set of infrastructure providers to act together as a f
 
 ## Types of Infrastructure Providers
 
-The two main types of [infrastructure providers](../providers/overview) are the Offline Store and Inference Store. The offline store is where primary data sets are stored and transformed into features, labels, and training sets. The training sets are served directly from the offline store, while features are materialized into an inference store for serving.
+The two main types of [infrastructure providers](../providers/overview.md) are the Offline Store and Inference Store. The offline store is where primary data sets are stored and transformed into features, labels, and training sets. The training sets are served directly from the offline store, while features are materialized into an inference store for serving.
 
 ### Inference Store
 

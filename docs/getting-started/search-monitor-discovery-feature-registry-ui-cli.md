@@ -8,12 +8,12 @@ Once we have everything registered (e.g. features, training sets, providers), we
 
 The homepage contains links to:
 
-* [**Sources**](registering-transforming-and-interacting-with-data-sets): Both primary data sets and transformations, from streams to files to tables.
-* [**Features**](../abstractions/feature): Inputs to models, transformed from raw data. To be [served for inference](serving-for-inference-and-training.md#serving-for-inference).
+* [**Sources**](registering-transforming-and-interacting-with-data-sets.md): Both primary data sets and transformations, from streams to files to tables.
+* [**Features**](../abstractions/feature.md): Inputs to models, transformed from raw data. To be [served for inference](serving-for-inference-and-training.md#serving-for-inference.md).
   * e.g. Raw data about all user transactions can be transformed into features such as _**avg\_transaction\_amt**_ and _**user\_account\_age**_.
-* [**Entities**](../abstractions/entity): Higher-level groupings of features, dependent on where a set of features originates from.&#x20;
+* [**Entities**](../abstractions/entity.md): Higher-level groupings of features, dependent on where a set of features originates from.&#x20;
   * e.g. user\_account\_age and avg\_transaction\_amt are both features under the _**user entity**_.
-* [**Labels**](../abstractions/label): Features that indicate the "correct answer" of a model prediction, or what the model aims to predict.
+* [**Labels**](../abstractions/label.md): Features that indicate the "correct answer" of a model prediction, or what the model aims to predict.
   * e.g.  The **is\_fraud label** is true if the transaction is fraudulent, and false if the transaction is not fraudulent.
 * [**Training Sets**](../abstractions/training-set): Sets of features matched with the respective labels. To be [served for training](serving-for-inference-and-training.md#serving-for-training).&#x20;
   * e.g. The _**is\_fraud training set**_ contains a set of features __ (amt\_spent, avg\_transaction\_amt, number\_of\_fraud, etc.) and labels.

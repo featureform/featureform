@@ -1,6 +1,6 @@
 # Azure Blobs
 
-Featureform supports [Azure Blob Store](https://azure.microsoft.com/en-us/products/storage/blobs/) as a [File Store](object-and-file-store)
+Featureform supports [Azure Blob Store](https://azure.microsoft.com/en-us/products/storage/blobs/) as a [File Store](object-and-file-store.md)
 
 ## Configuration
 
@@ -25,4 +25,4 @@ client.apply()
 
 {% endcode %}
 
-We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry or via the CLI](../getting-started/search/monitor-discovery-feature-registry-ui-cli).
+We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry or via the CLI](../getting-started/search/monitor-discovery-feature-registry-ui-cli.md).

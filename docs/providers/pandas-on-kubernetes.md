@@ -8,7 +8,7 @@ Since featureform is deployed natively on a Kubernetes cluster, it can leverage 
 
 ## Requirements
 
-* [Remote file storage (eg. S3)](object-and-file-stores)
+* [Remote file storage (eg. S3)](object-and-file-stores.md)
 
 ### Transformation Sources
 

@@ -8,11 +8,11 @@ Once you've created your primary data sets, you can define features, labels, and
 
 ### Anatomy of a Feature
 
-A feature consists of a **value** and an associated [entity](../abstractions/entity) value. These features are defined based on registered data sets within Featureform. The entity effectively serves as a primary key or index for the feature values. While some features remain static (e.g., a product category), others change over time. For time-varying features, it's crucial to use point-in-time correct values in training sets to prevent data leakage and enhance model performance.
+A feature consists of a **value** and an associated [entity](../abstractions/entity.md) value. These features are defined based on registered data sets within Featureform. The entity effectively serves as a primary key or index for the feature values. While some features remain static (e.g., a product category), others change over time. For time-varying features, it's crucial to use point-in-time correct values in training sets to prevent data leakage and enhance model performance.
 
 #### Features without a Timestamp
 
-Some features remain relatively static, like a product's category. In such cases, you can define a feature by adding it to an [entity](../abstractions/entity). The feature's first parameter specifies the Featureform dataset, indicating the entity column followed by the value column in the form `dataset[[entity_col, value_col]]`. Optionally, you can set the [variant](../concepts/versioning-and-variants). You must also specify the feature's type, which can be one of the following: `ff.Int`, `ff.Int32`, `ff.Int64`, `ff.Float32`, `ff.Float64`, `ff.Timestamp`, `ff.String`. Since features are typically served for inference to your trained model, you need to specify the [inference store](../providers/inference-store) for materializing the feature.
+Some features remain relatively static, like a product's category. In such cases, you can define a feature by adding it to an [entity](../abstractions/entity.md). The feature's first parameter specifies the Featureform dataset, indicating the entity column followed by the value column in the form `dataset[[entity_col, value_col]]`. Optionally, you can set the [variant](../concepts/versioning-and-variants.md). You must also specify the feature's type, which can be one of the following: `ff.Int`, `ff.Int32`, `ff.Int64`, `ff.Float32`, `ff.Float64`, `ff.Timestamp`, `ff.String`. Since features are typically served for inference to your trained model, you need to specify the [inference store](../providers/inference-store.md) for materializing the feature.
 
 Example:
 ```python
@@ -25,9 +25,9 @@ class User:
 
 #### Features with a Timestamp
 
-Some features change over time, like a user's highest-priced purchase. In such cases, the feature's value is associated with both the entity and a timestamp. You can access the feature's value as it existed at a specific timestamp, which is crucial for creating [point-in-time correct training sets](../concepts/point-in-time-correctness-historical-features-timeseries-data).
+Some features change over time, like a user's highest-priced purchase. In such cases, the feature's value is associated with both the entity and a timestamp. You can access the feature's value as it existed at a specific timestamp, which is crucial for creating [point-in-time correct training sets](../concepts/point-in-time-correctness-historical-features-timeseries-data.md).
 
-To define such a feature, add it to an [entity](../abstractions/entity). The feature's first parameter specifies the Featureform dataset, including the entity column, value column, and timestamp column in the form `dataset[[entity_col, value_col, timestamp_col]]`. Optionally, you can set the [variant](../concepts/versioning-and-variants). You must also specify the feature's type, which can be one of the following: `ff.Int`, `ff.Int32`, `ff.Int64`, `ff.Float32`, `ff.Float64`, `ff.Timestamp`, `ff.String`, `ff.Bool`. Since features are typically served for inference to your trained model, you need to specify the [inference store](../providers/inference-store). To maintain point-in-time correctness, only the most recent entity-feature pair is retained in the inference store.
+To define such a feature, add it to an [entity](../abstractions/entity.md). The feature's first parameter specifies the Featureform dataset, including the entity column, value column, and timestamp column in the form `dataset[[entity_col, value_col, timestamp_col]]`. Optionally, you can set the [variant](../concepts/versioning-and-variants.md). You must also specify the feature's type, which can be one of the following: `ff.Int`, `ff.Int32`, `ff.Int64`, `ff.Float32`, `ff.Float64`, `ff.Timestamp`, `ff.String`, `ff.Bool`. Since features are typically served for inference to your trained model, you need to specify the [inference store](../providers/inference-store.md). To maintain point-in-time correctness, only the most recent entity-feature pair is retained in the inference store.
 
 Example:
 ```python
@@ -67,7 +67,7 @@ class User:
 
 #### Without a Timestamp
 
-Some labels are set once per entity and remain static. For example, you might have a label indicating whether a user is a bot or not. You define it in a manner similar to a [feature](feature) by specifying the dataset and columns for the entity and the value. Optionally, you can set the variant and specify the type as one of: `ff.Int`, `ff.Int32`, `ff.Int64`, `ff.Float32`, `ff.Float64`, `ff.Timestamp`, `ff.String`, `ff.Bool`. Unlike a Feature, you should not specify an inference store since labels are never served for inference.
+Some labels are set once per entity and remain static. For example, you might have a label indicating whether a user is a bot or not. You define it in a manner similar to a [feature](feature.md) by specifying the dataset and columns for the entity and the value. Optionally, you can set the variant and specify the type as one of: `ff.Int`, `ff.Int32`, `ff.Int64`, `ff.Float32`, `ff.Float64`, `ff.Timestamp`, `ff.String`, `ff.Bool`. Unlike a Feature, you should not specify an inference store since labels are never served for inference.
 
 
 
@@ -89,7 +89,7 @@ Models require training, a process that typically involves feeding in a set of f
 
 ### Anatomy of a Training Set
 
-A training set consists of one or more features paired with a single label. Below is an example of registering a training set named "fraud_training" with the [variant](../concepts/versioning-and-variants) "quickstart." It comprises the "fraudulent/quickstart" label and a single feature "avg_transactions/quickstart."
+A training set consists of one or more features paired with a single label. Below is an example of registering a training set named "fraud_training" with the [variant](../concepts/versioning-and-variants.md) "quickstart." It comprises the "fraudulent/quickstart" label and a single feature "avg_transactions/quickstart."
 
 ```python
 @ff.entity
@@ -123,7 +123,7 @@ ts = client.training_set("fraud_training", "quickstart").dataframe()
 
 ### How a Label Gets Joined With Features into a Training Set
 
-Training sets are constructed by pairing features and labels using their [entity](../abstractions/entity) key. The process involves looping through the labels and, for each feature, selecting the row with the same entity key as the label. To create [point-in-time correct training sets](../concepts/point-in-time-correctness-historical-features-timeseries-data), the feature value is obtained from the row with a timestamp closest to, but less than, the label timestamp. This ensures that the feature value aligns with the label's time.
+Training sets are constructed by pairing features and labels using their [entity](../abstractions/entity.md) key. The process involves looping through the labels and, for each feature, selecting the row with the same entity key as the label. To create [point-in-time correct training sets](../concepts/point-in-time-correctness-historical-features-timeseries-data.md), the feature value is obtained from the row with a timestamp closest to, but less than, the label timestamp. This ensures that the feature value aligns with the label's time.
 
 ### Working with Training Sets
 

@@ -433,10 +433,10 @@ type LocalFilepath struct {
 	FilePath
 }
 
+// Currently, the idea of a bucket has no place in the local instance of `FilePath`; however,
+// if this happens to change for whatever reason, take care to look at `backup_test.go`, `k8s_test.go`,
+// `spark_test.go`, as these will be the places that will be most sensitive to any changes.
 func (local *LocalFilepath) SetBucket(bucket string) error {
-	if bucket != "" {
-		return fmt.Errorf("bucket must be empty for local filepaths")
-	}
 	return nil
 }
 

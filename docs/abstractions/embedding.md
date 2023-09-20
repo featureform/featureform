@@ -1,4 +1,4 @@
-# Embeddings: Specialized Features for Nearest Neighbor Lookups
+# Embeddings
 
 **Embeddings** represent a specialized type of [feature](feature.md) stored in a [Vector DB](../providers/vector-db.md). They are primarily used for nearest neighbor lookups. If you'd like to explore a comprehensive explanation of what an embedding is, you can read our [definitive guide to embeddings](https://www.featureform.com/post/the-definitive-guide-to-embeddings).
 

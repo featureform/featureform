@@ -676,6 +676,24 @@ func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, source
 }
 
 func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
+	sourceFilePath, err := filestore.NewEmptyFilepath(store.FilestoreType())
+	if err != nil {
+		logger.Errorw("Could not create empty filepath", "error", err, "storeType", store.FilestoreType(), "sourcePath", sourcePath)
+		return nil, err
+	}
+	err = sourceFilePath.ParseFilePath(sourcePath)
+	if err != nil {
+		logger.Errorw("Could not parse full path", "error", err, "sourcePath", sourcePath)
+		return nil, err
+	}
+	storeExists, err := store.Exists(sourceFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("error checking if source exists: %v", err)
+	}
+	if !storeExists {
+		return nil, fmt.Errorf("source table does not exist")
+	}
+
 	filepath, err := store.CreateFilePath(id.ToFilestorePath())
 	if err != nil {
 		return nil, fmt.Errorf("could not create file path: %w", err)
@@ -709,18 +727,8 @@ func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLo
 		return nil, err
 	}
 
-	filePath, err := filestore.NewEmptyFilepath(store.FilestoreType())
-	if err != nil {
-		logger.Errorw("Could not create empty filepath", "error", err, "storeType", store.FilestoreType(), "sourcePath", sourcePath)
-		return nil, err
-	}
-	err = filePath.ParseFilePath(sourcePath)
-	if err != nil {
-		logger.Errorw("Could not parse full path", "error", err, "sourcePath", sourcePath)
-		return nil, err
-	}
 	logger.Debugw("Successfully registered primary table", "id", id, "source", sourcePath)
-	return &FileStorePrimaryTable{store, filePath, schema, false, id}, nil
+	return &FileStorePrimaryTable{store, sourceFilePath, schema, false, id}, nil
 }
 
 func (k8s *K8sOfflineStore) CreateTransformation(config TransformationConfig) error {

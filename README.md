@@ -90,7 +90,7 @@ locally on Minikube.
 To check out how to run it in the cloud,
 follow our [Kubernetes deployment](https://docs.featureform.com/deployment/kubernetes).
 
-To try Featureform with Minikube, follow our [Minikube guide](https://docs.featureform.com/minikube)
+To try Featureform in a single docker container, follow our [docker quickstart guide](https://docs.featureform.com/deployment/quickstart-docker)
 
 ## Local
 

@@ -74,4 +74,4 @@ With steps 1-5 successfully completed, you should have the `featureform` CLI com
 (.venv) > featureform -h
 ```
 
-To further verify that your setup is complete and correct, you may optionally walk through the [Quickstart (Local)](https://docs.featureform.com/quickstart-local) tutorial. You may put the `definitions.py` file at the root of the project, which won’t be ignored by Git, or use a URL to a file (e.g. hosted on GitHub).
+To further verify that your setup is complete and correct, you may optionally walk through the [Quickstart](https://docs.featureform.com/quickstart) tutorial. You may put the `definitions.py` file at the root of the project, which won’t be ignored by Git, or use a URL to a file (e.g. hosted on GitHub).

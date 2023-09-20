@@ -5,9 +5,11 @@ description: >-
   Featureform API.
 ---
 
-# Quickstart (Local)
+# Quickstart
 
-You can follow the instructions below to install Featureform locally and try out the dashboard. 
+This Quickstart will make use of Featureform's Local Mode to get you up and running quickly. Local mode requires nothing to be deployed; however, it does not currently allow you to connect to and interact with most of your external data infrastructure.
+
+You can follow the instructions below to install Featureform locally and try out the dashboard.
 
 You can also try local mode in this example [📔 Google Colab notebook 📔](https://colab.research.google.com/drive/1mlS10dPa32IiaLNpbHsqFcoeoyrAggTa?usp=sharing&utm_source=Featureform_Docs&utm_medium=EmbeddedLink&utm_campaign=NoAssociatedCampaign) here.
 
@@ -17,7 +19,7 @@ You can also try local mode in this example [📔 Google Colab notebook 📔](ht
 
 ### Requirements
 
-- Python 3.7+
+- Python 3.6+
 
 Install the Featureform SDK via Pip.
 
@@ -53,8 +55,7 @@ We can write a config file in Python that registers our test data file.
 ```python
 import featureform as ff
 
-ff.register_user("featureformer").make_default_owner()
-
+# This is where you would typically register your infrastructure providers.
 local = ff.register_local()
 
 transactions = local.register_file(
@@ -92,6 +93,7 @@ class User:
         average_user_transaction[["CustomerID", "TransactionAmount"]], # We can optional include the `timestamp_column` "Timestamp" here
         variant="quickstart",
         type=ff.Float32,
+        # We can switch this out for an inference store like Redis in production.
         inference_store=local,
     )
     fraudulent = ff.Label(
@@ -159,10 +161,7 @@ Once we have our training set and features registered, we can train our model.
 import featureform as ff
 
 client = ff.Client(local=True)
-dataset = client.training_set("fraud_training", "quickstart")
-training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
-for row in training_dataset:
-    print(row.features(), row.label())
+train = client.training_set("fraud_training", "quickstart").dataframe()
 ```
 
 We can serve features in production once we deploy our trained model as well.

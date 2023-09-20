@@ -6,7 +6,7 @@ In this deployment, we'll setup a simple Minikube cluster and deploy Postgres an
 
 ### Docker
 
-Docker is an open platform for developing, shipping, and running applications. We will run Docker containers for Postgres, Redis, and [all of the Featureform services](system-architecture.md) on Minikube. It can be [downloaded here](https://docs.docker.com/get-docker/).
+Docker is an open platform for developing, shipping, and running applications. We will run Docker containers for Postgres, Redis, and [all of the Featureform services](deployment/system-architecture.md) on Minikube. It can be [downloaded here](https://docs.docker.com/get-docker/).
 
 ### Minikube
 
@@ -88,7 +88,7 @@ helm install quickstart featureform/quickstart
 
 ## Configure Featureform with Providers
 
-Now that all of our infrastructure is deployed, we can add Postgres and Redis as providers for Featureform using the Python API and Featureform CLI, which can be seen in our [Quickstart guide](getting-started/registering-infrastructure-providers.md).
+Now that all of our infrastructure is deployed, we can add Postgres and Redis as providers for Featureform using the Python API and Featureform CLI, which can be seen in our [Quickstart guide](getting-started/connecting-your-data-infrastructure.md).
 
 Since we're using a self-signed certificate, we can run the CLI using the certificate flag instead.
 

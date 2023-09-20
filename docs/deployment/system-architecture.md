@@ -1,6 +1,6 @@
 # System Architecture
 
-![A map of the Featureform services and the components that they interface with.](.gitbook/assets/Featureform-Arch-Lucidchart.png)
+![A map of the Featureform services and the components that they interface with.](../.gitbook/assets/Featureform-Arch-Lucidchart.png)
 
 ## Kubernetes
 

@@ -14,6 +14,7 @@ First we have to add a declarative DynamoDB configuration in Python. In the foll
 
 ```python
 import featureform as ff
+
 ff.register_dynamodb(
     name = "dynamodb",
     description = "Example inference store",
@@ -21,20 +22,10 @@ ff.register_dynamodb(
     access_key = "",
     secret_key = ""
 )
+
+client.apply()
 ```
 
 {% endcode %}
 
-Once our config file is complete, we can apply it to our Featureform deployment
-
-```bash
-featureform apply dynamodb_config.py --host $FEATUREFORM_HOST
-```
-
-We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry](../getting-started/exploring-the-feature-registry.md).
-
-### Mutable Configuration Fields
-
-* `description`
-* `access_key`
-* `secret_key`
+We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry or via the CLI](../getting-started/search-monitor-discovery-feature-registry-ui-cli.md).

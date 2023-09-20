@@ -96,13 +96,13 @@ type Filepath interface {
 
 	// Returns the full path to the object, including the scheme and bucket/container
 	ToURI() string
+
 	// Consumes a URI (e.g. abfss://<container>@<storage_account>/path/to/file) and parses it into
 	// the specific parts that the implementation expects.
-	ParseFilePath(path string) error
-	ParseDirPath(path string) error
+	ParseFilePath(pathURI string) error
+	ParseDirPath(pathURI string) error
 
 	Validate() error
-	IsValid() bool
 }
 
 func NewEmptyFilepath(storeType FileStoreType) (Filepath, error) {
@@ -214,16 +214,16 @@ func (fp *FilePath) IsDir() bool {
 	return fp.isDir
 }
 
-func (fp *FilePath) ParseFilePath(fullPath string) error {
-	err := fp.parsePath(fullPath)
+func (fp *FilePath) ParseFilePath(pathURI string) error {
+	err := fp.parsePath(pathURI)
 	if err != nil {
 		return fmt.Errorf("file: %v", err)
 	}
 	return nil
 }
 
-func (fp *FilePath) ParseDirPath(fullPath string) error {
-	err := fp.parsePath(fullPath)
+func (fp *FilePath) ParseDirPath(pathURI string) error {
+	err := fp.parsePath(pathURI)
 	if err != nil {
 		return fmt.Errorf("dir: %v", err)
 	}

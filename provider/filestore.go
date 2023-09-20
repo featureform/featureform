@@ -46,9 +46,12 @@ type FileStore interface {
 	Download(sourcePath filestore.Filepath, destPath filestore.Filepath) error
 	FilestoreType() filestore.FileStoreType
 	AddEnvVars(envVars map[string]string) map[string]string
+
 	// CreateFilePath creates a new filepath object with the bucket and scheme from a Key
 	CreateFilePath(key string) (filestore.Filepath, error)
 	CreateDirPath(key string) (filestore.Filepath, error)
+	CreateFilePathFromURI(uri string) (filestore.Filepath, error)
+	CreateDirPathFromURI(uri string) (filestore.Filepath, error)
 }
 
 type Iterator interface {
@@ -455,6 +458,14 @@ type HDFSFileStore struct {
 	Path   filestore.HDFSFilepath
 }
 
+func (fs *HDFSFileStore) CreateFilePathFromURI(uri string) (filestore.Filepath, error) {
+	panic("implement me")
+}
+
+func (fs *HDFSFileStore) CreateDirPathFromURI(uri string) (filestore.Filepath, error) {
+	panic("implement me")
+}
+
 func (fs *HDFSFileStore) alreadyExistsError(err error) bool {
 	return strings.Contains(err.Error(), "file already exists")
 }
@@ -555,7 +566,6 @@ func (fs *HDFSFileStore) Serve(files []filestore.Filepath) (Iterator, error) {
 
 func (fs *HDFSFileStore) Exists(path filestore.Filepath) (bool, error) {
 	_, err := fs.Client.Stat(path.Key())
-	fmt.Println("CHECKING EXISTS", err)
 	if err != nil && strings.Contains(err.Error(), "file does not exist") {
 		return false, nil
 	} else if err != nil {
@@ -1001,4 +1011,42 @@ func (store *genericFileStore) CreateFilePath(key string) (filestore.Filepath, e
 	}
 	fp.SetIsDir(false)
 	return &fp, nil
+}
+
+func (store *genericFileStore) CreateFilePathFromURI(uri string) (filestore.Filepath, error) {
+	fp := filestore.FilePath{}
+	if err := fp.ParseFilePath(uri); err != nil {
+		return nil, err
+	}
+	if err := fp.Validate(); err != nil {
+		return nil, err
+	}
+	return &fp, nil
+}
+
+func (store *genericFileStore) CreateDirPathFromURI(uri string) (filestore.Filepath, error) {
+	fp := filestore.FilePath{}
+	if store.FilestoreType() != filestore.FileSystem {
+		return nil, fmt.Errorf("filestore type: %v; use store-specific implementation instead", store.FilestoreType())
+	}
+	if err := fp.ParseDirPath(uri); err != nil {
+		return nil, err
+	}
+	if err := fp.Validate(); err != nil {
+		return nil, err
+	}
+	return &fp, nil
+}
+
+// helper methods
+func ExistsByUrl(store FileStore, sourcePath string) (bool, error) {
+	sourceFilePath, err := store.CreateFilePathFromURI(sourcePath)
+	if err != nil {
+		return false, fmt.Errorf("could not create file path for sourcePath: %w", err)
+	}
+	sourceExists, err := store.Exists(sourceFilePath)
+	if err != nil {
+		return false, fmt.Errorf("error checking if source exists: %v", err)
+	}
+	return sourceExists, nil
 }

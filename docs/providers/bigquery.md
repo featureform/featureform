@@ -8,7 +8,7 @@ Featureform supports [BigQuery](https://cloud.google.com/bigquery) as an Offline
 
 #### Tables
 
-Table sources are used directly via a view. Featureform will never write to a primary source.
+Table sources are used directly via a view. Featureform will never write to a primary data set.
 
 ### Transformation Sources
 
@@ -38,19 +38,10 @@ bigquery = ff.register_bigquery(
     dataset_id="<your-big-query-dataset>",
     credentials_path="<path-to-bigquery-credentials-file>"
 )
+
+client.apply()
 ```
 
 {% endcode %}
 
-Once our config file is complete, we can apply it to our Featureform deployment
-
-```bash
-featureform apply bigquery_config.py --host $FEATUREFORM_HOST
-```
-
-We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry](../getting-started/exploring-the-feature-registry.md).
-
-### Mutable Configuration Fields
-
-* `description`
-* `credentials`
+We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry or via the CLI](../getting-started/search/monitor-discovery-feature-registry-ui-cli).

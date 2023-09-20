@@ -4,12 +4,12 @@ Featureform supports [Databricks](https://www.databricks.com) as an Offline Stor
 
 ## Implementation <a href="#implementation" id="implementation"></a>
 
-With Databricks, you can leverage your Databricks cluster to compute transformations and training sets. Featureform however does not handle storage in non-local mode, so it is necessary to separately register a file store provider like [Azure](azure.md) to store the results of its computation.
+With Databricks, you can leverage your Databricks cluster to compute transformations and training sets. Featureform however does not handle storage in non-local mode, so it is necessary to separately register a [file store provider](object-and-file-stores) like [S3](azure-blob-stored) to store the results of its computation.
 
 ## Requirements
 
 * Databricks Cluster
-* [Remote file storage (eg. Azure Blob Storage)](azure.md)
+* [Remote file storage (eg. Azure Blob Storage)](object-and-file-stores)
 
 ### Required Azure Configurations
 
@@ -50,11 +50,11 @@ Once you've clicked "Confirm", your cluster will need to restart before you can 
 
 ## Transformation Sources
 
-Using Databricks as an Offline Store, you can [define new transformations](../getting-started/transforming-data.md) via [SQL and Spark DataFrames](https://spark.apache.org/docs/latest/sql-programming-guide.html). Using either these transformations or preexisting tables in your file store, a user can chain transformations and register columns in the resulting tables as new features and labels.
+Using Databricks as an Offline Store, you can define new transformations via SQL and Spark DataFrames. Using either these transformations or preexisting tables in your file store, a user can chain transformations and register columns in the resulting tables as new features and labels.
 
 ## Training Sets and Inference Store Materialization
 
-Any column in a preexisting table or user-created transformation can be registered as a feature or label. These features and labels can be used, as with any other Offline Store, for [creating training sets and inference serving.](../getting-started/defining-features-labels-and-training-sets.md)
+Any column in a preexisting table or user-created transformation can be registered as a feature or label. These features and labels can be used, as with any other Offline Store, for creating training sets and inference serving.
 
 ## Configuration <a href="#configuration" id="configuration"></a>
 
@@ -102,18 +102,10 @@ transactions = spark.register_file(
 
 {% endcode %}
 
-### Mutable Configuration Fields
-
-* `description`
-* `username` (Executor)
-* `password` (Executor)
-* `token` (Executor)
-* `account_key` (File Store)
-
 ## Dataframe Transformations
 
 Because Featureform supports the generic implementation of Spark, transformations written in SQL and Dataframe operations for the different Spark providers will be very similar except for the file_path or table name.
 
 {% content-ref url="../providers/spark.md" %}
-[spark.md](../providers/spark.md)
+[Spark](spark)
 {% endcontent-ref %}

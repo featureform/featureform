@@ -4,14 +4,14 @@ Featureform supports [Spark](https://spark.apache.org/) as an Offline Store.
 
 This means that Featureform can handle all flavors of Spark using S3, GCS, Azure Blob Store or HDFS as a backing store.
 
-Common use cases of Featureform with Spark include:
+If you are running Spark in one of the following environments, we recommend using that specific provider for a more seamless experience.
 
-{% content-ref url="../providers/spark_emr.md" %}
-[spark_emr.md](../providers/spark_emr.md)
+{% content-ref url="../providers/spark-emr.md" %}
+[EMR](spark-emr.md)
 {% endcontent-ref %}
 
-{% content-ref url="../providers/spark_databricks.md" %}
-[spark_databricks.md](../providers/spark_databricks.md)
+{% content-ref url="../providers/spark-databricks.md" %}
+[Spark](spark-databricks.md)
 {% endcontent-ref %}
 
 ## Understanding The Different Flavors of Spark <a href="#implementation" id="implementation"></a>
@@ -32,11 +32,11 @@ Both Spark and Databricks can be self-hosted in Kubernetes and other non-cloud i
 
 ### Transformation Sources
 
-Using Spark and a file store (GCS, Azure Blob Storage, S3, HDFS) as an Offline Store, you can [define new transformations](../getting-started/transforming-data.md) via [SQL and Spark DataFrames](https://spark.apache.org/docs/latest/sql-programming-guide.html). Using either these transformations or pre-existing files in your file store, a user can chain transformations and register columns in the resulting tables as new features and labels.
+Using Spark and a file store (GCS, Azure Blob Storage, S3, HDFS) as an Offline Store, you can define new transformations via [SQL and Spark DataFrames](https://spark.apache.org/docs/latest/sql-programming-guide.html). Using either these transformations or pre-existing files in your file store, a user can chain transformations and register columns in the resulting tables as new features and labels.
 
 ### Training Sets and Inference Store Materialization
 
-Any column in a preexisting table or user-created transformation can be registered as a feature or label. These features and labels can be used, as with any other Offline Store, for [creating training sets and inference serving.](../getting-started/defining-features-labels-and-training-sets.md)
+Any column in a preexisting table or user-created transformation can be registered as a feature or label. These features and labels can be used, as with any other Offline Store, for creating training sets and inference serving.
 
 ### Dataframe Transformations
 

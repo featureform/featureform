@@ -6,13 +6,13 @@ Featureform supports [Spark on AWS](https://aws.amazon.com/emr/features/spark/) 
 
 The AWS Spark Offline store implements [AWS Elastic Map Reduce (EMR)](https://aws.amazon.com/emr/) as a compute layer, and [S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html) as a storage layer. The transformations, training sets, and feature definitions a user registers via the Featureform client are stored as parquet tables in S3.
 
-Using Spark for computation, Featureform leverages EMR to compute user defined transformations and training sets. The user can author new tables and iterate through training sets sourced directly from S3 via the [Featureform CLI](../getting-started/interact-with-the-cli.md).
+Using Spark for computation, Featureform leverages EMR to compute user defined transformations and training sets. The user can author new tables and iterate through training sets sourced directly from S3.
 
-Features registered on the Spark Offline Store can be materialized to an Inference Store (ex: [Redis](./redis.md)) for real-time feature serving.
+Features registered on the Spark Offline Store can be materialized to an Inference Store (ex: [Redis](redis)) for real-time feature serving.
 
 ## Requirements
 
-* [AWS S3 Bucket](https://docs.aws.amazon.com/s3/?icmpid=docs_homepage_featuredsvcs)
+* [AWS S3 Bucket](s3)
 * [AWS EMR Cluster running Spark >=2.4.8](https://docs.aws.amazon.com/emr/index.html)
 
 ## Configuration <a href="#configuration" id="configuration"></a>
@@ -57,12 +57,6 @@ spark = ff.register_spark(
 
 {% endcode %}
 
-### Mutable Configuration Fields
-
-* `description`
-* `aws_access_key_id` (Executor and File Store)
-* `aws_secret_access_key` (Executor and File Store)
-
 ## Dataframe Transformations
 
 Because Featureform supports the generic implementation of Spark, transformations written in SQL and Dataframe operations for the different Spark providers will be very similar except for the file_path or table name.
@@ -70,5 +64,5 @@ Because Featureform supports the generic implementation of Spark, transformation
 Examples of Dataframe transformations for both SQL and Dataframe operations can be found in the main Spark providers page.
 
 {% content-ref url="../providers/spark.md" %}
-[spark.md](../providers/spark.md)
+[Spark](spark)
 {% endcontent-ref %}

@@ -122,7 +122,7 @@ func TestBlobInterfaces(t *testing.T) {
 		"Test File Upload and Download": testFileUploadAndDownload,
 	}
 
-	_ := godotenv.Load("../.env")
+	_ = godotenv.Load("../.env")
 
 	fileFileStore := getLocalFileStore(t)
 	azureFileStore := getAzureFileStore(t, false)

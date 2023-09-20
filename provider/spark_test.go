@@ -76,31 +76,6 @@ func uploadCSVTable(store FileStore, path string, tables interface{}) error {
 
 }
 
-func uploadParquetTable(store FileStore, path string, tables interface{}) error {
-	//reflect the interface into an []any list and pass it
-	array := reflect.ValueOf(tables)
-	anyArray := make([]any, 0)
-	for i := 0; i < array.Len(); i++ {
-		anyArray = append(anyArray, array.Index(i).Interface())
-	}
-	fmt.Println("Parquet file to be written:")
-	fmt.Println(anyArray)
-	parquetBytes, err := convertToParquetBytes(anyArray)
-	if err != nil {
-		return fmt.Errorf("could not convert struct list to parquet bytes: %v", err)
-	}
-	fmt.Println("parquet bytes:")
-	fmt.Println(parquetBytes)
-	destination, err := store.CreateFilePath(path)
-	if err != nil {
-		return fmt.Errorf("could not create file path: %v", err)
-	}
-	if err := store.Write(destination, parquetBytes); err != nil {
-		return fmt.Errorf("could not write parquet file to path: %v", err)
-	}
-	return nil
-}
-
 func testCreateTrainingSet(store *SparkOfflineStore) error {
 	exampleStructArray := make([]any, 5)
 	for i := 0; i < 5; i++ {

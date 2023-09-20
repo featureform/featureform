@@ -160,26 +160,26 @@ func TestBlobInterfaces(t *testing.T) {
 		t.Fatalf("failed to create new azure blob store: %v", err)
 	}
 
-	// hdfsConfig := pc.HDFSFileStoreConfig{
-	// 	Host:     "localhost",
-	// 	Port:     "9000",
-	// 	Username: "hduser",
-	// }
+	hdfsConfig := pc.HDFSFileStoreConfig{
+		Host:     "localhost",
+		Port:     "9000",
+		Username: "hduser",
+	}
 
-	// serializedHDFSConfig, err := hdfsConfig.Serialize()
-	// if err != nil {
-	// 	t.Fatalf("failed to create serialize hdfs blob store: %v", err)
-	// }
+	serializedHDFSConfig, err := hdfsConfig.Serialize()
+	if err != nil {
+		t.Fatalf("failed to create serialize hdfs blob store: %v", err)
+	}
 
-	// hdfsFileStore, err := NewHDFSFileStore(serializedHDFSConfig)
-	// if err != nil {
-	// 	t.Fatalf("failed to create new hdfs blob store: %v", err)
-	// }
+	hdfsFileStore, err := NewHDFSFileStore(serializedHDFSConfig)
+	if err != nil {
+		t.Fatalf("failed to create new hdfs blob store: %v", err)
+	}
 
 	blobProviders := map[string]FileStore{
 		"File":  fileFileStore,
 		"Azure": azureFileStore,
-		// "HDFS":  hdfsFileStore,
+		"HDFS":  hdfsFileStore,
 	}
 	for testName, fileTest := range fileStoreTests {
 		fileTest = fileTest
@@ -430,27 +430,25 @@ func testNotExists(t *testing.T, store FileStore) {
 	}
 }
 
-func randomStructList(length int64) []any {
-	type PersonEntry struct {
-		ID         int64
-		Name       string
-		Points     float32
-		Score      float64
-		Registered bool
-		Created    int64 `parquet:"," parquet-key:",timestamp"`
+func getMockSchemaAndRecords(length int) (TableSchema, []GenericRecord) {
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "ID", ValueType: Int},
+			{Name: "Name", ValueType: String},
+			{Name: "Points", ValueType: Float32},
+			{Name: "Score", ValueType: Float64},
+			{Name: "Registered", ValueType: Bool},
+			{Name: "Created", ValueType: Timestamp},
+		},
 	}
-	personList := make([]any, length)
-	for i := int64(0); i < length; i++ {
-		personList[i] = PersonEntry{
-			ID:         i,
-			Name:       uuid.New().String(),
-			Points:     float32(i) + 0.1,
-			Score:      float64(i) + 0.1,
-			Registered: false,
-			Created:    time.Now().UnixMilli(),
-		}
+
+	records := make([]GenericRecord, length)
+
+	for i := 0; i < length; i++ {
+		records[i] = []interface{}{i, uuid.New().String(), float32(i) + 0.1, float64(i) + 0.1, false, time.UnixMilli(int64(i)).UTC()}
 	}
-	return personList
+
+	return schema, records
 }
 
 func compareStructWithInterface(compareStruct any, compareInterface map[string]interface{}) (bool, error) {
@@ -470,9 +468,9 @@ func compareStructWithInterface(compareStruct any, compareInterface map[string]i
 }
 
 func testServe(t *testing.T, store FileStore) {
-	parquetNumRows := int64(5)
-	randomStructs := randomStructList(parquetNumRows)
-	parquetBytes, err := convertToParquetBytes(randomStructs)
+	parquetNumRows := 5
+	schema, records := getMockSchemaAndRecords(parquetNumRows)
+	parquetBytes, err := convertToParquetBytes(schema, records)
 	if err != nil {
 		t.Fatalf("could not convert struct list to parquet bytes: %v", err)
 	}
@@ -484,13 +482,14 @@ func testServe(t *testing.T, store FileStore) {
 	if err := store.Write(randomParqetFilePath, parquetBytes); err != nil {
 		t.Fatalf("Could not write parquet bytes to random key: %v", err)
 	}
-	iterator, err := store.Serve(randomParqetFilePath)
+	iterator, err := store.Serve([]filestore.Filepath{randomParqetFilePath})
 	if err != nil {
 		t.Fatalf("Could not get parquet iterator: %v", err)
 	}
-	idx := int64(0)
+	idx := 0
 	for {
 		parquetRow, err := iterator.Next()
+		parquetRecord := GenericRecord{parquetRow["ID"], parquetRow["Name"], parquetRow["Points"], parquetRow["Score"], parquetRow["Registered"], parquetRow["Created"]}
 		idx += 1
 		if err != nil {
 			t.Fatalf("Error iterating through parquet file: %v", err)
@@ -504,12 +503,8 @@ func testServe(t *testing.T, store FileStore) {
 		if idx-1 > parquetNumRows {
 			t.Fatalf("iterating over more rows than given")
 		}
-		identical, err := compareStructWithInterface(randomStructs[idx-1], parquetRow)
-		if err != nil {
-			t.Fatalf("Error comparing struct with interface: %v", err)
-		}
-		if !identical {
-			t.Fatalf("Submitted row and returned struct not identical. Got %v, expected %v", parquetRow, randomStructs[idx-1])
+		if !reflect.DeepEqual(records[idx-1], parquetRecord) {
+			t.Fatalf("Submitted row and returned struct not identical. Got %v, expected %v", parquetRecord, records[idx-1])
 		}
 	}
 	// cleanup test
@@ -519,19 +514,21 @@ func testServe(t *testing.T, store FileStore) {
 }
 
 func testServeDirectory(t *testing.T, store FileStore) {
-	parquetNumRows := int64(5)
-	parquetNumFiles := int64(5)
+	parquetNumRows := 5
+	parquetNumFiles := 5
 	randomDirKey := uuid.New().String()
 	randomDirectory, err := store.CreateDirPath(randomDirKey)
 	if err != nil {
 		t.Fatalf("Could not create random directory: %v", err)
 	}
-	randomStructs := make([][]any, parquetNumFiles)
-	for i := int64(0); i < parquetNumFiles; i++ {
-		randomStructs[i] = randomStructList(parquetNumRows)
-		parquetBytes, err := convertToParquetBytes(randomStructs[i])
+	files := make([]filestore.Filepath, parquetNumFiles)
+	records := make([][]GenericRecord, parquetNumFiles)
+	for i := 0; i < parquetNumFiles; i++ {
+		schema, r := getMockSchemaAndRecords(parquetNumRows)
+		records[i] = r
+		parquetBytes, err := convertToParquetBytes(schema, records[i])
 		if err != nil {
-			t.Fatalf("error converting struct to parquet bytes")
+			t.Fatalf("could not convert struct list to parquet bytes: %v", err)
 		}
 		randomKey := fmt.Sprintf("part000%d%s.parquet", i, uuid.New().String())
 		randomPath := fmt.Sprintf("%s/%s", randomDirKey, randomKey)
@@ -542,8 +539,9 @@ func testServeDirectory(t *testing.T, store FileStore) {
 		if err := store.Write(randomFilePath, parquetBytes); err != nil {
 			t.Fatalf("Could not write parquet bytes to path: %v", err)
 		}
+		files[i] = randomFilePath
 	}
-	iterator, err := store.Serve(randomDirectory)
+	iterator, err := store.Serve(files)
 	if err != nil {
 		t.Fatalf("Could not get parquet iterator: %v", err)
 	}
@@ -551,8 +549,12 @@ func testServeDirectory(t *testing.T, store FileStore) {
 	idx := int64(0)
 	for {
 		parquetRow, err := iterator.Next()
+		if err != nil {
+			t.Fatalf("Error iterating through parquet file: %v", err)
+		}
+		parquetRecord := GenericRecord{parquetRow["ID"], parquetRow["Name"], parquetRow["Points"], parquetRow["Score"], parquetRow["Registered"], parquetRow["Created"]}
 		idx += 1
-		if parquetRow == nil {
+		if parquetRecord == nil {
 			if idx-1 != totalRows {
 				t.Fatalf("Incorrect number of rows in parquet file. Expected %d, got %d", totalRows, idx-1)
 			}
@@ -563,12 +565,11 @@ func testServeDirectory(t *testing.T, store FileStore) {
 		}
 		numFile := int((idx - 1) / 5)
 		numRow := (idx - 1) % 5
-		identical, err := compareStructWithInterface(randomStructs[numFile][numRow], parquetRow)
-		if err != nil {
-			t.Fatalf("Error comparing struct with interface: %v", err)
+		if numFile >= len(records) {
+			break
 		}
-		if !identical {
-			t.Fatalf("Submitted row and returned struct not identical. Got %v, expected %v", parquetRow, randomStructs[numFile][numRow])
+		if !reflect.DeepEqual(records[numFile][numRow], parquetRecord) {
+			t.Fatalf("Submitted row and returned struct not identical. Got %v, expected %v", parquetRecord, records[numFile][numRow])
 		}
 	}
 	// cleanup test
@@ -697,11 +698,11 @@ func testNewestFile(t *testing.T, store FileStore) {
 }
 
 func testNumRows(t *testing.T, store FileStore) {
-	parquetNumRows := int64(5)
-	randomStructList := randomStructList(parquetNumRows)
-	parquetBytes, err := convertToParquetBytes(randomStructList)
+	parquetNumRows := 5
+	schema, records := getMockSchemaAndRecords(parquetNumRows)
+	parquetBytes, err := convertToParquetBytes(schema, records)
 	if err != nil {
-		t.Fatalf("Could not convert struct list to parquet bytes: %v", err)
+		t.Fatalf("could not convert struct list to parquet bytes: %v", err)
 	}
 	randomParquetPath, err := store.CreateFilePath(fmt.Sprintf("%s.parquet", uuid.New().String()))
 	if err != nil {
@@ -714,7 +715,7 @@ func testNumRows(t *testing.T, store FileStore) {
 	if err != nil {
 		t.Fatalf("Could not get num rows from parquet file: %v", err)
 	}
-	if numRows != parquetNumRows {
+	if numRows != int64(parquetNumRows) {
 		t.Fatalf("Incorrect retrieved num rows from parquet file. Expected %d, got %d", numRows, parquetNumRows)
 	}
 	// cleanup test
@@ -1029,4 +1030,22 @@ func TestParquetIterator_vector32(t *testing.T) {
 			}
 		}
 	}
+}
+
+func convertToParquetBytes(schema TableSchema, list []GenericRecord) ([]byte, error) {
+	if len(list) == 0 {
+		return nil, fmt.Errorf("list is empty")
+	}
+	parquetRecords := schema.ToParquetRecords(list)
+	parquetSchema := parquet.SchemaOf(schema.Interface())
+	buf := new(bytes.Buffer)
+	err := parquet.Write[any](
+		buf,
+		parquetRecords,
+		parquetSchema,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not write parquet file to bytes: %v", err)
+	}
+	return buf.Bytes(), nil
 }

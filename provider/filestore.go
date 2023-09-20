@@ -1020,7 +1020,6 @@ func (store *genericFileStore) CreateFilePath(key string) (filestore.Filepath, e
 	if err := fp.SetScheme(filestore.FileSystemPrefix); err != nil {
 		return nil, err
 	}
-	fmt.Println("BUCKET", store.path.Bucket())
 	if err := fp.SetBucket(store.path.Bucket()); err != nil {
 		return nil, err
 	}

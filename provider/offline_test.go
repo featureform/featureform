@@ -260,18 +260,19 @@ func TestOfflineStores(t *testing.T) {
 			destroyRedshiftDatabase(redshiftConfig)
 		})
 	}
-	if *provider == "spark-generic-s3" || *provider == "" {
-		serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.S3)
-		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	}
-	if *provider == "spark-generic-abs" || *provider == "" {
-		serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.Azure)
-		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	}
-	if *provider == "spark-generic-gcs" || *provider == "" {
-		serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.GCS)
-		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	}
+	// TODO: update testing.yaml to include local PySpark instance generic Spark tests
+	// if *provider == "spark-generic-s3" || *provider == "" {
+	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.S3)
+	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	// }
+	// if *provider == "spark-generic-abs" || *provider == "" {
+	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.Azure)
+	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	// }
+	// if *provider == "spark-generic-gcs" || *provider == "" {
+	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.GCS)
+	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	// }
 	if *provider == "spark-databricks-s3" || *provider == "" {
 		serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.S3)
 		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})

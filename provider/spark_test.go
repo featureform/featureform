@@ -2910,8 +2910,8 @@ func createEMRAndS3(bucketName string) (SparkExecutor, SparkFileStore, error) {
 		return nil, nil, fmt.Errorf("could not create new S3 file store: %v", err)
 	}
 
-	emrRegion := helpers.GetEnv("EMR_CLUSTER_REGION", "us-east-1")
-	emrClusterId := helpers.GetEnv("EMR_CLUSTER_ID", "")
+	emrRegion := helpers.GetEnv("AWS_EMR_CLUSTER_REGION", "us-east-1")
+	emrClusterId := helpers.GetEnv("AWS_EMR_CLUSTER_ID", "")
 
 	emrConfig := pc.EMRConfig{
 		Credentials:   pc.AWSCredentials{AWSAccessKeyId: awsAccessKeyId, AWSSecretKey: awsSecretKey},

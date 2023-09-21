@@ -167,8 +167,8 @@ func TestOfflineStores(t *testing.T) {
 					AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
 					AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
 				},
-				ClusterRegion: os.Getenv("EMR_CLUSTER_REGION"),
-				ClusterName:   os.Getenv("EMR_CLUSTER_ID"),
+				ClusterRegion: os.Getenv("AWS_EMR_CLUSTER_REGION"),
+				ClusterName:   os.Getenv("AWS_EMR_CLUSTER_ID"),
 			}
 		default:
 			t.Fatalf("Invalid executor type: %v", executorType)

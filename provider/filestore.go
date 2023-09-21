@@ -273,10 +273,9 @@ func NewS3FileStore(config Config) (FileStore, error) {
 func (s3 *S3FileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 	fp := filestore.S3Filepath{}
 	// **NOTE:** It's possible we'll need to change this default based on whether the
-	// user employs EMR as their Spark executor; however, for all things outside of EMR,
-	// it appears s3a:// should be the default scheme.
+	// user employs EMR as their Spark executor
 	// See here for details: https://stackoverflow.com/questions/69984233/spark-s3-write-s3-vs-s3a-connectors
-	if err := fp.SetScheme(filestore.S3APrefix); err != nil {
+	if err := fp.SetScheme(filestore.S3Prefix); err != nil {
 		return nil, err
 	}
 	if err := fp.SetBucket(s3.Bucket); err != nil {

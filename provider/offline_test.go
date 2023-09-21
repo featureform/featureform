@@ -309,16 +309,17 @@ func TestOfflineStores(t *testing.T) {
 		"TrainingDefShorthand": testTrainingSetDefShorthand,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
-		"PrimaryTableCreate":              testPrimaryCreateTable,
-		"PrimaryTableWrite":               testPrimaryTableWrite,
-		"Transformation":                  testTransform,
-		"TransformationUpdate":            testTransformUpdate,
-		"TransformationUpdateWithFeature": testTransformUpdateWithFeatures,
-		"CreateDuplicatePrimaryTable":     testCreateDuplicatePrimaryTable,
-		"ChainTransformations":            testChainTransform,
-		"CreateResourceFromSource":        testCreateResourceFromSource,
-		"CreateResourceFromSourceNoTS":    testCreateResourceFromSourceNoTS,
-		"CreatePrimaryFromSource":         testCreatePrimaryFromSource,
+		"PrimaryTableCreate":                 testPrimaryCreateTable,
+		"PrimaryTableWrite":                  testPrimaryTableWrite,
+		"Transformation":                     testTransform,
+		"TransformationUpdate":               testTransformUpdate,
+		"TransformationUpdateWithFeature":    testTransformUpdateWithFeatures,
+		"CreateDuplicatePrimaryTable":        testCreateDuplicatePrimaryTable,
+		"ChainTransformations":               testChainTransform,
+		"CreateResourceFromSource":           testCreateResourceFromSource,
+		"CreateResourceFromSourceNoTS":       testCreateResourceFromSourceNoTS,
+		"CreatePrimaryFromSource":            testCreatePrimaryFromSource,
+		"CreatePrimaryFromNonExistentSource": testCreatePrimaryFromNonExistentSource,
 	}
 
 	psqlInfo := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), "localhost", "5432", os.Getenv("POSTGRES_DB"))
@@ -3479,6 +3480,36 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 			t.Fatalf("Unexpected training row: %v, expected %v", realRow, expectedRows)
 		}
 		i++
+	}
+}
+
+func testCreatePrimaryFromNonExistentSource(t *testing.T, store OfflineStore) {
+	primaryID := ResourceID{
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Primary,
+	}
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "col1", ValueType: String},
+			{Name: "col2", ValueType: Int},
+			{Name: "col3", ValueType: String},
+			{Name: "col4", ValueType: Timestamp},
+		},
+	}
+
+	table, err := store.CreatePrimaryTable(primaryID, schema)
+	if err != nil {
+		t.Fatalf("Could not create primary table: %v", err)
+	}
+	tableName := sanitizeTableName(string(store.Type()), table.GetName())
+	tableName = fmt.Sprintf("%s_%s", table.GetName(), "nonexistant")
+	_, err = store.RegisterPrimaryFromSourceTable(primaryID, tableName)
+	if err == nil {
+		t.Fatalf("Successfully created primary table from non-existant source")
+	}
+	if strings.Contains(err.Error(), "source does not exist") {
+		t.Fatalf("error message doesn't match got: %s", err.Error())
 	}
 }
 

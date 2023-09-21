@@ -637,7 +637,7 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 		sources = newestFiles
 	}
 	fmt.Printf("Sources: %d found\n", len(sources))
-	fmt.Printf("Source extension %s\n", string(sources[0].Ext()))
+	fmt.Printf("Source %s extension %s\n", sources[0].ToURI(), string(sources[0].Ext()))
 	switch sources[0].Ext() {
 	case filestore.Parquet:
 		return newMultipleFileParquetIterator(sources, tbl.store, n)
@@ -1035,7 +1035,14 @@ func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogg
 	if err := schema.Deserialize(table); err != nil {
 		return nil, fmt.Errorf("error deserializing primary table: %v", err)
 	}
-	return &FileStorePrimaryTable{store, filepath, schema, false, id}, nil
+	sourcePath, err := filestore.NewEmptyFilepath(store.FilestoreType())
+	if err != nil {
+		return nil, fmt.Errorf("could not create empty filepath for source: %w", err)
+	}
+	if err := sourcePath.ParseFilePath(schema.SourceTable); err != nil {
+		return nil, fmt.Errorf("could not parse source table: %w", err)
+	}
+	return &FileStorePrimaryTable{store, sourcePath, schema, false, id}, nil
 }
 
 func (k8s *K8sOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {

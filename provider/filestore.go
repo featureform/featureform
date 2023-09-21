@@ -975,9 +975,9 @@ func (store *genericFileStore) ServeFile(path filestore.Filepath) (Iterator, err
 		return nil, fmt.Errorf("could not read file: %w", err)
 	}
 	switch path.Ext() {
-	case "parquet":
+	case filestore.Parquet:
 		return parquetIteratorFromBytes(b)
-	case "csv":
+	case filestore.CSV:
 		return nil, fmt.Errorf("csv iterator not implemented")
 	default:
 		return nil, fmt.Errorf("unsupported file type")
@@ -998,7 +998,7 @@ func (store *genericFileStore) NumRows(path filestore.Filepath) (int64, error) {
 		return 0, err
 	}
 	switch path.Ext() {
-	case "parquet":
+	case filestore.Parquet:
 		return getParquetNumRows(b)
 	default:
 		return 0, fmt.Errorf("unsupported file type")

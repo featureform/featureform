@@ -636,10 +636,12 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 		}
 		sources = newestFiles
 	}
+	fmt.Printf("Sources: %d found\n", len(sources))
+	fmt.Printf("Source extension %s\n", string(sources[0].Ext()))
 	switch sources[0].Ext() {
-	case "parquet":
+	case filestore.Parquet:
 		return newMultipleFileParquetIterator(sources, tbl.store, n)
-	case "csv":
+	case filestore.CSV:
 		if len(sources) > 1 {
 			return nil, fmt.Errorf("multiple CSV files found for table (%v)", tbl.id)
 		}

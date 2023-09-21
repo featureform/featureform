@@ -873,7 +873,7 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 		return fmt.Errorf("could not upload file: %v", err)
 	}
 
-	dfArgs := k8s.getDFArgs(filepath.ToURI(), transformationFilepath.ToURI(), config.SourceMapping, sources)
+	dfArgs := k8s.getDFArgs(filepath.ToURI(), transformationFilepath.Key(), config.SourceMapping, sources)
 	dfArgs = addResourceID(dfArgs, config.TargetTableID)
 	k8s.logger.Debugw("Running DF transformation", "target_table", config.TargetTableID)
 	args, err := k8s.checkArgs(config.Args)

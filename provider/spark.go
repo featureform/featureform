@@ -1343,7 +1343,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fmt.Errorf("could not get sources for df transformation. Error: %v", err)
 	}
 
-	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestination, pklFilepath.ToURI(), sources, spark.Store)
+	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestination, pklFilepath.Key(), sources, spark.Store)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark dataframe arguments", err)
 		return fmt.Errorf("error with getting df arguments %v", sparkArgs)

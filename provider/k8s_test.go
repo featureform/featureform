@@ -122,57 +122,11 @@ func TestBlobInterfaces(t *testing.T) {
 		"Test File Upload and Download": testFileUploadAndDownload,
 	}
 
-	err := godotenv.Load("../.env")
+	_ = godotenv.Load("../.env")
 
-	mydir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("could not get working directory")
-	}
-
-	directoryPath := fmt.Sprintf("%s/scripts/k8s/tests/test_files/output/go_tests", mydir)
-	_ = os.MkdirAll(directoryPath, os.ModePerm)
-
-	fileStoreConfig := pc.LocalFileStoreConfig{DirPath: fmt.Sprintf(`file:///%s`, directoryPath)}
-	serializedFileConfig, err := fileStoreConfig.Serialize()
-	if err != nil {
-		t.Fatalf("failed to serialize file store config: %v", err)
-	}
-	fileFileStore, err := NewLocalFileStore(serializedFileConfig)
-	if err != nil {
-		t.Fatalf("failed to create new file blob store: %v", err)
-	}
-
-	azureStoreConfig := &pc.AzureFileStoreConfig{
-		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
-		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
-		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
-		Path:          "testdirectory/testpath",
-	}
-	serializedAzureConfig, err := azureStoreConfig.Serialize()
-	if err != nil {
-		t.Fatalf("failed to serialize azure store config: %v", err)
-	}
-	azureFileStore, err := NewAzureFileStore(serializedAzureConfig)
-	if err != nil {
-		t.Fatalf("failed to create new azure blob store: %v", err)
-	}
-
-	hdfsConfig := pc.HDFSFileStoreConfig{
-		Host:     "localhost",
-		Port:     "9000",
-		Username: "hduser",
-	}
-
-	serializedHDFSConfig, err := hdfsConfig.Serialize()
-	if err != nil {
-		t.Fatalf("failed to create serialize hdfs blob store: %v", err)
-	}
-
-	hdfsFileStore, err := NewHDFSFileStore(serializedHDFSConfig)
-	if err != nil {
-		t.Fatalf("failed to create new hdfs blob store: %v", err)
-	}
-
+	fileFileStore := getLocalFileStore(t)
+	azureFileStore := getAzureFileStore(t, false)
+	hdfsFileStore := getHDFSFileStore(t, false)
 	blobProviders := map[string]FileStore{
 		"File":  fileFileStore,
 		"Azure": azureFileStore,

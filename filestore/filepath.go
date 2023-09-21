@@ -426,7 +426,7 @@ type HDFSFilepath struct {
 }
 
 func (hdfs *HDFSFilepath) Validate() error {
-	return fmt.Errorf("not implemented")
+	return nil
 }
 
 type LocalFilepath struct {

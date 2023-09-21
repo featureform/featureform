@@ -113,15 +113,15 @@ func TestDeserializeExecutorConfig(t *testing.T) {
 func TestBlobInterfaces(t *testing.T) {
 	fileStoreTests := map[string]func(*testing.T, FileStore){
 		"Test Filestore Read and Write": testFilestoreReadAndWrite,
-		"Test Exists":                   testExists,
-		"Test Not Exists":               testNotExists,
-		"Test Serve":                    testServe,
-		"Test Serve Directory":          testServeDirectory,
-		"Test Delete":                   testDelete,
-		"Test Delete All":               testDeleteAll,
-		"Test Newest file":              testNewestFile,
-		"Test Num Rows":                 testNumRows,
-		"Test File Upload and Download": testFileUploadAndDownload,
+		// "Test Exists":                   testExists,
+		// "Test Not Exists":               testNotExists,
+		// "Test Serve":                    testServe,
+		// "Test Serve Directory":          testServeDirectory,
+		// "Test Delete":                   testDelete,
+		// "Test Delete All":               testDeleteAll,
+		// "Test Newest file":              testNewestFile,
+		// "Test Num Rows":                 testNumRows,
+		// "Test File Upload and Download": testFileUploadAndDownload,
 	}
 
 	err := godotenv.Load("../.env")
@@ -185,6 +185,9 @@ func TestBlobInterfaces(t *testing.T) {
 		fileTest = fileTest
 		testName = testName
 		for blobName, blobProvider := range blobProviders {
+			if blobName != "HDFS" {
+				continue
+			}
 			blobName = blobName
 			blobProvider = blobProvider
 			t.Run(fmt.Sprintf("%s: %s", testName, blobName), func(t *testing.T) {

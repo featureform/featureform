@@ -719,7 +719,12 @@ func (fs *HDFSFileStore) CreateDirPath(key string) (filestore.Filepath, error) {
 // TODO: implement
 func (fs *HDFSFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 	fp := filestore.HDFSFilepath{}
-	// fp.SetKey(key)
+	if err := fp.SetScheme(filestore.HDFSPrefix); err != nil {
+		return nil, err
+	}
+	if err := fp.SetKey(key); err != nil {
+		return nil, err
+	}
 	// err := fp.Validate()
 	// if err != nil {
 	// 	return nil, err

@@ -121,7 +121,7 @@ func NewEmptyFilepath(storeType FileStoreType) (Filepath, error) {
 	//case DB:
 	//	return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
 	case HDFS:
-		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
+		return &HDFSFilepath{FilePath{isDir: false}}, nil
 	default:
 		return nil, fmt.Errorf("unknown store type '%s'", storeType)
 	}
@@ -142,7 +142,7 @@ func NewEmptyDirpath(storeType FileStoreType) (Filepath, error) {
 	//case DB:
 	//	return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
 	case HDFS:
-		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
+		return &HDFSFilepath{FilePath{isDir: true}}, nil
 	default:
 		return nil, fmt.Errorf("unknown store type '%s'", storeType)
 	}
@@ -426,6 +426,16 @@ type HDFSFilepath struct {
 }
 
 func (hdfs *HDFSFilepath) Validate() error {
+	if hdfs.scheme != HDFSPrefix {
+		return fmt.Errorf("invalid scheme '%s', must be '%s'", hdfs.scheme, HDFSPrefix)
+	}
+	if len(hdfs.key) == 0 {
+		return fmt.Errorf("key cannot be empty")
+	}
+	if !strings.HasPrefix(hdfs.key, "/") {
+		return fmt.Errorf("key must be an absolute path")
+	}
+
 	return nil
 }
 

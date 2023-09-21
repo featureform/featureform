@@ -113,15 +113,15 @@ func TestDeserializeExecutorConfig(t *testing.T) {
 func TestBlobInterfaces(t *testing.T) {
 	fileStoreTests := map[string]func(*testing.T, FileStore){
 		"Test Filestore Read and Write": testFilestoreReadAndWrite,
-		// "Test Exists":                   testExists,
-		// "Test Not Exists":               testNotExists,
-		// "Test Serve":                    testServe,
-		// "Test Serve Directory":          testServeDirectory,
-		// "Test Delete":                   testDelete,
-		// "Test Delete All":               testDeleteAll,
-		// "Test Newest file":              testNewestFile,
-		// "Test Num Rows":                 testNumRows,
-		// "Test File Upload and Download": testFileUploadAndDownload,
+		"Test Exists":                   testExists,
+		"Test Not Exists":               testNotExists,
+		"Test Serve":                    testServe,
+		"Test Serve Directory":          testServeDirectory,
+		"Test Delete":                   testDelete,
+		"Test Delete All":               testDeleteAll,
+		"Test Newest file":              testNewestFile,
+		"Test Num Rows":                 testNumRows,
+		"Test File Upload and Download": testFileUploadAndDownload,
 	}
 
 	err := godotenv.Load("../.env")
@@ -692,7 +692,7 @@ func testNewestFile(t *testing.T, store FileStore) {
 	}
 	expectedNewestFile := fmt.Sprintf("%s/%s.parquet", randomDirectory.ToURI(), randomKeyList[randomListLength-1])
 	if newestFile.ToURI() != expectedNewestFile {
-		t.Fatalf("Newest file did not retrieve actual newest file. Expected '%s', got '%s'", expectedNewestFile, newestFile)
+		t.Fatalf("Newest file did not retrieve actual newest file. Expected '%s', got '%s'", expectedNewestFile, newestFile.ToURI())
 	}
 	// cleanup test
 	if err := store.DeleteAll(randomDirectory); err != nil {

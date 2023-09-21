@@ -469,12 +469,9 @@ func NewHDFSFileStore(config Config) (FileStore, error) {
 		return nil, fmt.Errorf("could not create hdfs client: %v", err)
 	}
 
-	// TODO: add updated HDFS implementation
-	filepath := filestore.HDFSFilepath{}
-
 	return &HDFSFileStore{
 		Client: client,
-		Path:   filepath,
+		Path:   HDFSConfig.Path,
 		Host:   address, // authority (e.g. <host>:<port>)
 	}, nil
 }
@@ -482,7 +479,7 @@ func NewHDFSFileStore(config Config) (FileStore, error) {
 type HDFSFileStore struct {
 	Client *hdfs.Client
 	Host   string
-	Path   filestore.HDFSFilepath
+	Path   string
 }
 
 func (fs *HDFSFileStore) alreadyExistsError(err error) bool {
@@ -526,9 +523,6 @@ func (fs *HDFSFileStore) getFileWriter(path filestore.Filepath) (*hdfs.FileWrite
 }
 
 func (fs *HDFSFileStore) createFile(path filestore.Filepath) (*hdfs.FileWriter, error) {
-	if !path.IsDir() {
-		return fs.getFileWriter(path)
-	}
 	err := fs.Client.MkdirAll(path.KeyPrefix(), os.ModeDir)
 	if err != nil {
 		return nil, fmt.Errorf("could not create all: %v", err)
@@ -585,7 +579,6 @@ func (fs *HDFSFileStore) Serve(files []filestore.Filepath) (Iterator, error) {
 
 func (fs *HDFSFileStore) Exists(path filestore.Filepath) (bool, error) {
 	_, err := fs.Client.Stat(path.Key())
-	fmt.Println("CHECKING EXISTS", err)
 	if err != nil && strings.Contains(err.Error(), "file does not exist") {
 		return false, nil
 	} else if err != nil {
@@ -619,7 +612,11 @@ func (fs *HDFSFileStore) DeleteAll(dir filestore.Filepath) error {
 		return err
 	}
 	for _, file := range files {
-		if err := fs.deleteFile(file, dir); err != nil {
+		filePath, err := fs.CreateFilePath(fmt.Sprintf("%s/%s", dir.Key(), file.Name()))
+		if err != nil {
+			return fmt.Errorf("could not create file path: %v", err)
+		}
+		if err := fs.deleteFile(file, filePath); err != nil {
 			return fmt.Errorf("could not delete: %v", err)
 		}
 	}
@@ -657,15 +654,12 @@ func (hdfs *HDFSFileStore) NewestFileOfType(rootpath filestore.Filepath, fileTyp
 	if lastModName == "" {
 		return nil, fmt.Errorf("could not find file")
 	}
-	filepath, err := filestore.NewEmptyFilepath(filestore.HDFS)
+
+	filepath, err := hdfs.CreateFilePath(lastModName)
 	if err != nil {
 		return nil, err
 	}
-	// TODO: determine if this is actually correct
-	err = filepath.ParseFilePath(lastModName)
-	if err != nil {
-		return nil, err
-	}
+
 	return filepath, nil
 }
 
@@ -706,29 +700,32 @@ func (fs *HDFSFileStore) AddEnvVars(envVars map[string]string) map[string]string
 }
 
 func (fs *HDFSFileStore) CreateDirPath(key string) (filestore.Filepath, error) {
-	fp := filestore.HDFSFilepath{}
-	fp.SetKey(key)
-	fp.SetIsDir(true)
-	err := fp.Validate()
+	fp, err := fs.CreateFilePath(key)
 	if err != nil {
 		return nil, err
 	}
-	return &fp, nil
+	fp.SetIsDir(true)
+	return fp, nil
 }
 
-// TODO: implement
 func (fs *HDFSFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 	fp := filestore.HDFSFilepath{}
 	if err := fp.SetScheme(filestore.HDFSPrefix); err != nil {
 		return nil, err
 	}
-	if err := fp.SetKey(key); err != nil {
+
+	fullKey := fmt.Sprintf("/%s", strings.TrimPrefix(key, "/"))
+	if fs.Path != "" {
+		fullKey = fmt.Sprintf("/%s/%s", strings.TrimPrefix(fs.Path, "/"), strings.TrimPrefix(key, "/"))
+	}
+	if err := fp.SetKey(fullKey); err != nil {
 		return nil, err
 	}
-	// err := fp.Validate()
-	// if err != nil {
-	// 	return nil, err
-	// }
+	fp.SetIsDir(false)
+	err := fp.Validate()
+	if err != nil {
+		return nil, err
+	}
 	return &fp, nil
 }
 

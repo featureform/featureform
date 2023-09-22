@@ -14,18 +14,6 @@ type FileStoreConfig interface {
 
 type ExecutorType string
 
-type FileStoreType string
-
-const (
-	Memory     FileStoreType = "MEMORY"
-	FileSystem FileStoreType = "LOCAL_FILESYSTEM"
-	Azure      FileStoreType = "AZURE"
-	S3         FileStoreType = "S3"
-	GCS        FileStoreType = "GCS"
-	DB         FileStoreType = "db"
-	HDFS       FileStoreType = "HDFS"
-)
-
 type SerializedConfig []byte
 
 func differingFields(a, b interface{}) (ss.StringSet, error) {

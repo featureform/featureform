@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
+COPY ./filestore/ ./filestore/
 COPY ./provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
 COPY ./provider/scripts/spark/python_packages.sh /app/provider/scripts/spark/python_packages.sh
 COPY ./provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt

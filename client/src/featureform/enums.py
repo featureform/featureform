@@ -103,6 +103,9 @@ class SourceType(str, Enum):
 class FilePrefix(Enum):
     S3 = "s3://"
     S3A = "s3a://"
+    HDFS = "hdfs://"
+    GCS = "gs://"
+    AZURE = "abfss://"
 
 
 class FileFormat(str, Enum):

@@ -89,7 +89,7 @@ def test_register_s3():
     result = reg.register_s3(
         name="quickstart",
         credentials=fake_creds,
-        bucket_path="path",
+        bucket_name="path",
         bucket_region="region",
         path="/path",
         description="desc",
@@ -322,7 +322,7 @@ def test_register_spark():
     s3 = reg.register_s3(
         name="quickstart",
         credentials=aws_creds,
-        bucket_path="/path",
+        bucket_name="/path",
         bucket_region="/region",
         path="/path",
     )
@@ -347,7 +347,7 @@ def test_register_k8s():
     s3 = reg.register_s3(
         name="quickstart",
         credentials=aws_creds,
-        bucket_path="/path",
+        bucket_name="/path",
         bucket_region="/region",
         path="/path",
     )

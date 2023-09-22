@@ -2439,19 +2439,17 @@ class Registrar:
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, azure_config, "AZURE")
 
-    # TODO: Add deprecated warning for bucket_path
     def register_s3(
         self,
         name: str,
         credentials: AWSCredentials,
         bucket_region: str,
-        path: str,
-        bucket_name: str = "",
+        bucket_name: str,
+        path: str = "",
         description: str = "",
         team: str = "",
         tags: List[str] = [],
         properties: dict = {},
-        bucket_path: str = "",
     ):
         """Register a S3 store provider.
 
@@ -2487,10 +2485,8 @@ class Registrar:
         """
         tags, properties = set_tags_properties(tags, properties)
 
-        if bucket_path == "" and bucket_name == "":
+        if bucket_name == "":
             raise ValueError("bucket_name required")
-        if bucket_name == "" and bucket_path != "":
-            bucket_name = bucket_path
 
         s3_config = S3StoreConfig(
             bucket_path=bucket_name,

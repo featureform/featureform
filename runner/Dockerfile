@@ -16,6 +16,7 @@ COPY ./metadata/proto/metadata.proto ./metadata/proto/metadata.proto
 RUN apk update && apk add protobuf-dev && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest && go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 ENV PATH /go/bin:$PATH
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
+COPY ./filestore/ ./filestore/
 COPY runner/*.go ./runner/
 COPY runner/worker/*.go ./runner/worker/
 COPY coordinator/*.go ./coordinator/
@@ -42,22 +43,22 @@ COPY ./provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requi
 
 # Installing pyenv
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    checkinstall \
-    libncursesw5-dev \
-    libssl-dev \
-    libsqlite3-dev \
-    libgdbm-dev \
-    libc6-dev \
-    libbz2-dev \
-    libffi-dev \
-    zlib1g-dev \
-    liblzma-dev \
-    curl \
-    git \
-    wget \
-    openjdk-8-jdk \
-    && rm -rf /var/lib/apt/lists/*
+  build-essential \
+  checkinstall \
+  libncursesw5-dev \
+  libssl-dev \
+  libsqlite3-dev \
+  libgdbm-dev \
+  libc6-dev \
+  libbz2-dev \
+  libffi-dev \
+  zlib1g-dev \
+  liblzma-dev \
+  curl \
+  git \
+  wget \
+  openjdk-8-jdk \
+  && rm -rf /var/lib/apt/lists/*
 
 ENV ENV="/root/.bashrc"
 ENV PYENV_ROOT="/.pyenv"
@@ -67,16 +68,16 @@ RUN echo "PATH=${PATH}" > "${ENV}"
 RUN curl https://pyenv.run | bash
 
 # Install Python versions
-ARG TESTING
-RUN if [ "$TESTING" = "True" ]; then \
-    pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
-  else \
-    pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-    pyenv install 3.8.16 && pyenv global 3.8.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-    pyenv install 3.9.16 && pyenv global 3.9.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-    pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-    pyenv install 3.11.2 && pyenv global 3.11.2 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
-  fi
+# ARG TESTING
+# RUN if [ "$TESTING" = "True" ]; then \
+#   pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
+#   else \
+#   pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+#   pyenv install 3.8.16 && pyenv global 3.8.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+#   pyenv install 3.9.16 && pyenv global 3.9.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+RUN  pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt
+#   pyenv install 3.11.2 && pyenv global 3.11.2 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
+#   fi
 
 ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
 ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"

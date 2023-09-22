@@ -154,6 +154,10 @@ func (MockPrimaryTable) Write(GenericRecord) error {
 	return nil
 }
 
+func (MockPrimaryTable) WriteBatch([]GenericRecord) error {
+	return nil
+}
+
 func (M MockUnitTestOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
 	return MockPrimaryTable{}, nil
 }
@@ -226,6 +230,10 @@ func (m MockUnitTestOfflineStore) CreateMaterialization(id ResourceID) (Material
 type MockOfflineTable struct{}
 
 func (m MockOfflineTable) Write(ResourceRecord) error {
+	return nil
+}
+
+func (m MockOfflineTable) WriteBatch([]ResourceRecord) error {
 	return nil
 }
 

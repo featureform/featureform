@@ -148,20 +148,6 @@ func TestOnlineStores(t *testing.T) {
 		return *dynamoConfig
 	}
 
-	blobAzureInit := func() pc.OnlineBlobConfig {
-		azureConfig := pc.AzureFileStoreConfig{
-			AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
-			AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
-			ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", "newcontainer"),
-			Path:          "featureform/onlinetesting",
-		}
-		blobConfig := &pc.OnlineBlobConfig{
-			Type:   pc.Azure,
-			Config: azureConfig,
-		}
-		return *blobConfig
-	}
-
 	mongoDBInit := func() pc.MongoDBConfig {
 		mongoConfig := &pc.MongoDBConfig{
 			Host:       helpers.GetEnv("MONGODB_HOST", ""),
@@ -198,9 +184,6 @@ func TestOnlineStores(t *testing.T) {
 	}
 	if *provider == "dynamo" || *provider == "" {
 		testList = append(testList, testMember{pt.DynamoDBOnline, "", dynamoInit().Serialized(), true})
-	}
-	if *provider == "azure_blob" || *provider == "" {
-		testList = append(testList, testMember{pt.BlobOnline, "_AZURE", blobAzureInit().Serialized(), true})
 	}
 	if *provider == "mongodb" || *provider == "" {
 		testList = append(testList, testMember{pt.MongoDBOnline, "", mongoDBInit().Serialized(), true})

@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	pb "go.etcd.io/etcd/api/v3/etcdserverpb"
-	"go.etcd.io/etcd/api/v3/mvccpb"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"io/ioutil"
 	"testing"
 	"time"
+
+	pb "go.etcd.io/etcd/api/v3/etcdserverpb"
+	"go.etcd.io/etcd/api/v3/mvccpb"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 func TestGenerateSnapshotName(t *testing.T) {

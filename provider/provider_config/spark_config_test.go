@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	filestore "github.com/featureform/filestore"
 	ss "github.com/featureform/helpers/string_set"
 )
 
@@ -22,7 +23,7 @@ func TestSparkConfigMutableFields(t *testing.T) {
 					ClusterRegion: "us-east-1",
 					ClusterName:   "featureform-clst",
 				},
-				StoreType: S3,
+				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
 					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
@@ -46,7 +47,7 @@ func TestSparkConfigMutableFields(t *testing.T) {
 					Cluster:  "1115-164516-often242",
 					Token:    "dapi1234567890ab1cde2f3ab456c7d89efa",
 				},
-				StoreType: Azure,
+				StoreType: filestore.Azure,
 				StoreConfig: &AzureFileStoreConfig{
 					AccountName:   "featureform-str",
 					AccountKey:    "secret-account-key",
@@ -92,7 +93,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					ClusterRegion: "us-east-1",
 					ClusterName:   "featureform-clst",
 				},
-				StoreType: S3,
+				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
 					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
@@ -107,7 +108,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					ClusterRegion: "us-east-1",
 					ClusterName:   "featureform-clst",
 				},
-				StoreType: S3,
+				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
 					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
@@ -124,7 +125,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					ClusterRegion: "us-east-1",
 					ClusterName:   "featureform-clst",
 				},
-				StoreType: S3,
+				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
 					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
@@ -139,7 +140,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					ClusterRegion: "us-west-2",
 					ClusterName:   "featureform-clst",
 				},
-				StoreType: S3,
+				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
 					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
 					BucketRegion: "us-west-2",
@@ -163,7 +164,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 						Cluster:  "1115-164516-often242",
 						Token:    "dapi1234567890ab1cde2f3ab456c7d89efa",
 					},
-					StoreType: Azure,
+					StoreType: filestore.Azure,
 					StoreConfig: &AzureFileStoreConfig{
 						AccountName:   "featureform-str",
 						AccountKey:    "secret-account-key",
@@ -180,7 +181,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 						Cluster:  "1115-164516-often242",
 						Token:    "dapi1234567890ab1cde2f3ab456c7d89efa",
 					},
-					StoreType: Azure,
+					StoreType: filestore.Azure,
 					StoreConfig: &AzureFileStoreConfig{
 						AccountName:   "featureform-str",
 						AccountKey:    "secret-account-key",
@@ -202,7 +203,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 						Cluster:  "1115-164516-often242",
 						Token:    "dapi1234567890ab1cde2f3ab456c7d89efa",
 					},
-					StoreType: Azure,
+					StoreType: filestore.Azure,
 					StoreConfig: &AzureFileStoreConfig{
 						AccountName:   "featureform-str",
 						AccountKey:    "secret-account-key",
@@ -219,7 +220,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 						Cluster:  "1115-164516-often242",
 						Token:    "dapi1234567890ab1cde2f3ab456c7d89efa",
 					},
-					StoreType: Azure,
+					StoreType: filestore.Azure,
 					StoreConfig: &AzureFileStoreConfig{
 						AccountName:   "featureform-store",
 						AccountKey:    "secret-account-key2",
@@ -241,7 +242,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					Master:     "my.spark.cluster.io:7077",
 					DeployMode: "cluster",
 				},
-				StoreType: S3,
+				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
 					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
@@ -255,7 +256,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					Master:     "my.spark.cluster.io:7077",
 					DeployMode: "cluster",
 				},
-				StoreType: S3,
+				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
 					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
@@ -271,7 +272,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					Master:     "my.spark.cluster.io:7077",
 					DeployMode: "cluster",
 				},
-				StoreType: S3,
+				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
 					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
@@ -285,7 +286,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					Master:     "my.other.spark.cluster.io:7077",
 					DeployMode: "cluster",
 				},
-				StoreType: S3,
+				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
 					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
 					BucketRegion: "us-west-2",
@@ -305,7 +306,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					ClusterRegion: "us-east-1",
 					ClusterName:   "featureform-clst",
 				},
-				StoreType: S3,
+				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
 					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
@@ -322,7 +323,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					Cluster:  "1115-164516-often242",
 					Token:    "dapi1234567890ab1cde2f3ab456c7d89efa",
 				},
-				StoreType: S3,
+				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
 					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
 					BucketRegion: "us-west-2",
@@ -339,7 +340,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					ClusterRegion: "us-east-1",
 					ClusterName:   "featureform-clst",
 				},
-				StoreType: S3,
+				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
 					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
@@ -354,7 +355,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 					ClusterRegion: "us-west-2",
 					ClusterName:   "featureform-clst",
 				},
-				StoreType: Azure,
+				StoreType: filestore.Azure,
 				StoreConfig: &AzureFileStoreConfig{
 					AccountName:   "featureform-str",
 					AccountKey:    "secret-account-key",

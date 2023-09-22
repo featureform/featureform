@@ -349,7 +349,6 @@ def hosted_sql_provider_and_source():
             user="postgres",
             password="password",
             database="postgres",
-            sslmode="disable",
             description="A Postgres deployment we created for the Featureform quickstart",
         )
 

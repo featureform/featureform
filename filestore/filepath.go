@@ -86,7 +86,7 @@ type Filepath interface {
 	Key() string
 	SetKey(key string) error
 
-	// Returns the key prefix (i.e. the directory path to the object)
+	// Returns all but the last element in the key (i.e. the directory path)
 	KeyPrefix() string
 
 	IsDir() bool

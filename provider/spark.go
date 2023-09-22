@@ -600,7 +600,6 @@ func (q defaultPythonOfflineQueries) trainingSetCreate(def TrainingSetDef, featu
 	joinQueries := make([]string, 0)
 	feature_timestamps := make([]string, 0)
 	for i, feature := range def.Features {
-		fmt.Printf("%d feature: %v\n", i, featureSchemas[i].Entity)
 		featureColumnName := createQuotedIdentifier(feature)
 		columns = append(columns, featureColumnName)
 		var featureWindowQuery string
@@ -1315,12 +1314,11 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fmt.Errorf("could not create directory path for spark transformation: %v", err)
 	}
 
-	transformationFilepath, err := spark.Store.NewestFileOfType(transformationDirPath, filestore.Parquet)
+	transformationExists, err := spark.Store.Exists(transformationDirPath)
 	if err != nil {
 		return fmt.Errorf("error checking if transformation file exists")
 	}
-	spark.Logger.Infow("Transformation file", "dest", transformationFilepath.ToURI())
-	transformationExists := transformationFilepath.Key() != ""
+	spark.Logger.Infow("Transformation file", "dest", transformationDirPath.ToURI())
 	if !isUpdate && transformationExists {
 		spark.Logger.Errorw("Transformation already exists", config.TargetTableID, transformationDestination.ToURI())
 		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination.ToURI())
@@ -1442,7 +1440,11 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 			spark.Logger.Errorf("transformation file does not exist: %s", transformationPath.ToURI())
 			return "", fmt.Errorf("transformation file does not exist: %s", transformationPath.ToURI())
 		}
-		return transformationPath.ToURI(), nil
+		transformationDirPathDateTime, err := spark.Store.CreateDirPath(transformationPath.KeyPrefix())
+		if err != nil {
+			return "", fmt.Errorf("could not create directory path for spark transformation: %v", err)
+		}
+		return transformationDirPathDateTime.ToURI(), nil
 	} else {
 		return filePath, fmt.Errorf("could not find path for %s; fileType: %s, fileName: %s, fileVariant: %s", path, fileType, fileName, fileVariant)
 	}
@@ -1603,7 +1605,7 @@ func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSc
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	// Create a URL in the same directory as the primary table that follows the naming convention <VARIANT>_src.parquet
-	schema.SourceTable = fmt.Sprintf("%s/%s/src.parquet", primaryTableFilepath.ToURI(), time.Now().Format("2006-01-02-15-04-05"))
+	schema.SourceTable = fmt.Sprintf("%s/%s/src.parquet", primaryTableFilepath.ToURI(), time.Now().Format("2006-01-02-15-04-05-999999"))
 	data, err := schema.Serialize()
 	if err != nil {
 		return nil, err
@@ -1726,13 +1728,25 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		return nil, fmt.Errorf("could not parse full path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)
 	}
 	spark.Logger.Debugw("Parsed source table path:", "sourceTablePath", sourcePath.ToURI(), "sourceTable", sparkResourceTable.schema.SourceTable)
-	// TODO: Handle case where there are multiple files in the source table
-	latestSourcePath, err := spark.Store.NewestFileOfType(sourcePath, filestore.Parquet)
+	// TODO: Refactor this into a separate method
+	sourceFiles, err := spark.Store.List(sourcePath, filestore.Parquet)
 	if err != nil {
 		return nil, fmt.Errorf("could not get latest source file: %v", err)
 	}
-	spark.Logger.Debugw("Fetched newest file of type", "latestSourcePath", latestSourcePath.ToURI(), "fileType", filestore.Parquet)
-	sparkArgs, err := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, []string{latestSourcePath.ToURI()}, Materialize, spark.Store)
+	groups, err := filestore.NewFilePathGroup(sourceFiles, filestore.DateTimeDirectoryGrouping)
+	if err != nil {
+		return nil, fmt.Errorf("could not get datetime directory grouping for source files: %v", err)
+	}
+	newest, err := groups.GetFirst()
+	if err != nil {
+		return nil, fmt.Errorf("could not get newest source file: %v", err)
+	}
+	sourceUris := make([]string, len(newest))
+	for i, sourceFile := range newest {
+		sourceUris[i] = sourceFile.ToURI()
+	}
+	spark.Logger.Debugw("Fetched source files of type", "latestSourcePath", sourcePath.ToURI(), "fileFound", len(newest), "fileType", filestore.Parquet)
+	sparkArgs, err := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, sourceUris, Materialize, spark.Store)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err)
 		return nil, fmt.Errorf("error with getting spark submit arguments %v", sparkArgs)
@@ -1746,21 +1760,17 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		spark.Logger.Errorw("Spark submit job failed to run", "error", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
 	}
-	materializationFilepath, err := spark.Store.NewestFileOfType(destinationPath, filestore.Parquet)
-	if err != nil {
-		return nil, fmt.Errorf("could not get newest materialization file: %v", err)
-	}
-	exists, err := spark.Store.Exists(materializationFilepath)
+	exists, err := spark.Store.Exists(destinationPath)
 	if err != nil {
 		spark.Logger.Errorf("could not check if materialization file exists: %v", err)
 		return nil, fmt.Errorf("could not check if materialization file exists: %v", err)
 	}
 	if !exists {
-		spark.Logger.Errorf("materialization file does not exist: %s", materializationFilepath.ToURI())
-		return nil, fmt.Errorf("materialization file does not exist: %s", materializationFilepath.ToURI())
+		spark.Logger.Errorf("materialization not found in directory: %s", destinationPath.ToURI())
+		return nil, fmt.Errorf("materialization not found in directory: %s", destinationPath.ToURI())
 	}
 	spark.Logger.Debugw("Successfully created materialization", "id", id)
-	return &FileStoreMaterialization{materializationID, spark.Store, materializationFilepath.Key()}, nil
+	return &FileStoreMaterialization{materializationID, spark.Store}, nil
 }
 
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
@@ -1870,25 +1880,27 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
+
 	sparkArgs, err := spark.Executor.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet, spark.Store)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err)
 		return fmt.Errorf("error with getting spark submit arguments %v", sparkArgs)
 	}
+
 	spark.Logger.Debugw("Creating training set", "definition", def)
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Spark submit training set job failed to run", "definition", def.ID, "error", err)
 		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
 	}
-	newestTrainingSet, err := spark.Store.NewestFileOfType(destinationPath, filestore.Parquet)
+	trainingSetExists, err = spark.Store.Exists(destinationPath)
 	if err != nil {
 		return fmt.Errorf("could not check that training set was created: %v", err)
 	}
-	if newestTrainingSet.ToURI() == "" {
+	if !trainingSetExists {
 		spark.Logger.Errorw("Could not get training set resource key in offline store")
 		return fmt.Errorf("training Set result does not exist in offline store")
 	}
-	spark.Logger.Debugw("Successfully created training set", "definition", def, "newestTrainingSet", newestTrainingSet.ToURI())
+	spark.Logger.Debugw("Successfully created training set", "definition", def, "newestTrainingSet", destinationPath.ToURI())
 	return nil
 }
 

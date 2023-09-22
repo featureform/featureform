@@ -231,10 +231,12 @@ func parquetIteratorOverMultipleFiles(fileParts []filestore.Filepath, store File
 		return nil, fmt.Errorf("could not open first parquet file: %w", err)
 	}
 	return &ParquetIteratorMultipleFiles{
-		fileList:     fileParts,
-		currentIndex: int64(0),
-		fileIterator: iterator,
-		store:        store,
+		fileList:       fileParts,
+		currentIndex:   int64(0),
+		fileIterator:   iterator,
+		store:          store,
+		featureColumns: iterator.FeatureColumns(),
+		labelColumn:    iterator.LabelColumn(),
 	}, nil
 }
 

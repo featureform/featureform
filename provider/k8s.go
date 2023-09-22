@@ -1128,23 +1128,13 @@ func fileStoreGetMaterialization(id MaterializationID, store FileStore, logger *
 	}
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	logger.Debugw("Getting materialization", "id", id)
-	materializationFilepath, err := store.CreateFilePath(fileStoreResourcePath(materializationID))
-	if err != nil {
-		return nil, fmt.Errorf("could not create file path: %w", err)
-	}
-	materializationExactPath, err := store.NewestFileOfType(materializationFilepath, filestore.Parquet)
-	if err != nil {
-		logger.Errorw("Could not fetch materialization resource key", "error", err)
-		return nil, fmt.Errorf("could not fetch materialization resource key: %v", err)
-	}
 	logger.Debugw("Successfully retrieved materialization", "id", id)
-	return &FileStoreMaterialization{materializationID, store, materializationExactPath.Key()}, nil
+	return &FileStoreMaterialization{materializationID, store}, nil
 }
 
 type FileStoreMaterialization struct {
 	id    ResourceID
 	store FileStore
-	key   string
 }
 
 func (mat FileStoreMaterialization) ID() MaterializationID {
@@ -1160,6 +1150,7 @@ func (mat FileStoreMaterialization) NumRows() (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("could not get materialization num rows; %v", err)
 	}
+	// TODO: convert NumRows to accept a list of files to get a total count
 	return mat.store.NumRows(latestMaterializationPath)
 }
 
@@ -1354,7 +1345,7 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 	}
 
 	k8s.logger.Debugw("Successfully created materialization", "id", id)
-	return &FileStoreMaterialization{materializationID, k8s.store, materializationNewestFile.Key()}, nil
+	return &FileStoreMaterialization{materializationID, k8s.store}, nil
 }
 
 func (k8s *K8sOfflineStore) DeleteMaterialization(id MaterializationID) error {

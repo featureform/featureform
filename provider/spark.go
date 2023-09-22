@@ -554,17 +554,17 @@ func (q defaultPythonOfflineQueries) materializationCreate(schema ResourceSchema
 		// 3. Joining the max row number back to the original table and selecting only the rows with the max row number - final select
 		return fmt.Sprintf(`WITH ordered_rows AS (
 				SELECT 
-					%s as entity,
-					%s as value,
-					-- 0 as ts, -- TODO: determine if we even need to add this zeroed-out timestamp column
-					ROW_NUMBER() over (PARTITION BY entity ORDER BY (SELECT NULL)) as row_number
+					%s AS entity,
+					%s AS value,
+					-- 0 AS ts, -- TODO: determine if we even need to add this zeroed-out timestamp column
+					ROW_NUMBER() over (PARTITION BY %s ORDER BY (SELECT NULL)) AS row_number
 				FROM
 					source_0
 			),
 			max_row_per_entity AS (
 				SELECT 
-					entity as entity,
-					MAX(row_number) as max_row
+					entity,
+					MAX(row_number) AS max_row
 				FROM
 					ordered_rows
 				GROUP BY
@@ -579,7 +579,7 @@ func (q defaultPythonOfflineQueries) materializationCreate(schema ResourceSchema
 			JOIN ordered_rows ord
 				ON ord.entity = maxr.entity AND ord.row_number = maxr.max_row
 			ORDER BY
-				maxr.max_row DESC`, schema.Entity, schema.Value)
+				maxr.max_row DESC`, schema.Entity, schema.Value, schema.Entity)
 	}
 	return fmt.Sprintf(
 		"SELECT entity, value, ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number, rn2 FROM "+

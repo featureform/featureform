@@ -128,7 +128,6 @@ func (p *multipleFileParquetIterator) Next() bool {
 		p.idx += 1
 		return true
 	}
-
 	err := p.iterator.Err()
 	if err != nil {
 		p.err = err
@@ -137,12 +136,16 @@ func (p *multipleFileParquetIterator) Next() bool {
 	if p.fileIdx >= int64(len(p.files)) {
 		return false
 	}
+	if p.idx >= p.limit {
+		return false
+	}
 	b, err := p.store.Read(p.files[p.fileIdx])
 	if err != nil {
 		p.err = err
 		return false
 	}
-	iterator, err := newParquetIterator(b, p.limit)
+	updatedLimit := p.limit - p.idx
+	iterator, err := newParquetIterator(b, updatedLimit)
 	if err != nil {
 		p.err = err
 		return false

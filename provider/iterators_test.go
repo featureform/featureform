@@ -122,14 +122,18 @@ func TestMultipleFileParquetIterator(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error creating iterator: %v", err)
 			}
-			for _, expected := range test.Expected {
+			records := make([]GenericRecord, 0)
+			for {
 				if !iterator.Next() {
-					t.Fatalf("expected more records")
+					break
 				}
-				actual := iterator.Values()
-				if !reflect.DeepEqual(actual, expected) {
-					t.Fatalf("expected %v, got %v", expected, actual)
-				}
+				records = append(records, iterator.Values())
+			}
+			if len(records) != len(test.Expected) {
+				t.Fatalf("expected %d records, got %d", len(test.Expected), len(records))
+			}
+			if !reflect.DeepEqual(records, test.Expected) {
+				t.Fatalf("expected %v, got %v", test.Expected, records)
 			}
 			if err := iterator.Err(); err != nil {
 				t.Fatalf("expected no error, got %v", err)

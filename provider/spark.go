@@ -557,13 +557,13 @@ func (q defaultPythonOfflineQueries) materializationCreate(schema ResourceSchema
 					%s as entity,
 					%s as value,
 					-- 0 as ts, -- TODO: determine if we even need to add this zeroed-out timestamp column
-					ROW_NUMBER() over (PARTITION BY Entity ORDER BY (SELECT NULL)) as row_number
+					ROW_NUMBER() over (PARTITION BY entity ORDER BY (SELECT NULL)) as row_number
 				FROM
 					source_0
 			),
 			max_row_per_entity AS (
 				SELECT 
-					Entity as entity,
+					entity as entity,
 					MAX(row_number) as max_row
 				FROM
 					ordered_rows
@@ -577,7 +577,7 @@ func (q defaultPythonOfflineQueries) materializationCreate(schema ResourceSchema
 			FROM
 				max_row_per_entity maxr
 			JOIN ordered_rows ord
-				ON ord.entity = maxr.Entity AND ord.row_number = maxr.max_row
+				ON ord.entity = maxr.entity AND ord.row_number = maxr.max_row
 			ORDER BY
 				maxr.max_row DESC`, schema.Entity, schema.Value)
 	}

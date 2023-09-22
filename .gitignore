@@ -49,7 +49,3 @@ snapshot.json
 # Offline Tests
 provider/generic_records_*.parquet
 provider/part-000*.parquet
-
-# Test Requirements:
-tls.crt
-transactions.csv

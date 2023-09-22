@@ -697,7 +697,7 @@ func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLo
 		return nil, fmt.Errorf("error checking if source exists: %v", err)
 	}
 	if !storeExists {
-		return nil, fmt.Errorf("source table does not exist in file store: %s", sourceFilePath.ToURI())
+		return nil, fmt.Errorf("source table does not exist")
 	}
 
 	filepath, err := store.CreateFilePath(id.ToFilestorePath())
@@ -1219,11 +1219,11 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 	timestamp := time.UnixMilli(0).UTC()
 	ts, hasTimestamp := nextVal["ts"]
 	if hasTimestamp {
-		if castedTS, err := castToTimestamp(ts); err != nil {
-			iter.err = err
+		if ts, ok := ts.(time.Time); !ok {
+			iter.err = fmt.Errorf("expected timestamp to be of type time.Time, but got %T", ts)
 			return false
 		} else {
-			timestamp = castedTS
+			timestamp = ts
 		}
 	}
 	rec := ResourceRecord{
@@ -1236,14 +1236,6 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 	}
 	iter.cur = rec
 	return true
-}
-
-func castToTimestamp(timestamp interface{}) (time.Time, error) {
-	if ts, ok := timestamp.(time.Time); !ok {
-		return time.UnixMilli(0).UTC(), fmt.Errorf("expected timestamp to be of type time.Time, but got %T", timestamp)
-	} else {
-		return ts, nil
-	}
 }
 
 // Attempts to parse value in one of the following formats:

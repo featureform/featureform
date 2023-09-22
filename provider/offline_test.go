@@ -159,7 +159,7 @@ func TestOfflineStores(t *testing.T) {
 		return serialBQConfig, bigQueryConfig
 	}
 
-	_ = func(t *testing.T, executorType pc.SparkExecutorType, storeType fs.FileStoreType) (pc.SerializedConfig, pc.SparkConfig) {
+	sparkInit := func(t *testing.T, executorType pc.SparkExecutorType, storeType fs.FileStoreType) (pc.SerializedConfig, pc.SparkConfig) {
 		var executorConfig pc.SparkExecutorConfig
 
 		switch executorType {
@@ -291,21 +291,18 @@ func TestOfflineStores(t *testing.T) {
 	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.GCS)
 	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
 	// }
-	// TODO: Uncomments when databricks test is fixed
-	//if *provider == "spark-databricks-s3" || *provider == "" {
-	//	serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.S3)
-	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	//}
-	// TODO: Uncomments when abs test is fixed
-	//if *provider == "spark-databricks-abs" || *provider == "" {
-	//	serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.Azure)
-	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	//}
-	// TODO: Uncomment when EMR can be configured to run these tests quicker. Currently taking > 60 minutes.
-	//if *provider == "spark-emr-s3" || *provider == "" {
-	//	serialSparkConfig, _ := sparkInit(t, pc.EMR, fs.S3)
-	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	//}
+	if *provider == "spark-databricks-s3" || *provider == "" {
+		serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.S3)
+		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	}
+	if *provider == "spark-databricks-abs" || *provider == "" {
+		serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.Azure)
+		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	}
+	if *provider == "spark-emr-s3" || *provider == "" {
+		serialSparkConfig, _ := sparkInit(t, pc.EMR, fs.S3)
+		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	}
 
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
@@ -3750,7 +3747,7 @@ func modifyTransformationConfig(t *testing.T, testName, tableName string, provid
 		// In contrast to the SQL provider, that only needed change is the table name to perform the required transformation configuration,
 		// The Spark implementation needs to update the source mappings to ensure the source file is used in the transformation query.
 		config.SourceMapping[0].Source = tableName
-	case pt.MemoryOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.MySqlOffline, pt.SnowflakeOffline, pt.RedshiftOffline:
+	case pt.MemoryOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.SnowflakeOffline, pt.RedshiftOffline:
 		tableName := getTableName(testName, tableName)
 		config.Query = strings.Replace(config.Query, "tb", tableName, 1)
 	default:

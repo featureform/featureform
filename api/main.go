@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/featureform/logging"
 	"io"
 	"net"
 	"net/http"
@@ -843,7 +844,7 @@ func main() {
 	apiConn := fmt.Sprintf("0.0.0.0:%s", apiPort)
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	servingConn := fmt.Sprintf("%s:%s", servingHost, servingPort)
-	logger := zap.NewExample().Sugar()
+	logger := logging.NewLogger("api")
 	go func() {
 		err := startHttpsServer(":8443")
 		if err != nil && err != http.ErrServerClosed {

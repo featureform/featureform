@@ -254,11 +254,6 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
     }
   });
 
-  if (metadata['source']) {
-    metadata['source'] = metadata['source'].Name;
-    metadata['source-variant'] = metadata['source'].Variant;
-  }
-
   function getFormattedSQL(sqlString = '') {
     let stringResult = sqlString;
     try {
@@ -311,7 +306,8 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
   };
 
   const linkToPrimaryData = () => {
-    router.push(`/sources/${metadata['source']}`);
+    setVariant('Source', metadata['source'].Name, metadata['source'].Variant);
+    router.push(`/sources/${metadata['source'].Name}`);
   };
 
   const linkToLabel = () => {
@@ -527,7 +523,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                       </Typography>
                     )}
 
-                    {metadata['source'] && (
+                    {metadata['source']?.Name && (
                       <div className={classes.linkBox}>
                         <Typography
                           variant='body1'
@@ -540,7 +536,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                           className={classes.linkChip}
                           size='small'
                           onClick={linkToPrimaryData}
-                          label={metadata['source']}
+                          label={metadata['source'].Name}
                         ></Chip>
                       </div>
                     )}

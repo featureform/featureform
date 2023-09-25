@@ -1,5 +1,7 @@
 import pandas as pd
-from typing import Union
+from typing import Union, Optional
+
+from featureform import get_run
 
 from .constants import NO_RECORD_LIMIT
 from .names_generator import get_random_name
@@ -53,7 +55,7 @@ class Client(ResourceClient, ServingClient):
     def dataframe(
         self,
         source: Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str],
-        variant: Union[str, None] = None,
+        variant: Optional[str] = None,
         limit=NO_RECORD_LIMIT,
         asynchronous=False,
     ):
@@ -88,7 +90,7 @@ class Client(ResourceClient, ServingClient):
             raise ValueError(
                 f"source must be of type SourceRegistrar, LocalSource, SubscriptableTransformation or str, not {type(source)}"
             )
-        variant = get_random_name() if variant is None else variant
+        variant = get_run() if variant is None else variant
         return self.impl._get_source_as_df(name, variant, limit)
 
     def nearest(self, feature, vector, k):

@@ -220,6 +220,7 @@ type OfflineStore interface {
 	CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error)
 	GetResourceTable(id ResourceID) (OfflineTable, error)
 	CreateMaterialization(id ResourceID) (Materialization, error)
+	JoinFeatureTables(tables []ResourceID) error
 	GetMaterialization(id MaterializationID) (Materialization, error)
 	UpdateMaterialization(id ResourceID) (Materialization, error)
 	DeleteMaterialization(id MaterializationID) error
@@ -254,6 +255,13 @@ type Materialization interface {
 }
 
 type FeatureIterator interface {
+	Next() bool
+	Value() ResourceRecord
+	Err() error
+	Close() error
+}
+
+type BatchFeatureIterator interface {
 	Next() bool
 	Value() ResourceRecord
 	Err() error
@@ -434,6 +442,11 @@ func (recs materializedRecords) Swap(i, j int) {
 	recs[i], recs[j] = recs[j], recs[i]
 }
 
+func (store *memoryOfflineStore) JoinFeatureTables(tables []ResourceID) error {
+	return nil
+}
+
+// memoryOfflineStore is not exposed to the users
 func (store *memoryOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
 	if id.Type != Feature {
 		return nil, errors.New("only features can be materialized")
@@ -448,6 +461,7 @@ func (store *memoryOfflineStore) CreateMaterialization(id ResourceID) (Materiali
 		matData = append(matData, matRec)
 	}
 	sort.Sort(matData)
+	// Might be used for testing
 	matId := MaterializationID(uuid.NewString())
 	mat := &memoryMaterialization{
 		id:   matId,

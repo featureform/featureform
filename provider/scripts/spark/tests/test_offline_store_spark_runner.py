@@ -15,7 +15,7 @@ from offline_store_spark_runner import (
     split_key_value,
     get_credentials_dict,
     delete_file,
-    dill_exception,
+    check_dill_exception,
 )
 
 
@@ -173,7 +173,7 @@ def test_split_key_value():
         (Exception("generic error"), "generic_error"),
     ],
 )
-def test_dill_exception(exception_message, error, request):
+def test_check_dill_exception(exception_message, error, request):
     expected_error = request.getfixturevalue(error)
-    error = dill_exception(exception_message)
+    error = check_dill_exception(exception_message)
     assert str(error) == str(expected_error)

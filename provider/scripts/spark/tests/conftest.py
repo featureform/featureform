@@ -263,7 +263,7 @@ def container_client():
 def dill_python_version_error():
     version = sys.version_info
     python_version = f"{version.major}.{version.minor}.{version.micro}"
-    error_message = f"""DF Transformations require the same Python versions for both the client and provider. Please use Python '{python_version}' to run this job."""
+    error_message = f"""This error is most likely caused by different Python versions between the client and Spark provider. Check to see if you are running Python version '{python_version}' on the client."""
     return Exception(error_message)
 
 

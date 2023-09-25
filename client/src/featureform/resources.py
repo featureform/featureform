@@ -146,8 +146,8 @@ class WeaviateConfig:
 class AWSCredentials:
     def __init__(
         self,
-        access_key: str = "",
-        secret_key: str = "",
+        access_key: str,
+        secret_key: str,
     ):
         """
 
@@ -156,14 +156,14 @@ class AWSCredentials:
         **Example**
         ```
         aws_credentials = ff.AWSCredentials(
-            aws_access_key_id="<AWS_ACCESS_KEY>",
-            aws_secret_access_key="<AWS_SECRET_KEY>"
+            access_key="<AWS_ACCESS_KEY>",
+            secret_key="<AWS_SECRET_KEY>"
         )
         ```
 
         Args:
-            aws_access_key_id (str): AWS Access Key.
-            aws_secret_access_key (str): AWS Secret Key.
+            access_key (str): AWS Access Key.
+            secret_key (str): AWS Secret Key.
         """
         if access_key == "":
             raise Exception("'AWSCredentials' access_key cannot be empty")
@@ -171,8 +171,8 @@ class AWSCredentials:
         if secret_key == "":
             raise Exception("'AWSCredentials' secret_key cannot be empty")
 
-        self.aws_access_key_id = secret_key
-        self.aws_secret_access_key = secret_key
+        self.access_key = secret_key
+        self.secret_key = secret_key
 
     def type(self):
         return "AWS_CREDENTIALS"

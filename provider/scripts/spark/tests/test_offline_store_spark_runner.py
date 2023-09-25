@@ -166,7 +166,10 @@ def test_split_key_value():
 @pytest.mark.parametrize(
     "exception_message, error",
     [
-        (Exception("TypeError: code() takes at most 16 arguments (19 given)"), "dill_python_version_error"),
+        (
+            Exception("TypeError: code() takes at most 16 arguments (19 given)"),
+            "dill_python_version_error",
+        ),
         (Exception("generic error"), "generic_error"),
     ],
 )

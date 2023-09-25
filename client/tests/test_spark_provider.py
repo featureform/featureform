@@ -239,37 +239,3 @@ def test__verify_python_version(version, expected_version):
     spark = SparkCredentials("local", "client", version)
 
     assert spark.python_version == expected_version
-
-
-@pytest.mark.parametrize(
-    "store_type, file_path, expected_has_prefix, expected_prefix",
-    [
-        ("AZURE", "abfss://test_bucket/test_file", True, "abfss://"),
-        ("AZURE", "test_bucket/test_file", False, "abfss://"),
-        ("S3", "s3://test_bucket/test_file", True, "s3:// or s3a://"),
-        ("S3", "test_bucket/test_file", False, "s3:// or s3a://"),
-        ("HDFS", "hdfs://test_bucket/test_file", True, "hdfs://"),
-        ("HDFS", "test_bucket/test_file", False, "hdfs://"),
-        ("GCS", "gs://test_bucket/test_file", True, "gs://"),
-        ("GCS", "test_bucket/test_file", False, "gs://"),
-    ],
-)
-def test_validate_file_scheme(store_type, file_path, expected_has_prefix, expected_prefix):
-    provider_name = "test_offline_spark_provider"
-    r = Registrar()
-
-    mock_config = SparkConfig(
-        executor_type="", executor_config={}, store_type="", store_config={}
-    )
-    mock_provider = Provider(
-        name=provider_name,
-        function="OFFLINE",
-        description="",
-        team="",
-        config=mock_config,
-    )
-
-    spark = OfflineSparkProvider(r, mock_provider)
-    has_prefix, prefix = spark._validate_file_scheme(store_type, file_path)
-    assert has_prefix == expected_has_prefix
-    assert prefix == expected_prefix

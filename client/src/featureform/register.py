@@ -261,13 +261,7 @@ class OfflineSparkProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): source
         """
-        has_prefix, required_prefix = self._validate_file_scheme(
-            self.__provider.config.store_type, file_path
-        )
-        if not has_prefix:
-            raise Exception(
-                f"File path '{file_path}' must be a full path. Must start with '{required_prefix}'"
-            )
+        FilePrefix.validate_file_scheme(self.__provider.config.store_type, file_path)
 
         return self.__registrar.register_primary_data(
             name=name,
@@ -450,6 +444,8 @@ class OfflineK8sProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): source
         """
+        FilePrefix.validate_file_scheme(self.__provider.config.store_type, path)
+
         return self.__registrar.register_primary_data(
             name=name,
             variant=variant,
@@ -2252,12 +2248,12 @@ class Registrar:
         name: str,
         host: str,
         port: int,
-        password: str,
         db: int = 0,
+        password: str = "",
         description: str = "",
         team: str = "",
-        tags: List[str] = [],
-        properties: dict = {},
+        tags: List[str] = None,
+        properties: dict = None,
     ):
         """Register a Redis provider.
 
@@ -2287,8 +2283,6 @@ class Registrar:
             redis (OnlineProvider): Provider
         """
         tag, properties = set_tags_properties(tags, properties)
-        print("REDIS TAGS: ", tags)
-        print("REDIS PROPERTIES: ", properties)
         config = RedisConfig(host=host, port=port, password=password, db=db)
         provider = Provider(
             name=name,
@@ -3307,6 +3301,7 @@ class Registrar:
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
             properties (dict): (Mutable) Optional grouping mechanism for resources
         """
+
         tags, properties = set_tags_properties(tags, properties)
         config = K8sConfig(
             store_type=store.store_type(),

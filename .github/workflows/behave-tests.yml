@@ -1,0 +1,40 @@
+name: Behave Tests
+on: push
+
+jobs:
+  setup:
+    name: Setup Test Dependencies
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Check directory
+        run: |
+          ls -la
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - name: Build Python Package
+        run: ./pip_update.sh
+
+      - name: Install Behave
+        run: pip install behave
+
+      - name: Run Behavioral Tests
+        working-directory: ./tests/end_to_end/
+        run: behave

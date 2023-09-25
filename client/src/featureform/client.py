@@ -33,7 +33,8 @@ class Client(ResourceClient, ServingClient):
     def __init__(
         self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
     ):
-        self._validate_host(host)
+        if host is not None:
+            self._validate_host(host)
 
         ResourceClient.__init__(
             self,

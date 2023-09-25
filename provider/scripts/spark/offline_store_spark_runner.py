@@ -1,5 +1,6 @@
 import io
 import os
+import sys
 import json
 import uuid
 import types
@@ -360,6 +361,15 @@ def delete_file(file_path):
         os.remove(file_path)
     else:
         print(f"{file_path} does not exist.")
+
+
+def dill_exception(exception):
+    if "TypeError: code() takes at most" in str(exception):
+        version = sys.version_info
+        python_version = f"{version.major}.{version.minor}.{version.micro}"
+        error_message = f"""DF Transformations require the same Python versions for both the client and provider. Please use Python '{python_version}' to run this job."""
+        return Exception(error_message)
+    return exception
 
 
 def split_key_value(values):

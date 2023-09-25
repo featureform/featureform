@@ -1,4 +1,5 @@
 import os
+import sys
 from argparse import Namespace
 
 import dill
@@ -256,3 +257,16 @@ def container_client():
         os.getenv("AZURE_CONTAINER_NAME")
     )
     return container_client
+
+
+@pytest.fixture(scope="module")
+def dill_python_version_error():
+    version = sys.version_info
+    python_version = f"{version.major}.{version.minor}.{version.micro}"
+    error_message = f"""DF Transformations require the same Python versions for both the client and provider. Please use Python '{python_version}' to run this job."""
+    return Exception(error_message)
+
+
+@pytest.fixture(scope="module")
+def generic_error():
+    return Exception("generic error")

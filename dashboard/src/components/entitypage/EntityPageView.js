@@ -511,7 +511,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                               </SyntaxHighlighter>
                             );
                           } else if (
-                            ['Dataframe Transformation', 'Source'].includes(
+                            ['Dataframe Transformation'].includes(
                               metadata['source-type']
                             )
                           ) {

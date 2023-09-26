@@ -240,6 +240,15 @@ jobs:
           name: provider-online-coverage-reports
           path: ./coverage
 
+      - name: Clear Pinecone Indexes
+        env:
+          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+          PINECONE_ENVIRONMENT: ${{ secrets.PINECONE_ENVIRONMENT }}
+        if: always()
+        run: |
+          pinecli list-indexes --apikey="$PINECONE_API_KEY" | while read -r index; do pinecli delete-index --apikey="$PINECONE_API_KEY" --disable-safety "$index"; done
+
+
   provider-offline:
     name: Offline Provider Testing
     timeout-minutes: 60

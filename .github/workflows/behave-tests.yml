@@ -29,8 +29,17 @@ jobs:
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
 
-      - name: Build Docker Container
-        run: docker build . -t featureform
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: featureform
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Run Container
         run: docker run -d -p 7878:7878 -p 80:80 featureform

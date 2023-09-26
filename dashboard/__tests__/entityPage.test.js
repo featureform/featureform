@@ -187,6 +187,8 @@ describe('Entity Page Tests', () => {
     ${'2023-09-23T00:10:33.61933372Z'} | ${'9/22/2023, 7:10:33 PM'}
     ${'2023-12-16T00:00:00'}           | ${'12/16/2023, 12:00:00 AM'}
     ${'Not a number or a date string'} | ${'Invalid Date'}
+    ${null}                            | ${'Invalid Date'}
+    ${undefined}                       | ${'Invalid Date'}
   `(
     `Issue-211: "convertInputToDate() correctly renders the value("$CreatedInputParam") to ("$ResultParam")`,
     ({ CreatedInputParam, ResultParam }) => {

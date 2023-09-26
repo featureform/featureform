@@ -2055,9 +2055,12 @@ class Registrar:
             bigquery (OfflineSQLProvider): Provider
         """
         mock_config = BigQueryConfig(
-            project_id="",
-            dataset_id="",
-            credentials=GCPCredentials(project_id="", credentials_path=""),
+            project_id="mock_project",
+            dataset_id="mock_dataset",
+            credentials=GCPCredentials(
+                project_id="mock_project",
+                credentials_path="client/tests/test_files/bigquery_dummy_credentials.json",
+            ),
         )
         mock_provider = Provider(
             name=name, function="OFFLINE", description="", team="", config=mock_config

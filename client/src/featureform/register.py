@@ -2257,13 +2257,13 @@ class Registrar:
             password (str): (Mutable) Redis password
             description (str): (Mutable) Description of Redis provider to be registered
             team (str): (Mutable) Name of team
-            tags (List[str]): (Mutable) Optional grouping mechanism for resources
-            properties (dict): (Mutable) Optional grouping mechanism for resources
+            tags (Optional[List[str]]): (Mutable) Optional grouping mechanism for resources
+            properties (Optional[dict]): (Mutable) Optional grouping mechanism for resources
 
         Returns:
             redis (OnlineProvider): Provider
         """
-        tag, properties = set_tags_properties(tags, properties)
+        tags, properties = set_tags_properties(tags, properties)
         config = RedisConfig(host=host, port=port, password=password, db=db)
         provider = Provider(
             name=name,

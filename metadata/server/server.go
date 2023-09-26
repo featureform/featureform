@@ -6,19 +6,19 @@ package main
 
 import (
 	"fmt"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata/search"
 	"os"
 
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
-	"go.uber.org/zap"
 )
 
 func main() {
 
 	etcdHost := help.GetEnv("ETCD_HOST", "localhost")
 	etcdPort := help.GetEnv("ETCD_PORT", "2379")
-	logger := zap.NewExample().Sugar()
+	logger := logging.NewLogger("metadata")
 	addr := help.GetEnv("METADATA_PORT", "8080")
 	enableSearch := help.GetEnv("ENABLE_SEARCH", "true")
 	storageProvider := metadata.EtcdStorageProvider{

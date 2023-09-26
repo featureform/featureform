@@ -24,6 +24,7 @@ from .exceptions import *
 from .enums import *
 from .providers.configs.filestores import FilestoreConfig
 from .providers.configs.vectordbs import PineconeConfig, WeaviateConfig
+from .providers.credentials import GCPCredentials
 
 NameVariant = Tuple[str, str]
 

@@ -4,6 +4,7 @@ azure-identity==1.14.0
 azure-storage-blob==12.17.0
 behave==1.2.6
 behavex==3.0.0
+boto3==1.28.55
 build==0.10.0
 certifi==2023.7.22
 cffi==1.15.1
@@ -17,10 +18,10 @@ dataclasses==0.6
 dill==0.3.7
 dnspython==2.4.2
 fastparquet==0.8.3
-featureform @ file:///Users/sdreyer/Projects/embeddinghub/client/dist/featureform-0.0.0-py3-none-any.whl
 Flask==2.2.1
 Flask-Cors==3.0.10
 fsspec==2023.6.0
+google-cloud-storage==2.11.0
 grpcio==1.57.0
 htmlmin==0.1.12
 idna==3.4

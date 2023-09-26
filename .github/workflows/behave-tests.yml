@@ -29,6 +29,12 @@ jobs:
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
 
+      - name: Build Docker Container
+        run: docker build . -t featureform
+
+      - name: Run Container
+        run: docker run -d -p 7878:7878 -p 80:80 featureform
+
       - name: Setup Proto
         run: ./gen_grpc.sh
 
@@ -36,7 +42,8 @@ jobs:
         run: ./pip_update.sh
 
       - name: Install Behave
-        run: pip install behave
+        working-directory: ./tests/end_to_end/
+        run: pip install -r requirements.txt
 
       - name: Run Behavioral Tests
         working-directory: ./tests/end_to_end/

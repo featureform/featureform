@@ -261,7 +261,7 @@ class OfflineSparkProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): source
         """
-        FilePrefix.validate_file_scheme(self.__provider.config.store_type, file_path)
+        FilePrefix.validate(self.__provider.config.store_type, file_path)
 
         return self.__registrar.register_primary_data(
             name=name,
@@ -422,7 +422,7 @@ class OfflineK8sProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): source
         """
-        FilePrefix.validate_file_scheme(self.__provider.config.store_type, path)
+        FilePrefix.validate(self.__provider.config.store_type, path)
 
         return self.__registrar.register_primary_data(
             name=name,

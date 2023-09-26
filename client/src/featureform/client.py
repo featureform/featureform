@@ -33,6 +33,8 @@ class Client(ResourceClient, ServingClient):
     def __init__(
         self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
     ):
+        self._validate_host(host)
+
         ResourceClient.__init__(
             self,
             host=host,
@@ -130,6 +132,11 @@ class Client(ResourceClient, ServingClient):
         Closes the client, closes channel for hosted mode and db for local mode
         """
         self.impl.close()
+
+    @staticmethod
+    def _validate_host(host):
+        if "http://" in host or "https://" in host:
+            raise ValueError("Invalid URL: URL should not contain http or https.")
 
     def __enter__(self):
         return self

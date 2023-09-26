@@ -417,7 +417,7 @@ func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceColu
 		return nil, err
 	}
 	if it == nil {
-		serv.Logger.Errorf("source data iterator is nil", "Name", name, "Variant", variant, "Error", err)
+		serv.Logger.Errorf("source data iterator is nil", "Name", name, "Variant", variant, "Error", err.Error())
 		return nil, fmt.Errorf("could not fetch source data due to error; check the data source registration to ensure it is valid")
 	}
 	defer it.Close()

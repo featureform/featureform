@@ -140,6 +140,13 @@ func (id ResourceID) Parent() (ResourceID, bool) {
 	}, true
 }
 
+func (id ResourceID) String() string {
+	if id.Variant == "" {
+		return fmt.Sprintf("%s %s", id.Type, id.Name)
+	}
+	return fmt.Sprintf("%s %s (%s)", id.Type, id.Name, id.Variant)
+}
+
 var bannedStrings = [...]string{"__"}
 var bannedPrefixes = [...]string{"_"}
 var bannedSuffixes = [...]string{"_"}
@@ -179,10 +186,11 @@ type ResourceNotFound struct {
 
 func (err *ResourceNotFound) Error() string {
 	id := err.ID
-	name, variant, t := id.Name, id.Variant, id.Type
-	errMsg := fmt.Sprintf("%s Not Found.\nName: %s err: %v", t, name, err.E)
-	if variant != "" {
-		errMsg += "\nVariant: " + variant
+	var errMsg string
+	if err.E != nil {
+		errMsg = fmt.Sprintf("resource not found. %s err: %v", id.String(), err.E)
+	} else {
+		errMsg = fmt.Sprintf("resource not found. %s", id.String())
 	}
 	return errMsg
 }
@@ -1535,7 +1543,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		}
 	}
 	if err := serv.propagateChange(res); err != nil {
-		err := errors.Wrap(err, fmt.Sprintf("could not propogate: %s", res))
+		err := errors.Wrap(err, fmt.Sprintf("failed to update parent resources for: %s", res.ID().String()))
 		serv.Logger.Error(errors.WithStack(err))
 		return nil, err
 	}
@@ -1549,7 +1557,7 @@ func (serv *MetadataServer) propagateChange(newRes Resource) error {
 	propagateChange = func(parent Resource) error {
 		deps, err := parent.Dependencies(serv.lookup)
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("could not get dependencies for parent: %s", parent))
+			return errors.Wrap(err, fmt.Sprintf("could not get dependencies for parent: %s", parent.ID().String()))
 		}
 		depList, err := deps.List()
 		if err != nil {

@@ -315,8 +315,8 @@ def test_register_spark():
     )
 
     aws_creds = AWSCredentials(
-        aws_access_key_id="id",
-        aws_secret_access_key="key",
+        access_key="id",
+        secret_key="key",
     )
 
     s3 = reg.register_s3(
@@ -341,8 +341,8 @@ def test_register_spark():
 def test_register_k8s():
     reg = Registrar()
     aws_creds = AWSCredentials(
-        aws_access_key_id="id",
-        aws_secret_access_key="key",
+        access_key="id",
+        secret_key="key",
     )
     s3 = reg.register_s3(
         name="quickstart",

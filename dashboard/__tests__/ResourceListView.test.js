@@ -127,7 +127,7 @@ describe('ResourceListView tests', () => {
     expect(foundProgressBar.firstChild.nodeName).toBe(SVG_NODE);
   });
 
-  test('Filter out resources that are missing their default variant in their all-variants list.', async () => {
+  test('Issue-204: Filter out resources that are missing their default variant in their all-variants list.', async () => {
     console.warn = jest.fn();
     const missingDefault = 'MISSING DEFAULT!!!';
     const variantList = ['eloquent_goldstine', 'sleepy_volhard'];
@@ -172,7 +172,7 @@ describe('ResourceListView tests', () => {
     );
   });
 
-  test('removeResourcesWithMissingDefaults() removes resources whose default names are not present in the "all-variants"', async () => {
+  test('Issue-204: removeResourcesWithMissingDefaults() removes resources whose default names are not present in the "all-variants"', async () => {
     console.warn = jest.fn();
     //the second record, is missing it's default variant from the all-variants list
     const jsonResponse = [

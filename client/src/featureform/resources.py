@@ -3,6 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import sys
+import os
 import json
 import time
 import base64
@@ -145,8 +146,8 @@ class WeaviateConfig:
 class AWSCredentials:
     def __init__(
         self,
-        aws_access_key_id: str,
-        aws_secret_access_key: str,
+        access_key: str,
+        secret_key: str,
     ):
         """
 
@@ -155,31 +156,31 @@ class AWSCredentials:
         **Example**
         ```
         aws_credentials = ff.AWSCredentials(
-            aws_access_key_id="<AWS_ACCESS_KEY>",
-            aws_secret_access_key="<AWS_SECRET_KEY>"
+            access_key="<AWS_ACCESS_KEY>",
+            secret_key="<AWS_SECRET_KEY>"
         )
         ```
 
         Args:
-            aws_access_key_id (str): AWS Access Key.
-            aws_secret_access_key (str): AWS Secret Key.
+            access_key (str): AWS Access Key.
+            secret_key (str): AWS Secret Key.
         """
-        empty_strings = aws_access_key_id == "" or aws_secret_access_key == ""
-        if empty_strings:
-            raise Exception(
-                "'AWSCredentials' requires all parameters: 'aws_access_key_id', 'aws_secret_access_key'"
-            )
+        if access_key == "":
+            raise Exception("'AWSCredentials' access_key cannot be empty")
 
-        self.aws_access_key_id = aws_access_key_id
-        self.aws_secret_access_key = aws_secret_access_key
+        if secret_key == "":
+            raise Exception("'AWSCredentials' secret_key cannot be empty")
+
+        self.access_key = access_key
+        self.secret_key = secret_key
 
     def type(self):
         return "AWS_CREDENTIALS"
 
     def config(self):
         return {
-            "AWSAccessKeyId": self.aws_access_key_id,
-            "AWSSecretKey": self.aws_secret_access_key,
+            "AWSAccessKeyId": self.access_key,
+            "AWSSecretKey": self.secret_key,
         }
 
 
@@ -207,11 +208,20 @@ class GCPCredentials:
             project_id (str): The project id.
             credentials_path (str): The path to the credentials file.
         """
-        self.project_id = project_id
+        if project_id == "":
+            raise Exception("'GCPCredentials' project_id cannot be empty")
+
         if credentials_path == "":
-            self.credentials = {}  # Using this until get_bigquery() deprecated
-        else:
-            self.credentials = json.load(open(credentials_path))
+            raise Exception("'GCPCredentials' credentials_path cannot be empty")
+
+        if not os.path.isfile(credentials_path):
+            raise Exception(
+                f"'GCPCredentials' credentials_path '{credentials_path}' file not found"
+            )
+
+        self.project_id = project_id
+        with open(credentials_path) as f:
+            self.credentials = json.load(f)
 
     def type(self):
         return "GCPCredentials"

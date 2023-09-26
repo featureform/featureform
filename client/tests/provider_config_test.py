@@ -108,7 +108,7 @@ def test_s3store():
     conf = S3StoreConfig(
         bucket_path="bucket_path",
         bucket_region="bucket_region",
-        credentials=AWSCredentials(aws_access_key_id="id", aws_secret_access_key="key"),
+        credentials=AWSCredentials(access_key="id", secret_key="key"),
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config

@@ -215,6 +215,22 @@ function a11yProps(index) {
   };
 }
 
+export const convertInputToDate = (timestamp_string_or_mil = '') => {
+  const input = timestamp_string_or_mil;
+
+  if (isNaN(input)) {
+    return generateDate(input);
+  } else {
+    return generateDate(parseFloat(input));
+  }
+
+  function generateDate(str) {
+    return new Date(str).toLocaleString('en-US', {
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    });
+  }
+};
+
 const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
   let resources = entity.resources;
   let resourceType = Resource[resources.type];
@@ -267,12 +283,6 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
     }
     return stringResult;
   }
-
-  const convertTimestampToDate = (timestamp_string) => {
-    return new Date(timestamp_string).toLocaleString('en-US', {
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    });
-  };
 
   const numValidKeys = (dict) => {
     let validKeys = 0;
@@ -342,7 +352,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                     </Typography>
                     {metadata['created'] && (
                       <Typography variant='subtitle1'>
-                        Created: {convertTimestampToDate(metadata['created'])}
+                        Created: {convertInputToDate(metadata['created'])}
                       </Typography>
                     )}
                   </div>
@@ -354,7 +364,6 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                     handleVariantChange={handleVariantChange}
                     type={type}
                     name={name}
-                    convertTimestampToDate={convertTimestampToDate}
                   />
                 )}
               </div>
@@ -423,7 +432,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                     {metadata['joined'] && (
                       <Typography variant='body1'>
                         <b>Joined:</b>{' '}
-                        {convertTimestampToDate(metadata['joined'])}
+                        {convertInputToDateconver(metadata['joined'])}
                       </Typography>
                     )}
                     {metadata['software'] && (

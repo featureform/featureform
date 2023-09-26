@@ -4,7 +4,10 @@ import { cleanup, render } from '@testing-library/react';
 import 'jest-canvas-mock';
 import React from 'react';
 import EntityPage from '../src/components/entitypage/EntityPage';
-import { getFormattedSQL } from '../src/components/entitypage/EntityPageView';
+import {
+  convertInputToDate,
+  getFormattedSQL,
+} from '../src/components/entitypage/EntityPageView';
 import ReduxWrapper from '../src/components/redux/wrapper/ReduxWrapper';
 import TEST_THEME from '../src/styles/theme';
 
@@ -176,4 +179,22 @@ describe('Entity Page Tests', () => {
     expect(console.error).toHaveBeenCalledWith(originalInvalidSQL);
     expect(attemptedFormatSql).toBe(originalInvalidSQL);
   });
+
+  test.each`
+    CreatedInputParam                  | ResultParam
+    ${'1695751185.068369'}             | ${'1/20/1970, 9:02:31 AM'}
+    ${'1695751185'}                    | ${'1/20/1970, 9:02:31 AM'}
+    ${'2023-09-23T00:10:33.61933372Z'} | ${'9/22/2023, 7:10:33 PM'}
+    ${'2023-12-16T00:00:00'}           | ${'12/16/2023, 12:00:00 AM'}
+    ${'Not a number or a date string'} | ${'Invalid Date'}
+  `(
+    `Issue-211: "convertInputToDate() correctly renders the value("$CreatedInputParam") to ("$ResultParam")`,
+    ({ CreatedInputParam, ResultParam }) => {
+      //given:
+      const result = convertInputToDate(CreatedInputParam);
+
+      //expect:
+      expect(result).toEqual(ResultParam);
+    }
+  );
 });

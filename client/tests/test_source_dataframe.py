@@ -1,7 +1,7 @@
 import featureform as ff
-from featureform.enums import FileFormat
 import pandas as pd
 import pytest
+from featureform.enums import FileFormat
 
 
 @pytest.mark.parametrize(
@@ -104,6 +104,50 @@ def test_dataframe_for_source_args(provider_source_fxt, is_local, is_insecure, r
             True,
             marks=pytest.mark.local,
         ),
+        pytest.param(
+            "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
+        ),
+        pytest.param(
+            "hosted_sql_provider_and_source", False, True, marks=pytest.mark.docker
+        ),
+    ],
+)
+def test_dataframe_for_correct_variant(provider_source_fxt, is_local, is_insecure, request):
+    custom_marks = [
+        mark.name for mark in request.node.own_markers if mark.name != "parametrize"
+    ]
+    provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(
+        custom_marks
+    )
+
+    arrange_transformation_default_variant('average_user_transaction', provider, is_local)
+
+    client = ff.Client(local=is_local, insecure=is_insecure)
+    # If we're running in a hosted context, `apply` needs to be synchronous
+    # to ensure resources are ready to test.
+    client.apply(asynchronous=is_local)
+
+    # should use variant from run
+    transformation_df = client.dataframe('average_user_transaction')  # use transformation name
+
+    assert isinstance(
+        transformation_df, (pd.DataFrame, pd.Series)
+    )
+
+    if is_local:
+        client.impl.db.close()  # TODO automatically do this
+
+
+
+@pytest.mark.parametrize(
+    "provider_source_fxt,is_local,is_insecure",
+    [
+        pytest.param(
+            "local_provider_source",
+            True,
+            True,
+            marks=pytest.mark.local,
+        ),
     ],
 )
 def test_dataframe_parquet(provider_source_fxt, is_local, is_insecure, request):
@@ -149,6 +193,22 @@ def arrange_transformation(provider, is_local):
     else:
 
         @provider.sql_transformation(variant="quickstart")
+        def average_user_transaction():
+            return "SELECT customerid as user_id, avg(transactionamount) AS avg_transaction_amt FROM {{transactions.quickstart}} GROUP BY user_id"
+
+    return average_user_transaction
+
+
+def arrange_transformation_default_variant(name, provider, is_local):
+    if is_local:
+
+        @provider.df_transformation(name=name, inputs=[("transactions", "quickstart")])
+        def average_user_transaction(transactions):
+            return transactions.groupby("CustomerID")["TransactionAmount"].mean()
+
+    else:
+
+        @provider.sql_transformation(name=name)
         def average_user_transaction():
             return "SELECT customerid as user_id, avg(transactionamount) AS avg_transaction_amt FROM {{transactions.quickstart}} GROUP BY user_id"
 

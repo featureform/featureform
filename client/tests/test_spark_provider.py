@@ -1,7 +1,6 @@
 import dill
-
 import pytest
-
+from featureform.names_generator import get_random_name
 from featureform.register import ColumnSourceRegistrar, OfflineSparkProvider, Registrar
 from featureform.resources import (
     DFTransformation,
@@ -9,11 +8,8 @@ from featureform.resources import (
     SourceVariant,
     SparkConfig,
     SQLTransformation,
-    DatabricksCredentials,
-    AzureFileStoreConfig,
     SparkCredentials,
 )
-from featureform.names_generator import get_random_name
 
 
 @pytest.mark.parametrize(
@@ -56,7 +52,7 @@ def test_create_provider(executor_fixture, filestore_fixture, request):
 @pytest.mark.parametrize(
     "test_name,file_path",
     [
-        ("file", "test_files/input/transaction"),
+        ("file", "abfss://test_files/input/transaction"),
     ],
 )
 def test_register_file(test_name, file_path, spark_provider):

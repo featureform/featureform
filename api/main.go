@@ -79,7 +79,7 @@ func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Failed to read client request: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetUsers(stream.Context())
@@ -108,7 +108,7 @@ func (serv *MetadataServer) GetFeatures(stream pb.Api_GetFeaturesServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Failed to read client request: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetFeatures(stream.Context())
@@ -137,7 +137,7 @@ func (serv *MetadataServer) GetFeatureVariants(stream pb.Api_GetFeatureVariantsS
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Failed to read client request: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetFeatureVariants(stream.Context())
@@ -166,7 +166,7 @@ func (serv *MetadataServer) GetLabels(stream pb.Api_GetLabelsServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Failed to read client request: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetLabels(stream.Context())
@@ -195,7 +195,7 @@ func (serv *MetadataServer) GetLabelVariants(stream pb.Api_GetLabelVariantsServe
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Failed to read client request: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetLabelVariants(stream.Context())
@@ -224,7 +224,7 @@ func (serv *MetadataServer) GetSources(stream pb.Api_GetSourcesServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Failed to read client request: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetSources(stream.Context())
@@ -253,7 +253,7 @@ func (serv *MetadataServer) GetSourceVariants(stream pb.Api_GetSourceVariantsSer
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Failed to read client request: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetSourceVariants(stream.Context())
@@ -282,7 +282,7 @@ func (serv *MetadataServer) GetTrainingSets(stream pb.Api_GetTrainingSetsServer)
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Failed to read client request: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetTrainingSets(stream.Context())
@@ -311,7 +311,7 @@ func (serv *MetadataServer) GetTrainingSetVariants(stream pb.Api_GetTrainingSetV
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Failed to read client request: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetTrainingSetVariants(stream.Context())
@@ -340,7 +340,7 @@ func (serv *MetadataServer) GetProviders(stream pb.Api_GetProvidersServer) error
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Failed to read client request: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetProviders(stream.Context())
@@ -369,7 +369,7 @@ func (serv *MetadataServer) GetEntities(stream pb.Api_GetEntitiesServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Failed to read client request: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetEntities(stream.Context())
@@ -398,7 +398,7 @@ func (serv *MetadataServer) GetModels(stream pb.Api_GetModelsServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Failed to read client request: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetModels(stream.Context())

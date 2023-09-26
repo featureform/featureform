@@ -263,6 +263,8 @@ class OfflineSparkProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): source
         """
+        FilePrefix.validate(self.__provider.config.store_type, file_path)
+
         return self.__registrar.register_primary_data(
             name=name,
             variant=variant,
@@ -422,6 +424,8 @@ class OfflineK8sProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): source
         """
+        FilePrefix.validate(self.__provider.config.store_type, path)
+
         return self.__registrar.register_primary_data(
             name=name,
             variant=variant,
@@ -2237,12 +2241,12 @@ class Registrar:
         name: str,
         host: str,
         port: int,
-        password: str,
         db: int = 0,
+        password: str = "",
         description: str = "",
         team: str = "",
-        tags: List[str] = [],
-        properties: dict = {},
+        tags: List[str] = None,
+        properties: dict = None,
     ):
         """Register a Redis provider.
 
@@ -2272,8 +2276,6 @@ class Registrar:
             redis (OnlineProvider): Provider
         """
         tag, properties = set_tags_properties(tags, properties)
-        print("REDIS TAGS: ", tags)
-        print("REDIS PROPERTIES: ", properties)
         config = RedisConfig(host=host, port=port, password=password, db=db)
         provider = Provider(
             name=name,
@@ -2454,15 +2456,13 @@ class Registrar:
         self.__resources.append(provider)
         return FileStoreProvider(self, provider, azure_config, "AZURE")
 
-    # TODO: Add deprecated warning for bucket_path
     def register_s3(
         self,
         name: str,
         credentials: AWSCredentials,
         bucket_name: str,
         bucket_region: str,
-        path: str,
-        bucket_name: str = "",
+        path: str = "",
         description: str = "",
         team: str = "",
         tags: List[str] = [],
@@ -2503,10 +2503,8 @@ class Registrar:
         """
         tags, properties = set_tags_properties(tags, properties)
 
-        if bucket_path == "" and bucket_name == "":
+        if bucket_name == "":
             raise ValueError("bucket_name required")
-        if bucket_name == "" and bucket_path != "":
-            bucket_name = bucket_path
 
         bucket_path = bucket_name
         s3_config = S3StoreConfig(
@@ -3301,6 +3299,7 @@ class Registrar:
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
             properties (dict): (Mutable) Optional grouping mechanism for resources
         """
+
         tags, properties = set_tags_properties(tags, properties)
         config = K8sConfig(
             store_type=store.store_type(),

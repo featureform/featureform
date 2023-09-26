@@ -1,8 +1,6 @@
-import pandas as pd
-from typing import Union
+from typing import Union, Optional
 
 from .constants import NO_RECORD_LIMIT
-from .names_generator import get_random_name
 from .register import (
     ResourceClient,
     SourceRegistrar,
@@ -65,7 +63,7 @@ class Client(ResourceClient, ServingClient):
     def dataframe(
         self,
         source: Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str],
-        variant: Union[str, None] = None,
+        variant: Optional[str] = None,
         limit=NO_RECORD_LIMIT,
         asynchronous=False,
     ):
@@ -81,7 +79,7 @@ class Client(ResourceClient, ServingClient):
 
         Args:
             source (Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
-            variant (str): The source variant; defaults to a Docker-style random name and is ignored if source argument is not a string
+            variant (str): The source variant; can't be None if source is a string
             limit (int): The maximum number of records to return; defaults to NO_RECORD_LIMIT
             asynchronous (bool): Flag to determine whether the client should wait for resources to be in either a READY or FAILED state before returning. Defaults to False to ensure that newly registered resources are in a READY state prior to serving them as dataframes.
 
@@ -96,11 +94,14 @@ class Client(ResourceClient, ServingClient):
             name, variant = source.name_variant()
         elif isinstance(source, str):
             name = source
+            if variant is None:
+                raise ValueError("variant must be specified if source is a string")
+            if variant == "":
+                raise ValueError("variant cannot be an empty string")
         else:
             raise ValueError(
                 f"source must be of type SourceRegistrar, LocalSource, SubscriptableTransformation or str, not {type(source)}"
             )
-        variant = get_random_name() if variant is None else variant
         return self.impl._get_source_as_df(name, variant, limit)
 
     def nearest(self, feature, vector, k):

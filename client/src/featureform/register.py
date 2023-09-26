@@ -6,7 +6,7 @@ import warnings
 from datetime import timedelta
 from os.path import exists
 from pathlib import Path
-from typing import Dict, Tuple, Callable, List, Union
+from typing import Dict, Tuple, Callable, List, Union, Optional
 
 import dill
 import pandas as pd
@@ -2233,8 +2233,8 @@ class Registrar:
         password: str = "",
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: Optional[List[str]] = None,
+        properties: Optional[dict] = None,
     ):
         """Register a Redis provider.
 

@@ -88,6 +88,8 @@ class Client(ResourceClient, ServingClient):
             name = source
             if variant is None:
                 raise ValueError("variant must be specified if source is a string")
+            if variant == "":
+                raise ValueError("variant cannot be an empty string")
         else:
             raise ValueError(
                 f"source must be of type SourceRegistrar, LocalSource, SubscriptableTransformation or str, not {type(source)}"

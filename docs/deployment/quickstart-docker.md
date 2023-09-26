@@ -227,7 +227,7 @@ training set and returns 25 rows of the training set.
 from featureform import ServingClient
 
 client = ServingClient(insecure=True)
-dataset = client.training_set("fraud_training")
+dataset = client.training_set("fraud_training", "default")
 
 for i, batch in enumerate(dataset):
     print(batch)

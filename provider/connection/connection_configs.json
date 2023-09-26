@@ -51,7 +51,7 @@
   },
   "CassandraConfig": {
     "Keyspace": "keyspace",
-    "Addr": "host:port",
+    "Addr": "host:0",
     "Username": "username",
     "Password": "password",
     "Consistency": "consistency",
@@ -91,7 +91,7 @@
   },
   "RedshiftConfig": {
     "Host": "host",
-    "Port": "port",
+    "Port": "0",
     "Username": "username",
     "Password": "password",
     "Database": "database"

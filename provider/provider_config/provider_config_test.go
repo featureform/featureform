@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	fs "github.com/featureform/filestore"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/stretchr/testify/assert"
 )
@@ -175,7 +176,7 @@ func TestBlob(t *testing.T) {
 		Path:          credentials["Path"].(string),
 	}
 	instance := OnlineBlobConfig{
-		Type:   FileStoreType(blobType),
+		Type:   fs.FileStoreType(blobType),
 		Config: azureConfig,
 	}
 
@@ -347,7 +348,7 @@ func TestSpark(t *testing.T) {
 	instance := SparkConfig{
 		ExecutorType:   SparkExecutorType(execType),
 		ExecutorConfig: SparkDummy{},
-		StoreType:      FileStoreType(config["StoreType"].(string)),
+		StoreType:      fs.FileStoreType(config["StoreType"].(string)),
 		StoreConfig:    SparkDummy{},
 	}
 
@@ -409,7 +410,7 @@ func TestK8S(t *testing.T) {
 	instance := K8sConfig{
 		ExecutorType:   ExecutorType(config["ExecutorType"].(string)),
 		ExecutorConfig: K8sDummy{},
-		StoreType:      FileStoreType(config["StoreType"].(string)),
+		StoreType:      fs.FileStoreType(config["StoreType"].(string)),
 		StoreConfig:    K8sDummy{},
 	}
 

@@ -311,7 +311,7 @@ func (lookup EtcdResourceLookup) serializeResource(res Resource) ([]byte, error)
 func (lookup EtcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 	var tmp EtcdRowTemp
 	if err := json.Unmarshal(value, &tmp); err != nil {
-		return EtcdRow{}, errors.Wrap(err, fmt.Sprintf("failed To parse resource: %s", value))
+		return EtcdRow{}, errors.Wrap(err, fmt.Sprintf("failed to parse resource: %s", value))
 	}
 	msg := EtcdRow{
 		ResourceType: ResourceType(tmp.ResourceType),
@@ -431,7 +431,7 @@ func (lookup EtcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error
 	for _, id := range ids {
 		key := createKey(id)
 		resp, err := lookup.Connection.Get(key)
-		if err != nil || len(resp) == 0 {
+		if err != nil {
 			return nil, &ResourceNotFound{id, err}
 		}
 		etcdStore, err := lookup.deserialize(resp)

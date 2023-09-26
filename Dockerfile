@@ -36,9 +36,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/dashboard/out ./out
 FROM golang:1.18 as go-builder
 
 WORKDIR /app
-
 COPY go.mod ./
 COPY go.sum ./
+COPY ./filestore/ ./filestore/
 COPY api/ api/
 COPY helpers/ helpers/
 COPY metadata/ metadata/

@@ -13,6 +13,7 @@ Feature: Credentials
 
   Scenario Outline: Create GCP Credentials
     Given Featureform is installed
+
     When I create the GCP credentials with a project id "<project_id>" and credentials path "<credentials_path>"
     Then An exception that "matches" "<exception>" should be raised
     Examples:

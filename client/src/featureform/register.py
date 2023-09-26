@@ -381,28 +381,6 @@ class OfflineSparkProvider(OfflineProvider):
             properties=properties,
         )
 
-    def _validate_file_scheme(self, store_type: str, file_path: str) -> (bool, str):
-        has_prefix = False
-        required_prefix = ""
-        if store_type == "S3":
-            has_prefix = file_path.startswith(
-                FilePrefix.S3.value
-            ) or file_path.startswith(FilePrefix.S3A.value)
-            required_prefix = f"{FilePrefix.S3.value} or {FilePrefix.S3A.value}"
-        elif store_type == "HDFS":
-            has_prefix = file_path.startswith(FilePrefix.HDFS.value)
-            required_prefix = FilePrefix.HDFS.value
-        elif store_type == "GCS":
-            has_prefix = file_path.startswith(FilePrefix.GCS.value)
-            required_prefix = FilePrefix.GCS.value
-        elif store_type == "AZURE":
-            has_prefix = file_path.startswith(FilePrefix.AZURE.value)
-            required_prefix = FilePrefix.AZURE.value
-        else:
-            raise Exception(f"Store type '{store_type}' not supported")
-
-        return has_prefix, required_prefix
-
 
 class OfflineK8sProvider(OfflineProvider):
     def __init__(self, registrar, provider):

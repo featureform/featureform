@@ -136,8 +136,7 @@ class Client(ResourceClient, ServingClient):
     @staticmethod
     def _validate_host(host):
         if host.startswith("http://") or host.startswith("https://"):
-            raise ValueError(
-                "Invalid Host: Host should not contain http or https."
+            raise ValueError("Invalid Host: Host should not contain http or https.")
 
     def __enter__(self):
         return self

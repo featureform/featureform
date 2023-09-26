@@ -328,7 +328,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
 
   return true || (!resources.loading && !resources.failed && resources.data) ? (
     <div>
-      <Container maxWidth='xl' className={classes.border}>
+      <Container maxWidth={false} className={classes.border}>
         <div className={classes.metadata}>
           <Grid
             container
@@ -497,22 +497,41 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                       )}
                     {metadata['definition'] && (
                       <div>
-                        <Typography variant='body1'>
-                          <b>Origin:</b>
-                        </Typography>
-                        {metadata['source-type'] === 'SQL Transformation' ? (
-                          <SyntaxHighlighter
-                            className={classes.syntax}
-                            language={'sql'}
-                            style={okaidia}
-                          >
-                            {getFormattedSQL(metadata['definition'])}
-                          </SyntaxHighlighter>
-                        ) : (
-                          <Typography variant='h7'>
-                            <b>{metadata['definition']}</b>
-                          </Typography>
-                        )}
+                        {(() => {
+                          if (
+                            metadata['source-type'] === 'SQL Transformation'
+                          ) {
+                            return (
+                              <SyntaxHighlighter
+                                className={classes.syntax}
+                                language={'sql'}
+                                style={okaidia}
+                              >
+                                {getFormattedSQL(metadata['definition'])}
+                              </SyntaxHighlighter>
+                            );
+                          } else if (
+                            ['Dataframe Transformation'].includes(
+                              metadata['source-type']
+                            )
+                          ) {
+                            return (
+                              <SyntaxHighlighter
+                                className={classes.syntax}
+                                language={'python'}
+                                style={okaidia}
+                              >
+                                {metadata['definition']}
+                              </SyntaxHighlighter>
+                            );
+                          } else {
+                            return (
+                              <Typography variant='h7'>
+                                <b>{metadata['definition']}</b>
+                              </Typography>
+                            );
+                          }
+                        })()}
                         <SourceDialog
                           api={api}
                           sourceName={name}
@@ -520,6 +539,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                         />
                       </div>
                     )}
+
                     {metadata['serialized-config'] && (
                       <Typography variant='body1'>
                         <b>Serialized Config:</b>{' '}

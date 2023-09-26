@@ -1754,11 +1754,27 @@ class Registrar:
         return self.__run
 
     def get_source(self, name, variant, local=False):
-        """Get a source. The returned object can be used to register additional resources.
+        """
+        get_source() can be used to get a reference to an already registered primary source or transformation.
+        The returned object can be used to register features and labels or be extended off of to create additional
+        transformations.
 
         **Examples**:
+
+        Registering a transformation from an existing source.
+        ``` py
+        spark = ff.get_spark("prod-spark")
+        transactions = ff.get_source("transactions","kaggle")
+
+        @spark.df_transformation(inputs=[transactions]):
+        def customer_count(transactions):
+            return transactions.groupBy("CustomerID").count()
+        ```
+
+        Registering a feature from an existing source.
         ``` py
         transactions = ff.get_source("transactions","kaggle")
+
         transactions.register_resources(
             entity=user,
             entity_column="customerid",
@@ -1818,7 +1834,7 @@ class Registrar:
         **Examples**:
         ``` py
         redis = ff.get_redis("redis-quickstart")
-        // Defining a new transformation source with retrieved Redis provider
+
         average_user_transaction.register_resources(
             entity=user,
             entity_column="user_id",
@@ -1847,7 +1863,7 @@ class Registrar:
         **Examples**:
         ``` py
         mongodb = ff.get_mongodb("mongodb-quickstart")
-        // Defining a new transformation source with retrieved MongoDB provider
+
         average_user_transaction.register_resources(
             entity=user,
             entity_column="user_id",
@@ -1878,7 +1894,7 @@ class Registrar:
         **Examples**:
         ``` py
         azure_blob = ff.get_blob_store("azure-blob-quickstart")
-        // Defining a new transformation source with retrieved Azure blob provider
+
         average_user_transaction.register_resources(
             entity=user,
             entity_column="user_id",
@@ -2095,6 +2111,7 @@ class Registrar:
     def get_kubernetes(self, name):
         """
         Get a k8s provider. The returned object can be used to register additional resources.
+
         **Examples**:
         ``` py
 
@@ -2122,7 +2139,9 @@ class Registrar:
     def get_s3(self, name):
         """
         Get a S3 provider. The returned object can be used with other providers such as Spark and Databricks.
+
         **Examples**:
+
         ``` py
 
         s3 = ff.get_s3("s3-quickstart")

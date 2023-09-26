@@ -1,5 +1,6 @@
 import io
 import os
+import sys
 import json
 import uuid
 import types
@@ -198,6 +199,7 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
     print(f"Retrieving transformation code from {file_path} in {store_type}.")
 
     code = None
+    transformation_pkl = None
     if store_type == "s3":
         # S3 paths are the following path: 's3a://{bucket}/key/to/file'.
         # the split below separates the bucket name and the key that is
@@ -225,7 +227,7 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
             s3_object.download_fileobj(f)
 
             f.seek(0)
-            code = dill.loads(f.read())
+            transformation_pkl = f.read()
 
     elif store_type == "hdfs":
         # S3 paths are the following path: 's3://{bucket}/key/to/file'.
@@ -235,13 +237,13 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
         import subprocess
 
         output = subprocess.check_output(f"hdfs dfs -cat {file_path}", shell=True)
-        code = dill.loads(bytes(output))
+        transformation_pkl = bytes(output)
 
     elif store_type == "azure_blob_store":
         connection_string = credentials.get("azure_connection_string")
         container = credentials.get("azure_container_name")
 
-        if connection_string == None or container == None:
+        if connection_string is None or container is None:
             raise Exception(
                 "both 'azure_connection_string' and 'azure_container_name' need to be passed in as credential"
             )
@@ -255,7 +257,7 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
             container_client, file_path, "transformation.pkl"
         )
         with open(transformation_path, "rb") as f:
-            code = dill.load(f)
+            transformation_pkl = f.read()
 
     elif store_type == "google_cloud_storage":
         transformation_path = "transformation.pkl"
@@ -273,13 +275,18 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
         blob.download_to_filename(transformation_path)
 
         with open(transformation_path, "rb") as f:
-            code = dill.load(f)
+            transformation_pkl = f.read()
 
     else:
         with open(file_path, "rb") as f:
-            code = dill.load(f)
+            transformation_pkl = f.read()
 
     print("Retrieved code.")
+    try:
+        code = dill.loads(transformation_pkl)
+    except Exception as e:
+        error = check_dill_exception(e)
+        raise error
     return code
 
 
@@ -360,6 +367,15 @@ def delete_file(file_path):
         os.remove(file_path)
     else:
         print(f"{file_path} does not exist.")
+
+
+def check_dill_exception(exception):
+    if "TypeError: code() takes at most" in str(exception):
+        version = sys.version_info
+        python_version = f"{version.major}.{version.minor}.{version.micro}"
+        error_message = f"""This error is most likely caused by different Python versions between the client and Spark provider. Check to see if you are running Python version '{python_version}' on the client."""
+        return Exception(error_message)
+    return exception
 
 
 def split_key_value(values):

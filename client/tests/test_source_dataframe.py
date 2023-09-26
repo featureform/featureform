@@ -103,7 +103,6 @@ def test_dataframe_empty_variant(local_provider_source):
     client = ff.Client(local=True, insecure=True)
     client.apply(asynchronous=True)
 
-    # should use variant from run
     with pytest.raises(ValueError) as e:
         client.dataframe(source.name)
         assert "variant must be specified if source is a string" in str(e.value)

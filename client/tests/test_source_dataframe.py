@@ -22,7 +22,7 @@ from featureform.enums import FileFormat
     ],
 )
 def test_dataframe_for_name_variant_args(
-    provider_source_fxt, is_local, is_insecure, request
+        provider_source_fxt, is_local, is_insecure, request
 ):
     custom_marks = [
         mark.name for mark in request.node.own_markers if mark.name != "parametrize"
@@ -95,48 +95,18 @@ def test_dataframe_for_source_args(provider_source_fxt, is_local, is_insecure, r
         client.impl.db.close()  # TODO automatically do this
 
 
-@pytest.mark.parametrize(
-    "provider_source_fxt,is_local,is_insecure",
-    [
-        pytest.param(
-            "local_provider_source",
-            True,
-            True,
-            marks=pytest.mark.local,
-        ),
-        pytest.param(
-            "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
-        ),
-        pytest.param(
-            "hosted_sql_provider_and_source", False, True, marks=pytest.mark.docker
-        ),
-    ],
-)
-def test_dataframe_for_correct_variant(provider_source_fxt, is_local, is_insecure, request):
-    custom_marks = [
-        mark.name for mark in request.node.own_markers if mark.name != "parametrize"
-    ]
-    provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(
-        custom_marks
-    )
+# Ensures that the dataframe method
+def test_dataframe_empty_variant(local_provider_source):
+    provider, source, inference_store = local_provider_source("_empty_param")
+    arrange_transformation(provider, 'true')
 
-    arrange_transformation_default_variant('average_user_transaction', provider, is_local)
-
-    client = ff.Client(local=is_local, insecure=is_insecure)
-    # If we're running in a hosted context, `apply` needs to be synchronous
-    # to ensure resources are ready to test.
-    client.apply(asynchronous=is_local)
+    client = ff.Client(local=True, insecure=True)
+    client.apply(asynchronous=True)
 
     # should use variant from run
-    transformation_df = client.dataframe('average_user_transaction')  # use transformation name
-
-    assert isinstance(
-        transformation_df, (pd.DataFrame, pd.Series)
-    )
-
-    if is_local:
-        client.impl.db.close()  # TODO automatically do this
-
+    with pytest.raises(ValueError) as e:
+        client.dataframe(source.name)
+        assert "variant must be specified if source is a string" in str(e.value)
 
 
 @pytest.mark.parametrize(
@@ -193,22 +163,6 @@ def arrange_transformation(provider, is_local):
     else:
 
         @provider.sql_transformation(variant="quickstart")
-        def average_user_transaction():
-            return "SELECT customerid as user_id, avg(transactionamount) AS avg_transaction_amt FROM {{transactions.quickstart}} GROUP BY user_id"
-
-    return average_user_transaction
-
-
-def arrange_transformation_default_variant(name, provider, is_local):
-    if is_local:
-
-        @provider.df_transformation(name=name, inputs=[("transactions", "quickstart")])
-        def average_user_transaction(transactions):
-            return transactions.groupby("CustomerID")["TransactionAmount"].mean()
-
-    else:
-
-        @provider.sql_transformation(name=name)
         def average_user_transaction():
             return "SELECT customerid as user_id, avg(transactionamount) AS avg_transaction_amt FROM {{transactions.quickstart}} GROUP BY user_id"
 

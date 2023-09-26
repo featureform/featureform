@@ -17,6 +17,7 @@ from offline_store_pandas_runner import (
     execute_df_job,
     execute_sql_job,
     get_blob_credentials,
+    check_dill_exception,
 )
 
 real_path = os.path.realpath(__file__)
@@ -235,3 +236,19 @@ def load_env_file():
     )
     env_file = os.path.join(env_directory, ".env")
     load_dotenv(env_file)
+
+
+@pytest.mark.parametrize(
+    "exception_message, error",
+    [
+        (
+            Exception("TypeError: code() takes at most 16 arguments (19 given)"),
+            "dill_python_version_error",
+        ),
+        (Exception("generic error"), "generic_error"),
+    ],
+)
+def test_check_dill_exception(exception_message, error, request):
+    expected_error = request.getfixturevalue(error)
+    error = check_dill_exception(exception_message)
+    assert str(error) == str(expected_error)

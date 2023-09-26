@@ -15,6 +15,7 @@ from offline_store_spark_runner import (
     split_key_value,
     get_credentials_dict,
     delete_file,
+    check_dill_exception,
 )
 
 
@@ -160,3 +161,19 @@ def test_split_key_value():
 
     output = split_key_value(key_values)
     assert output == expected_output
+
+
+@pytest.mark.parametrize(
+    "exception_message, error",
+    [
+        (
+            Exception("TypeError: code() takes at most 16 arguments (19 given)"),
+            "dill_python_version_error",
+        ),
+        (Exception("generic error"), "generic_error"),
+    ],
+)
+def test_check_dill_exception(exception_message, error, request):
+    expected_error = request.getfixturevalue(error)
+    error = check_dill_exception(exception_message)
+    assert str(error) == str(expected_error)

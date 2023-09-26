@@ -1,4 +1,5 @@
 import os
+import sys
 import types
 
 from datetime import datetime
@@ -375,7 +376,12 @@ def get_code_from_file(mode, file_path):
     code = None
     with open(file_path, "rb") as f:
         f.seek(0)
-        code = dill.load(f)
+
+        try:
+            code = dill.load(f)
+        except Exception as e:
+            error = check_dill_exception(e)
+            raise error
 
     return code
 
@@ -530,6 +536,15 @@ def get_blob_credentials(mode, blob_store_type):
         return Namespace(
             type=LOCAL,
         )
+
+
+def check_dill_exception(exception):
+    if "TypeError: code() takes at most" in str(exception):
+        version = sys.version_info
+        python_version = f"{version.major}.{version.minor}.{version.micro}"
+        error_message = f"""This error is most likely caused by different Python versions between the client and k8s provider. Check to see if you are running Python version '{python_version}' on the client."""
+        return Exception(error_message)
+    return exception
 
 
 if __name__ == "__main__":

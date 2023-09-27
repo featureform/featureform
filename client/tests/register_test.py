@@ -211,7 +211,7 @@ def run_before_and_after_tests(tmpdir):
         (
             """
         SELECT *
-        FROM {{ string.string }}
+        FROM {{ name.variant2 }}
         WHERE x >= 5.
         """,
             True,

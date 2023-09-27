@@ -1,0 +1,43 @@
+name: Behave Tests
+on: pull_request
+concurrency:
+  group: ${{ github.head_ref }}-behave-testing
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    name: Run Behave Tests
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Check directory
+        run: |
+          ls -la
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - name: Build Python Package
+        run: ./pip_update.sh
+
+      - name: Install Behave
+        run: pip install behave
+
+      - name: Run Behavioral Tests
+        working-directory: ./tests/end_to_end/
+        run: behave

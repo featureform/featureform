@@ -70,9 +70,12 @@ const SearchResultsView = ({ results, search_query, setVariant }) => {
           style={{ display: 'flex' }}
         >
           {results?.length > 0 ? (
-            <div style={{ color: 'gray' }}>Results for:&nbsp;</div>
+            <span style={{ color: 'gray' }}>
+              {results?.length} {results.length < 2 ? 'result' : 'results'}{' '}
+              for:&nbsp;
+            </span>
           ) : (
-            <div style={{ color: 'gray' }}>No results for:&nbsp;</div>
+            <span style={{ color: 'gray' }}>No results for:&nbsp;</span>
           )}
           <b>{search_query}</b>
         </Typography>
@@ -103,7 +106,7 @@ const SearchResultsList = ({ type, contents, setVariant }) => {
     });
   }
   return (
-    <div>
+    <div style={{ marginBottom: '2em' }}>
       <List className={classes.root} component='nav'>
         {moreFilteredContents.map((content, i) => (
           <SearchResultsItem

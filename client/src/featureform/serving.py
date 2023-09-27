@@ -16,15 +16,14 @@ import dill
 import numpy as np
 import pandas as pd
 from featureform import metadata
-from featureform.proto import serving_pb2, metadata_pb2
-from featureform.proto import serving_pb2_grpc, metadata_pb2_grpc
+from featureform.proto import serving_pb2
+from featureform.proto import serving_pb2_grpc
 from featureform.providers import get_provider, Scalar, VectorType
 from pandas.core.generic import NDFrame
 from pandasql import sqldf
 
 from . import progress_bar
 from .register import FeatureColumnResource
-from .exceptions import StubExceptionWrapper
 
 from .constants import NO_RECORD_LIMIT
 from .enums import FileFormat, ScalarType
@@ -72,9 +71,7 @@ class ServingClient:
     ```
     """
 
-    def __init__(
-        self, host=None, local=False, insecure=False, cert_path=None, debug=False
-    ):
+    def __init__(self, host=None, local=False, insecure=False, cert_path=None):
         # This line ensures that the warning is only raised if ServingClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
         is_instantiated_directed = inspect.stack()[1].function != "__init__"
@@ -95,7 +92,7 @@ class ServingClient:
         if local:
             self.impl = LocalClientImpl()
         else:
-            self.impl = HostedClientImpl(host, insecure, cert_path, debug=debug)
+            self.impl = HostedClientImpl(host, insecure, cert_path)
 
     def training_set(
         self,
@@ -152,7 +149,7 @@ class ServingClient:
 
 
 class HostedClientImpl:
-    def __init__(self, host=None, insecure=False, cert_path=None, debug=False):
+    def __init__(self, host=None, insecure=False, cert_path=None):
         host = host or os.getenv("FEATUREFORM_HOST")
         if host is None:
             raise ValueError(
@@ -161,9 +158,7 @@ class HostedClientImpl:
             )
         check_up_to_date(False, "serving")
         self._channel = self._create_channel(host, insecure, cert_path)
-        self._stub = StubExceptionWrapper(
-            serving_pb2_grpc.FeatureStub(self._channel), debug=debug
-        )
+        self._stub = serving_pb2_grpc.FeatureStub(self._channel)
 
     def _create_channel(self, host, insecure, cert_path):
         if insecure:
@@ -846,9 +841,6 @@ class LocalClientImpl:
         else:
             raise ValueError(f"Table does not exist for feature {name} ({variant})")
         return table.nearest(name, variant, vector, k)
-
-    def get_provider(self, name, variant):
-        raise NotImplementedError
 
     def close(self):
         self.db.close()

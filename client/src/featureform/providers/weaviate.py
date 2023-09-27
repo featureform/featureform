@@ -4,7 +4,7 @@ import weaviate
 import numpy as np
 
 from .online_store import VectorStoreTable, VectorStore, ValueType, VectorType
-from .configs.vectordbs import WeaviateConfig
+from ..resources import WeaviateConfig
 from ..enums import ScalarType
 
 

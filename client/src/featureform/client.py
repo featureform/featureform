@@ -31,14 +31,11 @@ class Client(ResourceClient, ServingClient):
     """
 
     def __init__(
-        self,
-        host=None,
-        local=False,
-        insecure=False,
-        cert_path=None,
-        dry_run=False,
-        debug=False,
+        self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
     ):
+        if host is not None:
+            self._validate_host(host)
+
         ResourceClient.__init__(
             self,
             host=host,
@@ -46,18 +43,12 @@ class Client(ResourceClient, ServingClient):
             insecure=insecure,
             cert_path=cert_path,
             dry_run=dry_run,
-            debug=debug,
         )
         # Given both ResourceClient and ServingClient are instantiated together, if dry_run is True, then
         # the ServingClient cannot be instantiated due to a conflict the local and host arguments.
         if not dry_run:
             ServingClient.__init__(
-                self,
-                host=host,
-                local=local,
-                insecure=insecure,
-                cert_path=cert_path,
-                debug=debug,
+                self, host=host, local=local, insecure=insecure, cert_path=cert_path
             )
 
     def dataframe(
@@ -142,6 +133,11 @@ class Client(ResourceClient, ServingClient):
         Closes the client, closes channel for hosted mode and db for local mode
         """
         self.impl.close()
+
+    @staticmethod
+    def _validate_host(host):
+        if host.startswith("http://") or host.startswith("https://"):
+            raise ValueError("Invalid Host: Host should not contain http or https.")
 
     def __enter__(self):
         return self

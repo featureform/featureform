@@ -88,7 +88,7 @@ def get(host, cert, insecure, local, resource_type, name, variant):
         "user": client.get_user,
         "model": client.get_model,
         "entity": client.get_entity,
-        "provider": client.get_provider_legacy,
+        "provider": client.get_provider,
     }
 
     if resource_type in resource_get_functions_variant:
@@ -198,8 +198,7 @@ def run_dashboard():
     "--dry-run", is_flag=True, help="Checks the definitions without applying them"
 )
 @click.option("--no-wait", is_flag=True, help="Applies the resources asynchronously")
-@click.option("--debug", is_flag=True, help="Enables additional debugging for requests")
-def apply(host, cert, insecure, local, files, dry_run, no_wait, debug):
+def apply(host, cert, insecure, local, files, dry_run, no_wait):
     for file in files:
         if os.path.isfile(file):
             read_file(file)
@@ -211,12 +210,7 @@ def apply(host, cert, insecure, local, files, dry_run, no_wait, debug):
             )
 
     client = Client(
-        host=host,
-        local=local,
-        insecure=insecure,
-        cert_path=cert,
-        dry_run=dry_run,
-        debug=debug,
+        host=host, local=local, insecure=insecure, cert_path=cert, dry_run=dry_run
     )
     asynchronous = no_wait
     client.apply(asynchronous=asynchronous)

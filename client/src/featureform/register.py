@@ -2,19 +2,17 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 import inspect
-import json
-import sys
 import warnings
 from datetime import timedelta
 from os.path import exists
 from pathlib import Path
-from typing import Dict, Tuple, Callable, List, Union
-from .exceptions import StubExceptionWrapper
+from typing import Dict, Tuple, Callable, List, Union, Optional
+
 import dill
 import pandas as pd
 from typeguard import typechecked
 
-from .enums import FileFormat, ScalarType
+from .enums import FileFormat
 from .file_utils import absolute_file_paths
 from .get import *
 from .get_local import *
@@ -24,6 +22,8 @@ from .names_generator import get_random_name
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
 from .resources import (
+    PineconeConfig,
+    ScalarType,
     Model,
     ResourceState,
     Provider,
@@ -38,8 +38,11 @@ from .resources import (
     RedshiftConfig,
     BigQueryConfig,
     SparkConfig,
+    AzureFileStoreConfig,
     OnlineBlobConfig,
     K8sConfig,
+    S3StoreConfig,
+    GCSFileStoreConfig,
     User,
     Location,
     SourceVariant,
@@ -56,23 +59,18 @@ from .resources import (
     ProviderReference,
     EntityReference,
     SourceReference,
+    ExecutorCredentials,
     ResourceRedefinedError,
     ResourceStatus,
     K8sArgs,
+    AWSCredentials,
+    GCPCredentials,
+    HDFSConfig,
     K8sResourceSpecs,
     FilePrefix,
     OnDemandFeatureVariant,
+    WeaviateConfig,
 )
-
-from .providers.credentials import ExecutorCredentials, AWSCredentials, GCPCredentials
-from .providers.configs.vectordbs import WeaviateConfig, PineconeConfig
-from .providers.configs.filestores import (
-    S3StoreConfig,
-    AzureFileStoreConfig,
-    GCSFileStoreConfig,
-    HDFSConfig,
-)
-
 from .search import search
 from .search_local import search_local
 from .sqlite_metadata import SQLiteMetadata
@@ -554,7 +552,7 @@ class FileStoreProvider:
     def __init__(self, registrar, provider, config, store_type):
         self.__registrar = registrar
         self.__provider = provider
-        self.__config = config
+        self.__config = config.config()
         self.__store_type = store_type
 
     def name(self) -> str:
@@ -2147,8 +2145,7 @@ class Registrar:
 
     def get_s3(self, name):
         """
-
-        Get a S3 provider. The returned object can be used with other providers such as EMR, Spark, and Databricks.
+        Get a S3 provider. The returned object can be used with other providers such as Spark and Databricks.
 
         **Examples**:
 
@@ -2163,15 +2160,6 @@ class Registrar:
             filestore=s3,
         )
         ```
-
-        Values can be accessed like:
-        ``` py
-        s3 = ff.get_s3("s3-quickstart")
-        bucket_name = s3.bucket_name
-        bucket_region = s3.bucket_region
-        path = s3.path
-        ```
-
 
         Args:
             name (str): Name of S3 to be retrieved
@@ -2245,8 +2233,8 @@ class Registrar:
         password: str = "",
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: Optional[List[str]] = None,
+        properties: Optional[dict] = None,
     ):
         """Register a Redis provider.
 
@@ -2269,13 +2257,13 @@ class Registrar:
             password (str): (Mutable) Redis password
             description (str): (Mutable) Description of Redis provider to be registered
             team (str): (Mutable) Name of team
-            tags (List[str]): (Mutable) Optional grouping mechanism for resources
-            properties (dict): (Mutable) Optional grouping mechanism for resources
+            tags (Optional[List[str]]): (Mutable) Optional grouping mechanism for resources
+            properties (Optional[dict]): (Mutable) Optional grouping mechanism for resources
 
         Returns:
             redis (OnlineProvider): Provider
         """
-        tag, properties = set_tags_properties(tags, properties)
+        tags, properties = set_tags_properties(tags, properties)
         config = RedisConfig(host=host, port=port, password=password, db=db)
         provider = Provider(
             name=name,
@@ -2395,12 +2383,11 @@ class Registrar:
         account_name: str,
         account_key: str,
         container_name: str,
-        path: str,
+        root_path: str,
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
-        root_path: str = "",  # Deprecated
+        tags=None,
+        properties=None,
     ):
         """Register an Azure Blob Store provider.
 
@@ -2411,7 +2398,7 @@ class Registrar:
         blob = ff.register_blob_store(
             name="azure-quickstart",
             container_name="my_company_container"
-            path="custom/path/in/container"
+            root_path="custom/path/in/container"
             account_name=<azure_account_name>
             account_key=<azure_account_key>
             description="An azure blob store provider to store offline and inference data"
@@ -2421,7 +2408,7 @@ class Registrar:
         Args:
             name (str): (Immutable) Name of Azure blob store to be registered
             container_name (str): (Immutable) Azure container name
-            path (str): (Immutable) A custom path in container to store data
+            root_path (str): (Immutable) A custom path in container to store data
             account_name (str): (Immutable) Azure account name
             account_key (str):  (Mutable) Secret azure account key
             description (str): (Mutable) Description of Azure Blob provider to be registered
@@ -2429,19 +2416,20 @@ class Registrar:
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
             properties (dict): (Mutable) Optional grouping mechanism for resources
 
-
         Returns:
             blob (StorageProvider): Provider
                 has all the functionality of OnlineProvider
         """
-        root_path = path
-        tags, properties = set_tags_properties(tags, properties)
 
+        tags, properties = set_tags_properties(tags, properties)
         azure_config = AzureFileStoreConfig(
             account_name=account_name,
             account_key=account_key,
             container_name=container_name,
-            path=root_path,
+            root_path=root_path,
+        )
+        config = OnlineBlobConfig(
+            store_type="AZURE", store_config=azure_config.config()
         )
 
         provider = Provider(
@@ -2449,7 +2437,7 @@ class Registrar:
             function="ONLINE",
             description=description,
             team=team,
-            config=azure_config,
+            config=config,
             tags=tags,
             properties=properties,
         )
@@ -2460,14 +2448,13 @@ class Registrar:
         self,
         name: str,
         credentials: AWSCredentials,
-        bucket_name: str,
         bucket_region: str,
+        bucket_name: str,
         path: str = "",
         description: str = "",
         team: str = "",
         tags: List[str] = [],
         properties: dict = {},
-        bucket_path: str = "",  # Deprecated
     ):
         """Register a S3 store provider.
 
@@ -2506,9 +2493,8 @@ class Registrar:
         if bucket_name == "":
             raise ValueError("bucket_name required")
 
-        bucket_path = bucket_name
         s3_config = S3StoreConfig(
-            bucket_name=bucket_path,
+            bucket_path=bucket_name,
             bucket_region=bucket_region,
             credentials=credentials,
             path=path,
@@ -2530,13 +2516,12 @@ class Registrar:
         self,
         name: str,
         bucket_name: str,
-        path: str,
+        bucket_path: str,
         credentials: GCPCredentials,
         description: str = "",
         team: str = "",
         tags: List[str] = [],
         properties: dict = {},
-        bucket_path: str = "",  # Deprecated
     ):
         """Register a GCS store provider.
 
@@ -2546,7 +2531,7 @@ class Registrar:
             name="gcs-quickstart",
             credentials=ff.GCPCredentials(...),
             bucket_name="bucket_name",
-            path="featureform/path/",
+            bucket_path="featureform/path/",
             description="An gcs store provider to store offline"
         )
         ```
@@ -2554,7 +2539,7 @@ class Registrar:
         Args:
             name (str): (Immutable) Name of GCS store to be registered
             bucket_name (str): (Immutable) The bucket name
-            path (str): (Immutable) Custom path to be used by featureform
+            bucket_path (str): (Immutable) Custom path to be used by featureform
             credentials (GCPCredentials): (Mutable) GCP credentials to access the bucket
             description (str): (Mutable) Description of GCS provider to be registered
             team (str): (Mutable) The name of the team registering the filestore
@@ -2565,11 +2550,9 @@ class Registrar:
             gcs (FileStoreProvider): Provider
                 has all the functionality of OfflineProvider
         """
-
-        bucket_path = path
         tags, properties = set_tags_properties(tags, properties)
         gcs_config = GCSFileStoreConfig(
-            bucket_name=bucket_name, path=bucket_path, credentials=credentials
+            bucket_name=bucket_name, bucket_path=bucket_path, credentials=credentials
         )
         provider = Provider(
             name=name,
@@ -4142,13 +4125,7 @@ class ResourceClient:
     """
 
     def __init__(
-        self,
-        host=None,
-        local=False,
-        insecure=False,
-        cert_path=None,
-        dry_run=False,
-        debug=False,
+        self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
     ):
         # This line ensures that the warning is only raised if ResourceClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
@@ -4178,10 +4155,10 @@ class ResourceClient:
                 channel = insecure_channel(host)
             else:
                 channel = secure_channel(host, cert_path)
-            self._stub = StubExceptionWrapper(ff_grpc.ApiStub(channel), debug=debug)
+            self._stub = ff_grpc.ApiStub(channel)
             self._host = host
 
-    def apply(self, asynchronous=False):
+    def apply(self, asynchronous=True):
         """
         Apply all definitions, creating and retrieving all specified resources.
 
@@ -4355,78 +4332,7 @@ class ResourceClient:
 
         return model
 
-    def get_provider(self, name):
-        if self.local:
-            raise Exception("Cannot get provider in local mode")
-        searchName = metadata_pb2.Name(name=name)
-        for x in self._stub.GetProviders(iter([searchName])):
-            deserialized = json.loads(x.serialized_config)
-            if x.type == "S3":
-                config = S3StoreConfig(
-                    bucket_name=deserialized["BucketPath"],
-                    bucket_region=deserialized["BucketRegion"],
-                    path=deserialized["Path"],
-                    credentials=AWSCredentials(
-                        access_key=deserialized["Credentials"]["AWSAccessKeyId"],
-                        secret_key=deserialized["Credentials"]["AWSSecretKey"],
-                    ),
-                )
-            elif x.type == "GCS":
-                deserialized = json.loads(x.serialized_config)
-                config = GCSFileStoreConfig(
-                    bucket_name=deserialized["BucketName"],
-                    path=deserialized["BucketPath"],
-                    credentials=GCPCredentials(
-                        project_id=deserialized["Credentials"]["ProjectId"],
-                        credentials_path="",
-                        json_creds=deserialized["Credentials"]["JSON"],
-                    ),
-                )
-            elif x.type == "AZURE":
-                deserialized = json.loads(x.serialized_config)
-                config = AzureFileStoreConfig(
-                    account_name=deserialized["AccountName"],
-                    account_key=deserialized["AccountKey"],
-                    container_name=deserialized["ContainerName"],
-                    path=deserialized["Path"],
-                )
-            else:
-                raise Exception(f"Cannot get provider of type {x.type}")
-
-            return FileStoreProvider(
-                registrar=self,
-                provider=Provider(
-                    name=x.name,
-                    function="OFFLINE",
-                    description=x.description,
-                    team="",
-                    config=config,
-                ),
-                store_type=x.type,
-                config=config,
-            )
-
-    def get_feature(self, name, variant):
-        name_variant = metadata_pb2.NameVariant(name=name, variant=variant)
-        feature = None
-        for x in self._stub.GetFeatureVariants(iter([name_variant])):
-            feature = x
-            break
-
-        return FeatureVariant(
-            name=feature.name,
-            variant=feature.variant,
-            source=(feature.source.name, feature.source.variant),
-            value_type=feature.type,
-            entity=feature.entity,
-            owner=feature.owner,
-            provider=feature.provider,
-            location=ResourceColumnMapping("", "", ""),
-            description=feature.description,
-            status=feature.status.Status._enum_type.values[feature.status.status].name,
-        )
-
-    def get_provider_legacy(self, name, local=False):
+    def get_provider(self, name, local=False):
         """Get a provider. Prints out information on provider, and all resources associated with the provider.
 
         **Examples:**

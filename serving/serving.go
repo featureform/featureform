@@ -81,7 +81,7 @@ func (serv *FeatureServer) TrainingDataColumns(ctx context.Context, req *pb.Trai
 	serv.Logger.Infow("Getting training set columns", "Name", name, "Variant", variant)
 	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get training set")
+		return nil, errors.Wrap(err, "could not get training set variant")
 	}
 	fv := ts.Features()
 	features := make([]string, len(fv))
@@ -129,7 +129,7 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	serv.Logger.Infow("Getting Training Set Iterator", "name", name, "variant", variant)
 	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{name, variant})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get training set")
+		return nil, errors.Wrap(err, "could not get training set variant")
 	}
 	serv.Logger.Debugw("Fetching Training Set Provider", "name", name, "variant", variant)
 	providerEntry, err := ts.FetchProvider(serv.Metadata, ctx)
@@ -159,11 +159,7 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	}
 	// TODO: Determine if we want to add a backoff here to wait for the source
 	if sv.Status() != metadata.READY {
-		if sv.Status() == metadata.FAILED {
-			return nil, fmt.Errorf("cannot fetch source. source creation failed: %v", sv.Error())
-		} else {
-			return nil, fmt.Errorf("source is not ready. Status: %v. Try again later", sv.Status())
-		}
+		return nil, fmt.Errorf("source variant is not ready; current status is %v", sv.Status())
 	}
 	providerEntry, err := sv.FetchProvider(serv.Metadata, ctx)
 	serv.Logger.Debugw("Fetched Source Variant Provider", "name", providerEntry.Name(), "type", providerEntry.Type())

@@ -874,7 +874,7 @@ class BaseStreamWrapper(ABC):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-        
+
     @abstractmethod
     def get_underlying_closeable(self):
         pass

@@ -567,18 +567,21 @@ func getOrderedSourceMappings(sources []metadata.NameVariant, sourceMap map[stri
 	return sourceMapping, nil
 }
 
-func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string) error {
+func (c *Coordinator) runPrimaryTableJob(source *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string) error {
 	c.Logger.Info("Running primary table job on resource: ", resID)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Primary}
-	sourceName := transformSource.PrimaryDataSQLTableName()
+	if !source.IsPrimaryDataSQLTable() {
+		return fmt.Errorf("%s is not a primary table", source.Name())
+	}
+	sourceName := source.PrimaryDataSQLTableName()
 	if sourceName == "" {
-		return fmt.Errorf("Source is not a primary table")
+		return fmt.Errorf("Source name is not set")
 	}
 	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, sourceName); err != nil {
-		return fmt.Errorf("unable to register primary table from %s in %s: %v", sourceName, offlineStore.Type().String(), err)
+		return fmt.Errorf("Unable to register primary table from %s in %s: %v", sourceName, offlineStore.Type().String(), err)
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
-		return fmt.Errorf("set done status for registering primary table: %v", err)
+		return fmt.Errorf("Set done status for registering primary table: %v", err)
 	}
 	return nil
 }

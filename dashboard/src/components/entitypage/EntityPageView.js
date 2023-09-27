@@ -501,7 +501,6 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                         </div>
                       )}
                     {metadata['definition'] && (
-
                       <div>
                         {(() => {
                           if (

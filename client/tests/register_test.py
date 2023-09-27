@@ -131,33 +131,33 @@ def test_df_transformation_empty_description(registrar):
     [
         # Same number of arguments, should not raise an error
         (
-            lambda a, b: None,
-            [("name1", "var1"), ("name2", "var2")],
-            False,
+                lambda a, b: None,
+                [("name1", "var1"), ("name2", "var2")],
+                False,
         ),
         # 0 function arguments, 1 decorator argument, should not raise an error
         (
-            lambda: None,
-            [("name1", "var1")],
-            False
+                lambda: None,
+                [("name1", "var1")],
+                False
         ),
         # 1 function argument, 0 decorator arguments, should raise an error
         (
-            lambda df: None,
-            [],
-            True
+                lambda df: None,
+                [],
+                True
         ),
         # 5 function arguments, 3 decorator arguments, should raise an error
         (
-            lambda a, b, c, d, e: None,
-            [("name1", "var1"), ("name2", "var2"), ("name3", "var3")],
-            True,
+                lambda a, b, c, d, e: None,
+                [("name1", "var1"), ("name2", "var2"), ("name3", "var3")],
+                True,
         ),
         # 2 function arguments, 5 decorator arguments, should not raise an error
         (
-            lambda x, y: None,
-            [("name1", "var1"), ("name2", "var2"), ("name3", "var3"), ("name4", "var4")],
-            False,
+                lambda x, y: None,
+                [("name1", "var1"), ("name2", "var2"), ("name3", "var3"), ("name4", "var4")],
+                False,
         ),
     ],
     # fmt: on
@@ -177,7 +177,9 @@ def test_transformations_invalid_args_and_inputs(registrar, func, args, should_r
         with pytest.raises(ValueError) as e:
             dec(func)
 
-        assert "Transformation function has more parameters than inputs." in str(e.value)
+        assert "Transformation function has more parameters than inputs." in str(
+            e.value
+        )
     else:
         dec(func)  # Should not raise an error
 

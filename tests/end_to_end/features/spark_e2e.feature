@@ -15,30 +15,30 @@ Feature: Spark End to End
     Then I should be able to pull the file as a dataframe
     Examples: Azure
       | filesize | filetype | storage_provider | bucket |
-#      |  small   |   csv    |       azure      | test   |
-#      |  small   |  parquet |       azure      | test   |
-#      |  large   |   csv    |       azure      | test   |
-#      |  large   |  parquet |       azure      | test   |
+      |  small   |   csv    |       azure      | test   |
+      |  small   |  parquet |       azure      | test   |
+      |  large   |   csv    |       azure      | test   |
+      |  large   |  parquet |       azure      | test   |
       |  small   | directory|       azure      | test   |
       |  large   | directory|       azure      | test   |
 #
     Examples: S3
       | filesize | filetype | storage_provider |          bucket         |
-#      |  small   |   csv    |        s3        |featureform-spark-testing|
-#      |  small   |  parquet |        s3        |featureform-spark-testing|
-#      |  large   |   csv    |        s3        |featureform-spark-testing|
-#      |  large   |  parquet |        s3        |featureform-spark-testing|
-#      |  small   | directory|        s3        |featureform-spark-testing|  # Fails due to cannot read directory
-#      |  large   | directory|        s3        |featureform-spark-testing|  # Fails due to cannot read directory
+      |  small   |   csv    |        s3        |featureform-spark-testing|
+      |  small   |  parquet |        s3        |featureform-spark-testing|
+      |  large   |   csv    |        s3        |featureform-spark-testing|
+      |  large   |  parquet |        s3        |featureform-spark-testing|
+      |  small   | directory|        s3        |featureform-spark-testing|
+      |  large   | directory|        s3        |featureform-spark-testing|
 
     Examples: GCS
       | filesize | filetype |  storage_provider |     bucket     |
-#      |  small   |   csv    |        gcs        |featureform-test|
-#      |  small   |  parquet |        gcs        |featureform-test|
-#      |  large   |   csv    |        gcs        |featureform-test|
-#      |  large   |  parquet |        gcs        |featureform-test|
-#      |  small   | directory|        gcs        |featureform-test|  # Fails due to cannot read directory
-#      |  large   | directory|        gcs        |featureform-test|  # Fails due to cannot read directory
+      |  small   |   csv    |        gcs        |featureform-test|
+      |  small   |  parquet |        gcs        |featureform-test|
+      |  large   |   csv    |        gcs        |featureform-test|
+      |  large   |  parquet |        gcs        |featureform-test|
+      |  small   | directory|        gcs        |featureform-test|
+      |  large   | directory|        gcs        |featureform-test|
 
   Scenario Outline: Register a file with invalid stores
     Given Featureform is installed

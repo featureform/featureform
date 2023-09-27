@@ -216,6 +216,7 @@ def run_before_and_after_tests(tmpdir):
         """,
             True,
         ),
+        ("SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id", True),
     ],
 )
 def test_validate_sql_query(sql_query, expected_valid_sql_query):

@@ -6,7 +6,7 @@ import warnings
 from datetime import timedelta
 from os.path import exists
 from pathlib import Path
-from typing import Dict, Tuple, Callable, List, Union
+from typing import Dict, Tuple, Callable, List, Union, Optional
 
 import dill
 import pandas as pd
@@ -2233,8 +2233,8 @@ class Registrar:
         password: str = "",
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: Optional[List[str]] = None,
+        properties: Optional[dict] = None,
     ):
         """Register a Redis provider.
 
@@ -2257,13 +2257,13 @@ class Registrar:
             password (str): (Mutable) Redis password
             description (str): (Mutable) Description of Redis provider to be registered
             team (str): (Mutable) Name of team
-            tags (List[str]): (Mutable) Optional grouping mechanism for resources
-            properties (dict): (Mutable) Optional grouping mechanism for resources
+            tags (Optional[List[str]]): (Mutable) Optional grouping mechanism for resources
+            properties (Optional[dict]): (Mutable) Optional grouping mechanism for resources
 
         Returns:
             redis (OnlineProvider): Provider
         """
-        tag, properties = set_tags_properties(tags, properties)
+        tags, properties = set_tags_properties(tags, properties)
         config = RedisConfig(host=host, port=port, password=password, db=db)
         provider = Provider(
             name=name,

@@ -22,7 +22,7 @@ from featureform.enums import FileFormat
     ],
 )
 def test_dataframe_for_name_variant_args(
-        provider_source_fxt, is_local, is_insecure, request
+    provider_source_fxt, is_local, is_insecure, request
 ):
     custom_marks = [
         mark.name for mark in request.node.own_markers if mark.name != "parametrize"
@@ -98,7 +98,7 @@ def test_dataframe_for_source_args(provider_source_fxt, is_local, is_insecure, r
 # Ensures that the dataframe method
 def test_dataframe_empty_variant(local_provider_source):
     provider, source, inference_store = local_provider_source("_empty_param")
-    arrange_transformation(provider, 'true')
+    arrange_transformation(provider, "true")
 
     client = ff.Client(local=True, insecure=True)
     client.apply(asynchronous=True)

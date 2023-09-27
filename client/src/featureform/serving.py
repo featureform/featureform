@@ -10,7 +10,8 @@ import os
 import random
 import types
 import warnings
-from typing import List, Union, Dict
+from abc import ABC, abstractmethod
+from typing import List, Union, Dict, Callable
 
 import dill
 import numpy as np
@@ -95,11 +96,11 @@ class ServingClient:
             self.impl = HostedClientImpl(host, insecure, cert_path)
 
     def training_set(
-        self,
-        name,
-        variant="",
-        include_label_timestamp=False,
-        model: Union[str, Model] = None,
+            self,
+            name,
+            variant="",
+            include_label_timestamp=False,
+            model: Union[str, Model] = None,
     ):
         """Return an iterator that iterates through the specified training set.
 
@@ -122,7 +123,7 @@ class ServingClient:
         return self.impl.training_set(name, variant, include_label_timestamp, model)
 
     def features(
-        self, features, entities, model: Union[str, Model] = None, params: list = None
+            self, features, entities, model: Union[str, Model] = None, params: list = None
     ):
         """Returns the feature values for the specified entities.
 
@@ -167,12 +168,12 @@ class HostedClientImpl:
             return secure_channel(host, cert_path)
 
     def training_set(
-        self, name, variation, include_label_timestamp, model: Union[str, Model] = None
+            self, name, variation, include_label_timestamp, model: Union[str, Model] = None
     ):
-        return Dataset(self._stub).from_stub(name, variation, model)
+        return Dataset.from_stub(self._stub, name, variation, model)
 
     def features(
-        self, features, entities, model: Union[str, Model] = None, params: list = None
+            self, features, entities, model: Union[str, Model] = None, params: list = None
     ):
         req = serving_pb2.FeatureServeRequest()
         for name, value in entities.items():
@@ -253,7 +254,7 @@ class LocalClientImpl:
         self.db.close()
 
     def get_training_set_dataframe(
-        self, label, label_df, training_set_name, training_set_variant
+            self, label, label_df, training_set_name, training_set_variant
     ) -> NDFrame:
         def get() -> pd.DataFrame:
             feature_columns = []
@@ -303,11 +304,11 @@ class LocalClientImpl:
         )
 
     def training_set(
-        self,
-        training_set_name,
-        training_set_variant,
-        include_label_timestamp,
-        model: Union[str, Model] = None,
+            self,
+            training_set_name,
+            training_set_variant,
+            include_label_timestamp,
+            model: Union[str, Model] = None,
     ):
         training_set = self.db.get_training_set_variant(
             training_set_name, training_set_variant
@@ -335,7 +336,7 @@ class LocalClientImpl:
         )
 
     def get_lag_features_sql_query(
-        self, lag_features, feature_columns, entity, label, ts
+            self, lag_features, feature_columns, entity, label, ts
     ):
         """
         Returns the SQL query to compute the lag features.
@@ -394,8 +395,8 @@ class LocalClientImpl:
 
     def get_input_df(self, source_name, source_variant):
         if (
-            self.db.is_transformation(source_name, source_variant)
-            == SourceType.PRIMARY_SOURCE
+                self.db.is_transformation(source_name, source_variant)
+                == SourceType.PRIMARY_SOURCE
         ):
             source = self.db.get_source_variant(source_name, source_variant)
             file_path = source["definition"]
@@ -407,8 +408,8 @@ class LocalClientImpl:
                 raise ValueError(f"Unsupported file format for {file_path}")
             return df
         elif (
-            self.db.is_transformation(source_name, source_variant)
-            == SourceType.DIRECTORY
+                self.db.is_transformation(source_name, source_variant)
+                == SourceType.DIRECTORY
         ):
             source = self.db.get_source_variant(source_name, source_variant)
             directory = source["definition"]
@@ -456,8 +457,8 @@ class LocalClientImpl:
         def get():
             source = self.db.get_source_variant(name, variant)
             if (
-                self.db.is_transformation(name, variant)
-                == SourceType.SQL_TRANSFORMATION.value
+                    self.db.is_transformation(name, variant)
+                    == SourceType.SQL_TRANSFORMATION.value
             ):
                 query = source["definition"]
                 new_data = self.sql_transformation(query)
@@ -494,8 +495,8 @@ class LocalClientImpl:
                 label["source_name"], label["source_variant"]
             )
             if (
-                transform_type == SourceType.SQL_TRANSFORMATION.value
-                or transform_type == SourceType.DF_TRANSFORMATION.value
+                    transform_type == SourceType.SQL_TRANSFORMATION.value
+                    or transform_type == SourceType.DF_TRANSFORMATION.value
             ):
                 label_df = self.label_df_from_transformation(label)
             else:
@@ -545,8 +546,8 @@ class LocalClientImpl:
                 feature["source_name"], feature["source_variant"]
             )
             if (
-                transform_type == SourceType.SQL_TRANSFORMATION.value
-                or transform_type == SourceType.DF_TRANSFORMATION.value
+                    transform_type == SourceType.SQL_TRANSFORMATION.value
+                    or transform_type == SourceType.DF_TRANSFORMATION.value
             ):
                 feature_df = self.feature_df_from_transformation(feature)
             else:
@@ -598,11 +599,11 @@ class LocalClientImpl:
         return df
 
     def features(
-        self,
-        feature_variant_list,
-        entities: Dict,
-        model: Union[str, Model] = None,
-        params: list = None,
+            self,
+            feature_variant_list,
+            entities: Dict,
+            model: Union[str, Model] = None,
+            params: list = None,
     ):
         if len(feature_variant_list) == 0:
             raise Exception("No features provided")
@@ -634,11 +635,11 @@ class LocalClientImpl:
     def __validate_entity_exists(self, entities, feature_variant_list):
         # validate entities exists if any of the features are not ondemand
         if any(
-            [
-                self.db.get_feature_variant_mode(f_name, f_variant)
-                != ComputationMode.CLIENT_COMPUTED
-                for f_name, f_variant in feature_variant_list
-            ]
+                [
+                    self.db.get_feature_variant_mode(f_name, f_variant)
+                    != ComputationMode.CLIENT_COMPUTED
+                    for f_name, f_variant in feature_variant_list
+                ]
         ):
             if len(entities) == 0:
                 raise Exception("Entities are required for features (unless ondemand)")
@@ -686,14 +687,14 @@ class LocalClientImpl:
         table_exists = provider.table_exists(f_name, f_variant)
 
         if (
-            not any(
-                self._file_has_changed(
-                    source_file["updated_at"], source_file["file_path"]
+                not any(
+                    self._file_has_changed(
+                        source_file["updated_at"], source_file["file_path"]
+                    )
+                    for source_file in source_files_from_db
                 )
-                for source_file in source_files_from_db
-            )
-            and len(source_files_from_db) > 0
-            and table_exists
+                and len(source_files_from_db) > 0
+                and table_exists
         ):
             return
 
@@ -702,8 +703,8 @@ class LocalClientImpl:
                 f"Invalid entity {entity_name} for feature {source_name}-{source_variant}"
             )
         if (
-            self.db.is_transformation(source_name, source_variant)
-            != SourceType.PRIMARY_SOURCE.value
+                self.db.is_transformation(source_name, source_variant)
+                != SourceType.PRIMARY_SOURCE.value
         ):
             feature_df = self.process_non_primary_df_transformation(
                 feature, source_name, source_variant, entity_name
@@ -767,7 +768,7 @@ class LocalClientImpl:
         return value
 
     def process_non_primary_df_transformation(
-        self, feature, source_name, source_variant, entity_id
+            self, feature, source_name, source_variant, entity_id
     ):
         name_variant = f"{feature['name']}.{feature['variant']}"
         feature_df = self.process_transformation(source_name, source_variant)
@@ -808,11 +809,11 @@ class LocalClientImpl:
         return Dataset.from_dataframe(trainingset_df, include_label_timestamp)
 
     def _register_model(
-        self,
-        model: Union[str, Model],
-        look_up_table: str,
-        association_name: str,
-        association_variant: str,
+            self,
+            model: Union[str, Model],
+            look_up_table: str,
+            association_name: str,
+            association_variant: str,
     ):
         name = model if isinstance(model, str) else model.name
         type = "Model" if isinstance(model, str) else model.type()
@@ -846,7 +847,44 @@ class LocalClientImpl:
         self.db.close()
 
 
-class Stream:
+class Closeable:
+    """
+    Use this to wrap any resource which needs to be "closed" by the BaseStreamWrapper but which does not
+    have a close method.
+    """
+    def __init__(self, resource, close_function: Callable):
+        self._r = resource
+        self._c = close_function
+
+    def close(self):
+        self._c(self._r)
+
+
+class BaseStreamWrapper(ABC):
+    """
+    This abstract class should be inherited by any class which wraps a stream that needs to be closed.
+    By inheriting this base class the stream can be used in the resource manager pattern:
+    with get_resource() as resource:
+        ...do work with resource
+
+    the stream will be closed automatically after exiting the `with` block
+    """
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        
+    @abstractmethod
+    def get_underlying_closeable(self):
+        pass
+
+    def close(self):
+        closeable = self.get_underlying_closeable()
+        closeable.close()
+
+
+class Stream(BaseStreamWrapper):
     def __init__(self, stub, name, version, model: Union[str, Model] = None):
         req = serving_pb2.TrainingDataRequest()
         req.id.name = name
@@ -857,13 +895,18 @@ class Stream:
         self.version = version
         self._stub = stub
         self._req = req
-        self._iter = stub.TrainingData(req)
+        self._underlying_grpc_stream = stub.TrainingData(req)
+        self._iter = self._underlying_grpc_stream
 
     def __iter__(self):
         return self
 
     def __next__(self):
         return Row(next(self._iter))
+
+    def get_underlying_closeable(self):
+        # Closeable is needed here because we want to call cancel().
+        return Closeable(self._underlying_grpc_stream, lambda s: s.cancel())
 
     def restart(self):
         self._iter = self._stub.TrainingData(self._req)
@@ -966,7 +1009,7 @@ class Batch:
         return rows
 
 
-class Dataset:
+class Dataset(BaseStreamWrapper):
     def __init__(self, stream, dataframe=None):
         """Repeats the Dataset for the specified number of times
 
@@ -979,8 +1022,12 @@ class Dataset:
         self._stream = stream
         self._dataframe = dataframe
 
-    def from_stub(self, name, version, model: Union[str, Model] = None):
-        stream = Stream(self._stream, name, version, model)
+    def get_underlying_closeable(self):
+        return self._stream
+
+    @staticmethod
+    def from_stub(stub, name, version, model: Union[str, Model] = None):
+        stream = Stream(stub, name, version, model)
         return Dataset(stream)
 
     def dataframe(self) -> pd.DataFrame:
@@ -1116,6 +1163,9 @@ class Dataset:
     def __next__(self):
         next_val = next(self._stream)
         return next_val
+
+    def close_stream(self):
+        self._stream.close()
 
 
 class Row:

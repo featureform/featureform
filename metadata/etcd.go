@@ -181,14 +181,14 @@ func (s EtcdStorage) genericGet(key string, withPrefix bool) (*clientv3.GetRespo
 	return resp, nil
 }
 
-// Gets value from ETCD using a key
+// Gets value from ETCD using a key, error if it doesn't exist
 func (s EtcdStorage) Get(key string) ([]byte, error) {
 	resp, err := s.genericGet(key, false)
 	if err != nil {
 		return nil, err
 	}
 	if len(resp.Kvs) == 0 {
-		return []byte{}, nil
+		return nil, &KeyNotFoundError{key}
 	}
 	return resp.Kvs[0].Value, nil
 }

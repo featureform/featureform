@@ -385,7 +385,7 @@ func (c *Coordinator) verifyCompletionOfSources(sources []metadata.NameVariant) 
 				totalReady += 1
 			}
 			if sourceVariant.Status() == metadata.FAILED {
-				return fmt.Errorf("dependent source variant failed")
+				fmt.Errorf("dependent source variant, %s, failed", sourceVariant.Name())
 			}
 		}
 		allReady = total == totalReady

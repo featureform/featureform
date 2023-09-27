@@ -198,3 +198,35 @@ def run_before_and_after_tests(tmpdir):
         shutil.rmtree(".featureform", onerror=del_rw)
     except:
         print("File Already Removed")
+
+
+@pytest.mark.parametrize(
+    "sql_query, expected_valid_sql_query",
+    [
+        ("SELECT * FROM X", False),
+        ("SELECT * FROM", False),
+        ("SELECT * FROM {{ name.variant }}", True),
+        ("SELECT * FROM {{name.variant }}", True),
+        ("SELECT * FROM     \n {{ name.variant }}", True),
+        (
+            """
+        SELECT *
+        FROM {{ string.string }}
+        WHERE x >= 5.
+        """,
+            True,
+        ),
+    ],
+)
+def test_validate_sql_query(sql_query, expected_valid_sql_query):
+    dec = SQLTransformationDecorator(
+        registrar=registrar,
+        owner="",
+        provider="",
+        variant="sql",
+        tags=[],
+        properties={},
+    )
+
+    is_valid = dec._is_valid_sql_query(sql_query)
+    assert is_valid == expected_valid_sql_query

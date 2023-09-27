@@ -1166,9 +1166,6 @@ class Dataset(BaseStreamWrapper):
         next_val = next(self._stream)
         return next_val
 
-    def close_stream(self):
-        self._stream.close()
-
 
 class Row:
     def __init__(self, proto_row):

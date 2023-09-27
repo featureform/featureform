@@ -1484,7 +1484,7 @@ class Variants:
 
     def validate_variant_names(self):
         for variant_key, resource in self.resources.items():
-            if resource.variant == "" or resource.variant == "default":
+            if resource.variant == "":
                 resource.variant = variant_key
             if resource.variant != variant_key:
                 raise ValueError(

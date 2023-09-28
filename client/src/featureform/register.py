@@ -6,14 +6,13 @@ import json
 import sys
 import warnings
 from datetime import timedelta
-from os.path import exists
 from pathlib import Path
-from typing import Dict, Tuple, Callable, List, Union
-from .exceptions import StubExceptionWrapper
+from typing import Dict, Tuple, Callable, List, Union, Optional
 import dill
 import pandas as pd
 from typeguard import typechecked
 
+from .exceptions import StubExceptionWrapper
 from .enums import FileFormat, ScalarType
 from .file_utils import absolute_file_paths
 from .get import *
@@ -56,6 +55,7 @@ from .resources import (
     ProviderReference,
     EntityReference,
     SourceReference,
+    ExecutorCredentials,
     ResourceRedefinedError,
     ResourceStatus,
     K8sArgs,
@@ -1037,8 +1037,8 @@ class SubscriptableTransformation:
         # and receive a tuple of (name, variant) where name was the name of the wrapped function and
         # variant was either the value passed to the decorator or the default value. This was achieved
         # via the following syntax: `self.name_variant = decorator_name_variant_method.__get__(self)`
-        # For as-of-yet unknown reasons, this behavior was not working as expected in Python 3.11.2, so
-        # so the code has been reverted to the original syntax, which simply passes a reference to the
+        # For as-of-yet unknown reasons, this behavior was not working as expected in Python 3.11.2,
+        # so the code has been reverted to the original syntax, which simply passes a reference to
         # the decorator methods to the SubscriptableTransformation class.
         self.register_resources = decorator_register_resources_method
         self.name_variant = decorator_name_variant_method
@@ -1055,8 +1055,8 @@ class SubscriptableTransformation:
             )
         return (self.registrar, self.name_variant(), columns)
 
-    def __call__(self, *args, **kwds):
-        return self.fn(*args, **kwds)
+    def __call__(self, *args, **kwargs):
+        return self.fn(*args, **kwargs)
 
 
 class SQLTransformationDecorator:
@@ -1183,6 +1183,13 @@ class DFTransformationDecorator:
             self.description = fn.__doc__
         if self.name == "":
             self.name = fn.__name__
+
+        func_params = inspect.signature(fn).parameters
+        if len(func_params) > len(self.inputs):
+            raise ValueError(
+                f"Transformation function has more parameters than inputs. \n"
+                f"Make sure each function parameter has a corresponding input in the decorator."
+            )
 
         if not isinstance(self.inputs, list):
             raise ValueError("Dataframe transformation inputs must be a list")
@@ -2245,8 +2252,8 @@ class Registrar:
         password: str = "",
         description: str = "",
         team: str = "",
-        tags: List[str] = None,
-        properties: dict = None,
+        tags: Optional[List[str]] = None,
+        properties: Optional[dict] = None,
     ):
         """Register a Redis provider.
 
@@ -2269,13 +2276,13 @@ class Registrar:
             password (str): (Mutable) Redis password
             description (str): (Mutable) Description of Redis provider to be registered
             team (str): (Mutable) Name of team
-            tags (List[str]): (Mutable) Optional grouping mechanism for resources
-            properties (dict): (Mutable) Optional grouping mechanism for resources
+            tags (Optional[List[str]]): (Mutable) Optional grouping mechanism for resources
+            properties (Optional[dict]): (Mutable) Optional grouping mechanism for resources
 
         Returns:
             redis (OnlineProvider): Provider
         """
-        tag, properties = set_tags_properties(tags, properties)
+        tags, properties = set_tags_properties(tags, properties)
         config = RedisConfig(host=host, port=port, password=password, db=db)
         provider = Provider(
             name=name,

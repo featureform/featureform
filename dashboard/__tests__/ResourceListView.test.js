@@ -4,7 +4,10 @@ import { configure } from 'enzyme';
 import produce from 'immer';
 import 'jest-canvas-mock';
 import React from 'react';
-import { ResourceListView } from '../src/components/resource-list/ResourceListView';
+import {
+  filterMissingDefaults,
+  ResourceListView,
+} from '../src/components/resource-list/ResourceListView';
 import { deepCopy } from '../src/helper';
 
 configure({ adapter: new Adapter() });
@@ -124,7 +127,7 @@ describe('ResourceListView tests', () => {
     expect(foundProgressBar.firstChild.nodeName).toBe(SVG_NODE);
   });
 
-  test('Warn the user if the default variant is missing from the all-variants list', async () => {
+  test('Issue-204: Filter out resources that are missing their default variant in their all-variants list.', async () => {
     console.warn = jest.fn();
     const missingDefault = 'MISSING DEFAULT!!!';
     const variantList = ['eloquent_goldstine', 'sleepy_volhard'];
@@ -150,19 +153,66 @@ describe('ResourceListView tests', () => {
 
     const helper = render(
       <ResourceListView
-        title='test'
+        title='Source'
         loading={false}
         failed={false}
         type='Source'
         resources={badJsonResponse}
       />
     );
+
     const foundTitle = await helper.findByText('Sources');
+    const foundNoDataContainer = await helper.findByTestId('noDataContainerId');
 
     expect(foundTitle.nodeName).toBeDefined();
+    expect(foundNoDataContainer.nodeName).toBeDefined();
     expect(console.warn).toHaveBeenCalledWith(
       `The current default rowVariant (${missingDefault}) is not present in the variants list:`,
       variantList
     );
+  });
+
+  test('Issue-204: removeResourcesWithMissingDefaults() removes resources whose default names are not present in the "all-variants"', async () => {
+    console.warn = jest.fn();
+    //the second record, is missing it's default variant from the all-variants list
+    const jsonResponse = [
+      {
+        'all-variants': ['presentVariant', 'secondVariant'],
+        type: 'Source',
+        'default-variant': ['presentVariant'],
+        name: 'good record',
+        variants: {
+          presentVariant: {
+            name: 'transactions',
+            variant: 'presentVariant',
+          },
+          secondVariant: {
+            name: 'transactions',
+            variant: 'secondVariant',
+          },
+        },
+      },
+      {
+        'all-variants': ['eloquent_goldstine', 'sleepy_volhard'],
+        type: 'Source',
+        'default-variant': 'MISSING VARIANT!',
+        name: 'faulty record',
+        variants: {
+          eloquent_goldstine: {
+            name: 'transactions',
+            variant: 'eloquent_goldstine',
+          },
+          sleepy_volhard: {
+            name: 'transactions',
+            variant: 'sleepy_volhard',
+          },
+        },
+      },
+    ];
+
+    const result = jsonResponse.filter(filterMissingDefaults);
+
+    expect(result.length).toBe(1);
+    expect(result[0].name).toBe('good record');
   });
 });

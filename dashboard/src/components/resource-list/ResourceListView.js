@@ -13,7 +13,7 @@ import MaterialTable, {
 } from 'material-table';
 import { useRouter } from 'next/router';
 import PropTypes from 'prop-types';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { PrismAsyncLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import json from 'react-syntax-highlighter/dist/cjs/languages/prism/json';
 import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
@@ -215,6 +215,16 @@ export const ResourceListView = ({
   const initialLoad = resources == null && !loading;
   const initRes = resources || [];
   const noVariants = !Resource[type].hasVariants;
+  const tableRef = React.useRef();
+
+  useEffect(() => {
+    // reset search text between type changes
+    if (tableRef?.current) {
+      tableRef.current.dataManager?.changeSearchText('');
+      tableRef.current.setState({ searchText: '' });
+      tableRef.current.setState(tableRef.current.dataManager.getRenderState());
+    }
+  }, [type]);
 
   // MaterialTable can't handle immutable object, we have to make a copy
   // https://github.com/mbrn/material-table/issues/666
@@ -332,11 +342,14 @@ export const ResourceListView = ({
               borderRadius: 16,
             },
           }}
+          tableRef={tableRef}
           {...(!(initialLoad || loading || failed)
             ? {
                 localization: {
                   body: {
-                    emptyDataSourceMessage: <NoDataMessage type={type} />,
+                    emptyDataSourceMessage: (
+                      <NoDataMessage type={type} tableRef={tableRef} />
+                    ),
                   },
                 },
               }
@@ -501,30 +514,38 @@ export const UsageTab = () => {
   );
 };
 
-const NoDataMessage = ({ type }) => {
+const NoDataMessage = ({ type, tableRef }) => {
   const classes = useStyles();
-
   function redirect() {
     window.location.href =
       'https://docs.featureform.com/getting-started/overview';
   }
+  let searchText = tableRef?.current?.state?.searchText;
   return (
-    <Container data-testid='noDataContainerId'>
-      <div className={classes.noDataPage}>
-        <Typography variant='h4'>
-          No {Resource[type].typePlural} Registered
-        </Typography>
-        <Typography variant='body1'>
-          There are no visible {type.toLowerCase()}s in your organization.
-        </Typography>
-        <Typography vairant='body1'>
-          Check out our docs for step by step instructions to create one.
-        </Typography>
-        <Button variant='outlined' onClick={redirect}>
-          FeatureForm Docs
-        </Button>
-      </div>
-    </Container>
+    <>
+      <Container data-testid='noDataContainerId'>
+        <div className={classes.noDataPage}>
+          {searchText ? (
+            <Typography variant='h4'>No search results!</Typography>
+          ) : (
+            <>
+              <Typography variant='h4'>
+                No {Resource[type].typePlural} Registered
+              </Typography>
+              <Typography variant='body1'>
+                There are no visible {type.toLowerCase()}s in your organization.
+              </Typography>
+            </>
+          )}
+          <Typography vairant='body1'>
+            Check out our docs for step by step instructions to create one.
+          </Typography>
+          <Button variant='outlined' onClick={redirect}>
+            FeatureForm Docs
+          </Button>
+        </div>
+      </Container>
+    </>
   );
 };
 

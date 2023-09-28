@@ -1029,6 +1029,21 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
+	nv := metadata.NameVariant{Name: name, Variant: variant}
+	sourceVariant, err := m.client.GetSourceVariant(c, nv)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: fmt.Sprintf("Could check source variant - %v", err.Error())}
+		m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	if sourceVariant.Status() == metadata.PENDING {
+		c.JSON(200, fmt.Sprintf("Source is still pending, try again later"))
+		return
+	} else if sourceVariant.Status() == metadata.FAILED {
+		c.JSON(200, fmt.Sprintf("Cannot fetch data: source is in a failed state"))
+		return
+	}
 	iter, err := m.getSourceDataIterator(name, variant, limit)
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData - getSourceDataIterator() threw an exception"}

@@ -117,7 +117,13 @@ def test_df_transformation_empty_description(registrar):
         return df
 
     dec = DFTransformationDecorator(
-        registrar=registrar, owner="", provider="", variant="df", tags=[], properties={}, inputs=[("df", "var")]
+        registrar=registrar,
+        owner="",
+        provider="",
+        variant="df",
+        tags=[],
+        properties={},
+        inputs=[("df", "var")],
     )
     dec.__call__(my_function)
 

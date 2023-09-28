@@ -95,7 +95,7 @@ def test_dataframe_for_source_args(provider_source_fxt, is_local, is_insecure, r
         client.impl.db.close()  # TODO automatically do this
 
 
-# Ensures that the dataframe method
+# Ensures that the dataframe method raises an error when the variant is not specified and the source is a string
 def test_dataframe_empty_variant(local_provider_source):
     provider, source, inference_store = local_provider_source("_empty_param")
     arrange_transformation(provider, "true")
@@ -105,7 +105,7 @@ def test_dataframe_empty_variant(local_provider_source):
 
     with pytest.raises(ValueError) as e:
         client.dataframe(source.name)
-        assert "variant must be specified if source is a string" in str(e.value)
+    assert "variant must be specified if source is a string" in str(e.value)
 
 
 @pytest.mark.parametrize(

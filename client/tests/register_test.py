@@ -95,7 +95,7 @@ def test_sql_transformation_decorator_invalid_fn(local, fn):
 
 def test_sql_transformation_empty_description(registrar):
     def my_function():
-        return "SELECT * FROM X"
+        return "SELECT * FROM {{ name.variant }}"
 
     dec = SQLTransformationDecorator(
         registrar=registrar,

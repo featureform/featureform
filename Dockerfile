@@ -36,9 +36,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/dashboard/out ./out
 FROM golang:1.18 as go-builder
 
 WORKDIR /app
-
 COPY go.mod ./
 COPY go.sum ./
+COPY ./filestore/ ./filestore/
 COPY api/ api/
 COPY helpers/ helpers/
 COPY metadata/ metadata/
@@ -118,6 +118,7 @@ RUN apt install nodejs
 ENV SERVING_PORT="8082"
 ENV SERVING_HOST="0.0.0.0"
 ENV ETCD_ARCH=""
+ENV MEILI_LOG_LEVEL="WARN"
 
 EXPOSE 7878
 EXPOSE 80

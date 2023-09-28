@@ -215,6 +215,22 @@ function a11yProps(index) {
   };
 }
 
+export const convertInputToDate = (timestamp_string_or_mil = '') => {
+  const input = timestamp_string_or_mil;
+
+  if (isNaN(input)) {
+    return generateDate(input);
+  } else {
+    return generateDate(parseFloat(input));
+  }
+
+  function generateDate(str) {
+    return new Date(str).toLocaleString('en-US', {
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    });
+  }
+};
+
 const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
   let resources = entity.resources;
   let resourceType = Resource[resources.type];
@@ -254,11 +270,6 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
     }
   });
 
-  if (metadata['source']) {
-    metadata['source'] = metadata['source'].Name;
-    metadata['source-variant'] = metadata['source'].Variant;
-  }
-
   function getFormattedSQL(sqlString = '') {
     let stringResult = sqlString;
     try {
@@ -272,12 +283,6 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
     }
     return stringResult;
   }
-
-  const convertTimestampToDate = (timestamp_string) => {
-    return new Date(timestamp_string).toLocaleString('en-US', {
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    });
-  };
 
   const numValidKeys = (dict) => {
     let validKeys = 0;
@@ -311,7 +316,8 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
   };
 
   const linkToPrimaryData = () => {
-    router.push(`/sources/${metadata['source']}`);
+    setVariant('Source', metadata['source'].Name, metadata['source'].Variant);
+    router.push(`/sources/${metadata['source'].Name}`);
   };
 
   const linkToLabel = () => {
@@ -328,7 +334,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
 
   return true || (!resources.loading && !resources.failed && resources.data) ? (
     <div>
-      <Container maxWidth='xl' className={classes.border}>
+      <Container maxWidth={false} className={classes.border}>
         <div className={classes.metadata}>
           <Grid
             container
@@ -346,7 +352,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                     </Typography>
                     {metadata['created'] && (
                       <Typography variant='subtitle1'>
-                        Created: {convertTimestampToDate(metadata['created'])}
+                        Created: {convertInputToDate(metadata['created'])}
                       </Typography>
                     )}
                   </div>
@@ -358,7 +364,6 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                     handleVariantChange={handleVariantChange}
                     type={type}
                     name={name}
-                    convertTimestampToDate={convertTimestampToDate}
                   />
                 )}
               </div>
@@ -427,7 +432,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                     {metadata['joined'] && (
                       <Typography variant='body1'>
                         <b>Joined:</b>{' '}
-                        {convertTimestampToDate(metadata['joined'])}
+                        {convertInputToDate(metadata['joined'])}
                       </Typography>
                     )}
                     {metadata['software'] && (
@@ -497,22 +502,41 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                       )}
                     {metadata['definition'] && (
                       <div>
-                        <Typography variant='body1'>
-                          <b>Origin:</b>
-                        </Typography>
-                        {metadata['source-type'] === 'SQL Transformation' ? (
-                          <SyntaxHighlighter
-                            className={classes.syntax}
-                            language={'sql'}
-                            style={okaidia}
-                          >
-                            {getFormattedSQL(metadata['definition'])}
-                          </SyntaxHighlighter>
-                        ) : (
-                          <Typography variant='h7'>
-                            <b>{metadata['definition']}</b>
-                          </Typography>
-                        )}
+                        {(() => {
+                          if (
+                            metadata['source-type'] === 'SQL Transformation'
+                          ) {
+                            return (
+                              <SyntaxHighlighter
+                                className={classes.syntax}
+                                language={'sql'}
+                                style={okaidia}
+                              >
+                                {getFormattedSQL(metadata['definition'])}
+                              </SyntaxHighlighter>
+                            );
+                          } else if (
+                            ['Dataframe Transformation'].includes(
+                              metadata['source-type']
+                            )
+                          ) {
+                            return (
+                              <SyntaxHighlighter
+                                className={classes.syntax}
+                                language={'python'}
+                                style={okaidia}
+                              >
+                                {metadata['definition']}
+                              </SyntaxHighlighter>
+                            );
+                          } else {
+                            return (
+                              <Typography variant='h7'>
+                                <b>{metadata['definition']}</b>
+                              </Typography>
+                            );
+                          }
+                        })()}
                         <SourceDialog
                           api={api}
                           sourceName={name}
@@ -520,6 +544,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                         />
                       </div>
                     )}
+
                     {metadata['serialized-config'] && (
                       <Typography variant='body1'>
                         <b>Serialized Config:</b>{' '}
@@ -527,7 +552,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                       </Typography>
                     )}
 
-                    {metadata['source'] && (
+                    {metadata['source']?.Name && (
                       <div className={classes.linkBox}>
                         <Typography
                           variant='body1'
@@ -540,7 +565,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                           className={classes.linkChip}
                           size='small'
                           onClick={linkToPrimaryData}
-                          label={metadata['source']}
+                          label={metadata['source'].Name}
                         ></Chip>
                       </div>
                     )}

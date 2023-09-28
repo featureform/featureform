@@ -125,7 +125,7 @@ func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant)
 		if sourceStatus == metadata.READY {
 			return source, nil
 		}
-		time.Sleep(3 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 	return c.Metadata.GetSourceVariant(context.Background(), sourceNameVariant)
 }
@@ -253,7 +253,6 @@ func (c *Coordinator) WatchForNewJobs() error {
 		return fmt.Errorf("get existing etcd jobs: %v", err)
 	}
 	for _, kv := range getResp.Kvs {
-		time.Sleep(1 * time.Second)
 		go func(kv *mvccpb.KeyValue) {
 			err := c.ExecuteJob(string(kv.Key))
 			if err != nil {
@@ -265,7 +264,6 @@ func (c *Coordinator) WatchForNewJobs() error {
 		rch := c.EtcdClient.Watch(context.Background(), "JOB_", clientv3.WithPrefix())
 		for wresp := range rch {
 			for _, ev := range wresp.Events {
-				time.Sleep(1 * time.Second)
 				if ev.Type == mvccpb.PUT {
 					go func(ev *clientv3.Event) {
 						err := c.ExecuteJob(string(ev.Kv.Key))
@@ -430,20 +428,20 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 	c.Logger.Debugw("Transformation Get Job Runner")
 	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serialized, resID)
 	if err != nil {
-		return fmt.Errorf("spawn create transformation job runner: %v", err)
+		return fmt.Errorf("failed to create transformation job runner: %v", err)
 	}
 	c.Logger.Debugw("Transformation Run Job")
 	completionWatcher, err := jobRunner.Run()
 	if err != nil {
-		return fmt.Errorf("run transformation job runner: %v", err)
+		return fmt.Errorf("failed to create transformation job: %v", err)
 	}
 	c.Logger.Debugw("Transformation Waiting For Completion")
 	if err := completionWatcher.Wait(); err != nil {
-		return fmt.Errorf("wait for transformation job runner completion: %v", err)
+		return fmt.Errorf("transformation failed to complete: %v", err)
 	}
 	c.Logger.Debugw("Transformation Setting Status")
 	if err := retryWithDelays("set status to ready", 5, time.Millisecond*10, func() error { return c.Metadata.SetStatus(context.Background(), resID, metadata.READY, "") }); err != nil {
-		return fmt.Errorf("set transformation job runner done status: %v", err)
+		return fmt.Errorf("failed to set transformation status: %v", err)
 	}
 	c.Logger.Debugw("Transformation Complete")
 	if schedule != "" {
@@ -830,14 +828,14 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		}
 		completionWatcher, err := jobRunner.Run()
 		if err != nil {
-			return fmt.Errorf("creating watcher for completion runner: %w", err)
+			return fmt.Errorf("failed to run job: %w", err)
 		}
 		if err := completionWatcher.Wait(); err != nil {
-			return fmt.Errorf("completion watcher running: %w", err)
+			return fmt.Errorf("failed to complete job: %w", err)
 		}
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
-		return fmt.Errorf("materialize set success: %v", err)
+		return fmt.Errorf("failed to set status: %v", err)
 	}
 	if schedule != "" && needsOnlineMaterialization {
 		scheduleMaterializeRunnerConfig := runner.MaterializedRunnerConfig{
@@ -973,17 +971,17 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	serialized, _ := tsRunnerConfig.Serialize()
 	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serialized, resID)
 	if err != nil {
-		return fmt.Errorf("create training set job runner: %v", err)
+		return fmt.Errorf("failed to run training set job runner: %v", err)
 	}
 	completionWatcher, err := jobRunner.Run()
 	if err != nil {
-		return fmt.Errorf("start training set job runner: %v", err)
+		return fmt.Errorf("failed to start training set job: %v", err)
 	}
 	if err := completionWatcher.Wait(); err != nil {
-		return fmt.Errorf("wait for training set job runner completion: %v", err)
+		return fmt.Errorf("training set job failed to complete: %v", err)
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
-		return fmt.Errorf("set training set job runner status: %v", err)
+		return fmt.Errorf("failed to set training set status: %v", err)
 	}
 	if schedule != "" {
 		scheduleTrainingSetRunnerConfig := runner.TrainingSetRunnerConfig{
@@ -1028,7 +1026,7 @@ func (c *Coordinator) getJob(mtx *concurrency.Mutex, key string) (*metadata.Coor
 	responseData := response.Responses[0]
 	responseKVs := responseData.GetResponseRange().GetKvs()
 	if len(responseKVs) == 0 {
-		return nil, &JobDoesNotExistError{key: key}
+		return nil, JobDoesNotExistError{key: key}
 	}
 	responseValue := responseKVs[0].Value //Only single response for single key
 	job := &metadata.CoordinatorJob{}

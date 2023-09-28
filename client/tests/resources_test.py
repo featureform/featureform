@@ -37,6 +37,7 @@ from featureform.resources import (
     K8sArgs,
     K8sResourceSpecs,
     SparkCredentials,
+    GCPCredentials,
 )
 
 from featureform.register import OfflineK8sProvider, Registrar, FileStoreProvider
@@ -139,7 +140,7 @@ def dynamodb_config():
 def redshift_config():
     return RedshiftConfig(
         host="",
-        port="5439",
+        port=5432,
         database="dev",
         user="user",
         password="p4ssw0rd",
@@ -155,7 +156,10 @@ def bigquery_config():
     return BigQueryConfig(
         project_id="bigquery-project",
         dataset_id="bigquery-dataset",
-        credentials_path=path,
+        credentials=GCPCredentials(
+            project_id="bigquery-project",
+            credentials_path=path,
+        ),
     )
 
 
@@ -416,6 +420,7 @@ def test_k8s_df_provider_empty(registrar, mock_provider):
 
 def init_feature(input):
     FeatureVariant(
+        created=None,
         name="feature",
         variant="v1",
         source=("a", "b"),
@@ -509,6 +514,7 @@ def all_resources_set(redis_provider):
         User(name="Featureform", tags=[], properties={}),
         Entity(name="user", description="A user", tags=[], properties={}),
         SourceVariant(
+            created=None,
             name="primary",
             variant="abc",
             definition=PrimaryData(location=SQLTable("table")),
@@ -519,6 +525,7 @@ def all_resources_set(redis_provider):
             properties={},
         ),
         FeatureVariant(
+            created=None,
             name="feature",
             variant="v1",
             source=("a", "b"),
@@ -553,6 +560,7 @@ def all_resources_set(redis_provider):
             properties={},
         ),
         TrainingSetVariant(
+            created=None,
             name="training-set",
             variant="v1",
             description="desc",
@@ -570,6 +578,7 @@ def all_resources_set(redis_provider):
 def all_resources_strange_order(redis_provider):
     return [
         TrainingSetVariant(
+            created=None,
             name="training-set",
             variant="v1",
             description="desc",
@@ -598,6 +607,7 @@ def all_resources_strange_order(redis_provider):
             properties={},
         ),
         FeatureVariant(
+            created=None,
             name="feature",
             variant="v1",
             source=("a", "b"),
@@ -616,6 +626,7 @@ def all_resources_strange_order(redis_provider):
         ),
         Entity(name="user", description="A user", tags=[], properties={}),
         SourceVariant(
+            created=None,
             name="primary",
             variant="abc",
             definition=PrimaryData(location=SQLTable("table")),
@@ -692,6 +703,7 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
             properties={},
         ),
         SourceVariant(
+            created=None,
             name="primary",
             variant="abc",
             definition=PrimaryData(location=SQLTable("table")),
@@ -703,6 +715,7 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
         ),
         Entity(name="user", description="A user", tags=[], properties={}),
         FeatureVariant(
+            created=None,
             name="feature",
             variant="v1",
             source=("a", "b"),
@@ -737,6 +750,7 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
             properties={},
         ),
         TrainingSetVariant(
+            created=None,
             name="training-set",
             variant="v1",
             description="desc",
@@ -862,6 +876,7 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             properties={},
         ),
         SourceVariant(
+            created=None,
             name="primary",
             variant="abc",
             definition=PrimaryData(location=SQLTable("table")),
@@ -880,6 +895,7 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
         ),
         Entity(name="user", description="A user", tags=[], properties={}),
         FeatureVariant(
+            created=None,
             name="feature",
             variant="v1",
             source=("a", "b"),
@@ -921,6 +937,7 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             properties={},
         ),
         TrainingSetVariant(
+            created=None,
             name="training-set",
             variant="v1",
             description="desc",

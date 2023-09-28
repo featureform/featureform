@@ -8,6 +8,7 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -23,10 +24,12 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	fs "github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
+	"github.com/parquet-go/parquet-go"
 	"google.golang.org/api/option"
 )
 
@@ -142,6 +145,92 @@ func TestOfflineStores(t *testing.T) {
 		return serialBQConfig, bigQueryConfig
 	}
 
+	sparkInit := func(t *testing.T, executorType pc.SparkExecutorType, storeType fs.FileStoreType) (pc.SerializedConfig, pc.SparkConfig) {
+		var executorConfig pc.SparkExecutorConfig
+
+		switch executorType {
+		case pc.SparkGeneric:
+			executorConfig = &pc.SparkGenericConfig{
+				Master:        os.Getenv("GENERIC_SPARK_MASTER"),
+				DeployMode:    os.Getenv("GENERIC_SPARK_DEPLOY_MODE"),
+				PythonVersion: os.Getenv("GENERIC_SPARK_PYTHON_VERSION"),
+			}
+		case pc.Databricks:
+			executorConfig = &pc.DatabricksConfig{
+				Host:    os.Getenv("DATABRICKS_HOST"),
+				Token:   os.Getenv("DATABRICKS_TOKEN"),
+				Cluster: os.Getenv("DATABRICKS_CLUSTER"),
+			}
+		case pc.EMR:
+			executorConfig = &pc.EMRConfig{
+				Credentials: pc.AWSCredentials{
+					AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+					AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+				},
+				ClusterRegion: os.Getenv("AWS_EMR_CLUSTER_REGION"),
+				ClusterName:   os.Getenv("AWS_EMR_CLUSTER_ID"),
+			}
+		default:
+			t.Fatalf("Invalid executor type: %v", executorType)
+		}
+
+		var fileStoreConfig pc.SparkFileStoreConfig
+		switch storeType {
+		case fs.S3:
+			fileStoreConfig = &pc.S3FileStoreConfig{
+				Credentials: pc.AWSCredentials{
+					AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+					AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+				},
+				BucketRegion: os.Getenv("S3_BUCKET_REGION"),
+				BucketPath:   os.Getenv("S3_BUCKET_PATH"),
+				Path:         os.Getenv(""),
+			}
+		case fs.GCS:
+			credsFile := os.Getenv("GCP_CREDENTIALS_FILE")
+			content, err := ioutil.ReadFile(credsFile)
+			if err != nil {
+				t.Errorf("Error when opening file: %v", err)
+			}
+			var creds map[string]interface{}
+			err = json.Unmarshal(content, &creds)
+			if err != nil {
+				t.Errorf("Error during Unmarshal() creds: %v", err)
+			}
+
+			fileStoreConfig = &pc.GCSFileStoreConfig{
+				BucketName: os.Getenv("GCS_BUCKET_NAME"),
+				BucketPath: "",
+				Credentials: pc.GCPCredentials{
+					ProjectId: os.Getenv("GCP_PROJECT_ID"),
+					JSON:      creds,
+				},
+			}
+		case fs.Azure:
+			fileStoreConfig = &pc.AzureFileStoreConfig{
+				AccountName:   os.Getenv("AZURE_ACCOUNT_NAME"),
+				AccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
+				ContainerName: os.Getenv("AZURE_CONTAINER_NAME"),
+				Path:          os.Getenv("AZURE_CONTAINER_PATH"),
+			}
+		default:
+			t.Fatalf("Invalid store type: %v", storeType)
+		}
+
+		var sparkConfig = pc.SparkConfig{
+			ExecutorType:   executorType,
+			ExecutorConfig: executorConfig,
+			StoreType:      storeType,
+			StoreConfig:    fileStoreConfig,
+		}
+
+		serializedConfig, err := sparkConfig.Serialize()
+		if err != nil {
+			t.Fatalf("Cannot serialize Spark config with %s executor and %s files tore: %v", executorType, storeType, err)
+		}
+		return serializedConfig, sparkConfig
+	}
+
 	testList := []testMember{}
 
 	if *provider == "memory" || *provider == "" {
@@ -171,6 +260,32 @@ func TestOfflineStores(t *testing.T) {
 			destroyRedshiftDatabase(redshiftConfig)
 		})
 	}
+	// TODO: update testing.yaml to include local PySpark instance generic Spark tests
+	// if *provider == "spark-generic-s3" || *provider == "" {
+	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.S3)
+	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	// }
+	// if *provider == "spark-generic-abs" || *provider == "" {
+	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.Azure)
+	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	// }
+	// if *provider == "spark-generic-gcs" || *provider == "" {
+	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.GCS)
+	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	// }
+	if *provider == "spark-databricks-s3" || *provider == "" {
+		serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.S3)
+		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	}
+	if *provider == "spark-databricks-abs" || *provider == "" {
+		serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.Azure)
+		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	}
+	if *provider == "spark-emr-s3" || *provider == "" {
+		serialSparkConfig, _ := sparkInit(t, pc.EMR, fs.S3)
+		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	}
+
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
 		"TableAlreadyExists":      testOfflineTableAlreadyExists,
@@ -184,25 +299,27 @@ func TestOfflineStores(t *testing.T) {
 		"MaterializationNotFound": testMaterializationNotFound,
 		"TrainingSets":            testTrainingSet,
 		"TrainingSetUpdate":       testTrainingSetUpdate,
-		//"TrainingSetLag":          testLagFeaturesTrainingSet,
+		// "TrainingSetLag": testLagFeaturesTrainingSet,
 		"TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID,
-		"GetUnknownTrainingSet":  testGetUnkonwnTrainingSet,
+		"GetUnknownTrainingSet":  testGetUnknownTrainingSet,
 		"InvalidTrainingSetDefs": testInvalidTrainingSetDefs,
 		"LabelTableNotFound":     testLabelTableNotFound,
 		"FeatureTableNotFound":   testFeatureTableNotFound,
-		"TrainingDefShorthand":   testTrainingSetDefShorthand,
+
+		"TrainingDefShorthand": testTrainingSetDefShorthand,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
-		"PrimaryTableCreate":              testPrimaryCreateTable,
-		"PrimaryTableWrite":               testPrimaryTableWrite,
-		"Transformation":                  testTransform,
-		"TransformationUpdate":            testTransformUpdate,
-		"TransformationUpdateWithFeature": testTransformUpdateWithFeatures,
-		"CreateDuplicatePrimaryTable":     testCreateDuplicatePrimaryTable,
-		"ChainTransformations":            testChainTransform,
-		"CreateResourceFromSource":        testCreateResourceFromSource,
-		"CreateResourceFromSourceNoTS":    testCreateResourceFromSourceNoTS,
-		"CreatePrimaryFromSource":         testCreatePrimaryFromSource,
+		"PrimaryTableCreate":                 testPrimaryCreateTable,
+		"PrimaryTableWrite":                  testPrimaryTableWrite,
+		"Transformation":                     testTransform,
+		"TransformationUpdate":               testTransformUpdate,
+		"TransformationUpdateWithFeature":    testTransformUpdateWithFeatures,
+		"CreateDuplicatePrimaryTable":        testCreateDuplicatePrimaryTable,
+		"ChainTransformations":               testChainTransform,
+		"CreateResourceFromSource":           testCreateResourceFromSource,
+		"CreateResourceFromSourceNoTS":       testCreateResourceFromSourceNoTS,
+		"CreatePrimaryFromSource":            testCreatePrimaryFromSource,
+		"CreatePrimaryFromNonExistentSource": testCreatePrimaryFromNonExistentSource,
 	}
 
 	psqlInfo := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), "localhost", "5432", os.Getenv("POSTGRES_DB"))
@@ -306,8 +423,6 @@ func destroyRedshiftDatabase(c pc.RedshiftConfig) error {
 			continue
 		}
 	}
-
-	return nil
 }
 
 func createSnowflakeDatabase(c pc.SnowflakeConfig) error {
@@ -420,20 +535,26 @@ func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
 		},
 	}
 	if tab, err := store.CreateResourceTable(id, schema); tab == nil || err != nil {
-		t.Fatalf("Failed to create table: %s", err)
+		t.Fatalf("Failed to create table: %v", err)
 	}
 	if tab, err := store.GetResourceTable(id); tab == nil || err != nil {
-		t.Fatalf("Failed to get table: %s", err)
+		t.Fatalf("Failed to get table: %v", err)
 	}
 }
 
 func testOfflineTableAlreadyExists(t *testing.T, store OfflineStore) {
 	id := randomID(Feature, Label)
 	schema := TableSchema{
+		// TODO: Verify whether these should be empty strings or not
+		// Columns: []TableColumn{
+		// 	{Name: "", ValueType: String},
+		// 	{Name: "", ValueType: Int},
+		// 	{Name: "", ValueType: Timestamp},
+		// },
 		Columns: []TableColumn{
-			{Name: "", ValueType: String},
-			{Name: "", ValueType: Int},
-			{Name: "", ValueType: Timestamp},
+			{Name: "entity", ValueType: String},
+			{Name: "value", ValueType: Int},
+			{Name: "ts", ValueType: Timestamp},
 		},
 	}
 	if _, err := store.CreateResourceTable(id, schema); err != nil {
@@ -601,6 +722,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			t.Fatalf("Failed to create segment: %s", err)
 		}
 		i := 0
+
 		expectedRows := test.ExpectedSegment
 		for seg.Next() {
 			actual := seg.Value()
@@ -642,11 +764,10 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			t.Fatalf("Failed to create table: %s", err)
 		}
 
-		for _, rec := range test.WriteRecords {
-			if err := table.Write(rec); err != nil {
-				t.Fatalf("Failed to write record %v: %s", rec, err)
-			}
+		if err := table.WriteBatch(test.WriteRecords); err != nil {
+			t.Fatalf("Failed to write batch: %s", err)
 		}
+
 		mat, err := store.CreateMaterialization(id)
 		if err != nil {
 			t.Fatalf("Failed to create materialization: %s", err)
@@ -689,18 +810,24 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 		ExpectedUpdate                         []ResourceRecord
 	}
 
-	schemaInt := TableSchema{
+	schemaWithTimestamp := TableSchema{
 		Columns: []TableColumn{
 			{Name: "entity", ValueType: String},
 			{Name: "value", ValueType: Int},
 			{Name: "ts", ValueType: Timestamp},
 		},
 	}
+	schemaWithoutTimestamp := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "value", ValueType: Int},
+		},
+	}
 	tests := map[string]TestCase{
 		"Empty": {
 			WriteRecords:    []ResourceRecord{},
 			UpdateRecords:   []ResourceRecord{},
-			Schema:          schemaInt,
+			Schema:          schemaWithoutTimestamp,
 			SegmentStart:    0,
 			SegmentEnd:      0,
 			UpdatedRows:     0,
@@ -716,7 +843,7 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 			UpdateRecords: []ResourceRecord{
 				{Entity: "d", Value: 4},
 			},
-			Schema:              schemaInt,
+			Schema:              schemaWithoutTimestamp,
 			ExpectedRows:        3,
 			SegmentStart:        0,
 			SegmentEnd:          3,
@@ -748,7 +875,7 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 				{Entity: "a", Value: 3},
 				{Entity: "b", Value: 4},
 			},
-			Schema:              schemaInt,
+			Schema:              schemaWithoutTimestamp,
 			ExpectedRows:        3,
 			SegmentStart:        0,
 			SegmentEnd:          3,
@@ -778,7 +905,7 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 			UpdateRecords: []ResourceRecord{
 				{Entity: "a", Value: 4, TS: time.UnixMilli(4).UTC()},
 			},
-			Schema:              schemaInt,
+			Schema:              schemaWithTimestamp,
 			ExpectedRows:        3,
 			SegmentStart:        0,
 			SegmentEnd:          3,
@@ -807,7 +934,7 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 			UpdateRecords: []ResourceRecord{
 				{Entity: "a", Value: 6, TS: time.UnixMilli(12).UTC()},
 			},
-			Schema:              schemaInt,
+			Schema:              schemaWithTimestamp,
 			ExpectedRows:        3,
 			SegmentStart:        0,
 			SegmentEnd:          3,
@@ -839,7 +966,7 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 				{Entity: "a", Value: 5, TS: time.UnixMilli(20).UTC()},
 				{Entity: "b", Value: 2, TS: time.UnixMilli(4).UTC()},
 			},
-			Schema:              schemaInt,
+			Schema:              schemaWithTimestamp,
 			ExpectedRows:        3,
 			SegmentStart:        0,
 			SegmentEnd:          3,
@@ -951,11 +1078,11 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
-		for _, rec := range test.WriteRecords {
-			if err := table.Write(rec); err != nil {
-				t.Fatalf("Failed to write record %v: %s", rec, err)
-			}
+
+		if err := table.WriteBatch(test.WriteRecords); err != nil {
+			t.Fatalf("Failed to write batch: %s", err)
 		}
+
 		mat, err := store.CreateMaterialization(id)
 		if err != nil {
 			t.Fatalf("Failed to create materialization: %s", err)
@@ -965,11 +1092,11 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Failed to get materialization: %s", err)
 		}
-		for _, rec := range test.UpdateRecords {
-			if err := table.Write(rec); err != nil {
-				t.Fatalf("Failed to write record %v: %s", rec, err)
-			}
+
+		if err := table.WriteBatch(test.UpdateRecords); err != nil {
+			t.Fatalf("Failed to write batch: %s", err)
 		}
+
 		mat, err = store.UpdateMaterialization(id)
 		if err != nil {
 			t.Fatalf("Failed to update materialization: %s", err)
@@ -1005,7 +1132,7 @@ func testWriteInvalidResourceRecord(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
-	if err := table.Write(ResourceRecord{}); err == nil {
+	if err := table.WriteBatch([]ResourceRecord{{}}); err == nil {
 		t.Fatalf("Succeeded in writing invalid resource record")
 	}
 }
@@ -1091,8 +1218,23 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 				// One feature with no records.
 				{},
 			},
-			LabelRecords:  []ResourceRecord{},
-			FeatureSchema: []TableSchema{{}},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+			},
+			LabelRecords: []ResourceRecord{},
+			LabelSchema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "value", ValueType: Int},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			},
 			// No rows expected
 			ExpectedRows: []expectedTrainingRow{},
 		},
@@ -1114,14 +1256,12 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: Int},
-						{Name: "label", ValueType: Bool},
 					},
 				},
 				{
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: String},
-						{Name: "label", ValueType: Bool},
 					},
 				},
 			},
@@ -1193,29 +1333,35 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: Int},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{},
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 			},
@@ -1229,6 +1375,7 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 				Columns: []TableColumn{
 					{Name: "entity", ValueType: String},
 					{Name: "value", ValueType: Int},
+					{Name: "ts", ValueType: Timestamp},
 				},
 			},
 			ExpectedRows: []expectedTrainingRow{
@@ -1269,10 +1416,8 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 			if err != nil {
 				t.Fatalf("Failed to create table: %s", err)
 			}
-			for _, rec := range recs {
-				if err := table.Write(rec); err != nil {
-					t.Fatalf("Failed to write record %v: %v", rec, err)
-				}
+			if err := table.WriteBatch(recs); err != nil {
+				t.Fatalf("Failed to write batch: %v", err)
 			}
 		}
 		labelID := randomID(Label)
@@ -1280,11 +1425,10 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
-		for _, rec := range test.LabelRecords {
-			if err := labelTable.Write(rec); err != nil {
-				t.Fatalf("Failed to write record %v", rec)
-			}
+		if err := labelTable.WriteBatch(test.LabelRecords); err != nil {
+			t.Fatalf("Failed to write batch: %v", err)
 		}
+
 		def := TrainingSetDef{
 			ID:       randomID(TrainingSet),
 			Label:    labelID,
@@ -1306,7 +1450,7 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 			}
 
 			// Row order isn't guaranteed, we make sure one row is equivalent
-			// then we delete that row. This is ineffecient, but these test
+			// then we delete that row. This is inefficient, but these test
 			// cases should all be small enough not to matter.
 			found := false
 			for i, expRow := range expectedRows {
@@ -1373,9 +1517,22 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 				// One feature with no records.
 				{},
 			},
+			FeatureSchema: []TableSchema{{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "value", ValueType: Int},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			}},
 			LabelRecords:        []ResourceRecord{},
 			UpdatedLabelRecords: []ResourceRecord{},
-			FeatureSchema:       []TableSchema{{}},
+			LabelSchema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "value", ValueType: Int},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			},
 			// No rows expected
 			ExpectedRows:        []expectedTrainingRow{},
 			UpdatedExpectedRows: []expectedTrainingRow{},
@@ -1406,14 +1563,12 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: Int},
-						{Name: "label", ValueType: Bool},
 					},
 				},
 				{
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: String},
-						{Name: "label", ValueType: Bool},
 					},
 				},
 			},
@@ -1538,23 +1693,28 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{},
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 			},
@@ -1569,6 +1729,7 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 				Columns: []TableColumn{
 					{Name: "entity", ValueType: String},
 					{Name: "value", ValueType: Int},
+					{Name: "ts", ValueType: Timestamp},
 				},
 			},
 			ExpectedRows: []expectedTrainingRow{
@@ -1636,10 +1797,8 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 			if err != nil {
 				t.Fatalf("Failed to create table: %s", err)
 			}
-			for _, rec := range recs {
-				if err := table.Write(rec); err != nil {
-					t.Fatalf("Failed to write record %v: %v", rec, err)
-				}
+			if err := table.WriteBatch(recs); err != nil {
+				t.Fatalf("Failed to write records %v: %v", recs, err)
 			}
 		}
 		labelID := randomID(Label)
@@ -1647,10 +1806,8 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
-		for _, rec := range test.LabelRecords {
-			if err := labelTable.Write(rec); err != nil {
-				t.Fatalf("Failed to write record %v", rec)
-			}
+		if err := labelTable.WriteBatch(test.LabelRecords); err != nil {
+			t.Fatalf("Failed to write records %v: %v", test.LabelRecords, err)
 		}
 		def := TrainingSetDef{
 			ID:       randomID(TrainingSet),
@@ -1701,10 +1858,8 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 			t.Fatalf("Training set has different number of rows %d %d", len(test.ExpectedRows), i)
 		}
 		for i, table := range featureTables {
-			for _, rec := range test.UpdatedFeatureRecords[i] {
-				if err := table.Write(rec); err != nil {
-					t.Errorf("Could not write update record: %v", rec)
-				}
+			if err := table.WriteBatch(test.UpdatedFeatureRecords[i]); err != nil {
+				t.Fatalf("Failed to write records %v: %v", test.UpdatedFeatureRecords[i], err)
 			}
 		}
 		if err := store.UpdateTrainingSet(def); err != nil {
@@ -1764,7 +1919,7 @@ func testGetTrainingSetInvalidResourceID(t *testing.T, store OfflineStore) {
 	}
 }
 
-func testGetUnkonwnTrainingSet(t *testing.T, store OfflineStore) {
+func testGetUnknownTrainingSet(t *testing.T, store OfflineStore) {
 	// This should default to TrainingSet
 	id := randomID(NoType)
 	if _, err := store.GetTrainingSet(id); err == nil {
@@ -1886,13 +2041,17 @@ func testTrainingSetDefShorthand(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
-	fTable.Write(ResourceRecord{Entity: "a", Value: "feature"})
+	if err := fTable.WriteBatch([]ResourceRecord{{Entity: "a", Value: "feature"}}); err != nil {
+		t.Fatalf("Failed to write record: %s", err)
+	}
 	lId := randomID(Label)
 	lTable, err := store.CreateResourceTable(lId, schema)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
-	lTable.Write(ResourceRecord{Entity: "a", Value: "label"})
+	if err := lTable.WriteBatch([]ResourceRecord{{Entity: "a", Value: "label"}}); err != nil {
+		t.Fatalf("Failed to write record: %s", err)
+	}
 	// TrainingSetDef can be done in shorthand without types. Their types should
 	// be set automatically by the check() function.
 	lId.Type = NoType
@@ -2022,6 +2181,7 @@ func testPrimaryTableWrite(t *testing.T, store OfflineStore) {
 			ExpectError: false,
 			Expected:    []GenericRecord{},
 		},
+		// Unclear on how this test differs from the previous one.
 		"SimpleColumnEmpty": {
 			Rec: ResourceID{
 				Name: uuid.NewString(),
@@ -2069,10 +2229,8 @@ func testPrimaryTableWrite(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not get Primary table: %v", err)
 		}
-		for _, record := range test.Records {
-			if err := table.Write(record); err != nil {
-				t.Fatalf("Could not write: %v", err)
-			}
+		if err := table.WriteBatch(test.Records); err != nil {
+			t.Fatalf("Could not write: %v", err)
 		}
 	}
 
@@ -2099,8 +2257,9 @@ func testTransform(t *testing.T, store OfflineStore) {
 	tests := map[string]TransformTest{
 		"Simple": {
 			PrimaryTable: ResourceID{
-				Name: uuid.NewString(),
-				Type: Primary,
+				Name:    uuid.NewString(),
+				Variant: uuid.NewString(),
+				Type:    Primary,
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
@@ -2122,8 +2281,9 @@ func testTransform(t *testing.T, store OfflineStore) {
 			Config: TransformationConfig{
 				Type: SQLTransformation,
 				TargetTableID: ResourceID{
-					Name: uuid.NewString(),
-					Type: Transformation,
+					Name:    uuid.NewString(),
+					Variant: uuid.NewString(),
+					Type:    Transformation,
 				},
 				Query: "SELECT * FROM tb",
 				SourceMapping: []SourceMapping{
@@ -2143,8 +2303,9 @@ func testTransform(t *testing.T, store OfflineStore) {
 		},
 		"Count": {
 			PrimaryTable: ResourceID{
-				Name: uuid.NewString(),
-				Type: Primary,
+				Name:    uuid.NewString(),
+				Variant: uuid.NewString(),
+				Type:    Primary,
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
@@ -2165,8 +2326,9 @@ func testTransform(t *testing.T, store OfflineStore) {
 			Config: TransformationConfig{
 				Type: SQLTransformation,
 				TargetTableID: ResourceID{
-					Name: uuid.NewString(),
-					Type: Transformation,
+					Name:    uuid.NewString(),
+					Variant: uuid.NewString(),
+					Type:    Transformation,
 				},
 				Query: "SELECT COUNT(*) as total_count FROM tb",
 				SourceMapping: []SourceMapping{
@@ -2188,14 +2350,11 @@ func testTransform(t *testing.T, store OfflineStore) {
 			t.Fatalf("Could not initialize table: %v", err)
 		}
 
-		for _, value := range test.Records {
-			if err := table.Write(value); err != nil {
-				t.Fatalf("Could not write value: %v: %v", err, value)
-			}
+		if err := table.WriteBatch(test.Records); err != nil {
+			t.Fatalf("Could not write: %v", err)
 		}
 
-		tableName := getTableName(t.Name(), table.GetName())
-		test.Config.Query = strings.Replace(test.Config.Query, "tb", tableName, 1)
+		modifyTransformationConfig(t, t.Name(), table.GetName(), store.Type(), &test.Config)
 		if err := store.CreateTransformation(test.Config); err != nil {
 			t.Fatalf("Could not create transformation: %v", err)
 		}
@@ -2260,7 +2419,7 @@ func testTransform(t *testing.T, store OfflineStore) {
 	}
 }
 
-// Tests the update of a transformation that has a feature registerd on it. The main idea being that the atomic update
+// Tests the update of a transformation that has a feature registered on it. The main idea being that the atomic update
 // works as expected.
 func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 	type TransformTest struct {
@@ -2276,8 +2435,9 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 	tests := map[string]TransformTest{
 		"Simple": {
 			PrimaryTable: ResourceID{
-				Name: uuid.NewString(),
-				Type: Primary,
+				Name:    uuid.NewString(),
+				Variant: uuid.NewString(),
+				Type:    Primary,
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
@@ -2303,8 +2463,9 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 			Config: TransformationConfig{
 				Type: SQLTransformation,
 				TargetTableID: ResourceID{
-					Name: uuid.NewString(),
-					Type: Transformation,
+					Name:    uuid.NewString(),
+					Variant: uuid.NewString(),
+					Type:    Transformation,
 				},
 				Query: "SELECT * FROM tb",
 				SourceMapping: []SourceMapping{
@@ -2334,8 +2495,9 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 	}
 
 	featureID := ResourceID{
-		Name: uuid.NewString(),
-		Type: Feature,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Feature,
 	}
 
 	testTransform := func(t *testing.T, test TransformTest) {
@@ -2343,14 +2505,11 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not initialize table: %v", err)
 		}
-		for _, value := range test.Records {
-			if err := table.Write(value); err != nil {
-				t.Fatalf("Could not write value: %v: %v", err, value)
-			}
+		if err := table.WriteBatch(test.Records); err != nil {
+			t.Fatalf("Could not write value: %v", err)
 		}
 
-		tableName := getTableName(t.Name(), table.GetName())
-		test.Config.Query = strings.Replace(test.Config.Query, "tb", tableName, 1)
+		modifyTransformationConfig(t, t.Name(), table.GetName(), store.Type(), &test.Config)
 		if err := store.CreateTransformation(test.Config); err != nil {
 			t.Fatalf("Could not create transformation: %v", err)
 		}
@@ -2390,11 +2549,10 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not get primary table: %v", err)
 		}
-		for _, rec := range test.UpdatedRecords {
-			if err := table.Write(rec); err != nil {
-				t.Errorf("could not write to table: %v", err)
-			}
+		if err := table.WriteBatch(test.UpdatedRecords); err != nil {
+			t.Fatalf("Could not write value: %v", err)
 		}
+
 		if err := store.UpdateTransformation(test.Config); err != nil {
 			t.Errorf("could not update transformation: %v", err)
 		}
@@ -2458,8 +2616,9 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 	tests := map[string]TransformTest{
 		"Simple": {
 			PrimaryTable: ResourceID{
-				Name: uuid.NewString(),
-				Type: Primary,
+				Name:    uuid.NewString(),
+				Variant: uuid.NewString(),
+				Type:    Primary,
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
@@ -2485,8 +2644,9 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 			Config: TransformationConfig{
 				Type: SQLTransformation,
 				TargetTableID: ResourceID{
-					Name: uuid.NewString(),
-					Type: Transformation,
+					Name:    uuid.NewString(),
+					Variant: uuid.NewString(),
+					Type:    Transformation,
 				},
 				Query: "SELECT * FROM tb",
 				SourceMapping: []SourceMapping{
@@ -2515,8 +2675,9 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 		},
 		"Count": {
 			PrimaryTable: ResourceID{
-				Name: uuid.NewString(),
-				Type: Primary,
+				Name:    uuid.NewString(),
+				Variant: uuid.NewString(),
+				Type:    Primary,
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
@@ -2541,8 +2702,9 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 			Config: TransformationConfig{
 				Type: SQLTransformation,
 				TargetTableID: ResourceID{
-					Name: uuid.NewString(),
-					Type: Transformation,
+					Name:    uuid.NewString(),
+					Variant: uuid.NewString(),
+					Type:    Transformation,
 				},
 				Query: "SELECT COUNT(*) as total_count FROM tb",
 				SourceMapping: []SourceMapping{
@@ -2566,14 +2728,11 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not initialize table: %v", err)
 		}
-		for _, value := range test.Records {
-			if err := table.Write(value); err != nil {
-				t.Fatalf("Could not write value: %v: %v", err, value)
-			}
+		if err := table.WriteBatch(test.Records); err != nil {
+			t.Fatalf("Could not write records: %v", err)
 		}
 
-		tableName := getTableName(t.Name(), table.GetName())
-		test.Config.Query = strings.Replace(test.Config.Query, "tb", tableName, 1)
+		modifyTransformationConfig(t, t.Name(), table.GetName(), store.Type(), &test.Config)
 		if err := store.CreateTransformation(test.Config); err != nil {
 			t.Fatalf("Could not create transformation: %v", err)
 		}
@@ -2618,11 +2777,10 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not get primary table: %v", err)
 		}
-		for _, rec := range test.UpdatedRecords {
-			if err := table.Write(rec); err != nil {
-				t.Errorf("could not write to table: %v", err)
-			}
+		if err := table.WriteBatch(test.UpdatedRecords); err != nil {
+			t.Fatalf("Could not write updated records: %v", err)
 		}
+
 		if err := store.UpdateTransformation(test.Config); err != nil {
 			t.Errorf("could not update transformation: %v", err)
 		}
@@ -2651,7 +2809,7 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 				}
 			}
 			if !found {
-				t.Fatalf("Unexpected training row: %v, expected %v", iterator.Values(), test.UpdatedExpected)
+				t.Fatalf("Unexpected training row: %v, expected %v in updated transformation", iterator.Values(), test.UpdatedExpected)
 			}
 			i++
 		}
@@ -2731,10 +2889,8 @@ func testTransformCreateFeature(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not initialize table: %v", err)
 		}
-		for _, value := range test.Records {
-			if err := table.Write(value); err != nil {
-				t.Fatalf("Could not write value: %v: %v", err, value)
-			}
+		if err := table.WriteBatch(test.Records); err != nil {
+			t.Fatalf("Could not write records: %v", err)
 		}
 
 		tableName := getTableName(t.Name(), table.GetName())
@@ -2767,8 +2923,9 @@ func testTransformCreateFeature(t *testing.T, store OfflineStore) {
 func testCreateDuplicatePrimaryTable(t *testing.T, store OfflineStore) {
 	table := uuid.NewString()
 	rec := ResourceID{
-		Name: table,
-		Type: Primary,
+		Name:    table,
+		Variant: uuid.NewString(),
+		Type:    Primary,
 	}
 	schema := TableSchema{
 		Columns: []TableColumn{
@@ -2798,11 +2955,13 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 	}
 
 	firstTransformName := uuid.NewString()
+	firstTransformVariant := uuid.NewString()
 	tests := map[string]TransformTest{
 		"First": {
 			PrimaryTable: ResourceID{
-				Name: uuid.NewString(),
-				Type: Primary,
+				Name:    uuid.NewString(),
+				Variant: uuid.NewString(),
+				Type:    Primary,
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
@@ -2824,8 +2983,9 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 			Config: TransformationConfig{
 				Type: SQLTransformation,
 				TargetTableID: ResourceID{
-					Name: firstTransformName,
-					Type: Transformation,
+					Name:    firstTransformName,
+					Variant: firstTransformVariant,
+					Type:    Transformation,
 				},
 				Query: "SELECT entity, int_col, flt_col, str_col FROM tb",
 				SourceMapping: []SourceMapping{
@@ -2845,8 +3005,9 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 		},
 		"Second": {
 			PrimaryTable: ResourceID{
-				Name: firstTransformName,
-				Type: Primary,
+				Name:    firstTransformName,
+				Variant: firstTransformVariant,
+				Type:    Primary,
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
@@ -2858,8 +3019,9 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 			Config: TransformationConfig{
 				Type: SQLTransformation,
 				TargetTableID: ResourceID{
-					Name: uuid.NewString(),
-					Type: Transformation,
+					Name:    uuid.NewString(),
+					Variant: uuid.NewString(),
+					Type:    Transformation,
 				},
 				Query: "SELECT COUNT(*) as total_count FROM tb",
 				SourceMapping: []SourceMapping{
@@ -2879,27 +3041,27 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Fatalf("Could not initialize table: %v", err)
 	}
-	for _, value := range tests["First"].Records {
-		if err := table.Write(value); err != nil {
-			t.Fatalf("Could not write value: %v: %v", err, value)
-		}
+	if err := table.WriteBatch(tests["First"].Records); err != nil {
+		t.Fatalf("Could not write batch: %v", err)
 	}
 
-	tableName := getTableName(t.Name(), table.GetName())
 	config := TransformationConfig{
 		Type: SQLTransformation,
 		TargetTableID: ResourceID{
-			Name: firstTransformName,
-			Type: Transformation,
+			Name:    firstTransformName,
+			Variant: firstTransformVariant,
+			Type:    Transformation,
 		},
-		Query: fmt.Sprintf("SELECT entity, int_col, flt_col, str_col FROM %s", tableName),
+		Query: "SELECT entity, int_col, flt_col, str_col FROM tb",
 		SourceMapping: []SourceMapping{
 			SourceMapping{
-				Template: tableName,
-				Source:   tableName,
+				Template: "tb",
+				Source:   "TBD",
 			},
 		},
 	}
+	modifyTransformationConfig(t, t.Name(), table.GetName(), store.Type(), &config)
+
 	if err := store.CreateTransformation(config); err != nil {
 		t.Fatalf("Could not create transformation: %v", err)
 	}
@@ -2942,22 +3104,24 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 		t.Fatalf("The number of records do not match for received (%v) and expected (%v)", tableSize, len(tests["First"].Expected))
 	}
 
-	tableName = getTableName(t.Name(), table.GetName())
 	secondTransformName := uuid.NewString()
+	secondTransformVariant := uuid.NewString()
 	config = TransformationConfig{
 		Type: SQLTransformation,
 		TargetTableID: ResourceID{
-			Name: secondTransformName,
-			Type: Transformation,
+			Name:    secondTransformName,
+			Variant: secondTransformVariant,
+			Type:    Transformation,
 		},
-		Query: fmt.Sprintf("SELECT Count(*) as total_count FROM %s", tableName),
+		Query: "SELECT Count(*) as total_count FROM tb",
 		SourceMapping: []SourceMapping{
 			SourceMapping{
-				Template: tableName,
-				Source:   tableName,
+				Template: "tb",
+				Source:   "TBD",
 			},
 		},
 	}
+	modifyTransformationConfig(t, t.Name(), table.GetName(), store.Type(), &config)
 	if err := store.CreateTransformation(config); err != nil {
 		t.Fatalf("Could not create transformation: %v", err)
 	}
@@ -3042,10 +3206,8 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Fatalf("Could not initialize table: %v", err)
 	}
-	for _, value := range tests["First"].Records {
-		if err := table.Write(value); err != nil {
-			t.Fatalf("Could not write value: %v: %v", err, value)
-		}
+	if err := table.WriteBatch(tests["First"].Records); err != nil {
+		t.Fatalf("Could not write batch: %v", err)
 	}
 
 	tableName := getTableName(t.Name(), table.GetName())
@@ -3095,8 +3257,9 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 
 func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 	primaryID := ResourceID{
-		Name: uuid.NewString(),
-		Type: Primary,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Primary,
 	}
 	schema := TableSchema{
 		Columns: []TableColumn{
@@ -3117,14 +3280,14 @@ func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 		{"d", 4, "four", time.UnixMilli(3)},
 		{"e", 5, "five", time.UnixMilli(4)},
 	}
-	for _, record := range records {
-		if err := table.Write(record); err != nil {
-			t.Fatalf("Could not write record: %v", err)
-		}
+	if err := table.WriteBatch(records); err != nil {
+		t.Fatalf("Could not write batch: %v", err)
 	}
+
 	featureID := ResourceID{
-		Name: uuid.NewString(),
-		Type: Feature,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Feature,
 	}
 	recSchema := ResourceSchema{
 		Entity:      "col1",
@@ -3152,10 +3315,8 @@ func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 		{"i", 9, "nine", time.UnixMilli(3)},
 		{"j", 10, "ten", time.UnixMilli(4)},
 	}
-	for _, record := range updatedRecords {
-		if err := table.Write(record); err != nil {
-			t.Fatalf("Could not write record: %v", err)
-		}
+	if err := table.WriteBatch(updatedRecords); err != nil {
+		t.Fatalf("Could not write batch: %v", err)
 	}
 	err = store.DeleteMaterialization(mat.ID())
 	if err != nil {
@@ -3186,8 +3347,9 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 	}
 
 	primaryID := ResourceID{
-		Name: uuid.NewString(),
-		Type: Primary,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Primary,
 	}
 	schema := TableSchema{
 		Columns: []TableColumn{
@@ -3208,14 +3370,14 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 		{"d", 4, "four", true},
 		{"e", 5, "five", false},
 	}
-	for _, record := range records {
-		if err := table.Write(record); err != nil {
-			t.Fatalf("Could not write record: %v", err)
-		}
+	if err := table.WriteBatch(records); err != nil {
+		t.Fatalf("Could not write batch: %v", err)
 	}
+
 	featureID := ResourceID{
-		Name: uuid.NewString(),
-		Type: Feature,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Feature,
 	}
 	recSchema := ResourceSchema{
 		Entity:      "col1",
@@ -3232,8 +3394,9 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not get feature resource table: %v", err)
 	}
 	labelID := ResourceID{
-		Name: uuid.NewString(),
-		Type: Label,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Label,
 	}
 	labelSchema := ResourceSchema{
 		Entity:      "col1",
@@ -3250,8 +3413,9 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not get label resource table: %v", err)
 	}
 	tsetID := ResourceID{
-		Name: uuid.NewString(),
-		Type: TrainingSet,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    TrainingSet,
 	}
 	def := TrainingSetDef{
 		ID: tsetID,
@@ -3319,10 +3483,41 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 	}
 }
 
+func testCreatePrimaryFromNonExistentSource(t *testing.T, store OfflineStore) {
+	primaryID := ResourceID{
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Primary,
+	}
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "col1", ValueType: String},
+			{Name: "col2", ValueType: Int},
+			{Name: "col3", ValueType: String},
+			{Name: "col4", ValueType: Timestamp},
+		},
+	}
+
+	table, err := store.CreatePrimaryTable(primaryID, schema)
+	if err != nil {
+		t.Fatalf("Could not create primary table: %v", err)
+	}
+	tableName := sanitizeTableName(string(store.Type()), table.GetName())
+	tableName = fmt.Sprintf("%s_%s", table.GetName(), "nonexistant")
+	_, err = store.RegisterPrimaryFromSourceTable(primaryID, tableName)
+	if err == nil {
+		t.Fatalf("Successfully created primary table from non-existant source")
+	}
+	if strings.Contains(err.Error(), "source does not exist") {
+		t.Fatalf("error message doesn't match got: %s", err.Error())
+	}
+}
+
 func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 	primaryID := ResourceID{
-		Name: uuid.NewString(),
-		Type: Primary,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Primary,
 	}
 	schema := TableSchema{
 		Columns: []TableColumn{
@@ -3343,20 +3538,30 @@ func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 		{"d", 4, "four", time.UnixMilli(3)},
 		{"e", 5, "five", time.UnixMilli(4)},
 	}
-	for _, record := range records {
-		if err := table.Write(record); err != nil {
-			t.Fatalf("Could not write record: %v", err)
-		}
+	if err := table.WriteBatch(records); err != nil {
+		t.Fatalf("Could not write batch: %v", err)
 	}
 	primaryCopyID := ResourceID{
-		Name: uuid.NewString(),
-		Type: Primary,
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Primary,
 	}
 
 	t.Log("Primary Name: ", primaryCopyID.Name)
 	// Need to sanitize name here b/c the the xxx-xxx format of the uuid. Cannot do it within
 	// register function because precreated tables do not necessarily use double quotes
 	tableName := sanitizeTableName(string(store.Type()), table.GetName())
+	// Currently, the assumption is that a primary table will always have an absolute path
+	// to the source data file in its schema; to keep with this assumption until we determine
+	// a better approach (e.g. handling directories of primary sources), we will use the
+	// GetSource method on the FileStorePrimaryTable to get the absolute path to the source.
+	if store.Type() == pt.SparkOffline {
+		sourceTablePath, err := table.(*FileStorePrimaryTable).GetSource()
+		if err != nil {
+			t.Fatalf("Could not get source table path: %v", err)
+		}
+		tableName = sourceTablePath.ToURI()
+	}
 	_, err = store.RegisterPrimaryFromSourceTable(primaryCopyID, tableName)
 	if err != nil {
 		t.Fatalf("Could not register from Source Table: %s", err)
@@ -3517,6 +3722,20 @@ func sanitizeTableName(testName string, tableName string) string {
 	return tableName
 }
 
+func modifyTransformationConfig(t *testing.T, testName, tableName string, providerType pt.Type, config *TransformationConfig) {
+	switch providerType {
+	case pt.SparkOffline:
+		// In contrast to the SQL provider, that only needed change is the table name to perform the required transformation configuration,
+		// The Spark implementation needs to update the source mappings to ensure the source file is used in the transformation query.
+		config.SourceMapping[0].Source = tableName
+	case pt.MemoryOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.SnowflakeOffline, pt.RedshiftOffline:
+		tableName := getTableName(testName, tableName)
+		config.Query = strings.Replace(config.Query, "tb", tableName, 1)
+	default:
+		t.Fatalf("Unrecognized provider type %s", providerType)
+	}
+}
+
 func TestBigQueryConfig_Deserialize(t *testing.T) {
 	content, err := ioutil.ReadFile("connection/connection_configs.json")
 	if err != nil {
@@ -3606,7 +3825,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: Int},
-						{Name: "label", ValueType: Bool},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 			},
@@ -3629,6 +3848,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 				Columns: []TableColumn{
 					{Name: "entity", ValueType: String},
 					{Name: "value", ValueType: Bool},
+					{Name: "ts", ValueType: Timestamp},
 				},
 			},
 			ExpectedRows: []expectedTrainingRow{
@@ -3668,6 +3888,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: Int},
+						{Name: "ts", ValueType: Timestamp},
 					},
 				},
 			},
@@ -3698,6 +3919,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 				Columns: []TableColumn{
 					{Name: "entity", ValueType: String},
 					{Name: "value", ValueType: Int},
+					{Name: "ts", ValueType: Timestamp},
 				},
 			},
 			ExpectedRows: []expectedTrainingRow{
@@ -3738,10 +3960,8 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 			if err != nil {
 				t.Fatalf("Failed to create table: %s", err)
 			}
-			for _, rec := range recs {
-				if err := table.Write(rec); err != nil {
-					t.Fatalf("Failed to write record %v: %v", rec, err)
-				}
+			if err := table.WriteBatch(recs); err != nil {
+				t.Fatalf("Failed to write record %v: %v", recs, err)
 			}
 		}
 		labelID := randomID(Label)
@@ -3749,10 +3969,8 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
-		for _, rec := range test.LabelRecords {
-			if err := labelTable.Write(rec); err != nil {
-				t.Fatalf("Failed to write record %v", rec)
-			}
+		if err := labelTable.WriteBatch(test.LabelRecords); err != nil {
+			t.Fatalf("Failed to write record %v", test.LabelRecords)
 		}
 		lagFeatureList := make([]LagFeatureDef, 0)
 		for _, lagFeatureDef := range test.LagFeatures {
@@ -3781,7 +3999,7 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 			}
 
 			// Row order isn't guaranteed, we make sure one row is equivalent
-			// then we delete that row. This is ineffecient, but these test
+			// then we delete that row. This is inefficient, but these test
 			// cases should all be small enough not to matter.
 			found := false
 			for i, expRow := range expectedRows {
@@ -3819,5 +4037,167 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 			}
 			runTestCase(t, testConst)
 		})
+	}
+}
+
+func TestTableSchemaToParquetRecords(t *testing.T) {
+	type TableSchemaTest struct {
+		Schema               TableSchema
+		Records              []GenericRecord
+		ExpectParquetRecords []GenericRecord
+	}
+
+	tests := map[string]TableSchemaTest{
+		"WithoutNilValues": {
+			Schema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "int", ValueType: Int},
+					{Name: "flt", ValueType: Float64},
+					{Name: "str", ValueType: String},
+					{Name: "bool", ValueType: Bool},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			},
+			Records: []GenericRecord{
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"c", 3, 1.3, "third string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
+			},
+			ExpectParquetRecords: []GenericRecord{
+				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"c", 3, 1.3, "third string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
+			},
+		},
+		"WithNilValues": {
+			Schema: TableSchema{
+				Columns: []TableColumn{
+					{Name: "entity", ValueType: String},
+					{Name: "int", ValueType: Int},
+					{Name: "flt", ValueType: Float64},
+					{Name: "str", ValueType: String},
+					{Name: "bool", ValueType: Bool},
+					{Name: "ts", ValueType: Timestamp},
+				},
+			},
+			Records: []GenericRecord{
+				[]interface{}{nil, 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"b", nil, 1.2, "second string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"c", 3, nil, "third string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"d", 4, 1.4, nil, false, time.UnixMilli(0).UTC()},
+				[]interface{}{"e", 5, 1.5, "fifth string", nil, time.UnixMilli(0).UTC()},
+				[]interface{}{"f", 6, 1.6, "sixth string", false, nil},
+			},
+			ExpectParquetRecords: []GenericRecord{
+				[]interface{}{nil, 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"b", nil, 1.2, "second string", false, time.UnixMilli(0).UTC()},
+				[]interface{}{"c", 3, nil, "third string", true, time.UnixMilli(0).UTC()},
+				[]interface{}{"d", 4, 1.4, nil, false, time.UnixMilli(0).UTC()},
+				[]interface{}{"e", 5, 1.5, "fifth string", nil, time.UnixMilli(0).UTC()},
+				[]interface{}{"f", 6, 1.6, "sixth string", false, nil},
+			},
+		},
+	}
+
+	testSchema := func(t *testing.T, test TableSchemaTest) {
+		testFilename := fmt.Sprintf("generic_records_%s.parquet", uuid.NewString())
+		schema := parquet.SchemaOf(test.Schema.Interface())
+		parquetRecords := test.Schema.ToParquetRecords(test.Records)
+		buf := new(bytes.Buffer)
+		err := parquet.Write[any](buf, parquetRecords, schema)
+		if err != nil {
+			t.Fatalf("Could not write parquet records: %v", err)
+		}
+		err = ioutil.WriteFile(testFilename, buf.Bytes(), 0644)
+		if err != nil {
+			t.Fatalf("Could not write parquet file: %v", err)
+		}
+		data, err := ioutil.ReadFile(testFilename)
+		if err != nil {
+			t.Fatalf("Could not read parquet file: %v", err)
+		}
+		iter, err := newParquetIterator(data, -1)
+		if err != nil {
+			t.Fatalf("Could not create iterator: %v", err)
+		}
+		actualRecords := make([]GenericRecord, 0)
+		for {
+			if hasNext := iter.Next(); !hasNext {
+				if err := iter.Err(); err != nil {
+					t.Fatalf("Could not iterate: %v", err)
+				}
+				break
+			}
+			actualRecords = append(actualRecords, iter.Values())
+		}
+		if !reflect.DeepEqual(test.ExpectParquetRecords, actualRecords) {
+			t.Fatalf("Expected: %v\nGot: %v", test.ExpectParquetRecords, actualRecords)
+		}
+	}
+
+	for name, test := range tests {
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
+			testSchema(t, testConst)
+		})
+	}
+}
+
+func TestTableSchemaValue(t *testing.T) {
+	tableSchema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "int", ValueType: Int},
+			{Name: "flt", ValueType: Float64},
+			{Name: "str", ValueType: String},
+			{Name: "bool", ValueType: Bool},
+			{Name: "ts", ValueType: Timestamp},
+		},
+	}
+
+	value := tableSchema.Value().Elem()
+	typ := value.Type()
+
+	if typ.Kind() != reflect.Struct {
+		t.Fatalf("Expected type to be struct, got %v", typ.Kind())
+	}
+
+	type expectedField struct {
+		Name string
+		Type reflect.Type
+		Tag  reflect.StructTag
+	}
+
+	expectedFields := []expectedField{
+		{Name: "Entity", Type: reflect.PointerTo(reflect.TypeOf("")), Tag: reflect.StructTag(`parquet:"entity,optional"`)},
+		{Name: "Int", Type: reflect.PointerTo(reflect.TypeOf(int(0))), Tag: reflect.StructTag(`parquet:"int,optional"`)},
+		{Name: "Flt", Type: reflect.PointerTo(reflect.TypeOf(float64(0))), Tag: reflect.StructTag(`parquet:"flt,optional"`)},
+		{Name: "Str", Type: reflect.PointerTo(reflect.TypeOf("")), Tag: reflect.StructTag(`parquet:"str,optional"`)},
+		{Name: "Bool", Type: reflect.PointerTo(reflect.TypeOf(false)), Tag: reflect.StructTag(`parquet:"bool,optional"`)},
+		{Name: "Ts", Type: reflect.TypeOf(time.UnixMilli(0)), Tag: reflect.StructTag(`parquet:"ts,optional,timestamp"`)},
+	}
+
+	for _, fieldName := range expectedFields {
+		field, ok := typ.FieldByName(fieldName.Name)
+		if !ok {
+			t.Fatalf("Expected field %s is missing", fieldName)
+		}
+		if field.Type != fieldName.Type {
+			t.Fatalf("Expected field %s to be type %v, got %v", fieldName.Name, fieldName.Type, field.Type)
+		}
+		if field.Tag != fieldName.Tag {
+			t.Fatalf("Expected field %s to have tag %v, got %v", fieldName.Name, fieldName.Tag, field.Tag)
+		}
+	}
+
+	if typ.NumField() != len(expectedFields) {
+		t.Fatalf("Expected %v fields, got %v", len(expectedFields), typ.NumField())
 	}
 }

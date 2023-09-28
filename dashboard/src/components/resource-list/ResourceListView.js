@@ -86,6 +86,22 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
+export function filterMissingDefaults(row = {}) {
+  const defaultVariant = row['default-variant'];
+  if (row?.variants) {
+    if (defaultVariant in row.variants) {
+      return true;
+    } else {
+      console.warn(
+        `The current default rowVariant (${defaultVariant}) is not present in the variants list:`,
+        row.variants ? Object.keys(row.variants) : 'row.variants is undefined.'
+      );
+      return false;
+    }
+  }
+  return true;
+}
+
 export const ResourceListView = ({
   title,
   resources,
@@ -199,9 +215,11 @@ export const ResourceListView = ({
   const initialLoad = resources == null && !loading;
   const initRes = resources || [];
   const noVariants = !Resource[type].hasVariants;
+
   // MaterialTable can't handle immutable object, we have to make a copy
   // https://github.com/mbrn/material-table/issues/666
-  const mutableRes = deepCopy(initRes);
+  let mutableRes = deepCopy(initRes);
+  mutableRes = mutableRes.filter(filterMissingDefaults);
 
   function detailRedirect(e, data) {
     e.stopPropagation();
@@ -267,13 +285,6 @@ export const ResourceListView = ({
               )) {
                 rowData[key] = data;
               }
-            } else {
-              console.warn(
-                `The current default rowVariant (${rowVariant}) is not present in the variants list:`,
-                row.variants
-                  ? Object.keys(row.variants)
-                  : 'row.variants is undefined.'
-              );
             }
             let variantList = [];
             Object.values(row.variants).forEach((variantValue) => {
@@ -325,7 +336,7 @@ export const ResourceListView = ({
             ? {
                 localization: {
                   body: {
-                    emptyDataSourceMessage: <NoDataMessage type={title} />,
+                    emptyDataSourceMessage: <NoDataMessage type={type} />,
                   },
                 },
               }
@@ -494,10 +505,11 @@ const NoDataMessage = ({ type }) => {
   const classes = useStyles();
 
   function redirect() {
-    window.location.href = 'https://docs.featureform.com/quickstart';
+    window.location.href =
+      'https://docs.featureform.com/getting-started/overview';
   }
   return (
-    <Container>
+    <Container data-testid='noDataContainerId'>
       <div className={classes.noDataPage}>
         <Typography variant='h4'>
           No {Resource[type].typePlural} Registered

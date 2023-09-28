@@ -791,6 +791,10 @@ func (m MockOfflineTable) Write(provider.ResourceRecord) error {
 	return nil
 }
 
+func (m MockOfflineTable) WriteBatch([]provider.ResourceRecord) error {
+	return nil
+}
+
 type MockMaterialization struct{}
 
 func (m MockMaterialization) ID() provider.MaterializationID {

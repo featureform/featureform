@@ -153,8 +153,6 @@ def step_impl(context):
     assert (
         len(df) == context.file_length
     ), f"Expected {context.file_length} rows, got {len(df)} rows"
-    print(len(df))
-    print(df)
 
 
 @when("I register a feature")
@@ -176,7 +174,6 @@ def step_impl(context):
     feature = context.client.features(
         [(context.feature_name, ff.get_run())], {"user": "C1578767"}
     )
-    print("FEATURE VALUE: ", feature)
 
 
 @when("I register a label")
@@ -206,5 +203,3 @@ def step_impl(context):
 def step_impl(context):
     dataset = context.client.training_set("fraud_training", ff.get_run())
     df = dataset.dataframe()
-    print(len(df))
-    print(df)

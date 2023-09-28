@@ -38,7 +38,6 @@ def step_impl(context, access_key, secret_key):
     if secret_key == "empty":
         secret_key = ""
     context.exception = None
-    print(access_key, secret_key)
     try:
         context.cloud_credentials = AWSCredentials(
             access_key=access_key, secret_key=secret_key

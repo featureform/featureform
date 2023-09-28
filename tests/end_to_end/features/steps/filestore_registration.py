@@ -50,7 +50,6 @@ def step_impl(
     assert (
         config.path == exp_path
     ), f"Expected path '{exp_path}' but got '{config.path}'"
-    print(exp_access_key, exp_secret_key)
     assert (
         config.credentials.access_key == exp_access_key
     ), f"Expected access_key '{exp_access_key}' but got '{config.credentials.access_key}'"
@@ -136,9 +135,7 @@ def step_impl(
         context.filestore.store_type() == "AZURE"
     ), f"Expected store_type 'AZURE' but got '{context.filestore.store_type()}'"
 
-    # TODO: This really weird
     config = context.filestore.config()
-    print(config)
     assert (
         config.account_name == exp_account_name
     ), f"Expected account_name '{exp_account_name}' but got '{config.account_name}'"

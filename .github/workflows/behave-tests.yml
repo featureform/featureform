@@ -29,6 +29,21 @@ jobs:
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: featureform
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Container
+        run: docker run -d -p 7878:7878 -p 80:80 featureform
+
       - name: Setup Proto
         run: ./gen_grpc.sh
 
@@ -36,7 +51,8 @@ jobs:
         run: ./pip_update.sh
 
       - name: Install Behave
-        run: pip install behave
+        working-directory: ./tests/end_to_end/
+        run: pip install -r requirements.txt
 
       - name: Run Behavioral Tests
         working-directory: ./tests/end_to_end/

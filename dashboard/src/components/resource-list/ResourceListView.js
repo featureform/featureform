@@ -226,7 +226,21 @@ export const ResourceListView = ({
     router.push(Resource[type].urlPathResource(data.name));
   }
 
+  function getPageSizeProp(listLength = 0) {
+    let pageSize = 5;
+    if (listLength > 10) {
+      pageSize = 20;
+    } else if (listLength > 5) {
+      pageSize = 10;
+    } else {
+      pageSize = 5;
+    }
+    return pageSize;
+  }
+
   let rowVariants = {};
+  let mainTableSize = getPageSizeProp(mutableRes?.length);
+
   return (
     <div>
       <ThemeProvider theme={theme}>
@@ -240,6 +254,7 @@ export const ResourceListView = ({
                       row={row}
                       type={type}
                       setVariant={setVariant}
+                      pageSizeProp={getPageSizeProp(row?.variants?.length)}
                     />
                   );
                 },
@@ -317,7 +332,7 @@ export const ResourceListView = ({
             ),
           }}
           options={{
-            pageSize: 10,
+            pageSize: mainTableSize,
             emptyRowsWhenPaging: true,
             loadingType: 'overlay',
             search: true,
@@ -376,7 +391,7 @@ export const VariantTable = ({
   setVariant,
   type,
   row,
-  pageSizeProp = 10,
+  pageSizeProp = 5,
   emptyRowsProp = false,
 }) => {
   const classes = useStyles();

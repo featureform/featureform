@@ -57,8 +57,7 @@
                   "concepts/on-demand-features-request-time",
                   "concepts/search-and-discovery-features",
                   "concepts/point-in-time-correctness-historical-features-timeseries-data",
-                  "concepts/governance-and-access-control",
-                  "concepts/enterprise-vs-open-source-feature-store"
+                  "concepts/governance-and-access-control"
                 ]
             }
             ]
@@ -87,7 +86,8 @@
                 "getting-started/streaming-features"
               ]
             },
-            "getting-started/search-monitor-discovery-feature-registry-ui-cli"
+            "getting-started/search-monitor-discovery-feature-registry-ui-cli",
+            "enterprise-vs-open-source-feature-store"
           ]
         },
         {

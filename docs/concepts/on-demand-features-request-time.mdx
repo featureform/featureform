@@ -1,6 +1,6 @@
 ---
 title: "Calculating On-Demand Features at Request Time"
-description: "Certain machine learning predictions rely on data available only at the time of the request. For instance, testing a user transaction for fraud might require data that's passed with the request and cannot be preprocessed. While stream processing offers near real-time features, it can lead to race conditions, potentially rendering the current data unavailable when you access features from the feature store. In such cases, an ideal approach is to compute the required feature at the moment of the request. To achieve this, Featureform exposes an On-Demand Feature API."
+description: "Certain machine learning predictions rely on data available only at the time of the request. For instance, testing a user transaction for fraud might require data that's passed with the request and cannot be preprocessed. While stream processing offers near real-time features, it can lead to race conditions, potentially rendering the current data unavailable when you access features from the feature store. In such cases, an ideal approach is to compute the required feature at the moment of the request. To achieve this, Featureform exposes an [On-Demand Feature](https://sdk.featureform.com/on_demand_functions/) API."
 ---
 
 An On-Demand Feature represents a Feature resource, rather than a Transformation. It's possible to string together on-demand features; however, On-Demand Features are solely intended for post-processing data during request times.

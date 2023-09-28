@@ -5,14 +5,12 @@ import re
 import inspect
 import warnings
 from datetime import timedelta
-from os.path import exists
 from pathlib import Path
 from typing import Dict, Tuple, Callable, List, Union, Optional
 
 import dill
 import pandas as pd
 from typeguard import typechecked
-
 from .enums import FileFormat
 from .file_utils import absolute_file_paths
 from .get import *
@@ -58,9 +56,6 @@ from .resources import (
     LabelVariant,
     ResourceColumnMapping,
     TrainingSetVariant,
-    ProviderReference,
-    EntityReference,
-    SourceReference,
     ExecutorCredentials,
     ResourceRedefinedError,
     ResourceStatus,
@@ -1037,8 +1032,8 @@ class SubscriptableTransformation:
         # and receive a tuple of (name, variant) where name was the name of the wrapped function and
         # variant was either the value passed to the decorator or the default value. This was achieved
         # via the following syntax: `self.name_variant = decorator_name_variant_method.__get__(self)`
-        # For as-of-yet unknown reasons, this behavior was not working as expected in Python 3.11.2, so
-        # so the code has been reverted to the original syntax, which simply passes a reference to the
+        # For as-of-yet unknown reasons, this behavior was not working as expected in Python 3.11.2,
+        # so the code has been reverted to the original syntax, which simply passes a reference to
         # the decorator methods to the SubscriptableTransformation class.
         self.register_resources = decorator_register_resources_method
         self.name_variant = decorator_name_variant_method
@@ -1055,8 +1050,8 @@ class SubscriptableTransformation:
             )
         return (self.registrar, self.name_variant(), columns)
 
-    def __call__(self, *args, **kwds):
-        return self.fn(*args, **kwds)
+    def __call__(self, *args, **kwargs):
+        return self.fn(*args, **kwargs)
 
 
 class SQLTransformationDecorator:
@@ -1192,6 +1187,13 @@ class DFTransformationDecorator:
             self.description = fn.__doc__
         if self.name == "":
             self.name = fn.__name__
+
+        func_params = inspect.signature(fn).parameters
+        if len(func_params) > len(self.inputs):
+            raise ValueError(
+                f"Transformation function has more parameters than inputs. \n"
+                f"Make sure each function parameter has a corresponding input in the decorator."
+            )
 
         if not isinstance(self.inputs, list):
             raise ValueError("Dataframe transformation inputs must be a list")

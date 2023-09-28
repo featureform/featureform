@@ -432,7 +432,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                     {metadata['joined'] && (
                       <Typography variant='body1'>
                         <b>Joined:</b>{' '}
-                        {convertInputToDateconver(metadata['joined'])}
+                        {convertInputToDate(metadata['joined'])}
                       </Typography>
                     )}
                     {metadata['software'] && (

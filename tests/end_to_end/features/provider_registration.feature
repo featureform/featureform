@@ -9,7 +9,7 @@ Feature: Provider Registration
     Examples:
       | name | cloud_provider | bucket_name | bucket_region | path | exception |
       | test |       AWS      |     test    |    us-east-1  | test |   None    |
-      | test |       GCP      |     test    |    us-east-1  | test |   type of argument "credentials" must be featureform.resources.AWSCredentials; got featureform.resources.GCPCredentials instead    |
+      | test |       GCP      |     test    |    us-east-1  | test |   type of argument "credentials" must be featureform.providers.credentials.AWSCredentials; got featureform.providers.credentials.GCPCredentials    |
 
 
   Scenario Outline: GCS Registration
@@ -21,6 +21,6 @@ Feature: Provider Registration
 
     Examples:
       | name | cloud_provider | bucket_name  | path | exception |
-      | test |       AWS      |     test     | test |   type of argument "credentials" must be featureform.resources.GCPCredentials; got featureform.resources.AWSCredentials instead    |
+      | test |       AWS      |     test     | test |   type of argument "credentials" must be featureform.providers.credentials.GCPCredentials; got featureform.providers.credentials.AWSCredentials instead    |
       | test |       GCP      |     test     | test |   None    |
     

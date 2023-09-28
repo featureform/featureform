@@ -397,7 +397,7 @@ def test_k8s_sql_provider_empty(registrar, mock_provider):
 def test_k8s_df_provider(registrar, mock_provider, image):
     k8s = OfflineK8sProvider(registrar, mock_provider)
 
-    @k8s.df_transformation(owner="mock-owner", docker_image=image)
+    @k8s.df_transformation(owner="mock-owner", docker_image=image, inputs=[("df", "var")])
     def mock_transform(df):
         return df
 

@@ -254,11 +254,11 @@ func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 	}
 	onlineProvider, err := provider.Get(runnerConfig.OnlineType, runnerConfig.OnlineConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure online provider: %v", err)
+		return nil, fmt.Errorf("failed to configure %s provider: %v", runnerConfig.OnlineType, err)
 	}
 	offlineProvider, err := provider.Get(runnerConfig.OfflineType, runnerConfig.OfflineConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure offline provider: %v", err)
+		return nil, fmt.Errorf("failed to configure %s provider: %v", runnerConfig.OfflineType, err)
 	}
 	onlineStore, err := onlineProvider.AsOnlineStore()
 	if err != nil {

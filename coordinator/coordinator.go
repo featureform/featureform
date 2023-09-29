@@ -376,7 +376,7 @@ func (c *Coordinator) verifyCompletionOfSources(sources []metadata.NameVariant) 
 	for !allReady {
 		sourceVariants, err := c.Metadata.GetSourceVariants(context.Background(), sources)
 		if err != nil {
-			return fmt.Errorf("could not get source variant: %v ", err)
+			return fmt.Errorf("could not get source variants: %v ", err)
 		}
 		total := len(sourceVariants)
 		totalReady := 0
@@ -385,7 +385,7 @@ func (c *Coordinator) verifyCompletionOfSources(sources []metadata.NameVariant) 
 				totalReady += 1
 			}
 			if sourceVariant.Status() == metadata.FAILED {
-				return fmt.Errorf("dependent source variant failed")
+				fmt.Errorf("dependent source variant, %s, failed", sourceVariant.Name())
 			}
 		}
 		allReady = total == totalReady
@@ -567,10 +567,13 @@ func getOrderedSourceMappings(sources []metadata.NameVariant, sourceMap map[stri
 	return sourceMapping, nil
 }
 
-func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string) error {
+func (c *Coordinator) runPrimaryTableJob(source *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string) error {
 	c.Logger.Info("Running primary table job on resource: ", resID)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Primary}
-	sourceName := transformSource.PrimaryDataSQLTableName()
+	if !source.IsPrimaryDataSQLTable() {
+		return fmt.Errorf("%s is not a primary table", source.Name())
+	}
+	sourceName := source.PrimaryDataSQLTableName()
 	if sourceName == "" {
 		return fmt.Errorf("source name is not set")
 	}
@@ -755,7 +758,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	}(sourceStore)
 	featureProvider, err := feature.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
-		return fmt.Errorf("could not fetch  onlineprovider: %v", err)
+		return fmt.Errorf("could not fetch online provider: %v", err)
 	}
 	var vType provider.ValueType
 	if feature.IsEmbedding() {
@@ -824,7 +827,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		c.Logger.Info("Starting Materialize")
 		jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, resID)
 		if err != nil {
-			return fmt.Errorf("could not use store as online store: %w", err)
+			return fmt.Errorf("could not use %s as online store: %w", featureProvider.Name(), err)
 		}
 		completionWatcher, err := jobRunner.Run()
 		if err != nil {

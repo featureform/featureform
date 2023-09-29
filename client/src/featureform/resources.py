@@ -1125,7 +1125,7 @@ class SourceVariant:
     def _create_local(self, db) -> None:
         should_insert_text = False
         source_text = ""
-        source_type = "Source"
+        self.source_type = "Source"
         if type(self.definition) == DFTransformation:
             should_insert_text = True
             self.is_transformation = SourceType.DF_TRANSFORMATION.value

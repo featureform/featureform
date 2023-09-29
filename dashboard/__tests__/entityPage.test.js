@@ -180,10 +180,11 @@ describe('Entity Page Tests', () => {
     expect(attemptedFormatSql).toBe(originalInvalidSQL);
   });
 
+  // number string since epoch in seconds
   test.each`
     CreatedInputParam                  | ResultParam
-    ${'1695751185.068369'}             | ${'1/20/1970'}
-    ${'1695751185'}                    | ${'1/20/1970'}
+    ${'1695751185.068369'}             | ${'9/26/2023'}
+    ${'1695751185'}                    | ${'9/26/2023'}
     ${'2023-09-23T12:10:33.61933372Z'} | ${'9/23/2023'}
     ${'2023-12-16T12:00:00'}           | ${'12/16/2023'}
     ${'Not a number or a date string'} | ${'Invalid Date'}

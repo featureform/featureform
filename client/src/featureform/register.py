@@ -1149,7 +1149,7 @@ class SQLTransformationDecorator:
 
     def _is_valid_sql_query(self, query):
         # Checks to verify that the query contains a FROM {{ name.variant }}
-        pattern = r"FROM \{\{ [a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)? \}\}"
+        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_]+\s*\.\s*[a-zA-Z0-9_]+\s*\}\}"
         match = re.search(pattern, query, re.IGNORECASE)
         return match is not None
 

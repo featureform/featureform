@@ -221,7 +221,9 @@ export const convertInputToDate = (timestamp_string_or_mil = '') => {
   if (isNaN(input)) {
     return generateDate(input);
   } else {
-    return generateDate(parseFloat(input));
+    const createdTimeInSeconds = parseFloat(input); //resources.py returns seconds, not milliseconds
+    const createdTimeMilliSeconds = Math.round(createdTimeInSeconds * 1000);
+    return generateDate(createdTimeMilliSeconds);
   }
 
   function generateDate(str) {
@@ -431,8 +433,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                     )}
                     {metadata['joined'] && (
                       <Typography variant='body1'>
-                        <b>Joined:</b>{' '}
-                        {convertInputToDate(metadata['joined'])}
+                        <b>Joined:</b> {convertInputToDate(metadata['joined'])}
                       </Typography>
                     )}
                     {metadata['software'] && (

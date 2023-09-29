@@ -1490,7 +1490,7 @@ class Variants:
 
     def validate_variant_names(self):
         for variant_key, resource in self.resources.items():
-            if resource.variant == None:
+            if resource.variant == "":
                 resource.variant = variant_key
             if resource.variant != variant_key:
                 raise ValueError(
@@ -5442,25 +5442,6 @@ class ColumnResource:
 
     def name_variant(self):
         return (self.name, self.variant)
-
-
-class Variants:
-    def __init__(self, resources: Dict[str, ColumnResource]):
-        self.resources = resources
-        self.validate_variant_names()
-
-    def validate_variant_names(self):
-        for variant_key, resource in self.resources.items():
-            if resource.variant == "default":
-                resource.variant = variant_key
-            if resource.variant != variant_key:
-                raise ValueError(
-                    f"Variant name {variant_key} does not match resource variant name {resource.variant}"
-                )
-
-    def register(self):
-        for resource in self.resources.values():
-            resource.register()
 
 
 class EmbeddingColumnResource(ColumnResource):

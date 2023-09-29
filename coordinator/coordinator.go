@@ -575,13 +575,13 @@ func (c *Coordinator) runPrimaryTableJob(source *metadata.SourceVariant, resID m
 	}
 	sourceName := source.PrimaryDataSQLTableName()
 	if sourceName == "" {
-		return fmt.Errorf("Source name is not set")
+		return fmt.Errorf("source name is not set")
 	}
 	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, sourceName); err != nil {
-		return fmt.Errorf("Unable to register primary table from %s in %s: %v", sourceName, offlineStore.Type().String(), err)
+		return fmt.Errorf("unable to register primary table from %s in %s: %v", sourceName, offlineStore.Type().String(), err)
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
-		return fmt.Errorf("Set done status for registering primary table: %v", err)
+		return fmt.Errorf("set done status for registering primary table: %v", err)
 	}
 	return nil
 }

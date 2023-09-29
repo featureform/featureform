@@ -4182,8 +4182,8 @@ class ResourceClient:
         """
 
         print(f"Applying Run: {get_run()}")
-        resource_state = state()
         try:
+            resource_state = state()
             if self._dry_run:
                 print(resource_state.sorted_list())
                 return

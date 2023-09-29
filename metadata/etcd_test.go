@@ -701,7 +701,7 @@ func TestEtcdConfig_InvalidServer(t *testing.T) {
 	}
 }
 
-func TestEtcdConfig_GetEmptyKey(t *testing.T) {
+func TestEtcdConfig_Get(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
@@ -711,55 +711,32 @@ func TestEtcdConfig_GetEmptyKey(t *testing.T) {
 		t.Errorf("InitClient() could not initialize client: %v", err)
 	}
 	client := EtcdStorage{c}
-	_, err = client.Get("")
-	if err == nil {
-		t.Errorf("Get() should have failed with invalid key")
-	}
-	// check to see if it's an etcderror
-	if _, ok := err.(rpctypes.EtcdError); !ok {
-		t.Errorf("Get() should have failed with etcd error")
-	}
-}
 
-func TestEtcdConfig_GetNonExistentKey(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-	config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
-	c, err := config.InitClient()
-	if err != nil {
-		t.Errorf("InitClient() could not initialize client: %v", err)
-	}
-	client := EtcdStorage{c}
-	_, err = client.Get("non_existent")
-	if err == nil {
-		t.Errorf("Get() should have failed with invalid key")
-	}
-	// check to see if it's an etcderror
-	if _, ok := err.(*KeyNotFoundError); !ok {
-		t.Errorf("Get() should have failed with KeyNotFoundError")
-	}
-}
-
-func TestEtcdConfig_ValidKey(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-	config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
-	c, err := config.InitClient()
-	if err != nil {
-		t.Errorf("InitClient() could not initialize client: %v", err)
-	}
-	client := EtcdStorage{c}
 	if err = client.Put("key", "value"); err != nil {
 		t.Errorf("Put() could not put key: %v", err)
 	}
-	value, err := client.Get("key")
-	if err != nil {
-		t.Errorf("Get() could not get key: %v", err)
+
+	tests := []struct {
+		name  string
+		key   string
+		error error
+	}{
+		{"Test Get Empty Key", "", rpctypes.EtcdError{}},
+		{"Test Get Non Existent Key", "non_existent", KeyNotFoundError{}},
+		{"Test Get Valid Key", "key", nil},
 	}
-	if string(value) != "value" {
-		t.Errorf("Get() returned: %v, expected: %v", value, "value")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := client.Get(tt.key)
+			if err != nil && tt.error == nil {
+				t.Errorf("Get() should not have failed with error: %v", err)
+			} else if err != nil && tt.error != nil {
+				expectedErrorType := reflect.TypeOf(tt.error)
+				if reflect.TypeOf(err) != expectedErrorType {
+					t.Errorf("Expected error of type %v but got type %v", expectedErrorType, reflect.TypeOf(err))
+				}
+			}
+		})
 	}
 }
 

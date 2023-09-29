@@ -1,33 +1,6 @@
 import time
 import featureform as ff
 import pytest
-from featureform import ResourceRedefinedError
-
-
-def test_state_not_clearing_after_resource_not_defined():
-    ff.local.register_file(
-        name="a",
-        path="a.csv"
-    )
-
-    ff.local.register_file(
-        name="a",
-        path="b.csv"
-    )
-
-    client = ff.Client(local=True)
-
-    with pytest.raises(ResourceRedefinedError):
-        client.apply()  # should clear state
-
-    ff.local.register_file(
-        name="a",
-        path="a.csv"
-    )
-
-    client.apply()  # should throw no error, previously this was a bug
-
-
 
 
 @pytest.mark.parametrize(

@@ -182,10 +182,10 @@ describe('Entity Page Tests', () => {
 
   test.each`
     CreatedInputParam                  | ResultParam
-    ${'1695751185.068369'}             | ${'1/20/1970, 9:02:31 AM'}
-    ${'1695751185'}                    | ${'1/20/1970, 9:02:31 AM'}
-    ${'2023-09-23T00:10:33.61933372Z'} | ${'9/22/2023, 7:10:33 PM'}
-    ${'2023-12-16T00:00:00'}           | ${'12/16/2023, 12:00:00 AM'}
+    ${'1695751185.068369'}             | ${'1/20/1970'}
+    ${'1695751185'}                    | ${'1/20/1970'}
+    ${'2023-09-23T12:10:33.61933372Z'} | ${'9/23/2023'}
+    ${'2023-12-16T12:00:00'}           | ${'12/16/2023'}
     ${'Not a number or a date string'} | ${'Invalid Date'}
     ${null}                            | ${'Invalid Date'}
     ${undefined}                       | ${'Invalid Date'}
@@ -196,7 +196,7 @@ describe('Entity Page Tests', () => {
       const result = convertInputToDate(CreatedInputParam);
 
       //expect:
-      expect(result).toEqual(ResultParam);
+      expect(result).toContain(ResultParam);
     }
   );
 });

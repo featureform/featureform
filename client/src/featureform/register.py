@@ -4799,7 +4799,9 @@ class ResourceClient:
             status=source.status.Status._enum_type.values[source.status.status].name,
             tags=[],
             properties={},
-            source_text=definition.source_text if type(definition) == DFTransformation else "",
+            source_text=definition.source_text
+            if type(definition) == DFTransformation
+            else "",
         )
 
     def _get_source_definition(self, source):

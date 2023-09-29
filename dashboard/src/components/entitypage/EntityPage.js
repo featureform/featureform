@@ -59,14 +59,14 @@ const EntityPage = ({
     }
   }, [type, entity]);
 
-  return (
-    <div>
-      {entityPage.loading ? (
-        <LoadingDots />
-      ) : entityPage.failed ||
-        (!entityPage.loading && fetchNotFound(entityPage)) ? (
-        <NotFoundPage />
-      ) : (
+  let body = <></>;
+  if (entityPage.loading === true) {
+    body = <LoadingDots />;
+  } else if (entityPage.loading === false) {
+    if (entityPage.failed === true || fetchNotFound(entityPage)) {
+      body = <NotFoundPage />;
+    } else {
+      body = (
         <EntityPageView
           api={api}
           entity={entityPage}
@@ -75,9 +75,10 @@ const EntityPage = ({
           typePath={type}
           resourceType={resourceType}
         />
-      )}
-    </div>
-  );
+      );
+    }
+  }
+  return body;
 };
 
 export default connect(mapStateToProps, mapDispatchToProps)(EntityPage);

@@ -1,9 +1,10 @@
+import CloseIcon from '@mui/icons-material/Close';
 import { Box, CircularProgress } from '@mui/material';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import IconButton from '@mui/material/IconButton';
 import * as React from 'react';
 import SourceDialogTable from './SourceDialogTable';
 
@@ -59,6 +60,13 @@ export default function SourceDialog({
       >
         <DialogTitle id='dialog-title' data-testid={'sourceTableTitleId'}>
           {`${sourceName.toUpperCase()} - ${sourceVariant}`}
+          <IconButton
+            data-testid={'sourceTableCloseId'}
+            sx={{ float: 'right' }}
+            onClick={handleClose}
+          >
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
         <DialogContent>
           {isLoading ? (
@@ -71,11 +79,6 @@ export default function SourceDialog({
             <div data-testid='errorMessageId'>{error}</div>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button data-testid={'sourceTableCloseId'} onClick={handleClose}>
-            Close
-          </Button>
-        </DialogActions>
       </Dialog>
     </div>
   );

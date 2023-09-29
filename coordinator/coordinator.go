@@ -572,10 +572,10 @@ func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Primary}
 	sourceName := transformSource.PrimaryDataSQLTableName()
 	if sourceName == "" {
-		return fmt.Errorf("no source name set")
+		return fmt.Errorf("source name is not set")
 	}
 	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, sourceName); err != nil {
-		return fmt.Errorf("register primary table from source table in offline store: %v", err)
+		return fmt.Errorf("unable to register primary table from %s in %s: %v", sourceName, offlineStore.Type().String(), err)
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return fmt.Errorf("set done status for registering primary table: %v", err)

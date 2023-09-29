@@ -4,6 +4,7 @@ import stat
 import sys
 
 import featureform as ff
+from featureform import ResourceRedefinedError
 
 sys.path.insert(0, "client/src/")
 import pytest
@@ -304,3 +305,18 @@ def test_validate_sql_query(sql_query, expected_valid_sql_query):
 
     is_valid = dec._is_valid_sql_query(sql_query)
     assert is_valid == expected_valid_sql_query
+
+
+def test_state_not_clearing_after_resource_not_defined():
+    ff.local.register_file(name="a", path="a.csv")
+
+    ff.local.register_file(name="a", path="b.csv")
+
+    client = ff.Client(local=True)
+
+    with pytest.raises(ResourceRedefinedError):
+        client.apply()  # should clear state after
+
+    ff.local.register_file(name="a", path="a.csv")
+
+    client.apply()  # should throw no error, previously this was a bug

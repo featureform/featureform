@@ -111,6 +111,9 @@ export const testDetailsData = {
 };
 
 export const providerLogos = Object.freeze({
+  // local mode
+  LOCALMODE: 'static/localmode.png',
+
   // Offline Stores
   BIGQUERY: 'static/google_bigquery.svg',
   POSTGRES: 'static/Postgresql_elephant.svg',

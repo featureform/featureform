@@ -1,10 +1,10 @@
 import os
+import shutil
 import stat
 
 import featureform as ff
 import pytest
 from featureform.resources import ResourceRedefinedError
-import shutil
 
 
 @pytest.fixture(autouse=True, scope="function")

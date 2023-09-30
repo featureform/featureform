@@ -349,8 +349,11 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                 <div className={classes.title}>
                   <Icon>{icon}</Icon>
                   <div className={classes.titleText}>
-                    <Typography variant='h4' component='h4'>
-                      <b>{resources.name}</b>
+                    <Typography variant='h3' component='h3'>
+                      <span>
+                        {`${resources.type}: `}
+                        <b>{resources.name}</b>
+                      </span>
                     </Typography>
                     {metadata['created'] && (
                       <Typography variant='subtitle1'>

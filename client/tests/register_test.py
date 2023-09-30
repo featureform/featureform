@@ -97,7 +97,7 @@ def test_sql_transformation_decorator_invalid_fn(local, fn):
 
 def test_sql_transformation_empty_description(registrar):
     def my_function():
-        return "SELECT * FROM X"
+        return "SELECT * FROM {{ name.variant }}"
 
     dec = SQLTransformationDecorator(
         registrar=registrar,
@@ -267,6 +267,49 @@ def run_before_and_after_tests(tmpdir):
         print("File Already Removed")
 
 
+@pytest.mark.parametrize(
+    "sql_query, expected_valid_sql_query",
+    [
+        ("SELECT * FROM X", False),
+        ("SELECT * FROM", False),
+        ("SELECT * FROM {{ name.variant }}", True),
+        ("SELECT * FROM {{name.variant }}", True),
+        ("SELECT * FROM     \n {{ name.variant }}", True),
+        (
+            """
+        SELECT *
+        FROM {{ name.variant2 }}
+        WHERE x >= 5.
+        """,
+            True,
+        ),
+        (
+            "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id",
+            True,
+        ),
+        (
+            (
+                "SELECT CustomerID as user_id, avg(TransactionAmount) "
+                "as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
+            ),
+            True,
+        ),
+    ],
+)
+def test_validate_sql_query(sql_query, expected_valid_sql_query):
+    dec = SQLTransformationDecorator(
+        registrar=registrar,
+        owner="",
+        provider="",
+        variant="sql",
+        tags=[],
+        properties={},
+    )
+
+    is_valid = dec._is_valid_sql_query(sql_query)
+    assert is_valid == expected_valid_sql_query
+
+
 def test_state_not_clearing_after_resource_not_defined():
     ff.local.register_file(name="a", path="a.csv")
 
@@ -280,3 +323,43 @@ def test_state_not_clearing_after_resource_not_defined():
     ff.local.register_file(name="a", path="a.csv")
 
     client.apply()  # should throw no error, previously this was a bug
+
+
+@pytest.mark.parametrize(
+    "bucket_name, expected_error",
+    [
+        ("s3://bucket_name", None),
+        ("bucket_name", None),
+        ("s3a://bucket_name", None),
+        (
+            "bucket_name/",
+            ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only."
+            ),
+        ),
+        (
+            "s3://bucket_name/",
+            ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only."
+            ),
+        ),
+        (
+            "s3a://bucket_name/",
+            ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only."
+            ),
+        ),
+    ],
+)
+def test_register_s3(bucket_name, expected_error, ff_registrar, aws_credentials):
+    try:
+        _ = ff_registrar.register_s3(
+            name="s3_bucket",
+            credentials=aws_credentials,
+            bucket_region="us-east-1",
+            bucket_name=bucket_name,
+        )
+    except ValueError as ve:
+        assert str(ve) == str(expected_error)
+    except Exception as e:
+        raise e

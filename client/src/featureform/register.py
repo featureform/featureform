@@ -1,6 +1,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+import re
 import inspect
 import warnings
 from datetime import timedelta
@@ -16,6 +17,7 @@ from .get import *
 from .get_local import *
 from .list import *
 from .list_local import *
+from .exceptions import InvalidSQLQuery
 from .names_generator import get_random_name
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
@@ -1098,6 +1100,9 @@ class SQLTransformationDecorator:
     def __set_query(self, query: str):
         if query == "":
             raise ValueError("Query cannot be an empty string")
+        if not self._is_valid_sql_query(query):
+            raise InvalidSQLQuery(query)
+
         self.query = add_variant_to_name(query, self.run)
 
     def to_source(self) -> SourceVariant:
@@ -1141,6 +1146,12 @@ class SQLTransformationDecorator:
             description=description,
             schedule=schedule,
         )
+
+    def _is_valid_sql_query(self, query):
+        # Checks to verify that the query contains a FROM {{ name.variant }}
+        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_]+\s*\.\s*[a-zA-Z0-9_]+\s*\}\}"
+        match = re.search(pattern, query, re.IGNORECASE)
+        return match is not None
 
 
 class DFTransformationDecorator:
@@ -2494,6 +2505,14 @@ class Registrar:
 
         if bucket_name == "":
             raise ValueError("bucket_name required")
+
+        # TODO: add verification into S3StoreConfig
+        bucket_name = bucket_name.replace("s3://", "").replace("s3a://", "")
+
+        if "/" in bucket_name:
+            raise ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only."
+            )
 
         s3_config = S3StoreConfig(
             bucket_path=bucket_name,

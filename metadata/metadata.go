@@ -381,6 +381,7 @@ func (this *SourceResource) Notify(lookup ResourceLookup, op operation, that Res
 		return nil
 	}
 	if slices.Contains(this.serialized.Variants, otherId.Variant) {
+		fmt.Printf("source %s already has variant %s\n", this.serialized.Name, otherId.Variant)
 		return nil
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
@@ -511,6 +512,7 @@ func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Re
 		return nil
 	}
 	if slices.Contains(this.serialized.Variants, otherId.Variant) {
+		fmt.Printf("source %s already has variant %s\n", this.serialized.Name, otherId.Variant)
 		return nil
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
@@ -650,6 +652,7 @@ func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Reso
 		return nil
 	}
 	if slices.Contains(this.serialized.Variants, otherId.Variant) {
+		fmt.Printf("source %s already has variant %s\n", this.serialized.Name, otherId.Variant)
 		return nil
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
@@ -782,6 +785,7 @@ func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, tha
 		return nil
 	}
 	if slices.Contains(this.serialized.Variants, otherId.Variant) {
+		fmt.Printf("source %s already has variant %s\n", this.serialized.Name, otherId.Variant)
 		return nil
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)

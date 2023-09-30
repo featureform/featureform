@@ -170,6 +170,14 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         func = types.FunctionType(code, globals(), "df_transformation")
         output_df = func(*func_parameters)
 
+        if output_df is None:
+            raise Exception("the transformation code returned None.")
+
+        if not isinstance(output_df, spark.sql.dataframe.DataFrame):
+            raise Exception(
+                f"the transformation code returned '{type(output_df)}' instead of 'pyspark.sql.dataframe.DataFrame'"
+            )
+
         dt = datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
 

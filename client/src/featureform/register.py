@@ -1,6 +1,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+import ast
 import re
 import inspect
 import warnings
@@ -1024,6 +1025,11 @@ class SubscriptableTransformation:
         decorator_register_resources_method,
         decorator_name_variant_method,
     ):
+        if not self.__has_return_statement(fn):
+            raise Exception(
+                "The function passed to the transformation decorator must have areturn"
+            )
+
         self.fn = fn
         self.registrar = registrar
         self.provider = provider
@@ -1052,6 +1058,18 @@ class SubscriptableTransformation:
 
     def __call__(self, *args, **kwargs):
         return self.fn(*args, **kwargs)
+
+    @staticmethod
+    def __has_return_statement(fn):
+        """
+         Parses the function’s source code into an abstract syntax tree
+         and then walks through the tree to check for any Return nodes.
+        """
+        tree = ast.parse(inspect.getsource(fn))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Return):
+                return True
+        return False
 
 
 class SQLTransformationDecorator:

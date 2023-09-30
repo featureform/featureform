@@ -1,4 +1,5 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
+// This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
@@ -1366,12 +1367,12 @@ func main() {
 		},
 	}
 
-	metadata_server, err := NewMetadataServer(logger, client, &storageProvider)
+	metadataServer, err := NewMetadataServer(logger, client, &storageProvider)
 	if err != nil {
 		logger.Panicw("Failed to create server", "error", err)
 	}
 	metadataHTTPPort := help.GetEnv("METADATA_HTTP_PORT", "3001")
 	metadataServingPort := fmt.Sprintf(":%s", metadataHTTPPort)
 	logger.Infof("Serving HTTP Metadata on port: %s\n", metadataServingPort)
-	metadata_server.Start(metadataServingPort)
+	metadataServer.Start(metadataServingPort)
 }

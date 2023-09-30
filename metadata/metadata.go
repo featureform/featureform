@@ -14,6 +14,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	slices "golang.org/x/exp/slices"
+
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/metadata/search"
 	pc "github.com/featureform/provider/provider_config"
@@ -378,6 +380,9 @@ func (this *SourceResource) Notify(lookup ResourceLookup, op operation, that Res
 	if !isVariant {
 		return nil
 	}
+	if slices.Contains(this.serialized.Variants, otherId.Variant) {
+		return nil
+	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
 	return nil
 }
@@ -503,6 +508,9 @@ func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Re
 	otherId := that.ID()
 	isVariant := otherId.Type == FEATURE_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
+		return nil
+	}
+	if slices.Contains(this.serialized.Variants, otherId.Variant) {
 		return nil
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
@@ -641,6 +649,9 @@ func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Reso
 	if !isVariant {
 		return nil
 	}
+	if slices.Contains(this.serialized.Variants, otherId.Variant) {
+		return nil
+	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
 	return nil
 }
@@ -768,6 +779,9 @@ func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, tha
 	otherId := that.ID()
 	isVariant := otherId.Type == TRAINING_SET_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
+		return nil
+	}
+	if slices.Contains(this.serialized.Variants, otherId.Variant) {
 		return nil
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
@@ -1533,11 +1547,15 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	}
 	parentId, hasParent := id.Parent()
 	if hasParent {
-		if parentExists, err := serv.lookup.Has(parentId); err != nil {
+		parentExists, err := serv.lookup.Has(parentId)
+		if err != nil {
 			return nil, err
-		} else if !parentExists {
+		}
+
+		if !parentExists {
 			parent := init(id.Name, id.Variant)
-			if err := serv.lookup.Set(parentId, parent); err != nil {
+			err = serv.lookup.Set(parentId, parent)
+			if err != nil {
 				return nil, err
 			}
 		}

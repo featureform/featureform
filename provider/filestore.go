@@ -243,6 +243,13 @@ func NewS3FileStore(config Config) (FileStore, error) {
 	if err := s3StoreConfig.Deserialize(pc.SerializedConfig(config)); err != nil {
 		return nil, fmt.Errorf("could not deserialize s3 store config: %v", err)
 	}
+
+	s3StoreConfig.BucketPath = strings.TrimPrefix("s3://", strings.TrimPrefix(s3StoreConfig.BucketPath, "s3a://"))
+
+	if strings.Contains(s3StoreConfig.BucketPath, "/") {
+		return nil, fmt.Errorf("bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only")
+	}
+
 	cfg, err := awsv2cfg.LoadDefaultConfig(context.TODO(),
 		awsv2cfg.WithCredentialsProvider(credentials.StaticCredentialsProvider{
 			Value: aws.Credentials{

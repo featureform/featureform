@@ -280,3 +280,43 @@ def test_state_not_clearing_after_resource_not_defined():
     ff.local.register_file(name="a", path="a.csv")
 
     client.apply()  # should throw no error, previously this was a bug
+
+
+@pytest.mark.parametrize(
+    "bucket_name, expected_error",
+    [
+        ("s3://bucket_name", None),
+        ("bucket_name", None),
+        ("s3a://bucket_name", None),
+        (
+            "bucket_name/",
+            ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only."
+            ),
+        ),
+        (
+            "s3://bucket_name/",
+            ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only."
+            ),
+        ),
+        (
+            "s3a://bucket_name/",
+            ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only."
+            ),
+        ),
+    ],
+)
+def test_register_s3(bucket_name, expected_error, ff_registrar, aws_credentials):
+    try:
+        _ = ff_registrar.register_s3(
+            name="s3_bucket",
+            credentials=aws_credentials,
+            bucket_region="us-east-1",
+            bucket_name=bucket_name,
+        )
+    except ValueError as ve:
+        assert str(ve) == str(expected_error)
+    except Exception as e:
+        raise e

@@ -1366,12 +1366,12 @@ func main() {
 		},
 	}
 
-	metadata_server, err := NewMetadataServer(logger, client, &storageProvider)
+	metadataServer, err := NewMetadataServer(logger, client, &storageProvider)
 	if err != nil {
 		logger.Panicw("Failed to create server", "error", err)
 	}
 	metadataHTTPPort := help.GetEnv("METADATA_HTTP_PORT", "3001")
 	metadataServingPort := fmt.Sprintf(":%s", metadataHTTPPort)
 	logger.Infof("Serving HTTP Metadata on port: %s\n", metadataServingPort)
-	metadata_server.Start(metadataServingPort)
+	metadataServer.Start(metadataServingPort)
 }

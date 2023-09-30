@@ -1,22 +1,6 @@
-import os
-import shutil
-import stat
-
 import featureform as ff
 import pytest
 from featureform.resources import ResourceRedefinedError
-
-
-@pytest.fixture(autouse=True, scope="function")
-def cleanup():
-    yield
-    shutil.rmtree(".featureform", onerror=del_rw)
-
-
-def del_rw(action, name, exc):
-    if os.path.exists(name):
-        os.chmod(name, stat.S_IWRITE)
-        os.remove(name)
 
 
 class TestResourcesRedefined:
@@ -30,14 +14,14 @@ class TestResourcesRedefined:
             name="transactions",
             variant="quickstart",
             description="A dataset of fraudulent transactions",
-            path="./test_files/input_files/transactions.csv",
+            path="transactions.csv",
         )
 
         transactions = local.register_file(
             name="transactions",
             variant="quickstart",
             description="A dataset of fraudulent transactions",
-            path="./test_files/input_files/transactions.csv",
+            path="transactions.csv",
         )
 
         user = ff.register_entity("user")
@@ -203,14 +187,14 @@ class TestResourcesRedefined:
                 {
                     "name": "fraudulent",
                     "variant": "quickstart",
-                    "column": "IsFraud",
+                    "column": "IsFraud2",
                     "type": "bool",
                 },
             ],
         )
 
-        # the labels are exactly the same so it should not raise an error but print a that this is already registered
-        client.apply()
+        with pytest.raises(ResourceRedefinedError):
+            client.apply()
 
         ff.register_training_set(
             "fraud_training",

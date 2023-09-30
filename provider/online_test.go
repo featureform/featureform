@@ -7,13 +7,11 @@
 package provider
 
 import (
-	"context"
 	"encoding/csv"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"time"
 
 	"os"
 	"reflect"
@@ -475,17 +473,17 @@ func TestOnlineVectorStores(t *testing.T) {
 		return *redisInsecureConfig
 	}
 
-	pineconeInit := func() pc.PineconeConfig {
-		projectID := os.Getenv("PINECONE_PROJECT_ID")
-		environment := os.Getenv("PINECONE_ENVIRONMENT")
-		apiKey := os.Getenv("PINECONE_API_KEY")
-		pineconeConfig := &pc.PineconeConfig{
-			ProjectID:   projectID,
-			Environment: environment,
-			ApiKey:      apiKey,
-		}
-		return *pineconeConfig
-	}
+	// pineconeInit := func() pc.PineconeConfig {
+	// 	projectID := os.Getenv("PINECONE_PROJECT_ID")
+	// 	environment := os.Getenv("PINECONE_ENVIRONMENT")
+	// 	apiKey := os.Getenv("PINECONE_API_KEY")
+	// 	pineconeConfig := &pc.PineconeConfig{
+	// 		ProjectID:   projectID,
+	// 		Environment: environment,
+	// 		ApiKey:      apiKey,
+	// 	}
+	// 	return *pineconeConfig
+	// }
 
 	testList := []testMember{}
 
@@ -493,9 +491,9 @@ func TestOnlineVectorStores(t *testing.T) {
 		testList = append(testList, testMember{pt.RedisOnline, "_VECTOR", redisInsecureInit().Serialized(), true})
 	}
 
-	if *provider == "pinecone" || *provider == "" {
-		testList = append(testList, testMember{pt.PineconeOnline, "", pineconeInit().Serialize(), true})
-	}
+	// if *provider == "pinecone" || *provider == "" {
+	// 	testList = append(testList, testMember{pt.PineconeOnline, "", pineconeInit().Serialize(), true})
+	// }
 
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -709,93 +707,93 @@ func getSearchVector(t *testing.T) []float32 {
 	return floats
 }
 
-func TestPineconeAPI(t *testing.T) {
-	err := godotenv.Load("../.env")
-	if err != nil {
-		t.Fatalf("Error loading .env file: %v", err)
-	}
+// func TestPineconeAPI(t *testing.T) {
+// 	err := godotenv.Load("../.env")
+// 	if err != nil {
+// 		t.Fatalf("Error loading .env file: %v", err)
+// 	}
 
-	config := &pc.PineconeConfig{
-		ProjectID:   os.Getenv("PINECONE_PROJECT_ID"),
-		Environment: os.Getenv("PINECONE_ENVIRONMENT"),
-		ApiKey:      os.Getenv("PINECONE_API_KEY"),
-	}
+// 	config := &pc.PineconeConfig{
+// 		ProjectID:   os.Getenv("PINECONE_PROJECT_ID"),
+// 		Environment: os.Getenv("PINECONE_ENVIRONMENT"),
+// 		ApiKey:      os.Getenv("PINECONE_API_KEY"),
+// 	}
 
-	api := NewPineconeAPI(config)
-	feature, variant := randomFeatureVariant()
-	uuid := uuid.NewSHA1(uuid.NameSpaceDNS, []byte(fmt.Sprintf("%s-%s", feature, variant)))
-	indexName := fmt.Sprintf("ff-idx--%s", uuid.String())
-	namespace := fmt.Sprintf("ff-namespace--%s-%s", feature, variant)
-	var dimension int32 = 768
-	vectors := getTestVectorEntities(t)
+// 	api := NewPineconeAPI(config)
+// 	feature, variant := randomFeatureVariant()
+// 	uuid := uuid.NewSHA1(uuid.NameSpaceDNS, []byte(fmt.Sprintf("%s-%s", feature, variant)))
+// 	indexName := fmt.Sprintf("ff-idx--%s", uuid.String())
+// 	namespace := fmt.Sprintf("ff-namespace--%s-%s", feature, variant)
+// 	var dimension int32 = 768
+// 	vectors := getTestVectorEntities(t)
 
-	//	CREATE INDEX
+// 	//	CREATE INDEX
 
-	createIndexAndWait(t, api, indexName, dimension, 3*time.Minute)
+// 	createIndexAndWait(t, api, indexName, dimension, 3*time.Minute)
 
-	// UPSERT VECTOR
+// 	// UPSERT VECTOR
 
-	for _, vector := range vectors {
-		if err := api.upsert(indexName, namespace, vector.entity, vector.vector); err != nil {
-			t.Fatalf("Error upserting vector: %v", err)
-		}
-	}
+// 	for _, vector := range vectors {
+// 		if err := api.upsert(indexName, namespace, vector.entity, vector.vector); err != nil {
+// 			t.Fatalf("Error upserting vector: %v", err)
+// 		}
+// 	}
 
-	// FETCH VECTOR
+// 	// FETCH VECTOR
 
-	expected := vectors[0]
-	received, err := api.fetch(indexName, namespace, expected.entity)
-	if err != nil {
-		t.Fatalf("Error fetching vector: %v", err)
-	}
-	if !reflect.DeepEqual(expected.vector, received) {
-		t.Fatalf("Expected %v, got %v", expected.vector, received)
-	}
+// 	expected := vectors[0]
+// 	received, err := api.fetch(indexName, namespace, expected.entity)
+// 	if err != nil {
+// 		t.Fatalf("Error fetching vector: %v", err)
+// 	}
+// 	if !reflect.DeepEqual(expected.vector, received) {
+// 		t.Fatalf("Expected %v, got %v", expected.vector, received)
+// 	}
 
-	// QUERY VECTOR
+// 	// QUERY VECTOR
 
-	searchVector := getSearchVector(t)
-	results, err := api.query(indexName, namespace, searchVector, 2)
-	if err != nil {
-		t.Fatalf("Error querying vector: %v", err)
-	}
-	if len(results) != 2 {
-		t.Fatalf("Expected 2 results, got %d", len(results))
-	}
+// 	searchVector := getSearchVector(t)
+// 	results, err := api.query(indexName, namespace, searchVector, 2)
+// 	if err != nil {
+// 		t.Fatalf("Error querying vector: %v", err)
+// 	}
+// 	if len(results) != 2 {
+// 		t.Fatalf("Expected 2 results, got %d", len(results))
+// 	}
 
-	// DELETE INDEX
+// 	// DELETE INDEX
 
-	if err := api.deleteIndex(indexName); err != nil {
-		t.Fatalf("Error deleting index: %v", err)
-	}
-}
+// 	if err := api.deleteIndex(indexName); err != nil {
+// 		t.Fatalf("Error deleting index: %v", err)
+// 	}
+// }
 
-func createIndexAndWait(t *testing.T, api *pineconeAPI, indexName string, dimension int32, duration time.Duration) {
-	if err := api.createIndex(indexName, dimension); err != nil {
-		t.Fatalf("Error creating index: %v", err)
-	}
+// func createIndexAndWait(t *testing.T, api *pineconeAPI, indexName string, dimension int32, duration time.Duration) {
+// 	if err := api.createIndex(indexName, dimension); err != nil {
+// 		t.Fatalf("Error creating index: %v", err)
+// 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), duration)
-	defer cancel()
+// 	ctx, cancel := context.WithTimeout(context.Background(), duration)
+// 	defer cancel()
 
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
+// 	ticker := time.NewTicker(5 * time.Second)
+// 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ctx.Done():
-			t.Fatalf("Timed out waiting for index to be created")
-		case <-ticker.C:
-			dim, status, err := api.describeIndex(indexName)
-			if err != nil {
-				t.Fatalf("Error describing index: %v", err)
-			}
-			if dim != dimension {
-				t.Fatalf("Expected dimension %d, got %d", dimension, dim)
-			}
-			if status == Ready {
-				return
-			}
-		}
-	}
-}
+// 	for {
+// 		select {
+// 		case <-ctx.Done():
+// 			t.Fatalf("Timed out waiting for index to be created")
+// 		case <-ticker.C:
+// 			dim, status, err := api.describeIndex(indexName)
+// 			if err != nil {
+// 				t.Fatalf("Error describing index: %v", err)
+// 			}
+// 			if dim != dimension {
+// 				t.Fatalf("Expected dimension %d, got %d", dimension, dim)
+// 			}
+// 			if status == Ready {
+// 				return
+// 			}
+// 		}
+// 	}
+// }

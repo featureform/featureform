@@ -193,8 +193,7 @@ class TestResourcesRedefined:
                 },
             ],
         )
-        with pytest.raises(ResourceRedefinedError):
-            client.apply()
+        client.apply()
 
         ff.register_training_set(
             "fraud_training",

@@ -1125,6 +1125,7 @@ class SourceVariant:
     def _create_local(self, db) -> None:
         should_insert_text = False
         source_text = ""
+        self.source_type = "Source"
         if type(self.definition) == DFTransformation:
             should_insert_text = True
             self.is_transformation = SourceType.DF_TRANSFORMATION.value
@@ -1132,6 +1133,7 @@ class SourceVariant:
             self.inputs = self.definition.inputs
             self.definition = self.definition.query
             self.source_text = source_text
+            self.source_type = "Dataframe Transformation"
         elif type(self.definition) == SQLTransformation:
             self.is_transformation = SourceType.SQL_TRANSFORMATION.value
             self.definition = self.definition.query
@@ -1151,7 +1153,7 @@ class SourceVariant:
             str(time.time()),
             self.description,
             self.name,
-            "Source",
+            self.source_type,
             self.owner,
             self.provider,
             self.variant,

@@ -97,7 +97,7 @@ def test_sql_transformation_decorator_invalid_fn(local, fn):
 
 def test_sql_transformation_empty_description(registrar):
     def my_function():
-        return "SELECT * FROM X"
+        return "SELECT * FROM {{ name.variant }}"
 
     dec = SQLTransformationDecorator(
         registrar=registrar,
@@ -265,6 +265,49 @@ def run_before_and_after_tests(tmpdir):
         shutil.rmtree(".featureform", onerror=del_rw)
     except:
         print("File Already Removed")
+
+
+@pytest.mark.parametrize(
+    "sql_query, expected_valid_sql_query",
+    [
+        ("SELECT * FROM X", False),
+        ("SELECT * FROM", False),
+        ("SELECT * FROM {{ name.variant }}", True),
+        ("SELECT * FROM {{name.variant }}", True),
+        ("SELECT * FROM     \n {{ name.variant }}", True),
+        (
+            """
+        SELECT *
+        FROM {{ name.variant2 }}
+        WHERE x >= 5.
+        """,
+            True,
+        ),
+        (
+            "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id",
+            True,
+        ),
+        (
+            (
+                "SELECT CustomerID as user_id, avg(TransactionAmount) "
+                "as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
+            ),
+            True,
+        ),
+    ],
+)
+def test_validate_sql_query(sql_query, expected_valid_sql_query):
+    dec = SQLTransformationDecorator(
+        registrar=registrar,
+        owner="",
+        provider="",
+        variant="sql",
+        tags=[],
+        properties={},
+    )
+
+    is_valid = dec._is_valid_sql_query(sql_query)
+    assert is_valid == expected_valid_sql_query
 
 
 def test_state_not_clearing_after_resource_not_defined():

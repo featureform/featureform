@@ -2495,6 +2495,14 @@ class Registrar:
         if bucket_name == "":
             raise ValueError("bucket_name required")
 
+        # TODO: add verification into S3StoreConfig
+        bucket_name = bucket_name.replace("s3://", "").replace("s3a://", "")
+
+        if "/" in bucket_name:
+            raise ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only."
+            )
+
         s3_config = S3StoreConfig(
             bucket_path=bucket_name,
             bucket_region=bucket_region,

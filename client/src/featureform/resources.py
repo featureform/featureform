@@ -1645,6 +1645,7 @@ class LabelVariant:
                 name=self.source[0],
                 variant=self.source[1],
             ),
+            provider=self.provider,
             type=self.value_type,
             entity=self.entity,
             owner=self.owner,

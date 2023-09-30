@@ -9,7 +9,7 @@ build==0.10.0
 click==8.1.7
 dataclasses==0.6
 dill==0.3.7
-Flask==2.2.1
+Flask==2.2.5
 Flask-Cors==3.0.10
 google-cloud-storage
 grpcio==1.57.0

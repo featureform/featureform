@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	"log"
 	"reflect"
 	"testing"
@@ -689,44 +690,51 @@ func TestEtcdConfig_Put(t *testing.T) {
 	}
 }
 
+func TestEtcdConfig_InvalidServer(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: ""}}}
+	_, err := config.InitClient()
+	if err == nil {
+		t.Errorf("InitClient() should have failed with invalid server")
+	}
+}
+
 func TestEtcdConfig_Get(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	type fields struct {
-		Host string
-		Port string
+	config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
+	c, err := config.InitClient()
+	if err != nil {
+		t.Errorf("InitClient() could not initialize client: %v", err)
 	}
-	type args struct {
-		key string
+	client := EtcdStorage{c}
+
+	if err = client.Put("key", "value"); err != nil {
+		t.Errorf("Put() could not put key: %v", err)
 	}
+
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []byte
-		wantErr bool
+		name  string
+		key   string
+		error error
 	}{
-		{"Test Invalid Server", fields{"localhost", ""}, args{key: ""}, nil, true},
-		{"Test Invalid Key", fields{"localhost", "2379"}, args{key: "testkey"}, []byte{}, false},
+		{"Test Get Empty Key", "", rpctypes.EtcdError{}},
+		{"Test Get Non Existent Key", "non_existent", KeyNotFoundError{}},
+		{"Test Get Valid Key", "key", nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := EtcdConfig{[]EtcdNode{{Host: tt.fields.Host, Port: tt.fields.Port}}}
-			c, err := config.InitClient()
-			if err != nil && !tt.wantErr {
-				t.Errorf("Get() could not initialize client: %v", err)
-			} else if err != nil && tt.wantErr {
-				return
-			}
-			client := EtcdStorage{c}
-			got, err := client.Get(tt.args.key)
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("Get() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Fatalf("Get() got = %v, want %v", got, tt.want)
+			_, err := client.Get(tt.key)
+			if err != nil && tt.error == nil {
+				t.Errorf("Get() should not have failed with error: %v", err)
+			} else if err != nil && tt.error != nil {
+				expectedErrorType := reflect.TypeOf(tt.error)
+				if reflect.TypeOf(err) != expectedErrorType {
+					t.Errorf("Expected error of type %v but got type %v", expectedErrorType, reflect.TypeOf(err))
+				}
 			}
 		})
 	}

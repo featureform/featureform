@@ -35,9 +35,15 @@ COPY --from=builder --chown=nextjs:nodejs /app/dashboard/out ./out
 # Build Go services
 FROM golang:1.18 as go-builder
 
+RUN apt update && \
+    apt install -y protobuf-compiler
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
 WORKDIR /app
 COPY go.mod ./
 COPY go.sum ./
+RUN go mod download
 COPY ./filestore/ ./filestore/
 COPY api/ api/
 COPY helpers/ helpers/
@@ -53,10 +59,7 @@ COPY kubernetes/ kubernetes/
 COPY config/ config/
 COPY logging/ logging/
 
-RUN apt update && \
-    apt install -y protobuf-compiler
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./proto/serving.proto
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
 
@@ -72,16 +75,27 @@ FROM golang:1.18
 
 WORKDIR /app
 
-# Copy built Go services
-COPY --from=go-builder /app/execs /app/execs
-
-# Copy built dashboard
-COPY --from=runner /app/dashboard ./dashboard
-
 # Install and configure Supervisor
 RUN apt-get update && apt-get install -y supervisor
 RUN mkdir -p /var/lock/apache2 /var/run/apache2 /var/run/sshd /var/log/supervisor
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+RUN apt-get install -y nginx --option=Dpkg::Options::=--force-confdef
+
+# Install Node 16 for internal dashboard server
+RUN curl -sL https://deb.nodesource.com/setup_16.x | sh
+RUN apt-get update
+RUN apt install nodejs
+
+# Install MeiliSearch
+RUN curl -L https://install.meilisearch.com | sh
+
+# Setup Etcd
+RUN git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
+WORKDIR /app/etcd
+RUN go mod download
+RUN ./build
+WORKDIR /app
+RUN ETCD_UNSUPPORTED_ARCH=arm64 ./etcd/bin/etcd --version
 
 # Setup Spark
 ARG SPARK_FILEPATH=/app/provider/scripts/spark/offline_store_spark_runner.py
@@ -95,25 +109,14 @@ COPY provider/scripts/spark/requirements.txt $SPARK_REQUIREMENTS
 ENV SPARK_LOCAL_SCRIPT_PATH=$SPARK_FILEPATH
 ENV PYTHON_LOCAL_INIT_PATH=$SPARK_PYTHON_PACKAGES
 
-# Setup Etcd
-RUN git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
-WORKDIR /app/etcd
-RUN ./build
-WORKDIR /app
-RUN ETCD_UNSUPPORTED_ARCH=arm64 ./etcd/bin/etcd --version
-
-# Install Nginx
-RUN apt-get update
-RUN apt-get install -y nginx --option=Dpkg::Options::=--force-confdef
+# Setup Nginx
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Install MeiliSearch
-RUN curl -L https://install.meilisearch.com | sh
+# Copy built Go services
+COPY --from=go-builder /app/execs /app/execs
 
-# Install Node 16 for internal dashboard server
-RUN curl -sL https://deb.nodesource.com/setup_16.x | sh
-RUN apt-get update
-RUN apt install nodejs
+# Copy built dashboard
+COPY --from=runner /app/dashboard ./dashboard
 
 ENV SERVING_PORT="8082"
 ENV SERVING_HOST="0.0.0.0"

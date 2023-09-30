@@ -221,7 +221,9 @@ export const convertInputToDate = (timestamp_string_or_mil = '') => {
   if (isNaN(input)) {
     return generateDate(input);
   } else {
-    return generateDate(parseFloat(input));
+    const createdTimeInSeconds = parseFloat(input); //resources.py returns seconds, not milliseconds
+    const createdTimeMilliSeconds = Math.round(createdTimeInSeconds * 1000);
+    return generateDate(createdTimeMilliSeconds);
   }
 
   function generateDate(str) {
@@ -347,8 +349,11 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                 <div className={classes.title}>
                   <Icon>{icon}</Icon>
                   <div className={classes.titleText}>
-                    <Typography variant='h4' component='h4'>
-                      <b>{resources.name}</b>
+                    <Typography variant='h3' component='h3'>
+                      <span>
+                        {`${resources.type}: `}
+                        <b>{resources.name}</b>
+                      </span>
                     </Typography>
                     {metadata['created'] && (
                       <Typography variant='subtitle1'>
@@ -431,8 +436,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                     )}
                     {metadata['joined'] && (
                       <Typography variant='body1'>
-                        <b>Joined:</b>{' '}
-                        {convertInputToDate(metadata['joined'])}
+                        <b>Joined:</b> {convertInputToDate(metadata['joined'])}
                       </Typography>
                     )}
                     {metadata['software'] && (

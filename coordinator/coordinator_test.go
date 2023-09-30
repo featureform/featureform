@@ -874,7 +874,7 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 	}
 	sourceWithOnlineProvider := metadata.ResourceID{sourceWithoutOfflineProvider, "", metadata.SOURCE_VARIANT}
 	if err := coord.runRegisterSourceJob(sourceWithOnlineProvider, ""); err == nil {
-		t.Fatalf("did not catch error registering registering resource with online provider")
+		t.Fatalf("did not catch error registering resource with online provider")
 	}
 }
 
@@ -1542,7 +1542,7 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 	}
 	sourceComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: sourceName, Variant: ""})
 	if err != nil {
-		return fmt.Errorf("could not get source variant")
+		return fmt.Errorf("could not get source variant, %s", sourceName)
 	}
 	if metadata.READY != sourceComplete.Status() {
 		return fmt.Errorf("source variant not set to ready once job completes")
@@ -1641,7 +1641,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	}
 	sourceComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: sourceName, Variant: ""})
 	if err != nil {
-		return fmt.Errorf("could not get source variant")
+		return fmt.Errorf("could not get source variant, %s", sourceName)
 	}
 	if metadata.READY != sourceComplete.Status() {
 		return fmt.Errorf("source variant not set to ready once job completes")
@@ -1665,7 +1665,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	}
 	transformationComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: transformationName, Variant: ""})
 	if err != nil {
-		return fmt.Errorf("could not get source variant")
+		return fmt.Errorf("could not get source variant, %s", transformationName)
 	}
 	if metadata.READY != transformationComplete.Status() {
 		return fmt.Errorf("transformation variant not set to ready once job completes")
@@ -1729,7 +1729,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	}
 	joinTransformationComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: joinTransformationName, Variant: ""})
 	if err != nil {
-		return fmt.Errorf("could not get source variant")
+		return fmt.Errorf("could not get source variant, %s", joinTransformationName)
 	}
 	if metadata.READY != joinTransformationComplete.Status() {
 		return fmt.Errorf("transformation variant not set to ready once job completes")

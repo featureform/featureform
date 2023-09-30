@@ -1,7 +1,22 @@
+import os
+import shutil
+import stat
+
 import featureform as ff
 import pytest
 from featureform.resources import ResourceRedefinedError
-import shutil
+
+
+@pytest.fixture(autouse=True, scope="function")
+def cleanup():
+    yield
+    shutil.rmtree(".featureform", onerror=del_rw)
+
+
+def del_rw(action, name, exc):
+    if os.path.exists(name):
+        os.chmod(name, stat.S_IWRITE)
+        os.remove(name)
 
 
 class TestResourcesRedefined:
@@ -15,14 +30,14 @@ class TestResourcesRedefined:
             name="transactions",
             variant="quickstart",
             description="A dataset of fraudulent transactions",
-            path="transactions.csv",
+            path="./test_files/input_files/transactions.csv",
         )
 
         transactions = local.register_file(
             name="transactions",
             variant="quickstart",
             description="A dataset of fraudulent transactions",
-            path="transactions.csv",
+            path="./test_files/input_files/transactions.csv",
         )
 
         user = ff.register_entity("user")
@@ -115,14 +130,14 @@ class TestResourcesRedefined:
             name="transaction",
             variant="quickstart",
             description="A dataset of fraudulent transactions",
-            path="transactions.csv",
+            path="transaction-first-one.csv",
         )
 
         transactions = local.register_file(
             name="transaction",
             variant="quickstart",
             description="A dataset of fraudulent transaction",
-            path="transaction.csv",
+            path="transaction-second-one.csv",
         )
 
         with pytest.raises(ResourceRedefinedError):
@@ -193,8 +208,9 @@ class TestResourcesRedefined:
                 },
             ],
         )
-        with pytest.raises(ResourceRedefinedError):
-            client.apply()
+
+        # the labels are exactly the same so it should not raise an error but print a that this is already registered
+        client.apply()
 
         ff.register_training_set(
             "fraud_training",
@@ -211,11 +227,3 @@ class TestResourcesRedefined:
 
         with pytest.raises(ResourceRedefinedError):
             client.apply()
-
-    def test_cleanup(tmpdir):
-        try:
-            client = ff.ServingClient(local=True)
-            client.impl.sqldb.close()
-            shutil.rmtree(".featureform")
-        except:
-            print("File Already Removed")

@@ -188,7 +188,7 @@ func (s EtcdStorage) Get(key string) ([]byte, error) {
 		return nil, err
 	}
 	if len(resp.Kvs) == 0 {
-		return nil, &KeyNotFoundError{key}
+		return nil, KeyNotFoundError{key}
 	}
 	return resp.Kvs[0].Value, nil
 }

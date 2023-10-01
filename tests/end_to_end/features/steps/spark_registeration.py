@@ -109,7 +109,7 @@ def step_impl(context):
     context.spark_name = name
     try:
         context.spark = spark
-        context.client.apply()
+        context.client.apply(asynchronous=False, verbose=True)
     except Exception as e:
         context.exception = e
 
@@ -120,7 +120,7 @@ def step_impl(context):
         name="transactions",
         file_path=context.cloud_file_path,
     )
-    context.client.apply()
+    context.client.apply(asynchronous=False, verbose=True)
 
 
 @then("I should be able to pull the file as a dataframe")
@@ -147,7 +147,7 @@ def step_impl(context):
         return df
 
     context.transformation = ice_cream_transformation
-    context.client.apply(asynchronous=False)
+    context.client.apply(asynchronous=False, verbose=True)
 
 
 @then("I should be able to pull the transformation as a dataframe")
@@ -183,7 +183,7 @@ def step_impl(context, source_type):
             )
 
     context.feature_name = "avg_transactions"
-    context.client.apply(asynchronous=False)
+    context.client.apply(asynchronous=False, verbose=True)
 
 
 @then("I should be able to pull the feature as a dataframe")
@@ -214,7 +214,7 @@ def step_impl(context, source_type):
             )
 
     context.label_name = "fraudulent"
-    context.client.apply(asynchronous=False)
+    context.client.apply(asynchronous=False, verbose=True)
 
 
 @when("I register a training set")
@@ -224,7 +224,7 @@ def step_impl(context):
         label=(context.label_name, ff.get_run()),
         features=[(context.feature_name, ff.get_run())],
     )
-    context.client.apply(asynchronous=False)
+    context.client.apply(asynchronous=False, verbose=True)
 
 
 @then("I should be able to pull the trainingset as a dataframe")

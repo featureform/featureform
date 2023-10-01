@@ -17,7 +17,7 @@ from .get import *
 from .get_local import *
 from .list import *
 from .list_local import *
-from .exceptions import InvalidSQLQuery
+from .exceptions import InvalidSQLQuery, StubExceptionWrapper
 from .names_generator import get_random_name
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
@@ -4146,7 +4146,13 @@ class ResourceClient:
     """
 
     def __init__(
-        self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
+        self,
+        host=None,
+        local=False,
+        insecure=False,
+        cert_path=None,
+        dry_run=False,
+        debug=False,
     ):
         # This line ensures that the warning is only raised if ResourceClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
@@ -4176,7 +4182,7 @@ class ResourceClient:
                 channel = insecure_channel(host)
             else:
                 channel = secure_channel(host, cert_path)
-            self._stub = ff_grpc.ApiStub(channel)
+            self._stub = StubExceptionWrapper(ff_grpc.ApiStub(channel), debug=debug)
             self._host = host
 
     def apply(self, asynchronous=True, verbose=False):

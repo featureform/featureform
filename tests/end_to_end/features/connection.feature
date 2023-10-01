@@ -1,6 +1,5 @@
 Feature: Connections
 
-  @wip
   Scenario: Failed Connection
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:1234"

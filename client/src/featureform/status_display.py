@@ -25,8 +25,8 @@ MAX_NUM_RUNNING_DOTS = 10
 SECONDS_BETWEEN_STATUS_CHECKS = 2
 
 
-def display_statuses(stub: ApiStub, resources: List[Resource]):
-    StatusDisplayer(stub, resources).display()
+def display_statuses(stub: ApiStub, resources: List[Resource], verbose=False):
+    StatusDisplayer(stub, resources, verbose=verbose).display()
 
 
 @dataclass
@@ -77,7 +77,8 @@ class StatusDisplayer:
         "FAILED": "red",
     }
 
-    def __init__(self, stub: ApiStub, resources: List[Resource]):
+    def __init__(self, stub: ApiStub, resources: List[Resource], verbose=False):
+        self.verbose = verbose
         filtered_resources = filter(
             lambda r: type(r) in self.RESOURCE_TYPES_TO_CHECK, resources
         )
@@ -156,8 +157,12 @@ class StatusDisplayer:
 
                 if finished_running:
                     if self.did_error:
+                        statuses = ""
+                        for _, status in self.resource_to_status_list:
+                            name = status.name
+                            statuses += f"{name}: {status.status} - {status.error}\n"
                         sys.tracebacklimit = 0
-                        raise Exception("Some resources failed to create")
+                        raise Exception("Some resources failed to create\n" + statuses)
                     break
 
                 i += 1

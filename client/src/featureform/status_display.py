@@ -104,6 +104,13 @@ class StatusDisplayer:
     def all_statuses_finished(self) -> bool:
         return all(status.is_finished() for _, status in self.resource_to_status_list)
 
+    def create_error_message(self):
+        message = ""
+        for _, status in self.resource_to_status_list:
+            name = status.name
+            message += f"{name}: {status.status} - {status.error}\n"
+        return message
+
     def display(self):
         if not self.resource_to_status_list:
             return
@@ -161,11 +168,8 @@ class StatusDisplayer:
                     # If we don't throw an exception, then tests will pass even when things fail to register
                     # We also print all the error messages because the table does not get saved when
                     # capturing stdout/stderr
-                    if self.did_error:
-                        statuses = ""
-                        for _, status in self.resource_to_status_list:
-                            name = status.name
-                            statuses += f"{name}: {status.status} - {status.error}\n"
+                    if self.verbose and self.did_error:
+                        statuses = self.create_error_message()
                         sys.tracebacklimit = 0
                         raise Exception("Some resources failed to create\n" + statuses)
                     break

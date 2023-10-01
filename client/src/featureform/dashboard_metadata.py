@@ -2,9 +2,10 @@ import json
 import os
 
 import pandas as pd
+from markupsafe import escape
 from featureform import ResourceClient
 from featureform.serving import LocalClientImpl
-from flask import Blueprint, Response, request, escape
+from flask import Blueprint, Response, request
 from flask_cors import CORS, cross_origin
 from .metadata_repository import (
     MetadataRepositoryLocalImpl,

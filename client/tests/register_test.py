@@ -4,7 +4,7 @@ import stat
 import sys
 
 import featureform as ff
-from featureform import ResourceRedefinedError
+from featureform import ResourceRedefinedError, InvalidSQLQuery
 
 sys.path.insert(0, "client/src/")
 import pytest
@@ -272,9 +272,13 @@ def run_before_and_after_tests(tmpdir):
     [
         ("SELECT * FROM X", False),
         ("SELECT * FROM", False),
+        ("SELECT * FROM     \n {{ name }}", True),
+        ("SELECT * FROM     \n {{name}}", True),
         ("SELECT * FROM {{ name.variant }}", True),
         ("SELECT * FROM {{name.variant }}", True),
         ("SELECT * FROM     \n {{ name.variant }}", True),
+        ("SELECT * FROM     \n {{name.variant}}", True),
+        ("SELECT * FROM     \n {{name . variant}}", False),
         (
             """
         SELECT *
@@ -296,7 +300,7 @@ def run_before_and_after_tests(tmpdir):
         ),
     ],
 )
-def test_validate_sql_query(sql_query, expected_valid_sql_query):
+def test_assert_query_contains_at_least_one_source(sql_query, expected_valid_sql_query):
     dec = SQLTransformationDecorator(
         registrar=registrar,
         owner="",
@@ -306,8 +310,15 @@ def test_validate_sql_query(sql_query, expected_valid_sql_query):
         properties={},
     )
 
-    is_valid = dec._is_valid_sql_query(sql_query)
-    assert is_valid == expected_valid_sql_query
+    if not expected_valid_sql_query:
+        with pytest.raises(InvalidSQLQuery) as ex_info:
+            dec._assert_query_contains_at_least_one_source(sql_query)
+        assert (
+            str(ex_info.value)
+            == f"Invalid SQL query. Query: ' {sql_query} ' No source specified."
+        )
+    else:
+        dec._assert_query_contains_at_least_one_source(sql_query)
 
 
 def test_state_not_clearing_after_resource_not_defined():

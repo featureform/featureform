@@ -33,7 +33,7 @@ func (variant NameVariant) Serialize() *pb.NameVariant {
 }
 
 func (variant NameVariant) ClientString() string {
-	return fmt.Sprintf("%s.%s", variant.Name, variant.Variant)
+	return fmt.Sprintf("%s (%s)", variant.Name, variant.Variant)
 }
 
 func parseNameVariant(serialized *pb.NameVariant) NameVariant {

@@ -120,7 +120,7 @@ func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant)
 		}
 		sourceStatus := source.Status()
 		if sourceStatus == metadata.FAILED {
-			return nil, fmt.Errorf("source registration failed: name: %s, variant: %s", sourceNameVariant.Name, sourceNameVariant.Variant)
+			return nil, fmt.Errorf("failed to build resource %s. See source for additional details", sourceNameVariant.ClientString())
 		}
 		if sourceStatus == metadata.READY {
 			return source, nil
@@ -376,6 +376,7 @@ func (c *Coordinator) verifyCompletionOfSources(sources []metadata.NameVariant) 
 	for !allReady {
 		sourceVariants, err := c.Metadata.GetSourceVariants(context.Background(), sources)
 		if err != nil {
+
 			return fmt.Errorf("could not get source variants: %v ", err)
 		}
 		total := len(sourceVariants)
@@ -481,7 +482,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 
 	err := c.verifyCompletionOfSources(sources)
 	if err != nil {
-		return fmt.Errorf("the sources were not completed: %s", err)
+		return fmt.Errorf("source(s) for the transformation have failed: %s", err)
 	}
 
 	sourceMap, err := c.mapNameVariantsToTables(sources)
@@ -524,7 +525,7 @@ func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVar
 
 	err := c.verifyCompletionOfSources(sources)
 	if err != nil {
-		return fmt.Errorf("the sources were not completed: %s", err)
+		return fmt.Errorf("source(s) for the transformation have failed: %s", err)
 	}
 
 	sourceMap, err := c.mapNameVariantsToTables(sources)
@@ -648,7 +649,7 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 
 	source, err := c.AwaitPendingSource(sourceNameVariant)
 	if err != nil {
-		return fmt.Errorf("source of could not complete job: %v", err)
+		return fmt.Errorf("source for label has failed: %v", err)
 	}
 	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
@@ -737,7 +738,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 
 	source, err := c.AwaitPendingSource(sourceNameVariant)
 	if err != nil {
-		return fmt.Errorf("source of could not complete job: %v", err)
+		return fmt.Errorf("source for feature has failed: %v", err)
 	}
 	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
 	if err != nil {

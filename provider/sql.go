@@ -150,14 +150,14 @@ func (store *sqlOfflineStore) tableExists(id ResourceID) (bool, error) {
 	if n > 0 && err == nil {
 		return true, nil
 	} else if err != nil {
-		return false, fmt.Errorf("table exists check: %v", err)
+		return false, fmt.Errorf("could not check if table exists: %v", err)
 	}
 	query = store.query.viewExists()
 	err = store.db.QueryRow(query, tableName).Scan(&n)
 	if n > 0 && err == nil {
 		return true, nil
 	} else if err != nil {
-		return false, fmt.Errorf("view exists check: %v", err)
+		return false, fmt.Errorf("could not check if view exists: %v", err)
 	}
 	return false, nil
 }
@@ -208,7 +208,7 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sour
 		return nil, fmt.Errorf("check fail: %w", err)
 	}
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, fmt.Errorf("table exist: %w", err)
+		return nil, err
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
@@ -340,7 +340,7 @@ func (store *sqlOfflineStore) CreateResourceTable(id ResourceID, schema TableSch
 	}
 
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, fmt.Errorf("could not check if table exists: %v", err)
+		return nil, err
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}

@@ -541,11 +541,13 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                             );
                           }
                         })()}
-                        <SourceDialog
-                          api={api}
-                          sourceName={name}
-                          sourceVariant={variant}
-                        />
+                        {!metadata['error'] && (
+                          <SourceDialog
+                            api={api}
+                            sourceName={name}
+                            sourceVariant={variant}
+                          />
+                        )}
                       </div>
                     )}
 

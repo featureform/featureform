@@ -1100,8 +1100,8 @@ class SQLTransformationDecorator:
     def __set_query(self, query: str):
         if query == "":
             raise ValueError("Query cannot be an empty string")
-        if not self._is_valid_sql_query(query):
-            raise InvalidSQLQuery(query)
+        # if not self._is_valid_sql_query(query):
+        #     raise InvalidSQLQuery(query)
 
         self.query = add_variant_to_name(query, self.run)
 
@@ -4179,7 +4179,7 @@ class ResourceClient:
             self._stub = ff_grpc.ApiStub(channel)
             self._host = host
 
-    def apply(self, asynchronous=True, verbose=False):
+    def apply(self, asynchronous=False, verbose=False):
         """
         Apply all definitions, creating and retrieving all specified resources.
 

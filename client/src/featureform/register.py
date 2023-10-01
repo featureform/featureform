@@ -2537,7 +2537,7 @@ class Registrar:
         self,
         name: str,
         bucket_name: str,
-        bucket_path: str,
+        root_path: str,
         credentials: GCPCredentials,
         description: str = "",
         team: str = "",
@@ -2573,7 +2573,7 @@ class Registrar:
         """
         tags, properties = set_tags_properties(tags, properties)
         gcs_config = GCSFileStoreConfig(
-            bucket_name=bucket_name, bucket_path=bucket_path, credentials=credentials
+            bucket_name=bucket_name, bucket_path=root_path, credentials=credentials
         )
         provider = Provider(
             name=name,
@@ -4179,7 +4179,7 @@ class ResourceClient:
             self._stub = ff_grpc.ApiStub(channel)
             self._host = host
 
-    def apply(self, asynchronous=True):
+    def apply(self, asynchronous=True, verbose=False):
         """
         Apply all definitions, creating and retrieving all specified resources.
 
@@ -4214,7 +4214,7 @@ class ResourceClient:
 
             if not asynchronous and self._stub:
                 resources = resource_state.sorted_list()
-                display_statuses(self._stub, resources)
+                display_statuses(self._stub, resources, verbose=verbose)
 
         finally:
             clear_state()

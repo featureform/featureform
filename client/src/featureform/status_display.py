@@ -1,3 +1,4 @@
+import sys
 import time
 from typing import Type, Tuple, List
 
@@ -24,8 +25,8 @@ MAX_NUM_RUNNING_DOTS = 10
 SECONDS_BETWEEN_STATUS_CHECKS = 2
 
 
-def display_statuses(stub: ApiStub, resources: List[Resource]):
-    StatusDisplayer(stub, resources).display()
+def display_statuses(stub: ApiStub, resources: List[Resource], verbose=False):
+    StatusDisplayer(stub, resources, verbose=verbose).display()
 
 
 @dataclass
@@ -58,6 +59,7 @@ class DisplayStatus:
 
 
 class StatusDisplayer:
+    did_error: bool = False
     RESOURCE_TYPES_TO_CHECK = {
         FeatureVariant,
         OnDemandFeatureVariant,
@@ -75,7 +77,8 @@ class StatusDisplayer:
         "FAILED": "red",
     }
 
-    def __init__(self, stub: ApiStub, resources: List[Resource]):
+    def __init__(self, stub: ApiStub, resources: List[Resource], verbose=False):
+        self.verbose = verbose
         filtered_resources = filter(
             lambda r: type(r) in self.RESOURCE_TYPES_TO_CHECK, resources
         )
@@ -95,6 +98,8 @@ class StatusDisplayer:
                 r = resource.get(self.stub)
                 display_status.status = r.status
                 display_status.error = r.error
+                if r.status == "FAILED":
+                    self.did_error = True
 
     def all_statuses_finished(self) -> bool:
         return all(status.is_finished() for _, status in self.resource_to_status_list)
@@ -151,6 +156,18 @@ class StatusDisplayer:
                 live.refresh()
 
                 if finished_running:
+                    # This block is used for testing
+                    # Tests check for both stderr and an exception
+                    # If we don't throw an exception, then tests will pass even when things fail to register
+                    # We also print all the error messages because the table does not get saved when
+                    # capturing stdout/stderr
+                    if self.did_error:
+                        statuses = ""
+                        for _, status in self.resource_to_status_list:
+                            name = status.name
+                            statuses += f"{name}: {status.status} - {status.error}\n"
+                        sys.tracebacklimit = 0
+                        raise Exception("Some resources failed to create\n" + statuses)
                     break
 
                 i += 1

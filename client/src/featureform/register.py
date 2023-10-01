@@ -1101,9 +1101,7 @@ class SQLTransformationDecorator:
         if query == "":
             raise ValueError("Query cannot be an empty string")
 
-        if not self._query_contains_at_least_one_source(query):
-            raise InvalidSQLQuery(query)
-
+        self._assert_query_contains_at_least_one_source(query)
         self.query = add_variant_to_name(query, self.run)
 
     def to_source(self) -> SourceVariant:
@@ -1148,11 +1146,13 @@ class SQLTransformationDecorator:
             schedule=schedule,
         )
 
-    def _query_contains_at_least_one_source(self, query):
+    @staticmethod
+    def _assert_query_contains_at_least_one_source(query):
         # Checks to verify that the query contains a FROM {{ name.variant }}
         pattern = r"from\s*\{\{\s*[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)?\s*\}\}"
         match = re.search(pattern, query, re.IGNORECASE)
-        return match is not None
+        if match is None:
+            raise InvalidSQLQuery(query, "No source specified.")
 
 
 class DFTransformationDecorator:

@@ -1052,3 +1052,42 @@ func convertToParquetBytes(schema TableSchema, list []GenericRecord) ([]byte, er
 	}
 	return buf.Bytes(), nil
 }
+
+func Test_castTimestamp(t *testing.T) {
+	timeNow := time.Now()
+	type args struct {
+		timestamp interface{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    time.Time
+		wantErr bool
+		errMsg  string
+	}{
+		{"With time.Time", args{timeNow}, timeNow, false, ""},
+		{"With string", args{"idk"}, timeNow, true, "expected timestamp to be of type time.Time, but got string"},
+		{"With int", args{0}, timeNow, true, "expected timestamp to be of type time.Time, but got int"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := castToTimestamp(tt.args.timestamp)
+			// Checks if we expect error and are not getting one
+			if (err != nil) != tt.wantErr {
+				t.Errorf("castTimestamp() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			// If we expect error, checks that it is the correct error
+			if (err != nil) && tt.wantErr {
+				if err.Error() != tt.errMsg {
+					t.Errorf("castTimestamp() error = %v, wantMsg %v", err, tt.errMsg)
+				}
+				return
+			}
+			// Checks if value is correct
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("castTimestamp() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

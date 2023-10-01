@@ -244,7 +244,8 @@ func NewS3FileStore(config Config) (FileStore, error) {
 		return nil, fmt.Errorf("could not deserialize s3 store config: %v", err)
 	}
 
-	trimmedBucket := strings.TrimPrefix(strings.TrimPrefix(s3StoreConfig.BucketPath, "s3a://"), "s3://")
+	trimmedBucket := strings.TrimPrefix(s3StoreConfig.BucketPath, "s3://")
+	trimmedBucket = strings.TrimPrefix(trimmedBucket, "s3a://")
 
 	if strings.Contains(trimmedBucket, "/") {
 		return nil, fmt.Errorf("bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only")

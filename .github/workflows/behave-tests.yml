@@ -13,7 +13,7 @@ env:
   AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
   AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
 
 jobs:
   setup:
@@ -68,9 +68,9 @@ jobs:
       - name: Run Behavioral Tests
         if: github.ref != 'refs/heads/main'
         working-directory: ./tests/end_to_end/
-        run: behave --tags=~wip,~long
+        run: behave --tags=~@wip,~@long
 
       - name: Run Behavioral Tests
         if: github.ref == 'refs/heads/main'
         working-directory: ./tests/end_to_end/
-        run: behave --tags=~wip,long
+        run: behave --tags=~@wip,@long

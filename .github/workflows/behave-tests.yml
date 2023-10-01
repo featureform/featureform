@@ -8,6 +8,13 @@ concurrency:
   group: ${{ github.head_ref }}-behave-testing
   cancel-in-progress: true
 
+env:
+  AZURE_CONN_STRING: ${{ secrets.AZURE_CONN_STRING }}
+  AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+  AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
 jobs:
   setup:
     name: Run Behave Tests

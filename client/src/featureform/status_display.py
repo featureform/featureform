@@ -98,6 +98,8 @@ class StatusDisplayer:
                 r = resource.get(self.stub)
                 display_status.status = r.status
                 display_status.error = r.error
+                if r.status == "FAILED":
+                    self.did_error = True
 
     def all_statuses_finished(self) -> bool:
         return all(status.is_finished() for _, status in self.resource_to_status_list)
@@ -166,7 +168,7 @@ class StatusDisplayer:
                     # If we don't throw an exception, then tests will pass even when things fail to register
                     # We also print all the error messages because the table does not get saved when
                     # capturing stdout/stderr
-                    if self.verbose:
+                    if self.verbose and self.did_error:
                         statuses = self.create_error_message()
                         sys.tracebacklimit = 0
                         raise Exception("Some resources failed to create\n" + statuses)

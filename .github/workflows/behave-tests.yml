@@ -22,7 +22,7 @@ jobs:
   setup:
     name: Run Behave Tests
     services:
-      redis-insecure:
+      redis:
         image: redis
         ports:
           - 6379:6379
@@ -65,7 +65,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Run Container
-        run: docker run -d -p 7878:7878 -p 80:80 featureform
+        run: docker run -d -p 7878:7878 -p 80:80 featureform --network="host"
 
       - name: Setup Proto
         run: ./gen_grpc.sh

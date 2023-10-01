@@ -1100,9 +1100,9 @@ class SQLTransformationDecorator:
     def __set_query(self, query: str):
         if query == "":
             raise ValueError("Query cannot be an empty string")
-        # The regex here is wrong, needs to be fixed
-        # if not self._is_valid_sql_query(query):
-        #     raise InvalidSQLQuery(query)
+
+        if not self._query_contains_at_least_one_source(query):
+            raise InvalidSQLQuery(query)
 
         self.query = add_variant_to_name(query, self.run)
 
@@ -1148,9 +1148,9 @@ class SQLTransformationDecorator:
             schedule=schedule,
         )
 
-    def _is_valid_sql_query(self, query):
+    def _query_contains_at_least_one_source(self, query):
         # Checks to verify that the query contains a FROM {{ name.variant }}
-        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_]+\s*\.\s*[a-zA-Z0-9_]+\s*\}\}"
+        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)?\s*\}\}"
         match = re.search(pattern, query, re.IGNORECASE)
         return match is not None
 

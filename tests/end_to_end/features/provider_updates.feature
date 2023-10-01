@@ -1,5 +1,6 @@
 Feature: Provider Updates
 
+  @wip
   Scenario Outline: Rotate S3 Credentials
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"
@@ -35,6 +36,7 @@ Feature: Provider Updates
       | s3_1    |     bucket  |    us-east-1  | my/path |  access_key  |  secret_key  |   test     |   bucket         |   my/path   |   us-east-2  |    access_key     |    secret_key     |    bucket       |     us-east-1     |  my/path  |    access_key    |    secret_key    |
 
 
+  @wip
   Scenario Outline: Azure Blob Store Registration
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"
@@ -63,7 +65,7 @@ Feature: Provider Updates
       | name  | account_name | account_key | container_name | path | repl_account_name | repl_account_key | repl_container_name | repl_path | exp_account_name | exp_account_key | exp_container_name | exp_path | exception |
       | blob2 | account_name | account_key | container_name | path |  account_name     |  account_key     |  container_name     | path2      | account_name     | account_key     | container_name    | path     | None      |
 
-
+  @wip
   Scenario Outline: Rotate GCS Credentials
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"

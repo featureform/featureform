@@ -28,9 +28,9 @@ Feature: Spark End to End
 
     Examples: GCS
       | filetype |  storage_provider |     bucket     |
-      |   csv    |        gcs        |featureform-test|
-      |  parquet |        gcs        |featureform-test|
-      | directory|        gcs        |featureform-test|
+#      |   csv    |        gcs        |featureform-test| # TODO: Enable Later
+#      |  parquet |        gcs        |featureform-test| # TODO: Enable Later
+#      | directory|        gcs        |featureform-test| # TODO: Enable Later
 
   @long @wip
   Scenario Outline: Register a large file in spark

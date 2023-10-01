@@ -21,6 +21,11 @@ env:
 jobs:
   setup:
     name: Run Behave Tests
+    services:
+      redis-insecure:
+        image: redis
+        ports:
+          - 6379:6379
     defaults:
       run:
         working-directory: ./
@@ -71,9 +76,9 @@ jobs:
       - name: Run Behavioral Tests
         if: github.ref != 'refs/heads/main'
         working-directory: ./tests/end_to_end/
-        run: behave -t '~@wip' -t '~@long'
+        run: behave -t '~@wip' -t '~@long' --no-capture
 
       - name: Run Behavioral Tests
         if: github.ref == 'refs/heads/main'
         working-directory: ./tests/end_to_end/
-        run: behave -t '~@wip' -t '@long'
+        run: behave -t '~@wip' -t '@long' --no-capture

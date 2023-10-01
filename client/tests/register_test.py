@@ -313,7 +313,10 @@ def test_assert_query_contains_at_least_one_source(sql_query, expected_valid_sql
     if not expected_valid_sql_query:
         with pytest.raises(InvalidSQLQuery) as ex_info:
             dec._assert_query_contains_at_least_one_source(sql_query)
-        assert str(ex_info.value) == f"Invalid SQL query. Query: ' {sql_query} ' No source specified."
+        assert (
+            str(ex_info.value)
+            == f"Invalid SQL query. Query: ' {sql_query} ' No source specified."
+        )
     else:
         dec._assert_query_contains_at_least_one_source(sql_query)
 
@@ -371,5 +374,3 @@ def test_register_s3(bucket_name, expected_error, ff_registrar, aws_credentials)
         assert str(ve) == str(expected_error)
     except Exception as e:
         raise e
-
-

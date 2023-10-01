@@ -156,6 +156,11 @@ class StatusDisplayer:
                 live.refresh()
 
                 if finished_running:
+                    # This block is used for testing
+                    # Tests check for both stderr and an exception
+                    # If we don't throw an exception, then tests will pass even when things fail to register
+                    # We also print all the error messages because the table does not get saved when
+                    # capturing stdout/stderr
                     if self.did_error:
                         statuses = ""
                         for _, status in self.resource_to_status_list:

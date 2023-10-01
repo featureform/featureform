@@ -65,7 +65,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Run Container
-        run: docker run -d -p 7878:7878 -p 80:80 featureform 
+        run: docker run -d -p 7878:7878 -p 80:80 featureform
 
       - name: Setup Proto
         run: ./gen_grpc.sh

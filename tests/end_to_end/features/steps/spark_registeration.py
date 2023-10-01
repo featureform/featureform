@@ -29,7 +29,7 @@ def step_impl(context):
 def step_impl(context):
     context.redis = ff.register_redis(
         name="redis-quickstart",
-        host="host.docker.internal",  # The docker dns name for redis
+        host="redis-insecure",  # The docker dns name for redis
         port=6379,
     )
     context.client.apply()

@@ -1,3 +1,4 @@
+import sys
 import time
 from typing import Type, Tuple, List
 
@@ -58,6 +59,7 @@ class DisplayStatus:
 
 
 class StatusDisplayer:
+    did_error: bool = False
     RESOURCE_TYPES_TO_CHECK = {
         FeatureVariant,
         OnDemandFeatureVariant,
@@ -95,6 +97,8 @@ class StatusDisplayer:
                 r = resource.get(self.stub)
                 display_status.status = r.status
                 display_status.error = r.error
+                if r.status == "FAILED":
+                    self.did_error = True
 
     def all_statuses_finished(self) -> bool:
         return all(status.is_finished() for _, status in self.resource_to_status_list)
@@ -151,6 +155,9 @@ class StatusDisplayer:
                 live.refresh()
 
                 if finished_running:
+                    if self.did_error:
+                        sys.tracebacklimit = 0
+                        raise Exception("Some resources failed to create")
                     break
 
                 i += 1

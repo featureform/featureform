@@ -244,9 +244,9 @@ func NewS3FileStore(config Config) (FileStore, error) {
 		return nil, fmt.Errorf("could not deserialize s3 store config: %v", err)
 	}
 
-	s3StoreConfig.BucketPath = strings.TrimPrefix("s3://", strings.TrimPrefix(s3StoreConfig.BucketPath, "s3a://"))
+	trimmedBucket := strings.TrimPrefix(strings.TrimPrefix(s3StoreConfig.BucketPath, "s3a://"), "s3://")
 
-	if strings.Contains(s3StoreConfig.BucketPath, "/") {
+	if strings.Contains(trimmedBucket, "/") {
 		return nil, fmt.Errorf("bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only")
 	}
 
@@ -261,12 +261,12 @@ func NewS3FileStore(config Config) (FileStore, error) {
 	}
 	cfg.Region = s3StoreConfig.BucketRegion
 	clientV2 := s3v2.NewFromConfig(cfg)
-	bucket, err := s3blob.OpenBucketV2(context.TODO(), clientV2, s3StoreConfig.BucketPath, nil)
+	bucket, err := s3blob.OpenBucketV2(context.TODO(), clientV2, trimmedBucket, nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not create connection to s3 bucket: config: %v, name: %s, %v", s3StoreConfig, s3StoreConfig.BucketPath, err)
 	}
 	return &S3FileStore{
-		Bucket:       s3StoreConfig.BucketPath,
+		Bucket:       trimmedBucket,
 		BucketRegion: s3StoreConfig.BucketRegion,
 		Credentials:  s3StoreConfig.Credentials,
 		Path:         s3StoreConfig.Path,

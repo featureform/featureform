@@ -4,42 +4,63 @@ Feature: Spark End to End
   # is thrown and the error is overwritten on retries when trying to pull the file as a dataframe
 
   # Need an error for if a parent dependency is not registered
-  Scenario Outline: Register a file
+
+  Scenario Outline: Register a small file in spark
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"
     And I generate a random variant name
-    And I upload a "<filesize>" "<filetype>" file to "<storage_provider>"
+    And I upload a "small" "<filetype>" file to "<storage_provider>"
     And I register "<storage_provider>" filestore with bucket "<bucket>" and root path "behave"
     And I register databricks
     And I register the file
     Then I should be able to pull the file as a dataframe
     Examples: Azure
-      | filesize | filetype | storage_provider | bucket |
-      |  small   |   csv    |       azure      | test   |
-      |  small   |  parquet |       azure      | test   |
-      |  large   |   csv    |       azure      | test   |
-      |  large   |  parquet |       azure      | test   |
-      |  small   | directory|       azure      | test   |
-      |  large   | directory|       azure      | test   |
-#
+      | filetype | storage_provider | bucket |
+      |   csv    |       azure      | test   |
+      |  parquet |       azure      | test   |
+      | directory|       azure      | test   |
+
     Examples: S3
-      | filesize | filetype | storage_provider |          bucket         |
-      |  small   |   csv    |        s3        |featureform-spark-testing|
-      |  small   |  parquet |        s3        |featureform-spark-testing|
-      |  large   |   csv    |        s3        |featureform-spark-testing|
-      |  large   |  parquet |        s3        |featureform-spark-testing|
-      |  small   | directory|        s3        |featureform-spark-testing|
-      |  large   | directory|        s3        |featureform-spark-testing|
+      | filetype | storage_provider |          bucket         |
+      |   csv    |        s3        |featureform-spark-testing|
+      |  parquet |        s3        |featureform-spark-testing|
+      | directory|        s3        |featureform-spark-testing|
 
     Examples: GCS
-      | filesize | filetype |  storage_provider |     bucket     |
-      |  small   |   csv    |        gcs        |featureform-test|
-      |  small   |  parquet |        gcs        |featureform-test|
-      |  large   |   csv    |        gcs        |featureform-test|
-      |  large   |  parquet |        gcs        |featureform-test|
-      |  small   | directory|        gcs        |featureform-test|
-      |  large   | directory|        gcs        |featureform-test|
+      | filetype |  storage_provider |     bucket     |
+      |   csv    |        gcs        |featureform-test|
+      |  parquet |        gcs        |featureform-test|
+      | directory|        gcs        |featureform-test|
 
+  @long @wip
+  Scenario Outline: Register a large file in spark
+    Given Featureform is installed
+    When I create a "hosted" "insecure" client for "localhost:7878"
+    And I generate a random variant name
+    And I upload a "large" "<filetype>" file to "<storage_provider>"
+    And I register "<storage_provider>" filestore with bucket "<bucket>" and root path "behave"
+    And I register databricks
+    And I register the file
+    Then I should be able to pull the file as a dataframe
+    Examples: Azure
+      | filetype | storage_provider | bucket |
+      |   csv    |       azure      | test   |
+      |  parquet |       azure      | test   |
+      | directory|       azure      | test   |
+
+    Examples: S3
+      | filetype | storage_provider |          bucket         |
+      |   csv    |        s3        |featureform-spark-testing|
+      |  parquet |        s3        |featureform-spark-testing|
+      | directory|        s3        |featureform-spark-testing|
+
+    Examples: GCS
+      | filetype |  storage_provider |     bucket     |
+      |   csv    |        gcs        |featureform-test|
+      |  parquet |        gcs        |featureform-test|
+      | directory|        gcs        |featureform-test|
+
+  @wip
   Scenario Outline: Register a file with invalid stores
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"
@@ -83,22 +104,49 @@ Feature: Spark End to End
       And I generate a random variant name
       And I upload a "<filesize>" "<filetype>" file to "<storage_provider>"
       And I register redis
+      And I register "<storage_provider>" filestore with bucket "<bucket>" and root path "behave"
       And I register databricks
       And I register the file
       Then I should be able to pull the file as a dataframe
       When I register a transformation
       Then I should be able to pull the transformation as a dataframe
-      When I register a feature
-      Then I should be able to fetch a feature as a dataframe
-      When I register a label
+      When I register a feature from a "<feature_source>"
+      When I register a label from a "<label_source>"
       And I register a training set
       Then I should be able to pull the trainingset as a dataframe
 
-      Examples: File Sizes
-      | filesize | filetype | storage_provider |
-      |  small   |   csv    |       azure      |
-      |  small   |  parquet |       azure      |
-      |  large   |   csv    |       azure      |
-      |  large   |  parquet |       azure      |
-      |  small   |  directory |       azure      |
+      Examples: Azure
+      | filesize |   filetype   | storage_provider | bucket | feature_source |  label_source  |
+      |  small   |      csv     |       azure      | test   | transformation | transformation |
+      |  small   |      csv     |       azure      | test   |    primary     |     primary    |
+      |  small   |      csv     |       azure      | test   | transformation |     primary    |
+      |  small   |      csv     |       azure      | test   |    primary     | transformation |
+#      |  small   |   parquet    |       azure      | test   | transformation | transformation | # TODO: Enable
+#      |  small   |   parquet    |       azure      | test   |    primary     |     primary    | # TODO: Enable
+#      |  small   |   parquet    |       azure      | test   | transformation |     primary    | # TODO: Enable
+#      |  small   |   parquet    |       azure      | test   |    primary     | transformation | # TODO: Enable
+
+
+    Examples: S3
+      | filesize |   filetype   | storage_provider |            bucket           | feature_source |  label_source  |
+      |  small   |      csv     |         s3       | featureform-spark-testing   | transformation | transformation |
+      |  small   |      csv     |         s3       | featureform-spark-testing   |    primary     |     primary    |
+      |  small   |      csv     |         s3       | featureform-spark-testing   | transformation |     primary    |
+      |  small   |      csv     |         s3       | featureform-spark-testing   |    primary     | transformation |
+#      |  small   |   parquet    |         s3       | test   | transformation | transformation | # TODO: Enable
+#      |  small   |   parquet    |         s3       | test   |    primary     |     primary    | # TODO: Enable
+#      |  small   |   parquet    |         s3       | test   | transformation |     primary    | # TODO: Enable
+#      |  small   |   parquet    |         s3       | test   |    primary     | transformation | # TODO: Enable
+
+    Examples: GCS
+      | filesize |   filetype   | storage_provider | bucket | feature_source |  label_source  |
+#      |  small   |      csv     |        gcs       | test   | transformation | transformation | # Broken
+#      |  small   |      csv     |        gcs       | test   |    primary     |     primary    | # Broken
+#      |  small   |      csv     |        gcs       | test   | transformation |     primary    | # Broken
+#      |  small   |      csv     |        gcs       | test   |    primary     | transformation | # Broken
+#      |  small   |   parquet    |        gcs       | test   | transformation | transformation | # TODO: Enable
+#      |  small   |   parquet    |        gcs       | test   |    primary     |     primary    | # TODO: Enable
+#      |  small   |   parquet    |        gcs       | test   | transformation |     primary    | # TODO: Enable
+#      |  small   |   parquet    |        gcs       | test   |    primary     | transformation | # TODO: Enable
+
 

@@ -2537,7 +2537,7 @@ class Registrar:
         self,
         name: str,
         bucket_name: str,
-        bucket_path: str,
+        root_path: str,
         credentials: GCPCredentials,
         description: str = "",
         team: str = "",
@@ -2573,7 +2573,7 @@ class Registrar:
         """
         tags, properties = set_tags_properties(tags, properties)
         gcs_config = GCSFileStoreConfig(
-            bucket_name=bucket_name, bucket_path=bucket_path, credentials=credentials
+            bucket_name=bucket_name, bucket_path=root_path, credentials=credentials
         )
         provider = Provider(
             name=name,

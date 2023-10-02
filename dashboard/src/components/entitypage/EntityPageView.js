@@ -543,7 +543,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                         })()}
                         {(() => {
                           if (
-                            !metadata['error'] &&
+                            metadata['status']?.toUpperCase() !== 'FAILED' &&
                             metadata['status']?.toUpperCase() !== 'PENDING'
                           ) {
                             return (

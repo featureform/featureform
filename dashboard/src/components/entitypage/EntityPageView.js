@@ -541,13 +541,20 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                             );
                           }
                         })()}
-                        {!metadata['error'] && (
-                          <SourceDialog
-                            api={api}
-                            sourceName={name}
-                            sourceVariant={variant}
-                          />
-                        )}
+                        {(() => {
+                          if (
+                            !metadata['error'] &&
+                            metadata['status']?.toUpperCase() !== 'PENDING'
+                          ) {
+                            return (
+                              <SourceDialog
+                                api={api}
+                                sourceName={name}
+                                sourceVariant={variant}
+                              />
+                            );
+                          }
+                        })()}
                       </div>
                     )}
 

@@ -2161,10 +2161,13 @@ class ResourceState:
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name, resource_variant)
                 resource._get_local(db)
+
             if resource.operation_type() is OperationType.CREATE:
-                print("Creating", resource.type(), resource.name, resource_variant)
+                if resource.name != "default_user":
+                    print("Creating", resource.type(), resource.name, resource_variant)
                 resource._create_local(db)
         db.close()
+
         from .serving import LocalClientImpl
 
         client = LocalClientImpl()
@@ -2194,9 +2197,10 @@ class ResourceState:
                     )
                     resource._get(stub)
                 if resource.operation_type() is OperationType.CREATE:
-                    print(
-                        f"Creating {resource.type()} {resource.name}{resource_variant}"
-                    )
+                    if resource.name != "default_user":
+                        print(
+                            f"Creating {resource.type()} {resource.name}{resource_variant}"
+                        )
                     resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:

@@ -1100,9 +1100,8 @@ class SQLTransformationDecorator:
     def __set_query(self, query: str):
         if query == "":
             raise ValueError("Query cannot be an empty string")
-        # if not self._is_valid_sql_query(query):
-        #     raise InvalidSQLQuery(query)
 
+        self._assert_query_contains_at_least_one_source(query)
         self.query = add_variant_to_name(query, self.run)
 
     def to_source(self) -> SourceVariant:
@@ -1147,11 +1146,13 @@ class SQLTransformationDecorator:
             schedule=schedule,
         )
 
-    def _is_valid_sql_query(self, query):
+    @staticmethod
+    def _assert_query_contains_at_least_one_source(query):
         # Checks to verify that the query contains a FROM {{ name.variant }}
-        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_]+\s*\.\s*[a-zA-Z0-9_]+\s*\}\}"
+        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)?\s*\}\}"
         match = re.search(pattern, query, re.IGNORECASE)
-        return match is not None
+        if match is None:
+            raise InvalidSQLQuery(query, "No source specified.")
 
 
 class DFTransformationDecorator:
@@ -2241,7 +2242,7 @@ class Registrar:
         self,
         name: str,
         host: str,
-        port: int,
+        port: int = 6379,
         db: int = 0,
         password: str = "",
         description: str = "",
@@ -3037,10 +3038,10 @@ class Registrar:
         self,
         name: str,
         host: str,
-        port: str,
         user: str,
         password: str,
         database: str,
+        port: str = "5432",
         description: str = "",
         team: str = "",
         sslmode: str = "disable",

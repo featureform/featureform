@@ -3955,7 +3955,7 @@ class Registrar:
         for feature in features:
             if isinstance(feature, FeatureColumnResource):
                 feature_nv_list.append(feature.name_variant())
-            if isinstance(feature, str):
+            elif isinstance(feature, str):
                 feature_nv_list.append((feature, run))
             elif isinstance(feature, dict):
                 lag = feature.get("lag")
@@ -4059,6 +4059,7 @@ class Registrar:
                 f"Invalid label type: {type(label)} "
                 "Label must be entered as a name-variant tuple (e.g. ('fraudulent', 'quickstart')), a resource name, or an instance of LabelColumnResource."
             )
+
         for resource in resources:
             features += resource.features()
             resource_label = resource.label()
@@ -4073,7 +4074,6 @@ class Registrar:
             label = label.name_variant()
 
         features, feature_lags = self.__get_feature_nv(features, self.__run)
-
         if label == ():
             raise ValueError("Label must be set")
         if features == []:

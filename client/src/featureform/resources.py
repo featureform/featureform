@@ -2162,11 +2162,9 @@ class ResourceState:
                 print("Getting", resource.type(), resource.name, resource_variant)
                 resource._get_local(db)
 
-            if (
-                resource.operation_type() is OperationType.CREATE
-                and resource.name != "default_user"
-            ):
-                print("Creating", resource.type(), resource.name, resource_variant)
+            if resource.operation_type() is OperationType.CREATE:
+                if resource.name != "default_user":
+                    print("Creating", resource.type(), resource.name, resource_variant)
                 resource._create_local(db)
         db.close()
 
@@ -2198,13 +2196,11 @@ class ResourceState:
                         f"Getting {resource.type()} {resource.name}{resource_variant}"
                     )
                     resource._get(stub)
-                if (
-                    resource.operation_type() is OperationType.CREATE
-                    and resource.name != "default_user"
-                ):
-                    print(
-                        f"Creating {resource.type()} {resource.name}{resource_variant}"
-                    )
+                if resource.operation_type() is OperationType.CREATE:
+                    if resource.name != "default_user":
+                        print(
+                            f"Creating {resource.type()} {resource.name}{resource_variant}"
+                        )
                     resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:

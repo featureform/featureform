@@ -886,7 +886,7 @@ class User:
 
     @staticmethod
     def operation_type() -> OperationType:
-        return None #OperationType.CREATE
+        return OperationType.CREATE
 
     def type(self) -> str:
         return "user"
@@ -2161,10 +2161,15 @@ class ResourceState:
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name, resource_variant)
                 resource._get_local(db)
-            if resource.operation_type() is OperationType.CREATE and resource.name != "default_user":
+
+            if (
+                resource.operation_type() is OperationType.CREATE
+                and resource.name != "default_user"
+            ):
                 print("Creating", resource.type(), resource.name, resource_variant)
                 resource._create_local(db)
         db.close()
+
         from .serving import LocalClientImpl
 
         client = LocalClientImpl()
@@ -2193,7 +2198,10 @@ class ResourceState:
                         f"Getting {resource.type()} {resource.name}{resource_variant}"
                     )
                     resource._get(stub)
-                if resource.operation_type() is OperationType.CREATE:
+                if (
+                    resource.operation_type() is OperationType.CREATE
+                    and resource.name != "default_user"
+                ):
                     print(
                         f"Creating {resource.type()} {resource.name}{resource_variant}"
                     )

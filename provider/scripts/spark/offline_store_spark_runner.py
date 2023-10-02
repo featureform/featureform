@@ -76,7 +76,6 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
     #     source_list: List(string) (a list of s3 paths)
     # Return:
     #     output_uri_with_timestamp: string (output s3 path)
-    print("executing sql query")
     try:
         spark = SparkSession.builder.appName("Execute SQL Query").getOrCreate()
         set_spark_configs(spark, spark_configs)

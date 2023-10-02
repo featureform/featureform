@@ -2,7 +2,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 import ast
-import re
 import inspect
 import warnings
 from datetime import timedelta
@@ -12,13 +11,14 @@ from typing import Dict, Tuple, Callable, List, Union, Optional
 import dill
 import pandas as pd
 from typeguard import typechecked
+
 from .enums import FileFormat
+from .exceptions import InvalidSQLQuery
 from .file_utils import absolute_file_paths
 from .get import *
 from .get_local import *
 from .list import *
 from .list_local import *
-from .exceptions import InvalidSQLQuery
 from .names_generator import get_random_name
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
@@ -1062,9 +1062,9 @@ class SubscriptableTransformation:
     @staticmethod
     def __has_return_statement(fn):
         """
-         Parses the function’s source code into an abstract syntax tree
-         and then walks through the tree to check for any Return nodes.
-         Not full-proof but will at least catch cases on the client.
+        Parses the function’s source code into an abstract syntax tree
+        and then walks through the tree to check for any Return nodes.
+        Not full-proof but will at least catch cases on the client.
         """
         tree = ast.parse(inspect.getsource(fn))
         for node in ast.walk(tree):

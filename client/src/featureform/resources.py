@@ -886,7 +886,7 @@ class User:
 
     @staticmethod
     def operation_type() -> OperationType:
-        return OperationType.CREATE
+        return None #OperationType.CREATE
 
     def type(self) -> str:
         return "user"
@@ -2162,7 +2162,7 @@ class ResourceState:
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name, resource_variant)
                 resource._get_local(db)
-            if resource.operation_type() is OperationType.CREATE:
+            if resource.operation_type() is OperationType.CREATE and resource.name != "default_user":
                 print("Creating", resource.type(), resource.name, resource_variant)
                 resource._create_local(db)
         db.close()

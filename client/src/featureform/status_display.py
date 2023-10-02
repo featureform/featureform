@@ -125,27 +125,38 @@ class StatusDisplayer:
                     header_style="bold",
                     box=None,
                 )
-                table.add_column("Resource Type", width=25)
-                table.add_column("Name (Variant)", width=50, no_wrap=True)
-                table.add_column("Status", width=10)
-                table.add_column("Error", style="red")
 
-                for _, status in self.resource_to_status_list:
-                    error = f" {status.error}" if status.error else ""
-                    resource_type = status.resource_type.__name__
-                    name = status.name
-                    status_text = (
-                        status.status
-                        if status.resource_type is not Provider
-                        else "CREATED"
-                    )
+                no_table = False
+                if len(self.resource_to_status_list) == 1:
+                    status = self.resource_to_status_list[0][1]
+                    if status.name == "local-mode":
+                        no_table = True
 
-                    table.add_row(
-                        Text(resource_type),
-                        Text(f"{name} ({status.variant})"),
-                        Text(status_text, style=self.STATUS_TO_COLOR[status_text]),
-                        Text(error, style="red"),
-                    )
+                if not no_table:
+                    table.add_column("Resource Type", width=25)
+                    table.add_column("Name (Variant)", width=50, no_wrap=True)
+                    table.add_column("Status", width=10)
+                    table.add_column("Error", style="red")
+
+
+                    for _, status in self.resource_to_status_list:
+                        error = f" {status.error}" if status.error else ""
+                        if status.name == "local-mode":
+                            continue
+                        resource_type = status.resource_type.__name__
+                        name = status.name
+                        status_text = (
+                            status.status
+                            if status.resource_type is not Provider
+                            else "CREATED"
+                        )
+
+                        table.add_row(
+                            Text(resource_type),
+                            Text(f"{name} ({status.variant})"),
+                            Text(status_text, style=self.STATUS_TO_COLOR[status_text]),
+                            Text(error, style="red"),
+                        )
 
                 live.update(table)
                 live.refresh()

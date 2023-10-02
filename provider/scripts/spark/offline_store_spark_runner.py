@@ -78,7 +78,7 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
     #     source_list: List(string) (a list of s3 paths)
     # Return:
     #     output_uri_with_timestamp: string (output s3 path)
-
+    print("executing sql query")
     try:
         spark = SparkSession.builder.appName("Execute SQL Query").getOrCreate()
         set_spark_configs(spark, spark_configs)
@@ -140,7 +140,6 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
     #     sources: {parameter: s3_path} (used for passing dataframe parameters)
     # Return:
     #     output_uri_with_timestamp: string (output s3 path)
-
     spark = SparkSession.builder.appName("Dataframe Transformation").getOrCreate()
     set_spark_configs(spark, spark_configs)
 
@@ -173,7 +172,7 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         if output_df is None:
             raise Exception("the transformation code returned None.")
 
-        if not isinstance(output_df, spark.sql.dataframe.DataFrame):
+        if not isinstance(output_df, pyspark.sql.dataframe.DataFrame):
             raise Exception(
                 f"the transformation code returned '{type(output_df)}' instead of 'pyspark.sql.dataframe.DataFrame'"
             )

@@ -1027,7 +1027,7 @@ class SubscriptableTransformation:
     ):
         if not self.__has_return_statement(fn):
             raise Exception(
-                "The function passed to the transformation decorator must have areturn"
+                "Transformation function seems to be missing a return statement"
             )
 
         self.fn = fn

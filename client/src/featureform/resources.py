@@ -2137,8 +2137,7 @@ class ResourceState:
 
         def to_sort_key(res):
             resource_num = resource_order[res.type()]
-            variant = res.variant if hasattr(res, "variant") else ""
-            return (resource_num, res.name, variant)
+            return resource_num
 
         return sorted(self.__state.values(), key=to_sort_key)
 

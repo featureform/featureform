@@ -1,23 +1,21 @@
+import argparse
+import base64
 import io
+import json
 import os
 import sys
-import json
-import uuid
 import types
-import base64
-import argparse
-from typing import List
-from pathlib import Path
+import uuid
 from datetime import datetime
+from pathlib import Path
 
-
-import dill
 import boto3
-from google.cloud import storage
-from pyspark.sql import SparkSession
-from google.oauth2 import service_account
+import dill
 from azure.storage.blob import BlobServiceClient
-
+from google.cloud import storage
+from google.oauth2 import service_account
+from pyspark.sql import DataFrame
+from pyspark.sql import SparkSession
 
 FILESTORES = ["local", "s3", "azure_blob_store", "google_cloud_storage", "hdfs"]
 
@@ -172,9 +170,11 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         if output_df is None:
             raise Exception("the transformation code returned None.")
 
-        if not isinstance(output_df, pyspark.sql.dataframe.DataFrame):
-            raise Exception(
-                f"the transformation code returned '{type(output_df)}' instead of 'pyspark.sql.dataframe.DataFrame'"
+        if not isinstance(output_df, DataFrame):
+            raise TypeError(
+                f"Expected output to be of type 'pyspark.sql.dataframe.DataFrame', "
+                f"got '{type(output_df).__name__}' instead.\n"
+                f"Please make sure that the transformation code returns a dataframe."
             )
 
         dt = datetime.now()

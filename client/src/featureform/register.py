@@ -1064,6 +1064,7 @@ class SubscriptableTransformation:
         """
          Parses the function’s source code into an abstract syntax tree
          and then walks through the tree to check for any Return nodes.
+         Not full-proof but will at least catch cases on the client.
         """
         tree = ast.parse(inspect.getsource(fn))
         for node in ast.walk(tree):

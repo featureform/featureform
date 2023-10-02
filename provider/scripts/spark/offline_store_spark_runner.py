@@ -114,6 +114,7 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
             )
 
         output_dataframe = spark.sql(sql_query)
+        _validate_output_df(output_dataframe)
 
         dt = datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
@@ -166,16 +167,7 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         code = get_code_from_file(code, store_type, credentials)
         func = types.FunctionType(code, globals(), "df_transformation")
         output_df = func(*func_parameters)
-
-        if output_df is None:
-            raise Exception("the transformation code returned None.")
-
-        if not isinstance(output_df, DataFrame):
-            raise TypeError(
-                f"Expected output to be of type 'pyspark.sql.dataframe.DataFrame', "
-                f"got '{type(output_df).__name__}' instead.\n"
-                f"Please make sure that the transformation code returns a dataframe."
-            )
+        _validate_output_df(output_df)
 
         dt = datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
@@ -190,6 +182,17 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
     except (IOError, OSError) as e:
         print(f"Issue with execution of the transformation: {e}")
         raise e
+
+
+def _validate_output_df(output_df):
+    if output_df is None:
+        raise Exception("the transformation code returned None.")
+    if not isinstance(output_df, DataFrame):
+        raise TypeError(
+            f"Expected output to be of type 'pyspark.sql.dataframe.DataFrame', "
+            f"got '{type(output_df).__name__}' instead.\n"
+            f"Please make sure that the transformation code returns a dataframe."
+        )
 
 
 def get_code_from_file(file_path, store_type=None, credentials=None):

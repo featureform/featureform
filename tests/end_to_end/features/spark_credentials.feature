@@ -1,5 +1,6 @@
 Feature: Spark Credentials
 
+  @wip
   Scenario Outline: EMR Credentials
     Given Featureform is installed
     When I create dummy "<cloud_provider>" credentials
@@ -13,6 +14,7 @@ Feature: Spark Credentials
       |       DUMMYID         |         us-east-1          |      empty     |     type of argument "credentials" must be featureform.resources.AWSCredentials; got NoneType instead     |
       |       DUMMYID         |         us-east-1          |      GCP       |     type of argument "credentials" must be featureform.resources.AWSCredentials; got featureform.resources.GCPCredentials instead     |
 
+  @wip
   Scenario Outline: Databricks Credentials
     Given Featureform is installed
     When I create Databricks credentials with username "<username>", password "<password>", host "<host>", token "<token>", cluster ID "<cluster_id>"
@@ -31,6 +33,7 @@ Feature: Spark Credentials
       |   dummy  |   dummy  | empty| empty |   empty    |   Cluster_id of existing cluster must be provided   |
       |   empty  |   empty  | dummy| dummy |   empty    |   Cluster_id of existing cluster must be provided   |
 
+  @wip
   Scenario Outline: Generic Credentials
     Given Featureform is installed
     When I create Generic Spark credentials with master "<master>", deploy mode "<deploy_mode>", python version "<python_version>", core site path "<core_site_path>", yarn site path "<yarn_site_path>"

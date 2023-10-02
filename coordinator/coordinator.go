@@ -389,6 +389,7 @@ func (c *Coordinator) verifyCompletionOfSources(sources []metadata.NameVariant) 
 			}
 		}
 		allReady = total == totalReady
+		time.Sleep(1 * time.Second)
 	}
 	return nil
 }

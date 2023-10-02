@@ -993,7 +993,7 @@ class Dataset:
             df = client.training_set("fraud_training", "v1").dataframe()
             print(df.head())
             # Output:
-            #                feature_avg_transactions_default  label_fraudulent_default
+            #                feature_avg_transactions_default             label
             # 0                                25.0                       False
             # 1                             27999.0                       False
             # 2                               459.0                       False
@@ -1017,6 +1017,7 @@ class Dataset:
             self._dataframe = pd.DataFrame(
                 data=data, columns=[*cols.features, cols.label]
             )
+            self._dataframe.rename(columns={cols.label: "label"}, inplace=True)
             return self._dataframe
 
     def from_dataframe(dataframe, include_label_timestamp):

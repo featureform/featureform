@@ -1100,9 +1100,8 @@ class SQLTransformationDecorator:
     def __set_query(self, query: str):
         if query == "":
             raise ValueError("Query cannot be an empty string")
-        if not self._is_valid_sql_query(query):
-            raise InvalidSQLQuery(query)
 
+        self._assert_query_contains_at_least_one_source(query)
         self.query = add_variant_to_name(query, self.run)
 
     def to_source(self) -> SourceVariant:
@@ -1147,11 +1146,13 @@ class SQLTransformationDecorator:
             schedule=schedule,
         )
 
-    def _is_valid_sql_query(self, query):
+    @staticmethod
+    def _assert_query_contains_at_least_one_source(query):
         # Checks to verify that the query contains a FROM {{ name.variant }}
-        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_]+\s*\.\s*[a-zA-Z0-9_]+\s*\}\}"
+        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)?\s*\}\}"
         match = re.search(pattern, query, re.IGNORECASE)
-        return match is not None
+        if match is None:
+            raise InvalidSQLQuery(query, "No source specified.")
 
 
 class DFTransformationDecorator:
@@ -2241,7 +2242,7 @@ class Registrar:
         self,
         name: str,
         host: str,
-        port: int,
+        port: int = 6379,
         db: int = 0,
         password: str = "",
         description: str = "",
@@ -2537,7 +2538,7 @@ class Registrar:
         self,
         name: str,
         bucket_name: str,
-        bucket_path: str,
+        root_path: str,
         credentials: GCPCredentials,
         description: str = "",
         team: str = "",
@@ -2573,7 +2574,7 @@ class Registrar:
         """
         tags, properties = set_tags_properties(tags, properties)
         gcs_config = GCSFileStoreConfig(
-            bucket_name=bucket_name, bucket_path=bucket_path, credentials=credentials
+            bucket_name=bucket_name, bucket_path=root_path, credentials=credentials
         )
         provider = Provider(
             name=name,
@@ -3037,10 +3038,10 @@ class Registrar:
         self,
         name: str,
         host: str,
-        port: str,
         user: str,
         password: str,
         database: str,
+        port: str = "5432",
         description: str = "",
         team: str = "",
         sslmode: str = "disable",
@@ -3954,7 +3955,7 @@ class Registrar:
         for feature in features:
             if isinstance(feature, FeatureColumnResource):
                 feature_nv_list.append(feature.name_variant())
-            if isinstance(feature, str):
+            elif isinstance(feature, str):
                 feature_nv_list.append((feature, run))
             elif isinstance(feature, dict):
                 lag = feature.get("lag")
@@ -4058,6 +4059,7 @@ class Registrar:
                 f"Invalid label type: {type(label)} "
                 "Label must be entered as a name-variant tuple (e.g. ('fraudulent', 'quickstart')), a resource name, or an instance of LabelColumnResource."
             )
+
         for resource in resources:
             features += resource.features()
             resource_label = resource.label()
@@ -4072,7 +4074,6 @@ class Registrar:
             label = label.name_variant()
 
         features, feature_lags = self.__get_feature_nv(features, self.__run)
-
         if label == ():
             raise ValueError("Label must be set")
         if features == []:
@@ -4179,7 +4180,7 @@ class ResourceClient:
             self._stub = ff_grpc.ApiStub(channel)
             self._host = host
 
-    def apply(self, asynchronous=True):
+    def apply(self, asynchronous=False, verbose=False):
         """
         Apply all definitions, creating and retrieving all specified resources.
 
@@ -4214,7 +4215,7 @@ class ResourceClient:
 
             if not asynchronous and self._stub:
                 resources = resource_state.sorted_list()
-                display_statuses(self._stub, resources)
+                display_statuses(self._stub, resources, verbose=verbose)
 
         finally:
             clear_state()

@@ -1,5 +1,6 @@
 Feature: Provider Registration
 
+  @wip
   Scenario Outline: S3 Registration
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"
@@ -11,7 +12,7 @@ Feature: Provider Registration
       | test |       AWS      |     test    |    us-east-1  | test |   None    |
       | test |       GCP      |     test    |    us-east-1  | test |   type of argument "credentials" must be featureform.providers.credentials.AWSCredentials; got featureform.providers.credentials.GCPCredentials    |
 
-
+  @wip
   Scenario Outline: GCS Registration
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"

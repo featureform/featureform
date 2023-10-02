@@ -57,6 +57,7 @@ class Client(ResourceClient, ServingClient):
         variant: Optional[str] = None,
         limit=NO_RECORD_LIMIT,
         asynchronous=False,
+        verbose=False,
     ):
         """
         Return a dataframe from a registered source or transformation
@@ -78,7 +79,7 @@ class Client(ResourceClient, ServingClient):
             df (pandas.DataFrame): The dataframe computed from the source or transformation
 
         """
-        self.apply(asynchronous=asynchronous)
+        self.apply(asynchronous=asynchronous, verbose=verbose)
         if isinstance(
             source, (SourceRegistrar, LocalSource, SubscriptableTransformation)
         ):

@@ -1,3 +1,6 @@
+import time
+from time import sleep
+
 from behave import *
 from featureform import register_spark
 import featureform as ff
@@ -26,7 +29,7 @@ def step_impl(context):
 def step_impl(context):
     context.redis = ff.register_redis(
         name="redis-quickstart",
-        host="host.docker.internal",  # The docker dns name for redis
+        host="172.17.0.1",  # The docker dns name for redis
         port=6379,
     )
     context.client.apply()
@@ -50,7 +53,7 @@ def step_impl(context, storage_provider, bucket, root_path):
             account_name=os.getenv("AZURE_ACCOUNT_NAME", None),
             account_key=os.getenv("AZURE_ACCOUNT_KEY", None),
             container_name=bucket,
-            path=root_path,
+            root_path=root_path,
         )
 
     elif storage_provider == "s3":
@@ -73,7 +76,7 @@ def step_impl(context, storage_provider, bucket, root_path):
                 credentials_path=os.getenv("GCP_CREDENTIALS_FILE"),
             ),
             bucket_name=bucket,
-            path=root_path,
+            root_path=root_path,
         )
 
     else:
@@ -106,7 +109,7 @@ def step_impl(context):
     context.spark_name = name
     try:
         context.spark = spark
-        context.client.apply()
+        context.client.apply(asynchronous=False, verbose=True)
     except Exception as e:
         context.exception = e
 
@@ -117,7 +120,7 @@ def step_impl(context):
         name="transactions",
         file_path=context.cloud_file_path,
     )
-    context.client.apply()
+    context.client.apply(asynchronous=False, verbose=True)
 
 
 @then("I should be able to pull the file as a dataframe")
@@ -144,29 +147,43 @@ def step_impl(context):
         return df
 
     context.transformation = ice_cream_transformation
-    context.client.apply()
+    context.client.apply(asynchronous=False, verbose=True)
 
 
 @then("I should be able to pull the transformation as a dataframe")
 def step_impl(context):
-    df = context.client.dataframe(context.transformation)
+    df = context.client.dataframe(
+        context.transformation,
+    )
     assert (
         len(df) == context.file_length
     ), f"Expected {context.file_length} rows, got {len(df)} rows"
 
 
-@when("I register a feature")
-def step_impl(context):
-    @ff.entity
-    class User:
-        avg_transactions = ff.Feature(
-            context.transformation[["CustomerID", "TransactionAmount"]],
-            type=ff.Float32,
-            inference_store=context.redis,
-        )
+@when('I register a feature from a "{source_type}"')
+def step_impl(context, source_type):
+    if source_type == "transformation":
+
+        @ff.entity
+        class User:
+            avg_transactions = ff.Feature(
+                context.transformation[["CustomerID", "TransactionAmount"]],
+                type=ff.Float32,
+                inference_store=context.redis,
+            )
+
+    elif source_type == "primary":
+
+        @ff.entity
+        class User:
+            avg_transactions = ff.Feature(
+                context.file[["CustomerID", "TransactionAmount"]],
+                type=ff.Float32,
+                inference_store=context.redis,
+            )
 
     context.feature_name = "avg_transactions"
-    context.client.apply()
+    context.client.apply(asynchronous=False, verbose=True)
 
 
 @then("I should be able to pull the feature as a dataframe")
@@ -176,17 +193,28 @@ def step_impl(context):
     )
 
 
-@when("I register a label")
-def step_impl(context):
-    @ff.entity
-    class User:
-        fraudulent = ff.Label(
-            context.transformation[["CustomerID", "IsFraud"]],
-            type=ff.Bool,
-        )
+@when('I register a label from a "{source_type}"')
+def step_impl(context, source_type):
+    if source_type == "transformation":
+
+        @ff.entity
+        class User:
+            fraudulent = ff.Label(
+                context.transformation[["CustomerID", "IsFraud"]],
+                type=ff.Bool,
+            )
+
+    elif source_type == "primary":
+
+        @ff.entity
+        class User:
+            fraudulent = ff.Label(
+                context.file[["CustomerID", "IsFraud"]],
+                type=ff.Bool,
+            )
 
     context.label_name = "fraudulent"
-    context.client.apply()
+    context.client.apply(asynchronous=False, verbose=True)
 
 
 @when("I register a training set")
@@ -196,10 +224,10 @@ def step_impl(context):
         label=(context.label_name, ff.get_run()),
         features=[(context.feature_name, ff.get_run())],
     )
-    context.client.apply()
+    context.client.apply(asynchronous=False, verbose=True)
 
 
 @then("I should be able to pull the trainingset as a dataframe")
 def step_impl(context):
     dataset = context.client.training_set("fraud_training", ff.get_run())
-    df = dataset.dataframe()
+    context.training_set_dataframe = dataset.dataframe()

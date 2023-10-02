@@ -1,5 +1,6 @@
 Feature: Credentials
 
+  @wip
   Scenario Outline: Create AWS Credentials
     Given Featureform is installed
     When I create the AWS credentials with an access key "<access_key>" and secret key "<secret_key>"
@@ -10,10 +11,9 @@ Feature: Credentials
       | empty  | asdvadvadv | 'AWSCredentials' access_key cannot be empty  |
       |  AXASCASCA | empty | 'AWSCredentials' secret_key cannot be empty  |
 
-
+  @wip
   Scenario Outline: Create GCP Credentials
     Given Featureform is installed
-
     When I create the GCP credentials with a project id "<project_id>" and credentials path "<credentials_path>"
     Then An exception that "matches" "<exception>" should be raised
     Examples:

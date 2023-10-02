@@ -230,4 +230,4 @@ def step_impl(context):
 @then("I should be able to pull the trainingset as a dataframe")
 def step_impl(context):
     dataset = context.client.training_set("fraud_training", ff.get_run())
-    df = dataset.dataframe()
+    context.training_set_dataframe = dataset.dataframe()

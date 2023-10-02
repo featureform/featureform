@@ -4180,7 +4180,7 @@ class ResourceClient:
             self._stub = ff_grpc.ApiStub(channel)
             self._host = host
 
-    def apply(self, asynchronous=True, verbose=False):
+    def apply(self, asynchronous=False, verbose=False):
         """
         Apply all definitions, creating and retrieving all specified resources.
 

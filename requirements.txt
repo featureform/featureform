@@ -41,6 +41,6 @@ regex==2022.10.31
 requests==2.31.0
 six==1.16.0
 tomli==2.0.1
-urllib3==1.26.14
+urllib3==1.26.17
 watchdog==2.2.1
 zipp==3.12.0

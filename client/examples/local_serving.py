@@ -1,8 +1,8 @@
 import featureform as ff
 
-client = ff.ServingClient(local=True)
+client = ff.Client(local=True)
 
-training_set = client.training_set("fraud_training", "quickstart")
+training_set = client.training_set("fraud_training", "courageous_jones")
 i = 0
 for r in training_set:
     print(r)
@@ -10,6 +10,6 @@ for r in training_set:
     if i > 10:
         break
 
-client = ff.ServingClient(local=True)
-fpf = client.features([("avg_transactions", "quickstart")], {"user": "C1410926"})
+client = ff.Client(local=True)
+fpf = client.features([("avg_transactions", "quickstart")], {"user": "C1010012"})
 print(fpf)

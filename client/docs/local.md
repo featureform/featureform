@@ -1,10 +1,10 @@
 # Local
-::: src.featureform.register.LocalProvider
+::: featureform.register.LocalProvider
     handler: python
     options:
         show_root_heading: true
 
-::: src.featureform.register.LocalSource
+::: featureform.register.LocalSource
     handler: python
     options:
         show_root_heading: true

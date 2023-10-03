@@ -12,12 +12,13 @@ from featureform.register import (
     SQLTransformation,
     PrimaryData,
     Location,
+    SQLTable,
 )
 from featureform.resources import (
-    Feature,
-    Label,
-    TrainingSet,
-    Source,
+    FeatureVariant,
+    LabelVariant,
+    TrainingSetVariant,
+    SourceVariant,
     Transformation,
     ResourceColumnMapping,
     ResourceStatus,
@@ -36,6 +37,7 @@ pb_ready = pb.ResourceStatus.Status.READY
 pb_failed = pb.ResourceStatus.Status.FAILED
 sql_query = "SELECT * FROM NONE"
 df_query = dill.dumps(my_func)
+df_source_text = dill.source.getsource(my_func)
 df_name_variants = [("name", "variant")]
 primary_table_name = "my_table"
 
@@ -54,6 +56,7 @@ df_definition_proto = pb.SourceVariant(
             inputs=[
                 pb.NameVariant(name=nv[0], variant=nv[1]) for nv in df_name_variants
             ],
+            source_text=df_source_text,
         )
     ),
 )
@@ -65,9 +68,11 @@ primary_definition_proto = pb.SourceVariant(
 
 sql_definition_obj = SQLTransformation(sql_query)
 
-df_definition_obj = DFTransformation(query=df_query, inputs=df_name_variants)
+df_definition_obj = DFTransformation(
+    query=df_query, inputs=df_name_variants, source_text=df_source_text
+)
 
-primary_definition_obj = PrimaryData(Location(primary_table_name))
+primary_definition_obj = PrimaryData(SQLTable(primary_table_name))
 
 
 # Fetches status from proto for same response that client would give
@@ -92,8 +97,10 @@ def test_feature_status(mocker, status, expected, ready):
     mocker.patch.object(
         ResourceClient,
         "get_feature",
-        return_value=Feature(
+        return_value=FeatureVariant(
+            created=None,
             name="name",
+            variant="",
             source=("some", "source"),
             value_type="float32",
             entity="entity",
@@ -127,8 +134,9 @@ def test_label_status(mocker, status, expected, ready):
     mocker.patch.object(
         ResourceClient,
         "get_label",
-        return_value=Label(
+        return_value=LabelVariant(
             name="name",
+            variant="",
             source=("some", "source"),
             value_type="float32",
             entity="entity",
@@ -162,8 +170,10 @@ def test_training_set_status(mocker, status, expected, ready):
     mocker.patch.object(
         ResourceClient,
         "get_training_set",
-        return_value=TrainingSet(
+        return_value=TrainingSetVariant(
+            created=None,
             name="",
+            variant="",
             owner="",
             label=("something", "something"),
             features=[("some", "feature")],
@@ -195,8 +205,10 @@ def test_source_status(mocker, status, expected, ready):
     mocker.patch.object(
         ResourceClient,
         "get_source",
-        return_value=Source(
+        return_value=SourceVariant(
+            created=None,
             name="",
+            variant="",
             definition=Transformation(),
             owner="me",
             provider="provider",

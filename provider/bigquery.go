@@ -97,10 +97,14 @@ func (pt *bqPrimaryTable) GetName() string {
 
 func (pt *bqPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 	tableName := pt.query.getTableName(pt.name)
-	query := fmt.Sprintf("SELECT * FROM `%s` LIMIT %d", tableName, n)
+	var query string
+	if n == -1 {
+		query = fmt.Sprintf("SELECT * FROM `%s`", tableName)
+	} else {
+		query = fmt.Sprintf("SELECT * FROM `%s` LIMIT %d", tableName, n)
+	}
 	bqQ := pt.client.Query(query)
 	it, err := bqQ.Read(pt.query.getContext())
-
 	if err != nil {
 		return nil, err
 	}
@@ -140,6 +144,15 @@ func (pt *bqPrimaryTable) Write(rec GenericRecord) error {
 	_, err := bqQ.Read(pt.query.getContext())
 
 	return err
+}
+
+func (pt *bqPrimaryTable) WriteBatch(recs []GenericRecord) error {
+	for _, rec := range recs {
+		if err := pt.Write(rec); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (pt *bqPrimaryTable) getNonNullRecords(rec GenericRecord) ([]bigquery.QueryParameter, []TableColumn, string) {
@@ -442,14 +455,14 @@ func (q defaultBQQueries) transformationUpdate(client *bigquery.Client, tableNam
 }
 
 func (q defaultBQQueries) atomicUpdate(client *bigquery.Client, tableName string, tempName string, query string) error {
-	sanitizedTable := tableName
-	oldTable := fmt.Sprintf("old_%s", tableName)
+	bqTableName := q.getTableName(tableName)
+	bqTempTableName := q.getTableName(tempName)
 	updateQuery := fmt.Sprintf(
 		"%s;"+
-			"ALTER TABLE `%s` RENAME TO `%s`;"+
-			"ALTER TABLE `%s` RENAME TO `%s`;"+
+			"TRUNCATE TABLE `%s`;"+ // this doesn't work in a trx
+			"INSERT INTO `%s` SELECT * FROM `%s`;"+
 			"DROP TABLE `%s`;"+
-			"", query, q.getTableName(sanitizedTable), oldTable, q.getTableName(tempName), sanitizedTable, q.getTableName(oldTable))
+			"", query, bqTableName, bqTableName, bqTempTableName, bqTempTableName)
 
 	bdQ := client.Query(updateQuery)
 	job, err := bdQ.Run(q.getContext())
@@ -678,6 +691,15 @@ func (table *bqOfflineTable) Write(rec ResourceRecord) error {
 	_, err = bqQ.Read(table.query.getContext())
 
 	return err
+}
+
+func (table *bqOfflineTable) WriteBatch(recs []ResourceRecord) error {
+	for _, rec := range recs {
+		if err := table.Write(rec); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type bqOfflineStore struct {

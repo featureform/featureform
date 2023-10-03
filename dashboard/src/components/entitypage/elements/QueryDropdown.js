@@ -1,10 +1,10 @@
-import PrometheusGraph from "./PrometheusGraph";
-import React from "react";
-import { makeStyles } from "@material-ui/core/styles";
+import { makeStyles } from '@mui/styles';
+import React from 'react';
+import PrometheusGraph from './PrometheusGraph';
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   root: {
-    maxHeight: "20em",
+    maxHeight: '20em',
   },
 }));
 function QueryDropdown({ query, type, name, query_type, add_labels, remote }) {

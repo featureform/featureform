@@ -1,45 +1,60 @@
-import React from "react";
-import AppBar from "@material-ui/core/AppBar";
-import Tabs from "@material-ui/core/Tabs";
-import Tab from "@material-ui/core/Tab";
-import PropTypes from "prop-types";
-import { makeStyles } from "@material-ui/core/styles";
-import Typography from "@material-ui/core/Typography";
-import MaterialTable, { MTableBody, MTableHeader } from "material-table";
-import Box from "@material-ui/core/Box";
-import styled, { css } from 'styled-components'
-import Grid from "@material-ui/core/Grid";
-import Container from "@material-ui/core/Container";
-import Icon from "@material-ui/core/Icon";
-import Chip from "@material-ui/core/Chip";
-import FormControl from "@material-ui/core/FormControl";
-import Select from "@material-ui/core/Select";
-import MenuItem from "@material-ui/core/MenuItem";
-import { VariantTable } from "../resource-list/ResourceListView.js";
-import { useRouter } from "next/router";
-import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
-import python from "react-syntax-highlighter/dist/cjs/languages/prism/python";
-import sql from "react-syntax-highlighter/dist/cjs/languages/prism/sql";
-import json from "react-syntax-highlighter/dist/cjs/languages/prism/json";
-import { okaidia } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import AppBar from '@mui/material/AppBar';
+import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
+import Container from '@mui/material/Container';
+import FormControl from '@mui/material/FormControl';
+import Grid from '@mui/material/Grid';
+import Icon from '@mui/material/Icon';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
+import Typography from '@mui/material/Typography';
+import { makeStyles, ThemeProvider } from '@mui/styles';
+import MaterialTable, { MTableBody, MTableHeader } from 'material-table';
+import { useRouter } from 'next/router';
+import PropTypes from 'prop-types';
+import React from 'react';
+import { PrismAsyncLight as SyntaxHighlighter } from 'react-syntax-highlighter';
+import json from 'react-syntax-highlighter/dist/cjs/languages/prism/json';
+import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
+import sql from 'react-syntax-highlighter/dist/cjs/languages/prism/sql';
+import { okaidia } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import { format } from 'sql-formatter';
+import Resource from '../../api/resources/Resource.js';
+import theme from '../../styles/theme/index.js';
+import SourceDialog from '../dialog/SourceDialog';
+import { VariantTable } from '../resource-list/ResourceListView.js';
+import AttributeBox from './elements/AttributeBox';
+import MetricsDropdown from './elements/MetricsDropdown';
+import StatsDropdown from './elements/StatsDropdown';
+import TagBox from './elements/TagBox.js';
+import VariantControl from './elements/VariantControl';
 
-import VariantControl from "./elements/VariantControl";
-import AttributeBox from "./elements/AttributeBox";
-import MetricsDropdown from "./elements/MetricsDropdown";
-import StatsDropdown from "./elements/StatsDropdown";
-import Resource from "../../api/resources/Resource.js";
-import theme from "../../styles/theme/index.js";
+SyntaxHighlighter.registerLanguage('python', python);
+SyntaxHighlighter.registerLanguage('sql', sql);
+SyntaxHighlighter.registerLanguage('json', json);
 
-SyntaxHighlighter.registerLanguage("python", python);
-SyntaxHighlighter.registerLanguage("sql", sql);
-SyntaxHighlighter.registerLanguage("json", json);
+export function getFormattedSQL(sqlString = '') {
+  let stringResult = sqlString;
+  try {
+    stringResult = format(sqlString.replace('{{', '').replace('}}', ''), {
+      language: 'sql',
+    });
+  } catch {
+    console.error('There was an error formatting the sql string');
+    console.error(stringResult);
+    stringResult = sqlString;
+  }
+  return stringResult;
+}
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
 
   return (
     <div
-      role="tabpanel"
+      role='tabpanel'
       hidden={value !== index}
       id={`simple-tabpanel-${index}`}
       aria-labelledby={`simple-tab-${index}`}
@@ -64,25 +79,25 @@ const useStyles = makeStyles((theme) => ({
   },
   resourceMetadata: {
     padding: theme.spacing(1),
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-around",
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-around',
   },
   border: {
-    background: "white",
+    background: 'white',
     border: `2px solid ${theme.palette.border.main}`,
-    borderRadius: "16px",
+    borderRadius: '16px',
   },
   data: {
-    background: "white",
+    background: 'white',
     marginTop: theme.spacing(2),
     border: `2px solid ${theme.palette.border.main}`,
-    borderRadius: "16px",
+    borderRadius: '16px',
   },
   appbar: {
-    background: "transparent",
-    boxShadow: "none",
-    color: "black",
+    background: 'transparent',
+    boxShadow: 'none',
+    color: 'black',
   },
   metadata: {
     marginTop: theme.spacing(2),
@@ -91,24 +106,24 @@ const useStyles = makeStyles((theme) => ({
   small: {
     width: theme.spacing(3),
     height: theme.spacing(3),
-    display: "inline-flex",
-    alignItems: "self-end",
+    display: 'inline-flex',
+    alignItems: 'self-end',
   },
   titleBox: {
-    diplay: "inline-block",
-    flexDirection: "row",
+    diplay: 'inline-block',
+    flexDirection: 'row',
   },
   entityButton: {
-    justifyContent: "left",
+    justifyContent: 'left',
     padding: 0,
-    width: "30%",
-    textTransform: "none",
+    width: '30%',
+    textTransform: 'none',
   },
   transformButton: {
-    justifyContent: "left",
+    justifyContent: 'left',
     padding: 0,
     //width: "30%",
-    textTransform: "none",
+    textTransform: 'none',
   },
   description: {},
 
@@ -116,21 +131,21 @@ const useStyles = makeStyles((theme) => ({
     marginRight: theme.spacing(2),
   },
   variantControl: {
-    alignSelf: "flex-end",
+    alignSelf: 'flex-end',
   },
   syntax: {
-    width: "200px + 50%",
-    minWidth: "200px",
+    width: '200px + 50%',
+    minWidth: '200px',
     paddingLeft: theme.spacing(2),
   },
   resourceList: {
-    background: "rgba(255, 255, 255, 0.3)",
+    background: 'rgba(255, 255, 255, 0.3)',
 
-    paddingLeft: "0",
-    paddingRight: "0",
+    paddingLeft: '0',
+    paddingRight: '0',
     border: `2px solid ${theme.palette.border.main}`,
     borderRadius: 16,
-    "& > *": {
+    '& > *': {
       borderRadius: 16,
     },
   },
@@ -143,12 +158,12 @@ const useStyles = makeStyles((theme) => ({
   },
   linkChip: {
     //width: "10%",
-    "& .MuiChip-label": {
+    '& .MuiChip-label': {
       paddingRight: theme.spacing(1),
     },
   },
   linkBox: {
-    display: "flex",
+    display: 'flex',
   },
   tableHeader: {
     border: `2px solid ${theme.palette.border.main}`,
@@ -156,11 +171,11 @@ const useStyles = makeStyles((theme) => ({
     color: theme.palette.border.alternate,
   },
   tabChart: {
-    "& .MuiBox-root": {
-      padding: "0",
-      margin: "0",
-      paddingTop: "1em",
-      paddingBottom: "0.5em",
+    '& .MuiBox-root': {
+      padding: '0',
+      margin: '0',
+      paddingTop: '1em',
+      paddingBottom: '0.5em',
     },
   },
   config: {
@@ -182,42 +197,62 @@ const useStyles = makeStyles((theme) => ({
     borderRadius: 16,
   },
   resourcesTopRow: {
-    display: "flex",
-    justifyContent: "space-between",
+    display: 'flex',
+    justifyContent: 'space-between',
   },
   title: {
-    display: "flex",
+    display: 'flex',
   },
   titleText: {
-    paddingLeft: "1em",
+    paddingLeft: '1em',
   },
 }));
 
 function a11yProps(index) {
   return {
     id: `simple-tab-${index}`,
-    "aria-controls": `simple-tabpanel-${index}`,
+    'aria-controls': `simple-tabpanel-${index}`,
   };
 }
 
-const EntityPageView = ({ entity, setVariant, activeVariants }) => {
+export const convertInputToDate = (timestamp_string_or_mil = '') => {
+  const input = timestamp_string_or_mil;
+
+  if (isNaN(input)) {
+    return generateDate(input);
+  } else {
+    const createdTimeInSeconds = parseFloat(input); //resources.py returns seconds, not milliseconds
+    const createdTimeMilliSeconds = Math.round(createdTimeInSeconds * 1000);
+    return generateDate(createdTimeMilliSeconds);
+  }
+
+  function generateDate(str) {
+    return new Date(str).toLocaleString('en-US', {
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    });
+  }
+};
+
+const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
   let resources = entity.resources;
   let resourceType = Resource[resources.type];
   let type = resourceType.type;
   const router = useRouter();
-  const showMetrics = resourceType.hasMetrics;
+  const showMetrics =
+    process.env.NODE_ENV == 'production' ? resourceType.hasMetrics : false;
   const showStats = false;
+  /*eslint-disable no-constant-condition*/
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const statsTabDisplacement = showMetrics ? 1 : 0;
-  const name = resources["name"];
+  const name = resources['name'];
   const icon = resourceType.materialIcon;
 
-  let variant = resources["default-variant"];
+  let variant = resources['default-variant'];
 
   if (activeVariants[entity.resources.type][name]) {
     variant = activeVariants[entity.resources.type][name];
   } else {
-    setVariant(entity.resources.type, name, resources["default-variant"]);
+    setVariant(entity.resources.type, name, resources['default-variant']);
   }
 
   let resource;
@@ -237,28 +272,31 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
     }
   });
 
-  if (metadata["source"]) {
-    metadata["source"] = metadata["source"].Name;
-    metadata["source-variant"] = metadata["source"].Variant;
+  function getFormattedSQL(sqlString = '') {
+    let stringResult = sqlString;
+    try {
+      stringResult = format(sqlString.replace('{{', '').replace('}}', ''), {
+        language: 'sql',
+      });
+    } catch {
+      console.error('There was an error formatting the sql string');
+      console.error(stringResult);
+      stringResult = sqlString;
+    }
+    return stringResult;
   }
-
-  const convertTimestampToDate = (timestamp_string) => {
-    return new Date(timestamp_string).toLocaleString("en-US", {
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    });
-  };
 
   const numValidKeys = (dict) => {
     let validKeys = 0;
-    Object.keys(dict).forEach(function(key) {
-      if (metadata["specifications"][key] !== "") {
-        validKeys++
+    Object.keys(dict).forEach(function (key) {
+      if (metadata['specifications'][key] !== '') {
+        validKeys++;
       }
-    })
-    return validKeys
-  }
+    });
+    return validKeys;
+  };
 
-  let allVariants = resources["all-variants"];
+  let allVariants = resources['all-variants'];
 
   const classes = useStyles();
   const [value, setValue] = React.useState(0);
@@ -267,7 +305,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
     setVariant(type, name, event.target.value);
   };
 
-  const handleChange = (event, newValue) => {
+  const handleChange = (_, newValue) => {
     setValue(newValue);
   };
 
@@ -275,34 +313,35 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
     return word[0].toUpperCase() + word.slice(1).toLowerCase();
   };
 
-  const linkToEntityPage = (event) => {
-    router.push(`/entities/${metadata["entity"]}`);
+  const linkToEntityPage = () => {
+    router.push(`/entities/${metadata['entity']}`);
   };
 
-  const linkToPrimaryData = (event) => {
-    router.push(`/sources/${metadata["source"]}`);
+  const linkToPrimaryData = () => {
+    setVariant('Source', metadata['source'].Name, metadata['source'].Variant);
+    router.push(`/sources/${metadata['source'].Name}`);
   };
 
-  const linkToLabel = (event) => {
-    router.push(`/labels/${metadata["label"].Name}`);
+  const linkToLabel = () => {
+    router.push(`/labels/${metadata['label'].Name}`);
   };
 
-  const linkToUserPage = (event) => {
-    router.push(`/users/${metadata["owner"]}`);
+  const linkToUserPage = () => {
+    router.push(`/users/${metadata['owner']}`);
   };
 
-  const linkToProviderPage = (event) => {
-    router.push(`/providers/${metadata["provider"]}`);
+  const linkToProviderPage = () => {
+    router.push(`/providers/${metadata['provider']}`);
   };
 
   return true || (!resources.loading && !resources.failed && resources.data) ? (
     <div>
-      <Container maxWidth="xl" className={classes.border}>
+      <Container maxWidth={false} className={classes.border}>
         <div className={classes.metadata}>
           <Grid
             container
             className={classes.topContainer}
-            justifyContent="flex-start"
+            justifyContent='flex-start'
           >
             <Grid item xs={false} className={classes.icon}></Grid>
             <Grid item xs={12} lg={12}>
@@ -310,12 +349,15 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                 <div className={classes.title}>
                   <Icon>{icon}</Icon>
                   <div className={classes.titleText}>
-                    <Typography variant="h4" component="h4">
-                      <b>{resources.name}</b>
+                    <Typography variant='h3' component='h3'>
+                      <span>
+                        {`${resources.type}: `}
+                        <b>{resources.name}</b>
+                      </span>
                     </Typography>
-                    {metadata["created"] && (
-                      <Typography variant="subtitle1">
-                        Created: {convertTimestampToDate(metadata["created"])}
+                    {metadata['created'] && (
+                      <Typography variant='subtitle1'>
+                        Created: {convertInputToDate(metadata['created'])}
                       </Typography>
                     )}
                   </div>
@@ -327,253 +369,323 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                     handleVariantChange={handleVariantChange}
                     type={type}
                     name={name}
-                    convertTimestampToDate={convertTimestampToDate}
                   />
                 )}
               </div>
             </Grid>
           </Grid>
-          {(Object.keys(metadata).length > 0 && metadata["status"] != "NO_STATUS")&& (
-            <div className={classes.resourcesData}>
-              <Grid container spacing={0}>
-                <Grid item xs={6} className={classes.resourceMetadata}>
-                  {metadata["description"] && (
-                    <Typography variant="body1" className={classes.description}>
-                      <b>Description:</b> {metadata["description"]}
-                    </Typography>
-                  )}
-
-                  {metadata["owner"] && (
-                    <div className={classes.linkBox}>
-                      <Typography variant="body1" className={classes.typeTitle}>
-                        <b>Owner:</b>{" "}
+          {Object.keys(metadata).length > 0 &&
+            metadata['status'] != 'NO_STATUS' && (
+              <div className={classes.resourcesData}>
+                <Grid container spacing={0}>
+                  <Grid item xs={6} className={classes.resourceMetadata}>
+                    {metadata['description'] && (
+                      <Typography
+                        variant='body1'
+                        className={classes.description}
+                      >
+                        <b>Description:</b> {metadata['description']}
                       </Typography>
-                      <Chip
-                        variant="outlined"
-                        className={classes.linkChip}
-                        size="small"
-                        onClick={linkToUserPage}
-                        label={metadata["owner"]}
-                      ></Chip>
-                    </div>
-                  )}
+                    )}
 
-                  {metadata["provider"] && (
-                    <div className={classes.linkBox}>
-                      <Typography variant="body1" className={classes.typeTitle}>
-                        <b>Provider:</b>{" "}
-                      </Typography>
-                      <Chip
-                        variant="outlined"
-                        className={classes.linkChip}
-                        size="small"
-                        onClick={linkToProviderPage}
-                        label={metadata["provider"]}
-                      ></Chip>
-                    </div>
-                  )}
-
-                  {metadata["dimensions"] && (
-                    <Typography variant="body1">
-                      <b>Dimensions:</b> {metadata["dimensions"]}
-                    </Typography>
-                  )}
-                  {metadata["data-type"] && (
-                    <Typography variant="body1">
-                      <b>Data Type:</b> {metadata["data-type"]}
-                    </Typography>
-                  )}
-                  {metadata["joined"] && (
-                    <Typography variant="body1">
-                      <b>Joined:</b>{" "}
-                      {convertTimestampToDate(metadata["joined"])}
-                    </Typography>
-                  )}
-                  {metadata["software"] && (
-                    <Typography variant="body1">
-                      <b>Software:</b> {metadata["software"]}
-                    </Typography>
-                  )}
-                  {metadata["label"] && (
-                    <div className={classes.linkBox}>
-                      <Typography variant="body1" className={classes.typeTitle}>
-                        <b>Label: </b>{" "}
-                      </Typography>
-                      <Chip
-                        variant="outlined"
-                        className={classes.linkChip}
-                        size="small"
-                        onClick={linkToLabel}
-                        label={metadata["label"].Name}
-                      ></Chip>
-                    </div>
-                  )}
-                  {metadata["provider-type"] && (
-                    <Typography variant="body1">
-                      <b>Provider Type:</b> {metadata["provider-type"]}
-                    </Typography>
-                  )}
-                  {metadata["team"] && (
-                    <Typography variant="body1">
-                      <b>Team:</b> {metadata["team"]}
-                    </Typography>
-                  )}
-                  {metadata["status"] && metadata["status"] !== "NO_STATUS" && (
-                    <Typography variant="body1">
-                      <b>Status:</b> {metadata["status"]}
-                    </Typography>
-                  )}
-                  {metadata["error"] && metadata["error"] !== "" && (
-                    <Typography variant="body1">
-                      <b>Error Message:</b> {metadata["error"]}
-                    </Typography>
-                  )}
-                  {metadata["source-type"] && (
-                    <Typography variant="body1">
-                      <b>Source Type:</b> {metadata["source-type"]}
-                    </Typography>
-                  )}
-                  {metadata["specifications"] && (numValidKeys(metadata["specifications"]) > 0) && (
-                      <div>
-                        <Typography variant="body1">
-                          <b>Specifications:</b>
+                    {metadata['owner'] && (
+                      <div className={classes.linkBox}>
+                        <Typography
+                          variant='body1'
+                          className={classes.typeTitle}
+                        >
+                          <b>Owner:</b>{' '}
                         </Typography>
-                        <Typography variant="body1" component={"h2"}>
-                          {Object.keys(metadata["specifications"]).map((k) => (
-                              metadata["specifications"][k] !== "" && (
-                              <div style={{ marginLeft: 16 }}>
-                                <b>{k}: </b> {metadata["specifications"][k]}
-                              </div>)
-                          ))}
+                        <Chip
+                          variant='outlined'
+                          className={classes.linkChip}
+                          size='small'
+                          onClick={linkToUserPage}
+                          label={metadata['owner']}
+                        ></Chip>
+                      </div>
+                    )}
+
+                    {metadata['provider'] && (
+                      <div className={classes.linkBox}>
+                        <Typography
+                          variant='body1'
+                          className={classes.typeTitle}
+                        >
+                          <b>Provider:</b>{' '}
+                        </Typography>
+                        <Chip
+                          variant='outlined'
+                          className={classes.linkChip}
+                          size='small'
+                          onClick={linkToProviderPage}
+                          label={metadata['provider']}
+                        ></Chip>
+                      </div>
+                    )}
+
+                    {metadata['dimensions'] && (
+                      <Typography variant='body1'>
+                        <b>Dimensions:</b> {metadata['dimensions']}
+                      </Typography>
+                    )}
+                    {metadata['data-type'] && (
+                      <Typography variant='body1'>
+                        <b>Data Type:</b> {metadata['data-type']}
+                      </Typography>
+                    )}
+                    {metadata['joined'] && (
+                      <Typography variant='body1'>
+                        <b>Joined:</b> {convertInputToDate(metadata['joined'])}
+                      </Typography>
+                    )}
+                    {metadata['software'] && (
+                      <Typography variant='body1'>
+                        <b>Software:</b> {metadata['software']}
+                      </Typography>
+                    )}
+                    {metadata['label'] && (
+                      <div className={classes.linkBox}>
+                        <Typography
+                          variant='body1'
+                          className={classes.typeTitle}
+                        >
+                          <b>Label: </b>{' '}
+                        </Typography>
+                        <Chip
+                          variant='outlined'
+                          className={classes.linkChip}
+                          size='small'
+                          onClick={linkToLabel}
+                          label={metadata['label'].Name}
+                        ></Chip>
+                      </div>
+                    )}
+                    {metadata['provider-type'] && (
+                      <Typography variant='body1'>
+                        <b>Provider Type:</b> {metadata['provider-type']}
+                      </Typography>
+                    )}
+                    {metadata['team'] && (
+                      <Typography variant='body1'>
+                        <b>Team:</b> {metadata['team']}
+                      </Typography>
+                    )}
+                    {metadata['status'] && metadata['status'] !== 'NO_STATUS' && (
+                      <Typography variant='body1'>
+                        <b>Status:</b> {metadata['status']}
+                      </Typography>
+                    )}
+                    {metadata['error'] && metadata['error'] !== '' && (
+                      <Typography variant='body1'>
+                        <b>Error Message:</b> {metadata['error']}
+                      </Typography>
+                    )}
+                    {metadata['source-type'] && (
+                      <Typography variant='body1'>
+                        <b>Source Type:</b> {metadata['source-type']}
+                      </Typography>
+                    )}
+                    {metadata['specifications'] &&
+                      numValidKeys(metadata['specifications']) > 0 && (
+                        <div>
+                          <Typography variant='body1'>
+                            <b>Specifications:</b>
+                          </Typography>
+                          <Typography variant='body1' component={'h2'}>
+                            {Object.keys(metadata['specifications']).map(
+                              (k, index) =>
+                                metadata['specifications'][k] !== '' && (
+                                  <div key={index} style={{ marginLeft: 16 }}>
+                                    <b>{k}: </b> {metadata['specifications'][k]}
+                                  </div>
+                                )
+                            )}
+                          </Typography>
+                        </div>
+                      )}
+                    {metadata['definition'] && (
+                      <div>
+                        {(() => {
+                          if (
+                            metadata['source-type'] === 'SQL Transformation'
+                          ) {
+                            return (
+                              <SyntaxHighlighter
+                                className={classes.syntax}
+                                language={'sql'}
+                                style={okaidia}
+                              >
+                                {getFormattedSQL(metadata['definition'])}
+                              </SyntaxHighlighter>
+                            );
+                          } else if (
+                            ['Dataframe Transformation'].includes(
+                              metadata['source-type']
+                            )
+                          ) {
+                            return (
+                              <SyntaxHighlighter
+                                className={classes.syntax}
+                                language={'python'}
+                                style={okaidia}
+                              >
+                                {metadata['definition']}
+                              </SyntaxHighlighter>
+                            );
+                          } else {
+                            return (
+                              <Typography variant='h7'>
+                                <b>{metadata['definition']}</b>
+                              </Typography>
+                            );
+                          }
+                        })()}
+                        {(() => {
+                          if (
+                            metadata['status']?.toUpperCase() !== 'FAILED' &&
+                            metadata['status']?.toUpperCase() !== 'PENDING'
+                          ) {
+                            return (
+                              <SourceDialog
+                                api={api}
+                                sourceName={name}
+                                sourceVariant={variant}
+                              />
+                            );
+                          }
+                        })()}
+                      </div>
+                    )}
+
+                    {metadata['serialized-config'] && (
+                      <Typography variant='body1'>
+                        <b>Serialized Config:</b>{' '}
+                        {metadata['serialized-config']}
+                      </Typography>
+                    )}
+
+                    {metadata['source']?.Name && (
+                      <div className={classes.linkBox}>
+                        <Typography
+                          variant='body1'
+                          className={classes.typeTitle}
+                        >
+                          <b>Source: </b>{' '}
+                        </Typography>
+                        <Chip
+                          variant='outlined'
+                          className={classes.linkChip}
+                          size='small'
+                          onClick={linkToPrimaryData}
+                          label={metadata['source'].Name}
+                        ></Chip>
+                      </div>
+                    )}
+
+                    {metadata['entity'] && (
+                      <div className={classes.linkBox}>
+                        <Typography
+                          variant='body1'
+                          className={classes.typeTitle}
+                        >
+                          <b>Entity:</b>{' '}
+                        </Typography>
+                        <Chip
+                          variant='outlined'
+                          className={classes.linkChip}
+                          size='small'
+                          onClick={linkToEntityPage}
+                          label={metadata['entity']}
+                        ></Chip>
+                      </div>
+                    )}
+
+                    {metadata['location'] && !metadata['is-on-demand'] && (
+                      <div className={classes.linkBox}>
+                        <Typography
+                          variant='body1'
+                          className={classes.typeTitle}
+                        >
+                          <b>Columns:</b>{' '}
+                        </Typography>
+                        <Typography variant='body2'>
+                          &nbsp;<b>Entity:</b> {metadata['location'].Entity}
+                          &nbsp;<b>Value:</b> {metadata['location'].Value}
+                          &nbsp;<b>Timestamp:</b> {metadata['location'].TS}
                         </Typography>
                       </div>
-                  )
-                  }
-                  {metadata["definition"] && (
-                    <div>
-                      <Typography variant="body1">
-                        <b>Origin:</b>
-                      </Typography>
-                      {metadata["source-type"] === "SQL Transformation" ? (
-                        <SyntaxHighlighter
-                          className={classes.syntax}
-                          language={"sql"}
-                          style={okaidia}
+                    )}
+
+                    {metadata['location'] && metadata['is-on-demand'] && (
+                      <div className={classes.linkBox}>
+                        <Typography
+                          variant='body1'
+                          className={classes.typeTitle}
                         >
-                          {metadata["definition"]}
-                        </SyntaxHighlighter>
-                      ) : (
-                        <Typography variant="h7">
-                          <b>{metadata["definition"]}</b>
+                          <b>Feature Variant Type:</b>{' '}
                         </Typography>
-                      )}
-                    </div>
-                  )}
-                  {metadata["serialized-config"] && (
-                    <Typography variant="body1">
-                      <b>Serialized Config:</b> {metadata["serialized-config"]}
-                    </Typography>
-                  )}
+                        <Chip
+                          variant='outlined'
+                          className={classes.linkChip}
+                          size='small'
+                          onClick={() => {}}
+                          label={'On-Demand'}
+                        ></Chip>
+                      </div>
+                    )}
+                  </Grid>
 
-                  {metadata["source"] && (
-                    <div className={classes.linkBox}>
-                      <Typography variant="body1" className={classes.typeTitle}>
-                        <b>Source: </b>{" "}
-                      </Typography>
-                      <Chip
-                        variant="outlined"
-                        className={classes.linkChip}
-                        size="small"
-                        onClick={linkToPrimaryData}
-                        label={metadata["source"]}
-                      ></Chip>
-                    </div>
-                  )}
-
-                  {metadata["entity"] && (
-                    <div className={classes.linkBox}>
-                      <Typography variant="body1" className={classes.typeTitle}>
-                        <b>Entity:</b>{" "}
-                      </Typography>
-                      <Chip
-                        variant="outlined"
-                        className={classes.linkChip}
-                        size="small"
-                        onClick={linkToEntityPage}
-                        label={metadata["entity"]}
-                      ></Chip>
-                    </div>
-                  )}
-
-                  {metadata["location"] && !metadata["is-on-demand"] && (
-                    <div className={classes.linkBox}>
-                      <Typography variant="body1" className={classes.typeTitle}>
-                        <b>Columns:</b>{" "}
-                      </Typography>
-                      <Typography variant="body2">
-                        &nbsp;<b>Entity:</b> {metadata["location"].Entity}
-                        &nbsp;<b>Value:</b> {metadata["location"].Value}
-                        &nbsp;<b>Timestamp:</b> {metadata["location"].TS}
-                      </Typography>
-                    </div>
-                  )}
-
-                  {metadata["location"] && metadata["is-on-demand"] && (
-                    <div className={classes.linkBox}>
-                    <Typography variant="body1" className={classes.typeTitle}>
-                      <b>Feature Variant Type:</b>{" "}
-                    </Typography>
-                    <Chip
-                      variant="outlined"
-                      className={classes.linkChip}
-                      size="small"
-                      onClick={() => {}}
-                      label={"On-Demand"}
-                    ></Chip>
-                  </div>
+                  <Grid item xs>
+                    <TagBox
+                      resourceName={name}
+                      variant={variant}
+                      type={resourceType._urlPath}
+                      tags={metadata['tags']}
+                      title={'Tags'}
+                    />
+                  </Grid>
+                  {Object.keys(metadata['properties'] || {}).length > 0 && (
+                    <Grid item xs>
+                      {
+                        <AttributeBox
+                          attributes={Object.entries(
+                            metadata['properties']
+                          ).map(([k, v]) => `${k}:${v}`)}
+                          title={'Properties'}
+                        />
+                      }
+                    </Grid>
                   )}
                 </Grid>
-                {metadata["tags"]?.length > 0 && (
-                  <Grid item xs>
-                    <AttributeBox attributes={metadata["tags"]} title={"Tags"} />
-                  </Grid>
-                )}
-                {Object.keys(metadata["properties"] || {}).length > 0 && (
-                  <Grid item xs>
-                    {<AttributeBox
-                      attributes={Object.entries(metadata["properties"]).map(([k, v]) => `${k}:${v}`)}
-                      title={"Properties"} />}
-                  </Grid>
-                )}
-                </Grid>
-            </div>
-          )}
-          {metadata["config"] && (
+              </div>
+            )}
+          {metadata['config'] && (
             <div className={classes.config}>
-              <Typography variant="body1">
+              <Typography variant='body1'>
                 <b>Config:</b>
               </Typography>
               <SyntaxHighlighter
                 className={classes.syntax}
-                language={metadata["language"]}
+                language={metadata['language']}
                 style={okaidia}
               >
-                {metadata["config"]}
+                {metadata['config']}
               </SyntaxHighlighter>
             </div>
           )}
         </div>
 
         <div className={classes.root}>
-          <AppBar position="static" className={classes.appbar}>
+          <AppBar position='static' className={classes.appbar}>
             <Tabs
               value={value}
               onChange={handleChange}
-              aria-label="simple tabs example"
+              aria-label='simple tabs example'
             >
-              {showMetrics && <Tab label={"metrics"} {...a11yProps(0)} />}
+              {showMetrics && <Tab label={'metrics'} {...a11yProps(0)} />}
               {showStats && (
-                <Tab label={"stats"} {...a11yProps(statsTabDisplacement)} />
+                <Tab label={'stats'} {...a11yProps(statsTabDisplacement)} />
               )}
               {Object.keys(resourcesData).map((key, i) => (
                 <Tab
@@ -588,7 +700,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
             <TabPanel
               className={classes.tabChart}
               value={value}
-              key={"metrics"}
+              key={'metrics'}
               index={0}
               classes={{
                 root: classes.tabChart,
@@ -601,7 +713,7 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
             <TabPanel
               className={classes.tabChart}
               value={value}
-              key={"stats"}
+              key={'stats'}
               index={statsTabDisplacement}
               classes={{
                 root: classes.tabChart,
@@ -621,69 +733,78 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
                 root: classes.tabChart,
               }}
             >
-              <MaterialTable
-                className={classes.tableRoot}
-                detailPanel={(row) => {
-                  return (
-                    <VariantTable
-                      type={resourceType}
-                      name={row.name}
-                      row={row}
-                      setVariant={setVariant}
-                    />
-                  );
-                }}
-                title={capitalize(resourceType)}
-                options={{
-                  toolbar: false,
-                  headerStyle: {
-                    backgroundColor: theme.palette.border.main,
-                    marginLeft: 3,
-                  },
-                }}
-                {...(Object.keys(resourcesData[resourceType]).length > 0
-                  ? {
-                      columns: ["name", "variant"].map((item) => ({
-                        title: capitalize(item),
-                        field: item,
-                      })),
+              <ThemeProvider theme={theme}>
+                <MaterialTable
+                  className={classes.tableRoot}
+                  detailPanel={(row) => {
+                    return (
+                      <VariantTable
+                        type={resourceType}
+                        name={row.name}
+                        row={row}
+                        setVariant={setVariant}
+                        pageSizeProp={5}
+                        emptyRowsProp={false}
+                      />
+                    );
+                  }}
+                  title={capitalize(resourceType)}
+                  options={{
+                    toolbar: false,
+                    pageSize: 5,
+                    emptyRowsWhenPaging: false,
+                    headerStyle: {
+                      backgroundColor: theme.palette.border.main,
+                      marginLeft: 3,
+                    },
+                  }}
+                  {...(Object.keys(resourcesData[resourceType]).length > 0
+                    ? {
+                        columns: ['name', 'variant'].map((item) => ({
+                          title: capitalize(item),
+                          field: item,
+                        })),
+                      }
+                    : {})}
+                  data={Object.entries(resourcesData[resourceType]).map(
+                    (resourceEntry) => {
+                      const resourceName = resourceEntry[0];
+                      const resourceVariants = resourceEntry[1];
+                      let rowData = { name: resourceName };
+                      if (resourceVariants.length === 1) {
+                        rowData['variant'] = resourceVariants[0].variant;
+                      } else {
+                        rowData['variant'] = '...';
+                      }
+                      rowData['variants'] = Object.values(resourceVariants);
+                      return rowData;
                     }
-                  : {})}
-                data={Object.entries(resourcesData[resourceType]).map(
-                  (resourceEntry) => {
-                    const resourceName = resourceEntry[0];
-                    const resourceVariants = resourceEntry[1];
-                    let rowData = { name: resourceName };
-                    if (resourceVariants.length === 1) {
-                      rowData["variant"] = resourceVariants[0].variant;
-                    } else {
-                      rowData["variant"] = "...";
-                    }
-                    rowData["variants"] = Object.values(resourceVariants);
-                    return rowData;
+                  )}
+                  onRowClick={(event, rowData) =>
+                    router.push(
+                      Resource[resourceType].urlPathResource(rowData.name)
+                    )
                   }
-                )}
-                onRowClick={(event, rowData) =>
-                  router.push(
-                    Resource[resourceType].urlPathResource(rowData.name)
-                  )
-                }
-                components={{
-                  Container: (props) => (
-                    <div
-                      className={classes.resourceList}
-                      minwidth="xl"
-                      {...props}
-                    />
-                  ),
-                  Body: (props) => (
-                    <MTableBody className={classes.tableBody} {...props} />
-                  ),
-                  Header: (props) => (
-                    <MTableHeader className={classes.tableHeader} {...props} />
-                  ),
-                }}
-              />
+                  components={{
+                    Container: (props) => (
+                      <div
+                        className={classes.resourceList}
+                        style={{ minWidth: 'xl' }}
+                        {...props}
+                      />
+                    ),
+                    Body: (props) => (
+                      <MTableBody className={classes.tableBody} {...props} />
+                    ),
+                    Header: (props) => (
+                      <MTableHeader
+                        className={classes.tableHeader}
+                        {...props}
+                      />
+                    ),
+                  }}
+                />
+              </ThemeProvider>
             </TabPanel>
           ))}
         </div>
@@ -694,27 +815,22 @@ const EntityPageView = ({ entity, setVariant, activeVariants }) => {
   );
 };
 
-export const TagList = ({
-  activeTags = {},
-  tags = [],
-  tagClass,
-  toggleTag,
-}) => (
-  <Grid container direction="row">
+export const TagList = ({ activeTags = {}, tags = [], tagClass }) => (
+  <Grid container direction='row'>
     {tags.map((tag) => (
       <Chip
         key={tag}
         className={tagClass}
-        color={activeTags[tag] ? "secondary" : "default"}
-        onClick={(event) => {}}
-        variant="outlined"
+        color={activeTags[tag] ? 'secondary' : 'default'}
+        onClick={() => null}
+        variant='outlined'
         label={tag}
       />
     ))}
   </Grid>
 );
 
-export const VariantSelector = ({ name, variants = [""], children }) => (
+export const VariantSelector = ({ variants = [''] }) => (
   <FormControl>
     <Select value={variants[0]}>
       {variants.map((variant) => (

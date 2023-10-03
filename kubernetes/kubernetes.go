@@ -8,15 +8,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"math"
-	"strings"
-
+	"github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	"github.com/featureform/types"
 	"github.com/google/uuid"
 	"github.com/gorhill/cronexpr"
+	"io"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -25,29 +22,36 @@ import (
 	watch "k8s.io/apimachinery/pkg/watch"
 	kubernetes "k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
+	"math"
+	"os"
+	"strings"
 )
 
 type CronSchedule string
 
-const MaxNameLength = 53
+const MaxJobNameLength = 52
 
-func GetJobName(id metadata.ResourceID, image string) string {
-	resourceName := fmt.Sprintf("%s-%s-%s", id.Type, id.Name, id.Variant)
-	if len(resourceName) > MaxNameLength {
-		resourceName = resourceName[:MaxNameLength]
+// CreateJobName Only the first value in prefixes will be used.
+func CreateJobName(id metadata.ResourceID, prefixes ...string) string {
+	jobNameBase := fmt.Sprintf("%s-%s-%s", id.Type, id.Name, id.Variant)
+
+	// if jobPrefix is provided, prepend it to jobNameBase
+	if len(prefixes) > 0 && prefixes[0] != "" {
+		jobNameBase = fmt.Sprintf("%s-%s", prefixes[0], jobNameBase)
 	}
-	jobName := strings.ReplaceAll(resourceName, "_", ".")
-	removedSlashes := strings.ReplaceAll(jobName, "/", "")
-	removedColons := strings.ReplaceAll(removedSlashes, ":", "")
-	MaxJobSize := 63
-	lowerCase := strings.ToLower(removedColons)
-	jobNameSize := int(math.Min(float64(len(lowerCase)), float64(MaxJobSize)))
-	lowerName := lowerCase[0:jobNameSize]
-	return lowerName
-}
 
-func GetCronJobName(id metadata.ResourceID) string {
-	return strings.ReplaceAll(fmt.Sprintf("featureform-%s-%s-%s-%d", strings.ToLower(string(id.Type)), strings.ToLower(id.Name), strings.ToLower(id.Variant), id.Type), "_", ".")
+	// clean up job name for k8s
+	replacer := strings.NewReplacer("_", ".", "/", "", ":", "")
+	jobNameBase = replacer.Replace(jobNameBase)
+
+	lowerCased := strings.ToLower(jobNameBase)
+
+	// leave room for a 10 character uuid and a 1 character separator
+	if len(lowerCased) > MaxJobNameLength-11 {
+		lowerCased = lowerCased[:MaxJobNameLength-11]
+	}
+
+	return fmt.Sprintf("%s-%s", lowerCased, uuid.New().String()[:10])
 }
 
 func makeCronSchedule(schedule string) (*CronSchedule, error) {
@@ -107,7 +111,10 @@ func generateKubernetesEnvVars(envVars map[string]string) []v1.EnvVar {
 }
 
 func validateJobLimits(specs metadata.KubernetesResourceSpecs) (v1.ResourceRequirements, error) {
-	rsrcReq := v1.ResourceRequirements{}
+	rsrcReq := v1.ResourceRequirements{
+		Requests: make(v1.ResourceList),
+		Limits:   make(v1.ResourceList),
+	}
 	var parseErr error
 	if specs.CPURequest != "" {
 		qty, err := resource.ParseQuantity(specs.CPURequest)
@@ -146,14 +153,22 @@ func newJobSpec(config KubernetesRunnerConfig, rsrcReqs v1.ResourceRequirements)
 		completionMode = batchv1.NonIndexedCompletion
 	}
 
-	backoffLimit := int32(0)
-	ttlLimit := int32(3600)
+	backoffLimit := helpers.GetEnvInt32("K8S_JOB_BACKOFF_LIMIT", 0)
+	ttlLimitSeconds := helpers.GetEnvInt32("K8S_JOB_TTL_LIMIT_SECONDS", 60)
+
+	var pullPolicy v1.PullPolicy
+	if helpers.IsDebugEnv() {
+		pullPolicy = v1.PullAlways
+	} else {
+		pullPolicy = v1.PullIfNotPresent
+	}
+  
 	return batchv1.JobSpec{
 		Completions:             &config.NumTasks,
 		Parallelism:             &config.NumTasks,
 		CompletionMode:          &completionMode,
 		BackoffLimit:            &backoffLimit,
-		TTLSecondsAfterFinished: &ttlLimit,
+		TTLSecondsAfterFinished: &ttlLimitSeconds,
 		Template: v1.PodTemplateSpec{
 			Spec: v1.PodSpec{
 				Containers: []v1.Container{
@@ -161,7 +176,7 @@ func newJobSpec(config KubernetesRunnerConfig, rsrcReqs v1.ResourceRequirements)
 						Name:            containerID,
 						Image:           config.Image,
 						Env:             envVars,
-						ImagePullPolicy: v1.PullIfNotPresent,
+						ImagePullPolicy: pullPolicy,
 						Resources:       rsrcReqs,
 					},
 				},
@@ -173,14 +188,16 @@ func newJobSpec(config KubernetesRunnerConfig, rsrcReqs v1.ResourceRequirements)
 }
 
 type KubernetesRunnerConfig struct {
-	EnvVars  map[string]string
-	Resource metadata.ResourceID
-	Image    string
-	NumTasks int32
-	Specs    metadata.KubernetesResourceSpecs
+	JobPrefix string
+	EnvVars   map[string]string
+	Resource  metadata.ResourceID
+	Image     string
+	NumTasks  int32
+	Specs     metadata.KubernetesResourceSpecs
 }
 
 type JobClient interface {
+	GetJobName() string
 	Get() (*batchv1.Job, error)
 	GetCronJob() (*batchv1.CronJob, error)
 	UpdateCronJob(cronJob *batchv1.CronJob) (*batchv1.CronJob, error)
@@ -263,6 +280,7 @@ func getPodLogs(namespace string, name string) string {
 func (k KubernetesCompletionWatcher) Wait() error {
 	watcher, err := k.jobClient.Watch()
 	if err != nil {
+		fmt.Println("error fetching watcher for job:", k.jobClient.GetJobName())
 		return err
 	}
 	watchChannel := watcher.ResultChan()
@@ -317,7 +335,7 @@ func (k KubernetesRunner) ScheduleJob(schedule CronSchedule) error {
 }
 
 func GetCurrentNamespace() (string, error) {
-	contents, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	contents, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
 		return "", err
 	}
@@ -338,7 +356,7 @@ func NewKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {
 	jobSpec := newJobSpec(config, rsrcReqs)
 	var jobName string
 	if config.Resource.Name != "" {
-		jobName = GetJobName(config.Resource, config.Image)
+		jobName = CreateJobName(config.Resource, config.JobPrefix)
 	} else {
 		jobName = generateCleanRandomJobName()
 	}
@@ -362,12 +380,20 @@ type KubernetesJobClient struct {
 	Namespace string
 }
 
+func (k KubernetesJobClient) GetJobName() string {
+	return k.JobName
+}
+
+func (k KubernetesJobClient) getCronJobName() string {
+	return fmt.Sprintf("cron-%s", k.JobName)
+}
+
 func (k KubernetesJobClient) Get() (*batchv1.Job, error) {
 	return k.Clientset.BatchV1().Jobs(k.Namespace).Get(context.TODO(), k.JobName, metav1.GetOptions{})
 }
 
 func (k KubernetesJobClient) GetCronJob() (*batchv1.CronJob, error) {
-	return k.Clientset.BatchV1().CronJobs(k.Namespace).Get(context.TODO(), k.JobName, metav1.GetOptions{})
+	return k.Clientset.BatchV1().CronJobs(k.Namespace).Get(context.TODO(), k.getCronJobName(), metav1.GetOptions{})
 }
 
 func (k KubernetesJobClient) UpdateCronJob(cronJob *batchv1.CronJob) (*batchv1.CronJob, error) {
@@ -379,20 +405,28 @@ func (k KubernetesJobClient) Watch() (watch.Interface, error) {
 }
 
 func (k KubernetesJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error) {
+	fmt.Println("Creating kubernetes job with name:", k.JobName)
 	job := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: k.JobName, Namespace: k.Namespace}, Spec: *jobSpec}
 	return k.Clientset.BatchV1().Jobs(k.Namespace).Create(context.TODO(), job, metav1.CreateOptions{})
 }
 
 func (k KubernetesJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
+	successfulJobsHistoryLimit := helpers.GetEnvInt32("SUCCESSFUL_JOBS_HISTORY_LIMIT", 2)
+	failedJobsHistoryLimit := helpers.GetEnvInt32("FAILED_JOBS_HISTORY_LIMIT", 1)
+	concurrencyPolicy := getConcurrencyPolicy()
+
 	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      k.JobName,
+			Name:      k.getCronJobName(),
 			Namespace: k.Namespace},
 		Spec: batchv1.CronJobSpec{
 			Schedule: string(schedule),
 			JobTemplate: batchv1.JobTemplateSpec{
 				Spec: *jobSpec,
 			},
+			SuccessfulJobsHistoryLimit: &successfulJobsHistoryLimit,
+			FailedJobsHistoryLimit:     &failedJobsHistoryLimit,
+			ConcurrencyPolicy:          concurrencyPolicy,
 		},
 	}
 	if _, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Create(context.TODO(), cronJob, metav1.CreateOptions{}); err != nil {
@@ -421,7 +455,6 @@ func (k KubernetesJobClient) UpdateJobSchedule(schedule CronSchedule, jobSpec *b
 }
 
 func (k KubernetesJobClient) GetJobSchedule(jobName string) (CronSchedule, error) {
-
 	job, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Get(context.TODO(), jobName, metav1.GetOptions{})
 	if err != nil {
 		return "", err
@@ -439,4 +472,21 @@ func NewKubernetesJobClient(name string, namespace string) (*KubernetesJobClient
 		return nil, err
 	}
 	return &KubernetesJobClient{Clientset: clientset, JobName: name, Namespace: namespace}, nil
+}
+
+func getConcurrencyPolicy() batchv1.ConcurrencyPolicy {
+	concurrencyPolicyEnv := helpers.GetEnv("JOBS_CONCURRENCY_POLICY", "Allow")
+	var concurrencyPolicy batchv1.ConcurrencyPolicy
+	switch concurrencyPolicyEnv {
+	case "Allow":
+		concurrencyPolicy = batchv1.AllowConcurrent
+	case "Forbid":
+		concurrencyPolicy = batchv1.ForbidConcurrent
+	case "Replace":
+		concurrencyPolicy = batchv1.ReplaceConcurrent
+	default:
+		fmt.Printf("invalid concurrency policy: %s, defaulting to Allow", concurrencyPolicyEnv)
+		return batchv1.AllowConcurrent
+	}
+	return concurrencyPolicy
 }

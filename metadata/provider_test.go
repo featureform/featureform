@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"testing"
 
+	fs "github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 )
@@ -514,8 +515,8 @@ func testK8sConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 		ExecutorConfig: pc.ExecutorConfig{
 			DockerImage: dockerImage,
 		},
-		StoreType: pc.Azure,
-		StoreConfig: pc.AzureFileStoreConfig{
+		StoreType: fs.Azure,
+		StoreConfig: &pc.AzureFileStoreConfig{
 			AccountName:   accountName,
 			AccountKey:    accountKey,
 			ContainerName: containerName,
@@ -541,8 +542,8 @@ func testK8sConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 		ExecutorConfig: pc.ExecutorConfig{
 			DockerImage: dockerImage,
 		},
-		StoreType: pc.Azure,
-		StoreConfig: pc.AzureFileStoreConfig{
+		StoreType: fs.Azure,
+		StoreConfig: &pc.AzureFileStoreConfig{
 			AccountName:   accountName,
 			AccountKey:    accountKey,
 			ContainerName: containerName,
@@ -574,7 +575,7 @@ func testSparkConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 			ClusterRegion: clusterRegion,
 			ClusterName:   clusterName,
 		},
-		StoreType: pc.S3,
+		StoreType: fs.S3,
 		StoreConfig: &pc.S3FileStoreConfig{
 			Credentials:  pc.AWSCredentials{AWSAccessKeyId: awsAccessKeyId, AWSSecretKey: awSSecretKey},
 			BucketRegion: bucketRegion,
@@ -602,7 +603,7 @@ func testSparkConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 			ClusterRegion: clusterRegion,
 			ClusterName:   clusterName,
 		},
-		StoreType: pc.S3,
+		StoreType: fs.S3,
 		StoreConfig: &pc.S3FileStoreConfig{
 			Credentials:  pc.AWSCredentials{AWSAccessKeyId: awsAccessKeyId, AWSSecretKey: awSSecretKey},
 			BucketRegion: bucketRegion,

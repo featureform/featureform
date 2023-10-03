@@ -1,13 +1,14 @@
 import csv
+import os
 import shutil
+import stat
 import sys
 import time
 from tempfile import NamedTemporaryFile
 from unittest import TestCase
 from unittest.mock import MagicMock
-import os, stat
-import numpy as np
 
+import numpy as np
 import pandas as pd
 import pytest
 from featureform.local_utils import feature_df_with_entity, label_df_from_csv
@@ -109,6 +110,7 @@ class TestFeaturesE2E(TestCase):
         for name, case in cases.feature_e2e.items():
             with self.subTest(msg=name):
                 print("TEST: ", name)
+                ff.register_local()
                 file_name = create_temp_file(case)
                 res = e2e_features(
                     file_name,
@@ -136,12 +138,13 @@ class TestFeaturesE2E(TestCase):
             "value_cols": ["value"],
             "entity": "entity",
             "entity_loc": "entity",
-            "features": [("avg_transactions", "v13")],
+            "features": [("avg_transactions", "v13", "int")],
             "entities": [{"entity": "a"}, {"entity": "b"}, {"entity": "c"}],
             "expected": [[1], [2], [3]],
             "ts_col": "ts",
         }
         file_name = create_temp_file(case)
+        ff.register_local()
         with pytest.raises(KeyError) as err:
             e2e_features(
                 file_name,
@@ -159,6 +162,7 @@ class TestFeaturesE2E(TestCase):
         """Fixture to execute asserts before and after a test is run"""
         # Remove any lingering Databases
         try:
+            ff.clear_state()
             shutil.rmtree(".featureform", onerror=del_rw)
         except:
             print("File Already Removed")
@@ -566,7 +570,7 @@ def del_rw(action, name, exc):
 
 
 def create_temp_file(test_values):
-    file = NamedTemporaryFile(delete=False)
+    file = NamedTemporaryFile(delete=False, suffix=".csv")
     with open(file.name, "w") as csvfile:
         writer = csv.writer(csvfile, delimiter=",", quotechar="|")
         writer.writerow(test_values["columns"])
@@ -578,27 +582,29 @@ def create_temp_file(test_values):
 
 
 def e2e_features(
-    file, entity_name, entity_loc, name_variants, value_cols, entities, ts_col
+    file, entity_name, entity_loc, name_variant_type, value_cols, entities, ts_col
 ):
+    import uuid
+
     local = ff.local
     transactions = ff.local.register_file(
         name="transactions",
-        variant="v1",
+        variant=str(uuid.uuid4())[:8],
         description="A dataset of fraudulent transactions",
         path=file,
     )
     entity = ff.register_entity(entity_name)
-    for i, variant in enumerate(name_variants):
+    for i, (name, variant, type) in enumerate(name_variant_type):
         transactions.register_resources(
             entity=entity,
             entity_column=entity_loc,
             inference_store=local,
             features=[
                 {
-                    "name": variant[0],
-                    "variant": variant[1],
+                    "name": name,
+                    "variant": variant,
                     "column": value_cols[i],
-                    "type": "float32",
+                    "type": type,
                 },
             ],
             timestamp_column=ts_col,
@@ -606,8 +612,9 @@ def e2e_features(
     ResourceClient(local=True).apply()
     client = ServingClient(local=True)
     results = []
+    name_variant = [(name, variant) for name, variant, type in name_variant_type]
     for entity in entities:
-        results.append(client.features(name_variants, entity))
+        results.append(client.features(name_variant, entity))
 
     return results
 
@@ -621,3 +628,16 @@ def retry_delete():
         except Exception as e:
             print(f"Could not delete. Retrying...", e)
             time.sleep(1)
+
+
+def test_read_directory():
+    from pandas.testing import assert_frame_equal
+
+    local = LocalClientImpl()
+    df = local.read_directory("client/tests/test_files/input_files/readable_directory")
+    expected = pd.DataFrame(
+        data={"filename": ["c.txt", "b.txt", "a.txt"], "body": ["Sup", "Hi", "Hello"]}
+    )
+    expected = expected.sort_values(by=expected.columns.tolist()).reset_index(drop=True)
+    df = df.sort_values(by=df.columns.tolist()).reset_index(drop=True)
+    assert_frame_equal(expected, df)

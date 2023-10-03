@@ -53,6 +53,9 @@ spec:
               value: "{{ .Values.global.repo | default .Values.image.repository }}/worker:{{ .Values.global.version | default .Chart.AppVersion }}"
             - name: PANDAS_RUNNER_IMAGE
               value: "{{ .Values.global.repo | default .Values.image.repository }}/k8s_runner:{{ .Values.global.version | default .Chart.AppVersion }}"
+            - name: DEBUG
+              value: {{ .Values.global.debug | quote }}
+
 
           ports:
             - name: http

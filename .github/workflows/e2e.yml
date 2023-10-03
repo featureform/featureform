@@ -1,9 +1,7 @@
 name: End to End Testing
 on:
   pull_request:
-    branches: '**'
-  push:
-    branches: 'release/**'
+    branches: 'some_nonexistant_branch'
 
 concurrency:
   group: ${{ github.head_ref }}-e2e
@@ -398,9 +396,10 @@ jobs:
           MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
           MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
           MONGODB_DATABASE: ${{ secrets.MONGODB_PASSWORD }}
-          K8s_RUNNER_BASE_IMAGE: "local/k8s_runner:stable"
+          K8S_RUNNER_BASE_IMAGE: "local/k8s_runner:stable"
           K8S_RUNNER_SCIKIT: "local/k8s_runner:scikit-stable"
           S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
+          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_PATH }}
           S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}

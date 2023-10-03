@@ -1,7 +1,9 @@
 import json
+import os
 import sqlite3
 from threading import Lock
-import os
+
+from .exceptions import FeatureNotFound
 
 
 class SyncSQLExecutor:
@@ -31,11 +33,11 @@ class SyncSQLExecutor:
 
 
 class SQLiteMetadata:
-    def __init__(self):
-        self.path = ".featureform/SQLiteDB"
+    def __init__(self, path=".featureform/SQLiteDB"):
+        self.path = path
         if not os.path.exists(self.path):
             os.makedirs(self.path)
-        raw_conn = sqlite3.connect(self.path + "/metadata.db", check_same_thread=False)
+        raw_conn = sqlite3.connect(f"{self.path}/metadata.db", check_same_thread=False)
         raw_conn.row_factory = sqlite3.Row
         self.__conn = SyncSQLExecutor(raw_conn)
         self.createTables()
@@ -58,6 +60,8 @@ class SQLiteMetadata:
           source_value text,
           source_name text NOT NULL,
           source_variant text NOT NULL,
+          is_embedding bool, 
+          dimension int,
 
           PRIMARY KEY(name, variant),
 
@@ -165,6 +169,16 @@ class SQLiteMetadata:
           PRIMARY KEY(name, variant),
           FOREIGN KEY(provider) REFERENCES providers(name),
           FOREIGN KEY(name) REFERENCES sources(name));"""
+        )
+
+        # source variant text
+        self.__conn.execute(
+            """CREATE TABLE IF NOT EXISTS source_variant_text(
+            created     text,
+            source_name  text NOT NULL,
+            variant     text NOT NULL,
+            source_text text,
+            PRIMARY KEY(source_name, variant));"""
         )
 
         # sources table
@@ -394,23 +408,25 @@ class SQLiteMetadata:
         return type_data.fetchall()
 
     def query_resource(
-        self, table, column, resource_name, should_fetch_tags_properties=False
+        self, table, column=None, resource_name=None, should_fetch_tags_properties=False
     ):
         if should_fetch_tags_properties:
-            query = """SELECT r.*, t.tag_list as tags, p.property_list as properties
-           FROM {0} r
-           LEFT JOIN tags t ON t.name = r.name
-           LEFT JOIN properties p ON p.name = r.name
-           WHERE r.{1} = '{2}';""".format(
-                table, column, resource_name
-            )
+            query = f"""SELECT r.*, t.tag_list as tags, p.property_list as properties
+                FROM {table} r
+                LEFT JOIN tags t ON t.name = r.name
+                LEFT JOIN properties p ON p.name = r.name
+           """
+            if column is not None:
+                query = query + f"WHERE r.{column} = '{resource_name}';"
         else:
-            query = f"SELECT * FROM {table} WHERE {column}='{resource_name}';"
+            query = f"SELECT * FROM {table}"
+            if column is not None:
+                query = query + f" WHERE {column} = '{resource_name}'"
         resource_data = self.__conn.execute(query)
         self.__conn.commit()
         resource_data_list = resource_data.fetchall()
-        if len(resource_data_list) == 0 and column != "owner":
-            raise ValueError(f"{table} with {column}: {resource_name} not found")
+        if (len(resource_data_list)) == 0:
+            return []
         return resource_data_list
 
     def query_resource_variant(self, table, column, resource_name):
@@ -433,9 +449,7 @@ class SQLiteMetadata:
         self.__conn.commit()
         variant_data_list = variant_data.fetchall()
         if len(variant_data_list) == 0:
-            raise ValueError(
-                f"{type} with name: {name} and variant: {variant} not found"
-            )
+            raise ValueError(f"{type} {name} ({variant}) not found")
         return variant_data_list
 
     def fetch_data_safe(self, query, type, name, variant):
@@ -514,9 +528,15 @@ class SQLiteMetadata:
 
     def get_feature_variant_mode(self, name, variant):
         query = f"SELECT mode FROM feature_computation_mode WHERE name='{name}' AND variant='{variant}'"
-        return self.fetch_data_safe(query, "feature_computation_mode", name, variant)[
-            0
-        ]["mode"]
+
+        feature_metadata = self.fetch_data_safe(
+            query, "feature_computation_mode", name, variant
+        )
+
+        if len(feature_metadata) == 0:
+            raise FeatureNotFound(name, variant)
+
+        return feature_metadata[0]["mode"]
 
     def get_feature_variant_on_demand(self, name, variant):
         query = f"SELECT is_on_demand FROM feature_computation_mode WHERE name='{name}' AND variant='{variant}'"
@@ -533,7 +553,6 @@ class SQLiteMetadata:
         ]["query"]
 
     def get_training_set_variant(self, name, variant):
-        query = f"SELECT * FROM training_set_variant WHERE name = '{name}' AND variant = '{variant}';"
         query = """SELECT v.*, t.tag_list as tags, p.property_list as properties
         FROM training_set_variant v
         LEFT JOIN tags t ON t.name = v.name AND t.variant = v.variant
@@ -682,8 +701,29 @@ class SQLiteMetadata:
         self.__conn.execute_stmt(stmt, args)
         self.__conn.commit()
 
+    def insert_source_variant_text(self, *args):
+        stmt = f"INSERT OR IGNORE INTO source_variant_text VALUES (?, ?, ?, ?)"
+        self.__conn.execute_stmt(stmt, args)
+        self.__conn.commit()
+
+    def get_source_variant_text(self, name, variant):
+        stmt = f"SELECT source_text FROM source_variant_text WHERE source_name='{name}' AND variant='{variant}'"
+        result = self.__conn.execute(stmt)
+        self.__conn.commit()
+        res = result.fetchone()
+        return res[0] if res else ""
+
     def insert(self, tablename, *args):
         query = f"INSERT OR IGNORE INTO {tablename} VALUES {str(args)}"
+        self.__conn.execute(query)
+        self.__conn.commit()
+
+    def get_tags(self, name, variant, resource_type):
+        query = f"SELECT tag_list FROM tags WHERE name='{name}' and variant='{variant}' and type='{resource_type}'"
+        return self.fetch_data_safe(query, resource_type, name, variant)
+
+    def update_tags(self, name, variant, type, tagList):
+        query = f"UPDATE tags SET tag_list='{tagList}' WHERE name='{name}' and variant='{variant}' and type='{type}';"
         self.__conn.execute(query)
         self.__conn.commit()
 
@@ -765,3 +805,9 @@ class SQLiteMetadata:
             is_update = True
 
         return (query, is_update)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()

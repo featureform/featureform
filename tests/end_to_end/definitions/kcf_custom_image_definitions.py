@@ -9,6 +9,7 @@ import featureform as ff
 FILE_DIRECTORY = os.getenv("FEATUREFORM_TEST_PATH", "")
 featureform_location = os.path.dirname(os.path.dirname(FILE_DIRECTORY))
 env_file_path = os.path.join(featureform_location, ".env")
+print(env_file_path)
 load_dotenv(env_file_path)
 
 
@@ -46,14 +47,7 @@ azure_blob = ff.register_blob_store(
     account_name=os.getenv("AZURE_ACCOUNT_NAME", None),
     account_key=os.getenv("AZURE_ACCOUNT_KEY", None),
     container_name=os.getenv("AZURE_CONTAINER_NAME", None),
-    root_path="testing/ff",
-)
-
-redis = ff.register_redis(
-    name=f"redis-quickstart_{VERSION}",
-    host="quickstart-redis",  # The internal dns name for redis
-    port=6379,
-    description="A Redis deployment we created for the Featureform quickstart",
+    root_path=f"testing/ff",
 )
 
 k8s = ff.register_k8s(
@@ -79,6 +73,14 @@ def ice_cream_entity_transformation(df):
     return df
 
 
+specs = ff.K8sResourceSpecs(
+    cpu_request="100m",
+    cpu_limit="500m",
+    memory_request="1Gi",
+    memory_limit="2Gi",
+)
+
+
 @k8s.df_transformation(
     name=f"ice_cream_transformation_{VERSION}",
     variant=VERSION,
@@ -86,6 +88,7 @@ def ice_cream_entity_transformation(df):
     docker_image=os.getenv(
         "K8S_RUNNER_SCIKIT", "featureformcom/k8s_runner:latest-scikit"
     ),
+    resource_specs=specs,
 )
 def scikit_test(df):
     """the ice cream dataset"""

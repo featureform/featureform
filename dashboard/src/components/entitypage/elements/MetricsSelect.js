@@ -1,21 +1,13 @@
+import { Box, FormControl, InputLabel, MenuItem, Select } from '@mui/material';
+import Typography from '@mui/material/Typography';
+import React, { useEffect } from 'react';
+import { connect } from 'react-redux';
+import MetricsAPI from '../../api/resources/Metrics.js';
 import {
-  Select,
-  MenuItem,
-  Box,
-  FormControl,
-  InputLabel,
-} from "@material-ui/core/";
-import Typography from "@material-ui/core/Typography";
-
-import MetricsAPI from "../../api/resources/Metrics.js";
-import {
-  modifyMetrics,
-  modifyInstances,
   fetchMetrics,
-} from "./MetricsSelectSlice.js";
-
-import React, { useEffect } from "react";
-import { connect } from "react-redux";
+  modifyInstances,
+  modifyMetrics,
+} from './MetricsSelectSlice.js';
 
 const metricsAPI = new MetricsAPI();
 
@@ -34,11 +26,11 @@ function mapStateToProps(state) {
 }
 
 function MetricsSelect({ metricsSelect, modifyMetrics, fetchMetrics }) {
-  const [selection, setSelection] = React.useState("");
+  const [selection, setSelection] = React.useState('');
   const options = metricsSelect.resources ? metricsSelect.resources : {};
   const metrics = Object.keys(options);
   const metricsDesc =
-    options && selection !== "" ? options[selection][0]["help"] : "";
+    options && selection !== '' ? options[selection][0]['help'] : '';
 
   useEffect(() => {
     fetchMetrics(metricsAPI);
@@ -56,12 +48,12 @@ function MetricsSelect({ metricsSelect, modifyMetrics, fetchMetrics }) {
       <div>
         <Box sx={{ minWidth: 240 }}>
           <FormControl fullWidth>
-            <InputLabel id="demo-simple-select-label">Metric Select</InputLabel>
+            <InputLabel id='demo-simple-select-label'>Metric Select</InputLabel>
             <Select
-              labelId="demo-simple-select-label"
-              id="demo-simple-select"
+              labelId='demo-simple-select-label'
+              id='demo-simple-select'
               value={selection}
-              label="Metrics Options"
+              label='Metrics Options'
               onChange={handleChange}
             >
               {metrics.map((option) => (

@@ -1,8 +1,8 @@
-import React from "react";
-import { makeStyles } from "@material-ui/core/styles";
-import Typography from "@material-ui/core/Typography";
-import Chip from "@material-ui/core/Chip";
-import Container from "@material-ui/core/Container";
+import Chip from '@mui/material/Chip';
+import Container from '@mui/material/Container';
+import Typography from '@mui/material/Typography';
+import { makeStyles } from '@mui/styles';
+import React from 'react';
 
 const useStyles = makeStyles((theme) => ({
   formControl: {
@@ -14,7 +14,7 @@ const useStyles = makeStyles((theme) => ({
   },
   attributeContainer: {
     padding: theme.spacing(2),
-    borderRadius: "16px",
+    borderRadius: '16px',
     border: `1px solid ${theme.palette.border.main}`,
   },
   chip: {
@@ -23,7 +23,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 /**
- * 
+ *
  * @param {attributes} param0 - ([]string) A list attributes string (e.g. resource tags)
  * @param {title} param1 - (string) The attributes' title (e.g. "Tags")
  * @returns {Container}
@@ -33,7 +33,7 @@ const AttributeBox = ({ attributes, title }) => {
 
   return (
     <Container className={classes.attributeContainer}>
-      <Typography variant="h6" component="h5" gutterBottom>
+      <Typography variant='h6' component='h5' gutterBottom>
         {title}
       </Typography>
       {attributes ? (
@@ -42,7 +42,7 @@ const AttributeBox = ({ attributes, title }) => {
             label={attr}
             key={attr}
             className={classes.chip}
-            variant="outlined"
+            variant='outlined'
           />
         ))
       ) : (

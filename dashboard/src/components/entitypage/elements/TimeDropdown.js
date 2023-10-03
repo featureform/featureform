@@ -1,19 +1,19 @@
-import React from "react";
-import { connect } from "react-redux";
-import { changeTime } from "./ExponentialTimeSliderSlice.js";
-import Box from "@mui/material/Box";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
-import FormControl from "@mui/material/FormControl";
-import Select from "@mui/material/Select";
+import Box from '@mui/material/Box';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import React from 'react';
+import { connect } from 'react-redux';
+import { changeTime } from './ExponentialTimeSliderSlice.js';
 
 const dropdownValues = [
-  { label: "1h", value: 60 },
-  { label: "1d", value: 360 * 4 },
-  { label: "1w", value: 360 * 4 * 7 },
+  { label: '1h', value: 60 },
+  { label: '1d', value: 360 * 4 },
+  { label: '1w', value: 360 * 4 * 7 },
 ];
 
-function ExponentialTimeSlider({ timeRange, changeTime }) {
+function ExponentialTimeSlider({ changeTime }) {
   const [time, setTime] = React.useState(60);
 
   const handleChange = (event) => {
@@ -25,12 +25,12 @@ function ExponentialTimeSlider({ timeRange, changeTime }) {
     <div>
       <Box sx={{ minWidth: 120 }}>
         <FormControl fullWidth>
-          <InputLabel id="demo-simple-select-label">Time Select</InputLabel>
+          <InputLabel id='demo-simple-select-label'>Time Select</InputLabel>
           <Select
-            labelId="demo-simple-select-label"
-            id="demo-simple-select"
+            labelId='demo-simple-select-label'
+            id='demo-simple-select'
             value={time}
-            label="Time Select"
+            label='Time Select'
             onChange={handleChange}
           >
             {/* {Object.keys(resourceData).map((key, i) => ( */}

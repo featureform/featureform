@@ -1,5 +1,9 @@
 name: Testing
-on: [pull_request]
+on:
+  pull_request:
+  push:
+    branches:
+      - main
 concurrency:
   group: ${{ github.head_ref }}-testing
   cancel-in-progress: true
@@ -7,6 +11,7 @@ concurrency:
 env:
   MEILISEARCH_PORT: 7700
   MEILISEARCH_API_KEY: ""
+  REDISEARCH_INSECURE_PORT: 6380
   REDIS_INSECURE_PORT: 6379
   REDIS_SECURE_PORT: 6378
   REDIS_PASSWORD: "password"
@@ -21,6 +26,9 @@ env:
   REDSHIFT_DATABASE: dev
   SPARK_LOCAL_SCRIPT_PATH: scripts/spark/offline_store_spark_runner.py
   PYTHON_LOCAL_INIT_PATH: scripts/spark/python_packages.sh
+  PINECONE_PROJECT_ID: ${{ secrets.PINECONE_PROJECT_ID }}
+  PINECONE_ENVIRONMENT: ${{ secrets.PINECONE_ENVIRONMENT }}
+  PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
 
 jobs:
   setup:
@@ -100,7 +108,7 @@ jobs:
 
       - name: Start Search
         run: |
-          docker run -d -p $MEILISEARCH_PORT:7700 getmeili/meilisearch:v1.0 
+          docker run -d -p $MEILISEARCH_PORT:7700 getmeili/meilisearch:v1.0
 
       - name: Make Coverage Directory
         working-directory: ./
@@ -136,7 +144,7 @@ jobs:
     environment: Integration testing
     needs: setup
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     services:
       redis-insecure:
         image: redis
@@ -151,6 +159,13 @@ jobs:
         # supported for use outside of 'steps'
         ports:
           - 9042:9042
+
+      redisearch:
+        image: redis/redis-stack
+        # Hard coded port because environment variables not currently
+        # supported for use outside of 'steps'
+        ports:
+          - 6380:6379
 
     steps:
       - name: Download Working Compiled Directories
@@ -224,6 +239,16 @@ jobs:
         with:
           name: provider-online-coverage-reports
           path: ./coverage
+
+      - name: Clear Pinecone Indexes
+        env:
+          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+          PINECONE_ENVIRONMENT: ${{ secrets.PINECONE_ENVIRONMENT }}
+        if: always()
+        run: |
+          pip install pinecone-cli
+          pinecli list-indexes --apikey="$PINECONE_API_KEY" | while read -r index; do pinecli delete-index --apikey="$PINECONE_API_KEY" --disable-safety "$index"; done
+
 
   provider-offline:
     name: Offline Provider Testing
@@ -503,7 +528,6 @@ jobs:
           GCS_BUCKET_PATH: "backup"
           GCS_CREDENTIALS: ${{ secrets.GCS_CREDENTIALS }}
         run: ./tests/integration/backup/test.sh
-
 
   metrics:
     name: Metrics Testing
@@ -905,6 +929,10 @@ jobs:
           AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
           AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
           AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_PATH }}
+          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
         run: make test_offline_k8s
 
       - name: Testing Python
@@ -914,6 +942,10 @@ jobs:
           AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
           AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
           AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_PATH }}
+          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
         run: make test_pandas
 
       - name: Creating GCS Secret File
@@ -922,7 +954,7 @@ jobs:
         with:
           name: "./provider/gcp_credentials.json"
           json: ${{ secrets.GCS_CREDENTIALS }}
-      
+
       - name: Testing Filestore
         env:
           AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
@@ -943,7 +975,7 @@ jobs:
         run: |
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
-          
+
       - uses: codecov/codecov-action@v2
         if: always()
         with:
@@ -963,6 +995,7 @@ jobs:
     name: Test Localmode
     needs: setup
     runs-on: ${{ matrix.os }}
+    if: github.ref != 'refs/heads/main'
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest] #osx-arm64 currently not working. Ticket made with github
@@ -976,10 +1009,25 @@ jobs:
         with:
           name: compiled-workdir
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      #
+      # https://github.com/actions/setup-python/issues/682
+      # Python 3.7.17 in MacOSX will raise "No module named _bz2" exception, so pinning to 3.7.16
+      #
+      # Previous setup, revert back to the below once th3 issue is fixed:
+      # - name: Set up Python
+      #   uses: actions/setup-python@v4
+      #   with:
+      #     python-version: ${{ matrix.python-version }}
+      #
+      - uses: actions/setup-python@v4
+        if: matrix.os != 'macos-latest' || ( matrix.os == 'macos-latest' && matrix.python-version != '3.7' )
         with:
           python-version: ${{ matrix.python-version }}
+      - uses: actions/setup-python@v4
+        if: matrix.os == 'macos-latest' && matrix.python-version == '3.7'
+        with:
+          python-version: "3.7.16"
+
       - name: Install pytest
         run: pip install pytest protobuf==3.20.1 python-dotenv pytest-mock
 
@@ -989,30 +1037,62 @@ jobs:
       - name: Run Tests
         run: make pytest
 
-  notebook:
-    name: Test Notebook
+  client-coverage:
+    name: Client Test Coverage
+    needs: setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
         with:
-          python-version: "3.8"
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
+          name: compiled-workdir
+      - uses: actions/setup-python@v4
         with:
-          go-version: 1.18
+          python-version: "3.9"
 
-      - name: Install grpc_tools
-        run: pip install grpcio-tools build
+      - name: Install pytest and pytest-cov
+        run: pip install pytest protobuf==3.20.1 python-dotenv pytest-mock pytest-cov
 
-      - name: Install Protobuf
-        run: sudo snap install protobuf --classic
+      - name: Install featureform
+        run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
 
-      - name: Setup Proto
-        run: ./gen_grpc.sh
+      - name: Generate Coverage Report
+        run: make pytest_coverage
 
-      - name: Run Tests
-        run: make jupyter
+      - name: Upload Coverage Report
+        uses: codecov/codecov-action@v2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          root_dir: ./
+          files: ./coverage.xml
+          name: client-coverage
+          verbose: true
+
+#  notebook:
+#    name: Test Notebook
+#    runs-on: ubuntu-latest
+#    timeout-minutes: 5
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Python
+#        uses: actions/setup-python@v4
+#        with:
+#          python-version: "3.8"
+#
+#      - name: Set up Go
+#        uses: actions/setup-go@v2
+#        with:
+#          go-version: 1.18
+#
+#      - name: Install grpc_tools
+#        run: pip install grpcio-tools build
+#
+#      - name: Install Protobuf
+#        run: sudo snap install protobuf --classic
+#
+#      - name: Setup Proto
+#        run: ./gen_grpc.sh
+#
+#      - name: Run Tests
+#        run: make jupyter

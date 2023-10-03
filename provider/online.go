@@ -9,7 +9,6 @@ import (
 
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
-	"github.com/go-redis/redis/v8"
 )
 
 var cassandraTypeMap = map[string]string{
@@ -32,6 +31,17 @@ type OnlineStore interface {
 type OnlineStoreTable interface {
 	Set(entity string, value interface{}) error
 	Get(entity string) (interface{}, error)
+}
+
+type VectorStore interface {
+	CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error)
+	DeleteIndex(feature, variant string) error
+	OnlineStore
+}
+
+type VectorStoreTable interface {
+	OnlineStoreTable
+	Nearest(feature, variant string, vector []float32, k int32) ([]string, error)
 }
 
 type TableNotFound struct {
@@ -120,12 +130,6 @@ func (store *localOnlineStore) Close() error {
 }
 
 type localOnlineTable map[string]interface{}
-
-type redisOnlineTable struct {
-	client    *redis.Client
-	key       redisTableKey
-	valueType ValueType
-}
 
 func (table localOnlineTable) Set(entity string, value interface{}) error {
 	table[entity] = value

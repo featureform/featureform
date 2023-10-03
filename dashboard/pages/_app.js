@@ -1,27 +1,22 @@
-import React from "react";
-import "../src/styles/base.css";
-import ReduxWrapper from "../src/components/redux/wrapper";
-import ReduxStore from "../src/components/redux/store";
-import { makeStyles } from "@material-ui/core/styles";
-import CssBaseline from "@material-ui/core/CssBaseline";
-import theme from "../src/styles/theme";
-import { ThemeProvider } from "@material-ui/core/styles";
-import ResourcesAPI from "../src/api/resources";
-import HomePage from "../src/components/homepage/HomePage";
-import DataPage from "../src/components/datapage/DataPage";
-import TopBar from "../src/components/topbar/TopBar";
-import EntityPage from "../src/components/entitypage/EntityPage";
-import BreadCrumbs from "../src/components/breadcrumbs/BreadCrumbs";
-import Container from "@material-ui/core/Container";
-import SearchResults from "../src/components/searchresults/SearchResults";
-import NotFoundPage from "../src/components/notfoundpage/NotFoundPage";
-import ConnectionPage from "../src/components/connectionpage";
+import Container from '@mui/material/Container';
+import CssBaseline from '@mui/material/CssBaseline';
+import { makeStyles, ThemeProvider } from '@mui/styles';
+import React from 'react';
+import ResourcesAPI from '../src/api/resources';
+import ReduxStore from '../src/components/redux/store';
+import ReduxWrapper from '../src/components/redux/wrapper';
+import SideNav from '../src/components/sideNav/SideNav';
+import TopBar from '../src/components/topbar/TopBar';
+import '../src/styles/base.css';
+import theme from '../src/styles/theme';
 
 const apiHandle = new ResourcesAPI();
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   pageContainer: {
-    paddingLeft: theme.spacing(8),
-    paddingRight: theme.spacing(8),
+    height: '100%',
+    width: '100%',
+    top: '70px',
+    position: 'relative',
   },
 }));
 
@@ -29,26 +24,27 @@ export const MyApp = ({ Component, pageProps }) => {
   const classes = useStyles();
   return (
     <React.StrictMode>
-    <ReduxWrapper store={ReduxStore}>
-    <ThemeWrapper>
-      <TopBar className={classes.topbar} />
-      <Container
-        maxWidth="xl"
-        className={classes.root}
-        classes={{ maxWidthXl: classes.pageContainer }}
-      >
-        <BreadCrumbs />
-        <Component {...pageProps} api={apiHandle}/>
-      </Container>
-    </ThemeWrapper>
-    </ReduxWrapper>
+      <ReduxWrapper store={ReduxStore}>
+        <ThemeWrapper>
+          <TopBar className={classes.topbar} api={apiHandle} />
+          <SideNav>
+            <Container
+              maxWidth='xl'
+              className={classes.root}
+              classes={{ maxWidthXl: classes.pageContainer }}
+            >
+              <Component {...pageProps} api={apiHandle} />
+            </Container>
+          </SideNav>
+        </ThemeWrapper>
+      </ReduxWrapper>
     </React.StrictMode>
   );
 };
 
 export const views = {
-  RESOURCE_LIST: "ResourceList",
-  EMPTY: "Empty",
+  RESOURCE_LIST: 'ResourceList',
+  EMPTY: 'Empty',
 };
 
 export const ThemeWrapper = ({ children }) => (

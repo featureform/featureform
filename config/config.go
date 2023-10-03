@@ -2,12 +2,23 @@ package config
 
 import "github.com/featureform/helpers"
 
-const PandasBaseImage = "featureformcom/k8s_runner"
+// image paths
+const (
+	PandasBaseImage = "featureformcom/k8s_runner"
+	WorkerImage     = "featureformcom/worker"
+)
 
-const SparkLocalScriptPath = "/app/provider/scripts/spark/offline_store_spark_runner.py"
-const SparkRemoteScriptPath = "featureform/scripts/spark/offline_store_spark_runner.py"
-const PythonLocalInitPath = "/app/provider/scripts/spark/python_packages.sh"
-const PythonRemoteInitPath = "featureform/scripts/spark/python_packages.sh"
+// script paths
+const (
+	SparkLocalScriptPath  = "/app/provider/scripts/spark/offline_store_spark_runner.py"
+	SparkRemoteScriptPath = "featureform/scripts/spark/offline_store_spark_runner.py"
+	PythonLocalInitPath   = "/app/provider/scripts/spark/python_packages.sh"
+	PythonRemoteInitPath  = "featureform/scripts/spark/python_packages.sh"
+)
+
+func GetWorkerImage() string {
+	return helpers.GetEnv("WORKER_IMAGE", WorkerImage)
+}
 
 func GetPandasRunnerImage() string {
 	return helpers.GetEnv("PANDAS_RUNNER_IMAGE", PandasBaseImage)

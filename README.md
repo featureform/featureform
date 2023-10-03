@@ -10,7 +10,6 @@
     <a href="https://www.python.org/downloads/" target="_blank"><img src="https://img.shields.io/badge/python-%203.7|3.8|3.9|3.10-brightgreen.svg" alt="Python supported"></a>
     <a href="https://pypi.org/project/featureform/" target="_blank"><img src="https://badge.fury.io/py/featureform.svg" alt="PyPi Version"></a>
     <a href="https://www.featureform.com/"><img src="https://img.shields.io/website?url=https%3A%2F%2Fwww.featureform.com%2F?style=for-the-badge&logo=appveyor" alt="Featureform Website"></a>  
-    <a href="https://codecov.io/gh/featureform/featureform"><img src="https://codecov.io/gh/featureform/featureform/branch/main/graph/badge.svg?token=3GP8NVYT7Y"/></a>
     <a href="https://twitter.com/featureformML" target="_blank"><img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social" alt="Twitter"></a>
 
 
@@ -91,7 +90,7 @@ locally on Minikube.
 To check out how to run it in the cloud,
 follow our [Kubernetes deployment](https://docs.featureform.com/deployment/kubernetes).
 
-To try Featureform with Minikube, follow our [Minikube guide](https://docs.featureform.com/minikube)
+To try Featureform in a single docker container, follow our [docker quickstart guide](https://docs.featureform.com/deployment/quickstart-docker)
 
 ## Local
 
@@ -150,32 +149,28 @@ def average_user_transaction(transactions):
 Next, we'll register a passenger entity to associate with a feature and label.
 
 ```python
-user = ff.register_entity("user")
-# Register a column from our transformation as a feature
-average_user_transaction.register_resources(
-    entity=user,
-    entity_column="CustomerID",
-    inference_store=local,
-    features=[
-        {"name": "avg_transactions", "variant": "quickstart", "column": "TransactionAmount", "type": "float32"},
-    ],
-)
-# Register label from our base Transactions table
-transactions.register_resources(
-    entity=user,
-    entity_column="CustomerID",
-    labels=[
-        {"name": "fraudulent", "variant": "quickstart", "column": "IsFraud", "type": "bool"},
-    ],
-)
+@ff.entity
+class User:
+    avg_transactions = ff.Feature(
+        average_user_transaction[["CustomerID", "TransactionAmount"]],
+        variant="quickstart",
+        type=ff.Float32,
+        inference_store=local,
+    )
+
+    fraudulent = ff.Label(
+        transactions[["CustomerID", "IsFraud"]],
+        variant="quickstart",
+        type=ff.Bool,
+    )
 ```
 
 Finally, we'll join together the feature and label into a training set.
 ```python
 ff.register_training_set(
-"fraud_training", "quickstart",
-label=("fraudulent", "quickstart"),
-features=[("avg_transactions", "quickstart")],
+    "fraud_training", "quickstart",
+    label=("fraudulent", "quickstart"),
+    features=[("avg_transactions", "quickstart")],
 )
 ```
 Now that our definitions are complete, we can apply it to our Featureform instance.
@@ -189,7 +184,7 @@ Once we have our training set and features registered, we can train our model.
 ```python
 import featureform as ff
 
-client = ff.ServingLocalClient()
+client = ff.Client(local=True)
 dataset = client.training_set("fraud_training", "quickstart")
 training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
 for feature_batch in training_dataset:
@@ -201,8 +196,8 @@ We can serve features in production once we deploy our trained model as well.
 ```python
 import featureform as ff
 
-client = ff.ServingLocalClient()
-fpf = client.features([("avg_transactions", "quickstart")], ("CustomerID", "C1410926"))
+client = ff.Client(local=True)
+fpf = client.features([("avg_transactions", "quickstart")], {"user": "C1410926"})
 # Run features through model
 ```
 
@@ -220,7 +215,7 @@ We can use the feature registry to search, monitor, and discover our machine lea
 
 # Contributing
 
-* To contribute to Embeddinghub, please check out [Contribution docs](https://github.com/featureform/featureform/blob/main/CONTRIBUTING.md).
+* To contribute to Featureform, please check out [Contribution docs](https://github.com/featureform/featureform/blob/main/CONTRIBUTING.md).
 * Welcome to our community, join us on [Slack](https://join.slack.com/t/featureform-community/shared_invite/zt-xhqp2m4i-JOCaN1vRN2NDXSVif10aQg).
 
 <br />

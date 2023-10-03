@@ -1,5 +1,5 @@
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   name: featureform-prometheus
 rules:
@@ -16,8 +16,6 @@ rules:
     resources:
       - ingresses
     verbs: ["get", "list", "watch"]
-  - nonResourceURLs: ["/metrics"]
-    verbs: ["get"]
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -25,14 +23,13 @@ metadata:
   name: featureform-prometheus
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
   name: featureform-prometheus
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
+  kind: Role
   name: featureform-prometheus
 subjects:
   - kind: ServiceAccount
     name: default
-    namespace: default

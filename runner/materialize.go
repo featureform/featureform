@@ -21,7 +21,7 @@ import (
 	"github.com/featureform/types"
 )
 
-const MAXIMUM_CHUNK_ROWS int64 = 16777216
+const MAXIMUM_CHUNK_ROWS int64 = 100000
 
 var WORKER_IMAGE string = helpers.GetEnv("WORKER_IMAGE", "featureformcom/worker:latest")
 
@@ -106,13 +106,27 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Create the vector similarity index prior to writing any values to the
+	// inference store. This is currently only required for RediSearch, but other
+	// vector databases allow for manual index configuration even if they support
+	// autogeneration of indexes.
+	if vectorType, ok := m.VType.(provider.VectorType); ok && vectorType.IsEmbedding {
+		m.Logger.Infow("Creating Index", "name", m.ID.Name, "variant", m.ID.Variant)
+		vectorStore, ok := m.Online.(provider.VectorStore)
+		if !ok {
+			return nil, fmt.Errorf("cannot create index on non-vector store: %v", m.Online)
+		}
+		if !ok {
+			return nil, fmt.Errorf("cannot create index on non-vector type: %v", m.VType)
+		}
+		_, err := vectorStore.CreateIndex(m.ID.Name, m.ID.Variant, vectorType)
+		if err != nil {
+			return nil, fmt.Errorf("create index error: %w", err)
+		}
+	}
 	m.Logger.Infow("Creating Table", "name", m.ID.Name, "variant", m.ID.Variant)
 	_, err = m.Online.CreateTable(m.ID.Name, m.ID.Variant, m.VType)
-	if err != nil {
-		return nil, fmt.Errorf("could not create table: %w", err)
-	}
 	_, exists := err.(*provider.TableAlreadyExists)
-
 	if err != nil && !exists {
 		return nil, fmt.Errorf("create table error: %w", err)
 	}
@@ -159,10 +173,11 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		pandas_image := cfg.GetPandasRunnerImage()
 		envVars := map[string]string{"NAME": string(COPY_TO_ONLINE), "CONFIG": string(serializedConfig), "PANDAS_RUNNER_IMAGE": pandas_image}
 		kubernetesConfig := kubernetes.KubernetesRunnerConfig{
-			EnvVars:  envVars,
-			Image:    WORKER_IMAGE,
-			NumTasks: int32(numChunks),
-			Resource: metadata.ResourceID{Name: m.ID.Name, Variant: m.ID.Variant, Type: provider.ProviderToMetadataResourceType[m.ID.Type]},
+			JobPrefix: "materialize",
+			EnvVars:   envVars,
+			Image:     WORKER_IMAGE,
+			NumTasks:  int32(numChunks),
+			Resource:  metadata.ResourceID{Name: m.ID.Name, Variant: m.ID.Variant, Type: provider.ProviderToMetadataResourceType[m.ID.Type]},
 		}
 		kubernetesRunner, err := kubernetes.NewKubernetesRunner(kubernetesConfig)
 		if err != nil {
@@ -211,7 +226,7 @@ type MaterializedRunnerConfig struct {
 	OnlineConfig  pc.SerializedConfig
 	OfflineConfig pc.SerializedConfig
 	ResourceID    provider.ResourceID
-	VType         provider.ValueType
+	VType         provider.ValueTypeJSONWrapper
 	Cloud         JobCloud
 	IsUpdate      bool
 }
@@ -239,11 +254,11 @@ func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 	}
 	onlineProvider, err := provider.Get(runnerConfig.OnlineType, runnerConfig.OnlineConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure online provider: %v", err)
+		return nil, fmt.Errorf("failed to configure %s provider: %v", runnerConfig.OnlineType, err)
 	}
 	offlineProvider, err := provider.Get(runnerConfig.OfflineType, runnerConfig.OfflineConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure offline provider: %v", err)
+		return nil, fmt.Errorf("failed to configure %s provider: %v", runnerConfig.OfflineType, err)
 	}
 	onlineStore, err := onlineProvider.AsOnlineStore()
 	if err != nil {
@@ -257,7 +272,7 @@ func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 		Online:   onlineStore,
 		Offline:  offlineStore,
 		ID:       runnerConfig.ResourceID,
-		VType:    runnerConfig.VType,
+		VType:    runnerConfig.VType.ValueType,
 		IsUpdate: runnerConfig.IsUpdate,
 		Cloud:    runnerConfig.Cloud,
 		Logger:   logging.NewLogger("materializer"),

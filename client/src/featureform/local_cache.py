@@ -4,16 +4,17 @@ from functools import lru_cache
 from typing import Callable, Set
 
 import pandas as pd
-from featureform import SQLiteMetadata  # fix to do client.source.import
+from featureform import SQLiteMetadata
 from featureform.local_utils import get_sql_transformation_sources
 from featureform.resources import SourceType  # fix to do client.source.import
 from pandas.core.generic import NDFrame
 from typeguard import typechecked
 
+from .file_utils import absolute_file_paths
+
 
 class LocalCache:
-    def __init__(self, db: SQLiteMetadata):
-        self.db = db
+    def __init__(self):
         feature_form_dir = os.environ.get("FEATUREFORM_DIR", ".featureform")
         self.cache_dir = os.environ.get(
             "FEATUREFORM_CACHE_DIR", os.path.join(feature_form_dir, "cache")
@@ -36,30 +37,32 @@ class LocalCache:
             resource_type, resource_name, resource_variant
         )
 
-        # check db for source files
-        source_files_from_db = self.db.get_source_files_for_resource(
-            resource_type, resource_name, resource_variant
-        )
-        if source_files_from_db:
-            self._invalidate_cache_if_source_files_changed(
-                source_files_from_db, cache_file_path
+        with SQLiteMetadata() as db:
+            # check db for source files
+            source_files_from_db = db.get_source_files_for_resource(
+                resource_type, resource_name, resource_variant
+            )
+            if source_files_from_db:
+                self._invalidate_cache_if_source_files_changed(
+                    source_files_from_db, cache_file_path
+                )
+
+            # get source files from db or compute the sources
+            source_files: Set[str] = (
+                set(map(lambda x: x["file_path"], source_files_from_db))
+                if source_files_from_db
+                else self.get_source_files_for_source(db, source_name, source_variant)
             )
 
-        # get source files from db or compute the sources
-        source_files: Set[str] = (
-            set(map(lambda x: x["file_path"], source_files_from_db))
-            if source_files_from_db
-            else self.get_source_files_for_source(source_name, source_variant)
-        )
-
-        return self._get_or_put(
-            resource_type,
-            resource_name,
-            resource_variant,
-            cache_file_path,
-            source_files,
-            func,
-        )
+            return self._get_or_put(
+                db,
+                resource_type,
+                resource_name,
+                resource_variant,
+                cache_file_path,
+                source_files,
+                func,
+            )
 
     @typechecked
     def get_or_put_training_set(
@@ -78,60 +81,66 @@ class LocalCache:
             resource_type, training_set_name, training_set_variant
         )
 
-        # check db for source files
-        source_files_from_db = self.db.get_source_files_for_resource(
-            resource_type, training_set_name, training_set_variant
-        )
-
-        # Only check to invalidate the cache if we have source files in the db
-        if source_files_from_db:
-            self._invalidate_cache_if_source_files_changed(
-                source_files_from_db, file_path
+        with SQLiteMetadata() as db:
+            # check db for source files
+            source_files_from_db = db.get_source_files_for_resource(
+                resource_type, training_set_name, training_set_variant
             )
 
-        source_files = set()
-        if source_files_from_db:
-            source_files.update(
-                set(map(lambda x: x["file_path"], source_files_from_db))
-            )
-        else:
-            ts_variant = self.db.get_training_set_variant(
-                training_set_name, training_set_variant
-            )
-            label_variant = self.db.get_label_variant(
-                ts_variant["label_name"], ts_variant["label_variant"]
-            )
-            source_files.update(
-                self.get_source_files_for_source(
-                    label_variant["source_name"], label_variant["source_variant"]
+            # Only check to invalidate the cache if we have source files in the db
+            if source_files_from_db:
+                self._invalidate_cache_if_source_files_changed(
+                    source_files_from_db, file_path
                 )
-            )
 
-            features = self.db.get_training_set_features(
-                training_set_name, training_set_variant
-            )
-            for feature in features:
-                feature_variant = self.db.get_feature_variant(
-                    feature["feature_name"], feature["feature_variant"]
+            source_files = set()
+            if source_files_from_db:
+                source_files.update(
+                    set(map(lambda x: x["file_path"], source_files_from_db))
+                )
+            else:
+                ts_variant = db.get_training_set_variant(
+                    training_set_name, training_set_variant
+                )
+                label_variant = db.get_label_variant(
+                    ts_variant["label_name"], ts_variant["label_variant"]
                 )
                 source_files.update(
                     self.get_source_files_for_source(
-                        feature_variant["source_name"],
-                        feature_variant["source_variant"],
+                        db,
+                        label_variant["source_name"],
+                        label_variant["source_variant"],
                     )
                 )
 
-        return self._get_or_put(
-            resource_type,
-            training_set_name,
-            training_set_variant,
-            file_path,
-            source_files,
-            func,
-        )
+                features = db.get_training_set_features(
+                    training_set_name, training_set_variant
+                )
+                for feature in features:
+                    feature_variant = db.get_feature_variant(
+                        feature["feature_name"], feature["feature_variant"]
+                    )
+                    source_files.update(
+                        self.get_source_files_for_source(
+                            db,
+                            feature_variant["source_name"],
+                            feature_variant["source_variant"],
+                        )
+                    )
+
+            return self._get_or_put(
+                db,
+                resource_type,
+                training_set_name,
+                training_set_variant,
+                file_path,
+                source_files,
+                func,
+            )
 
     def _get_or_put(
         self,
+        db,
         resource_type,
         resource_name,
         resource_variant,
@@ -147,7 +156,7 @@ class LocalCache:
             os.makedirs(self.cache_dir, exist_ok=True)
             df.to_pickle(file_path)
             for source_file in source_files:
-                self.db.insert_or_update(
+                db.insert_or_update(
                     "resource_source_files",
                     ["resource_type", "name", "variant", "file_path"],
                     ["updated_at"],
@@ -160,12 +169,12 @@ class LocalCache:
             return df
 
     @lru_cache(maxsize=128)
-    def get_source_files_for_source(self, source_name, source_variant) -> Set[str]:
+    def get_source_files_for_source(self, db, source_name, source_variant) -> Set[str]:
         """
         Recursively gets the source files for a given source. Each call is cached.
         """
-        source = self.db.get_source_variant(source_name, source_variant)
-        transform_type = self.db.is_transformation(source_name, source_variant)
+        source = db.get_source_variant(source_name, source_variant)
+        transform_type = db.is_transformation(source_name, source_variant)
 
         sources = set()
         if transform_type == SourceType.PRIMARY_SOURCE.value:
@@ -175,15 +184,18 @@ class LocalCache:
             transformation_sources = get_sql_transformation_sources(query)
             for source_name, source_variant in transformation_sources:
                 sources.update(
-                    self.get_source_files_for_source(source_name, source_variant)
+                    self.get_source_files_for_source(db, source_name, source_variant)
                 )
         elif transform_type == SourceType.DF_TRANSFORMATION.value:
             dependencies = json.loads(source["inputs"])
             for name, variant in dependencies:
-                sources.update(self.get_source_files_for_source(name, variant))
+                sources.update(self.get_source_files_for_source(db, name, variant))
+        elif transform_type == SourceType.DIRECTORY.value:
+            path = source["definition"]
+            for absolute_file, _ in absolute_file_paths(path):
+                sources.add(absolute_file)
         else:
             raise Exception(f"Unknown source type: {transform_type}")
-
         return sources
 
     def _invalidate_cache_if_source_files_changed(

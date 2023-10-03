@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	fs "github.com/featureform/filestore"
 	ss "github.com/featureform/helpers/string_set"
 	"github.com/mitchellh/mapstructure"
 )
@@ -41,7 +42,7 @@ type SparkFileStoreConfig interface {
 type SparkConfig struct {
 	ExecutorType   SparkExecutorType
 	ExecutorConfig SparkExecutorConfig
-	StoreType      FileStoreType
+	StoreType      fs.FileStoreType
 	StoreConfig    SparkFileStoreConfig
 }
 
@@ -65,7 +66,7 @@ func (s *SparkConfig) UnmarshalJSON(data []byte) error {
 	type tempConfig struct {
 		ExecutorType   SparkExecutorType
 		ExecutorConfig map[string]interface{}
-		StoreType      FileStoreType
+		StoreType      fs.FileStoreType
 		StoreConfig    map[string]interface{}
 	}
 
@@ -108,11 +109,11 @@ func (s SparkConfig) MutableFields() ss.StringSet {
 	}
 
 	switch s.StoreType {
-	case Azure:
+	case fs.Azure:
 		storeFields = s.StoreConfig.(*AzureFileStoreConfig).MutableFields()
-	case S3:
+	case fs.S3:
 		storeFields = s.StoreConfig.(*S3FileStoreConfig).MutableFields()
-	case GCS:
+	case fs.GCS:
 		storeFields = s.StoreConfig.(*GCSFileStoreConfig).MutableFields()
 	default:
 		storeFields = ss.StringSet{}
@@ -148,6 +149,8 @@ func (a SparkConfig) DifferingFields(b SparkConfig) (ss.StringSet, error) {
 		executorFields, err = a.ExecutorConfig.(*EMRConfig).DifferingFields(*b.ExecutorConfig.(*EMRConfig))
 	case Databricks:
 		executorFields, err = a.ExecutorConfig.(*DatabricksConfig).DifferingFields(*b.ExecutorConfig.(*DatabricksConfig))
+	case SparkGeneric:
+		executorFields, err = a.ExecutorConfig.(*SparkGenericConfig).DifferingFields(*b.ExecutorConfig.(*SparkGenericConfig))
 	default:
 		return nil, fmt.Errorf("unknown executor type: %v", a.ExecutorType)
 	}
@@ -157,11 +160,11 @@ func (a SparkConfig) DifferingFields(b SparkConfig) (ss.StringSet, error) {
 	}
 
 	switch a.StoreType {
-	case Azure:
+	case fs.Azure:
 		storeFields, err = a.StoreConfig.(*AzureFileStoreConfig).DifferingFields(*b.StoreConfig.(*AzureFileStoreConfig))
-	case S3:
+	case fs.S3:
 		storeFields, err = a.StoreConfig.(*S3FileStoreConfig).DifferingFields(*b.StoreConfig.(*S3FileStoreConfig))
-	case GCS:
+	case fs.GCS:
 		storeFields, err = a.StoreConfig.(*GCSFileStoreConfig).DifferingFields(*b.StoreConfig.(*GCSFileStoreConfig))
 	default:
 		return nil, fmt.Errorf("unknown store type: %v", a.StoreType)
@@ -203,16 +206,16 @@ func (s *SparkConfig) decodeExecutor(executorType SparkExecutorType, configMap m
 	return nil
 }
 
-func (s *SparkConfig) decodeFileStore(fileStoreType FileStoreType, configMap map[string]interface{}) error {
+func (s *SparkConfig) decodeFileStore(fileStoreType fs.FileStoreType, configMap map[string]interface{}) error {
 	var fileStoreConfig SparkFileStoreConfig
 	switch fileStoreType {
-	case Azure:
+	case fs.Azure:
 		fileStoreConfig = &AzureFileStoreConfig{}
-	case S3:
+	case fs.S3:
 		fileStoreConfig = &S3FileStoreConfig{}
-	case HDFS:
+	case fs.HDFS:
 		fileStoreConfig = &HDFSFileStoreConfig{}
-	case GCS:
+	case fs.GCS:
 		fileStoreConfig = &GCSFileStoreConfig{}
 	default:
 		return fmt.Errorf("the file store type '%s' is not supported ", fileStoreType)
@@ -230,6 +233,8 @@ type SparkGenericConfig struct {
 	Master        string
 	DeployMode    string
 	PythonVersion string
+	CoreSite      string
+	YarnSite      string
 }
 
 func (sc *SparkGenericConfig) Deserialize(config SerializedConfig) error {

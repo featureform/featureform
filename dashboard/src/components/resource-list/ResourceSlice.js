@@ -1,5 +1,5 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import Resource from "../../api/resources/Resource.js";
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import Resource from '../../api/resources/Resource.js';
 
 const assertAndCheck = (assertion, errorMessage) => {
   console.assert(assertion, { errorMsg: errorMessage });
@@ -10,44 +10,44 @@ const isValidResponse = (resources, hasVariants) => {
   let af = true;
   af &= assertAndCheck(
     Array.isArray(resources),
-    "Resource list fetch not an array"
+    'Resource list fetch not an array'
   );
 
   if (hasVariants) {
     resources.forEach((resource) => {
-      af &= assertAndCheck("name" in resource, "Resource has no name element");
+      af &= assertAndCheck('name' in resource, 'Resource has no name element');
       af &= assertAndCheck(
-        "default-variant" in resource,
-        "Resource has no default variant"
+        'default-variant' in resource,
+        'Resource has no default variant'
       );
       af &= assertAndCheck(
-        "all-variants" in resource,
-        "Resource has no variants list"
+        'all-variants' in resource,
+        'Resource has no variants list'
       );
       af &= assertAndCheck(
-        "variants" in resource,
-        "Resource has no variants object"
+        'variants' in resource,
+        'Resource has no variants object'
       );
-      resource["all-variants"].forEach((variant) => {
+      resource['all-variants'].forEach((variant) => {
         af &= assertAndCheck(
-          Object.keys(resource["variants"]).includes(variant),
-          "Element of variant list not in variants"
+          Object.keys(resource['variants']).includes(variant),
+          'Element of variant list not in variants'
         );
       });
       af &= assertAndCheck(
-        Object.keys(resource["variants"]).includes(resource["default-variant"]),
-        "default variant not included in resource"
+        Object.keys(resource['variants']).includes(resource['default-variant']),
+        'default variant not included in resource'
       );
-      Object.keys(resource["variants"]).forEach((key) => {
+      Object.keys(resource['variants']).forEach((key) => {
         af &= assertAndCheck(
-          resource["all-variants"].includes(key),
-          "Variant in variant object not in variant list"
+          resource['all-variants'].includes(key),
+          'Variant in variant object not in variant list'
         );
       });
     });
   } else {
     resources.forEach((resource) => {
-      af &= assertAndCheck("name" in resource, "Resource has no name element");
+      af &= assertAndCheck('name' in resource, 'Resource has no name element');
     });
   }
 
@@ -55,16 +55,15 @@ const isValidResponse = (resources, hasVariants) => {
 };
 
 export const fetchResources = createAsyncThunk(
-  "resourceList/fetchByType",
+  'resourceList/fetchByType',
   async ({ api, type }, { signal }) => {
     const response = await api.fetchResources(type, signal);
     return response.data;
   },
   {
     condition: ({ type }, { getState }) => {
-      const { resources, loading } = getState().resourceList[type];
-
-      if (loading || resources) {
+      const { loading } = getState().resourceList[type];
+      if (loading) {
         return false;
       }
     },
@@ -75,16 +74,21 @@ const reduceFn = (map, type) => {
   map[type] = {};
   return map;
 };
-const reduceFnInitial = {};
+const reduceFnInitial = { selectedType: null };
 export const initialState = Resource.resourceTypes.reduce(
   reduceFn,
   reduceFnInitial
 );
 
 const resourceSlice = createSlice({
-  name: "resourceList",
+  name: 'resourceList',
   // initialState is a map between each resource type to an empty object.
   initialState: initialState,
+  reducers: {
+    setCurrentType: (state, action) => {
+      state['selectedType'] = action.payload.selectedType;
+    },
+  },
   extraReducers: {
     [fetchResources.pending]: (state, action) => {
       const type = action.meta.arg.type;
@@ -129,5 +133,7 @@ const resourceSlice = createSlice({
     },
   },
 });
+
+export const setCurrentType = resourceSlice.actions.setCurrentType;
 
 export default resourceSlice.reducer;

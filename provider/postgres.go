@@ -27,11 +27,20 @@ func postgresOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	if err := sc.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("invalid postgres config: %v", config)
 	}
+
+	// We are doing this to support older versions of
+	// featureform that did not have the sslmode field
+	// on the client side.
+	sslMode := sc.SSLMode
+	if sslMode == "" {
+		sslMode = "disable"
+	}
+
 	queries := postgresSQLQueries{}
 	queries.setVariableBinding(PostgresBindingStyle)
 	sgConfig := SQLOfflineStoreConfig{
 		Config:        config,
-		ConnectionURL: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", sc.Username, sc.Password, sc.Host, sc.Port, sc.Database),
+		ConnectionURL: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", sc.Username, sc.Password, sc.Host, sc.Port, sc.Database, sslMode),
 		Driver:        "postgres",
 		ProviderType:  pt.PostgresOffline,
 		QueryImpl:     &queries,
@@ -218,20 +227,6 @@ func (q postgresSQLQueries) transformationUpdate(db *sql.DB, tableName string, q
 	tempName := sanitize(fmt.Sprintf("tmp_%s", tableName))
 	fullQuery := fmt.Sprintf("CREATE TABLE %s AS %s", tempName, query)
 	return q.atomicUpdate(db, tableName, tempName, fullQuery)
-}
-
-func (q postgresSQLQueries) atomicUpdate(db *sql.DB, tableName string, tempName string, query string) error {
-	santizedName := sanitize(tableName)
-	oldName := sanitize(fmt.Sprintf("old_%s", tableName))
-	transaction := fmt.Sprintf("BEGIN;"+
-		"%s;"+
-		"ALTER TABLE %s RENAME TO %s;"+
-		"ALTER TABLE %s RENAME TO %s;"+
-		"DROP TABLE %s;"+
-		"COMMIT;", query, santizedName, oldName, tempName, santizedName, oldName)
-	_, err := db.Exec(transaction)
-
-	return err
 }
 
 func (q postgresSQLQueries) transformationExists() string {

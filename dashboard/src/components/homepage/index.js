@@ -1,2 +1,2 @@
-export { default } from "./HomePage.js";
-export { default as homePageReducer } from "./HomePageSlice.js";
+export { default } from './HomePage.js';
+export { default as homePageReducer } from './HomePageSlice.js';

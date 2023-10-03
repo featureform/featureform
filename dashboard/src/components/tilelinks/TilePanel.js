@@ -1,11 +1,11 @@
-import React from "react";
-import Tile from "./Tile.js";
-import Grid from "@material-ui/core/Grid";
+import Grid from '@mui/material/Grid';
+import React from 'react';
+import Tile from './Tile.js';
 
 const TilePanel = ({ sections }) => {
   return (
     <div>
-      <Grid container justifyContent="center">
+      <Grid container justifyContent='center'>
         {sections.map((section, i) => {
           return (
             <Grid item xs={12} md={6} lg={4} key={`tile-grid-${i}`}>

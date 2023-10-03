@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 )
@@ -55,30 +56,50 @@ func blobTableKey(prefix, feature, variant string) string {
 
 func (store OnlineFileStore) tableExists(feature, variant string) (bool, error) {
 	tableKey := blobTableKey(store.Prefix, feature, variant)
-	return store.Exists(tableKey)
+	filepath := filestore.AzureFilepath{}
+	if err := filepath.ParseFilePath(tableKey); err != nil {
+		return false, err
+	}
+	return store.Exists(&filepath)
 }
 
 func (store OnlineFileStore) readTableValue(feature, variant string) (ValueType, error) {
 	tableKey := blobTableKey(store.Prefix, feature, variant)
-	value, err := store.Read(tableKey)
+	filepath := filestore.AzureFilepath{}
+	if err := filepath.ParseFilePath(tableKey); err != nil {
+		return nil, err
+	}
+	value, err := store.Read(&filepath)
 	if err != nil {
 		return NilType, err
 	}
-	return ValueType(string(value)), nil
+	return ScalarType(string(value)), nil
 }
 
 func (store OnlineFileStore) writeTableValue(feature, variant string, valueType ValueType) error {
 	tableKey := blobTableKey(store.Prefix, feature, variant)
-	return store.Write(tableKey, []byte(valueType))
+	filepath := filestore.AzureFilepath{}
+	if err := filepath.ParseFilePath(tableKey); err != nil {
+		return err
+	}
+	return store.Write(&filepath, []byte(valueType.Scalar()))
 }
 
 func (store OnlineFileStore) deleteTable(feature, variant string) error {
 	tableKey := blobTableKey(store.Prefix, feature, variant)
 	entityDirectory := entityDirectory(store.Prefix, feature, variant)
-	if err := store.Delete(tableKey); err != nil {
+	filepath := filestore.AzureFilepath{}
+	if err := filepath.ParseFilePath(tableKey); err != nil {
+		return err
+	}
+	if err := store.Delete(&filepath); err != nil {
 		return fmt.Errorf("could not delete table index key %s: %v", tableKey, err)
 	}
-	if err := store.DeleteAll(entityDirectory); err != nil {
+	filepath = filestore.AzureFilepath{}
+	if err := filepath.ParseFilePath(entityDirectory); err != nil {
+		return err
+	}
+	if err := store.DeleteAll(&filepath); err != nil {
 		return fmt.Errorf("could not delete entity directory %s: %v", entityDirectory, err)
 	}
 	return nil
@@ -142,13 +163,21 @@ func entityValueKey(prefix, feature, variant, entity string) string {
 
 func (table OnlineFileStoreTable) setEntityValue(feature, variant, entity string, value interface{}) error {
 	entityValueKey := entityValueKey(table.prefix, feature, variant, entity)
+	filepath := filestore.AzureFilepath{}
+	if err := filepath.ParseFilePath(entityValueKey); err != nil {
+		return err
+	}
 	valueBytes := []byte(fmt.Sprintf("%v", value.(interface{})))
-	return table.store.Write(entityValueKey, valueBytes)
+	return table.store.Write(&filepath, valueBytes)
 }
 
 func (table OnlineFileStoreTable) getEntityValue(feature, variant, entity string) (interface{}, error) {
 	entityValueKey := entityValueKey(table.prefix, feature, variant, entity)
-	exists, err := table.store.Exists(entityValueKey)
+	filepath := filestore.AzureFilepath{}
+	if err := filepath.ParseFilePath(entityValueKey); err != nil {
+		return nil, err
+	}
+	exists, err := table.store.Exists(&filepath)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +185,7 @@ func (table OnlineFileStoreTable) getEntityValue(feature, variant, entity string
 		return nil, &EntityNotFound{entity}
 	}
 
-	return table.store.Read(entityValueKey)
+	return table.store.Read(&filepath)
 }
 
 func (table OnlineFileStoreTable) Set(entity string, value interface{}) error {

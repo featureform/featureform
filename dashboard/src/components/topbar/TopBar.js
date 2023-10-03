@@ -1,76 +1,73 @@
-import React, { useEffect } from "react";
-import { makeStyles } from "@material-ui/core/styles";
-import AppBar from "@material-ui/core/AppBar";
-import Toolbar from "@material-ui/core/Toolbar";
-import IconButton from "@material-ui/core/IconButton";
-import AccountCircle from "@material-ui/icons/AccountCircle";
-import MenuItem from "@material-ui/core/MenuItem";
-import Menu from "@material-ui/core/Menu";
-import { useRouter } from "next/router";
-import SearchBar from "../search/SearchBar";
+import AccountCircle from '@mui/icons-material/AccountCircle';
+import { Box } from '@mui/material';
+import AppBar from '@mui/material/AppBar';
+import IconButton from '@mui/material/IconButton';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import Toolbar from '@mui/material/Toolbar';
+import { makeStyles } from '@mui/styles';
+import { useRouter } from 'next/router';
+import React, { useEffect } from 'react';
+import SearchBar from '../search/SearchBar';
 
 const useStyles = makeStyles((theme) => ({
   root: {
-    diplay: "flex",
-    width: "100%",
+    diplay: 'flex',
+    width: '100%',
   },
 
   appbar: {
-    background: "transparent",
-    boxShadow: "none",
-    display: "flex",
-    width: "100%",
-    color: "black",
+    position: 'fixed',
+    top: '0',
+    width: '100%',
+    height: '70px',
+    left: '0px',
+    background: `#FC195C`,
+    borderBottom: `1px solid #E5E5E5`,
   },
   instanceLogo: {
-    height: "3em",
+    height: '3em',
   },
-  searchBar: {},
+  searchBar: {
+    margin: 'auto',
+  },
   toolbar: {
-    width: "100%",
-    display: "flex",
-    justifyContent: "space-between",
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'space-between',
   },
   title: {
-    justifySelf: "flex-start",
-    paddingLeft: theme.spacing(6),
+    justifySelf: 'flex-start',
+    paddingLeft: theme.spacing(1.5),
   },
   instanceName: {
-    userSelect: "none",
-    opacity: "50%",
+    userSelect: 'none',
+    opacity: '50%',
     padding: theme.spacing(1),
   },
   toolbarRight: {
-    alignItems: "center",
-    display: "flex",
+    alignItems: 'center',
+    display: 'flex',
     paddingRight: theme.spacing(4),
   },
   accountButton: {
-    color: "black",
-    position: "relative",
-    fontSize: "3em",
-    padding: "1em",
-    width: "auto",
-    justifySelf: "flex-end",
+    color: 'black',
+    position: 'relative',
+    fontSize: '3em',
+    padding: '1em',
+    width: 'auto',
+    justifySelf: 'flex-end',
   },
 }));
 
-export default function TopBar() {
+export default function TopBar({ api }) {
   let router = useRouter();
   const classes = useStyles();
   let auth = false;
 
-  const [search, setSearch] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const [version, setVersion] = React.useState('');
   const open = Boolean(anchorEl);
-
-  useEffect(() => {
-    if (router.pathname !== "/") {
-      setSearch(true);
-    } else {
-      setSearch(false);
-    }
-  }, [router]);
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
@@ -80,48 +77,65 @@ export default function TopBar() {
     setAnchorEl(null);
   };
 
+  const goHome = (event) => {
+    event?.preventDefault();
+    router.push('/');
+  };
+
+  useEffect(async () => {
+    if (!version) {
+      const versionMap = await api.fetchVersionMap();
+      setVersion(versionMap.data?.version);
+    }
+  }, [api]);
+
   return (
     <div className={classes.root}>
-      <AppBar position="static" className={classes.appbar}>
+      <AppBar position='absolute' className={classes.appbar}>
         <Toolbar className={classes.toolbar}>
           <div className={classes.title}>
-            <img
-              src="/static/FeatureForm_Logo_Full_Black.svg"
-              height={30}
-              alt="Featureform"
-              component="div"
-              nowrap={"true"}
-              sx={{ flexGrow: 1, display: { xs: "none", sm: "block" } }}
+            <Box
+              component={'img'}
+              src='/static/FeatureForm_Logo_Full_White.svg'
+              alt='Featureform'
+              onClick={goHome}
+              style={{
+                cursor: 'pointer',
+                nowrap: true,
+              }}
+              sx={{
+                height: 30,
+                flexGrow: 1,
+                display: { xs: 'none', sm: 'block' },
+              }}
             />
           </div>
 
           <div className={classes.toolbarRight}>
-            {search && (
-              <SearchBar className={classes.searchBar} homePage={false} />
-            )}
+            <SearchBar className={classes.searchBar} homePage={false} />
             {auth && (
               <div>
                 <IconButton
-                  aria-label="account of current user"
-                  aria-controls="menu-appbar"
-                  aria-haspopup="true"
+                  aria-label='account of current user'
+                  aria-controls='menu-appbar'
+                  aria-haspopup='true'
                   onClick={handleMenu}
-                  color="inherit"
+                  color='inherit'
                   className={classes.accountButton}
                 >
                   <AccountCircle />
                 </IconButton>
                 <Menu
-                  id="menu-appbar"
+                  id='menu-appbar'
                   anchorEl={anchorEl}
                   anchorOrigin={{
-                    vertical: "top",
-                    horizontal: "right",
+                    vertical: 'top',
+                    horizontal: 'right',
                   }}
                   keepMounted
                   transformOrigin={{
-                    vertical: "top",
-                    horizontal: "right",
+                    vertical: 'top',
+                    horizontal: 'right',
                   }}
                   open={open}
                   onClose={handleClose}
@@ -132,6 +146,7 @@ export default function TopBar() {
               </div>
             )}
           </div>
+          <span data-testid={'versionPropId'}>Version: {version}</span>
         </Toolbar>
       </AppBar>
     </div>

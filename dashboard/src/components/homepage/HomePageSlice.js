@@ -1,39 +1,39 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice } from '@reduxjs/toolkit';
 
 const homePageSlice = createSlice({
-  name: "homePageSections",
+  name: 'homePageSections',
   initialState: {
     features: [
       {
-        type: "TrainingSet",
+        type: 'TrainingSet',
         disabled: false,
       },
       {
-        type: "Feature",
+        type: 'Feature',
         disabled: false,
       },
       {
-        type: "Entity",
+        type: 'Entity',
         disabled: false,
       },
       {
-        type: "Label",
+        type: 'Label',
         disabled: false,
       },
       {
-        type: "Model",
+        type: 'Model',
         disabled: false,
       },
       {
-        type: "Source",
+        type: 'Source',
         disabled: false,
       },
       {
-        type: "Provider",
+        type: 'Provider',
         disabled: false,
       },
       {
-        type: "User",
+        type: 'User',
         disabled: false,
       },
     ],

@@ -9,16 +9,15 @@ import pandas
 import pytest
 from dotenv import load_dotenv
 
-from offline_store_pandas_runner import K8S_MODE, LOCAL, AZURE
+from offline_store_pandas_runner import K8S_MODE, LOCAL, AZURE, S3, GCS, LOCAL_DATA_PATH
 from offline_store_pandas_runner import (
     main,
-    get_etcd_host,
     get_args,
+    get_blob_store,
     execute_df_job,
     execute_sql_job,
     get_blob_credentials,
-    download_blobs_to_local,
-    upload_blob_to_blob_store,
+    check_dill_exception,
 )
 
 real_path = os.path.realpath(__file__)
@@ -64,12 +63,17 @@ def test_execute_sql_job(variables, expected_output, request):
     env = request.getfixturevalue(variables)
     set_environment_variables(env)
     args = get_args()
-    blob_credentials = get_blob_credentials(args)
+    blob_store = get_blob_store(args.blob_credentials)
+
     output_file = execute_sql_job(
-        args.mode, args.output_uri, args.transformation, args.sources, blob_credentials
+        args.mode,
+        args.output_uri,
+        args.transformation,
+        args.sources,
+        blob_store,
     )
 
-    if expected_output[-4:] == ".csv":
+    if expected_output.endswith(".csv"):
         expected_df = pandas.read_csv(expected_output)
     else:
         expected_df = pandas.read_parquet(expected_output)
@@ -90,7 +94,6 @@ def test_execute_sql_job(variables, expected_output, request):
             "local_df_parquet_variables_success",
             f"{dir_path}/test_files/inputs/transaction_short",
         ),
-        # ("k8s_df_variables_single_port_success", f"{dir_path}/test_files/inputs/transactions_short.csv"),
     ],
 )
 def test_execute_df_job(df_transformation, variables, expected_output, request):
@@ -98,26 +101,17 @@ def test_execute_df_job(df_transformation, variables, expected_output, request):
     set_environment_variables(env)
     args = get_args()
 
-    etcd_creds = None
-    if args.mode == K8S_MODE:
-        etcd_creds = {
-            "host": args.etcd_host,
-            "ports": args.etcd_ports,
-            "username": args.etcd_user,
-            "password": args.etcd_password,
-        }
-    blob_credentials = get_blob_credentials(args)
+    blob_store = get_blob_store(args.blob_credentials)
 
     output_file = execute_df_job(
         args.mode,
         args.output_uri,
         df_transformation,
         args.sources,
-        etcd_creds,
-        blob_credentials,
+        blob_store,
     )
 
-    if expected_output[-4:] == ".csv":
+    if expected_output.endswith(".csv"):
         expected_df = pandas.read_csv(expected_output)
     else:
         expected_df = pandas.read_parquet(expected_output)
@@ -125,18 +119,6 @@ def test_execute_df_job(df_transformation, variables, expected_output, request):
 
     set_environment_variables(env, delete=True)
     assert len(expected_df) == len(output_df)
-
-
-@pytest.mark.parametrize(
-    "host,ports,expected_output",
-    [
-        ("127.0.0.1", ["2379"], (("127.0.0.1", 2379),)),
-        ("127.0.0.1", ["2379", "2380"], (("127.0.0.1", 2379), ("127.0.0.1", 2380))),
-    ],
-)
-def test_get_etcd_host(host, ports, expected_output):
-    etcd_host = get_etcd_host(host, ports)
-    assert etcd_host == expected_output
 
 
 @pytest.mark.parametrize(
@@ -164,77 +146,109 @@ def test_get_args(variables, request):
     [
         ("local_variables_success", LOCAL),
         ("k8s_df_variables_success", AZURE),
+        ("k8s_s3_df_variables_success", S3),
+        pytest.param("k8s_df_variables_failure", AZURE, marks=pytest.mark.xfail),
+        pytest.param("k8s_s3_df_variables_failure", S3, marks=pytest.mark.xfail),
+        pytest.param("k8s_gs_df_variables_success", GCS, marks=pytest.mark.xfail),
     ],
 )
 def test_get_blob_credentials(variables, type, request):
-    connection_string = os.getenv("AZURE_CONNECTION_STRING")
-    if connection_string == None:
-        # get the path to .env in root directory
-        env_file = os.path.dirname(
-            os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.dirname(real_path)))
-            )
-        )
-        load_dotenv(f"{env_file}/.env")
-
-        connection_string = os.getenv("AZURE_CONNECTION_STRING")
-
     environment_variables = request.getfixturevalue(variables)
     set_environment_variables(environment_variables)
     args = get_args()
-    credentials = get_blob_credentials(args)
+    credentials = get_blob_credentials(args.mode, args.blob_credentials.type)
 
     if type == AZURE:
         expected_output = Namespace(
             type=AZURE,
-            connection_string=args.azure_blob_credentials,
-            container=args.azure_container_name,
+            connection_string=args.blob_credentials.connection_string,
+            container=args.blob_credentials.container,
         )
     elif type == LOCAL:
         expected_output = Namespace(type=LOCAL)
+    elif type == S3:
+        expected_output = Namespace(
+            type=S3,
+            aws_access_key_id=args.blob_credentials.aws_access_key_id,
+            aws_secret_key=args.blob_credentials.aws_secret_key,
+            bucket_name=args.blob_credentials.bucket_name,
+            bucket_region=args.blob_credentials.bucket_region,
+        )
 
     set_environment_variables(environment_variables, delete=True)
     assert credentials == expected_output
 
 
-def test_download_blobs_to_local(container_client):
-    blob = "featureform/testing/primary/name/variant/transactions_short.csv"
-    local_filename = "transactions_short.csv"
-    output_file = download_blobs_to_local(container_client, blob, local_filename)
-
-    assert os.path.exists(output_file)
-
-
 @pytest.mark.parametrize(
-    "blob,file",
+    "variables,",
     [
-        (
-            f"featureform/testing/primary/name/variant/transactions_short_{uuid.uuid4()}.csv",
-            f"{dir_path}/test_files/inputs/transactions_short.csv",
-        ),
-        (
-            f"featureform/testing/primary/name/variant/transactions_short_{uuid.uuid4()}",
-            f"{dir_path}/test_files/inputs/transaction_short",
-        ),
+        "local_variables_success",
+        "k8s_df_variables_success",
+        "k8s_s3_df_variables_success",
+        pytest.param("not_supported_blob_store", marks=pytest.mark.xfail),
     ],
 )
-def test_upload_blob_to_blob_store(blob, file, container_client):
-    output_file = upload_blob_to_blob_store(container_client, file, blob)
+def test_blob_stores(variables, request):
+    environment_variables = request.getfixturevalue(variables)
+    set_environment_variables(environment_variables)
+    args = get_args()
+    blob_store = get_blob_store(args.blob_credentials)
+    set_environment_variables(environment_variables, delete=True)
 
-    blob_list = container_client.list_blobs(name_starts_with=blob)
-    blob_found = False if os.path.isfile(file) else True
-    for blob in blob_list:
-        if output_file == blob.name:
-            blob_found = True
-    assert blob_found, "blob wasn't uploaded successfully"
+    assert blob_store != None
+    assert blob_store.type == args.blob_credentials.type
+    assert blob_store.get_client() != None
+
+    if blob_store.type != LOCAL:
+        unique_id = uuid.uuid4()
+        source_file = f"{dir_path}/test_files/inputs/transactions_short.csv"
+        upload_file = f"{unique_id}/upload_transactions_short.csv"
+        download_file = f"{unique_id}_download_transactions_short.csv"
+
+        _ = blob_store.upload(source_file, upload_file)
+        _ = blob_store.download(upload_file, download_file)
+
+        assert os.path.isfile(f"{LOCAL_DATA_PATH}/{download_file}")
+
+        source_directory = f"{dir_path}/test_files/inputs/transaction_short"
+        upload_directory = f"{unique_id}/upload_transaction_short"
+        download_directory = f"{unique_id}_download_transaction_short"
+
+        _ = blob_store.upload(source_directory, upload_directory)
+        _ = blob_store.download(upload_directory, download_directory)
+
+        assert os.path.isdir(f"{LOCAL_DATA_PATH}/{download_directory}")
 
 
 def set_environment_variables(variables, delete=False):
     for key, value in variables.items():
-        if key == "AZURE_CONNECTION_STRING":
-            continue
-
         if delete:
             os.environ.pop(key)
         else:
             os.environ[key] = value
+
+
+@pytest.fixture(scope="session", autouse=True)
+def load_env_file():
+    # get the path to .env in root directory
+    env_directory = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(real_path))))
+    )
+    env_file = os.path.join(env_directory, ".env")
+    load_dotenv(env_file)
+
+
+@pytest.mark.parametrize(
+    "exception_message, error",
+    [
+        (
+            Exception("TypeError: code() takes at most 16 arguments (19 given)"),
+            "dill_python_version_error",
+        ),
+        (Exception("generic error"), "generic_error"),
+    ],
+)
+def test_check_dill_exception(exception_message, error, request):
+    expected_error = request.getfixturevalue(error)
+    error = check_dill_exception(exception_message)
+    assert str(error) == str(expected_error)

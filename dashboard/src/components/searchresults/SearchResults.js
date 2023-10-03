@@ -1,10 +1,9 @@
-import React, { useEffect } from "react";
-import { connect } from "react-redux";
-import SearchResultsView from "./SearchResultsView";
-import { useRouter } from 'next/router'
-import { fetchSearch } from "./SearchResultsSlice";
-import { setVariant } from "../resource-list/VariantSlice.js";
-
+import { useRouter } from 'next/router';
+import React, { useEffect } from 'react';
+import { connect } from 'react-redux';
+import { setVariant } from '../resource-list/VariantSlice.js';
+import { fetchSearch } from './SearchResultsSlice';
+import SearchResultsView from './SearchResultsView';
 
 function useQuery() {
   const router = useRouter();
@@ -21,28 +20,21 @@ const mapDispatchToProps = (dispatch) => {
 };
 
 const SearchResults = ({ searchResults, api, setVariant, ...props }) => {
-  let search_query = useQuery().get("q");
+  let search_query = useQuery().get('q');
   const fetchQuery = props.fetch;
   useEffect(() => {
-    fetchQuery(api, search_query);
+    if (api && search_query) {
+      fetchQuery(api, search_query);
+    }
   }, [search_query, api, fetchQuery]);
 
   return (
     <div>
-      {searchResults.resources ? (
-          <div>
-            {console.log("blah", searchResults.resources)}
-        <SearchResultsView
-          results={searchResults.resources}
-          search_query={search_query}
-          setVariant={setVariant}
-        />
-          </div>
-      ) : (
-        <div>
-          No Results
-        </div>
-      )}
+      <SearchResultsView
+        results={searchResults?.resources}
+        search_query={search_query}
+        setVariant={setVariant}
+      />
     </div>
   );
 };

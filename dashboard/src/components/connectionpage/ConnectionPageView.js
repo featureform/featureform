@@ -1,5 +1,5 @@
-import React from "react";
-import ConnectionTilePanel from "./ConnectionTilePanel";
+import React from 'react';
+import ConnectionTilePanel from './ConnectionTilePanel';
 
 export const ConnectionPageView = ({ statuses }) => {
   let features = [];

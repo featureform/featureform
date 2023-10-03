@@ -173,6 +173,8 @@ message FeatureVariant {
     Tags tags = 15;
     Properties properties = 16;
     ComputationMode mode = 18;
+    bool is_embedding = 19;
+    int32 dimension = 20;
 }
 
 message FeatureLag {
@@ -339,6 +341,7 @@ message SQLTransformation {
 message DFTransformation {
     bytes query = 1;
     repeated NameVariant inputs = 2; 
+    string source_text = 3;
 }
 
 message PrimaryData {

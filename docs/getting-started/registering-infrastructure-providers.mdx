@@ -1,0 +1,99 @@
+---
+title: "Registering Infrastructure Providers"
+description: "Featureform coordinates a set of infrastructure providers to act together as a feature store. This Virtual Feature Store approach allows teams to choose the right infrastructure to meet their needs, and interface across them with the same abstraction. Teams can also use multiple infrastructure providers for different use cases across the organization, while maintaining one unified abstraction across all of them."
+---
+
+## Type of Providers
+
+There are currently two types of providers: Offline Store and Inference Stores. The offline store is where primary data is stored and transformed into features, labels, and training sets. The training sets are served directly from the offline store, while features are materialized into an inference store for serving.
+
+### Inference Store
+
+An inference store allows feature values to be looked up at inference time. Featureform maintains the current value of each feature per entity in the inference store, and provides a [Python API for serving](/getting-started/serving-for-inference-and-training).
+
+#### Choosing an Inference Store
+
+When choosing an inference store provider, the three variables to consider are price, deployment complexity, and latency. Deployment complexity refers to the cost of expertise needed to host the inference store provider. That can be the cost of the internal IT headcount, a vendor, or a cloud platform. Price refers to the actual cost of data and serving in the inference store, typically the lower latency an inference store is the higher the cost per GB of storage. In near-real time situations like a recommender system, a low-latency inference store provider like [Redis](/inference-online-stores/redis) or [Cassandra](/inference-online-stores/cassandra) is the right choice. On the other hand, in a batch use case, using [Snowflake](/training-offline-stores/snowflake) may be sufficient and cost-efficient.
+
+### Offline Store
+
+The Offline Store provides dataset storage, transformation capabilities, and training set serving. Featureform coordinates transformations on the offline store to have it reach the user's desired state.
+
+#### Choosing an Offline Store
+
+The Offline Store performs the majority of the heavy lifting for the feature store. It stores the primary sources and runs all of the transformations. Featureform also uses it to create training sets and generate the data for the interference store. The Offline Store provider you chose should be is able to handle your scale of data and support the transformation language you'd like to use: whether it be SQL, Dataframes, or something else.
+
+## Example Config
+
+In this example, we'll configure Featureform with [Postgres](/training-offline-stores/postgres) as our Offline Store and [Redis](/inference-online-stores/redis) as our Inference Store.
+
+We'll begin by specifying our providers in a Python file
+
+```python providers.py
+import featureform as ff
+
+redis = ff.register_redis(
+    name = "redis",
+    description = "Example inference store",
+    team = "Featureform",
+    host = "0.0.0.0",
+    port = 6379,
+    password = "",
+    db = 0,
+)
+
+postgres = ff.register_postgres(
+    name = "postgres_docs",
+    description = "Example offline store store",
+    team = "Featureform",
+    host = "0.0.0.0",
+    port = "5432",
+    user = "postgres",
+    password = "password",
+    database = "postgres",
+)
+```
+
+Then, we'll use the Featureform CLI to register them
+
+```
+featureform apply providers.py
+```
+
+## Updating Providers
+
+To update a previously registered provider's configuration, make the necessary changes to `providers.py` (for example) and register them again using the CLI command.
+
+The description field can always be updated, but which configuration fields are updatable depends on the provider type.
+
+You can find the list of valid fields for each provider type on their specific page below.
+
+## Supported Providers
+
+### Inference Stores
+
+[Redis](/inference-online-stores/redis)
+
+[Cassandra](/inference-online-stores/cassandra)
+
+[DynamoDB](/inference-online-stores/dynamodb)
+
+[Firestore](/inference-online-stores/firestore)
+
+[MongoDB](/inference-online-stores/mongodb)
+
+[Azure Blobs](/inference-online-stores/azure)
+
+### Offline Stores
+
+[Snowflake](/training-offline-stores/snowflake)
+
+[Postgres](/training-offline-stores/postgres)
+
+[Redshift](/training-offline-stores/redshift)
+
+[BigQuery](/training-offline-stores/bigquery)
+
+[Spark](/training-offline-stores/spark)
+
+[Kubernetes](/training-offline-stores/kubernetes)

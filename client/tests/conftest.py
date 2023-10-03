@@ -26,10 +26,15 @@ from featureform.resources import (
     Provider,
     PrimaryData,
     Location,
-    Source,
     SQLTransformation,
     DFTransformation,
+    SQLTable,
 )
+
+from featureform.type_objects import (
+    SourceVariantResource,
+)
+from featureform.enums import FileFormat
 import featureform as ff
 
 real_path = os.path.realpath(__file__)
@@ -89,10 +94,10 @@ def ff_registrar():
 
 @pytest.fixture(scope="module")
 def primary_dataset(ff_registrar):
-    src = Source(
+    src = SourceVariantResource(
         name="primary",
         variant="default",
-        definition=PrimaryData(location=Location("tableName")),
+        definition=PrimaryData(location=SQLTable("tableName")),
         owner="tester",
         provider="spark",
         description="doc string",
@@ -105,7 +110,7 @@ def primary_dataset(ff_registrar):
 
 @pytest.fixture(scope="module")
 def sql_transformation_src(ff_registrar):
-    src = Source(
+    src = SourceVariantResource(
         name="sql_transformation",
         variant="default",
         definition=SQLTransformation("SELECT * FROM {{ name.variant }}"),
@@ -132,10 +137,13 @@ def df_transformation_src(
         return True
 
     query = dill.dumps(test_func.__code__)
-    src = Source(
+    source_text = dill.source.getsource(test_func)
+    src = SourceVariantResource(
         name="sql_transformation",
         variant="default",
-        definition=DFTransformation(query, inputs=[("name", "variant")]),
+        definition=DFTransformation(
+            query=query, inputs=[("name", "variant")], source_text=source_text
+        ),
         owner="tester",
         provider="spark",
         description="doc string",
@@ -200,7 +208,9 @@ def azure_file_config():
 @pytest.fixture(scope="module")
 def databricks_config():
     config = DatabricksCredentials(
-        username="username", password="password", cluster_id="cluster_id"
+        username="username",
+        password="password",
+        cluster_id="cluster_id",
     )
 
     expected_config = {
@@ -238,6 +248,8 @@ def spark_executor():
         "Master": master,
         "DeployMode": deploy_mode,
         "PythonVersion": python_version,
+        "YarnSite": "",
+        "CoreSite": "",
     }
 
     return config, expected_config
@@ -285,14 +297,14 @@ def s3(aws_credentials):
 @pytest.fixture(scope="module")
 def local_provider_source():
     # empty param to match the signature of the other fixtures
-    def get_local(_):
+    def get_local(_, file_format=FileFormat.CSV.value):
         ff.register_user("test_user").make_default_owner()
         provider = ff.register_local()
         source = provider.register_file(
             name="transactions",
             variant="quickstart",
             description="A dataset of fraudulent transactions.",
-            path=f"{dir_path}/test_files/input_files/transactions.csv",
+            path=f"{dir_path}/test_files/input_files/transactions.{file_format}",
         )
         return (provider, source, None)
 
@@ -324,17 +336,8 @@ def del_rw(action, name, exc):
 
 @pytest.fixture(scope="module")
 def hosted_sql_provider_and_source():
-    def get_hosted(custom_marks):
+    def get_hosted(custom_marks, file_format=FileFormat.CSV.value):
         ff.register_user("test_user").make_default_owner()
-
-        postgres_host = (
-            "host.docker.internal"
-            if "docker" in custom_marks
-            else "quickstart-postgres"
-        )
-        redis_host = (
-            "host.docker.internal" if "docker" in custom_marks else "quickstart-redis"
-        )
 
         provider = ff.register_postgres(
             name="postgres-quickstart",
@@ -356,6 +359,7 @@ def hosted_sql_provider_and_source():
             if "docker" in custom_marks
             else "quickstart-redis",
             port=6379,
+            password="password",
         )
 
         source = provider.register_table(

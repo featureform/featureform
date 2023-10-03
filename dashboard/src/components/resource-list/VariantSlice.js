@@ -1,5 +1,5 @@
-import { createSlice } from "@reduxjs/toolkit";
-import Resource from "../../api/resources/Resource.js";
+import { createSlice } from '@reduxjs/toolkit';
+import Resource from '../../api/resources/Resource.js';
 const reduceFn = (map, type) => {
   map[type] = {};
   return map;
@@ -11,17 +11,19 @@ export const initialState = Resource.resourceTypes.reduce(
 );
 
 const variantSlice = createSlice({
-  name: "resourceVariant",
+  name: 'resourceVariant',
   // initialState is a map between each resource type to an empty object.
   initialState: initialState,
   reducers: {
     set: (state, action) => {
       const { type, name, variant } = action.payload;
-      var typePayload = type
-      if (Resource.typeToName[type] !== undefined) {
-        typePayload = Resource.typeToName[type]
+      let typePayload = type;
+      if (Resource.typeToName[type]) {
+        typePayload = Resource.typeToName[type];
       }
-      state[typePayload][name] = variant;
+      if (state[typePayload]) {
+        state[typePayload][name] = variant;
+      }
     },
   },
 });

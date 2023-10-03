@@ -1,14 +1,14 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
 export const fetchMetrics = createAsyncThunk(
-  "metricsSelect/fetchMetrics",
+  'metricsSelect/fetchMetrics',
   async ({ api }, { signal }) => {
-    const instance = "";
+    const instance = '';
     const response = await api.fetchMetrics(instance, signal);
     return response;
   },
   {
-    condition: ({ api }, { getState }) => {
+    condition: (_, { getState }) => {
       const { loading } = getState().metricsSelect;
       if (loading) {
         return false;
@@ -17,7 +17,7 @@ export const fetchMetrics = createAsyncThunk(
   }
 );
 const metricsSelectSlice = createSlice({
-  name: "metricsSelect",
+  name: 'metricsSelect',
   initialState: {
     instances: [],
     metrics: 0,

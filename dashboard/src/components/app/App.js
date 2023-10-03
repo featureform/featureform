@@ -1,20 +1,11 @@
-import React from "react";
-import { makeStyles } from "@material-ui/core/styles";
-import CssBaseline from "@material-ui/core/CssBaseline";
-import theme from "../../styles/theme";
-import { ThemeProvider } from "@material-ui/core/styles";
-import ResourcesAPI from "../../api/resources";
-import HomePage from "../homepage/HomePage";
-import DataPage from "../datapage/DataPage";
-import TopBar from "../topbar/TopBar";
-import EntityPage from "../entitypage/EntityPage";
-import BreadCrumbs from "../breadcrumbs/BreadCrumbs";
-import Container from "@material-ui/core/Container";
-import SearchResults from "../searchresults/SearchResults";
-import NotFoundPage from "../notfoundpage/NotFoundPage";
-import ConnectionPage from "../connectionpage";
+import Container from '@mui/material/Container';
+import CssBaseline from '@mui/material/CssBaseline';
+import { makeStyles, ThemeProvider } from '@mui/styles';
+import React from 'react';
+import theme from '../../styles/theme';
+import BreadCrumbs from '../breadcrumbs/BreadCrumbs';
+import TopBar from '../topbar/TopBar';
 
-const apiHandle = new ResourcesAPI();
 const useStyles = makeStyles((theme) => ({
   pageContainer: {
     paddingLeft: theme.spacing(8),
@@ -28,7 +19,7 @@ export const App = ({ Component, pageProps }) => {
     <ThemeWrapper>
       <TopBar className={classes.topbar} />
       <Container
-        maxWidth="xl"
+        maxWidth='xl'
         className={classes.root}
         classes={{ maxWidthXl: classes.pageContainer }}
       >
@@ -40,8 +31,8 @@ export const App = ({ Component, pageProps }) => {
 };
 
 export const views = {
-  RESOURCE_LIST: "ResourceList",
-  EMPTY: "Empty",
+  RESOURCE_LIST: 'ResourceList',
+  EMPTY: 'Empty',
 };
 
 export const ThemeWrapper = ({ children }) => (

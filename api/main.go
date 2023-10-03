@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/featureform/logging"
 	"io"
 	"net"
 	"net/http"
@@ -79,7 +80,8 @@ func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetUsers(stream.Context())
 		if err != nil {
@@ -107,7 +109,8 @@ func (serv *MetadataServer) GetFeatures(stream pb.Api_GetFeaturesServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetFeatures(stream.Context())
 		if err != nil {
@@ -135,7 +138,8 @@ func (serv *MetadataServer) GetFeatureVariants(stream pb.Api_GetFeatureVariantsS
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetFeatureVariants(stream.Context())
 		if err != nil {
@@ -163,7 +167,8 @@ func (serv *MetadataServer) GetLabels(stream pb.Api_GetLabelsServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetLabels(stream.Context())
 		if err != nil {
@@ -191,7 +196,8 @@ func (serv *MetadataServer) GetLabelVariants(stream pb.Api_GetLabelVariantsServe
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetLabelVariants(stream.Context())
 		if err != nil {
@@ -219,7 +225,8 @@ func (serv *MetadataServer) GetSources(stream pb.Api_GetSourcesServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetSources(stream.Context())
 		if err != nil {
@@ -247,7 +254,8 @@ func (serv *MetadataServer) GetSourceVariants(stream pb.Api_GetSourceVariantsSer
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetSourceVariants(stream.Context())
 		if err != nil {
@@ -275,7 +283,8 @@ func (serv *MetadataServer) GetTrainingSets(stream pb.Api_GetTrainingSetsServer)
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetTrainingSets(stream.Context())
 		if err != nil {
@@ -303,7 +312,8 @@ func (serv *MetadataServer) GetTrainingSetVariants(stream pb.Api_GetTrainingSetV
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetTrainingSetVariants(stream.Context())
 		if err != nil {
@@ -331,7 +341,8 @@ func (serv *MetadataServer) GetProviders(stream pb.Api_GetProvidersServer) error
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetProviders(stream.Context())
 		if err != nil {
@@ -359,7 +370,8 @@ func (serv *MetadataServer) GetEntities(stream pb.Api_GetEntitiesServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetEntities(stream.Context())
 		if err != nil {
@@ -387,7 +399,8 @@ func (serv *MetadataServer) GetModels(stream pb.Api_GetModelsServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetModels(stream.Context())
 		if err != nil {
@@ -677,6 +690,45 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 			return fmt.Errorf("training send row: %w", err)
 		}
 	}
+}
+
+func (serv *OnlineServer) TrainingDataColumns(ctx context.Context, req *srv.TrainingDataColumnsRequest) (*srv.TrainingColumns, error) {
+	serv.Logger.Infow("Serving Training Set Columns", "id", req.Id.String())
+	return serv.client.TrainingDataColumns(ctx, req)
+}
+
+func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feature_SourceDataServer) error {
+	serv.Logger.Infow("Serving Source Data", "id", req.Id.String())
+	if req.Limit == 0 {
+		return fmt.Errorf("limit must be greater than 0")
+	}
+	client, err := serv.client.SourceData(context.Background(), req)
+	if err != nil {
+		return fmt.Errorf("could not serve source data: %w", err)
+	}
+	for {
+		row, err := client.Recv()
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return fmt.Errorf("receive error: %w", err)
+		}
+		if err := stream.Send(row); err != nil {
+			serv.Logger.Errorf("failed to write to source data stream: %w", err)
+			return fmt.Errorf("source send row: %w", err)
+		}
+	}
+}
+
+func (serv *OnlineServer) SourceColumns(ctx context.Context, req *srv.SourceColumnRequest) (*srv.SourceDataColumns, error) {
+	serv.Logger.Infow("Serving Source Columns", "id", req.Id.String())
+	return serv.client.SourceColumns(ctx, req)
+}
+
+func (serv *OnlineServer) Nearest(ctx context.Context, req *srv.NearestRequest) (*srv.NearestResponse, error) {
+	serv.Logger.Infow("Serving Nearest", "id", req.Id.String())
+	return serv.client.Nearest(ctx, req)
 }
 
 func (serv *ApiServer) Serve() error {

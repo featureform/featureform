@@ -1,18 +1,15 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
 export const fetchEntity = createAsyncThunk(
-  "entityPage/fetchByTitle",
+  'entityPage/fetchByTitle',
   async ({ api, type, title }, { signal }) => {
     const response = await api.fetchEntity(type, title, signal);
     return response;
-  },
-  {
-    condition: ({ api, type, title }, { getState }) => {},
   }
 );
 
 const entityPageSlice = createSlice({
-  name: "entityPage",
+  name: 'entityPage',
   // initialState is a map between each resource type to an empty object.
   initialState: {},
   extraReducers: {
@@ -28,7 +25,7 @@ const entityPageSlice = createSlice({
       if (requestId !== state.requestId) {
         return;
       }
-      state.resources = action.payload.data;
+      state.resources = action.payload?.data;
       state.loading = false;
       state.failed = false;
     },

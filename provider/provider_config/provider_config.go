@@ -6,21 +6,13 @@ import (
 	sm "github.com/featureform/helpers/struct_map"
 )
 
-type FileStoreConfig []byte
+type FileStoreConfig interface {
+	Serialize() ([]byte, error)
+	Deserialize(config SerializedConfig) error
+	IsFileStoreConfig() bool
+}
 
 type ExecutorType string
-
-type FileStoreType string
-
-const (
-	Memory     FileStoreType = "MEMORY"
-	FileSystem FileStoreType = "LOCAL_FILESYSTEM"
-	Azure      FileStoreType = "AZURE"
-	S3         FileStoreType = "S3"
-	GCS        FileStoreType = "GCS"
-	DB         FileStoreType = "db"
-	HDFS       FileStoreType = "HDFS"
-)
 
 type SerializedConfig []byte
 

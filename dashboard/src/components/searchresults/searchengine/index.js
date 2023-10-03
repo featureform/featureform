@@ -1,1 +1,1 @@
-export { default } from "./SearchEngine.js";
+export { default } from './SearchEngine.js';

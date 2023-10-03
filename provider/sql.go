@@ -815,6 +815,15 @@ func (table *sqlPrimaryTable) Write(rec GenericRecord) error {
 	return nil
 }
 
+func (table *sqlPrimaryTable) WriteBatch(recs []GenericRecord) error {
+	for _, rec := range recs {
+		if err := table.Write(rec); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (table *sqlPrimaryTable) getColumnNameString() string {
 	columns := make([]string, 0)
 	for _, column := range table.schema.Columns {
@@ -825,12 +834,20 @@ func (table *sqlPrimaryTable) getColumnNameString() string {
 
 func (pt *sqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 	columns, err := pt.query.getColumns(pt.db, pt.name)
+	if err != nil {
+		return nil, err
+	}
 	columnNames := make([]string, 0)
 	for _, col := range columns {
 		columnNames = append(columnNames, sanitize(col.Name))
 	}
 	names := strings.Join(columnNames[:], ", ")
-	query := fmt.Sprintf("SELECT %s FROM %s LIMIT %d", names, sanitize(pt.name), n)
+	var query string
+	if n == -1 {
+		query = fmt.Sprintf("SELECT %s FROM %s", names, sanitize(pt.name))
+	} else {
+		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", names, sanitize(pt.name), n)
+	}
 	rows, err := pt.db.Query(query)
 	if err != nil {
 		return nil, err
@@ -933,6 +950,15 @@ func (table *sqlOfflineTable) Write(rec ResourceRecord) error {
 	} else if n > 0 {
 		updateQuery := table.query.writeUpdate(tb)
 		if _, err := table.db.Exec(updateQuery, rec.Value, rec.Entity, rec.TS); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (table *sqlOfflineTable) WriteBatch(recs []ResourceRecord) error {
+	for _, rec := range recs {
+		if err := table.Write(rec); err != nil {
 			return err
 		}
 	}
@@ -1326,16 +1352,16 @@ func (q defaultOfflineSQLQueries) trainingSetQuery(store *sqlOfflineStore, def T
 
 func (q defaultOfflineSQLQueries) atomicUpdate(db *sql.DB, tableName string, tempName string, query string) error {
 	sanitizedTable := sanitize(tableName)
-	oldTable := sanitize(fmt.Sprintf("old_%s", tableName))
 	transaction := fmt.Sprintf(
 		"BEGIN TRANSACTION;"+
 			"%s;"+
-			"ALTER TABLE %s RENAME TO %s;"+
-			"ALTER TABLE %s RENAME TO %s;"+
+			"TRUNCATE TABLE %s;"+ // this doesn't work in a trx for BIGQUERY and REDSHIFT
+			"INSERT INTO %s SELECT * FROM %s;"+
 			"DROP TABLE %s;"+
 			"COMMIT;"+
-			"", query, sanitizedTable, oldTable, tempName, sanitizedTable, oldTable)
+			"", query, sanitizedTable, sanitizedTable, tempName, tempName)
 	var numStatements = 6
+	// Gets around the fact that the go redshift driver doesn't support multi statement trx queries
 	stmt, _ := sf.WithMultiStatement(context.TODO(), numStatements)
 	_, err := db.QueryContext(stmt, transaction)
 	return err

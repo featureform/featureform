@@ -1,14 +1,14 @@
-import React from "react";
-import PropTypes from "prop-types";
-import { connect } from "react-redux";
-import { createSelector } from "@reduxjs/toolkit";
-import { fetchResources } from "./ResourceSlice.js";
-import ResourceListView from "./ResourceListView.js";
-import { setVariant } from "./VariantSlice.js";
-import { toggleTag } from "./TagSlice.js";
-import ServerErrorPage from "../servererror/ServerErrorPage";
+import { createSelector } from '@reduxjs/toolkit';
+import PropTypes from 'prop-types';
+import React from 'react';
+import { connect } from 'react-redux';
+import ServerErrorPage from '../servererror/ServerErrorPage';
+import ResourceListView from './ResourceListView.js';
+import { fetchResources, setCurrentType } from './ResourceSlice.js';
+import { toggleTag } from './TagSlice.js';
+import { setVariant } from './VariantSlice.js';
 
-export const makeSelectFilteredResources = (type) => {
+export const selectFilteredResources = (type) => {
   const selectResources = (state) => state.resourceList[type].resources;
   const selectTags = (state) => state.selectedTags[type];
   const activeVariants = (state) => state.selectedVariant[type];
@@ -31,7 +31,7 @@ export const makeSelectFilteredResources = (type) => {
       return resources.filter((resource) => {
         let activeVariantName = variants[resource.name]
           ? variants[resource.name]
-          : resource["default-variant"];
+          : resource['default-variant'];
         let activeResource = resource.variants[activeVariantName];
         const resTags = activeResource.tags || [];
         const numFound = resTags.filter((itemTag) => itemTag in tags).length;
@@ -42,15 +42,16 @@ export const makeSelectFilteredResources = (type) => {
   );
 };
 
-const makeMapStateToProps = (initState, initProps) => {
-  const type = initProps.type;
+const mapStateToProps = (_, ownProps) => {
   return (state) => {
-    const selector = makeSelectFilteredResources(type);
-    const item = state.resourceList[type];
-    const activeVariants = state.selectedVariant[type];
-    const activeTags = state.selectedTags[type];
+    const selectedType = state.resourceList.selectedType;
+    const typeToUse = selectedType ? selectedType : ownProps.type;
+    const selector = selectFilteredResources(typeToUse);
+    const item = state.resourceList[typeToUse];
+    const activeVariants = state.selectedVariant[typeToUse];
+    const activeTags = state.selectedTags[typeToUse];
     return {
-      title: type,
+      title: typeToUse,
       resources: selector(state),
       loading: item.loading,
       failed: item.failed,
@@ -60,11 +61,18 @@ const makeMapStateToProps = (initState, initProps) => {
   };
 };
 
-const makeMapDispatchToProps = (ignore, initProps) => {
+const mapDispatchToProps = (_, initProps) => {
   return (dispatch) => ({
-    fetch: () => {
-      const { type, api } = initProps;
-      dispatch(fetchResources({ api, type }));
+    setCurrentType: (type) => {
+      dispatch(setCurrentType({ selectedType: type }));
+    },
+    fetch: (typeParam) => {
+      dispatch(
+        fetchResources({
+          api: initProps.api,
+          type: typeParam ? typeParam : initProps.type,
+        })
+      );
     },
     setVariant: (type, name, variant) => {
       dispatch(setVariant({ type, name, variant }));
@@ -79,12 +87,20 @@ const makeMapDispatchToProps = (ignore, initProps) => {
 class ResourceList extends React.Component {
   componentDidMount() {
     this.props.fetch();
+    this.props.setCurrentType(this.props.type);
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.type !== this.props.type) {
+      this.props.fetch(this.props.type);
+      this.props.setCurrentType(this.props.type);
+    }
   }
 
   render() {
-    // Only pass down props required for the view.
-    // sends down props resources, loading, and failed
-    const { api, fetch, ...viewProps } = this.props;
+    const viewProps = { ...this.props };
+    delete viewProps.api;
+    delete viewProps.fetch;
     return viewProps.failed ? (
       <ServerErrorPage />
     ) : (
@@ -102,7 +118,4 @@ ResourceList.propTypes = {
   failed: PropTypes.bool,
 };
 
-export default connect(
-  makeMapStateToProps,
-  makeMapDispatchToProps
-)(ResourceList);
+export default connect(mapStateToProps, mapDispatchToProps)(ResourceList);

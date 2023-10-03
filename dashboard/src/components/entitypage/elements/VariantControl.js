@@ -1,10 +1,10 @@
-import React from "react";
-import { makeStyles } from "@material-ui/core/styles";
-import InputLabel from "@material-ui/core/InputLabel";
-import MenuItem from "@material-ui/core/MenuItem";
-import FormControl from "@material-ui/core/FormControl";
-import Select from "@material-ui/core/Select";
-import { connect } from "react-redux";
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import { makeStyles } from '@mui/styles';
+import React from 'react';
+import { connect } from 'react-redux';
 
 const useStyles = makeStyles((theme) => ({
   formControl: {
@@ -23,14 +23,7 @@ function mapStateToProps(state) {
   };
 }
 
-const VariantControl = ({
-  variant,
-  variants,
-  handleVariantChange,
-  entityPage,
-  convertTimestampToDate,
-  local,
-}) => {
+const VariantControl = ({ variant, variants, handleVariantChange }) => {
   const classes = useStyles();
 
   const handleChange = (event) => {
@@ -39,12 +32,12 @@ const VariantControl = ({
 
   return (
     <FormControl className={classes.formControl}>
-      <InputLabel shrink id="demo-simple-select-placeholder-label-label">
+      <InputLabel shrink id='demo-simple-select-placeholder-label-label'>
         Variant
       </InputLabel>
       <Select
-        labelId="demo-simple-select-placeholder-label-label"
-        id="demo-simple-select-placeholder-label"
+        labelId='demo-simple-select-placeholder-label-label'
+        id='demo-simple-select-placeholder-label'
         value={variant}
         onChange={handleChange}
         displayEmpty

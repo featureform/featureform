@@ -9,7 +9,6 @@ import pytest
 from featureform.resources import (
     ResourceRedefinedError,
     ResourceState,
-    Provider,
     RedisConfig,
     CassandraConfig,
     FirestoreConfig,
@@ -23,12 +22,12 @@ from featureform.resources import (
     User,
     Provider,
     Entity,
-    Feature,
-    Label,
-    TrainingSet,
+    FeatureVariant,
+    LabelVariant,
+    TrainingSetVariant,
     PrimaryData,
     SQLTable,
-    Source,
+    SourceVariant,
     ResourceColumnMapping,
     DynamodbConfig,
     Schedule,
@@ -36,6 +35,8 @@ from featureform.resources import (
     DFTransformation,
     K8sArgs,
     K8sResourceSpecs,
+    SparkCredentials,
+    GCPCredentials,
 )
 
 from featureform.register import OfflineK8sProvider, Registrar, FileStoreProvider
@@ -51,6 +52,7 @@ def postgres_config():
         database="db",
         user="user",
         password="p4ssw0rd",
+        sslmode="disable",
     )
 
 
@@ -137,7 +139,7 @@ def dynamodb_config():
 def redshift_config():
     return RedshiftConfig(
         host="",
-        port="5439",
+        port=5432,
         database="dev",
         user="user",
         password="p4ssw0rd",
@@ -153,7 +155,10 @@ def bigquery_config():
     return BigQueryConfig(
         project_id="bigquery-project",
         dataset_id="bigquery-dataset",
-        credentials_path=path,
+        credentials=GCPCredentials(
+            project_id="bigquery-project",
+            credentials_path=path,
+        ),
     )
 
 
@@ -226,6 +231,71 @@ def bigquery_provider(bigquery_config):
     )
 
 
+@pytest.fixture
+def core_site_path():
+    return "test_files/yarn_files/core-site.xml"
+
+
+@pytest.fixture
+def yarn_site_path():
+    return "test_files/yarn_files/yarn-site.xml"
+
+
+def test_with_paths(core_site_path, yarn_site_path):
+    config = {
+        "master": "yarn",
+        "deploy_mode": "client",
+        "python_version": "3.7.16",
+        "core_site_path": core_site_path,
+        "yarn_site_path": yarn_site_path,
+    }
+
+    assert SparkCredentials(**config)._verify_yarn_config() is None
+
+
+def test_without_paths():
+    config = {
+        "master": "yarn",
+        "python_version": "3.7.16",
+        "deploy_mode": "client",
+    }
+    with pytest.raises(Exception):
+        SparkCredentials(**config)._verify_yarn_config()
+
+
+def test_with_missing_core_site_path(yarn_site_path):
+    config = {
+        "master": "yarn",
+        "python_version": "3.7.16",
+        "yarn_site_path": yarn_site_path,
+        "deploy_mode": "client",
+    }
+    with pytest.raises(Exception):
+        SparkCredentials(**config)._verify_yarn_config()
+
+
+def test_with_missing_yarn_site_path(core_site_path):
+    config = {
+        "master": "yarn",
+        "python_version": "3.7.16",
+        "core_site_path": core_site_path,
+        "deploy_mode": "client",
+    }
+    with pytest.raises(Exception):
+        SparkCredentials(**config)._verify_yarn_config()
+
+
+def test_with_non_yarn_master(core_site_path, yarn_site_path):
+    config = {
+        "master": "local",
+        "deploy_mode": "client",
+        "python_version": "3.7.16",
+        "core_site_path": core_site_path,
+        "yarn_site_path": yarn_site_path,
+    }
+    assert SparkCredentials(**config)._verify_yarn_config() is None
+
+
 @pytest.mark.parametrize("image", ["", "my/docker_image:latest"])
 def test_k8s_args_apply(image):
     transformation = pb.Transformation()
@@ -236,7 +306,8 @@ def test_k8s_args_apply(image):
 
 
 @pytest.mark.parametrize(
-    "query,image", [("SELECT * FROM X", ""), ("SELECT * FROM X", "my/docker:image")]
+    "query,image",
+    [("SELECT * FROM {{ X.Y }}", ""), ("SELECT * FROM {{ X.Y }}", "my/docker:image")],
 )
 def test_sql_k8s_image(query, image):
     transformation = SQLTransformation(query, K8sArgs(image, K8sResourceSpecs()))
@@ -247,7 +318,7 @@ def test_sql_k8s_image(query, image):
 
 
 def test_sql_k8s_image_none():
-    query = "SELECT * FROM X"
+    query = "SELECT * FROM {{ X.Y }}"
     transformation = SQLTransformation(query)
     recv_query = transformation.kwargs()["transformation"].SQLTransformation.query
     recv_image = transformation.kwargs()["transformation"].kubernetes_args.docker_image
@@ -303,7 +374,7 @@ def test_k8s_sql_provider(registrar, mock_provider, image):
 
     @k8s.sql_transformation(owner="mock-owner", docker_image=image)
     def mock_transform():
-        return "SELECT * FROM X"
+        return "SELECT * FROM {{ X.Y }}"
 
     config = get_transformation_config(registrar)
     docker_image = config.kubernetes_args.docker_image
@@ -315,7 +386,7 @@ def test_k8s_sql_provider_empty(registrar, mock_provider):
 
     @k8s.sql_transformation(owner="mock-owner")
     def mock_transform():
-        return "SELECT * FROM X"
+        return "SELECT * FROM {{ X.Y }}"
 
     config = get_transformation_config(registrar)
     docker_image = config.kubernetes_args.docker_image
@@ -326,7 +397,9 @@ def test_k8s_sql_provider_empty(registrar, mock_provider):
 def test_k8s_df_provider(registrar, mock_provider, image):
     k8s = OfflineK8sProvider(registrar, mock_provider)
 
-    @k8s.df_transformation(owner="mock-owner", docker_image=image)
+    @k8s.df_transformation(
+        owner="mock-owner", docker_image=image, inputs=[("df", "var")]
+    )
     def mock_transform(df):
         return df
 
@@ -340,7 +413,7 @@ def test_k8s_df_provider_empty(registrar, mock_provider):
 
     @k8s.df_transformation(owner="mock-owner")
     def mock_transform():
-        return "SELECT * FROM X"
+        return "SELECT * FROM {{ X.Y }}"
 
     config = get_transformation_config(registrar)
     docker_image = config.kubernetes_args.docker_image
@@ -348,7 +421,8 @@ def test_k8s_df_provider_empty(registrar, mock_provider):
 
 
 def init_feature(input):
-    Feature(
+    FeatureVariant(
+        created=None,
         name="feature",
         variant="v1",
         source=("a", "b"),
@@ -392,7 +466,7 @@ def test_valid_feature_column_types(input, fail):
 
 
 def init_label(input):
-    Label(
+    LabelVariant(
         name="feature",
         variant="v1",
         source=("a", "b"),
@@ -441,7 +515,8 @@ def all_resources_set(redis_provider):
         redis_provider,
         User(name="Featureform", tags=[], properties={}),
         Entity(name="user", description="A user", tags=[], properties={}),
-        Source(
+        SourceVariant(
+            created=None,
             name="primary",
             variant="abc",
             definition=PrimaryData(location=SQLTable("table")),
@@ -451,7 +526,8 @@ def all_resources_set(redis_provider):
             tags=[],
             properties={},
         ),
-        Feature(
+        FeatureVariant(
+            created=None,
             name="feature",
             variant="v1",
             source=("a", "b"),
@@ -468,7 +544,7 @@ def all_resources_set(redis_provider):
             tags=[],
             properties={},
         ),
-        Label(
+        LabelVariant(
             name="label",
             variant="v1",
             source=("a", "b"),
@@ -485,7 +561,8 @@ def all_resources_set(redis_provider):
             tags=[],
             properties={},
         ),
-        TrainingSet(
+        TrainingSetVariant(
+            created=None,
             name="training-set",
             variant="v1",
             description="desc",
@@ -502,7 +579,8 @@ def all_resources_set(redis_provider):
 @pytest.fixture
 def all_resources_strange_order(redis_provider):
     return [
-        TrainingSet(
+        TrainingSetVariant(
+            created=None,
             name="training-set",
             variant="v1",
             description="desc",
@@ -513,7 +591,7 @@ def all_resources_strange_order(redis_provider):
             tags=[],
             properties={},
         ),
-        Label(
+        LabelVariant(
             name="label",
             variant="v1",
             source=("a", "b"),
@@ -530,7 +608,8 @@ def all_resources_strange_order(redis_provider):
             tags=[],
             properties={},
         ),
-        Feature(
+        FeatureVariant(
+            created=None,
             name="feature",
             variant="v1",
             source=("a", "b"),
@@ -548,7 +627,8 @@ def all_resources_strange_order(redis_provider):
             properties={},
         ),
         Entity(name="user", description="A user", tags=[], properties={}),
-        Source(
+        SourceVariant(
+            created=None,
             name="primary",
             variant="abc",
             definition=PrimaryData(location=SQLTable("table")),
@@ -624,7 +704,8 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
             tags=[],
             properties={},
         ),
-        Source(
+        SourceVariant(
+            created=None,
             name="primary",
             variant="abc",
             definition=PrimaryData(location=SQLTable("table")),
@@ -635,7 +716,8 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
             properties={},
         ),
         Entity(name="user", description="A user", tags=[], properties={}),
-        Feature(
+        FeatureVariant(
+            created=None,
             name="feature",
             variant="v1",
             source=("a", "b"),
@@ -652,7 +734,7 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
             tags=[],
             properties={},
         ),
-        Label(
+        LabelVariant(
             name="label",
             variant="v1",
             source=("a", "b"),
@@ -669,7 +751,8 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
             tags=[],
             properties={},
         ),
-        TrainingSet(
+        TrainingSetVariant(
+            created=None,
             name="training-set",
             variant="v1",
             description="desc",
@@ -774,7 +857,7 @@ def test_invalid_users():
 )
 def test_invalid_training_set(args):
     with pytest.raises((ValueError, TypeError)):
-        TrainingSet(**args)
+        TrainingSetVariant(**args)
 
 
 def test_add_all_resources_with_schedule(all_resources_strange_order, redis_config):
@@ -794,7 +877,8 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             tags=[],
             properties={},
         ),
-        Source(
+        SourceVariant(
+            created=None,
             name="primary",
             variant="abc",
             definition=PrimaryData(location=SQLTable("table")),
@@ -812,7 +896,8 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             properties={},
         ),
         Entity(name="user", description="A user", tags=[], properties={}),
-        Feature(
+        FeatureVariant(
+            created=None,
             name="feature",
             variant="v1",
             source=("a", "b"),
@@ -836,7 +921,7 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             tags=[],
             properties={},
         ),
-        Label(
+        LabelVariant(
             name="label",
             variant="v1",
             source=("a", "b"),
@@ -853,7 +938,8 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             tags=[],
             properties={},
         ),
-        TrainingSet(
+        TrainingSetVariant(
+            created=None,
             name="training-set",
             variant="v1",
             description="desc",

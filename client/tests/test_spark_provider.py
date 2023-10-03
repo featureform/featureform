@@ -1,16 +1,13 @@
 import dill
-
 import pytest
-
+from featureform.names_generator import get_random_name
 from featureform.register import ColumnSourceRegistrar, OfflineSparkProvider, Registrar
 from featureform.resources import (
     DFTransformation,
     Provider,
-    Source,
+    SourceVariant,
     SparkConfig,
     SQLTransformation,
-    DatabricksCredentials,
-    AzureFileStoreConfig,
     SparkCredentials,
 )
 
@@ -53,26 +50,18 @@ def test_create_provider(executor_fixture, filestore_fixture, request):
 
 
 @pytest.mark.parametrize(
-    "test_name,file_path,default_variant",
+    "test_name,file_path",
     [
-        ("file", "test_files/input/transaction", False),
-        ("file", "test_files/input/transaction", True),
+        ("file", "abfss://test_files/input/transaction"),
     ],
 )
-def test_register_file(test_name, file_path, default_variant, spark_provider):
-    if default_variant:
-        variant = "default"
-        s = spark_provider.register_file(
-            name=test_name,
-            file_path=file_path,
-        )
-    else:
-        variant = "test_variant"
-        s = spark_provider.register_file(
-            name=test_name,
-            variant=variant,
-            file_path=file_path,
-        )
+def test_register_file(test_name, file_path, spark_provider):
+    variant = get_random_name()
+    s = spark_provider.register_file(
+        name=test_name,
+        variant=variant,
+        file_path=file_path,
+    )
 
     assert type(s) == ColumnSourceRegistrar
 
@@ -96,7 +85,8 @@ def test_sql_transformation(name, variant, sql, spark_provider):
     decorator = spark_provider.sql_transformation(name=name, variant=variant)
     decorator(transformation)
 
-    assert decorator.to_source() == Source(
+    assert decorator.to_source() == SourceVariant(
+        created=None,
         name=name,
         variant=variant,
         definition=SQLTransformation(query=sql),
@@ -119,12 +109,14 @@ def test_sql_transformation_without_variant(sql, spark_provider):
         """doc string"""
         return sql
 
-    decorator = spark_provider.sql_transformation()
+    variant = get_random_name()
+    decorator = spark_provider.sql_transformation(variant=variant)
     decorator(transformation)
 
-    assert decorator.to_source() == Source(
+    assert decorator.to_source() == SourceVariant(
+        created=None,
         name=transformation.__name__,
-        variant="default",
+        variant=variant,
         definition=SQLTransformation(query=sql),
         owner="tester",
         provider="spark",
@@ -165,12 +157,16 @@ def test_df_transformation(
     decorator(df_transformation)
 
     query = dill.dumps(df_transformation.__code__)
+    source_text = dill.source.getsource(df_transformation)
 
     decorator_src = decorator.to_source()
-    expected_src = Source(
+    expected_src = SourceVariant(
+        created=None,
         name=name,
         variant=variant,
-        definition=DFTransformation(query=query, inputs=inputs),
+        definition=DFTransformation(
+            query=query, inputs=inputs, source_text=source_text
+        ),
         owner="tester",
         provider="spark",
         description="doc string",

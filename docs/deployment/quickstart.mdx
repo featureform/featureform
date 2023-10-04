@@ -28,7 +28,7 @@ pip install featureform
 
 ## Step 2: Download test data
 
-For this quickstart, we'll use a fraudulent transaction dataset that can be found here: [https://featureform-demo-files.s3.amazonaws.com/transactions.csv](https://featureform-demo-files.s3.amazonaws.com/transactions_new.csv)\
+For this quickstart, we'll use a fraudulent transaction dataset that can be found here: [https://featureform-demo-files.s3.amazonaws.com/transactions.csv](https://featureform-demo-files.s3.amazonaws.com/transactions.csv)\
 \
 The data contains 9 columns, almost all of would require some feature engineering before using in a typical model.
 
@@ -59,7 +59,7 @@ transactions = local.register_file(
     name="transactions",
     variant="quickstart",
     description="A dataset of fraudulent transactions",
-    path="transactions_new.csv"
+    path="transactions.csv"
 )
 ```
 

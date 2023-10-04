@@ -28,7 +28,7 @@ pip install featureform
 
 ## Step 2: Download test data
 
-For this quickstart, we'll use a fraudulent transaction dataset that can be found here: [https://featureform-demo-files.s3.amazonaws.com/transactions.csv](https://featureform-demo-files.s3.amazonaws.com/transactions.csv)\
+For this quickstart, we'll use a fraudulent transaction dataset that can be found here: [https://featureform-demo-files.s3.amazonaws.com/transactions.csv](https://featureform-demo-files.s3.amazonaws.com/transactions_new.csv)\
 \
 The data contains 9 columns, almost all of would require some feature engineering before using in a typical model.
 
@@ -53,13 +53,13 @@ We can write a config file in Python that registers our test data file.
 import featureform as ff
 
 # This is where you would typically register your infrastructure providers.
-local = ff.register_local()
+client = ff.Client(local=True)
 
 transactions = local.register_file(
     name="transactions",
     variant="quickstart",
     description="A dataset of fraudulent transactions",
-    path="transactions.csv"
+    path="transactions_new.csv"
 )
 ```
 
@@ -73,7 +73,7 @@ def average_user_transaction(transactions):
     return transactions.groupby("CustomerID")["TransactionAmount"].mean()
 ```
 
-Next, we'll register a user entity to associate with a feature and label.
+Next, we'll register a user [entity](https://docs.featureform.com/abstractions/entity) to associate with a feature and label.
 
 ```python definitions.py
 @ff.entity
@@ -116,7 +116,7 @@ class User:
     )
 ```
 
-Finally, we'll join together the feature and label into a training set.
+Finally, we'll join together the feature and label into a [training set](https://docs.featureform.com/abstractions/training-set).
 
 ```python definitions.py
 ff.register_training_set(

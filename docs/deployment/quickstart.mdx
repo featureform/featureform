@@ -51,11 +51,12 @@ We can write a config file in Python that registers our test data file.
 
 ```python definitions.py
 import featureform as ff
+from featureform import local
 
 # This is where you would typically register your infrastructure providers.
 client = ff.Client(local=True)
 
-transactions = ff.local.register_file(
+transactions = local.register_file(
     name="transactions",
     variant="quickstart",
     description="A dataset of fraudulent transactions",
@@ -66,7 +67,7 @@ transactions = ff.local.register_file(
 Next, we'll define a Dataframe transformation on our dataset.
 
 ```python definitions.py
-@ff.local.df_transformation(variant="quickstart",
+@local.df_transformation(variant="quickstart",
                          inputs=[("transactions", "quickstart")])
 def average_user_transaction(transactions):
     """the average transaction amount for a user """

@@ -51,6 +51,7 @@ We can write a config file in Python that registers our test data file.
 
 ```python definitions.py
 import featureform as ff
+from featureform import local
 
 # This is where you would typically register your infrastructure providers.
 client = ff.Client(local=True)

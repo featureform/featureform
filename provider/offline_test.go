@@ -75,6 +75,20 @@ func TestOfflineStores(t *testing.T) {
 		return postgresConfig.Serialize()
 	}
 
+	mySqlInit := func() pc.SerializedConfig {
+		db := checkEnv("MYSQL_DB")
+		user := checkEnv("MYSQL_USER")
+		password := checkEnv("MYSQL_PASSWORD")
+		var mySqlConfig = pc.MySqlConfig{
+			Host:     "localhost",
+			Port:     "3306",
+			Username: user,
+			Password: password,
+			Database: db,
+		}
+		return mySqlConfig.Serialize()
+	}
+
 	snowflakeInit := func() (pc.SerializedConfig, pc.SnowflakeConfig) {
 		snowFlakeDatabase := strings.ToUpper(uuid.NewString())
 		t.Log("Snowflake Database: ", snowFlakeDatabase)
@@ -245,6 +259,9 @@ func TestOfflineStores(t *testing.T) {
 	}
 	if *provider == "postgres" || *provider == "" {
 		testList = append(testList, testMember{pt.PostgresOffline, postgresInit(), true})
+	}
+	if *provider == "mysql" || *provider == "" {
+		testList = append(testList, testMember{pt.MySqlOffline, mySqlInit(), true})
 	}
 	if *provider == "snowflake" || *provider == "" {
 		serialSFConfig, snowflakeConfig := snowflakeInit()
@@ -3730,7 +3747,7 @@ func modifyTransformationConfig(t *testing.T, testName, tableName string, provid
 		// In contrast to the SQL provider, that only needed change is the table name to perform the required transformation configuration,
 		// The Spark implementation needs to update the source mappings to ensure the source file is used in the transformation query.
 		config.SourceMapping[0].Source = tableName
-	case pt.MemoryOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.SnowflakeOffline, pt.RedshiftOffline:
+	case pt.MemoryOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.MySqlOffline, pt.SnowflakeOffline, pt.RedshiftOffline:
 		tableName := getTableName(testName, tableName)
 		config.Query = strings.Replace(config.Query, "tb", tableName, 1)
 	default:

@@ -71,6 +71,16 @@ func TestProviderConfigUpdates(t *testing.T) {
 			providerType: pt.MongoDBOnline,
 		},
 		{
+			name:         "Valid mySQL Configuration Update",
+			valid:        true,
+			providerType: pt.MySqlOffline,
+		},
+		{
+			name:         "Invalid mySQL Configuration Update",
+			valid:        false,
+			providerType: pt.MySqlOffline,
+		},
+		{
 			name:         "Valid PostgreSQL Configuration Update",
 			valid:        true,
 			providerType: pt.PostgresOffline,
@@ -144,6 +154,8 @@ func TestProviderConfigUpdates(t *testing.T) {
 				testFirestoreConfigUpdates(t, c.providerType, c.valid)
 			case pt.MongoDBOnline:
 				testMongoConfigUpdates(t, c.providerType, c.valid)
+			case pt.MySqlOffline:
+				testMySqlConfigUpdates(t, c.providerType, c.valid)
 			case pt.PostgresOffline:
 				testPostgresConfigUpdates(t, c.providerType, c.valid)
 			case pt.RedisOnline:
@@ -340,6 +352,44 @@ func testMongoConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 	b := configB.Serialized()
 
 	actual, err := isValidMongoConfigUpdate(a, b)
+	assertConfigUpdateResult(t, valid, actual, err, providerType)
+}
+
+func testMySqlConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
+	host := "0.0.0.0"
+	port := "3306"
+	username := "mysql"
+	password := "password"
+	database := "mysql"
+
+	configA := pc.PostgresConfig{
+		Host:     host,
+		Port:     port,
+		Username: username,
+		Password: password,
+		Database: database,
+	}
+	a := configA.Serialize()
+
+	if valid {
+		username += updateSuffix
+		password += updateSuffix
+		port = "3307"
+	} else {
+		host = "127.0.0.1"
+		database += updateSuffix
+	}
+
+	configB := pc.PostgresConfig{
+		Host:     host,
+		Port:     port,
+		Username: username,
+		Password: password,
+		Database: database,
+	}
+	b := configB.Serialize()
+
+	actual, err := isValidPostgresConfigUpdate(a, b)
 	assertConfigUpdateResult(t, valid, actual, err, providerType)
 }
 

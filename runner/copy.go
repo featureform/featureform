@@ -75,13 +75,14 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 			jobWatcher.EndWatch(fmt.Errorf("failed to create iterator: %w", err))
 			return
 		}
-		// Buffer the records channel to ensure readers won't block on the writer loop below
-		ch := make(chan provider.ResourceRecord, 100_000)
+		// Buffer the records channel to ensure readers won't block the writer loop below
+		ch := make(chan provider.ResourceRecord, 1_000_000)
 		var wg sync.WaitGroup
-		wg.Add(100)
+		waitGroupSize := 1000
+		wg.Add(waitGroupSize)
 		// Create a "pool" of 100 goroutines to write to the table to better utilize CPU resources
 		// and speed up the write operations to the inference table.
-		for idx := 0; idx < 100; idx++ {
+		for idx := 0; idx < waitGroupSize; idx++ {
 			go func() {
 				defer wg.Done()
 				for record := range ch {

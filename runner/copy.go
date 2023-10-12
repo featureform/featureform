@@ -75,17 +75,31 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 			jobWatcher.EndWatch(fmt.Errorf("failed to create iterator: %w", err))
 			return
 		}
-		i := 0
-		for it.Next() {
-			i += 1
-			value := it.Value().Value
-			entity := it.Value().Entity
-			err := m.Table.Set(entity, value)
-			if err != nil {
-				jobWatcher.EndWatch(fmt.Errorf("could not set table: %w", err))
-				return
-			}
+		// Buffer the records channel to ensure readers won't block on the writer loop below
+		ch := make(chan provider.ResourceRecord, 100_000)
+		var wg sync.WaitGroup
+		wg.Add(100)
+		// Create a "pool" of 100 goroutines to write to the table to better utilize CPU resources
+		// and speed up the write operations to the inference table.
+		for idx := 0; idx < 100; idx++ {
+			go func() {
+				defer wg.Done()
+				for record := range ch {
+					err := m.Table.Set(record.Entity, record.Value)
+					if err != nil {
+						close(ch)
+						jobWatcher.EndWatch(fmt.Errorf("could not set table: %w", err))
+						return
+					}
+				}
+			}()
 		}
+		// Completely consume the iterator and write all records to the channel
+		for it.Next() {
+			ch <- it.Value()
+		}
+		close(ch)
+		wg.Wait()
 		if err = it.Err(); err != nil {
 			jobWatcher.EndWatch(fmt.Errorf("iteration failed with error: %w", err))
 			return
@@ -93,10 +107,12 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		err = it.Close()
 		if err != nil {
 			jobWatcher.EndWatch(fmt.Errorf("failed to close iterator: %w", err))
+			return
 		}
 		err = m.Store.Close()
 		if err != nil {
 			jobWatcher.EndWatch(fmt.Errorf("failed to close Online Store: %w", err))
+			return
 		}
 		jobWatcher.EndWatch(nil)
 	}()

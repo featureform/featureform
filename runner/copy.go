@@ -17,6 +17,9 @@ import (
 	"go.uber.org/zap"
 )
 
+const resourceRecordBufferSize = 1_000_000
+const waitGroupSize = 1000
+
 type IndexRunner interface {
 	types.Runner
 	SetIndex(index int) error
@@ -76,9 +79,12 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 			return
 		}
 		// Buffer the records channel to ensure readers won't block the writer loop below
-		ch := make(chan provider.ResourceRecord, 1_000_000)
+		ch := make(chan provider.ResourceRecord, resourceRecordBufferSize)
+		// Using a buffered error channel to capture any errors that may occur while trying to
+		// set values; buffering the error channel prevents the goroutines from blocking when
+		// trying to write to the channel.
+		errCh := make(chan error, 1)
 		var wg sync.WaitGroup
-		waitGroupSize := 1000
 		wg.Add(waitGroupSize)
 		// Create a "pool" of 100 goroutines to write to the table to better utilize CPU resources
 		// and speed up the write operations to the inference table.
@@ -86,21 +92,37 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 			go func() {
 				defer wg.Done()
 				for record := range ch {
-					err := m.Table.Set(record.Entity, record.Value)
-					if err != nil {
-						close(ch)
-						jobWatcher.EndWatch(fmt.Errorf("could not set table: %w", err))
-						return
+					if err := m.Table.Set(record.Entity, record.Value); err != nil {
+						select {
+						case errCh <- fmt.Errorf("could not set value to table: %w", err):
+						default:
+						}
 					}
 				}
 			}()
 		}
-		// Completely consume the iterator and write all records to the channel
-		for it.Next() {
-			ch <- it.Value()
+	iterationLoop:
+		for {
+			select {
+			case <-errCh:
+				// If an error occurs while trying to set a value, we want to stop the iteration
+				// and return the error.
+				break iterationLoop
+			default:
+				// Completely consume the iterator and write all records to the channel
+				if it.Next() {
+					ch <- it.Value()
+				} else {
+					break iterationLoop
+				}
+			}
 		}
 		close(ch)
 		wg.Wait()
+		if err, ok := <-errCh; ok {
+			jobWatcher.EndWatch(err)
+			return
+		}
 		if err = it.Err(); err != nil {
 			jobWatcher.EndWatch(fmt.Errorf("iteration failed with error: %w", err))
 			return

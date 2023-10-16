@@ -348,6 +348,11 @@ cleanup_coordinator:
 	-docker kill redis
 	-docker rm redis
 
+test_healthchecks: ## Run offline tests. Run with `make test_offline provider=(redis | postgres | snowflake | dynamo | spark )`
+	@echo "These tests require a .env file. Please Check .env-template for possible variables"
+	-mkdir coverage
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./health --tags=health --provider=$(provider)
+
 
 ##############################################  MINIKUBE ###############################################################
 

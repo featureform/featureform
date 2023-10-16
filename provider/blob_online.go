@@ -134,6 +134,10 @@ func (store OnlineFileStore) CreateTable(feature, variant string, valueType Valu
 	return OnlineFileStoreTable{store, feature, variant, store.Prefix, valueType}, nil
 }
 
+func (store OnlineFileStore) Check() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
+}
+
 type OnlineFileStoreTable struct {
 	store     FileStore
 	feature   string

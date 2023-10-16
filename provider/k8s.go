@@ -1497,6 +1497,10 @@ func (k8s *K8sOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, 
 	return fileStoreGetTrainingSet(id, k8s.store, k8s.logger)
 }
 
+func (k8s *K8sOfflineStore) Check() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
+}
+
 func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.SugaredLogger) (TrainingSetIterator, error) {
 	if err := id.check(TrainingSet); err != nil {
 		logger.Errorw("Resource is not of type training set", "error", err)

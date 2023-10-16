@@ -1230,6 +1230,10 @@ func (store *bqOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator,
 	return store.newbqTrainingSetIterator(iter), nil
 }
 
+func (store *bqOfflineStore) Check() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
+}
+
 type bqTrainingRowsIterator struct {
 	iter            *bigquery.RowIterator
 	currentFeatures []interface{}

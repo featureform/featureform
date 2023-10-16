@@ -1,6 +1,8 @@
 package provider
 
 import (
+	"fmt"
+
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 )
@@ -24,6 +26,10 @@ func (u UnitTestProvider) Type() pt.Type {
 
 func (u UnitTestProvider) Config() pc.SerializedConfig {
 	return u.ProviderConfig
+}
+
+func (u UnitTestProvider) Check() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
 }
 
 type UnitTestStore interface {
@@ -81,6 +87,10 @@ func (m MockUnitTestStore) DeleteTable(feature, variant string) error {
 
 func (m MockUnitTestStore) Close() error {
 	return nil
+}
+
+func (m MockUnitTestStore) Check() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
 }
 
 func (m MockUnitTestTable) Get(entity string) (interface{}, error) {
@@ -165,9 +175,11 @@ func (M MockUnitTestOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, 
 func (M MockUnitTestOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
 	return nil, nil
 }
+
 func (M MockUnitTestOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
 	return nil, nil
 }
+
 func (M MockUnitTestOfflineStore) CreateTransformation(config TransformationConfig) error {
 	return nil
 }
@@ -187,8 +199,13 @@ func (M MockUnitTestOfflineStore) UpdateMaterialization(id ResourceID) (Material
 func (M MockUnitTestOfflineStore) UpdateTrainingSet(TrainingSetDef) error {
 	return nil
 }
+
 func (M MockUnitTestOfflineStore) Close() error {
 	return nil
+}
+
+func (M MockUnitTestOfflineStore) Check() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
 }
 
 type MockMaterialization struct{}

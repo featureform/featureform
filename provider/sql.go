@@ -170,6 +170,11 @@ func (store *sqlOfflineStore) Close() error {
 	return store.db.Close()
 }
 
+func (store *sqlOfflineStore) Check() (bool, error) {
+	err := store.db.Ping()
+	return err == nil, err
+}
+
 func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
 		return nil, fmt.Errorf("type check: %w", err)

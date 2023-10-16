@@ -86,6 +86,10 @@ func (store *pineconeOnlineStore) DeleteTable(feature, variant string) error {
 	return nil
 }
 
+func (store *pineconeOnlineStore) Check() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
+}
+
 func (store *pineconeOnlineStore) CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error) {
 	indexName := store.createIndexName(feature, variant)
 	if err := store.client.createIndex(indexName, vectorType.Dimension); err != nil {

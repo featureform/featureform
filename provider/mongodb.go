@@ -186,6 +186,10 @@ func (store *mongoDBOnlineStore) DeleteTable(feature, variant string) error {
 	return nil
 }
 
+func (store *mongoDBOnlineStore) Check() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
+}
+
 func (table mongoDBOnlineTable) Set(entity string, value interface{}) error {
 	upsert := true
 	_, err := table.client.Database(table.database).

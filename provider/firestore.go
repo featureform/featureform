@@ -159,6 +159,10 @@ func (store *firestoreOnlineStore) DeleteTable(feature, variant string) error {
 	return nil
 }
 
+func (store *firestoreOnlineStore) Check() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
+}
+
 func (table firestoreOnlineTable) Set(entity string, value interface{}) error {
 	_, err := table.document.Set(context.TODO(), map[string]interface{}{
 		entity: value,

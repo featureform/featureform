@@ -60,18 +60,25 @@ func (m MockOfflineRegisterSourceFail) CreateTransformation(config provider.Tran
 func (m MockOfflineRegisterSourceFail) GetTransformationTable(id provider.ResourceID) (provider.TransformationTable, error) {
 	return nil, nil
 }
+
 func (m MockOfflineRegisterSourceFail) UpdateTransformation(config provider.TransformationConfig) error {
 	return nil
 }
+
 func (m MockOfflineRegisterSourceFail) UpdateTrainingSet(provider.TrainingSetDef) error {
 	return nil
 }
+
 func (m MockOfflineRegisterSourceFail) UpdateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
 	return nil, nil
 }
 
 func (m MockOfflineRegisterSourceFail) Close() error {
 	return nil
+}
+
+func (m MockOfflineRegisterSourceFail) Check() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
 }
 
 func TestRunRegisterResource(t *testing.T) {

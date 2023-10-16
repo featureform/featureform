@@ -184,6 +184,18 @@ func (store *redisOnlineStore) DeleteTable(feature, variant string) error {
 	return nil
 }
 
+func (store *redisOnlineStore) Check() (bool, error) {
+	cmd := store.client.B().Ping().Build()
+	resp, err := store.client.Do(context.Background(), cmd).ToString()
+	if err != nil {
+		return false, err
+	}
+	if resp != "PONG" {
+		return false, fmt.Errorf("unexpected response from Redis server: %s", resp)
+	}
+	return true, nil
+}
+
 func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error) {
 	key := redisIndexKey{Prefix: store.prefix, Feature: feature, Variant: variant}
 	cmd, err := store.createIndexCmd(key, vectorType)

@@ -259,6 +259,10 @@ func (store *dynamodbOnlineStore) DeleteTable(feature, variant string) error {
 	return nil
 }
 
+func (store *dynamodbOnlineStore) Check() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
+}
+
 func (table dynamodbOnlineTable) Set(entity string, value interface{}) error {
 	input := &dynamodb.UpdateItemInput{
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{

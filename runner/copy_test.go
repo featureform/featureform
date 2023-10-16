@@ -680,6 +680,7 @@ func (m MockOfflineStore) AsOfflineStore() (provider.OfflineStore, error) {
 func (m MockOfflineStore) CreatePrimaryTable(id provider.ResourceID, schema provider.TableSchema) (provider.PrimaryTable, error) {
 	return nil, nil
 }
+
 func (m MockOfflineStore) GetPrimaryTable(id provider.ResourceID) (provider.PrimaryTable, error) {
 	return nil, nil
 }
@@ -709,6 +710,7 @@ func (m MockOfflineStore) UpdateMaterialization(id provider.ResourceID) (provide
 func (m MockOfflineStore) UpdateTrainingSet(provider.TrainingSetDef) error {
 	return nil
 }
+
 func (m MockOfflineStore) Close() error {
 	return nil
 }
@@ -746,6 +748,10 @@ func (m MockOnlineStoreTable) Set(entity string, value interface{}) error {
 
 func (m MockOnlineStoreTable) Get(entity string) (interface{}, error) {
 	return nil, nil
+}
+
+func (m MockOnlineStoreTable) Check() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
 }
 
 func NewMockOfflineStore() *MockOfflineStore {

@@ -749,6 +749,10 @@ func (store *memoryOfflineStore) Close() error {
 	return nil
 }
 
+func (store *memoryOfflineStore) Check() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
+}
+
 type TrainingSetNotFound struct {
 	ID ResourceID
 }

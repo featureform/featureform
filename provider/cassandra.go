@@ -181,6 +181,10 @@ func (store *cassandraOnlineStore) DeleteTable(feature, variant string) error {
 	return nil
 }
 
+func (store *cassandraOnlineStore) Check() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
+}
+
 func (table cassandraOnlineTable) Set(entity string, value interface{}) error {
 	key := table.key
 	tableName := GetTableName(key.Keyspace, key.Feature, key.Variant)

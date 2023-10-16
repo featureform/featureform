@@ -72,6 +72,10 @@ func (m MockOfflineCreateTrainingSetFail) Close() error {
 	return nil
 }
 
+func (m MockOfflineCreateTrainingSetFail) Check() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
+}
+
 func TestRunTrainingSet(t *testing.T) {
 	runner := TrainingSetRunner{
 		MockOfflineStore{},

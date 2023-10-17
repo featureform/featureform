@@ -24,7 +24,7 @@ function mapStateToProps(state) {
   };
 }
 
-const LoadingDots = () => {
+export function LoadingDots() {
   return (
     <div data-testid='loadingDotsId'>
       <Container maxWidth='xl'>
@@ -36,7 +36,7 @@ const LoadingDots = () => {
       </Container>
     </div>
   );
-};
+}
 
 const fetchNotFound = (object) => {
   return !object?.resources?.name && !object?.resources?.type;

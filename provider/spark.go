@@ -666,6 +666,10 @@ func (store *SparkOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
+func (store *SparkOfflineStore) getBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
+	return nil, nil
+}
+
 func (store *SparkOfflineStore) Close() error {
 	return nil
 }

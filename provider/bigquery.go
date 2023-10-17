@@ -1015,6 +1015,10 @@ func (store *bqOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, erro
 	return store.getbqResourceTable(id)
 }
 
+func (store *bqOfflineStore) getBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
+	return nil, nil
+}
+
 func (store *bqOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
 	if id.Type != Feature {
 		return nil, errors.New("only features can be materialized")

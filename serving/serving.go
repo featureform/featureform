@@ -150,13 +150,12 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
 }
 
-func (serv *FeatureServer) batchFeatureServingShell(ids []provider.ResourceID) (provider.BatchFeatureIterator, error) {
+func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (provider.BatchFeatureIterator, error) {
 	ctx := context.TODO()
 	_, err := serv.checkEntityOfFeature(ids)
 	if err != nil {
 		return nil, err
 	}
-
 	// Assuming that all the features have the same offline provider
 	feat, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{ids[0].Name, ids[0].Variant})
 	if err != nil {
@@ -177,7 +176,7 @@ func (serv *FeatureServer) batchFeatureServingShell(ids []provider.ResourceID) (
 		// That shouldn't be possible.
 		return nil, errors.Wrap(err, "could not open as offline store")
 	}
-	store.JoinFeatureTables(ids)
+	return store.getBatchFeatures(ids)
 }
 
 // Takes in a list of feature names and returns true if they all have the same entity name
@@ -202,54 +201,6 @@ func (serv *FeatureServer) checkEntityOfFeature(ids []provider.ResourceID) (bool
 	}
 	return true, nil
 }
-
-// Takes in the feature name and variant as an input and returns an iterator for all the data in a FeatureVariant table
-// func (serv *FeatureServer) getBatchFeatureDataIterator(features, variants []ResourceID) (provider.FeatureIterator, error) {
-// 	ctx := context.TODO()
-// 	_, err := serv.checkEntityOfFeature(features, variants)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	// serv.Logger.Infow("Getting Feature Variant Iterator", "name", featureName, "variant", variant)
-
-// 	for i := 0; i < len(features); i++ {
-// 		feature, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{Name: features[i], Variant: variants[i]})
-// 		corresponding := feature.LocationColumns()
-// 	}
-
-// 	z, ok := x.(metadata.ResourceVariantColumns)
-// 	if !ok {
-// 		return error
-// 	}
-// 	if err != nil {
-// 		return nil, errors.Wrap(err, "could not get feature variant")
-// 	}
-// 	// TODO: Determine if we want to add a backoff here to wait for the feature
-// 	if feat.Status() != metadata.READY {
-// 		return nil, fmt.Errorf("feature variant is not ready; current status is %v", feat.Status())
-// 	}
-// 	providerEntry, err := feat.FetchProvider(serv.Metadata, ctx)
-// 	serv.Logger.Debugw("Fetched Feature Variant Provider", "name", providerEntry.Name(), "type", providerEntry.Type())
-// 	if err != nil {
-// 		return nil, errors.Wrap(err, "could not get fetch provider")
-// 	}
-// 	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
-// 	if err != nil {
-// 		return nil, errors.Wrap(err, "could not get provider")
-// 	}
-// 	store, err := p.AsOfflineStore()
-// 	if err != nil {
-// 		return nil, errors.Wrap(err, "could not open as offline store")
-// 	}
-
-// 	mat, err := store.GetMaterialization(provider.MaterializationID(featureName))
-
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	end, err := mat.NumRows()
-// 	return mat.IterateSegment(0, end)
-// }
 
 func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int64) (provider.GenericTableIterator, error) {
 	ctx := context.TODO()

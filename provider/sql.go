@@ -483,63 +483,86 @@ func (iter *sqlFeatureIterator) Close() error {
 }
 
 // Batch Feature Iterator
-// TODO
 type sqlBatchFeatureIterator struct {
-	rows         *sql.Rows
-	err          error
-	currentValue ResourceRecord
-	// query        OfflineTableQueries
+	rows          *sql.Rows
+	err           error
+	currentValues GenericRecord
+	columnTypes   []interface{}
+	columnNames   []string
+	query         OfflineTableQueries
 }
 
-// TODO
 // Need to figure out columntype
-func newsqlBatchFeatureIterator(rows *sql.Rows) BatchFeatureIterator {
+func newsqlBatchFeatureIterator(rows *sql.Rows, columnTypes []interface{}, columnNames []string, query OfflineTableQueries) BatchFeatureIterator {
 	return &sqlBatchFeatureIterator{
-		rows:         rows,
-		err:          nil,
-		currentValue: ResourceRecord{},
-		// query:        query,
+		rows:          rows,
+		err:           nil,
+		currentValues: nil,
+		columnTypes:   columnTypes,
+		columnNames:   columnNames,
+		query:         query,
 	}
 }
 
-// TODO
-func (iter *sqlBatchFeatureIterator) Next() bool {
-	if !iter.rows.Next() {
-		iter.rows.Close()
+func (it *sqlBatchFeatureIterator) Next() bool {
+	if !it.rows.Next() {
+		it.rows.Close()
 		return false
 	}
-	var rec ResourceRecord
-	var value interface{}
-	var ts time.Time
-	if err := iter.rows.Scan(&rec.Entity, &value, &ts); err != nil {
-		iter.rows.Close()
-		iter.err = err
+	columnNames, err := it.rows.Columns()
+	if err != nil {
+		it.rows.Close()
+		it.err = err
 		return false
 	}
-	// rec.Value = iter.query.castTableItemType(value, iter.columnType)
-	rec.TS = ts.UTC()
-	// iter.currentValue = rec
+	if err != nil {
+		it.err = err
+		it.rows.Close()
+		return false
+	}
+	values := make([]interface{}, len(columnNames))
+	pointers := make([]interface{}, len(columnNames))
+	for i, _ := range values {
+		pointers[i] = &values[i]
+	}
+	if err := it.rows.Scan(pointers...); err != nil {
+		it.rows.Close()
+		it.err = err
+		return false
+	}
+
+	rowValues := make(GenericRecord, len(columnNames))
+	for i, value := range values {
+		if value == nil {
+			continue
+		}
+		rowValues[i] = it.query.castTableItemType(value, it.columnTypes[i])
+	}
+	it.currentValues = rowValues
 	return true
 }
 
-// TODO
-func (iter *sqlBatchFeatureIterator) Value() ResourceRecord {
-	return iter.currentValue
+func (it *sqlBatchFeatureIterator) Values() GenericRecord {
+	return it.currentValues
 }
 
-// TODO
-func (iter *sqlBatchFeatureIterator) Err() error {
-	return nil
+func (it *sqlBatchFeatureIterator) Columns() []string {
+	return it.columnNames
 }
 
-// TODO
-func (iter *sqlBatchFeatureIterator) Close() error {
-	return iter.rows.Close()
+func (it *sqlBatchFeatureIterator) Err() error {
+	return it.err
+}
+
+func (it *sqlBatchFeatureIterator) Close() error {
+	return it.rows.Close()
 }
 
 // Takes a list of feature resource IDs and creates a table view joining all the feature values based on the entity
 // Note: This table view doesnt store timestamps
-func (store *sqlOfflineStore) JoinFeatureTables(tables []ResourceID) (BatchFeatureIterator, error) {
+// Call it something else
+func (store *sqlOfflineStore) getBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
+
 	asEntity := ""
 	withFeatures := ""
 	joinTables := ""
@@ -564,14 +587,26 @@ func (store *sqlOfflineStore) JoinFeatureTables(tables []ResourceID) (BatchFeatu
 	}
 
 	sort.Strings(matIDs)
-	joinTableName := store.getJoinedMaterializationTableName(strings.Join(matIDs, "_"))
+	joinedTableName := store.getJoinedMaterializationTableName(strings.Join(matIDs, "_"))
 
-	query := fmt.Sprintf("CREATE VIEW %s AS SELECT COALESCE(%s) AS entity %s FROM %s ON %s", joinTableName, asEntity, withFeatures, joinTables, onColumns)
+	query := fmt.Sprintf("CREATE VIEW %s AS SELECT COALESCE(%s) AS entity %s FROM %s ON %s", joinedTableName, asEntity, withFeatures, joinTables, onColumns)
 	resultRows, err := store.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
-	return newsqlBatchFeatureIterator(resultRows), nil
+	columnTypes, err := store.getValueColumnTypes(joinedTableName)
+	if err != nil {
+		return nil, err
+	}
+	columns, err := store.query.getColumns(store.db, joinedTableName)
+	if err != nil {
+		return nil, err
+	}
+	columnNames := make([]string, 0)
+	for _, col := range columns {
+		columnNames = append(columnNames, sanitize(col.Name))
+	}
+	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query), nil
 }
 
 func (store *sqlOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {

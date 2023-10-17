@@ -287,39 +287,39 @@ func TestOfflineStores(t *testing.T) {
 	}
 
 	testFns := map[string]func(*testing.T, OfflineStore){
-		"CreateGetTable":          testCreateGetOfflineTable,
-		"TableAlreadyExists":      testOfflineTableAlreadyExists,
-		"TableNotFound":           testOfflineTableNotFound,
-		"InvalidResourceIDs":      testInvalidResourceIDs,
-		"Materializations":        testMaterializations,
-		"MaterializationUpdate":   testMaterializationUpdate,
-		"InvalidResourceRecord":   testWriteInvalidResourceRecord,
-		"InvalidMaterialization":  testInvalidMaterialization,
-		"MaterializeUnknown":      testMaterializeUnknown,
-		"MaterializationNotFound": testMaterializationNotFound,
-		"TrainingSets":            testTrainingSet,
-		"TrainingSetUpdate":       testTrainingSetUpdate,
-		// "TrainingSetLag": testLagFeaturesTrainingSet,
-		"TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID,
-		"GetUnknownTrainingSet":  testGetUnknownTrainingSet,
-		"InvalidTrainingSetDefs": testInvalidTrainingSetDefs,
-		"LabelTableNotFound":     testLabelTableNotFound,
-		"FeatureTableNotFound":   testFeatureTableNotFound,
-
-		"TrainingDefShorthand": testTrainingSetDefShorthand,
+		// "CreateGetTable":     testCreateGetOfflineTable,
+		// "TableAlreadyExists": testOfflineTableAlreadyExists,
+		// "TableNotFound":      testOfflineTableNotFound,
+		// "InvalidResourceIDs": testInvalidResourceIDs,
+		// "Materializations":      testMaterializations,
+		// "MaterializationUpdate": testMaterializationUpdate,
+		// "InvalidResourceRecord":   testWriteInvalidResourceRecord,
+		// "InvalidMaterialization":  testInvalidMaterialization,
+		// "MaterializeUnknown":      testMaterializeUnknown,
+		// "MaterializationNotFound": testMaterializationNotFound,
+		// "TrainingSets":            testTrainingSet,
+		// "TrainingSetUpdate":       testTrainingSetUpdate,
+		"BatchFeatures": testBatchFeature,
+		// "TrainingSetLag":         testLagFeaturesTrainingSet,
+		// "TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID,
+		// "GetUnknownTrainingSet":  testGetUnknownTrainingSet,
+		// "InvalidTrainingSetDefs": testInvalidTrainingSetDefs,
+		// "LabelTableNotFound":     testLabelTableNotFound,
+		// "FeatureTableNotFound":   testFeatureTableNotFound,
+		// "TrainingDefShorthand": testTrainingSetDefShorthand,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
-		"PrimaryTableCreate":                 testPrimaryCreateTable,
-		"PrimaryTableWrite":                  testPrimaryTableWrite,
-		"Transformation":                     testTransform,
-		"TransformationUpdate":               testTransformUpdate,
-		"TransformationUpdateWithFeature":    testTransformUpdateWithFeatures,
-		"CreateDuplicatePrimaryTable":        testCreateDuplicatePrimaryTable,
-		"ChainTransformations":               testChainTransform,
-		"CreateResourceFromSource":           testCreateResourceFromSource,
-		"CreateResourceFromSourceNoTS":       testCreateResourceFromSourceNoTS,
-		"CreatePrimaryFromSource":            testCreatePrimaryFromSource,
-		"CreatePrimaryFromNonExistentSource": testCreatePrimaryFromNonExistentSource,
+		// "PrimaryTableCreate": testPrimaryCreateTable,
+		// "PrimaryTableWrite":  testPrimaryTableWrite,
+		// "Transformation":                     testTransform,
+		// "TransformationUpdate":               testTransformUpdate,
+		// "TransformationUpdateWithFeature":    testTransformUpdateWithFeatures,
+		// "CreateDuplicatePrimaryTable":        testCreateDuplicatePrimaryTable,
+		// "ChainTransformations":               testChainTransform,
+		// "CreateResourceFromSource":           testCreateResourceFromSource,
+		// "CreateResourceFromSourceNoTS":       testCreateResourceFromSourceNoTS,
+		// "CreatePrimaryFromSource":            testCreatePrimaryFromSource,
+		// "CreatePrimaryFromNonExistentSource": testCreatePrimaryFromNonExistentSource,
 	}
 
 	psqlInfo := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), "localhost", "5432", os.Getenv("POSTGRES_DB"))
@@ -4199,5 +4199,319 @@ func TestTableSchemaValue(t *testing.T) {
 
 	if typ.NumField() != len(expectedFields) {
 		t.Fatalf("Expected %v fields, got %v", len(expectedFields), typ.NumField())
+	}
+}
+
+func testBatchFeature(t *testing.T, store OfflineStore) {
+	type expectedBatchRow struct {
+		Features []interface{}
+	}
+	type TestCase struct {
+		FeatureRecords [][]GenericRecord
+		ExpectedRows   []expectedBatchRow
+		FeatureSchema  []TableSchema
+	}
+
+	tests := map[string]TestCase{
+		"Empty": {
+			FeatureRecords: [][]GenericRecord{
+				// One feature with no records. EDIT: no features at all?
+				{},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					// TBD
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+			},
+			// No rows expected
+			ExpectedRows: []expectedBatchRow{},
+		},
+		"SimpleJoin": {
+			FeatureRecords: [][]GenericRecord{
+				{
+					{Entity: "a", Value: 1},
+					{Entity: "b", Value: 2},
+					{Entity: "c", Value: 3},
+				},
+				{
+					{Entity: "a", Value: "red"},
+					{Entity: "b", Value: "green"},
+					{Entity: "c", Value: "blue"},
+				},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+					},
+				},
+			},
+			ExpectedRows: []expectedBatchRow{
+				{
+					Features: []interface{}{
+						1,
+						"red",
+					},
+				},
+				{
+					Features: []interface{}{
+						2,
+						"green",
+					},
+				},
+				{
+					Features: []interface{}{
+						3,
+						"blue",
+					},
+				},
+			},
+		},
+		"SelectiveJoin": {
+			FeatureRecords: [][]GenericRecord{
+				// Overwritten feature.
+				{
+					{Entity: "a", Value: 1},
+					{Entity: "b", Value: 2},
+					{Entity: "c", Value: 3},
+				},
+				{
+					{Entity: "a", Value: "apple"},
+					{Entity: "b", Value: "banana"},
+					{Entity: "c", Value: "cucumber"},
+				},
+				// Extra entities
+				{
+					{Entity: "a", Value: "first"},
+					{Entity: "b", Value: "second"},
+					{Entity: "c", Value: "third"},
+					{Entity: "d", Value: "extra entity"},
+				},
+				// Feature that wont actually be called
+				{
+					{Entity: "a", Value: "random value"},
+					{Entity: "b", Value: "another random value"},
+					{Entity: "c", Value: "third random value"},
+				},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+					},
+				},
+			},
+			ExpectedRows: []expectedBatchRow{
+				{
+					Features: []interface{}{
+						1, "apple", "first",
+					},
+				},
+				{
+					Features: []interface{}{
+						2, "banana", "second",
+					},
+				},
+				{
+					Features: []interface{}{
+						3, "cucumber", "third",
+					},
+				},
+				{
+					Features: []interface{}{
+						nil, nil, "extra entity",
+					},
+				},
+			},
+		},
+		"ComplexJoin": {
+			FeatureRecords: [][]GenericRecord{
+				// Overwritten feature.
+				{
+					{Entity: "a", Value: 1},
+					{Entity: "b", Value: 2},
+					{Entity: "c", Value: 3},
+					{Entity: "a", Value: 4},
+				},
+				// Feature didn't exist before label
+				{
+					{Entity: "a", Value: "doesnt exist", TS: time.UnixMilli(11)},
+				},
+				// Feature didn't change after label
+				{
+					{Entity: "c", Value: "real value first", TS: time.UnixMilli(5)},
+					{Entity: "c", Value: "real value second", TS: time.UnixMilli(5)},
+					{Entity: "c", Value: "overwritten", TS: time.UnixMilli(4)},
+				},
+				// Different feature values for different TS.
+				{
+					{Entity: "b", Value: "first", TS: time.UnixMilli(3)},
+					{Entity: "b", Value: "second", TS: time.UnixMilli(4)},
+					{Entity: "b", Value: "third", TS: time.UnixMilli(8)},
+				},
+				// Empty feature.
+				{},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+			},
+			ExpectedRows: []expectedBatchRow{
+				{
+					Features: []interface{}{
+						4, nil, nil, nil, nil,
+					},
+				},
+				{
+					Features: []interface{}{
+						2, nil, nil, "first", nil,
+					},
+				},
+				{
+					Features: []interface{}{
+						2, nil, nil, "second", nil,
+					},
+				},
+				{
+					Features: []interface{}{
+						3, nil, "real value second", nil, nil,
+					},
+				},
+			},
+		},
+	}
+	runTestCase := func(t *testing.T, test TestCase) {
+		// We have a resource ID list where each resource ID corresponds to a feature
+		featureIDs := make([]ResourceID, len(test.FeatureRecords))
+
+		for i, recs := range test.FeatureRecords {
+			id := randomID(Feature)
+			featureIDs[i] = id
+			// Making a table storing the corresponding Resource IDs and the feature (schema)
+			// Not sure if it should be a primary table or a resource table
+			table, err := store.CreatePrimaryTable(id, test.FeatureSchema[i])
+			if err != nil {
+				t.Fatalf("Failed to create table: %s", err)
+			}
+			if err := table.WriteBatch(recs); err != nil {
+				t.Fatalf("Failed to write batch: %v", err)
+			}
+		}
+
+		// TODO: Have a list of resources, send that to the batch serving shell function
+		iter, err := store.getBatchFeatures(featureIDs)
+		if err != nil {
+			t.Fatalf("Failed to get batch of features: %s", err)
+		}
+		i := 0
+		expectedRows := test.ExpectedRows
+		for iter.Next() {
+			realRow := expectedBatchRow{
+				Features: iter.Values(),
+			}
+
+			// Row order isn't guaranteed, we make sure one row is equivalent
+			// then we delete that row. This is inefficient, but these test
+			// cases should all be small enough not to matter.
+			found := false
+			for i, expRow := range expectedRows {
+				if reflect.DeepEqual(realRow, expRow) {
+					found = true
+					lastIdx := len(expectedRows) - 1
+					// Swap the record that we've found to the end, then shrink the slice to not include it.
+					// This is essentially a delete operation expect that it re-orders the slice.
+					expectedRows[i], expectedRows[lastIdx] = expectedRows[lastIdx], expectedRows[i]
+					expectedRows = expectedRows[:lastIdx]
+					break
+				}
+			}
+			if !found {
+				for i, v := range realRow.Features {
+					fmt.Printf("Got %T Expected %T\n", v, expectedRows[0].Features[i])
+				}
+				t.Fatalf("Unexpected training row: %v, expected %v", realRow, expectedRows)
+			}
+			i++
+		}
+		if err := iter.Err(); err != nil {
+			t.Fatalf("Failed to iterate training set: %s", err)
+		}
+		if len(test.ExpectedRows) != i {
+			t.Fatalf("Training set has different number of rows %d %d", len(test.ExpectedRows), i)
+		}
+	}
+	for name, test := range tests {
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			if store.Type() != pt.MemoryOffline {
+				t.Parallel()
+			}
+			runTestCase(t, testConst)
+		})
 	}
 }

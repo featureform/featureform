@@ -261,7 +261,7 @@ type OfflineStore interface {
 	CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error)
 	GetResourceTable(id ResourceID) (OfflineTable, error)
 	CreateMaterialization(id ResourceID) (Materialization, error)
-	JoinFeatureTables(tables []ResourceID) error
+	getBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error)
 	GetMaterialization(id MaterializationID) (Materialization, error)
 	UpdateMaterialization(id ResourceID) (Materialization, error)
 	DeleteMaterialization(id MaterializationID) error
@@ -304,7 +304,8 @@ type FeatureIterator interface {
 
 type BatchFeatureIterator interface {
 	Next() bool
-	Value() ResourceRecord
+	Values() GenericRecord
+	Columns() []string
 	Err() error
 	Close() error
 }
@@ -347,6 +348,9 @@ type GenericResourceRecord[T any] struct {
 }
 
 type GenericRecord []interface{}
+
+// Will try using GenericRecord first, if it doesnt work, will move onto BatchRecord
+// type BatchRecord []interface{}
 
 func (rec ResourceRecord) check() error {
 	if rec.Entity == "" {
@@ -633,8 +637,8 @@ func (recs materializedRecords) Swap(i, j int) {
 	recs[i], recs[j] = recs[j], recs[i]
 }
 
-func (store *memoryOfflineStore) JoinFeatureTables(tables []ResourceID) error {
-	return nil
+func (store *memoryOfflineStore) getBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
+	return nil, nil
 }
 
 // memoryOfflineStore is not exposed to the users

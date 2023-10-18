@@ -10,7 +10,8 @@ import os
 import random
 import types
 import warnings
-from typing import List, Union, Dict
+from abc import ABC, abstractmethod
+from typing import List, Union, Dict, Callable
 
 import dill
 import numpy as np
@@ -169,7 +170,7 @@ class HostedClientImpl:
     def training_set(
         self, name, variation, include_label_timestamp, model: Union[str, Model] = None
     ):
-        return Dataset(self._stub).from_stub(name, variation, model)
+        return Dataset.from_stub(self._stub, name, variation, model)
 
     def features(
         self, features, entities, model: Union[str, Model] = None, params: list = None
@@ -847,7 +848,47 @@ class LocalClientImpl:
         self.db.close()
 
 
-class Stream:
+class Closeable:
+    """
+    Use this to wrap any resource which needs to be "closed" by the BaseStreamWrapper but which does not
+    have a close method.
+    """
+
+    def __init__(self, resource, close_function: Callable):
+        self._r = resource
+        self._c = close_function
+
+    def close(self):
+        self._c(self._r)
+
+
+class BaseStreamWrapper(ABC):
+    """
+    This abstract class should be inherited by any class which wraps a stream that needs to be closed.
+    By inheriting this base class the stream can be used in the resource manager pattern:
+    with get_resource() as resource:
+        ...do work with resource
+
+    the stream will be closed automatically after exiting the `with` block
+    """
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    @abstractmethod
+    def get_underlying_closeable(self):
+        pass
+
+    def close(self):
+        closeable = self.get_underlying_closeable()
+        if closeable is not None:
+            closeable.close()
+
+
+class Stream(BaseStreamWrapper):
     def __init__(self, stub, name, version, model: Union[str, Model] = None):
         req = serving_pb2.TrainingDataRequest()
         req.id.name = name
@@ -858,19 +899,23 @@ class Stream:
         self.version = version
         self._stub = stub
         self._req = req
-        self._iter = stub.TrainingData(req)
+        self._iterable_grpc_stream = self._stub.TrainingData(self._req)
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        return Row(next(self._iter))
+        return Row(next(self._iterable_grpc_stream))
+
+    def get_underlying_closeable(self):
+        # Closeable is needed here because we want to call cancel().
+        return Closeable(self._iterable_grpc_stream, lambda s: s.cancel())
 
     def restart(self):
-        self._iter = self._stub.TrainingData(self._req)
+        self._iterable_grpc_stream = self._stub.TrainingData(self._req)
 
 
-class LocalStream:
+class LocalStream(BaseStreamWrapper):
     def __init__(self, datalist, include_label_timestamp):
         self._datalist = datalist
         self._iter = iter(datalist)
@@ -882,11 +927,14 @@ class LocalStream:
     def __next__(self):
         return LocalRow(next(self._iter), self._include_label_timestamp)
 
+    def get_underlying_closeable(self):
+        return None
+
     def restart(self):
         self._iter = iter(self._datalist)
 
 
-class Repeat:
+class Repeat(BaseStreamWrapper):
     def __init__(self, repeat_num, stream):
         self.repeat_num = repeat_num
         self._stream = stream
@@ -907,8 +955,11 @@ class Repeat:
 
         return next_val
 
+    def get_underlying_closeable(self):
+        return self._stream
 
-class Shuffle:
+
+class Shuffle(BaseStreamWrapper):
     def __init__(self, buffer_size, stream):
         self.buffer_size = buffer_size
         self._shuffled_data_list = []
@@ -942,8 +993,11 @@ class Shuffle:
 
         return next_row
 
+    def get_underlying_closeable(self):
+        return self._stream
 
-class Batch:
+
+class Batch(BaseStreamWrapper):
     def __init__(self, batch_size, stream):
         self.batch_size = batch_size
         self._stream = stream
@@ -966,8 +1020,11 @@ class Batch:
                 return rows
         return rows
 
+    def get_underlying_closeable(self):
+        return self._stream
 
-class Dataset:
+
+class Dataset(BaseStreamWrapper):
     def __init__(self, stream, dataframe=None):
         """Repeats the Dataset for the specified number of times
 
@@ -980,8 +1037,12 @@ class Dataset:
         self._stream = stream
         self._dataframe = dataframe
 
-    def from_stub(self, name, version, model: Union[str, Model] = None):
-        stream = Stream(self._stream, name, version, model)
+    def get_underlying_closeable(self):
+        return self._stream
+
+    @staticmethod
+    def from_stub(stub, name, version, model: Union[str, Model] = None):
+        stream = Stream(stub, name, version, model)
         return Dataset(stream)
 
     def dataframe(self) -> pd.DataFrame:
@@ -1020,6 +1081,7 @@ class Dataset:
             self._dataframe.rename(columns={cols.label: "label"}, inplace=True)
             return self._dataframe
 
+    @staticmethod
     def from_dataframe(dataframe, include_label_timestamp):
         stream = LocalStream(dataframe.values.tolist(), include_label_timestamp)
         return Dataset(stream, dataframe)

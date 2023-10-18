@@ -597,9 +597,10 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                         >
                           <b>Lineage:</b>
                         </Typography>
-                        {metadata['inputs'].map((nv) => {
+                        {metadata['inputs'].map((nv, index) => {
                           return (
                             <Chip
+                              key={index}
                               variant='outlined'
                               className={classes.linkChip}
                               size='small'

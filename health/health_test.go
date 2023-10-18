@@ -144,6 +144,18 @@ func initProvider(t *testing.T, providerType pt.Type, executorType pc.SparkExecu
 	case pt.SparkOffline:
 		serializedConfig, _ := initSpark(t, executorType, storeType)
 		return serializedConfig
+	case pt.DynamoDBOnline:
+		key := checkEnv("DYNAMODB_KEY")
+		secret := checkEnv("DYNAMODB_SECRET")
+		region := checkEnv("DYNAMODB_REGION")
+
+		dynamodbConfig := pc.DynamodbConfig{
+			AccessKey: key,
+			SecretKey: secret,
+			Region:    region,
+		}
+
+		return dynamodbConfig.Serialized()
 	default:
 		panic(fmt.Sprintf("Unsupported provider type: %s", providerType))
 	}
@@ -228,6 +240,20 @@ func TestHealth_Check(t *testing.T) {
 				Type:             string(pt.SparkOffline),
 				SerializedConfig: config,
 				Software:         "spark",
+				Tags:             metadata.Tags{},
+				Properties:       metadata.Properties{},
+			},
+		})
+	}
+
+	if *providerType == "dynamodb" || *providerType == "" {
+		config := initProvider(t, pt.DynamoDBOnline, "", "")
+		tests = append(tests, testMember{
+			providerDef: metadata.ProviderDef{
+				Name:             "dynamodb",
+				Type:             string(pt.DynamoDBOnline),
+				SerializedConfig: config,
+				Software:         "dynamodb",
 				Tags:             metadata.Tags{},
 				Properties:       metadata.Properties{},
 			},

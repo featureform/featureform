@@ -259,10 +259,12 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
 
     def get_source_variant(self, name: str, variant: str) -> SourceVariant:
         result = self.db.get_source_variant(name, variant)
+        name_variant_list = []
         input_json = json.loads(result["inputs"] if result["inputs"] else [])
-        name_variant_list = [
-            pb.NameVariant(name=v[0], variant=v[1]) for v in input_json
-        ]
+        if input_json and len(input_json[0]):  # we store empty inputs as [[]]
+            name_variant_list = [
+                pb.NameVariant(name=v[0], variant=v[1]) for v in input_json
+            ]
         return SourceVariant(
             created=result["created"],
             name=result["name"],

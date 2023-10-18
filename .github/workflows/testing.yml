@@ -265,6 +265,13 @@ jobs:
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_DB: ${{ env.POSTGRES_DB }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+      
+      mysql:
+        image: mysql
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: "password"
 
     steps:
       - name: Download Working Compiled Directories
@@ -312,6 +319,9 @@ jobs:
           AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
           AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
           AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          MYSQL_USER: "root"
+          MYSQL_PASSWORD: "password"
+          MYSQL_DB: "mysql"
         working-directory: ./
         run: make test_offline
 

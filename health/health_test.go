@@ -156,6 +156,23 @@ func initProvider(t *testing.T, providerType pt.Type, executorType pc.SparkExecu
 		}
 
 		return dynamodbConfig.Serialized()
+	case pt.SnowflakeOffline:
+		user := checkEnv("SNOWFLAKE_USERNAME")
+		password := checkEnv("SNOWFLAKE_PASSWORD")
+		account := checkEnv("SNOWFLAKE_ACCOUNT")
+		org := checkEnv("SNOWFLAKE_ORG")
+
+		snowflakeConfig := pc.SnowflakeConfig{
+			Username:     user,
+			Password:     password,
+			Account:      account,
+			Organization: org,
+			Database:     "SNOWFLAKE_SAMPLE_DATA",
+			Schema:       "TPCH_SF1",
+			Role:         "PUBLIC",
+		}
+
+		return snowflakeConfig.Serialize()
 	default:
 		panic(fmt.Sprintf("Unsupported provider type: %s", providerType))
 	}
@@ -254,6 +271,20 @@ func TestHealth_Check(t *testing.T) {
 				Type:             string(pt.DynamoDBOnline),
 				SerializedConfig: config,
 				Software:         "dynamodb",
+				Tags:             metadata.Tags{},
+				Properties:       metadata.Properties{},
+			},
+		})
+	}
+
+	if *providerType == "snowflake" || *providerType == "" {
+		config := initProvider(t, pt.SnowflakeOffline, "", "")
+		tests = append(tests, testMember{
+			providerDef: metadata.ProviderDef{
+				Name:             "snowflake",
+				Type:             string(pt.SnowflakeOffline),
+				SerializedConfig: config,
+				Software:         "snowflake",
 				Tags:             metadata.Tags{},
 				Properties:       metadata.Properties{},
 			},

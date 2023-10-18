@@ -317,9 +317,11 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
     router.push(`/entities/${metadata['entity']}`);
   };
 
-  const linkToPrimaryData = () => {
-    setVariant('Source', metadata['source'].Name, metadata['source'].Variant);
-    router.push(`/sources/${metadata['source'].Name}`);
+  const linkToLineage = (nameVariant = { Name: '', Variant: '' }) => {
+    if (nameVariant.Name && nameVariant.Variant) {
+      setVariant('Source', nameVariant.Name, nameVariant.Variant);
+      router.push(`/sources/${nameVariant.Name}`);
+    }
   };
 
   const linkToLabel = () => {
@@ -504,59 +506,6 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                           </Typography>
                         </div>
                       )}
-                    {metadata['definition'] && (
-                      <div>
-                        {(() => {
-                          if (
-                            metadata['source-type'] === 'SQL Transformation'
-                          ) {
-                            return (
-                              <SyntaxHighlighter
-                                className={classes.syntax}
-                                language={'sql'}
-                                style={okaidia}
-                              >
-                                {getFormattedSQL(metadata['definition'])}
-                              </SyntaxHighlighter>
-                            );
-                          } else if (
-                            ['Dataframe Transformation'].includes(
-                              metadata['source-type']
-                            )
-                          ) {
-                            return (
-                              <SyntaxHighlighter
-                                className={classes.syntax}
-                                language={'python'}
-                                style={okaidia}
-                              >
-                                {metadata['definition']}
-                              </SyntaxHighlighter>
-                            );
-                          } else {
-                            return (
-                              <Typography variant='h7'>
-                                <b>{metadata['definition']}</b>
-                              </Typography>
-                            );
-                          }
-                        })()}
-                        {(() => {
-                          if (
-                            metadata['status']?.toUpperCase() !== 'FAILED' &&
-                            metadata['status']?.toUpperCase() !== 'PENDING'
-                          ) {
-                            return (
-                              <SourceDialog
-                                api={api}
-                                sourceName={name}
-                                sourceVariant={variant}
-                              />
-                            );
-                          }
-                        })()}
-                      </div>
-                    )}
 
                     {metadata['serialized-config'] && (
                       <Typography variant='body1'>
@@ -577,8 +526,13 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                           variant='outlined'
                           className={classes.linkChip}
                           size='small'
-                          onClick={linkToPrimaryData}
-                          label={metadata['source'].Name}
+                          onClick={() =>
+                            linkToLineage({
+                              Name: metadata['source']?.Name,
+                              Variant: metadata['source']?.Variant,
+                            })
+                          }
+                          label={`${metadata['source'].Name}:${metadata['source'].Variant}`}
                         ></Chip>
                       </div>
                     )}
@@ -632,6 +586,82 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                           onClick={() => {}}
                           label={'On-Demand'}
                         ></Chip>
+                      </div>
+                    )}
+
+                    {metadata['inputs']?.length ? (
+                      <div className={classes.linkBox}>
+                        <Typography
+                          variant='body1'
+                          className={classes.typeTitle}
+                        >
+                          <b>Lineage:</b>
+                        </Typography>
+                        {metadata['inputs'].map((nv) => {
+                          return (
+                            <Chip
+                              variant='outlined'
+                              className={classes.linkChip}
+                              size='small'
+                              onClick={() => linkToLineage(nv)}
+                              label={`${nv.Name}:${nv.Variant}`}
+                            ></Chip>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+
+                    {metadata['definition'] && (
+                      <div>
+                        {(() => {
+                          if (
+                            metadata['source-type'] === 'SQL Transformation'
+                          ) {
+                            return (
+                              <SyntaxHighlighter
+                                className={classes.syntax}
+                                language={'sql'}
+                                style={okaidia}
+                              >
+                                {getFormattedSQL(metadata['definition'])}
+                              </SyntaxHighlighter>
+                            );
+                          } else if (
+                            ['Dataframe Transformation'].includes(
+                              metadata['source-type']
+                            )
+                          ) {
+                            return (
+                              <SyntaxHighlighter
+                                className={classes.syntax}
+                                language={'python'}
+                                style={okaidia}
+                              >
+                                {metadata['definition']}
+                              </SyntaxHighlighter>
+                            );
+                          } else {
+                            return (
+                              <Typography variant='h7'>
+                                <b>{metadata['definition']}</b>
+                              </Typography>
+                            );
+                          }
+                        })()}
+                        {(() => {
+                          if (
+                            metadata['status']?.toUpperCase() !== 'FAILED' &&
+                            metadata['status']?.toUpperCase() !== 'PENDING'
+                          ) {
+                            return (
+                              <SourceDialog
+                                api={api}
+                                sourceName={name}
+                                sourceVariant={variant}
+                              />
+                            );
+                          }
+                        })()}
                       </div>
                     )}
                   </Grid>

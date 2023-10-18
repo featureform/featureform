@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/csv"
 	"encoding/json"
 	"net/http"
 	"path/filepath"
@@ -673,8 +674,53 @@ func (store *SparkOfflineStore) Close() error {
 	return nil
 }
 
+// For Spark, the Check method must confirm 3 things:
+// 1. The Spark executor is able to run a Spark job
+// 2. The Spark job is able to read/write to the configured blob store
+// 3. Backend business logic is able to read/write to the configured blob store
+// To achieve this check, we'll perform the following steps:
+// 1. Write to <blob-store>/featureform/HealthCheck/health_check.csv
+// 2. Run a Spark job that reads from <blob-store>/featureform/HealthCheck/health_check.csv and
+// writes to <blob-store>/featureform/HealthCheck/health_check_out.csv
 func (store *SparkOfflineStore) Check() (bool, error) {
-	return false, fmt.Errorf("provider health check not implemented")
+	healthCheckPath, err := store.Store.CreateFilePath("featureform/HealthCheck/health_check.csv")
+	if err != nil {
+		return false, fmt.Errorf("could not create health check path: %v", err)
+	}
+	csvBytes, err := store.getHealthCheckCSVBytes()
+	if err != nil {
+		return false, fmt.Errorf("could not get health check csv bytes: %v", err)
+	}
+	if err := store.Store.Write(healthCheckPath, csvBytes); err != nil {
+		return false, fmt.Errorf("could not write health check csv: %v", err)
+	}
+	healthCheckOutPath, err := store.Store.CreateDirPath("featureform/HealthCheck/health_check_out")
+	if err != nil {
+		return false, fmt.Errorf("could not create health check out path: %v", err)
+	}
+	args, err := store.Executor.SparkSubmitArgs(healthCheckOutPath, "SELECT * FROM source_0", []string{healthCheckPath.ToURI()}, Transform, store.Store)
+	if err != nil {
+		return false, fmt.Errorf("could not get spark submit args: %v", err)
+	}
+	if err := store.Executor.RunSparkJob(args, store.Store); err != nil {
+		return false, fmt.Errorf("could not run spark job: %v", err)
+	}
+	return true, nil
+}
+
+func (store *SparkOfflineStore) getHealthCheckCSVBytes() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	w := csv.NewWriter(buf)
+	records := [][]string{
+		{"entity", "value", "ts"},
+		{"entity1", "value1", "2020-01-01T00:00:00Z"},
+		{"entity2", "value3", "2020-01-02T00:00:00Z"},
+		{"entity3", "value3", "2020-01-03T00:00:00Z"},
+	}
+	if err := w.WriteAll(records); err != nil {
+		return nil, fmt.Errorf("could not write health check csv: %v", err)
+	}
+	return buf.Bytes(), nil
 }
 
 func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {

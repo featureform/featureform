@@ -958,15 +958,15 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             properties={},
         ),
         Schedule(
-            name="feature", variant="v1", resource_type=4, schedule_string="* * * * *"
-        ),
-        Schedule(
-            name="primary", variant="abc", resource_type=7, schedule_string="* * * * *"
-        ),
-        Schedule(
             name="training-set",
             variant="v1",
             resource_type=6,
             schedule_string="* * * * *",
+        ),
+        Schedule(
+            name="feature", variant="v1", resource_type=4, schedule_string="* * * * *"
+        ),
+        Schedule(
+            name="primary", variant="abc", resource_type=7, schedule_string="* * * * *"
         ),
     ]

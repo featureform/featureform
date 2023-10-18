@@ -1340,8 +1340,10 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	if err != nil {
 		return fmt.Errorf("could not get sources for df transformation. Error: %v", err)
 	}
+	fmt.Printf("sources %v\n", sources)
 
 	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestination, pklFilepath.Key(), sources, spark.Store)
+	fmt.Printf("args %v\n", sparkArgs)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark dataframe arguments", err)
 		return fmt.Errorf("error with getting df arguments %v", sparkArgs)
@@ -1444,6 +1446,8 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("could not create directory path for spark transformation: %v", err)
 		}
+		fmt.Printf("datetime path: %s\n", transformation)
+		fmt.Printf("URI: %s\n", transformationDirPathDateTime.ToURI())
 		return transformationDirPathDateTime.ToURI(), nil
 	} else {
 		return filePath, fmt.Errorf("could not find path for %s; fileType: %s, fileName: %s, fileVariant: %s", path, fileType, fileName, fileVariant)

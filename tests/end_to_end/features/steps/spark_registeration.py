@@ -136,13 +136,16 @@ def step_impl(context):
     context.exception = None
 
 
-@when('I register a "{transformation_type}" transformation')
-def step_impl(context, transformation_type):
+@when(
+    'I register a "{transformation_type}" transformation named "{name}" from "{sources}"'
+)
+def step_impl(context, transformation_type, name, sources):
+    source_list = sources.split(",")
     if transformation_type == "DF":
 
         @context.spark.df_transformation(
-            name="transactions_transformation",
-            inputs=[context.file],
+            name=name,
+            inputs=source_list,
         )
         def some_transformation(df):
             """Unedited transactions"""
@@ -151,7 +154,7 @@ def step_impl(context, transformation_type):
     elif transformation_type == "SQL":
 
         @context.spark.sql_transformation(
-            name="transactions_transformation",
+            name=name,
         )
         def some_transformation():
             """Unedited transactions"""

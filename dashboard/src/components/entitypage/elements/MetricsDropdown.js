@@ -1,5 +1,4 @@
-import { Container, Grid, Typography } from '@mui/material';
-import Chip from '@mui/material/Chip';
+import { Chip, Container, Grid, Typography } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import React, { useEffect } from 'react';
 import { connect } from 'react-redux';
@@ -144,17 +143,17 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
   return (
     <div className={classes.root}>
       <Typography variant='body1' className={classes.linkPromChip}>
-        Source:{' '}
-        <Chip
-          variant='outlined'
-          clickable={apiConnected}
-          className={classes.linkChip}
-          size='small'
-          color={apiConnected ? 'secondary' : 'error'}
-          onClick={linkToPrometheus}
-          label={'Prometheus'}
-        ></Chip>
+        Source:
       </Typography>
+      <Chip
+        variant='outlined'
+        clickable={apiConnected}
+        className={classes.linkChip}
+        size='small'
+        color={apiConnected ? 'secondary' : 'error'}
+        onClick={linkToPrometheus}
+        label={'Prometheus'}
+      ></Chip>
       <Grid container spacing={0}>
         <Grid item xs={12} height='10em'>
           <div className={classes.graph}>
@@ -162,7 +161,7 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
               {Object.entries(queryFormats[type]).map(
                 ([query_name, query_data], i) => {
                   return (
-                    <div>
+                    <div key={i}>
                       <div className={classes.titleBar}>
                         <div className={classes.graphTitle}>
                           <Typography variant='h6'>{query_name}</Typography>

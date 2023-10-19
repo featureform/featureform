@@ -52,7 +52,14 @@ const PrometheusGraph = ({
         .then((response) => {
           return response['data'];
         })
-        .catch((err) => console.error(err));
+        .catch((err) => {
+          //log the error and return an empty response
+          console.error(err);
+          return {
+            resultType: 'matrix',
+            result: [],
+          };
+        });
     },
     [query, add_labels_string, remote]
   );
@@ -116,7 +123,9 @@ const PrometheusGraph = ({
     });
 
     return () => {
-      setTimeout(() => myChart.destroy(), 100);
+      setTimeout(() => {
+        myChart?.destroy();
+      }, 100);
     };
   }, [
     query,

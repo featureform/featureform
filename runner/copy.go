@@ -125,6 +125,7 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 			select {
 			case chanErr = <-errCh:
 			case ch <- it.Value():
+			default:
 			}
 			if chanErr != nil {
 				break
@@ -132,6 +133,18 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		}
 		close(ch)
 		wg.Wait()
+		// Guarantees to show the first error written to the error channel
+		// and then checks the error one last time. This check covers the
+		// edge case in which the iterator has written all of the records
+		// to the channel prior to any goroutine writing to the error channel
+		// (e.g. an error occurs near the end of the iterator's loop, in which
+		// case the loop breaks before every reading from the error channel).
+		if chanErr == nil {
+			select {
+			case chanErr = <-errCh:
+			default:
+			}
+		}
 		close(errCh)
 		if chanErr != nil {
 			jobWatcher.EndWatch(fmt.Errorf("error encountered by inference store writer goroutine: %w", chanErr))

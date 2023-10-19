@@ -686,7 +686,7 @@ jobs:
 
   runner:
     name: Runner Testing
-    needs: setup
+#    needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

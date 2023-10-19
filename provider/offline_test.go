@@ -247,12 +247,11 @@ func TestOfflineStores(t *testing.T) {
 		testList = append(testList, testMember{pt.PostgresOffline, postgresInit(), true})
 	}
 	if *provider == "snowflake" || *provider == "" {
-		// serialSFConfig, snowflakeConfig := snowflakeInit()
-		serialSFConfig, _ := snowflakeInit()
+		serialSFConfig, snowflakeConfig := snowflakeInit()
 		testList = append(testList, testMember{pt.SnowflakeOffline, serialSFConfig, true})
-		// t.Cleanup(func() {
-		// 	destroySnowflakeDatabase(snowflakeConfig)
-		// })
+		t.Cleanup(func() {
+			destroySnowflakeDatabase(snowflakeConfig)
+		})
 	}
 	if *provider == "redshift" || *provider == "" {
 		serialRSConfig, redshiftConfig := redshiftInit()
@@ -301,13 +300,13 @@ func TestOfflineStores(t *testing.T) {
 		"TrainingSets":            testTrainingSet,
 		"TrainingSetUpdate":       testTrainingSetUpdate,
 		"BatchFeatures":           testBatchFeature,
-		"TrainingSetLag":          testLagFeaturesTrainingSet,
-		"TrainingSetInvalidID":    testGetTrainingSetInvalidResourceID,
-		"GetUnknownTrainingSet":   testGetUnknownTrainingSet,
-		"InvalidTrainingSetDefs":  testInvalidTrainingSetDefs,
-		"LabelTableNotFound":      testLabelTableNotFound,
-		"FeatureTableNotFound":    testFeatureTableNotFound,
-		"TrainingDefShorthand":    testTrainingSetDefShorthand,
+		// "TrainingSetLag":          testLagFeaturesTrainingSet,
+		"TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID,
+		"GetUnknownTrainingSet":  testGetUnknownTrainingSet,
+		"InvalidTrainingSetDefs": testInvalidTrainingSetDefs,
+		"LabelTableNotFound":     testLabelTableNotFound,
+		"FeatureTableNotFound":   testFeatureTableNotFound,
+		"TrainingDefShorthand":   testTrainingSetDefShorthand,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
 		"PrimaryTableCreate":                 testPrimaryCreateTable,

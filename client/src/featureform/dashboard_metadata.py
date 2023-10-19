@@ -39,7 +39,6 @@ from .type_objects import (
 )
 from .resources import SourceType
 from .version import get_package_version
-from featureform.proto import metadata_pb2 as pb
 
 path = os.path.join(os.path.dirname(__file__), "dashboard")
 
@@ -348,7 +347,7 @@ def resources_list_to_dict(resource_list):
     return variants_dict
 
 
-def name_variant_list_to_dict_list(input_list_param: list[pb.NameVariant]):
+def name_variant_list_to_dict_list(input_list_param: list[dict]):
     """Convert a name variant list, into a dictionary list"""
     input_list = list()
 

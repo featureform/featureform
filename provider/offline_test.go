@@ -265,11 +265,10 @@ func TestOfflineStores(t *testing.T) {
 	//}
 	if *provider == "snowflake" || *provider == "" {
 		serialSFConfig, snowflakeConfig := snowflakeInit()
-		// serialSFConfig, _ := snowflakeInit()
 		testList = append(testList, testMember{pt.SnowflakeOffline, serialSFConfig, true})
-		t.Cleanup(func() {
-			destroySnowflakeDatabase(snowflakeConfig)
-		})
+		// t.Cleanup(func() {
+		// 	destroySnowflakeDatabase(snowflakeConfig)
+		// })
 	}
 	if *provider == "redshift" || *provider == "" {
 		serialRSConfig, redshiftConfig := redshiftInit()
@@ -4970,6 +4969,7 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 		i := 0
 		expectedRows := test.ExpectedRows
 		for iter.Next() {
+			entity_feature_row := iter.Values()
 			realRow := expectedBatchRow{
 				Entity:   iter.Entity(),
 				Features: iter.Features(),

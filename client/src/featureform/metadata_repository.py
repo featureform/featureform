@@ -4,8 +4,6 @@ from typing import List
 
 from typeguard import typechecked
 
-from featureform.proto import metadata_pb2 as pb
-
 from . import SQLiteMetadata
 from .resources import (
     Feature,
@@ -262,9 +260,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
         name_variant_list = []
         input_json = json.loads(result["inputs"] if result["inputs"] else [])
         if input_json and len(input_json[0]):  # we store empty inputs as [[]]
-            name_variant_list = [
-                pb.NameVariant(name=v[0], variant=v[1]) for v in input_json
-            ]
+            name_variant_list = [{"name": v[0], "variant": v[1]} for v in input_json]
         return SourceVariant(
             created=result["created"],
             name=result["name"],

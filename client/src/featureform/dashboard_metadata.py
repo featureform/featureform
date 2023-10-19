@@ -353,7 +353,9 @@ def name_variant_list_to_dict_list(input_list_param: list[pb.NameVariant]):
     input_list = list()
 
     for name_variant in input_list_param:
-        input_list.append({"Name": name_variant.name, "Variant": name_variant.variant})
+        input_list.append(
+            {"Name": name_variant["name"], "Variant": name_variant["variant"]}
+        )
     return input_list
 
 

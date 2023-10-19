@@ -110,7 +110,7 @@ def test_register_gcs():
             credentials_path="provider/connection/mock_credentials.json",
         ),
         bucket_name="name",
-        bucket_path="/path",
+        root_path="/path",
         description="description",
         team="team",
         tags=[],
@@ -322,7 +322,7 @@ def test_register_spark():
     s3 = reg.register_s3(
         name="quickstart",
         credentials=aws_creds,
-        bucket_name="/path",
+        bucket_name="path",
         bucket_region="/region",
         path="/path",
     )
@@ -347,7 +347,7 @@ def test_register_k8s():
     s3 = reg.register_s3(
         name="quickstart",
         credentials=aws_creds,
-        bucket_name="/path",
+        bucket_name="path",
         bucket_region="/region",
         path="/path",
     )

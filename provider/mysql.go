@@ -35,7 +35,7 @@ func mySqlOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		ProviderType: pt.MySqlOffline,
 		QueryImpl:    &queries,
 	}
-	if sc.Host != "" {
+	if sc.Host != "" && sc.Port != "" {
 		sgConfig.ConnectionURL = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", sc.Username, sc.Password, sc.Host, sc.Port, sc.Database)
 	} else {
 		sgConfig.ConnectionURL = fmt.Sprintf("%s:%s@/%s", sc.Username, sc.Password, sc.Database)

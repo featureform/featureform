@@ -1168,7 +1168,7 @@ jobs:
 
   client-coverage:
     name: Client Test Coverage
-    needs: setup
+#    needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

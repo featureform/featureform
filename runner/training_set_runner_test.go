@@ -72,7 +72,7 @@ func (m MockOfflineCreateTrainingSetFail) Close() error {
 	return nil
 }
 
-func (m MockOfflineCreateTrainingSetFail) Check() (bool, error) {
+func (m MockOfflineCreateTrainingSetFail) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 

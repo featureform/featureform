@@ -77,7 +77,7 @@ func (m MockOfflineRegisterSourceFail) Close() error {
 	return nil
 }
 
-func (m MockOfflineRegisterSourceFail) Check() (bool, error) {
+func (m MockOfflineRegisterSourceFail) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 

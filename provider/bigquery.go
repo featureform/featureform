@@ -1230,7 +1230,7 @@ func (store *bqOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator,
 	return store.newbqTrainingSetIterator(iter), nil
 }
 
-func (store *bqOfflineStore) Check() (bool, error) {
+func (store *bqOfflineStore) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 

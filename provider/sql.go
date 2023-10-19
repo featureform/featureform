@@ -170,7 +170,7 @@ func (store *sqlOfflineStore) Close() error {
 	return store.db.Close()
 }
 
-func (store *sqlOfflineStore) Check() (bool, error) {
+func (store *sqlOfflineStore) CheckHealth() (bool, error) {
 	err := store.db.Ping()
 	return err == nil, err
 }

@@ -26,6 +26,7 @@ import (
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
 	srv "github.com/featureform/proto"
+	pt "github.com/featureform/provider/provider_type"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -590,8 +591,12 @@ func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Pro
 		serv.Logger.Errorw("Failed to create provider", "error", err)
 		return nil, err
 	}
+	if !serv.health.IsSupportedProvider(pt.Type(provider.Type)) {
+		serv.Logger.Infow("Provider type is currently not supported for health check", "type", provider.Type)
+		return &pb.Empty{}, nil
+	}
 	var status *pb.ResourceStatus
-	isHealthy, err := serv.health.Check(provider.Name)
+	isHealthy, err := serv.health.CheckProvider(provider.Name)
 	if err != nil || !isHealthy {
 		serv.Logger.Errorw("Provider health check failed", "error", err)
 		status = &pb.ResourceStatus{

@@ -259,7 +259,7 @@ func (store *dynamodbOnlineStore) DeleteTable(feature, variant string) error {
 	return nil
 }
 
-func (store *dynamodbOnlineStore) Check() (bool, error) {
+func (store *dynamodbOnlineStore) CheckHealth() (bool, error) {
 	listOutput, err := store.client.ListTables(&dynamodb.ListTablesInput{Limit: aws.Int64(1)})
 	if err != nil {
 		return false, err

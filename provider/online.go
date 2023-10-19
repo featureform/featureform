@@ -129,7 +129,7 @@ func (store *localOnlineStore) Close() error {
 	return nil
 }
 
-func (store *localOnlineStore) Check() (bool, error) {
+func (store *localOnlineStore) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 

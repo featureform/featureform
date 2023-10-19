@@ -25,26 +25,23 @@ func NewHealth(client *metadata.Client) *Health {
 	}
 }
 
-func (h *Health) Check(providerName string) (bool, error) {
-	rec, err := h.metadata.GetProvider(context.Background(), providerName)
+func (h *Health) CheckProvider(name string) (bool, error) {
+	rec, err := h.metadata.GetProvider(context.Background(), name)
 	if err != nil {
 		return false, err
-	}
-	if !h.isSupportedProvider(pt.Type(rec.Type())) {
-		return false, fmt.Errorf("unsupported provider type: %s", rec.Type())
 	}
 	p, err := provider.Get(pt.Type(rec.Type()), pc.SerializedConfig(rec.SerializedConfig()))
 	if err != nil {
 		return false, errors.New(h.handleError(err))
 	}
-	isHealthy, err := p.Check()
+	isHealthy, err := p.CheckHealth()
 	if err != nil {
 		return false, errors.New(h.handleError(err))
 	}
 	return isHealthy, nil
 }
 
-func (h *Health) isSupportedProvider(t pt.Type) bool {
+func (h *Health) IsSupportedProvider(t pt.Type) bool {
 	switch t {
 	case pt.RedisOnline, pt.DynamoDBOnline, pt.PostgresOffline, pt.SnowflakeOffline, pt.SparkOffline:
 		return true

@@ -159,7 +159,7 @@ func (store *firestoreOnlineStore) DeleteTable(feature, variant string) error {
 	return nil
 }
 
-func (store *firestoreOnlineStore) Check() (bool, error) {
+func (store *firestoreOnlineStore) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 

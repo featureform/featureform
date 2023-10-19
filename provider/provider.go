@@ -45,7 +45,7 @@ type Provider interface {
 	AsOfflineStore() (OfflineStore, error)
 	Type() pt.Type
 	Config() pc.SerializedConfig
-	Check() (bool, error)
+	CheckHealth() (bool, error)
 }
 
 type BaseProvider struct {
@@ -69,7 +69,7 @@ func (provider BaseProvider) Config() pc.SerializedConfig {
 	return provider.ProviderConfig
 }
 
-func (provider BaseProvider) Check() (bool, error) {
+func (provider BaseProvider) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 

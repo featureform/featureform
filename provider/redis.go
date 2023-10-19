@@ -184,7 +184,7 @@ func (store *redisOnlineStore) DeleteTable(feature, variant string) error {
 	return nil
 }
 
-func (store *redisOnlineStore) Check() (bool, error) {
+func (store *redisOnlineStore) CheckHealth() (bool, error) {
 	cmd := store.client.B().Ping().Build()
 	resp, err := store.client.Do(context.Background(), cmd).ToString()
 	if err != nil {

@@ -62,7 +62,13 @@ jobs:
         run: go build ./metadata/*.go
 
       - name: Build Python Package
-        run: ./pip_update.sh
+        run: ./pip_update.sh --no-dash
+
+      - name: Remove Node Modules
+        run: rm -rf dashboard/node_modules
+
+      - name: Remove Git Objects
+        run: rm -rf .git
 
       - uses: actions/upload-artifact@v3
         with:

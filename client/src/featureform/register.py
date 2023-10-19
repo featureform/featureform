@@ -1025,10 +1025,10 @@ class SubscriptableTransformation:
         decorator_register_resources_method,
         decorator_name_variant_method,
     ):
-        if not self.__has_return_statement(fn):
-            raise Exception(
-                "Transformation function seems to be missing a return statement"
-            )
+        # if not self.__has_return_statement(fn):
+        #     raise Exception(
+        #         "Transformation function seems to be missing a return statement"
+        #     )
 
         self.fn = fn
         self.registrar = registrar

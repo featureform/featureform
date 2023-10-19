@@ -29,7 +29,7 @@ export function LoadingDots() {
     <div data-testid='loadingDotsId'>
       <Container maxWidth='xl'>
         <Paper elevation={3}>
-          <Container maxWidth='sm'>
+          <Container style={{ textAlign: 'center' }} maxWidth='sm'>
             <Loader type='ThreeDots' color='grey' height={40} width={40} />
           </Container>
         </Paper>

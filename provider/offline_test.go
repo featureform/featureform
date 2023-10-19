@@ -39,6 +39,7 @@ type testMember struct {
 	t               pt.Type
 	c               pc.SerializedConfig
 	integrationTest bool
+	nameOverride    string
 }
 
 func TestOfflineStores(t *testing.T) {
@@ -248,31 +249,31 @@ func TestOfflineStores(t *testing.T) {
 	testList := []testMember{}
 
 	if *provider == "memory" || *provider == "" {
-		testList = append(testList, testMember{pt.MemoryOffline, []byte{}, false})
+		testList = append(testList, testMember{pt.MemoryOffline, []byte{}, false, ""})
 	}
 	if *provider == "bigquery" || *provider == "" {
 		serialBQConfig, bigQueryConfig := bqInit()
-		testList = append(testList, testMember{pt.BigQueryOffline, serialBQConfig, true})
+		testList = append(testList, testMember{pt.BigQueryOffline, serialBQConfig, true, ""})
 		t.Cleanup(func() {
 			destroyBigQueryDataset(bigQueryConfig)
 		})
 	}
 	if *provider == "postgres" || *provider == "" {
-		testList = append(testList, testMember{pt.PostgresOffline, postgresInit(), true})
+		testList = append(testList, testMember{pt.PostgresOffline, postgresInit(), true, ""})
 	}
 	if *provider == "mysql" || *provider == "" {
-		testList = append(testList, testMember{pt.MySqlOffline, mySqlInit(), true})
+		testList = append(testList, testMember{pt.MySqlOffline, mySqlInit(), true, ""})
 	}
 	if *provider == "snowflake" || *provider == "" {
 		serialSFConfig, snowflakeConfig := snowflakeInit()
-		testList = append(testList, testMember{pt.SnowflakeOffline, serialSFConfig, true})
+		testList = append(testList, testMember{pt.SnowflakeOffline, serialSFConfig, true, ""})
 		t.Cleanup(func() {
 			destroySnowflakeDatabase(snowflakeConfig)
 		})
 	}
 	if *provider == "redshift" || *provider == "" {
 		serialRSConfig, redshiftConfig := redshiftInit()
-		testList = append(testList, testMember{pt.RedshiftOffline, serialRSConfig, true})
+		testList = append(testList, testMember{pt.RedshiftOffline, serialRSConfig, true, ""})
 		t.Cleanup(func() {
 			destroyRedshiftDatabase(redshiftConfig)
 		})
@@ -292,15 +293,15 @@ func TestOfflineStores(t *testing.T) {
 	// }
 	if *provider == "spark-databricks-s3" || *provider == "" {
 		serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.S3)
-		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true, "DATABRICKS_S3"})
 	}
 	if *provider == "spark-databricks-abs" || *provider == "" {
 		serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.Azure)
-		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true, "DATABRICKS_ABS"})
 	}
 	if *provider == "spark-emr-s3" || *provider == "" {
 		serialSparkConfig, _ := sparkInit(t, pc.EMR, fs.S3)
-		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true, "EMR_S3"})
 	}
 
 	testFns := map[string]func(*testing.T, OfflineStore){
@@ -349,7 +350,11 @@ func TestOfflineStores(t *testing.T) {
 		// for running go routines inside for loops in go, the iterated value needs to be redeclared
 		// this prevents the earlier go routines from referencing values in a later iteration of the for loop
 		testItemConst := testItem
-		t.Run(string(testItemConst.t), func(t *testing.T) {
+		name := string(testItemConst.t)
+		if testItem.nameOverride != "" {
+			name = testItem.nameOverride
+		}
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			testWithProvider(t, testItemConst, testFns, testSQLFns, db)
 		})

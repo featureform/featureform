@@ -21,6 +21,7 @@ import (
 
 	"google.golang.org/grpc/credentials/insecure"
 
+	health "github.com/featureform/health"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
@@ -44,6 +45,7 @@ type MetadataServer struct {
 	meta    pb.MetadataClient
 	client  *metadata.Client
 	pb.UnimplementedApiServer
+	health *health.Health
 }
 
 type OnlineServer struct {
@@ -583,7 +585,40 @@ func (serv *MetadataServer) ListProviders(in *pb.Empty, stream pb.Api_ListProvid
 
 func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Provider) (*pb.Empty, error) {
 	serv.Logger.Infow("Creating Provider", "name", provider.Name)
-	return serv.meta.CreateProvider(ctx, provider)
+	_, err := serv.meta.CreateProvider(ctx, provider)
+	if err != nil {
+		serv.Logger.Errorw("Failed to create provider", "error", err)
+		return nil, err
+	}
+	var status *pb.ResourceStatus
+	isHealthy, err := serv.health.Check(provider.Name)
+	if err != nil || !isHealthy {
+		serv.Logger.Errorw("Provider health check failed", "error", err)
+		status = &pb.ResourceStatus{
+			Status:       pb.ResourceStatus_FAILED,
+			ErrorMessage: err.Error(),
+		}
+	} else {
+		serv.Logger.Infow("Provider health check passed", "name", provider.Name)
+		status = &pb.ResourceStatus{
+			Status: pb.ResourceStatus_READY,
+		}
+	}
+	statusReq := &pb.SetStatusRequest{
+		ResourceId: &pb.ResourceID{
+			Resource: &pb.NameVariant{
+				Name: provider.Name,
+			},
+			ResourceType: pb.ResourceType_PROVIDER,
+		},
+		Status: status,
+	}
+	_, statusErr := serv.meta.SetResourceStatus(ctx, statusReq)
+	if statusErr != nil {
+		serv.Logger.Errorw("Failed to set provider status", "error", statusErr, "health check error", err)
+		return nil, statusErr
+	}
+	return &pb.Empty{}, err
 }
 
 func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, source *pb.SourceVariant) (*pb.Empty, error) {
@@ -762,6 +797,7 @@ func (serv *ApiServer) Serve() error {
 	}
 	serv.metadata.client = client
 	serv.online.client = srv.NewFeatureClient(servConn)
+	serv.metadata.health = health.NewHealth(client)
 	return serv.ServeOnListener(lis)
 }
 

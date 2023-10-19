@@ -532,7 +532,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                               Variant: metadata['source']?.Variant,
                             })
                           }
-                          label={`${metadata['source'].Name}:${metadata['source'].Variant}`}
+                          label={`${metadata['source'].Name} (${metadata['source'].Variant})`}
                         ></Chip>
                       </div>
                     )}
@@ -595,7 +595,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                           variant='body1'
                           className={classes.typeTitle}
                         >
-                          <b>Lineage:</b>
+                          <b>Sources:</b>
                         </Typography>
                         {metadata['inputs'].map((nv, index) => {
                           return (
@@ -605,7 +605,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                               className={classes.linkChip}
                               size='small'
                               onClick={() => linkToLineage(nv)}
-                              label={`${nv.Name}:${nv.Variant}`}
+                              label={`${nv.Name} (${nv.Variant})`}
                             ></Chip>
                           );
                         })}

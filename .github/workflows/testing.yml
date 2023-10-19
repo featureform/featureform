@@ -78,36 +78,48 @@ jobs:
 
   unit-go:
     name: Golang Unit Tests
-    needs: setup
+#    needs: setup
     runs-on: ubuntu-latest
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+      - uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.18
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
 
       - name: Run Golang Unit Tests
         run: make test_go_unit
 
   search:
     name: Search Testing
-    needs: setup
+#    needs: setup
     runs-on: ubuntu-latest
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+      - uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.18
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
 
       - name: Install Search Container
         run: docker pull getmeili/meilisearch:v1.0
@@ -148,7 +160,7 @@ jobs:
   provider-online:
     name: Online Provider Testing
     environment: Integration testing
-    needs: setup
+#    needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -174,24 +186,27 @@ jobs:
           - 6380:6379
 
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-
       - uses: getong/redis-action@v1
         with:
           host port: 6378
           container port: 6379
           redis password: "password"
 
+      - uses: actions/checkout@v2
+
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.18
 
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
 
       - name: Make Coverage Directory
         working-directory: ./
@@ -260,7 +275,7 @@ jobs:
     name: Offline Provider Testing
     timeout-minutes: 60
     environment: Integration testing
-    needs: setup
+#    needs: setup
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -280,18 +295,21 @@ jobs:
           MYSQL_ROOT_PASSWORD: "password"
 
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+      - uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.18
 
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
 
       - name: Make Coverage Directory
         working-directory: ./
@@ -357,18 +375,24 @@ jobs:
     name: Offline Spark Testing
     timeout-minutes: 60
     environment: Integration testing
-    needs: setup
+#    needs: setup
     runs-on: ubuntu-latest
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+      - uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.18
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
@@ -424,19 +448,26 @@ jobs:
 
   metadata:
     name: Metadata Testing (Excluding Search)
-    needs: setup
+#    needs: setup
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+      - uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.18
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
 
       # Should be switched to a container, but the available etcd containers
       # haven't been running easily locally yet. Will create a custom one
@@ -478,19 +509,25 @@ jobs:
 
   backup:
     name: Backup Test
-    needs: setup
+#    needs: setup
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+      - uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.18
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
 
       # Should be switched to a container, but the available etcd containers
       # haven't been running easily locally yet. Will create a custom one
@@ -547,18 +584,24 @@ jobs:
 
   metrics:
     name: Metrics Testing
-    needs: setup
+#    needs: setup
     runs-on: ubuntu-latest
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+      - uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.18
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
 
       - name: Make Coverage Directory
         working-directory: ./
@@ -592,18 +635,24 @@ jobs:
 
   helpers:
     name: Helper Testing
-    needs: setup
+#    needs: setup
     runs-on: ubuntu-latest
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+      - uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.18
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
 
       - name: Make Coverage Directory
         working-directory: ./
@@ -640,15 +689,21 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+      - uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.18
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
 
       - name: Install ETCD
         run: |
@@ -691,18 +746,24 @@ jobs:
 
   serving:
     name: Serving Testing
-    needs: setup
+#    needs: setup
     runs-on: ubuntu-latest
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+      - uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.18
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
 
       - name: Make Coverage Directory
         working-directory: ./
@@ -737,7 +798,7 @@ jobs:
   coordinator:
     name: Coordinator Testing
     environment: Integration testing
-    needs: setup
+#    needs: setup
     runs-on: ubuntu-latest
     services:
       redis:
@@ -756,15 +817,21 @@ jobs:
           POSTGRES_DB: ${{ env.POSTGRES_DB }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+      - uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.18
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
 
       # Already installed in metadata tests, how to preserve it so we don't repeat?
       - name: Install ETCD
@@ -825,7 +892,7 @@ jobs:
 
   api:
     name: API Testing
-    needs: setup
+#    needs: setup
     runs-on: ubuntu-latest
     env:
       API_PORT: 7878
@@ -835,15 +902,21 @@ jobs:
       SERVING_PORT: 8080
 
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+      - uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.18
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
 
       - name: Make Coverage Directory
         working-directory: ./
@@ -878,15 +951,26 @@ jobs:
 
   spark-script:
     name: PySpark Script Testing
-    needs: setup
+#    needs: setup
     environment: Integration testing
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
         with:
-          name: compiled-workdir
+          go-version: 1.18
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -908,25 +992,36 @@ jobs:
 
   k8s:
     name: K8s Testing
-    needs: setup
+#    needs: setup
     environment: Integration testing
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+      - uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.18
 
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
+
+      - name: Build Python Package
+        run: ./pip_update.sh --no-dash
+
 
       - name: Install Packages
         run: pip install -r ./provider/scripts/k8s/requirements.txt
@@ -1009,7 +1104,7 @@ jobs:
 
   localmode:
     name: Test Localmode
-    needs: setup
+#    needs: setup
     runs-on: ${{ matrix.os }}
     if: github.ref != 'refs/heads/main'
     strategy:
@@ -1020,10 +1115,28 @@ jobs:
           - os: windows-latest
             python-version: "3.11"
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
+      - uses: actions/checkout@v2
+
+      - name: Check directory
+        run: |
+          ls -la
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
         with:
-          name: compiled-workdir
+          go-version: 1.18
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - name: Build Python Package
+        run: ./pip_update.sh --no-dash
 
       #
       # https://github.com/actions/setup-python/issues/682
@@ -1058,13 +1171,35 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
+      - uses: actions/checkout@v2
+
+      - name: Check directory
+        run: |
+          ls -la
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
         with:
-          name: compiled-workdir
+          go-version: 1.18
+
       - uses: actions/setup-python@v4
         with:
           python-version: "3.9"
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - name: Build
+        run: go build ./metadata/*.go
+
+      - name: Build Python Package
+        run: ./pip_update.sh --no-dash
 
       - name: Install pytest and pytest-cov
         run: pip install pytest protobuf==3.20.1 python-dotenv pytest-mock pytest-cov

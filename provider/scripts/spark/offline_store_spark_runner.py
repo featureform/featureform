@@ -181,6 +181,9 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
     except (IOError, OSError) as e:
         print(f"Issue with execution of the transformation: {e}")
         raise e
+    except Exception as e:
+        error = check_dill_exception(e)
+        raise error
 
 
 def _validate_output_df(output_df):
@@ -291,11 +294,7 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
             transformation_pkl = f.read()
 
     print("Retrieved code.")
-    try:
-        code = dill.loads(transformation_pkl)
-    except Exception as e:
-        error = check_dill_exception(e)
-        raise error
+    code = dill.loads(transformation_pkl)
     return code
 
 
@@ -379,7 +378,12 @@ def delete_file(file_path):
 
 
 def check_dill_exception(exception):
-    if "TypeError: code() takes at most" in str(exception):
+    error_message = str(exception).lower()
+    is_op_code_error = "opcode" in error_message
+    is_op_code_expected_arguments_error = (
+        "typeerror: code() takes at most" in error_message
+    )
+    if is_op_code_error or is_op_code_expected_arguments_error:
         version = sys.version_info
         python_version = f"{version.major}.{version.minor}.{version.micro}"
         error_message = f"""This error is most likely caused by different Python versions between the client and Spark provider. Check to see if you are running Python version '{python_version}' on the client."""

@@ -150,7 +150,6 @@ class StatusDisplayer:
                     table.add_column("Status", width=10)
                     table.add_column("Error", style="red")
 
-
                     for _, status in self.resource_to_status_list:
                         error = f" {status.error}" if status.error else ""
                         if status.name == "local-mode":

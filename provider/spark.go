@@ -404,10 +404,6 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 		return fmt.Errorf("could not create local init script path: %v", err)
 	}
 	pythonRemoteInitScriptPath := config.GetPythonRemoteInitPath()
-
-	if err != nil {
-		return fmt.Errorf("could not create remote script path: %v", err)
-	}
 	err = readAndUploadFile(sparkLocalScriptPath, sparkRemoteScriptPath, store)
 	if err != nil {
 		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath.Key(), sparkRemoteScriptPath.ToURI(), err)
@@ -674,7 +670,7 @@ func (store *SparkOfflineStore) Close() error {
 	return nil
 }
 
-// For Spark, the Check method must confirm 3 things:
+// For Spark, the CheckHealth method must confirm 3 things:
 // 1. The Spark executor is able to run a Spark job
 // 2. The Spark job is able to read/write to the configured blob store
 // 3. Backend business logic is able to read/write to the configured blob store
@@ -682,7 +678,7 @@ func (store *SparkOfflineStore) Close() error {
 // 1. Write to <blob-store>/featureform/HealthCheck/health_check.csv
 // 2. Run a Spark job that reads from <blob-store>/featureform/HealthCheck/health_check.csv and
 // writes to <blob-store>/featureform/HealthCheck/health_check_out.csv
-func (store *SparkOfflineStore) Check() (bool, error) {
+func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 	healthCheckPath, err := store.Store.CreateFilePath("featureform/HealthCheck/health_check.csv")
 	if err != nil {
 		return false, fmt.Errorf("could not create health check path: %v", err)

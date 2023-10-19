@@ -89,7 +89,7 @@ func (m MockUnitTestStore) Close() error {
 	return nil
 }
 
-func (m MockUnitTestStore) Check() (bool, error) {
+func (m MockUnitTestStore) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 
@@ -204,7 +204,7 @@ func (M MockUnitTestOfflineStore) Close() error {
 	return nil
 }
 
-func (M MockUnitTestOfflineStore) Check() (bool, error) {
+func (M MockUnitTestOfflineStore) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 

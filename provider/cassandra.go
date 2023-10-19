@@ -181,7 +181,7 @@ func (store *cassandraOnlineStore) DeleteTable(feature, variant string) error {
 	return nil
 }
 
-func (store *cassandraOnlineStore) Check() (bool, error) {
+func (store *cassandraOnlineStore) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 

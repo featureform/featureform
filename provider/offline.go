@@ -749,7 +749,7 @@ func (store *memoryOfflineStore) Close() error {
 	return nil
 }
 
-func (store *memoryOfflineStore) Check() (bool, error) {
+func (store *memoryOfflineStore) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 

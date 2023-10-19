@@ -86,7 +86,7 @@ func (store *pineconeOnlineStore) DeleteTable(feature, variant string) error {
 	return nil
 }
 
-func (store *pineconeOnlineStore) Check() (bool, error) {
+func (store *pineconeOnlineStore) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 

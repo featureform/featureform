@@ -47,6 +47,7 @@ RUN go mod download
 COPY ./filestore/ ./filestore/
 COPY api/ api/
 COPY helpers/ helpers/
+COPY lib/ lib/
 COPY metadata/ metadata/
 COPY metrics/ metrics/
 COPY proto/ proto/

@@ -31,50 +31,50 @@ env:
   PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
 
 jobs:
-  setup:
-    name: Setup Test Dependencies
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Check directory
-        run: |
-          ls -la
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.18
-
-      - name: Install grpc_tools
-        run: pip install grpcio-tools build
-
-      - name: Install Protobuf
-        run: sudo snap install protobuf --classic
-
-      - name: Setup Proto
-        run: ./gen_grpc.sh
-
-      - name: Build
-        run: go build ./metadata/*.go
-
-      - name: Build Python Package
-        run: ./pip_update.sh --no-dash
-
-      - name: Remove Node Modules
-        run: rm -rf dashboard/node_modules
-
-      - name: Remove Git Objects
-        run: rm -rf .git
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: compiled-workdir
-          path: ./
-          retention-days: 1
+#  setup:
+#    name: Setup Test Dependencies
+#    defaults:
+#      run:
+#        working-directory: ./
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Check directory
+#        run: |
+#          ls -la
+#
+#      - name: Set up Go
+#        uses: actions/setup-go@v2
+#        with:
+#          go-version: 1.18
+#
+#      - name: Install grpc_tools
+#        run: pip install grpcio-tools build
+#
+#      - name: Install Protobuf
+#        run: sudo snap install protobuf --classic
+#
+#      - name: Setup Proto
+#        run: ./gen_grpc.sh
+#
+#      - name: Build
+#        run: go build ./metadata/*.go
+#
+#      - name: Build Python Package
+#        run: ./pip_update.sh --no-dash
+#
+#      - name: Remove Node Modules
+#        run: rm -rf dashboard/node_modules
+#
+#      - name: Remove Git Objects
+#        run: rm -rf .git
+#
+#      - uses: actions/upload-artifact@v3
+#        with:
+#          name: compiled-workdir
+#          path: ./
+#          retention-days: 1
 
   unit-go:
     name: Golang Unit Tests

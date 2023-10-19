@@ -35,7 +35,7 @@ func mySqlOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		ProviderType: pt.MySqlOffline,
 		QueryImpl:    &queries,
 	}
-	if sc.Host != "" && sc.Host != "" {
+	if sc.Host != "" {
 		sgConfig.ConnectionURL = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", sc.Username, sc.Password, sc.Host, sc.Port, sc.Database)
 	} else {
 		sgConfig.ConnectionURL = fmt.Sprintf("%s:%s@/%s", sc.Username, sc.Password, sc.Database)
@@ -70,7 +70,7 @@ func (q mySQLQueries) registerResources(db *sql.DB, tableName string, schema Res
 		return fmt.Errorf("error registering view: %w", err)
 	}
 	defer query.Close()
-	fmt.Printf("Resource creation query: %s", query)
+	fmt.Printf("Resource creation query: %v", query)
 	_, err = query.Exec(tableName, schema.Entity, schema.Value, schema.TS, schema.SourceTable)
 	return err
 }

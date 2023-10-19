@@ -957,6 +957,7 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             tags=[],
             properties={},
         ),
+        # Ordering of schedules does not matter
         Schedule(
             name="training-set",
             variant="v1",

@@ -266,9 +266,9 @@ func TestOfflineStores(t *testing.T) {
 	if *provider == "snowflake" || *provider == "" {
 		serialSFConfig, snowflakeConfig := snowflakeInit()
 		testList = append(testList, testMember{pt.SnowflakeOffline, serialSFConfig, true})
-		// t.Cleanup(func() {
-		// 	destroySnowflakeDatabase(snowflakeConfig)
-		// })
+		t.Cleanup(func() {
+			destroySnowflakeDatabase(snowflakeConfig)
+		})
 	}
 	if *provider == "redshift" || *provider == "" {
 		serialRSConfig, redshiftConfig := redshiftInit()

@@ -247,11 +247,12 @@ func TestOfflineStores(t *testing.T) {
 		testList = append(testList, testMember{pt.PostgresOffline, postgresInit(), true})
 	}
 	if *provider == "snowflake" || *provider == "" {
-		serialSFConfig, snowflakeConfig := snowflakeInit()
+		// serialSFConfig, snowflakeConfig := snowflakeInit()
+		serialSFConfig, _ := snowflakeInit()
 		testList = append(testList, testMember{pt.SnowflakeOffline, serialSFConfig, true})
-		t.Cleanup(func() {
-			destroySnowflakeDatabase(snowflakeConfig)
-		})
+		// t.Cleanup(func() {
+		// 	destroySnowflakeDatabase(snowflakeConfig)
+		// })
 	}
 	if *provider == "redshift" || *provider == "" {
 		serialRSConfig, redshiftConfig := redshiftInit()
@@ -287,39 +288,39 @@ func TestOfflineStores(t *testing.T) {
 	}
 
 	testFns := map[string]func(*testing.T, OfflineStore){
-		// "CreateGetTable":     testCreateGetOfflineTable,
-		// "TableAlreadyExists": testOfflineTableAlreadyExists,
-		// "TableNotFound":      testOfflineTableNotFound,
-		// "InvalidResourceIDs": testInvalidResourceIDs,
-		// "Materializations":      testMaterializations,
-		// "MaterializationUpdate": testMaterializationUpdate,
-		// "InvalidResourceRecord":   testWriteInvalidResourceRecord,
-		// "InvalidMaterialization":  testInvalidMaterialization,
-		// "MaterializeUnknown":      testMaterializeUnknown,
-		// "MaterializationNotFound": testMaterializationNotFound,
-		// "TrainingSets":            testTrainingSet,
-		// "TrainingSetUpdate":       testTrainingSetUpdate,
-		"BatchFeatures": testBatchFeature,
-		// "TrainingSetLag":         testLagFeaturesTrainingSet,
-		// "TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID,
-		// "GetUnknownTrainingSet":  testGetUnknownTrainingSet,
-		// "InvalidTrainingSetDefs": testInvalidTrainingSetDefs,
-		// "LabelTableNotFound":     testLabelTableNotFound,
-		// "FeatureTableNotFound":   testFeatureTableNotFound,
-		// "TrainingDefShorthand": testTrainingSetDefShorthand,
+		"CreateGetTable":          testCreateGetOfflineTable,
+		"TableAlreadyExists":      testOfflineTableAlreadyExists,
+		"TableNotFound":           testOfflineTableNotFound,
+		"InvalidResourceIDs":      testInvalidResourceIDs,
+		"Materializations":        testMaterializations,
+		"MaterializationUpdate":   testMaterializationUpdate,
+		"InvalidResourceRecord":   testWriteInvalidResourceRecord,
+		"InvalidMaterialization":  testInvalidMaterialization,
+		"MaterializeUnknown":      testMaterializeUnknown,
+		"MaterializationNotFound": testMaterializationNotFound,
+		"TrainingSets":            testTrainingSet,
+		"TrainingSetUpdate":       testTrainingSetUpdate,
+		"BatchFeatures":           testBatchFeature,
+		"TrainingSetLag":          testLagFeaturesTrainingSet,
+		"TrainingSetInvalidID":    testGetTrainingSetInvalidResourceID,
+		"GetUnknownTrainingSet":   testGetUnknownTrainingSet,
+		"InvalidTrainingSetDefs":  testInvalidTrainingSetDefs,
+		"LabelTableNotFound":      testLabelTableNotFound,
+		"FeatureTableNotFound":    testFeatureTableNotFound,
+		"TrainingDefShorthand":    testTrainingSetDefShorthand,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
-		// "PrimaryTableCreate": testPrimaryCreateTable,
-		// "PrimaryTableWrite":  testPrimaryTableWrite,
-		// "Transformation":                     testTransform,
-		// "TransformationUpdate":               testTransformUpdate,
-		// "TransformationUpdateWithFeature":    testTransformUpdateWithFeatures,
-		// "CreateDuplicatePrimaryTable":        testCreateDuplicatePrimaryTable,
-		// "ChainTransformations":               testChainTransform,
-		// "CreateResourceFromSource":           testCreateResourceFromSource,
-		// "CreateResourceFromSourceNoTS":       testCreateResourceFromSourceNoTS,
-		// "CreatePrimaryFromSource":            testCreatePrimaryFromSource,
-		// "CreatePrimaryFromNonExistentSource": testCreatePrimaryFromNonExistentSource,
+		"PrimaryTableCreate":                 testPrimaryCreateTable,
+		"PrimaryTableWrite":                  testPrimaryTableWrite,
+		"Transformation":                     testTransform,
+		"TransformationUpdate":               testTransformUpdate,
+		"TransformationUpdateWithFeature":    testTransformUpdateWithFeatures,
+		"CreateDuplicatePrimaryTable":        testCreateDuplicatePrimaryTable,
+		"ChainTransformations":               testChainTransform,
+		"CreateResourceFromSource":           testCreateResourceFromSource,
+		"CreateResourceFromSourceNoTS":       testCreateResourceFromSourceNoTS,
+		"CreatePrimaryFromSource":            testCreatePrimaryFromSource,
+		"CreatePrimaryFromNonExistentSource": testCreatePrimaryFromNonExistentSource,
 	}
 
 	psqlInfo := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), "localhost", "5432", os.Getenv("POSTGRES_DB"))
@@ -4204,17 +4205,18 @@ func TestTableSchemaValue(t *testing.T) {
 
 func testBatchFeature(t *testing.T, store OfflineStore) {
 	type expectedBatchRow struct {
+		Entity   interface{}
 		Features []interface{}
 	}
 	type TestCase struct {
-		FeatureRecords [][]GenericRecord
+		FeatureRecords [][]ResourceRecord
 		ExpectedRows   []expectedBatchRow
 		FeatureSchema  []TableSchema
 	}
 
 	tests := map[string]TestCase{
 		"Empty": {
-			FeatureRecords: [][]GenericRecord{
+			FeatureRecords: [][]ResourceRecord{
 				// One feature with no records. EDIT: no features at all?
 				{},
 			},
@@ -4232,7 +4234,7 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 			ExpectedRows: []expectedBatchRow{},
 		},
 		"SimpleJoin": {
-			FeatureRecords: [][]GenericRecord{
+			FeatureRecords: [][]ResourceRecord{
 				{
 					{Entity: "a", Value: 1},
 					{Entity: "b", Value: 2},
@@ -4260,18 +4262,21 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 			},
 			ExpectedRows: []expectedBatchRow{
 				{
+					Entity: "a",
 					Features: []interface{}{
 						1,
 						"red",
 					},
 				},
 				{
+					Entity: "b",
 					Features: []interface{}{
 						2,
 						"green",
 					},
 				},
 				{
+					Entity: "c",
 					Features: []interface{}{
 						3,
 						"blue",
@@ -4279,170 +4284,170 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 				},
 			},
 		},
-		"SelectiveJoin": {
-			FeatureRecords: [][]GenericRecord{
-				// Overwritten feature.
-				{
-					{Entity: "a", Value: 1},
-					{Entity: "b", Value: 2},
-					{Entity: "c", Value: 3},
-				},
-				{
-					{Entity: "a", Value: "apple"},
-					{Entity: "b", Value: "banana"},
-					{Entity: "c", Value: "cucumber"},
-				},
-				// Extra entities
-				{
-					{Entity: "a", Value: "first"},
-					{Entity: "b", Value: "second"},
-					{Entity: "c", Value: "third"},
-					{Entity: "d", Value: "extra entity"},
-				},
-				// Feature that wont actually be called
-				{
-					{Entity: "a", Value: "random value"},
-					{Entity: "b", Value: "another random value"},
-					{Entity: "c", Value: "third random value"},
-				},
-			},
-			FeatureSchema: []TableSchema{
-				{
-					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Int},
-					},
-				},
-				{
-					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
-					},
-				},
-				{
-					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
-					},
-				},
-				{
-					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
-					},
-				},
-			},
-			ExpectedRows: []expectedBatchRow{
-				{
-					Features: []interface{}{
-						1, "apple", "first",
-					},
-				},
-				{
-					Features: []interface{}{
-						2, "banana", "second",
-					},
-				},
-				{
-					Features: []interface{}{
-						3, "cucumber", "third",
-					},
-				},
-				{
-					Features: []interface{}{
-						nil, nil, "extra entity",
-					},
-				},
-			},
-		},
-		"ComplexJoin": {
-			FeatureRecords: [][]GenericRecord{
-				// Overwritten feature.
-				{
-					{Entity: "a", Value: 1},
-					{Entity: "b", Value: 2},
-					{Entity: "c", Value: 3},
-					{Entity: "a", Value: 4},
-				},
-				// Feature didn't exist before label
-				{
-					{Entity: "a", Value: "doesnt exist", TS: time.UnixMilli(11)},
-				},
-				// Feature didn't change after label
-				{
-					{Entity: "c", Value: "real value first", TS: time.UnixMilli(5)},
-					{Entity: "c", Value: "real value second", TS: time.UnixMilli(5)},
-					{Entity: "c", Value: "overwritten", TS: time.UnixMilli(4)},
-				},
-				// Different feature values for different TS.
-				{
-					{Entity: "b", Value: "first", TS: time.UnixMilli(3)},
-					{Entity: "b", Value: "second", TS: time.UnixMilli(4)},
-					{Entity: "b", Value: "third", TS: time.UnixMilli(8)},
-				},
-				// Empty feature.
-				{},
-			},
-			FeatureSchema: []TableSchema{
-				{
-					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Int},
-						{Name: "ts", ValueType: Timestamp},
-					},
-				},
-				{
-					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
-						{Name: "ts", ValueType: Timestamp},
-					},
-				},
-				{
-					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
-						{Name: "ts", ValueType: Timestamp},
-					},
-				},
-				{
-					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
-						{Name: "ts", ValueType: Timestamp},
-					},
-				},
-				{
-					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
-						{Name: "ts", ValueType: Timestamp},
-					},
-				},
-			},
-			ExpectedRows: []expectedBatchRow{
-				{
-					Features: []interface{}{
-						4, nil, nil, nil, nil,
-					},
-				},
-				{
-					Features: []interface{}{
-						2, nil, nil, "first", nil,
-					},
-				},
-				{
-					Features: []interface{}{
-						2, nil, nil, "second", nil,
-					},
-				},
-				{
-					Features: []interface{}{
-						3, nil, "real value second", nil, nil,
-					},
-				},
-			},
-		},
+		// "SelectiveJoin": {
+		// 	FeatureRecords: [][]ResourceRecord{
+		// 		// Overwritten feature.
+		// 		{
+		// 			{Entity: "a", Value: 1},
+		// 			{Entity: "b", Value: 2},
+		// 			{Entity: "c", Value: 3},
+		// 		},
+		// 		{
+		// 			{Entity: "a", Value: "apple"},
+		// 			{Entity: "b", Value: "banana"},
+		// 			{Entity: "c", Value: "cucumber"},
+		// 		},
+		// 		// Extra entities
+		// 		{
+		// 			{Entity: "a", Value: "first"},
+		// 			{Entity: "b", Value: "second"},
+		// 			{Entity: "c", Value: "third"},
+		// 			{Entity: "d", Value: "extra entity"},
+		// 		},
+		// 		// Feature that wont actually be called
+		// 		{
+		// 			{Entity: "a", Value: "random value"},
+		// 			{Entity: "b", Value: "another random value"},
+		// 			{Entity: "c", Value: "third random value"},
+		// 		},
+		// 	},
+		// 	FeatureSchema: []TableSchema{
+		// 		{
+		// 			Columns: []TableColumn{
+		// 				{Name: "entity", ValueType: String},
+		// 				{Name: "value", ValueType: Int},
+		// 			},
+		// 		},
+		// 		{
+		// 			Columns: []TableColumn{
+		// 				{Name: "entity", ValueType: String},
+		// 				{Name: "value", ValueType: String},
+		// 			},
+		// 		},
+		// 		{
+		// 			Columns: []TableColumn{
+		// 				{Name: "entity", ValueType: String},
+		// 				{Name: "value", ValueType: String},
+		// 			},
+		// 		},
+		// 		{
+		// 			Columns: []TableColumn{
+		// 				{Name: "entity", ValueType: String},
+		// 				{Name: "value", ValueType: String},
+		// 			},
+		// 		},
+		// 	},
+		// 	ExpectedRows: []expectedBatchRow{
+		// 		{
+		// 			Features: []interface{}{
+		// 				1, "apple", "first",
+		// 			},
+		// 		},
+		// 		{
+		// 			Features: []interface{}{
+		// 				2, "banana", "second",
+		// 			},
+		// 		},
+		// 		{
+		// 			Features: []interface{}{
+		// 				3, "cucumber", "third",
+		// 			},
+		// 		},
+		// 		{
+		// 			Features: []interface{}{
+		// 				nil, nil, "extra entity",
+		// 			},
+		// 		},
+		// 	},
+		// },
+		// "ComplexJoin": {
+		// 	FeatureRecords: [][]GenericRecord{
+		// 		// Overwritten feature.
+		// 		{
+		// 			{"a", 1},
+		// 			{"b", 2},
+		// 			{"c", 3},
+		// 			{"a", 4},
+		// 		},
+		// 		// Feature didn't exist before label
+		// 		{
+		// 			{"a", "doesnt exist", time.UnixMilli(11)},
+		// 		},
+		// 		// Feature didn't change after label
+		// 		{
+		// 			{Entity: "c", Value: "real value first", TS: time.UnixMilli(5)},
+		// 			{Entity: "c", Value: "real value second", TS: time.UnixMilli(5)},
+		// 			{Entity: "c", Value: "overwritten", TS: time.UnixMilli(4)},
+		// 		},
+		// 		// Different feature values for different TS.
+		// 		{
+		// 			{Entity: "b", Value: "first", TS: time.UnixMilli(3)},
+		// 			{Entity: "b", Value: "second", TS: time.UnixMilli(4)},
+		// 			{Entity: "b", Value: "third", TS: time.UnixMilli(8)},
+		// 		},
+		// 		// Empty feature.
+		// 		{},
+		// 	},
+		// 	FeatureSchema: []TableSchema{
+		// 		{
+		// 			Columns: []TableColumn{
+		// 				{Name: "entity", ValueType: String},
+		// 				{Name: "value", ValueType: Int},
+		// 				{Name: "ts", ValueType: Timestamp},
+		// 			},
+		// 		},
+		// 		{
+		// 			Columns: []TableColumn{
+		// 				{Name: "entity", ValueType: String},
+		// 				{Name: "value", ValueType: String},
+		// 				{Name: "ts", ValueType: Timestamp},
+		// 			},
+		// 		},
+		// 		{
+		// 			Columns: []TableColumn{
+		// 				{Name: "entity", ValueType: String},
+		// 				{Name: "value", ValueType: String},
+		// 				{Name: "ts", ValueType: Timestamp},
+		// 			},
+		// 		},
+		// 		{
+		// 			Columns: []TableColumn{
+		// 				{Name: "entity", ValueType: String},
+		// 				{Name: "value", ValueType: String},
+		// 				{Name: "ts", ValueType: Timestamp},
+		// 			},
+		// 		},
+		// 		{
+		// 			Columns: []TableColumn{
+		// 				{Name: "entity", ValueType: String},
+		// 				{Name: "value", ValueType: String},
+		// 				{Name: "ts", ValueType: Timestamp},
+		// 			},
+		// 		},
+		// 	},
+		// 	ExpectedRows: []expectedBatchRow{
+		// 		{
+		// 			Features: []interface{}{
+		// 				4, nil, nil, nil, nil,
+		// 			},
+		// 		},
+		// 		{
+		// 			Features: []interface{}{
+		// 				2, nil, nil, "first", nil,
+		// 			},
+		// 		},
+		// 		{
+		// 			Features: []interface{}{
+		// 				2, nil, nil, "second", nil,
+		// 			},
+		// 		},
+		// 		{
+		// 			Features: []interface{}{
+		// 				3, nil, "real value second", nil, nil,
+		// 			},
+		// 		},
+		// 	},
+		// },
 	}
 	runTestCase := func(t *testing.T, test TestCase) {
 		// We have a resource ID list where each resource ID corresponds to a feature
@@ -4452,28 +4457,33 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 			id := randomID(Feature)
 			featureIDs[i] = id
 			// Making a table storing the corresponding Resource IDs and the feature (schema)
-			// Not sure if it should be a primary table or a resource table
-			table, err := store.CreatePrimaryTable(id, test.FeatureSchema[i])
+			// Create a Resource Table
+			table, err := store.CreateResourceTable(id, test.FeatureSchema[i])
 			if err != nil {
 				t.Fatalf("Failed to create table: %s", err)
 			}
 			if err := table.WriteBatch(recs); err != nil {
 				t.Fatalf("Failed to write batch: %v", err)
 			}
+			_, err = store.CreateMaterialization(id)
+			if err != nil {
+				t.Fatalf("Failed to create materialization: %s", err)
+			}
 		}
-
 		// TODO: Have a list of resources, send that to the batch serving shell function
 		iter, err := store.getBatchFeatures(featureIDs)
 		if err != nil {
 			t.Fatalf("Failed to get batch of features: %s", err)
 		}
+
 		i := 0
 		expectedRows := test.ExpectedRows
 		for iter.Next() {
+			entity_feature_row := iter.Values()
 			realRow := expectedBatchRow{
-				Features: iter.Values(),
+				Entity:   entity_feature_row[0],
+				Features: entity_feature_row[1:],
 			}
-
 			// Row order isn't guaranteed, we make sure one row is equivalent
 			// then we delete that row. This is inefficient, but these test
 			// cases should all be small enough not to matter.

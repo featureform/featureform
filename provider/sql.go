@@ -530,7 +530,6 @@ func (it *sqlBatchFeatureIterator) Next() bool {
 		it.err = err
 		return false
 	}
-
 	rowValues := make(GenericRecord, len(columnNames))
 	for i, value := range values {
 		if value == nil {
@@ -563,6 +562,11 @@ func (it *sqlBatchFeatureIterator) Close() error {
 // Call it something else
 func (store *sqlOfflineStore) getBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
 
+	// if tables is empty, return an empty iterator
+	if len(tables) == 0 {
+		return newsqlBatchFeatureIterator(nil, nil, nil, store.query), nil
+	}
+
 	asEntity := ""
 	withFeatures := ""
 	joinTables := ""
@@ -588,11 +592,20 @@ func (store *sqlOfflineStore) getBatchFeatures(tables []ResourceID) (BatchFeatur
 
 	sort.Strings(matIDs)
 	joinedTableName := store.getJoinedMaterializationTableName(strings.Join(matIDs, "_"))
-
-	query := fmt.Sprintf("CREATE VIEW %s AS SELECT COALESCE(%s) AS entity %s FROM %s ON %s", joinedTableName, asEntity, withFeatures, joinTables, onColumns)
-	resultRows, err := store.db.Query(query)
+	createQuery := ""
+	if len(tables) == 1 {
+		createQuery = fmt.Sprintf("CREATE VIEW \"%s\" AS SELECT %s AS entity %s FROM %s", joinedTableName, asEntity, withFeatures, tableName0)
+	} else {
+		createQuery = fmt.Sprintf("CREATE VIEW \"%s\" AS SELECT COALESCE(%s) AS entity %s FROM %s ON %s", joinedTableName, asEntity, withFeatures, joinTables, onColumns)
+	}
+	store.db.Query(createQuery)
+	select_query := fmt.Sprintf("SELECT * FROM \"%s\"", joinedTableName)
+	resultRows, err := store.db.Query(select_query)
 	if err != nil {
 		return nil, err
+	}
+	if resultRows == nil {
+		return newsqlBatchFeatureIterator(nil, nil, nil, store.query), nil
 	}
 	columnTypes, err := store.getValueColumnTypes(joinedTableName)
 	if err != nil {

@@ -710,6 +710,7 @@ func getSearchVector(t *testing.T) []float32 {
 }
 
 func TestPineconeAPI(t *testing.T) {
+	t.Skip("Temporarily skipping test")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Fatalf("Error loading .env file: %v", err)

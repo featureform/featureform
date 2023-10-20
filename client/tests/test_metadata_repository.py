@@ -78,6 +78,7 @@ source_variant = SourceVariant(
     description="fake description",
     tags=[],
     properties={},
+    inputs=[],
 )
 
 label_variant = LabelVariant(

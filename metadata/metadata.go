@@ -7,6 +7,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"github.com/featureform/lib"
 	"io"
 	"net"
 	"strings"
@@ -217,6 +218,11 @@ func (err *ResourceExists) Error() string {
 
 func (err *ResourceExists) GRPCStatus() *status.Status {
 	return status.New(codes.AlreadyExists, err.Error())
+}
+
+type ResourceVariant interface {
+	IsEquivalent(ResourceVariant) bool
+	ToResourceVariantProto() *pb.ResourceVariant
 }
 
 type Resource interface {
@@ -482,6 +488,27 @@ func (resource *sourceVariantResource) Update(lookup ResourceLookup, updateRes R
 	return nil
 }
 
+func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) bool {
+	otherVariant, ok := other.(*sourceVariantResource)
+	if !ok {
+		return false
+	}
+
+	thisSerialized := resource.serialized
+	otherVariantSerialized := otherVariant.serialized
+	if thisSerialized.GetName() == otherVariantSerialized.GetName() &&
+		proto.Equal(thisSerialized.GetTransformation(), otherVariantSerialized.GetTransformation()) &&
+		proto.Equal(thisSerialized.GetPrimaryData(), otherVariantSerialized.GetPrimaryData()) {
+
+		return true
+	}
+	return false
+}
+
+func (resource *sourceVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
+	return &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{SourceVariant: resource.serialized}}
+}
+
 type featureResource struct {
 	serialized *pb.Feature
 }
@@ -622,6 +649,30 @@ func (resource *featureVariantResource) Update(lookup ResourceLookup, updateRes 
 	return nil
 }
 
+func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) bool {
+	otherVariant, ok := other.(*featureVariantResource)
+	if !ok {
+		return false
+	}
+
+	thisProto := resource.serialized
+	otherProto := otherVariant.serialized
+
+	if thisProto.GetName() == otherProto.GetName() &&
+		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
+		(proto.Equal(thisProto.GetFunction(), otherProto.GetFunction()) ||
+			proto.Equal(thisProto.GetColumns(), otherProto.GetColumns()) &&
+				thisProto.GetProvider() == otherProto.GetProvider()) {
+
+		return true
+	}
+	return false
+}
+
+func (resource *featureVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
+	return &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{FeatureVariant: resource.serialized}}
+}
+
 type labelResource struct {
 	serialized *pb.Label
 }
@@ -755,6 +806,29 @@ func (resource *labelVariantResource) Update(lookup ResourceLookup, updateRes Re
 	return nil
 }
 
+func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) bool {
+	otherVariant, ok := other.(*labelVariantResource)
+	if !ok {
+		return false
+	}
+
+	thisProto := resource.serialized
+	otherProto := otherVariant.serialized
+	if thisProto.GetName() == otherProto.GetName() &&
+		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
+		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns()) &&
+		thisProto.GetProvider() == otherProto.GetProvider() {
+
+		return true
+	}
+
+	return false
+}
+
+func (resource *labelVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
+	return &pb.ResourceVariant{Resource: &pb.ResourceVariant_LabelVariant{LabelVariant: resource.serialized}}
+}
+
 type trainingSetResource struct {
 	serialized *pb.TrainingSet
 }
@@ -884,6 +958,33 @@ func (resource *trainingSetVariantResource) Update(lookup ResourceLookup, update
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
+}
+
+func (resource *trainingSetVariantResource) IsEquivalent(other ResourceVariant) bool {
+	otherVariant, ok := other.(*trainingSetVariantResource)
+	if !ok {
+		return false
+	}
+
+	thisProto := resource.serialized
+	otherProto := otherVariant.serialized
+
+	featureSet := lib.ToSet[*pb.NameVariant](thisProto.GetFeatures())
+	otherFeatureSet := lib.ToSet[*pb.NameVariant](otherProto.GetFeatures())
+
+	// Key Fields for Equivalence
+	if thisProto.GetName() == otherProto.GetName() &&
+		thisProto.GetProvider() == otherProto.GetProvider() &&
+		proto.Equal(thisProto.GetLabel(), otherProto.GetLabel()) &&
+		featureSet.Equal(otherFeatureSet) {
+
+		return true
+	}
+	return false
+}
+
+func (resource *trainingSetVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
+	return &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{TrainingSetVariant: resource.serialized}}
 }
 
 type modelResource struct {
@@ -1511,6 +1612,10 @@ func (serv *MetadataServer) GetModels(stream pb.Metadata_GetModelsServer) error 
 	})
 }
 
+func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariant) (*pb.ResourceVariant, error) {
+	return serv.getEquivalent(req)
+}
+
 type nameStream interface {
 	Recv() (*pb.Name, error)
 }
@@ -1661,6 +1766,43 @@ func (serv *MetadataServer) genericList(t ResourceType, send sendFn) error {
 		}
 	}
 	return nil
+}
+
+func (serv *MetadataServer) getEquivalent(resourceVariant *pb.ResourceVariant) (*pb.ResourceVariant, error) {
+	var currentResource ResourceVariant
+	var resourceType ResourceType
+
+	switch resourceVariant.Resource.(type) {
+	case *pb.ResourceVariant_SourceVariant:
+		currentResource = &sourceVariantResource{resourceVariant.GetSourceVariant()}
+		resourceType = SOURCE_VARIANT
+	case *pb.ResourceVariant_FeatureVariant:
+		currentResource = &featureVariantResource{resourceVariant.GetFeatureVariant()}
+		resourceType = FEATURE_VARIANT
+	case *pb.ResourceVariant_LabelVariant:
+		currentResource = &labelVariantResource{resourceVariant.GetLabelVariant()}
+		resourceType = LABEL_VARIANT
+	case *pb.ResourceVariant_TrainingSetVariant:
+		currentResource = &trainingSetVariantResource{resourceVariant.GetTrainingSetVariant()}
+		resourceType = TRAINING_SET_VARIANT
+	}
+
+	resources, err := serv.lookup.ListForType(resourceType)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, res := range resources {
+		other, ok := res.(ResourceVariant)
+		if !ok {
+			continue
+		}
+		if currentResource.IsEquivalent(other) {
+			return other.ToResourceVariantProto(), nil
+		}
+	}
+
+	return &pb.ResourceVariant{}, nil
 }
 
 type TrainingSetVariantResource struct {

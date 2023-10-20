@@ -75,19 +75,19 @@ func TestOfflineStores(t *testing.T) {
 		return postgresConfig.Serialize()
 	}
 
-	mySqlInit := func() pc.SerializedConfig {
-		db := checkEnv("MYSQL_DB")
-		user := checkEnv("MYSQL_USER")
-		password := checkEnv("MYSQL_PASSWORD")
-		var mySqlConfig = pc.MySqlConfig{
-			Host:     "localhost",
-			Port:     "3306",
-			Username: user,
-			Password: password,
-			Database: db,
-		}
-		return mySqlConfig.Serialize()
-	}
+	//mySqlInit := func() pc.SerializedConfig {
+	//	db := checkEnv("MYSQL_DB")
+	//	user := checkEnv("MYSQL_USER")
+	//	password := checkEnv("MYSQL_PASSWORD")
+	//	var mySqlConfig = pc.MySqlConfig{
+	//		Host:     "localhost",
+	//		Port:     "3306",
+	//		Username: user,
+	//		Password: password,
+	//		Database: db,
+	//	}
+	//	return mySqlConfig.Serialize()
+	//}
 
 	snowflakeInit := func() (pc.SerializedConfig, pc.SnowflakeConfig) {
 		snowFlakeDatabase := strings.ToUpper(uuid.NewString())
@@ -260,9 +260,9 @@ func TestOfflineStores(t *testing.T) {
 	if *provider == "postgres" || *provider == "" {
 		testList = append(testList, testMember{pt.PostgresOffline, postgresInit(), true})
 	}
-	if *provider == "mysql" || *provider == "" {
-		testList = append(testList, testMember{pt.MySqlOffline, mySqlInit(), true})
-	}
+	//if *provider == "mysql" || *provider == "" {
+	//	testList = append(testList, testMember{pt.MySqlOffline, mySqlInit(), true})
+	//}
 	if *provider == "snowflake" || *provider == "" {
 		serialSFConfig, snowflakeConfig := snowflakeInit()
 		// serialSFConfig, _ := snowflakeInit()

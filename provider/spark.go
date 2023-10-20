@@ -17,6 +17,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/credentials"
 
+	"github.com/featureform/filestore"
 	"github.com/featureform/logging"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -33,7 +34,6 @@ import (
 
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
 	"github.com/featureform/config"
-	filestore "github.com/featureform/filestore"
 	"github.com/featureform/helpers/compression"
 	pc "github.com/featureform/provider/provider_config"
 )
@@ -67,22 +67,22 @@ type SparkFileStore interface {
 
 type SparkFileStoreFactory func(config Config) (SparkFileStore, error)
 
-var sparkFileStoreMap = map[string]SparkFileStoreFactory{
-	"LOCAL_FILESYSTEM": NewSparkLocalFileStore,
-	"AZURE":            NewSparkAzureFileStore,
-	"S3":               NewSparkS3FileStore,
-	"GCS":              NewSparkGCSFileStore,
-	"HDFS":             NewSparkHDFSFileStore,
+var sparkFileStoreMap = map[filestore.FileStoreType]SparkFileStoreFactory{
+	filestore.FileSystem: NewSparkLocalFileStore,
+	filestore.Azure:      NewSparkAzureFileStore,
+	filestore.S3:         NewSparkS3FileStore,
+	filestore.GCS:        NewSparkGCSFileStore,
+	filestore.HDFS:       NewSparkHDFSFileStore,
 }
 
-func CreateSparkFileStore(name string, config Config) (SparkFileStore, error) {
-	factory, exists := sparkFileStoreMap[name]
+func CreateSparkFileStore(fsType filestore.FileStoreType, config Config) (SparkFileStore, error) {
+	factory, exists := sparkFileStoreMap[fsType]
 	if !exists {
-		return nil, fmt.Errorf("factory does not exist: %s", name)
+		return nil, fmt.Errorf("factory does not exist: %s", fsType)
 	}
 	FileStore, err := factory(config)
 	if err != nil {
-		return nil, fmt.Errorf("invalid config for %s: %v", name, err)
+		return nil, err
 	}
 	return FileStore, nil
 }
@@ -90,7 +90,7 @@ func CreateSparkFileStore(name string, config Config) (SparkFileStore, error) {
 func NewSparkS3FileStore(config Config) (SparkFileStore, error) {
 	fileStore, err := NewS3FileStore(config)
 	if err != nil {
-		return nil, fmt.Errorf("could not create s3 file store: %v", err)
+		return nil, err
 	}
 	s3, ok := fileStore.(*S3FileStore)
 	if !ok {
@@ -146,7 +146,7 @@ func (s3 SparkS3FileStore) Type() string {
 func NewSparkAzureFileStore(config Config) (SparkFileStore, error) {
 	fileStore, err := NewAzureFileStore(config)
 	if err != nil {
-		return nil, fmt.Errorf("could not create azure blob file store: %v", err)
+		return nil, err
 	}
 
 	azure, ok := fileStore.(*AzureFileStore)
@@ -681,25 +681,36 @@ func (store *SparkOfflineStore) Close() error {
 func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 	healthCheckPath, err := store.Store.CreateFilePath("featureform/HealthCheck/health_check.csv")
 	if err != nil {
-		return false, fmt.Errorf("could not create health check path: %v", err)
+		return false, FileStoreError{
+			Type:    filestore.FileStoreType(store.Type()),
+			Message: fmt.Sprintf("could not create health check path: %v", err),
+		}
 	}
 	csvBytes, err := store.getHealthCheckCSVBytes()
 	if err != nil {
 		return false, fmt.Errorf("could not get health check csv bytes: %v", err)
 	}
 	if err := store.Store.Write(healthCheckPath, csvBytes); err != nil {
-		return false, fmt.Errorf("could not write health check csv: %v", err)
+		return false, FileStoreError{
+			Type:    filestore.FileStoreType(store.Type()),
+			Message: fmt.Sprintf("could not write health check csv: %v", err),
+		}
 	}
 	healthCheckOutPath, err := store.Store.CreateDirPath("featureform/HealthCheck/health_check_out")
 	if err != nil {
-		return false, fmt.Errorf("could not create health check out path: %v", err)
+		return false, FileStoreError{
+			Type:    filestore.FileStoreType(store.Type()),
+			Message: fmt.Sprintf("could not create health check out path: %v", err),
+		}
 	}
 	args, err := store.Executor.SparkSubmitArgs(healthCheckOutPath, "SELECT * FROM source_0", []string{healthCheckPath.ToURI()}, Transform, store.Store)
 	if err != nil {
 		return false, fmt.Errorf("could not get spark submit args: %v", err)
 	}
 	if err := store.Executor.RunSparkJob(args, store.Store); err != nil {
-		return false, fmt.Errorf("could not run spark job: %v", err)
+		return false, SparkExecutorError{
+			Message: err.Error(),
+		}
 	}
 	return true, nil
 }
@@ -738,10 +749,13 @@ func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize Config, %v", err)
 	}
-	store, err := CreateSparkFileStore(string(sc.StoreType), Config(serializedFilestoreConfig))
+	store, err := CreateSparkFileStore(sc.StoreType, Config(serializedFilestoreConfig))
 	if err != nil {
 		logger.Errorw("Failure initializing blob store", "type", sc.StoreType, "error", err)
-		return nil, err
+		return nil, FileStoreError{
+			Type:    sc.StoreType,
+			Message: err.Error(),
+		}
 	}
 	logger.Info("Uploading Spark script to store")
 

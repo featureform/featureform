@@ -224,6 +224,7 @@ sources = [
                 },
                 "tags": [],
                 "properties": {},
+                "inputs": [],
             }
         },
     },
@@ -308,6 +309,7 @@ sources = [
                 },
                 "tags": [],
                 "properties": {},
+                "inputs": [{"Name": "transactions", "Variant": "quickstart"}],
             }
         },
     },
@@ -949,6 +951,7 @@ providers = [
                     },
                     "tags": [],
                     "properties": {},
+                    "inputs": [],
                 }
             ],
             "average_user_transaction": [
@@ -1030,6 +1033,7 @@ providers = [
                     },
                     "tags": [],
                     "properties": {},
+                    "inputs": [{"Name": "transactions", "Variant": "quickstart"}],
                 }
             ],
         },
@@ -1307,6 +1311,7 @@ default_user = {
                 },
                 "tags": [],
                 "properties": {},
+                "inputs": [],
             }
         ],
         "average_user_transaction": [
@@ -1385,6 +1390,7 @@ default_user = {
                 },
                 "tags": [],
                 "properties": {},
+                "inputs": [{"Name": "transactions", "Variant": "quickstart"}],
             }
         ],
     },
@@ -1515,6 +1521,7 @@ localmode = {
                 },
                 "tags": [],
                 "properties": {},
+                "inputs": [],
             }
         ],
         "average_user_transaction": [
@@ -1593,6 +1600,7 @@ localmode = {
                 },
                 "tags": [],
                 "properties": {},
+                "inputs": [{"Name": "transactions", "Variant": "quickstart"}],
             }
         ],
     },
@@ -1705,6 +1713,7 @@ average_user_transaction = {
             },
             "tags": [],
             "properties": {},
+            "inputs": [{"Name": "transactions", "Variant": "quickstart"}],
         }
     },
 }

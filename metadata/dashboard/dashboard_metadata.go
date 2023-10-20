@@ -281,6 +281,17 @@ func sourceShallowMap(variant *metadata.SourceVariant) metadata.SourceVariantRes
 		Properties:     variant.Properties(),
 		Error:          variant.Error(),
 		Specifications: getSourceArgs(variant),
+		Inputs:         getInputs(variant),
+	}
+}
+
+func getInputs(variant *metadata.SourceVariant) []metadata.NameVariant {
+	if variant.IsSQLTransformation() {
+		return variant.SQLTransformationSources()
+	} else if variant.IsDFTransformation() {
+		return variant.DFTransformationSources()
+	} else {
+		return []metadata.NameVariant{}
 	}
 }
 

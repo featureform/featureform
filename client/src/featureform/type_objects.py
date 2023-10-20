@@ -131,6 +131,7 @@ class SourceVariantResource:
         trainingSets=None,
         tags=[],
         properties={},
+        inputs=[],
     ):
         self.__dictionary = {
             "created": created,
@@ -147,6 +148,7 @@ class SourceVariantResource:
             "training-sets": trainingSets,
             "tags": tags,
             "properties": properties,
+            "inputs": inputs,
         }
 
     def to_dictionary(self):

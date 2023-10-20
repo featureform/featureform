@@ -292,11 +292,9 @@ func initProvider(t *testing.T, providerType pt.Type, executorType pc.SparkExecu
 	switch providerType {
 	case pt.RedisOnline:
 		port := checkEnv("REDIS_INSECURE_PORT")
-		password := checkEnv("REDIS_PASSWORD")
 
 		redisConfig := pc.RedisConfig{
-			Addr:     fmt.Sprintf("%s:%s", "0.0.0.0", port),
-			Password: password,
+			Addr: fmt.Sprintf("%s:%s", "0.0.0.0", port),
 		}
 		return redisConfig.Serialized()
 	case pt.PostgresOffline:

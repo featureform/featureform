@@ -989,7 +989,7 @@ def get_equivalent_variant(
         pb.ResourceVariant(**{variant_field: resource_variant_proto})
     )
 
-    # If the equivalent is not default, update the variant
+    # grpc call returns the default ResourceVariant proto when it doesn't exist which explains the below check
     if equivalent != pb.ResourceVariant():
         variant_value = getattr(getattr(equivalent, variant_field), "variant")
         print(

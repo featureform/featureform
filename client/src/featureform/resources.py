@@ -2,26 +2,22 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import sys
-import os
-import json
-import time
 import base64
-from abc import ABC
-from enum import Enum
-from typeguard import typechecked
-from typing import List, Tuple, Union, Optional, Dict
+import json
+import os
+import sys
+import time
+from typing import List, Tuple, Union, Optional
 
 import dill
 import grpc
-from .sqlite_metadata import SQLiteMetadata
+from dataclasses import field
 from google.protobuf.duration_pb2 import Duration
 
-from featureform.proto import metadata_pb2 as pb
-from dataclasses import dataclass, field
-from .version import check_up_to_date
-from .exceptions import *
 from .enums import *
+from .exceptions import *
+from .sqlite_metadata import SQLiteMetadata
+from .version import check_up_to_date
 
 NameVariant = Tuple[str, str]
 
@@ -983,6 +979,27 @@ class SQLTransformation(Transformation):
         return {"transformation": transformation}
 
 
+# Looks to see if there is an existing resource variant that matches on a resources key fields
+# i.e. for a source variant, looks for a source variant with the same name and definition
+def get_equivalent_variant(
+    resource_variant_proto, variant_field, stub
+) -> Optional[str]:
+    # Get equivalent from stub
+    equivalent = stub.GetEquivalent(
+        pb.ResourceVariant(**{variant_field: resource_variant_proto})
+    )
+
+    # If the equivalent is not default, update the variant
+    if equivalent != pb.ResourceVariant():
+        variant_value = getattr(getattr(equivalent, variant_field), "variant")
+        print(
+            f"Looks like an equivalent {variant_field.replace('_', ' ')} already exists, going to use its variant: ",
+            variant_value,
+        )
+        return variant_value
+    return None
+
+
 @typechecked
 @dataclass
 class DFTransformation(Transformation):
@@ -995,10 +1012,20 @@ class DFTransformation(Transformation):
         return SourceType.DF_TRANSFORMATION.value
 
     def kwargs(self):
+        for i, inp in enumerate(self.inputs):
+            # Since an input objects variant can change we only populate it once we're outputting it
+            if not isinstance(inp, tuple) and not isinstance(inp, str):
+                self.inputs[i] = inp.name_variant()
+
+        name_variants = []
+        for inp in self.inputs:
+            #  TODO at this point is when we should do inp.name_variant()
+            name_variants.append(pb.NameVariant(name=inp[0], variant=inp[1]))
+
         transformation = pb.Transformation(
             DFTransformation=pb.DFTransformation(
                 query=self.query,
-                inputs=[pb.NameVariant(name=v[0], variant=v[1]) for v in self.inputs],
+                inputs=name_variants,
                 source_text=self.source_text,
             )
         )
@@ -1110,6 +1137,7 @@ class SourceVariant:
 
     def _create(self, stub) -> None:
         defArgs = self.definition.kwargs()
+
         serialized = pb.SourceVariant(
             created=None,
             name=self.name,
@@ -1122,6 +1150,11 @@ class SourceVariant:
             properties=Properties(self.properties).serialized,
             **defArgs,
         )
+        equivalent_variant = get_equivalent_variant(serialized, "source_variant", stub)
+        # TODO add confirmation from user before using equivalent variant
+        if equivalent_variant is not None:
+            self.variant = equivalent_variant
+            serialized.variant = equivalent_variant
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
@@ -1374,6 +1407,13 @@ class FeatureVariant:
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
+        equivalent_variant = get_equivalent_variant(
+            self, serialized, "feature_variant", stub
+        )
+        # TODO add confirmation from user before using equivalent variant
+        if equivalent_variant is not None:
+            self.variant = equivalent_variant
+            serialized.variant = equivalent_variant
         stub.CreateFeatureVariant(serialized)
 
     def _create_local(self, db) -> None:
@@ -1490,6 +1530,13 @@ class OnDemandFeatureVariant:
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
         )
+        equivalent_variant = get_equivalent_variant(
+            self, serialized, "feature_variant", stub
+        )
+        # TODO add confirmation from user before using equivalent variant
+        if equivalent_variant is not None:
+            self.variant = equivalent_variant
+            serialized.variant = equivalent_variant
         stub.CreateFeatureVariant(serialized)
 
     def _create_local(self, db) -> None:
@@ -1655,6 +1702,13 @@ class LabelVariant:
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
+        equivalent_variant = get_equivalent_variant(
+            self, serialized, "label_variant", stub
+        )
+        # TODO add confirmation from user before using equivalent variant
+        if equivalent_variant is not None:
+            self.variant = equivalent_variant
+            serialized.variant = equivalent_variant
         stub.CreateLabelVariant(serialized)
 
     def _create_local(self, db) -> None:
@@ -1904,6 +1958,13 @@ class TrainingSetVariant:
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
+        equivalent_variant = get_equivalent_variant(
+            serialized, "training_set_variant", stub
+        )
+        # TODO add confirmation from user before using equivalent variant
+        if equivalent_variant is not None:
+            self.variant = equivalent_variant
+            serialized.variant = equivalent_variant
         stub.CreateTrainingSetVariant(serialized)
 
     def _create_local(self, db) -> None:

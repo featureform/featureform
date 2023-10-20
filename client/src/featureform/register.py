@@ -19,7 +19,6 @@ from .get import *
 from .get_local import *
 from .list import *
 from .list_local import *
-from .names_generator import get_random_name
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
 from .resources import (
@@ -74,6 +73,8 @@ from .search_local import search_local
 from .sqlite_metadata import SQLiteMetadata
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
+from .variant_names_generator import get_current_timestamp_variant
+from .variant_names_generator import get_random_name
 
 NameVariant = Tuple[str, str]
 
@@ -1185,7 +1186,7 @@ class DFTransformationDecorator:
         variant: str = "",
         name: str = "",
         description: str = "",
-        inputs: list = [],
+        inputs: list = [],  # TODO Make common type for NameVariant
         args: Union[K8sArgs, None] = None,
         source_text: str = "",
     ):
@@ -1213,13 +1214,19 @@ class DFTransformationDecorator:
             raise ValueError(
                 f"Transformation function has more parameters than inputs. \n"
                 f"Make sure each function parameter has a corresponding input in the decorator."
+                f"Make sure each function parameter has a corresponding input in the decorator."
             )
 
         if not isinstance(self.inputs, list):
             raise ValueError("Dataframe transformation inputs must be a list")
 
+        # check that input isn't self referencing
         for nv in self.inputs:
-            if self.name is nv[0] and self.variant is nv[1]:
+            if isinstance(nv, tuple):
+                n, v = nv
+            else:
+                n, v = nv.name_variant()
+            if self.name is n and self.variant is v:
                 raise ValueError(
                     f"Transformation cannot be input for itself: {self.name} {self.variant}"
                 )
@@ -1660,7 +1667,11 @@ class Registrar:
         self.__state = ResourceState()
         self.__resources = []
         self.__default_owner = ""
-        self.__run = get_random_name()
+        self.__run_prefix = ""
+        auto_variant = get_random_name()
+        if os.getenv("FF_TIMESTAMP_VARIANT") is not None:
+            auto_variant = get_current_timestamp_variant(self.__run_prefix)
+        self.__run = auto_variant
 
     def add_resource(self, resource):
         self.__resources.append(resource)
@@ -1699,6 +1710,14 @@ class Registrar:
         if owner == "":
             raise ValueError("Owner must be set or a default owner must be specified.")
         return owner
+
+    def set_run_prefix(self, run_prefix: str = ""):
+        """Set run prefix.
+
+        Args:
+            run_prefix (str): Run prefix to be set.
+        """
+        self.__run_prefix = run_prefix
 
     def set_run(self, run: str = ""):
         """
@@ -1767,8 +1786,12 @@ class Registrar:
         Args:
             run (str): Name of a run to be set.
         """
+
         if run == "":
-            self.__run = get_random_name()
+            auto_variant = get_random_name()
+            if os.getenv("FF_TIMESTAMP_VARIANT") is not None:
+                auto_variant = get_current_timestamp_variant(self.__run_prefix)
+            self.__run = auto_variant
         else:
             self.__run = run
 
@@ -3621,10 +3644,8 @@ class Registrar:
         if not isinstance(inputs, list):
             raise ValueError("Dataframe transformation inputs must be a list")
         for i, nv in enumerate(inputs):
-            if isinstance(nv, str):
+            if isinstance(nv, str):  # TODO remove this functionality
                 inputs[i] = (nv, self.__run)
-            elif not isinstance(nv, tuple):
-                inputs[i] = nv.name_variant()
             elif isinstance(nv, tuple):
                 try:
                     self._verify_tuple(nv)
@@ -3637,8 +3658,8 @@ class Registrar:
                         f"DF transformation {transformation_message} requires correct inputs "
                         f" '{nv}' is not a valid tuple: {e}"
                     )
-            if inputs[i][1] == "":
-                inputs[i] = (inputs[i][0], self.__run)
+            # if inputs[i][1] == "":
+            #     inputs[i] = (inputs[i][0], self.__run)
 
         decorator = DFTransformationDecorator(
             registrar=self,
@@ -4237,6 +4258,8 @@ class ResourceClient:
                 display_statuses(self._stub, resources, verbose=verbose)
 
         finally:
+            if os.getenv("FF_TIMESTAMP_VARIANT") is not None:
+                set_run("")
             clear_state()
             register_local()
 
@@ -5592,6 +5615,7 @@ state = global_registrar.state
 clear_state = global_registrar.clear_state
 get_state = global_registrar.get_state
 set_run = global_registrar.set_run
+set_run_prefix = global_registrar.set_run_prefix
 get_run = global_registrar.get_run
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis

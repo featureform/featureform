@@ -1,23 +1,21 @@
+import argparse
+import base64
 import io
+import json
 import os
 import sys
-import json
-import uuid
 import types
-import base64
-import argparse
-from typing import List
-from pathlib import Path
+import uuid
 from datetime import datetime
+from pathlib import Path
 
-
-import dill
 import boto3
-from google.cloud import storage
-from pyspark.sql import SparkSession
-from google.oauth2 import service_account
+import dill
 from azure.storage.blob import BlobServiceClient
-
+from google.cloud import storage
+from google.oauth2 import service_account
+from pyspark.sql import DataFrame
+from pyspark.sql import SparkSession
 
 FILESTORES = ["local", "s3", "azure_blob_store", "google_cloud_storage", "hdfs"]
 
@@ -78,7 +76,6 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
     #     source_list: List(string) (a list of s3 paths)
     # Return:
     #     output_uri_with_timestamp: string (output s3 path)
-
     try:
         spark = SparkSession.builder.appName("Execute SQL Query").getOrCreate()
         set_spark_configs(spark, spark_configs)
@@ -116,6 +113,7 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
             )
 
         output_dataframe = spark.sql(sql_query)
+        _validate_output_df(output_dataframe)
 
         dt = datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
@@ -140,7 +138,6 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
     #     sources: {parameter: s3_path} (used for passing dataframe parameters)
     # Return:
     #     output_uri_with_timestamp: string (output s3 path)
-
     spark = SparkSession.builder.appName("Dataframe Transformation").getOrCreate()
     set_spark_configs(spark, spark_configs)
 
@@ -169,6 +166,7 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         code = get_code_from_file(code, store_type, credentials)
         func = types.FunctionType(code, globals(), "df_transformation")
         output_df = func(*func_parameters)
+        _validate_output_df(output_df)
 
         dt = datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
@@ -183,6 +181,20 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
     except (IOError, OSError) as e:
         print(f"Issue with execution of the transformation: {e}")
         raise e
+    except Exception as e:
+        error = check_dill_exception(e)
+        raise error
+
+
+def _validate_output_df(output_df):
+    if output_df is None:
+        raise Exception("the transformation code returned None.")
+    if not isinstance(output_df, DataFrame):
+        raise TypeError(
+            f"Expected output to be of type 'pyspark.sql.dataframe.DataFrame', "
+            f"got '{type(output_df).__name__}' instead.\n"
+            f"Please make sure that the transformation code returns a dataframe."
+        )
 
 
 def get_code_from_file(file_path, store_type=None, credentials=None):
@@ -282,11 +294,7 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
             transformation_pkl = f.read()
 
     print("Retrieved code.")
-    try:
-        code = dill.loads(transformation_pkl)
-    except Exception as e:
-        error = check_dill_exception(e)
-        raise error
+    code = dill.loads(transformation_pkl)
     return code
 
 
@@ -370,7 +378,12 @@ def delete_file(file_path):
 
 
 def check_dill_exception(exception):
-    if "TypeError: code() takes at most" in str(exception):
+    error_message = str(exception).lower()
+    is_op_code_error = "opcode" in error_message
+    is_op_code_expected_arguments_error = (
+        "typeerror: code() takes at most" in error_message
+    )
+    if is_op_code_error or is_op_code_expected_arguments_error:
         version = sys.version_info
         python_version = f"{version.major}.{version.minor}.{version.micro}"
         error_message = f"""This error is most likely caused by different Python versions between the client and Spark provider. Check to see if you are running Python version '{python_version}' on the client."""

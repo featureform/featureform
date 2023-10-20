@@ -24,19 +24,19 @@ function mapStateToProps(state) {
   };
 }
 
-const LoadingDots = () => {
+export function LoadingDots() {
   return (
     <div data-testid='loadingDotsId'>
       <Container maxWidth='xl'>
         <Paper elevation={3}>
-          <Container maxWidth='sm'>
+          <Container style={{ textAlign: 'center' }} maxWidth='sm'>
             <Loader type='ThreeDots' color='grey' height={40} width={40} />
           </Container>
         </Paper>
       </Container>
     </div>
   );
-};
+}
 
 const fetchNotFound = (object) => {
   return !object?.resources?.name && !object?.resources?.type;

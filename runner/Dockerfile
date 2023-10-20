@@ -21,6 +21,7 @@ COPY runner/*.go ./runner/
 COPY runner/worker/*.go ./runner/worker/
 COPY coordinator/*.go ./coordinator/
 COPY helpers/ ./helpers/
+COPY lib/ ./lib/
 COPY config/ ./config/
 COPY logging/ ./logging/
 COPY types/ ./types/

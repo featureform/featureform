@@ -4,16 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
-	"strings"
 
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 )
-
-const baseInitializationErrorMessage = "Featureform failed to connect to provider with the supplied credentials due to the following error:"
 
 type Health struct {
 	metadata *metadata.Client
@@ -51,29 +47,12 @@ func (h *Health) IsSupportedProvider(t pt.Type) bool {
 }
 
 func (h *Health) handleError(err error) string {
-	// GENERAL ERRORS
-	if strings.Contains(err.Error(), "no such host") {
-		return fmt.Sprintf("%s '%s' Check that the host name is correct and the server is running.", baseInitializationErrorMessage, err.Error())
+	switch err.(type) {
+	case provider.FileStoreError:
+		return fmt.Sprintf("Featureform cannot connect to the file store or doesn't have the correct permissions to read/write due to the following error: %s", err.Error())
+	case provider.SparkExecutorError:
+		return fmt.Sprintf("Featureform cannot connect to the Spark executor or the Spark cluster cannot connect to the files store due to the following error: %s", err.Error())
+	default:
+		return err.Error()
 	}
-	if strings.Contains(err.Error(), "connection refused") {
-		return fmt.Sprintf("%s '%s' Check that the server is running and/or the port is correct.", baseInitializationErrorMessage, err.Error())
-	}
-	if strings.Contains(err.Error(), "operation timed out") {
-		return fmt.Sprintf("%s '%s' Check that the server is running and able to accept requests.", baseInitializationErrorMessage, err.Error())
-	}
-	// REDIS ERRORS
-	if strings.Contains(err.Error(), "WRONGPASS") {
-		return fmt.Sprintf("%s '%s' Check that the password is correct.", baseInitializationErrorMessage, err.Error())
-	}
-	if strings.Contains(err.Error(), "NOAUTH") {
-		return fmt.Sprintf("%s '%s' The server has been configured with the 'requirepass' directive, which requires a password for authentication.", baseInitializationErrorMessage, "NOAUTH HELLO")
-	}
-	// POSTGRES ERRORS
-	if match, matchErr := regexp.MatchString("pq: database .* does not exist", err.Error()); match && matchErr == nil {
-		return fmt.Sprintf("%s '%s' Check that the database name is correct.", baseInitializationErrorMessage, err.Error())
-	}
-	if match, matchErr := regexp.MatchString("pq: password authentication failed for user .*", err.Error()); match && matchErr == nil {
-		return fmt.Sprintf("%s '%s' Check that the password and username combination is correct.", baseInitializationErrorMessage, err.Error())
-	}
-	return err.Error()
 }

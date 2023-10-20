@@ -1,5 +1,11 @@
 package provider
 
+import (
+	"fmt"
+
+	fs "github.com/featureform/filestore"
+)
+
 type InvalidQueryError struct {
 	error string
 }
@@ -28,4 +34,21 @@ type EmptyParquetFileError struct{}
 
 func (e EmptyParquetFileError) Error() string {
 	return "could not read empty parquet file"
+}
+
+type FileStoreError struct {
+	Type    fs.FileStoreType
+	Message string
+}
+
+func (e FileStoreError) Error() string {
+	return fmt.Sprintf("(%s) %s", e.Type, e.Message)
+}
+
+type SparkExecutorError struct {
+	Message string
+}
+
+func (e SparkExecutorError) Error() string {
+	return e.Message
 }

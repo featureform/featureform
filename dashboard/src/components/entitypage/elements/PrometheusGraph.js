@@ -43,11 +43,11 @@ const PrometheusGraph = ({
     : '';
 
   const customReq = useCallback(
-    (start, end, step) => {
+    async (start, end, step) => {
       const startTimestamp = start.getTime() / 1000;
       const endTimestamp = end.getTime() / 1000;
       const url = `${PROMETHEUS_URL}/api/v1/query_range?query=${query}${add_labels_string}&start=${startTimestamp}&end=${endTimestamp}&step=${step}s`;
-      return fetch(url)
+      return await fetch(url)
         .then((response) => response.json())
         .then((response) => {
           return response['data'];

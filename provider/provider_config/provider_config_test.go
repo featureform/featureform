@@ -21,6 +21,7 @@ var providerMap = map[string]string{
 	"MONGODB_ONLINE":    "MongoDbConfig",
 	"PINECONE_ONLINE":   "PineconeConfig",
 	"POSTGRES_OFFLINE":  "PostgresConfig",
+	"MYSQL_OFFLINE":     "MySqlConfig",
 	"SNOWFLAKE_OFFLINE": "SnowflakeConfig",
 	"REDSHIFT_OFFLINE":  "RedshiftConfig",
 	"SPARK_OFFLINE":     "SparkConfig",

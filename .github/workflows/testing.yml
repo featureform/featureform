@@ -1112,3 +1112,88 @@ jobs:
 #
 #      - name: Run Tests
 #        run: make jupyter
+
+  health-checks:
+    name: Provider Health Checks
+    timeout-minutes: 45
+    environment: Integration testing
+    needs: setup
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Make Coverage Directory
+        working-directory: ./
+        run: mkdir coverage
+
+      - name: Create GCloud Key
+        id: gcloud-key-json
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "./gcloud-key.json"
+          json: ${{ secrets.GCLOUD_CREDENTIALS }}
+
+      - name: Testing
+        env:
+          SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          AWS_EMR_CLUSTER_REGION: ${{ secrets.AWS_EMR_CLUSTER_REGION }}
+          AWS_EMR_CLUSTER_ID: ${{ secrets.AWS_EMR_CLUSTER_ID }}
+          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
+          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
+          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
+          GENERIC_SPARK_MASTER: ${{ secrets.GENERIC_SPARK_MASTER}}
+          GENERIC_SPARK_DEPLOY_MODE: ${{ secrets.GENERIC_SPARK_DEPLOY_MODE }}
+          GENERIC_SPARK_PYTHON_VERSION: ${{ secrets.GENERIC_SPARK_PYTHON_VERSION }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+        working-directory: ./
+        run: make test_healthchecks
+        
+      - name: Convert Coverage Test Results
+        if: always()
+        working-directory: ./coverage
+        run: |
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
+          go tool cover -html=cover.out -o cover.html
+
+      - name: Archive code coverage results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: provider-health-checks-coverage-reports
+          path: ./coverage

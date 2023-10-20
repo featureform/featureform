@@ -143,6 +143,9 @@ class ServingClient:
         features = check_feature_type(features)
         return self.impl.features(features, entities, model, params)
 
+    def spark_dataframe(self, name, variant=""):
+        return self.impl.spark_dataframe(name, variant)
+
     def close(self):
         """Closes the connection to the Featureform instance."""
         self.impl.close()
@@ -235,6 +238,13 @@ class HostedClientImpl:
         req = serving_pb2.NearestRequest(id=id, vector=vec, k=k)
         resp = self._stub.Nearest(req)
         return resp.entities
+
+    def spark_dataframe(self, name, variant):
+        req = serving_pb2.TrainingDataRequest()
+        req.id.name = name
+        req.id.version = variant
+        resp = self._stub.ResourceLocation(req)
+        return resp.location
 
     def close(self):
         self._channel.close()

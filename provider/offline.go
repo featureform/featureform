@@ -348,9 +348,9 @@ func (rec ResourceRecord) check() error {
 }
 
 func (rec *ResourceRecord) SetEntity(entity interface{}) error {
-	switch entity := entity.(type) {
+	switch typedEntity := entity.(type) {
 	case string:
-		rec.Entity = entity
+		rec.Entity = typedEntity
 	default:
 		return fmt.Errorf("entity must be a string; received %T", entity)
 	}

@@ -1094,3 +1094,42 @@ func Test_castTimestamp(t *testing.T) {
 		})
 	}
 }
+
+func TestFileStoreFeatureIterator(t *testing.T) {
+	type testCase struct {
+		name        string
+		filepath    string
+		expectedErr error
+	}
+
+	testCases := []testCase{
+		{
+			name:        "invalid entity column",
+			filepath:    "test_files/invalid_entity_col.parquet",
+			expectedErr: fmt.Errorf("entity must be a string; received %T", int64(42)),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := ioutil.ReadFile(tc.filepath)
+			if err != nil {
+				t.Fatalf("could not read file: %v", err)
+			}
+			iter, err := parquetIteratorFromBytes(data)
+			if err != nil {
+				t.Fatalf("could not create parquet iterator: %v", err)
+			}
+			featureIter := FileStoreFeatureIterator{
+				iter:   iter,
+				curIdx: 0,
+				maxIdx: 5,
+			}
+			if success := featureIter.Next(); !success {
+				if featureIter.Err().Error() != tc.expectedErr.Error() {
+					t.Fatalf("expected error: %v, got: %v", tc.expectedErr, featureIter.Err())
+				}
+			}
+		})
+	}
+}

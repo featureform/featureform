@@ -209,8 +209,8 @@ jobs:
 
       - name: Testing
         env:
-          DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
-          DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
+          DYNAMO_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          DYNAMO_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
           FIRESTORE_CRED: "firestore_credentials.json"
           FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
           AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}

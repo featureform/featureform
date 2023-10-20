@@ -489,6 +489,13 @@ func (resource *sourceVariantResource) Update(lookup ResourceLookup, updateRes R
 }
 
 func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) bool {
+	/**
+	Key Fields for a SourceVariant are
+	- Name
+	- Definition
+	- Owner
+	- Provider
+	*/
 	otherVariant, ok := other.(*sourceVariantResource)
 	if !ok {
 		return false
@@ -497,10 +504,13 @@ func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) bool 
 	thisSerialized := resource.serialized
 	otherVariantSerialized := otherVariant.serialized
 
+	isEquivalentDefinition := proto.Equal(thisSerialized.GetTransformation(), otherVariantSerialized.GetTransformation()) &&
+		proto.Equal(thisSerialized.GetPrimaryData(), otherVariantSerialized.GetPrimaryData())
+
 	if thisSerialized.GetName() == otherVariantSerialized.GetName() &&
-		proto.Equal(thisSerialized.GetTransformation(), otherVariantSerialized.GetTransformation()) &&
-		//proto.Equal
-		proto.Equal(thisSerialized.GetPrimaryData(), otherVariantSerialized.GetPrimaryData()) {
+		thisSerialized.GetOwner() == otherVariantSerialized.GetOwner() &&
+		thisSerialized.GetProvider() == otherVariantSerialized.GetProvider() &&
+		isEquivalentDefinition {
 
 		return true
 	}

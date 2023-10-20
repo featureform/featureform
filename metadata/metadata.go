@@ -496,8 +496,10 @@ func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) bool 
 
 	thisSerialized := resource.serialized
 	otherVariantSerialized := otherVariant.serialized
+
 	if thisSerialized.GetName() == otherVariantSerialized.GetName() &&
 		proto.Equal(thisSerialized.GetTransformation(), otherVariantSerialized.GetTransformation()) &&
+		//proto.Equal
 		proto.Equal(thisSerialized.GetPrimaryData(), otherVariantSerialized.GetPrimaryData()) {
 
 		return true
@@ -649,7 +651,21 @@ func (resource *featureVariantResource) Update(lookup ResourceLookup, updateRes 
 	return nil
 }
 
+func (resource *featureVariantResource) KeyFields(other ResourceVariant) {
+
+}
+
 func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) bool {
+	/**
+	Key Fields for a FeatureVariant are
+	- Name
+	- Source
+	- Function
+	- Provider
+	- Entity
+	- Owner
+	*/
+
 	otherVariant, ok := other.(*featureVariantResource)
 	if !ok {
 		return false
@@ -658,11 +674,15 @@ func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) bool
 	thisProto := resource.serialized
 	otherProto := otherVariant.serialized
 
+	isEquivalentLocation := proto.Equal(thisProto.GetFunction(), otherProto.GetFunction()) ||
+		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns())
+
 	if thisProto.GetName() == otherProto.GetName() &&
 		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
-		(proto.Equal(thisProto.GetFunction(), otherProto.GetFunction()) ||
-			proto.Equal(thisProto.GetColumns(), otherProto.GetColumns()) &&
-				thisProto.GetProvider() == otherProto.GetProvider()) {
+		thisProto.GetProvider() == otherProto.GetProvider() &&
+		thisProto.GetEntity() == otherProto.GetEntity() &&
+		isEquivalentLocation &&
+		thisProto.Owner == otherProto.Owner {
 
 		return true
 	}
@@ -807,6 +827,15 @@ func (resource *labelVariantResource) Update(lookup ResourceLookup, updateRes Re
 }
 
 func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) bool {
+	/**
+	Key Fields for a LabelVariant are
+	- Name
+	- Source
+	- Columns
+	- Provider
+	- Owner
+	- Entity
+	*/
 	otherVariant, ok := other.(*labelVariantResource)
 	if !ok {
 		return false
@@ -817,7 +846,9 @@ func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) bool {
 	if thisProto.GetName() == otherProto.GetName() &&
 		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
 		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns()) &&
-		thisProto.GetProvider() == otherProto.GetProvider() {
+		thisProto.GetProvider() == otherProto.GetProvider() &&
+		thisProto.Entity == otherProto.Entity &&
+		thisProto.Owner == otherProto.Owner {
 
 		return true
 	}
@@ -961,6 +992,15 @@ func (resource *trainingSetVariantResource) Update(lookup ResourceLookup, update
 }
 
 func (resource *trainingSetVariantResource) IsEquivalent(other ResourceVariant) bool {
+	/**
+	Key Fields for a TrainingSetVariant are
+	- Name
+	- Provider
+	- Labels
+	- Features
+	- Lag Features
+	- Owner
+	*/
 	otherVariant, ok := other.(*trainingSetVariantResource)
 	if !ok {
 		return false
@@ -969,14 +1009,16 @@ func (resource *trainingSetVariantResource) IsEquivalent(other ResourceVariant) 
 	thisProto := resource.serialized
 	otherProto := otherVariant.serialized
 
-	featureSet := lib.ToSet[*pb.NameVariant](thisProto.GetFeatures())
-	otherFeatureSet := lib.ToSet[*pb.NameVariant](otherProto.GetFeatures())
+	equivalentLabals := proto.Equal(thisProto.GetLabel(), otherProto.GetLabel())
+	equivalentFeatures := lib.EqualProtoContents(thisProto.GetFeatures(), otherProto.GetFeatures())
+	equivalentLagFeatures := lib.EqualProtoContents(thisProto.GetFeatureLags(), otherProto.GetFeatureLags())
 
-	// Key Fields for Equivalence
 	if thisProto.GetName() == otherProto.GetName() &&
 		thisProto.GetProvider() == otherProto.GetProvider() &&
-		proto.Equal(thisProto.GetLabel(), otherProto.GetLabel()) &&
-		featureSet.Equal(otherFeatureSet) {
+		equivalentLabals &&
+		equivalentFeatures &&
+		equivalentLagFeatures &&
+		thisProto.Owner == otherProto.Owner {
 
 		return true
 	}
@@ -1613,7 +1655,42 @@ func (serv *MetadataServer) GetModels(stream pb.Metadata_GetModelsServer) error 
 }
 
 func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariant) (*pb.ResourceVariant, error) {
-	return serv.getEquivalent(req)
+	var currentResource ResourceVariant
+	var resourceType ResourceType
+
+	switch req.Resource.(type) {
+	case *pb.ResourceVariant_SourceVariant:
+		currentResource = &sourceVariantResource{req.GetSourceVariant()}
+		resourceType = SOURCE_VARIANT
+	case *pb.ResourceVariant_FeatureVariant:
+		currentResource = &featureVariantResource{req.GetFeatureVariant()}
+		resourceType = FEATURE_VARIANT
+	case *pb.ResourceVariant_LabelVariant:
+		currentResource = &labelVariantResource{req.GetLabelVariant()}
+		resourceType = LABEL_VARIANT
+	case *pb.ResourceVariant_TrainingSetVariant:
+		currentResource = &trainingSetVariantResource{req.GetTrainingSetVariant()}
+		resourceType = TRAINING_SET_VARIANT
+	default:
+		return nil, fmt.Errorf("unknown resource variant type: %v", req.Resource)
+	}
+
+	resources, err := serv.lookup.ListForType(resourceType)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, res := range resources {
+		other, ok := res.(ResourceVariant)
+		if !ok {
+			continue
+		}
+		if currentResource.IsEquivalent(other) {
+			return other.ToResourceVariantProto(), nil
+		}
+	}
+
+	return nil, nil
 }
 
 type nameStream interface {
@@ -1768,43 +1845,7 @@ func (serv *MetadataServer) genericList(t ResourceType, send sendFn) error {
 	return nil
 }
 
-func (serv *MetadataServer) getEquivalent(resourceVariant *pb.ResourceVariant) (*pb.ResourceVariant, error) {
-	var currentResource ResourceVariant
-	var resourceType ResourceType
-
-	switch resourceVariant.Resource.(type) {
-	case *pb.ResourceVariant_SourceVariant:
-		currentResource = &sourceVariantResource{resourceVariant.GetSourceVariant()}
-		resourceType = SOURCE_VARIANT
-	case *pb.ResourceVariant_FeatureVariant:
-		currentResource = &featureVariantResource{resourceVariant.GetFeatureVariant()}
-		resourceType = FEATURE_VARIANT
-	case *pb.ResourceVariant_LabelVariant:
-		currentResource = &labelVariantResource{resourceVariant.GetLabelVariant()}
-		resourceType = LABEL_VARIANT
-	case *pb.ResourceVariant_TrainingSetVariant:
-		currentResource = &trainingSetVariantResource{resourceVariant.GetTrainingSetVariant()}
-		resourceType = TRAINING_SET_VARIANT
-	}
-
-	resources, err := serv.lookup.ListForType(resourceType)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, res := range resources {
-		other, ok := res.(ResourceVariant)
-		if !ok {
-			continue
-		}
-		if currentResource.IsEquivalent(other) {
-			return other.ToResourceVariantProto(), nil
-		}
-	}
-
-	return &pb.ResourceVariant{}, nil
-}
-
+// Resource Variant structs for Dashboard
 type TrainingSetVariantResource struct {
 	Created     time.Time                           `json:"created"`
 	Description string                              `json:"description"`

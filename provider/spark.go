@@ -683,29 +683,29 @@ func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 	if err != nil {
 		return false, FileStoreError{
 			Type:    filestore.FileStoreType(store.Type()),
-			Message: fmt.Sprintf("could not create health check path: %v", err),
+			Message: fmt.Sprintf("failed to create file path for health check CSV file: %v", err),
 		}
 	}
 	csvBytes, err := store.getHealthCheckCSVBytes()
 	if err != nil {
-		return false, fmt.Errorf("could not get health check csv bytes: %v", err)
+		return false, fmt.Errorf("failed to create mock CSV data for health check file: %v", err)
 	}
 	if err := store.Store.Write(healthCheckPath, csvBytes); err != nil {
 		return false, FileStoreError{
 			Type:    filestore.FileStoreType(store.Type()),
-			Message: fmt.Sprintf("could not write health check csv: %v", err),
+			Message: fmt.Sprintf("failed to write health check CSV to file store: %v", err),
 		}
 	}
 	healthCheckOutPath, err := store.Store.CreateDirPath("featureform/HealthCheck/health_check_out")
 	if err != nil {
 		return false, FileStoreError{
 			Type:    filestore.FileStoreType(store.Type()),
-			Message: fmt.Sprintf("could not create health check out path: %v", err),
+			Message: fmt.Sprintf("failed to create file path for health check output directory due to: %v", err),
 		}
 	}
 	args, err := store.Executor.SparkSubmitArgs(healthCheckOutPath, "SELECT * FROM source_0", []string{healthCheckPath.ToURI()}, Transform, store.Store)
 	if err != nil {
-		return false, fmt.Errorf("could not get spark submit args: %v", err)
+		return false, fmt.Errorf("failed to build arguments for Spark submit due to: %v", err)
 	}
 	if err := store.Executor.RunSparkJob(args, store.Store); err != nil {
 		return false, SparkExecutorError{

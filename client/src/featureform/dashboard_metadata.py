@@ -7,6 +7,8 @@ from featureform import ResourceClient
 from featureform.serving import LocalClientImpl
 from flask import Blueprint, Response, request
 from flask_cors import CORS, cross_origin
+from typing import List
+
 from .metadata_repository import (
     MetadataRepositoryLocalImpl,
     Feature,
@@ -347,7 +349,7 @@ def resources_list_to_dict(resource_list):
     return variants_dict
 
 
-def name_variant_list_to_dict_list(input_list_param: list[dict]):
+def name_variant_list_to_dict_list(input_list_param: List[dict]):
     """Convert a name variant list, into a dictionary list"""
     input_list = list()
 

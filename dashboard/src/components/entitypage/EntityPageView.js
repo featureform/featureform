@@ -249,7 +249,6 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
 
   let variant = resources['default-variant'];
 
-  console.log(activeVariants);
   if (activeVariants[entity.resources.type][name]) {
     variant = activeVariants[entity.resources.type][name];
   } else {

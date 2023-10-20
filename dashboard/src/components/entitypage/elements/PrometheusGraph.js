@@ -77,7 +77,7 @@ const PrometheusGraph = ({
         animation: {
           duration: 0,
         },
-        responsive: true,
+        responsive: false,
         legend: {
           display: false,
         },

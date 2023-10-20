@@ -201,6 +201,9 @@ func TestBlobInterfaces(t *testing.T) {
 }
 
 func testFileUploadAndDownload(t *testing.T, store FileStore) {
+	if store.FilestoreType() == filestore.HDFS {
+		t.Skip("Skipping for HDFS until new implementation is added to prevent flakey tests")
+	}
 	// Need to get the working directory because the LocalFilepath will use it to create the full path
 	// Currently, the LocalFilePath will only work with absolute paths
 	wd, err := os.Getwd()

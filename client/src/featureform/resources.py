@@ -1039,14 +1039,16 @@ class SourceVariant:
     properties: dict
     variant: str
     created: str = None
-    status: str = "ready"  # this is no status by default but it always stores ready
+    status: str = (
+        "ready"  # there is no associated status by default but it always stores ready
+    )
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
     source_text: str = ""
     source_type: str = ""
     transformation: str = ""
-    inputs = ([],)
+    inputs: list = ([],)
     error: Optional[str] = None
 
     def update_schedule(self, schedule) -> None:

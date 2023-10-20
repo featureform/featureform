@@ -750,7 +750,7 @@ func (m MockOnlineStoreTable) Get(entity string) (interface{}, error) {
 	return nil, nil
 }
 
-func (m MockOnlineStoreTable) Check() (bool, error) {
+func (m MockOnlineStoreTable) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 

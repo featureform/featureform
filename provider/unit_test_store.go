@@ -28,7 +28,7 @@ func (u UnitTestProvider) Config() pc.SerializedConfig {
 	return u.ProviderConfig
 }
 
-func (u UnitTestProvider) Check() (bool, error) {
+func (u UnitTestProvider) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 

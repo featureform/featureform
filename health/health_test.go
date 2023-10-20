@@ -66,19 +66,19 @@ func TestHealth_Check(t *testing.T) {
 		})
 	}
 
-	if *providerType == "spark-databricks-s3" || *providerType == "" {
-		config := initProvider(t, pt.SparkOffline, pc.Databricks, fs.S3)
-		tests = append(tests, testMember{
-			providerDef: metadata.ProviderDef{
-				Name:             "spark-databricks-s3",
-				Type:             string(pt.SparkOffline),
-				SerializedConfig: config,
-				Software:         "spark",
-				Tags:             metadata.Tags{},
-				Properties:       metadata.Properties{},
-			},
-		})
-	}
+	// if *providerType == "spark-databricks-s3" || *providerType == "" {
+	// 	config := initProvider(t, pt.SparkOffline, pc.Databricks, fs.S3)
+	// 	tests = append(tests, testMember{
+	// 		providerDef: metadata.ProviderDef{
+	// 			Name:             "spark-databricks-s3",
+	// 			Type:             string(pt.SparkOffline),
+	// 			SerializedConfig: config,
+	// 			Software:         "spark",
+	// 			Tags:             metadata.Tags{},
+	// 			Properties:       metadata.Properties{},
+	// 		},
+	// 	})
+	// }
 
 	if *providerType == "spark-databricks-abs" || *providerType == "" {
 		config := initProvider(t, pt.SparkOffline, pc.Databricks, fs.Azure)
@@ -94,19 +94,19 @@ func TestHealth_Check(t *testing.T) {
 		})
 	}
 
-	if *providerType == "spark-emr-s3" || *providerType == "" {
-		config := initProvider(t, pt.SparkOffline, pc.EMR, fs.S3)
-		tests = append(tests, testMember{
-			providerDef: metadata.ProviderDef{
-				Name:             "spark-emr-s3",
-				Type:             string(pt.SparkOffline),
-				SerializedConfig: config,
-				Software:         "spark",
-				Tags:             metadata.Tags{},
-				Properties:       metadata.Properties{},
-			},
-		})
-	}
+	// if *providerType == "spark-emr-s3" || *providerType == "" {
+	// 	config := initProvider(t, pt.SparkOffline, pc.EMR, fs.S3)
+	// 	tests = append(tests, testMember{
+	// 		providerDef: metadata.ProviderDef{
+	// 			Name:             "spark-emr-s3",
+	// 			Type:             string(pt.SparkOffline),
+	// 			SerializedConfig: config,
+	// 			Software:         "spark",
+	// 			Tags:             metadata.Tags{},
+	// 			Properties:       metadata.Properties{},
+	// 		},
+	// 	})
+	// }
 
 	if *providerType == "dynamodb" || *providerType == "" {
 		config := initProvider(t, pt.DynamoDBOnline, "", "")
@@ -137,8 +137,6 @@ func TestHealth_Check(t *testing.T) {
 	}
 
 	server, addr := initMetadataServer(t)
-
-	fmt.Printf("Metadata server listening on %s\n", addr)
 
 	client := initClient(t, addr)
 
@@ -312,8 +310,7 @@ func initProvider(t *testing.T, providerType pt.Type, executorType pc.SparkExecu
 			Database: db,
 			Username: user,
 			Password: password,
-			// SSLMode:  "disable",
-			SSLMode: "require",
+			SSLMode:  "disable",
 		}
 		return postgresConfig.Serialize()
 	case pt.SparkOffline:

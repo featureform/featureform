@@ -268,12 +268,9 @@ func (store *dynamodbOnlineStore) CheckHealth() (bool, error) {
 		return false, fmt.Errorf("(DynamoDB Health Check) no tables found")
 	}
 	scanInput := &dynamodb.ScanInput{TableName: listOutput.TableNames[0], Limit: aws.Int64(1)}
-	scanOutput, err := store.client.Scan(scanInput)
+	_, err = store.client.Scan(scanInput)
 	if err != nil {
 		return false, err
-	}
-	if len(scanOutput.Items) == 0 {
-		return false, fmt.Errorf("(DynamoDB Health Check) no items found in table %s", *listOutput.TableNames[0])
 	}
 	return true, nil
 }

@@ -347,6 +347,17 @@ def resources_list_to_dict(resource_list):
     return variants_dict
 
 
+def name_variant_list_to_dict_list(input_list_param: list[dict]):
+    """Convert a name variant list, into a dictionary list"""
+    input_list = list()
+
+    for name_variant in input_list_param:
+        input_list.append(
+            {"Name": name_variant["name"], "Variant": name_variant["variant"]}
+        )
+    return input_list
+
+
 def build_feature_resource(feature_main: Feature):
     db = MetadataRepositoryLocalImpl(SQLiteMetadata())
     variant_list = []
@@ -564,6 +575,7 @@ def build_source_variant_resource(variant_data: SourceVariant):
         properties=variant_data.properties
         if variant_data.properties is not None
         else [],
+        inputs=name_variant_list_to_dict_list(variant_data.inputs),
     ).to_dictionary()
 
     return source_variant_resource

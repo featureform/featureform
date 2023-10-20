@@ -14,7 +14,7 @@ import { makeStyles, ThemeProvider } from '@mui/styles';
 import MaterialTable, { MTableBody, MTableHeader } from 'material-table';
 import { useRouter } from 'next/router';
 import PropTypes from 'prop-types';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { PrismAsyncLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import json from 'react-syntax-highlighter/dist/cjs/languages/prism/json';
 import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
@@ -249,13 +249,12 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
 
   let variant = resources['default-variant'];
 
-  useEffect(() => {
-    if (activeVariants[entity.resources.type][name]) {
-      variant = activeVariants[entity.resources.type][name];
-    } else {
-      setVariant(entity.resources.type, name, resources['default-variant']);
-    }
-  }, [activeVariants]);
+  console.log(activeVariants);
+  if (activeVariants[entity.resources.type][name]) {
+    variant = activeVariants[entity.resources.type][name];
+  } else {
+    setVariant(entity.resources.type, name, resources['default-variant']);
+  }
 
   let resource;
   if (resourceType.hasVariants) {

@@ -23,6 +23,7 @@ import (
 	databricks "github.com/databricks/databricks-sdk-go"
 	dbClient "github.com/databricks/databricks-sdk-go/client"
 	dbConfig "github.com/databricks/databricks-sdk-go/config"
+	"github.com/databricks/databricks-sdk-go/retries"
 	"github.com/databricks/databricks-sdk-go/service/jobs"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -483,9 +484,11 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 		return fmt.Errorf("error creating job: %v", err)
 	}
 
+	// Making the timeout a week because we don't want to timeout on long-running jobs
+	weekTimeout := retries.Timeout[jobs.Run](168 * time.Hour)
 	_, err = db.client.Jobs.RunNowAndWait(ctx, jobs.RunNow{
 		JobId: jobToRun.JobId,
-	})
+	}, weekTimeout)
 	if err != nil {
 		errorMessage := err
 		if db.errorMessageClient != nil {

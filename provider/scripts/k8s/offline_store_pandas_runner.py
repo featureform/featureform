@@ -340,6 +340,14 @@ def execute_df_job(mode, output_uri, code, sources, blob_store):
         func = types.FunctionType(code, globals(), "df_transformation")
         output_df = pd.DataFrame(func(*func_parameters))
 
+        if output_df is None:
+            raise Exception("the transformation function returned None.")
+
+        if not isinstance(output_df, pd.DataFrame):
+            raise Exception(
+                f"the transformation function returned a {type(output_df)} instead of a pandas dataframe."
+            )
+
         dt = datetime.now()
         output_uri_with_timestamp = f"{output_uri}/{dt}.parquet"
 

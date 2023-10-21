@@ -13,6 +13,7 @@ RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_o
 COPY ./filestore/ ./filestore/
 COPY backup/ ./backup/
 COPY helpers/ ./helpers/
+COPY lib/ ./lib/
 COPY provider/ ./provider/
 COPY config/ ./config/
 COPY kubernetes/ ./kubernetes/

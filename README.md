@@ -28,6 +28,18 @@
     </h3>
 </div>
 
+# Table of Contents
+- [Introduction](#introduction)
+- [Key Features](#key-features)
+- [Getting Started](#getting-started)
+  - [Installation](#installation)
+  - [Quickstart Guide](#quickstart-guide)
+  - [Example Use Cases](#example-use-cases)
+- [Contributing](#contributing)
+- [Report Issues](#report-issues)
+- [FAQs](#faqs)
+- [License](#license)
+
 
 # What is Featureform?
 
@@ -226,6 +238,24 @@ We can use the feature registry to search, monitor, and discover our machine lea
 Please help us by [reporting any issues](https://github.com/featureform/featureform/issues/new/choose) you may have while using Featureform.
 
 <br />
+
+# FAQs
+
+**Q: What is a feature store?**
+A: A feature store is a system designed to streamline feature engineering for machine learning by centralizing the storage and management of features, making them easily accessible for model training and serving.
+
+**Q: Is Featureform a cloud-based service?**
+A: Featureform is infrastructure-agnostic and can be used both locally and in cloud environments. It doesn't replace your existing data infrastructure but orchestrates it like a traditional feature store.
+
+**Q: How can Featureform improve collaboration among data scientists?**
+A: Featureform enforces standardized definitions for features, transformations, labels, and training sets, making it easy to share, reuse, and understand these resources among team members.
+
+**Q: Can Featureform help with compliance and governance?**
+A: Yes, Featureform offers role-based access control, audit logs, and dynamic serving rules to ensure compliance with governance requirements.
+
+**Q: What kind of machine learning projects is Featureform suitable for?**
+A: Featureform is versatile and can be used in various projects, including fraud detection, recommendation systems, natural language processing, and more.
+
 
 # License
 

@@ -14,6 +14,7 @@ const (
 	Read                 Action = "read"
 	JobSubmission        Action = "job_submission"
 	ConfigDeserialize    Action = "config_deserialize"
+	ConfigSerialize      Action = "config_serialize"
 	ClientInitialization Action = "client_initialization"
 )
 

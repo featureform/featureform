@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"errors"
 	"fmt"
 
 	pc "github.com/featureform/provider/provider_config"
@@ -28,7 +27,13 @@ type snowflakeSQLQueries struct {
 func snowflakeOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.SnowflakeConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, errors.New("invalid snowflake config")
+		return nil, RuntimeError{
+			BaseError: BaseError{
+				Type:    pt.SnowflakeOffline,
+				Action:  ConfigDeserialize,
+				Message: err.Error(),
+			},
+		}
 	}
 	queries := snowflakeSQLQueries{}
 	queries.setVariableBinding(MySQLBindingStyle)

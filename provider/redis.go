@@ -32,7 +32,7 @@ type redisOnlineStore struct {
 func redisOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
 	redisConfig := &pc.RedisConfig{}
 	if err := redisConfig.Deserialize(serialized); err != nil {
-		return nil, err
+		return nil, NewProviderError(Runtime, pt.RedisOnline, ConfigDeserialize, err.Error())
 	}
 	if redisConfig.Prefix == "" {
 		redisConfig.Prefix = "Featureform_table__"
@@ -61,7 +61,7 @@ func NewRedisOnlineStore(options *pc.RedisConfig) (*redisOnlineStore, error) {
 	}
 	redisClient, err := rueidis.NewClient(redisOptions)
 	if err != nil {
-		return nil, err
+		return nil, NewProviderError(Connection, pt.RedisOnline, ClientInitialization, err.Error())
 	}
 	return &redisOnlineStore{redisClient, options.Prefix, BaseProvider{
 		ProviderType:   pt.RedisOnline,
@@ -191,7 +191,7 @@ func (store *redisOnlineStore) CheckHealth() (bool, error) {
 		return false, err
 	}
 	if resp != "PONG" {
-		return false, fmt.Errorf("unexpected response from Redis server: %s", resp)
+		return false, fmt.Errorf("expected 'PONG' from Redis server; received: %s", resp)
 	}
 	return true, nil
 }

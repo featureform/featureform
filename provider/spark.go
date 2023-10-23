@@ -377,10 +377,10 @@ func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath
 	pythonScriptBytes := make([]byte, fileStats.Size())
 	_, err = f.Read(pythonScriptBytes)
 	if err != nil {
-		return fmt.Errorf("could not read python script because %v", err)
+		return err
 	}
 	if err := store.Write(storePath, pythonScriptBytes); err != nil {
-		return fmt.Errorf("could not write to python script: %v", err)
+		return err
 	}
 	fmt.Printf("Uploaded %s to %s\n", filePath, storePath)
 	return nil
@@ -725,19 +725,19 @@ func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	logger := logging.NewLogger("spark")
 	if err := sc.Deserialize(config); err != nil {
 		logger.Errorw("Invalid config to initialize spark offline store", "error", err)
-		return nil, fmt.Errorf("invalid spark config: %v", err)
+		return nil, NewProviderError(Runtime, "SPARK_OFFLINE", ConfigDeserialize, err.Error())
 	}
 	logger.Infow("Creating Spark executor:", "type", sc.ExecutorType)
 	exec, err := NewSparkExecutor(sc.ExecutorType, sc.ExecutorConfig, logger)
 	if err != nil {
 		logger.Errorw("Failure initializing Spark executor", "type", sc.ExecutorType, "error", err)
-		return nil, err
+		return nil, NewProviderError(Connection, pt.SparkOffline, ClientInitialization, err.Error())
 	}
 
 	logger.Infow("Creating Spark store:", "type", sc.StoreType)
 	serializedFilestoreConfig, err := sc.StoreConfig.Serialize()
 	if err != nil {
-		return nil, fmt.Errorf("could not serialize Config, %v", err)
+		return nil, NewProviderError(Runtime, pt.SparkOffline, ConfigSerialize, err.Error())
 	}
 	store, err := CreateSparkFileStore(sc.StoreType, Config(serializedFilestoreConfig))
 	if err != nil {
@@ -749,7 +749,7 @@ func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	logger.Debugf("Store type: %s", sc.StoreType)
 	if err := exec.InitializeExecutor(store); err != nil {
 		logger.Errorw("Failure initializing executor", "error", err)
-		return nil, err
+		return nil, NewProviderError(Connection, pt.SparkOffline, ClientInitialization, err.Error())
 	}
 	logger.Info("Created Spark Offline Store")
 	queries := defaultPythonOfflineQueries{}

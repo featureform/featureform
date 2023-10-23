@@ -504,7 +504,8 @@ func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) bool 
 	thisSerialized := resource.serialized
 	otherVariantSerialized := otherVariant.serialized
 
-	isEquivalentDefinition := proto.Equal(thisSerialized.GetTransformation(), otherVariantSerialized.GetTransformation()) &&
+	// Now check if the set field is equivalent between the two messages
+	isEquivalentDefinition := proto.Equal(thisSerialized.GetTransformation(), otherVariantSerialized.GetTransformation()) ||
 		proto.Equal(thisSerialized.GetPrimaryData(), otherVariantSerialized.GetPrimaryData())
 
 	if thisSerialized.GetName() == otherVariantSerialized.GetName() &&

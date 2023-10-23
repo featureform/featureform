@@ -1407,9 +1407,7 @@ class FeatureVariant:
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
-        equivalent_variant = get_equivalent_variant(
-            self, serialized, "feature_variant", stub
-        )
+        equivalent_variant = get_equivalent_variant(serialized, "feature_variant", stub)
         # TODO add confirmation from user before using equivalent variant
         if equivalent_variant is not None:
             self.variant = equivalent_variant
@@ -1530,9 +1528,7 @@ class OnDemandFeatureVariant:
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
         )
-        equivalent_variant = get_equivalent_variant(
-            self, serialized, "feature_variant", stub
-        )
+        equivalent_variant = get_equivalent_variant(serialized, "feature_variant", stub)
         # TODO add confirmation from user before using equivalent variant
         if equivalent_variant is not None:
             self.variant = equivalent_variant
@@ -1702,9 +1698,7 @@ class LabelVariant:
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
-        equivalent_variant = get_equivalent_variant(
-            self, serialized, "label_variant", stub
-        )
+        equivalent_variant = get_equivalent_variant(serialized, "label_variant", stub)
         # TODO add confirmation from user before using equivalent variant
         if equivalent_variant is not None:
             self.variant = equivalent_variant
@@ -1958,9 +1952,7 @@ class TrainingSetVariant:
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
-        equivalent_variant = get_equivalent_variant(
-            serialized, "training_set_variant", stub
-        )
+        equivalent_variant = get_equivalent_variant(serialized, "training_set_variant", stub)
         # TODO add confirmation from user before using equivalent variant
         if equivalent_variant is not None:
             self.variant = equivalent_variant

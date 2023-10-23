@@ -1007,7 +1007,7 @@ class Dataset:
         Returns:
             df: Union[pd.DataFrame, pyspark.sql.DataFrame] A DataFrame containing the training set.
         """
-        
+
         if self._dataframe is not None:
             return self._dataframe
         elif spark_session is not None:

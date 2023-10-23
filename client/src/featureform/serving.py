@@ -1014,7 +1014,7 @@ class Dataset:
             req = serving_pb2.TrainingDataRequest()
             req.id.name = self._stream.name
             req.id.version = self._stream.version
-            resp = self._stub.ResourceLocation(req)
+            resp = self._stream._stub.ResourceLocation(req)
 
             file_format, location = self.get_file_format_and_location(resp.location)
             self._dataframe = self.get_spark_dataframe(
@@ -1035,7 +1035,7 @@ class Dataset:
             self._dataframe.rename(columns={cols.label: "label"}, inplace=True)
             return self._dataframe
 
-    def get_file_format_and_location(location):
+    def get_file_format_and_location(self, location):
         if location.endswith(".csv"):
             file_format = "csv"
         else:
@@ -1053,7 +1053,7 @@ class Dataset:
         return file_format, location
 
     def get_spark_dataframe(
-        spark: SparkSession, file_format: str, location: str
+        self, spark: SparkSession, file_format: str, location: str
     ) -> DataFrame:
         if file_format not in ["csv", "parquet"]:
             raise Exception(

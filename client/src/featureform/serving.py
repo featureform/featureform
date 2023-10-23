@@ -21,8 +21,6 @@ from featureform.proto import serving_pb2_grpc
 from featureform.providers import get_provider, Scalar, VectorType
 from pandas.core.generic import NDFrame
 from pandasql import sqldf
-from pyspark.sql import DataFrame as SparkDataFrame
-from pyspark.sql.session import SparkSession
 
 from . import progress_bar
 from .register import FeatureColumnResource
@@ -986,10 +984,11 @@ class Dataset:
         stream = Stream(self._stream, name, version, model)
         return Dataset(stream)
 
-    def dataframe(
-        self, spark_session: SparkSession = None
-    ) -> Union[pd.DataFrame, SparkDataFrame]:
-        """Returns the training set as a pandas DataFrame
+    def dataframe(self, spark_session=None):
+        """Returns the training set as a Pandas DataFrame or Spark DataFrame.
+        Args:
+        - spark_session: Optional(SparkSession)
+
 
         **Examples**:
         ``` py
@@ -1006,8 +1005,9 @@ class Dataset:
         ```
 
         Returns:
-            pandas.DataFrame: A pandas DataFrame containing the training set.
+            df: Union[pd.DataFrame, pyspark.sql.DataFrame] A DataFrame containing the training set.
         """
+        
         if self._dataframe is not None:
             return self._dataframe
         elif spark_session is not None:
@@ -1016,8 +1016,8 @@ class Dataset:
             req.id.version = self._stream.version
             resp = self._stream._stub.ResourceLocation(req)
 
-            file_format, location = self.get_file_format_and_location(resp.location)
-            self._dataframe = self.get_spark_dataframe(
+            file_format, location = self.__get_file_format_and_location(resp.location)
+            self._dataframe = self.__get_spark_dataframe(
                 spark_session, file_format, location
             )
             return self._dataframe
@@ -1035,7 +1035,7 @@ class Dataset:
             self._dataframe.rename(columns={cols.label: "label"}, inplace=True)
             return self._dataframe
 
-    def get_file_format_and_location(self, location):
+    def __get_file_format_and_location(self, location: str) -> str:
         try:
             file_format = FileFormat.get_format(location)
         except Exception:
@@ -1053,9 +1053,7 @@ class Dataset:
 
         return file_format, location
 
-    def get_spark_dataframe(
-        self, spark: SparkSession, file_format: str, location: str
-    ) -> SparkDataFrame:
+    def __get_spark_dataframe(self, spark, file_format, location):
         if file_format not in FileFormat.supported_formats():
             raise Exception(
                 f"file type '{file_format}' is not supported. Please use 'csv' or 'parquet'"

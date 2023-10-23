@@ -21,6 +21,8 @@ from featureform.proto import serving_pb2_grpc
 from featureform.providers import get_provider, Scalar, VectorType
 from pandas.core.generic import NDFrame
 from pandasql import sqldf
+from pyspark.sql import DataFrame
+from pyspark.sql.session import SparkSession
 
 from . import progress_bar
 from .register import FeatureColumnResource
@@ -143,9 +145,6 @@ class ServingClient:
         features = check_feature_type(features)
         return self.impl.features(features, entities, model, params)
 
-    def spark_dataframe(self, name, variant=""):
-        return self.impl.spark_dataframe(name, variant)
-
     def close(self):
         """Closes the connection to the Featureform instance."""
         self.impl.close()
@@ -238,13 +237,6 @@ class HostedClientImpl:
         req = serving_pb2.NearestRequest(id=id, vector=vec, k=k)
         resp = self._stub.Nearest(req)
         return resp.entities
-
-    def spark_dataframe(self, name, variant):
-        req = serving_pb2.TrainingDataRequest()
-        req.id.name = name
-        req.id.version = variant
-        resp = self._stub.ResourceLocation(req)
-        return resp.location
 
     def close(self):
         self._channel.close()
@@ -994,7 +986,9 @@ class Dataset:
         stream = Stream(self._stream, name, version, model)
         return Dataset(stream)
 
-    def dataframe(self) -> pd.DataFrame:
+    def dataframe(
+        self, spark_session: SparkSession = None
+    ) -> Union[pd.DataFrame, DataFrame]:
         """Returns the training set as a pandas DataFrame
 
         **Examples**:
@@ -1016,6 +1010,17 @@ class Dataset:
         """
         if self._dataframe is not None:
             return self._dataframe
+        elif spark_session is not None:
+            req = serving_pb2.TrainingDataRequest()
+            req.id.name = self._stream.name
+            req.id.version = self._stream.version
+            resp = self._stub.ResourceLocation(req)
+
+            file_format, location = self.get_file_format_and_location(resp.location)
+            self._dataframe = self.get_spark_dataframe(
+                spark_session, file_format, location
+            )
+            return self._dataframe
         else:
             name = self._stream.name
             variant = self._stream.version
@@ -1029,6 +1034,45 @@ class Dataset:
             )
             self._dataframe.rename(columns={cols.label: "label"}, inplace=True)
             return self._dataframe
+
+    def get_file_format_and_location(location):
+        if location.endswith(".csv"):
+            file_format = "csv"
+        else:
+            file_format = "parquet"
+
+        if location.split("/")[-1].startswith("part-"):
+            location = "/".join(location.split("/")[:-1])
+
+        location = (
+            location.replace("s3://", "s3a://")
+            if location.startswith("s3://")
+            else location
+        )
+
+        return file_format, location
+
+    def get_spark_dataframe(
+        spark: SparkSession, file_format: str, location: str
+    ) -> DataFrame:
+        if file_format not in ["csv", "parquet"]:
+            raise Exception(
+                f"file type '{file_format}' is not supported. Please use 'csv' or 'parquet'"
+            )
+
+        try:
+            df = (
+                spark.read.option("header", "true")
+                .option("recursiveFileLookup", "true")
+                .format(file_format)
+                .load(location)
+            )
+        except Exception as e:
+            raise Exception(
+                f"please make sure the spark session has ability to read '{location}': {e}"
+            )
+
+        return df
 
     def from_dataframe(dataframe, include_label_timestamp):
         stream = LocalStream(dataframe.values.tolist(), include_label_timestamp)

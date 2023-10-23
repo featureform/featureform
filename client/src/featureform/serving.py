@@ -1067,6 +1067,13 @@ class Dataset:
                 .format(file_format)
                 .load(location)
             )
+
+            for col in df.columns:
+                if col.startswith("Label__"):
+                    label_column_name = col
+                    break
+            df = df.withColumnRenamed(label_column_name, "Label")
+
         except Exception as e:
             raise Exception(
                 f"please make sure the spark session has ability to read '{location}': {e}"

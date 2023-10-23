@@ -384,18 +384,14 @@ func (serv *FeatureServer) getVectorTable(ctx context.Context, fv *metadata.Feat
 }
 
 func (serv *FeatureServer) ResourceLocation(ctx context.Context, req *pb.TrainingDataRequest) (*pb.ResourceFileLocation, error) {
+	// TODO: Modify this method to return the location of any resource within Featureform
+	// - This will require a change in the input to be a ResourceID (name, variant, and type)
+	// - Modifications to the Offline Store interface to pull the latest file location of a resource
+
 	id := req.GetId()
 	name, variant := id.GetName(), id.GetVersion()
 	serv.Logger.Infow("Getting the Resource Location:", "Name", name, "Variant", variant)
 
-	// sv, err := serv.Metadata.GetSourceVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
-	// if err != nil {
-	// 	return nil, errors.Wrap(err, "could not get source variant")
-	// }
-
-	// if sv.Status() == metadata.READY {
-	// 	return nil, fmt.Errorf("source variant is not ready; current status is %v", sv.Status())
-	// }
 	tv, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get training set variant")
@@ -419,7 +415,6 @@ func (serv *FeatureServer) ResourceLocation(ctx context.Context, req *pb.Trainin
 		return nil, errors.Wrap(err, "could not open as offline store")
 	}
 
-	// modify the store to be
 	spark, ok := store.(*provider.SparkOfflineStore)
 	if !ok {
 		return nil, errors.Wrap(err, "could not cast to spark store")

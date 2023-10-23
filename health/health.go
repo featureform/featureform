@@ -48,10 +48,12 @@ func (h *Health) IsSupportedProvider(t pt.Type) bool {
 
 func (h *Health) handleError(err error) string {
 	switch err.(type) {
-	case provider.FileStoreError:
-		return fmt.Sprintf("Featureform cannot connect to the file store or doesn't have the correct permissions to read/write due to the following error: %s", err.Error())
-	case provider.SparkExecutorError:
-		return fmt.Sprintf("Featureform cannot connect to the Spark executor or the Spark cluster cannot connect to the files store due to the following error: %s", err.Error())
+	case provider.ConnectionError:
+		return fmt.Sprintf("Featureform cannot connect to the provider during health check: %s", err.Error())
+	case provider.RuntimeError:
+		return fmt.Sprintf("Featureform encountered a runtime error during health check: %s", err.Error())
+	case provider.InternalError:
+		return fmt.Sprintf("Featureform encountered an internal error during health check: %s", err.Error())
 	default:
 		return err.Error()
 	}

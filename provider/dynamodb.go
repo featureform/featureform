@@ -53,7 +53,7 @@ const tableCreateTimeout = 120
 func dynamodbOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
 	dynamodbConfig := &pc.DynamodbConfig{}
 	if err := dynamodbConfig.Deserialize(serialized); err != nil {
-		return nil, err
+		return nil, NewProviderError(Runtime, pt.DynamoDBOnline, ConfigDeserialize, err.Error())
 	}
 	if dynamodbConfig.Prefix == "" {
 		dynamodbConfig.Prefix = "Featureform_table__"
@@ -69,7 +69,7 @@ func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, e
 	sess := session.Must(session.NewSession(config))
 	dynamodbClient := dynamodb.New(sess)
 	if err := CreateMetadataTable(dynamodbClient); err != nil {
-		return nil, fmt.Errorf("could not create metadata table: %v", err)
+		return nil, NewProviderError(Connection, pt.DynamoDBOnline, ClientInitialization, err.Error())
 	}
 	return &dynamodbOnlineStore{dynamodbClient, options.Prefix, BaseProvider{
 		ProviderType:   pt.DynamoDBOnline,

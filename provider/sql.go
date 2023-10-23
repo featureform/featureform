@@ -78,7 +78,7 @@ func NewSQLOfflineStore(config SQLOfflineStoreConfig) (*sqlOfflineStore, error) 
 	url := config.ConnectionURL
 	db, err := sql.Open(config.Driver, url)
 	if err != nil {
-		return nil, err
+		return nil, NewProviderError(Connection, config.ProviderType, ClientInitialization, err.Error())
 	}
 
 	return &sqlOfflineStore{

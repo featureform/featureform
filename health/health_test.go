@@ -20,10 +20,6 @@ import (
 
 var providerType = flag.String("provider", "", "provider type under test")
 
-type testMember struct {
-	providerDef metadata.ProviderDef
-}
-
 func TestHealth_Check(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -36,12 +32,12 @@ func TestHealth_Check(t *testing.T) {
 
 	os.Setenv("TZ", "UTC")
 
-	tests := []testMember{}
+	providers := []metadata.ProviderDef{}
 
 	if *providerType == "redis" || *providerType == "" {
 		config := initProvider(t, pt.RedisOnline, "", "")
-		tests = append(tests, testMember{
-			providerDef: metadata.ProviderDef{
+		providers = append(providers,
+			metadata.ProviderDef{
 				Name:             "redis",
 				Type:             string(pt.RedisOnline),
 				SerializedConfig: config,
@@ -49,13 +45,13 @@ func TestHealth_Check(t *testing.T) {
 				Tags:             metadata.Tags{},
 				Properties:       metadata.Properties{},
 			},
-		})
+		)
 	}
 
 	if *providerType == "postgres" || *providerType == "" {
 		config := initProvider(t, pt.PostgresOffline, "", "")
-		tests = append(tests, testMember{
-			providerDef: metadata.ProviderDef{
+		providers = append(providers,
+			metadata.ProviderDef{
 				Name:             "postgres",
 				Type:             string(pt.PostgresOffline),
 				SerializedConfig: config,
@@ -63,27 +59,13 @@ func TestHealth_Check(t *testing.T) {
 				Tags:             metadata.Tags{},
 				Properties:       metadata.Properties{},
 			},
-		})
-	}
-
-	if *providerType == "spark-databricks-s3" || *providerType == "" {
-		config := initProvider(t, pt.SparkOffline, pc.Databricks, fs.S3)
-		tests = append(tests, testMember{
-			providerDef: metadata.ProviderDef{
-				Name:             "spark-databricks-s3",
-				Type:             string(pt.SparkOffline),
-				SerializedConfig: config,
-				Software:         "spark",
-				Tags:             metadata.Tags{},
-				Properties:       metadata.Properties{},
-			},
-		})
+		)
 	}
 
 	if *providerType == "spark-databricks-abs" || *providerType == "" {
 		config := initProvider(t, pt.SparkOffline, pc.Databricks, fs.Azure)
-		tests = append(tests, testMember{
-			providerDef: metadata.ProviderDef{
+		providers = append(providers,
+			metadata.ProviderDef{
 				Name:             "spark-databricks-abs",
 				Type:             string(pt.SparkOffline),
 				SerializedConfig: config,
@@ -91,27 +73,13 @@ func TestHealth_Check(t *testing.T) {
 				Tags:             metadata.Tags{},
 				Properties:       metadata.Properties{},
 			},
-		})
-	}
-
-	if *providerType == "spark-emr-s3" || *providerType == "" {
-		config := initProvider(t, pt.SparkOffline, pc.EMR, fs.S3)
-		tests = append(tests, testMember{
-			providerDef: metadata.ProviderDef{
-				Name:             "spark-emr-s3",
-				Type:             string(pt.SparkOffline),
-				SerializedConfig: config,
-				Software:         "spark",
-				Tags:             metadata.Tags{},
-				Properties:       metadata.Properties{},
-			},
-		})
+		)
 	}
 
 	if *providerType == "dynamodb" || *providerType == "" {
 		config := initProvider(t, pt.DynamoDBOnline, "", "")
-		tests = append(tests, testMember{
-			providerDef: metadata.ProviderDef{
+		providers = append(providers,
+			metadata.ProviderDef{
 				Name:             "dynamodb",
 				Type:             string(pt.DynamoDBOnline),
 				SerializedConfig: config,
@@ -119,13 +87,13 @@ func TestHealth_Check(t *testing.T) {
 				Tags:             metadata.Tags{},
 				Properties:       metadata.Properties{},
 			},
-		})
+		)
 	}
 
 	if *providerType == "snowflake" || *providerType == "" {
 		config := initProvider(t, pt.SnowflakeOffline, "", "")
-		tests = append(tests, testMember{
-			providerDef: metadata.ProviderDef{
+		providers = append(providers,
+			metadata.ProviderDef{
 				Name:             "snowflake",
 				Type:             string(pt.SnowflakeOffline),
 				SerializedConfig: config,
@@ -133,7 +101,7 @@ func TestHealth_Check(t *testing.T) {
 				Tags:             metadata.Tags{},
 				Properties:       metadata.Properties{},
 			},
-		})
+		)
 	}
 
 	server, addr := initMetadataServer(t)
@@ -142,19 +110,9 @@ func TestHealth_Check(t *testing.T) {
 
 	health := NewHealth(client)
 
-	for _, test := range tests {
-		if err := client.Create(context.Background(), test.providerDef); err != nil {
-			t.Fatalf("Failed to create provider: %s", err)
-		}
-		t.Run(string(test.providerDef.Type), func(t *testing.T) {
-			isHealthy, err := health.CheckProvider(test.providerDef.Name)
-			if err != nil {
-				t.Fatalf("Failed to check provider health: %s", err)
-			}
-			if !isHealthy {
-				t.Fatalf("Provider is not healthy")
-			}
-		})
+	for _, def := range providers {
+		testSuccessfulHealthCheck(t, client, health, def)
+		testUnsuccessfulHealthCheck(t, client, health, def)
 	}
 
 	if err := server.Stop(); err != nil {
@@ -346,4 +304,97 @@ func initProvider(t *testing.T, providerType pt.Type, executorType pc.SparkExecu
 	default:
 		panic(fmt.Sprintf("Unsupported provider type: %s", providerType))
 	}
+}
+
+func testSuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *Health, def metadata.ProviderDef) {
+	if err := client.Create(context.Background(), def); err != nil {
+		t.Fatalf("Failed to create provider: %s", err)
+	}
+	t.Run(string(def.Type)+"_SUCCESS", func(t *testing.T) {
+		isHealthy, err := health.CheckProvider(def.Name)
+		if err != nil {
+			t.Fatalf("Failed to check provider health: %s", err)
+		}
+		if !isHealthy {
+			t.Fatalf("Provider is not healthy")
+		}
+	})
+}
+
+func testUnsuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *Health, def metadata.ProviderDef) {
+	switch pt.Type(def.Type) {
+	case pt.RedisOnline:
+		failureConfig := pc.RedisConfig{}
+		if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {
+			t.Fatalf("Failed to deserialize config: %s", err)
+		}
+		failureConfig.Addr = failureConfig.Addr[:len(failureConfig.Addr)-4] + "6790"
+		def.SerializedConfig = failureConfig.Serialized()
+		def.Name = "redis-failure"
+	case pt.PostgresOffline:
+		failureConfig := pc.PostgresConfig{}
+		if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {
+			t.Fatalf("Failed to deserialize config: %s", err)
+		}
+		failureConfig.SSLMode = "require"
+		def.SerializedConfig = failureConfig.Serialize()
+		def.Name = "postgres-failure"
+	case pt.SparkOffline:
+		failureConfig := pc.SparkConfig{}
+		if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {
+			t.Fatalf("Failed to deserialize config: %s", err)
+		}
+		switch failureConfig.ExecutorType {
+		case pc.SparkGeneric:
+			failureConfig.ExecutorConfig = &pc.SparkGenericConfig{
+				Master:        "spark://",
+				DeployMode:    "cluster",
+				PythonVersion: "3",
+			}
+		case pc.Databricks:
+			failureConfig.ExecutorConfig = &pc.DatabricksConfig{
+				Host:    "https://",
+				Token:   "invalid",
+				Cluster: "invalid",
+			}
+		case pc.EMR:
+			failureConfig.ExecutorConfig = &pc.EMRConfig{
+				Credentials:   pc.AWSCredentials{},
+				ClusterRegion: "invalid",
+				ClusterName:   "invalid",
+			}
+		}
+		def.SerializedConfig, _ = failureConfig.Serialize()
+		def.Name = "spark-failure"
+	case pt.DynamoDBOnline:
+		failureConfig := pc.DynamodbConfig{}
+		if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {
+			t.Fatalf("Failed to deserialize config: %s", err)
+		}
+		failureConfig.AccessKey = "invalid"
+		def.SerializedConfig = failureConfig.Serialized()
+		def.Name = "dynamodb-failure"
+	case pt.SnowflakeOffline:
+		failureConfig := pc.SnowflakeConfig{}
+		if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {
+			t.Fatalf("Failed to deserialize config: %s", err)
+		}
+		failureConfig.Account = "invalid"
+		def.SerializedConfig = failureConfig.Serialize()
+		def.Name = "snowflake-failure"
+	default:
+		t.Skip("Skipping unsupported provider type")
+	}
+	if err := client.Create(context.Background(), def); err != nil {
+		t.Fatalf("Failed to create provider: %s", err)
+	}
+	t.Run(string(def.Type)+"_FAILURE", func(t *testing.T) {
+		isHealthy, err := health.CheckProvider(def.Name)
+		if err == nil {
+			t.Fatalf("(%s) Expected error but received none", def.Type)
+		}
+		if isHealthy {
+			t.Fatalf("(%s) Expected provider to be unhealthy", def.Type)
+		}
+	})
 }

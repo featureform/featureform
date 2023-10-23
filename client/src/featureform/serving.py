@@ -21,7 +21,7 @@ from featureform.proto import serving_pb2_grpc
 from featureform.providers import get_provider, Scalar, VectorType
 from pandas.core.generic import NDFrame
 from pandasql import sqldf
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame as SparkDataFrame
 from pyspark.sql.session import SparkSession
 
 from . import progress_bar
@@ -988,7 +988,7 @@ class Dataset:
 
     def dataframe(
         self, spark_session: SparkSession = None
-    ) -> Union[pd.DataFrame, DataFrame]:
+    ) -> Union[pd.DataFrame, SparkDataFrame]:
         """Returns the training set as a pandas DataFrame
 
         **Examples**:
@@ -1036,12 +1036,13 @@ class Dataset:
             return self._dataframe
 
     def get_file_format_and_location(self, location):
-        if location.endswith(".csv"):
-            file_format = "csv"
-        else:
+        try:
+            file_format = FileFormat.get_format(location)
+        except Exception:
             file_format = "parquet"
 
-        if location.split("/")[-1].startswith("part-"):
+        is_individual_part_file = location.split("/")[-1].startswith("part-")
+        if is_individual_part_file:
             location = "/".join(location.split("/")[:-1])
 
         location = (
@@ -1054,8 +1055,8 @@ class Dataset:
 
     def get_spark_dataframe(
         self, spark: SparkSession, file_format: str, location: str
-    ) -> DataFrame:
-        if file_format not in ["csv", "parquet"]:
+    ) -> SparkDataFrame:
+        if file_format not in FileFormat.supported_formats():
             raise Exception(
                 f"file type '{file_format}' is not supported. Please use 'csv' or 'parquet'"
             )

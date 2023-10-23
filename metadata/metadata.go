@@ -1665,6 +1665,8 @@ func (serv *MetadataServer) GetModels(stream pb.Metadata_GetModelsServer) error 
 }
 
 func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariant) (*pb.ResourceVariant, error) {
+	noEquivalentResponse := &pb.ResourceVariant{}
+
 	var currentResource ResourceVariant
 	var resourceType ResourceType
 
@@ -1700,7 +1702,7 @@ func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceV
 		}
 	}
 
-	return nil, nil
+	return noEquivalentResponse, nil
 }
 
 type nameStream interface {

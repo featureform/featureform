@@ -62,7 +62,13 @@ jobs:
         run: go build ./metadata/*.go
 
       - name: Build Python Package
-        run: ./pip_update.sh
+        run: ./pip_update.sh --no-dash
+
+      - name: Remove Node Modules
+        run: rm -rf dashboard/node_modules
+
+      - name: Remove Git Objects
+        run: rm -rf .git
 
       - uses: actions/upload-artifact@v3
         with:
@@ -125,12 +131,12 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          files: ./coverage/cover.out
-          name: search-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          files: ./coverage/cover.out
+#          name: search-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -203,8 +209,8 @@ jobs:
 
       - name: Testing
         env:
-          DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
-          DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
+          DYNAMO_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          DYNAMO_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
           FIRESTORE_CRED: "firestore_credentials.json"
           FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
           AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
@@ -225,13 +231,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: provider-online-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: provider-online-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -240,19 +246,19 @@ jobs:
           name: provider-online-coverage-reports
           path: ./coverage
 
-      - name: Clear Pinecone Indexes
-        env:
-          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
-          PINECONE_ENVIRONMENT: ${{ secrets.PINECONE_ENVIRONMENT }}
-        if: always()
-        run: |
-          pip install pinecone-cli
-          pinecli list-indexes --apikey="$PINECONE_API_KEY" | while read -r index; do pinecli delete-index --apikey="$PINECONE_API_KEY" --disable-safety "$index"; done
+#      - name: Clear Pinecone Indexes
+#        env:
+#          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+#          PINECONE_ENVIRONMENT: ${{ secrets.PINECONE_ENVIRONMENT }}
+#        if: always()
+#        run: |
+#          pip install pinecone-cli
+#          pinecli list-indexes --apikey="$PINECONE_API_KEY" | while read -r index; do pinecli delete-index --apikey="$PINECONE_API_KEY" --disable-safety "$index"; done
 
 
   provider-offline:
     name: Offline Provider Testing
-    timeout-minutes: 60
+    timeout-minutes: 120
     environment: Integration testing
     needs: setup
     runs-on: ubuntu-latest
@@ -332,13 +338,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: provider-offline-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: provider-offline-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -401,13 +407,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: provider-offline-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: provider-offline-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -462,13 +468,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: metadata-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: metadata-coverage
+#          verbose: true
 
   backup:
     name: Backup Test
@@ -569,13 +575,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: metrics-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: metrics-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -614,13 +620,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: helper-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: helper-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -668,13 +674,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: runner-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: runner-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -713,13 +719,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main" > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: serving-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: serving-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -802,13 +808,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: coordinator-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: coordinator-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -986,13 +992,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: k8s-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: k8s-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -1069,14 +1075,14 @@ jobs:
       - name: Generate Coverage Report
         run: make pytest_coverage
 
-      - name: Upload Coverage Report
-        uses: codecov/codecov-action@v2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          root_dir: ./
-          files: ./coverage.xml
-          name: client-coverage
-          verbose: true
+#      - name: Upload Coverage Report
+#        uses: codecov/codecov-action@v2
+#        with:
+#          token: ${{ secrets.CODECOV_TOKEN }}
+#          root_dir: ./
+#          files: ./coverage.xml
+#          name: client-coverage
+#          verbose: true
 
 #  notebook:
 #    name: Test Notebook

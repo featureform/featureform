@@ -188,10 +188,10 @@ func (store *redisOnlineStore) CheckHealth() (bool, error) {
 	cmd := store.client.B().Ping().Build()
 	resp, err := store.client.Do(context.Background(), cmd).ToString()
 	if err != nil {
-		return false, err
+		return false, NewProviderError(Connection, pt.RedisOnline, Ping, err.Error())
 	}
 	if resp != "PONG" {
-		return false, fmt.Errorf("expected 'PONG' from Redis server; received: %s", resp)
+		return false, NewProviderError(Connection, pt.RedisOnline, Ping, fmt.Sprintf("expected 'PONG' from Redis server; received: %s", resp))
 	}
 	return true, nil
 }

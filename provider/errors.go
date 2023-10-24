@@ -16,6 +16,7 @@ const (
 	ConfigDeserialize    Action = "config_deserialize"
 	ConfigSerialize      Action = "config_serialize"
 	ClientInitialization Action = "client_initialization"
+	Ping                 Action = "ping"
 )
 
 type ProviderErrorType string

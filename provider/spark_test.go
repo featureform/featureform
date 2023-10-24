@@ -2943,7 +2943,7 @@ func TestCreateSparkFileStore(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CreateSparkFileStore(tt.args.name, tt.args.config)
+			got, err := CreateSparkFileStore(fs.FileStoreType(tt.args.name), tt.args.config)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateSparkFileStore() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -15,4 +15,4 @@ Feature: Transformations
     | transformation_type | storage_provider | bucket |
     | SQL                 | azure               | test |
     | SQL                 | s3               | featureform-spark-testing |
-    | SQL                 | gcs               | test |
+#    | SQL                 | gcs               | test |

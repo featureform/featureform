@@ -298,10 +298,11 @@ func TestOfflineStores(t *testing.T) {
 		serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.Azure)
 		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
 	}
-	if *provider == "spark-emr-s3" || *provider == "" {
-		serialSparkConfig, _ := sparkInit(t, pc.EMR, fs.S3)
-		testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	}
+	// TODO: Uncomment when EMR can be configured to run these tests quicker. Currently taking > 60 minutes.
+	//if *provider == "spark-emr-s3" || *provider == "" {
+	//	serialSparkConfig, _ := sparkInit(t, pc.EMR, fs.S3)
+	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	//}
 
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,

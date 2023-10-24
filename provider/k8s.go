@@ -1222,11 +1222,15 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 			timestamp = castedTS
 		}
 	}
-	iter.cur = ResourceRecord{
-		Entity: nextVal["entity"].(string),
-		Value:  value,
-		TS:     timestamp,
+	rec := ResourceRecord{
+		Value: value,
+		TS:    timestamp,
 	}
+	if err := rec.SetEntity(nextVal["entity"]); err != nil {
+		iter.err = err
+		return false
+	}
+	iter.cur = rec
 	return true
 }
 

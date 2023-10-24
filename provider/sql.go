@@ -452,10 +452,15 @@ func (iter *sqlFeatureIterator) Next() bool {
 		return false
 	}
 	var rec ResourceRecord
+	var entity interface{}
 	var value interface{}
 	var ts time.Time
-	if err := iter.rows.Scan(&rec.Entity, &value, &ts); err != nil {
+	if err := iter.rows.Scan(&entity, &value, &ts); err != nil {
 		iter.rows.Close()
+		iter.err = err
+		return false
+	}
+	if err := rec.SetEntity(entity); err != nil {
 		iter.err = err
 		return false
 	}

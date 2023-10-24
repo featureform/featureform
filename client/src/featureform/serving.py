@@ -1016,7 +1016,8 @@ class Dataset:
             req.id.version = self._stream.version
             resp = self._stream._stub.ResourceLocation(req)
 
-            file_format, location = self.__get_file_format_and_location(resp.location)
+            file_format = self.__get_file_format(resp.location)
+            location = self.__santize_location(resp.location)
             self._dataframe = self.__get_spark_dataframe(
                 spark_session, file_format, location
             )
@@ -1035,23 +1036,32 @@ class Dataset:
             self._dataframe.rename(columns={cols.label: "label"}, inplace=True)
             return self._dataframe
 
-    def __get_file_format_and_location(self, location: str) -> str:
+    def __get_file_format(self, location: str) -> str:
+        # Returns the file format of the location. Defaults to parquet.
         try:
             file_format = FileFormat.get_format(location)
         except Exception:
             file_format = "parquet"
 
+        return file_format
+
+    def __santize_location(self, location: str) -> str:
+        # Returns the location directory rather than a single file if it is part-file.
+        # Also converts s3:// to s3a:// if necessary.
+
+        # If the location is a part-file, we want to get the directory instead.
         is_individual_part_file = location.split("/")[-1].startswith("part-")
         if is_individual_part_file:
             location = "/".join(location.split("/")[:-1])
 
+        # If the schema is s3://, we want to convert it to s3a://.
         location = (
             location.replace("s3://", "s3a://")
             if location.startswith("s3://")
             else location
         )
 
-        return file_format, location
+        return location
 
     def __get_spark_dataframe(self, spark, file_format, location):
         if file_format not in FileFormat.supported_formats():

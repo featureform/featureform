@@ -1016,9 +1016,9 @@ class Dataset:
             req.id.version = self._stream.version
             resp = self._stream._stub.ResourceLocation(req)
 
-            file_format = self.__get_file_format(resp.location)
-            location = self.__santize_location(resp.location)
-            self._dataframe = self.__get_spark_dataframe(
+            file_format = self._get_file_format(resp.location)
+            location = self._sanitize_location(resp.location)
+            self._dataframe = self._get_spark_dataframe(
                 spark_session, file_format, location
             )
             return self._dataframe
@@ -1036,7 +1036,7 @@ class Dataset:
             self._dataframe.rename(columns={cols.label: "label"}, inplace=True)
             return self._dataframe
 
-    def __get_file_format(self, location: str) -> str:
+    def _get_file_format(self, location: str) -> str:
         # Returns the file format of the location. Defaults to parquet.
         try:
             file_format = FileFormat.get_format(location)
@@ -1045,7 +1045,7 @@ class Dataset:
 
         return file_format
 
-    def __santize_location(self, location: str) -> str:
+    def _sanitize_location(self, location: str) -> str:
         # Returns the location directory rather than a single file if it is part-file.
         # Also converts s3:// to s3a:// if necessary.
 
@@ -1063,7 +1063,7 @@ class Dataset:
 
         return location
 
-    def __get_spark_dataframe(self, spark, file_format, location):
+    def _get_spark_dataframe(self, spark, file_format, location):
         if file_format not in FileFormat.supported_formats():
             raise Exception(
                 f"file type '{file_format}' is not supported. Please use 'csv' or 'parquet'"

@@ -1016,7 +1016,7 @@ class Dataset:
             req.id.version = self._stream.version
             resp = self._stream._stub.ResourceLocation(req)
 
-            file_format = self._get_file_format(resp.location)
+            file_format = FileFormat.get_format(resp.location, default="parquet")
             location = self._sanitize_location(resp.location)
             self._dataframe = self._get_spark_dataframe(
                 spark_session, file_format, location
@@ -1035,15 +1035,6 @@ class Dataset:
             )
             self._dataframe.rename(columns={cols.label: "label"}, inplace=True)
             return self._dataframe
-
-    def _get_file_format(self, location: str) -> str:
-        # Returns the file format of the location. Defaults to parquet.
-        try:
-            file_format = FileFormat.get_format(location)
-        except Exception:
-            file_format = "parquet"
-
-        return file_format
 
     def _sanitize_location(self, location: str) -> str:
         # Returns the location directory rather than a single file if it is part-file.

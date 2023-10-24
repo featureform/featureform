@@ -644,20 +644,6 @@ def test_read_directory():
 
 
 @pytest.mark.parametrize(
-    "location, expected_format",
-    [
-        ("s3://bucket/path/to/file.csv", "csv"),
-        ("s3a://bucket/path/to/file.csv", "csv"),
-        ("s3://bucket/path/to/directory/part-0000.parquet", "parquet"),
-        ("s3://bucket/path/to/directory", "parquet"),
-    ],
-)
-def test_get_file_format(location, expected_format):
-    dataset = Dataset("")
-    assert dataset._get_file_format(location) == expected_format
-
-
-@pytest.mark.parametrize(
     "location, expected_location",
     [
         ("s3://bucket/path/to/file.csv", "s3a://bucket/path/to/file.csv"),

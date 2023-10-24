@@ -67,6 +67,7 @@ from .resources import (
     FilePrefix,
     OnDemandFeatureVariant,
     WeaviateConfig,
+    SourceVariantProvider,
 )
 from .search import search
 from .search_local import search_local
@@ -1024,7 +1025,8 @@ class SubscriptableTransformation:
         registrar,
         provider,
         decorator_register_resources_method,
-        decorator_name_variant_method,
+        decorator_name_variant_method: Callable,
+        transformation,
     ):
         # if not self.__has_return_statement(fn):
         #     raise Exception(
@@ -1043,7 +1045,8 @@ class SubscriptableTransformation:
         # so the code has been reverted to the original syntax, which simply passes a reference to
         # the decorator methods to the SubscriptableTransformation class.
         self.register_resources = decorator_register_resources_method
-        self.name_variant = decorator_name_variant_method
+        # self.name_variant = decorator_name_variant_method
+        self.transformation = transformation
 
     def __getitem__(self, columns: List[str]):
         col_len = len(columns)
@@ -1073,8 +1076,11 @@ class SubscriptableTransformation:
                 return True
         return False
 
+    def name_variant(self):
+        return self.transformation.name_variant()
 
-class SQLTransformationDecorator:
+
+class SQLTransformationDecorator(SourceVariantProvider):
     def __init__(
         self,
         registrar,
@@ -1114,6 +1120,7 @@ class SQLTransformationDecorator:
             self.provider,
             self.register_resources,
             self.name_variant,
+            self,
         )
 
     @typechecked
@@ -1175,7 +1182,7 @@ class SQLTransformationDecorator:
             raise InvalidSQLQuery(query, "No source specified.")
 
 
-class DFTransformationDecorator:
+class DFTransformationDecorator(SourceVariantProvider):
     def __init__(
         self,
         registrar,
@@ -1238,6 +1245,7 @@ class DFTransformationDecorator:
             self.provider,
             self.register_resources,
             self.name_variant,
+            self,
         )
 
     def to_source(self) -> SourceVariant:
@@ -3586,9 +3594,9 @@ class Registrar:
             variant = self.__run
         if not isinstance(provider, str):
             provider = provider.name()
-        for i, nv in enumerate(inputs):
-            if not isinstance(nv, tuple):
-                inputs[i] = nv.name_variant()
+        # for i, nv in enumerate(inputs):
+        # if not isinstance(nv, tuple):
+        #     inputs[i] = nv.name_variant()
         source = SourceVariant(
             created=None,
             name=name,
@@ -3752,12 +3760,12 @@ class Registrar:
             return decorator(fn)
 
     def state(self):
-        for resource in self.__resources:
+        for resource in self.get_resources():
             try:
-                if isinstance(resource, SQLTransformationDecorator) or isinstance(
-                    resource, DFTransformationDecorator
-                ):
-                    resource = resource.to_source()
+                # if isinstance(resource, SQLTransformationDecorator) or isinstance(
+                #     resource, DFTransformationDecorator
+                # ):
+                #     resource = resource.to_source()
                 self.__state.add(resource)
 
             except ResourceRedefinedError:
@@ -4241,9 +4249,14 @@ class ResourceClient:
 
         """
 
-        print(f"Applying Run: {get_run()}")
         try:
             resource_state = state()
+            if resource_state.is_empty():
+                print("No resources to apply")
+                return
+
+            print(f"Applying Run: {get_run()}")
+
             if self._dry_run:
                 print(resource_state.sorted_list())
                 return

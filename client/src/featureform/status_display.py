@@ -17,7 +17,7 @@ from featureform.resources import (
     OnDemandFeatureVariant,
     TrainingSetVariant,
     LabelVariant,
-    SourceVariant,
+    SourceVariant, SourceVariantProvider,
 )
 
 # maximum number of dots printing when featureform apply for Running...
@@ -66,6 +66,7 @@ class StatusDisplayer:
         TrainingSetVariant,
         LabelVariant,
         SourceVariant,
+        SourceVariantProvider,
         Provider,
     }
 
@@ -80,7 +81,8 @@ class StatusDisplayer:
     def __init__(self, stub: ApiStub, resources: List[Resource], verbose=False):
         self.verbose = verbose
         filtered_resources = filter(
-            lambda r: type(r) in self.RESOURCE_TYPES_TO_CHECK, resources
+            lambda r: any(isinstance(r, resource_type) for resource_type in self.RESOURCE_TYPES_TO_CHECK),
+            resources
         )
         self.stub = stub
 

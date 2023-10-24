@@ -7,6 +7,7 @@ import json
 import os
 import sys
 import time
+from abc import ABC, abstractmethod
 from typing import List, Tuple, Union, Optional
 
 import dill
@@ -1013,6 +1014,7 @@ class DFTransformation(Transformation):
 
     def kwargs(self):
         for i, inp in enumerate(self.inputs):
+            # print("this is input", inp.name_variant())
             # Since an input objects variant can change we only populate it once we're outputting it
             if not isinstance(inp, tuple) and not isinstance(inp, str):
                 self.inputs[i] = inp.name_variant()
@@ -1135,7 +1137,7 @@ class SourceVariant:
         else:
             raise Exception(f"Invalid transformation type {source}")
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> str:
         defArgs = self.definition.kwargs()
 
         serialized = pb.SourceVariant(
@@ -1155,7 +1157,9 @@ class SourceVariant:
         if equivalent_variant is not None:
             self.variant = equivalent_variant
             serialized.variant = equivalent_variant
+            # print("we just set the self variant", self.variant)
         stub.CreateSourceVariant(serialized)
+        return self.variant
 
     def _create_local(self, db) -> None:
         should_insert_text = False
@@ -1231,6 +1235,27 @@ class SourceVariant:
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
+
+
+class SourceVariantProvider(ABC):
+    @abstractmethod
+    def to_source(self) -> SourceVariant:
+        pass
+
+    def __getattr__(self, name: str):
+        source_variant = self.to_source()
+
+        if hasattr(source_variant, name):
+            attr = getattr(source_variant, name)
+
+            if callable(attr):
+                return lambda *args, **kwargs: attr(*args, **kwargs)
+            else:
+                return attr
+        else:
+            raise AttributeError(
+                f"'{type(self).__name__}' object has no attribute '{name}'"
+            )
 
 
 @typechecked
@@ -1952,7 +1977,9 @@ class TrainingSetVariant:
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
-        equivalent_variant = get_equivalent_variant(serialized, "training_set_variant", stub)
+        equivalent_variant = get_equivalent_variant(
+            serialized, "training_set_variant", stub
+        )
         # TODO add confirmation from user before using equivalent variant
         if equivalent_variant is not None:
             self.variant = equivalent_variant
@@ -2126,6 +2153,7 @@ Resource = Union[
     LabelVariant,
     TrainingSetVariant,
     SourceVariant,
+    SourceVariantProvider,
     Schedule,
     ProviderReference,
     SourceReference,
@@ -2155,7 +2183,11 @@ class ResourceState:
         self.__state = {}
 
     @typechecked
-    def add(self, resource: Resource) -> None:
+    def add(self, resource: Union[Resource]) -> None:
+        original_resource = resource
+        if isinstance(resource, SourceVariantProvider):
+            resource = resource.to_source()
+
         if hasattr(resource, "variant"):
             key = (
                 resource.operation_type().name,
@@ -2170,11 +2202,14 @@ class ResourceState:
                 print(f"Resource {resource.type()} already registered.")
                 return
             raise ResourceRedefinedError(resource)
-        self.__state[key] = resource
+        self.__state[key] = original_resource
         if hasattr(resource, "schedule_obj") and resource.schedule_obj != None:
             my_schedule = resource.schedule_obj
             key = (my_schedule.type(), my_schedule.name)
             self.__state[key] = my_schedule
+
+    def is_empty(self) -> bool:
+        return len(self.__state) == 0
 
     def sorted_list(self) -> List[Resource]:
         resource_order = {
@@ -2252,11 +2287,26 @@ class ResourceState:
                     )
                     resource._get(stub)
                 if resource.operation_type() is OperationType.CREATE:
+                    resource.variant = resource_variant
+                    original_resource = resource
+                    # print("this is the type of og resource:", type(original_resource))
                     if resource.name != "default_user":
                         print(
                             f"Creating {resource.type()} {resource.name}{resource_variant}"
                         )
-                    resource._create(stub)
+
+                    if isinstance(resource, SourceVariantProvider):
+                        # print("mothfucka we got in here")
+                        resource = resource.to_source()
+
+                    created_variant = resource._create(stub)
+                    # print("This was the created_variant: ", created_variant)
+                    if created_variant:
+                        original_resource.variant = created_variant
+                        # print("We've changed the variant to: ", original_resource.variant)
+                        # print(original_resource)
+                        # print(vars(original_resource))
+
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
                     print(f"{resource.name}{resource_variant} already exists.")

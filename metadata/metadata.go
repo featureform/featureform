@@ -504,18 +504,54 @@ func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) bool 
 	thisSerialized := resource.serialized
 	otherVariantSerialized := otherVariant.serialized
 
-	// Now check if the set field is equivalent between the two messages
-	isEquivalentDefinition := proto.Equal(thisSerialized.GetTransformation(), otherVariantSerialized.GetTransformation()) ||
-		proto.Equal(thisSerialized.GetPrimaryData(), otherVariantSerialized.GetPrimaryData())
+	fmt.Println("thisSerialized", thisSerialized.Name, thisSerialized.Variant)
+	fmt.Println("otherVariantSerialized", otherVariantSerialized.Name, otherVariantSerialized.Variant)
+
+	isDefinitionEqual := false
+	switch thisDef := thisSerialized.Definition.(type) {
+	case *pb.SourceVariant_Transformation:
+		if otherDef, ok := otherVariantSerialized.Definition.(*pb.SourceVariant_Transformation); ok {
+			isDefinitionEqual = isProtoDefinitionEqual(thisDef, otherDef)
+		}
+	case *pb.SourceVariant_PrimaryData:
+		if otherDef, ok := otherVariantSerialized.Definition.(*pb.SourceVariant_PrimaryData); ok {
+			isDefinitionEqual = proto.Equal(thisDef.PrimaryData, otherDef.PrimaryData)
+			fmt.Println("isPrimaryDataEqual", isDefinitionEqual)
+		}
+	}
 
 	if thisSerialized.GetName() == otherVariantSerialized.GetName() &&
 		thisSerialized.GetOwner() == otherVariantSerialized.GetOwner() &&
 		thisSerialized.GetProvider() == otherVariantSerialized.GetProvider() &&
-		isEquivalentDefinition {
+		isDefinitionEqual {
 
 		return true
 	}
 	return false
+}
+
+func isProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transformation) bool {
+	isDefinitionEqual := false
+	switch thisDef.Transformation.Type.(type) {
+	case *pb.Transformation_DFTransformation:
+		if otherDef, ok := otherDef.Transformation.Type.(*pb.Transformation_DFTransformation); ok {
+			sourceTextEqual := thisDef.Transformation.GetDFTransformation().SourceText == otherDef.DFTransformation.SourceText
+			fmt.Println("this source", thisDef.Transformation.GetDFTransformation().SourceText)
+			fmt.Println("other source", otherDef.DFTransformation.SourceText)
+			fmt.Println("sourceTextEqual", sourceTextEqual)
+			inputsEqual := lib.EqualProtoContents(thisDef.Transformation.GetDFTransformation().Inputs, otherDef.DFTransformation.Inputs)
+			fmt.Println("inputsEqual", inputsEqual)
+			isDefinitionEqual = sourceTextEqual &&
+				inputsEqual
+		}
+	case *pb.Transformation_SQLTransformation:
+		isDefinitionEqual = proto.Equal(thisDef.Transformation.GetSQLTransformation(), otherDef.Transformation.GetSQLTransformation())
+	}
+	fmt.Println("isDFTransformationEqual", isDefinitionEqual)
+
+	kubernetesArgsEqual := proto.Equal(thisDef.Transformation.GetKubernetesArgs(), otherDef.Transformation.GetKubernetesArgs())
+	fmt.Println("kubernetesArgsEqual", kubernetesArgsEqual)
+	return isDefinitionEqual && kubernetesArgsEqual
 }
 
 func (resource *sourceVariantResource) ToResourceVariantProto() *pb.ResourceVariant {

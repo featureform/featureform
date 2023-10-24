@@ -3,6 +3,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"google.golang.org/protobuf/proto"
 	"net"
 	"reflect"
 	"testing"
@@ -2156,6 +2157,8 @@ func Test_GetEquivalent(t *testing.T) {
 		Properties: Properties{},
 	}
 
+	defaultResourceVariant := &pb.ResourceVariant{}
+
 	resourceDefs := []ResourceDef{userDef, entityDef, onlineDef, offlineDef, sourceDef, featureDef, featureDef2, labelDef, trainingSetDef}
 
 	err := client.CreateAll(context, resourceDefs)
@@ -2165,6 +2168,7 @@ func Test_GetEquivalent(t *testing.T) {
 
 	// sourceDef
 	sourceDef.Description = "Some other description"
+	sourceDef.Variant = "var2"
 	svProto, err := sourceDef.Serialize()
 	if err != nil {
 		t.Fatalf("Failed to serialize source def: %s", err)
@@ -2174,7 +2178,7 @@ func Test_GetEquivalent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
-	if equivalent == nil {
+	if proto.Equal(equivalent, defaultResourceVariant) {
 		t.Fatalf("There was an equivalent but we didn't get one")
 	}
 
@@ -2182,8 +2186,7 @@ func Test_GetEquivalent(t *testing.T) {
 		TransformationType: SQLTransformationType{
 			Query: "SELECT count(*) FROM dummy",
 			Sources: []NameVariant{{
-				Name: "m" +
-					"ockName",
+				Name:    "mockName",
 				Variant: "mockVariant"},
 			},
 		},
@@ -2197,7 +2200,7 @@ func Test_GetEquivalent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
-	if equivalent != nil {
+	if !proto.Equal(equivalent, defaultResourceVariant) {
 		t.Fatalf("There was no equivalent but we got one")
 	}
 
@@ -2212,7 +2215,7 @@ func Test_GetEquivalent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
-	if equivalent == nil {
+	if proto.Equal(equivalent, defaultResourceVariant) {
 		t.Fatalf("There was an equivalent but we didn't get one")
 	}
 
@@ -2227,7 +2230,7 @@ func Test_GetEquivalent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
-	if equivalent == nil {
+	if proto.Equal(equivalent, defaultResourceVariant) {
 		t.Fatalf("There was an equivalent but we didn't get one")
 	}
 
@@ -2239,7 +2242,7 @@ func Test_GetEquivalent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
-	if equivalent == nil {
+	if proto.Equal(equivalent, defaultResourceVariant) {
 		t.Fatalf("There was an equivalent but we didn't get one")
 	}
 
@@ -2253,7 +2256,7 @@ func Test_GetEquivalent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
-	if equivalent == nil {
+	if proto.Equal(equivalent, defaultResourceVariant) {
 		t.Fatalf("there was an equivalent but we didn't get one")
 	}
 
@@ -2264,7 +2267,7 @@ func Test_GetEquivalent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
-	if equivalent != nil {
+	if !proto.Equal(equivalent, defaultResourceVariant) {
 		t.Fatalf("there was no equivalent but we got one")
 	}
 }

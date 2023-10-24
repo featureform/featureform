@@ -1,5 +1,5 @@
 <h1 align="center">
-	<img width="300" src="https://raw.githubusercontent.com/featureform/featureform/main/assets/featureform_logo.png" alt="featureform">
+	<img width="300" src="https://ipfs.io/ipfs/bafybeietjwyldvwyjxpbtr2oj4ksanw7tdljndh4oub7pnzxstdg3ahrr4/featureform_logo.png" alt="featureform">
 	<br>
 </h1>
 
@@ -12,8 +12,6 @@
     <a href="https://www.featureform.com/"><img src="https://img.shields.io/website?url=https%3A%2F%2Fwww.featureform.com%2F?style=for-the-badge&logo=appveyor" alt="Featureform Website"></a>  
     <a href="https://twitter.com/featureformML" target="_blank"><img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social" alt="Twitter"></a>
 
-
-	
 </div>
 
 <div align="center">
@@ -48,9 +46,8 @@ By using Featureform, a data science team can solve the following organizational
 <br />
 <br />
 
-<img src="https://raw.githubusercontent.com/featureform/featureform/main/assets/virtual_arch.png" alt="A virtual feature store's architecture" style="width:50em"/>
+<img src="https://ipfs.io/ipfs/bafybeiffglrbdqkrzdtbjdgsrk4o6zasiejvbbjsyuq4iziu6tracrepca/virtual_arch.png" alt="A virtual feature store's architecture" style="width:50em"/>
 
-<br />
 <br />
 
 # Why is Featureform unique?
@@ -62,7 +59,7 @@ By using Featureform, a data science team can solve the following organizational
 * _A data science team_: Share, re-use, and learn from each other's transformations, features, and training sets. Featureform standardizes how machine learning resources are defined and provides an interface for search and discovery. It also maintains a history of changes, allows for different variants of features, and enforces immutability to resolve the most common cases of failure when sharing resources.
 * _A data science organization_: An enterprise will have a variety of different rules around access control of their data and features. The rules may be based on the data scientist’s role, the model’s category, or dynamically based on a user’s input data (i.e. they are in Europe and subject to GDPR). All of these rules can be specified, and Featureform will enforce them. Data scientists can be sure to comply with the organization’s governance rules without modifying their workflow.
 
-**Native embeddings support** Featureform was built from the ground up with embeddings in mind. It supports vector databases as both inference and training stores. Transformer models can be used as transformations, so that embedding tables can be versioned and reliably regenerated. We even created and open-sourced a popular vector database, Emeddinghub.
+**Native embeddings support** Featureform was built from the ground up with embeddings in mind. It supports vector databases as both inference and training stores. Transformer models can be used as transformations so that embedding tables can be versioned and reliably regenerated. We even created and open-sourced a popular vector database, Emeddinghub.
 
 **Open-source** Featureform is free to use under the [Mozilla Public License 2.0](https://github.com/featureform/featureform/blob/main/LICENSE).
 
@@ -73,9 +70,8 @@ By using Featureform, a data science team can solve the following organizational
 <br />
 <br />
 
-<img src="https://raw.githubusercontent.com/featureform/featureform/main/assets/components.svg" alt="The components of a feature" style="width:50em"/>
+<img src="https://ipfs.io/ipfs/bafybeibcphpomzpi4rrkvenalpm7qokt3mnolmqcnkooi44ppb3zhtnw64/components.svg" alt="The components of a feature" style="width:50em"/>
 
-<br />
 <br />
 
 In reality, the feature’s definition is split across different pieces of infrastructure: the data source, the transformations, the inference store, the training store, and all their underlying data infrastructure. However, a data scientist will think of a feature in its logical form, something like: “a user’s average purchase price”. Featureform allows data scientists to define features in their logical form through transformations, providers, labels, and training set resources. Featureform will then orchestrate the actual underlying components to achieve the data scientists' desired state.
@@ -208,25 +204,16 @@ We can use the feature registry to search, monitor, and discover our machine lea
 <br />
 <br />
 
-<img src="https://raw.githubusercontent.com/featureform/featureform/main/assets/featureform-dash.png" alt="The feature store registry" style="width:50em"/>
+<img src="https://ipfs.io/ipfs/bafybeicuv6ajy3t3qgrigjx4jixgmaxxcm7rotchobwz4lhreh5terotum/featureform-dash.png" alt="The feature store registry" style="width:50em"/>
 
-<br />
 <br />
 
 # Contributing
-
 * To contribute to Featureform, please check out [Contribution docs](https://github.com/featureform/featureform/blob/main/CONTRIBUTING.md).
 * Welcome to our community, join us on [Slack](https://join.slack.com/t/featureform-community/shared_invite/zt-xhqp2m4i-JOCaN1vRN2NDXSVif10aQg).
 
-<br />
-
-
 # Report Issues
-
 Please help us by [reporting any issues](https://github.com/featureform/featureform/issues/new/choose) you may have while using Featureform.
 
-<br />
-
 # License
-
 * [Mozilla Public License Version 2.0](https://github.com/featureform/featureform/blob/main/LICENSE)

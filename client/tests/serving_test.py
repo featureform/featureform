@@ -662,7 +662,10 @@ def test_get_file_format(location, expected_format):
     [
         ("s3://bucket/path/to/file.csv", "s3a://bucket/path/to/file.csv"),
         ("s3a://bucket/path/to/file.csv", "s3a://bucket/path/to/file.csv"),
-        ("s3://bucket/path/to/directory/part-0000.parquet", "s3a://bucket/path/to/directory"),
+        (
+            "s3://bucket/path/to/directory/part-0000.parquet",
+            "s3a://bucket/path/to/directory",
+        ),
         ("s3://bucket/path/to/directory", "s3a://bucket/path/to/directory"),
     ],
 )

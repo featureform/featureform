@@ -377,10 +377,6 @@ def hosted_sql_provider_and_source():
 def spark_session():
     from pyspark.sql import SparkSession
 
-    spark = (
-        SparkSession.builder.appName("test")
-        .master("local")
-        .getOrCreate()
-    )
+    spark = SparkSession.builder.appName("test").master("local").getOrCreate()
     yield spark
     spark.stop()

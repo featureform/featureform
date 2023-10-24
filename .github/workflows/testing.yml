@@ -1181,6 +1181,8 @@ jobs:
           DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+          DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
+          DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
         working-directory: ./
         run: make test_healthchecks
         

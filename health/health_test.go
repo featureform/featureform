@@ -27,7 +27,7 @@ func TestHealth_Check(t *testing.T) {
 
 	err := godotenv.Load("../.env")
 	if err != nil {
-		t.Fatal(err)
+		fmt.Println(err)
 	}
 
 	os.Setenv("TZ", "UTC")
@@ -56,6 +56,20 @@ func TestHealth_Check(t *testing.T) {
 				Type:             string(pt.PostgresOffline),
 				SerializedConfig: config,
 				Software:         "postgres",
+				Tags:             metadata.Tags{},
+				Properties:       metadata.Properties{},
+			},
+		)
+	}
+
+	if *providerType == "spark-databricks-s3" || *providerType == "" {
+		config := initProvider(t, pt.SparkOffline, pc.Databricks, fs.S3)
+		providers = append(providers,
+			metadata.ProviderDef{
+				Name:             "spark-databricks-s3",
+				Type:             string(pt.SparkOffline),
+				SerializedConfig: config,
+				Software:         "spark",
 				Tags:             metadata.Tags{},
 				Properties:       metadata.Properties{},
 			},
@@ -273,8 +287,8 @@ func initProvider(t *testing.T, providerType pt.Type, executorType pc.SparkExecu
 		serializedConfig, _ := initSpark(t, executorType, storeType)
 		return serializedConfig
 	case pt.DynamoDBOnline:
-		key := checkEnv("DYNAMODB_KEY")
-		secret := checkEnv("DYNAMODB_SECRET")
+		key := checkEnv("DYNAMO_ACCESS_KEY")
+		secret := checkEnv("DYNAMO_SECRET_KEY")
 		region := checkEnv("DYNAMODB_REGION")
 
 		dynamodbConfig := pc.DynamodbConfig{
@@ -310,7 +324,7 @@ func testSuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *He
 	if err := client.Create(context.Background(), def); err != nil {
 		t.Fatalf("Failed to create provider: %s", err)
 	}
-	t.Run(string(def.Type)+"_SUCCESS", func(t *testing.T) {
+	t.Run(string(def.Name), func(t *testing.T) {
 		isHealthy, err := health.CheckProvider(def.Name)
 		if err != nil {
 			t.Fatalf("Failed to check provider health: %s", err)
@@ -364,8 +378,24 @@ func testUnsuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *
 				ClusterName:   "invalid",
 			}
 		}
+		switch failureConfig.StoreType {
+		case fs.Azure:
+			failureConfig.StoreConfig = &pc.AzureFileStoreConfig{
+				AccountName:   "invalid",
+				AccountKey:    "invalid",
+				ContainerName: "invalid",
+				Path:          "invalid",
+			}
+		case fs.S3:
+			failureConfig.StoreConfig = &pc.S3FileStoreConfig{
+				Credentials:  pc.AWSCredentials{},
+				BucketRegion: "invalid",
+				BucketPath:   "invalid",
+				Path:         "invalid",
+			}
+		}
 		def.SerializedConfig, _ = failureConfig.Serialize()
-		def.Name = "spark-failure"
+		def.Name += "-failure"
 	case pt.DynamoDBOnline:
 		failureConfig := pc.DynamodbConfig{}
 		if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {
@@ -388,7 +418,7 @@ func testUnsuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *
 	if err := client.Create(context.Background(), def); err != nil {
 		t.Fatalf("Failed to create provider: %s", err)
 	}
-	t.Run(string(def.Type)+"_FAILURE", func(t *testing.T) {
+	t.Run(string(def.Name), func(t *testing.T) {
 		isHealthy, err := health.CheckProvider(def.Name)
 		if err == nil {
 			t.Fatalf("(%s) Expected error but received none", def.Type)

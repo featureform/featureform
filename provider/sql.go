@@ -172,7 +172,10 @@ func (store *sqlOfflineStore) Close() error {
 
 func (store *sqlOfflineStore) CheckHealth() (bool, error) {
 	err := store.db.Ping()
-	return err == nil, err
+	if err != nil {
+		return false, NewProviderError(Connection, store.Type(), Ping, err.Error())
+	}
+	return true, nil
 }
 
 func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {

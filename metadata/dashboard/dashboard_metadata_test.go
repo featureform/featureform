@@ -148,7 +148,7 @@ func TestGetSourceDataReturnsData(t *testing.T) {
 	iterator := provider.UnitTestIterator{}
 	var data SourceDataResponse
 	rowValues := []string{"row value", "row value"}
-	expectedRows := [][]string{rowValues}
+	expectedRows := [][]string{rowValues, rowValues}
 
 	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
 	assert.Equal(t, http.StatusOK, mockRecorder.Code)

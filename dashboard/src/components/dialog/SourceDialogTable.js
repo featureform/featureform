@@ -79,7 +79,7 @@ export default function SourceDialogTable({
               <TableRow>
                 {stats.map((statObj, index) => (
                   <TableCell key={index} align={'right'}>
-                    {statObj.type !== 'string' ? (
+                    {['numeric', 'boolean'].includes(statObj.type) ? (
                       <Barchart
                         categories={statObj.categories}
                         categoryCounts={statObj.categoryCounts}

@@ -23,6 +23,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	slices "golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -1024,9 +1025,17 @@ func (m *MetadataServer) GetVersionMap(c *gin.Context) {
 	c.JSON(200, versionMap)
 }
 
+type ColumnStat struct {
+	Name           string   `json:"name"`
+	Type           string   `json:"type"`
+	Categories     []string `json:"categories"`
+	CategoryCounts []int    `json:"categoryCounts"`
+}
+
 type SourceDataResponse struct {
-	Columns []string   `json:"columns"`
-	Rows    [][]string `json:"rows"`
+	Columns []string     `json:"columns"`
+	Rows    [][]string   `json:"rows"`
+	Stats   []ColumnStat `json:"stats"`
 }
 
 func (m *MetadataServer) GetSourceData(c *gin.Context) {
@@ -1047,9 +1056,9 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
-	for _, columnName := range iter.Columns() {
-		response.Columns = append(response.Columns, strings.ReplaceAll(columnName, "\"", ""))
-	}
+
+	setTypes := false
+	typeRow := []string{}
 
 	for iter.Next() {
 		sRow, err := serving.SerializedSourceRow(iter.Values())
@@ -1061,9 +1070,49 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		}
 		dataRow := []string{}
 		for _, rowElement := range sRow.Rows {
-			dataRow = append(dataRow, extractRowValue(rowElement))
+			dataRow = append(dataRow, extractElementValue(rowElement))
+			if !setTypes {
+				typeRow = append(typeRow, extractElementType(rowElement))
+			}
 		}
 		response.Rows = append(response.Rows, dataRow)
+		//completed pulling the row types
+		setTypes = true
+	}
+
+	print("\n\n********************************************\n")
+	println("WHAT ARE MY TYPES?")
+	println(typeRow)
+	for _, tr := range typeRow {
+		print(tr + ", ")
+	}
+	print("\n********************************************\n\n")
+
+	numericTypes := []string{"int_value", "float_value", "int64_value", "int32_value", "double_value"}
+	booleanTypes := []string{"bool_value"}
+
+	for i, columnName := range iter.Columns() {
+		cleanName := strings.ReplaceAll(columnName, "\"", "")
+		response.Columns = append(response.Columns, cleanName)
+
+		// create the corresponding stats object
+		columnStats := ColumnStat{}
+		columnStats.Name = cleanName
+		columnType := ""
+		if slices.Contains(numericTypes, typeRow[i]) {
+			columnType = "numeric"
+		} else if slices.Contains(booleanTypes, typeRow[i]) {
+			columnType = "boolean"
+		} else {
+			columnType = "string"
+		}
+
+		columnStats.Type = columnType
+		// todox: categories + categoryCounts to be supplied by pySpark.query(columnName) invoke
+		columnStats.Categories = []string{"a", "b", "c", "d"}
+		columnStats.CategoryCounts = []int{10, 3, 4, 2, 8}
+
+		response.Stats = append(response.Stats, columnStats)
 	}
 
 	if err := iter.Err(); err != nil {
@@ -1080,9 +1129,15 @@ example proto.value args:
 double_value:2544
 str_value:"C7332112"
 */
-func extractRowValue(rowString *proto.Value) string {
+func extractElementValue(rowString *proto.Value) string {
 	split := strings.Split(rowString.String(), ":")
 	result := strings.ReplaceAll(split[1], "\"", "")
+	return result
+}
+
+func extractElementType(rowString *proto.Value) string {
+	split := strings.Split(rowString.String(), ":")
+	result := strings.ReplaceAll(split[0], "\"", "")
 	return result
 }
 

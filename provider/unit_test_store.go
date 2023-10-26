@@ -125,7 +125,7 @@ func (u *UnitTestIterator) Values() GenericRecord {
 }
 
 func (UnitTestIterator) Columns() []string {
-	return []string{"column1, column2"}
+	return []string{"column1", "column2"}
 }
 
 func (UnitTestIterator) Err() error {

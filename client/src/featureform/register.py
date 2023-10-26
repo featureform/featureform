@@ -1176,7 +1176,7 @@ class SQLTransformationDecorator(SourceVariantProvider):
     @staticmethod
     def _assert_query_contains_at_least_one_source(query):
         # Checks to verify that the query contains a FROM {{ name.variant }}
-        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)?\s*\}\}"
+        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_:.]+(\.[a-zA-Z0-9_:.]+)?\s*\}\}"
         match = re.search(pattern, query, re.IGNORECASE)
         if match is None:
             raise InvalidSQLQuery(query, "No source specified.")
@@ -1304,7 +1304,7 @@ class ColumnSourceRegistrar(SourceRegistrar):
             raise Exception(
                 f"Found unrecognized columns {', '.join(columns[3:])}. Expected 2 required columns and an optional 3rd timestamp column"
             )
-        return (self.registrar(), self.id(), columns)
+        return (self.registrar(), self, columns)
 
     def register_resources(
         self,
@@ -1462,10 +1462,10 @@ class ColumnResource:
         properties: Dict[str, str],
         variant: str = "",
     ):
-        registrar, source_name_variant, columns = transformation_args
+        registrar, source, columns = transformation_args
         self.type = type if isinstance(type, str) else type.value
         self.registrar = registrar
-        self.source = source_name_variant
+        self.source = source
         self.entity_column = columns[0]
         self.source_column = columns[1]
         self.resource_type = resource_type
@@ -3906,8 +3906,9 @@ class Registrar:
             labels = []
         if len(features) == 0 and len(labels) == 0:
             raise ValueError("No features or labels set")
-        if not isinstance(source, tuple):
-            source = source.id()
+        # if not isinstance(source, tuple):
+        #     print('WE SHOULD BE HERE')
+        #     source = source.id()
         if isinstance(source, tuple) and source[1] == "":
             source = source[0], self.__run
         if not isinstance(entity, str):

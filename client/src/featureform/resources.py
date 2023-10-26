@@ -8,7 +8,7 @@ import os
 import sys
 import time
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Union, Optional
+from typing import List, Tuple, Union, Optional, Any
 
 import dill
 import grpc
@@ -985,7 +985,7 @@ class SQLTransformation(Transformation):
 #
 # i.e. for a source variant, looks for a source variant with the same name and definition
 def get_and_set_equivalent_variant(
-    resource_variant_proto, variant_field, stub
+    resource_obj, resource_variant_proto, variant_field, stub
 ) -> Optional[str]:
     if os.getenv("FF_GET_EQUIVALENT_VARIANTS"):
         # Get equivalent from stub
@@ -1002,6 +1002,7 @@ def get_and_set_equivalent_variant(
             )
             # TODO add confirmation from user before using equivalent variant
             resource_variant_proto.variant = variant_value
+            resource_obj.variant = variant_value
             return variant_value
     return None
 
@@ -1157,7 +1158,7 @@ class SourceVariant:
             properties=Properties(self.properties).serialized,
             **defArgs,
         )
-        get_and_set_equivalent_variant(serialized, "source_variant", stub)
+        get_and_set_equivalent_variant(self, serialized, "source_variant", stub)
         stub.CreateSourceVariant(serialized)
         return serialized.variant
 
@@ -1353,7 +1354,7 @@ class Feature:
 @dataclass
 class FeatureVariant:
     name: str
-    source: NameVariant
+    source: Any
     value_type: str
     entity: str
     owner: str
@@ -1419,6 +1420,9 @@ class FeatureVariant:
         )
 
     def _create(self, stub) -> Optional[str]:
+        if not isinstance(self.source, tuple):
+            print('WE SHOULD BE HERE')
+            self.source = self.source.id()
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
@@ -1439,7 +1443,7 @@ class FeatureVariant:
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
-        get_and_set_equivalent_variant(serialized, "feature_variant", stub)
+        get_and_set_equivalent_variant(self, serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
         return serialized.variant
 
@@ -1557,7 +1561,7 @@ class OnDemandFeatureVariant:
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
         )
-        get_and_set_equivalent_variant(serialized, "feature_variant", stub)
+        get_and_set_equivalent_variant(self, serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
         return serialized.variant
 
@@ -1709,6 +1713,9 @@ class LabelVariant:
         )
 
     def _create(self, stub) -> Optional[str]:
+        if not isinstance(self.source, tuple):
+            print('WE SHOULD BE HERE')
+            self.source = self.source.id()
         serialized = pb.LabelVariant(
             name=self.name,
             variant=self.variant,
@@ -1724,7 +1731,7 @@ class LabelVariant:
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
-        get_and_set_equivalent_variant(serialized, "label_variant", stub)
+        get_and_set_equivalent_variant(self, serialized, "label_variant", stub)
         stub.CreateLabelVariant(serialized)
         return serialized.variant
 
@@ -1975,7 +1982,7 @@ class TrainingSetVariant:
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
-        get_and_set_equivalent_variant(serialized, "training_set_variant", stub)
+        get_and_set_equivalent_variant(self, serialized, "training_set_variant", stub)
         stub.CreateTrainingSetVariant(serialized)
         return serialized.variant
 

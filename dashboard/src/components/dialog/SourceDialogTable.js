@@ -12,9 +12,9 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import UniqueValues from 'components/charts/UniqueValues';
 import * as React from 'react';
 import Barchart from '../../components/charts/Barchart';
+import UniqueValues from '../../components/charts/UniqueValues';
 
 export default function SourceDialogTable({
   stats = [],

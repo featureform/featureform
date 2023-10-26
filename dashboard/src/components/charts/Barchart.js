@@ -1,22 +1,14 @@
 import { Chart } from 'chart.js';
 import * as React from 'react';
 
-export default function Barchart({
-  categories = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
-  categoryCounts = [20, 5, 7, 10, 15, 20, 25, 26, 27],
-}) {
-  categoryCounts;
-  let dataList = [];
-  for (let i = 0; i < categories.length; i++) {
-    dataList[i] = Math.floor(Math.random() * 25 + 1);
-  }
+export default function Barchart({ categories = [], categoryCounts = [] }) {
   React.useEffect(async () => {
     if (chartRef) {
       const data = {
         labels: categories,
         datasets: [
           {
-            data: dataList,
+            data: categoryCounts,
             borderWidth: 0,
             barPercentage: 0.8,
           },

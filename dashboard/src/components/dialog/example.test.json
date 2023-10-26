@@ -1,4 +1,44 @@
 {
+  "stats": [
+    {
+      "name": "transactionid",
+      "type": "string"
+    },
+    {
+      "name": "customerid",
+      "type": "string"
+    },
+    {
+      "name": "customerdob",
+      "type": "string"
+    },
+    {
+      "name": "custlocation",
+      "type": "string"
+    },
+    {
+      "name": "custaccountbalance",
+      "type": "numeric",
+      "categories": ["a", "b", "c", "d", "e", "f", "g", "h", "i"],
+      "categoryCounts": [20, 5, 7, 10, 15, 20, 25, 26, 27]
+    },
+    {
+      "name": "transactionamount",
+      "type": "numeric",
+      "categories": ["a", "b", "c", "d", "e", "f", "g", "h", "i"],
+      "categoryCounts": [20, 5, 7, 10, 15, 20, 25, 26, 27]
+    },
+    {
+      "name": "timestamp",
+      "type": "string"
+    },
+    {
+      "name": "isfraud",
+      "type": "boolean",
+      "categories": ["true", "false"],
+      "categoryCounts": [10, 5]
+    }
+  ],
   "columns": [
     "transactionid",
     "customerid",

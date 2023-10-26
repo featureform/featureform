@@ -10,13 +10,13 @@ import dummyjson from '../dialog/example.test.json';
 import SourceDialogTable from './SourceDialogTable';
 
 export default function ChartDialog({
-  api,
-  sourceName = 'Charts',
-  sourceVariant = 'Prototype',
+  sourceName = 'FILL',
+  sourceVariant = 'UP',
 }) {
   const [open, setOpen] = React.useState(false);
   const [columns, setColumns] = React.useState([]);
   const [rowList, setRowList] = React.useState([]);
+  const [stats, setStats] = React.useState([]);
   const [error, setError] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -24,9 +24,10 @@ export default function ChartDialog({
     if (open) {
       setIsLoading(true);
       let response = dummyjson;
-      if (response?.columns && response?.rows) {
+      if (response?.columns && response?.rows && response?.stats) {
         setColumns(response.columns);
         setRowList(response.rows);
+        setStats(response.stats);
       } else {
         setError(response);
       }
@@ -76,7 +77,7 @@ export default function ChartDialog({
             </Box>
           ) : error === '' ? (
             <SourceDialogTable
-              stats={[{}, {}]} //todox: populate this
+              stats={stats} //todox: populate this
               columns={columns}
               rowList={rowList}
             />

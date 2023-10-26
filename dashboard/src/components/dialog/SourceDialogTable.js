@@ -21,6 +21,7 @@ export default function SourceDialogTable({
   columns = [],
   rowList = [],
 }) {
+  console.log(stats);
   const textEllipsis = {
     whiteSpace: 'nowrap',
     maxWidth: columns.length > 1 ? '230px' : '500px',
@@ -76,9 +77,16 @@ export default function SourceDialogTable({
             </TableRow>
             {stats.length ? (
               <TableRow>
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((cell, index) => (
+                {stats.map((statObj, index) => (
                   <TableCell key={index} align={'right'}>
-                    {index <= 3 ? <UniqueValues /> : <Barchart />}
+                    {statObj.type !== 'string' ? (
+                      <Barchart
+                        categories={statObj.categories}
+                        categoryCounts={statObj.categoryCounts}
+                      />
+                    ) : (
+                      <UniqueValues />
+                    )}
                   </TableCell>
                 ))}
               </TableRow>

@@ -1142,7 +1142,7 @@ class SourceVariant:
         else:
             raise Exception(f"Invalid transformation type {source}")
 
-    def _create(self, stub) -> str:
+    def _create(self, stub) -> Optional[str]:
         defArgs = self.definition.kwargs()
 
         serialized = pb.SourceVariant(
@@ -1418,7 +1418,7 @@ class FeatureVariant:
             error=feature.status.error_message,
         )
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> Optional[str]:
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
@@ -1545,7 +1545,7 @@ class OnDemandFeatureVariant:
     def type() -> str:
         return "ondemand_feature"
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> Optional[str]:
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
@@ -1557,14 +1557,9 @@ class OnDemandFeatureVariant:
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
         )
-        equivalent_variant = get_and_set_equivalent_variant(
-            serialized, "feature_variant", stub
-        )
-        # TODO add confirmation from user before using equivalent variant
-        if equivalent_variant is not None:
-            self.variant = equivalent_variant
-            serialized.variant = equivalent_variant
+        get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
+        return serialized.variant
 
     def _create_local(self, db) -> None:
         decode_query = base64.b64encode(self.query).decode("ascii")
@@ -1713,7 +1708,7 @@ class LabelVariant:
             error=label.status.error_message,
         )
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> Optional[str]:
         serialized = pb.LabelVariant(
             name=self.name,
             variant=self.variant,
@@ -1954,7 +1949,7 @@ class TrainingSetVariant:
             error=ts.status.error_message,
         )
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> Optional[str]:
         feature_lags = []
         for lag in self.feature_lags:
             lag_duration = Duration()

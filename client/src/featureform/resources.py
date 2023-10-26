@@ -981,23 +981,28 @@ class SQLTransformation(Transformation):
 
 
 # Looks to see if there is an existing resource variant that matches on a resources key fields
+# and sets the serialized to it.
+#
 # i.e. for a source variant, looks for a source variant with the same name and definition
-def get_equivalent_variant(
+def get_and_set_equivalent_variant(
     resource_variant_proto, variant_field, stub
 ) -> Optional[str]:
-    # Get equivalent from stub
-    equivalent = stub.GetEquivalent(
-        pb.ResourceVariant(**{variant_field: resource_variant_proto})
-    )
-
-    # grpc call returns the default ResourceVariant proto when it doesn't exist which explains the below check
-    if equivalent != pb.ResourceVariant():
-        variant_value = getattr(getattr(equivalent, variant_field), "variant")
-        print(
-            f"Looks like an equivalent {variant_field.replace('_', ' ')} already exists, going to use its variant: ",
-            variant_value,
+    if os.getenv("FF_GET_EQUIVALENT_VARIANTS"):
+        # Get equivalent from stub
+        equivalent = stub.GetEquivalent(
+            pb.ResourceVariant(**{variant_field: resource_variant_proto})
         )
-        return variant_value
+
+        # grpc call returns the default ResourceVariant proto when equivalent doesn't exist which explains the below check
+        if equivalent != pb.ResourceVariant():
+            variant_value = getattr(getattr(equivalent, variant_field), "variant")
+            print(
+                f"Looks like an equivalent {variant_field.replace('_', ' ')} already exists, going to use its variant: ",
+                variant_value,
+            )
+            # TODO add confirmation from user before using equivalent variant
+            resource_variant_proto.variant = variant_value
+            return variant_value
     return None
 
 
@@ -1152,14 +1157,9 @@ class SourceVariant:
             properties=Properties(self.properties).serialized,
             **defArgs,
         )
-        equivalent_variant = get_equivalent_variant(serialized, "source_variant", stub)
-        # TODO add confirmation from user before using equivalent variant
-        if equivalent_variant is not None:
-            self.variant = equivalent_variant
-            serialized.variant = equivalent_variant
-            # print("we just set the self variant", self.variant)
+        get_and_set_equivalent_variant(serialized, "source_variant", stub)
         stub.CreateSourceVariant(serialized)
-        return self.variant
+        return serialized.variant
 
     def _create_local(self, db) -> None:
         should_insert_text = False
@@ -1238,11 +1238,17 @@ class SourceVariant:
 
 
 class SourceVariantProvider(ABC):
+    """
+    Delegate for SourceVariants for use on Transformation Decorators
+    """
     @abstractmethod
     def to_source(self) -> SourceVariant:
         pass
 
     def __getattr__(self, name: str):
+        """
+        This allows one to use a SourceVariantProvider the same way a cls:SourceVariant is used
+        """
         source_variant = self.to_source()
 
         if hasattr(source_variant, name):
@@ -1432,12 +1438,9 @@ class FeatureVariant:
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
-        equivalent_variant = get_equivalent_variant(serialized, "feature_variant", stub)
-        # TODO add confirmation from user before using equivalent variant
-        if equivalent_variant is not None:
-            self.variant = equivalent_variant
-            serialized.variant = equivalent_variant
+        get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
+        return serialized.variant
 
     def _create_local(self, db) -> None:
         db.insert(
@@ -1553,7 +1556,7 @@ class OnDemandFeatureVariant:
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
         )
-        equivalent_variant = get_equivalent_variant(serialized, "feature_variant", stub)
+        equivalent_variant = get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         # TODO add confirmation from user before using equivalent variant
         if equivalent_variant is not None:
             self.variant = equivalent_variant
@@ -1723,12 +1726,9 @@ class LabelVariant:
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
-        equivalent_variant = get_equivalent_variant(serialized, "label_variant", stub)
-        # TODO add confirmation from user before using equivalent variant
-        if equivalent_variant is not None:
-            self.variant = equivalent_variant
-            serialized.variant = equivalent_variant
+        get_and_set_equivalent_variant(serialized, "label_variant", stub)
         stub.CreateLabelVariant(serialized)
+        return serialized.variant
 
     def _create_local(self, db) -> None:
         db.insert(
@@ -1977,14 +1977,9 @@ class TrainingSetVariant:
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
         )
-        equivalent_variant = get_equivalent_variant(
-            serialized, "training_set_variant", stub
-        )
-        # TODO add confirmation from user before using equivalent variant
-        if equivalent_variant is not None:
-            self.variant = equivalent_variant
-            serialized.variant = equivalent_variant
+        get_and_set_equivalent_variant(serialized, "training_set_variant", stub)
         stub.CreateTrainingSetVariant(serialized)
+        return serialized.variant
 
     def _create_local(self, db) -> None:
         self._check_insert_training_set_resources(db)
@@ -2287,25 +2282,14 @@ class ResourceState:
                     )
                     resource._get(stub)
                 if resource.operation_type() is OperationType.CREATE:
-                    resource.variant = resource_variant
-                    original_resource = resource
-                    # print("this is the type of og resource:", type(original_resource))
                     if resource.name != "default_user":
                         print(
                             f"Creating {resource.type()} {resource.name}{resource_variant}"
                         )
 
-                    if isinstance(resource, SourceVariantProvider):
-                        # print("mothfucka we got in here")
-                        resource = resource.to_source()
-
                     created_variant = resource._create(stub)
-                    # print("This was the created_variant: ", created_variant)
-                    if created_variant:
-                        original_resource.variant = created_variant
-                        # print("We've changed the variant to: ", original_resource.variant)
-                        # print(original_resource)
-                        # print(vars(original_resource))
+                    if created_variant != resource.variant:
+                        resource.variant = created_variant
 
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:

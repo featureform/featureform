@@ -3,13 +3,12 @@ import time
 from typing import Type, Tuple, List
 
 from dataclasses import dataclass
-from featureform.proto.metadata_pb2_grpc import ApiStub
-
 from rich.console import Console
 from rich.live import Live
 from rich.table import Table
 from rich.text import Text
 
+from featureform.proto.metadata_pb2_grpc import ApiStub
 from featureform.resources import (
     Resource,
     Provider,
@@ -17,7 +16,8 @@ from featureform.resources import (
     OnDemandFeatureVariant,
     TrainingSetVariant,
     LabelVariant,
-    SourceVariant, SourceVariantProvider,
+    SourceVariant,
+    SourceVariantProvider,
 )
 
 # maximum number of dots printing when featureform apply for Running...
@@ -81,8 +81,11 @@ class StatusDisplayer:
     def __init__(self, stub: ApiStub, resources: List[Resource], verbose=False):
         self.verbose = verbose
         filtered_resources = filter(
-            lambda r: any(isinstance(r, resource_type) for resource_type in self.RESOURCE_TYPES_TO_CHECK),
-            resources
+            lambda r: any(
+                isinstance(r, resource_type)
+                for resource_type in self.RESOURCE_TYPES_TO_CHECK
+            ),
+            resources,
         )
         self.stub = stub
 

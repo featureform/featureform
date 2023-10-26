@@ -1,6 +1,6 @@
 import sys
 import time
-from typing import Type, Tuple, List
+from typing import Tuple, List
 
 from dataclasses import dataclass
 from rich.console import Console
@@ -31,7 +31,7 @@ def display_statuses(stub: ApiStub, resources: List[Resource], verbose=False):
 
 @dataclass
 class DisplayStatus:
-    resource_type: Type
+    resource_type: str
     name: str
     variant: str
     status: str = "NO_STATUS"
@@ -50,7 +50,7 @@ class DisplayStatus:
     def from_resource(resource: Resource):
         variant = getattr(resource, "variant", "")
         return DisplayStatus(
-            resource_type=type(resource),
+            resource_type=resource.type(),
             name=resource.name,
             variant=variant,
             status=resource.status,
@@ -159,11 +159,11 @@ class StatusDisplayer:
                         error = f" {status.error}" if status.error else ""
                         if status.name == "local-mode":
                             continue
-                        resource_type = status.resource_type.__name__
+                        resource_type = status.resource_type
                         name = status.name
                         status_text = (
                             status.status
-                            if status.resource_type is not Provider
+                            if status.resource_type is not Provider.type()
                             else "CREATED"
                         )
 

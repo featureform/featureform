@@ -1241,6 +1241,7 @@ class SourceVariantProvider(ABC):
     """
     Delegate for SourceVariants for use on Transformation Decorators
     """
+
     @abstractmethod
     def to_source(self) -> SourceVariant:
         pass
@@ -1556,7 +1557,9 @@ class OnDemandFeatureVariant:
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
         )
-        equivalent_variant = get_and_set_equivalent_variant(serialized, "feature_variant", stub)
+        equivalent_variant = get_and_set_equivalent_variant(
+            serialized, "feature_variant", stub
+        )
         # TODO add confirmation from user before using equivalent variant
         if equivalent_variant is not None:
             self.variant = equivalent_variant
@@ -2270,30 +2273,24 @@ class ResourceState:
                     f"Inference store must be provided for feature {resource.name} ({resource.variant})"
                 )
             try:
-                # NOTE: There is an extra space before the variant name to better handle the case
-                # where a resource has no variant; ultimately, we should separate data access and
-                # logging/CLI output to avoid this unnecessary coupling.
-                resource_variant = (
-                    f" {resource.variant}" if hasattr(resource, "variant") else ""
-                )
+                resource_variant = getattr(resource, "variant", "")
+                rv_for_print = f" {resource_variant}" if resource_variant else ""
                 if resource.operation_type() is OperationType.GET:
-                    print(
-                        f"Getting {resource.type()} {resource.name}{resource_variant}"
-                    )
+                    print(f"Getting {resource.type()} {resource.name}{rv_for_print}")
                     resource._get(stub)
                 if resource.operation_type() is OperationType.CREATE:
                     if resource.name != "default_user":
                         print(
-                            f"Creating {resource.type()} {resource.name}{resource_variant}"
+                            f"Creating {resource.type()} {resource.name}{rv_for_print}"
                         )
 
                     created_variant = resource._create(stub)
-                    if created_variant != resource.variant:
+                    if resource_variant and created_variant != resource_variant:
                         resource.variant = created_variant
 
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
-                    print(f"{resource.name}{resource_variant} already exists.")
+                    print(f"{resource.name}{rv_for_print} already exists.")
                     continue
 
                 raise e

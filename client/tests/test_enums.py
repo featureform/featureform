@@ -24,6 +24,7 @@ def test_validate_file_scheme(store_type, file_path):
             == f"File path '{file_path}' must be a full path. Must start with '{FilePrefix[store_type].prefixes}'"
         )
 
+
 @pytest.mark.parametrize(
     "location, expected_format",
     [

@@ -22,6 +22,7 @@ import sql from 'react-syntax-highlighter/dist/cjs/languages/prism/sql';
 import { okaidia } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import { format } from 'sql-formatter';
 import Resource from '../../api/resources/Resource.js';
+import ChartDialog from '../../components/dialog/ChartDialog.js';
 import theme from '../../styles/theme/index.js';
 import SourceDialog from '../dialog/SourceDialog';
 import { VariantTable } from '../resource-list/ResourceListView.js';
@@ -612,7 +613,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                       </div>
                     ) : null}
 
-                    {metadata['definition'] && (
+                    {metadata['definition'] ? (
                       <div>
                         {(() => {
                           if (
@@ -651,6 +652,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                         })()}
                         {(() => {
                           if (
+                            type === 'Source' &&
                             metadata['status']?.toUpperCase() !== 'FAILED' &&
                             metadata['status']?.toUpperCase() !== 'PENDING'
                           ) {
@@ -664,6 +666,28 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                           }
                         })()}
                       </div>
+                    ) : (
+                      (() => {
+                        {
+                          console.log(metadata);
+                          console.log(type);
+                        }
+
+                        if (
+                          type === 'Feature' &&
+                          metadata['source'] &&
+                          metadata['status']?.toUpperCase() !== 'FAILED' &&
+                          metadata['status']?.toUpperCase() !== 'PENDING'
+                        ) {
+                          return (
+                            // todox: replace with standard SourceDialog
+                            <ChartDialog
+                              sourceName={metadata['source'].Name}
+                              sourceVariant={metadata['source'].Variant}
+                            />
+                          );
+                        }
+                      })()
                     )}
                   </Grid>
 

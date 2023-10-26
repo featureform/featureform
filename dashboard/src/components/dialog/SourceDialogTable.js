@@ -12,9 +12,15 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import UniqueValues from 'components/charts/UniqueValues';
 import * as React from 'react';
+import Barchart from '../../components/charts/Barchart';
 
-export default function SourceDialogTable({ columns = [], rowList = [] }) {
+export default function SourceDialogTable({
+  stats = [],
+  columns = [],
+  rowList = [],
+}) {
   const textEllipsis = {
     whiteSpace: 'nowrap',
     maxWidth: columns.length > 1 ? '230px' : '500px',
@@ -43,7 +49,7 @@ export default function SourceDialogTable({ columns = [], rowList = [] }) {
   }
 
   return (
-    <div>
+    <>
       <Snackbar
         open={open}
         autoHideDuration={1250}
@@ -68,6 +74,15 @@ export default function SourceDialogTable({ columns = [], rowList = [] }) {
                 </TableCell>
               ))}
             </TableRow>
+            {stats.length ? (
+              <TableRow>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((cell, index) => (
+                  <TableCell key={index} align={'right'}>
+                    {index <= 3 ? <UniqueValues /> : <Barchart />}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ) : null}
           </TableHead>
           <TableBody>
             {rowList.map((currentRow, index) => (
@@ -98,6 +113,6 @@ export default function SourceDialogTable({ columns = [], rowList = [] }) {
           </TableBody>
         </Table>
       </TableContainer>
-    </div>
+    </>
   );
 }

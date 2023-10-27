@@ -18,12 +18,12 @@ export default function Barchart({ categories = [], categoryCounts = [] }) {
         type: 'bar',
         data: data,
         options: {
+          responsive: true,
           legend: {
             display: false,
           },
           scales: {
             yAxes: [{ ticks: { beginAtZero: true, display: false } }],
-            // xAxes: [{ ticks: { display: false } }],
           },
         },
       });

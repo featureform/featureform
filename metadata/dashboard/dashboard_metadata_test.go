@@ -154,6 +154,12 @@ func TestGetSourceDataReturnsData(t *testing.T) {
 	assert.Equal(t, http.StatusOK, mockRecorder.Code)
 	assert.Equal(t, iterator.Columns(), data.Columns)
 	assert.Equal(t, expectedRows, data.Rows)
+
+	assert.Len(t, data.Stats, len(data.Columns), "Stats and columns must always match lengths.")
+	assert.Equal(t, "column1", data.Stats[0].Name)
+	assert.Equal(t, "column2", data.Stats[1].Name)
+	assert.Equal(t, "string", data.Stats[0].Type)
+	assert.Equal(t, "string", data.Stats[1].Type)
 }
 
 func TestGetSourceMissingNameOrVariantParamErrors(t *testing.T) {

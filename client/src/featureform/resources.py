@@ -1005,7 +1005,8 @@ def get_and_set_equivalent_variant(
             )
             # TODO add confirmation from user before using equivalent variant
             resource_variant_proto.variant = variant_value
-            resource_obj.variant = variant_value
+            if not isinstance(resource_obj, FeatureVariant) and not isinstance(resource_obj, LabelVariant):
+                resource_obj.variant = variant_value
             return variant_value
     return None
 

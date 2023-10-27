@@ -1039,7 +1039,6 @@ func (resource *trainingSetVariantResource) IsEquivalent(other ResourceVariant) 
 	/**
 	Key Fields for a TrainingSetVariant are
 	- Name
-	- Provider
 	- Labels
 	- Features
 	- Lag Features
@@ -1058,7 +1057,6 @@ func (resource *trainingSetVariantResource) IsEquivalent(other ResourceVariant) 
 	equivalentLagFeatures := lib.EqualProtoContents(thisProto.GetFeatureLags(), otherProto.GetFeatureLags())
 
 	if thisProto.GetName() == otherProto.GetName() &&
-		thisProto.GetProvider() == otherProto.GetProvider() &&
 		equivalentLabals &&
 		equivalentFeatures &&
 		equivalentLagFeatures &&

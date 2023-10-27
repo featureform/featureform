@@ -2286,7 +2286,6 @@ class ResourceState:
         return
 
     def create_all(self, stub, client_objs_for_resoruce: dict = None) -> None:
-        print(client_objs_for_resoruce.items())
         check_up_to_date(False, "register")
         for resource in self.sorted_list():
             if resource.type() == "provider" and resource.name == "local-mode":
@@ -2310,9 +2309,7 @@ class ResourceState:
                     created_variant = resource._create(stub)
 
                     if isinstance(resource, FeatureVariant) or isinstance(resource, LabelVariant):
-                        # print('we here')
                         client_obj = client_objs_for_resoruce.get(resource, None)
-                        # print('client_obj', client_obj)
                         if client_obj:
                             client_obj.variant = created_variant
 

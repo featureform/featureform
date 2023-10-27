@@ -1643,7 +1643,7 @@ class LabelColumnResource(ColumnResource):
             variant (str): An optional variant name for the label.
             type (Union[ScalarType, str]): The type of the value in for the label.
         """
-        self.variant = variant
+        # self.variant = variant
         super().__init__(
             transformation_args=transformation_args,
             type=type,
@@ -3953,7 +3953,6 @@ class Registrar:
             desc = feature.get("description", "")
             feature_tags = feature.get("tags", [])
             feature_properties = feature.get("properties", {})
-            print('this is the variant', variant)
             resource = FeatureVariant(
                 created=None,
                 name=feature["name"],
@@ -3994,7 +3993,6 @@ class Registrar:
             desc = label.get("description", "")
             label_tags = label.get("tags", [])
             label_properties = label.get("properties", {})
-            print('this is the variant', variant)
             resource = LabelVariant(
                 name=label["name"],
                 variant=variant,
@@ -4021,8 +4019,8 @@ class Registrar:
         feature_nv_list = []
         feature_lags = []
         for feature in features:
-            if isinstance(feature, FeatureColumnResource):
-                feature_nv_list.append(feature)
+            # if isinstance(feature, FeatureColumnResource):
+            #     feature_nv_list.append(feature)
             if isinstance(feature, str):
                 feature_nv_list.append((feature, run))  # git rid of this´
             elif isinstance(feature, dict):

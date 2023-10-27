@@ -2,6 +2,7 @@ import { Chart } from 'chart.js';
 import * as React from 'react';
 
 export default function Barchart({ categories = [], categoryCounts = [] }) {
+  const chartRef = React.useRef(null);
   React.useEffect(async () => {
     if (chartRef) {
       const data = {
@@ -10,7 +11,7 @@ export default function Barchart({ categories = [], categoryCounts = [] }) {
           {
             data: categoryCounts,
             borderWidth: 0,
-            barPercentage: 0.8,
+            barPercentage: 1.3,
           },
         ],
       };
@@ -26,7 +27,6 @@ export default function Barchart({ categories = [], categoryCounts = [] }) {
             yAxes: [{ ticks: { beginAtZero: true, display: false } }],
             xAxes: [
               {
-                barPercentage: 1.3,
                 ticks: { beginAtZero: true, maxTicksLimit: 5 },
               },
             ],
@@ -38,8 +38,6 @@ export default function Barchart({ categories = [], categoryCounts = [] }) {
       myChart?.destroy();
     };
   }, [chartRef]);
-
-  const chartRef = React.useRef(null);
 
   return (
     <div>

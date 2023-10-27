@@ -40,5 +40,55 @@
       "2022-04-07T00",
       "false"
     ]
+  ],
+  "stats": [
+    {
+      "name": "transactionid",
+      "type": "string",
+      "categories": [],
+      "categoryCounts": []
+    },
+    {
+      "name": "customerid",
+      "type": "string",
+      "categories": [],
+      "categoryCounts": []
+    },
+    {
+      "name": "customerdob",
+      "type": "string",
+      "categories": [],
+      "categoryCounts": []
+    },
+    {
+      "name": "custlocation",
+      "type": "string",
+      "categories": [],
+      "categoryCounts": []
+    },
+    {
+      "name": "custaccountbalance",
+      "type": "numeric",
+      "categories": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
+      "categoryCounts": [10, 3, 4, 2, 8, 10, 3, 4, 2, 8]
+    },
+    {
+      "name": "transactionamount",
+      "type": "numeric",
+      "categories": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
+      "categoryCounts": [10, 3, 4, 2, 8, 10, 3, 4, 2, 8]
+    },
+    {
+      "name": "timestamp",
+      "type": "string",
+      "categories": [],
+      "categoryCounts": []
+    },
+    {
+      "name": "isfraud",
+      "type": "boolean",
+      "categories": ["true", "false"],
+      "categoryCounts": [500, 250]
+    }
   ]
 }

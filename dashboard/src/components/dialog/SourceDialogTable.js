@@ -21,10 +21,9 @@ export default function SourceDialogTable({
   columns = [],
   rowList = [],
 }) {
-  console.log(stats);
   const textEllipsis = {
     whiteSpace: 'nowrap',
-    maxWidth: columns.length > 1 ? '230px' : '500px',
+    maxWidth: columns?.length > 1 ? '230px' : '500px',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     cursor: 'pointer',
@@ -65,7 +64,7 @@ export default function SourceDialogTable({
         <Table sx={{ minWidth: 300 }} aria-label='Source Data Table'>
           <TableHead>
             <TableRow>
-              {columns.map((col, i) => (
+              {columns?.map((col, i) => (
                 <TableCell
                   key={col + i}
                   data-testid={col + i}
@@ -75,9 +74,9 @@ export default function SourceDialogTable({
                 </TableCell>
               ))}
             </TableRow>
-            {stats.length ? (
+            {stats?.length ? (
               <TableRow>
-                {stats.map((statObj, index) => (
+                {stats?.map((statObj, index) => (
                   <TableCell key={index} align={'right'}>
                     {['numeric', 'boolean'].includes(statObj.type) ? (
                       <Barchart
@@ -93,13 +92,13 @@ export default function SourceDialogTable({
             ) : null}
           </TableHead>
           <TableBody>
-            {rowList.map((currentRow, index) => (
+            {rowList?.map((currentRow, index) => (
               <TableRow
                 key={'mainRow' + index}
                 data-testid={'mainRow' + index}
                 sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
               >
-                {currentRow.map((row, index) => (
+                {currentRow?.map((row, index) => (
                   <TableCell
                     key={row + index}
                     align={index === 0 ? 'left' : 'right'}

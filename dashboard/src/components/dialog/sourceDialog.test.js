@@ -38,6 +38,7 @@ describe('Source Table Dialog Tests', () => {
     fetchSourceModalData: jest.fn().mockResolvedValue({
       columns: [],
       rows: [],
+      stats: [],
     }),
   };
 

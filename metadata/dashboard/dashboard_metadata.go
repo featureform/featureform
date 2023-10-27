@@ -1080,14 +1080,6 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		setTypes = true
 	}
 
-	print("\n\n********************************************\n")
-	println("WHAT ARE MY TYPES?")
-	println(typeRow)
-	for _, tr := range typeRow {
-		print(tr + ", ")
-	}
-	print("\n********************************************\n\n")
-
 	numericTypes := []string{"int_value", "float_value", "int64_value", "int32_value", "double_value"}
 	booleanTypes := []string{"bool_value"}
 

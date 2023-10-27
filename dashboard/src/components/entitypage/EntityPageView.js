@@ -667,11 +667,6 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                       </div>
                     ) : (
                       (() => {
-                        {
-                          console.log(metadata);
-                          console.log(type);
-                        }
-
                         if (
                           type === 'Feature' &&
                           metadata['source'] &&

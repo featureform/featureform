@@ -971,6 +971,7 @@ class SQLTransformation(Transformation):
         transformation = pb.Transformation(
             SQLTransformation=pb.SQLTransformation(
                 query=self.query,
+                # We do not set the sources here as the backend figures it out
             )
         )
 
@@ -992,6 +993,8 @@ def get_and_set_equivalent_variant(
         equivalent = stub.GetEquivalent(
             pb.ResourceVariant(**{variant_field: resource_variant_proto})
         )
+
+        # print("equivalent", equivalent)
 
         # grpc call returns the default ResourceVariant proto when equivalent doesn't exist which explains the below check
         if equivalent != pb.ResourceVariant():
@@ -1421,8 +1424,8 @@ class FeatureVariant:
 
     def _create(self, stub) -> Optional[str]:
         if not isinstance(self.source, tuple):
-            print('WE SHOULD BE HERE')
-            self.source = self.source.id()
+            self.source = self.source.name_variant()
+
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
@@ -1513,6 +1516,9 @@ class FeatureVariant:
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
+
+    def __hash__(self):
+        return hash((self.type(), self.name, self.variant))
 
 
 @typechecked
@@ -1714,8 +1720,8 @@ class LabelVariant:
 
     def _create(self, stub) -> Optional[str]:
         if not isinstance(self.source, tuple):
-            print('WE SHOULD BE HERE')
-            self.source = self.source.id()
+            self.source = self.source.name_variant()
+
         serialized = pb.LabelVariant(
             name=self.name,
             variant=self.variant,
@@ -1781,6 +1787,10 @@ class LabelVariant:
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
+
+    def __hash__(self):
+        return hash((self.type(), self.name, self.variant))
+
 
 
 @typechecked
@@ -1896,8 +1906,8 @@ class TrainingSet:
 class TrainingSetVariant:
     name: str
     owner: str
-    label: NameVariant
-    features: List[NameVariant]
+    label: Any
+    features: List[Any]
     description: str
     variant: str
     feature_lags: list = field(default_factory=list)
@@ -1920,12 +1930,14 @@ class TrainingSetVariant:
         self.schedule = schedule
 
     def __post_init__(self):
-        if not valid_name_variant(self.label):
+
+        from featureform import LabelColumnResource, FeatureColumnResource
+        if not isinstance(self.label, LabelColumnResource) and not valid_name_variant(self.label):
             raise ValueError("Label must be set")
         if len(self.features) == 0:
             raise ValueError("A training-set must have atleast one feature")
         for feature in self.features:
-            if not valid_name_variant(feature):
+            if not isinstance(feature, FeatureColumnResource) and not valid_name_variant(feature):
                 raise ValueError("Invalid Feature")
 
     @staticmethod
@@ -1968,6 +1980,13 @@ class TrainingSetVariant:
                 lag=lag_duration,
             )
             feature_lags.append(feature_lag)
+
+        for i, f in enumerate(self.features):
+            from featureform import FeatureColumnResource
+            if isinstance(f, FeatureColumnResource):
+                self.features[i] = f.name_variant()
+
+        self.label = self.label.name_variant()
 
         serialized = pb.TrainingSetVariant(
             created=None,
@@ -2265,7 +2284,8 @@ class ResourceState:
             client.compute_feature(feature.name, feature.variant, feature.entity)
         return
 
-    def create_all(self, stub) -> None:
+    def create_all(self, stub, client_objs_for_resoruce: dict = None) -> None:
+        print(client_objs_for_resoruce.items())
         check_up_to_date(False, "register")
         for resource in self.sorted_list():
             if resource.type() == "provider" and resource.name == "local-mode":
@@ -2287,6 +2307,14 @@ class ResourceState:
                         )
 
                     created_variant = resource._create(stub)
+
+                    if isinstance(resource, FeatureVariant) or isinstance(resource, LabelVariant):
+                        # print('we here')
+                        client_obj = client_objs_for_resoruce.get(resource, None)
+                        # print('client_obj', client_obj)
+                        if client_obj:
+                            client_obj.variant = created_variant
+
                     if resource_variant and created_variant != resource_variant:
                         resource.variant = created_variant
 

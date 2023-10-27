@@ -8,6 +8,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Dict, Tuple, Callable, List, Union, Optional
 
+from dataclasses import dataclass
 import dill
 import pandas as pd
 from typeguard import typechecked
@@ -893,7 +894,7 @@ class ColumnMapping(dict):
     resource_type: str
     tags: List[str]
     properties: dict
-    variant: str = ""
+    variant: str
 
 
 class LocalSource:
@@ -1024,7 +1025,7 @@ class SubscriptableTransformation:
         fn,
         registrar,
         provider,
-        decorator_register_resources_method,
+        decorator_register_resources_method,  # is this used?
         decorator_name_variant_method: Callable,
         transformation,
     ):
@@ -1058,7 +1059,7 @@ class SubscriptableTransformation:
             raise Exception(
                 f"Found unrecognized columns {', '.join(columns[3:])}. Expected 2 required columns and an optional 3rd timestamp column"
             )
-        return (self.registrar, self.name_variant(), columns)
+        return (self.registrar, self.transformation, columns)
 
     def __call__(self, *args, **kwargs):
         return self.fn(*args, **kwargs)
@@ -1171,6 +1172,7 @@ class SQLTransformationDecorator(SourceVariantProvider):
             timestamp_column=timestamp_column,
             description=description,
             schedule=schedule,
+            client_object=self
         )
 
     @staticmethod
@@ -1290,6 +1292,7 @@ class DFTransformationDecorator(SourceVariantProvider):
             labels=labels,
             timestamp_column=timestamp_column,
             description=description,
+            client_object=self,
         )
 
 
@@ -1356,6 +1359,7 @@ class ColumnSourceRegistrar(SourceRegistrar):
             timestamp_column=timestamp_column,
             description=description,
             schedule=schedule,
+            client_object=self,
         )
 
 
@@ -1483,6 +1487,7 @@ class ColumnResource:
         self.schedule = schedule
         self.tags = tags
         self.properties = properties
+        self.variant = variant
 
     def register(self):
         features, labels = self.features_and_labels()
@@ -1497,6 +1502,7 @@ class ColumnResource:
             labels=labels,
             timestamp_column=self.timestamp_column,
             schedule=self.schedule,
+            client_object=self,
         )
 
     def features_and_labels(self) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
@@ -1585,7 +1591,7 @@ class FeatureColumnResource(ColumnResource):
             type (Union[ScalarType, str]): The type of the value in for the feature.
             inference_store (Union[str, OnlineProvider, FileStoreProvider]): Where to store for online serving.
         """
-        self.variant = variant
+        # self.variant = variant
         super().__init__(
             transformation_args=transformation_args,
             type=type,
@@ -1680,9 +1686,16 @@ class Registrar:
         if os.getenv("FF_TIMESTAMP_VARIANT") is not None:
             auto_variant = get_current_timestamp_variant(self.__run_prefix)
         self.__run = auto_variant
+        self.__client_obj_to_resource_map = {}
 
     def add_resource(self, resource):
         self.__resources.append(resource)
+
+    def map_client_obj_to_resource(self, client_obj, resource):
+        self.__client_obj_to_resource_map[resource] = client_obj
+
+    def get_client_obj_for_resource(self):
+        return self.__client_obj_to_resource_map
 
     def get_resources(self):
         return self.__resources
@@ -3782,6 +3795,7 @@ class Registrar:
 
     def clear_state(self):
         self.__state = ResourceState()
+        self.__client_obj_to_resource_map = {}
         self.__resources = []
 
     def get_state(self):
@@ -3874,6 +3888,7 @@ class Registrar:
         timestamp_column: str = "",
         description: str = "",
         schedule: str = "",
+        client_object = None
     ):
         """Create features and labels from a source. Used in the register_resources function.
 
@@ -3938,6 +3953,7 @@ class Registrar:
             desc = feature.get("description", "")
             feature_tags = feature.get("tags", [])
             feature_properties = feature.get("properties", {})
+            print('this is the variant', variant)
             resource = FeatureVariant(
                 created=None,
                 name=feature["name"],
@@ -3960,6 +3976,7 @@ class Registrar:
                 properties=feature_properties,
             )
             self.__resources.append(resource)
+            self.map_client_obj_to_resource(client_object, resource)
             feature_resources.append(resource)
 
         for label in labels:
@@ -3977,6 +3994,7 @@ class Registrar:
             desc = label.get("description", "")
             label_tags = label.get("tags", [])
             label_properties = label.get("properties", {})
+            print('this is the variant', variant)
             resource = LabelVariant(
                 name=label["name"],
                 variant=variant,
@@ -3995,6 +4013,7 @@ class Registrar:
                 properties=label_properties,
             )
             self.__resources.append(resource)
+            self.map_client_obj_to_resource(client_object, resource)
             label_resources.append(resource)
         return ResourceRegistrar(self, features, labels)
 
@@ -4003,9 +4022,9 @@ class Registrar:
         feature_lags = []
         for feature in features:
             if isinstance(feature, FeatureColumnResource):
-                feature_nv_list.append(feature.name_variant())
-            elif isinstance(feature, str):
-                feature_nv_list.append((feature, run))
+                feature_nv_list.append(feature)
+            if isinstance(feature, str):
+                feature_nv_list.append((feature, run))  # git rid of this´
             elif isinstance(feature, dict):
                 lag = feature.get("lag")
                 if "variant" not in feature:
@@ -4119,8 +4138,8 @@ class Registrar:
             elif resource_label != ():
                 raise ValueError("A training set can only have one label")
 
-        if isinstance(label, LabelColumnResource):
-            label = label.name_variant()
+        # if isinstance(label, LabelColumnResource):
+        #     label = label.name_variant()
 
         features, feature_lags = self.__get_feature_nv(features, self.__run)
         if label == ():
@@ -4129,15 +4148,15 @@ class Registrar:
             raise ValueError("A training-set must have atleast one feature")
         if isinstance(label, str):
             label = (label, self.__run)
-        if label[1] == "":
+        if not isinstance(label, LabelColumnResource) and label[1] == "":
             label = (label[0], self.__run)
 
         processed_features = []
         for feature in features:
             if isinstance(feature, tuple) and feature[1] == "":
                 feature = (feature[0], self.__run)
-            elif isinstance(feature, FeatureColumnResource):
-                feature = feature.name_variant()
+            # elif isinstance(feature, FeatureColumnResource):
+            #     feature = feature.name_variant()
             processed_features.append(feature)
         resource = TrainingSetVariant(
             created=None,
@@ -4265,7 +4284,7 @@ class ResourceClient:
             if self.local:
                 resource_state.create_all_local()
             else:
-                resource_state.create_all(self._stub)
+                resource_state.create_all(self._stub, global_registrar.get_client_obj_for_resource())
 
             if not asynchronous and self._stub:
                 resources = resource_state.sorted_list()

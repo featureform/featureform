@@ -498,5 +498,6 @@ def get_random_name(sep="_"):
 
 
 def get_current_timestamp_variant(prefix="", sep="_"):
-    current_timestamp = datetime.now().strftime("%Y_%m_%d_%H:%M:%S")
+    current_timestamp = datetime.now().strftime("%H:%M:%S")
+    # current_timestamp = datetime.now().strftime("%Y_%m_%d_%H:%M:%S")
     return current_timestamp if prefix == "" else prefix + sep + current_timestamp

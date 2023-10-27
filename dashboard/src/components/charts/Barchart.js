@@ -24,6 +24,12 @@ export default function Barchart({ categories = [], categoryCounts = [] }) {
           },
           scales: {
             yAxes: [{ ticks: { beginAtZero: true, display: false } }],
+            xAxes: [
+              {
+                barPercentage: 1.3,
+                ticks: { beginAtZero: true, maxTicksLimit: 5 },
+              },
+            ],
           },
         },
       });

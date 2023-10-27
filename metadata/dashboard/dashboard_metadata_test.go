@@ -147,8 +147,8 @@ func TestGetSourceDataReturnsData(t *testing.T) {
 
 	iterator := provider.UnitTestIterator{}
 	var data SourceDataResponse
-	rowValues := []string{"row value", "row value"}
-	expectedRows := [][]string{rowValues, rowValues}
+	rowValues := []string{"row string value", "true", "10"}
+	expectedRows := [][]string{rowValues, rowValues, rowValues}
 
 	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
 	assert.Equal(t, http.StatusOK, mockRecorder.Code)
@@ -158,8 +158,11 @@ func TestGetSourceDataReturnsData(t *testing.T) {
 	assert.Len(t, data.Stats, len(data.Columns), "Stats and columns must always match lengths.")
 	assert.Equal(t, "column1", data.Stats[0].Name)
 	assert.Equal(t, "column2", data.Stats[1].Name)
+	assert.Equal(t, "column3", data.Stats[2].Name)
+
 	assert.Equal(t, "string", data.Stats[0].Type)
-	assert.Equal(t, "string", data.Stats[1].Type)
+	assert.Equal(t, "boolean", data.Stats[1].Type)
+	assert.Equal(t, "numeric", data.Stats[2].Type)
 }
 
 func TestGetSourceMissingNameOrVariantParamErrors(t *testing.T) {

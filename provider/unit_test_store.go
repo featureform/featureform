@@ -125,7 +125,7 @@ func (u *UnitTestIterator) Values() GenericRecord {
 }
 
 func (UnitTestIterator) Columns() []string {
-	return []string{"column1", "column2"}
+	return []string{"column1", "column2", "column3"}
 }
 
 func (UnitTestIterator) Err() error {
@@ -137,9 +137,10 @@ func (UnitTestIterator) Close() error {
 }
 
 func (MockPrimaryTable) IterateSegment(int64) (GenericTableIterator, error) {
-	records := make(GenericRecord, 2)
-	records[0] = "row value"
-	records[1] = "row value"
+	records := make(GenericRecord, 3)
+	records[0] = "row string value"
+	records[1] = true
+	records[2] = 10
 	return &UnitTestIterator{
 		currentValue: records,
 		nextCount:    0,

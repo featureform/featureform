@@ -1087,7 +1087,7 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		cleanName := strings.ReplaceAll(columnName, "\"", "")
 		response.Columns = append(response.Columns, cleanName)
 
-		// create the corresponding stats object
+		// create the related column stats object
 		columnStats := ColumnStat{}
 		columnStats.Name = cleanName
 		columnType := ""

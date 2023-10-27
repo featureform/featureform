@@ -536,7 +536,6 @@ func isProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transformation) 
 	case *pb.Transformation_DFTransformation:
 		if otherDef, ok := otherDef.Transformation.Type.(*pb.Transformation_DFTransformation); ok {
 			sourceTextEqual := thisDef.Transformation.GetDFTransformation().SourceText == otherDef.DFTransformation.SourceText
-			fmt.Println("this source", thisDef.Transformation.GetDFTransformation().SourceText)
 			fmt.Println("other source", otherDef.DFTransformation.SourceText)
 			fmt.Println("sourceTextEqual", sourceTextEqual)
 			inputsEqual := lib.EqualProtoContents(thisDef.Transformation.GetDFTransformation().Inputs, otherDef.DFTransformation.Inputs)
@@ -545,7 +544,7 @@ func isProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transformation) 
 				inputsEqual
 		}
 	case *pb.Transformation_SQLTransformation:
-		isDefinitionEqual = proto.Equal(thisDef.Transformation.GetSQLTransformation(), otherDef.Transformation.GetSQLTransformation())
+		isDefinitionEqual = thisDef.Transformation.GetSQLTransformation().Query == otherDef.Transformation.GetSQLTransformation().Query
 	}
 	fmt.Println("isDFTransformationEqual", isDefinitionEqual)
 
@@ -879,7 +878,6 @@ func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) bool {
 	- Name
 	- Source
 	- Columns
-	- Provider
 	- Owner
 	- Entity
 	*/
@@ -893,7 +891,6 @@ func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) bool {
 	if thisProto.GetName() == otherProto.GetName() &&
 		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
 		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns()) &&
-		thisProto.GetProvider() == otherProto.GetProvider() &&
 		thisProto.Entity == otherProto.Entity &&
 		thisProto.Owner == otherProto.Owner {
 

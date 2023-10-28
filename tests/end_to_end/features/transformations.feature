@@ -24,7 +24,7 @@ Feature: Transformations
       | DF                 | s3                  | featureform-spark-testing | featureform/featureform    |
 #      | DF                 | gcs                 |    featureform-test       |          behave            | TODO: Enable Later
 
-  Scenario Outline: Spark Transformations
+  Scenario Outline: Single Spark Transformations
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"
     And I generate a random variant name
@@ -32,7 +32,7 @@ Feature: Transformations
     And I register "<storage_provider>" filestore with bucket "<bucket>" and root path "behave"
     And I register databricks
     And I register the file
-    When I register a "<transformation_type>" transformation
+    When I register a "<transformation_type>" transformation named "first_transformation" from "transactions"
     Then I should be able to pull the transformation as a dataframe
 
     Examples:

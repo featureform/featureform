@@ -1739,6 +1739,7 @@ class Registrar:
             run_prefix (str): Run prefix to be set.
         """
         self.__run_prefix = run_prefix
+        self.set_run()
 
     def set_run(self, run: str = ""):
         """

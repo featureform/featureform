@@ -220,6 +220,20 @@ func (err *ResourceExists) GRPCStatus() *status.Status {
 	return status.New(codes.AlreadyExists, err.Error())
 }
 
+type ResourceChanged struct {
+	ID ResourceID
+}
+
+func (err *ResourceChanged) Error() string {
+	id := err.ID
+	errMsg := fmt.Sprintf("%s changed. Use a new variant.", id.String())
+	return errMsg
+}
+
+func (err *ResourceChanged) GRPCStatus() *status.Status {
+	return status.New(codes.Internal, err.Error())
+}
+
 type ResourceVariant interface {
 	IsEquivalent(ResourceVariant) bool
 	ToResourceVariantProto() *pb.ResourceVariant
@@ -710,6 +724,7 @@ func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) bool
 	- Provider
 	- Entity
 	- Owner
+	- Type
 	*/
 
 	otherVariant, ok := other.(*featureVariantResource)
@@ -727,6 +742,7 @@ func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) bool
 		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
 		thisProto.GetProvider() == otherProto.GetProvider() &&
 		thisProto.GetEntity() == otherProto.GetEntity() &&
+		thisProto.Type == otherProto.Type &&
 		isEquivalentLocation &&
 		thisProto.Owner == otherProto.Owner {
 
@@ -880,6 +896,7 @@ func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) bool {
 	- Columns
 	- Owner
 	- Entity
+	- Type
 	*/
 	otherVariant, ok := other.(*labelVariantResource)
 	if !ok {
@@ -892,6 +909,7 @@ func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) bool {
 		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
 		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns()) &&
 		thisProto.Entity == otherProto.Entity &&
+		thisProto.Type == otherProto.Type &&
 		thisProto.Owner == otherProto.Owner {
 
 		return true
@@ -1759,6 +1777,19 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if _, isResourceError := err.(*ResourceNotFound); err != nil && !isResourceError {
 		return nil, err
 	}
+
+	// It's possible we found a resource with the same name and variant but different contents, if different contents
+	// we
+	// i.e. transformations with same name and variant but different definition.
+	_, isResourceVariant := res.(ResourceVariant)
+	fmt.Println("this is a resource variant", isResourceVariant)
+	if isResourceVariant {
+		if existing != nil && !isEquivalent(existing, res) {
+
+			return nil, &ResourceChanged{res.ID()}
+		}
+	}
+
 	if existing != nil {
 		if err := existing.Update(serv.lookup, res); err != nil {
 			return nil, err
@@ -1796,6 +1827,24 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 	return &pb.Empty{}, nil
+}
+
+func isEquivalent(this Resource, other Resource) bool {
+	// only works on resource variants right now
+	// cast both to resource variant
+	existingVariant, ok := this.(ResourceVariant)
+	fmt.Println("this is a resource variant", ok)
+	if !ok {
+		return false
+	}
+	resVariant, ok := other.(ResourceVariant)
+	fmt.Println("other is a resource variant", ok)
+	if !ok {
+		return false
+	}
+	isEquivalent := existingVariant.IsEquivalent(resVariant)
+	fmt.Println("is equivalent", isEquivalent)
+	return isEquivalent
 }
 
 func (serv *MetadataServer) propagateChange(newRes Resource) error {

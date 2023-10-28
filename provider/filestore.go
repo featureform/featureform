@@ -140,12 +140,9 @@ func (store *AzureFileStore) CreateFilePath(key string) (filestore.Filepath, err
 		return nil, err
 	}
 	fp.SetBucket(store.ContainerName)
-	var err error
-	if store.Path != "" && !strings.HasPrefix(key, store.Path) {
-		err = fp.SetKey(fmt.Sprintf("%s/%s", store.Path, strings.Trim(key, "/")))
-	} else {
-		err = fp.SetKey(strings.Trim(key, "/"))
-	}
+	trimmedBasePath := strings.Trim(key, store.Path)
+	trimmedSlash := strings.Trim(trimmedBasePath, "/")
+	err := fp.SetKey(fmt.Sprintf("%s/%s", store.Path, trimmedSlash))
 	if err != nil {
 		return nil, err
 	}
@@ -289,12 +286,9 @@ func (s3 *S3FileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 	if err := fp.SetBucket(s3.Bucket); err != nil {
 		return nil, err
 	}
-	var err error
-	if s3.Path != "" && !strings.HasPrefix(key, s3.Path) {
-		err = fp.SetKey(fmt.Sprintf("%s/%s", s3.Path, strings.Trim(key, "/")))
-	} else {
-		err = fp.SetKey(strings.Trim(key, "/"))
-	}
+	trimmedBasePath := strings.Trim(key, s3.Path)
+	trimmedSlash := strings.Trim(trimmedBasePath, "/")
+	err := fp.SetKey(fmt.Sprintf("%s/%s", s3.Path, trimmedSlash))
 	if err != nil {
 		return nil, err
 	}
@@ -350,12 +344,9 @@ func (gs *GCSFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 	if err := fp.SetBucket(gs.Bucket); err != nil {
 		return nil, err
 	}
-	var err error
-	if gs.Path != "" && !strings.HasPrefix(key, gs.Path) {
-		err = fp.SetKey(fmt.Sprintf("%s/%s", gs.Path, strings.Trim(key, "/")))
-	} else {
-		err = fp.SetKey(strings.Trim(key, "/"))
-	}
+	trimmedBasePath := strings.Trim(key, gs.Path)
+	trimmedSlash := strings.Trim(trimmedBasePath, "/")
+	err := fp.SetKey(fmt.Sprintf("%s/%s", gs.Path, trimmedSlash))
 	if err != nil {
 		return nil, err
 	}

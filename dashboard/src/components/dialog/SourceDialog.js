@@ -11,6 +11,7 @@ import SourceDialogTable from './SourceDialogTable';
 export default function SourceDialog({
   api,
   btnTxt = 'Preview Result',
+  type = 'Source',
   sourceName = '',
   sourceVariant = '',
 }) {
@@ -24,7 +25,13 @@ export default function SourceDialog({
   React.useEffect(async () => {
     if (sourceName && sourceVariant && open && api) {
       setIsLoading(true);
-      let response = await api.fetchSourceModalData(sourceName, sourceVariant);
+      let response;
+
+      if (type === 'Source') {
+        response = await api.fetchSourceModalData(sourceName, sourceVariant);
+      } else if (type === 'Feature') {
+        response = await api.fetchFeatureFileStats(sourceName, sourceVariant);
+      }
       if (response?.columns && response?.rows) {
         setColumns(response.columns);
         setRowList(response.rows);

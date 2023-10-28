@@ -84,7 +84,7 @@ export default function SourceDialogTable({
                         categoryCounts={statObj.categoryCounts}
                       />
                     ) : (
-                      <UniqueValues />
+                      <UniqueValues count={statObj?.categoryCounts[0]} />
                     )}
                   </TableCell>
                 ))}

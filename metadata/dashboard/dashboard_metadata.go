@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
@@ -23,7 +24,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	slices "golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -1057,9 +1057,6 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		return
 	}
 
-	setTypes := false
-	typeRow := []string{}
-
 	for iter.Next() {
 		sRow, err := serving.SerializedSourceRow(iter.Values())
 		if err != nil {
@@ -1071,41 +1068,17 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		dataRow := []string{}
 		for _, rowElement := range sRow.Rows {
 			dataRow = append(dataRow, extractElementValue(rowElement))
-			if !setTypes {
-				typeRow = append(typeRow, extractElementType(rowElement))
-			}
 		}
 		response.Rows = append(response.Rows, dataRow)
-		//completed pulling the row types
-		setTypes = true
 	}
 
-	numericTypes := []string{"int_value", "float_value", "int64_value", "int32_value", "double_value"}
-	booleanTypes := []string{"bool_value"}
-
-	for i, columnName := range iter.Columns() {
+	for _, columnName := range iter.Columns() {
 		cleanName := strings.ReplaceAll(columnName, "\"", "")
 		response.Columns = append(response.Columns, cleanName)
-
-		// create the related column stats object
-		columnStats := ColumnStat{}
-		columnStats.Name = cleanName
-		columnType := ""
-		if slices.Contains(numericTypes, typeRow[i]) {
-			columnType = "numeric"
-		} else if slices.Contains(booleanTypes, typeRow[i]) {
-			columnType = "boolean"
-		} else {
-			columnType = "string"
-		}
-
-		columnStats.Type = columnType
-		// todox: categories + categoryCounts to be supplied by pySpark.query(columnName) invoke
-		columnStats.Categories = []string{"a", "b", "c", "d"}
-		columnStats.CategoryCounts = []int{10, 3, 4, 2, 8}
-
-		response.Stats = append(response.Stats, columnStats)
 	}
+
+	//intentional
+	response.Stats = []ColumnStat{}
 
 	if err := iter.Err(); err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData"}
@@ -1113,6 +1086,61 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
+	c.JSON(200, response)
+}
+
+func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
+	// feature name and variant
+	name := c.Query("name")
+	variant := c.Query("variant")
+	response := SourceDataResponse{}
+	if name == "" || variant == "" {
+		fetchError := &FetchError{StatusCode: 400, Type: "GetFeatureFileStats - Could not find the name or variant query parameters"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	nameVariant := metadata.NameVariant{Name: name, Variant: variant}
+	foundFeatureVariant, err := m.client.GetFeatureVariant(context.Background(), nameVariant)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Could not get feature variant from metadata"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	foundProvider, err := foundFeatureVariant.FetchProvider(m.client, context.TODO())
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Could not fetch the provider"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	p, err := provider.Get(pt.Type(foundProvider.Type()), foundProvider.SerializedConfig())
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Could not Get() the provider"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	sparkOfflineStore := p.(*provider.SparkOfflineStore)
+
+	file, err := sparkOfflineStore.Store.Read(&filestore.FilePath{})
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Reading from the file store path failed."}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	println(file)
+	//todox: iterate the file and populate the properties below
+	response.Columns = []string{}
+	response.Rows = [][]string{}
+	response.Stats = []ColumnStat{}
+
 	c.JSON(200, response)
 }
 
@@ -1124,12 +1152,6 @@ str_value:"C7332112"
 func extractElementValue(rowString *proto.Value) string {
 	split := strings.Split(rowString.String(), ":")
 	result := strings.ReplaceAll(split[1], "\"", "")
-	return result
-}
-
-func extractElementType(rowString *proto.Value) string {
-	split := strings.Split(rowString.String(), ":")
-	result := strings.ReplaceAll(split[0], "\"", "")
 	return result
 }
 
@@ -1383,6 +1405,7 @@ func (m *MetadataServer) Start(port string) {
 	router.GET("/data/search", m.GetSearch)
 	router.GET("/data/version", m.GetVersionMap)
 	router.GET("/data/sourcedata", m.GetSourceData)
+	router.GET("/data/filestatdata", m.GetFeatureFileStats)
 	router.POST("/data/:type/:resource/gettags", m.GetTags)
 	router.POST("/data/:type/:resource/tags", m.PostTags)
 	router.Run(port)

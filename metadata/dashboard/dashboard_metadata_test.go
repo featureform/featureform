@@ -155,6 +155,38 @@ func TestGetSourceDataReturnsData(t *testing.T) {
 	assert.Equal(t, iterator.Columns(), data.Columns)
 	assert.Equal(t, expectedRows, data.Rows)
 
+	assert.Len(t, data.Stats, 0, "Get Source stats list should be zero")
+}
+
+func xTestGetFeatureFileStats(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	u := url.Values{}
+	u.Add("name", "nameParamValue")
+	u.Add("variant", "variantParamValue")
+	MockGetSourceGet(ctx, nil, u)
+
+	logger := zap.NewExample().Sugar()
+	client := &metadata.Client{
+		GrpcConn: metadata.MetadataServerMock{},
+	}
+	serv := MetadataServer{
+		client: client,
+		logger: logger,
+	}
+
+	serv.GetFeatureFileStats(ctx)
+
+	iterator := provider.UnitTestIterator{}
+	var data SourceDataResponse
+	rowValues := []string{"row string value", "true", "10"}
+	expectedRows := [][]string{rowValues, rowValues, rowValues}
+
+	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
+	assert.Equal(t, http.StatusOK, mockRecorder.Code)
+	assert.Equal(t, iterator.Columns(), data.Columns)
+	assert.Equal(t, expectedRows, data.Rows)
+
 	assert.Len(t, data.Stats, len(data.Columns), "Stats and columns must always match lengths.")
 	assert.Equal(t, "column1", data.Stats[0].Name)
 	assert.Equal(t, "column2", data.Stats[1].Name)

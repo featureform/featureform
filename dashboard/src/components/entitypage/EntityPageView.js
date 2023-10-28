@@ -674,12 +674,12 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                           metadata['status']?.toUpperCase() !== 'PENDING'
                         ) {
                           return (
-                            // todox: replace with standard SourceDialog
                             <SourceDialog
                               api={api}
-                              btnTxt='Chart Preview'
-                              sourceName={metadata['source'].Name}
-                              sourceVariant={metadata['source'].Variant}
+                              btnTxt='Feature Stats'
+                              type='Feature'
+                              sourceName={name}
+                              sourceVariant={variant}
                             />
                           );
                         }

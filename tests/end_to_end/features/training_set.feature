@@ -20,7 +20,7 @@ Feature: Training Sets
     And I register databricks
     And I register the file
     Then I should be able to pull the file as a dataframe
-    When I register a transformation
+    When I register a "DF" transformation
     Then I should be able to pull the transformation as a dataframe
     When I register a feature from a "transformation"
     When I register a label from a "transformation"

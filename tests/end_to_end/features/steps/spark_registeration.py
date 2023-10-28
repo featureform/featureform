@@ -136,17 +136,28 @@ def step_impl(context):
     context.exception = None
 
 
-@when("I register a transformation")
-def step_impl(context):
-    @context.spark.df_transformation(
-        name="transactions_transformation",
-        inputs=[context.file],
-    )
-    def ice_cream_transformation(df):
-        """Unedited transactions"""
-        return df
+@when('I register a "{transformation_type}" transformation')
+def step_impl(context, transformation_type):
+    if transformation_type == "DF":
 
-    context.transformation = ice_cream_transformation
+        @context.spark.df_transformation(
+            name="transactions_transformation",
+            inputs=[context.file],
+        )
+        def some_transformation(df):
+            """Unedited transactions"""
+            return df
+
+    elif transformation_type == "SQL":
+
+        @context.spark.sql_transformation(
+            name="transactions_transformation",
+        )
+        def some_transformation():
+            """Unedited transactions"""
+            return "SELECT * FROM {{ transactions }}"
+
+    context.transformation = some_transformation
     context.client.apply(asynchronous=False, verbose=True)
 
 

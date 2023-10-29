@@ -45,44 +45,66 @@
     {
       "name": "transactionid",
       "type": "string",
-      "categories": [],
-      "categoryCounts": []
+      "categories": ["unique"],
+      "categoryCounts": [100]
     },
     {
       "name": "customerid",
       "type": "string",
-      "categories": [],
-      "categoryCounts": []
+      "categories": ["unique"],
+      "categoryCounts": [100]
     },
     {
       "name": "customerdob",
       "type": "string",
-      "categories": [],
-      "categoryCounts": []
+      "categories": ["unique"],
+      "categoryCounts": [100]
     },
     {
       "name": "custlocation",
       "type": "string",
-      "categories": [],
-      "categoryCounts": []
+      "categories": ["unique"],
+      "categoryCounts": [100]
     },
     {
       "name": "custaccountbalance",
       "type": "numeric",
-      "categories": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
+      "categories": [
+        [0.0, 10.0],
+        [10.1, 20.0],
+        [21.1, 30.0],
+        [30.1, 40.0],
+        [40.1, 50.0],
+        [50.1, 60.0],
+        [60.1, 70.0],
+        [70.1, 80.0],
+        [80.1, 90.0],
+        [90.1, 100.0]
+      ],
       "categoryCounts": [10, 3, 4, 2, 8, 10, 3, 4, 2, 8]
     },
     {
+      "categories": [
+        [0.0, 156003.499],
+        [156003.499, 312006.998],
+        [312006.998, 468010.49700000003],
+        [468010.49700000003, 624013.996],
+        [624013.996, 780017.4950000001],
+        [780017.4950000001, 936020.9940000001],
+        [936020.9940000001, 1092024.493],
+        [1092024.493, 1248027.992],
+        [1248027.992, 1404031.4910000002],
+        [1404031.4910000002, 1560034.9900000002]
+      ],
+      "categoryCounts": [882492, 14, 1, 1, 13, 0, 1, 0, 1, 77],
       "name": "transactionamount",
-      "type": "numeric",
-      "categories": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
-      "categoryCounts": [10, 3, 4, 2, 8, 10, 3, 4, 2, 8]
+      "type": "numeric"
     },
     {
       "name": "timestamp",
       "type": "string",
-      "categories": [],
-      "categoryCounts": []
+      "categories": ["unique"],
+      "categoryCounts": [100]
     },
     {
       "name": "isfraud",

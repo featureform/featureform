@@ -82,6 +82,7 @@ export default function SourceDialogTable({
                       <Barchart
                         categories={statObj.categories}
                         categoryCounts={statObj.categoryCounts}
+                        type={statObj.type}
                       />
                     ) : (
                       <UniqueValues count={statObj?.categoryCounts[0]} />

@@ -1264,7 +1264,7 @@ func (spark *SparkOfflineStore) transformation(config TransformationConfig, isUp
 func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, isUpdate bool) error {
 	updatedQuery, sources, err := spark.updateQuery(config.Query, config.SourceMapping)
 	if err != nil {
-		spark.Logger.Errorw("Could not generate updated query for spark transformation", err)
+		spark.Logger.Errorw("Could not generate updated query for spark transformation", "error", err)
 		return err
 	}
 	transformationDestination, err := spark.Store.CreateDirPath(config.TargetTableID.ToFilestorePath())
@@ -1276,24 +1276,24 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 		return fmt.Errorf("could not check if transformation exists: %v", err)
 	}
 	if !isUpdate && transformationExists {
-		spark.Logger.Errorw("Creation when transformation already exists", config.TargetTableID, transformationDestination)
+		spark.Logger.Errorw("Creation when transformation already exists", "target", config.TargetTableID, "path", transformationDestination)
 		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
 	} else if isUpdate && !transformationExists {
-		spark.Logger.Errorw("Update job attempted when transformation does not exist", config.TargetTableID, transformationDestination)
+		spark.Logger.Errorw("Update job attempted when transformation does not exist", "target", config.TargetTableID, "path", transformationDestination)
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 
-	spark.Logger.Debugw("Running SQL transformation", config)
+	spark.Logger.Debugw("Running SQL transformation")
 	sparkArgs, err := spark.Executor.SparkSubmitArgs(transformationDestination, updatedQuery, sources, JobType(Transform), spark.Store)
 	if err != nil {
-		spark.Logger.Errorw("Problem creating spark submit arguments", err)
+		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err)
 		return fmt.Errorf("error with getting spark submit arguments %v", sparkArgs)
 	}
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
-		spark.Logger.Errorw("spark submit job for transformation failed to run", config.TargetTableID, err)
+		spark.Logger.Errorw("spark submit job for transformation failed to run", "target", config.TargetTableID, "error", err)
 		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
-	spark.Logger.Debugw("Successfully ran SQL transformation", config)
+	spark.Logger.Debugw("Successfully ran SQL transformation")
 	return nil
 }
 

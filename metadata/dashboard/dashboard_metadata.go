@@ -6,14 +6,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"reflect"
 	"strings"
 
-	"github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
+	_ "github.com/featureform/metadata/dashboard/mock_stats"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/metadata/search"
 	"github.com/featureform/proto"
@@ -1026,10 +1027,10 @@ func (m *MetadataServer) GetVersionMap(c *gin.Context) {
 }
 
 type ColumnStat struct {
-	Name           string   `json:"name"`
-	Type           string   `json:"type"`
-	Categories     []string `json:"categories"`
-	CategoryCounts []int    `json:"categoryCounts"`
+	Name           string      `json:"name"`
+	Type           string      `json:"type"`
+	Categories     interface{} `json:"categories"`
+	CategoryCounts []int       `json:"categoryCounts"`
 }
 
 type SourceDataResponse struct {
@@ -1105,15 +1106,24 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 	foundFeatureVariant, err := m.client.GetFeatureVariant(context.Background(), nameVariant)
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "Could not get feature variant from metadata"}
-		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 
-	foundProvider, err := foundFeatureVariant.FetchProvider(m.client, context.TODO())
+	sourceNameVariant := metadata.NameVariant{Name: foundFeatureVariant.Source().Name, Variant: foundFeatureVariant.Source().Variant}
+	foundSourceVariant, err := m.client.GetSourceVariant(context.Background(), sourceNameVariant)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Could not get feature variant from metadata"}
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	foundProvider, err := foundSourceVariant.FetchProvider(m.client, context.TODO())
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "Could not fetch the provider"}
-		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1121,25 +1131,63 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 	p, err := provider.Get(pt.Type(foundProvider.Type()), foundProvider.SerializedConfig())
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "Could not Get() the provider"}
-		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 
 	sparkOfflineStore := p.(*provider.SparkOfflineStore)
 
-	file, err := sparkOfflineStore.Store.Read(&filestore.FilePath{})
+	filepath, err := sparkOfflineStore.Store.CreateFilePath("featureform/Feature/test.json")
 	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "Reading from the file store path failed."}
-		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		fetchError := &FetchError{StatusCode: 500, Type: "Could not create filepath to the stats file"}
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
-	println(file)
-	//todox: iterate the file and populate the properties below
-	response.Columns = []string{}
-	response.Rows = [][]string{}
-	response.Stats = []ColumnStat{}
+
+	file, err := sparkOfflineStore.Store.Read(filepath)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Reading from the file store path failed."}
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	var result map[string]interface{}
+	err = json.Unmarshal(file, &result)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Reading stats file failed."}
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	fmt.Println(result)
+	//todox: change this to a proper struct
+	for _, column := range result["columns"].([]interface{}) {
+		response.Columns = append(response.Columns, column.(string))
+	}
+	for _, row := range result["rows"].([]interface{}) {
+		rowValues := []string{}
+		for _, element := range row.([]interface{}) {
+			rowValues = append(rowValues, element.(string))
+		}
+		response.Rows = append(response.Rows, rowValues)
+	}
+	for _, col := range result["stats"].([]interface{}) {
+		var catCounts []int
+		for _, categoryCount := range col.(map[string]interface{})["categoryCounts"].([]interface{}) {
+			catCounts = append(catCounts, int(categoryCount.(float64)))
+		}
+
+		response.Stats = append(response.Stats, ColumnStat{
+			Name:           col.(map[string]interface{})["name"].(string),
+			Type:           col.(map[string]interface{})["type"].(string),
+			Categories:     col.(map[string]interface{})["categories"],
+			CategoryCounts: catCounts,
+		})
+	}
 
 	c.JSON(200, response)
 }

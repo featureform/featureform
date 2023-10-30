@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strings"
 
+	filestore "github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
@@ -1137,9 +1138,27 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 
 	sparkOfflineStore := p.(*provider.SparkOfflineStore)
 
-	filepath, err := sparkOfflineStore.Store.CreateFilePath("featureform/Feature/test.json")
+	// Get list of files in the stats directory then return the third part file
+	statsPath := fmt.Sprintf("featureform/Materialization/%s/%s/stats", name, variant)
+	statsDirectory, err := sparkOfflineStore.Store.CreateFilePath(statsPath)
 	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "Could not create filepath to the stats file"}
+		fetchError := &FetchError{StatusCode: 500, Type: "Could not create filepath to the stats directory"}
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	statsFiles, err := sparkOfflineStore.Store.List(statsDirectory, filestore.JSON)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Could not list the stats directory"}
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	filepath, err := FindFileWithPrefix(statsFiles, "part-00003")
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Could not find the stats file"}
 		m.logger.Errorw(fetchError.Error(), "error", err.Error())
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1162,6 +1181,18 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 	}
 
 	c.JSON(200, response)
+}
+
+func FindFileWithPrefix(fileList []filestore.Filepath, prefix string) (filestore.Filepath, error) {
+	for _, file := range fileList {
+		fileNameSplit := strings.Split(file.Key(), "/")
+		fileName := fileNameSplit[len(fileNameSplit)-1] // get the last element which is the file name
+		if strings.HasPrefix(fileName, prefix) {
+			return file, nil
+		}
+	}
+
+	return nil, fmt.Errorf("could not find the file prefix %s in the file list", prefix)
 }
 
 func ParseStatFile(file []byte) (SourceDataResponse, error) {

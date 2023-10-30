@@ -80,7 +80,11 @@ export default function SourceDialogTable({
                   <TableCell key={index} align={'right'}>
                     {['numeric', 'boolean'].includes(statObj.type) ? (
                       <Barchart
-                        categories={statObj.categories}
+                        categories={
+                          statObj.type === 'boolean'
+                            ? statObj.string_categories
+                            : statObj.numeric_categories
+                        }
                         categoryCounts={statObj.categoryCounts}
                         type={statObj.type}
                       />

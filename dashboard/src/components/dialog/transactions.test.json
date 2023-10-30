@@ -45,31 +45,36 @@
     {
       "name": "transactionid",
       "type": "string",
-      "categories": ["unique"],
+      "string_categories": ["unique"],
+      "numeric_categories": [],
       "categoryCounts": [100]
     },
     {
       "name": "customerid",
       "type": "string",
-      "categories": ["unique"],
+      "string_categories": ["unique"],
+      "numeric_categories": [],
       "categoryCounts": [100]
     },
     {
       "name": "customerdob",
       "type": "string",
-      "categories": ["unique"],
+      "string_categories": ["unique"],
+      "numeric_categories": [],
       "categoryCounts": [100]
     },
     {
       "name": "custlocation",
       "type": "string",
-      "categories": ["unique"],
+      "string_categories": ["unique"],
+      "numeric_categories": [],
       "categoryCounts": [100]
     },
     {
       "name": "custaccountbalance",
       "type": "numeric",
-      "categories": [
+      "string_categories": [],
+      "numeric_categories": [
         [0.0, 10.0],
         [10.1, 20.0],
         [21.1, 30.0],
@@ -84,7 +89,8 @@
       "categoryCounts": [10, 3, 4, 2, 8, 10, 3, 4, 2, 8]
     },
     {
-      "categories": [
+      "string_categories": [],
+      "numeric_categories": [
         [0.0, 156003.499],
         [156003.499, 312006.998],
         [312006.998, 468010.49700000003],
@@ -103,13 +109,15 @@
     {
       "name": "timestamp",
       "type": "string",
-      "categories": ["unique"],
+      "string_categories": ["unique"],
+      "numeric_categories": [],
       "categoryCounts": [100]
     },
     {
       "name": "isfraud",
       "type": "boolean",
-      "categories": ["true", "false"],
+      "string_categories": ["true", "false"],
+      "numeric_categories": [],
       "categoryCounts": [500, 250]
     }
   ]

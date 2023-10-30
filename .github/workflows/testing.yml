@@ -1049,6 +1049,14 @@ jobs:
 
       - name: Install featureform
         run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
+      
+      - name: Check directory
+        run: |
+          ls -la 
+      
+      - name: Check Client directory
+        run: |
+            ls -la client/
 
       - name: Run Tests
         run: make pytest

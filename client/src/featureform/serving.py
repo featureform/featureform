@@ -1068,11 +1068,14 @@ class Dataset:
                 .load(location)
             )
 
+            label_column_name = ""
             for col in df.columns:
                 if col.startswith("Label__"):
                     label_column_name = col
                     break
-            df = df.withColumnRenamed(label_column_name, "Label")
+
+            if label_column_name != "":
+                df = df.withColumnRenamed(label_column_name, "Label")
 
         except Exception as e:
             raise Exception(

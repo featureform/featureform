@@ -14,7 +14,6 @@ import (
 
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
-	_ "github.com/featureform/metadata/dashboard/mock_stats"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/metadata/search"
 	"github.com/featureform/proto"
@@ -1154,16 +1153,24 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 		return
 	}
 
-	var result map[string]interface{}
-	err = json.Unmarshal(file, &result)
+	response, err = ParseStatFile(file)
 	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "Reading stats file failed."}
+		fetchError := &FetchError{StatusCode: 500, Type: "Parsing the stats file failed."}
 		m.logger.Errorw(fetchError.Error(), "error", err.Error())
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 
-	fmt.Println(result)
+	c.JSON(200, response)
+}
+
+func ParseStatFile(file []byte) (SourceDataResponse, error) {
+	response := SourceDataResponse{}
+	var result map[string]interface{}
+	err := json.Unmarshal(file, &result)
+	if err != nil {
+		return response, err
+	}
 	//todox: change this to a proper struct
 	for _, column := range result["columns"].([]interface{}) {
 		response.Columns = append(response.Columns, column.(string))
@@ -1188,8 +1195,7 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 			CategoryCounts: catCounts,
 		})
 	}
-
-	c.JSON(200, response)
+	return response, nil
 }
 
 /*

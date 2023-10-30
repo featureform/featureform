@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 
 	"github.com/featureform/metadata"
@@ -158,43 +159,48 @@ func TestGetSourceDataReturnsData(t *testing.T) {
 	assert.Len(t, data.Stats, 0, "Get Source stats list should be zero")
 }
 
-func xTestGetFeatureFileStats(t *testing.T) {
-	mockRecorder := httptest.NewRecorder()
-	ctx := GetTestGinContext(mockRecorder)
-	u := url.Values{}
-	u.Add("name", "nameParamValue")
-	u.Add("variant", "variantParamValue")
-	MockGetSourceGet(ctx, nil, u)
+func TestParseStatFile(t *testing.T) {
+	//given: a baseline json file
+	baseFile, _ := os.ReadFile("./mock_stats/mock_stats.json")
 
-	logger := zap.NewExample().Sugar()
-	client := &metadata.Client{
-		GrpcConn: metadata.MetadataServerMock{},
+	//when: we create the source data response obj using the file
+	response, _ := ParseStatFile(baseFile)
+
+	var fileData map[string]interface{}
+	json.Unmarshal(baseFile, &fileData)
+
+	fileColumns := fileData["columns"].([]interface{})
+	fileRows := fileData["rows"].([]interface{})
+	fileStats := fileData["stats"].([]interface{})
+
+	//then: the response column names match the baseline json
+	assert.Equal(t, len(fileColumns), len(response.Columns))
+	for _, fileColumn := range fileColumns {
+		assert.Contains(t, response.Columns, fileColumn)
 	}
-	serv := MetadataServer{
-		client: client,
-		logger: logger,
+
+	//then: the response data rows match the baseline json
+	assert.Equal(t, len(fileRows), len(response.Rows))
+	for fileIndex, fileRow := range fileRows {
+		for _, fileRowValue := range fileRow.([]interface{}) {
+			assert.Contains(t, response.Rows[fileIndex], fileRowValue)
+		}
 	}
 
-	serv.GetFeatureFileStats(ctx)
-
-	iterator := provider.UnitTestIterator{}
-	var data SourceDataResponse
-	rowValues := []string{"row string value", "true", "10"}
-	expectedRows := [][]string{rowValues, rowValues, rowValues}
-
-	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
-	assert.Equal(t, http.StatusOK, mockRecorder.Code)
-	assert.Equal(t, iterator.Columns(), data.Columns)
-	assert.Equal(t, expectedRows, data.Rows)
-
-	assert.Len(t, data.Stats, len(data.Columns), "Stats and columns must always match lengths.")
-	assert.Equal(t, "column1", data.Stats[0].Name)
-	assert.Equal(t, "column2", data.Stats[1].Name)
-	assert.Equal(t, "column3", data.Stats[2].Name)
-
-	assert.Equal(t, "string", data.Stats[0].Type)
-	assert.Equal(t, "boolean", data.Stats[1].Type)
-	assert.Equal(t, "numeric", data.Stats[2].Type)
+	//then: the individual stats objects also match the baseline
+	assert.Equal(t, len(fileStats), len(response.Stats))
+	for fileIndex, fileStat := range fileStats {
+		currFileStat := fileStat.(map[string]interface{})
+		assert.Equal(t, currFileStat["name"].(string), response.Stats[fileIndex].Name)
+		assert.Equal(t, currFileStat["type"].(string), response.Stats[fileIndex].Type)
+		assert.Equal(t, currFileStat["categories"], response.Stats[fileIndex].Categories)
+		countInterface := currFileStat["categoryCounts"].([]interface{})
+		counts := []int{}
+		for _, count := range countInterface {
+			counts = append(counts, int(count.(float64)))
+		}
+		assert.Equal(t, counts, response.Stats[fileIndex].CategoryCounts)
+	}
 }
 
 func TestGetSourceMissingNameOrVariantParamErrors(t *testing.T) {

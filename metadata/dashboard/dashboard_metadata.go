@@ -1026,10 +1026,11 @@ func (m *MetadataServer) GetVersionMap(c *gin.Context) {
 }
 
 type ColumnStat struct {
-	Name           string      `json:"name"`
-	Type           string      `json:"type"`
-	Categories     interface{} `json:"categories"`
-	CategoryCounts []int       `json:"categoryCounts"`
+	Name              string      `json:"name"`
+	Type              string      `json:"type"`
+	StringCategories  interface{} `json:"string_categories"`
+	NumericCategories interface{} `json:"numeric_categories"`
+	CategoryCounts    []int       `json:"categoryCounts"`
 }
 
 type SourceDataResponse struct {
@@ -1093,7 +1094,6 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 	// feature name and variant
 	name := c.Query("name")
 	variant := c.Query("variant")
-	response := SourceDataResponse{}
 	if name == "" || variant == "" {
 		fetchError := &FetchError{StatusCode: 400, Type: "GetFeatureFileStats - Could not find the name or variant query parameters"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
@@ -1153,7 +1153,7 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 		return
 	}
 
-	response, err = ParseStatFile(file)
+	response, err := ParseStatFile(file)
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "Parsing the stats file failed."}
 		m.logger.Errorw(fetchError.Error(), "error", err.Error())
@@ -1189,10 +1189,11 @@ func ParseStatFile(file []byte) (SourceDataResponse, error) {
 		}
 
 		response.Stats = append(response.Stats, ColumnStat{
-			Name:           col.(map[string]interface{})["name"].(string),
-			Type:           col.(map[string]interface{})["type"].(string),
-			Categories:     col.(map[string]interface{})["categories"],
-			CategoryCounts: catCounts,
+			Name:              col.(map[string]interface{})["name"].(string),
+			Type:              col.(map[string]interface{})["type"].(string),
+			StringCategories:  col.(map[string]interface{})["string_categories"],
+			NumericCategories: col.(map[string]interface{})["numeric_categories"],
+			CategoryCounts:    catCounts,
 		})
 	}
 	return response, nil

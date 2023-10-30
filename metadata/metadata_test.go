@@ -3,6 +3,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"google.golang.org/protobuf/proto"
 	"net"
 	"reflect"
 	"testing"
@@ -2026,4 +2027,248 @@ func TestSourceShallowMapOK(t *testing.T) {
 	assertEqual(t, slices.Contains(sourceVariantResource.Tags, "test.active"), true)
 	assertEqual(t, slices.Contains(sourceVariantResource.Tags, "test.inactive"), true)
 	assertEqual(t, sv.Properties()["test.map.key"], sourceVariantResource.Properties["test.map.key"])
+}
+
+// TODO split these up into better tests
+func Test_GetEquivalent(t *testing.T) {
+	serv, addr := startServNoPanic(t)
+	client := client(t, addr)
+	context := context.Background()
+
+	redisConfig := pc.RedisConfig{
+		Addr:     "0.0.0.0",
+		Password: "root",
+		DB:       0,
+	}
+	snowflakeConfig := pc.SnowflakeConfig{
+		Username:     "featureformer",
+		Password:     "password",
+		Organization: "featureform",
+		Account:      "featureform-test",
+		Database:     "transactions_db",
+		Schema:       "fraud",
+		Warehouse:    "ff_wh_xs",
+		Role:         "sysadmin",
+	}
+	userDef := UserDef{
+		Name:       "Featureform",
+		Tags:       Tags{},
+		Properties: Properties{},
+	}
+	onlineDef := ProviderDef{
+		Name:             "mockOnline",
+		Description:      "A mock online provider",
+		Type:             string(pt.RedisOnline),
+		Software:         "redis",
+		Team:             "fraud",
+		SerializedConfig: redisConfig.Serialized(),
+		Tags:             Tags{},
+		Properties:       Properties{},
+	}
+	offlineDef := ProviderDef{
+		Name:             "mockOffline",
+		Description:      "A mock offline provider",
+		Type:             string(pt.SnowflakeOffline),
+		Software:         "snowflake",
+		Team:             "recommendations",
+		SerializedConfig: snowflakeConfig.Serialize(),
+		Tags:             Tags{},
+		Properties:       Properties{},
+	}
+	entityDef := EntityDef{
+		Name:        "user",
+		Description: "A user entity",
+		Tags:        Tags{},
+		Properties:  Properties{},
+	}
+	sourceDef := SourceDef{
+		Name:        "mockSource",
+		Variant:     "var",
+		Description: "A CSV source",
+		Definition: TransformationSource{
+			TransformationType: SQLTransformationType{
+				Query: "SELECT * FROM dummy",
+				Sources: []NameVariant{{
+					Name:    "mockName",
+					Variant: "mockVariant"},
+				},
+			},
+		},
+		Owner:      "Featureform",
+		Provider:   "mockOffline",
+		Tags:       Tags{},
+		Properties: Properties{},
+	}
+	featureDef := FeatureDef{
+		Name:        "feature",
+		Variant:     "variant",
+		Description: "Feature3 on-demand",
+		Owner:       "Featureform",
+		Location: PythonFunction{
+			Query: []byte(PythonFunc),
+		},
+		Tags:       Tags{},
+		Properties: Properties{},
+		Mode:       CLIENT_COMPUTED,
+		IsOnDemand: true,
+	}
+	featureDef2 := FeatureDef{
+		Name:        "feature2",
+		Variant:     "variant",
+		Description: "Feature3 on-demand",
+		Owner:       "Featureform",
+		Location: PythonFunction{
+			Query: []byte(PythonFunc),
+		},
+		Tags:       Tags{},
+		Properties: Properties{},
+		Mode:       CLIENT_COMPUTED,
+		IsOnDemand: true,
+	}
+	labelDef := LabelDef{
+		Name:        "label",
+		Variant:     "variant",
+		Type:        "int64",
+		Description: "label variant",
+		Provider:    "mockOffline",
+		Entity:      "user",
+		Source:      NameVariant{"mockSource", "var"},
+		Owner:       "Featureform",
+		Location: ResourceVariantColumns{
+			Entity: "col1",
+			Value:  "col2",
+			TS:     "col3",
+		},
+		Tags:       Tags{},
+		Properties: Properties{},
+	}
+
+	trainingSetDef := TrainingSetDef{
+		Name:        "training-set",
+		Variant:     "variant",
+		Provider:    "mockOffline",
+		Description: "training-set variant",
+		Label:       NameVariant{"label", "variant"},
+		Features: NameVariants{
+			{"feature", "variant"},
+			{"feature2", "variant"},
+		},
+		Owner:      "Featureform",
+		Tags:       Tags{},
+		Properties: Properties{},
+	}
+
+	defaultResourceVariant := &pb.ResourceVariant{}
+
+	resourceDefs := []ResourceDef{userDef, entityDef, onlineDef, offlineDef, sourceDef, featureDef, featureDef2, labelDef, trainingSetDef}
+
+	err := client.CreateAll(context, resourceDefs)
+	if err != nil {
+		t.Fatalf("Failed to create resources: %s", err)
+	}
+
+	// sourceDef
+	sourceDef.Description = "Some other description"
+	sourceDef.Variant = "var2"
+	svProto, err := sourceDef.Serialize()
+	if err != nil {
+		t.Fatalf("Failed to serialize source def: %s", err)
+	}
+	resourceVariant := &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto}}
+	equivalent, err := serv.GetEquivalent(context, resourceVariant)
+	if err != nil {
+		t.Fatalf("Failed to get equivalent: %s", err)
+	}
+	if proto.Equal(equivalent, defaultResourceVariant) {
+		t.Fatalf("There was an equivalent but we didn't get one")
+	}
+
+	sourceDef.Definition = TransformationSource{
+		TransformationType: SQLTransformationType{
+			Query: "SELECT count(*) FROM dummy",
+			Sources: []NameVariant{{
+				Name:    "mockName",
+				Variant: "mockVariant"},
+			},
+		},
+	}
+	svProto2, err := sourceDef.Serialize()
+	if err != nil {
+		t.Fatalf("Failed to serialize source def: %s", err)
+	}
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto2}}
+	equivalent, err = serv.GetEquivalent(context, resourceVariant)
+	if err != nil {
+		t.Fatalf("Failed to get equivalent: %s", err)
+	}
+	if !proto.Equal(equivalent, defaultResourceVariant) {
+		t.Fatalf("There was no equivalent but we got one")
+	}
+
+	// labelDef
+	labelDef.Description = "Some other description"
+	lvProto, err := labelDef.Serialize()
+	if err != nil {
+		t.Fatalf("Failed to serialize label def: %s", err)
+	}
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_LabelVariant{lvProto}}
+	equivalent, err = serv.GetEquivalent(context, resourceVariant)
+	if err != nil {
+		t.Fatalf("Failed to get equivalent: %s", err)
+	}
+	if proto.Equal(equivalent, defaultResourceVariant) {
+		t.Fatalf("There was an equivalent but we didn't get one")
+	}
+
+	// featureDef
+	featureDef.Description = "Some other description"
+	fvProto, err := featureDef.Serialize()
+	if err != nil {
+		t.Fatalf("Failed to serialize feature def: %s", err)
+	}
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto}}
+	equivalent, err = serv.GetEquivalent(context, resourceVariant)
+	if err != nil {
+		t.Fatalf("Failed to get equivalent: %s", err)
+	}
+	if proto.Equal(equivalent, defaultResourceVariant) {
+		t.Fatalf("There was an equivalent but we didn't get one")
+	}
+
+	// trainingSetDef
+	trainingSetDef.Description = "Some other description"
+	tsvProto := trainingSetDef.Serialize()
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto}}
+	equivalent, err = serv.GetEquivalent(context, resourceVariant)
+	if err != nil {
+		t.Fatalf("Failed to get equivalent: %s", err)
+	}
+	if proto.Equal(equivalent, defaultResourceVariant) {
+		t.Fatalf("There was an equivalent but we didn't get one")
+	}
+
+	trainingSetDef.Features = NameVariants{
+		{"feature2", "variant"},
+		{"feature", "variant"},
+	}
+	tsvProto = trainingSetDef.Serialize()
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto}}
+	equivalent, err = serv.GetEquivalent(context, resourceVariant)
+	if err != nil {
+		t.Fatalf("Failed to get equivalent: %s", err)
+	}
+	if proto.Equal(equivalent, defaultResourceVariant) {
+		t.Fatalf("there was an equivalent but we didn't get one")
+	}
+
+	trainingSetDef.Label = NameVariant{"label_doesnt_exist", "variant"}
+	tsvProto = trainingSetDef.Serialize()
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto}}
+	equivalent, err = serv.GetEquivalent(context, resourceVariant)
+	if err != nil {
+		t.Fatalf("Failed to get equivalent: %s", err)
+	}
+	if !proto.Equal(equivalent, defaultResourceVariant) {
+		t.Fatalf("there was no equivalent but we got one")
+	}
 }

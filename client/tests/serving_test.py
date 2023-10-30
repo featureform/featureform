@@ -663,8 +663,8 @@ def test_sanitize_location(location, expected_location):
 @pytest.mark.parametrize(
     "location,format",
     [
-        ("test_files/input_files/transactions.csv", "csv"),
-        ("test_files/input_files/transactions.parquet", "parquet"),
+        ("client/tests/test_files/input_files/transactions.csv", "csv"),
+        ("client/tests/test_files/input_files/transactions.parquet", "parquet"),
     ],
 )
 def test_get_spark_dataframe(location, format, spark_session):

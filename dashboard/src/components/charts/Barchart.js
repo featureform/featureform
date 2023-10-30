@@ -29,6 +29,18 @@ export default function Barchart({
             data: categoryCounts,
             borderWidth: 0,
             barPercentage: 1.3,
+            backgroundColor: [
+              'rgba(255, 99, 132, 0.2)',
+              'rgba(255, 159, 64, 0.2)',
+              'rgba(255, 205, 86, 0.2)',
+              'rgba(75, 192, 192, 0.2)',
+              'rgba(54, 162, 235, 0.2)',
+              'rgba(153, 102, 255, 0.2)',
+              'rgba(158, 102, 138, 0.2)',
+              'rgba(201, 203, 207, 0.2)',
+              'rgba(95, 95, 226, 0.2)',
+              'rgba(158, 198, 200, 0.2)',
+            ],
           },
         ],
       };
@@ -49,10 +61,13 @@ export default function Barchart({
             intersect: false,
           },
           scales: {
-            yAxes: [{ ticks: { beginAtZero: true, display: false } }],
+            yAxes: [{ ticks: { beginAtZero: true, maxTicksLimit: 3 } }],
             xAxes: [
               {
-                ticks: { beginAtZero: true, display: false },
+                ticks: {
+                  beginAtZero: true,
+                  maxTicksLimit: 3,
+                },
               },
             ],
           },

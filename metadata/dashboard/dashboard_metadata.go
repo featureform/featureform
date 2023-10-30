@@ -1140,7 +1140,7 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 
 	// Get list of files in the stats directory then return the third part file
 	statsPath := fmt.Sprintf("featureform/Materialization/%s/%s/stats", name, variant)
-	statsDirectory, err := sparkOfflineStore.Store.CreateFilePath(statsPath)
+	statsDirectory, err := sparkOfflineStore.Store.CreateDirPath(statsPath)
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "Could not create filepath to the stats directory"}
 		m.logger.Errorw(fetchError.Error(), "error", err.Error())

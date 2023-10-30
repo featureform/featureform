@@ -102,19 +102,23 @@ def test_registrar_get_bigquery():
 @pytest.mark.local
 def test_registrar_get_spark():
     reg = Registrar()
-    result = reg.get_spark(
+    spark = reg.get_spark(
         name="unit-test",
     )
-    assert isinstance(result, OfflineSparkProvider)
+    assert isinstance(spark, OfflineSparkProvider)
+
+    spark.register_file("dummy_file", "s3://dummy_file_path", owner="dummy_owner")
 
 
 @pytest.mark.local
 def test_registrar_get_kubernetes():
     reg = Registrar()
-    result = reg.get_kubernetes(
+    k8s = reg.get_kubernetes(
         name="unit-test",
     )
-    assert isinstance(result, OfflineK8sProvider)
+    assert isinstance(k8s, OfflineK8sProvider)
+
+    k8s.register_file("dummy_file", "s3://dummy_file_path", owner="dummy_owner")
 
 
 @pytest.mark.local

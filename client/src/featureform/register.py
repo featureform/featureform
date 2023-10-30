@@ -12,7 +12,7 @@ import dill
 import pandas as pd
 from typeguard import typechecked
 
-from .enums import FileFormat
+from .enums import FileFormat, FileStore
 from .exceptions import InvalidSQLQuery
 from .file_utils import absolute_file_paths
 from .get import *
@@ -259,7 +259,8 @@ class OfflineSparkProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): source
         """
-        FilePrefix.validate(self.__provider.config.store_type, file_path)
+        if self.__provider.config.store_type != FileStore.MOCK:
+            FilePrefix.validate(self.__provider.config.store_type, file_path)
 
         return self.__registrar.register_primary_data(
             name=name,
@@ -420,7 +421,8 @@ class OfflineK8sProvider(OfflineProvider):
         Returns:
             source (ColumnSourceRegistrar): source
         """
-        FilePrefix.validate(self.__provider.config.store_type, path)
+        if self.__provider.config.store_type != FileStore.MOCK:
+            FilePrefix.validate(self.__provider.config.store_type, path)
 
         return self.__registrar.register_primary_data(
             name=name,
@@ -2141,7 +2143,7 @@ class Registrar:
             spark (OfflineSQLProvider): Provider
         """
         mock_config = SparkConfig(
-            executor_type="", executor_config={}, store_type="", store_config={}
+            executor_type="", executor_config={}, store_type=FileStore.MOCK, store_config={}
         )
         mock_provider = Provider(
             name=name, function="OFFLINE", description="", team="", config=mock_config
@@ -2170,7 +2172,7 @@ class Registrar:
         Returns:
             k8s (OfflineK8sProvider): Provider
         """
-        mock_config = K8sConfig(store_type="", store_config={})
+        mock_config = K8sConfig(store_type=FileStore.MOCK, store_config={})
         mock_provider = Provider(
             name=name, function="OFFLINE", description="", team="", config=mock_config
         )

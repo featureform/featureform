@@ -1218,8 +1218,13 @@ class DFTransformationDecorator:
         if not isinstance(self.inputs, list):
             raise ValueError("Dataframe transformation inputs must be a list")
 
+        # check that input isn't self referencing
         for nv in self.inputs:
-            if self.name is nv[0] and self.variant is nv[1]:
+            if isinstance(nv, tuple):
+                n, v = nv
+            else:
+                n, v = nv.name_variant()
+            if self.name is n and self.variant is v:
                 raise ValueError(
                     f"Transformation cannot be input for itself: {self.name} {self.variant}"
                 )
@@ -3563,9 +3568,9 @@ class Registrar:
             variant = self.__run
         if not isinstance(provider, str):
             provider = provider.name()
-        for i, nv in enumerate(inputs):
-            if not isinstance(nv, tuple):
-                inputs[i] = nv.name_variant()
+        # for i, nv in enumerate(inputs):
+        # if not isinstance(nv, tuple):
+        #     inputs[i] = nv.name_variant()
         source = SourceVariant(
             created=None,
             name=name,
@@ -3621,10 +3626,8 @@ class Registrar:
         if not isinstance(inputs, list):
             raise ValueError("Dataframe transformation inputs must be a list")
         for i, nv in enumerate(inputs):
-            if isinstance(nv, str):
+            if isinstance(nv, str):  # TODO remove this functionality
                 inputs[i] = (nv, self.__run)
-            elif not isinstance(nv, tuple):
-                inputs[i] = nv.name_variant()
             elif isinstance(nv, tuple):
                 try:
                     self._verify_tuple(nv)
@@ -3637,8 +3640,8 @@ class Registrar:
                         f"DF transformation {transformation_message} requires correct inputs "
                         f" '{nv}' is not a valid tuple: {e}"
                     )
-            if inputs[i][1] == "":
-                inputs[i] = (inputs[i][0], self.__run)
+            # if inputs[i][1] == "":
+            #     inputs[i] = (inputs[i][0], self.__run)
 
         decorator = DFTransformationDecorator(
             registrar=self,
@@ -3877,8 +3880,9 @@ class Registrar:
             labels = []
         if len(features) == 0 and len(labels) == 0:
             raise ValueError("No features or labels set")
-        if not isinstance(source, tuple):
-            source = source.id()
+        # if not isinstance(source, tuple):
+        #     print('WE SHOULD BE HERE')
+        #     source = source.id()
         if isinstance(source, tuple) and source[1] == "":
             source = source[0], self.__run
         if not isinstance(entity, str):
@@ -3972,10 +3976,10 @@ class Registrar:
         feature_nv_list = []
         feature_lags = []
         for feature in features:
-            if isinstance(feature, FeatureColumnResource):
-                feature_nv_list.append(feature.name_variant())
-            elif isinstance(feature, str):
-                feature_nv_list.append((feature, run))
+            # if isinstance(feature, FeatureColumnResource):
+            #     feature_nv_list.append(feature)
+            if isinstance(feature, str):
+                feature_nv_list.append((feature, run))  # git rid of this´
             elif isinstance(feature, dict):
                 lag = feature.get("lag")
                 if "variant" not in feature:
@@ -4089,8 +4093,8 @@ class Registrar:
             elif resource_label != ():
                 raise ValueError("A training set can only have one label")
 
-        if isinstance(label, LabelColumnResource):
-            label = label.name_variant()
+        # if isinstance(label, LabelColumnResource):
+        #     label = label.name_variant()
 
         features, feature_lags = self.__get_feature_nv(features, self.__run)
         if label == ():
@@ -4099,15 +4103,15 @@ class Registrar:
             raise ValueError("A training-set must have atleast one feature")
         if isinstance(label, str):
             label = (label, self.__run)
-        if label[1] == "":
+        if not isinstance(label, LabelColumnResource) and label[1] == "":
             label = (label[0], self.__run)
 
         processed_features = []
         for feature in features:
             if isinstance(feature, tuple) and feature[1] == "":
                 feature = (feature[0], self.__run)
-            elif isinstance(feature, FeatureColumnResource):
-                feature = feature.name_variant()
+            # elif isinstance(feature, FeatureColumnResource):
+            #     feature = feature.name_variant()
             processed_features.append(feature)
         resource = TrainingSetVariant(
             created=None,

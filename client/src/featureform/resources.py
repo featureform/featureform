@@ -1288,7 +1288,7 @@ class Feature:
 @dataclass
 class FeatureVariant:
     name: str
-    source: NameVariant
+    source: Any
     value_type: str
     entity: str
     owner: str
@@ -1353,7 +1353,10 @@ class FeatureVariant:
             error=feature.status.error_message,
         )
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> Optional[str]:
+        if not isinstance(self.source, tuple):
+            self.source = self.source.name_variant()
+
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
@@ -1890,6 +1893,13 @@ class TrainingSetVariant:
                 lag=lag_duration,
             )
             feature_lags.append(feature_lag)
+
+        for i, f in enumerate(self.features):
+            from featureform import FeatureColumnResource
+            if isinstance(f, FeatureColumnResource):
+                self.features[i] = f.name_variant()
+
+        self.label = self.label.name_variant()
 
         serialized = pb.TrainingSetVariant(
             created=None,

@@ -7,6 +7,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"github.com/featureform/lib"
 	"io"
 	"net"
 	"strings"
@@ -217,6 +218,25 @@ func (err *ResourceExists) Error() string {
 
 func (err *ResourceExists) GRPCStatus() *status.Status {
 	return status.New(codes.AlreadyExists, err.Error())
+}
+
+type ResourceChanged struct {
+	ID ResourceID
+}
+
+func (err *ResourceChanged) Error() string {
+	id := err.ID
+	errMsg := fmt.Sprintf("%s changed. Use a new variant.", id.String())
+	return errMsg
+}
+
+func (err *ResourceChanged) GRPCStatus() *status.Status {
+	return status.New(codes.Internal, err.Error())
+}
+
+type ResourceVariant interface {
+	IsEquivalent(ResourceVariant) bool
+	ToResourceVariantProto() *pb.ResourceVariant
 }
 
 type Resource interface {
@@ -482,6 +502,66 @@ func (resource *sourceVariantResource) Update(lookup ResourceLookup, updateRes R
 	return nil
 }
 
+func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) bool {
+	/**
+	Key Fields for a SourceVariant are
+	- Name
+	- Definition
+	- Owner
+	- Provider
+	*/
+	otherVariant, ok := other.(*sourceVariantResource)
+	if !ok {
+		return false
+	}
+
+	thisSerialized := resource.serialized
+	otherVariantSerialized := otherVariant.serialized
+
+	isDefinitionEqual := false
+	switch thisDef := thisSerialized.Definition.(type) {
+	case *pb.SourceVariant_Transformation:
+		if otherDef, ok := otherVariantSerialized.Definition.(*pb.SourceVariant_Transformation); ok {
+			isDefinitionEqual = isProtoDefinitionEqual(thisDef, otherDef)
+		}
+	case *pb.SourceVariant_PrimaryData:
+		if otherDef, ok := otherVariantSerialized.Definition.(*pb.SourceVariant_PrimaryData); ok {
+			isDefinitionEqual = proto.Equal(thisDef.PrimaryData, otherDef.PrimaryData)
+		}
+	}
+
+	if thisSerialized.GetName() == otherVariantSerialized.GetName() &&
+		thisSerialized.GetOwner() == otherVariantSerialized.GetOwner() &&
+		thisSerialized.GetProvider() == otherVariantSerialized.GetProvider() &&
+		isDefinitionEqual {
+
+		return true
+	}
+	return false
+}
+
+func isProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transformation) bool {
+	isDefinitionEqual := false
+	switch thisDef.Transformation.Type.(type) {
+	case *pb.Transformation_DFTransformation:
+		if otherDef, ok := otherDef.Transformation.Type.(*pb.Transformation_DFTransformation); ok {
+			sourceTextEqual := thisDef.Transformation.GetDFTransformation().SourceText == otherDef.DFTransformation.SourceText
+			inputsEqual := lib.EqualProtoContents(thisDef.Transformation.GetDFTransformation().Inputs, otherDef.DFTransformation.Inputs)
+			isDefinitionEqual = sourceTextEqual &&
+				inputsEqual
+		}
+	case *pb.Transformation_SQLTransformation:
+		isDefinitionEqual = thisDef.Transformation.GetSQLTransformation().Query == otherDef.Transformation.GetSQLTransformation().Query
+	}
+
+	kubernetesArgsEqual := proto.Equal(thisDef.Transformation.GetKubernetesArgs(), otherDef.Transformation.GetKubernetesArgs())
+	return isDefinitionEqual && kubernetesArgsEqual
+}
+
+func (resource *sourceVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
+	return &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{SourceVariant: resource.serialized}}
+}
+
 type featureResource struct {
 	serialized *pb.Feature
 }
@@ -622,6 +702,50 @@ func (resource *featureVariantResource) Update(lookup ResourceLookup, updateRes 
 	return nil
 }
 
+func (resource *featureVariantResource) KeyFields(other ResourceVariant) {
+
+}
+
+func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) bool {
+	/**
+	Key Fields for a FeatureVariant are
+	- Name
+	- Source
+	- Function
+	- Provider
+	- Entity
+	- Owner
+	- Type
+	*/
+
+	otherVariant, ok := other.(*featureVariantResource)
+	if !ok {
+		return false
+	}
+
+	thisProto := resource.serialized
+	otherProto := otherVariant.serialized
+
+	isEquivalentLocation := proto.Equal(thisProto.GetFunction(), otherProto.GetFunction()) ||
+		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns())
+
+	if thisProto.GetName() == otherProto.GetName() &&
+		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
+		thisProto.GetProvider() == otherProto.GetProvider() &&
+		thisProto.GetEntity() == otherProto.GetEntity() &&
+		thisProto.Type == otherProto.Type &&
+		isEquivalentLocation &&
+		thisProto.Owner == otherProto.Owner {
+
+		return true
+	}
+	return false
+}
+
+func (resource *featureVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
+	return &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{FeatureVariant: resource.serialized}}
+}
+
 type labelResource struct {
 	serialized *pb.Label
 }
@@ -755,6 +879,40 @@ func (resource *labelVariantResource) Update(lookup ResourceLookup, updateRes Re
 	return nil
 }
 
+func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) bool {
+	/**
+	Key Fields for a LabelVariant are
+	- Name
+	- Source
+	- Columns
+	- Owner
+	- Entity
+	- Type
+	*/
+	otherVariant, ok := other.(*labelVariantResource)
+	if !ok {
+		return false
+	}
+
+	thisProto := resource.serialized
+	otherProto := otherVariant.serialized
+	if thisProto.GetName() == otherProto.GetName() &&
+		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
+		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns()) &&
+		thisProto.Entity == otherProto.Entity &&
+		thisProto.Type == otherProto.Type &&
+		thisProto.Owner == otherProto.Owner {
+
+		return true
+	}
+
+	return false
+}
+
+func (resource *labelVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
+	return &pb.ResourceVariant{Resource: &pb.ResourceVariant_LabelVariant{LabelVariant: resource.serialized}}
+}
+
 type trainingSetResource struct {
 	serialized *pb.TrainingSet
 }
@@ -884,6 +1042,42 @@ func (resource *trainingSetVariantResource) Update(lookup ResourceLookup, update
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
+}
+
+func (resource *trainingSetVariantResource) IsEquivalent(other ResourceVariant) bool {
+	/**
+	Key Fields for a TrainingSetVariant are
+	- Name
+	- Labels
+	- Features
+	- Lag Features
+	- Owner
+	*/
+	otherVariant, ok := other.(*trainingSetVariantResource)
+	if !ok {
+		return false
+	}
+
+	thisProto := resource.serialized
+	otherProto := otherVariant.serialized
+
+	equivalentLabals := proto.Equal(thisProto.GetLabel(), otherProto.GetLabel())
+	equivalentFeatures := lib.EqualProtoContents(thisProto.GetFeatures(), otherProto.GetFeatures())
+	equivalentLagFeatures := lib.EqualProtoContents(thisProto.GetFeatureLags(), otherProto.GetFeatureLags())
+
+	if thisProto.GetName() == otherProto.GetName() &&
+		equivalentLabals &&
+		equivalentFeatures &&
+		equivalentLagFeatures &&
+		thisProto.Owner == otherProto.Owner {
+
+		return true
+	}
+	return false
+}
+
+func (resource *trainingSetVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
+	return &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{TrainingSetVariant: resource.serialized}}
 }
 
 type modelResource struct {
@@ -1511,6 +1705,47 @@ func (serv *MetadataServer) GetModels(stream pb.Metadata_GetModelsServer) error 
 	})
 }
 
+func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariant) (*pb.ResourceVariant, error) {
+	noEquivalentResponse := &pb.ResourceVariant{}
+
+	var currentResource ResourceVariant
+	var resourceType ResourceType
+
+	switch req.Resource.(type) {
+	case *pb.ResourceVariant_SourceVariant:
+		currentResource = &sourceVariantResource{req.GetSourceVariant()}
+		resourceType = SOURCE_VARIANT
+	case *pb.ResourceVariant_FeatureVariant:
+		currentResource = &featureVariantResource{req.GetFeatureVariant()}
+		resourceType = FEATURE_VARIANT
+	case *pb.ResourceVariant_LabelVariant:
+		currentResource = &labelVariantResource{req.GetLabelVariant()}
+		resourceType = LABEL_VARIANT
+	case *pb.ResourceVariant_TrainingSetVariant:
+		currentResource = &trainingSetVariantResource{req.GetTrainingSetVariant()}
+		resourceType = TRAINING_SET_VARIANT
+	default:
+		return nil, fmt.Errorf("unknown resource variant type: %v", req.Resource)
+	}
+
+	resources, err := serv.lookup.ListForType(resourceType)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, res := range resources {
+		other, ok := res.(ResourceVariant)
+		if !ok {
+			continue
+		}
+		if currentResource.IsEquivalent(other) {
+			return other.ToResourceVariantProto(), nil
+		}
+	}
+
+	return noEquivalentResponse, nil
+}
+
 type nameStream interface {
 	Recv() (*pb.Name, error)
 }
@@ -1533,6 +1768,15 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if _, isResourceError := err.(*ResourceNotFound); err != nil && !isResourceError {
 		return nil, err
 	}
+
+	// It's possible we found a resource with the same name and variant but different contents, if different contents
+	// we'll let the user know to ideally use a different variant
+	// i.e. user tries to register transformation with same name and variant but different definition.
+	_, isResourceVariant := res.(ResourceVariant)
+	if isResourceVariant && existing != nil && !isEquivalent(existing, res) {
+		return nil, &ResourceChanged{res.ID()}
+	}
+
 	if existing != nil {
 		if err := existing.Update(serv.lookup, res); err != nil {
 			return nil, err
@@ -1570,6 +1814,20 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 	return &pb.Empty{}, nil
+}
+
+func isEquivalent(this Resource, other Resource) bool {
+	// only works on resource variants right now
+	existingVariant, ok := this.(ResourceVariant)
+	if !ok {
+		return false
+	}
+	resVariant, ok := other.(ResourceVariant)
+	if !ok {
+		return false
+	}
+	isEquivalent := existingVariant.IsEquivalent(resVariant)
+	return isEquivalent
 }
 
 func (serv *MetadataServer) propagateChange(newRes Resource) error {
@@ -1663,6 +1921,7 @@ func (serv *MetadataServer) genericList(t ResourceType, send sendFn) error {
 	return nil
 }
 
+// Resource Variant structs for Dashboard
 type TrainingSetVariantResource struct {
 	Created     time.Time                           `json:"created"`
 	Description string                              `json:"description"`

@@ -668,7 +668,9 @@ def test_sanitize_location(location, expected_location):
     ],
 )
 def test_get_spark_dataframe(location, format, spark_session):
-    expected_df = spark_session.read.option("header", "true").format(format).load(location)
+    expected_df = (
+        spark_session.read.option("header", "true").format(format).load(location)
+    )
     dataset = Dataset("")
     actual_df = dataset._get_spark_dataframe(spark_session, format, location)
     assert actual_df.collect() == expected_df.collect()

@@ -1,15 +1,19 @@
+import os
 import time
+import random
+import string
 from time import sleep
 
 from behave import *
-from featureform import register_spark
 import featureform as ff
-import os
+from featureform import register_spark
 
 
 @when("I generate a random variant name")
 def step_impl(context):
-    ff.set_run()
+    run_id = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
+
+    ff.set_run(run_id)
 
 
 @when("I register Spark")

@@ -298,6 +298,7 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
                 if file_extension == ".csv":
                     source_df = (
                         spark.read.option("header", "true")
+                        .option("ignoreCorruptFiles", "true")
                         .option("recursiveFileLookup", "true")
                         .csv(source)
                     )
@@ -305,6 +306,7 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
                 elif file_extension == ".parquet" or is_directory:
                     source_df = (
                         spark.read.option("header", "true")
+                        .option("ignoreCorruptFiles", "true")
                         .option("recursiveFileLookup", "true")
                         .parquet(source)
                     )
@@ -330,13 +332,9 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
         output_dataframe.write.option("header", "true").mode("overwrite").parquet(
             output_uri_with_timestamp
         )
-        try:
-            stats_directory = f"{output_uri.rstrip('/')}/stats"
-            stats_df = display_data_metrics(output_dataframe, spark)
-            stats_df.write.json(stats_directory, mode="overwrite")
-        except Exception as e:
-            print(e)
-            print("Failed to display data metrics")
+        stats_directory = f"{output_uri.rstrip('/')}/stats"
+        stats_df = display_data_metrics(output_dataframe, spark)
+        stats_df.write.json(stats_directory, mode="overwrite")
         return output_uri_with_timestamp
     except Exception as e:
         print(e)
@@ -363,12 +361,14 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         if file_extension == ".csv":
             func_parameters.append(
                 spark.read.option("header", "true")
+                .option("ignoreCorruptFiles", "true")
                 .option("recursiveFileLookup", "true")
                 .csv(location)
             )
         elif file_extension == ".parquet" or is_directory:
             func_parameters.append(
                 spark.read.option("header", "true")
+                .option("ignoreCorruptFiles", "true")
                 .option("recursiveFileLookup", "true")
                 .parquet(location)
             )

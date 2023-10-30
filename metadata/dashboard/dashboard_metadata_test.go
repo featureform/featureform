@@ -193,8 +193,20 @@ func TestParseStatFile(t *testing.T) {
 		currFileStat := fileStat.(map[string]interface{})
 		assert.Equal(t, currFileStat["name"].(string), response.Stats[fileIndex].Name)
 		assert.Equal(t, currFileStat["type"].(string), response.Stats[fileIndex].Type)
-		assert.Equal(t, currFileStat["numeric_categories"], response.Stats[fileIndex].NumericCategories)
-		assert.Equal(t, currFileStat["string_categories"], response.Stats[fileIndex].StringCategories)
+		stringCats := []string{}
+		for _, category := range currFileStat["string_categories"].([]interface{}) {
+			stringCats = append(stringCats, category.(string))
+		}
+		assert.Equal(t, stringCats, response.Stats[fileIndex].StringCategories)
+		numCats := [][]int{}
+		for _, category := range currFileStat["numeric_categories"].([]interface{}) {
+			innerList := []int{}
+			for _, numInterface := range category.([]interface{}) {
+				innerList = append(innerList, int(numInterface.(float64)))
+			}
+			numCats = append(numCats, innerList)
+		}
+		assert.Equal(t, numCats, response.Stats[fileIndex].NumericCategories)
 		countInterface := currFileStat["categoryCounts"].([]interface{})
 		counts := []int{}
 		for _, count := range countInterface {

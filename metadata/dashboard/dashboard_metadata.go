@@ -1026,11 +1026,11 @@ func (m *MetadataServer) GetVersionMap(c *gin.Context) {
 }
 
 type ColumnStat struct {
-	Name              string      `json:"name"`
-	Type              string      `json:"type"`
-	StringCategories  interface{} `json:"string_categories"`
-	NumericCategories interface{} `json:"numeric_categories"`
-	CategoryCounts    []int       `json:"categoryCounts"`
+	Name              string   `json:"name"`
+	Type              string   `json:"type"`
+	StringCategories  []string `json:"string_categories"`
+	NumericCategories [][]int  `json:"numeric_categories"`
+	CategoryCounts    []int    `json:"categoryCounts"`
 }
 
 type SourceDataResponse struct {
@@ -1188,11 +1188,25 @@ func ParseStatFile(file []byte) (SourceDataResponse, error) {
 			catCounts = append(catCounts, int(categoryCount.(float64)))
 		}
 
+		stringCats := []string{}
+		for _, category := range col.(map[string]interface{})["string_categories"].([]interface{}) {
+			stringCats = append(stringCats, category.(string))
+		}
+
+		numCats := [][]int{}
+		for _, category := range col.(map[string]interface{})["numeric_categories"].([]interface{}) {
+			innerList := []int{}
+			for _, numInterface := range category.([]interface{}) {
+				innerList = append(innerList, int(numInterface.(float64)))
+			}
+			numCats = append(numCats, innerList)
+		}
+
 		response.Stats = append(response.Stats, ColumnStat{
 			Name:              col.(map[string]interface{})["name"].(string),
 			Type:              col.(map[string]interface{})["type"].(string),
-			StringCategories:  col.(map[string]interface{})["string_categories"],
-			NumericCategories: col.(map[string]interface{})["numeric_categories"],
+			StringCategories:  stringCats,
+			NumericCategories: numCats,
 			CategoryCounts:    catCounts,
 		})
 	}

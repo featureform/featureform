@@ -397,6 +397,8 @@ func (serv *FeatureServer) ResourceLocation(ctx context.Context, req *pb.Trainin
 		return nil, errors.Wrap(err, "could not get training set variant")
 	}
 
+	// There might be an edge case where you have successfully ran a previous job and currently, you run a new job
+	// the status would be PENDING
 	if tv.Status() != metadata.READY {
 		return nil, fmt.Errorf("training set variant is not ready; current status is %v", tv.Status())
 	}

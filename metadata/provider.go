@@ -66,7 +66,6 @@ func isValidFirestoreConfigUpdate(sa, sb pc.SerializedConfig) (bool, error) {
 	return a.MutableFields().Contains(diff), nil
 }
 
-
 func isValidMSSQLConfigUpdate(sa, sb pc.SerializedConfig) (bool, error) {
 	a := pc.MSSQLConfig{}
 	b := pc.MSSQLConfig{}

@@ -161,7 +161,7 @@ func TestProviderConfigUpdates(t *testing.T) {
 			case pt.DynamoDBOnline:
 				testDynamoConfigUpdates(t, c.providerType, c.valid)
 			case pt.FirestoreOnline:
-				testFirestoreConfigUpdates(t, c.providerType, c.valid)	
+				testFirestoreConfigUpdates(t, c.providerType, c.valid)
 			case pt.MongoDBOnline:
 				testMongoConfigUpdates(t, c.providerType, c.valid)
 			case pt.MSSQLOffline:

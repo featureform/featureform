@@ -1136,7 +1136,13 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 		return
 	}
 
-	sparkOfflineStore := p.(*provider.SparkOfflineStore)
+	sparkOfflineStore, ok := p.(*provider.SparkOfflineStore)
+	if !ok {
+		fetchError := &FetchError{StatusCode: 405, Type: "Metrics are not currently supported for this provider"}
+		m.logger.Errorw(fetchError.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
 
 	// Get list of files in the stats directory then return the third part file
 	statsPath := fmt.Sprintf("featureform/Materialization/%s/%s/stats", name, variant)

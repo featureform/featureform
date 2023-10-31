@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/featureform/logging"
 	"io"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/featureform/logging"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -728,6 +729,11 @@ func (serv *OnlineServer) SourceColumns(ctx context.Context, req *srv.SourceColu
 func (serv *OnlineServer) Nearest(ctx context.Context, req *srv.NearestRequest) (*srv.NearestResponse, error) {
 	serv.Logger.Infow("Serving Nearest", "id", req.Id.String())
 	return serv.client.Nearest(ctx, req)
+}
+
+func (serv *OnlineServer) ResourceLocation(ctx context.Context, req *srv.TrainingDataRequest) (*srv.ResourceFileLocation, error) {
+	serv.Logger.Infow("Serving Resource Location", "id", req.Id.String())
+	return serv.client.ResourceLocation(ctx, req)
 }
 
 func (serv *ApiServer) Serve() error {

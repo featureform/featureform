@@ -83,6 +83,13 @@
     "Database": "database",
     "Throughput": 1
   },
+  "MSSQLConfig": {
+    "Host": "host",
+    "Port": "port",
+    "Username": "username",
+    "Password": "password",
+    "Database": "database"
+  },
   "SnowflakeConfig": {
     "Username": "username",
     "Password": "password",

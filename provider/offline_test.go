@@ -59,6 +59,20 @@ func TestOfflineStores(t *testing.T) {
 		}
 		return value
 	}
+    
+	mssqlInit := func() pc.SerializedConfig {
+		db := checkEnv("MSSQL_DB")
+		user := checkEnv("MSSQL_USER")
+		password := checkEnv("MSSQL_PASSWORD")
+		var mssqlConfig = pc.MSSQLConfig{
+			Host:     "localhost",
+			Port:     "1433",
+			Username: user,
+			Password: password,
+			Database: db,
+		}
+		return mssqlConfig.Serialize()
+	}
 
 	postgresInit := func() pc.SerializedConfig {
 		db := checkEnv("POSTGRES_DB")
@@ -256,6 +270,9 @@ func TestOfflineStores(t *testing.T) {
 		t.Cleanup(func() {
 			destroyBigQueryDataset(bigQueryConfig)
 		})
+	}
+	if *provider == "mssql" || *provider == "" {
+		testList = append(testList, testMember{pt.MSSQLOffline, mssqlInit(), true})
 	}
 	if *provider == "postgres" || *provider == "" {
 		testList = append(testList, testMember{pt.PostgresOffline, postgresInit(), true})
@@ -3748,7 +3765,7 @@ func modifyTransformationConfig(t *testing.T, testName, tableName string, provid
 		// In contrast to the SQL provider, that only needed change is the table name to perform the required transformation configuration,
 		// The Spark implementation needs to update the source mappings to ensure the source file is used in the transformation query.
 		config.SourceMapping[0].Source = tableName
-	case pt.MemoryOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.MySqlOffline, pt.SnowflakeOffline, pt.RedshiftOffline:
+	case pt.MemoryOffline, pt.BigQueryOffline, pt.MSSQLOffline, pt.PostgresOffline, pt.MySqlOffline, pt.SnowflakeOffline, pt.RedshiftOffline:
 		tableName := getTableName(testName, tableName)
 		config.Query = strings.Replace(config.Query, "tb", tableName, 1)
 	default:

@@ -165,6 +165,7 @@ require (
 	github.com/benbjohnson/clock v1.1.0 // indirect
 	github.com/bytedance/sonic v1.9.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
+	github.com/denisenkom/go-mssqldb v0.12.3 // indirect
 	github.com/emicklei/go-restful v2.16.0+incompatible // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.19.6 // indirect
@@ -173,6 +174,8 @@ require (
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/golang-jwt/jwt v3.2.1+incompatible // indirect
 	github.com/golang-jwt/jwt/v4 v4.4.3 // indirect
+	github.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe // indirect
+	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/s2a-go v0.1.0 // indirect

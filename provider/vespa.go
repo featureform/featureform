@@ -10,7 +10,7 @@ import (
 
   
     pc "github.com/featureform/provider/provider_config"
-	  pt "github.com/featureform/provider/provider_type"
+   pt "github.com/featureform/provider/provider_type"
 )
 
 type VespaVectorStore struct {
@@ -18,19 +18,19 @@ type VespaVectorStore struct {
 }
 
 type VectorStore interface {
-	CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error)
-	DeleteIndex(feature, variant string) error
-	VespaVectorStore
+ CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error)
+ DeleteIndex(feature, variant string) error
+ OnlineStore
 }
 
 type VectorStoreTable interface {
-	VespaVectorStore
-	Nearest(feature, variant string, vector []float32, k int32) ([]string, error)
+ OnlineStoreTable
+ Nearest(feature, variant string, vector []float32, k int32) ([]string, error)
 }
 func (v *VespaVectorStore) GetNearestNeighbors(ctx context.Context, featureVector []float32, k int) ([]vector.Neighbor, error) {
     payload := struct {
-        FeatureVector []float32 `json:"feature_vector"`
-        K             int       `json:"k"`
+        FeatureVector []float32 json:"feature_vector"
+        K             int       json:"k"
     }{
         FeatureVector: featureVector,
         K:             k,
@@ -75,7 +75,7 @@ func (v *VespaVectorStore) GetNearestNeighbors(ctx context.Context, featureVecto
 
 func (v *VespaVectorStore) PutEmbeddings(ctx context.Context, embeddings map[string][]float32) error {
     payload := struct {
-        Embeddings map[string][]float32 `json:"embeddings"`
+        Embeddings map[string][]float32 json:"embeddings"
     }{
         Embeddings: embeddings,
     }

@@ -3981,10 +3981,8 @@ class Registrar:
         feature_nv_list = []
         feature_lags = []
         for feature in features:
-            # if isinstance(feature, FeatureColumnResource):
-            #     feature_nv_list.append(feature)
             if isinstance(feature, str):
-                feature_nv_list.append((feature, run))  # git rid of this´
+                feature_nv_list.append((feature, run))
             elif isinstance(feature, dict):
                 lag = feature.get("lag")
                 if "variant" not in feature:
@@ -4097,9 +4095,6 @@ class Registrar:
             # Elif: If label was updated to store resource_label it will not check the following elif
             elif resource_label != ():
                 raise ValueError("A training set can only have one label")
-
-        # if isinstance(label, LabelColumnResource):
-        #     label = label.name_variant()
 
         features, feature_lags = self.__get_feature_nv(features, self.__run)
         if label == ():

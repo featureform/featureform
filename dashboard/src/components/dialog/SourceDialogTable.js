@@ -77,7 +77,7 @@ export default function SourceDialogTable({
             {stats?.length ? (
               <TableRow>
                 {stats?.map((statObj, index) => (
-                  <TableCell key={index} align={'right'}>
+                  <TableCell key={index} align={index === 0 ? 'left' : 'right'}>
                     {['numeric', 'boolean'].includes(statObj.type) ? (
                       <Barchart
                         categories={

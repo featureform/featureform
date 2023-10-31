@@ -425,6 +425,7 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 	if err != nil || !initExists {
 		return fmt.Errorf("could not upload python initialization script: Path: %s, Error: %v", remoteInitScriptPathWithPrefix, err)
 	}
+	fmt.Println("=====>>>>> SCRIPT PATHS: ", sparkLocalScriptPath.ToURI(), sparkRemoteScriptPath.ToURI(), pythonLocalInitScriptPath.ToURI(), remoteInitScriptPathWithPrefix.ToURI())
 	return nil
 }
 

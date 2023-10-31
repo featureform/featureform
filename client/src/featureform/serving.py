@@ -1009,8 +1009,11 @@ class Dataset:
         stream = Stream(self._stream, name, version, model)
         return Dataset(stream)
 
-    def dataframe(self) -> pd.DataFrame:
-        """Returns the training set as a pandas DataFrame
+    def dataframe(self, spark_session=None):
+        """Returns the training set as a Pandas DataFrame or Spark DataFrame.
+        Args:
+        - spark_session: Optional(SparkSession)
+
 
         **Examples**:
         ``` py
@@ -1027,9 +1030,22 @@ class Dataset:
         ```
 
         Returns:
-            pandas.DataFrame: A pandas DataFrame containing the training set.
+            df: Union[pd.DataFrame, pyspark.sql.DataFrame] A DataFrame containing the training set.
         """
+
         if self._dataframe is not None:
+            return self._dataframe
+        elif spark_session is not None:
+            req = serving_pb2.TrainingDataRequest()
+            req.id.name = self._stream.name
+            req.id.version = self._stream.version
+            resp = self._stream._stub.ResourceLocation(req)
+
+            file_format = FileFormat.get_format(resp.location, default="parquet")
+            location = self._sanitize_location(resp.location)
+            self._dataframe = self._get_spark_dataframe(
+                spark_session, file_format, location
+            )
             return self._dataframe
         else:
             name = self._stream.name
@@ -1044,6 +1060,54 @@ class Dataset:
             )
             self._dataframe.rename(columns={cols.label: "label"}, inplace=True)
             return self._dataframe
+
+    def _sanitize_location(self, location: str) -> str:
+        # Returns the location directory rather than a single file if it is part-file.
+        # Also converts s3:// to s3a:// if necessary.
+
+        # If the location is a part-file, we want to get the directory instead.
+        is_individual_part_file = location.split("/")[-1].startswith("part-")
+        if is_individual_part_file:
+            location = "/".join(location.split("/")[:-1])
+
+        # If the schema is s3://, we want to convert it to s3a://.
+        location = (
+            location.replace("s3://", "s3a://")
+            if location.startswith("s3://")
+            else location
+        )
+
+        return location
+
+    def _get_spark_dataframe(self, spark, file_format, location):
+        if file_format not in FileFormat.supported_formats():
+            raise Exception(
+                f"file type '{file_format}' is not supported. Please use 'csv' or 'parquet'"
+            )
+
+        try:
+            df = (
+                spark.read.option("header", "true")
+                .option("recursiveFileLookup", "true")
+                .format(file_format)
+                .load(location)
+            )
+
+            label_column_name = ""
+            for col in df.columns:
+                if col.startswith("Label__"):
+                    label_column_name = col
+                    break
+
+            if label_column_name != "":
+                df = df.withColumnRenamed(label_column_name, "Label")
+
+        except Exception as e:
+            raise Exception(
+                f"please make sure the spark session has ability to read '{location}': {e}"
+            )
+
+        return df
 
     def from_dataframe(dataframe, include_label_timestamp):
         stream = LocalStream(dataframe.values.tolist(), include_label_timestamp)

@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	filestore "github.com/featureform/filestore"
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
@@ -466,4 +467,60 @@ func (serv *FeatureServer) getVectorTable(ctx context.Context, fv *metadata.Feat
 		serv.Logger.Errorw("failed to use table as vector store table", "Error", err)
 	}
 	return vectorTable, nil
+}
+
+func (serv *FeatureServer) ResourceLocation(ctx context.Context, req *pb.TrainingDataRequest) (*pb.ResourceFileLocation, error) {
+	// TODO: Modify this method to return the location of any resource within Featureform
+	// - This will require a change in the input to be a ResourceID (name, variant, and type)
+	// - Modifications to the Offline Store interface to pull the latest file location of a resource
+
+	id := req.GetId()
+	name, variant := id.GetName(), id.GetVersion()
+	serv.Logger.Infow("Getting the Resource Location:", "Name", name, "Variant", variant)
+
+	tv, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get training set variant")
+	}
+
+	// There might be an edge case where you have successfully ran a previous job and currently, you run a new job
+	// the status would be PENDING
+	if tv.Status() != metadata.READY {
+		return nil, fmt.Errorf("training set variant is not ready; current status is %v", tv.Status())
+	}
+
+	providerEntry, err := tv.FetchProvider(serv.Metadata, ctx)
+	serv.Logger.Debugw("Fetched Source Variant Provider", "name", providerEntry.Name(), "type", providerEntry.Type())
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get fetch provider")
+	}
+	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get provider")
+	}
+	store, err := p.AsOfflineStore()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not open as offline store")
+	}
+
+	spark, ok := store.(*provider.SparkOfflineStore)
+	if !ok {
+		return nil, errors.Wrap(err, "could not cast to spark store")
+	}
+	resourceID := provider.ResourceID{Name: name, Variant: variant, Type: provider.TrainingSet}
+
+	path, err := spark.Store.CreateDirPath(resourceID.ToFilestorePath())
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create dir path")
+	}
+
+	serv.Logger.Debugw("Getting resource location", "name", name, "variant", variant)
+	newestFile, err := spark.Store.NewestFileOfType(path, filestore.Parquet)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get newest file")
+	}
+
+	return &pb.ResourceFileLocation{
+		Location: newestFile.ToURI(),
+	}, nil
 }

@@ -16,6 +16,7 @@ service Feature {
   rpc SourceColumns(SourceColumnRequest) returns (SourceDataColumns) {}
   rpc Nearest(NearestRequest) returns (NearestResponse) {}
   rpc BatchFeatureServe(BatchFeatureServeRequest) returns (stream BatchFeatureRow) {}
+  rpc ResourceLocation(TrainingDataRequest) returns (ResourceFileLocation) {}
 }
 
 message Model {
@@ -123,4 +124,8 @@ message NearestRequest {
 
 message NearestResponse {
   repeated string entities = 1;
+}
+
+message ResourceFileLocation {
+  string location = 1;
 }

@@ -697,7 +697,7 @@ func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLo
 		return nil, fmt.Errorf("error checking if source exists: %v", err)
 	}
 	if !storeExists {
-		return nil, fmt.Errorf("source table does not exist")
+		return nil, fmt.Errorf("source table does not exist in file store: %s", sourceFilePath.ToURI())
 	}
 
 	filepath, err := store.CreateFilePath(id.ToFilestorePath())

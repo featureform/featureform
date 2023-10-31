@@ -28,7 +28,7 @@ export default function Barchart({
           {
             data: categoryCounts,
             borderWidth: 0,
-            barPercentage: 1.3,
+            barPercentage: 1.25,
             backgroundColor: [
               'rgba(255, 99, 132, 0.2)',
               'rgba(255, 159, 64, 0.2)',

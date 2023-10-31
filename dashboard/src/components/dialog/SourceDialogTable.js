@@ -23,7 +23,7 @@ export default function SourceDialogTable({
 }) {
   const textEllipsis = {
     whiteSpace: 'nowrap',
-    maxWidth: columns?.length > 1 ? '230px' : '500px',
+    maxWidth: columns?.length > 1 ? '100%' : '500px',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     cursor: 'pointer',
@@ -112,7 +112,7 @@ export default function SourceDialogTable({
                     <Tooltip title='Copy to Clipboard'>
                       <Typography
                         onClick={copyToClipBoard}
-                        fontSize={11}
+                        fontSize={11.5}
                         style={textEllipsis}
                       >
                         {`${row}`}

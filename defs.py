@@ -30,7 +30,7 @@ redis = ff.register_redis(
 
 transactions = spark.register_file(
     name="transactions",
-    file_path="abfss://test@testingstoragegen.dfs.core.windows.net/data/transactions_short.csv",
+    file_path="abfss://test@testingstoragegen.dfs.core.windows.net/data/transactions.csv",
 )
 
 
@@ -38,10 +38,17 @@ transactions = spark.register_file(
 def average_user_transaction(df):
     from pyspark.sql.functions import avg
 
-    df.groupBy("CustomerID").agg(
+    df = df.groupBy("CustomerID").agg(
         avg("TransactionAmount").alias("average_user_transaction")
     )
-    return df
+    return df.where(df.average_user_transaction < 2000)
+
+
+@spark.df_transformation(inputs=[transactions])
+def cast_to_bool(df):
+    from pyspark.sql.types import BooleanType
+
+    return df.withColumn("IsFraud", df.IsFraud.cast(BooleanType()))
 
 
 user = ff.register_entity("user")
@@ -53,8 +60,34 @@ average_user_transaction.register_resources(
     features=[
         {
             "name": "avg_transactions",
-            "column": "TransactionAmount",
+            "column": "average_user_transaction",
             "type": "float32",
+        },
+    ],
+)
+
+transactions.register_resources(
+    entity=user,
+    entity_column="CustomerID",
+    inference_store=redis,
+    features=[
+        {
+            "name": "location",
+            "column": "CustLocation",
+            "type": "string",
+        },
+    ],
+)
+
+cast_to_bool.register_resources(
+    entity=user,
+    entity_column="CustomerID",
+    inference_store=redis,
+    features=[
+        {
+            "name": "bool_values",
+            "column": "IsFraud",
+            "type": "bool",
         },
     ],
 )

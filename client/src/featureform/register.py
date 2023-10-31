@@ -4110,8 +4110,6 @@ class Registrar:
         for feature in features:
             if isinstance(feature, tuple) and feature[1] == "":
                 feature = (feature[0], self.__run)
-            # elif isinstance(feature, FeatureColumnResource):
-            #     feature = feature.name_variant()
             processed_features.append(feature)
         resource = TrainingSetVariant(
             created=None,

@@ -1183,6 +1183,7 @@ jobs:
           GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
           DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
           DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
+          DYNAMODB_REGION: ${{ secrets.DYNAMODB_REGION }}
         working-directory: ./
         run: make test_healthchecks
         

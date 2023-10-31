@@ -10,7 +10,7 @@ import base64
 from abc import ABC
 from enum import Enum
 from typeguard import typechecked
-from typing import List, Tuple, Union, Optional, Dict
+from typing import List, Tuple, Union, Optional, Dict, Any
 
 import dill
 import grpc
@@ -974,6 +974,7 @@ class SQLTransformation(Transformation):
         transformation = pb.Transformation(
             SQLTransformation=pb.SQLTransformation(
                 query=self.query,
+                # We do not set the sources here as the backend figures it out
             )
         )
 
@@ -995,10 +996,18 @@ class DFTransformation(Transformation):
         return SourceType.DF_TRANSFORMATION.value
 
     def kwargs(self):
+        for i, inp in enumerate(self.inputs):
+            if hasattr(inp, "name_variant"):  # TODO shouldn't have to have this check
+                self.inputs[i] = inp.name_variant()
+
+        name_variants = []
+        for inp in self.inputs:
+            name_variants.append(pb.NameVariant(name=inp[0], variant=inp[1]))
+
         transformation = pb.Transformation(
             DFTransformation=pb.DFTransformation(
                 query=self.query,
-                inputs=[pb.NameVariant(name=v[0], variant=v[1]) for v in self.inputs],
+                inputs=name_variants,
                 source_text=self.source_text,
             )
         )
@@ -1288,7 +1297,7 @@ class Feature:
 @dataclass
 class FeatureVariant:
     name: str
-    source: NameVariant
+    source: Any
     value_type: str
     entity: str
     owner: str
@@ -1353,7 +1362,10 @@ class FeatureVariant:
             error=feature.status.error_message,
         )
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> Optional[str]:
+        if hasattr(self.source, "name_variant"):
+            self.source = self.source.name_variant()
+
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
@@ -1639,7 +1651,10 @@ class LabelVariant:
             error=label.status.error_message,
         )
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> Optional[str]:
+        if hasattr(self.source, "name_variant"):
+            self.source = self.source.name_variant()
+
         serialized = pb.LabelVariant(
             name=self.name,
             variant=self.variant,
@@ -1818,8 +1833,8 @@ class TrainingSet:
 class TrainingSetVariant:
     name: str
     owner: str
-    label: NameVariant
-    features: List[NameVariant]
+    label: Any
+    features: List[Any]
     description: str
     variant: str
     feature_lags: list = field(default_factory=list)
@@ -1842,12 +1857,14 @@ class TrainingSetVariant:
         self.schedule = schedule
 
     def __post_init__(self):
-        if not valid_name_variant(self.label):
+
+        from featureform import LabelColumnResource, FeatureColumnResource
+        if not isinstance(self.label, LabelColumnResource) and not valid_name_variant(self.label):
             raise ValueError("Label must be set")
         if len(self.features) == 0:
             raise ValueError("A training-set must have atleast one feature")
         for feature in self.features:
-            if not valid_name_variant(feature):
+            if not isinstance(feature, FeatureColumnResource) and not valid_name_variant(feature):
                 raise ValueError("Invalid Feature")
 
     @staticmethod
@@ -1890,6 +1907,12 @@ class TrainingSetVariant:
                 lag=lag_duration,
             )
             feature_lags.append(feature_lag)
+
+        for i, f in enumerate(self.features):
+            if hasattr(f, "name_variant"):
+                self.features[i] = f.name_variant()
+
+        self.label = self.label.name_variant()
 
         serialized = pb.TrainingSetVariant(
             created=None,

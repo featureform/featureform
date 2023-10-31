@@ -2,26 +2,21 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import sys
-import os
-import json
-import time
 import base64
-from abc import ABC
-from enum import Enum
-from typeguard import typechecked
-from typing import List, Tuple, Union, Optional, Dict, Any
+import json
+import os
+import sys
+import time
+from typing import List, Tuple, Union, Optional, Any
 
 import dill
 import grpc
-from .sqlite_metadata import SQLiteMetadata
+from dataclasses import field
 from google.protobuf.duration_pb2 import Duration
-
-from featureform.proto import metadata_pb2 as pb
-from dataclasses import dataclass, field
-from .version import check_up_to_date
-from .exceptions import *
 from .enums import *
+from .exceptions import *
+from .sqlite_metadata import SQLiteMetadata
+from .version import check_up_to_date
 
 NameVariant = Tuple[str, str]
 
@@ -1857,14 +1852,18 @@ class TrainingSetVariant:
         self.schedule = schedule
 
     def __post_init__(self):
-
         from featureform import LabelColumnResource, FeatureColumnResource
-        if not isinstance(self.label, LabelColumnResource) and not valid_name_variant(self.label):
+
+        if not isinstance(self.label, LabelColumnResource) and not valid_name_variant(
+            self.label
+        ):
             raise ValueError("Label must be set")
         if len(self.features) == 0:
             raise ValueError("A training-set must have atleast one feature")
         for feature in self.features:
-            if not isinstance(feature, FeatureColumnResource) and not valid_name_variant(feature):
+            if not isinstance(
+                feature, FeatureColumnResource
+            ) and not valid_name_variant(feature):
                 raise ValueError("Invalid Feature")
 
     @staticmethod

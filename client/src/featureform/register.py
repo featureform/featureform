@@ -1023,7 +1023,7 @@ class SubscriptableTransformation:
         provider,
         decorator_register_resources_method,
         decorator_name_variant_method,
-        transformation
+        transformation,
     ):
         # if not self.__has_return_statement(fn):
         #     raise Exception(

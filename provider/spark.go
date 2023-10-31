@@ -692,6 +692,7 @@ func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 		return false, NewProviderError(Connection, store.Type(), Write, fmt.Sprintf("failed to write health check file due to: %v", err))
 	}
 	healthCheckOutPath, err := store.Store.CreateDirPath("featureform/HealthCheck/health_check_out")
+	fmt.Println("healthCheckOutPath: ", healthCheckOutPath)
 	if err != nil {
 		return false, NewProviderError(Internal, store.Type(), FilePathCreation, fmt.Sprintf("failed to create file path for health check output file due to: %v", err))
 	}

@@ -332,9 +332,13 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
         output_dataframe.write.option("header", "true").mode("overwrite").parquet(
             output_uri_with_timestamp
         )
-        stats_directory = f"{output_uri.rstrip('/')}/stats"
-        stats_df = display_data_metrics(output_dataframe, spark)
-        stats_df.write.json(stats_directory, mode="overwrite")
+        try:
+            stats_directory = f"{output_uri.rstrip('/')}/stats"
+            stats_df = display_data_metrics(output_dataframe, spark)
+            stats_df.write.json(stats_directory, mode="overwrite")
+        except Exception as e:
+            print(e)
+            print("Failed to display data metrics")
         return output_uri_with_timestamp
     except Exception as e:
         print(e)

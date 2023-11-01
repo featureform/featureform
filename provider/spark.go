@@ -26,6 +26,7 @@ import (
 	dbClient "github.com/databricks/databricks-sdk-go/client"
 	dbConfig "github.com/databricks/databricks-sdk-go/config"
 	"github.com/databricks/databricks-sdk-go/retries"
+	"github.com/databricks/databricks-sdk-go/service/compute"
 	"github.com/databricks/databricks-sdk-go/service/jobs"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -436,7 +437,21 @@ func NewDatabricksExecutor(databricksConfig pc.DatabricksConfig) (SparkExecutor,
 			Username: databricksConfig.Username,
 			Password: databricksConfig.Password,
 		}))
-
+	// Creating a new workspace client doesn't actually test that the client is able to successfully connect and communicate with
+	// the cluster given the provided credentials; to fail earlier in the process (i.e. _before_ submitting a job) we'll make a call
+	// to Databricks's Clusters API to get information about the cluster with the provided ID.
+	if _, err := client.Clusters.Get(context.Background(), compute.GetClusterRequest{ClusterId: databricksConfig.Cluster}); err != nil {
+		// The Databricks SDK uses Go's "net/url" under the hood for parsing the hostname; this _can_ result in error messages that
+		// are not very helpful. For example, if the hostname is "_https://my-hostname" the error message will be:
+		// parse '_https://my-hostname': first path segment in URL cannot contain colon
+		// To direct users to a solution, we'll check for message prefix 'parse' and provide a more helpful error message that wraps
+		// the original error message.
+		if strings.Contains(err.Error(), "parse") {
+			parsingError := strings.TrimPrefix(err.Error(), "parse ")
+			return nil, fmt.Errorf("the hostname %s is invalid and resulted in a parsing error (%s); check that the hostname is correct before trying again", databricksConfig.Host, parsingError)
+		}
+		return nil, err
+	}
 	errorMessageClient, err := dbClient.New(&dbConfig.Config{
 		Host:     databricksConfig.Host,
 		Token:    databricksConfig.Token,

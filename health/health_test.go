@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"strings"
 	"testing"
 
 	fs "github.com/featureform/filestore"
@@ -186,7 +187,7 @@ func initSpark(t *testing.T, executorType pc.SparkExecutorType, storeType fs.Fil
 		}
 	case pc.Databricks:
 		executorConfig = &pc.DatabricksConfig{
-			Host:    os.Getenv("DATABRICKS_HOST"),
+			Host:    strings.TrimSpace(os.Getenv("DATABRICKS_HOST")),
 			Token:   os.Getenv("DATABRICKS_TOKEN"),
 			Cluster: os.Getenv("DATABRICKS_CLUSTER"),
 		}

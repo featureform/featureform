@@ -349,7 +349,7 @@ export const ResourceListView = ({
             search: true,
             draggable: false,
             headerStyle: {
-              backgroundColor: 'white',
+              backgroundColor: '#FFFFFF',
               color: theme.palette.primary.main,
               marginLeft: 3,
             },

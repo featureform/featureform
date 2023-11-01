@@ -142,7 +142,7 @@ const SearchResultsItem = ({ content, setVariant }) => {
   const resourceType = Resource[searchTypeMap[content.Type?.toUpperCase()]];
   function handleClick(content) {
     if (resourceType?.hasVariants) {
-      setVariant(content.Type, content.Name, content.Variant);
+      setVariant(resourceType.type, content.Name, content.Variant);
     }
     router.push(resourceType.urlPathResource(content.Name));
   }

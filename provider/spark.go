@@ -462,12 +462,17 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 	if err != nil {
 		return fmt.Errorf("could not get python file path: %v", err)
 	}
+
 	pythonTask := jobs.SparkPythonTask{
 		PythonFile: pythonFilepath.ToURI(),
 		Parameters: args,
 	}
 	ctx := context.Background()
 	id := uuid.New().String()
+
+	fmt.Println("=====>>>>> PYTHON FILE PATH: ", pythonFilepath.ToURI())
+	fmt.Println("=====>>>>> Job: ", fmt.Sprintf("featureform-job-%s", id))
+	fmt.Println("=====>>>>> Task: ", fmt.Sprintf("featureform-task-%s", id))
 
 	jobToRun, err := db.client.Jobs.Create(ctx, jobs.CreateJob{
 		Name: fmt.Sprintf("featureform-job-%s", id),
@@ -701,6 +706,8 @@ func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to build arguments for Spark submit due to: %v", err)
 	}
+	fmt.Println("SPARK SUBMIT ARGS: ", args)
+
 	if err := store.Executor.RunSparkJob(args, store.Store); err != nil {
 		return false, NewProviderError(Connection, store.Type(), JobSubmission, fmt.Sprintf("failed to read health check file due to: %v", err))
 	}

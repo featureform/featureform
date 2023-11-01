@@ -63,7 +63,7 @@ func TestHealth_Check(t *testing.T) {
 		)
 	}
 
-	if *providerType == "spark-databricks-s3" || *providerType == "" {
+	if *providerType == "spark-databricks-s3" || *providerType == "spark" || *providerType == "" {
 		config := initProvider(t, pt.SparkOffline, pc.Databricks, fs.S3)
 		providers = append(providers,
 			metadata.ProviderDef{
@@ -77,7 +77,7 @@ func TestHealth_Check(t *testing.T) {
 		)
 	}
 
-	if *providerType == "spark-databricks-abs" || *providerType == "" {
+	if *providerType == "spark-databricks-abs" || *providerType == "spark" || *providerType == "" {
 		config := initProvider(t, pt.SparkOffline, pc.Databricks, fs.Azure)
 		providers = append(providers,
 			metadata.ProviderDef{

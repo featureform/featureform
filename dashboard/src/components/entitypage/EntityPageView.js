@@ -14,7 +14,7 @@ import { makeStyles, ThemeProvider } from '@mui/styles';
 import MaterialTable, { MTableBody, MTableHeader } from 'material-table';
 import { useRouter } from 'next/router';
 import PropTypes from 'prop-types';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { PrismAsyncLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import json from 'react-syntax-highlighter/dist/cjs/languages/prism/json';
 import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
@@ -241,19 +241,22 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
   const showMetrics =
     process.env.NODE_ENV == 'production' ? resourceType.hasMetrics : false;
   const showStats = false;
-  /*eslint-disable no-constant-condition*/
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const statsTabDisplacement = showMetrics ? 1 : 0;
   const name = resources['name'];
   const icon = resourceType.materialIcon;
+  const [variant, setLocalVariant] = useState(
+    activeVariants[entity.resources.type][name] || resources['default-variant']
+  );
 
-  let variant = resources['default-variant'];
-
-  if (activeVariants[entity.resources.type][name]) {
-    variant = activeVariants[entity.resources.type][name];
-  } else {
-    setVariant(entity.resources.type, name, resources['default-variant']);
-  }
+  useEffect(() => {
+    const activeVariant = activeVariants[entity.resources.type][name];
+    if (activeVariant) {
+      variant = setLocalVariant(activeVariant);
+    } else {
+      setVariant(entity.resources.type, name, resources['default-variant']);
+    }
+  }, [activeVariants]);
 
   let resource;
   if (resourceType.hasVariants) {

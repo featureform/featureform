@@ -87,9 +87,15 @@ describe('Entity Page Tests', () => {
 
   test('Issue-323: If the fetch state fails, render the normal not found component', async () => {
     //given:
+    // this obj only exists to ensure that when 'failed' is true, the entity view doesn't ignore it when a resources object is present
+    const sentinelObj = {
+      name: 'a name',
+      type: 'a type',
+      'all-variants': ['v1'],
+    };
     const state = {
       ...defaultState,
-      entityPage: { failed: true, loading: false },
+      entityPage: { failed: true, loading: false, resources: sentinelObj },
     };
     const helper = render(getTestBody(state));
 
@@ -121,14 +127,14 @@ describe('Entity Page Tests', () => {
     expect(apiMock.fetchEntity).toHaveBeenCalledTimes(1);
   });
 
-  test('Issue-323: The fetch completed, but the queryVariant is not present, render the variant not found component', async () => {
+  test('Issue-323: The fetch completed, but the queryVariant is not present in `all-variants`, render the variant not found component', async () => {
     //given:
     const foundObj = {
       name: 'a name',
       type: 'a type',
-      'all-variants': ['SomeRandomVariant'],
+      'all-variants': ['v1', 'v2', 'v3'],
     };
-    const missingVariant = 'I DO NOT EXIST';
+    const missingQueryVariant = 'v99';
     const state = {
       ...defaultState,
       entityPage: {
@@ -137,7 +143,7 @@ describe('Entity Page Tests', () => {
         resources: foundObj,
       },
     };
-    const helper = render(getTestBody(state, missingVariant));
+    const helper = render(getTestBody(state, missingQueryVariant));
 
     //when:
     const variantNotFoundDiv = await helper.findByTestId(VARIANT_NOT_FOUND);
@@ -167,7 +173,7 @@ describe('Entity Page Tests', () => {
     expect(apiMock.fetchEntity).toHaveBeenCalledTimes(1);
   });
 
-  test('Issue-762: The fetch completed, and the returned object is populated with no queryVariant param, display the entity view component', async () => {
+  test('Issue-762: The fetch completed, and the returned object is populated with no queryVariant input, display the entity view component', async () => {
     //given:
     const foundObj = {
       name: 'a name',
@@ -195,7 +201,7 @@ describe('Entity Page Tests', () => {
       type: 'a type',
       'all-variants': ['v1', 'v2', 'v3'],
     };
-    const queryVariant = 'v1';
+    const queryVariant = 'v3';
 
     const state = {
       ...defaultState,

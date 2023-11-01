@@ -612,7 +612,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                       </div>
                     ) : null}
 
-                    {metadata['definition'] && (
+                    {metadata['definition'] ? (
                       <div>
                         {(() => {
                           if (
@@ -651,6 +651,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                         })()}
                         {(() => {
                           if (
+                            type === 'Source' &&
                             metadata['status']?.toUpperCase() !== 'FAILED' &&
                             metadata['status']?.toUpperCase() !== 'PENDING'
                           ) {
@@ -664,6 +665,25 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                           }
                         })()}
                       </div>
+                    ) : (
+                      (() => {
+                        if (
+                          type === 'Feature' &&
+                          metadata['source'] &&
+                          metadata['status']?.toUpperCase() !== 'FAILED' &&
+                          metadata['status']?.toUpperCase() !== 'PENDING'
+                        ) {
+                          return (
+                            <SourceDialog
+                              api={api}
+                              btnTxt='Feature Stats'
+                              type='Feature'
+                              sourceName={name}
+                              sourceVariant={variant}
+                            />
+                          );
+                        }
+                      })()
                     )}
                   </Grid>
 

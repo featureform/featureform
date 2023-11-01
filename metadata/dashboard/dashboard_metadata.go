@@ -6,11 +6,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"reflect"
 	"strings"
 
+	filestore "github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
@@ -1024,9 +1026,18 @@ func (m *MetadataServer) GetVersionMap(c *gin.Context) {
 	c.JSON(200, versionMap)
 }
 
+type ColumnStat struct {
+	Name              string   `json:"name"`
+	Type              string   `json:"type"`
+	StringCategories  []string `json:"string_categories"`
+	NumericCategories [][]int  `json:"numeric_categories"`
+	CategoryCounts    []int    `json:"categoryCounts"`
+}
+
 type SourceDataResponse struct {
-	Columns []string   `json:"columns"`
-	Rows    [][]string `json:"rows"`
+	Columns []string     `json:"columns"`
+	Rows    [][]string   `json:"rows"`
+	Stats   []ColumnStat `json:"stats"`
 }
 
 func (m *MetadataServer) GetSourceData(c *gin.Context) {
@@ -1047,9 +1058,6 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
-	for _, columnName := range iter.Columns() {
-		response.Columns = append(response.Columns, strings.ReplaceAll(columnName, "\"", ""))
-	}
 
 	for iter.Next() {
 		sRow, err := serving.SerializedSourceRow(iter.Values())
@@ -1061,10 +1069,18 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		}
 		dataRow := []string{}
 		for _, rowElement := range sRow.Rows {
-			dataRow = append(dataRow, extractRowValue(rowElement))
+			dataRow = append(dataRow, extractElementValue(rowElement))
 		}
 		response.Rows = append(response.Rows, dataRow)
 	}
+
+	for _, columnName := range iter.Columns() {
+		cleanName := strings.ReplaceAll(columnName, "\"", "")
+		response.Columns = append(response.Columns, cleanName)
+	}
+
+	//intentional
+	response.Stats = []ColumnStat{}
 
 	if err := iter.Err(); err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData"}
@@ -1075,12 +1091,171 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	c.JSON(200, response)
 }
 
+func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
+	// feature name and variant
+	name := c.Query("name")
+	variant := c.Query("variant")
+	if name == "" || variant == "" {
+		fetchError := &FetchError{StatusCode: 400, Type: "GetFeatureFileStats - Could not find the name or variant query parameters"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	nameVariant := metadata.NameVariant{Name: name, Variant: variant}
+	foundFeatureVariant, err := m.client.GetFeatureVariant(context.Background(), nameVariant)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Could not get feature variant from metadata"}
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	sourceNameVariant := metadata.NameVariant{Name: foundFeatureVariant.Source().Name, Variant: foundFeatureVariant.Source().Variant}
+	foundSourceVariant, err := m.client.GetSourceVariant(context.Background(), sourceNameVariant)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Could not get feature variant from metadata"}
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	foundProvider, err := foundSourceVariant.FetchProvider(m.client, context.TODO())
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Could not fetch the provider"}
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	p, err := provider.Get(pt.Type(foundProvider.Type()), foundProvider.SerializedConfig())
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Could not Get() the provider"}
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	sparkOfflineStore, ok := p.(*provider.SparkOfflineStore)
+	if !ok {
+		fetchError := &FetchError{StatusCode: 405, Type: "Metrics are not currently supported for this provider"}
+		m.logger.Errorw(fetchError.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	// Get list of files in the stats directory then return the third part file
+	statsPath := fmt.Sprintf("featureform/Materialization/%s/%s/stats", name, variant)
+	statsDirectory, err := sparkOfflineStore.Store.CreateDirPath(statsPath)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Could not create filepath to the stats directory"}
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	statsFiles, err := sparkOfflineStore.Store.List(statsDirectory, filestore.JSON)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Could not list the stats directory"}
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	filepath, err := FindFileWithPrefix(statsFiles, "part-00003")
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Could not find the stats file"}
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	file, err := sparkOfflineStore.Store.Read(filepath)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Reading from the file store path failed."}
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	response, err := ParseStatFile(file)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 500, Type: "Parsing the stats file failed."}
+		m.logger.Errorw(fetchError.Error(), "error", err.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	c.JSON(200, response)
+}
+
+func FindFileWithPrefix(fileList []filestore.Filepath, prefix string) (filestore.Filepath, error) {
+	for _, file := range fileList {
+		fileNameSplit := strings.Split(file.Key(), "/")
+		fileName := fileNameSplit[len(fileNameSplit)-1] // get the last element which is the file name
+		if strings.HasPrefix(fileName, prefix) {
+			return file, nil
+		}
+	}
+
+	return nil, fmt.Errorf("could not find the file prefix %s in the file list", prefix)
+}
+
+func ParseStatFile(file []byte) (SourceDataResponse, error) {
+	response := SourceDataResponse{}
+	var result map[string]interface{}
+	err := json.Unmarshal(file, &result)
+	if err != nil {
+		return response, err
+	}
+	//todox: change this to a proper struct
+	for _, column := range result["columns"].([]interface{}) {
+		response.Columns = append(response.Columns, column.(string))
+	}
+	for _, row := range result["rows"].([]interface{}) {
+		rowValues := []string{}
+		for _, element := range row.([]interface{}) {
+			rowValues = append(rowValues, element.(string))
+		}
+		response.Rows = append(response.Rows, rowValues)
+	}
+	for _, col := range result["stats"].([]interface{}) {
+		var catCounts []int
+		for _, categoryCount := range col.(map[string]interface{})["categoryCounts"].([]interface{}) {
+			catCounts = append(catCounts, int(categoryCount.(float64)))
+		}
+
+		stringCats := []string{}
+		for _, category := range col.(map[string]interface{})["string_categories"].([]interface{}) {
+			stringCats = append(stringCats, category.(string))
+		}
+
+		numCats := [][]int{}
+		for _, category := range col.(map[string]interface{})["numeric_categories"].([]interface{}) {
+			innerList := []int{}
+			for _, numInterface := range category.([]interface{}) {
+				innerList = append(innerList, int(numInterface.(float64)))
+			}
+			numCats = append(numCats, innerList)
+		}
+
+		response.Stats = append(response.Stats, ColumnStat{
+			Name:              col.(map[string]interface{})["name"].(string),
+			Type:              col.(map[string]interface{})["type"].(string),
+			StringCategories:  stringCats,
+			NumericCategories: numCats,
+			CategoryCounts:    catCounts,
+		})
+	}
+	return response, nil
+}
+
 /*
 example proto.value args:
 double_value:2544
 str_value:"C7332112"
 */
-func extractRowValue(rowString *proto.Value) string {
+func extractElementValue(rowString *proto.Value) string {
 	split := strings.Split(rowString.String(), ":")
 	result := strings.ReplaceAll(split[1], "\"", "")
 	return result
@@ -1336,6 +1511,7 @@ func (m *MetadataServer) Start(port string) {
 	router.GET("/data/search", m.GetSearch)
 	router.GET("/data/version", m.GetVersionMap)
 	router.GET("/data/sourcedata", m.GetSourceData)
+	router.GET("/data/filestatdata", m.GetFeatureFileStats)
 	router.POST("/data/:type/:resource/gettags", m.GetTags)
 	router.POST("/data/:type/:resource/tags", m.PostTags)
 	router.Run(port)

@@ -14,6 +14,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	slices "golang.org/x/exp/slices"
+
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/metadata/search"
 	pc "github.com/featureform/provider/provider_config"
@@ -140,6 +142,13 @@ func (id ResourceID) Parent() (ResourceID, bool) {
 	}, true
 }
 
+func (id ResourceID) String() string {
+	if id.Variant == "" {
+		return fmt.Sprintf("%s %s", id.Type, id.Name)
+	}
+	return fmt.Sprintf("%s %s (%s)", id.Type, id.Name, id.Variant)
+}
+
 var bannedStrings = [...]string{"__"}
 var bannedPrefixes = [...]string{"_"}
 var bannedSuffixes = [...]string{"_"}
@@ -179,10 +188,11 @@ type ResourceNotFound struct {
 
 func (err *ResourceNotFound) Error() string {
 	id := err.ID
-	name, variant, t := id.Name, id.Variant, id.Type
-	errMsg := fmt.Sprintf("%s Not Found.\nName: %s err: %v", t, name, err.E)
-	if variant != "" {
-		errMsg += "\nVariant: " + variant
+	var errMsg string
+	if err.E != nil {
+		errMsg = fmt.Sprintf("resource not found. %s err: %v", id.String(), err.E)
+	} else {
+		errMsg = fmt.Sprintf("resource not found. %s", id.String())
 	}
 	return errMsg
 }
@@ -370,6 +380,10 @@ func (this *SourceResource) Notify(lookup ResourceLookup, op operation, that Res
 	if !isVariant {
 		return nil
 	}
+	if slices.Contains(this.serialized.Variants, otherId.Variant) {
+		fmt.Printf("source %s already has variant %s\n", this.serialized.Name, otherId.Variant)
+		return nil
+	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
 	return nil
 }
@@ -495,6 +509,10 @@ func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Re
 	otherId := that.ID()
 	isVariant := otherId.Type == FEATURE_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
+		return nil
+	}
+	if slices.Contains(this.serialized.Variants, otherId.Variant) {
+		fmt.Printf("source %s already has variant %s\n", this.serialized.Name, otherId.Variant)
 		return nil
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
@@ -633,6 +651,10 @@ func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Reso
 	if !isVariant {
 		return nil
 	}
+	if slices.Contains(this.serialized.Variants, otherId.Variant) {
+		fmt.Printf("source %s already has variant %s\n", this.serialized.Name, otherId.Variant)
+		return nil
+	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
 	return nil
 }
@@ -760,6 +782,10 @@ func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, tha
 	otherId := that.ID()
 	isVariant := otherId.Type == TRAINING_SET_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
+		return nil
+	}
+	if slices.Contains(this.serialized.Variants, otherId.Variant) {
+		fmt.Printf("source %s already has variant %s\n", this.serialized.Name, otherId.Variant)
 		return nil
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
@@ -1525,17 +1551,21 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	}
 	parentId, hasParent := id.Parent()
 	if hasParent {
-		if parentExists, err := serv.lookup.Has(parentId); err != nil {
+		parentExists, err := serv.lookup.Has(parentId)
+		if err != nil {
 			return nil, err
-		} else if !parentExists {
+		}
+
+		if !parentExists {
 			parent := init(id.Name, id.Variant)
-			if err := serv.lookup.Set(parentId, parent); err != nil {
+			err = serv.lookup.Set(parentId, parent)
+			if err != nil {
 				return nil, err
 			}
 		}
 	}
 	if err := serv.propagateChange(res); err != nil {
-		err := errors.Wrap(err, fmt.Sprintf("could not propogate: %s", res))
+		err := errors.Wrap(err, fmt.Sprintf("failed to update parent resources for: %s", res.ID().String()))
 		serv.Logger.Error(errors.WithStack(err))
 		return nil, err
 	}
@@ -1549,7 +1579,7 @@ func (serv *MetadataServer) propagateChange(newRes Resource) error {
 	propagateChange = func(parent Resource) error {
 		deps, err := parent.Dependencies(serv.lookup)
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("could not get dependencies for parent: %s", parent))
+			return errors.Wrap(err, fmt.Sprintf("could not get dependencies for parent: %s", parent.ID().String()))
 		}
 		depList, err := deps.List()
 		if err != nil {
@@ -1706,6 +1736,7 @@ type SourceVariantResource struct {
 	SourceType     string                                  `json:"source-type"`
 	Error          string                                  `json:"error"`
 	Specifications map[string]string                       `json:"specifications"`
+	Inputs         []NameVariant                           `json:"inputs"`
 }
 
 func getSourceString(variant *SourceVariant) string {

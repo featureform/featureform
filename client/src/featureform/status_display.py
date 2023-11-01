@@ -1,3 +1,4 @@
+import sys
 import time
 from typing import Type, Tuple, List
 
@@ -24,8 +25,8 @@ MAX_NUM_RUNNING_DOTS = 10
 SECONDS_BETWEEN_STATUS_CHECKS = 2
 
 
-def display_statuses(stub: ApiStub, resources: List[Resource]):
-    StatusDisplayer(stub, resources).display()
+def display_statuses(stub: ApiStub, resources: List[Resource], verbose=False):
+    StatusDisplayer(stub, resources, verbose=verbose).display()
 
 
 @dataclass
@@ -58,6 +59,7 @@ class DisplayStatus:
 
 
 class StatusDisplayer:
+    did_error: bool = False
     RESOURCE_TYPES_TO_CHECK = {
         FeatureVariant,
         OnDemandFeatureVariant,
@@ -75,7 +77,8 @@ class StatusDisplayer:
         "FAILED": "red",
     }
 
-    def __init__(self, stub: ApiStub, resources: List[Resource]):
+    def __init__(self, stub: ApiStub, resources: List[Resource], verbose=False):
+        self.verbose = verbose
         filtered_resources = filter(
             lambda r: type(r) in self.RESOURCE_TYPES_TO_CHECK, resources
         )
@@ -95,9 +98,18 @@ class StatusDisplayer:
                 r = resource.get(self.stub)
                 display_status.status = r.status
                 display_status.error = r.error
+                if r.status == "FAILED":
+                    self.did_error = True
 
     def all_statuses_finished(self) -> bool:
         return all(status.is_finished() for _, status in self.resource_to_status_list)
+
+    def create_error_message(self):
+        message = ""
+        for _, status in self.resource_to_status_list:
+            name = status.name
+            message += f"{name}: {status.status} - {status.error}\n"
+        return message
 
     def display(self):
         if not self.resource_to_status_list:
@@ -125,32 +137,51 @@ class StatusDisplayer:
                     header_style="bold",
                     box=None,
                 )
-                table.add_column("Resource Type", width=25)
-                table.add_column("Name (Variant)", width=50, no_wrap=True)
-                table.add_column("Status", width=10)
-                table.add_column("Error", style="red")
 
-                for _, status in self.resource_to_status_list:
-                    error = f" {status.error}" if status.error else ""
-                    resource_type = status.resource_type.__name__
-                    name = status.name
-                    status_text = (
-                        status.status
-                        if status.resource_type is not Provider
-                        else "CREATED"
-                    )
+                no_table = False
+                if len(self.resource_to_status_list) == 1:
+                    status = self.resource_to_status_list[0][1]
+                    if status.name == "local-mode":
+                        no_table = True
 
-                    table.add_row(
-                        Text(resource_type),
-                        Text(f"{name} ({status.variant})"),
-                        Text(status_text, style=self.STATUS_TO_COLOR[status_text]),
-                        Text(error, style="red"),
-                    )
+                if not no_table:
+                    table.add_column("Resource Type", width=25)
+                    table.add_column("Name (Variant)", width=50, no_wrap=True)
+                    table.add_column("Status", width=10)
+                    table.add_column("Error", style="red")
+
+                    for _, status in self.resource_to_status_list:
+                        error = f" {status.error}" if status.error else ""
+                        if status.name == "local-mode":
+                            continue
+                        resource_type = status.resource_type.__name__
+                        name = status.name
+                        status_text = (
+                            status.status
+                            if status.resource_type is not Provider
+                            else "CREATED"
+                        )
+
+                        table.add_row(
+                            Text(resource_type),
+                            Text(f"{name} ({status.variant})"),
+                            Text(status_text, style=self.STATUS_TO_COLOR[status_text]),
+                            Text(error, style="red"),
+                        )
 
                 live.update(table)
                 live.refresh()
 
                 if finished_running:
+                    # This block is used for testing
+                    # Tests check for both stderr and an exception
+                    # If we don't throw an exception, then tests will pass even when things fail to register
+                    # We also print all the error messages because the table does not get saved when
+                    # capturing stdout/stderr
+                    if self.verbose and self.did_error:
+                        statuses = self.create_error_message()
+                        sys.tracebacklimit = 0
+                        raise Exception("Some resources failed to create\n" + statuses)
                     break
 
                 i += 1

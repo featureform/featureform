@@ -452,10 +452,15 @@ func (iter *sqlFeatureIterator) Next() bool {
 		return false
 	}
 	var rec ResourceRecord
+	var entity interface{}
 	var value interface{}
 	var ts time.Time
-	if err := iter.rows.Scan(&rec.Entity, &value, &ts); err != nil {
+	if err := iter.rows.Scan(&entity, &value, &ts); err != nil {
 		iter.rows.Close()
+		iter.err = err
+		return false
+	}
+	if err := rec.SetEntity(entity); err != nil {
 		iter.err = err
 		return false
 	}
@@ -815,6 +820,15 @@ func (table *sqlPrimaryTable) Write(rec GenericRecord) error {
 	return nil
 }
 
+func (table *sqlPrimaryTable) WriteBatch(recs []GenericRecord) error {
+	for _, rec := range recs {
+		if err := table.Write(rec); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (table *sqlPrimaryTable) getColumnNameString() string {
 	columns := make([]string, 0)
 	for _, column := range table.schema.Columns {
@@ -941,6 +955,15 @@ func (table *sqlOfflineTable) Write(rec ResourceRecord) error {
 	} else if n > 0 {
 		updateQuery := table.query.writeUpdate(tb)
 		if _, err := table.db.Exec(updateQuery, rec.Value, rec.Entity, rec.TS); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (table *sqlOfflineTable) WriteBatch(recs []ResourceRecord) error {
+	for _, rec := range recs {
+		if err := table.Write(rec); err != nil {
 			return err
 		}
 	}

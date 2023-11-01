@@ -8,9 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
+
+	"golang.org/x/sync/syncmap"
 
 	"github.com/mitchellh/mapstructure"
 
@@ -18,6 +21,8 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type OfflineResourceType int
@@ -55,13 +60,49 @@ type FeatureLabelColumnType string
 
 const (
 	Entity FeatureLabelColumnType = "entity"
-	Value                         = "value"
-	TS                            = "ts"
+	Value  FeatureLabelColumnType = "value"
+	TS     FeatureLabelColumnType = "ts"
 )
 
 type ResourceID struct {
 	Name, Variant string
 	Type          OfflineResourceType
+}
+
+func (id *ResourceID) ToFilestorePath() string {
+	return fmt.Sprintf("featureform/%s/%s/%s", id.Type, id.Name, id.Variant)
+}
+
+// TODO: add unit tests
+func (id *ResourceID) FromFilestorePath(path string) error {
+	featureformRootPathPart := "featureform/"
+	idx := strings.Index(path, featureformRootPathPart)
+	if idx == -1 {
+		return fmt.Errorf("expected \"featureform\" root path part in path %s", path)
+	}
+	resourceParts := strings.Split(path[idx+len(featureformRootPathPart):], "/")
+	if len(resourceParts) < 3 {
+		return fmt.Errorf("expected path %s to contain OfflineResourceType/Name/Variant", strings.Join(resourceParts, "/"))
+	}
+	switch resourceParts[0] {
+	case "Label":
+		id.Type = OfflineResourceType(1)
+	case "Feature":
+		id.Type = OfflineResourceType(2)
+	case "TrainingSet":
+		id.Type = OfflineResourceType(3)
+	case "Primary":
+		id.Type = OfflineResourceType(4)
+	case "Transformation":
+		id.Type = OfflineResourceType(5)
+	case "Materialization":
+		id.Type = OfflineResourceType(6)
+	default:
+		return fmt.Errorf("unrecognized OfflineResourceType: %s", resourceParts[0])
+	}
+	id.Name = resourceParts[1]
+	id.Variant = resourceParts[2]
+	return nil
 }
 
 func (id *ResourceID) check(expectedType OfflineResourceType, otherTypes ...OfflineResourceType) error {
@@ -79,7 +120,7 @@ func (id *ResourceID) check(expectedType OfflineResourceType, otherTypes ...Offl
 			return nil
 		}
 	}
-	return fmt.Errorf("Unexpected ResourceID Type")
+	return fmt.Errorf("unexpected ResourceID Type: %v", id.Type)
 }
 
 type LagFeatureDef struct {
@@ -284,21 +325,56 @@ type ResourceRecord struct {
 	TS time.Time
 }
 
+// This generic version of ResourceRecord is only used for converting
+// ResourceRecord to a type that's interpretable by parquet-go. See
+// BlobOfflineTable.writeRecordsToParquetBytes for more details.
+// In addition to using generics to aid in parquet-go's encoding, int64
+// is used for the timestamp due to a Spark issue relating to time.Time:
+// org.apache.spark.sql.AnalysisException: Illegal Parquet type: INT64 (TIMESTAMP(NANOS,true))
+type GenericResourceRecord[T any] struct {
+	Entity string
+	Value  T
+	// TS     int64
+	TS time.Time `parquet:"TS,timestamp"`
+}
+
 type GenericRecord []interface{}
 
 func (rec ResourceRecord) check() error {
 	if rec.Entity == "" {
-		return errors.New("ResourceRecord must have Entity set.")
+		return errors.New("ResourceRecord must have Entity set")
 	}
 	return nil
 }
 
-type OfflineTable interface {
-	Write(ResourceRecord) error
+func (rec *ResourceRecord) SetEntity(entity interface{}) error {
+	switch typedEntity := entity.(type) {
+	case string:
+		rec.Entity = typedEntity
+	default:
+		return fmt.Errorf("entity must be a string; received %T", entity)
+	}
+	return nil
 }
 
+// This interface represents the contract for implementations that
+// write feature and label tables, which have a knowable schema.
+type OfflineTable interface {
+	Write(ResourceRecord) error
+	WriteBatch([]ResourceRecord) error
+}
+
+// The "primary" in the name here might be misleading.
+// This interface is meant to support generic tables,
+// such as those created by transformations.
 type PrimaryTable interface {
 	Write(GenericRecord) error
+	WriteBatch([]GenericRecord) error
+	// TODO: Consider renaming this to GetSchema, which is more
+	// descriptive and general purpose. The SourceTable string
+	// could be used by callers that are only interested in the
+	// absolute path to the source table (i.e. the "name" in our
+	// current lexicon).
 	GetName() string
 	IterateSegment(n int64) (GenericTableIterator, error)
 	NumRows() (int64, error)
@@ -318,7 +394,7 @@ type ResourceSchema struct {
 func (schema *ResourceSchema) Serialize() ([]byte, error) {
 	config, err := json.Marshal(schema)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to serialize resource schema due to: %w", err)
 	}
 	return config, nil
 }
@@ -326,13 +402,138 @@ func (schema *ResourceSchema) Serialize() ([]byte, error) {
 func (schema *ResourceSchema) Deserialize(config []byte) error {
 	err := json.Unmarshal(config, schema)
 	if err != nil {
-		return fmt.Errorf("deserialize etcd config: %w", err)
+		return fmt.Errorf("failed to deserialize resource schema due to: %w", err)
 	}
 	return nil
 }
 
 type TableSchema struct {
 	Columns []TableColumn
+	// The complete URL that points to the location of the data file
+	SourceTable string
+}
+
+type TableSchemaJSONWrapper struct {
+	Columns     []TableColumnJSONWrapper
+	SourceTable string
+}
+
+// This method converts the list of columns into a struct type that can be
+// serialized by parquet-go. This is necessary because GenericRecord, which
+// is of type []interface{}, does not hold the necessary metadata information
+// to create a valid parquet-go schema.
+func (schema *TableSchema) Interface() interface{} {
+	return schema.Value().Interface()
+}
+
+func (schema *TableSchema) Value() reflect.Value {
+	fields := make([]reflect.StructField, len(schema.Columns))
+	for i, col := range schema.Columns {
+		caser := cases.Title(language.English)
+		colType := col.Scalar().Type()
+
+		f := reflect.StructField{
+			// We need to title case the column name to ensure the fields are public
+			// in the struct we create.
+			Name: caser.String(col.Name),
+			Type: colType,
+			// At a minimum, we need to set the parquet tag to the column name so that when
+			// we read from the file, the field names match up with the column names as they
+			// are defined; additionally, we set the optional tag to ensure that the field
+			// is nullable in the parquet file.
+			Tag: reflect.StructTag(fmt.Sprintf(`parquet:"%s,optional"`, col.Name)),
+		}
+
+		// TODO: use a better way of determining if a column is a timestamp
+		if colType.Name() == "Time" {
+			f.Tag = reflect.StructTag(fmt.Sprintf(`parquet:"%s,optional,timestamp"`, col.Name))
+		}
+
+		fields[i] = f
+	}
+	structType := reflect.StructOf(fields)
+	return reflect.New(structType)
+}
+
+func (schema *TableSchema) Serialize() ([]byte, error) {
+	wrapper := &TableSchemaJSONWrapper{
+		SourceTable: schema.SourceTable,
+		Columns:     make([]TableColumnJSONWrapper, len(schema.Columns)),
+	}
+	for i, col := range schema.Columns {
+		wrapper.Columns[i] = TableColumnJSONWrapper{
+			Name:      col.Name,
+			ValueType: ValueTypeJSONWrapper{col.ValueType},
+		}
+	}
+	config, err := json.Marshal(wrapper)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize table schema due to: %w", err)
+	}
+	return config, nil
+}
+
+func (schema *TableSchema) Deserialize(config []byte) error {
+	wrapper := &TableSchemaJSONWrapper{}
+	err := json.Unmarshal(config, wrapper)
+	if err != nil {
+		return fmt.Errorf("failed to deserialize table schema due to: %w", err)
+	}
+	schema.Columns = make([]TableColumn, len(wrapper.Columns))
+	for i, col := range wrapper.Columns {
+		schema.Columns[i] = TableColumn{
+			Name:      col.Name,
+			ValueType: col.ValueType.ValueType,
+		}
+	}
+	schema.SourceTable = wrapper.SourceTable
+	return nil
+}
+
+// *NOTE:* pointer types are used for all the scalar types to ensure they
+// can be nullable in the parquet file.
+func (schema *TableSchema) ToParquetRecords(records []GenericRecord) []any {
+	parquetRecords := make([]any, len(records))
+	caser := cases.Title(language.English)
+	for i, record := range records {
+		parquetRecord := schema.Value()
+		for j, value := range record {
+			// if a value is nil, we skip it so that the zero value for the pointer
+			// type is used instead, which will preserve the null value when the parquet
+			// file is read back.
+			if value == nil {
+				continue
+			}
+			// To ensure the struct fields are public and accessible to other methods,
+			// we need to title case them when setting them.
+			colName := caser.String(schema.Columns[j].Name)
+			switch v := value.(type) {
+			case int:
+				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
+			case int32:
+				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
+			case int64:
+				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
+			case float32:
+				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
+			case float64:
+				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
+			case string:
+				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
+			case bool:
+				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
+			default:
+				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(value))
+			}
+		}
+		parquetRecords[i] = parquetRecord.Interface()
+	}
+	return parquetRecords
+}
+
+type TableColumnJSONWrapper struct {
+	Name      string
+	ValueType ValueTypeJSONWrapper
 }
 
 type TableColumn struct {
@@ -341,9 +542,9 @@ type TableColumn struct {
 }
 
 type memoryOfflineStore struct {
-	tables           map[ResourceID]*memoryOfflineTable
-	materializations map[MaterializationID]*memoryMaterialization
-	trainingSets     map[ResourceID]trainingRows
+	tables           syncmap.Map
+	materializations syncmap.Map
+	trainingSets     syncmap.Map
 	BaseProvider
 }
 
@@ -353,9 +554,9 @@ func memoryOfflineStoreFactory(serializedConfig pc.SerializedConfig) (Provider, 
 
 func NewMemoryOfflineStore() *memoryOfflineStore {
 	return &memoryOfflineStore{
-		tables:           make(map[ResourceID]*memoryOfflineTable),
-		materializations: make(map[MaterializationID]*memoryMaterialization),
-		trainingSets:     make(map[ResourceID]trainingRows),
+		tables:           syncmap.Map{},
+		materializations: syncmap.Map{},
+		trainingSets:     syncmap.Map{},
 		BaseProvider: BaseProvider{
 			ProviderType:   pt.MemoryOffline,
 			ProviderConfig: []byte{},
@@ -399,11 +600,11 @@ func (store *memoryOfflineStore) CreateResourceTable(id ResourceID, schema Table
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}
-	if _, has := store.tables[id]; has {
+	if _, has := store.tables.Load(id); has {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	table := newMemoryOfflineTable()
-	store.tables[id] = table
+	store.tables.Store(id, table)
 	return table, nil
 }
 
@@ -412,11 +613,11 @@ func (store *memoryOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, 
 }
 
 func (store *memoryOfflineStore) getMemoryResourceTable(id ResourceID) (*memoryOfflineTable, error) {
-	table, has := store.tables[id]
+	table, has := store.tables.Load(id)
 	if !has {
 		return nil, &TableNotFound{id.Name, id.Variant}
 	}
-	return table, nil
+	return table.(*memoryOfflineTable), nil
 }
 
 // Used to implement sort.Interface for sorting.
@@ -442,18 +643,20 @@ func (store *memoryOfflineStore) CreateMaterialization(id ResourceID) (Materiali
 	if err != nil {
 		return nil, err
 	}
-	matData := make(materializedRecords, 0, len(table.entityMap))
-	for _, records := range table.entityMap {
+	var matData materializedRecords
+	table.entityMap.Range(func(key, value interface{}) bool {
+		records := value.([]ResourceRecord)
 		matRec := latestRecord(records)
 		matData = append(matData, matRec)
-	}
+		return true
+	})
 	sort.Sort(matData)
 	matId := MaterializationID(uuid.NewString())
 	mat := &memoryMaterialization{
 		id:   matId,
 		data: matData,
 	}
-	store.materializations[matId] = mat
+	store.materializations.Store(matId, mat)
 	return mat, nil
 }
 
@@ -466,11 +669,11 @@ func (err *MaterializationNotFound) Error() string {
 }
 
 func (store *memoryOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
-	mat, has := store.materializations[id]
+	mat, has := store.materializations.Load(id)
 	if !has {
 		return nil, &MaterializationNotFound{id}
 	}
-	return mat, nil
+	return mat.(Materialization), nil
 }
 
 func (store *memoryOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
@@ -478,10 +681,10 @@ func (store *memoryOfflineStore) UpdateMaterialization(id ResourceID) (Materiali
 }
 
 func (store *memoryOfflineStore) DeleteMaterialization(id MaterializationID) error {
-	if _, has := store.materializations[id]; !has {
+	if _, has := store.materializations.Load(id); !has {
 		return &MaterializationNotFound{id}
 	}
-	delete(store.materializations, id)
+	store.materializations.Delete(id)
 	return nil
 }
 
@@ -512,7 +715,7 @@ func (store *memoryOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 		features[i] = feature
 	}
 	labelRecs := label.records()
-	trainingData := make([]trainingRow, len(labelRecs))
+	trainingData := make(trainingRows, len(labelRecs))
 	for i, rec := range labelRecs {
 		featureVals := make([]interface{}, len(features))
 		for i, feature := range features {
@@ -524,7 +727,7 @@ func (store *memoryOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 			Label:    labelVal,
 		}
 	}
-	store.trainingSets[def.ID] = trainingData
+	store.trainingSets.Store(def.ID, trainingData)
 	return nil
 }
 
@@ -536,11 +739,11 @@ func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetItera
 	if err := id.check(TrainingSet); err != nil {
 		return nil, err
 	}
-	data, has := store.trainingSets[id]
+	data, has := store.trainingSets.Load(id)
 	if !has {
 		return nil, &TrainingSetNotFound{id}
 	}
-	return data.Iterator(), nil
+	return data.(trainingRows).Iterator(), nil
 }
 func (store *memoryOfflineStore) Close() error {
 	return nil
@@ -603,29 +806,30 @@ func (it *memoryTrainingRowsIterator) Label() interface{} {
 }
 
 type memoryOfflineTable struct {
-	entityMap map[string][]ResourceRecord
+	entityMap syncmap.Map
 }
 
 func newMemoryOfflineTable() *memoryOfflineTable {
 	return &memoryOfflineTable{
-		entityMap: make(map[string][]ResourceRecord),
+		entityMap: syncmap.Map{},
 	}
 }
 
 func (table *memoryOfflineTable) records() []ResourceRecord {
 	allRecs := make([]ResourceRecord, 0)
-	for _, recs := range table.entityMap {
-		allRecs = append(allRecs, recs...)
-	}
+	table.entityMap.Range(func(key, value interface{}) bool {
+		allRecs = append(allRecs, value.([]ResourceRecord)...)
+		return true
+	})
 	return allRecs
 }
 
 func (table *memoryOfflineTable) getLastValueBefore(entity string, ts time.Time) interface{} {
-	recs, has := table.entityMap[entity]
+	recs, has := table.entityMap.Load(entity)
 	if !has {
 		return nil
 	}
-	sortedRecs := ResourceRecords(recs)
+	sortedRecs := ResourceRecords(recs.([]ResourceRecord))
 	sort.Sort(sortedRecs)
 	lastIdx := len(sortedRecs) - 1
 	for i, rec := range sortedRecs {
@@ -651,17 +855,27 @@ func (table *memoryOfflineTable) Write(rec ResourceRecord) error {
 		return err
 	}
 
-	if recs, has := table.entityMap[rec.Entity]; has {
+	if records, has := table.entityMap.Load(rec.Entity); has {
 		// Replace any record with the same timestamp/entity pair.
+		recs := records.([]ResourceRecord)
 		for i, existingRec := range recs {
 			if existingRec.TS == rec.TS {
 				recs[i] = rec
 				return nil
 			}
 		}
-		table.entityMap[rec.Entity] = append(recs, rec)
+		table.entityMap.Store(rec.Entity, append(recs, rec))
 	} else {
-		table.entityMap[rec.Entity] = []ResourceRecord{rec}
+		table.entityMap.Store(rec.Entity, []ResourceRecord{rec})
+	}
+	return nil
+}
+
+func (table *memoryOfflineTable) WriteBatch(recs []ResourceRecord) error {
+	for _, rec := range recs {
+		if err := table.Write(rec); err != nil {
+			return err
+		}
 	}
 	return nil
 }

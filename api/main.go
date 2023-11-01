@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/featureform/logging"
+
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/sirupsen/logrus"
@@ -78,7 +80,8 @@ func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetUsers(stream.Context())
 		if err != nil {
@@ -106,7 +109,8 @@ func (serv *MetadataServer) GetFeatures(stream pb.Api_GetFeaturesServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetFeatures(stream.Context())
 		if err != nil {
@@ -134,7 +138,8 @@ func (serv *MetadataServer) GetFeatureVariants(stream pb.Api_GetFeatureVariantsS
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetFeatureVariants(stream.Context())
 		if err != nil {
@@ -162,7 +167,8 @@ func (serv *MetadataServer) GetLabels(stream pb.Api_GetLabelsServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetLabels(stream.Context())
 		if err != nil {
@@ -190,7 +196,8 @@ func (serv *MetadataServer) GetLabelVariants(stream pb.Api_GetLabelVariantsServe
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetLabelVariants(stream.Context())
 		if err != nil {
@@ -218,7 +225,8 @@ func (serv *MetadataServer) GetSources(stream pb.Api_GetSourcesServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetSources(stream.Context())
 		if err != nil {
@@ -246,7 +254,8 @@ func (serv *MetadataServer) GetSourceVariants(stream pb.Api_GetSourceVariantsSer
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetSourceVariants(stream.Context())
 		if err != nil {
@@ -274,7 +283,8 @@ func (serv *MetadataServer) GetTrainingSets(stream pb.Api_GetTrainingSetsServer)
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetTrainingSets(stream.Context())
 		if err != nil {
@@ -302,7 +312,8 @@ func (serv *MetadataServer) GetTrainingSetVariants(stream pb.Api_GetTrainingSetV
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetTrainingSetVariants(stream.Context())
 		if err != nil {
@@ -330,7 +341,8 @@ func (serv *MetadataServer) GetProviders(stream pb.Api_GetProvidersServer) error
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetProviders(stream.Context())
 		if err != nil {
@@ -358,7 +370,8 @@ func (serv *MetadataServer) GetEntities(stream pb.Api_GetEntitiesServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetEntities(stream.Context())
 		if err != nil {
@@ -386,7 +399,8 @@ func (serv *MetadataServer) GetModels(stream pb.Api_GetModelsServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Fatalf("Error when reading client request stream: %v", err)
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
 		}
 		proxyStream, err := serv.meta.GetModels(stream.Context())
 		if err != nil {
@@ -717,6 +731,11 @@ func (serv *OnlineServer) Nearest(ctx context.Context, req *srv.NearestRequest) 
 	return serv.client.Nearest(ctx, req)
 }
 
+func (serv *OnlineServer) ResourceLocation(ctx context.Context, req *srv.TrainingDataRequest) (*srv.ResourceFileLocation, error) {
+	serv.Logger.Infow("Serving Resource Location", "id", req.Id.String())
+	return serv.client.ResourceLocation(ctx, req)
+}
+
 func (serv *ApiServer) Serve() error {
 	if serv.grpcServer != nil {
 		return fmt.Errorf("server already running")
@@ -843,7 +862,7 @@ func main() {
 	apiConn := fmt.Sprintf("0.0.0.0:%s", apiPort)
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	servingConn := fmt.Sprintf("%s:%s", servingHost, servingPort)
-	logger := zap.NewExample().Sugar()
+	logger := logging.NewLogger("api")
 	go func() {
 		err := startHttpsServer(":8443")
 		if err != nil && err != http.ErrServerClosed {

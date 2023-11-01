@@ -1,9 +1,13 @@
 package provider_config
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	fs "github.com/featureform/filestore"
+)
 
 type OnlineBlobConfig struct {
-	Type   FileStoreType
+	Type   fs.FileStoreType
 	Config AzureFileStoreConfig
 }
 

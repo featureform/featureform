@@ -1,7 +1,6 @@
 import featureform as ff
 import pytest
 from featureform.resources import ResourceRedefinedError
-import shutil
 
 
 class TestResourcesRedefined:
@@ -115,14 +114,14 @@ class TestResourcesRedefined:
             name="transaction",
             variant="quickstart",
             description="A dataset of fraudulent transactions",
-            path="transactions.csv",
+            path="transaction-first-one.csv",
         )
 
         transactions = local.register_file(
             name="transaction",
             variant="quickstart",
             description="A dataset of fraudulent transaction",
-            path="transaction.csv",
+            path="transaction-second-one.csv",
         )
 
         with pytest.raises(ResourceRedefinedError):
@@ -188,11 +187,12 @@ class TestResourcesRedefined:
                 {
                     "name": "fraudulent",
                     "variant": "quickstart",
-                    "column": "IsFraud",
+                    "column": "IsFraud2",
                     "type": "bool",
                 },
             ],
         )
+
         with pytest.raises(ResourceRedefinedError):
             client.apply()
 
@@ -211,11 +211,3 @@ class TestResourcesRedefined:
 
         with pytest.raises(ResourceRedefinedError):
             client.apply()
-
-    def test_cleanup(tmpdir):
-        try:
-            client = ff.ServingClient(local=True)
-            client.impl.sqldb.close()
-            shutil.rmtree(".featureform")
-        except:
-            print("File Already Removed")

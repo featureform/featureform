@@ -3,7 +3,10 @@ package coordinator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 	"io/ioutil"
 	"net"
 	"os"
@@ -871,7 +874,7 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 	}
 	sourceWithOnlineProvider := metadata.ResourceID{sourceWithoutOfflineProvider, "", metadata.SOURCE_VARIANT}
 	if err := coord.runRegisterSourceJob(sourceWithOnlineProvider, ""); err == nil {
-		t.Fatalf("did not catch error registering registering resource with online provider")
+		t.Fatalf("did not catch error registering resource with online provider")
 	}
 }
 
@@ -1539,7 +1542,7 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 	}
 	sourceComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: sourceName, Variant: ""})
 	if err != nil {
-		return fmt.Errorf("could not get source variant")
+		return fmt.Errorf("could not get source variant, %s", sourceName)
 	}
 	if metadata.READY != sourceComplete.Status() {
 		return fmt.Errorf("source variant not set to ready once job completes")
@@ -1638,7 +1641,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	}
 	sourceComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: sourceName, Variant: ""})
 	if err != nil {
-		return fmt.Errorf("could not get source variant")
+		return fmt.Errorf("could not get source variant, %s", sourceName)
 	}
 	if metadata.READY != sourceComplete.Status() {
 		return fmt.Errorf("source variant not set to ready once job completes")
@@ -1662,7 +1665,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	}
 	transformationComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: transformationName, Variant: ""})
 	if err != nil {
-		return fmt.Errorf("could not get source variant")
+		return fmt.Errorf("could not get source variant, %s", transformationName)
 	}
 	if metadata.READY != transformationComplete.Status() {
 		return fmt.Errorf("transformation variant not set to ready once job completes")
@@ -1726,7 +1729,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	}
 	joinTransformationComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: joinTransformationName, Variant: ""})
 	if err != nil {
-		return fmt.Errorf("could not get source variant")
+		return fmt.Errorf("could not get source variant, %s", joinTransformationName)
 	}
 	if metadata.READY != joinTransformationComplete.Status() {
 		return fmt.Errorf("transformation variant not set to ready once job completes")
@@ -1898,6 +1901,120 @@ func TestGetOrderedSourceMappings(t *testing.T) {
 			}
 			if !reflect.DeepEqual(sourceMap, tc.expectedSourceMap) {
 				t.Fatalf("source mapping did not generate the SourceMapping correctly. Expected %v, got %v", sourceMap, tc.expectedSourceMap)
+			}
+		})
+	}
+}
+
+func TestCoordinator_checkError(t *testing.T) {
+	type fields struct {
+		Metadata   *metadata.Client
+		Logger     *zap.SugaredLogger
+		EtcdClient *clientv3.Client
+		KVClient   *clientv3.KV
+		Spawner    JobSpawner
+		Timeout    int
+	}
+	type args struct {
+		err     error
+		jobName string
+	}
+	tests := []struct {
+		name          string
+		fields        fields
+		args          args
+		expectedLevel zapcore.Level
+		expectedMsg   string
+	}{
+		{
+			name: "Custom error",
+			fields: fields{
+				Metadata:   nil,
+				Logger:     nil,
+				EtcdClient: nil,
+				KVClient:   nil,
+				Spawner:    nil,
+				Timeout:    0,
+			},
+			args: args{
+				err:     errors.New("test error"),
+				jobName: "test job",
+			},
+			expectedLevel: zapcore.ErrorLevel,
+			expectedMsg:   "Error executing job",
+		},
+		{
+			name: "JobDoesNotExistError",
+			fields: fields{
+				Metadata:   nil,
+				Logger:     nil,
+				EtcdClient: nil,
+				KVClient:   nil,
+				Spawner:    nil,
+				Timeout:    0,
+			},
+			args: args{
+				err:     JobDoesNotExistError{},
+				jobName: "CompletedJob",
+			},
+			expectedLevel: zapcore.InfoLevel,
+			expectedMsg:   "Coordinator Job No Longer Exists",
+		},
+		{
+			name: "ResourceAlreadyFailedError",
+			fields: fields{
+				Metadata:   nil,
+				Logger:     nil,
+				EtcdClient: nil,
+				KVClient:   nil,
+				Spawner:    nil,
+				Timeout:    0,
+			},
+			args: args{
+				err:     ResourceAlreadyFailedError{},
+				jobName: "CompletedJob",
+			},
+			expectedLevel: zapcore.InfoLevel,
+			expectedMsg:   "resource has failed previously. Ignoring....",
+		},
+		{
+			name: "ResourceAlreadyCompleteError",
+			fields: fields{
+				Metadata:   nil,
+				Logger:     nil,
+				EtcdClient: nil,
+				KVClient:   nil,
+				Spawner:    nil,
+				Timeout:    0,
+			},
+			args: args{
+				err:     ResourceAlreadyCompleteError{},
+				jobName: "CompletedJob",
+			},
+			expectedLevel: zapcore.InfoLevel,
+			expectedMsg:   "resource has already completed. Ignoring....",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			observedZapCore, observedLogs := observer.New(zap.InfoLevel)
+			observedLogger := zap.New(observedZapCore).Sugar()
+			c := &Coordinator{
+				Metadata:   tt.fields.Metadata,
+				Logger:     observedLogger,
+				EtcdClient: tt.fields.EtcdClient,
+				KVClient:   tt.fields.KVClient,
+				Spawner:    tt.fields.Spawner,
+				Timeout:    tt.fields.Timeout,
+			}
+			c.checkError(tt.args.err, tt.args.jobName)
+			for _, log := range observedLogs.All() {
+				if log.Level != tt.expectedLevel {
+					t.Errorf("Expected log level %v, got %v", tt.expectedLevel, log.Level)
+				}
+				if !strings.Contains(log.Message, tt.expectedMsg) {
+					t.Errorf("Expected log message %v, got %v", tt.expectedMsg, log.Message)
+				}
 			}
 		})
 	}

@@ -25,7 +25,7 @@ jobs:
           use-quiet-mode: "yes"
           use-verbose-mode: "yes"
           config-file: ".docs_mlc_config.json"
-          folder-path: "embeddinghub/docs"
+          folder-path: "docs"
           max-depth: 2
   # Commenting out the website link checker until it can be moved to its own workflow
   # website-link-checker:

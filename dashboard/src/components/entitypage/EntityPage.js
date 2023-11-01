@@ -24,19 +24,19 @@ function mapStateToProps(state) {
   };
 }
 
-const LoadingDots = () => {
+export function LoadingDots() {
   return (
     <div data-testid='loadingDotsId'>
       <Container maxWidth='xl'>
         <Paper elevation={3}>
-          <Container maxWidth='sm'>
+          <Container style={{ textAlign: 'center' }} maxWidth='sm'>
             <Loader type='ThreeDots' color='grey' height={40} width={40} />
           </Container>
         </Paper>
       </Container>
     </div>
   );
-};
+}
 
 const fetchNotFound = (object) => {
   return !object?.resources?.name && !object?.resources?.type;
@@ -59,14 +59,14 @@ const EntityPage = ({
     }
   }, [type, entity]);
 
-  return (
-    <div>
-      {entityPage.loading ? (
-        <LoadingDots />
-      ) : entityPage.failed ||
-        (!entityPage.loading && fetchNotFound(entityPage)) ? (
-        <NotFoundPage />
-      ) : (
+  let body = <></>;
+  if (entityPage.loading === true) {
+    body = <LoadingDots />;
+  } else if (entityPage.loading === false) {
+    if (entityPage.failed === true || fetchNotFound(entityPage)) {
+      body = <NotFoundPage />;
+    } else {
+      body = (
         <EntityPageView
           api={api}
           entity={entityPage}
@@ -75,9 +75,10 @@ const EntityPage = ({
           typePath={type}
           resourceType={resourceType}
         />
-      )}
-    </div>
-  );
+      );
+    }
+  }
+  return body;
 };
 
 export default connect(mapStateToProps, mapDispatchToProps)(EntityPage);

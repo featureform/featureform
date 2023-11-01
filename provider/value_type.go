@@ -7,6 +7,8 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"time"
 )
 
 type ValueType interface {
@@ -36,6 +38,33 @@ func (t ScalarType) Scalar() ScalarType {
 
 func (t ScalarType) IsVector() bool {
 	return false
+}
+
+// This method is used in encoding our supported data types to parquet.
+// It returns a pointer type for scalar values to allow for nullability.
+func (t ScalarType) Type() reflect.Type {
+	switch t {
+	case Int:
+		return reflect.PointerTo(reflect.TypeOf(int(0)))
+	case Int32:
+		return reflect.PointerTo(reflect.TypeOf(int32(0)))
+	case Int64:
+		return reflect.PointerTo(reflect.TypeOf(int64(0)))
+	case Float32:
+		return reflect.PointerTo(reflect.TypeOf(float32(0)))
+	case Float64:
+		return reflect.PointerTo(reflect.TypeOf(float64(0)))
+	case String:
+		return reflect.PointerTo(reflect.TypeOf(string("")))
+	case Bool:
+		return reflect.PointerTo(reflect.TypeOf(bool(false)))
+	case Timestamp:
+		return reflect.TypeOf(time.Time{})
+	case Datetime:
+		return reflect.TypeOf(time.Time{})
+	default:
+		return nil
+	}
 }
 
 const (

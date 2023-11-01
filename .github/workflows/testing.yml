@@ -1188,8 +1188,8 @@ jobs:
           DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
           DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
           DYNAMODB_REGION: ${{ secrets.DYNAMODB_REGION }}
-          SPARK_LOCAL_SCRIPT_PATH: /home/runner/work/featureform/featureform/provider/scripts/spark/offline_store_spark_runner.py
-          PYTHON_LOCAL_INIT_PATH: /home/runner/work/featureform/featureform/provider/scripts/spark/python_packages.sh
+          SPARK_LOCAL_SCRIPT_PATH: home/runner/work/featureform/featureform/provider/scripts/spark/offline_store_spark_runner.py
+          PYTHON_LOCAL_INIT_PATH: home/runner/work/featureform/featureform/provider/scripts/spark/python_packages.sh
         working-directory: ./
         run: make test_healthchecks
         

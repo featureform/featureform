@@ -186,6 +186,7 @@ func initSpark(t *testing.T, executorType pc.SparkExecutorType, storeType fs.Fil
 			PythonVersion: os.Getenv("GENERIC_SPARK_PYTHON_VERSION"),
 		}
 	case pc.Databricks:
+		fmt.Printf("Databricks ==%s==", os.Getenv("DATABRICKS_HOST"))
 		executorConfig = &pc.DatabricksConfig{
 			Host:    strings.TrimSpace(os.Getenv("DATABRICKS_HOST")),
 			Token:   os.Getenv("DATABRICKS_TOKEN"),

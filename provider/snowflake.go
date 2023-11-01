@@ -13,11 +13,11 @@ type snowflakeColumnType string
 
 const (
 	sfInt       snowflakeColumnType = "integer"
-	sfNumber                        = "NUMBER"
-	sfFloat                         = "FLOAT"
-	sfString                        = "varchar"
-	sfBool                          = "BOOLEAN"
-	sfTimestamp                     = "TIMESTAMP_NTZ"
+	sfNumber    snowflakeColumnType = "NUMBER"
+	sfFloat     snowflakeColumnType = "FLOAT"
+	sfString    snowflakeColumnType = "varchar"
+	sfBool      snowflakeColumnType = "BOOLEAN"
+	sfTimestamp snowflakeColumnType = "TIMESTAMP_NTZ"
 )
 
 type snowflakeSQLQueries struct {
@@ -27,13 +27,7 @@ type snowflakeSQLQueries struct {
 func snowflakeOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.SnowflakeConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, RuntimeError{
-			BaseError: BaseError{
-				Type:    pt.SnowflakeOffline,
-				Action:  ConfigDeserialize,
-				Message: err.Error(),
-			},
-		}
+		return nil, NewProviderError(Runtime, pt.SnowflakeOffline, ConfigDeserialize, err.Error())
 	}
 	queries := snowflakeSQLQueries{}
 	queries.setVariableBinding(MySQLBindingStyle)

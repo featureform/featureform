@@ -470,7 +470,7 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 	ctx := context.Background()
 	id := uuid.New().String()
 
-	fmt.Println("=====>>>>> PYTHON FILE PATH: ", pythonFilepath.ToURI())
+	fmt.Printf("=====>>>>> PYTHON FILE PATH: =%s=\n", pythonFilepath.ToURI())
 	fmt.Println("=====>>>>> Job: ", fmt.Sprintf("featureform-job-%s", id))
 	fmt.Println("=====>>>>> Task: ", fmt.Sprintf("featureform-task-%s", id))
 

@@ -8,10 +8,10 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"strings"
 	"testing"
 
 	fs "github.com/featureform/filestore"
+	"github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -188,7 +188,7 @@ func initSpark(t *testing.T, executorType pc.SparkExecutorType, storeType fs.Fil
 	case pc.Databricks:
 		fmt.Printf("Databricks ==%s==", os.Getenv("DATABRICKS_HOST"))
 		executorConfig = &pc.DatabricksConfig{
-			Host:    strings.TrimSpace(os.Getenv("DATABRICKS_HOST")),
+			Host:    helpers.GetEnv("DATABRICKS_HOST", ""),
 			Token:   os.Getenv("DATABRICKS_TOKEN"),
 			Cluster: os.Getenv("DATABRICKS_CLUSTER"),
 		}

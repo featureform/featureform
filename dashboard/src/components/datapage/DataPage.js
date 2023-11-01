@@ -1,7 +1,7 @@
 import React from 'react';
 import ResourcesAPI from '../../api/resources';
 import Resource from '../../api/resources/Resource.js';
-import NotFoundPage from '../notfoundpage/NotFoundPage';
+import NotFound from '../notfoundpage/NotFound';
 import ResourceList from '../resource-list/ResourceList';
 const apiHandle = new ResourcesAPI();
 
@@ -12,7 +12,7 @@ const DataPage = ({ type }) => {
       {resourceType ? (
         <ResourceList api={apiHandle} type={resourceType} />
       ) : (
-        <NotFoundPage />
+        <NotFound />
       )}
     </div>
   );

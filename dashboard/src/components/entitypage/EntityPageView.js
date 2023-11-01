@@ -233,7 +233,13 @@ export const convertInputToDate = (timestamp_string_or_mil = '') => {
   }
 };
 
-const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
+const EntityPageView = ({
+  api,
+  entity,
+  setVariant,
+  activeVariants,
+  queryVariant = '',
+}) => {
   let resources = entity.resources;
   let resourceType = Resource[resources.type];
   let type = resourceType.type;
@@ -241,18 +247,29 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
   const showMetrics =
     process.env.NODE_ENV == 'production' ? resourceType.hasMetrics : false;
   const showStats = false;
+  /*eslint-disable no-constant-condition*/
   const dataTabDisplacement = (1 ? showMetrics : 0) + (1 ? showStats : 0);
   const statsTabDisplacement = showMetrics ? 1 : 0;
   const name = resources['name'];
   const icon = resourceType.materialIcon;
+  const foundQueryVariant = resources['all-variants']?.find(
+    (vr) => vr === queryVariant
+  );
   const [variant, setLocalVariant] = useState(
-    activeVariants[entity.resources.type][name] || resources['default-variant']
+    activeVariants[entity.resources.type][name] ||
+      foundQueryVariant ||
+      resources['default-variant']
   );
 
   useEffect(() => {
+    const foundQueryVariant = resources['all-variants']?.find(
+      (vr) => vr === queryVariant
+    );
     const activeVariant = activeVariants[entity.resources.type][name];
     if (activeVariant) {
-      variant = setLocalVariant(activeVariant);
+      setLocalVariant(activeVariant);
+    } else if (foundQueryVariant) {
+      setLocalVariant(foundQueryVariant);
     } else {
       setVariant(entity.resources.type, name, resources['default-variant']);
     }

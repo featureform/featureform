@@ -84,12 +84,12 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: 'space-around',
   },
   border: {
-    background: 'white',
+    background: '#FFFFFF',
     border: `2px solid ${theme.palette.border.main}`,
     borderRadius: '16px',
   },
   data: {
-    background: 'white',
+    background: '#FFFFFF',
     marginTop: theme.spacing(2),
     border: `2px solid ${theme.palette.border.main}`,
     borderRadius: '16px',

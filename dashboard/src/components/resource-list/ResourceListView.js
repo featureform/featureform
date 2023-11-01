@@ -71,8 +71,8 @@ const useStyles = makeStyles(() => ({
   },
   tableBody: {
     border: `2px solid ${theme.palette.border.main}`,
-    background: 'white',
-    color: 'white',
+    background: '#FFFFFF',
+    color: '#FFFFFF',
     opacity: 1,
   },
   providerColumn: {},
@@ -260,6 +260,7 @@ export const ResourceListView = ({
                 detailPanel: (row) => {
                   return (
                     <VariantTable
+                      suppressHydrationWarning
                       name={row.name}
                       row={row}
                       type={type}
@@ -472,7 +473,7 @@ export const VariantTable = ({
             toolbar: false,
             draggable: false,
             headerStyle: {
-              backgroundColor: 'white',
+              backgroundColor: '#FFFFFF',
               color: theme.palette.primary.main,
               marginLeft: 3,
             },

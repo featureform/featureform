@@ -1,6 +1,8 @@
 package provider
 
 import (
+	"fmt"
+
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 )
@@ -24,6 +26,10 @@ func (u UnitTestProvider) Type() pt.Type {
 
 func (u UnitTestProvider) Config() pc.SerializedConfig {
 	return u.ProviderConfig
+}
+
+func (u UnitTestProvider) CheckHealth() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
 }
 
 type UnitTestStore interface {
@@ -83,6 +89,10 @@ func (m MockUnitTestStore) Close() error {
 	return nil
 }
 
+func (m MockUnitTestStore) CheckHealth() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
+}
+
 func (m MockUnitTestTable) Get(entity string) (interface{}, error) {
 	return nil, nil
 }
@@ -125,7 +135,7 @@ func (u *UnitTestIterator) Values() GenericRecord {
 }
 
 func (UnitTestIterator) Columns() []string {
-	return []string{"column1, column2"}
+	return []string{"column1", "column2", "column3"}
 }
 
 func (UnitTestIterator) Err() error {
@@ -137,9 +147,10 @@ func (UnitTestIterator) Close() error {
 }
 
 func (MockPrimaryTable) IterateSegment(int64) (GenericTableIterator, error) {
-	records := make(GenericRecord, 2)
-	records[0] = "row value"
-	records[1] = "row value"
+	records := make(GenericRecord, 3)
+	records[0] = "row string value"
+	records[1] = true
+	records[2] = 10
 	return &UnitTestIterator{
 		currentValue: records,
 		nextCount:    0,
@@ -165,9 +176,11 @@ func (M MockUnitTestOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, 
 func (M MockUnitTestOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
 	return nil, nil
 }
+
 func (M MockUnitTestOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
 	return nil, nil
 }
+
 func (M MockUnitTestOfflineStore) CreateTransformation(config TransformationConfig) error {
 	return nil
 }
@@ -187,8 +200,13 @@ func (M MockUnitTestOfflineStore) UpdateMaterialization(id ResourceID) (Material
 func (M MockUnitTestOfflineStore) UpdateTrainingSet(TrainingSetDef) error {
 	return nil
 }
+
 func (M MockUnitTestOfflineStore) Close() error {
 	return nil
+}
+
+func (M MockUnitTestOfflineStore) CheckHealth() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
 }
 
 type MockMaterialization struct{}

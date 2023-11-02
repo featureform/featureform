@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/featureform/logging"
 	"io"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/featureform/logging"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -20,10 +21,12 @@ import (
 
 	"google.golang.org/grpc/credentials/insecure"
 
+	health "github.com/featureform/health"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
 	srv "github.com/featureform/proto"
+	pt "github.com/featureform/provider/provider_type"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -43,6 +46,7 @@ type MetadataServer struct {
 	meta    pb.MetadataClient
 	client  *metadata.Client
 	pb.UnimplementedApiServer
+	health *health.Health
 }
 
 type OnlineServer struct {
@@ -582,7 +586,44 @@ func (serv *MetadataServer) ListProviders(in *pb.Empty, stream pb.Api_ListProvid
 
 func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Provider) (*pb.Empty, error) {
 	serv.Logger.Infow("Creating Provider", "name", provider.Name)
-	return serv.meta.CreateProvider(ctx, provider)
+	_, err := serv.meta.CreateProvider(ctx, provider)
+	if err != nil {
+		serv.Logger.Errorw("Failed to create provider", "error", err)
+		return nil, err
+	}
+	if !serv.health.IsSupportedProvider(pt.Type(provider.Type)) {
+		serv.Logger.Infow("Provider type is currently not supported for health check", "type", provider.Type)
+		return &pb.Empty{}, nil
+	}
+	var status *pb.ResourceStatus
+	isHealthy, err := serv.health.CheckProvider(provider.Name)
+	if err != nil || !isHealthy {
+		serv.Logger.Errorw("Provider health check failed", "error", err)
+		status = &pb.ResourceStatus{
+			Status:       pb.ResourceStatus_FAILED,
+			ErrorMessage: err.Error(),
+		}
+	} else {
+		serv.Logger.Infow("Provider health check passed", "name", provider.Name)
+		status = &pb.ResourceStatus{
+			Status: pb.ResourceStatus_READY,
+		}
+	}
+	statusReq := &pb.SetStatusRequest{
+		ResourceId: &pb.ResourceID{
+			Resource: &pb.NameVariant{
+				Name: provider.Name,
+			},
+			ResourceType: pb.ResourceType_PROVIDER,
+		},
+		Status: status,
+	}
+	_, statusErr := serv.meta.SetResourceStatus(ctx, statusReq)
+	if statusErr != nil {
+		serv.Logger.Errorw("Failed to set provider status", "error", statusErr, "health check error", err)
+		return nil, statusErr
+	}
+	return &pb.Empty{}, err
 }
 
 func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, source *pb.SourceVariant) (*pb.Empty, error) {
@@ -730,6 +771,11 @@ func (serv *OnlineServer) Nearest(ctx context.Context, req *srv.NearestRequest) 
 	return serv.client.Nearest(ctx, req)
 }
 
+func (serv *OnlineServer) ResourceLocation(ctx context.Context, req *srv.TrainingDataRequest) (*srv.ResourceFileLocation, error) {
+	serv.Logger.Infow("Serving Resource Location", "id", req.Id.String())
+	return serv.client.ResourceLocation(ctx, req)
+}
+
 func (serv *ApiServer) Serve() error {
 	if serv.grpcServer != nil {
 		return fmt.Errorf("server already running")
@@ -756,6 +802,7 @@ func (serv *ApiServer) Serve() error {
 	}
 	serv.metadata.client = client
 	serv.online.client = srv.NewFeatureClient(servConn)
+	serv.metadata.health = health.NewHealth(client)
 	return serv.ServeOnListener(lis)
 }
 

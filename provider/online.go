@@ -129,6 +129,10 @@ func (store *localOnlineStore) Close() error {
 	return nil
 }
 
+func (store *localOnlineStore) CheckHealth() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
+}
+
 type localOnlineTable map[string]interface{}
 
 func (table localOnlineTable) Set(entity string, value interface{}) error {

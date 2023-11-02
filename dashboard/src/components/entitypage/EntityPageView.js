@@ -240,7 +240,6 @@ const EntityPageView = ({
   activeVariants,
   queryVariant = '',
 }) => {
-  console.log('active variants?', activeVariants);
   let resources = entity.resources;
   let resourceType = Resource[resources.type];
   let type = resourceType.type;

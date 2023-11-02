@@ -232,11 +232,13 @@ export const ResourceListView = ({
   mutableRes = mutableRes.filter(filterMissingDefaults);
 
   function detailRedirect(event, data) {
+    //this is a main column redirect, use the default variant if applicable
     event.stopPropagation();
     const base = Resource[type].urlPathResource(data.name);
-    if (data?.variant) {
-      setVariant(type, data.name, data.variant);
-      router.push(`${base}?variant=${data.variant}`);
+    const defaultVariant = data?.['default-variant'];
+    if (defaultVariant) {
+      setVariant(type, data.name, defaultVariant);
+      router.push(`${base}?variant=${defaultVariant}`);
     } else {
       router.push(base);
     }

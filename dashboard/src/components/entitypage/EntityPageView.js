@@ -396,7 +396,8 @@ const EntityPageView = ({
                 {allVariants && (
                   <VariantControl
                     variant={variant}
-                    variants={allVariants}
+                    variantListProp={allVariants}
+                    resources={resources}
                     handleVariantChange={handleVariantChange}
                     type={type}
                     name={name}

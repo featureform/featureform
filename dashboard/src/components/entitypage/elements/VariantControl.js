@@ -23,12 +23,34 @@ function mapStateToProps(state) {
   };
 }
 
-const VariantControl = ({ variant, variants, handleVariantChange }) => {
+const VariantControl = ({
+  variant,
+  variantListProp = [],
+  resources,
+  handleVariantChange,
+}) => {
   const classes = useStyles();
 
   const handleChange = (event) => {
     handleVariantChange(event);
   };
+
+  let variantList = [];
+
+  try {
+    if (variantListProp.length && resources?.variants) {
+      variantList = variantListProp.map((vr) => {
+        return {
+          name: vr,
+          created: new Date(resources.variants[vr].created),
+        };
+      });
+
+      variantList = variantList.sort((a, b) => b.created - a.created);
+    }
+  } catch (e) {
+    console.error('Error ordering the variants:', e);
+  }
 
   return (
     <FormControl className={classes.formControl}>
@@ -43,9 +65,13 @@ const VariantControl = ({ variant, variants, handleVariantChange }) => {
         displayEmpty
         className={classes.selectEmpty}
       >
-        {variants.map((variant) => (
-          <MenuItem key={variant} value={variant}>
-            {variant}
+        {variantList.map((variant, index) => (
+          <MenuItem
+            data-testid={index}
+            key={variant?.name}
+            value={variant?.name}
+          >
+            {variant?.name}
           </MenuItem>
         ))}
       </Select>

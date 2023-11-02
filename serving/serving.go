@@ -359,6 +359,33 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 	return f.Serialized(), nil
 }
 
+func (serv *FeatureServer) BatchFeatureServe(req *pb.BatchFeatureServeRequest, stream pb.Feature_BatchFeatureServeServer) error {
+	features := req.GetFeatures()
+	resourceIDList := make([]provider.ResourceID, len(features))
+	for i, feature := range features {
+		name, variant := feature.GetName(), feature.GetVersion()
+		serv.Logger.Infow("Serving feature", "Name", name, "Variant", variant)
+		resourceIDList[i] = provider.ResourceID{Name: name, Variant: variant, Type: provider.Feature}
+	}
+	iter, err := serv.getBatchFeatureIterator(resourceIDList)
+	if err != nil {
+		return err
+	}
+	for iter.Next() {
+		sRow, err := serializedBatchRow(iter.Entity(), iter.Features())
+		if err != nil {
+			return err
+		}
+		if err := stream.Send(sRow); err != nil {
+			return err
+		}
+	}
+	if err := iter.Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceColumnRequest) (*pb.SourceDataColumns, error) {
 	id := req.GetId()
 	name, variant := id.GetName(), id.GetVersion()

@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/featureform/logging"
 	"io"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/featureform/logging"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -668,6 +669,28 @@ func (serv *MetadataServer) CreateModel(ctx context.Context, model *pb.Model) (*
 func (serv *OnlineServer) FeatureServe(ctx context.Context, req *srv.FeatureServeRequest) (*srv.FeatureRow, error) {
 	serv.Logger.Infow("Serving Features", "request", req.String())
 	return serv.client.FeatureServe(ctx, req)
+}
+
+func (serv *OnlineServer) BatchFeatureServe(req *srv.BatchFeatureServeRequest, stream srv.Feature_BatchFeatureServeServer) error {
+	serv.Logger.Infow("Serving Batch Features", "request", req.String())
+	client, err := serv.client.BatchFeatureServe(context.Background(), req)
+	if err != nil {
+		return fmt.Errorf("could not serve batch features: %w", err)
+	}
+	for {
+		row, err := client.Recv()
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return fmt.Errorf("receive error: %w", err)
+		}
+		if err := stream.Send(row); err != nil {
+			serv.Logger.Errorw("Failed to write to stream", "Error", err)
+			return fmt.Errorf("batch feature send row: %w", err)
+		}
+	}
+
 }
 
 func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.Feature_TrainingDataServer) error {

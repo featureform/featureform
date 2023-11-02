@@ -147,6 +147,28 @@ class ServingClient:
         """Closes the connection to the Featureform instance."""
         self.impl.close()
 
+    def iterate_feature_set(self, *feats):
+        """
+        TODO: Add it in the servingCLient class, hostedclient and localclient. In local client raise not supported error
+        TODO: We need the feature and variant name
+        TODO: Need to support string feature names, feature objects, and feature name/variant tuples
+        Return an iterator that iterates over each entity and corresponding features in feats.
+        **Example:**
+        ```py title="definitions.py"
+        for feature_values in client.iterate_feature_set("feature1", "feature2", "feature3"):
+            print(feature_values)
+        ```
+
+        Args:
+            *feats (str): The features to iterate over
+
+        Returns:
+            iterator: An iterator of entity and feature values
+
+        """
+        # for feat in feats:
+        #     return self.get_feature(feat)
+
 
 class HostedClientImpl:
     def __init__(self, host=None, insecure=False, cert_path=None):
@@ -192,6 +214,7 @@ class HostedClientImpl:
             parsed_value = parse_proto_value(val)
             value_type = type(parsed_value)
 
+            # TODO: Will need something similar to this for ondemand features
             # Ondemand features are returned as a byte array
             # which holds the pickled function
             if value_type == bytes:

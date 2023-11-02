@@ -304,7 +304,8 @@ type FeatureIterator interface {
 
 type BatchFeatureIterator interface {
 	Next() bool
-	Values() GenericRecord
+	Entity() interface{}
+	Features() GenericRecord
 	Columns() []string
 	Err() error
 	Close() error

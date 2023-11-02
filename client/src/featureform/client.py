@@ -95,25 +95,6 @@ class Client(ResourceClient, ServingClient):
                 f"source must be of type SourceRegistrar, LocalSource, SubscriptableTransformation or str, not {type(source)}"
             )
         return self.impl._get_source_as_df(name, variant, limit)
-    
-    def iterate_feature_set(self, *feats):
-        """
-        Return an iterator that iterates over each entity and corresponding features in feats.
-        **Example:**
-        ```py title="definitions.py"
-        for feature_values in client.iterate_feature_set("feature1", "feature2", "feature3"):
-            print(feature_values)
-        ```
-
-        Args:
-            *feats (str): The features to iterate over
-
-        Returns:
-            iterator: An iterator of entity and feature values
-
-        """
-        for feat in feats:
-            return self.get_feature(feat)
 
     def nearest(self, feature, vector, k):
         """

@@ -541,8 +541,12 @@ func (it *sqlBatchFeatureIterator) Next() bool {
 	return true
 }
 
-func (it *sqlBatchFeatureIterator) Values() GenericRecord {
-	return it.currentValues
+func (it *sqlBatchFeatureIterator) Entity() interface{} {
+	return (it.currentValues)[0]
+}
+
+func (it *sqlBatchFeatureIterator) Features() GenericRecord {
+	return (it.currentValues)[1:]
 }
 
 func (it *sqlBatchFeatureIterator) Columns() []string {

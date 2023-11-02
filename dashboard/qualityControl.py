@@ -5,7 +5,19 @@ def run_data_quality_checks(data_context_dir, feature_table, column, value_set):
     try:
         # Create a Great Expectations data context
         data_context = ge.data_context.DataContext(data_context_dir)
-        data_source = PandasDatasource("pandas_datasource")
+                data_source = ge.data_source.Datasource(
+            name="my_datasource",
+            data_connectors={
+                "my_data_connector": {
+                    "class_name": "YourDataConnectorClassName",
+                    "credentials": {
+                        "username": username,
+                        "password": password,
+                        # Additional authentication parameters as needed
+                    }
+                }
+            }
+        }
         
         # Define batch parameters
         batch_kwargs = {"table": feature_table, "datasource": data_source}

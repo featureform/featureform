@@ -1,12 +1,13 @@
 import React from 'react';
 
-const VariantNotFound = ({ type = '', queryVariant = '' }) => {
+const VariantNotFound = ({ type = '', entity = '', queryVariant = '' }) => {
   return (
     <div data-testid='variantNotFoundId'>
       <h1>404: Variant not found</h1>
-      {type && queryVariant && (
+      {type && entity && queryVariant && (
         <p>
-          For &quot;<strong>{type}</strong>&quot; type, no variant named &quot;
+          For &quot;<strong>{`${type}: ${entity}`}</strong>&quot; no variant
+          named &quot;
           <strong>{queryVariant}</strong>&quot; exists.
         </p>
       )}

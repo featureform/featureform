@@ -76,7 +76,13 @@ const EntityPage = ({
     if (entityPage.failed === true || fetchNotFound(entityPage)) {
       body = <NotFound type={type} entity={entity} />;
     } else if (variantNotFound(entityPage, queryVariant)) {
-      body = <VariantNotFound type={type} queryVariant={queryVariant} />;
+      body = (
+        <VariantNotFound
+          type={type}
+          entity={entity}
+          queryVariant={queryVariant}
+        />
+      );
     } else {
       body = (
         <EntityPageView

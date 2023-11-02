@@ -231,9 +231,15 @@ export const ResourceListView = ({
   let mutableRes = deepCopy(initRes);
   mutableRes = mutableRes.filter(filterMissingDefaults);
 
-  function detailRedirect(e, data) {
-    e.stopPropagation();
-    router.push(Resource[type].urlPathResource(data.name));
+  function detailRedirect(event, data) {
+    event.stopPropagation();
+    const base = Resource[type].urlPathResource(data.name);
+    if (data?.variant) {
+      setVariant(type, data.name, data.variant);
+      router.push(`${base}?variant=${data.variant}`);
+    } else {
+      router.push(base);
+    }
   }
 
   function getPageSizeProp(listLength = 0) {
@@ -410,9 +416,11 @@ export const VariantTable = ({
 }) => {
   const classes = useStyles();
   let router = useRouter();
-  function variantChangeRedirect(e, data) {
+  function variantChangeRedirect(event, data) {
+    event.stopPropagation();
     setVariant(type, name, data.variant);
-    router.push(Resource[type].urlPathResource(name));
+    const base = Resource[type].urlPathResource(name);
+    router.push(`${base}?variant=${data.variant}`);
   }
 
   let myVariants = [];

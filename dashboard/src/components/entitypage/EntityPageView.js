@@ -240,6 +240,7 @@ const EntityPageView = ({
   activeVariants,
   queryVariant = '',
 }) => {
+  console.log('active variants?', activeVariants);
   let resources = entity.resources;
   let resourceType = Resource[resources.type];
   let type = resourceType.type;
@@ -322,7 +323,12 @@ const EntityPageView = ({
   const [value, setValue] = React.useState(0);
 
   const handleVariantChange = (event) => {
+    // replace. do not push into history
+    const base = Resource[type].urlPathResource(name);
     setVariant(type, name, event.target.value);
+    router.replace(`${base}?variant=${event.target.value}`, null, {
+      shallow: true,
+    });
   };
 
   const handleChange = (_, newValue) => {
@@ -340,7 +346,11 @@ const EntityPageView = ({
   const linkToLineage = (nameVariant = { Name: '', Variant: '' }) => {
     if (nameVariant.Name && nameVariant.Variant) {
       setVariant('Source', nameVariant.Name, nameVariant.Variant);
-      router.push(`/sources/${nameVariant.Name}`);
+      router.push(
+        `/sources/${nameVariant.Name}?variant=${nameVariant.Variant}`
+      );
+    } else {
+      console.warn('linkToLineage() Namevariant properties are missing');
     }
   };
 
@@ -842,20 +852,26 @@ const EntityPageView = ({
                       const resourceName = resourceEntry[0];
                       const resourceVariants = resourceEntry[1];
                       let rowData = { name: resourceName };
-                      if (resourceVariants.length === 1) {
+                      if (resourceVariants.length) {
                         rowData['variant'] = resourceVariants[0].variant;
                       } else {
-                        rowData['variant'] = '...';
+                        rowData['variant'] = '';
                       }
                       rowData['variants'] = Object.values(resourceVariants);
                       return rowData;
                     }
                   )}
-                  onRowClick={(event, rowData) =>
-                    router.push(
-                      Resource[resourceType].urlPathResource(rowData.name)
-                    )
-                  }
+                  onRowClick={(event, rowData) => {
+                    event.stopPropagation();
+                    const resource = Resource[resourceType];
+                    const base = resource.urlPathResource(rowData.name);
+                    if (resource?.hasVariants && rowData.variant) {
+                      setVariant(resource.type, rowData.name, rowData.variant);
+                      router.push(`${base}?variant=${rowData.variant}`);
+                    } else {
+                      router.push(base);
+                    }
+                  }}
                   components={{
                     Container: (props) => (
                       <div

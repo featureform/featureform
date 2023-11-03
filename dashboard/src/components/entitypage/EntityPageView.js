@@ -321,13 +321,15 @@ const EntityPageView = ({
   const classes = useStyles();
   const [value, setValue] = React.useState(0);
 
-  const handleVariantChange = (event) => {
-    // replace. do not push into history
-    const base = Resource[type].urlPathResource(name);
-    setVariant(type, name, event.target.value);
-    router.replace(`${base}?variant=${event.target.value}`, null, {
-      shallow: true,
-    });
+  const handleVariantChange = (variantParam = '') => {
+    if (variantParam) {
+      // use replace(). do not push() into history
+      const base = Resource[type].urlPathResource(name);
+      setVariant(type, name, variantParam);
+      router.replace(`${base}?variant=${variantParam}`, null, {
+        shallow: true,
+      });
+    }
   };
 
   const handleChange = (_, newValue) => {

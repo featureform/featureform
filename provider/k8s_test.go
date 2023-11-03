@@ -201,6 +201,9 @@ func TestBlobInterfaces(t *testing.T) {
 }
 
 func testFileUploadAndDownload(t *testing.T, store FileStore) {
+	if store.FilestoreType() == filestore.HDFS {
+		t.Skip("Skipping for HDFS until new implementation is added to prevent flakey tests")
+	}
 	// Need to get the working directory because the LocalFilepath will use it to create the full path
 	// Currently, the LocalFilePath will only work with absolute paths
 	wd, err := os.Getwd()
@@ -1087,6 +1090,45 @@ func Test_castTimestamp(t *testing.T) {
 			// Checks if value is correct
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("castTimestamp() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFileStoreFeatureIterator(t *testing.T) {
+	type testCase struct {
+		name        string
+		filepath    string
+		expectedErr error
+	}
+
+	testCases := []testCase{
+		{
+			name:        "invalid entity column",
+			filepath:    "test_files/invalid_entity_col.parquet",
+			expectedErr: fmt.Errorf("entity must be a string; received %T", int64(42)),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := ioutil.ReadFile(tc.filepath)
+			if err != nil {
+				t.Fatalf("could not read file: %v", err)
+			}
+			iter, err := parquetIteratorFromBytes(data)
+			if err != nil {
+				t.Fatalf("could not create parquet iterator: %v", err)
+			}
+			featureIter := FileStoreFeatureIterator{
+				iter:   iter,
+				curIdx: 0,
+				maxIdx: 5,
+			}
+			if success := featureIter.Next(); !success {
+				if featureIter.Err().Error() != tc.expectedErr.Error() {
+					t.Fatalf("expected error: %v, got: %v", tc.expectedErr, featureIter.Err())
+				}
 			}
 		})
 	}

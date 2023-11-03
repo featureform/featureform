@@ -170,6 +170,10 @@ def test_split_key_value():
             Exception("TypeError: code() takes at most 16 arguments (19 given)"),
             "dill_python_version_error",
         ),
+        (
+            Exception("unknown opcode"),
+            "dill_python_version_error",
+        ),
         (Exception("generic error"), "generic_error"),
     ],
 )

@@ -25,6 +25,10 @@ COPY ./api/main.go ./api/main.go
 COPY ./provider/provider_config/ ./provider/provider_config/
 COPY ./provider/provider_type/ ./provider/provider_type/
 COPY ./config/ ./config/
+COPY ./health ./health
+COPY ./provider ./provider
+COPY ./kubernetes ./kubernetes
+COPY ./types ./types
 
 RUN go build ./api/main.go
 

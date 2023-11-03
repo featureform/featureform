@@ -30,6 +30,7 @@ const (
 const (
 	Parquet FileType = "parquet"
 	CSV     FileType = "csv"
+	JSON    FileType = "json"
 	DB      FileType = "db"
 )
 

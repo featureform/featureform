@@ -16,7 +16,7 @@ The metadata contains all of the definitions a user creates via the Python inter
 
 ## Coordinator
 
-The coordinator service listens for changes in metadata and then creates worker pods to interact with the infrastructure providers. The workers actually perform work like copying data between places, whereas the coordinator handles failure, retrys, and other distributed system logic. It also makes sure that operations are performed atomically. Finally, it handles scheduling for transformations that run on a cadence.
+The coordinator service listens for changes in metadata and then creates worker pods to interact with the infrastructure providers. The workers actually perform work like copying data between places, whereas the coordinator handles failure, retries, and other distributed system logic. It also makes sure that operations are performed atomically. Finally, it handles scheduling for transformations that run on a cadence.
 
 ## Serving
 
@@ -28,4 +28,4 @@ Prometheus is configured to monitor Featureform itself as well as the infrastruc
 
 ## Dashboard
 
-The dashboard is a read-only view on the metadata and metrics. It interacts with a dashboard API which wraps metadata, and directly with Prometheus for monitoring data. The dashboard itself is written in React.
+The dashboard provides a read-only view of metadata and metrics. It interacts with a dashboard API that wraps metadata and communicates directly with Prometheus for monitoring data. The dashboard itself is written in React.

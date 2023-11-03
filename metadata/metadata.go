@@ -1739,6 +1739,7 @@ type SourceVariantResource struct {
 	SourceType     string                                  `json:"source-type"`
 	Error          string                                  `json:"error"`
 	Specifications map[string]string                       `json:"specifications"`
+	Inputs         []NameVariant                           `json:"inputs"`
 }
 
 func getSourceString(variant *SourceVariant) string {

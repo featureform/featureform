@@ -13,11 +13,17 @@ import {
   Typography,
 } from '@mui/material';
 import * as React from 'react';
+import Barchart from '../../components/charts/Barchart';
+import UniqueValues from '../../components/charts/UniqueValues';
 
-export default function SourceDialogTable({ columns = [], rowList = [] }) {
+export default function SourceDialogTable({
+  stats = [],
+  columns = [],
+  rowList = [],
+}) {
   const textEllipsis = {
     whiteSpace: 'nowrap',
-    maxWidth: columns.length > 1 ? '230px' : '500px',
+    maxWidth: columns?.length > 1 ? '100%' : '500px',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     cursor: 'pointer',
@@ -43,7 +49,7 @@ export default function SourceDialogTable({ columns = [], rowList = [] }) {
   }
 
   return (
-    <div>
+    <>
       <Snackbar
         open={open}
         autoHideDuration={1250}
@@ -58,7 +64,7 @@ export default function SourceDialogTable({ columns = [], rowList = [] }) {
         <Table sx={{ minWidth: 300 }} aria-label='Source Data Table'>
           <TableHead>
             <TableRow>
-              {columns.map((col, i) => (
+              {columns?.map((col, i) => (
                 <TableCell
                   key={col + i}
                   data-testid={col + i}
@@ -68,15 +74,36 @@ export default function SourceDialogTable({ columns = [], rowList = [] }) {
                 </TableCell>
               ))}
             </TableRow>
+            {stats?.length ? (
+              <TableRow>
+                {stats?.map((statObj, index) => (
+                  <TableCell key={index} align={index === 0 ? 'left' : 'right'}>
+                    {['numeric', 'boolean'].includes(statObj.type) ? (
+                      <Barchart
+                        categories={
+                          statObj.type === 'boolean'
+                            ? statObj.string_categories
+                            : statObj.numeric_categories
+                        }
+                        categoryCounts={statObj.categoryCounts}
+                        type={statObj.type}
+                      />
+                    ) : (
+                      <UniqueValues count={statObj?.categoryCounts[0]} />
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ) : null}
           </TableHead>
           <TableBody>
-            {rowList.map((currentRow, index) => (
+            {rowList?.map((currentRow, index) => (
               <TableRow
                 key={'mainRow' + index}
                 data-testid={'mainRow' + index}
                 sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
               >
-                {currentRow.map((row, index) => (
+                {currentRow?.map((row, index) => (
                   <TableCell
                     key={row + index}
                     align={index === 0 ? 'left' : 'right'}
@@ -85,7 +112,7 @@ export default function SourceDialogTable({ columns = [], rowList = [] }) {
                     <Tooltip title='Copy to Clipboard'>
                       <Typography
                         onClick={copyToClipBoard}
-                        fontSize={11}
+                        fontSize={11.5}
                         style={textEllipsis}
                       >
                         {`${row}`}
@@ -98,6 +125,6 @@ export default function SourceDialogTable({ columns = [], rowList = [] }) {
           </TableBody>
         </Table>
       </TableContainer>
-    </div>
+    </>
   );
 }

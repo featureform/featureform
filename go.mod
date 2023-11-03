@@ -10,8 +10,10 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.15.15
 	github.com/colinmarc/hdfs/v2 v2.3.0
 	github.com/databricks/databricks-sdk-go v0.8.0
+	github.com/deckarep/golang-set/v2 v2.3.1
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-gonic/gin v1.9.1
+	github.com/go-sql-driver/mysql v1.7.1
 	github.com/gocql/gocql v1.1.0
 	github.com/google/uuid v1.3.0
 	github.com/gorhill/cronexpr v0.0.0-20180427100037-88b0669f7d75

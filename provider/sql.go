@@ -78,7 +78,7 @@ func NewSQLOfflineStore(config SQLOfflineStoreConfig) (*sqlOfflineStore, error) 
 	url := config.ConnectionURL
 	db, err := sql.Open(config.Driver, url)
 	if err != nil {
-		return nil, err
+		return nil, NewProviderError(Connection, config.ProviderType, ClientInitialization, err.Error())
 	}
 
 	return &sqlOfflineStore{
@@ -168,6 +168,14 @@ func (store *sqlOfflineStore) AsOfflineStore() (OfflineStore, error) {
 
 func (store *sqlOfflineStore) Close() error {
 	return store.db.Close()
+}
+
+func (store *sqlOfflineStore) CheckHealth() (bool, error) {
+	err := store.db.Ping()
+	if err != nil {
+		return false, NewProviderError(Connection, store.Type(), Ping, err.Error())
+	}
+	return true, nil
 }
 
 func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
@@ -452,10 +460,15 @@ func (iter *sqlFeatureIterator) Next() bool {
 		return false
 	}
 	var rec ResourceRecord
+	var entity interface{}
 	var value interface{}
 	var ts time.Time
-	if err := iter.rows.Scan(&rec.Entity, &value, &ts); err != nil {
+	if err := iter.rows.Scan(&entity, &value, &ts); err != nil {
 		iter.rows.Close()
+		iter.err = err
+		return false
+	}
+	if err := rec.SetEntity(entity); err != nil {
 		iter.err = err
 		return false
 	}

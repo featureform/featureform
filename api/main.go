@@ -23,7 +23,6 @@ import (
 
 	health "github.com/featureform/health"
 	help "github.com/featureform/helpers"
-	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
 	srv "github.com/featureform/proto"

@@ -30,5 +30,13 @@ func BuildDashboardUrl(host, resourceType, resourceName, resourceVariant string)
 		Host:   host,
 		Path:   fmt.Sprintf("/%s/%s", resourceUrl, resourceName),
 	}
+
+	//include variant if applicable
+	if resourceVariant != "" {
+		query := url.Values{}
+		query.Set("variant", resourceVariant)
+		dashboardUrl.RawQuery = query.Encode()
+	}
+
 	return dashboardUrl.String(), nil
 }

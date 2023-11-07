@@ -532,7 +532,7 @@ func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) (bool
 	switch thisDef := thisProto.Definition.(type) {
 	case *pb.SourceVariant_Transformation:
 		if otherDef, ok := otherProto.Definition.(*pb.SourceVariant_Transformation); ok {
-			isDefinitionEqual, err = isProtoDefinitionEqual(thisDef, otherDef)
+			isDefinitionEqual, err = isSourceProtoDefinitionEqual(thisDef, otherDef)
 			if err != nil {
 				return false, fmt.Errorf("error comparing proto messages: %v", err)
 			}
@@ -554,7 +554,7 @@ func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) (bool
 	return false, nil
 }
 
-func isProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transformation) (bool, error) {
+func isSourceProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transformation) (bool, error) {
 	isDefinitionEqual := false
 	switch thisDef.Transformation.Type.(type) {
 	case *pb.Transformation_DFTransformation:

@@ -60,6 +60,17 @@ func TestBuildDashboardUrl(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "Training Set No Variant",
+			args: args{
+				host:            "gcp.featureform.com",
+				resourceType:    "TRAINING_SET_VARIANT",
+				resourceName:    "test",
+				resourceVariant: "",
+			},
+			want:    "https://gcp.featureform.com/training-sets/test",
+			wantErr: false,
+		},
+		{
 			name: "Invalid Resource Type",
 			args: args{
 				host:            "gcp.featureform.com",

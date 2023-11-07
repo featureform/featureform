@@ -534,7 +534,7 @@ func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) (bool
 		if otherDef, ok := otherProto.Definition.(*pb.SourceVariant_Transformation); ok {
 			isDefinitionEqual, err = isSourceProtoDefinitionEqual(thisDef, otherDef)
 			if err != nil {
-				return false, fmt.Errorf("error comparing proto messages: %v", err)
+				return false, fmt.Errorf("error comparing source definitions: %v", err)
 			}
 
 		}
@@ -562,7 +562,7 @@ func isSourceProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transforma
 			sourceTextEqual := thisDef.Transformation.GetDFTransformation().SourceText == otherDef.DFTransformation.SourceText
 			inputsEqual, err := lib.EqualProtoContents(thisDef.Transformation.GetDFTransformation().Inputs, otherDef.DFTransformation.Inputs)
 			if err != nil {
-				return false, fmt.Errorf("error comparing proto messages: %v", err)
+				return false, fmt.Errorf("error comparing transformation inputs: %v", err)
 			}
 			isDefinitionEqual = sourceTextEqual &&
 				inputsEqual

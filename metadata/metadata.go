@@ -235,7 +235,7 @@ func (err *ResourceChanged) GRPCStatus() *status.Status {
 }
 
 type ResourceVariant interface {
-	IsEquivalent(ResourceVariant) bool
+	IsEquivalent(ResourceVariant) (bool, error)
 	ToResourceVariantProto() *pb.ResourceVariant
 }
 
@@ -245,6 +245,7 @@ type Resource interface {
 	Schedule() string
 	Dependencies(ResourceLookup) (ResourceLookup, error)
 	Proto() proto.Message
+	GetStatus() *pb.ResourceStatus
 	UpdateStatus(pb.ResourceStatus) error
 	UpdateSchedule(string) error
 	Update(ResourceLookup, Resource) error
@@ -408,6 +409,10 @@ func (this *SourceResource) Notify(lookup ResourceLookup, op operation, that Res
 	return nil
 }
 
+func (resource *SourceResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
+}
+
 func (resource *SourceResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
 	return nil
@@ -480,6 +485,10 @@ func (this *sourceVariantResource) Notify(lookup ResourceLookup, op operation, t
 	return nil
 }
 
+func (resource *sourceVariantResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
+}
+
 func (resource *sourceVariantResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.LastUpdated = tspb.Now()
 	resource.serialized.Status = &status
@@ -502,7 +511,7 @@ func (resource *sourceVariantResource) Update(lookup ResourceLookup, updateRes R
 	return nil
 }
 
-func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) bool {
+func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
 	/**
 	Key Fields for a SourceVariant are
 	- Name
@@ -512,21 +521,22 @@ func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) bool 
 	*/
 	otherVariant, ok := other.(*sourceVariantResource)
 	if !ok {
-		return false
+		return false, nil
 	}
 
 	thisProto := resource.serialized
 	otherProto := otherVariant.serialized
 
-	if otherProto.Status != nil || otherProto.Status.Status == pb.ResourceStatus_FAILED {
-		return false
-	}
-
 	isDefinitionEqual := false
+	var err error
 	switch thisDef := thisProto.Definition.(type) {
 	case *pb.SourceVariant_Transformation:
 		if otherDef, ok := otherProto.Definition.(*pb.SourceVariant_Transformation); ok {
-			isDefinitionEqual = isProtoDefinitionEqual(thisDef, otherDef)
+			isDefinitionEqual, err = isProtoDefinitionEqual(thisDef, otherDef)
+			if err != nil {
+				return false, fmt.Errorf("error comparing proto messages: %v", err)
+			}
+
 		}
 	case *pb.SourceVariant_PrimaryData:
 		if otherDef, ok := otherProto.Definition.(*pb.SourceVariant_PrimaryData); ok {
@@ -539,18 +549,21 @@ func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) bool 
 		thisProto.GetProvider() == otherProto.GetProvider() &&
 		isDefinitionEqual {
 
-		return true
+		return true, nil
 	}
-	return false
+	return false, nil
 }
 
-func isProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transformation) bool {
+func isProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transformation) (bool, error) {
 	isDefinitionEqual := false
 	switch thisDef.Transformation.Type.(type) {
 	case *pb.Transformation_DFTransformation:
 		if otherDef, ok := otherDef.Transformation.Type.(*pb.Transformation_DFTransformation); ok {
 			sourceTextEqual := thisDef.Transformation.GetDFTransformation().SourceText == otherDef.DFTransformation.SourceText
-			inputsEqual := lib.EqualProtoContents(thisDef.Transformation.GetDFTransformation().Inputs, otherDef.DFTransformation.Inputs)
+			inputsEqual, err := lib.EqualProtoContents(thisDef.Transformation.GetDFTransformation().Inputs, otherDef.DFTransformation.Inputs)
+			if err != nil {
+				return false, fmt.Errorf("error comparing proto messages: %v", err)
+			}
 			isDefinitionEqual = sourceTextEqual &&
 				inputsEqual
 		}
@@ -559,7 +572,7 @@ func isProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transformation) 
 	}
 
 	kubernetesArgsEqual := proto.Equal(thisDef.Transformation.GetKubernetesArgs(), otherDef.Transformation.GetKubernetesArgs())
-	return isDefinitionEqual && kubernetesArgsEqual
+	return isDefinitionEqual && kubernetesArgsEqual, nil
 }
 
 func (resource *sourceVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
@@ -601,6 +614,10 @@ func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Re
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
 	return nil
+}
+
+func (resource *featureResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
 }
 
 func (resource *featureResource) UpdateStatus(status pb.ResourceStatus) error {
@@ -684,6 +701,10 @@ func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, 
 	return nil
 }
 
+func (resource *featureVariantResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
+}
+
 func (resource *featureVariantResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.LastUpdated = tspb.Now()
 	resource.serialized.Status = &status
@@ -706,11 +727,7 @@ func (resource *featureVariantResource) Update(lookup ResourceLookup, updateRes 
 	return nil
 }
 
-func (resource *featureVariantResource) KeyFields(other ResourceVariant) {
-
-}
-
-func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) bool {
+func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
 	/**
 	Key Fields for a FeatureVariant are
 	- Name
@@ -724,15 +741,11 @@ func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) bool
 
 	otherVariant, ok := other.(*featureVariantResource)
 	if !ok {
-		return false
+		return false, nil
 	}
 
 	thisProto := resource.serialized
 	otherProto := otherVariant.serialized
-
-	if otherProto.Status != nil || otherProto.Status.Status == pb.ResourceStatus_FAILED {
-		return false
-	}
 
 	isEquivalentLocation := proto.Equal(thisProto.GetFunction(), otherProto.GetFunction()) ||
 		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns())
@@ -745,9 +758,9 @@ func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) bool
 		isEquivalentLocation &&
 		thisProto.Owner == otherProto.Owner {
 
-		return true
+		return true, nil
 	}
-	return false
+	return false, nil
 }
 
 func (resource *featureVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
@@ -789,6 +802,10 @@ func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Reso
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
 	return nil
+}
+
+func (resource *labelResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
 }
 
 func (resource *labelResource) UpdateStatus(status pb.ResourceStatus) error {
@@ -867,6 +884,10 @@ func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, th
 	return nil
 }
 
+func (resource *labelVariantResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
+}
+
 func (resource *labelVariantResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
 	return nil
@@ -887,7 +908,7 @@ func (resource *labelVariantResource) Update(lookup ResourceLookup, updateRes Re
 	return nil
 }
 
-func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) bool {
+func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
 	/**
 	Key Fields for a LabelVariant are
 	- Name
@@ -899,15 +920,11 @@ func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) bool {
 	*/
 	otherVariant, ok := other.(*labelVariantResource)
 	if !ok {
-		return false
+		return false, nil
 	}
 
 	thisProto := resource.serialized
 	otherProto := otherVariant.serialized
-
-	if otherProto.Status != nil || otherProto.Status.Status == pb.ResourceStatus_FAILED {
-		return false
-	}
 
 	if thisProto.GetName() == otherProto.GetName() &&
 		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
@@ -916,10 +933,10 @@ func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) bool {
 		thisProto.Type == otherProto.Type &&
 		thisProto.Owner == otherProto.Owner {
 
-		return true
+		return true, nil
 	}
 
-	return false
+	return false, nil
 }
 
 func (resource *labelVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
@@ -961,6 +978,10 @@ func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, tha
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
 	return nil
+}
+
+func (resource *trainingSetResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
 }
 
 func (resource *trainingSetResource) UpdateStatus(status pb.ResourceStatus) error {
@@ -1035,6 +1056,10 @@ func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op operati
 	return nil
 }
 
+func (resource *trainingSetVariantResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
+}
+
 func (resource *trainingSetVariantResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.LastUpdated = tspb.Now()
 	resource.serialized.Status = &status
@@ -1057,7 +1082,7 @@ func (resource *trainingSetVariantResource) Update(lookup ResourceLookup, update
 	return nil
 }
 
-func (resource *trainingSetVariantResource) IsEquivalent(other ResourceVariant) bool {
+func (resource *trainingSetVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
 	/**
 	Key Fields for a TrainingSetVariant are
 	- Name
@@ -1068,15 +1093,11 @@ func (resource *trainingSetVariantResource) IsEquivalent(other ResourceVariant) 
 	*/
 	otherVariant, ok := other.(*trainingSetVariantResource)
 	if !ok {
-		return false
+		return false, nil
 	}
 
 	thisProto := resource.serialized
 	otherProto := otherVariant.serialized
-
-	if otherProto.Status != nil || otherProto.Status.Status == pb.ResourceStatus_FAILED {
-		return false
-	}
 
 	equivalentLabals := proto.Equal(thisProto.GetLabel(), otherProto.GetLabel())
 	equivalentFeatures := lib.EqualProtoSlices(thisProto.GetFeatures(), otherProto.GetFeatures())
@@ -1088,9 +1109,9 @@ func (resource *trainingSetVariantResource) IsEquivalent(other ResourceVariant) 
 		equivalentLagFeatures &&
 		thisProto.Owner == otherProto.Owner {
 
-		return true
+		return true, nil
 	}
-	return false
+	return false, nil
 }
 
 func (resource *trainingSetVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
@@ -1149,6 +1170,10 @@ func (resource *modelResource) Proto() proto.Message {
 
 func (this *modelResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
 	return nil
+}
+
+func (resource *modelResource) GetStatus() *pb.ResourceStatus {
+	return &pb.ResourceStatus{Status: pb.ResourceStatus_NO_STATUS}
 }
 
 func (resource *modelResource) UpdateStatus(status pb.ResourceStatus) error {
@@ -1218,6 +1243,10 @@ func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resou
 	return nil
 }
 
+func (resource *userResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
+}
+
 func (resource *userResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
 	return nil
@@ -1282,6 +1311,10 @@ func (this *providerResource) Notify(lookup ResourceLookup, op operation, that R
 		serialized.Labels = append(serialized.Labels, key)
 	}
 	return nil
+}
+
+func (resource *providerResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
 }
 
 func (resource *providerResource) UpdateStatus(status pb.ResourceStatus) error {
@@ -1380,6 +1413,10 @@ func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Res
 		serialized.Labels = append(serialized.Labels, key)
 	}
 	return nil
+}
+
+func (resource *entityResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
 }
 
 func (resource *entityResource) UpdateStatus(status pb.ResourceStatus) error {
@@ -1723,6 +1760,15 @@ func (serv *MetadataServer) GetModels(stream pb.Metadata_GetModelsServer) error 
 }
 
 func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariant) (*pb.ResourceVariant, error) {
+	return serv.getEquivalent(req, true)
+}
+
+/*
+*
+This method is used to get the equivalent resource variant for a given resource variant. readyStatus is used to determine
+if we should only return the equivalent resource variant if it is ready.
+*/
+func (serv *MetadataServer) getEquivalent(req *pb.ResourceVariant, filterReadyStatus bool) (*pb.ResourceVariant, error) {
 	noEquivalentResponse := &pb.ResourceVariant{}
 
 	var currentResource ResourceVariant
@@ -1751,11 +1797,21 @@ func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceV
 	}
 
 	for _, res := range resources {
+		resourceStatus := res.GetStatus()
+		if filterReadyStatus {
+			if resourceStatus != nil && resourceStatus.Status != pb.ResourceStatus_READY {
+				continue
+			}
+		}
 		other, ok := res.(ResourceVariant)
 		if !ok {
-			continue
+			return nil, fmt.Errorf("unexpected error, resource is not a resource variant: %v", res)
 		}
-		if currentResource.IsEquivalent(other) {
+		equivalent, err := currentResource.IsEquivalent(other)
+		if err != nil {
+			return nil, err
+		}
+		if equivalent {
 			return other.ToResourceVariantProto(), nil
 		}
 	}
@@ -1790,8 +1846,14 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	// we'll let the user know to ideally use a different variant
 	// i.e. user tries to register transformation with same name and variant but different definition.
 	_, isResourceVariant := res.(ResourceVariant)
-	if isResourceVariant && existing != nil && !isEquivalent(existing, res) {
-		return nil, &ResourceChanged{res.ID()}
+	if isResourceVariant && existing != nil {
+		equivalent, err := isEquivalent(res, existing)
+		if err != nil {
+			return nil, err
+		}
+		if equivalent {
+			return nil, &ResourceChanged{res.ID()}
+		}
 	}
 
 	if existing != nil {
@@ -1833,18 +1895,25 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	return &pb.Empty{}, nil
 }
 
-func isEquivalent(this Resource, other Resource) bool {
+func isEquivalent(this Resource, existing Resource) (bool, error) {
 	// only works on resource variants right now
-	existingVariant, ok := this.(ResourceVariant)
-	if !ok {
-		return false
+	if existing.GetStatus() != nil && existing.GetStatus().Status != pb.ResourceStatus_READY {
+		return false, nil
 	}
-	resVariant, ok := other.(ResourceVariant)
+
+	resVariant, ok := this.(ResourceVariant)
 	if !ok {
-		return false
+		return false, nil
 	}
-	isEquivalent := existingVariant.IsEquivalent(resVariant)
-	return isEquivalent
+	existingVariant, ok := existing.(ResourceVariant)
+	if !ok {
+		return false, nil
+	}
+	isEquivalent, err := resVariant.IsEquivalent(existingVariant)
+	if err != nil {
+		return false, err
+	}
+	return isEquivalent, nil
 }
 
 func (serv *MetadataServer) propagateChange(newRes Resource) error {

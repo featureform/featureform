@@ -1,34 +1,47 @@
 package lib
 
 import (
-	pb "github.com/featureform/lib/sampleproto"
+	"github.com/featureform/lib/sampleproto"
 	"google.golang.org/protobuf/proto"
 	"testing"
 )
 
 func TestEqualProtoContents(t *testing.T) {
 	// Test: Identical slices of proto messages should return true
-	msg1 := &pb.NameVariant{Name: "John", Variant: "Doe"}
-	msg2 := &pb.NameVariant{Name: "John", Variant: "Doe"}
+	msg1 := &sampleproto.NameVariant{Name: "John", Variant: "Doe"}
+	msg2 := &sampleproto.NameVariant{Name: "John", Variant: "Doe"}
 
 	a := []proto.Message{msg1, msg2}
 	b := []proto.Message{msg1, msg2}
-	if !EqualProtoContents(a, b) {
+
+	equalProtoContents, err := EqualProtoContents(a, b)
+	if err != nil {
+		t.Errorf("Error comparing proto messages: %v", err)
+	}
+	if !equalProtoContents {
 		t.Error("Expected true for identical slices, got false")
 	}
 
 	// Test: Slices with different ordering should return true (since the function seems to consider sets)
 	a = []proto.Message{msg1, msg2}
 	b = []proto.Message{msg2, msg1}
-	if !EqualProtoContents(a, b) {
+	equalProtoContents, err = EqualProtoContents(a, b)
+	if err != nil {
+		t.Errorf("Error comparing proto messages: %v", err)
+	}
+	if !equalProtoContents {
 		t.Error("Expected true for slices with different ordering, got false")
 	}
 
 	// Test: Different slices of proto messages should return false
-	msg3 := &pb.NameVariant{Name: "Jane", Variant: "Doe"}
+	msg3 := &sampleproto.NameVariant{Name: "Jane", Variant: "Doe"}
 	a = []proto.Message{msg1, msg2}
 	b = []proto.Message{msg2, msg3}
-	if EqualProtoContents(a, b) {
+	equalProtoContents, err = EqualProtoContents(a, b)
+	if err != nil {
+		t.Errorf("Error comparing proto messages: %v", err)
+	}
+	if equalProtoContents {
 		t.Error("Expected false for different slices, got true")
 	}
 }
@@ -45,9 +58,9 @@ func TestEqualProtoSlices(t *testing.T) {
 	}
 
 	// Set up the messages for the test cases with significantly different names
-	msg1 := &pb.NameVariant{Name: "Alice", Variant: "Smith"}
-	msg2 := &pb.NameVariant{Name: "Bob", Variant: "Jones"}
-	msg3 := &pb.NameVariant{Name: "Charlie", Variant: "Brown"}
+	msg1 := &sampleproto.NameVariant{Name: "Alice", Variant: "Smith"}
+	msg2 := &sampleproto.NameVariant{Name: "Bob", Variant: "Jones"}
+	msg3 := &sampleproto.NameVariant{Name: "Charlie", Variant: "Brown"}
 
 	tests := []testCase[proto.Message]{
 		{

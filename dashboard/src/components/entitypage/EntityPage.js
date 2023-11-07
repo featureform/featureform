@@ -4,7 +4,8 @@ import React, { useEffect } from 'react';
 import Loader from 'react-loader-spinner';
 import { connect } from 'react-redux';
 import Resource from '../../api/resources/Resource.js';
-import NotFoundPage from '../notfoundpage/NotFoundPage';
+import NotFound from '../../components/notfoundpage/NotFound.js';
+import VariantNotFound from '../../components/notfoundpage/VariantNotFound.js';
 import { setVariant } from '../resource-list/VariantSlice.js';
 import { fetchEntity } from './EntityPageSlice.js';
 import EntityPageView from './EntityPageView.js';
@@ -42,12 +43,21 @@ const fetchNotFound = (object) => {
   return !object?.resources?.name && !object?.resources?.type;
 };
 
+const variantNotFound = (object, queryVariant = '') => {
+  let result = true;
+  if (queryVariant) {
+    result = object?.resources?.['all-variants']?.includes(queryVariant);
+  }
+  return !result;
+};
+
 const EntityPage = ({
   api,
   entityPage,
   activeVariants,
   type,
   entity,
+  queryVariant,
   ...props
 }) => {
   let resourceType = Resource[Resource.pathToType[type]];
@@ -64,7 +74,15 @@ const EntityPage = ({
     body = <LoadingDots />;
   } else if (entityPage.loading === false) {
     if (entityPage.failed === true || fetchNotFound(entityPage)) {
-      body = <NotFoundPage />;
+      body = <NotFound type={type} entity={entity} />;
+    } else if (variantNotFound(entityPage, queryVariant)) {
+      body = (
+        <VariantNotFound
+          type={type}
+          entity={entity}
+          queryVariant={queryVariant}
+        />
+      );
     } else {
       body = (
         <EntityPageView
@@ -74,6 +92,7 @@ const EntityPage = ({
           activeVariants={activeVariants}
           typePath={type}
           resourceType={resourceType}
+          queryVariant={queryVariant}
         />
       );
     }

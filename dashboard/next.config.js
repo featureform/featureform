@@ -4,6 +4,9 @@ const nextConfig = {
   swcMinify: true,
   output: 'standalone',
   productionBrowserSourceMaps: true,
+  compiler: {
+    styledComponents: true,
+  },
 };
 
 module.exports = nextConfig;

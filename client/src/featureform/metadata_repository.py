@@ -7,6 +7,7 @@ from typeguard import typechecked
 from . import SQLiteMetadata
 from .resources import (
     Feature,
+    LocalConfig,
     Resource,
     FeatureVariant,
     Source,
@@ -20,7 +21,7 @@ from .resources import (
     TrainingSetVariant,
     User,
     ResourceColumnMapping,
-    EmptyConfig,
+    TrainingSetFeatures,
 )
 
 
@@ -104,6 +105,36 @@ class MetadataRepository(ABC):
     ) -> List[str]:
         raise NotImplementedError
 
+    @abstractmethod
+    def get_training_set_features(
+        self, name: str, variant: str
+    ) -> List[TrainingSetFeatures]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_feature_variants_from_source(
+        self, source_name: str, source_variant: str
+    ) -> List[FeatureVariant]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_training_set_from_features(
+        self, feature_name: str, feature_variant: str
+    ) -> List[TrainingSetFeatures]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_label_variants_from_source(
+        self, source_name: str, source_variant: str
+    ) -> List[LabelVariant]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_training_set_variant_from_label(
+        self, label_name: str, label_variant: str
+    ) -> List[TrainingSetVariant]:
+        raise NotImplementedError
+
 
 class MetadataRepositoryLocalImpl(MetadataRepository):
     def __init__(self, db: SQLiteMetadata):
@@ -120,6 +151,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
         model_row = self.db.get_model(name, should_fetch_tags_properties=True)
         return Model(
             name=model_row["name"],
+            description="",
             tags=json.loads(model_row["tags"]) if model_row["tags"] else [],
             properties=json.loads(model_row["properties"])
             if model_row["properties"]
@@ -140,6 +172,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
     def get_feature_variant(self, name, variant) -> FeatureVariant:
         result = self.db.get_feature_variant(name, variant)
         return FeatureVariant(
+            created=result["created"],
             name=result["name"],
             variant=result["variant"],
             source=(result["source_name"], result["source_variant"]),
@@ -149,6 +182,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             entity=result["entity"],
             owner=result["owner"],
             provider=result["provider"],
+            status=result["status"],
             location=ResourceColumnMapping(
                 result["source_entity"],
                 result["source_value"],
@@ -186,7 +220,9 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             variant=result["variant"],
             source=(result["source_name"], result["source_variant"]),
             value_type=result["data_type"],
+            created=result["created"],
             entity=result["entity"],
+            status=result["status"],
             owner=result["owner"],
             provider=result["provider"],
             location=ResourceColumnMapping(
@@ -221,16 +257,24 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
 
     def get_source_variant(self, name: str, variant: str) -> SourceVariant:
         result = self.db.get_source_variant(name, variant)
+        name_variant_list = []
+        input_json = json.loads(result["inputs"] if result["inputs"] else [])
+        if input_json and len(input_json[0]):  # we store empty inputs as [[]]
+            name_variant_list = [{"name": v[0], "variant": v[1]} for v in input_json]
         return SourceVariant(
+            created=result["created"],
             name=result["name"],
-            definition=result["definition"],  # double check this
+            definition=str(result["definition"]),
             variant=result["variant"],
             owner=result["owner"],
             provider=result["provider"],
+            source_type=result["source_type"],
+            transformation=result["transformation"],
             description=result["description"],
             tags=json.loads(result["tags"]) if result["tags"] else [],
             properties=json.loads(result["properties"]) if result["properties"] else {},
             status=result["status"],
+            inputs=name_variant_list,
         )
 
     def get_sources(self) -> List[Source]:
@@ -253,6 +297,10 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
 
         return sources
 
+    def get_source_variant_text(self, name: str, variant: str) -> str:
+        result = self.db.get_source_variant_text(name, variant)
+        return result
+
     def get_training_set_variant(self, name: str, variant: str) -> TrainingSetVariant:
         result = self.db.get_training_set_variant(name, variant)
         ts_feature_rows = self.db.get_training_set_features(name, variant)
@@ -260,6 +308,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             (r["feature_name"], r["feature_variant"]) for r in ts_feature_rows
         ]
         return TrainingSetVariant(  # does local mode use provider for TS
+            created=result["created"],
             name=result["name"],
             variant=result["variant"],
             owner=result["owner"],
@@ -309,6 +358,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
         return Entity(
             name=entity_row["name"],
             description=entity_row["description"],
+            status=entity_row["status"],
             tags=json.loads(entity_row["tags"]) if entity_row["tags"] else [],
             properties=json.loads(entity_row["properties"])
             if entity_row["properties"]
@@ -323,6 +373,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             Entity(
                 name=row["name"],
                 description=row["description"],
+                status=row["status"],
                 tags=json.loads(row["tags"]) if row["tags"] else [],
                 properties=json.loads(row["properties"]) if row["properties"] else {},
             )
@@ -335,7 +386,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             name=result["name"],
             description=result["description"],
             team=result["team"],
-            config=EmptyConfig(),  # TODO add proper deserializer for this
+            config=LocalConfig(),
             function="",  # look into this
             status=result["status"],
             tags=json.loads(result["tags"]) if result["tags"] else [],
@@ -351,7 +402,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
                 name=row["name"],
                 description=row["description"],
                 team=row["team"],
-                config=EmptyConfig(),  # TODO add proper deserializer for this
+                config=LocalConfig(),
                 function="",  # look into this
                 status=row["status"],
                 tags=json.loads(row["tags"]) if row["tags"] else [],
@@ -364,6 +415,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
         result = self.db.get_user(name, should_fetch_tags_properties=True)
         return User(
             name=result["name"],
+            status=result["status"],
             tags=json.loads(result["tags"]) if result["tags"] else [],
             properties=json.loads(result["properties"]) if result["properties"] else {},
         )
@@ -373,6 +425,7 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
         return [
             User(
                 name=row["name"],
+                status=row["status"],
                 tags=json.loads(row["tags"]) if row["tags"] else [],
                 properties=json.loads(row["properties"]) if row["properties"] else {},
             )
@@ -387,3 +440,142 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             return row_data[0][0]
         else:
             return []
+
+    def get_training_set_features(
+        self, name: str, variant: str
+    ) -> List[TrainingSetFeatures]:
+        db_result = self.db.get_training_set_features(name=name, variant=variant)
+        tsf_list = []
+        for row in db_result:
+            tsf_list.append(
+                TrainingSetFeatures(
+                    training_set_name=row["training_set_name"],
+                    training_set_variant=row["training_set_variant"],
+                    feature_name=row["feature_name"],
+                    feature_variant=row["feature_variant"],
+                )
+            )
+
+        return tsf_list
+
+    def get_feature_variants_from_source(
+        self, source_name: str, source_variant: str
+    ) -> List[FeatureVariant]:
+        db_result = self.db.get_feature_variants_from_source(
+            name=source_name, variant=source_variant
+        )
+        feature_variant_list = []
+        for row in db_result:
+            feature_variant_list.append(
+                FeatureVariant(
+                    created=row["created"],
+                    name=row["name"],
+                    variant=row["variant"],
+                    source=(row["source_name"], row["source_variant"]),
+                    value_type=row["data_type"],
+                    is_embedding=bool(row["is_embedding"]),
+                    dims=row["dimension"],
+                    entity=row["entity"],
+                    owner=row["owner"],
+                    provider=row["provider"],
+                    status=row["status"],
+                    location=ResourceColumnMapping(
+                        row["source_entity"],
+                        row["source_value"],
+                        row["source_timestamp"],
+                    ),
+                    description=row["description"],
+                    tags=json.loads(row["tags"]) if row["tags"] else [],
+                    properties=json.loads(row["properties"])
+                    if row["properties"]
+                    else {},
+                )
+            )
+
+        return feature_variant_list
+
+    def get_training_set_from_features(
+        self, feature_name: str, feature_variant: str
+    ) -> List[TrainingSetFeatures]:
+        db_result = self.db.get_training_set_from_features(
+            name=feature_name, variant=feature_variant
+        )
+        tsf_list = []
+        for row in db_result:
+            tsf_list.append(
+                TrainingSetFeatures(
+                    training_set_name=row["training_set_name"],
+                    training_set_variant=row["training_set_variant"],
+                    feature_name=row["feature_name"],
+                    feature_variant=row["feature_variant"],
+                )
+            )
+
+        return tsf_list
+
+    def get_label_variants_from_source(
+        self, source_name: str, source_variant: str
+    ) -> List[LabelVariant]:
+        db_result = self.db.get_label_variants_from_source(
+            name=source_name, variant=source_variant
+        )
+        label_variant_list = []
+        for row in db_result:
+            label_variant_list.append(
+                LabelVariant(
+                    name=row["name"],
+                    variant=row["variant"],
+                    source=(row["source_name"], row["source_variant"]),
+                    value_type=row["data_type"],
+                    created=row["created"],
+                    entity=row["entity"],
+                    status=row["status"],
+                    owner=row["owner"],
+                    provider=row["provider"],
+                    location=ResourceColumnMapping(
+                        row["source_entity"],
+                        row["source_value"],
+                        row["source_timestamp"],
+                    ),
+                    description=row["description"],
+                    tags=json.loads(row["tags"]) if row["tags"] else [],
+                    properties=json.loads(row["properties"])
+                    if row["properties"]
+                    else {},
+                )
+            )
+
+        return label_variant_list
+
+    def get_training_set_variant_from_label(
+        self, label_name: str, label_variant: str
+    ) -> List[TrainingSetVariant]:
+        db_result = self.db.get_training_set_variant_from_label(
+            name=label_name, variant=label_variant
+        )
+        training_set_variant_list = []
+        for row in db_result:
+            ts_feature_rows = self.db.get_training_set_features(
+                row["name"], row["variant"]
+            )
+            feature_name_variants = [
+                (r["feature_name"], r["feature_variant"]) for r in ts_feature_rows
+            ]
+            training_set_variant_list.append(
+                TrainingSetVariant(
+                    created=row["created"],
+                    name=row["name"],
+                    variant=row["variant"],
+                    owner=row["owner"],
+                    label=(row["label_name"], row["label_variant"]),
+                    features=feature_name_variants,
+                    description=row["description"],
+                    tags=json.loads(row["tags"]) if row["tags"] else [],
+                    properties=json.loads(row["properties"])
+                    if row["properties"]
+                    else {},
+                    status=row["status"],
+                )
+            )
+
+        return training_set_variant_list

@@ -204,7 +204,10 @@ def run_dashboard():
     "--dry-run", is_flag=True, help="Checks the definitions without applying them"
 )
 @click.option("--no-wait", is_flag=True, help="Applies the resources asynchronously")
-def apply(host, cert, insecure, local, files, dry_run, no_wait):
+@click.option(
+    "--verbose", is_flag=True, help="Prints all errors at the end of an apply"
+)
+def apply(host, cert, insecure, local, files, dry_run, no_wait, verbose):
     for file in files:
         if os.path.isfile(file):
             read_file(file)
@@ -219,7 +222,7 @@ def apply(host, cert, insecure, local, files, dry_run, no_wait):
         host=host, local=local, insecure=insecure, cert_path=cert, dry_run=dry_run
     )
     asynchronous = no_wait
-    client.apply(asynchronous=asynchronous)
+    client.apply(asynchronous=asynchronous, verbose=verbose)
 
 
 @cli.command()

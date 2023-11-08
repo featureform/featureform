@@ -17,6 +17,16 @@ import (
 	"go.uber.org/zap"
 )
 
+// We buffer the channel responsible for passing records to the goroutines that will write
+// to the inference store avoid blocking the writer loop below; after some initial testing,
+// 1M records seems to be a good buffer size
+const resourceRecordBufferSize = 1_000_000
+
+// We create a pool of goroutines per materialization chunk runner to make Set requests to
+// the inference store asynchronously; after some initial testing, 1000 workers appears to
+// offer the best results
+const workerPoolSize = 1000
+
 type IndexRunner interface {
 	types.Runner
 	SetIndex(index int) error
@@ -75,16 +85,70 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 			jobWatcher.EndWatch(fmt.Errorf("failed to create iterator: %w", err))
 			return
 		}
-		i := 0
+		// The logic for the below code (i.e. the channel, goroutines, wait group and iteration loop)
+		// is as follows:
+		// 1. create a record channel and an error channel; the record channel will be written to by
+		// the iterator loop; the error channel will be written to by one or more of the goroutines
+		// if they happen to encounter an error while trying to set a value to the inference store
+		// 2. create a wait group that will be used to wait for the goroutines to finish processing
+		// all of the records in the channel before continuing execution of the Run method
+		// 3. create a set/pool of goroutines that can process records from the channel asynchronously
+		// to avoid unnecessary waiting/blocking; creating the workers prior to writing to the channel
+		// means that as messages are sent to the channel, the workers will be ready to process them,
+		// which means we don't have to wait for the iterator to be consumed before the work of persisting
+		// records in the inference store begins
+		// 4. create an iteration loop that will completely consume the iterator and write all records
+		// to the channel
+		ch := make(chan provider.ResourceRecord, resourceRecordBufferSize)
+		// Using a buffered error channel to capture any errors that may occur while trying to
+		// set values; buffering the error channel prevents the goroutines from blocking when
+		// trying to write to the channel.
+		errCh := make(chan error, 1)
+		var wg sync.WaitGroup
+		wg.Add(workerPoolSize)
+		// Create a set goroutines that can wait for the inference store to response asynchronously
+		for idx := 0; idx < workerPoolSize; idx++ {
+			go func() {
+				defer wg.Done()
+				for record := range ch {
+					if err := m.Table.Set(record.Entity, record.Value); err != nil {
+						select {
+						case errCh <- fmt.Errorf("could not set value to table: %w", err):
+						default:
+						}
+					}
+				}
+			}()
+		}
+		var chanErr error
 		for it.Next() {
-			i += 1
-			value := it.Value().Value
-			entity := it.Value().Entity
-			err := m.Table.Set(entity, value)
-			if err != nil {
-				jobWatcher.EndWatch(fmt.Errorf("could not set table: %w", err))
-				return
+			select {
+			case chanErr = <-errCh:
+			case ch <- it.Value():
+			default:
 			}
+			if chanErr != nil {
+				break
+			}
+		}
+		close(ch)
+		wg.Wait()
+		// Guarantees to show the first error written to the error channel
+		// and then checks the error one last time. This check covers the
+		// edge case in which the iterator has written all of the records
+		// to the channel prior to any goroutine writing to the error channel
+		// (e.g. an error occurs near the end of the iterator's loop, in which
+		// case the loop breaks before every reading from the error channel).
+		if chanErr == nil {
+			select {
+			case chanErr = <-errCh:
+			default:
+			}
+		}
+		close(errCh)
+		if chanErr != nil {
+			jobWatcher.EndWatch(fmt.Errorf("error encountered by inference store writer goroutine: %w", chanErr))
+			return
 		}
 		if err = it.Err(); err != nil {
 			jobWatcher.EndWatch(fmt.Errorf("iteration failed with error: %w", err))
@@ -93,10 +157,12 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		err = it.Close()
 		if err != nil {
 			jobWatcher.EndWatch(fmt.Errorf("failed to close iterator: %w", err))
+			return
 		}
 		err = m.Store.Close()
 		if err != nil {
 			jobWatcher.EndWatch(fmt.Errorf("failed to close Online Store: %w", err))
+			return
 		}
 		jobWatcher.EndWatch(nil)
 	}()
@@ -199,11 +265,11 @@ func MaterializedChunkRunnerFactory(config Config) (types.Runner, error) {
 
 	onlineProvider, err := provider.Get(runnerConfig.OnlineType, runnerConfig.OnlineConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure online provider: %v", err)
+		return nil, fmt.Errorf("failed to configure %s provider: %v", runnerConfig.OnlineType, err)
 	}
 	offlineProvider, err := provider.Get(runnerConfig.OfflineType, runnerConfig.OfflineConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure offline provider: %v", err)
+		return nil, fmt.Errorf("failed to configure %s provider: %v", runnerConfig.OfflineType, err)
 	}
 	onlineStore, err := onlineProvider.AsOnlineStore()
 	if err != nil {

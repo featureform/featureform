@@ -1,5 +1,4 @@
-import { Container, Grid, Typography } from '@mui/material';
-import Chip from '@mui/material/Chip';
+import { Chip, Container, Grid, Typography } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import React, { useEffect } from 'react';
 import { connect } from 'react-redux';
@@ -142,53 +141,57 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
     }
   };
   return (
-    <div className={classes.root}>
-      <Typography variant='body1' className={classes.linkPromChip}>
-        Source:{' '}
-        <Chip
-          variant='outlined'
-          clickable={apiConnected}
-          className={classes.linkChip}
-          size='small'
-          color={apiConnected ? 'secondary' : 'error'}
-          onClick={linkToPrometheus}
-          label={'Prometheus'}
-        ></Chip>
-      </Typography>
-      <Grid container spacing={0}>
-        <Grid item xs={12} height='10em'>
-          <div className={classes.graph}>
-            <Container minheight={'1300px'}>
-              {Object.entries(queryFormats[type]).map(
-                ([query_name, query_data], i) => {
-                  return (
-                    <div>
-                      <div className={classes.titleBar}>
-                        <div className={classes.graphTitle}>
-                          <Typography variant='h6'>{query_name}</Typography>
+    <>
+      {type in queryFormats ? (
+        <div className={classes.root}>
+          <Typography variant='body1' className={classes.linkPromChip}>
+            Source:
+          </Typography>
+          <Chip
+            variant='outlined'
+            clickable={apiConnected}
+            className={classes.linkChip}
+            size='small'
+            color={apiConnected ? 'secondary' : 'error'}
+            onClick={linkToPrometheus}
+            label={'Prometheus'}
+          ></Chip>
+          <Grid container spacing={0}>
+            <Grid item xs={12} height='10em'>
+              <div className={classes.graph}>
+                <Container minheight={'1300px'}>
+                  {Object.entries(queryFormats[type]).map(
+                    ([query_name, query_data], i) => {
+                      return (
+                        <div key={i}>
+                          <div className={classes.titleBar}>
+                            <div className={classes.graphTitle}>
+                              <Typography variant='h6'>{query_name}</Typography>
+                            </div>
+                            <div className={classes.aggDropdown}>
+                              <TimeDropdown />
+                              {/*<AggregateDropdown graph={i} />*/}
+                            </div>
+                          </div>
+                          <QueryDropdown
+                            query={query_data.query(name, variant, step)}
+                            type={type}
+                            name={name}
+                            query_type={query_data.type}
+                            aggregate={aggregates[i]}
+                            remote={apiConnected}
+                          />
                         </div>
-                        <div className={classes.aggDropdown}>
-                          <TimeDropdown />
-                          {/*<AggregateDropdown graph={i} />*/}
-                        </div>
-                      </div>
-                      <QueryDropdown
-                        query={query_data.query(name, variant, step)}
-                        type={type}
-                        name={name}
-                        query_type={query_data.type}
-                        aggregate={aggregates[i]}
-                        remote={apiConnected}
-                      />
-                    </div>
-                  );
-                }
-              )}
-            </Container>
-          </div>
-        </Grid>
-      </Grid>
-    </div>
+                      );
+                    }
+                  )}
+                </Container>
+              </div>
+            </Grid>
+          </Grid>
+        </div>
+      ) : null}
+    </>
   );
 };
 

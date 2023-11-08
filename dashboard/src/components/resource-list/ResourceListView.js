@@ -13,7 +13,7 @@ import MaterialTable, {
 } from 'material-table';
 import { useRouter } from 'next/router';
 import PropTypes from 'prop-types';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { PrismAsyncLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import json from 'react-syntax-highlighter/dist/cjs/languages/prism/json';
 import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
@@ -71,8 +71,8 @@ const useStyles = makeStyles(() => ({
   },
   tableBody: {
     border: `2px solid ${theme.palette.border.main}`,
-    background: 'white',
-    color: 'white',
+    background: '#FFFFFF',
+    color: '#FFFFFF',
     opacity: 1,
   },
   providerColumn: {},
@@ -85,6 +85,22 @@ const useStyles = makeStyles(() => ({
     paddingBottom: theme.spacing(1),
   },
 }));
+
+export function filterMissingDefaults(row = {}) {
+  const defaultVariant = row['default-variant'];
+  if (row?.variants) {
+    if (defaultVariant in row.variants) {
+      return true;
+    } else {
+      console.warn(
+        `The current default rowVariant (${defaultVariant}) is not present in the variants list:`,
+        row.variants ? Object.keys(row.variants) : 'row.variants is undefined.'
+      );
+      return false;
+    }
+  }
+  return true;
+}
 
 export const ResourceListView = ({
   title,
@@ -199,16 +215,50 @@ export const ResourceListView = ({
   const initialLoad = resources == null && !loading;
   const initRes = resources || [];
   const noVariants = !Resource[type].hasVariants;
+  const tableRef = React.useRef();
+
+  useEffect(() => {
+    // reset search text between type changes
+    if (tableRef?.current) {
+      tableRef.current.dataManager?.changeSearchText('');
+      tableRef.current.setState({ searchText: '' });
+      tableRef.current.setState(tableRef.current.dataManager.getRenderState());
+    }
+  }, [type]);
+
   // MaterialTable can't handle immutable object, we have to make a copy
   // https://github.com/mbrn/material-table/issues/666
-  const mutableRes = deepCopy(initRes);
+  let mutableRes = deepCopy(initRes);
+  mutableRes = mutableRes.filter(filterMissingDefaults);
 
-  function detailRedirect(e, data) {
-    e.stopPropagation();
-    router.push(Resource[type].urlPathResource(data.name));
+  function detailRedirect(event, data) {
+    //this is a main column redirect, use the default variant if applicable
+    event.stopPropagation();
+    const base = Resource[type].urlPathResource(data.name);
+    const defaultVariant = data?.['default-variant'];
+    if (defaultVariant) {
+      setVariant(type, data.name, defaultVariant);
+      router.push(`${base}?variant=${defaultVariant}`);
+    } else {
+      router.push(base);
+    }
+  }
+
+  function getPageSizeProp(listLength = 0) {
+    let pageSize = 5;
+    if (listLength > 10) {
+      pageSize = 20;
+    } else if (listLength > 5) {
+      pageSize = 10;
+    } else {
+      pageSize = 5;
+    }
+    return pageSize;
   }
 
   let rowVariants = {};
+  let mainTableSize = getPageSizeProp(mutableRes?.length);
+
   return (
     <div>
       <ThemeProvider theme={theme}>
@@ -218,10 +268,12 @@ export const ResourceListView = ({
                 detailPanel: (row) => {
                   return (
                     <VariantTable
+                      suppressHydrationWarning
                       name={row.name}
                       row={row}
                       type={type}
                       setVariant={setVariant}
+                      pageSizeProp={getPageSizeProp(row?.variants?.length)}
                     />
                   );
                 },
@@ -267,13 +319,6 @@ export const ResourceListView = ({
               )) {
                 rowData[key] = data;
               }
-            } else {
-              console.warn(
-                `The current default rowVariant (${rowVariant}) is not present in the variants list:`,
-                row.variants
-                  ? Object.keys(row.variants)
-                  : 'row.variants is undefined.'
-              );
             }
             let variantList = [];
             Object.values(row.variants).forEach((variantValue) => {
@@ -306,13 +351,13 @@ export const ResourceListView = ({
             ),
           }}
           options={{
-            pageSize: 10,
+            pageSize: mainTableSize,
             emptyRowsWhenPaging: true,
             loadingType: 'overlay',
             search: true,
             draggable: false,
             headerStyle: {
-              backgroundColor: 'white',
+              backgroundColor: '#FFFFFF',
               color: theme.palette.primary.main,
               marginLeft: 3,
             },
@@ -321,11 +366,14 @@ export const ResourceListView = ({
               borderRadius: 16,
             },
           }}
+          tableRef={tableRef}
           {...(!(initialLoad || loading || failed)
             ? {
                 localization: {
                   body: {
-                    emptyDataSourceMessage: <NoDataMessage type={title} />,
+                    emptyDataSourceMessage: (
+                      <NoDataMessage type={type} tableRef={tableRef} />
+                    ),
                   },
                 },
               }
@@ -365,14 +413,16 @@ export const VariantTable = ({
   setVariant,
   type,
   row,
-  pageSizeProp = 10,
+  pageSizeProp = 5,
   emptyRowsProp = false,
 }) => {
   const classes = useStyles();
   let router = useRouter();
-  function variantChangeRedirect(e, data) {
+  function variantChangeRedirect(event, data) {
+    event.stopPropagation();
     setVariant(type, name, data.variant);
-    router.push(Resource[type].urlPathResource(name));
+    const base = Resource[type].urlPathResource(name);
+    router.push(`${base}?variant=${data.variant}`);
   }
 
   let myVariants = [];
@@ -433,7 +483,7 @@ export const VariantTable = ({
             toolbar: false,
             draggable: false,
             headerStyle: {
-              backgroundColor: 'white',
+              backgroundColor: '#FFFFFF',
               color: theme.palette.primary.main,
               marginLeft: 3,
             },
@@ -490,29 +540,38 @@ export const UsageTab = () => {
   );
 };
 
-const NoDataMessage = ({ type }) => {
+const NoDataMessage = ({ type, tableRef }) => {
   const classes = useStyles();
-
   function redirect() {
-    window.location.href = 'https://docs.featureform.com/quickstart';
+    window.location.href =
+      'https://docs.featureform.com/getting-started/overview';
   }
+  let searchText = tableRef?.current?.state?.searchText;
   return (
-    <Container>
-      <div className={classes.noDataPage}>
-        <Typography variant='h4'>
-          No {Resource[type].typePlural} Registered
-        </Typography>
-        <Typography variant='body1'>
-          There are no visible {type.toLowerCase()}s in your organization.
-        </Typography>
-        <Typography vairant='body1'>
-          Check out our docs for step by step instructions to create one.
-        </Typography>
-        <Button variant='outlined' onClick={redirect}>
-          FeatureForm Docs
-        </Button>
-      </div>
-    </Container>
+    <>
+      <Container data-testid='noDataContainerId'>
+        <div className={classes.noDataPage}>
+          {searchText ? (
+            <Typography variant='h4'>No search results!</Typography>
+          ) : (
+            <>
+              <Typography variant='h4'>
+                No {Resource[type].typePlural} Registered
+              </Typography>
+              <Typography variant='body1'>
+                There are no visible {type.toLowerCase()}s in your organization.
+              </Typography>
+            </>
+          )}
+          <Typography vairant='body1'>
+            Check out our docs for step by step instructions to create one.
+          </Typography>
+          <Button variant='outlined' onClick={redirect}>
+            FeatureForm Docs
+          </Button>
+        </div>
+      </Container>
+    </>
   );
 };
 

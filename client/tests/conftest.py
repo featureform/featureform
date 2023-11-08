@@ -213,7 +213,9 @@ def azure_file_config():
 @pytest.fixture(scope="module")
 def databricks_config():
     config = DatabricksCredentials(
-        username="username", password="password", cluster_id="cluster_id"
+        username="username",
+        password="password",
+        cluster_id="cluster_id",
     )
 
     expected_config = {
@@ -362,6 +364,7 @@ def hosted_sql_provider_and_source():
             if "docker" in custom_marks
             else "quickstart-redis",
             port=6379,
+            password="password",
         )
 
         source = provider.register_table(
@@ -422,3 +425,12 @@ def docker_quickstart_deployment():
 @pytest.fixture(scope="module")
 def docker_deployment_status():
     return None
+
+
+@pytest.fixture(scope="module")
+def spark_session():
+    from pyspark.sql import SparkSession
+
+    spark = SparkSession.builder.appName("test").master("local").getOrCreate()
+    yield spark
+    spark.stop()

@@ -12,73 +12,96 @@
 import asyncio
 import datetime
 import featureform as ff
+import random
 from concurrent.futures import ThreadPoolExecutor
 
+# Set up the client (you will need to replace this with actual initialization)
 client = ff.Client(host="benchmark.featureform.com")
 
+# Configure your desired rate limit
+requests_per_second = 50  # The number of requests you want to allow per second
+rate_limit = asyncio.Semaphore(requests_per_second)  # Semaphore for rate limiting
 
-# This is your synchronous function that calls the featureform client
+
+# Function to fetch features
 def get_features(client, feature_list, entity_dict):
+    # Here you would normally handle exceptions and other logic
     return client.features(feature_list, entity_dict)
 
 
-# This function wraps your synchronous function call in an asynchronous one
-async def get_features_async(client, feature_list, entity_dict):
-    start_time = datetime.datetime.now()
-    result = await asyncio.get_event_loop().run_in_executor(
-        None, get_features, client, feature_list, entity_dict
-    )
-    end_time = datetime.datetime.now()
-    return (result, (end_time - start_time).total_seconds())
+# Async wrapper function to call the synchronous get_features function
+async def get_features_async(client, feature_list, entity_dict, executor):
+    async with rate_limit:
+        start_time = datetime.datetime.now()
+        try:
+            result = await asyncio.get_event_loop().run_in_executor(
+                executor, get_features, client, feature_list, entity_dict
+            )
+            success = True
+        except Exception as e:
+            result = None
+            success = False
+        end_time = datetime.datetime.now()
+        return (result, success, (end_time - start_time).total_seconds())
 
 
-# This function will run get_features_async and collect completed request counts and times
-async def collect_results(client, count_dict, time_list):
-    tasks = [
-        get_features_async(client, [("feature_0", "v10")], {"entity": ["123"]})
-        for _ in range(
-            100
-        )  # Adjust this range for the number of requests you want to make
-    ]
-    for future in asyncio.as_completed(tasks):
-        (
-            _,
-            duration,
-        ) = await future  # Wait for the request to complete and get the duration
-        count_dict["completed_requests"] += 1
-        time_list.append(duration)
-
-
-# This function will print the number of completed requests and the average time each second
-async def print_stats_every_second(count_dict, time_list):
+# Coroutine to collect results from get_features_async calls
+async def collect_results(client, count_dict, time_list, failed_count, executor):
     while True:
-        await asyncio.sleep(1)  # Wait for one second
+        feat = random.randint(0, 249)
+        task = get_features_async(
+            client, [(f"feature_{feat}", "v10")], {"entity": ["123"]}, executor
+        )
+        _, success, duration = await task
+        if success:
+            count_dict["completed_requests"] += 1
+            time_list.append(duration)
+        else:
+            failed_count["failures"] += 1
+
+
+# Coroutine to print stats every second
+async def print_stats_every_second(count_dict, time_list, failed_count):
+    while True:
+        await asyncio.sleep(1)  # Sleep for one second
         completed = count_dict["completed_requests"]
+        failures = failed_count["failures"]
         if completed > 0:
             average_time = sum(time_list) / completed
         else:
             average_time = 0
         print(
-            f"{completed} requests completed in the last second with an average time of {average_time:.4f} seconds."
+            f"{completed} successful requests and {failures} failed requests in the last second. Average time: {average_time:.4f} seconds."
         )
-        count_dict["completed_requests"] = 0  # Reset the count for the next second
-        time_list.clear()  # Reset the time list for the next second
+        # Reset the counters and the time list
+        count_dict["completed_requests"] = 0
+        failed_count["failures"] = 0
+        time_list.clear()
 
 
-# Main coroutine that sets up other coroutines
+# Main coroutine to set up and run the collector and printer coroutines
 async def main(client):
     count_dict = {"completed_requests": 0}
+    failed_count = {"failures": 0}
     time_list = []
-    # Schedule both the collect_results and print_stats_every_second coroutines
-    # so they run concurrently
-    result_collector = asyncio.create_task(
-        collect_results(client, count_dict, time_list)
-    )
-    stats_printer = asyncio.create_task(print_stats_every_second(count_dict, time_list))
 
-    # Wait for both tasks to complete
-    await result_collector
-    await stats_printer
+    with ThreadPoolExecutor(max_workers=requests_per_second) as executor:
+        collector = asyncio.create_task(
+            collect_results(client, count_dict, time_list, failed_count, executor)
+        )
+        printer = asyncio.create_task(
+            print_stats_every_second(count_dict, time_list, failed_count)
+        )
+
+        # You can adjust the duration for how long you want the printer to run
+        await asyncio.sleep(10)  # For example, run for 10 seconds
+        collector.cancel()  # Cancel the collector after the duration ends
+
+        # Await the collector to allow for any final tasks to complete
+        try:
+            await collector
+        except asyncio.CancelledError:
+            pass  # Task was cancelled, which is expected
 
 
 # Run the main coroutine

@@ -422,6 +422,12 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 		return nil, fmt.Errorf("could not deserialize config: %v", err)
 	}
 
+	GCSConfig.BucketName = strings.TrimPrefix(GCSConfig.BucketName, "gs://")
+
+	if strings.Contains(GCSConfig.BucketName, "/") {
+		return nil, fmt.Errorf("bucket_name cannot contain '/'. bucket_name should be the name of the GCS bucket only")
+	}
+
 	serializedFile, err := json.Marshal(GCSConfig.Credentials.JSON)
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize GCS config: %v", err)

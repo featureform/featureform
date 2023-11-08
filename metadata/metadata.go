@@ -220,20 +220,6 @@ func (err *ResourceExists) GRPCStatus() *status.Status {
 	return status.New(codes.AlreadyExists, err.Error())
 }
 
-type ResourceChanged struct {
-	ID ResourceID
-}
-
-func (err *ResourceChanged) Error() string {
-	id := err.ID
-	errMsg := fmt.Sprintf("%s changed. Use a new variant.", id.String())
-	return errMsg
-}
-
-func (err *ResourceChanged) GRPCStatus() *status.Status {
-	return status.New(codes.Internal, err.Error())
-}
-
 type ResourceVariant interface {
 	IsEquivalent(ResourceVariant) (bool, error)
 	ToResourceVariantProto() *pb.ResourceVariant

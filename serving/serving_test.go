@@ -592,7 +592,7 @@ func TestFeatureServe(t *testing.T) {
 		Entities: []*pb.Entity{
 			&pb.Entity{
 				Name:  "mockEntity",
-				Value: "a",
+				Value: []string{"a"},
 			},
 		},
 	}
@@ -604,7 +604,10 @@ func TestFeatureServe(t *testing.T) {
 	if len(vals) != len(req.Features) {
 		t.Fatalf("Wrong number of values: %d\nExpected: %d", len(vals), len(req.Features))
 	}
-	dblVal := unwrapVal(vals[0])
+	var dblVal interface{}
+	for _, val := range vals {
+		dblVal = unwrapVal(val.Values[0])
+	}
 	if dblVal != 12.5 {
 		t.Fatalf("Wrong feature value: %v\nExpected: %v", dblVal, 12.5)
 	}
@@ -627,7 +630,7 @@ func TestFeatureNotFound(t *testing.T) {
 		Entities: []*pb.Entity{
 			&pb.Entity{
 				Name:  "mockEntity",
-				Value: "a",
+				Value: []string{"a"},
 			},
 		},
 	}
@@ -653,7 +656,7 @@ func TestProviderNotRegistered(t *testing.T) {
 		Entities: []*pb.Entity{
 			&pb.Entity{
 				Name:  "mockEntity",
-				Value: "a",
+				Value: []string{"a"},
 			},
 		},
 	}
@@ -679,7 +682,7 @@ func TestOfflineStoreAsOnlineStore(t *testing.T) {
 		Entities: []*pb.Entity{
 			&pb.Entity{
 				Name:  "mockEntity",
-				Value: "a",
+				Value: []string{"a"},
 			},
 		},
 	}
@@ -705,7 +708,7 @@ func TestTableNotFoundInOnlineStore(t *testing.T) {
 		Entities: []*pb.Entity{
 			&pb.Entity{
 				Name:  "mockEntity",
-				Value: "a",
+				Value: []string{"a"},
 			},
 		},
 	}
@@ -757,7 +760,7 @@ func TestEntityNotInRequest(t *testing.T) {
 		Entities: []*pb.Entity{
 			&pb.Entity{
 				Name:  "wrongEntity",
-				Value: "a",
+				Value: []string{"a"},
 			},
 		},
 	}
@@ -783,7 +786,7 @@ func TestInvalidFeatureType(t *testing.T) {
 		Entities: []*pb.Entity{
 			&pb.Entity{
 				Name:  "mockEntity",
-				Value: "a",
+				Value: []string{"a"},
 			},
 		},
 	}
@@ -837,7 +840,7 @@ func TestAllFeatureTypes(t *testing.T) {
 		Entities: []*pb.Entity{
 			&pb.Entity{
 				Name:  "mockEntity",
-				Value: "a",
+				Value: []string{"a"},
 			},
 		},
 	}
@@ -853,8 +856,10 @@ func TestAllFeatureTypes(t *testing.T) {
 		t.Fatalf("Wrong number of values: %d\nExpected: %d", len(vals), len(req.Features))
 	}
 	for i, exp := range expected {
-		if unwrapVal(vals[i]) != exp {
-			t.Fatalf("Values not equal %v %v", vals[i], exp)
+		for _, v := range vals {
+			if unwrapVal(v.Values[0]) != exp {
+				t.Fatalf("Values not equal %v %v", vals[i], exp)
+			}
 		}
 	}
 }
@@ -878,7 +883,7 @@ func TestSimpleModelRegistrationFeatureServe(t *testing.T) {
 		Entities: []*pb.Entity{
 			{
 				Name:  "mockEntity",
-				Value: "a",
+				Value: []string{"a"},
 			},
 		},
 		Model: &pb.Model{

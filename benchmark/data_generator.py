@@ -21,4 +21,4 @@ def generate_data(num_rows: int, num_features: int, key_space: int) -> pd.DataFr
 
 if __name__ == "__main__":
     df = generate_data(10**4, 250, 10**4)
-    df.to_parquet("generated_data.parquet", index=False)
+    df.to_csv("generated_data.csv", index=False)

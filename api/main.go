@@ -424,6 +424,10 @@ func (serv *MetadataServer) GetModels(stream pb.Api_GetModelsServer) error {
 	}
 }
 
+func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariant) (*pb.ResourceVariant, error) {
+	return serv.meta.GetEquivalent(ctx, req)
+}
+
 func (serv *MetadataServer) ListUsers(in *pb.Empty, stream pb.Api_ListUsersServer) error {
 	proxyStream, err := serv.meta.ListUsers(stream.Context(), in)
 	if err != nil {

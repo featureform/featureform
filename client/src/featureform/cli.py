@@ -269,7 +269,7 @@ def search(query, host, cert, insecure, local):
     "--quickstart", is_flag=True, help="Install Featureform Quickstart as well"
 )
 def deploy(deploy_type, quickstart):
-    print("Deploying Featureform...", quickstart, deploy_type)
+    print(f"Deploying Featureform on {deploy_type.capitalize()}")
     if deploy_type.lower() == "docker":
         deployment = DockerDeployment(quickstart)
     else:

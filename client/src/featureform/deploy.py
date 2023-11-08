@@ -1,15 +1,17 @@
-
 import os
 import platform
+import warnings
 from collections import namedtuple
 
 import docker
+import requests
 
+
+warnings.simplefilter("ignore")
 
 DOCKER_CONFIG = namedtuple(
     "Docker_Config", ["name", "image", "port", "detach_mode", "env"]
 )
-
 
 class Deployment:
     def __init__(self, quickstart: bool):
@@ -39,18 +41,28 @@ class DockerDeployment(Deployment):
     # TODO: Add support for custom ports, better formatted text output
     def __init__(self, quickstart: bool):
         super().__init__(quickstart)
-        self._client = docker.from_env()
+
+        self._quickstart_directory = ".featureform/quickstart"
+        self._quickstart_files = ["https://featureform-demo-files.s3.amazonaws.com/definitions.py"]
+
+        try:
+            self._client = docker.from_env()
+        except docker.errors.DockerException:
+            raise Exception("Error connecting to Docker daemon. Is Docker running?")
 
         environment_variables = {}
-
-        is_mac_m1_chip = platform.machine() == "arm64" and platform.system() == "Darwin"
+        is_mac_m1_chip = (
+            platform.machine() == "arm64" and platform.system() == "Darwin"
+        )
         if is_mac_m1_chip:
             environment_variables["ETCD_ARCH"] = "ETCD_UNSUPPORTED_ARCH=arm64"
 
         # TODO: Add support for custom ports
         featureform_deployment = DOCKER_CONFIG(
             name="featureform",
-            image=os.getenv("FEATUREFORM_DOCKER_IMAGE", "featureformcom/featureform:latest"),
+            image=os.getenv(
+                "FEATUREFORM_DOCKER_IMAGE", "featureformcom/featureform:latest"
+            ),
             port={"7878/tcp": 7878, "80/tcp": 80},
             detach_mode=True,
             env=environment_variables,
@@ -80,22 +92,24 @@ class DockerDeployment(Deployment):
             self._config = [featureform_deployment]
 
     def start(self) -> bool:
-        print("Starting containers...")
+        print(f"Starting Docker deployment on {platform.system()} {platform.release()}")
         for config in self._config:
             try:
                 print(f"Checking if {config.name} container exists...")
                 container = self._client.containers.get(config.name)
                 if container.status == "running":
+                    print(f"\tContainer {config.name} is already running. Skipping...")
                     continue
                 elif container.status == "exited":
+                    print(f"\tContainer {config.name} is stopped. Starting...")
                     container.start()
             except docker.errors.APIError as e:
                 if e.status_code == 409:
-                    print(f"Container {config.name} already exists. Skipping...")
+                    print(f"\tContainer {config.name} already exists. Skipping...")
                     continue
                 elif e.status_code == 404:
                     print(
-                        f"Container {config.name} not found. Creating new container..."
+                        f"\tContainer {config.name} not found. Creating new container..."
                     )
                     container = self._client.containers.run(
                         name=config.name,
@@ -104,10 +118,32 @@ class DockerDeployment(Deployment):
                         detach=config.detach_mode,
                         environment=config.env,
                     )
-                    print(f"'{container.name}' container started")
+                    print(f"\t'{container.name}' container started")
                 else:
                     print("Error starting container: ", e)
                     return False
+
+        if self._quickstart:
+            if not os.path.exists(self._quickstart_directory):
+                os.makedirs(self._quickstart_directory)
+
+            print("\nPulling Quickstart files")
+            for remote_file in self._quickstart_files:
+                filename = remote_file.split("/")[-1]
+                print(f"\tPulling {filename}")
+                local_file_path = f"{self._quickstart_directory}/{filename}"
+                if not os.path.exists(local_file_path):
+                    file_downloaded = self._download_file(remote_file, local_file_path)
+                    if file_downloaded:
+                        print(f"\t\t{filename} downloaded successfully")
+                    else:
+                        print(f"\t\t{filename} could not be downloaded. Skipping...")
+                else:
+                    print(f"\t\t{filename} already exists. Skipping...")
+
+        print("\nFeatureform is now running!")
+        print("'export FEATUREFORM_HOST=http://localhost:7878'")
+        print("To access the dashboard, visit http://localhost:80")
         return True
 
     def stop(self) -> bool:
@@ -123,4 +159,24 @@ class DockerDeployment(Deployment):
             except docker.errors.APIError as e:
                 print("Error stopping container: ", e)
                 return False
+        return True
+
+    def _download_file(self, file):
+        # download file using urllib
+        local_file_path = f".featureform/quickstart/{file.split('/')[-1]}"
+        # Download the file using the requests library with an insecure connection
+        try:
+            response = requests.get(file, stream=True, verify=False)
+
+            if response.status_code == 200:
+                with open(local_file_path, 'wb') as local_file:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            local_file.write(chunk)
+                print(f"Downloaded {file} to {local_file_path}")
+            else:
+                print(f"Failed to download {file}. Status code: {response.status_code}")
+        except Exception as e:
+            print(f"Error: {str(e)}")
+
         return True

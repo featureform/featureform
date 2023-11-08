@@ -4,6 +4,7 @@
 
 import sys
 import os
+import re
 import json
 import time
 import base64
@@ -2214,54 +2215,55 @@ class ResourceState:
 
 ## Executor Providers
 @typechecked
+@dataclass
 class DatabricksCredentials:
-    def __init__(
-        self,
-        cluster_id: str,
-        username: str = "",
-        password: str = "",
-        host: str = "",
-        token: str = "",
-    ):
-        """
+    """
 
-        Credentials for a Databricks cluster.
+    Credentials for a Databricks cluster.
 
-        **Example**
-        ```
-        databricks = ff.DatabricksCredentials(
-            username="<my_username>",
-            password="<my_password>",
-            host="<databricks_hostname>",
-            token="<databricks_token>",
-            cluster_id="<databricks_cluster>",
-        )
+    **Example**
+    ```
+    databricks = ff.DatabricksCredentials(
+        username="<my_username>",
+        password="<my_password>",
+        host="<databricks_hostname>",
+        token="<databricks_token>",
+        cluster_id="<databricks_cluster>",
+    )
 
-        spark = ff.register_spark(
-            name="spark",
-            executor=databricks,
-            ...
-        )
-        ```
+    spark = ff.register_spark(
+        name="spark",
+        executor=databricks,
+        ...
+    )
+    ```
 
-        Args:
-            username (str): Username for a Databricks cluster.
-            password (str): Password for a Databricks cluster.
-            host (str): The hostname of a Databricks cluster.
-            token (str): The token for a Databricks cluster.
-            cluster_id (str): ID of an existing Databricks cluster.
-        """
-        self.username = username
-        self.password = password
-        self.host = host
-        self.token = token
-        self.cluster_id = cluster_id
+    Args:
+        username (str): Username for a Databricks cluster.
+        password (str): Password for a Databricks cluster.
+        host (str): The hostname of a Databricks cluster.
+        token (str): The token for a Databricks cluster.
+        cluster_id (str): ID of an existing Databricks cluster.
+    """
 
+    username: str = ""
+    password: str = ""
+    host: str = ""
+    token: str = ""
+    cluster_id: str = ""
+
+    def __post_init__(self):
         host_token_provided = (
-            username == "" and password == "" and host != "" and token != ""
+            self.username == ""
+            and self.password == ""
+            and self.host != ""
+            and self.token != ""
         )
         username_password_provided = (
-            username != "" and password != "" and host == "" and token == ""
+            self.username != ""
+            and self.password != ""
+            and self.host == ""
+            and self.token == ""
         )
 
         if (
@@ -2274,8 +2276,26 @@ class DatabricksCredentials:
                 "The DatabricksCredentials requires only one credentials set ('username' and 'password' or 'host' and 'token' set.)"
             )
 
-        if not cluster_id:
+        if not self.cluster_id:
             raise Exception("Cluster_id of existing cluster must be provided")
+
+        if not self._validate_cluster_id():
+            raise ValueError(
+                "Cluster_id must follow the format: xxx-xxxxxx-xxxxxxxx, where x is alphanumeric"
+            )
+
+        if self.host and not self._validate_token():
+            raise ValueError(
+                "Token must start with 'dapi' followed by alphanumeric eg ex: dapixxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-x"
+            )
+
+    def _validate_cluster_id(self):
+        cluster_id_regex = r"^\w{3}-\w{6}-\w{8}$"
+        return re.match(cluster_id_regex, self.cluster_id)
+
+    def _validate_token(self):
+        token_regex = r"^dapi[\w-]+$"
+        return re.match(token_regex, self.token)
 
     def type(self):
         return "DATABRICKS"

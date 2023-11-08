@@ -1464,6 +1464,8 @@ github.com/rakyll/embedmd v0.0.0-20171029212350-c8060a0752a2/go.mod h1:7jOTMgqac
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
 github.com/redis/rueidis v1.0.15-go1.18 h1:krYYZjkHE6xdscvJ9syYnYEwKFEX6qd4PzItRzT4qfM=
 github.com/redis/rueidis v1.0.15-go1.18/go.mod h1:HGekzV3HbmzFmRK6j0xic8Z9119+ECoGMjeN1TV1NYU=
+github.com/repeale/fp-go v0.11.1 h1:Q/e+gNyyHaxKAyfdbBqvip3DxhVWH453R+kthvSr9Mk=
+github.com/repeale/fp-go v0.11.1/go.mod h1:4KrwQJB1VRY+06CA+jTc4baZetr6o2PeuqnKr5ybQUc=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.4.4 h1:8TfxU8dW6PdqD27gjM8MVNuicgxIjxpm4K7x4jp8sis=
 github.com/rivo/uniseg v0.4.4/go.mod h1:FN3SvrM+Zdj16jyLfmOkMNblXMcoc8DfTHruCPUcx88=

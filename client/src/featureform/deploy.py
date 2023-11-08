@@ -143,8 +143,16 @@ class DockerDeployment(Deployment):
                     print(f"\t\t{filename} already exists. Skipping...")
 
         print("\nFeatureform is now running!")
-        print("'export FEATUREFORM_HOST=http://localhost:7878'")
         print("To access the dashboard, visit http://localhost:80")
+
+        if self._quickstart:
+            print(
+                f"Run jupyter notebook in the {self._quickstart_directory} directory to get started."
+            )
+        else:
+            print(
+                "To apply definition files, run `featureform apply <file.py> --host http://localhost:7878 --insecure`"
+            )
         return True
 
     def stop(self) -> bool:
@@ -171,10 +179,27 @@ class DockerDeployment(Deployment):
                     for chunk in response.iter_content(chunk_size=8192):
                         if chunk:
                             local_file.write(chunk)
-                print(f"Downloaded {file} to {local_file_path}")
+                print(f"Downloaded successfully to {local_file_path}")
             else:
-                print(f"Failed to download {file}. Status code: {response.status_code}")
-        except Exception as e:
-            print(f"Error: {str(e)}")
+                print(
+                    f"""
+                    Failed to download {file}. Status code: {response.status_code}\n
+                    In order to download the file, you can get it directly from AWS.
+                    ```
+                    wget {file} -O {local_file_path}
+                    ```
+                    """
+                )
+                return False
+        except Exception:
+            print(
+                f"""Error downloading the file\n 
+                In order to download the file, you can get it directly from AWS.
+                ```
+                wget {file} -O {local_file_path}
+                ```
+                """
+            )
+            return False
 
         return True

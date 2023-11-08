@@ -1863,20 +1863,6 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 
-	// It's possible we found a resource with the same name and variant but different contents, if different contents
-	// we'll let the user know to ideally use a different variant
-	// i.e. user tries to register transformation with same name and variant but different definition.
-	_, isResourceVariant := res.(ResourceVariant)
-	if isResourceVariant && existing != nil {
-		equivalent, err := isEquivalent(res, existing)
-		if err != nil {
-			return nil, err
-		}
-		if equivalent {
-			return nil, &ResourceChanged{res.ID()}
-		}
-	}
-
 	if existing != nil {
 		if err := existing.Update(serv.lookup, res); err != nil {
 			return nil, err
@@ -1914,27 +1900,6 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 	return &pb.Empty{}, nil
-}
-
-func isEquivalent(this Resource, existing Resource) (bool, error) {
-	// only works on resource variants right now
-	if existing.GetStatus() != nil && existing.GetStatus().Status != pb.ResourceStatus_READY {
-		return false, nil
-	}
-
-	resVariant, ok := this.(ResourceVariant)
-	if !ok {
-		return false, nil
-	}
-	existingVariant, ok := existing.(ResourceVariant)
-	if !ok {
-		return false, nil
-	}
-	isEquivalent, err := resVariant.IsEquivalent(existingVariant)
-	if err != nil {
-		return false, err
-	}
-	return isEquivalent, nil
 }
 
 func (serv *MetadataServer) propagateChange(newRes Resource) error {

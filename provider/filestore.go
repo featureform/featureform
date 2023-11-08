@@ -207,6 +207,12 @@ func NewAzureFileStore(config Config) (FileStore, error) {
 	if err := os.Setenv("AZURE_STORAGE_KEY", azureStoreConfig.AccountKey); err != nil {
 		return nil, fmt.Errorf("could not set storage key env: %w", err)
 	}
+
+	azureStoreConfig.ContainerName = strings.TrimPrefix(azureStoreConfig.ContainerName, "abfss://")
+	if strings.Contains(azureStoreConfig.ContainerName, "/") {
+		return nil, fmt.Errorf("container_name cannot contain '/'. container_name should be the name of the Azure Blobstore container only")
+	}
+
 	serviceURL := azureblob.ServiceURL(fmt.Sprintf("https://%s.blob.core.windows.net", azureStoreConfig.AccountName))
 	client, err := azureblob.NewDefaultServiceClient(serviceURL)
 	if err != nil {

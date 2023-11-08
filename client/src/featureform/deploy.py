@@ -43,7 +43,7 @@ class DockerDeployment(Deployment):
     def __init__(self, quickstart: bool):
         super().__init__(quickstart)
 
-        self._quickstart_directory = ".featureform/quickstart"
+        self._quickstart_directory = "featureform_quickstart"
         self._quickstart_files = [
             "https://featureform-demo-files.s3.amazonaws.com/definitions.py"
         ]
@@ -162,10 +162,7 @@ class DockerDeployment(Deployment):
                 return False
         return True
 
-    def _download_file(self, file):
-        # download file using urllib
-        local_file_path = f".featureform/quickstart/{file.split('/')[-1]}"
-        # Download the file using the requests library with an insecure connection
+    def _download_file(self, file, local_file_path):
         try:
             response = requests.get(file, stream=True, verify=False)
 

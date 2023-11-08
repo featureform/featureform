@@ -13,6 +13,7 @@ DOCKER_CONFIG = namedtuple(
     "Docker_Config", ["name", "image", "port", "detach_mode", "env"]
 )
 
+
 class Deployment:
     def __init__(self, quickstart: bool):
         self._quickstart = quickstart
@@ -43,7 +44,9 @@ class DockerDeployment(Deployment):
         super().__init__(quickstart)
 
         self._quickstart_directory = ".featureform/quickstart"
-        self._quickstart_files = ["https://featureform-demo-files.s3.amazonaws.com/definitions.py"]
+        self._quickstart_files = [
+            "https://featureform-demo-files.s3.amazonaws.com/definitions.py"
+        ]
 
         try:
             self._client = docker.from_env()
@@ -51,9 +54,7 @@ class DockerDeployment(Deployment):
             raise Exception("Error connecting to Docker daemon. Is Docker running?")
 
         environment_variables = {}
-        is_mac_m1_chip = (
-            platform.machine() == "arm64" and platform.system() == "Darwin"
-        )
+        is_mac_m1_chip = platform.machine() == "arm64" and platform.system() == "Darwin"
         if is_mac_m1_chip:
             environment_variables["ETCD_ARCH"] = "ETCD_UNSUPPORTED_ARCH=arm64"
 
@@ -169,7 +170,7 @@ class DockerDeployment(Deployment):
             response = requests.get(file, stream=True, verify=False)
 
             if response.status_code == 200:
-                with open(local_file_path, 'wb') as local_file:
+                with open(local_file_path, "wb") as local_file:
                     for chunk in response.iter_content(chunk_size=8192):
                         if chunk:
                             local_file.write(chunk)

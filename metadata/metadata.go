@@ -1759,6 +1759,7 @@ func (serv *MetadataServer) GetModels(stream pb.Metadata_GetModelsServer) error 
 	})
 }
 
+// GetEquivalent attempts to find an equivalent resource based on the provided ResourceVariant.
 func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariant) (*pb.ResourceVariant, error) {
 	return serv.getEquivalent(req, true)
 }
@@ -1771,52 +1772,72 @@ if we should only return the equivalent resource variant if it is ready.
 func (serv *MetadataServer) getEquivalent(req *pb.ResourceVariant, filterReadyStatus bool) (*pb.ResourceVariant, error) {
 	noEquivalentResponse := &pb.ResourceVariant{}
 
-	var currentResource ResourceVariant
-	var resourceType ResourceType
-
-	switch req.Resource.(type) {
-	case *pb.ResourceVariant_SourceVariant:
-		currentResource = &sourceVariantResource{req.GetSourceVariant()}
-		resourceType = SOURCE_VARIANT
-	case *pb.ResourceVariant_FeatureVariant:
-		currentResource = &featureVariantResource{req.GetFeatureVariant()}
-		resourceType = FEATURE_VARIANT
-	case *pb.ResourceVariant_LabelVariant:
-		currentResource = &labelVariantResource{req.GetLabelVariant()}
-		resourceType = LABEL_VARIANT
-	case *pb.ResourceVariant_TrainingSetVariant:
-		currentResource = &trainingSetVariantResource{req.GetTrainingSetVariant()}
-		resourceType = TRAINING_SET_VARIANT
-	default:
-		return nil, fmt.Errorf("unknown resource variant type: %v", req.Resource)
-	}
-
-	resources, err := serv.lookup.ListForType(resourceType)
+	currentResource, resourceType, err := serv.extractResourceVariant(req)
 	if err != nil {
 		return nil, err
 	}
 
+	resourcesForType, err := serv.lookup.ListForType(resourceType)
+	if err != nil {
+		return nil, err
+	}
+
+	equivalentResourceVariant, err := findEquivalent(resourcesForType, currentResource, filterReadyStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	if equivalentResourceVariant == nil {
+		return noEquivalentResponse, nil
+	}
+
+	return equivalentResourceVariant.ToResourceVariantProto(), nil
+}
+
+// findEquivalent searches through a slice of Resources to find an equivalent ResourceVariant.
+func findEquivalent(resources []Resource, resource ResourceVariant, filterReadyStatus bool) (ResourceVariant, error) {
 	for _, res := range resources {
-		resourceStatus := res.GetStatus()
-		if filterReadyStatus {
-			if resourceStatus != nil && resourceStatus.Status != pb.ResourceStatus_READY {
-				continue
-			}
+		// If we are filtering by ready status, we only want to return the equivalent resource variant if it is ready.
+		if filterReadyStatus && !isResourceReady(res) {
+			continue
 		}
+
 		other, ok := res.(ResourceVariant)
 		if !ok {
-			return nil, fmt.Errorf("unexpected error, resource is not a resource variant: %v", res)
+			return nil, fmt.Errorf("resource is not a ResourceVariant: %T", res)
 		}
-		equivalent, err := currentResource.IsEquivalent(other)
+
+		equivalent, err := resource.IsEquivalent(other)
 		if err != nil {
 			return nil, err
 		}
 		if equivalent {
-			return other.ToResourceVariantProto(), nil
+			return other, nil
 		}
 	}
+	return nil, nil
+}
 
-	return noEquivalentResponse, nil
+// extractResourceVariant takes a ResourceVariant request and extracts the concrete type and corresponding ResourceType.
+func (serv *MetadataServer) extractResourceVariant(req *pb.ResourceVariant) (ResourceVariant, ResourceType, error) {
+	switch res := req.Resource.(type) {
+	case *pb.ResourceVariant_SourceVariant:
+		return &sourceVariantResource{res.SourceVariant}, SOURCE_VARIANT, nil
+	case *pb.ResourceVariant_FeatureVariant:
+		return &featureVariantResource{res.FeatureVariant}, FEATURE_VARIANT, nil
+	case *pb.ResourceVariant_LabelVariant:
+		return &labelVariantResource{res.LabelVariant}, LABEL_VARIANT, nil
+	case *pb.ResourceVariant_TrainingSetVariant:
+		return &trainingSetVariantResource{res.TrainingSetVariant}, TRAINING_SET_VARIANT, nil
+	default:
+		return nil, 0, fmt.Errorf("unknown resource variant type: %T", req.Resource)
+	}
+}
+
+// isResourceReady checks if a Resource's status is 'ready'.
+func isResourceReady(res Resource) bool {
+	resourceStatus := res.GetStatus()
+	return resourceStatus != nil && resourceStatus.Status == pb.ResourceStatus_READY
 }
 
 type nameStream interface {

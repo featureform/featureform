@@ -16,16 +16,16 @@ dotenv.load_dotenv()
 # )
 
 sf = ff.register_snowflake(
-    name="snowflake",
+    name="snowflake2",
     username=os.getenv("SNOWFLAKE_USERNAME"),
     password=os.getenv("SNOWFLAKE_PASSWORD"),
     account=os.getenv("SNOWFLAKE_ACCOUNT"),
-    organization=os.getenv("SNOWFLAKE_ORGANIZATION"),
+    organization=os.getenv("SNOWFLAKE_ORG"),
     database="benchmark",
 )
 
 
-table = sf.register_table(name="generated_data", table="generated", variant="v4")
+table = sf.register_table(name="generated_data", table="generated", variant="v8")
 
 entity = ff.register_entity("entity")
 
@@ -44,13 +44,13 @@ dynamo = ff.register_dynamodb(
 #     description="A Redis deployment we created for the Featureform quickstart",
 # )
 features = []
-for i in range(0, 10):
+for i in range(100, 251):
     features.append(
         {
             "name": f"feature_{i}",
             "column": f"feature_{i}",
             "type": "int64",
-            "variant": "v5",
+            "variant": "v10",
         }
     )
 

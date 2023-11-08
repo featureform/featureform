@@ -7,7 +7,13 @@ from featureform.resources import DatabricksCredentials, EMRCredentials
     "username,password,host,token,cluster_id",
     [
         # either use username-password pair or host-token pair
-        ("", "", "host_xyz", "dapi123-valid_token", "abc-123def-ghijklmn"),
+        (
+            "",
+            "",
+            "host_xyz",
+            "dapi123-valid_token",
+            "abc-123def-ghijklmn",
+        ),  # valid token and cluster id
         pytest.param(
             "john",
             "abc123",

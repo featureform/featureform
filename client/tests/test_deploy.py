@@ -28,7 +28,9 @@ def test_deployment_class(quickstart):
         ("docker_quickstart_deployment", "docker_quickstart_deployment_config"),
     ],
 )
-def test_deployment_config(deploy, expected_config, request):
+def test_deployment_config(deploy, expected_config, request, mocker):
+    mocker.patch("docker.from_env")
+
     deployment = request.getfixturevalue(deploy)
     expected_config = request.getfixturevalue(expected_config)
     config = deployment.config
@@ -44,7 +46,6 @@ def test_deployment_config(deploy, expected_config, request):
     "deployment, expected_status",
     [
         ("docker_deployment", "docker_deployment_status"),
-        # ("docker_deployment_failure", "docker_deployment_failure_status"),
     ],
 )
 def test_deployment_status(deployment, expected_status, request):
@@ -59,7 +60,7 @@ def test_deployment_status(deployment, expected_status, request):
     "deployment, expected_failure",
     [
         ("docker_deployment", False),
-        # ("docker_quickstart_deployment", False),
+        ("docker_quickstart_deployment", False),
     ],
 )
 def test_deployment(deployment, expected_failure, request):

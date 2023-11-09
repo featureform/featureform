@@ -2,7 +2,9 @@ import os
 import shutil
 import stat
 import sys
+
 import featureform as ff
+from featureform import ResourceRedefinedError, InvalidSQLQuery
 
 sys.path.insert(0, "client/src/")
 import pytest
@@ -95,7 +97,7 @@ def test_sql_transformation_decorator_invalid_fn(local, fn):
 
 def test_sql_transformation_empty_description(registrar):
     def my_function():
-        return "SELECT * FROM X"
+        return "SELECT * FROM {{ name.variant }}"
 
     dec = SQLTransformationDecorator(
         registrar=registrar,
@@ -116,12 +118,77 @@ def test_df_transformation_empty_description(registrar):
         return df
 
     dec = DFTransformationDecorator(
-        registrar=registrar, owner="", provider="", variant="df", tags=[], properties={}
+        registrar=registrar,
+        owner="",
+        provider="",
+        variant="df",
+        tags=[],
+        properties={},
+        inputs=[("df", "var")],
     )
     dec.__call__(my_function)
 
     # Checks that Transformation definition does not error when converting to source
     dec.to_source()
+
+
+@pytest.mark.parametrize(
+    # fmt: off
+    "func,args,should_raise",
+    [
+        # Same number of arguments, should not raise an error
+        (
+                lambda a, b: None,
+                [("name1", "var1"), ("name2", "var2")],
+                False,
+        ),
+        # 0 function arguments, 1 decorator argument, should not raise an error
+        (
+                lambda: None,
+                [("name1", "var1")],
+                False
+        ),
+        # 1 function argument, 0 decorator arguments, should raise an error
+        (
+                lambda df: None,
+                [],
+                True
+        ),
+        # 5 function arguments, 3 decorator arguments, should raise an error
+        (
+                lambda a, b, c, d, e: None,
+                [("name1", "var1"), ("name2", "var2"), ("name3", "var3")],
+                True,
+        ),
+        # 2 function arguments, 5 decorator arguments, should not raise an error
+        (
+                lambda x, y: None,
+                [("name1", "var1"), ("name2", "var2"), ("name3", "var3"), ("name4", "var4")],
+                False,
+        ),
+    ],
+    # fmt: on
+)
+def test_transformations_invalid_args_and_inputs(registrar, func, args, should_raise):
+    dec = DFTransformationDecorator(
+        registrar=registrar,
+        owner="",
+        provider="",
+        variant="df",
+        inputs=args,
+        tags=[],
+        properties={},
+    )
+
+    if should_raise:
+        with pytest.raises(ValueError) as e:
+            dec(func)
+
+        assert "Transformation function has more parameters than inputs." in str(
+            e.value
+        )
+    else:
+        dec(func)  # Should not raise an error
 
 
 def test_valid_model_registration():
@@ -198,3 +265,146 @@ def run_before_and_after_tests(tmpdir):
         shutil.rmtree(".featureform", onerror=del_rw)
     except:
         print("File Already Removed")
+
+
+@pytest.mark.parametrize(
+    "sql_query, expected_valid_sql_query",
+    [
+        ("SELECT * FROM X", False),
+        ("SELECT * FROM", False),
+        ("SELECT * FROM     \n {{ name }}", True),
+        ("SELECT * FROM     \n {{name}}", True),
+        ("SELECT * FROM {{ name.variant }}", True),
+        ("SELECT * FROM {{name.variant }}", True),
+        ("SELECT * FROM     \n {{ name.variant }}", True),
+        ("SELECT * FROM     \n {{name.variant}}", True),
+        ("SELECT * FROM     \n {{name . variant}}", False),
+        (
+            """
+        SELECT *
+        FROM {{ name.variant2 }}
+        WHERE x >= 5.
+        """,
+            True,
+        ),
+        (
+            "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id",
+            True,
+        ),
+        (
+            (
+                "SELECT CustomerID as user_id, avg(TransactionAmount) "
+                "as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
+            ),
+            True,
+        ),
+    ],
+)
+def test_assert_query_contains_at_least_one_source(sql_query, expected_valid_sql_query):
+    dec = SQLTransformationDecorator(
+        registrar=registrar,
+        owner="",
+        provider="",
+        variant="sql",
+        tags=[],
+        properties={},
+    )
+
+    if not expected_valid_sql_query:
+        with pytest.raises(InvalidSQLQuery) as ex_info:
+            dec._assert_query_contains_at_least_one_source(sql_query)
+        assert (
+            str(ex_info.value)
+            == f"Invalid SQL query. Query: ' {sql_query} ' No source specified."
+        )
+    else:
+        dec._assert_query_contains_at_least_one_source(sql_query)
+
+
+def test_state_not_clearing_after_resource_not_defined():
+    ff.local.register_file(name="a", path="a.csv")
+
+    ff.local.register_file(name="a", path="b.csv")
+
+    client = ff.Client(local=True)
+
+    with pytest.raises(ResourceRedefinedError):
+        client.apply()  # should clear state after
+
+    ff.local.register_file(name="a", path="a.csv")
+
+    client.apply()  # should throw no error, previously this was a bug
+
+
+@pytest.mark.parametrize(
+    "bucket_name, expected_error",
+    [
+        ("s3://bucket_name", None),
+        ("bucket_name", None),
+        ("s3a://bucket_name", None),
+        (
+            "bucket_name/",
+            ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only."
+            ),
+        ),
+        (
+            "s3://bucket_name/",
+            ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only."
+            ),
+        ),
+        (
+            "s3a://bucket_name/",
+            ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only."
+            ),
+        ),
+    ],
+)
+def test_register_s3(bucket_name, expected_error, ff_registrar, aws_credentials):
+    try:
+        _ = ff_registrar.register_s3(
+            name="s3_bucket",
+            credentials=aws_credentials,
+            bucket_region="us-east-1",
+            bucket_name=bucket_name,
+        )
+    except ValueError as ve:
+        assert str(ve) == str(expected_error)
+    except Exception as e:
+        raise e
+
+
+@pytest.mark.parametrize(
+    "container_name, expected_error",
+    [
+        ("abfss://container_name", None),
+        ("container_name", None),
+        (
+            "container_name/",
+            ValueError(
+                "container_name cannot contain '/'. container_name should be the name of the Azure Blobstore container only."
+            ),
+        ),
+        (
+            "abfss://bucket_name/",
+            ValueError(
+                "container_name cannot contain '/'. container_name should be the name of the Azure Blobstore container only."
+            ),
+        ),
+    ],
+)
+def test_register_blob_store(container_name, expected_error, ff_registrar):
+    try:
+        _ = ff_registrar.register_blob_store(
+            name="blob_store_container",
+            container_name=container_name,
+            root_path="custom/path/in/container",
+            account_name="account_name",
+            account_key="azure_account_key",
+        )
+    except ValueError as ve:
+        assert str(ve) == str(expected_error)
+    except Exception as e:
+        raise e

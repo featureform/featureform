@@ -1,5 +1,9 @@
 name: Testing
-on: [pull_request]
+on:
+  pull_request:
+  push:
+    branches:
+      - main
 concurrency:
   group: ${{ github.head_ref }}-testing
   cancel-in-progress: true
@@ -58,7 +62,13 @@ jobs:
         run: go build ./metadata/*.go
 
       - name: Build Python Package
-        run: ./pip_update.sh
+        run: ./pip_update.sh --no-dash
+
+      - name: Remove Node Modules
+        run: rm -rf dashboard/node_modules
+
+      - name: Remove Git Objects
+        run: rm -rf .git
 
       - uses: actions/upload-artifact@v3
         with:
@@ -112,7 +122,7 @@ jobs:
 
       - name: Testing
         working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile ./coverage/cover.out.tmp ./metadata/search/...
+        run: go test -v -coverpkg=./... -coverprofile ./coverage/cover.out.tmp ./metadata/search/... ./lib/...
 
       - name: Convert Coverage Test Results
         if: always()
@@ -121,12 +131,12 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          files: ./coverage/cover.out
-          name: search-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          files: ./coverage/cover.out
+#          name: search-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -140,7 +150,7 @@ jobs:
     environment: Integration testing
     needs: setup
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     services:
       redis-insecure:
         image: redis
@@ -199,8 +209,8 @@ jobs:
 
       - name: Testing
         env:
-          DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
-          DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
+          DYNAMO_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          DYNAMO_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
           FIRESTORE_CRED: "firestore_credentials.json"
           FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
           AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
@@ -221,13 +231,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: provider-online-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: provider-online-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -236,9 +246,19 @@ jobs:
           name: provider-online-coverage-reports
           path: ./coverage
 
+#      - name: Clear Pinecone Indexes
+#        env:
+#          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+#          PINECONE_ENVIRONMENT: ${{ secrets.PINECONE_ENVIRONMENT }}
+#        if: always()
+#        run: |
+#          pip install pinecone-cli
+#          pinecli list-indexes --apikey="$PINECONE_API_KEY" | while read -r index; do pinecli delete-index --apikey="$PINECONE_API_KEY" --disable-safety "$index"; done
+
+
   provider-offline:
     name: Offline Provider Testing
-    timeout-minutes: 60
+    timeout-minutes: 120
     environment: Integration testing
     needs: setup
     runs-on: ubuntu-latest
@@ -251,6 +271,13 @@ jobs:
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_DB: ${{ env.POSTGRES_DB }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+      
+      mysql:
+        image: mysql
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: "password"
 
     steps:
       - name: Download Working Compiled Directories
@@ -298,6 +325,9 @@ jobs:
           AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
           AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
           AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          MYSQL_USER: "root"
+          MYSQL_PASSWORD: "password"
+          MYSQL_DB: "mysql"
         working-directory: ./
         run: make test_offline
 
@@ -308,13 +338,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: provider-offline-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: provider-offline-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -367,6 +397,9 @@ jobs:
           AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
           AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
           AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
         working-directory: ./
         run: make test_offline_spark
 
@@ -377,13 +410,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: provider-offline-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: provider-offline-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -438,13 +471,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: metadata-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: metadata-coverage
+#          verbose: true
 
   backup:
     name: Backup Test
@@ -545,13 +578,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: metrics-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: metrics-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -590,13 +623,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: helper-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: helper-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -644,13 +677,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: runner-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: runner-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -689,13 +722,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main" > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: serving-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: serving-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -778,13 +811,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: coordinator-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: coordinator-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -919,6 +952,9 @@ jobs:
           AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
           S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_PATH }}
           S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
         run: make test_offline_k8s
 
       - name: Testing Python
@@ -962,13 +998,13 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          root_dir: ./
-          files: ./coverage/cover.out
-          name: k8s-coverage
-          verbose: true
+#      - uses: codecov/codecov-action@v2
+#        if: always()
+#        with:
+#          root_dir: ./
+#          files: ./coverage/cover.out
+#          name: k8s-coverage
+#          verbose: true
 
       - name: Archive code coverage results
         if: always()
@@ -981,6 +1017,7 @@ jobs:
     name: Test Localmode
     needs: setup
     runs-on: ${{ matrix.os }}
+    if: github.ref != 'refs/heads/main'
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest] #osx-arm64 currently not working. Ticket made with github
@@ -1014,7 +1051,7 @@ jobs:
           python-version: "3.7.16"
 
       - name: Install pytest
-        run: pip install pytest protobuf==3.20.1 python-dotenv pytest-mock
+        run: pip install pytest protobuf==3.20.1 python-dotenv pytest-mock pyspark
 
       - name: Install featureform
         run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
@@ -1022,30 +1059,156 @@ jobs:
       - name: Run Tests
         run: make pytest
 
-  notebook:
-    name: Test Notebook
+  client-coverage:
+    name: Client Test Coverage
+    needs: setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
         with:
-          python-version: "3.8"
+          name: compiled-workdir
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install pytest and pytest-cov
+        run: pip install pytest protobuf==3.20.1 python-dotenv pytest-mock pytest-cov
+
+      - name: Install featureform
+        run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
+
+      - name: Generate Coverage Report
+        run: make pytest_coverage
+
+#      - name: Upload Coverage Report
+#        uses: codecov/codecov-action@v2
+#        with:
+#          token: ${{ secrets.CODECOV_TOKEN }}
+#          root_dir: ./
+#          files: ./coverage.xml
+#          name: client-coverage
+#          verbose: true
+
+#  notebook:
+#    name: Test Notebook
+#    runs-on: ubuntu-latest
+#    timeout-minutes: 5
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Set up Python
+#        uses: actions/setup-python@v4
+#        with:
+#          python-version: "3.8"
+#
+#      - name: Set up Go
+#        uses: actions/setup-go@v2
+#        with:
+#          go-version: 1.18
+#
+#      - name: Install grpc_tools
+#        run: pip install grpcio-tools build
+#
+#      - name: Install Protobuf
+#        run: sudo snap install protobuf --classic
+#
+#      - name: Setup Proto
+#        run: ./gen_grpc.sh
+#
+#      - name: Run Tests
+#        run: make jupyter
+
+  health-checks:
+    name: Provider Health Checks
+    timeout-minutes: 45
+    environment: Integration testing
+    needs: setup
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Check pwd directory
+        run: |
+          pwd
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.18
 
-      - name: Install grpc_tools
-        run: pip install grpcio-tools build
-
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
 
-      - name: Setup Proto
-        run: ./gen_grpc.sh
+      - name: Make Coverage Directory
+        working-directory: ./
+        run: mkdir coverage
 
-      - name: Run Tests
-        run: make jupyter
+      - name: Create GCloud Key
+        id: gcloud-key-json
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "./gcloud-key.json"
+          json: ${{ secrets.GCLOUD_CREDENTIALS }}
+
+      - name: Testing
+        env:
+          SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          AWS_EMR_CLUSTER_REGION: ${{ secrets.AWS_EMR_CLUSTER_REGION }}
+          AWS_EMR_CLUSTER_ID: ${{ secrets.AWS_EMR_CLUSTER_ID }}
+          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
+          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
+          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
+          GENERIC_SPARK_MASTER: ${{ secrets.GENERIC_SPARK_MASTER}}
+          GENERIC_SPARK_DEPLOY_MODE: ${{ secrets.GENERIC_SPARK_DEPLOY_MODE }}
+          GENERIC_SPARK_PYTHON_VERSION: ${{ secrets.GENERIC_SPARK_PYTHON_VERSION }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+          DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
+          DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
+          DYNAMODB_REGION: ${{ secrets.DYNAMODB_REGION }}
+          SPARK_LOCAL_SCRIPT_PATH: home/runner/work/featureform/featureform/provider/scripts/spark/offline_store_spark_runner.py
+          PYTHON_LOCAL_INIT_PATH: home/runner/work/featureform/featureform/provider/scripts/spark/python_packages.sh
+        working-directory: ./
+        run: make test_healthchecks
+        
+      - name: Convert Coverage Test Results
+        if: always()
+        working-directory: ./coverage
+        run: |
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
+          go tool cover -html=cover.out -o cover.html
+
+      - name: Archive code coverage results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: provider-health-checks-coverage-reports
+          path: ./coverage

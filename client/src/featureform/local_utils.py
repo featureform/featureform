@@ -11,7 +11,7 @@ def get_sql_transformation_sources(query_string):
 def merge_feature_into_ts(feature_row, label_row, df, trainingset_df):
     if feature_row["source_timestamp"] != "":
         trainingset_df = pd.merge_asof(
-            trainingset_df,
+            trainingset_df.sort_values(label_row["source_timestamp"]),
             df.sort_values(feature_row["source_timestamp"]),
             direction="backward",
             left_on=label_row["source_timestamp"],

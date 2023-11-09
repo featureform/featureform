@@ -3,12 +3,14 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import sys
+import os
 import json
 import time
 import base64
+from abc import ABC
 from enum import Enum
 from typeguard import typechecked
-from typing import List, Tuple, Union, Optional
+from typing import List, Tuple, Union, Optional, Dict
 
 import dill
 import grpc
@@ -22,7 +24,6 @@ from .exceptions import *
 from .enums import *
 
 NameVariant = Tuple[str, str]
-
 
 # Constants for Pyspark Versions
 MAJOR_VERSION = "3"
@@ -143,56 +144,84 @@ class WeaviateConfig:
 @typechecked
 @dataclass
 class AWSCredentials:
-    """
-    AWS Credentials for accessing AWS Services
-
-    Attributes:
-        aws_access_key_id (str): AWS Access Key ID
-        aws_secret_access_key (str): AWS Secret Access Key
-    """
-
     def __init__(
         self,
-        aws_access_key_id: str = "",
-        aws_secret_access_key: str = "",
+        access_key: str,
+        secret_key: str,
     ):
-        empty_strings = aws_access_key_id == "" or aws_secret_access_key == ""
-        if empty_strings:
-            raise Exception(
-                "'AWSCredentials' requires all parameters: 'aws_access_key_id', 'aws_secret_access_key'"
-            )
+        """
 
-        self.aws_access_key_id = aws_access_key_id
-        self.aws_secret_access_key = aws_secret_access_key
+        Credentials for an AWS.
+
+        **Example**
+        ```
+        aws_credentials = ff.AWSCredentials(
+            access_key="<AWS_ACCESS_KEY>",
+            secret_key="<AWS_SECRET_KEY>"
+        )
+        ```
+
+        Args:
+            access_key (str): AWS Access Key.
+            secret_key (str): AWS Secret Key.
+        """
+        if access_key == "":
+            raise Exception("'AWSCredentials' access_key cannot be empty")
+
+        if secret_key == "":
+            raise Exception("'AWSCredentials' secret_key cannot be empty")
+
+        self.access_key = access_key
+        self.secret_key = secret_key
 
     def type(self):
         return "AWS_CREDENTIALS"
 
     def config(self):
         return {
-            "AWSAccessKeyId": self.aws_access_key_id,
-            "AWSSecretKey": self.aws_secret_access_key,
+            "AWSAccessKeyId": self.access_key,
+            "AWSSecretKey": self.secret_key,
         }
 
 
 @typechecked
 @dataclass
 class GCPCredentials:
-    """
-    GCP Credentials for accessing GCP Services
-
-    Attributes:
-        project_id (str): GCP Project ID
-        credentials_path (str): Path to GCP Credentials JSON file
-    """
-
     def __init__(
         self,
         project_id: str,
         credentials_path: str,
     ):
+        """
+
+        Credentials for an GCP.
+
+        **Example**
+        ```
+        gcp_credentials = ff.GCPCredentials(
+            project_id="<project_id>",
+            credentials_path="<path_to_credentials>"
+        )
+        ```
+
+        Args:
+            project_id (str): The project id.
+            credentials_path (str): The path to the credentials file.
+        """
+        if project_id == "":
+            raise Exception("'GCPCredentials' project_id cannot be empty")
+
+        if credentials_path == "":
+            raise Exception("'GCPCredentials' credentials_path cannot be empty")
+
+        if not os.path.isfile(credentials_path):
+            raise Exception(
+                f"'GCPCredentials' credentials_path '{credentials_path}' file not found"
+            )
+
         self.project_id = project_id
-        self.credentials = json.load(open(credentials_path))
+        with open(credentials_path) as f:
+            self.credentials = json.load(f)
 
     def type(self):
         return "GCPCredentials"
@@ -202,6 +231,9 @@ class GCPCredentials:
             "ProjectId": self.project_id,
             "JSON": self.credentials,
         }
+
+    def to_json(self):
+        return self.credentials
 
 
 @typechecked
@@ -382,7 +414,7 @@ class OnlineBlobConfig:
 class FirestoreConfig:
     collection: str
     project_id: str
-    credentials_path: str
+    credentials: GCPCredentials
 
     def software(self) -> str:
         return "firestore"
@@ -394,7 +426,7 @@ class FirestoreConfig:
         config = {
             "Collection": self.collection,
             "ProjectID": self.project_id,
-            "Credentials": json.load(open(self.credentials_path)),
+            "Credentials": self.credentials.to_json(),
         }
         return bytes(json.dumps(config), "utf-8")
 
@@ -404,7 +436,7 @@ class FirestoreConfig:
 class CassandraConfig:
     keyspace: str
     host: str
-    port: str
+    port: int
     username: str
     password: str
     consistency: str
@@ -542,6 +574,7 @@ class PostgresConfig:
     database: str
     user: str
     password: str
+    sslmode: str
 
     def software(self) -> str:
         return "postgres"
@@ -556,6 +589,7 @@ class PostgresConfig:
             "Username": self.user,
             "Password": self.password,
             "Database": self.database,
+            "SSLMode": self.sslmode,
         }
         return bytes(json.dumps(config), "utf-8")
 
@@ -564,7 +598,7 @@ class PostgresConfig:
 @dataclass
 class RedshiftConfig:
     host: str
-    port: str
+    port: int
     database: str
     user: str
     password: str
@@ -578,7 +612,7 @@ class RedshiftConfig:
     def serialize(self) -> bytes:
         config = {
             "Host": self.host,
-            "Port": self.port,
+            "Port": str(self.port),
             "Username": self.user,
             "Password": self.password,
             "Database": self.database,
@@ -591,7 +625,7 @@ class RedshiftConfig:
 class BigQueryConfig:
     project_id: str
     dataset_id: str
-    credentials_path: str
+    credentials: GCPCredentials
 
     def software(self) -> str:
         return "bigquery"
@@ -603,7 +637,7 @@ class BigQueryConfig:
         config = {
             "ProjectID": self.project_id,
             "DatasetID": self.dataset_id,
-            "Credentials": json.load(open(self.credentials_path)),
+            "Credentials": self.credentials.to_json(),
         }
         return bytes(json.dumps(config), "utf-8")
 
@@ -731,6 +765,8 @@ Config = Union[
     EmptyConfig,
     HDFSConfig,
     WeaviateConfig,
+    DynamodbConfig,
+    CassandraConfig,
 ]
 
 
@@ -754,8 +790,8 @@ class Provider:
     config: Config
     function: str
     status: str = "NO_STATUS"
-    tags: list = None
-    properties: dict = None
+    tags: list = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
     error: Optional[str] = None
 
     def __post_init__(self):
@@ -826,13 +862,27 @@ class Provider:
                 return False
         return True
 
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "description": self.description,
+            "team": self.team,
+            "config": "todox",
+            "function": "todox",
+            "status": self.status,
+            "tags": self.tags,
+            "properties": self.properties,
+            "error": self.error,
+        }
+
 
 @typechecked
 @dataclass
 class User:
     name: str
-    tags: list
-    properties: dict
+    status: str = ""
+    tags: list = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -861,6 +911,14 @@ class User:
             if getattr(self, attribute) != getattr(other, attribute):
                 return False
         return True
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "status": self.status,
+            "tags": self.tags,
+            "properties": self.properties,
+        }
 
 
 @typechecked
@@ -931,6 +989,7 @@ class DFTransformation(Transformation):
     query: bytes
     inputs: list
     args: K8sArgs = None
+    source_text: str = ""
 
     def type(self):
         return SourceType.DF_TRANSFORMATION.value
@@ -940,6 +999,7 @@ class DFTransformation(Transformation):
             DFTransformation=pb.DFTransformation(
                 query=self.query,
                 inputs=[pb.NameVariant(name=v[0], variant=v[1]) for v in self.inputs],
+                source_text=self.source_text,
             )
         )
 
@@ -956,6 +1016,21 @@ SourceDefinition = Union[PrimaryData, Transformation, str]
 @dataclass
 class Source:
     name: str
+    default_variant: str
+    variants: List[str]
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "default_variant": self.default_variant,
+            "variants": self.variants,
+        }
+
+
+@typechecked
+@dataclass
+class SourceVariant:
+    name: str
     definition: SourceDefinition
     owner: str
     provider: str
@@ -963,12 +1038,17 @@ class Source:
     tags: list
     properties: dict
     variant: str
-    status: str = "NO_STATUS"
+    created: str = None
+    status: str = (
+        "ready"  # there is no associated status by default but it always stores ready
+    )
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
-
-    inputs = ([],)
+    source_text: str = ""
+    source_type: str = ""
+    transformation: str = ""
+    inputs: list = ([],)
     error: Optional[str] = None
 
     def update_schedule(self, schedule) -> None:
@@ -993,7 +1073,8 @@ class Source:
         source = next(stub.GetSourceVariants(iter([name_variant])))
         definition = self._get_source_definition(source)
 
-        return Source(
+        return SourceVariant(
+            created=None,
             name=source.name,
             definition=definition,
             owner=source.owner,
@@ -1020,6 +1101,7 @@ class Source:
             return DFTransformation(
                 query=transformation.query,
                 inputs=[(input.name, input.variant) for input in transformation.inputs],
+                source_text=transformation.source_text,
             )
         elif source.transformation.SQLTransformation.query != "":
             return SQLTransformation(source.transformation.SQLTransformation.query)
@@ -1029,6 +1111,7 @@ class Source:
     def _create(self, stub) -> None:
         defArgs = self.definition.kwargs()
         serialized = pb.SourceVariant(
+            created=None,
             name=self.name,
             variant=self.variant,
             owner=self.owner,
@@ -1037,15 +1120,23 @@ class Source:
             provider=self.provider,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
             **defArgs,
         )
         stub.CreateSourceVariant(serialized)
 
     def _create_local(self, db) -> None:
+        should_insert_text = False
+        source_text = ""
+        self.source_type = "Source"
         if type(self.definition) == DFTransformation:
+            should_insert_text = True
             self.is_transformation = SourceType.DF_TRANSFORMATION.value
+            source_text = self.definition.source_text
             self.inputs = self.definition.inputs
             self.definition = self.definition.query
+            self.source_text = source_text
+            self.source_type = "Dataframe Transformation"
         elif type(self.definition) == SQLTransformation:
             self.is_transformation = SourceType.SQL_TRANSFORMATION.value
             self.definition = self.definition.query
@@ -1060,13 +1151,12 @@ class Source:
                 raise ValueError(
                     f"Invalid Primary Data Type {self.definition.location}"
                 )
-
         db.insert_source(
             "source_variant",
             str(time.time()),
             self.description,
             self.name,
-            "Source",
+            self.source_type,
             self.owner,
             self.provider,
             self.variant,
@@ -1075,6 +1165,12 @@ class Source:
             json.dumps(self.inputs),
             self.definition,
         )
+
+        if should_insert_text:
+            db.insert_source_variant_text(
+                str(time.time()), self.name, self.variant, source_text
+            )
+
         if len(self.tags):
             db.upsert(
                 "tags", self.name, self.variant, "source_variant", json.dumps(self.tags)
@@ -1110,8 +1206,9 @@ class Source:
 class Entity:
     name: str
     description: str
-    tags: list
-    properties: dict
+    status: str = "NO_STATUS"
+    tags: list = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -1145,6 +1242,15 @@ class Entity:
                 return False
         return True
 
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "description": self.description,
+            "status": self.status,
+            "tags": self.tags,
+            "properties": self.properties,
+        }
+
 
 @typechecked
 @dataclass
@@ -1168,6 +1274,21 @@ ResourceLocation = ResourceColumnMapping
 @dataclass
 class Feature:
     name: str
+    default_variant: str
+    variants: List[str]
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "default_variant": self.default_variant,
+            "variants": self.variants,
+        }
+
+
+@typechecked
+@dataclass
+class FeatureVariant:
+    name: str
     source: NameVariant
     value_type: str
     entity: str
@@ -1176,6 +1297,7 @@ class Feature:
     location: ResourceLocation
     description: str
     variant: str
+    created: str = None
     is_embedding: bool = False
     dims: int = 0
     tags: list = None
@@ -1209,11 +1331,12 @@ class Feature:
     def type() -> str:
         return "feature"
 
-    def get(self, stub) -> "Feature":
+    def get(self, stub) -> "FeatureVariant":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
         feature = next(stub.GetFeatureVariants(iter([name_variant])))
 
-        return Feature(
+        return FeatureVariant(
+            created=None,
             name=feature.name,
             variant=feature.variant,
             source=(feature.source.name, feature.source.variant),
@@ -1251,6 +1374,7 @@ class Feature:
             mode=ComputationMode.PRECOMPUTED.proto(),
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
         stub.CreateFeatureVariant(serialized)
 
@@ -1324,7 +1448,7 @@ class Feature:
 
 @typechecked
 @dataclass
-class OnDemandFeature:
+class OnDemandFeatureVariant:
     owner: str
     variant: str
     tags: List[str] = field(default_factory=list)
@@ -1419,11 +1543,11 @@ class OnDemandFeature:
             is_on_demand,
         )
 
-    def get(self, stub) -> "OnDemandFeature":
+    def get(self, stub) -> "OnDemandFeatureVariant":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
         ondemand_feature = next(stub.GetFeatureVariants(iter([name_variant])))
 
-        return OnDemandFeature(
+        return OnDemandFeatureVariant(
             name=ondemand_feature.name,
             variant=ondemand_feature.variant,
             owner=ondemand_feature.owner,
@@ -1453,6 +1577,21 @@ class OnDemandFeature:
 @dataclass
 class Label:
     name: str
+    default_variant: str
+    variants: List[str]
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "default_variant": self.default_variant,
+            "variants": self.variants,
+        }
+
+
+@typechecked
+@dataclass
+class LabelVariant:
+    name: str
     source: NameVariant
     value_type: str
     entity: str
@@ -1463,6 +1602,7 @@ class Label:
     properties: dict
     location: ResourceLocation
     variant: str
+    created: str = None
     status: str = "NO_STATUS"
     error: Optional[str] = None
 
@@ -1481,11 +1621,11 @@ class Label:
     def type() -> str:
         return "label"
 
-    def get(self, stub) -> "Label":
+    def get(self, stub) -> "LabelVariant":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
         label = next(stub.GetLabelVariants(iter([name_variant])))
 
-        return Label(
+        return LabelVariant(
             name=label.name,
             variant=label.variant,
             source=(label.source.name, label.source.variant),
@@ -1516,6 +1656,7 @@ class Label:
             columns=self.location.proto(),
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
         stub.CreateLabelVariant(serialized)
 
@@ -1633,7 +1774,7 @@ class ProviderReference:
 class SourceReference:
     name: str
     variant: str
-    obj: Union[Source, None]
+    obj: Union[SourceVariant, None]
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -1664,14 +1805,30 @@ class SourceReference:
 @dataclass
 class TrainingSet:
     name: str
+    default_variant: str
+    variants: List[str]
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "default_variant": self.default_variant,
+            "variants": self.variants,
+        }
+
+
+@typechecked
+@dataclass
+class TrainingSetVariant:
+    name: str
     owner: str
     label: NameVariant
     features: List[NameVariant]
     description: str
     variant: str
     feature_lags: list = field(default_factory=list)
-    tags: list = None
-    properties: dict = None
+    tags: list = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
+    created: str = None
     schedule: str = ""
     schedule_obj: Schedule = None
     provider: str = ""
@@ -1708,7 +1865,8 @@ class TrainingSet:
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
         ts = next(stub.GetTrainingSetVariants(iter([name_variant])))
 
-        return TrainingSet(
+        return TrainingSetVariant(
+            created=None,
             name=ts.name,
             variant=ts.variant,
             owner=ts.owner,
@@ -1737,6 +1895,7 @@ class TrainingSet:
             feature_lags.append(feature_lag)
 
         serialized = pb.TrainingSetVariant(
+            created=None,
             name=self.name,
             variant=self.variant,
             description=self.description,
@@ -1747,6 +1906,7 @@ class TrainingSet:
             feature_lags=feature_lags,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
         stub.CreateTrainingSetVariant(serialized)
 
@@ -1860,8 +2020,9 @@ class TrainingSet:
 @dataclass
 class Model:
     name: str
-    tags: list
-    properties: dict
+    description: str = ""
+    tags: list = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -1898,22 +2059,30 @@ class Model:
                 return False
         return True
 
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "description": self.description,
+            "tags": self.tags,
+            "properties": self.properties,
+        }
+
 
 Resource = Union[
     PrimaryData,
     Provider,
     Entity,
     User,
-    Feature,
-    Label,
-    TrainingSet,
-    Source,
+    FeatureVariant,
+    LabelVariant,
+    TrainingSetVariant,
+    SourceVariant,
     Schedule,
     ProviderReference,
     SourceReference,
     EntityReference,
     Model,
-    OnDemandFeature,
+    OnDemandFeatureVariant,
 ]
 
 
@@ -1974,8 +2143,7 @@ class ResourceState:
 
         def to_sort_key(res):
             resource_num = resource_order[res.type()]
-            variant = res.variant if hasattr(res, "variant") else ""
-            return (resource_num, res.name, variant)
+            return resource_num
 
         return sorted(self.__state.values(), key=to_sort_key)
 
@@ -1991,7 +2159,7 @@ class ResourceState:
         check_up_to_date(True, "register")
         features = []
         for resource in self.sorted_list():
-            if isinstance(resource, Feature):
+            if isinstance(resource, FeatureVariant):
                 features.append(resource)
             resource_variant = (
                 f" {resource.variant}" if hasattr(resource, "variant") else ""
@@ -1999,10 +2167,13 @@ class ResourceState:
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name, resource_variant)
                 resource._get_local(db)
+
             if resource.operation_type() is OperationType.CREATE:
-                print("Creating", resource.type(), resource.name, resource_variant)
+                if resource.name != "default_user":
+                    print("Creating", resource.type(), resource.name, resource_variant)
                 resource._create_local(db)
         db.close()
+
         from .serving import LocalClientImpl
 
         client = LocalClientImpl()
@@ -2032,9 +2203,10 @@ class ResourceState:
                     )
                     resource._get(stub)
                 if resource.operation_type() is OperationType.CREATE:
-                    print(
-                        f"Creating {resource.type()} {resource.name}{resource_variant}"
-                    )
+                    if resource.name != "default_user":
+                        print(
+                            f"Creating {resource.type()} {resource.name}{resource_variant}"
+                        )
                     resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
@@ -2049,12 +2221,40 @@ class ResourceState:
 class DatabricksCredentials:
     def __init__(
         self,
+        cluster_id: str,
         username: str = "",
         password: str = "",
         host: str = "",
         token: str = "",
-        cluster_id: str = "",
     ):
+        """
+
+        Credentials for a Databricks cluster.
+
+        **Example**
+        ```
+        databricks = ff.DatabricksCredentials(
+            username="<my_username>",
+            password="<my_password>",
+            host="<databricks_hostname>",
+            token="<databricks_token>",
+            cluster_id="<databricks_cluster>",
+        )
+
+        spark = ff.register_spark(
+            name="spark",
+            executor=databricks,
+            ...
+        )
+        ```
+
+        Args:
+            username (str): Username for a Databricks cluster.
+            password (str): Password for a Databricks cluster.
+            host (str): The hostname of a Databricks cluster.
+            token (str): The token for a Databricks cluster.
+            cluster_id (str): ID of an existing Databricks cluster.
+        """
         self.username = username
         self.password = password
         self.host = host
@@ -2100,6 +2300,30 @@ class EMRCredentials:
     def __init__(
         self, emr_cluster_id: str, emr_cluster_region: str, credentials: AWSCredentials
     ):
+        """
+
+        Credentials for an EMR cluster.
+
+        **Example**
+        ```
+        emr = ff.EMRCredentials(
+            emr_cluster_id="<cluster_id>",
+            emr_cluster_region="<cluster_region>",
+            credentials="<AWS_Credentials>",
+        )
+
+        spark = ff.register_spark(
+            name="spark",
+            executor=emr,
+            ...
+        )
+        ```
+
+        Args:
+            emr_cluster_id (str): ID of an existing EMR cluster.
+            emr_cluster_region (str): Region of an existing EMR cluster.
+            credentials (AWSCredentials): Credentials for an AWS account with access to the cluster
+        """
         self.emr_cluster_id = emr_cluster_id
         self.emr_cluster_region = emr_cluster_region
         self.credentials = credentials
@@ -2122,10 +2346,38 @@ class SparkCredentials:
         self,
         master: str,
         deploy_mode: str,
-        python_version: str = "",
+        python_version: str,
         core_site_path: str = "",
         yarn_site_path: str = "",
     ):
+        """
+
+        Credentials for a Generic Spark Cluster
+
+        **Example**
+        ```
+        spark_credentials = ff.SparkCredentials(
+            master="yarn",
+            deploy_mode="cluster",
+            python_version="3.7.12",
+            core_site_path="core-site.xml",
+            yarn_site_path="yarn-site.xml"
+        )
+
+        spark = ff.register_spark(
+            name="spark",
+            executor=spark_credentials,
+            ...
+        )
+        ```
+
+        Args:
+            master (str): The hostname of the Spark cluster. (The same that would be passed to `spark-submit`).
+            deploy_mode (str): The deploy mode of the Spark cluster. (The same that would be passed to `spark-submit`).
+            python_version (str): The Python version running on the cluster. Supports 3.7-3.11
+            core_site_path (str): The path to the core-site.xml file. (For Yarn clusters only)
+            yarn_site_path (str): The path to the yarn-site.xml file. (For Yarn clusters only)
+        """
         self.master = master.lower()
         self.deploy_mode = deploy_mode.lower()
         self.core_site_path = core_site_path
@@ -2209,6 +2461,23 @@ class SparkCredentials:
             "PythonVersion": self.python_version,
             "CoreSite": core_site,
             "YarnSite": yarn_site,
+        }
+
+
+@typechecked
+@dataclass
+class TrainingSetFeatures:
+    training_set_name: str
+    training_set_variant: str
+    feature_name: str
+    feature_variant: str
+
+    def to_dictionary(self):
+        return {
+            "training_set_name": self.training_set_name,
+            "training_set_variant": self.training_set_variant,
+            "feature_name": self.feature_name,
+            "feature_variant": self.feature_variant,
         }
 
 

@@ -45,7 +45,7 @@ class ScalarType(Enum):
         return [e.value for e in cls]
 
 
-class ResourceStatus(Enum):
+class ResourceStatus(str, Enum):
     """
     ResourceStatus is an enumeration representing the possible states that a
     resource may occupy within an application.
@@ -98,11 +98,33 @@ class SourceType(str, Enum):
     SQL_TRANSFORMATION = "SQL"
 
 
-@typechecked
-@dataclass
 class FilePrefix(Enum):
-    S3 = "s3://"
-    S3A = "s3a://"
+    S3 = ("s3://", "s3a://")
+    S3A = ("s3a://",)
+    HDFS = ("hdfs://",)
+    GCS = ("gs://",)
+    AZURE = ("abfss://",)
+
+    def __init__(self, *valid_prefixes):
+        self.prefixes = valid_prefixes
+
+    @property
+    def value(self):
+        return self.prefixes[0]
+
+    def validate_file_scheme(self, file_path: str) -> (bool, str):
+        if not any(file_path.startswith(prefix) for prefix in self.prefixes):
+            raise Exception(
+                f"File path '{file_path}' must be a full path. Must start with '{self.prefixes}'"
+            )
+
+    @staticmethod
+    def validate(store_type: str, file_path: str):
+        try:
+            prefix = FilePrefix[store_type]
+            prefix.validate_file_scheme(file_path)
+        except KeyError:
+            raise Exception(f"Invalid store type: {store_type}")
 
 
 class FileFormat(str, Enum):
@@ -120,13 +142,15 @@ class FileFormat(str, Enum):
         return False
 
     @classmethod
-    def get_format(cls, file_path: str) -> str:
+    def get_format(cls, file_path: str, default: str = "") -> str:
         file_name = path.basename(file_path)
 
         for file_format in cls:
             if fnmatch(file_name, f"*.{file_format.value}"):
                 return file_format.value
 
+        if default != "":
+            return default
         raise ValueError(f"File format not supported: {file_name}")
 
     @classmethod

@@ -140,11 +140,15 @@ const SearchResultsItem = ({ content, setVariant }) => {
   const classes = useStyles();
   const router = useRouter();
   const resourceType = Resource[searchTypeMap[content.Type?.toUpperCase()]];
+
   function handleClick(content) {
     if (resourceType?.hasVariants) {
-      setVariant(content.Type, content.Name, content.Variant);
+      setVariant(resourceType.type, content.Name, content.Variant);
+      const base = resourceType.urlPathResource(content.Name);
+      router.push(`${base}?variant=${content.Variant}`);
+    } else {
+      router.push(resourceType.urlPathResource(content.Name));
     }
-    router.push(resourceType.urlPathResource(content.Name));
   }
 
   return (

@@ -108,7 +108,7 @@ Feature: Spark End to End
       And I register databricks
       And I register the file
       Then I should be able to pull the file as a dataframe
-      When I register a transformation
+      When I register a "DF" transformation named "first_transformation" from "transactions"
       Then I should be able to pull the transformation as a dataframe
       When I register a feature from a "<feature_source>"
       When I register a label from a "<label_source>"

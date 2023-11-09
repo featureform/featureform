@@ -5,7 +5,7 @@ description: "This quickstart will walk through creating a few simple features, 
 
 ### Requirements
 
-* Python 3.7+
+* [Python 3.7+](https://www.python.org/downloads/)
 
 * [Terraform v1.2.7+](https://www.terraform.io/downloads)
 
@@ -62,7 +62,7 @@ gcloud container clusters get-credentials $(terraform output -raw kubernetes_clu
 
 ## Step 4: Install Featureform
 
-We'll use terraform to install Featureform on our GKE cluster.
+We'll use Terraform to install Featureform on our GKE cluster.
 
 ```bash
 cd ../featureform
@@ -101,8 +101,8 @@ bq load --autodetect --source_format=CSV $DATASET_ID.Transactions gs://$BUCKET_N
 
 ## Step 7: Install the Featureform SDK
 
-```
-pip bashinstall featureform
+```bash
+pip install featureform
 ```
 
 ## Step 8: Register providers

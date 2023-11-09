@@ -1,23 +1,30 @@
+import argparse
+import base64
 import io
+import json
 import os
 import sys
-import json
-import uuid
 import types
-import base64
-import argparse
-from typing import List
-from pathlib import Path
+import uuid
 from datetime import datetime
+from pathlib import Path
 
-
-import dill
 import boto3
-from google.cloud import storage
-from pyspark.sql import SparkSession
-from google.oauth2 import service_account
+import dill
 from azure.storage.blob import BlobServiceClient
-
+from google.cloud import storage
+from google.oauth2 import service_account
+from pyspark.sql import DataFrame
+from pyspark.sql import SparkSession
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    StringType,
+    ArrayType,
+    IntegerType,
+    DoubleType,
+)
+from pyspark.sql.functions import when, col, asc
 
 FILESTORES = ["local", "s3", "azure_blob_store", "google_cloud_storage", "hdfs"]
 
@@ -27,6 +34,203 @@ if os.getenv("FEATUREFORM_LOCAL_MODE"):
     LOCAL_DATA_PATH = f"{dir_path}/.featureform/data"
 else:
     LOCAL_DATA_PATH = "dbfs:/transformation"
+
+
+def display_data_metrics(df, spark):
+    data = {}
+    if "row_number" in df.columns:
+        df = df.drop("row_number")
+    if "rn2" in df.columns:
+        df = df.drop("rn2")
+
+    data_type_dict = dict(df.dtypes)
+    columns = []
+    rows = []
+    stats = []
+
+    rows_as_list = df.collect()
+    if len(rows_as_list) > 100:
+        rows_as_list = rows_as_list[:100]
+    for row in rows_as_list:
+        row_list = row.asDict().values()
+        rows.append(list(row_list))
+
+    for column_name in data_type_dict:
+        columns.append(column_name)
+        column_type = data_type_dict[column_name]
+        if (
+            column_type == "double"
+            or column_type == "float"
+            or column_type == "int"
+            or column_type == "long"
+            or column_type == "bigint"
+        ):
+            bar_chart_stats = numerical_bar_chart(df, column_name)
+            stats.append(bar_chart_stats)
+            categories_schema = ArrayType(ArrayType(DoubleType()), True)
+        elif column_type == "string" or column_type == "timestamp":
+            category_stats = unique_categories(df, column_name)
+            stats.append(category_stats)
+            categories_schema = ArrayType(StringType())
+        elif column_type == "boolean":
+            boolean_stats = boolean_count(df, column_name)
+            stats.append(boolean_stats)
+            categories_schema = ArrayType(StringType())
+
+    data["columns"] = columns
+    data["rows"] = rows
+    data["stats"] = stats
+
+    stats_schema = StructType(
+        [
+            StructField("name", StringType(), True),
+            StructField("type", StringType(), True),
+            StructField("string_categories", ArrayType(StringType(), True), True),
+            StructField(
+                "numeric_categories", ArrayType(ArrayType(DoubleType()), True), True
+            ),
+            StructField("categoryCounts", ArrayType(IntegerType()), True),
+        ]
+    )
+
+    schema = StructType(
+        [
+            StructField("columns", ArrayType(StringType()), True),
+            StructField("rows", ArrayType(ArrayType(StringType(), True)), True),
+            StructField("stats", ArrayType(stats_schema, True)),
+        ]
+    )
+    return spark.createDataFrame([(data)], schema=schema)
+
+
+# Bar graphs (frequency of that number)
+def numerical_bar_chart(df, column_name):
+    max_value = df.agg({column_name: "max"}).collect()[0][0]
+    min_value = df.agg({column_name: "min"}).collect()[0][0]
+
+    range_size = (max_value - min_value) / 10
+    range_list = []
+    for i in range(1, 11):
+        i_range_list = [
+            min_value + ((i - 1) * range_size),
+            min_value + (i * range_size),
+        ]
+        range_list.append(i_range_list)
+
+    df = df.withColumn(
+        "groups",
+        when(
+            (col(column_name) >= range_list[0][0])
+            & (col(column_name) < range_list[0][1]),
+            1,
+        ).otherwise(
+            when(
+                (col(column_name) >= range_list[1][0])
+                & (col(column_name) < range_list[1][1]),
+                2,
+            ).otherwise(
+                when(
+                    (col(column_name) >= range_list[2][0])
+                    & (col(column_name) < range_list[2][1]),
+                    3,
+                ).otherwise(
+                    when(
+                        (col(column_name) >= range_list[3][0])
+                        & (col(column_name) < range_list[3][1]),
+                        4,
+                    ).otherwise(
+                        when(
+                            (col(column_name) >= range_list[4][0])
+                            & (col(column_name) < range_list[4][1]),
+                            5,
+                        ).otherwise(
+                            when(
+                                (col(column_name) >= range_list[5][0])
+                                & (col(column_name) < range_list[5][1]),
+                                6,
+                            ).otherwise(
+                                when(
+                                    (col(column_name) >= range_list[6][0])
+                                    & (col(column_name) < range_list[6][1]),
+                                    7,
+                                ).otherwise(
+                                    when(
+                                        (col(column_name) >= range_list[7][0])
+                                        & (col(column_name) < range_list[7][1]),
+                                        8,
+                                    ).otherwise(
+                                        when(
+                                            (col(column_name) >= range_list[8][0])
+                                            & (col(column_name) < range_list[8][1]),
+                                            9,
+                                        ).otherwise(
+                                            when(
+                                                (col(column_name) >= range_list[9][0])
+                                                & (col(column_name) < range_list[9][1]),
+                                                10,
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        ),
+    )
+
+    df = df.na.drop(subset=["groups"])
+    df = df.groupBy("groups").count()
+    df = df.select("groups", "count").toPandas()
+    df = df.sort_values("groups")
+    value_group_list = list(df["groups"])
+    count_list = iter(list(df["count"]))
+    categoryCounts = []
+
+    if len(value_group_list) < 10:
+        for i in range(1, 11):
+            if i not in value_group_list:
+                categoryCounts.append(0)
+            else:
+                categoryCounts.append(next(count_list))
+    else:
+        categoryCounts = list(df["count"])
+
+    return {
+        "name": column_name,
+        "type": "numeric",
+        "string_categories": [],
+        "numeric_categories": range_list,
+        "categoryCounts": categoryCounts,
+    }
+
+
+def unique_categories(df, column_name):
+    category_count = df.groupBy(column_name).count()
+    num_distinct_categories = category_count.count()
+    return {
+        "name": column_name,
+        "type": "string",
+        "string_categories": ["unique"],
+        "numeric_categories": [],
+        "categoryCounts": [num_distinct_categories],
+    }
+
+
+def boolean_count(df, column_name):
+    df = df.groupBy(column_name).count()
+    df = df.orderBy(asc(column_name))
+    df = df.select("count").toPandas()
+    false_true_count = list(df["count"])
+
+    return {
+        "name": column_name,
+        "type": "boolean",
+        "string_categories": ["false", "true"],
+        "numeric_categories": [],
+        "categoryCounts": false_true_count,
+    }
 
 
 def main(args):
@@ -78,7 +282,6 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
     #     source_list: List(string) (a list of s3 paths)
     # Return:
     #     output_uri_with_timestamp: string (output s3 path)
-
     try:
         spark = SparkSession.builder.appName("Execute SQL Query").getOrCreate()
         set_spark_configs(spark, spark_configs)
@@ -95,6 +298,7 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
                 if file_extension == ".csv":
                     source_df = (
                         spark.read.option("header", "true")
+                        .option("ignoreCorruptFiles", "true")
                         .option("recursiveFileLookup", "true")
                         .csv(source)
                     )
@@ -102,6 +306,7 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
                 elif file_extension == ".parquet" or is_directory:
                     source_df = (
                         spark.read.option("header", "true")
+                        .option("ignoreCorruptFiles", "true")
                         .option("recursiveFileLookup", "true")
                         .parquet(source)
                     )
@@ -116,6 +321,7 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
             )
 
         output_dataframe = spark.sql(sql_query)
+        _validate_output_df(output_dataframe)
 
         dt = datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
@@ -126,6 +332,13 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
         output_dataframe.write.option("header", "true").mode("overwrite").parquet(
             output_uri_with_timestamp
         )
+        try:
+            stats_directory = f"{output_uri.rstrip('/')}/stats"
+            stats_df = display_data_metrics(output_dataframe, spark)
+            stats_df.write.json(stats_directory, mode="overwrite")
+        except Exception as e:
+            print(e)
+            print("Failed to display data metrics")
         return output_uri_with_timestamp
     except Exception as e:
         print(e)
@@ -140,7 +353,6 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
     #     sources: {parameter: s3_path} (used for passing dataframe parameters)
     # Return:
     #     output_uri_with_timestamp: string (output s3 path)
-
     spark = SparkSession.builder.appName("Dataframe Transformation").getOrCreate()
     set_spark_configs(spark, spark_configs)
 
@@ -153,12 +365,14 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         if file_extension == ".csv":
             func_parameters.append(
                 spark.read.option("header", "true")
+                .option("ignoreCorruptFiles", "true")
                 .option("recursiveFileLookup", "true")
                 .csv(location)
             )
         elif file_extension == ".parquet" or is_directory:
             func_parameters.append(
                 spark.read.option("header", "true")
+                .option("ignoreCorruptFiles", "true")
                 .option("recursiveFileLookup", "true")
                 .parquet(location)
             )
@@ -169,6 +383,7 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         code = get_code_from_file(code, store_type, credentials)
         func = types.FunctionType(code, globals(), "df_transformation")
         output_df = func(*func_parameters)
+        _validate_output_df(output_df)
 
         dt = datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
@@ -179,10 +394,31 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         output_df.write.mode("overwrite").option("header", "true").parquet(
             output_uri_with_timestamp
         )
+        try:
+            stats_directory = f"{output_uri.rstrip('/')}/stats"
+            stats_df = display_data_metrics(output_df, spark)
+            stats_df.write.json(stats_directory, mode="overwrite")
+        except Exception as e:
+            print(e)
+            print("Failed to display data metrics")
         return output_uri_with_timestamp
     except (IOError, OSError) as e:
         print(f"Issue with execution of the transformation: {e}")
         raise e
+    except Exception as e:
+        error = check_dill_exception(e)
+        raise error
+
+
+def _validate_output_df(output_df):
+    if output_df is None:
+        raise Exception("the transformation code returned None.")
+    if not isinstance(output_df, DataFrame):
+        raise TypeError(
+            f"Expected output to be of type 'pyspark.sql.dataframe.DataFrame', "
+            f"got '{type(output_df).__name__}' instead.\n"
+            f"Please make sure that the transformation code returns a dataframe."
+        )
 
 
 def get_code_from_file(file_path, store_type=None, credentials=None):
@@ -282,11 +518,7 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
             transformation_pkl = f.read()
 
     print("Retrieved code.")
-    try:
-        code = dill.loads(transformation_pkl)
-    except Exception as e:
-        error = check_dill_exception(e)
-        raise error
+    code = dill.loads(transformation_pkl)
     return code
 
 
@@ -370,7 +602,12 @@ def delete_file(file_path):
 
 
 def check_dill_exception(exception):
-    if "TypeError: code() takes at most" in str(exception):
+    error_message = str(exception).lower()
+    is_op_code_error = "opcode" in error_message
+    is_op_code_expected_arguments_error = (
+        "typeerror: code() takes at most" in error_message
+    )
+    if is_op_code_error or is_op_code_expected_arguments_error:
         version = sys.version_info
         python_version = f"{version.major}.{version.minor}.{version.micro}"
         error_message = f"""This error is most likely caused by different Python versions between the client and Spark provider. Check to see if you are running Python version '{python_version}' on the client."""

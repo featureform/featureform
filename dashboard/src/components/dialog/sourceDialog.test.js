@@ -31,13 +31,21 @@ describe('Source Table Dialog Tests', () => {
   const ERROR_MSG = 'Error 500 - Something went wrong';
 
   const apiDataMock = {
-    fetchSourceModalData: jest.fn().mockResolvedValue(testData),
+    //remove stats form source response
+    fetchSourceModalData: jest
+      .fn()
+      .mockResolvedValue({ ...testData, stats: [] }),
+  };
+
+  const apiStatsMock = {
+    fetchFeatureFileStats: jest.fn().mockResolvedValue(testData),
   };
 
   const apiEmptyMock = {
     fetchSourceModalData: jest.fn().mockResolvedValue({
       columns: [],
       rows: [],
+      stats: [],
     }),
   };
 
@@ -48,10 +56,16 @@ describe('Source Table Dialog Tests', () => {
   const getTestBody = (
     apiParam = apiDataMock,
     name = DEFAULT_NAME,
-    variant = DEFAULT_VARIANT
+    variant = DEFAULT_VARIANT,
+    type = 'Source'
   ) => {
     const testBody = (
-      <SourceDialog api={apiParam} sourceName={name} sourceVariant={variant} />
+      <SourceDialog
+        api={apiParam}
+        type={type}
+        sourceName={name}
+        sourceVariant={variant}
+      />
     );
     return { testBody, apiParam, name };
   };
@@ -103,6 +117,33 @@ describe('Source Table Dialog Tests', () => {
     await helper.findByTestId(TITLE_ID);
 
     //then: the data row's values are rendered OK
+    testData.rows[0].map((row) => {
+      const foundRow = helper.getAllByText(row);
+      expect(foundRow.length).toBeGreaterThan(0);
+      expect(foundRow[0].nodeName).toBe(P_NODE);
+    });
+  });
+
+  test('A feature stats dialog table renders the stats data', async () => {
+    //given:
+    const { testBody, apiParam } = getTestBody(
+      apiStatsMock,
+      DEFAULT_NAME,
+      DEFAULT_VARIANT,
+      'Feature'
+    );
+    const helper = render(testBody);
+
+    //when: the user clicks open
+    fireEvent.click(helper.getByTestId(OPEN_BTN_ID));
+    await helper.findByTestId(TITLE_ID);
+
+    //then: the stast api is called, and data row's values are rendered OK
+    expect(apiParam.fetchFeatureFileStats).toHaveBeenCalledTimes(1);
+    expect(apiParam.fetchFeatureFileStats).toHaveBeenCalledWith(
+      DEFAULT_NAME,
+      DEFAULT_VARIANT
+    );
     testData.rows[0].map((row) => {
       const foundRow = helper.getAllByText(row);
       expect(foundRow.length).toBeGreaterThan(0);

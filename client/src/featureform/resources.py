@@ -1121,6 +1121,7 @@ class SourceVariant:
             provider=self.provider,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
             **defArgs,
         )
         stub.CreateSourceVariant(serialized)
@@ -1374,6 +1375,7 @@ class FeatureVariant:
             mode=ComputationMode.PRECOMPUTED.proto(),
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
         stub.CreateFeatureVariant(serialized)
 
@@ -1655,6 +1657,7 @@ class LabelVariant:
             columns=self.location.proto(),
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
         stub.CreateLabelVariant(serialized)
 
@@ -1904,6 +1907,7 @@ class TrainingSetVariant:
             feature_lags=feature_lags,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
         stub.CreateTrainingSetVariant(serialized)
 

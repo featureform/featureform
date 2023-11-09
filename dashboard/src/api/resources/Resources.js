@@ -279,6 +279,16 @@ export default class ResourcesAPI {
           });
   }
 
+  fetchFeatureFileStats(name, variant = 'default') {
+    return name === null
+      ? {}
+      : fetch(`${API_URL}/data/filestatdata?name=${name}&variant=${variant}`)
+          .then((res) => res.json())
+          .catch((error) => {
+            console.error(error);
+          });
+  }
+
   fetchVariantSearchStub() {
     const fetchAddress = '/data/lists/search_results_example.json';
 

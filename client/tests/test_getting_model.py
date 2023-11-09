@@ -38,9 +38,8 @@ def test_getting_model_by_unregistered_name(is_local, is_insecure):
     model_name = "model_j"
 
     resource_client = arrange_resources(model_name, is_local, is_insecure)
-
     if is_local:
-        with pytest.raises(ValueError, match="not found"):
+        with pytest.raises(IndexError, match="out of range"):
             resource_client.get_model("model_z", is_local)
     else:
         model = resource_client.get_model("model_z", is_local)

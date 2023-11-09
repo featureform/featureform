@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"testing"
 
+	fs "github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 )
@@ -68,6 +69,16 @@ func TestProviderConfigUpdates(t *testing.T) {
 			name:         "Invalid MongoDB Configuration Update",
 			valid:        false,
 			providerType: pt.MongoDBOnline,
+		},
+		{
+			name:         "Valid mySQL Configuration Update",
+			valid:        true,
+			providerType: pt.MySqlOffline,
+		},
+		{
+			name:         "Invalid mySQL Configuration Update",
+			valid:        false,
+			providerType: pt.MySqlOffline,
 		},
 		{
 			name:         "Valid PostgreSQL Configuration Update",
@@ -143,6 +154,8 @@ func TestProviderConfigUpdates(t *testing.T) {
 				testFirestoreConfigUpdates(t, c.providerType, c.valid)
 			case pt.MongoDBOnline:
 				testMongoConfigUpdates(t, c.providerType, c.valid)
+			case pt.MySqlOffline:
+				testMySqlConfigUpdates(t, c.providerType, c.valid)
 			case pt.PostgresOffline:
 				testPostgresConfigUpdates(t, c.providerType, c.valid)
 			case pt.RedisOnline:
@@ -342,6 +355,44 @@ func testMongoConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 	assertConfigUpdateResult(t, valid, actual, err, providerType)
 }
 
+func testMySqlConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
+	host := "0.0.0.0"
+	port := "3306"
+	username := "mysql"
+	password := "password"
+	database := "mysql"
+
+	configA := pc.PostgresConfig{
+		Host:     host,
+		Port:     port,
+		Username: username,
+		Password: password,
+		Database: database,
+	}
+	a := configA.Serialize()
+
+	if valid {
+		username += updateSuffix
+		password += updateSuffix
+		port = "3307"
+	} else {
+		host = "127.0.0.1"
+		database += updateSuffix
+	}
+
+	configB := pc.PostgresConfig{
+		Host:     host,
+		Port:     port,
+		Username: username,
+		Password: password,
+		Database: database,
+	}
+	b := configB.Serialize()
+
+	actual, err := isValidPostgresConfigUpdate(a, b)
+	assertConfigUpdateResult(t, valid, actual, err, providerType)
+}
+
 func testPostgresConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 	host := "0.0.0.0"
 	port := "5432"
@@ -514,7 +565,7 @@ func testK8sConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 		ExecutorConfig: pc.ExecutorConfig{
 			DockerImage: dockerImage,
 		},
-		StoreType: pc.Azure,
+		StoreType: fs.Azure,
 		StoreConfig: &pc.AzureFileStoreConfig{
 			AccountName:   accountName,
 			AccountKey:    accountKey,
@@ -541,7 +592,7 @@ func testK8sConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 		ExecutorConfig: pc.ExecutorConfig{
 			DockerImage: dockerImage,
 		},
-		StoreType: pc.Azure,
+		StoreType: fs.Azure,
 		StoreConfig: &pc.AzureFileStoreConfig{
 			AccountName:   accountName,
 			AccountKey:    accountKey,
@@ -574,7 +625,7 @@ func testSparkConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 			ClusterRegion: clusterRegion,
 			ClusterName:   clusterName,
 		},
-		StoreType: pc.S3,
+		StoreType: fs.S3,
 		StoreConfig: &pc.S3FileStoreConfig{
 			Credentials:  pc.AWSCredentials{AWSAccessKeyId: awsAccessKeyId, AWSSecretKey: awSSecretKey},
 			BucketRegion: bucketRegion,
@@ -602,7 +653,7 @@ func testSparkConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 			ClusterRegion: clusterRegion,
 			ClusterName:   clusterName,
 		},
-		StoreType: pc.S3,
+		StoreType: fs.S3,
 		StoreConfig: &pc.S3FileStoreConfig{
 			Credentials:  pc.AWSCredentials{AWSAccessKeyId: awsAccessKeyId, AWSSecretKey: awSSecretKey},
 			BucketRegion: bucketRegion,

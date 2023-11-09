@@ -1,19 +1,15 @@
 import dill
-
 import pytest
-
+from featureform.names_generator import get_random_name
 from featureform.register import ColumnSourceRegistrar, OfflineSparkProvider, Registrar
 from featureform.resources import (
     DFTransformation,
     Provider,
-    Source,
+    SourceVariant,
     SparkConfig,
     SQLTransformation,
-    DatabricksCredentials,
-    AzureFileStoreConfig,
     SparkCredentials,
 )
-from featureform.names_generator import get_random_name
 
 
 @pytest.mark.parametrize(
@@ -56,7 +52,7 @@ def test_create_provider(executor_fixture, filestore_fixture, request):
 @pytest.mark.parametrize(
     "test_name,file_path",
     [
-        ("file", "test_files/input/transaction"),
+        ("file", "abfss://test_files/input/transaction"),
     ],
 )
 def test_register_file(test_name, file_path, spark_provider):
@@ -89,7 +85,8 @@ def test_sql_transformation(name, variant, sql, spark_provider):
     decorator = spark_provider.sql_transformation(name=name, variant=variant)
     decorator(transformation)
 
-    assert decorator.to_source() == Source(
+    assert decorator.to_source() == SourceVariant(
+        created=None,
         name=name,
         variant=variant,
         definition=SQLTransformation(query=sql),
@@ -116,7 +113,8 @@ def test_sql_transformation_without_variant(sql, spark_provider):
     decorator = spark_provider.sql_transformation(variant=variant)
     decorator(transformation)
 
-    assert decorator.to_source() == Source(
+    assert decorator.to_source() == SourceVariant(
+        created=None,
         name=transformation.__name__,
         variant=variant,
         definition=SQLTransformation(query=sql),
@@ -159,12 +157,16 @@ def test_df_transformation(
     decorator(df_transformation)
 
     query = dill.dumps(df_transformation.__code__)
+    source_text = dill.source.getsource(df_transformation)
 
     decorator_src = decorator.to_source()
-    expected_src = Source(
+    expected_src = SourceVariant(
+        created=None,
         name=name,
         variant=variant,
-        definition=DFTransformation(query=query, inputs=inputs),
+        definition=DFTransformation(
+            query=query, inputs=inputs, source_text=source_text
+        ),
         owner="tester",
         provider="spark",
         description="doc string",

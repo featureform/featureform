@@ -12,36 +12,45 @@ option go_package = "github.com/featureform/metadata/proto";
 package featureform.serving.metadata.proto;
 
 service Metadata {
-    rpc ListFeatures(Empty) returns (stream Feature);
+    rpc CreateUser(User) returns (Empty);
+    rpc CreateProvider(Provider) returns (Empty);
+    rpc CreateSourceVariant(SourceVariant) returns (Empty);
+    rpc CreateEntity(Entity) returns (Empty);
     rpc CreateFeatureVariant(FeatureVariant) returns (Empty);
+    rpc CreateLabelVariant(LabelVariant) returns (Empty);
+    rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
+    rpc CreateModel(Model) returns (Empty);
+    rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
+
+    rpc GetUsers(stream Name) returns (stream User);
     rpc GetFeatures(stream Name) returns (stream Feature);
     rpc GetFeatureVariants(stream NameVariant) returns (stream FeatureVariant);
-    rpc ListLabels(Empty) returns (stream Label);
-    rpc CreateLabelVariant(LabelVariant) returns (Empty);
     rpc GetLabels(stream Name) returns (stream Label);
     rpc GetLabelVariants(stream NameVariant) returns (stream LabelVariant);
-    rpc ListTrainingSets(Empty) returns (stream TrainingSet);
-    rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
     rpc GetTrainingSets(stream Name) returns (stream TrainingSet);
     rpc GetTrainingSetVariants(stream NameVariant) returns (stream TrainingSetVariant);
-    rpc ListSources(Empty) returns (stream Source);
-    rpc CreateSourceVariant(SourceVariant) returns (Empty);
     rpc GetSources(stream Name) returns (stream Source);
     rpc GetSourceVariants(stream NameVariant) returns (stream SourceVariant);
-    rpc ListUsers(Empty) returns (stream User);
-    rpc CreateUser(User) returns (Empty);
-    rpc GetUsers(stream Name) returns (stream User);
-    rpc ListProviders(Empty) returns (stream Provider);
-    rpc CreateProvider(Provider) returns (Empty);
     rpc GetProviders(stream Name) returns (stream Provider);
-    rpc ListEntities(Empty) returns (stream Entity);
-    rpc CreateEntity(Entity) returns (Empty);
     rpc GetEntities(stream Name) returns (stream Entity);
-    rpc ListModels(Empty) returns (stream Model);
-    rpc CreateModel(Model) returns (Empty);
     rpc GetModels(stream Name) returns (stream Model);
+
+    /**
+      * GetEquivalent returns a resourceVariant that matches on key attributes,
+      * i.e. for a sourceVariant it will only match on key attributes (name, definition, owner, provider)
+     */
+    rpc GetEquivalent(ResourceVariant) returns (ResourceVariant);
+
+    rpc ListFeatures(Empty) returns (stream Feature);
+    rpc ListLabels(Empty) returns (stream Label);
+    rpc ListTrainingSets(Empty) returns (stream TrainingSet);
+    rpc ListSources(Empty) returns (stream Source);
+    rpc ListUsers(Empty) returns (stream User);
+    rpc ListProviders(Empty) returns (stream Provider);
+    rpc ListEntities(Empty) returns (stream Entity);
+    rpc ListModels(Empty) returns (stream Model);
+
     rpc SetResourceStatus(SetStatusRequest) returns (Empty);
-    rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
 }
 
 service Api {
@@ -54,6 +63,7 @@ service Api {
     rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
     rpc CreateModel(Model) returns (Empty);
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
+
     rpc GetUsers(stream Name) returns (stream User);
     rpc GetFeatures(stream Name) returns (stream Feature);
     rpc GetFeatureVariants(stream NameVariant) returns (stream FeatureVariant);
@@ -66,6 +76,12 @@ service Api {
     rpc GetProviders(stream Name) returns (stream Provider);
     rpc GetEntities(stream Name) returns (stream Entity);
     rpc GetModels(stream Name) returns (stream Model);
+    /**
+      * GetEquivalent returns a resourceVariant that matches on key attributes,
+      * i.e. for a sourceVariant it will only match on key attributes (name, definition, owner, provider)
+     */
+    rpc GetEquivalent(ResourceVariant) returns (ResourceVariant);
+
     rpc ListFeatures(Empty) returns (stream Feature);
     rpc ListLabels(Empty) returns (stream Label);
     rpc ListTrainingSets(Empty) returns (stream TrainingSet);
@@ -150,6 +166,15 @@ message PythonFunction {
 enum ComputationMode {
     PRECOMPUTED = 0;
     CLIENT_COMPUTED = 1;
+}
+
+message ResourceVariant {
+    oneof resource {
+        FeatureVariant feature_variant = 1;
+        LabelVariant label_variant = 2;
+        TrainingSetVariant training_set_variant = 3;
+        SourceVariant source_variant = 4;
+    }
 }
 
 message FeatureVariant {
@@ -341,6 +366,7 @@ message SQLTransformation {
 message DFTransformation {
     bytes query = 1;
     repeated NameVariant inputs = 2; 
+    string source_text = 3;
 }
 
 message PrimaryData {

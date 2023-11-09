@@ -7,6 +7,7 @@ def get_provider_config(provider_type):
         "LOCAL_ONLINE": EmptyConfig,
         "PINECONE_ONLINE": PineconeConfig,
         "WEAVIATE_ONLINE": WeaviateConfig,
+        "": EmptyConfig,
     }
     return ptype[provider_type]()
 

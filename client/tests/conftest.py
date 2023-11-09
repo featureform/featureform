@@ -26,10 +26,13 @@ from featureform.resources import (
     Provider,
     PrimaryData,
     Location,
-    Source,
     SQLTransformation,
     DFTransformation,
     SQLTable,
+)
+
+from featureform.type_objects import (
+    SourceVariantResource,
 )
 from featureform.enums import FileFormat
 import featureform as ff
@@ -91,7 +94,7 @@ def ff_registrar():
 
 @pytest.fixture(scope="module")
 def primary_dataset(ff_registrar):
-    src = Source(
+    src = SourceVariantResource(
         name="primary",
         variant="default",
         definition=PrimaryData(location=SQLTable("tableName")),
@@ -107,7 +110,7 @@ def primary_dataset(ff_registrar):
 
 @pytest.fixture(scope="module")
 def sql_transformation_src(ff_registrar):
-    src = Source(
+    src = SourceVariantResource(
         name="sql_transformation",
         variant="default",
         definition=SQLTransformation("SELECT * FROM {{ name.variant }}"),
@@ -134,10 +137,13 @@ def df_transformation_src(
         return True
 
     query = dill.dumps(test_func.__code__)
-    src = Source(
+    source_text = dill.source.getsource(test_func)
+    src = SourceVariantResource(
         name="sql_transformation",
         variant="default",
-        definition=DFTransformation(query, inputs=[("name", "variant")]),
+        definition=DFTransformation(
+            query=query, inputs=[("name", "variant")], source_text=source_text
+        ),
         owner="tester",
         provider="spark",
         description="doc string",
@@ -202,7 +208,9 @@ def azure_file_config():
 @pytest.fixture(scope="module")
 def databricks_config():
     config = DatabricksCredentials(
-        username="username", password="password", cluster_id="cluster_id"
+        username="username",
+        password="password",
+        cluster_id="cluster_id",
     )
 
     expected_config = {
@@ -351,6 +359,7 @@ def hosted_sql_provider_and_source():
             if "docker" in custom_marks
             else "quickstart-redis",
             port=6379,
+            password="password",
         )
 
         source = provider.register_table(
@@ -362,3 +371,12 @@ def hosted_sql_provider_and_source():
         return (provider, source, redis)
 
     return get_hosted
+
+
+@pytest.fixture(scope="module")
+def spark_session():
+    from pyspark.sql import SparkSession
+
+    spark = SparkSession.builder.appName("test").master("local").getOrCreate()
+    yield spark
+    spark.stop()

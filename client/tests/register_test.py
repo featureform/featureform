@@ -374,3 +374,37 @@ def test_register_s3(bucket_name, expected_error, ff_registrar, aws_credentials)
         assert str(ve) == str(expected_error)
     except Exception as e:
         raise e
+
+
+@pytest.mark.parametrize(
+    "container_name, expected_error",
+    [
+        ("abfss://container_name", None),
+        ("container_name", None),
+        (
+            "container_name/",
+            ValueError(
+                "container_name cannot contain '/'. container_name should be the name of the Azure Blobstore container only."
+            ),
+        ),
+        (
+            "abfss://bucket_name/",
+            ValueError(
+                "container_name cannot contain '/'. container_name should be the name of the Azure Blobstore container only."
+            ),
+        ),
+    ],
+)
+def test_register_blob_store(container_name, expected_error, ff_registrar):
+    try:
+        _ = ff_registrar.register_blob_store(
+            name="blob_store_container",
+            container_name=container_name,
+            root_path="custom/path/in/container",
+            account_name="account_name",
+            account_key="azure_account_key",
+        )
+    except ValueError as ve:
+        assert str(ve) == str(expected_error)
+    except Exception as e:
+        raise e

@@ -2455,6 +2455,13 @@ class Registrar:
         """
 
         tags, properties = set_tags_properties(tags, properties)
+
+        container_name = container_name.replace("abfss://", "")
+        if "/" in container_name:
+            raise ValueError(
+                "container_name cannot contain '/'. container_name should be the name of the Azure Blobstore container only."
+            )
+
         azure_config = AzureFileStoreConfig(
             account_name=account_name,
             account_key=account_key,

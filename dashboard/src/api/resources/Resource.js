@@ -17,7 +17,7 @@ export default class Resource {
     hasMetrics: false,
   });
   static TrainingSet = new Resource({
-    type: 'Training Set',
+    type: 'TrainingSet',
     typePlural: 'Training Sets',
     urlPath: 'training-sets',
     hasVariants: true,

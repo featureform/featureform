@@ -17,21 +17,21 @@ def test_deployment_class(quickstart):
     assert deployment._quickstart == quickstart
     assert deployment.start() is None
     assert deployment.stop() is None
-    assert deployment.get_status() is None
-    assert deployment.get_config() == []
+    assert deployment.status is None
+    assert deployment.config == []
 
 
 @pytest.mark.parametrize(
-    "deployment, expected_config",
+    "deploy, expected_config",
     [
         ("docker_deployment", "docker_deployment_config"),
         ("docker_quickstart_deployment", "docker_quickstart_deployment_config"),
     ],
 )
-def test_deployment_config(deployment, expected_config, request):
-    deployment = request.getfixturevalue(deployment)
+def test_deployment_config(deploy, expected_config, request):
+    deployment = request.getfixturevalue(deploy)
     expected_config = request.getfixturevalue(expected_config)
-    config = deployment.get_config()
+    config = deployment.config
 
     assert len(config) == len(expected_config)
 
@@ -50,7 +50,7 @@ def test_deployment_config(deployment, expected_config, request):
 def test_deployment_status(deployment, expected_status, request):
     deployment = request.getfixturevalue(deployment)
     expected_status = request.getfixturevalue(expected_status)
-    status = deployment.get_status()
+    status = deployment.status
 
     assert status == expected_status
 

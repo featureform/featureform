@@ -383,6 +383,7 @@ def docker_deployment_config():
     featureform_config = DOCKER_CONFIG(
         name="featureform",
         image="featureformcom/featureform:latest",
+        env={},
         port={"7878/tcp": 7878, "80/tcp": 80},
         detach_mode=True,
     )
@@ -394,18 +395,21 @@ def docker_quickstart_deployment_config():
     featureform_config = DOCKER_CONFIG(
         name="featureform",
         image="featureformcom/featureform:latest",
+        env={},
         port={"7878/tcp": 7878, "80/tcp": 80},
         detach_mode=True,
     )
     quickstart_postgres = DOCKER_CONFIG(
         name="quickstart-postgres",
         image="featureformcom/postgres",
+        env={},
         port={"5432/tcp": 5432},
         detach_mode=True,
     )
     quickstart_redis = DOCKER_CONFIG(
         name="quickstart-redis",
         image="redis:latest",
+        env={},
         port={"6379/tcp": 6379},
         detach_mode=True,
     )

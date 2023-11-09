@@ -1015,7 +1015,7 @@ func (store *bqOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, erro
 	return store.getbqResourceTable(id)
 }
 
-func (store *bqOfflineStore) getBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
+func (store *bqOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
 	return nil, nil
 }
 

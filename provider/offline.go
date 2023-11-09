@@ -261,7 +261,7 @@ type OfflineStore interface {
 	CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error)
 	GetResourceTable(id ResourceID) (OfflineTable, error)
 	CreateMaterialization(id ResourceID) (Materialization, error)
-	getBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error)
+	GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error)
 	GetMaterialization(id MaterializationID) (Materialization, error)
 	UpdateMaterialization(id ResourceID) (Materialization, error)
 	DeleteMaterialization(id MaterializationID) error
@@ -638,7 +638,7 @@ func (recs materializedRecords) Swap(i, j int) {
 	recs[i], recs[j] = recs[j], recs[i]
 }
 
-func (store *memoryOfflineStore) getBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
+func (store *memoryOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
 	return nil, nil
 }
 

@@ -146,7 +146,7 @@ func (MockPrimaryTable) IterateSegment(int64) (GenericTableIterator, error) {
 	}, nil
 }
 
-func (store MockUnitTestOfflineStore) getBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
+func (store MockUnitTestOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
 	return nil, nil
 }
 

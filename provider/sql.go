@@ -563,8 +563,7 @@ func (it *sqlBatchFeatureIterator) Close() error {
 
 // Takes a list of feature resource IDs and creates a table view joining all the feature values based on the entity
 // Note: This table view doesnt store timestamps
-// Call it something else
-func (store *sqlOfflineStore) getBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
+func (store *sqlOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
 
 	// if tables is empty, return an empty iterator
 	if len(tables) == 0 {
@@ -574,7 +573,6 @@ func (store *sqlOfflineStore) getBatchFeatures(tables []ResourceID) (BatchFeatur
 	asEntity := ""
 	withFeatures := ""
 	joinTables := ""
-	onColumns := ""
 	var matIDs []string
 
 	tableName0 := sanitize(store.getMaterializationTableName(MaterializationID(tables[0].Name)))
@@ -582,16 +580,23 @@ func (store *sqlOfflineStore) getBatchFeatures(tables []ResourceID) (BatchFeatur
 		matID := MaterializationID(tableID.Name)
 		matIDs = append(matIDs, string(matID))
 		matTableName := sanitize(store.getMaterializationTableName(matID))
+		// println("TABLE NAME IS ", matTableName)
 
 		if i > 0 {
-			asEntity += ", "
 			joinTables += "FULL OUTER JOIN "
-			onColumns += "AND "
+		}
+		// withFeatures += fmt.Sprintf(", %s.value AS feature%d ", matTableName, i+1)
+		withFeatures += fmt.Sprintf(", %s.value AS feature%d, %s.ts AS TS%d ", matTableName, i+1, matTableName, i+1)
+		joinTables += fmt.Sprintf("%s ", matTableName)
+		if i == 1 {
+			joinTables += fmt.Sprintf("ON %s = %s.entity ", asEntity, matTableName)
+			asEntity += ", "
+		}
+		if i > 1 {
+			joinTables += fmt.Sprintf("ON COALESCE(%s) = %s.entity ", asEntity, matTableName)
+			asEntity += ", "
 		}
 		asEntity += fmt.Sprintf("%s.entity", matTableName)
-		withFeatures += fmt.Sprintf(", %s.value AS feature%d ", matTableName, i+1)
-		joinTables += fmt.Sprintf("%s ", matTableName)
-		onColumns += fmt.Sprintf("%s.entity = %s.entity ", tableName0, matTableName)
 	}
 
 	sort.Strings(matIDs)
@@ -600,10 +605,13 @@ func (store *sqlOfflineStore) getBatchFeatures(tables []ResourceID) (BatchFeatur
 	if len(tables) == 1 {
 		createQuery = fmt.Sprintf("CREATE VIEW \"%s\" AS SELECT %s AS entity %s FROM %s", joinedTableName, asEntity, withFeatures, tableName0)
 	} else {
-		createQuery = fmt.Sprintf("CREATE VIEW \"%s\" AS SELECT COALESCE(%s) AS entity %s FROM %s ON %s", joinedTableName, asEntity, withFeatures, joinTables, onColumns)
+		createQuery = fmt.Sprintf("CREATE VIEW \"%s\" AS SELECT COALESCE(%s) AS entity %s FROM %s", joinedTableName, asEntity, withFeatures, joinTables)
 	}
 	store.db.Query(createQuery)
+	// fmt.Println("CREATE QUERY: ", createQuery)
 	select_query := fmt.Sprintf("SELECT * FROM \"%s\"", joinedTableName)
+	// fmt.Println("JOINED TABLE NAME: ", joinedTableName)
+	// fmt.Println()
 	resultRows, err := store.db.Query(select_query)
 	if err != nil {
 		return nil, err
@@ -623,6 +631,8 @@ func (store *sqlOfflineStore) getBatchFeatures(tables []ResourceID) (BatchFeatur
 	for _, col := range columns {
 		columnNames = append(columnNames, sanitize(col.Name))
 	}
+	// fmt.Println("COLUMN TYPES ARE: ", columnTypes)
+	// fmt.Println("COLUMN NAMES ARE: ", columnNames)
 	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query), nil
 }
 

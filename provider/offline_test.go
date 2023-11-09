@@ -4214,14 +4214,13 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 	}
 
 	tests := map[string]TestCase{
+		// 1. An empty feature -> just returns an empty iterator
 		"Empty": {
 			FeatureRecords: [][]ResourceRecord{
-				// One feature with no records. EDIT: no features at all?
 				{},
 			},
 			FeatureSchema: []TableSchema{
 				{
-					// TBD
 					Columns: []TableColumn{
 						{Name: "entity", ValueType: String},
 						{Name: "value", ValueType: Int},
@@ -4232,7 +4231,101 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 			// No rows expected
 			ExpectedRows: []expectedBatchRow{},
 		},
+		// 2. A single feature -> you write a list of features, we just return that same list
+		"SingleFeature": {
+			FeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "a", Value: 1, TS: time.UnixMilli(1)},
+					{Entity: "b", Value: 2, TS: time.UnixMilli(1)},
+					{Entity: "c", Value: 3, TS: time.UnixMilli(1)},
+				},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+			},
+			ExpectedRows: []expectedBatchRow{
+				{
+					Entity: "a",
+					Features: []interface{}{
+						1,
+					},
+				},
+				{
+					Entity: "b",
+					Features: []interface{}{
+						2,
+					},
+				},
+				{
+					Entity: "c",
+					Features: []interface{}{
+						3,
+					},
+				},
+			},
+		},
+
+		// 3. Two features
 		"SimpleJoin": {
+			FeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "a", Value: 1},
+					{Entity: "b", Value: 2},
+					{Entity: "c", Value: 3},
+				},
+				{
+					{Entity: "a", Value: false},
+					{Entity: "b", Value: true},
+					{Entity: "c", Value: true},
+				},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Bool},
+					},
+				},
+			},
+			ExpectedRows: []expectedBatchRow{
+				{
+					Entity: "a",
+					Features: []interface{}{
+						1,
+						false,
+					},
+				},
+				{
+					Entity: "b",
+					Features: []interface{}{
+						2,
+						true,
+					},
+				},
+				{
+					Entity: "c",
+					Features: []interface{}{
+						3,
+						true,
+					},
+				},
+			},
+		},
+
+		// 4. Three features with a missing entity
+		"TripleJoin": {
 			FeatureRecords: [][]ResourceRecord{
 				{
 					{Entity: "a", Value: 1},
@@ -4243,6 +4336,12 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 					{Entity: "a", Value: "red"},
 					{Entity: "b", Value: "green"},
 					{Entity: "c", Value: "blue"},
+					{Entity: "d", Value: "yellow"},
+				},
+				{
+					{Entity: "a", Value: false},
+					{Entity: "b", Value: true},
+					{Entity: "c", Value: true},
 				},
 			},
 			FeatureSchema: []TableSchema{
@@ -4258,6 +4357,12 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 						{Name: "value", ValueType: String},
 					},
 				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Bool},
+					},
+				},
 			},
 			ExpectedRows: []expectedBatchRow{
 				{
@@ -4265,6 +4370,7 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 					Features: []interface{}{
 						1,
 						"red",
+						false,
 					},
 				},
 				{
@@ -4272,6 +4378,7 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 					Features: []interface{}{
 						2,
 						"green",
+						true,
 					},
 				},
 				{
@@ -4279,174 +4386,541 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 					Features: []interface{}{
 						3,
 						"blue",
+						true,
+					},
+				},
+				{
+					Entity: "d",
+					Features: []interface{}{
+						nil,
+						"yellow",
+						nil,
 					},
 				},
 			},
 		},
-		// "SelectiveJoin": {
-		// 	FeatureRecords: [][]ResourceRecord{
-		// 		// Overwritten feature.
-		// 		{
-		// 			{Entity: "a", Value: 1},
-		// 			{Entity: "b", Value: 2},
-		// 			{Entity: "c", Value: 3},
-		// 		},
-		// 		{
-		// 			{Entity: "a", Value: "apple"},
-		// 			{Entity: "b", Value: "banana"},
-		// 			{Entity: "c", Value: "cucumber"},
-		// 		},
-		// 		// Extra entities
-		// 		{
-		// 			{Entity: "a", Value: "first"},
-		// 			{Entity: "b", Value: "second"},
-		// 			{Entity: "c", Value: "third"},
-		// 			{Entity: "d", Value: "extra entity"},
-		// 		},
-		// 		// Feature that wont actually be called
-		// 		{
-		// 			{Entity: "a", Value: "random value"},
-		// 			{Entity: "b", Value: "another random value"},
-		// 			{Entity: "c", Value: "third random value"},
-		// 		},
-		// 	},
-		// 	FeatureSchema: []TableSchema{
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: Int},
-		// 			},
-		// 		},
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: String},
-		// 			},
-		// 		},
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: String},
-		// 			},
-		// 		},
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: String},
-		// 			},
-		// 		},
-		// 	},
-		// 	ExpectedRows: []expectedBatchRow{
-		// 		{
-		// 			Features: []interface{}{
-		// 				1, "apple", "first",
-		// 			},
-		// 		},
-		// 		{
-		// 			Features: []interface{}{
-		// 				2, "banana", "second",
-		// 			},
-		// 		},
-		// 		{
-		// 			Features: []interface{}{
-		// 				3, "cucumber", "third",
-		// 			},
-		// 		},
-		// 		{
-		// 			Features: []interface{}{
-		// 				nil, nil, "extra entity",
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// "ComplexJoin": {
-		// 	FeatureRecords: [][]GenericRecord{
-		// 		// Overwritten feature.
-		// 		{
-		// 			{"a", 1},
-		// 			{"b", 2},
-		// 			{"c", 3},
-		// 			{"a", 4},
-		// 		},
-		// 		// Feature didn't exist before label
-		// 		{
-		// 			{"a", "doesnt exist", time.UnixMilli(11)},
-		// 		},
-		// 		// Feature didn't change after label
-		// 		{
-		// 			{Entity: "c", Value: "real value first", TS: time.UnixMilli(5)},
-		// 			{Entity: "c", Value: "real value second", TS: time.UnixMilli(5)},
-		// 			{Entity: "c", Value: "overwritten", TS: time.UnixMilli(4)},
-		// 		},
-		// 		// Different feature values for different TS.
-		// 		{
-		// 			{Entity: "b", Value: "first", TS: time.UnixMilli(3)},
-		// 			{Entity: "b", Value: "second", TS: time.UnixMilli(4)},
-		// 			{Entity: "b", Value: "third", TS: time.UnixMilli(8)},
-		// 		},
-		// 		// Empty feature.
-		// 		{},
-		// 	},
-		// 	FeatureSchema: []TableSchema{
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: Int},
-		// 				{Name: "ts", ValueType: Timestamp},
-		// 			},
-		// 		},
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: String},
-		// 				{Name: "ts", ValueType: Timestamp},
-		// 			},
-		// 		},
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: String},
-		// 				{Name: "ts", ValueType: Timestamp},
-		// 			},
-		// 		},
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: String},
-		// 				{Name: "ts", ValueType: Timestamp},
-		// 			},
-		// 		},
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: String},
-		// 				{Name: "ts", ValueType: Timestamp},
-		// 			},
-		// 		},
-		// 	},
-		// 	ExpectedRows: []expectedBatchRow{
-		// 		{
-		// 			Features: []interface{}{
-		// 				4, nil, nil, nil, nil,
-		// 			},
-		// 		},
-		// 		{
-		// 			Features: []interface{}{
-		// 				2, nil, nil, "first", nil,
-		// 			},
-		// 		},
-		// 		{
-		// 			Features: []interface{}{
-		// 				2, nil, nil, "second", nil,
-		// 			},
-		// 		},
-		// 		{
-		// 			Features: []interface{}{
-		// 				3, nil, "real value second", nil, nil,
-		// 			},
-		// 		},
-		// 	},
-		// },
+		// TODO: Add timestamps to this table
+		// 4. Multiple features with a multiple missing entities
+		"MultipleJoin": {
+			FeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "a", Value: 1},
+					{Entity: "b", Value: 2},
+					{Entity: "c", Value: 3},
+					{Entity: "e", Value: 5},
+				},
+				{
+					{Entity: "a", Value: "red"},
+					{Entity: "b", Value: "green"},
+					{Entity: "d", Value: "yellow"},
+					{Entity: "e", Value: "black"},
+				},
+				{
+					{Entity: "b", Value: true},
+					{Entity: "c", Value: true},
+					{Entity: "d", Value: false},
+					{Entity: "e", Value: true},
+				},
+				{
+					{Entity: "a", Value: 343},
+					{Entity: "b", Value: 546},
+					{Entity: "c", Value: 7667},
+					{Entity: "d", Value: 32},
+				},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Bool},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+					},
+				},
+			},
+			ExpectedRows: []expectedBatchRow{
+				{
+					Entity: "a",
+					Features: []interface{}{
+						1,
+						"red",
+						nil,
+						343,
+					},
+				},
+				{
+					Entity: "b",
+					Features: []interface{}{
+						2,
+						"green",
+						true,
+						546,
+					},
+				},
+				{
+					Entity: "c",
+					Features: []interface{}{
+						3,
+						nil,
+						true,
+						7667,
+					},
+				},
+				{
+					Entity: "e",
+					Features: []interface{}{
+						5,
+						"black",
+						true,
+						nil,
+					},
+				},
+				{
+					Entity: "d",
+					Features: []interface{}{
+						nil,
+						"yellow",
+						false,
+						32,
+					},
+				},
+			},
+		},
+		// 5. Multiple tables of different sizes
+		"VariableJoin": {
+			FeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "a", Value: 1},
+					{Entity: "b", Value: 2},
+					{Entity: "c", Value: 3},
+					{Entity: "e", Value: 5},
+					{Entity: "f", Value: 6},
+				},
+				{
+					{Entity: "a", Value: "red"},
+					{Entity: "b", Value: "green"},
+					{Entity: "d", Value: "yellow"},
+					{Entity: "e", Value: "black"},
+				},
+				{
+					{Entity: "b", Value: true},
+					{Entity: "c", Value: true},
+					{Entity: "d", Value: false},
+					{Entity: "e", Value: true},
+				},
+				{
+					{Entity: "a", Value: 343},
+					{Entity: "b", Value: 546},
+					{Entity: "c", Value: 7667},
+					{Entity: "d", Value: 32},
+					{Entity: "e", Value: 53},
+					{Entity: "f", Value: 64556},
+				},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Bool},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+					},
+				},
+			},
+			ExpectedRows: []expectedBatchRow{
+				{
+					Entity: "a",
+					Features: []interface{}{
+						1,
+						"red",
+						nil,
+						343,
+					},
+				},
+				{
+					Entity: "b",
+					Features: []interface{}{
+						2,
+						"green",
+						true,
+						546,
+					},
+				},
+				{
+					Entity: "c",
+					Features: []interface{}{
+						3,
+						nil,
+						true,
+						7667,
+					},
+				},
+				{
+					Entity: "e",
+					Features: []interface{}{
+						5,
+						"black",
+						true,
+						53,
+					},
+				},
+				{
+					Entity: "d",
+					Features: []interface{}{
+						nil,
+						"yellow",
+						false,
+						32,
+					},
+				},
+				{
+					Entity: "f",
+					Features: []interface{}{
+						6,
+						nil,
+						nil,
+						64556,
+					},
+				},
+			},
+		},
+		// 3. Two features with TS
+		"SimpleJoinWithTS": {
+			FeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "a", Value: 1, TS: time.UnixMilli(1)},
+					{Entity: "b", Value: 2, TS: time.UnixMilli(2)},
+					{Entity: "c", Value: 3, TS: time.UnixMilli(3)},
+				},
+				{
+					{Entity: "a", Value: false, TS: time.UnixMilli(4)},
+					{Entity: "b", Value: true, TS: time.UnixMilli(5)},
+					{Entity: "c", Value: true, TS: time.UnixMilli(6)},
+				},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Bool},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+			},
+			ExpectedRows: []expectedBatchRow{
+				{
+					Entity: "a",
+					Features: []interface{}{
+						1,
+						time.UnixMilli(1),
+						false,
+						time.UnixMilli(4),
+					},
+				},
+				{
+					Entity: "b",
+					Features: []interface{}{
+						2,
+						time.UnixMilli(2),
+						true,
+						time.UnixMilli(5),
+					},
+				},
+				{
+					Entity: "c",
+					Features: []interface{}{
+						3,
+						time.UnixMilli(3),
+						true,
+						time.UnixMilli(6),
+					},
+				},
+			},
+		},
+		// 6. Multiple tables with timestamp columns and repeated entities
+		"TimestampJoin": {
+			FeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "a", Value: 1, TS: time.UnixMilli(1)},
+					{Entity: "b", Value: 2, TS: time.UnixMilli(2)},
+					{Entity: "c", Value: 3, TS: time.UnixMilli(3)},
+					{Entity: "e", Value: 5, TS: time.UnixMilli(4)},
+					{Entity: "f", Value: 6, TS: time.UnixMilli(5)},
+					{Entity: "e", Value: 7, TS: time.UnixMilli(6)},
+				},
+				{
+					{Entity: "a", Value: "red", TS: time.UnixMilli(6)},
+					{Entity: "b", Value: "green", TS: time.UnixMilli(5)},
+					{Entity: "d", Value: "yellow", TS: time.UnixMilli(4)},
+					{Entity: "e", Value: "black", TS: time.UnixMilli(3)},
+					{Entity: "a", Value: "blue", TS: time.UnixMilli(2)},
+					{Entity: "b", Value: "white", TS: time.UnixMilli(1)},
+					{Entity: "d", Value: "orange", TS: time.UnixMilli(2)},
+				},
+				{
+					{Entity: "b", Value: true, TS: time.UnixMilli(1)},
+					{Entity: "c", Value: false, TS: time.UnixMilli(1)},
+					{Entity: "d", Value: true, TS: time.UnixMilli(1)},
+					{Entity: "e", Value: true, TS: time.UnixMilli(1)},
+					{Entity: "b", Value: false, TS: time.UnixMilli(4)},
+					{Entity: "c", Value: true, TS: time.UnixMilli(4)},
+					{Entity: "d", Value: true, TS: time.UnixMilli(4)},
+					{Entity: "e", Value: false, TS: time.UnixMilli(4)},
+					{Entity: "b", Value: true, TS: time.UnixMilli(5)},
+					{Entity: "c", Value: true, TS: time.UnixMilli(6)},
+					{Entity: "d", Value: false, TS: time.UnixMilli(7)},
+					{Entity: "e", Value: true, TS: time.UnixMilli(8)},
+				},
+				{
+					{Entity: "a", Value: 343, TS: time.UnixMilli(10)},
+					{Entity: "b", Value: 546, TS: time.UnixMilli(11)},
+					{Entity: "c", Value: 7667, TS: time.UnixMilli(12)},
+					{Entity: "d", Value: 32, TS: time.UnixMilli(13)},
+					{Entity: "e", Value: 53, TS: time.UnixMilli(14)},
+					{Entity: "f", Value: 64556, TS: time.UnixMilli(15)},
+				},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Bool},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+			},
+			ExpectedRows: []expectedBatchRow{
+				{
+					Entity: "a",
+					Features: []interface{}{
+						1,
+						time.UnixMilli(1),
+						"red",
+						time.UnixMilli(6),
+						nil,
+						nil,
+						343,
+						time.UnixMilli(10),
+					},
+				},
+				{
+					Entity: "b",
+					Features: []interface{}{
+						2,
+						time.UnixMilli(2),
+						"green",
+						time.UnixMilli(5),
+						true,
+						time.UnixMilli(5),
+						546,
+						time.UnixMilli(11),
+					},
+				},
+				{
+					Entity: "c",
+					Features: []interface{}{
+						3,
+						time.UnixMilli(3),
+						nil,
+						nil,
+						true,
+						time.UnixMilli(6),
+						7667,
+						time.UnixMilli(12),
+					},
+				},
+				{
+					Entity: "e",
+					Features: []interface{}{
+						7,
+						time.UnixMilli(6),
+						"black",
+						time.UnixMilli(3),
+						true,
+						time.UnixMilli(8),
+						53,
+						time.UnixMilli(14),
+					},
+				},
+				{
+					Entity: "d",
+					Features: []interface{}{
+						nil,
+						nil,
+						"yellow",
+						time.UnixMilli(4),
+						false,
+						time.UnixMilli(7),
+						32,
+						time.UnixMilli(13),
+					},
+				},
+				{
+					Entity: "f",
+					Features: []interface{}{
+						6,
+						time.UnixMilli(5),
+						nil,
+						nil,
+						nil,
+						nil,
+						64556,
+						time.UnixMilli(15),
+					},
+				},
+			},
+		},
+
+		7. Multiple tables with some timestamp columns and repeated entities
+
+		"ComplexJoin": {
+			FeatureRecords: [][]GenericRecord{
+				// Overwritten feature.
+				{
+					{"a", 1},
+					{"b", 2},
+					{"c", 3},
+					{"a", 4},
+				},
+				// Feature didn't exist before label
+				{
+					{"a", "doesnt exist", time.UnixMilli(11)},
+				},
+				// Feature didn't change after label
+				{
+					{Entity: "c", Value: "real value first", TS: time.UnixMilli(5)},
+					{Entity: "c", Value: "real value second", TS: time.UnixMilli(5)},
+					{Entity: "c", Value: "overwritten", TS: time.UnixMilli(4)},
+				},
+				// Different feature values for different TS.
+				{
+					{Entity: "b", Value: "first", TS: time.UnixMilli(3)},
+					{Entity: "b", Value: "second", TS: time.UnixMilli(4)},
+					{Entity: "b", Value: "third", TS: time.UnixMilli(8)},
+				},
+				// Empty feature.
+				{},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+			},
+			ExpectedRows: []expectedBatchRow{
+				{
+					Features: []interface{}{
+						4, nil, nil, nil, nil,
+					},
+				},
+				{
+					Features: []interface{}{
+						2, nil, nil, "first", nil,
+					},
+				},
+				{
+					Features: []interface{}{
+						2, nil, nil, "second", nil,
+					},
+				},
+				{
+					Features: []interface{}{
+						3, nil, "real value second", nil, nil,
+					},
+				},
+			},
+		},
 	}
 	runTestCase := func(t *testing.T, test TestCase) {
 		// We have a resource ID list where each resource ID corresponds to a feature
@@ -4470,7 +4944,7 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 			}
 		}
 		// TODO: Have a list of resources, send that to the batch serving shell function
-		iter, err := store.getBatchFeatures(featureIDs)
+		iter, err := store.GetBatchFeatures(featureIDs)
 		if err != nil {
 			t.Fatalf("Failed to get batch of features: %s", err)
 		}
@@ -4478,10 +4952,9 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 		i := 0
 		expectedRows := test.ExpectedRows
 		for iter.Next() {
-			entity_feature_row := iter.Values()
 			realRow := expectedBatchRow{
-				Entity:   entity_feature_row[0],
-				Features: entity_feature_row[1:],
+				Entity:   iter.Entity(),
+				Features: iter.Features(),
 			}
 			// Row order isn't guaranteed, we make sure one row is equivalent
 			// then we delete that row. This is inefficient, but these test

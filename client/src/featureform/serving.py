@@ -147,9 +147,8 @@ class ServingClient:
         """Closes the connection to the Featureform instance."""
         self.impl.close()
 
-    def iterate_feature_set(self, *feats):
+    def iterate_feature_set(self, *features):
         """
-        TODO: Add it in the servingCLient class, hostedclient and localclient. In local client raise not supported error
         TODO: We need the feature and variant name
         TODO: Need to support string feature names, feature objects, and feature name/variant tuples
         Return an iterator that iterates over each entity and corresponding features in feats.
@@ -166,8 +165,7 @@ class ServingClient:
             iterator: An iterator of entity and feature values
 
         """
-        # for feat in feats:
-        #     return self.get_feature(feat)
+        return self.impl.iterate_feature_set(*features)
 
 
 class HostedClientImpl:
@@ -230,6 +228,9 @@ class HostedClientImpl:
             feature_values.append(parsed_value)
 
         return feature_values
+    
+    def iterate_feature_set(self, *features):
+        return FeatureSetIterator(self._stub, *features)
 
     def _get_source_as_df(self, name, variant, limit):
         columns = self._get_source_columns(name, variant)
@@ -356,6 +357,9 @@ class LocalClientImpl:
         return self.convert_ts_df_to_dataset(
             label, training_set_df, include_label_timestamp
         )
+    
+    def iterate_feature_set(self):
+        raise NotImplementedError("iterate_feature_set is not supported in local mode")
 
     def get_lag_features_sql_query(
         self, lag_features, feature_columns, entity, label, ts
@@ -892,7 +896,6 @@ class Stream:
     def restart(self):
         self._iter = self._stub.TrainingData(self._req)
 
-
 class LocalStream:
     def __init__(self, datalist, include_label_timestamp):
         self._datalist = datalist
@@ -1224,3 +1227,52 @@ class BatchRow:
 def parse_proto_value(value):
     """parse_proto_value is used to parse the one of Value message"""
     return getattr(value, value.WhichOneof("value"))
+
+
+class FeatureSetIterator:
+    def __init__(self, stub, *features):
+        req = serving_pb2.BatchFeatureServeRequest()
+        for feature in features:
+            feature_id = req.features.add()
+            feature_id.name = feature.name
+            feature_id.version = feature.variant
+        self._stub = stub
+        self._req = req
+        self._iter = stub.BatchFeatureServe(req)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return FeatureSetRow(next(self._iter))
+
+    def restart(self):
+        self._iter = self._stub.BatchFeatureServe(self._req)
+
+
+class FeatureSetRow:
+    def __init__(self, proto_row):
+        self._features = np.array(
+            [parse_proto_value(feature) for feature in proto_row.features]
+        )
+        self._entity = parse_proto_value(proto_row.entity)
+        self._row = np.append(self._features, self._entity)
+
+    def features(self):
+        return [self._row[:-1]]
+
+    def entity(self):
+        return [self._entity]
+
+    def to_numpy(self):
+        return self._row
+
+    def to_dict(self, feature_columns: List[str], entity_column: str):
+        row_dict = dict(zip(feature_columns, self._features))
+        row_dict[entity_column] = self._entity
+        return row_dict
+
+    def __repr__(self):
+        return "Features: {} , Entity: {}".format(self.features(), self.entity())
+# Create a featureset row class
+# modify restart

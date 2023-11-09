@@ -106,7 +106,7 @@ func (k8s *K8sOfflineStore) Close() error {
 	return k8s.store.Close()
 }
 
-func (k8s K8sOfflineStore) getBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
+func (k8s K8sOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
 	return nil, nil
 }
 

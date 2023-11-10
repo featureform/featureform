@@ -884,6 +884,9 @@ class SourceRegistrar:
     def registrar(self):
         return self.__registrar
 
+    def __eq__(self, other):
+        return self.__source == other.__source and self.__registrar == other.__registrar
+
 
 class ColumnMapping(dict):
     name: str
@@ -1112,6 +1115,8 @@ class SQLTransformationDecorator:
         if self.name == "":
             self.name = fn.__name__
         self.__set_query(fn())
+        self.registrar.map_client_object_to_resource(self, self.to_source())
+        self.registrar.add_resource(self.to_source())
         return SubscriptableTransformation(
             fn,
             self.registrar,
@@ -1169,6 +1174,7 @@ class SQLTransformationDecorator:
             timestamp_column=timestamp_column,
             description=description,
             schedule=schedule,
+            client_object=self,
         )
 
     @staticmethod
@@ -1238,6 +1244,8 @@ class DFTransformationDecorator:
                 )
         self.query = dill.dumps(fn.__code__)
         self.source_text = dill.source.getsource(fn)
+        self.registrar.map_client_object_to_resource(self, self.to_source())
+        self.registrar.add_resource(self.to_source())
         return SubscriptableTransformation(
             fn,
             self.registrar,
@@ -1289,6 +1297,7 @@ class DFTransformationDecorator:
             labels=labels,
             timestamp_column=timestamp_column,
             description=description,
+            client_object=self,
         )
 
 
@@ -1497,6 +1506,7 @@ class ColumnResource:
             labels=labels,
             timestamp_column=self.timestamp_column,
             schedule=self.schedule,
+            client_object=self,
         )
 
     def features_and_labels(self) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
@@ -1674,9 +1684,25 @@ class Registrar:
         self.__resources = []
         self.__default_owner = ""
         self.__run = get_random_name()
+        """
+        maps client objects (feature object, label object, source decorators) to their resource in the event we want 
+        to update the client object after the resource was created
+        
+        Introduced for timestamp variants where updates during a resource create ensures that the client object
+        has the correct variant when being used as a dependency other resources
+        """
+        self.__client_obj_to_resource_map = {}
 
     def add_resource(self, resource):
         self.__resources.append(resource)
+
+    def map_client_object_to_resource(
+        self, client_obj, resource_variant: ResourceVariant
+    ):
+        self.__client_obj_to_resource_map[resource_variant.to_key()] = client_obj
+
+    def get_client_objects_for_resource(self):
+        return self.__client_obj_to_resource_map
 
     def get_resources(self):
         return self.__resources
@@ -3428,7 +3454,9 @@ class Registrar:
             properties=properties,
         )
         self.__resources.append(source)
-        return ColumnSourceRegistrar(self, source)
+        column_source_registrar = ColumnSourceRegistrar(self, source)
+        self.map_client_object_to_resource(column_source_registrar, source)
+        return column_source_registrar
 
     def register_sql_transformation(
         self,
@@ -3532,7 +3560,6 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(decorator)
         return decorator
 
     def register_df_transformation(
@@ -3660,7 +3687,6 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(decorator)
         return decorator
 
     def _verify_tuple(self, nv_tuple):
@@ -3741,10 +3767,6 @@ class Registrar:
     def state(self):
         for resource in self.__resources:
             try:
-                if isinstance(resource, SQLTransformationDecorator) or isinstance(
-                    resource, DFTransformationDecorator
-                ):
-                    resource = resource.to_source()
                 self.__state.add(resource)
 
             except ResourceRedefinedError:
@@ -3761,6 +3783,7 @@ class Registrar:
 
     def clear_state(self):
         self.__state = ResourceState()
+        self.__client_obj_to_resource_map = {}
         self.__resources = []
 
     def get_state(self):
@@ -3858,6 +3881,7 @@ class Registrar:
         timestamp_column: str = "",
         description: str = "",
         schedule: str = "",
+        client_object=None,
     ):
         """Create features and labels from a source. Used in the register_resources function.
 
@@ -3941,6 +3965,7 @@ class Registrar:
                 properties=feature_properties,
             )
             self.__resources.append(resource)
+            self.map_client_object_to_resource(client_object, resource)
             feature_resources.append(resource)
 
         for label in labels:
@@ -3976,6 +4001,7 @@ class Registrar:
                 properties=label_properties,
             )
             self.__resources.append(resource)
+            self.map_client_object_to_resource(client_object, resource)
             label_resources.append(resource)
         return ResourceRegistrar(self, features, labels)
 
@@ -4224,9 +4250,14 @@ class ResourceClient:
 
         """
 
-        print(f"Applying Run: {get_run()}")
         try:
             resource_state = state()
+            if resource_state.is_empty():
+                print("No resources to apply")
+                return
+
+            print(f"Applying Run: {get_run()}")
+
             if self._dry_run:
                 print(resource_state.sorted_list())
                 return
@@ -4234,7 +4265,9 @@ class ResourceClient:
             if self.local:
                 resource_state.create_all_local()
             else:
-                resource_state.create_all(self._stub)
+                resource_state.create_all(
+                    self._stub, global_registrar.get_client_objects_for_resource()
+                )
 
             if not asynchronous and self._stub:
                 resources = resource_state.sorted_list()

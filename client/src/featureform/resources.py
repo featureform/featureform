@@ -924,6 +924,18 @@ class Directory:
 Location = Union[SQLTable, Directory]
 
 
+class ResourceVariant(ABC):
+    name: str
+    variant: str
+
+    @staticmethod
+    def type():
+        raise NotImplementedError
+
+    def to_key(self) -> Tuple[str, str, str]:
+        return self.type(), self.name, self.variant
+
+
 @typechecked
 @dataclass
 class PrimaryData:
@@ -962,6 +974,7 @@ class SQLTransformation(Transformation):
         transformation = pb.Transformation(
             SQLTransformation=pb.SQLTransformation(
                 query=self.query,
+                # We do not set the sources here as the backend figures it out
             )
         )
 
@@ -1025,7 +1038,7 @@ class Source:
 
 @typechecked
 @dataclass
-class SourceVariant:
+class SourceVariant(ResourceVariant):
     name: str
     definition: SourceDefinition
     owner: str
@@ -1040,7 +1053,9 @@ class SourceVariant:
     )
     schedule: str = ""
     schedule_obj: Schedule = None
-    is_transformation = SourceType.PRIMARY_SOURCE.value
+    is_transformation = (
+        SourceType.PRIMARY_SOURCE.value
+    )  # TODO this is the same as source_type below; pick one
     source_text: str = ""
     source_type: str = ""
     transformation: str = ""
@@ -1190,6 +1205,9 @@ class SourceVariant:
     def get_status(self):
         return ResourceStatus(self.status)
 
+    def is_transformation_type(self):
+        return isinstance(self.definition, Transformation)
+
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
 
@@ -1274,7 +1292,7 @@ class Feature:
 
 @typechecked
 @dataclass
-class FeatureVariant:
+class FeatureVariant(ResourceVariant):
     name: str
     source: Any
     value_type: str
@@ -1573,7 +1591,7 @@ class Label:
 
 @typechecked
 @dataclass
-class LabelVariant:
+class LabelVariant(ResourceVariant):
     name: str
     source: Any
     value_type: str
@@ -1799,7 +1817,7 @@ class TrainingSet:
 
 @typechecked
 @dataclass
-class TrainingSetVariant:
+class TrainingSetVariant(ResourceVariant):
     name: str
     owner: str
     label: Any
@@ -2165,7 +2183,7 @@ class ResourceState:
             client.compute_feature(feature.name, feature.variant, feature.entity)
         return
 
-    def create_all(self, stub) -> None:
+    def create_all(self, stub, client_objs_for_resource: dict = None) -> None:
         check_up_to_date(False, "register")
         for resource in self.sorted_list():
             if resource.type() == "provider" and resource.name == "local-mode":
@@ -2175,26 +2193,31 @@ class ResourceState:
                     f"Inference store must be provided for feature {resource.name} ({resource.variant})"
                 )
             try:
-                # NOTE: There is an extra space before the variant name to better handle the case
-                # where a resource has no variant; ultimately, we should separate data access and
-                # logging/CLI output to avoid this unnecessary coupling.
-                resource_variant = (
-                    f" {resource.variant}" if hasattr(resource, "variant") else ""
-                )
+                resource_variant = getattr(resource, "variant", "")
+                rv_for_print = f" {resource_variant}" if resource_variant else ""
                 if resource.operation_type() is OperationType.GET:
-                    print(
-                        f"Getting {resource.type()} {resource.name}{resource_variant}"
-                    )
+                    print(f"Getting {resource.type()} {resource.name}{rv_for_print}")
                     resource._get(stub)
                 if resource.operation_type() is OperationType.CREATE:
                     if resource.name != "default_user":
                         print(
-                            f"Creating {resource.type()} {resource.name}{resource_variant}"
+                            f"Creating {resource.type()} {resource.name}{rv_for_print}"
                         )
-                    resource._create(stub)
+
+                    created_variant = resource._create(stub)
+
+                    if isinstance(resource, ResourceVariant):
+                        # look up the client object with the original resource
+                        client_obj = client_objs_for_resource.get(
+                            resource.to_key(), None
+                        )
+                        resource.variant = created_variant
+                        if client_obj is not None:
+                            client_obj.variant = created_variant
+
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
-                    print(f"{resource.name}{resource_variant} already exists.")
+                    print(f"{resource.name}{rv_for_print} already exists.")
                     continue
 
                 raise e

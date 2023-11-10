@@ -856,12 +856,6 @@ class Provider:
                 "properties", self.name, "", "providers", json.dumps(self.properties)
             )
 
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
-
     def to_dictionary(self):
         return {
             "name": self.name,
@@ -905,12 +899,6 @@ class User:
             db.upsert("tags", self.name, "", "users", json.dumps(self.tags))
         if len(self.properties):
             db.upsert("properties", self.name, "", "users", json.dumps(self.properties))
-
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
 
     def to_dictionary(self):
         return {
@@ -1197,12 +1185,6 @@ class SourceVariant:
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
 
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
-
 
 @typechecked
 @dataclass
@@ -1238,12 +1220,6 @@ class Entity:
             db.upsert(
                 "properties", self.name, "", "entities", json.dumps(self.properties)
             )
-
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
 
     def to_dictionary(self):
         return {
@@ -1446,12 +1422,6 @@ class FeatureVariant:
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
 
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
-
 
 @typechecked
 @dataclass
@@ -1574,12 +1544,6 @@ class OnDemandFeatureVariant:
 
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
-
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
 
 
 @typechecked
@@ -1713,12 +1677,6 @@ class LabelVariant:
 
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
-
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
 
 
 @typechecked
@@ -2031,12 +1989,6 @@ class TrainingSetVariant:
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
 
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
-
 
 @typechecked
 @dataclass
@@ -2074,12 +2026,6 @@ class Model:
             db.upsert(
                 "properties", self.name, "", "models", json.dumps(self.properties)
             )
-
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
 
     def to_dictionary(self):
         return {

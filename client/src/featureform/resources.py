@@ -983,10 +983,18 @@ class DFTransformation(Transformation):
         return SourceType.DF_TRANSFORMATION.value
 
     def kwargs(self):
+        for i, inp in enumerate(self.inputs):
+            if hasattr(inp, "name_variant"):  # TODO shouldn't have to have this check
+                self.inputs[i] = inp.name_variant()
+
+        name_variants = []
+        for inp in self.inputs:
+            name_variants.append(pb.NameVariant(name=inp[0], variant=inp[1]))
+
         transformation = pb.Transformation(
             DFTransformation=pb.DFTransformation(
                 query=self.query,
-                inputs=[pb.NameVariant(name=v[0], variant=v[1]) for v in self.inputs],
+                inputs=name_variants,
                 source_text=self.source_text,
             )
         )
@@ -1268,7 +1276,7 @@ class Feature:
 @dataclass
 class FeatureVariant:
     name: str
-    source: NameVariant
+    source: Any
     value_type: str
     entity: str
     owner: str
@@ -1362,6 +1370,8 @@ class FeatureVariant:
         return serialized.variant
 
     def _create_local(self, db) -> None:
+        if hasattr(self.source, "name_variant"):
+            self.source = self.source.name_variant()
         db.insert(
             "feature_variant",
             str(time.time()),
@@ -1565,7 +1575,7 @@ class Label:
 @dataclass
 class LabelVariant:
     name: str
-    source: NameVariant
+    source: Any
     value_type: str
     entity: str
     owner: str
@@ -1792,8 +1802,8 @@ class TrainingSet:
 class TrainingSetVariant:
     name: str
     owner: str
-    label: NameVariant
-    features: List[NameVariant]
+    label: Any
+    features: List[Any]
     description: str
     variant: str
     feature_lags: list = field(default_factory=list)
@@ -1816,12 +1826,18 @@ class TrainingSetVariant:
         self.schedule = schedule
 
     def __post_init__(self):
-        if not valid_name_variant(self.label):
+        from featureform import LabelColumnResource, FeatureColumnResource
+
+        if not isinstance(self.label, LabelColumnResource) and not valid_name_variant(
+            self.label
+        ):
             raise ValueError("Label must be set")
         if len(self.features) == 0:
             raise ValueError("A training-set must have atleast one feature")
         for feature in self.features:
-            if not valid_name_variant(feature):
+            if not isinstance(
+                feature, FeatureColumnResource
+            ) and not valid_name_variant(feature):
                 raise ValueError("Invalid Feature")
 
     @staticmethod

@@ -1174,7 +1174,7 @@ class SQLTransformationDecorator:
     @staticmethod
     def _assert_query_contains_at_least_one_source(query):
         # Checks to verify that the query contains a FROM {{ name.variant }}
-        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)?\s*\}\}"
+        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_:.]+(\.[a-zA-Z0-9_:.]+)?\s*\}\}"
         match = re.search(pattern, query, re.IGNORECASE)
         if match is None:
             raise InvalidSQLQuery(query, "No source specified.")

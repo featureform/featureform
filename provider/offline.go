@@ -17,6 +17,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 
+	"github.com/featureform/filestore"
 	"github.com/featureform/metadata"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -250,6 +251,10 @@ func (m *TransformationConfig) decodeArgs(t metadata.TransformationArgType, argM
 	return nil
 }
 
+type MaterializationOptions interface {
+	Output() filestore.FileType
+}
+
 type OfflineStore interface {
 	RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error)
 	RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error)
@@ -260,7 +265,7 @@ type OfflineStore interface {
 	GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 	CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error)
 	GetResourceTable(id ResourceID) (OfflineTable, error)
-	CreateMaterialization(id ResourceID) (Materialization, error)
+	CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error)
 	GetMaterialization(id MaterializationID) (Materialization, error)
 	UpdateMaterialization(id ResourceID) (Materialization, error)
 	DeleteMaterialization(id MaterializationID) error
@@ -635,7 +640,7 @@ func (recs materializedRecords) Swap(i, j int) {
 	recs[i], recs[j] = recs[j], recs[i]
 }
 
-func (store *memoryOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
+func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
 		return nil, errors.New("only features can be materialized")
 	}

@@ -39,16 +39,16 @@ func main() {
 			panic(fmt.Errorf("failed to close etcd client: %w", err))
 		}
 	}(cli)
-	if err := runner.RegisterFactory(string(runner.COPY_TO_ONLINE), runner.MaterializedChunkRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(runner.COPY_TO_ONLINE, runner.MaterializedChunkRunnerFactory); err != nil {
 		panic(fmt.Errorf("failed to register 'Copy to Online' runner factory: %w", err))
 	}
-	if err := runner.RegisterFactory(string(runner.MATERIALIZE), runner.MaterializeRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(runner.MATERIALIZE, runner.MaterializeRunnerFactory); err != nil {
 		panic(fmt.Errorf("failed to register 'Materialize' runner factory: %w", err))
 	}
-	if err := runner.RegisterFactory(string(runner.CREATE_TRANSFORMATION), runner.CreateTransformationRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(runner.CREATE_TRANSFORMATION, runner.CreateTransformationRunnerFactory); err != nil {
 		panic(fmt.Errorf("failed to register 'Create Transformation' runner factory: %w", err))
 	}
-	if err := runner.RegisterFactory(string(runner.CREATE_TRAINING_SET), runner.TrainingSetRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(runner.CREATE_TRAINING_SET, runner.TrainingSetRunnerFactory); err != nil {
 		panic(fmt.Errorf("failed to register 'Create Training Set' runner factory: %w", err))
 	}
 	logger := logging.NewLogger("coordinator")

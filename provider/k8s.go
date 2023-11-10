@@ -1112,7 +1112,7 @@ func completePrimarySourceTablePathForGCS(sourceTable string, store FileStore) (
 	return nil, nil
 }
 
-func (k8s *K8sOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
+func (k8s *K8sOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	return k8s.materialization(id, false)
 }
 

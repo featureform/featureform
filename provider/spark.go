@@ -33,6 +33,7 @@ import (
 
 	"golang.org/x/exp/slices"
 
+	re "github.com/avast/retry-go/v4"
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
 	"github.com/featureform/config"
 	"github.com/featureform/helpers/compression"
@@ -437,21 +438,35 @@ func NewDatabricksExecutor(databricksConfig pc.DatabricksConfig) (SparkExecutor,
 			Username: databricksConfig.Username,
 			Password: databricksConfig.Password,
 		}))
-	// Creating a new workspace client doesn't actually test that the client is able to successfully connect and communicate with
-	// the cluster given the provided credentials; to fail earlier in the process (i.e. _before_ submitting a job) we'll make a call
-	// to Databricks's Clusters API to get information about the cluster with the provided ID.
-	if _, err := client.Clusters.Get(context.Background(), compute.GetClusterRequest{ClusterId: databricksConfig.Cluster}); err != nil {
-		// The Databricks SDK uses Go's "net/url" under the hood for parsing the hostname; this _can_ result in error messages that
-		// are not very helpful. For example, if the hostname is "_https://my-hostname" the error message will be:
-		// parse '_https://my-hostname': first path segment in URL cannot contain colon
-		// To direct users to a solution, we'll check for message prefix 'parse' and provide a more helpful error message that wraps
-		// the original error message.
-		if strings.Contains(err.Error(), "parse") {
-			parsingError := strings.TrimPrefix(err.Error(), "parse ")
-			return nil, fmt.Errorf("the hostname %s is invalid and resulted in a parsing error (%s); check that the hostname is correct before trying again", databricksConfig.Host, parsingError)
-		}
+
+	if err := re.Do(
+		func() error {
+			// Creating a new workspace client doesn't actually test that the client is able to successfully connect and communicate with
+			// the cluster given the provided credentials; to fail earlier in the process (i.e. _before_ submitting a job) we'll make a call
+			// to Databricks's Clusters API to get information about the cluster with the provided ID.
+			_, err := client.Clusters.Get(context.Background(), compute.GetClusterRequest{ClusterId: databricksConfig.Cluster})
+			if err != nil {
+				// The Databricks SDK uses Go's "net/url" under the hood for parsing the hostname; this _can_ result in error messages that
+				// are not very helpful. For example, if the hostname is "_https://my-hostname" the error message will be:
+				// parse '_https://my-hostname': first path segment in URL cannot contain colon
+				// To direct users to a solution, we'll check for message prefix 'parse' and provide a more helpful error message that wraps
+				// the original error message.
+				if strings.Contains(err.Error(), "parse") {
+					parsingError := strings.TrimPrefix(err.Error(), "parse ")
+					return fmt.Errorf("the hostname %s is invalid and resulted in a parsing error (%s); check that the hostname is correct before trying again", databricksConfig.Host, parsingError)
+				}
+			}
+			return nil
+		},
+		re.DelayType(func(n uint, err error, config *re.Config) time.Duration {
+			return re.BackOffDelay(n, err, config)
+		}),
+		re.Attempts(5),
+	); err != nil {
+		fmt.Printf("failed to get cluster information for %s due to error: %v\n", databricksConfig.Cluster, err)
 		return nil, err
 	}
+
 	errorMessageClient, err := dbClient.New(&dbConfig.Config{
 		Host:     databricksConfig.Host,
 		Token:    databricksConfig.Token,
@@ -1766,7 +1781,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	}
 	sparkResourceTable, ok := resourceTable.(*BlobOfflineTable)
 	if !ok {
-		spark.Logger.Errorw("Could not convert resource table to S3 offline table", "id", id)
+		spark.Logger.Errorw("Could not convert resource table to blob offline table", "id", id)
 		return nil, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
 	}
 	// get destination path for the materialization
@@ -1851,7 +1866,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	return &FileStoreMaterialization{materializationID, spark.Store}, nil
 }
 
-func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
+func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	return blobSparkMaterialization(id, spark, false)
 }
 

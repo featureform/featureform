@@ -169,7 +169,7 @@ func (c *Coordinator) AwaitPendingLabel(labelNameVariant metadata.NameVariant) (
 }
 
 type JobSpawner interface {
-	GetJobRunner(jobName string, config runner.Config, resourceId metadata.ResourceID) (types.Runner, error)
+	GetJobRunner(jobName runner.RunnerName, config runner.Config, resourceId metadata.ResourceID) (types.Runner, error)
 }
 
 type KubernetesJobSpawner struct {
@@ -182,7 +182,7 @@ func GetLockKey(jobKey string) string {
 	return fmt.Sprintf("LOCK_%s", jobKey)
 }
 
-func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config, resourceId metadata.ResourceID) (types.Runner, error) {
+func (k *KubernetesJobSpawner) GetJobRunner(jobName runner.RunnerName, config runner.Config, resourceId metadata.ResourceID) (types.Runner, error) {
 	etcdConfig := &ETCDConfig{Endpoints: k.EtcdConfig.Endpoints, Username: k.EtcdConfig.Username, Password: k.EtcdConfig.Password}
 	serializedETCD, err := etcdConfig.Serialize()
 	if err != nil {
@@ -193,7 +193,7 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 	fmt.Println("GETJOBRUNNERID:", resourceId)
 	kubeConfig := kubernetes.KubernetesRunnerConfig{
 		EnvVars: map[string]string{
-			"NAME":             jobName,
+			"NAME":             string(jobName),
 			"CONFIG":           string(config),
 			"ETCD_CONFIG":      string(serializedETCD),
 			"K8S_RUNNER_IMAGE": pandasImage,
@@ -210,7 +210,7 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName string, config runner.Config
 	return jobRunner, nil
 }
 
-func (k *MemoryJobSpawner) GetJobRunner(jobName string, config runner.Config, resourceId metadata.ResourceID) (types.Runner, error) {
+func (k *MemoryJobSpawner) GetJobRunner(jobName runner.RunnerName, config runner.Config, resourceId metadata.ResourceID) (types.Runner, error) {
 	jobRunner, err := runner.Create(jobName, config)
 	if err != nil {
 		return nil, err
@@ -710,6 +710,10 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 	return nil
 }
 
+// TODO: refactor this method into 3 separate parts:
+// 1. Materialize via "standard" runner
+// 2. Materialize via S3 import to DynamoDB
+// 3. Schedule materialization update
 func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedule string) error {
 	c.Logger.Info("Running feature materialization job on resource: ", resID)
 	feature, err := c.Metadata.GetFeatureVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
@@ -823,6 +827,19 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		return fmt.Errorf("materialize feature register: %v", err)
 	}
 	c.Logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
+
+	// check for DynamoDB as provider and ImportFromS3 flag
+	if featureProvider.Type() == string(pt.DynamoDBOnline) {
+		config := pc.DynamodbConfig{}
+		if err := config.Deserialize(featureProvider.SerializedConfig()); err != nil {
+			return fmt.Errorf("could not deserialize DynamoDB config due to error: %v", err)
+		}
+		if config.ImportFromS3 {
+			// handle
+			c.Logger.Info("Materializing feature via S3 import to DynamoDB", "id", resID)
+		}
+	}
+
 	needsOnlineMaterialization := strings.Split(string(featureProvider.Type()), "_")[1] == "ONLINE"
 	if needsOnlineMaterialization {
 		c.Logger.Info("Starting Materialize")
@@ -868,7 +885,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 			return fmt.Errorf("schedule materialize job in kubernetes: %v", err)
 		}
 		if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
-			return fmt.Errorf("set succesful update status for materialize job in kubernetes: %v", err)
+			return fmt.Errorf("set successful update status for materialize job in kubernetes: %v", err)
 		}
 	}
 	return nil
@@ -1101,7 +1118,7 @@ func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*con
 
 func (c *Coordinator) ExecuteJob(jobKey string) error {
 	c.Logger.Info("Executing new job with key ", jobKey)
-	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(1))
+	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(5))
 	if err != nil {
 		return fmt.Errorf("new session: %v", err)
 	}

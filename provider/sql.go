@@ -490,7 +490,7 @@ func (iter *sqlFeatureIterator) Close() error {
 	return iter.rows.Close()
 }
 
-func (store *sqlOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
+func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
 		return nil, errors.New("only features can be materialized")
 	}

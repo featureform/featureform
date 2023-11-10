@@ -122,7 +122,7 @@ jobs:
 
       - name: Testing
         working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile ./coverage/cover.out.tmp ./metadata/search/...
+        run: go test -v -coverpkg=./... -coverprofile ./coverage/cover.out.tmp ./metadata/search/... ./lib/...
 
       - name: Convert Coverage Test Results
         if: always()

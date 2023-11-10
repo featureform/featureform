@@ -18,6 +18,7 @@ from featureform.register import (
 )
 from featureform.resources import (
     AWSCredentials,
+    GCPCredentials,
     AzureFileStoreConfig,
     DatabricksCredentials,
     EMRCredentials,
@@ -438,3 +439,11 @@ def spark_session():
     spark = SparkSession.builder.appName("test").master("local").getOrCreate()
     yield spark
     spark.stop()
+
+
+@pytest.fixture(scope="module")
+def gcp_credentials():
+    return GCPCredentials(
+        project_id="project_id",
+        credentials_path=f"{dir_path}/test_files/bigquery_dummy_credentials.json",
+    )

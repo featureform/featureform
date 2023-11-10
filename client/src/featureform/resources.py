@@ -2479,23 +2479,21 @@ class SparkCredentials:
 def _get_and_set_equivalent_variant(
     resource_variant_proto, variant_field, stub
 ) -> Optional[str]:
-    if os.getenv("FF_GET_EQUIVALENT_VARIANTS"):
-        # Get equivalent from stub
-        equivalent = stub.GetEquivalent(
-            pb.ResourceVariant(**{variant_field: resource_variant_proto})
-        )
+    # Get equivalent from stub
+    equivalent = stub.GetEquivalent(
+        pb.ResourceVariant(**{variant_field: resource_variant_proto})
+    )
 
-        # grpc call returns the default ResourceVariant proto when equivalent doesn't exist which explains the below check
-        if equivalent != pb.ResourceVariant():
-            variant_value = getattr(getattr(equivalent, variant_field), "variant")
-            print(
-                f"Looks like an equivalent {variant_field.replace('_', ' ')} already exists, going to use its variant: ",
-                variant_value,
-            )
-            # TODO add confirmation from user before using equivalent variant
-            resource_variant_proto.variant = variant_value
-            return variant_value
-    return None
+    # grpc call returns the default ResourceVariant proto when equivalent doesn't exist which explains the below check
+    if equivalent != pb.ResourceVariant():
+        variant_value = getattr(getattr(equivalent, variant_field), "variant")
+        print(
+            f"Looks like an equivalent {variant_field.replace('_', ' ')} already exists, going to use its variant: ",
+            variant_value,
+        )
+        # TODO add confirmation from user before using equivalent variant
+        resource_variant_proto.variant = variant_value
+        return variant_value
 
 
 @typechecked

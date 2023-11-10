@@ -10,6 +10,7 @@ from typing import Dict, Tuple, Callable, List, Union, Optional
 
 import dill
 import pandas as pd
+from dataclasses import dataclass, field
 from typeguard import typechecked
 
 from .enums import FileFormat
@@ -19,7 +20,6 @@ from .get import *
 from .get_local import *
 from .list import *
 from .list_local import *
-from .names_generator import get_random_name
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
 from .resources import (
@@ -68,12 +68,15 @@ from .resources import (
     FilePrefix,
     OnDemandFeatureVariant,
     WeaviateConfig,
+    ResourceVariant,
 )
 from .search import search
 from .search_local import search_local
 from .sqlite_metadata import SQLiteMetadata
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
+from .variant_names_generator import get_current_timestamp_variant
+from .variant_names_generator import get_random_name
 
 NameVariant = Tuple[str, str]
 
@@ -1081,33 +1084,20 @@ class SubscriptableTransformation:
         return False
 
 
+@dataclass
 class SQLTransformationDecorator:
-    def __init__(
-        self,
-        registrar,
-        owner: str,
-        provider: str,
-        tags: List[str],
-        properties: dict,
-        run: str = "",
-        variant: str = "",
-        name: str = "",
-        schedule: str = "",
-        description: str = "",
-        args: Union[K8sArgs, None] = None,
-    ):
-        self.registrar = registrar
-        self.name = name
-        self.owner = owner
-        self.schedule = schedule
-        self.provider = provider
-        self.description = description
-        self.args = args
-        self.tags = tags
-        self.properties = properties
-        self.variant = variant
-        self.run = run
-        self.query = ""
+    registrar: "Registrar"
+    owner: str
+    provider: str
+    tags: List[str]
+    properties: dict
+    run: str = ""
+    variant: str = ""
+    name: str = ""
+    schedule: str = ""
+    description: str = ""
+    args: Union[K8sArgs, None] = None
+    query: str = field(default_factory=str, init=False)
 
     def __call__(self, fn: Callable[[], str]):
         if self.description == "" and fn.__doc__ is not None:
@@ -1186,33 +1176,20 @@ class SQLTransformationDecorator:
             raise InvalidSQLQuery(query, "No source specified.")
 
 
+@dataclass
 class DFTransformationDecorator:
-    def __init__(
-        self,
-        registrar,
-        owner: str,
-        provider: str,
-        tags: List[str],
-        properties: dict,
-        variant: str = "",
-        name: str = "",
-        description: str = "",
-        inputs: list = [],
-        args: Union[K8sArgs, None] = None,
-        source_text: str = "",
-    ):
-        self.registrar = registrar
-        self.name = name
-        self.owner = owner
-        self.provider = provider
-        self.description = description
-        self.inputs = inputs
-        self.args = args
-        self.tags = tags
-        self.properties = properties
-        self.variant = variant
-        self.query = b""
-        self.source_text = source_text
+    registrar: "Registrar"
+    owner: str
+    provider: str
+    tags: List[str]
+    properties: dict
+    variant: str = ""
+    name: str = ""
+    description: str = ""
+    inputs: list = field(default_factory=list)
+    args: Union[K8sArgs, None] = None
+    source_text: str = ""
+    query: bytes = field(default_factory=bytes, init=False)
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:

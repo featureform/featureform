@@ -2,26 +2,24 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import sys
-import os
-import json
-import time
 import base64
+import json
+import os
+import sys
+import time
 from abc import ABC
-from enum import Enum
-from typeguard import typechecked
-from typing import List, Tuple, Union, Optional, Dict
+from typing import Any
+from typing import List, Tuple, Union, Optional
 
 import dill
 import grpc
-from .sqlite_metadata import SQLiteMetadata
+from dataclasses import field
 from google.protobuf.duration_pb2 import Duration
 
-from featureform.proto import metadata_pb2 as pb
-from dataclasses import dataclass, field
-from .version import check_up_to_date
-from .exceptions import *
 from .enums import *
+from .exceptions import *
+from .sqlite_metadata import SQLiteMetadata
+from .version import check_up_to_date
 
 NameVariant = Tuple[str, str]
 
@@ -2128,6 +2126,9 @@ class ResourceState:
             my_schedule = resource.schedule_obj
             key = (my_schedule.type(), my_schedule.name)
             self.__state[key] = my_schedule
+
+    def is_empty(self) -> bool:
+        return len(self.__state) == 0
 
     def sorted_list(self) -> List[Resource]:
         resource_order = {

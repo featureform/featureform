@@ -1660,7 +1660,12 @@ class Registrar:
         self.__state = ResourceState()
         self.__resources = []
         self.__default_owner = ""
-        self.__run = get_random_name()
+        self.__variant_prefix = ""
+        auto_variant = get_random_name()
+        if os.getenv("FF_TIMESTAMP_VARIANT") is not None:
+            auto_variant = get_current_timestamp_variant(self.__variant_prefix)
+        self.__run = auto_variant
+
         """
         maps client objects (feature object, label object, source decorators) to their resource in the event we want 
         to update the client object after the resource was created
@@ -1715,6 +1720,15 @@ class Registrar:
         if owner == "":
             raise ValueError("Owner must be set or a default owner must be specified.")
         return owner
+
+    def set_variant_prefix(self, variant_prefix: str = ""):
+        """Set variant prefix.
+
+        Args:
+            variant_prefix (str): variant prefix to be set.
+        """
+        self.__variant_prefix = variant_prefix
+        self.set_run()
 
     def set_run(self, run: str = ""):
         """
@@ -1784,7 +1798,10 @@ class Registrar:
             run (str): Name of a run to be set.
         """
         if run == "":
-            self.__run = get_random_name()
+            auto_variant = get_random_name()
+            if os.getenv("FF_TIMESTAMP_VARIANT") is not None:
+                auto_variant = get_current_timestamp_variant(self.__variant_prefix)
+            self.__run = auto_variant
         else:
             self.__run = run
 
@@ -4251,6 +4268,8 @@ class ResourceClient:
                 display_statuses(self._stub, resources, verbose=verbose)
 
         finally:
+            if os.getenv("FF_TIMESTAMP_VARIANT") is not None:
+                set_run("")
             clear_state()
             register_local()
 
@@ -5606,6 +5625,7 @@ state = global_registrar.state
 clear_state = global_registrar.clear_state
 get_state = global_registrar.get_state
 set_run = global_registrar.set_run
+set_variant_prefix = global_registrar.set_variant_prefix
 get_run = global_registrar.get_run
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis

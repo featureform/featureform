@@ -1108,8 +1108,9 @@ class SourceVariant:
         else:
             raise Exception(f"Invalid transformation type {source}")
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> Optional[str]:
         defArgs = self.definition.kwargs()
+
         serialized = pb.SourceVariant(
             created=None,
             name=self.name,
@@ -1123,7 +1124,9 @@ class SourceVariant:
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
             **defArgs,
         )
+        _get_and_set_equivalent_variant(serialized, "source_variant", stub)
         stub.CreateSourceVariant(serialized)
+        return serialized.variant
 
     def _create_local(self, db) -> None:
         should_insert_text = False
@@ -1354,7 +1357,9 @@ class FeatureVariant:
             error=feature.status.error_message,
         )
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> Optional[str]:
+        if hasattr(self.source, "name_variant"):
+            self.source = self.source.name_variant()
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
@@ -1376,7 +1381,9 @@ class FeatureVariant:
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
+        _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
+        return serialized.variant
 
     def _create_local(self, db) -> None:
         db.insert(
@@ -1480,7 +1487,7 @@ class OnDemandFeatureVariant:
     def type() -> str:
         return "ondemand_feature"
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> Optional[str]:
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
@@ -1492,7 +1499,9 @@ class OnDemandFeatureVariant:
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
         )
+        _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
+        return serialized.variant
 
     def _create_local(self, db) -> None:
         decode_query = base64.b64encode(self.query).decode("ascii")
@@ -1641,7 +1650,9 @@ class LabelVariant:
             error=label.status.error_message,
         )
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> Optional[str]:
+        if hasattr(self.source, "name_variant"):
+            self.source = self.source.name_variant()
         serialized = pb.LabelVariant(
             name=self.name,
             variant=self.variant,
@@ -1658,7 +1669,9 @@ class LabelVariant:
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
+        _get_and_set_equivalent_variant(serialized, "label_variant", stub)
         stub.CreateLabelVariant(serialized)
+        return serialized.variant
 
     def _create_local(self, db) -> None:
         db.insert(
@@ -1881,7 +1894,7 @@ class TrainingSetVariant:
             error=ts.status.error_message,
         )
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> Optional[str]:
         feature_lags = []
         for lag in self.feature_lags:
             lag_duration = Duration()
@@ -1893,6 +1906,13 @@ class TrainingSetVariant:
                 lag=lag_duration,
             )
             feature_lags.append(feature_lag)
+
+        for i, f in enumerate(self.features):
+            if hasattr(f, "name_variant"):
+                self.features[i] = f.name_variant()
+
+        if hasattr(self.label, "name_variant"):
+            self.label = self.label.name_variant()
 
         serialized = pb.TrainingSetVariant(
             created=None,
@@ -1908,7 +1928,9 @@ class TrainingSetVariant:
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
+        _get_and_set_equivalent_variant(serialized, "training_set_variant", stub)
         stub.CreateTrainingSetVariant(serialized)
+        return serialized.variant
 
     def _create_local(self, db) -> None:
         self._check_insert_training_set_resources(db)
@@ -2462,6 +2484,32 @@ class SparkCredentials:
             "CoreSite": core_site,
             "YarnSite": yarn_site,
         }
+
+
+# Looks to see if there is an existing resource variant that matches on a resources key fields
+# and sets the serialized to it.
+#
+# i.e. for a source variant, looks for a source variant with the same name and definition
+def _get_and_set_equivalent_variant(
+    resource_variant_proto, variant_field, stub
+) -> Optional[str]:
+    if os.getenv("FF_GET_EQUIVALENT_VARIANTS"):
+        # Get equivalent from stub
+        equivalent = stub.GetEquivalent(
+            pb.ResourceVariant(**{variant_field: resource_variant_proto})
+        )
+
+        # grpc call returns the default ResourceVariant proto when equivalent doesn't exist which explains the below check
+        if equivalent != pb.ResourceVariant():
+            variant_value = getattr(getattr(equivalent, variant_field), "variant")
+            print(
+                f"Looks like an equivalent {variant_field.replace('_', ' ')} already exists, going to use its variant: ",
+                variant_value,
+            )
+            # TODO add confirmation from user before using equivalent variant
+            resource_variant_proto.variant = variant_value
+            return variant_value
+    return None
 
 
 @typechecked

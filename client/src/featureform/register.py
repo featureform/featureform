@@ -1265,7 +1265,7 @@ class DFTransformationDecorator:
         description: str = "",
     ):
         return self.registrar.register_column_resources(
-            source=(self.name, self.variant),
+            source=self,
             entity=entity,
             entity_column=entity_column,
             owner=owner,
@@ -1341,6 +1341,7 @@ class ColumnSourceRegistrar(SourceRegistrar):
             timestamp_column=timestamp_column,
             description=description,
             schedule=schedule,
+            client_object=self,
         )
 
 
@@ -1661,10 +1662,10 @@ class Registrar:
         self.__resources = []
         self.__default_owner = ""
         self.__variant_prefix = ""
-        auto_variant = get_random_name()
         if os.getenv("FF_TIMESTAMP_VARIANT") is not None:
-            auto_variant = get_current_timestamp_variant(self.__variant_prefix)
-        self.__run = auto_variant
+            self.__run = get_current_timestamp_variant(self.__variant_prefix)
+        else:
+            self.__run = get_random_name()
 
         """
         maps client objects (feature object, label object, source decorators) to their resource in the event we want 
@@ -1798,10 +1799,10 @@ class Registrar:
             run (str): Name of a run to be set.
         """
         if run == "":
-            auto_variant = get_random_name()
             if os.getenv("FF_TIMESTAMP_VARIANT") is not None:
-                auto_variant = get_current_timestamp_variant(self.__variant_prefix)
-            self.__run = auto_variant
+                self.__run = get_current_timestamp_variant(self.__variant_prefix)
+            else:
+                self.__run = get_random_name()
         else:
             self.__run = run
 

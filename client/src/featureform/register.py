@@ -2488,6 +2488,13 @@ class Registrar:
         """
 
         tags, properties = set_tags_properties(tags, properties)
+
+        container_name = container_name.replace("abfss://", "")
+        if "/" in container_name:
+            raise ValueError(
+                "container_name cannot contain '/'. container_name should be the name of the Azure Blobstore container only."
+            )
+
         azure_config = AzureFileStoreConfig(
             account_name=account_name,
             account_key=account_key,
@@ -2557,7 +2564,7 @@ class Registrar:
         tags, properties = set_tags_properties(tags, properties)
 
         if bucket_name == "":
-            raise ValueError("bucket_name required")
+            raise ValueError("bucket_name is required and cannot be empty string")
 
         # TODO: add verification into S3StoreConfig
         bucket_name = bucket_name.replace("s3://", "").replace("s3a://", "")
@@ -2625,6 +2632,16 @@ class Registrar:
                 has all the functionality of OfflineProvider
         """
         tags, properties = set_tags_properties(tags, properties)
+
+        if bucket_name == "":
+            raise ValueError("bucket_name is required and cannot be empty string")
+
+        bucket_name = bucket_name.replace("gs://", "")
+        if "/" in bucket_name:
+            raise ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the GCS bucket only."
+            )
+
         gcs_config = GCSFileStoreConfig(
             bucket_name=bucket_name, bucket_path=root_path, credentials=credentials
         )

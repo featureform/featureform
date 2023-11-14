@@ -33,28 +33,36 @@ number_table = snowflake.register_table(
     name="number_table",
     table="featureform_resource_feature__f4d42278-0889-44d7-9928-8aef22d23c16__6a6e8ff4-8a8f-4217-8096-bb360ae1e99b",
 )
+string_table = snowflake.register_table(
+    name="number_table",
+    table="featureform_resource_feature__h656j34d-0889-44d7-9928-8aef22d23c43__6a6e8ff4-8a8f-4217-1045-bb360ae1e99b",
+)
 
 @ff.entity
 class User:
     boolean_feature = ff.Feature(
         boolean_table[['entity',' value', 'ts']],
-        variant="batch_serving_test_9",
+        variant="batch_serving_test_15",
         type=ff.Float32,
         inference_store=redis,
     )
     numerical_feature = ff.Feature(
         number_table[['entity',' value', 'ts']],
-        variant="batch_serving_test_9",
+        variant="batch_serving_test_15",
         type=ff.Float32,
+        inference_store=redis,
+    )
+    string_feature = ff.Feature(
+        number_table[['entity',' value', 'ts']],
+        variant="batch_serving_test_15",
+        type=ff.String,
         inference_store=redis,
     )
 
 serving = ServingClient(host="localhost:7878", insecure=True)
-# single_feature = serving.features()
 
 # Serve batch features
-batch_features = serving.iterate_feature_set(User.numerical_feature, User.boolean_feature)
+batch_features = serving.iterate_feature_set(User.boolean_feature, ("numerical_feature", "batch_serving_test_15"), (User.string_feature.name, User.string_feature.variant))
 
 for i, batch in enumerate(batch_features):
     print(batch)
-

@@ -2285,12 +2285,12 @@ class DatabricksCredentials:
 
         if not self._validate_cluster_id():
             raise ValueError(
-                "Cluster_id must follow the format: xxx-xxxxxx-xxxxxxxx, where x is alphanumeric"
+                f"Invalid cluster_id: expected id in the format 'xxx-xxxxxx-xxxxxxxx' but received '{self.cluster_id}'"
             )
 
         if self.host and not self._validate_token():
             raise ValueError(
-                "Token must start with 'dapi' followed by alphanumeric eg ex: dapixxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-x"
+                f"Invalid token: expected token in the format 'dapixxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-x' but received '{self.token}'"
             )
 
     def _validate_cluster_id(self):

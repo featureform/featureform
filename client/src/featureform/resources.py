@@ -2298,7 +2298,7 @@ class DatabricksCredentials:
         return re.match(cluster_id_regex, self.cluster_id)
 
     def _validate_token(self):
-        token_regex = r"^dapi[\w-]+$"
+        token_regex = r"^dapi[a-zA-Z0-9]{31}-[a-zA-Z0-9]"
         return re.match(token_regex, self.token)
 
     def type(self):

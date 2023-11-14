@@ -1664,6 +1664,8 @@ class LabelVariant(ResourceVariant):
         return serialized.variant
 
     def _create_local(self, db) -> None:
+        if hasattr(self.source, "name_variant"):
+            self.source = self.source.name_variant()
         db.insert(
             "label_variant",
             str(time.time()),

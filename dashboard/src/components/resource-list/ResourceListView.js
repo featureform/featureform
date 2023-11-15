@@ -71,8 +71,8 @@ const useStyles = makeStyles(() => ({
   },
   tableBody: {
     border: `2px solid ${theme.palette.border.main}`,
-    background: 'white',
-    color: 'white',
+    background: '#FFFFFF',
+    color: '#FFFFFF',
     opacity: 1,
   },
   providerColumn: {},
@@ -231,9 +231,17 @@ export const ResourceListView = ({
   let mutableRes = deepCopy(initRes);
   mutableRes = mutableRes.filter(filterMissingDefaults);
 
-  function detailRedirect(e, data) {
-    e.stopPropagation();
-    router.push(Resource[type].urlPathResource(data.name));
+  function detailRedirect(event, data) {
+    //this is a main column redirect, use the default variant if applicable
+    event.stopPropagation();
+    const base = Resource[type].urlPathResource(data.name);
+    const defaultVariant = data?.['default-variant'];
+    if (defaultVariant) {
+      setVariant(type, data.name, defaultVariant);
+      router.push(`${base}?variant=${defaultVariant}`);
+    } else {
+      router.push(base);
+    }
   }
 
   function getPageSizeProp(listLength = 0) {
@@ -260,6 +268,7 @@ export const ResourceListView = ({
                 detailPanel: (row) => {
                   return (
                     <VariantTable
+                      suppressHydrationWarning
                       name={row.name}
                       row={row}
                       type={type}
@@ -348,7 +357,7 @@ export const ResourceListView = ({
             search: true,
             draggable: false,
             headerStyle: {
-              backgroundColor: 'white',
+              backgroundColor: '#FFFFFF',
               color: theme.palette.primary.main,
               marginLeft: 3,
             },
@@ -409,9 +418,11 @@ export const VariantTable = ({
 }) => {
   const classes = useStyles();
   let router = useRouter();
-  function variantChangeRedirect(e, data) {
+  function variantChangeRedirect(event, data) {
+    event.stopPropagation();
     setVariant(type, name, data.variant);
-    router.push(Resource[type].urlPathResource(name));
+    const base = Resource[type].urlPathResource(name);
+    router.push(`${base}?variant=${data.variant}`);
   }
 
   let myVariants = [];
@@ -472,7 +483,7 @@ export const VariantTable = ({
             toolbar: false,
             draggable: false,
             headerStyle: {
-              backgroundColor: 'white',
+              backgroundColor: '#FFFFFF',
               color: theme.palette.primary.main,
               marginLeft: 3,
             },

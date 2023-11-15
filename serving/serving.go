@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
-	"sort"
 	"sync"
 
 	filestore "github.com/featureform/filestore"
@@ -226,6 +225,8 @@ func (serv *FeatureServer) addModel(ctx context.Context, model *pb.Model, featur
 	return nil
 }
 
+type observer struct{}
+
 // TODO: test serving embedding features
 func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServeRequest) (*pb.FeatureRow, error) {
 	features := req.GetFeatures()
@@ -241,243 +242,17 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 		}
 	}
 
-	type indexedFeatureValue struct {
-		index  int
-		values *pb.ValueList
-	}
-	vals := make(chan indexedFeatureValue, len(features))
-	errc := make(chan error, len(req.GetFeatures()))
-
-	for i, feature := range req.GetFeatures() {
-		go func(i int, feature *pb.FeatureID) {
-			name, variant := feature.GetName(), feature.GetVersion()
-			valueList, err := serv.getFeatureValues(ctx, name, variant, entityMap)
-			if err != nil {
-				errc <- fmt.Errorf("error getting feature value: %w", err)
-				serv.Logger.Errorw("Could not get feature value", "Name", name, "Variant", variant, "Error", err.Error())
-				return
-			}
-			vals <- indexedFeatureValue{index: i, values: valueList}
-		}(i, feature)
-	}
-
-	var valueLists []indexedFeatureValue
-	var err error
-
-Collect:
-	for {
-		select {
-		case internalError := <-errc:
-			err = internalError
-			break Collect
-		case val := <-vals:
-			valueLists = append(valueLists, val)
-			if len(valueLists) == len(req.GetFeatures()) {
-				break Collect
-			}
-		}
-
-	}
+	rows, err := serv.getFeatureRows(ctx, features, entityMap)
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(valueLists, func(i, j int) bool {
-		return valueLists[i].index < valueLists[j].index
-	})
-	var results []*pb.ValueList
-	for _, val := range valueLists {
-		results = append(results, val.values)
-	}
 	return &pb.FeatureRow{
-		Values: results,
+		Values: rows,
 	}, nil
 }
 
 func (serv *FeatureServer) getNVCacheKey(name, variant string) string {
 	return fmt.Sprintf("%s:%s", name, variant)
-}
-
-func (serv *FeatureServer) getFeatureValues(ctx context.Context, name, variant string, entityMap map[string][]string) (*pb.ValueList, error) {
-	type indexedValue struct {
-		index int
-		value interface{}
-	}
-
-	obs := serv.Metrics.BeginObservingOnlineServe(name, variant)
-	defer obs.Finish()
-	logger := serv.Logger.With("Name", name, "Variant", variant)
-
-	var meta *metadata.FeatureVariant
-	if feature, has := serv.Features.Load(serv.getNVCacheKey(name, variant)); has {
-		meta = feature.(*metadata.FeatureVariant)
-	} else {
-		metaFeature, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{name, variant})
-		if err != nil {
-			logger.Errorw("metadata lookup failed", "Err", err)
-			obs.SetError()
-			return nil, fmt.Errorf("metadata lookup failed: %w", err)
-		}
-		meta = metaFeature
-		serv.Features.Range(func(key, value interface{}) bool {
-			return true
-		})
-		serv.Features.Store(serv.getNVCacheKey(name, variant), meta)
-	}
-
-	var values []interface{}
-	switch meta.Mode() {
-	case metadata.PRECOMPUTED:
-		entity, has := entityMap[meta.Entity()]
-		if !has {
-			logger.Errorw("Entity not found", "Entity", meta.Entity())
-			obs.SetError()
-			return nil, fmt.Errorf("no value for entity %s", meta.Entity())
-		}
-		if store, has := serv.Providers.Load(meta.Provider()); has {
-			var featureTable provider.OnlineStoreTable
-			if table, has := serv.Tables.Load(serv.getNVCacheKey(name, variant)); has {
-				featureTable = table.(provider.OnlineStoreTable)
-			} else {
-				table, err := store.(provider.OnlineStore).GetTable(name, variant)
-				if err != nil {
-					logger.Errorw("feature not found", "Error", err)
-					obs.SetError()
-					return nil, fmt.Errorf("feature not found: %w", err)
-				}
-				serv.Tables.Store(serv.getNVCacheKey(name, variant), table)
-				featureTable = table
-			}
-
-			valCh := make(chan indexedValue, len(entity))
-			errCh := make(chan error, len(entity))
-
-			for i, entityVal := range entity {
-				// Start a goroutine for each entity
-				go func(index int, ev string) {
-					val, err := featureTable.(provider.OnlineStoreTable).Get(ev)
-					if err != nil {
-						// Push error into the error channel
-						errCh <- fmt.Errorf("entity not found: %w", err)
-						return
-					}
-					// If no error, push value into the value channel
-					valCh <- indexedValue{index: index, value: val}
-				}(i, entityVal)
-			}
-
-			// Collect results
-			var results []indexedValue
-			for range entity {
-				select {
-				case err := <-errCh:
-					// If we get an error, stop and return it
-					logger.Errorw("entity not found", "Error", err)
-					obs.SetError()
-					return nil, err
-				case val := <-valCh:
-					// Otherwise, add the value to the slice
-					results = append(results, val)
-				}
-			}
-			sort.Slice(results, func(i, j int) bool {
-				return results[i].index < results[j].index
-			})
-			for _, val := range results {
-				values = append(values, val.value)
-			}
-		} else {
-			providerEntry, err := meta.FetchProvider(serv.Metadata, ctx)
-			if err != nil {
-				logger.Errorw("fetching provider metadata failed", "Error", err)
-				obs.SetError()
-				return nil, fmt.Errorf("fetching provider metadata failed: %w", err)
-			}
-			p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
-			if err != nil {
-				logger.Errorw("failed to get provider", "Error", err)
-				obs.SetError()
-				return nil, fmt.Errorf("failed to get provider: %w", err)
-			}
-			store, err := p.AsOnlineStore()
-			if err != nil {
-				logger.Errorw("failed to use provider as onlinestore for feature", "Error", err)
-				obs.SetError()
-				// This means that the provider of the feature isn't an online store.
-				// That shouldn't be possible.
-				return nil, fmt.Errorf("failed to use provider as onlinestore for feature: %w", err)
-			}
-			serv.Providers.Store(meta.Provider(), store)
-			// 70ms
-			var featureTable provider.OnlineStoreTable
-			if table, has := serv.Tables.Load(serv.getNVCacheKey(name, variant)); has {
-				featureTable = table.(provider.OnlineStoreTable)
-			} else {
-				table, err := store.GetTable(name, variant)
-				if err != nil {
-					logger.Errorw("feature not found", "Error", err)
-					obs.SetError()
-					return nil, fmt.Errorf("feature not found: %w", err)
-				}
-				serv.Tables.Store(serv.getNVCacheKey(name, variant), table)
-				featureTable = table
-			}
-
-			valCh := make(chan indexedValue, len(entity))
-			errCh := make(chan error, len(entity))
-
-			for i, entityVal := range entity {
-				// Start a goroutine for each entity
-				go func(index int, ev string) {
-					val, err := featureTable.(provider.OnlineStoreTable).Get(ev)
-					if err != nil {
-						// Push error into the error channel
-						errCh <- fmt.Errorf("entity not found: %w", err)
-						return
-					}
-					// If no error, push value into the value channel
-					valCh <- indexedValue{index: index, value: val}
-				}(i, entityVal)
-			}
-
-			// Collect results
-			var results []indexedValue
-			for range entity {
-				select {
-				case err := <-errCh:
-					// If we get an error, stop and return it
-					logger.Errorw("entity not found", "Error", err)
-					obs.SetError()
-					return nil, err
-				case val := <-valCh:
-					// Otherwise, add the value to the slice
-					results = append(results, val)
-				}
-			}
-			sort.Slice(results, func(i, j int) bool {
-				return results[i].index < results[j].index
-			})
-			for _, val := range results {
-				values = append(values, val.value)
-			}
-		}
-	case metadata.CLIENT_COMPUTED:
-		values = append(values, meta.LocationFunction())
-	default:
-		return nil, fmt.Errorf("unknown computation mode %v", meta.Mode())
-	}
-
-	castedValues := &pb.ValueList{}
-	for _, val := range values {
-		f, err := newValue(val)
-		if err != nil {
-			logger.Errorw("invalid feature type", "Error", err)
-			obs.SetError()
-			return nil, err
-		}
-		castedValues.Values = append(castedValues.Values, f.Serialized())
-	}
-	obs.ServeRow()
-	return castedValues, nil
 }
 
 func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceColumnRequest) (*pb.SourceDataColumns, error) {

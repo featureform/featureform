@@ -232,9 +232,11 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	features := req.GetFeatures()
 	entities := req.GetEntities()
 	entityMap := make(map[string][]string)
+
 	for _, entity := range entities {
 		entityMap[entity.GetName()] = entity.GetValue()
 	}
+
 	if model := req.GetModel(); model != nil {
 		err := serv.addModel(ctx, model, features)
 		if err != nil {
@@ -246,6 +248,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	if err != nil {
 		return nil, err
 	}
+
 	return &pb.FeatureRow{
 		Values: rows,
 	}, nil

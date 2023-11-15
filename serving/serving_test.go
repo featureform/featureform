@@ -359,6 +359,21 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Mode:       metadata.PRECOMPUTED,
 			IsOnDemand: false,
 		},
+		metadata.FeatureDef{
+			Name:     "feature",
+			Variant:  "variant2",
+			Provider: "mockOnline",
+			Entity:   "mockEntity",
+			Source:   metadata.NameVariant{"mockSource", "var"},
+			Owner:    "Featureform",
+			Location: metadata.ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
+			Mode:       metadata.PRECOMPUTED,
+			IsOnDemand: false,
+		},
 		metadata.LabelDef{
 			Name:     "label",
 			Variant:  "variant",
@@ -613,6 +628,49 @@ func TestFeatureServe(t *testing.T) {
 	}
 }
 
+func TestFeatureServeMultipleEntities(t *testing.T) {
+	ctx := onlineTestContext{
+		ResourceDefsFn: simpleResourceDefsFn,
+		FactoryFn:      createMockOnlineStoreFactory(simpleFeatureRecords()),
+	}
+	serv := ctx.Create(t)
+	defer ctx.Destroy()
+	req := &pb.FeatureServeRequest{
+		Features: []*pb.FeatureID{
+			&pb.FeatureID{
+				Name:    "feature",
+				Version: "variant",
+			},
+		},
+		Entities: []*pb.Entity{
+			&pb.Entity{
+				Name:  "mockEntity",
+				Value: []string{"a", "b"},
+			},
+		},
+	}
+	resp, err := serv.FeatureServe(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Failed to serve feature: %s", err)
+	}
+	vals := resp.Values
+	if len(vals) != len(req.Features) {
+		t.Fatalf("Wrong number of values: %d\nExpected: %d", len(vals), len(req.Features))
+	}
+	var features []interface{}
+	for _, val := range vals {
+		var entities []interface{}
+		for _, v := range val.Values {
+			entities = append(entities, unwrapVal(v))
+		}
+		features = append(features, entities)
+	}
+	expectedValues := []interface{}{[]interface{}{12.5, "def"}}
+	if !reflect.DeepEqual(features, expectedValues) {
+		t.Fatalf("Wrong feature values: %v\nExpected: %v", features, expectedValues)
+	}
+}
+
 func TestFeatureNotFound(t *testing.T) {
 	ctx := onlineTestContext{
 		ResourceDefsFn: simpleResourceDefsFn,
@@ -734,7 +792,7 @@ func TestEntityNotFoundInOnlineStore(t *testing.T) {
 		Entities: []*pb.Entity{
 			&pb.Entity{
 				Name:  "mockEntity",
-				Value: "NonExistantEntity",
+				Value: []string{"NonExistantEntity"},
 			},
 		},
 	}
@@ -898,9 +956,12 @@ func TestSimpleModelRegistrationFeatureServe(t *testing.T) {
 	if len(vals) != len(req.Features) {
 		t.Fatalf("Wrong number of values: %d\nExpected: %d", len(vals), len(req.Features))
 	}
-	dblVal := unwrapVal(vals[0])
-	if dblVal != 12.5 {
-		t.Fatalf("Wrong feature value: %v\nExpected: %v", dblVal, 12.5)
+
+	for _, v := range vals[0].Values {
+		gotVal := unwrapVal(v)
+		if gotVal != 12.5 {
+			t.Fatalf("Wrong feature value: %v\nExpected: %v", gotVal, 12.5)
+		}
 	}
 	modelResp, err := serv.Metadata.GetModel(context.Background(), modelName)
 	if err != nil {
@@ -938,11 +999,17 @@ func TestOnDemandFeatureServe(t *testing.T) {
 	if len(vals) != len(req.Features) {
 		t.Fatalf("Wrong number of values: %d\nExpected: %d", len(vals), len(req.Features))
 	}
-	dblVal := unwrapVal(vals[0])
+	var dblVal []interface{}
+	for _, val := range vals[0].Values {
+		dblVal = append(dblVal, unwrapVal(val))
+	}
+
 	expected := []byte(PythonFunc)
-	areBytesEqual := bytes.Equal(dblVal.([]byte), expected)
-	if !areBytesEqual {
-		t.Fatalf("Wrong feature value: %v\nExpected: %v", dblVal, string(expected))
+	for _, val := range dblVal {
+		areBytesEqual := bytes.Equal(val.([]byte), expected)
+		if !areBytesEqual {
+			t.Fatalf("Wrong feature value: %v\nExpected: %v", dblVal, string(expected))
+		}
 	}
 }
 

@@ -5,7 +5,7 @@ Feature: Batch Serving
     Given Featureform is installed
     And The Snowflake container is running
     And Redis is running
-    When I register a Snowflake and with a database "<db>" and schema "<sc>"
+    When I register a Snowflake and with a "0884D0DD-468D-4C3A-8109-3C2BAAD72EF7" and "PUBLIC"
     And I register redis
     And I register the tables from the database
     And I define a User and register features

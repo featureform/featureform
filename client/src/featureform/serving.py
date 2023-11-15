@@ -149,8 +149,6 @@ class ServingClient:
 
     def iterate_feature_set(self, *features):
         """
-        TODO: We need the feature and variant name
-        TODO: Need to support string feature names, feature objects, and feature name/variant tuples
         Return an iterator that iterates over each entity and corresponding features in feats.
         **Example:**
         ```py title="definitions.py"
@@ -165,7 +163,7 @@ class ServingClient:
             iterator: An iterator of entity and feature values
 
         """
-        return self.impl.iterate_feature_set(*features)
+        return self.impl.iterate_feature_set(features)
 
 
 class HostedClientImpl:
@@ -229,8 +227,9 @@ class HostedClientImpl:
 
         return feature_values
     
-    def iterate_feature_set(self, *features):
-        return FeatureSetIterator(self._stub, *features)
+    def iterate_feature_set(self, features):
+        feature_tuples = check_feature_type(features)
+        return FeatureSetIterator(self._stub, feature_tuples)
 
     def _get_source_as_df(self, name, variant, limit):
         columns = self._get_source_columns(name, variant)
@@ -1230,12 +1229,12 @@ def parse_proto_value(value):
 
 
 class FeatureSetIterator:
-    def __init__(self, stub, *features):
+    def __init__(self, stub, features):
         req = serving_pb2.BatchFeatureServeRequest()
-        for feature in features:
+        for (name, variant) in features:
             feature_id = req.features.add()
-            feature_id.name = feature.name
-            feature_id.version = feature.variant
+            feature_id.name = name
+            feature_id.version = variant
         self._stub = stub
         self._req = req
         self._iter = stub.BatchFeatureServe(req)
@@ -1244,7 +1243,7 @@ class FeatureSetIterator:
         return self
 
     def __next__(self):
-        return FeatureSetRow(next(self._iter))
+        return FeatureSetRow(next(self._iter)).to_numpy()
 
     def restart(self):
         self._iter = self._stub.BatchFeatureServe(self._req)
@@ -1256,7 +1255,7 @@ class FeatureSetRow:
             [parse_proto_value(feature) for feature in proto_row.features]
         )
         self._entity = parse_proto_value(proto_row.entity)
-        self._row = np.append(self._features, self._entity)
+        self._row = [self._entity, self._features]
 
     def features(self):
         return [self._row[:-1]]

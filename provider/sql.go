@@ -573,6 +573,7 @@ func (store *sqlOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatur
 	asEntity := ""
 	withFeatures := ""
 	joinTables := ""
+	featureColumns := ""
 	var matIDs []string
 
 	tableName0 := sanitize(store.getMaterializationTableName(MaterializationID(tables[0].Name)))
@@ -580,13 +581,12 @@ func (store *sqlOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatur
 		matID := MaterializationID(tableID.Name)
 		matIDs = append(matIDs, string(matID))
 		matTableName := sanitize(store.getMaterializationTableName(matID))
-		// println("TABLE NAME IS ", matTableName)
 
 		if i > 0 {
 			joinTables += "FULL OUTER JOIN "
 		}
-		// withFeatures += fmt.Sprintf(", %s.value AS feature%d ", matTableName, i+1)
 		withFeatures += fmt.Sprintf(", %s.value AS feature%d, %s.ts AS TS%d ", matTableName, i+1, matTableName, i+1)
+		featureColumns += fmt.Sprintf(", feature%d", i+1)
 		joinTables += fmt.Sprintf("%s ", matTableName)
 		if i == 1 {
 			joinTables += fmt.Sprintf("ON %s = %s.entity ", asEntity, matTableName)
@@ -608,10 +608,9 @@ func (store *sqlOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatur
 		createQuery = fmt.Sprintf("CREATE VIEW \"%s\" AS SELECT COALESCE(%s) AS entity %s FROM %s", joinedTableName, asEntity, withFeatures, joinTables)
 	}
 	store.db.Query(createQuery)
-	// fmt.Println("CREATE QUERY: ", createQuery)
-	select_query := fmt.Sprintf("SELECT * FROM \"%s\"", joinedTableName)
-	// fmt.Println("JOINED TABLE NAME: ", joinedTableName)
-	// fmt.Println()
+	createQueryWithoutTS := fmt.Sprintf("CREATE VIEW \"no_ts_%s\" AS SELECT entity%s FROM \"%s\"", joinedTableName, featureColumns, joinedTableName)
+	store.db.Query(createQueryWithoutTS)
+	select_query := fmt.Sprintf("SELECT * FROM \"no_ts_%s\"", joinedTableName)
 	resultRows, err := store.db.Query(select_query)
 	if err != nil {
 		return nil, err
@@ -619,20 +618,21 @@ func (store *sqlOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatur
 	if resultRows == nil {
 		return newsqlBatchFeatureIterator(nil, nil, nil, store.query), nil
 	}
-	columnTypes, err := store.getValueColumnTypes(joinedTableName)
+	columnTypes, err := store.getValueColumnTypes(fmt.Sprintf("no_ts_%s", joinedTableName))
 	if err != nil {
 		return nil, err
 	}
-	columns, err := store.query.getColumns(store.db, joinedTableName)
+	columns, err := store.query.getColumns(store.db, fmt.Sprintf("no_ts_%s", joinedTableName))
 	if err != nil {
 		return nil, err
 	}
+	dropQuery := fmt.Sprintf("DROP VIEW \"no_ts_%s\"", joinedTableName)
+	store.db.Query(dropQuery)
 	columnNames := make([]string, 0)
 	for _, col := range columns {
 		columnNames = append(columnNames, sanitize(col.Name))
 	}
-	// fmt.Println("COLUMN TYPES ARE: ", columnTypes)
-	// fmt.Println("COLUMN NAMES ARE: ", columnNames)
+
 	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query), nil
 }
 

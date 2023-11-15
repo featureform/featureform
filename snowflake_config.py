@@ -24,45 +24,48 @@ redis = ff.register_redis(
     port=6379,
 )
 
-boolean_table = snowflake.register_table(
-    name="boolean_table",
-    table= "featureform_resource_feature__8a49dead-41a6-48c3-9ee7-7ed75d783fe4__0efdd949-f967-4796-8ed3-6c6f736344e8",
+table1 = snowflake.register_table(
+    name="table1",
+    table= "featureform_resource_feature__1926ce54-6d29-4094-a291-6f6516d84eed__b63c0ba7-23d8-437d-bbc9-bb0f2c821f0c",
 )
 
-number_table = snowflake.register_table(
-    name="number_table",
-    table="featureform_resource_feature__f4d42278-0889-44d7-9928-8aef22d23c16__6a6e8ff4-8a8f-4217-8096-bb360ae1e99b",
+table2 = snowflake.register_table(
+    name="table2",
+    table= "featureform_resource_feature__c1e195e0-961a-40b6-8437-bf823fa14b02__64203c48-1d9b-43e5-a7eb-2a1d5a0a0fc1",
 )
-string_table = snowflake.register_table(
-    name="number_table",
-    table="featureform_resource_feature__h656j34d-0889-44d7-9928-8aef22d23c43__6a6e8ff4-8a8f-4217-1045-bb360ae1e99b",
+
+table3 = snowflake.register_table(
+    name="table3",
+    table="featureform_resource_feature__08b1cc23-18ce-4ae7-9ee0-d68216f19079__2e2a8e99-7a60-4e10-98e2-1d17e44ba476",
+)
+table4 = snowflake.register_table(
+    name="table4",
+    table="featureform_resource_feature__22833f30-f38a-4d3c-b3a3-d5896711aa33__af02225e-b5ab-4d85-aa76-de03a5839662",
 )
 
 @ff.entity
 class User:
-    boolean_feature = ff.Feature(
-        boolean_table[['entity',' value', 'ts']],
-        variant="batch_serving_test_15",
+    table1_feature = ff.Feature(
+        table1[['entity',' value', 'ts']],
+        variant=f"variant_{num}",
         type=ff.Float32,
         inference_store=redis,
     )
-    numerical_feature = ff.Feature(
-        number_table[['entity',' value', 'ts']],
-        variant="batch_serving_test_15",
+    table2_feature = ff.Feature(
+        table2[['entity',' value', 'ts']],
+        variant=f"variant_{num}",
         type=ff.Float32,
         inference_store=redis,
     )
-    string_feature = ff.Feature(
-        number_table[['entity',' value', 'ts']],
-        variant="batch_serving_test_15",
+    table3_feature = ff.Feature(
+        table3[['entity',' value', 'ts']],
+        variant=f"variant_{num}",
         type=ff.String,
         inference_store=redis,
     )
-
-serving = ServingClient(host="localhost:7878", insecure=True)
-
-# Serve batch features
-batch_features = serving.iterate_feature_set(User.boolean_feature, ("numerical_feature", "batch_serving_test_15"), (User.string_feature.name, User.string_feature.variant))
-
-for i, batch in enumerate(batch_features):
-    print(batch)
+    table4_feature = ff.Feature(
+        table4[['entity',' value', 'ts']],
+        variant=f"variant_{num}",
+        type=ff.String,
+        inference_store=redis,
+    )

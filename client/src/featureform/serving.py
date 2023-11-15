@@ -175,17 +175,10 @@ class HostedClientImpl:
         self, features, entities, model: Union[str, Model] = None, params: list = None
     ):
         req = serving_pb2.FeatureServeRequest()
-        for name, value in entities.items():
+        for name, values in entities.items():
             entity_proto = req.entities.add()
             entity_proto.name = name
-            # Assuming that 'value' is a singular field and not a repeated one.
-            if isinstance(
-                value, list
-            ):  # If value is a list, iterate and add each item.
-                for item in value:
-                    entity_proto.value.append(item)
-            else:
-                # If it's a singular value, just set it directly
+            for value in values:  # Assuming 'values' is a list of strings
                 entity_proto.value.append(value)
         for name, variation in features:
             feature_id = req.features.add()
@@ -196,27 +189,27 @@ class HostedClientImpl:
         resp = self._stub.FeatureServe(req)
 
         feature_values = []
-        for val in resp.values:
-            for v in val.values:
-                feature_values.append(v.int64_value)
-                # parsed_value = parse_proto_value(val)
-                # print(parsed_value)
-            # value_type = type(parsed_value)
-            parsed_value = feature_values
 
-            # # Ondemand features are returned as a byte array
-            # # which holds the pickled function
-            # if value_type == bytes:
-            #     code = dill.loads(bytearray(parsed_value))
-            #     func = types.FunctionType(code, globals(), "transformation")
-            #     parsed_value = func(self, params, entities)
-            # # Vector features are returned as a Vector32 proto due
-            # # to the inability to use the `repeated` keyword in
-            # # in a `oneof` field
-            # elif value_type == serving_pb2.Vector32:
-            #     parsed_value = parsed_value.value
+        for val_list in resp.values:
+            print(val_list)
+            entity_values = []
+            for val in val_list.values:
+                parsed_value = self.parse_proto_value(val)
+                value_type = type(parsed_value)
 
-            feature_values.append(parsed_value)
+                # Ondemand features are returned as a byte array
+                # which holds the pickled function
+                if value_type == bytes:
+                    code = dill.loads(bytearray(parsed_value))
+                    func = types.FunctionType(code, globals(), "transformation")
+                    parsed_value = func(self, params, entities)
+                # Vector features are returned as a Vector32 proto due
+                # to the inability to use the `repeated` keyword in
+                # in a `oneof` field
+                elif value_type == serving_pb2.Vector32:
+                    parsed_value = parsed_value.value
+                entity_values.append(parsed_value)
+            feature_values.append(entity_values)
 
         return feature_values
 
@@ -247,6 +240,10 @@ class HostedClientImpl:
         req = serving_pb2.NearestRequest(id=id, vector=vec, k=k)
         resp = self._stub.Nearest(req)
         return resp.entities
+
+    def parse_proto_value(self, value):
+        """parse_proto_value is used to parse the one of Value message"""
+        return getattr(value, value.WhichOneof("value"))
 
     def close(self):
         self._channel.close()
@@ -1272,8 +1269,3 @@ class BatchRow:
 
     def __len__(self):
         return len(self._rows)
-
-
-def parse_proto_value(value):
-    """parse_proto_value is used to parse the one of Value message"""
-    return getattr(value, value.WhichOneof("values"))

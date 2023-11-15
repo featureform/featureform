@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
+	"sort"
 	"sync"
 
 	filestore "github.com/featureform/filestore"
@@ -212,6 +213,19 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	return primary.IterateSegment(limit)
 }
 
+func (serv *FeatureServer) addModel(ctx context.Context, model *pb.Model, features []*pb.FeatureID) error {
+	modelFeatures := make([]metadata.NameVariant, len(features))
+	for i, feature := range features {
+		modelFeatures[i] = metadata.NameVariant{Name: feature.Name, Variant: feature.Version}
+	}
+	serv.Logger.Infow("Creating model", "Name", model.GetName())
+	err := serv.Metadata.CreateModel(ctx, metadata.ModelDef{Name: model.GetName(), Features: modelFeatures})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // TODO: test serving embedding features
 func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServeRequest) (*pb.FeatureRow, error) {
 	features := req.GetFeatures()
@@ -223,46 +237,53 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 		entityMap[entity.GetName()] = entity.GetValue()
 	}
 	if model := req.GetModel(); model != nil {
-		modelFeatures := make([]metadata.NameVariant, len(features))
-		for i, feature := range req.GetFeatures() {
-			modelFeatures[i] = metadata.NameVariant{Name: feature.Name, Variant: feature.Version}
-		}
-		serv.Logger.Infow("Creating model", "Name", model.GetName())
-		err := serv.Metadata.CreateModel(ctx, metadata.ModelDef{Name: model.GetName(), Features: modelFeatures})
+		err := serv.addModel(ctx, model, features)
 		if err != nil {
 			return nil, err
 		}
 	}
-	vals := make(chan *pb.ValueList, len(features))
+
+	type indexedFeatureValue struct {
+		index  int
+		values *pb.ValueList
+	}
+	vals := make(chan indexedFeatureValue, len(features))
 	errc := make(chan error, len(req.GetFeatures()))
 
 	for i, feature := range req.GetFeatures() {
 		go func(i int, feature *pb.FeatureID) {
 			name, variant := feature.GetName(), feature.GetVersion()
-			val, err := serv.getFeatureValue(ctx, name, variant, entityMap)
+			valueList, err := serv.getFeatureValues(ctx, name, variant, entityMap)
 			if err != nil {
 				errc <- fmt.Errorf("error getting feature value: %w", err)
 				serv.Logger.Errorw("Could not get feature value", "Name", name, "Variant", variant, "Error", err.Error())
 				return
 			}
-			vals <- val
+			vals <- indexedFeatureValue{index: i, values: valueList}
 		}(i, feature)
 		if len(errc) > 0 {
 			break
 		}
 	}
 
-	results := make([]*pb.ValueList, len(req.GetFeatures()))
+	valueLists := make([]indexedFeatureValue, len(req.GetFeatures()))
 	for i := 0; i < len(req.GetFeatures()); i++ {
 		if len(errc) != 0 {
 			err := <-errc
 			serv.Logger.Errorw("Could not get feature value", "Error", err.Error())
-			break
+			return nil, err
 		}
-		results[i] = <-vals
+		valueLists[i] = <-vals
+		fmt.Println("Results", valueLists[i])
 	}
-	serv.Logger.Infow("Serving Complete")
-
+	sort.Slice(valueLists, func(i, j int) bool {
+		return valueLists[i].index < valueLists[j].index
+	})
+	var results []*pb.ValueList
+	for _, val := range valueLists {
+		results = append(results, val.values)
+	}
+	fmt.Println(results)
 	return &pb.FeatureRow{
 		Values: results,
 	}, nil
@@ -272,11 +293,16 @@ func (serv *FeatureServer) getNVCacheKey(name, variant string) string {
 	return fmt.Sprintf("%s:%s", name, variant)
 }
 
-func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant string, entityMap map[string][]string) (*pb.ValueList, error) {
+func (serv *FeatureServer) getFeatureValues(ctx context.Context, name, variant string, entityMap map[string][]string) (*pb.ValueList, error) {
+	type indexedValue struct {
+		index int
+		value interface{}
+	}
+
 	obs := serv.Metrics.BeginObservingOnlineServe(name, variant)
 	defer obs.Finish()
 	logger := serv.Logger.With("Name", name, "Variant", variant)
-	// THIS IS SLOW 80ms
+
 	var meta *metadata.FeatureVariant
 	if feature, has := serv.Features.Load(serv.getNVCacheKey(name, variant)); has {
 		meta = feature.(*metadata.FeatureVariant)
@@ -288,9 +314,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 			return nil, fmt.Errorf("metadata lookup failed: %w", err)
 		}
 		meta = metaFeature
-		fmt.Println("SETTING KEY FOR FEATURE: ", serv.getNVCacheKey(name, variant))
 		serv.Features.Range(func(key, value interface{}) bool {
-			fmt.Println(key, value, "->", serv.getNVCacheKey(name, variant))
 			return true
 		})
 		serv.Features.Store(serv.getNVCacheKey(name, variant), meta)
@@ -319,21 +343,13 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 				serv.Tables.Store(serv.getNVCacheKey(name, variant), table)
 				featureTable = table
 			}
-			//for _, entityVal := range entity {
-			//	val, err := featureTable.(provider.OnlineStoreTable).Get(entityVal)
-			//	if err != nil {
-			//		logger.Errorw("entity not found", "Error", err)
-			//		obs.SetError()
-			//		return nil, fmt.Errorf("entity not found: %w", err)
-			//	}
-			//	values = append(values, val)
-			//}
-			valCh := make(chan interface{}, len(entity))
+
+			valCh := make(chan indexedValue, len(entity))
 			errCh := make(chan error, len(entity))
 
-			for _, entityVal := range entity {
+			for i, entityVal := range entity {
 				// Start a goroutine for each entity
-				go func(ev string) {
+				go func(index int, ev string) {
 					val, err := featureTable.(provider.OnlineStoreTable).Get(ev)
 					if err != nil {
 						// Push error into the error channel
@@ -341,11 +357,12 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 						return
 					}
 					// If no error, push value into the value channel
-					valCh <- val
-				}(entityVal)
+					valCh <- indexedValue{index: index, value: val}
+				}(i, entityVal)
 			}
 
 			// Collect results
+			var results []indexedValue
 			for range entity {
 				select {
 				case err := <-errCh:
@@ -355,8 +372,14 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 					return nil, err
 				case val := <-valCh:
 					// Otherwise, add the value to the slice
-					values = append(values, val)
+					results = append(results, val)
 				}
+			}
+			sort.Slice(results, func(i, j int) bool {
+				return results[i].index < results[j].index
+			})
+			for _, val := range results {
+				values = append(values, val.value)
 			}
 		} else {
 			providerEntry, err := meta.FetchProvider(serv.Metadata, ctx)
@@ -394,21 +417,13 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 				serv.Tables.Store(serv.getNVCacheKey(name, variant), table)
 				featureTable = table
 			}
-			//for _, entityVal := range entity {
-			//	val, err := featureTable.(provider.OnlineStoreTable).Get(entityVal)
-			//	if err != nil {
-			//		logger.Errorw("entity not found", "Error", err)
-			//		obs.SetError()
-			//		return nil, fmt.Errorf("entity not found: %w", err)
-			//	}
-			//	values = append(values, val)
-			//}
-			valCh := make(chan interface{}, len(entity))
+
+			valCh := make(chan indexedValue, len(entity))
 			errCh := make(chan error, len(entity))
 
-			for _, entityVal := range entity {
+			for i, entityVal := range entity {
 				// Start a goroutine for each entity
-				go func(ev string) {
+				go func(index int, ev string) {
 					val, err := featureTable.(provider.OnlineStoreTable).Get(ev)
 					if err != nil {
 						// Push error into the error channel
@@ -416,11 +431,12 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 						return
 					}
 					// If no error, push value into the value channel
-					valCh <- val
-				}(entityVal)
+					valCh <- indexedValue{index: index, value: val}
+				}(i, entityVal)
 			}
 
 			// Collect results
+			var results []indexedValue
 			for range entity {
 				select {
 				case err := <-errCh:
@@ -430,8 +446,14 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 					return nil, err
 				case val := <-valCh:
 					// Otherwise, add the value to the slice
-					values = append(values, val)
+					results = append(results, val)
 				}
+			}
+			sort.Slice(results, func(i, j int) bool {
+				return results[i].index < results[j].index
+			})
+			for _, val := range results {
+				values = append(values, val.value)
 			}
 		}
 	case metadata.CLIENT_COMPUTED:

@@ -1524,7 +1524,7 @@ type sendFn func(proto.Message) error
 type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
-	serv.Logger.Info("Creating Generic Resource", res.ID().Name, res.ID().Variant)
+	serv.Logger.Info("Creating Generic Resource ", res.ID().Name, res.ID().Variant)
 	id := res.ID()
 	if err := resourceNamedSafely(id); err != nil {
 		return nil, err
@@ -1547,7 +1547,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
 			return nil, fmt.Errorf("set job: %w", err)
 		}
-		serv.Logger.Info("Successfully Created Job", res.ID().Name, res.ID().Variant)
+		serv.Logger.Info("Successfully Created Job ", res.ID().Name, res.ID().Variant)
 	}
 	parentId, hasParent := id.Parent()
 	if hasParent {

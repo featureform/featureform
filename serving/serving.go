@@ -230,8 +230,6 @@ func (serv *FeatureServer) addModel(ctx context.Context, model *pb.Model, featur
 func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServeRequest) (*pb.FeatureRow, error) {
 	features := req.GetFeatures()
 	entities := req.GetEntities()
-	serv.Logger.Infow("Serving Features")
-	//serv.Logger.Infow("Serving features", "Features", features, "Entities", entities)
 	entityMap := make(map[string][]string)
 	for _, entity := range entities {
 		entityMap[entity.GetName()] = entity.GetValue()
@@ -261,20 +259,27 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 			}
 			vals <- indexedFeatureValue{index: i, values: valueList}
 		}(i, feature)
-		if len(errc) > 0 {
-			break
-		}
 	}
 
-	valueLists := make([]indexedFeatureValue, len(req.GetFeatures()))
-	for i := 0; i < len(req.GetFeatures()); i++ {
-		if len(errc) != 0 {
-			err := <-errc
-			serv.Logger.Errorw("Could not get feature value", "Error", err.Error())
-			return nil, err
+	var valueLists []indexedFeatureValue
+	var err error
+
+Collect:
+	for {
+		select {
+		case internalError := <-errc:
+			err = internalError
+			break Collect
+		case val := <-vals:
+			valueLists = append(valueLists, val)
+			if len(valueLists) == len(req.GetFeatures()) {
+				break Collect
+			}
 		}
-		valueLists[i] = <-vals
-		fmt.Println("Results", valueLists[i])
+
+	}
+	if err != nil {
+		return nil, err
 	}
 	sort.Slice(valueLists, func(i, j int) bool {
 		return valueLists[i].index < valueLists[j].index
@@ -283,7 +288,6 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	for _, val := range valueLists {
 		results = append(results, val.values)
 	}
-	fmt.Println(results)
 	return &pb.FeatureRow{
 		Values: results,
 	}, nil

@@ -248,6 +248,7 @@ def main(args):
                 args.sql_query,
                 args.spark_config,
                 args.source_list,
+                args.output_format,
             )
         elif args.transformation_type == "df":
             output_location = execute_df_job(
@@ -272,7 +273,9 @@ def main(args):
     return output_location
 
 
-def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_list):
+def execute_sql_query(
+    job_type, output_uri, sql_query, spark_configs, source_list, output_format
+):
     # Executes the SQL Queries:
     # Parameters:
     #     job_type: string ("Transformation", "Materialization", "Training Set")
@@ -329,9 +332,18 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
         # remove the '/' at the end of output_uri in order to avoid double slashes in the output file path.
         output_uri_with_timestamp = f"{output_uri.rstrip('/')}/{safe_datetime}"
 
-        output_dataframe.write.option("header", "true").mode("overwrite").parquet(
-            output_uri_with_timestamp
-        )
+        if output_format == "parquet":
+            output_dataframe.write.option("header", "true").mode("overwrite").parquet(
+                output_uri_with_timestamp
+            )
+        elif output_format == "csv":
+            # TODO: explain why we're not adding the header option here
+            output_dataframe.write.mode("overwrite").csv(output_uri_with_timestamp)
+        else:
+            raise Exception(
+                f"the output format '{output_format}' is not supported. Supported types: 'parquet', 'csv'"
+            )
+
         try:
             stats_directory = f"{output_uri.rstrip('/')}/stats"
             stats_df = display_data_metrics(output_dataframe, spark)
@@ -661,6 +673,12 @@ def parse_args(args=None):
         action="append",
         default=[],
         help="any credentials that would be need to used",
+    )
+    sql_parser.add_argument(
+        "--output_format",
+        default="parquet",
+        choices=["parquet", "csv"],
+        help="output file format",
     )
 
     df_parser = subparser.add_parser("df")

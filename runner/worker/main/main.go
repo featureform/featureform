@@ -25,7 +25,7 @@ func init() {
 		log.Fatalf("Failed to register create transformation runner factory: %v", err)
 	}
 	if err := runner.RegisterFactory(runner.S3_IMPORT_DYNAMODB, runner.S3ImportDynamoDBRunnerFactory); err != nil {
-		log.Fatalf("Failed to register create transformation runner factory: %v", err)
+		log.Fatalf("Failed to register S3 import to DynamoDB runner factory: %v", err)
 	}
 }
 

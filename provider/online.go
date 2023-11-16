@@ -7,6 +7,7 @@ package provider
 import (
 	"fmt"
 
+	fs "github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 )
@@ -26,6 +27,19 @@ type OnlineStore interface {
 	DeleteTable(feature, variant string) error
 	Close() error
 	Provider
+}
+
+type ImportID string
+
+type Import interface {
+	Status() string
+	ErrorMessage() string
+}
+
+type ImportableOnlineStore interface {
+	OnlineStore
+	ImportTable(feature, variant string, valueType ValueType, source fs.Filepath) (ImportID, error)
+	GetImport(id ImportID) (Import, error)
 }
 
 type OnlineStoreTable interface {

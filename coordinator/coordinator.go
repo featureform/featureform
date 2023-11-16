@@ -828,15 +828,32 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	}
 	c.Logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
 
-	// check for DynamoDB as provider and ImportFromS3 flag
+	// TODO: refactor this into a separate method
 	if featureProvider.Type() == string(pt.DynamoDBOnline) {
+		c.Logger.Debugw("Feature provider is DynamoDB", "id", featID)
 		config := pc.DynamodbConfig{}
 		if err := config.Deserialize(featureProvider.SerializedConfig()); err != nil {
 			return fmt.Errorf("could not deserialize DynamoDB config due to error: %v", err)
 		}
 		if config.ImportFromS3 {
-			// handle
+			c.Logger.Debugw("Import from S3 enabled for DynamoDB", "id", featID)
 			c.Logger.Info("Materializing feature via S3 import to DynamoDB", "id", resID)
+			jobRunner, err := c.Spawner.GetJobRunner(runner.S3_IMPORT_DYNAMODB, serialized, resID)
+			if err != nil {
+				return fmt.Errorf("failed to create S3 import to DynamoDB due to error: %v", err)
+			}
+			completionWatcher, err := jobRunner.Run()
+			if err != nil {
+				return fmt.Errorf("failed to run job: %w", err)
+			}
+			if err := completionWatcher.Wait(); err != nil {
+				return fmt.Errorf("failed to complete job: %w", err)
+			}
+			c.Logger.Info("Successfully materialized feature via S3 import to DynamoDB", "id", resID)
+			if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
+				return fmt.Errorf("failed to set status: %v", err)
+			}
+			return nil
 		}
 	}
 
@@ -1118,7 +1135,8 @@ func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*con
 
 func (c *Coordinator) ExecuteJob(jobKey string) error {
 	c.Logger.Info("Executing new job with key ", jobKey)
-	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(5))
+	// TODO: extract TTL value into constant and/or configurable env var
+	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(10000))
 	if err != nil {
 		return fmt.Errorf("new session: %v", err)
 	}

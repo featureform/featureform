@@ -253,6 +253,7 @@ func (m *TransformationConfig) decodeArgs(t metadata.TransformationArgType, argM
 
 type MaterializationOptions interface {
 	Output() filestore.FileType
+	StoreType() pt.Type
 }
 
 type OfflineStore interface {

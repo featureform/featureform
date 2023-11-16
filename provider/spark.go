@@ -588,7 +588,7 @@ func (q defaultPythonOfflineQueries) materializationCreate(schema ResourceSchema
 				SELECT 
 					%s AS entity,
 					%s AS value,
-					-- 0 AS ts, -- TODO: determine if we even need to add this zeroed-out timestamp column
+					0 AS ts,
 					ROW_NUMBER() over (PARTITION BY %s ORDER BY (SELECT NULL)) AS row_number
 				FROM
 					source_0
@@ -605,7 +605,7 @@ func (q defaultPythonOfflineQueries) materializationCreate(schema ResourceSchema
 			SELECT
 				ord.entity 
 				,ord.value 
-				--,ord.ts -- TODO: determine if we even need to add this zeroed-out timestamp column
+				,ord.ts
 			FROM
 				max_row_per_entity maxr
 			JOIN ordered_rows ord
@@ -613,12 +613,38 @@ func (q defaultPythonOfflineQueries) materializationCreate(schema ResourceSchema
 			ORDER BY
 				maxr.max_row DESC`, schema.Entity, schema.Value, schema.Entity)
 	}
-	return fmt.Sprintf(
-		"SELECT entity, value, ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number, rn2 FROM "+
-			"(SELECT entity, value, ts, ROW_NUMBER() OVER (PARTITION BY entity ORDER BY ts DESC) AS rn2 FROM "+
-			"(SELECT entity, value, ts, rn FROM (SELECT %s AS entity, %s AS value, %s AS ts, "+
-			"ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn FROM %s) t ORDER BY rn DESC) t2 ) t3 WHERE rn2=1",
-		schema.Entity, schema.Value, timestampColumn, "source_0")
+	return fmt.Sprintf(`SELECT
+							entity
+							,value
+							,ts
+						FROM (
+								SELECT entity,
+									value,
+									ts,
+									ROW_NUMBER() OVER (
+										PARTITION BY entity
+										ORDER BY ts DESC
+									) AS rn2
+								FROM (
+										SELECT entity,
+											value,
+											ts,
+											rn
+										FROM (
+												SELECT %s AS entity,
+													%s AS value,
+													%s AS ts,
+													ROW_NUMBER() OVER (
+														ORDER BY (
+																SELECT NULL
+															)
+													) AS rn
+												FROM %s
+											) t
+										ORDER BY rn DESC
+									) t2
+							) t3
+						WHERE rn2 = 1`, schema.Entity, schema.Value, timestampColumn, "source_0")
 }
 
 // Spark SQL _seems_ to have some issues with double quotes in column names based on troubleshooting
@@ -731,8 +757,6 @@ func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to build arguments for Spark submit due to: %v", err)
 	}
-	fmt.Println("SPARK SUBMIT ARGS: ", args)
-
 	if err := store.Executor.RunSparkJob(args, store.Store); err != nil {
 		return false, NewProviderError(Connection, store.Type(), JobSubmission, fmt.Sprintf("failed to read health check file due to: %v", err))
 	}
@@ -1769,7 +1793,7 @@ func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, e
 	return fileStoreGetResourceTable(id, spark.Store, spark.Logger)
 }
 
-func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate bool) (Materialization, error) {
+func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate bool, outputFormat filestore.FileType) (Materialization, error) {
 	if err := id.check(Feature); err != nil {
 		spark.Logger.Errorw("Attempted to create a materialization of a non feature resource", "type", id.Type)
 		return nil, fmt.Errorf("only features can be materialized")
@@ -1844,6 +1868,9 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err)
 		return nil, fmt.Errorf("error with getting spark submit arguments %v", sparkArgs)
 	}
+	if outputFormat == filestore.CSV {
+		sparkArgs = append(sparkArgs, "--output_format", string(outputFormat))
+	}
 	if isUpdate {
 		spark.Logger.Debugw("Updating materialization", "id", id)
 	} else {
@@ -1867,7 +1894,18 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 }
 
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
-	return blobSparkMaterialization(id, spark, false)
+	var option MaterializationOptions
+	var outputFormat filestore.FileType
+	if len(options) > 0 {
+		option = options[0]
+		if option.StoreType() != spark.Type() {
+			return nil, fmt.Errorf("expected options for store type %s but received options for %s instead", spark.Type(), option.StoreType())
+		}
+		outputFormat = option.Output()
+	} else {
+		outputFormat = filestore.Parquet
+	}
+	return blobSparkMaterialization(id, spark, false, outputFormat)
 }
 
 func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
@@ -1875,7 +1913,7 @@ func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materi
 }
 
 func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
-	return blobSparkMaterialization(id, spark, true)
+	return blobSparkMaterialization(id, spark, true, filestore.Parquet)
 }
 
 func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) error {

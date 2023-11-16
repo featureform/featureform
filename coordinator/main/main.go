@@ -51,6 +51,9 @@ func main() {
 	if err := runner.RegisterFactory(runner.CREATE_TRAINING_SET, runner.TrainingSetRunnerFactory); err != nil {
 		panic(fmt.Errorf("failed to register 'Create Training Set' runner factory: %w", err))
 	}
+	if err := runner.RegisterFactory(runner.S3_IMPORT_DYNAMODB, runner.S3ImportDynamoDBRunnerFactory); err != nil {
+		panic(fmt.Errorf("failed to register S3 import to DynamoDB runner factory: %v", err))
+	}
 	logger := logging.NewLogger("coordinator")
 	defer logger.Sync()
 	logger.Debug("Connected to ETCD")

@@ -38,11 +38,6 @@ func (serv *FeatureServer) getFeatureRows(ctx context.Context, features []*pb.Fe
 		return nil, err
 	}
 
-	// We need to sort the returned results by order that the features were requested in.
-	sort.Slice(valueLists, func(i, j int) bool {
-		return valueLists[i].index < valueLists[j].index
-	})
-
 	var results []*pb.ValueList
 	for _, val := range valueLists {
 		results = append(results, val.values)
@@ -80,11 +75,16 @@ func (serv *FeatureServer) collectFeatures(features []*pb.FeatureID, vals chan i
 		case val := <-vals:
 			valueLists = append(valueLists, val)
 			if len(valueLists) == len(features) {
+				// We need to sort the returned results by order that the features were requested in.
+				sort.Slice(valueLists, func(i, j int) bool {
+					return valueLists[i].index < valueLists[j].index
+				})
 				return valueLists, nil
 			}
 		}
 
 	}
+
 }
 
 func (serv *FeatureServer) getFeatureValues(ctx context.Context, name, variant string, entityMap map[string][]string) (*pb.ValueList, error) {

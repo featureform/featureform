@@ -191,7 +191,6 @@ class HostedClientImpl:
         feature_values = []
 
         for val_list in resp.values:
-            print(val_list)
             entity_values = []
             for val in val_list.values:
                 parsed_value = self.parse_proto_value(val)

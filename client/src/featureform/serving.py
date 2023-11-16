@@ -240,6 +240,7 @@ class HostedClientImpl:
         resp = self._stub.Nearest(req)
         return resp.entities
 
+    @staticmethod
     def parse_proto_value(self, value):
         """parse_proto_value is used to parse the one of Value message"""
         return getattr(value, value.WhichOneof("value"))

@@ -408,9 +408,6 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 	}
 	pythonRemoteInitScriptPath := config.GetPythonRemoteInitPath()
 
-	if err != nil {
-		return fmt.Errorf("could not create remote script path: %v", err)
-	}
 	err = readAndUploadFile(sparkLocalScriptPath, sparkRemoteScriptPath, store)
 	if err != nil {
 		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath.Key(), sparkRemoteScriptPath.ToURI(), err)
@@ -1357,17 +1354,17 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 
-	spark.Logger.Debugw("Running SQL transformation", config)
+	spark.Logger.Debugw("Running SQL transformation")
 	sparkArgs, err := spark.Executor.SparkSubmitArgs(transformationDestination, updatedQuery, sources, JobType(Transform), spark.Store)
 	if err != nil {
-		spark.Logger.Errorw("Problem creating spark submit arguments", err)
+		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err)
 		return fmt.Errorf("error with getting spark submit arguments %v", sparkArgs)
 	}
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("spark submit job for transformation failed to run", "target", config.TargetTableID, "error", err)
 		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
-	spark.Logger.Debugw("Successfully ran SQL transformation", config)
+	spark.Logger.Debugw("Successfully ran SQL transformation")
 	return nil
 }
 
@@ -1800,30 +1797,40 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		return nil, fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)
 	}
 
-	err = sourcePath.ParseDirPath(sparkResourceTable.schema.SourceTable)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse full path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)
+	var sourceURIs []string
+	if sourcePath.IsDir() {
+		err = sourcePath.ParseDirPath(sparkResourceTable.schema.SourceTable)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse full path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)
+		}
+		spark.Logger.Debugw("Parsed source table path:", "sourceTablePath", sourcePath.ToURI(), "sourceTable", sparkResourceTable.schema.SourceTable)
+		// TODO: Refactor this into a separate method
+		sourceFiles, err := spark.Store.List(sourcePath, filestore.Parquet)
+		if err != nil {
+			return nil, fmt.Errorf("could not get latest source file: %v", err)
+		}
+		groups, err := filestore.NewFilePathGroup(sourceFiles, filestore.DateTimeDirectoryGrouping)
+		if err != nil {
+			return nil, fmt.Errorf("could not get datetime directory grouping for source files: %v", err)
+		}
+		newest, err := groups.GetFirst()
+		if err != nil {
+			return nil, fmt.Errorf("could not get newest source file: %v", err)
+		}
+		sourceUris := make([]string, len(newest))
+		for i, sourceFile := range newest {
+			sourceUris[i] = sourceFile.ToURI()
+		}
+		sourceURIs = sourceUris
+	} else {
+		err = sourcePath.ParseFilePath(sparkResourceTable.schema.SourceTable)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse full path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)
+		}
+		sourceURIs = append(sourceURIs, sourcePath.ToURI())
 	}
-	spark.Logger.Debugw("Parsed source table path:", "sourceTablePath", sourcePath.ToURI(), "sourceTable", sparkResourceTable.schema.SourceTable)
-	// TODO: Refactor this into a separate method
-	sourceFiles, err := spark.Store.List(sourcePath, filestore.Parquet)
-	if err != nil {
-		return nil, fmt.Errorf("could not get latest source file: %v", err)
-	}
-	groups, err := filestore.NewFilePathGroup(sourceFiles, filestore.DateTimeDirectoryGrouping)
-	if err != nil {
-		return nil, fmt.Errorf("could not get datetime directory grouping for source files: %v", err)
-	}
-	newest, err := groups.GetFirst()
-	if err != nil {
-		return nil, fmt.Errorf("could not get newest source file: %v", err)
-	}
-	sourceUris := make([]string, len(newest))
-	for i, sourceFile := range newest {
-		sourceUris[i] = sourceFile.ToURI()
-	}
-	spark.Logger.Debugw("Fetched source files of type", "latestSourcePath", sourcePath.ToURI(), "fileFound", len(newest), "fileType", filestore.Parquet)
-	sparkArgs, err := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, sourceUris, Materialize, spark.Store)
+	spark.Logger.Debugw("Fetched source files of type", "latestSourcePath", sourcePath.ToURI(), "fileFound", len(sourceURIs), "fileType", filestore.Parquet)
+	sparkArgs, err := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, sourceURIs, Materialize, spark.Store)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err)
 		return nil, fmt.Errorf("error with getting spark submit arguments %v", sparkArgs)
@@ -1833,6 +1840,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	} else {
 		spark.Logger.Debugw("Creating materialization", "id", id)
 	}
+
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Spark submit job failed to run", "error", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)

@@ -43,7 +43,10 @@ RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 WORKDIR /app
 COPY go.mod ./
 COPY go.sum ./
+
+RUN go mod download
 COPY ./filestore/ ./filestore/
+COPY ./health/ ./health/
 COPY api/ api/
 COPY helpers/ helpers/
 COPY lib/ lib/

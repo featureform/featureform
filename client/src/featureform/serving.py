@@ -193,7 +193,7 @@ class HostedClientImpl:
         for val_list in resp.values:
             entity_values = []
             for val in val_list.values:
-                parsed_value = self.parse_proto_value(val)
+                parsed_value = parse_proto_value(val)
                 value_type = type(parsed_value)
 
                 # Ondemand features are returned as a byte array
@@ -239,11 +239,6 @@ class HostedClientImpl:
         req = serving_pb2.NearestRequest(id=id, vector=vec, k=k)
         resp = self._stub.Nearest(req)
         return resp.entities
-
-    @staticmethod
-    def parse_proto_value(self, value):
-        """parse_proto_value is used to parse the one of Value message"""
-        return getattr(value, value.WhichOneof("value"))
 
     def close(self):
         self._channel.close()
@@ -1269,3 +1264,8 @@ class BatchRow:
 
     def __len__(self):
         return len(self._rows)
+
+
+def parse_proto_value(value):
+    """parse_proto_value is used to parse the one of Value message"""
+    return getattr(value, value.WhichOneof("value"))

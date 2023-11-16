@@ -914,10 +914,10 @@ func TestAllFeatureTypes(t *testing.T) {
 		t.Fatalf("Wrong number of values: %d\nExpected: %d", len(vals), len(req.Features))
 	}
 	for i, exp := range expected {
-		for _, v := range vals {
-			if unwrapVal(v.Values[0]) != exp {
-				t.Fatalf("Values not equal %v %v", vals[i], exp)
-			}
+		v := vals[i]
+		unwrapped := unwrapVal(v.Values[0])
+		if unwrapped != exp {
+			t.Fatalf("Values not equal %v %v", vals, expected)
 		}
 	}
 }

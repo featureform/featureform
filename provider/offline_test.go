@@ -265,6 +265,7 @@ func TestOfflineStores(t *testing.T) {
 	//}
 	if *provider == "snowflake" || *provider == "" {
 		serialSFConfig, snowflakeConfig := snowflakeInit()
+		// serialSFConfig, _ := snowflakeInit()
 		testList = append(testList, testMember{pt.SnowflakeOffline, serialSFConfig, true})
 		t.Cleanup(func() {
 			destroySnowflakeDatabase(snowflakeConfig)

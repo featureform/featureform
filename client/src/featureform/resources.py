@@ -464,6 +464,7 @@ class DynamodbConfig:
     region: str
     access_key: str
     secret_key: str
+    import_from_s3: bool
 
     def software(self) -> str:
         return "dynamodb"
@@ -476,6 +477,7 @@ class DynamodbConfig:
             "Region": self.region,
             "AccessKey": self.access_key,
             "SecretKey": self.secret_key,
+            "ImportFromS3": self.import_from_s3,
         }
         return bytes(json.dumps(config), "utf-8")
 

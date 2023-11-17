@@ -122,7 +122,7 @@ async def main():
     duration = args.duration
 
     feature_counts = [1]
-    rps_values = [500]
+    rps_values = [10]
 
     runs = []
 
@@ -148,29 +148,27 @@ async def main():
 
             # Convert the run to a dictionary and flatten stats
             run_dict = asdict(run)
-            # Convert the run to a dictionary and flatten stats
             stats_dict = run_dict.pop("stats")
 
             # Format the stats values
-            formatted_stats = {k: int(v) for k, v in stats_dict.items()}  # This truncates to whole numbers
+            formatted_stats = {k: f"{v:.2f}" for k, v in stats_dict.items()}
 
             # Combine the dictionaries
             run_dict.update(formatted_stats)
+            runs.append(run_dict)
 
             # Print each row as it's ready
-            print(tabulate([run_dict.values()], headers="", tablefmt="plain"))
+            # print(tabulate([run_dict.values()], headers="", tablefmt="plain"))
 
-            runs.append(run)
-
-    # Convert dataclass instances to list of dictionaries
-    table_data = [asdict(run) for run in runs]
-
-    # Flatten the stats dictionary into the main dictionary
-    for item in table_data:
-        item.update(item.pop("stats"))
+    # # Convert dataclass instances to list of dictionaries
+    # table_data = [asdict(run) for run in runs]
+    #
+    # # Flatten the stats dictionary into the main dictionary
+    # for item in table_data:
+    #     item.update(item.pop("stats"))
 
     # Display table
-    print(tabulate(table_data, headers="keys", tablefmt="pretty"))
+    print(tabulate(runs, headers="keys", tablefmt="pretty"))
 
 
 if __name__ == "__main__":

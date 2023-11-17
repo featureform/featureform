@@ -19,17 +19,6 @@ logging.basicConfig(
 client = ff.Client(host="benchmark.featureform.com")
 
 
-async def get_features_async(features):
-    try:
-        # Wrap the synchronous get_features call in asyncio.to_thread
-        _, execution_time = await asyncio.to_thread(get_features, features)
-
-        return execution_time  # Return only the execution time
-    except Exception as e:
-        logging.error("Error in get_features_async", exc_info=True)
-        raise e
-
-
 def get_features(features):
     try:
         start_time = time.perf_counter()  # Start timing
@@ -42,6 +31,17 @@ def get_features(features):
         return result, execution_time  # Return the result and the execution time
     except Exception as e:
         logging.error(e, exc_info=True)
+        raise e
+
+
+async def get_features_async(features):
+    try:
+        # Wrap the synchronous get_features call in asyncio.to_thread
+        _, execution_time = await asyncio.to_thread(get_features, features)
+
+        return execution_time  # Return only the execution time
+    except Exception as e:
+        logging.error("Error in get_features_async", exc_info=True)
         raise e
 
 
@@ -78,25 +78,7 @@ async def gather_stats(feature_count, rps, duration):
     ]
     errors = len(latencies) - len(valid_latencies)
 
-    avg_latency = sum(valid_latencies) / len(valid_latencies) if valid_latencies else 0
-    min_latency = min(valid_latencies) if valid_latencies else 0
-    max_latency = max(valid_latencies) if valid_latencies else 0
-
-    p50 = np.percentile(valid_latencies, 50) if valid_latencies else 0
-    p90 = np.percentile(valid_latencies, 90) if valid_latencies else 0
-    p95 = np.percentile(valid_latencies, 95) if valid_latencies else 0
-    p99 = np.percentile(valid_latencies, 99) if valid_latencies else 0
-
-    return Stats(
-        avg_latency=avg_latency,
-        min_latency=min_latency,
-        max_latency=max_latency,
-        p50=p50,
-        p90=p90,
-        p95=p95,
-        p99=p99,
-        errors=errors,
-    )
+    return Stats.build(valid_latencies, errors)
 
 
 @dataclass
@@ -109,6 +91,28 @@ class Stats:
     p95: float
     p99: float
     errors: int
+
+    @staticmethod
+    def build(latencies, errors):
+        avg_latency = sum(latencies) / len(latencies) if latencies else 0
+        min_latency = min(latencies) if latencies else 0
+        max_latency = max(latencies) if latencies else 0
+
+        p50 = np.percentile(latencies, 50) if latencies else 0
+        p90 = np.percentile(latencies, 90) if latencies else 0
+        p95 = np.percentile(latencies, 95) if latencies else 0
+        p99 = np.percentile(latencies, 99) if latencies else 0
+
+        return Stats(
+            avg_latency=avg_latency,
+            min_latency=min_latency,
+            max_latency=max_latency,
+            p50=p50,
+            p90=p90,
+            p95=p95,
+            p99=p99,
+            errors=errors,
+        )
 
     def format(self):
         return {

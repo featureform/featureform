@@ -30,6 +30,7 @@ async def get_features_async(features):
         return (end_time - start_time) * 1000  # Return the latency
     except Exception as e:
         logging.error("Error in get_features_async", exc_info=True)
+        raise e
 
 
 def get_features(features):

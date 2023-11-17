@@ -49,14 +49,17 @@ async def get_features_async(features):
         raise e
 
 
-def build_features(feature_count):
+def build_features(feature_count, ondemand=False):
     features = []
     for i in range(feature_count):
-        features.append((f"feature_{i}", "v10"))
+        if ondemand:
+            features.append((f"ondemand_{i}", "v10"))
+        else:
+            features.append((f"feature_{i}", "v10"))
     return features
 
 
-async def schedule_calls(feature_count, rps, duration=60):
+async def schedule_calls(feature_count, rps, duration=60, use_ondemand=False):
     tasks = []
     interval = 1 / rps  # Interval between each call to maintain the desired RPS
     total_requests = int(rps * duration)  # Total number of requests to make
@@ -66,15 +69,14 @@ async def schedule_calls(feature_count, rps, duration=60):
     for i in range(total_requests):
         features = build_features(feature_count)
         task = asyncio.create_task(get_features_async(features))
-        # print("fired off task: ", i)
         tasks.append(task)
         await asyncio.sleep(interval)
 
     return await asyncio.gather(*tasks, return_exceptions=True)
 
 
-async def gather_stats(feature_count, rps, duration):
-    latencies = await schedule_calls(feature_count, rps, duration)
+async def gather_stats(feature_count, rps, duration, use_ondemand=False):
+    latencies = await schedule_calls(feature_count, rps, duration, use_ondemand)
 
     # Process the latencies to compute stats
     valid_latencies = [
@@ -143,9 +145,13 @@ async def main():
     parser.add_argument(
         "--duration", type=int, default=60, help="Duration for the benchmark in seconds"
     )
+    parser.add_argument(
+        "--ondemand", type=bool, default=False, help="Use ondemand features"
+    )
     args = parser.parse_args()
 
     duration = args.duration
+    use_ondemand = args.ondemand
 
     feature_counts = [1]
     rps_values = [10]
@@ -154,35 +160,44 @@ async def main():
 
     # Print Table Header
     headers = [
-        "features",
-        "rps",
-        "avg_latency",
-        "min_latency",
-        "max_latency",
+        "Features Per Request",
+        "RPS",
+        "avg_latency (ms)",
+        "min_latency (ms)",
+        "max_latency (ms)",
         "p50",
         "p90",
         "p95",
         "p99",
         "errors",
     ]
-    print(tabulate([], headers=headers, tablefmt="plain"))
+    # print(tabulate([], headers=headers, tablefmt="plain"))
 
     for rps in rps_values:
         for feature_count in feature_counts:
-            stats = await gather_stats(feature_count, rps, duration)
+            stats = await gather_stats(feature_count, rps, duration, use_ondemand)
             run = FeatureServingRun(feature_count, rps, stats)
 
             # Convert the run to a dictionary and flatten stats
+            formatted_stats = run.stats.format()
             run_dict = asdict(run)
-            stats_dict = run_dict.pop("stats")
-            formatted_stats = stats_dict.format()
-
-            # Combine the dictionaries
+            run_dict.pop("stats")
             run_dict.update(formatted_stats)
-            runs.append(run_dict)
 
-            # Print each row as it's ready
-            # print(tabulate([run_dict.values()], headers="", tablefmt="plain"))
+            # Prepare row in the order of headers
+            row = [
+                run_dict['features'],
+                run_dict['rps'],
+                run_dict['avg_latency'],
+                run_dict['min_latency'],
+                run_dict['max_latency'],
+                run_dict['p50'],
+                run_dict['p90'],
+                run_dict['p95'],
+                run_dict['p99'],
+                run_dict['errors']
+            ]
+            runs.append(row)
 
     # # Convert dataclass instances to list of dictionaries
     # table_data = [asdict(run) for run in runs]
@@ -192,7 +207,7 @@ async def main():
     #     item.update(item.pop("stats"))
 
     # Display table
-    print(tabulate(runs, headers="keys", tablefmt="pretty"))
+    print(tabulate(runs, headers=headers, tablefmt="pretty"))
 
 
 if __name__ == "__main__":

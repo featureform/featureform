@@ -49,10 +49,10 @@ async def get_features_async(features):
         raise e
 
 
-def build_features(feature_count, ondemand=False):
+def build_features(feature_count, use_ondemand=False):
     features = []
     for i in range(feature_count):
-        if ondemand:
+        if use_ondemand:
             features.append((f"ondemand_{i}", "v10"))
         else:
             features.append((f"feature_{i}", "v10"))
@@ -67,7 +67,7 @@ async def schedule_calls(feature_count, rps, duration=60, use_ondemand=False):
     print(f"Making {total_requests} requests at {rps} RPS for {feature_count} features")
 
     for i in range(total_requests):
-        features = build_features(feature_count)
+        features = build_features(feature_count, use_ondemand)
         task = asyncio.create_task(get_features_async(features))
         tasks.append(task)
         await asyncio.sleep(interval)

@@ -110,6 +110,18 @@ class Stats:
     p99: float
     errors: int
 
+    def format(self):
+        return {
+            "avg_latency": f"{self.avg_latency:.2f}",
+            "min_latency": f"{self.min_latency:.2f}",
+            "max_latency": f"{self.max_latency:.2f}",
+            "p50": f"{self.p50:.2f}",
+            "p90": f"{self.p90:.2f}",
+            "p95": f"{self.p95:.2f}",
+            "p99": f"{self.p99:.2f}",
+            "errors": self.errors,
+        }
+
 
 @dataclass
 class FeatureServingRun:
@@ -155,9 +167,7 @@ async def main():
             # Convert the run to a dictionary and flatten stats
             run_dict = asdict(run)
             stats_dict = run_dict.pop("stats")
-
-            # Format the stats values
-            formatted_stats = {k: f"{v:.2f}" for k, v in stats_dict.items()}
+            formatted_stats = stats_dict.format()
 
             # Combine the dictionaries
             run_dict.update(formatted_stats)

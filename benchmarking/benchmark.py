@@ -21,13 +21,10 @@ client = ff.Client(host="benchmark.featureform.com")
 
 async def get_features_async(features):
     try:
-        start_time = time.perf_counter()
-
         # Wrap the synchronous get_features call in asyncio.to_thread
-        await asyncio.to_thread(get_features, features)
+        _, execution_time = await asyncio.to_thread(get_features, features)
 
-        end_time = time.perf_counter()
-        return (end_time - start_time) * 1000  # Return the latency
+        return execution_time  # Return only the execution time
     except Exception as e:
         logging.error("Error in get_features_async", exc_info=True)
         raise e
@@ -35,7 +32,14 @@ async def get_features_async(features):
 
 def get_features(features):
     try:
-        return client.features(features, {"entity": "9119"})
+        start_time = time.perf_counter()  # Start timing
+
+        result = client.features(features, {"entity": "9119"})  # The operation you want to measure
+
+        end_time = time.perf_counter()  # End timing
+        execution_time = (end_time - start_time) * 1000  # Execution time in milliseconds
+
+        return result, execution_time  # Return the result and the execution time
     except Exception as e:
         logging.error(e, exc_info=True)
         raise e

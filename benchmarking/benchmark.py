@@ -148,7 +148,14 @@ async def main():
 
             # Convert the run to a dictionary and flatten stats
             run_dict = asdict(run)
-            run_dict.update(run_dict.pop("stats"))
+            # Convert the run to a dictionary and flatten stats
+            stats_dict = run_dict.pop("stats")
+
+            # Format the stats values
+            formatted_stats = {k: int(v) for k, v in stats_dict.items()}  # This truncates to whole numbers
+
+            # Combine the dictionaries
+            run_dict.update(formatted_stats)
 
             # Print each row as it's ready
             print(tabulate([run_dict.values()], headers="", tablefmt="plain"))

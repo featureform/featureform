@@ -23,10 +23,14 @@ def get_features(features):
     try:
         start_time = time.perf_counter()  # Start timing
 
-        result = client.features(features, {"entity": "9119"})  # The operation you want to measure
+        result = client.features(
+            features, {"entity": "9119"}
+        )  # The operation you want to measure
 
         end_time = time.perf_counter()  # End timing
-        execution_time = (end_time - start_time) * 1000  # Execution time in milliseconds
+        execution_time = (
+            end_time - start_time
+        ) * 1000  # Execution time in milliseconds
 
         return result, execution_time  # Return the result and the execution time
     except Exception as e:

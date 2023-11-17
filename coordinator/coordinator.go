@@ -168,6 +168,20 @@ func (c *Coordinator) AwaitPendingLabel(labelNameVariant metadata.NameVariant) (
 	return c.Metadata.GetLabelVariant(context.Background(), labelNameVariant)
 }
 
+func (c *Coordinator) setPending(resID metadata.ResourceID, currentStatus metadata.ResourceStatus) error {
+	if currentStatus == metadata.READY {
+		return ResourceAlreadyCompleteError{
+			resourceID: resID,
+		}
+	}
+	if currentStatus == metadata.FAILED {
+		return ResourceAlreadyFailedError{
+			resourceID: resID,
+		}
+	}
+	return c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, "")
+}
+
 type JobSpawner interface {
 	GetJobRunner(jobName runner.RunnerName, config runner.Config, resourceId metadata.ResourceID) (types.Runner, error)
 }
@@ -399,20 +413,10 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 	if err != nil {
 		return fmt.Errorf("get label variant: %v", err)
 	}
-	status := transformation.Status()
 
-	if status == metadata.READY {
-		return ResourceAlreadyCompleteError{
-			resourceID: resID,
-		}
-	}
-	if status == metadata.FAILED {
-		return ResourceAlreadyFailedError{
-			resourceID: resID,
-		}
-	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
-		return fmt.Errorf("set pending status for transformation job: %v", err)
+	err = c.setPending(resID, transformation.Status())
+	if err != nil {
+		return err
 	}
 
 	createTransformationConfig := runner.CreateTransformationConfig{
@@ -624,23 +628,14 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule s
 
 func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule string) error {
 	c.Logger.Info("Running label register job: ", resID)
-	label, err := c.Metadata.GetLabelVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
+	label, err := c.Metadata.GetLabelVariant(context.Background(), metadata.NameVariant{Name: resID.Name, Variant: resID.Variant})
 	if err != nil {
 		return fmt.Errorf("get label variant: %v", err)
 	}
-	status := label.Status()
-	if status == metadata.READY {
-		return ResourceAlreadyCompleteError{
-			resourceID: resID,
-		}
-	}
-	if status == metadata.FAILED {
-		return ResourceAlreadyFailedError{
-			resourceID: resID,
-		}
-	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
-		return fmt.Errorf("set pending status for label variant: %v", err)
+
+	err = c.setPending(resID, label.Status())
+	if err != nil {
+		return err
 	}
 
 	sourceNameVariant := label.Source()
@@ -710,35 +705,20 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 	return nil
 }
 
-// TODO: refactor this method into 3 separate parts:
-// 1. Materialize via "standard" runner
-// 2. Materialize via S3 import to DynamoDB
-// 3. Schedule materialization update
 func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedule string) error {
 	c.Logger.Info("Running feature materialization job on resource: ", resID)
-	feature, err := c.Metadata.GetFeatureVariant(context.Background(), metadata.NameVariant{resID.Name, resID.Variant})
+	feature, err := c.Metadata.GetFeatureVariant(context.Background(), metadata.NameVariant{Name: resID.Name, Variant: resID.Variant})
 	if err != nil {
 		return fmt.Errorf("get feature variant from metadata: %v", err)
 	}
-	status := feature.Status()
-	featureType := feature.Type()
-	if status == metadata.READY {
-		return ResourceAlreadyCompleteError{
-			resourceID: resID,
-		}
-	}
-	if status == metadata.FAILED {
-		return ResourceAlreadyFailedError{
-			resourceID: resID,
-		}
-	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
-		return fmt.Errorf("set feature variant status to pending: %v", err)
+	c.Logger.Infow("feature variant", "name", feature.Name(), "source", feature.Source(), "location", feature.Location(), "location_col", feature.LocationColumns())
+
+	err = c.setPending(resID, feature.Status())
+	if err != nil {
+		return err
 	}
 
 	sourceNameVariant := feature.Source()
-	c.Logger.Infow("feature obj", "name", feature.Name(), "source", feature.Source(), "location", feature.Location(), "location_col", feature.LocationColumns())
-
 	source, err := c.AwaitPendingSource(sourceNameVariant)
 	if err != nil {
 		return fmt.Errorf("source of could not complete job: %v", err)
@@ -761,6 +741,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 			c.Logger.Errorf("could not close offline store: %v", err)
 		}
 	}(sourceStore)
+
 	featureProvider, err := feature.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
 		return fmt.Errorf("could not fetch online provider: %v", err)
@@ -768,40 +749,24 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	var vType provider.ValueType
 	if feature.IsEmbedding() {
 		vType = provider.VectorType{
-			ScalarType:  provider.ScalarType(featureType),
+			ScalarType:  provider.ScalarType(feature.Type()),
 			Dimension:   feature.Dimension(),
 			IsEmbedding: true,
 		}
 	} else {
-		vType = provider.ScalarType(featureType)
+		vType = provider.ScalarType(feature.Type())
 	}
-	if err != nil {
-		return err
-	}
-	materializedRunnerConfig := runner.MaterializedRunnerConfig{
-		OnlineType:    pt.Type(featureProvider.Type()),
-		OfflineType:   pt.Type(sourceProvider.Type()),
-		OnlineConfig:  featureProvider.SerializedConfig(),
-		OfflineConfig: sourceProvider.SerializedConfig(),
-		ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
-		VType:         provider.ValueTypeJSONWrapper{ValueType: vType},
-		Cloud:         runner.LocalMaterializeRunner,
-		IsUpdate:      false,
-	}
-	serialized, err := materializedRunnerConfig.Serialize()
-	if err != nil {
-		return fmt.Errorf("could not get online provider config: %v", err)
-	}
+
 	var sourceTableName string
 	if source.IsSQLTransformation() || source.IsDFTransformation() {
-		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Transformation}
+		sourceResourceID := provider.ResourceID{Name: sourceNameVariant.Name, Variant: sourceNameVariant.Variant, Type: provider.Transformation}
 		sourceTable, err := sourceStore.GetTransformationTable(sourceResourceID)
 		if err != nil {
 			return err
 		}
 		sourceTableName = sourceTable.GetName()
 	} else if source.IsPrimaryDataSQLTable() {
-		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Primary}
+		sourceResourceID := provider.ResourceID{Name: sourceNameVariant.Name, Variant: sourceNameVariant.Variant, Type: provider.Primary}
 		sourceTable, err := sourceStore.GetPrimaryTable(sourceResourceID)
 		if err != nil {
 			return err
@@ -828,83 +793,105 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	}
 	c.Logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
 
-	// TODO: refactor this into a separate method
+	materializedRunnerConfig := runner.MaterializedRunnerConfig{
+		OnlineType:    pt.Type(featureProvider.Type()),
+		OfflineType:   pt.Type(sourceProvider.Type()),
+		OnlineConfig:  featureProvider.SerializedConfig(),
+		OfflineConfig: sourceProvider.SerializedConfig(),
+		ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
+		VType:         provider.ValueTypeJSONWrapper{ValueType: vType},
+		Cloud:         runner.LocalMaterializeRunner,
+		IsUpdate:      false,
+	}
+
+	isImportToS3Enabled := false
 	if featureProvider.Type() == string(pt.DynamoDBOnline) {
 		c.Logger.Debugw("Feature provider is DynamoDB", "id", featID)
 		config := pc.DynamodbConfig{}
 		if err := config.Deserialize(featureProvider.SerializedConfig()); err != nil {
 			return fmt.Errorf("could not deserialize DynamoDB config due to error: %v", err)
 		}
-		if config.ImportFromS3 {
-			c.Logger.Debugw("Import from S3 enabled for DynamoDB", "id", featID)
-			c.Logger.Info("Materializing feature via S3 import to DynamoDB", "id", resID)
-			jobRunner, err := c.Spawner.GetJobRunner(runner.S3_IMPORT_DYNAMODB, serialized, resID)
-			if err != nil {
-				return fmt.Errorf("failed to create S3 import to DynamoDB due to error: %v", err)
-			}
-			completionWatcher, err := jobRunner.Run()
-			if err != nil {
-				return fmt.Errorf("failed to run job: %w", err)
-			}
-			if err := completionWatcher.Wait(); err != nil {
-				return fmt.Errorf("failed to complete job: %w", err)
-			}
-			c.Logger.Info("Successfully materialized feature via S3 import to DynamoDB", "id", resID)
-			if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
-				return fmt.Errorf("failed to set status: %v", err)
-			}
-			return nil
-		}
+		isImportToS3Enabled = config.ImportFromS3
 	}
 
-	needsOnlineMaterialization := strings.Split(string(featureProvider.Type()), "_")[1] == "ONLINE"
-	if needsOnlineMaterialization {
-		c.Logger.Info("Starting Materialize")
-		jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, resID)
-		if err != nil {
-			return fmt.Errorf("could not use %s as online store: %w", featureProvider.Name(), err)
-		}
-		completionWatcher, err := jobRunner.Run()
-		if err != nil {
-			return fmt.Errorf("failed to run job: %w", err)
-		}
-		if err := completionWatcher.Wait(); err != nil {
-			return fmt.Errorf("failed to complete job: %w", err)
-		}
+	var materializationErr error
+	if schedule != "" {
+		materializationErr = c.materializeFeatureOnSchedule(resID, materializedRunnerConfig, schedule)
+	} else if isImportToS3Enabled {
+		materializationErr = c.materializeFeatureViaS3Import(resID, materializedRunnerConfig)
+	} else {
+		materializationErr = c.materializeFeature(resID, materializedRunnerConfig)
 	}
+	if materializationErr != nil {
+		return materializationErr
+	}
+
+	c.Logger.Debugw("Setting status to ready", "id", featID)
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
-		return fmt.Errorf("failed to set status: %v", err)
+		return fmt.Errorf("could not update status for materialize job: %v", err)
 	}
-	if schedule != "" && needsOnlineMaterialization {
-		scheduleMaterializeRunnerConfig := runner.MaterializedRunnerConfig{
-			OnlineType:    pt.Type(featureProvider.Type()),
-			OfflineType:   pt.Type(sourceProvider.Type()),
-			OnlineConfig:  featureProvider.SerializedConfig(),
-			OfflineConfig: sourceProvider.SerializedConfig(),
-			ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
-			VType:         provider.ValueTypeJSONWrapper{ValueType: vType},
-			Cloud:         runner.LocalMaterializeRunner,
-			IsUpdate:      true,
-		}
-		serializedUpdate, err := scheduleMaterializeRunnerConfig.Serialize()
-		if err != nil {
-			return fmt.Errorf("serialize materialize runner config: %v", err)
-		}
-		jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serializedUpdate, resID)
-		if err != nil {
-			return fmt.Errorf("creating materialize job schedule job runner: %v", err)
-		}
-		cronRunner, isCronRunner := jobRunnerUpdate.(kubernetes.CronRunner)
-		if !isCronRunner {
-			return fmt.Errorf("kubernetes runner does not implement schedule")
-		}
-		if err := cronRunner.ScheduleJob(kubernetes.CronSchedule(schedule)); err != nil {
-			return fmt.Errorf("schedule materialize job in kubernetes: %v", err)
-		}
-		if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
-			return fmt.Errorf("set successful update status for materialize job in kubernetes: %v", err)
-		}
+	return nil
+}
+
+func (c *Coordinator) materializeFeature(id metadata.ResourceID, config runner.MaterializedRunnerConfig) error {
+	c.Logger.Infow("Starting Feature Materialization", "id", id)
+	serialized, err := config.Serialize()
+	if err != nil {
+		return fmt.Errorf("could not serialize materialization config: %v", err)
 	}
+	jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, id)
+	if err != nil {
+		return fmt.Errorf("could not get job runner for feature %s: %w", id, err)
+	}
+	completionWatcher, err := jobRunner.Run()
+	if err != nil {
+		return fmt.Errorf("failed to run job: %w", err)
+	}
+	if err := completionWatcher.Wait(); err != nil {
+		return fmt.Errorf("failed to complete job: %w", err)
+	}
+	return nil
+}
+
+func (c *Coordinator) materializeFeatureOnSchedule(id metadata.ResourceID, config runner.MaterializedRunnerConfig, schedule string) error {
+	c.Logger.Infow("Scheduling Feature Materialization", "id", id)
+	config.IsUpdate = true
+	serialized, err := config.Serialize()
+	if err != nil {
+		return fmt.Errorf("serialize materialize runner config: %v", err)
+	}
+	jobRunnerUpdate, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, id)
+	if err != nil {
+		return fmt.Errorf("creating materialize job schedule job runner: %v", err)
+	}
+	cronRunner, isCronRunner := jobRunnerUpdate.(kubernetes.CronRunner)
+	if !isCronRunner {
+		return fmt.Errorf("kubernetes runner does not implement schedule")
+	}
+	if err := cronRunner.ScheduleJob(kubernetes.CronSchedule(schedule)); err != nil {
+		return fmt.Errorf("schedule materialize job in kubernetes: %v", err)
+	}
+	return nil
+}
+
+func (c *Coordinator) materializeFeatureViaS3Import(id metadata.ResourceID, config runner.MaterializedRunnerConfig) error {
+	c.Logger.Infow("Materializing Feature Via S3 Import", "id", id)
+	serialized, err := config.Serialize()
+	if err != nil {
+		return err
+	}
+	jobRunner, err := c.Spawner.GetJobRunner(runner.S3_IMPORT_DYNAMODB, serialized, id)
+	if err != nil {
+		return fmt.Errorf("failed to create S3 import to DynamoDB due to error: %v", err)
+	}
+	completionWatcher, err := jobRunner.Run()
+	if err != nil {
+		return fmt.Errorf("failed to run job: %w", err)
+	}
+	if err := completionWatcher.Wait(); err != nil {
+		return fmt.Errorf("failed to complete job: %w", err)
+	}
+	c.Logger.Info("Successfully materialized feature via S3 import to DynamoDB", "id", id)
 	return nil
 }
 
@@ -914,20 +901,12 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	if err != nil {
 		return fmt.Errorf("fetch training set variant from metadata: %v", err)
 	}
-	status := ts.Status()
-	if status == metadata.READY {
-		return ResourceAlreadyCompleteError{
-			resourceID: resID,
-		}
+
+	err = c.setPending(resID, ts.Status())
+	if err != nil {
+		return err
 	}
-	if status == metadata.FAILED {
-		return ResourceAlreadyFailedError{
-			resourceID: resID,
-		}
-	}
-	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
-		return fmt.Errorf("set training set variant status to pending: %v", err)
-	}
+
 	providerEntry, err := ts.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
 		return fmt.Errorf("fetch training set variant offline provider: %v", err)
@@ -1135,8 +1114,7 @@ func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*con
 
 func (c *Coordinator) ExecuteJob(jobKey string) error {
 	c.Logger.Info("Executing new job with key ", jobKey)
-	// TODO: extract TTL value into constant and/or configurable env var
-	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(10000))
+	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(10_000))
 	if err != nil {
 		return fmt.Errorf("new session: %v", err)
 	}

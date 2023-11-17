@@ -1793,7 +1793,7 @@ func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, e
 	return fileStoreGetResourceTable(id, spark.Store, spark.Logger)
 }
 
-func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate bool, outputFormat filestore.FileType) (Materialization, error) {
+func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate bool, outputFormat filestore.FileType, shouldIncludeHeaders bool) (Materialization, error) {
 	if err := id.check(Feature); err != nil {
 		spark.Logger.Errorw("Attempted to create a materialization of a non feature resource", "type", id.Type)
 		return nil, fmt.Errorf("only features can be materialized")
@@ -1868,8 +1868,15 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err)
 		return nil, fmt.Errorf("error with getting spark submit arguments %v", sparkArgs)
 	}
+	// The default value for output_format in offline_store_spark_runner.py is parquet,
+	// so it's only necessary to append CSV in this case; if we support more output formats
+	// (e.g. JSON), then we should refactor this to a method and append in all cases.
 	if outputFormat == filestore.CSV {
 		sparkArgs = append(sparkArgs, "--output_format", string(outputFormat))
+	}
+	// The default value for headers in offline_store_spark_runner.py is "include"
+	if !shouldIncludeHeaders {
+		sparkArgs = append(sparkArgs, "--headers", "exclude")
 	}
 	if isUpdate {
 		spark.Logger.Debugw("Updating materialization", "id", id)
@@ -1896,16 +1903,18 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	var option MaterializationOptions
 	var outputFormat filestore.FileType
+	shouldIncludeHeaders := true
 	if len(options) > 0 {
 		option = options[0]
 		if option.StoreType() != spark.Type() {
 			return nil, fmt.Errorf("expected options for store type %s but received options for %s instead", spark.Type(), option.StoreType())
 		}
 		outputFormat = option.Output()
+		shouldIncludeHeaders = option.ShouldIncludeHeaders()
 	} else {
 		outputFormat = filestore.Parquet
 	}
-	return blobSparkMaterialization(id, spark, false, outputFormat)
+	return blobSparkMaterialization(id, spark, false, outputFormat, shouldIncludeHeaders)
 }
 
 func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
@@ -1913,7 +1922,7 @@ func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materi
 }
 
 func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
-	return blobSparkMaterialization(id, spark, true, filestore.Parquet)
+	return blobSparkMaterialization(id, spark, true, filestore.Parquet, true)
 }
 
 func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) error {

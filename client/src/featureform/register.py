@@ -2846,7 +2846,7 @@ class Registrar:
         name: str,
         credentials: AWSCredentials,
         region: str,
-        import_from_s3: bool = False,
+        should_import_from_s3: bool = False,
         description: str = "",
         team: str = "",
         tags: List[str] = [],
@@ -2868,7 +2868,7 @@ class Registrar:
             name (str): (Immutable) Name of DynamoDB provider to be registered
             region (str): (Immutable) Region to create dynamo tables
             credentials (AWSCredentials): (Mutable) AWS credentials with permissions to create DynamoDB tables
-            import_from_s3 (bool): (Mutable) Whether to import data from S3 to new table
+            should_import_from_s3 (bool): (Mutable) Determines whether feature materialization will occur via a direct import of data from S3 to new table
             description (str): (Mutable) Description of DynamoDB provider to be registered
             team (str): (Mutable) Name of team
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
@@ -2882,7 +2882,7 @@ class Registrar:
             access_key=credentials.access_key,
             secret_key=credentials.secret_key,
             region=region,
-            import_from_s3=import_from_s3,
+            should_import_from_s3=should_import_from_s3,
         )
         provider = Provider(
             name=name,

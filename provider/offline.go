@@ -253,6 +253,7 @@ func (m *TransformationConfig) decodeArgs(t metadata.TransformationArgType, argM
 
 type MaterializationOptions interface {
 	Output() filestore.FileType
+	ShouldIncludeHeaders() bool
 	StoreType() pt.Type
 }
 

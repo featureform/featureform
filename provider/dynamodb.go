@@ -282,6 +282,7 @@ func (store *dynamodbOnlineStore) ImportTable(feature, variant string, valueType
 	if err == nil {
 		return "", &TableAlreadyExists{feature, variant}
 	}
+
 	fmt.Printf("Updating metadata table %s\n", GetTablename(store.prefix, feature, variant))
 	err = store.UpdateMetadataTable(GetTablename(store.prefix, feature, variant), valueType)
 	if err != nil {
@@ -291,7 +292,8 @@ func (store *dynamodbOnlineStore) ImportTable(feature, variant string, valueType
 	fmt.Printf("Building import table input for %s\n", GetTablename(store.prefix, feature, variant))
 	// https://pkg.go.dev/github.com/aws/aws-sdk-go@v1.47.7/service/dynamodb#ImportTableInput
 	importInput := &dynamodb.ImportTableInput{
-		// This is optional but it ensures idempotency w/in an 8-hour window so it might be helpful to include (e.g. name-variant)
+		// This is optional but it ensures idempotency within an 8-hour window,
+		// so it seems prudent to include it to avoid triggering a duplicate import.
 		ClientToken: aws.String(fmt.Sprintf("%s-%s", feature, variant)),
 
 		InputCompressionType: aws.String("NONE"),
@@ -340,7 +342,6 @@ func (store *dynamodbOnlineStore) ImportTable(feature, variant string, valueType
 	}
 
 	fmt.Printf("Import table response: %v\n", output)
-
 	return ImportID(*output.ImportTableDescription.ImportArn), nil
 }
 
@@ -366,11 +367,6 @@ func (store *dynamodbOnlineStore) GetImport(id ImportID) (Import, error) {
 	if err != nil {
 		return S3Import{id: id}, err
 	}
-	data, err := json.Marshal(output)
-	if err != nil {
-		return S3Import{id: id}, err
-	}
-	fmt.Printf("DescribeImport response: %s\n", string(data))
 	var errorMessage string
 	if output.ImportTableDescription.FailureCode != nil {
 		errorMessage = *output.ImportTableDescription.FailureCode

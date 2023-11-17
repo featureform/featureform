@@ -36,6 +36,11 @@ type Import interface {
 	ErrorMessage() string
 }
 
+// This interface provides an abstraction for online stores that offer
+// bulk creation via import and was created to avoid having to make specific
+// online store implementation public for the purpose of calling specialized
+// methods on them. Currently, DynamoDB is the only online store that implements
+// this interface for the purpose of support the S3 import feature.
 type ImportableOnlineStore interface {
 	OnlineStore
 	ImportTable(feature, variant string, valueType ValueType, source fs.Filepath) (ImportID, error)

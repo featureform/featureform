@@ -5,7 +5,6 @@
 package runner
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"time"
@@ -14,7 +13,6 @@ import (
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
-	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/types"
 	"go.uber.org/zap"
@@ -31,6 +29,10 @@ func (o S3ImportMaterializationOption) Output() filestore.FileType {
 
 func (o S3ImportMaterializationOption) StoreType() pt.Type {
 	return o.storeType
+}
+
+func (o S3ImportMaterializationOption) ShouldIncludeHeaders() bool {
+	return false
 }
 
 type S3ImportDynamoDBRunner struct {
@@ -100,12 +102,13 @@ func (r S3ImportDynamoDBRunner) Run() (types.CompletionWatcher, error) {
 		return nil, fmt.Errorf("no files found in source dir path %s", sourceDirPath)
 	}
 
+	// A successful materialization should result in at least one file; given we need _a_ file to get the full key prefix
+	// (e.g. `feature/Materialization/<name>/<variant>/<date time directory>/part-`), we just grab the first CSV file to pass it to
+	// ImportTable.
 	sourceFile := files[0]
 
-	r.Logger.Debugw("Source file", "URI", sourceFile.ToURI(), "prefix", sourceFile.KeyPrefix(), "ext", sourceFile.Ext())
-
-	r.Logger.Debugw("Importing table to DynamoDB", "name", r.ID.Name, "variant", r.ID.Variant, "vtype", r.VType, "file", files[0])
-	importArn, err := r.Online.ImportTable(r.ID.Name, r.ID.Variant, r.VType, files[0])
+	r.Logger.Debugw("Importing table to DynamoDB", "name", r.ID.Name, "variant", r.ID.Variant, "vtype", r.VType, "file", sourceFile.ToURI())
+	importArn, err := r.Online.ImportTable(r.ID.Name, r.ID.Variant, r.VType, sourceFile)
 	if err != nil {
 		r.Logger.Errorf("failed to import table: %v", err)
 		return nil, err
@@ -184,35 +187,8 @@ func (w *S3ImportCompletionWatcher) Complete() bool {
 	return w.status == "COMPLETED"
 }
 
-type S3ImportDynamoDBRunnerConfig struct {
-	OnlineType    pt.Type
-	OfflineType   pt.Type
-	OnlineConfig  pc.SerializedConfig
-	OfflineConfig pc.SerializedConfig
-	ResourceID    provider.ResourceID
-	VType         provider.ValueTypeJSONWrapper
-	Cloud         JobCloud
-	IsUpdate      bool
-}
-
-func (cfg *S3ImportDynamoDBRunnerConfig) Serialize() (Config, error) {
-	config, err := json.Marshal(cfg)
-	if err != nil {
-		panic(err)
-	}
-	return config, nil
-}
-
-func (cfg *S3ImportDynamoDBRunnerConfig) Deserialize(config Config) error {
-	err := json.Unmarshal(config, cfg)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func S3ImportDynamoDBRunnerFactory(config Config) (types.Runner, error) {
-	runnerConfig := &S3ImportDynamoDBRunnerConfig{}
+	runnerConfig := &MaterializedRunnerConfig{}
 	if err := runnerConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("failed to deserialize materialize runner config: %v", err)
 	}
@@ -235,6 +211,16 @@ func S3ImportDynamoDBRunnerFactory(config Config) (types.Runner, error) {
 	offlineStore, err := offlineProvider.AsOfflineStore()
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
+	}
+	if offlineStore.Type() != pt.SparkOffline {
+		return nil, fmt.Errorf("expected offline store to be Spark")
+	}
+	sparkOfflineStore, isSparkOfflineStore := offlineStore.(*provider.SparkOfflineStore)
+	if !isSparkOfflineStore {
+		return nil, fmt.Errorf("expected offline store to be Spark")
+	}
+	if sparkOfflineStore.Store.FilestoreType() != filestore.S3 {
+		return nil, fmt.Errorf("unsupported file store type: %s", sparkOfflineStore.Store.FilestoreType())
 	}
 	return &S3ImportDynamoDBRunner{
 		Online:   importableOfflineStore,

@@ -35,7 +35,7 @@ async def get_features_async(features):
 
 def get_features(features):
     try:
-        return client.features(features, {"entity": ["9119"]})
+        return client.features(features, {"entity": "9119"})
     except Exception as e:
         logging.error(e, exc_info=True)
         raise e

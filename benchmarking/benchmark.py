@@ -38,6 +38,7 @@ def get_features(features):
         return client.features(features, {"entity": ["9119"]})
     except Exception as e:
         logging.error(e, exc_info=True)
+        raise e
 
 
 def build_features(feature_count):

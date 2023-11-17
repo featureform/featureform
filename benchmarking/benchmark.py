@@ -171,7 +171,6 @@ async def main():
         "p99",
         "errors",
     ]
-    # print(tabulate([], headers=headers, tablefmt="plain"))
 
     for rps in rps_values:
         for feature_count in feature_counts:
@@ -198,13 +197,6 @@ async def main():
                 run_dict['errors']
             ]
             runs.append(row)
-
-    # # Convert dataclass instances to list of dictionaries
-    # table_data = [asdict(run) for run in runs]
-    #
-    # # Flatten the stats dictionary into the main dictionary
-    # for item in table_data:
-    #     item.update(item.pop("stats"))
 
     # Display table
     print(tabulate(runs, headers=headers, tablefmt="pretty"))

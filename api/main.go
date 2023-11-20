@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc/resolver"
 	"io"
 	"net"
 	"net/http"
@@ -781,6 +782,8 @@ func (serv *OnlineServer) ResourceLocation(ctx context.Context, req *srv.Trainin
 }
 
 func (serv *ApiServer) Serve() error {
+	resolver.Register(&exampleResolverBuilder{})
+
 	if serv.grpcServer != nil {
 		return fmt.Errorf("server already running")
 	}
@@ -796,7 +799,7 @@ func (serv *ApiServer) Serve() error {
 	if err != nil {
 		return fmt.Errorf("metdata connection: %w", err)
 	}
-	servConn, err := grpc.Dial(serv.online.address, opts...)
+	servConn, err := grpc.Dial("example:///my_custom_service", opts...)
 	if err != nil {
 		return fmt.Errorf("serving connection: %w", err)
 	}

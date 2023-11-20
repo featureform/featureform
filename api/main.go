@@ -790,7 +790,7 @@ func (serv *ApiServer) Serve() error {
 	}
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`),
+		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
 	}
 	metaConn, err := grpc.Dial(serv.metadata.address, opts...)
 	if err != nil {

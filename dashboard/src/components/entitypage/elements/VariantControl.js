@@ -1,7 +1,7 @@
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import {
   Alert,
-  IconButton,
+  Button,
   Slide,
   Snackbar,
   Tooltip,
@@ -121,9 +121,13 @@ const VariantControl = ({
         </Select>
       </FormControl>
       <Tooltip title='Copy to Clipboard'>
-        <IconButton onClick={() => copyToClipBoard(variant)} fontSize={11.5}>
+        <Button
+          role='none'
+          onClick={() => copyToClipBoard(variant)}
+          fontSize={11.5}
+        >
           <ContentCopyIcon />
-        </IconButton>
+        </Button>
       </Tooltip>
     </>
   );

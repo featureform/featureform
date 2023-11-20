@@ -1323,6 +1323,10 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		return nil, err
 	}
 	materializationNewestFile, err := k8s.store.NewestFileOfType(destinationPath, filestore.Parquet)
+	if err != nil {
+		k8s.logger.Errorw("Could not get newest blob", "location", destinationPath, "error", err)
+		return nil, fmt.Errorf("could not get newest blob: %s: %v", destinationPath, err)
+	}
 	k8s.logger.Debugw("Running Materialization", "id", id, "destinationPath", destinationPath, "materializationNewestFile", materializationNewestFile)
 	materializationExists, err := k8s.store.Exists(materializationNewestFile)
 	if err != nil {
@@ -1336,7 +1340,10 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		k8s.logger.Errorw("Attempted to update a materialization that does not exist", "id", id)
 		return nil, fmt.Errorf("materialization does not exist")
 	}
-	materializationQuery := k8s.query.materializationCreate(k8sResourceTable.schema)
+	materializationQuery, err := k8s.query.materializationCreate(k8sResourceTable.schema)
+	if err != nil {
+		return nil, fmt.Errorf("could not create materialization query: %v", err)
+	}
 	sourcePath, err := k8s.store.CreateFilePath(k8sResourceTable.schema.SourceTable)
 	if err != nil {
 		k8s.logger.Errorw("Could not create file path", "error", err, "sourceTable", k8sResourceTable.schema.SourceTable)

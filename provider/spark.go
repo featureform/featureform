@@ -576,75 +576,20 @@ type PythonOfflineQueries interface {
 
 type defaultPythonOfflineQueries struct{}
 
-func (q defaultPythonOfflineQueries) materializationCreate(schema ResourceSchema) string {
+func (q defaultPythonOfflineQueries) materializationCreate(schema ResourceSchema) (string, error) {
 	timestampColumn := schema.TS
 	if schema.TS == "" {
-		// If the schema lacks a timestamp, we assume each entity only has single entry. The
-		// below query enforces this assumption by:
-		// 1. Adding a row number to each row (this currently relies on the implicit ordering of the rows) - order_rows CTE
-		// 2. Grouping by entity and selecting the max row number for each entity - max_row_per_entity CTE
-		// 3. Joining the max row number back to the original table and selecting only the rows with the max row number - final select
-		return fmt.Sprintf(`WITH ordered_rows AS (
-				SELECT 
-					%s AS entity,
-					%s AS value,
-					0 AS ts,
-					ROW_NUMBER() over (PARTITION BY %s ORDER BY (SELECT NULL)) AS row_number
-				FROM
-					source_0
-			),
-			max_row_per_entity AS (
-				SELECT 
-					entity,
-					MAX(row_number) AS max_row
-				FROM
-					ordered_rows
-				GROUP BY
-					entity
-			)
-			SELECT
-				ord.entity 
-				,ord.value 
-				,ord.ts
-			FROM
-				max_row_per_entity maxr
-			JOIN ordered_rows ord
-				ON ord.entity = maxr.entity AND ord.row_number = maxr.max_row
-			ORDER BY
-				maxr.max_row DESC`, schema.Entity, schema.Value, schema.Entity)
+		data, err := os.ReadFile(config.GetMaterializeNoTimestampQueryPath())
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf(string(data), schema.Entity, schema.Value, schema.Entity), nil
 	}
-	return fmt.Sprintf(`SELECT
-							entity
-							,value
-							,ts
-						FROM (
-								SELECT entity,
-									value,
-									ts,
-									ROW_NUMBER() OVER (
-										PARTITION BY entity
-										ORDER BY ts DESC
-									) AS rn2
-								FROM (
-										SELECT entity,
-											value,
-											ts,
-											rn
-										FROM (
-												SELECT %s AS entity,
-													%s AS value,
-													%s AS ts,
-													ROW_NUMBER() OVER (
-														ORDER BY (
-																SELECT NULL
-															)
-													) AS rn
-												FROM %s
-											) t
-										ORDER BY rn DESC
-									) t2
-							) t3
-						WHERE rn2 = 1`, schema.Entity, schema.Value, timestampColumn, "source_0")
+	data, err := os.ReadFile(config.GetMaterializeWithTimestampQueryPath())
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf(string(data), schema.Entity, schema.Value, timestampColumn, "source_0"), nil
 }
 
 // Spark SQL _seems_ to have some issues with double quotes in column names based on troubleshooting
@@ -1825,7 +1770,10 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", "id", id)
 		return nil, fmt.Errorf("materialization already exists")
 	}
-	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
+	materializationQuery, err := spark.query.materializationCreate(sparkResourceTable.schema)
+	if err != nil {
+		return nil, fmt.Errorf("could not create materialization query: %v", err)
+	}
 	sourcePath, err := filestore.NewEmptyFilepath(spark.Store.FilestoreType())
 	if err != nil {
 		return nil, fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)

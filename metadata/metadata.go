@@ -122,6 +122,7 @@ type ResourceID struct {
 	Name    string
 	Variant string
 	Type    ResourceType
+	Tags 	[]string
 }
 
 func (id ResourceID) Proto() *pb.NameVariant {
@@ -265,6 +266,7 @@ func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
 		Name:    id.Name,
 		Type:    id.Type.String(),
 		Variant: id.Variant,
+		Tags: 	 id.Tags,
 	}
 	return wrapper.Searcher.Upsert(doc)
 }

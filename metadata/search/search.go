@@ -6,10 +6,11 @@ package search
 
 import (
 	"fmt"
-	re "github.com/avast/retry-go/v4"
-	ms "github.com/meilisearch/meilisearch-go"
 	"strings"
 	"time"
+
+	re "github.com/avast/retry-go/v4"
+	ms "github.com/meilisearch/meilisearch-go"
 )
 
 type Searcher interface {
@@ -76,6 +77,7 @@ type ResourceDoc struct {
 	Name    string
 	Variant string
 	Type    string
+	Tags 	[]string
 }
 
 func (s Search) waitForSync(taskUID int64) error {
@@ -121,6 +123,7 @@ func (s Search) Upsert(doc ResourceDoc) error {
 		"Name":    doc.Name,
 		"Type":    doc.Type,
 		"Variant": doc.Variant,
+		"Tags": 	doc.Tags,
 	}
 	resp, err := s.client.Index("resources").UpdateDocuments(document)
 	if err != nil {
@@ -154,6 +157,7 @@ func (s Search) RunSearch(q string) ([]ResourceDoc, error) {
 			Name:    doc["Name"].(string),
 			Type:    doc["Type"].(string),
 			Variant: doc["Variant"].(string),
+			Tags: doc["Tags"].([]string),
 		})
 
 	}

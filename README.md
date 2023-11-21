@@ -28,6 +28,17 @@
     </h3>
 </div>
 
+# Table of Contents
+- [Introduction](#introduction)
+- [Key Features](#key-features)
+- [Getting Started](#getting-started)
+  - [Installation](#installation)
+  - [Example Use Case](#example-use-case)
+- [Contributing](#contributing)
+- [Report Issues](#report-issues)
+- [License](#license)
+
+# Introduction
 
 # What is Featureform?
 
@@ -52,6 +63,8 @@ By using Featureform, a data science team can solve the following organizational
 
 <br />
 <br />
+
+# Key Features
 
 # Why is Featureform unique?
 **Use your existing data infrastructure.** Featureform does not replace your existing infrastructure. Rather, Featureform transforms your existing infrastructure into a feature store. In being infrastructure-agnostic, teams can pick the right data infrastructure to solve their processing problems, while Featureform provides a feature store abstraction above it. Featureform orchestrates and manages transformations rather than actually computing them. The computations are offloaded to the organization's existing data infrastructure. In this way, Featureform is more akin to a framework and workflow, than an additional piece of data infrastructure.
@@ -80,6 +93,8 @@ By using Featureform, a data science team can solve the following organizational
 
 In reality, the feature’s definition is split across different pieces of infrastructure: the data source, the transformations, the inference store, the training store, and all their underlying data infrastructure. However, a data scientist will think of a feature in its logical form, something like: “a user’s average purchase price”. Featureform allows data scientists to define features in their logical form through transformations, providers, labels, and training set resources. Featureform will then orchestrate the actual underlying components to achieve the data scientists' desired state.
 
+# Getting Started
+
 # How to use Featureform
 Featureform can be run locally on files or in Kubernetes with your existing infrastructure.
 ## Kubernetes
@@ -97,10 +112,12 @@ To try Featureform in a single docker container, follow our [docker quickstart g
 Featureform can also be run locally on files. Follow the steps below to get started 
 with the Featureform CLI.  
 
-## Install Featureform
+## Installation
 ```
 pip install featureform
 ```
+
+## Example Use Case
 
 ## Download sample data
 We'll use a fraudulent transaction dataset that can be found here: https://featureform-demo-files.s3.amazonaws.com/transactions.csv

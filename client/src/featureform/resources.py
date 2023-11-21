@@ -1039,14 +1039,16 @@ class SourceVariant:
     properties: dict
     variant: str
     created: str = None
-    status: str = "ready"  # this is no status by default but it always stores ready
+    status: str = (
+        "ready"  # there is no associated status by default but it always stores ready
+    )
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
     source_text: str = ""
     source_type: str = ""
     transformation: str = ""
-    inputs = ([],)
+    inputs: list = ([],)
     error: Optional[str] = None
 
     def update_schedule(self, schedule) -> None:
@@ -1118,6 +1120,7 @@ class SourceVariant:
             provider=self.provider,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
             **defArgs,
         )
         stub.CreateSourceVariant(serialized)
@@ -1371,6 +1374,7 @@ class FeatureVariant:
             mode=ComputationMode.PRECOMPUTED.proto(),
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
         stub.CreateFeatureVariant(serialized)
 
@@ -1652,6 +1656,7 @@ class LabelVariant:
             columns=self.location.proto(),
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
         stub.CreateLabelVariant(serialized)
 
@@ -1901,6 +1906,7 @@ class TrainingSetVariant:
             feature_lags=feature_lags,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
         stub.CreateTrainingSetVariant(serialized)
 

@@ -20,7 +20,7 @@ pip install featureform
 
 ## Step 2: Download test data
 
-For this quickstart, we'll use a fraudulent transaction dataset that can be found here: [https://featureform-demo-files.s3.amazonaws.com/transactions.csv](https://featureform-demo-files.s3.amazonaws.com/transactions.csv)The data contains 9 columns, almost all of would require some feature engineering before using in a typical model.
+For this quickstart, we'll use a fraudulent transaction dataset that can be found here: [https://featureform-demo-files.s3.amazonaws.com/transactions.csv](https://featureform-demo-files.s3.amazonaws.com/transactions.csv)The data contains 9 columns, almost all of which would require some feature engineering before being used in a typical model.
 
 ```
 TransactionID,CustomerID,CustomerDOB,CustLocation,CustAccountBalance,TransactionAmount (INR),Timestamp,IsFraud
@@ -116,7 +116,7 @@ ff.register_training_set(
 )
 ```
 
-Now that our definitions are complete, we can apply it to our Featureform instance.
+Now that our definitions are complete, we can apply them to our Featureform instance.
 
 ```
 featureform apply definitions.py --local

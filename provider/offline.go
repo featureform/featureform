@@ -342,7 +342,17 @@ type GenericRecord []interface{}
 
 func (rec ResourceRecord) check() error {
 	if rec.Entity == "" {
-		return errors.New("resourceRecord must have Entity set")
+		return errors.New("ResourceRecord must have Entity set")
+	}
+	return nil
+}
+
+func (rec *ResourceRecord) SetEntity(entity interface{}) error {
+	switch typedEntity := entity.(type) {
+	case string:
+		rec.Entity = typedEntity
+	default:
+		return fmt.Errorf("entity must be a string; received %T", entity)
 	}
 	return nil
 }
@@ -737,6 +747,10 @@ func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetItera
 }
 func (store *memoryOfflineStore) Close() error {
 	return nil
+}
+
+func (store *memoryOfflineStore) CheckHealth() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
 }
 
 type TrainingSetNotFound struct {

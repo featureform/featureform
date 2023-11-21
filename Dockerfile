@@ -45,8 +45,10 @@ COPY go.mod ./
 COPY go.sum ./
 RUN go mod download
 COPY ./filestore/ ./filestore/
+COPY ./health/ ./health/
 COPY api/ api/
 COPY helpers/ helpers/
+COPY lib/ lib/
 COPY metadata/ metadata/
 COPY metrics/ metrics/
 COPY proto/ proto/

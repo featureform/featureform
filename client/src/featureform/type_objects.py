@@ -18,6 +18,7 @@ class FeatureVariantResource:
         source=None,
         tags=[],
         properties={},
+        definition="",
     ):
         self.__dictionary = {
             "created": created,
@@ -33,6 +34,7 @@ class FeatureVariantResource:
             "source": source,
             "tags": tags,
             "properties": properties,
+            "definition": definition,
         }
 
     def to_dictionary(self):

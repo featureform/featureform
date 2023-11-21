@@ -223,6 +223,7 @@ type FeatureDef struct {
 	Mode        ComputationMode
 	IsOnDemand  bool
 	IsEmbedding bool
+	Definition  string
 }
 
 type ResourceVariantColumns struct {
@@ -1491,6 +1492,10 @@ func (variant *FeatureVariant) Error() string {
 
 func (variant *FeatureVariant) Location() interface{} {
 	return variant.serialized.GetLocation()
+}
+
+func (variant *FeatureVariant) Definition() string {
+	return variant.serialized.GetDefinition()
 }
 
 func (variant *FeatureVariant) isTable() bool {

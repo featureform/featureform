@@ -1306,6 +1306,7 @@ class FeatureVariant:
     schedule_obj: Schedule = None
     status: str = "NO_STATUS"
     error: Optional[str] = None
+    definition: str = ""
 
     def __post_init__(self):
         col_types = [member.value for member in ScalarType]
@@ -1352,6 +1353,7 @@ class FeatureVariant:
             properties={k: v for k, v in feature.properties.property.items()},
             status=feature.status.Status._enum_type.values[feature.status.status].name,
             error=feature.status.error_message,
+            definition=feature.definition,
         )
 
     def _create(self, stub) -> None:
@@ -1375,6 +1377,7 @@ class FeatureVariant:
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+            definition=self.definition,
         )
         stub.CreateFeatureVariant(serialized)
 
@@ -1457,6 +1460,7 @@ class OnDemandFeatureVariant:
     description: str = ""
     status: str = "READY"
     error: Optional[str] = None
+    definition: str = ""
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:
@@ -1465,6 +1469,7 @@ class OnDemandFeatureVariant:
             self.name = fn.__name__
 
         self.query = dill.dumps(fn.__code__)
+        self.definition = dill.source.getsource(fn)
         fn.name_variant = self.name_variant
         fn.query = self.query
         return fn
@@ -1491,6 +1496,7 @@ class OnDemandFeatureVariant:
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
+            definition=self.definition,
         )
         stub.CreateFeatureVariant(serialized)
 
@@ -1558,6 +1564,7 @@ class OnDemandFeatureVariant:
                 ondemand_feature.status.status
             ].name,
             error=ondemand_feature.status.error_message,
+            definition=ondemand_feature.definition,
         )
 
     def get_status(self):

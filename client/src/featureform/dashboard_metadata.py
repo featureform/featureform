@@ -402,6 +402,7 @@ def build_feature_variant_resource(variant_data: FeatureVariant):
         properties=variant_data.properties
         if variant_data.properties is not None
         else {},
+        definition=variant_data.definition,
     ).to_dictionary()
 
     return feature_variant_resource

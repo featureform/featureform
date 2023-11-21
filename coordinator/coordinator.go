@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 
 	cfg "github.com/featureform/config"
+	"github.com/featureform/filestore"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
@@ -207,7 +208,7 @@ func (k *KubernetesJobSpawner) GetJobRunner(jobName runner.RunnerName, config ru
 	fmt.Println("GETJOBRUNNERID:", resourceId)
 	kubeConfig := kubernetes.KubernetesRunnerConfig{
 		EnvVars: map[string]string{
-			"NAME":             string(jobName),
+			"NAME":             jobName.String(),
 			"CONFIG":           string(config),
 			"ETCD_CONFIG":      string(serializedETCD),
 			"K8S_RUNNER_IMAGE": pandasImage,
@@ -804,21 +805,16 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		IsUpdate:      false,
 	}
 
-	isImportToS3Enabled := false
-	if featureProvider.Type() == string(pt.DynamoDBOnline) {
-		c.Logger.Debugw("Feature provider is DynamoDB", "id", featID)
-		config := pc.DynamodbConfig{}
-		if err := config.Deserialize(featureProvider.SerializedConfig()); err != nil {
-			return fmt.Errorf("could not deserialize DynamoDB config due to error: %v", err)
-		}
-		isImportToS3Enabled = config.ImportFromS3
+	isImportToS3Enabled, err := c.checkS3Import(featureProvider)
+	if err != nil {
+		return fmt.Errorf("failed to check feature provider for S3 import: %v", err)
 	}
 
 	var materializationErr error
 	if schedule != "" {
 		materializationErr = c.materializeFeatureOnSchedule(resID, materializedRunnerConfig, schedule)
 	} else if isImportToS3Enabled {
-		materializationErr = c.materializeFeatureViaS3Import(resID, materializedRunnerConfig)
+		materializationErr = c.materializeFeatureViaS3Import(resID, materializedRunnerConfig, sourceStore)
 	} else {
 		materializationErr = c.materializeFeature(resID, materializedRunnerConfig)
 	}
@@ -874,8 +870,15 @@ func (c *Coordinator) materializeFeatureOnSchedule(id metadata.ResourceID, confi
 	return nil
 }
 
-func (c *Coordinator) materializeFeatureViaS3Import(id metadata.ResourceID, config runner.MaterializedRunnerConfig) error {
+func (c *Coordinator) materializeFeatureViaS3Import(id metadata.ResourceID, config runner.MaterializedRunnerConfig, sourceStore provider.OfflineStore) error {
 	c.Logger.Infow("Materializing Feature Via S3 Import", "id", id)
+	sparkOfflineStore, isSparkOfflineStore := sourceStore.(*provider.SparkOfflineStore)
+	if !isSparkOfflineStore {
+		return fmt.Errorf("offline store is not spark offline store")
+	}
+	if sparkOfflineStore.Store.FilestoreType() != filestore.S3 {
+		return fmt.Errorf("offline file store must be S3; %s is not supported", sparkOfflineStore.Store.FilestoreType())
+	}
 	serialized, err := config.Serialize()
 	if err != nil {
 		return err
@@ -893,6 +896,18 @@ func (c *Coordinator) materializeFeatureViaS3Import(id metadata.ResourceID, conf
 	}
 	c.Logger.Info("Successfully materialized feature via S3 import to DynamoDB", "id", id)
 	return nil
+}
+
+func (c *Coordinator) checkS3Import(featureProvider *metadata.Provider) (bool, error) {
+	if featureProvider.Type() == string(pt.DynamoDBOnline) {
+		c.Logger.Debugw("Feature provider is DynamoDB")
+		config := pc.DynamodbConfig{}
+		if err := config.Deserialize(featureProvider.SerializedConfig()); err != nil {
+			return false, fmt.Errorf("could not deserialize DynamoDB config due to error: %v", err)
+		}
+		return config.ImportFromS3, nil
+	}
+	return false, nil
 }
 
 func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule string) error {

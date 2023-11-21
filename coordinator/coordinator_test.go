@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go.uber.org/zap/zapcore"
-	"go.uber.org/zap/zaptest/observer"
 	"io/ioutil"
 	"net"
 	"os"
@@ -14,6 +12,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 
 	help "github.com/featureform/helpers"
 	"github.com/google/uuid"
@@ -1239,10 +1240,10 @@ func createTrainingSetWithProvider(client *metadata.Client, config pc.Serialized
 }
 
 func testCoordinatorTrainingSet(addr string) error {
-	if err := runner.RegisterFactory(string(runner.CREATE_TRAINING_SET), runner.TrainingSetRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(runner.CREATE_TRAINING_SET, runner.TrainingSetRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
-	defer runner.UnregisterFactory(string(runner.CREATE_TRAINING_SET))
+	defer runner.UnregisterFactory(runner.CREATE_TRAINING_SET)
 	logger := zap.NewExample().Sugar()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
@@ -1365,14 +1366,14 @@ func testCoordinatorTrainingSet(addr string) error {
 }
 
 func testCoordinatorMaterializeFeature(addr string) error {
-	if err := runner.RegisterFactory(string(runner.COPY_TO_ONLINE), runner.MaterializedChunkRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(runner.COPY_TO_ONLINE, runner.MaterializedChunkRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
-	defer runner.UnregisterFactory(string(runner.COPY_TO_ONLINE))
-	if err := runner.RegisterFactory(string(runner.MATERIALIZE), runner.MaterializeRunnerFactory); err != nil {
+	defer runner.UnregisterFactory(runner.COPY_TO_ONLINE)
+	if err := runner.RegisterFactory(runner.MATERIALIZE, runner.MaterializeRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
-	defer runner.UnregisterFactory(string(runner.MATERIALIZE))
+	defer runner.UnregisterFactory(runner.MATERIALIZE)
 	logger := zap.NewExample().Sugar()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
@@ -1590,10 +1591,10 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 }
 
 func testRegisterTransformationFromSource(addr string) error {
-	if err := runner.RegisterFactory(string(runner.CREATE_TRANSFORMATION), runner.CreateTransformationRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(runner.CREATE_TRANSFORMATION, runner.CreateTransformationRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
-	defer runner.UnregisterFactory(string(runner.CREATE_TRANSFORMATION))
+	defer runner.UnregisterFactory(runner.CREATE_TRANSFORMATION)
 	logger := zap.NewExample().Sugar()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {

@@ -12,6 +12,10 @@ import (
 
 type RunnerName string
 
+func (n RunnerName) String() string {
+	return string(n)
+}
+
 const (
 	COPY_TO_ONLINE        RunnerName = "Copy to online"
 	CREATE_TRAINING_SET   RunnerName = "Create training set"

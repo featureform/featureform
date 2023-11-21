@@ -1657,7 +1657,10 @@ func TestMaterializationCreate(t *testing.T) {
 		TS:     "timestamp",
 	}
 	queries := defaultPythonOfflineQueries{}
-	materializeQuery := queries.materializationCreate(exampleSchemaWithTS)
+	materializeQuery, err := queries.materializationCreate(exampleSchemaWithTS)
+	if err != nil {
+		t.Fatalf("Materialize create failed: %s", err)
+	}
 	correctQuery := "SELECT entity, value, ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number, rn2 FROM (SELECT entity, value, ts, ROW_NUMBER() OVER (PARTITION BY entity ORDER BY ts DESC) AS rn2 FROM (SELECT entity, value, ts, rn FROM (SELECT entity AS entity, value AS value, timestamp AS ts, ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn FROM source_0) t ORDER BY rn DESC) t2 ) t3 WHERE rn2=1"
 	if correctQuery != materializeQuery {
 		t.Fatalf("Materialize create did not produce correct query. Expected: %s, got: %s", correctQuery, materializeQuery)

@@ -26,7 +26,7 @@
     "meilisearch": "^0.31.1",
     "moment": "^2.29.2",
     "momentjs": "^2.0.0",
-    "next": "^13.5.0",
+    "next": "^14.0.3",
     "prometheus-query": "^3.2.5",
     "react": "^17.0.2",
     "react-chartjs-2": "^2.11.2",

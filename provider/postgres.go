@@ -25,7 +25,7 @@ const (
 func postgresOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.PostgresConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, fmt.Errorf("invalid postgres config: %s", err.Error())
+		return nil, NewProviderError(Runtime, pt.PostgresOffline, ConfigDeserialize, err.Error())
 	}
 
 	// We are doing this to support older versions of

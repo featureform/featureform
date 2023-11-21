@@ -10,22 +10,32 @@ import SourceDialogTable from './SourceDialogTable';
 
 export default function SourceDialog({
   api,
+  btnTxt = 'Preview Result',
+  type = 'Source',
   sourceName = '',
   sourceVariant = '',
 }) {
   const [open, setOpen] = React.useState(false);
   const [columns, setColumns] = React.useState([]);
   const [rowList, setRowList] = React.useState([]);
+  const [stats, setStats] = React.useState([]);
   const [error, setError] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(async () => {
-    if (sourceName && sourceVariant && open) {
+    if (sourceName && sourceVariant && open && api) {
       setIsLoading(true);
-      let response = await api.fetchSourceModalData(sourceName, sourceVariant);
+      let response;
+
+      if (type === 'Source') {
+        response = await api.fetchSourceModalData(sourceName, sourceVariant);
+      } else if (type === 'Feature') {
+        response = await api.fetchFeatureFileStats(sourceName, sourceVariant);
+      }
       if (response?.columns && response?.rows) {
         setColumns(response.columns);
         setRowList(response.rows);
+        setStats(response.stats);
       } else {
         setError(response);
       }
@@ -48,7 +58,7 @@ export default function SourceDialog({
         variant='outlined'
         onClick={handleClickOpen}
       >
-        Preview Result
+        {btnTxt}
       </Button>
       <Dialog
         fullWidth={true}
@@ -74,7 +84,11 @@ export default function SourceDialog({
               <CircularProgress />
             </Box>
           ) : error === '' ? (
-            <SourceDialogTable api={api} columns={columns} rowList={rowList} />
+            <SourceDialogTable
+              stats={stats}
+              columns={columns}
+              rowList={rowList}
+            />
           ) : (
             <div data-testid='errorMessageId'>{error}</div>
           )}

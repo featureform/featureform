@@ -693,7 +693,7 @@ func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLo
 		return nil, fmt.Errorf("error checking if source exists: %v", err)
 	}
 	if !storeExists {
-		return nil, fmt.Errorf("source table does not exist")
+		return nil, fmt.Errorf("source table does not exist in file store: %s", sourceFilePath.ToURI())
 	}
 
 	filepath, err := store.CreateFilePath(id.ToFilestorePath())
@@ -1495,6 +1495,10 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 
 func (k8s *K8sOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
 	return fileStoreGetTrainingSet(id, k8s.store, k8s.logger)
+}
+
+func (k8s *K8sOfflineStore) CheckHealth() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
 }
 
 func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.SugaredLogger) (TrainingSetIterator, error) {

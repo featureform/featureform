@@ -92,7 +92,8 @@ class Client(ResourceClient, ServingClient):
                 raise ValueError("variant cannot be an empty string")
         else:
             raise ValueError(
-                f"source must be of type SourceRegistrar, LocalSource, SubscriptableTransformation or str, not {type(source)}"
+                f"source must be of type SourceRegistrar, LocalSource, SubscriptableTransformation or str, not {type(source)}\n"
+                "use client.dataframe(name, variant) or client.dataframe(source) or client.dataframe(transformation)"
             )
         return self.impl._get_source_as_df(name, variant, limit)
 

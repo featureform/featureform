@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/csv"
 	"encoding/json"
 	"net/http"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/credentials"
 
+	"github.com/featureform/filestore"
 	"github.com/featureform/logging"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -24,6 +26,7 @@ import (
 	dbClient "github.com/databricks/databricks-sdk-go/client"
 	dbConfig "github.com/databricks/databricks-sdk-go/config"
 	"github.com/databricks/databricks-sdk-go/retries"
+	"github.com/databricks/databricks-sdk-go/service/compute"
 	"github.com/databricks/databricks-sdk-go/service/jobs"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -32,9 +35,9 @@ import (
 
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
 	"github.com/featureform/config"
-	filestore "github.com/featureform/filestore"
 	"github.com/featureform/helpers/compression"
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 )
 
 type JobType string
@@ -66,22 +69,22 @@ type SparkFileStore interface {
 
 type SparkFileStoreFactory func(config Config) (SparkFileStore, error)
 
-var sparkFileStoreMap = map[string]SparkFileStoreFactory{
-	"LOCAL_FILESYSTEM": NewSparkLocalFileStore,
-	"AZURE":            NewSparkAzureFileStore,
-	"S3":               NewSparkS3FileStore,
-	"GCS":              NewSparkGCSFileStore,
-	"HDFS":             NewSparkHDFSFileStore,
+var sparkFileStoreMap = map[filestore.FileStoreType]SparkFileStoreFactory{
+	filestore.FileSystem: NewSparkLocalFileStore,
+	filestore.Azure:      NewSparkAzureFileStore,
+	filestore.S3:         NewSparkS3FileStore,
+	filestore.GCS:        NewSparkGCSFileStore,
+	filestore.HDFS:       NewSparkHDFSFileStore,
 }
 
-func CreateSparkFileStore(name string, config Config) (SparkFileStore, error) {
-	factory, exists := sparkFileStoreMap[name]
+func CreateSparkFileStore(fsType filestore.FileStoreType, config Config) (SparkFileStore, error) {
+	factory, exists := sparkFileStoreMap[fsType]
 	if !exists {
-		return nil, fmt.Errorf("factory does not exist: %s", name)
+		return nil, fmt.Errorf("factory does not exist: %s", fsType)
 	}
 	FileStore, err := factory(config)
 	if err != nil {
-		return nil, fmt.Errorf("invalid config for %s: %v", name, err)
+		return nil, err
 	}
 	return FileStore, nil
 }
@@ -89,7 +92,7 @@ func CreateSparkFileStore(name string, config Config) (SparkFileStore, error) {
 func NewSparkS3FileStore(config Config) (SparkFileStore, error) {
 	fileStore, err := NewS3FileStore(config)
 	if err != nil {
-		return nil, fmt.Errorf("could not create s3 file store: %v", err)
+		return nil, err
 	}
 	s3, ok := fileStore.(*S3FileStore)
 	if !ok {
@@ -145,7 +148,7 @@ func (s3 SparkS3FileStore) Type() string {
 func NewSparkAzureFileStore(config Config) (SparkFileStore, error) {
 	fileStore, err := NewAzureFileStore(config)
 	if err != nil {
-		return nil, fmt.Errorf("could not create azure blob file store: %v", err)
+		return nil, err
 	}
 
 	azure, ok := fileStore.(*AzureFileStore)
@@ -375,10 +378,10 @@ func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath
 	pythonScriptBytes := make([]byte, fileStats.Size())
 	_, err = f.Read(pythonScriptBytes)
 	if err != nil {
-		return fmt.Errorf("could not read python script because %v", err)
+		return err
 	}
 	if err := store.Write(storePath, pythonScriptBytes); err != nil {
-		return fmt.Errorf("could not write to python script: %v", err)
+		return err
 	}
 	fmt.Printf("Uploaded %s to %s\n", filePath, storePath)
 	return nil
@@ -403,10 +406,6 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 		return fmt.Errorf("could not create local init script path: %v", err)
 	}
 	pythonRemoteInitScriptPath := config.GetPythonRemoteInitPath()
-
-	if err != nil {
-		return fmt.Errorf("could not create remote script path: %v", err)
-	}
 	err = readAndUploadFile(sparkLocalScriptPath, sparkRemoteScriptPath, store)
 	if err != nil {
 		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath.Key(), sparkRemoteScriptPath.ToURI(), err)
@@ -438,7 +437,21 @@ func NewDatabricksExecutor(databricksConfig pc.DatabricksConfig) (SparkExecutor,
 			Username: databricksConfig.Username,
 			Password: databricksConfig.Password,
 		}))
-
+	// Creating a new workspace client doesn't actually test that the client is able to successfully connect and communicate with
+	// the cluster given the provided credentials; to fail earlier in the process (i.e. _before_ submitting a job) we'll make a call
+	// to Databricks's Clusters API to get information about the cluster with the provided ID.
+	if _, err := client.Clusters.Get(context.Background(), compute.GetClusterRequest{ClusterId: databricksConfig.Cluster}); err != nil {
+		// The Databricks SDK uses Go's "net/url" under the hood for parsing the hostname; this _can_ result in error messages that
+		// are not very helpful. For example, if the hostname is "_https://my-hostname" the error message will be:
+		// parse '_https://my-hostname': first path segment in URL cannot contain colon
+		// To direct users to a solution, we'll check for message prefix 'parse' and provide a more helpful error message that wraps
+		// the original error message.
+		if strings.Contains(err.Error(), "parse") {
+			parsingError := strings.TrimPrefix(err.Error(), "parse ")
+			return nil, fmt.Errorf("the hostname %s is invalid and resulted in a parsing error (%s); check that the hostname is correct before trying again", databricksConfig.Host, parsingError)
+		}
+		return nil, err
+	}
 	errorMessageClient, err := dbClient.New(&dbConfig.Config{
 		Host:     databricksConfig.Host,
 		Token:    databricksConfig.Token,
@@ -463,6 +476,7 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 	if err != nil {
 		return fmt.Errorf("could not get python file path: %v", err)
 	}
+
 	pythonTask := jobs.SparkPythonTask{
 		PythonFile: pythonFilepath.ToURI(),
 		Parameters: args,
@@ -673,36 +687,88 @@ func (store *SparkOfflineStore) Close() error {
 	return nil
 }
 
+// For Spark, the CheckHealth method must confirm 3 things:
+// 1. The Spark executor is able to run a Spark job
+// 2. The Spark job is able to read/write to the configured blob store
+// 3. Backend business logic is able to read/write to the configured blob store
+// To achieve this check, we'll perform the following steps:
+// 1. Write to <blob-store>/featureform/HealthCheck/health_check.csv
+// 2. Run a Spark job that reads from <blob-store>/featureform/HealthCheck/health_check.csv and
+// writes to <blob-store>/featureform/HealthCheck/health_check_out.csv
+func (store *SparkOfflineStore) CheckHealth() (bool, error) {
+	healthCheckPath, err := store.Store.CreateFilePath("featureform/HealthCheck/health_check.csv")
+	if err != nil {
+		return false, NewProviderError(Internal, store.Type(), FilePathCreation, fmt.Sprintf("failed to create file path for health check file due to: %v", err))
+	}
+	csvBytes, err := store.getHealthCheckCSVBytes()
+	if err != nil {
+		return false, fmt.Errorf("failed to create mock CSV data for health check file: %v", err)
+	}
+	if err := store.Store.Write(healthCheckPath, csvBytes); err != nil {
+		return false, NewProviderError(Connection, store.Type(), Write, fmt.Sprintf("failed to write health check file due to: %v", err))
+	}
+	healthCheckOutPath, err := store.Store.CreateDirPath("featureform/HealthCheck/health_check_out")
+	fmt.Println("HEALTH CHECK PATHS: ", healthCheckOutPath.ToURI(), healthCheckPath.ToURI())
+	if err != nil {
+		return false, NewProviderError(Internal, store.Type(), FilePathCreation, fmt.Sprintf("failed to create file path for health check output file due to: %v", err))
+	}
+	args, err := store.Executor.SparkSubmitArgs(healthCheckOutPath, "SELECT * FROM source_0", []string{healthCheckPath.ToURI()}, Transform, store.Store)
+	if err != nil {
+		return false, fmt.Errorf("failed to build arguments for Spark submit due to: %v", err)
+	}
+	fmt.Println("SPARK SUBMIT ARGS: ", args)
+
+	if err := store.Executor.RunSparkJob(args, store.Store); err != nil {
+		return false, NewProviderError(Connection, store.Type(), JobSubmission, fmt.Sprintf("failed to read health check file due to: %v", err))
+	}
+	return true, nil
+}
+
+func (store *SparkOfflineStore) getHealthCheckCSVBytes() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	w := csv.NewWriter(buf)
+	records := [][]string{
+		{"entity", "value", "ts"},
+		{"entity1", "value1", "2020-01-01T00:00:00Z"},
+		{"entity2", "value3", "2020-01-02T00:00:00Z"},
+		{"entity3", "value3", "2020-01-03T00:00:00Z"},
+	}
+	if err := w.WriteAll(records); err != nil {
+		return nil, fmt.Errorf("could not write health check csv: %v", err)
+	}
+	return buf.Bytes(), nil
+}
+
 func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.SparkConfig{}
 	logger := logging.NewLogger("spark")
 	if err := sc.Deserialize(config); err != nil {
 		logger.Errorw("Invalid config to initialize spark offline store", "error", err)
-		return nil, fmt.Errorf("invalid spark config: %v", err)
+		return nil, NewProviderError(Runtime, "SPARK_OFFLINE", ConfigDeserialize, err.Error())
 	}
 	logger.Infow("Creating Spark executor:", "type", sc.ExecutorType)
 	exec, err := NewSparkExecutor(sc.ExecutorType, sc.ExecutorConfig, logger)
 	if err != nil {
 		logger.Errorw("Failure initializing Spark executor", "type", sc.ExecutorType, "error", err)
-		return nil, err
+		return nil, NewProviderError(Connection, pt.SparkOffline, ClientInitialization, err.Error())
 	}
 
 	logger.Infow("Creating Spark store:", "type", sc.StoreType)
 	serializedFilestoreConfig, err := sc.StoreConfig.Serialize()
 	if err != nil {
-		return nil, fmt.Errorf("could not serialize Config, %v", err)
+		return nil, NewProviderError(Runtime, pt.SparkOffline, ConfigSerialize, err.Error())
 	}
-	store, err := CreateSparkFileStore(string(sc.StoreType), Config(serializedFilestoreConfig))
+	store, err := CreateSparkFileStore(sc.StoreType, Config(serializedFilestoreConfig))
 	if err != nil {
 		logger.Errorw("Failure initializing blob store", "type", sc.StoreType, "error", err)
-		return nil, err
+		return nil, NewProviderError(Connection, pt.SparkOffline, ClientInitialization, fmt.Sprintf("failed to initialize blob store due to: %v", err))
 	}
 	logger.Info("Uploading Spark script to store")
 
 	logger.Debugf("Store type: %s", sc.StoreType)
 	if err := exec.InitializeExecutor(store); err != nil {
 		logger.Errorw("Failure initializing executor", "error", err)
-		return nil, err
+		return nil, NewProviderError(Connection, pt.SparkOffline, ClientInitialization, err.Error())
 	}
 	logger.Info("Created Spark Offline Store")
 	queries := defaultPythonOfflineQueries{}
@@ -1264,7 +1330,7 @@ func (spark *SparkOfflineStore) transformation(config TransformationConfig, isUp
 func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, isUpdate bool) error {
 	updatedQuery, sources, err := spark.updateQuery(config.Query, config.SourceMapping)
 	if err != nil {
-		spark.Logger.Errorw("Could not generate updated query for spark transformation", err)
+		spark.Logger.Errorw("Could not generate updated query for spark transformation", "error", err)
 		return err
 	}
 	transformationDestination, err := spark.Store.CreateDirPath(config.TargetTableID.ToFilestorePath())
@@ -1276,24 +1342,24 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 		return fmt.Errorf("could not check if transformation exists: %v", err)
 	}
 	if !isUpdate && transformationExists {
-		spark.Logger.Errorw("Creation when transformation already exists", config.TargetTableID, transformationDestination)
+		spark.Logger.Errorw("Creation when transformation already exists", "target", config.TargetTableID, "path", transformationDestination)
 		return fmt.Errorf("transformation %v already exists at %s", config.TargetTableID, transformationDestination)
 	} else if isUpdate && !transformationExists {
-		spark.Logger.Errorw("Update job attempted when transformation does not exist", config.TargetTableID, transformationDestination)
+		spark.Logger.Errorw("Update job attempted when transformation does not exist", "target", config.TargetTableID, "path", transformationDestination)
 		return fmt.Errorf("transformation %v doesn't exist at %s and you are trying to update", config.TargetTableID, transformationDestination)
 	}
 
-	spark.Logger.Debugw("Running SQL transformation", config)
+	spark.Logger.Debugw("Running SQL transformation")
 	sparkArgs, err := spark.Executor.SparkSubmitArgs(transformationDestination, updatedQuery, sources, JobType(Transform), spark.Store)
 	if err != nil {
-		spark.Logger.Errorw("Problem creating spark submit arguments", err)
+		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err)
 		return fmt.Errorf("error with getting spark submit arguments %v", sparkArgs)
 	}
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
-		spark.Logger.Errorw("spark submit job for transformation failed to run", config.TargetTableID, err)
+		spark.Logger.Errorw("spark submit job for transformation failed to run", "target", config.TargetTableID, "error", err)
 		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
 	}
-	spark.Logger.Debugw("Successfully ran SQL transformation", config)
+	spark.Logger.Debugw("Successfully ran SQL transformation")
 	return nil
 }
 

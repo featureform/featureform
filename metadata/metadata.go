@@ -7,6 +7,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"github.com/featureform/lib"
 	"io"
 	"net"
 	"strings"
@@ -14,7 +15,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	slices "golang.org/x/exp/slices"
+	"golang.org/x/exp/slices"
 
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/metadata/search"
@@ -220,12 +221,18 @@ func (err *ResourceExists) GRPCStatus() *status.Status {
 	return status.New(codes.AlreadyExists, err.Error())
 }
 
+type ResourceVariant interface {
+	IsEquivalent(ResourceVariant) (bool, error)
+	ToResourceVariantProto() *pb.ResourceVariant
+}
+
 type Resource interface {
 	Notify(ResourceLookup, operation, Resource) error
 	ID() ResourceID
 	Schedule() string
 	Dependencies(ResourceLookup) (ResourceLookup, error)
 	Proto() proto.Message
+	GetStatus() *pb.ResourceStatus
 	UpdateStatus(pb.ResourceStatus) error
 	UpdateSchedule(string) error
 	Update(ResourceLookup, Resource) error
@@ -390,6 +397,10 @@ func (this *SourceResource) Notify(lookup ResourceLookup, op operation, that Res
 	return nil
 }
 
+func (resource *SourceResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
+}
+
 func (resource *SourceResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
 	return nil
@@ -462,6 +473,10 @@ func (this *sourceVariantResource) Notify(lookup ResourceLookup, op operation, t
 	return nil
 }
 
+func (resource *sourceVariantResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
+}
+
 func (resource *sourceVariantResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.LastUpdated = tspb.Now()
 	resource.serialized.Status = &status
@@ -482,6 +497,74 @@ func (resource *sourceVariantResource) Update(lookup ResourceLookup, updateRes R
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
+}
+
+func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
+	/**
+	Key Fields for a SourceVariant are
+	- Name
+	- Definition
+	- Owner
+	- Provider
+	*/
+	otherVariant, ok := other.(*sourceVariantResource)
+	if !ok {
+		return false, nil
+	}
+
+	thisProto := resource.serialized
+	otherProto := otherVariant.serialized
+
+	isDefinitionEqual := false
+	var err error
+	switch thisDef := thisProto.Definition.(type) {
+	case *pb.SourceVariant_Transformation:
+		if otherDef, ok := otherProto.Definition.(*pb.SourceVariant_Transformation); ok {
+			isDefinitionEqual, err = isSourceProtoDefinitionEqual(thisDef, otherDef)
+			if err != nil {
+				return false, fmt.Errorf("error comparing source definitions: %v", err)
+			}
+
+		}
+	case *pb.SourceVariant_PrimaryData:
+		if otherDef, ok := otherProto.Definition.(*pb.SourceVariant_PrimaryData); ok {
+			isDefinitionEqual = proto.Equal(thisDef.PrimaryData, otherDef.PrimaryData)
+		}
+	}
+
+	if thisProto.GetName() == otherProto.GetName() &&
+		thisProto.GetOwner() == otherProto.GetOwner() &&
+		thisProto.GetProvider() == otherProto.GetProvider() &&
+		isDefinitionEqual {
+
+		return true, nil
+	}
+	return false, nil
+}
+
+func isSourceProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transformation) (bool, error) {
+	isDefinitionEqual := false
+	switch thisDef.Transformation.Type.(type) {
+	case *pb.Transformation_DFTransformation:
+		if otherDef, ok := otherDef.Transformation.Type.(*pb.Transformation_DFTransformation); ok {
+			sourceTextEqual := thisDef.Transformation.GetDFTransformation().SourceText == otherDef.DFTransformation.SourceText
+			inputsEqual, err := lib.EqualProtoContents(thisDef.Transformation.GetDFTransformation().Inputs, otherDef.DFTransformation.Inputs)
+			if err != nil {
+				return false, fmt.Errorf("error comparing transformation inputs: %v", err)
+			}
+			isDefinitionEqual = sourceTextEqual &&
+				inputsEqual
+		}
+	case *pb.Transformation_SQLTransformation:
+		isDefinitionEqual = thisDef.Transformation.GetSQLTransformation().Query == otherDef.Transformation.GetSQLTransformation().Query
+	}
+
+	kubernetesArgsEqual := proto.Equal(thisDef.Transformation.GetKubernetesArgs(), otherDef.Transformation.GetKubernetesArgs())
+	return isDefinitionEqual && kubernetesArgsEqual, nil
+}
+
+func (resource *sourceVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
+	return &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{SourceVariant: resource.serialized}}
 }
 
 type featureResource struct {
@@ -519,6 +602,10 @@ func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Re
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
 	return nil
+}
+
+func (resource *featureResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
 }
 
 func (resource *featureResource) UpdateStatus(status pb.ResourceStatus) error {
@@ -602,6 +689,10 @@ func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, 
 	return nil
 }
 
+func (resource *featureVariantResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
+}
+
 func (resource *featureVariantResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.LastUpdated = tspb.Now()
 	resource.serialized.Status = &status
@@ -622,6 +713,46 @@ func (resource *featureVariantResource) Update(lookup ResourceLookup, updateRes 
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
+}
+
+func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
+	/**
+	Key Fields for a FeatureVariant are
+	- Name
+	- Source
+	- Function
+	- Provider
+	- Entity
+	- Owner
+	- Type
+	*/
+
+	otherVariant, ok := other.(*featureVariantResource)
+	if !ok {
+		return false, nil
+	}
+
+	thisProto := resource.serialized
+	otherProto := otherVariant.serialized
+
+	isEquivalentLocation := proto.Equal(thisProto.GetFunction(), otherProto.GetFunction()) ||
+		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns())
+
+	if thisProto.GetName() == otherProto.GetName() &&
+		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
+		thisProto.GetProvider() == otherProto.GetProvider() &&
+		thisProto.GetEntity() == otherProto.GetEntity() &&
+		thisProto.Type == otherProto.Type &&
+		isEquivalentLocation &&
+		thisProto.Owner == otherProto.Owner {
+
+		return true, nil
+	}
+	return false, nil
+}
+
+func (resource *featureVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
+	return &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{FeatureVariant: resource.serialized}}
 }
 
 type labelResource struct {
@@ -659,6 +790,10 @@ func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Reso
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
 	return nil
+}
+
+func (resource *labelResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
 }
 
 func (resource *labelResource) UpdateStatus(status pb.ResourceStatus) error {
@@ -737,6 +872,10 @@ func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, th
 	return nil
 }
 
+func (resource *labelVariantResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
+}
+
 func (resource *labelVariantResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
 	return nil
@@ -755,6 +894,41 @@ func (resource *labelVariantResource) Update(lookup ResourceLookup, updateRes Re
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
+}
+
+func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
+	/**
+	Key Fields for a LabelVariant are
+	- Name
+	- Source
+	- Columns
+	- Owner
+	- Entity
+	- Type
+	*/
+	otherVariant, ok := other.(*labelVariantResource)
+	if !ok {
+		return false, nil
+	}
+
+	thisProto := resource.serialized
+	otherProto := otherVariant.serialized
+
+	if thisProto.GetName() == otherProto.GetName() &&
+		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
+		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns()) &&
+		thisProto.Entity == otherProto.Entity &&
+		thisProto.Type == otherProto.Type &&
+		thisProto.Owner == otherProto.Owner {
+
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (resource *labelVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
+	return &pb.ResourceVariant{Resource: &pb.ResourceVariant_LabelVariant{LabelVariant: resource.serialized}}
 }
 
 type trainingSetResource struct {
@@ -792,6 +966,10 @@ func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, tha
 	}
 	this.serialized.Variants = append(this.serialized.Variants, otherId.Variant)
 	return nil
+}
+
+func (resource *trainingSetResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
 }
 
 func (resource *trainingSetResource) UpdateStatus(status pb.ResourceStatus) error {
@@ -866,6 +1044,10 @@ func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op operati
 	return nil
 }
 
+func (resource *trainingSetVariantResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
+}
+
 func (resource *trainingSetVariantResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.LastUpdated = tspb.Now()
 	resource.serialized.Status = &status
@@ -886,6 +1068,42 @@ func (resource *trainingSetVariantResource) Update(lookup ResourceLookup, update
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
+}
+
+func (resource *trainingSetVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
+	/**
+	Key Fields for a TrainingSetVariant are
+	- Name
+	- Labels
+	- Features
+	- Lag Features
+	- Owner
+	*/
+	otherVariant, ok := other.(*trainingSetVariantResource)
+	if !ok {
+		return false, nil
+	}
+
+	thisProto := resource.serialized
+	otherProto := otherVariant.serialized
+
+	equivalentLabals := proto.Equal(thisProto.GetLabel(), otherProto.GetLabel())
+	equivalentFeatures := lib.EqualProtoSlices(thisProto.GetFeatures(), otherProto.GetFeatures())
+	equivalentLagFeatures := lib.EqualProtoSlices(thisProto.GetFeatureLags(), otherProto.GetFeatureLags())
+
+	if thisProto.GetName() == otherProto.GetName() &&
+		equivalentLabals &&
+		equivalentFeatures &&
+		equivalentLagFeatures &&
+		thisProto.Owner == otherProto.Owner {
+
+		return true, nil
+	}
+	return false, nil
+}
+
+func (resource *trainingSetVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
+	return &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{TrainingSetVariant: resource.serialized}}
 }
 
 type modelResource struct {
@@ -940,6 +1158,10 @@ func (resource *modelResource) Proto() proto.Message {
 
 func (this *modelResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
 	return nil
+}
+
+func (resource *modelResource) GetStatus() *pb.ResourceStatus {
+	return &pb.ResourceStatus{Status: pb.ResourceStatus_NO_STATUS}
 }
 
 func (resource *modelResource) UpdateStatus(status pb.ResourceStatus) error {
@@ -1009,6 +1231,10 @@ func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resou
 	return nil
 }
 
+func (resource *userResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
+}
+
 func (resource *userResource) UpdateStatus(status pb.ResourceStatus) error {
 	resource.serialized.Status = &status
 	return nil
@@ -1073,6 +1299,10 @@ func (this *providerResource) Notify(lookup ResourceLookup, op operation, that R
 		serialized.Labels = append(serialized.Labels, key)
 	}
 	return nil
+}
+
+func (resource *providerResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
 }
 
 func (resource *providerResource) UpdateStatus(status pb.ResourceStatus) error {
@@ -1171,6 +1401,10 @@ func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Res
 		serialized.Labels = append(serialized.Labels, key)
 	}
 	return nil
+}
+
+func (resource *entityResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
 }
 
 func (resource *entityResource) UpdateStatus(status pb.ResourceStatus) error {
@@ -1513,6 +1747,87 @@ func (serv *MetadataServer) GetModels(stream pb.Metadata_GetModelsServer) error 
 	})
 }
 
+// GetEquivalent attempts to find an equivalent resource based on the provided ResourceVariant.
+func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariant) (*pb.ResourceVariant, error) {
+	return serv.getEquivalent(req, true)
+}
+
+/*
+*
+This method is used to get the equivalent resource variant for a given resource variant. readyStatus is used to determine
+if we should only return the equivalent resource variant if it is ready.
+*/
+func (serv *MetadataServer) getEquivalent(req *pb.ResourceVariant, filterReadyStatus bool) (*pb.ResourceVariant, error) {
+	noEquivalentResponse := &pb.ResourceVariant{}
+
+	currentResource, resourceType, err := serv.extractResourceVariant(req)
+	if err != nil {
+		return nil, err
+	}
+
+	resourcesForType, err := serv.lookup.ListForType(resourceType)
+	if err != nil {
+		return nil, err
+	}
+
+	equivalentResourceVariant, err := findEquivalent(resourcesForType, currentResource, filterReadyStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	if equivalentResourceVariant == nil {
+		return noEquivalentResponse, nil
+	}
+
+	return equivalentResourceVariant.ToResourceVariantProto(), nil
+}
+
+// findEquivalent searches through a slice of Resources to find an equivalent ResourceVariant.
+func findEquivalent(resources []Resource, resource ResourceVariant, filterReadyStatus bool) (ResourceVariant, error) {
+	for _, res := range resources {
+		// If we are filtering by ready status, we only want to return the equivalent resource variant if it is ready.
+		if filterReadyStatus && !isResourceReady(res) {
+			continue
+		}
+
+		other, ok := res.(ResourceVariant)
+		if !ok {
+			return nil, fmt.Errorf("resource is not a ResourceVariant: %T", res)
+		}
+
+		equivalent, err := resource.IsEquivalent(other)
+		if err != nil {
+			return nil, err
+		}
+		if equivalent {
+			return other, nil
+		}
+	}
+	return nil, nil
+}
+
+// extractResourceVariant takes a ResourceVariant request and extracts the concrete type and corresponding ResourceType.
+func (serv *MetadataServer) extractResourceVariant(req *pb.ResourceVariant) (ResourceVariant, ResourceType, error) {
+	switch res := req.Resource.(type) {
+	case *pb.ResourceVariant_SourceVariant:
+		return &sourceVariantResource{res.SourceVariant}, SOURCE_VARIANT, nil
+	case *pb.ResourceVariant_FeatureVariant:
+		return &featureVariantResource{res.FeatureVariant}, FEATURE_VARIANT, nil
+	case *pb.ResourceVariant_LabelVariant:
+		return &labelVariantResource{res.LabelVariant}, LABEL_VARIANT, nil
+	case *pb.ResourceVariant_TrainingSetVariant:
+		return &trainingSetVariantResource{res.TrainingSetVariant}, TRAINING_SET_VARIANT, nil
+	default:
+		return nil, 0, fmt.Errorf("unknown resource variant type: %T", req.Resource)
+	}
+}
+
+// isResourceReady checks if a Resource's status is 'ready'.
+func isResourceReady(res Resource) bool {
+	resourceStatus := res.GetStatus()
+	return resourceStatus != nil && resourceStatus.Status == pb.ResourceStatus_READY
+}
+
 type nameStream interface {
 	Recv() (*pb.Name, error)
 }
@@ -1526,7 +1841,7 @@ type sendFn func(proto.Message) error
 type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
-	serv.Logger.Info("Creating Generic Resource", res.ID().Name, res.ID().Variant)
+	serv.Logger.Info("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
 	id := res.ID()
 	if err := resourceNamedSafely(id); err != nil {
 		return nil, err
@@ -1535,6 +1850,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if _, isResourceError := err.(*ResourceNotFound); err != nil && !isResourceError {
 		return nil, err
 	}
+
 	if existing != nil {
 		if err := existing.Update(serv.lookup, res); err != nil {
 			return nil, err
@@ -1665,6 +1981,7 @@ func (serv *MetadataServer) genericList(t ResourceType, send sendFn) error {
 	return nil
 }
 
+// Resource Variant structs for Dashboard
 type TrainingSetVariantResource struct {
 	Created     time.Time                           `json:"created"`
 	Description string                              `json:"description"`

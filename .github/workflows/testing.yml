@@ -1212,3 +1212,60 @@ jobs:
         with:
           name: provider-health-checks-coverage-reports
           path: ./coverage
+
+  importable-online-store:
+    name: Importable Online Store
+    timeout-minutes: 45
+    environment: Integration testing
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Check pwd directory
+        run: |
+          pwd
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Make Coverage Directory
+        working-directory: ./
+        run: mkdir coverage
+
+      - name: Testing
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
+          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
+          DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
+          DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
+          DYNAMODB_REGION: ${{ secrets.DYNAMODB_REGION }}
+        working-directory: ./
+        run: make test_importable_online
+
+      - name: Convert Coverage Test Results
+        if: always()
+        working-directory: ./coverage
+        run: |
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
+          go tool cover -html=cover.out -o cover.html
+
+      - name: Archive code coverage results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: importable-online-store-coverage-reports
+          path: ./coverage

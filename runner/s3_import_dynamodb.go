@@ -169,7 +169,6 @@ func (w *S3ImportCompletionWatcher) Wait() error {
 			w.logger.Infow("Changing S3 import watcher status to FAILED", "importID", w.importArn)
 			return w.err
 		default:
-			// Sleep for a short duration to prevent busy waiting
 			time.Sleep(120 * time.Second)
 		}
 	}

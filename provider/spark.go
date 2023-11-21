@@ -1761,7 +1761,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	}
 	materializationExists, err := spark.Store.Exists(destinationPath)
 	if err != nil {
-		return nil, fmt.Errorf("could check if materialization exists: %v", err)
+		return nil, fmt.Errorf("could not check if materialization exists: %v", err)
 	}
 	if materializationExists && !isUpdate {
 		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", "id", id)

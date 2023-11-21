@@ -3945,7 +3945,7 @@ class Registrar:
                 ),
                 tags=feature_tags,
                 properties=feature_properties,
-                definition=feature.get("definition", "() => caca"),
+                definition=feature.get("definition", ""),
             )
             self.__resources.append(resource)
             feature_resources.append(resource)

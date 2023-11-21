@@ -396,14 +396,16 @@ const EntityPageView = ({
                   </div>
                 </div>
                 {allVariants && (
-                  <VariantControl
-                    variant={variant}
-                    variantListProp={allVariants}
-                    resources={resources}
-                    handleVariantChange={handleVariantChange}
-                    type={type}
-                    name={name}
-                  />
+                  <div>
+                    <VariantControl
+                      variant={variant}
+                      variantListProp={allVariants}
+                      resources={resources}
+                      handleVariantChange={handleVariantChange}
+                      type={type}
+                      name={name}
+                    />
+                  </div>
                 )}
               </div>
             </Grid>

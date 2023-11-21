@@ -1,12 +1,15 @@
 import { createSelector } from '@reduxjs/toolkit';
+import dynamic from 'next/dynamic';
 import PropTypes from 'prop-types';
 import React from 'react';
 import { connect } from 'react-redux';
 import ServerErrorPage from '../servererror/ServerErrorPage';
-import ResourceListView from './ResourceListView.js';
 import { fetchResources, setCurrentType } from './ResourceSlice.js';
 import { toggleTag } from './TagSlice.js';
 import { setVariant } from './VariantSlice.js';
+const ResourceListView = dynamic(() => import('./ResourceListView'), {
+  ssr: false,
+});
 
 export const selectFilteredResources = (type) => {
   const selectResources = (state) => state.resourceList[type].resources;

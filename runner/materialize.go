@@ -21,7 +21,7 @@ import (
 	"github.com/featureform/types"
 )
 
-const MAXIMUM_CHUNK_ROWS int64 = 16777216
+const MAXIMUM_CHUNK_ROWS int64 = 100000
 
 var WORKER_IMAGE string = helpers.GetEnv("WORKER_IMAGE", "featureformcom/worker:latest")
 
@@ -254,11 +254,11 @@ func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 	}
 	onlineProvider, err := provider.Get(runnerConfig.OnlineType, runnerConfig.OnlineConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure online provider: %v", err)
+		return nil, fmt.Errorf("failed to configure %s provider: %v", runnerConfig.OnlineType, err)
 	}
 	offlineProvider, err := provider.Get(runnerConfig.OfflineType, runnerConfig.OfflineConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure offline provider: %v", err)
+		return nil, fmt.Errorf("failed to configure %s provider: %v", runnerConfig.OfflineType, err)
 	}
 	onlineStore, err := onlineProvider.AsOnlineStore()
 	if err != nil {

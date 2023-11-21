@@ -20,6 +20,7 @@ func init() {
 		pt.DynamoDBOnline:   dynamodbOnlineStoreFactory,
 		pt.PineconeOnline:   pineconeOnlineStoreFactory,
 		pt.MemoryOffline:    memoryOfflineStoreFactory,
+		pt.MySqlOffline:     memoryOfflineStoreFactory,
 		pt.PostgresOffline:  postgresOfflineStoreFactory,
 		pt.SnowflakeOffline: snowflakeOfflineStoreFactory,
 		pt.RedshiftOffline:  redshiftOfflineStoreFactory,
@@ -28,6 +29,7 @@ func init() {
 		pt.K8sOffline:       k8sOfflineStoreFactory,
 		pt.BlobOnline:       blobOnlineStoreFactory,
 		pt.MongoDBOnline:    mongoOnlineStoreFactory,
+		pt.UNIT_TEST:        unitTestStoreFactory,
 	}
 	for name, factory := range unregisteredFactories {
 		if err := RegisterFactory(name, factory); err != nil {
@@ -43,6 +45,7 @@ type Provider interface {
 	AsOfflineStore() (OfflineStore, error)
 	Type() pt.Type
 	Config() pc.SerializedConfig
+	CheckHealth() (bool, error)
 }
 
 type BaseProvider struct {
@@ -64,6 +67,10 @@ func (provider BaseProvider) Type() pt.Type {
 
 func (provider BaseProvider) Config() pc.SerializedConfig {
 	return provider.ProviderConfig
+}
+
+func (provider BaseProvider) CheckHealth() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
 }
 
 type Factory func(pc.SerializedConfig) (Provider, error)

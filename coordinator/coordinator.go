@@ -125,7 +125,7 @@ func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant)
 		if sourceStatus == metadata.READY {
 			return source, nil
 		}
-		time.Sleep(3 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 	return c.Metadata.GetSourceVariant(context.Background(), sourceNameVariant)
 }
@@ -253,7 +253,6 @@ func (c *Coordinator) WatchForNewJobs() error {
 		return fmt.Errorf("get existing etcd jobs: %v", err)
 	}
 	for _, kv := range getResp.Kvs {
-		time.Sleep(1 * time.Second)
 		go func(kv *mvccpb.KeyValue) {
 			err := c.ExecuteJob(string(kv.Key))
 			if err != nil {
@@ -265,7 +264,6 @@ func (c *Coordinator) WatchForNewJobs() error {
 		rch := c.EtcdClient.Watch(context.Background(), "JOB_", clientv3.WithPrefix())
 		for wresp := range rch {
 			for _, ev := range wresp.Events {
-				time.Sleep(1 * time.Second)
 				if ev.Type == mvccpb.PUT {
 					go func(ev *clientv3.Event) {
 						err := c.ExecuteJob(string(ev.Kv.Key))
@@ -378,7 +376,7 @@ func (c *Coordinator) verifyCompletionOfSources(sources []metadata.NameVariant) 
 	for !allReady {
 		sourceVariants, err := c.Metadata.GetSourceVariants(context.Background(), sources)
 		if err != nil {
-			return fmt.Errorf("could not get source variant: %v ", err)
+			return fmt.Errorf("could not get source variants: %v ", err)
 		}
 		total := len(sourceVariants)
 		totalReady := 0
@@ -387,10 +385,11 @@ func (c *Coordinator) verifyCompletionOfSources(sources []metadata.NameVariant) 
 				totalReady += 1
 			}
 			if sourceVariant.Status() == metadata.FAILED {
-				return fmt.Errorf("dependent source variant failed")
+				fmt.Errorf("dependent source variant, %s, failed", sourceVariant.Name())
 			}
 		}
 		allReady = total == totalReady
+		time.Sleep(1 * time.Second)
 	}
 	return nil
 }
@@ -430,20 +429,20 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 	c.Logger.Debugw("Transformation Get Job Runner")
 	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serialized, resID)
 	if err != nil {
-		return fmt.Errorf("spawn create transformation job runner: %v", err)
+		return fmt.Errorf("failed to create transformation job runner: %v", err)
 	}
 	c.Logger.Debugw("Transformation Run Job")
 	completionWatcher, err := jobRunner.Run()
 	if err != nil {
-		return fmt.Errorf("run transformation job runner: %v", err)
+		return fmt.Errorf("failed to create transformation job: %v", err)
 	}
 	c.Logger.Debugw("Transformation Waiting For Completion")
 	if err := completionWatcher.Wait(); err != nil {
-		return fmt.Errorf("wait for transformation job runner completion: %v", err)
+		return fmt.Errorf("transformation failed to complete: %v", err)
 	}
 	c.Logger.Debugw("Transformation Setting Status")
 	if err := retryWithDelays("set status to ready", 5, time.Millisecond*10, func() error { return c.Metadata.SetStatus(context.Background(), resID, metadata.READY, "") }); err != nil {
-		return fmt.Errorf("set transformation job runner done status: %v", err)
+		return fmt.Errorf("failed to set transformation status: %v", err)
 	}
 	c.Logger.Debugw("Transformation Complete")
 	if schedule != "" {
@@ -533,9 +532,9 @@ func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVar
 		return fmt.Errorf("map name: %v sources: %v", err, sources)
 	}
 
-	sourceMapping := []provider.SourceMapping{}
-	for nameVariantClient, transformationTableName := range sourceMap {
-		sourceMapping = append(sourceMapping, provider.SourceMapping{Template: nameVariantClient, Source: transformationTableName})
+	sourceMapping, err := getOrderedSourceMappings(sources, sourceMap)
+	if err != nil {
+		return fmt.Errorf("failed to get ordered source mappings due to %v", err)
 	}
 
 	c.Logger.Debugw("Created transformation query")
@@ -556,15 +555,31 @@ func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVar
 	return nil
 }
 
-func (c *Coordinator) runPrimaryTableJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string) error {
+func getOrderedSourceMappings(sources []metadata.NameVariant, sourceMap map[string]string) ([]provider.SourceMapping, error) {
+	sourceMapping := make([]provider.SourceMapping, len(sources))
+	for i, nv := range sources {
+		sourceKey := nv.ClientString()
+		tableName, hasKey := sourceMap[sourceKey]
+		if !hasKey {
+			return nil, fmt.Errorf("key %s not in source map", sourceKey)
+		}
+		sourceMapping[i] = provider.SourceMapping{Template: sourceKey, Source: tableName}
+	}
+	return sourceMapping, nil
+}
+
+func (c *Coordinator) runPrimaryTableJob(source *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string) error {
 	c.Logger.Info("Running primary table job on resource: ", resID)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Primary}
-	sourceName := transformSource.PrimaryDataSQLTableName()
+	if !source.IsPrimaryDataSQLTable() {
+		return fmt.Errorf("%s is not a primary table", source.Name())
+	}
+	sourceName := source.PrimaryDataSQLTableName()
 	if sourceName == "" {
-		return fmt.Errorf("no source name set")
+		return fmt.Errorf("source name is not set")
 	}
 	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, sourceName); err != nil {
-		return fmt.Errorf("register primary table from source table in offline store: %v", err)
+		return fmt.Errorf("unable to register primary table from %s in %s: %v", sourceName, offlineStore.Type().String(), err)
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
 		return fmt.Errorf("set done status for registering primary table: %v", err)
@@ -584,7 +599,7 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule s
 	}
 	p, err := provider.Get(pt.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
 	if err != nil {
-		return fmt.Errorf("get source's dependent provider in offline store: %v", err)
+		return fmt.Errorf("failed to initialize provider: %v", err)
 	}
 	sourceStore, err := p.AsOfflineStore()
 	if err != nil {
@@ -744,7 +759,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	}(sourceStore)
 	featureProvider, err := feature.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
-		return fmt.Errorf("could not fetch  onlineprovider: %v", err)
+		return fmt.Errorf("could not fetch online provider: %v", err)
 	}
 	var vType provider.ValueType
 	if feature.IsEmbedding() {
@@ -813,18 +828,18 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		c.Logger.Info("Starting Materialize")
 		jobRunner, err := c.Spawner.GetJobRunner(runner.MATERIALIZE, serialized, resID)
 		if err != nil {
-			return fmt.Errorf("could not use store as online store: %w", err)
+			return fmt.Errorf("could not use %s as online store: %w", featureProvider.Name(), err)
 		}
 		completionWatcher, err := jobRunner.Run()
 		if err != nil {
-			return fmt.Errorf("creating watcher for completion runner: %w", err)
+			return fmt.Errorf("failed to run job: %w", err)
 		}
 		if err := completionWatcher.Wait(); err != nil {
-			return fmt.Errorf("completion watcher running: %w", err)
+			return fmt.Errorf("failed to complete job: %w", err)
 		}
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
-		return fmt.Errorf("materialize set success: %v", err)
+		return fmt.Errorf("failed to set status: %v", err)
 	}
 	if schedule != "" && needsOnlineMaterialization {
 		scheduleMaterializeRunnerConfig := runner.MaterializedRunnerConfig{
@@ -960,17 +975,17 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	serialized, _ := tsRunnerConfig.Serialize()
 	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serialized, resID)
 	if err != nil {
-		return fmt.Errorf("create training set job runner: %v", err)
+		return fmt.Errorf("failed to run training set job runner: %v", err)
 	}
 	completionWatcher, err := jobRunner.Run()
 	if err != nil {
-		return fmt.Errorf("start training set job runner: %v", err)
+		return fmt.Errorf("failed to start training set job: %v", err)
 	}
 	if err := completionWatcher.Wait(); err != nil {
-		return fmt.Errorf("wait for training set job runner completion: %v", err)
+		return fmt.Errorf("training set job failed to complete: %v", err)
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
-		return fmt.Errorf("set training set job runner status: %v", err)
+		return fmt.Errorf("failed to set training set status: %v", err)
 	}
 	if schedule != "" {
 		scheduleTrainingSetRunnerConfig := runner.TrainingSetRunnerConfig{
@@ -1015,7 +1030,7 @@ func (c *Coordinator) getJob(mtx *concurrency.Mutex, key string) (*metadata.Coor
 	responseData := response.Responses[0]
 	responseKVs := responseData.GetResponseRange().GetKvs()
 	if len(responseKVs) == 0 {
-		return nil, &JobDoesNotExistError{key: key}
+		return nil, JobDoesNotExistError{key: key}
 	}
 	responseValue := responseKVs[0].Value //Only single response for single key
 	job := &metadata.CoordinatorJob{}

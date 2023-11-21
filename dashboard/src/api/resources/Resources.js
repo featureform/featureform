@@ -111,6 +111,9 @@ export const testDetailsData = {
 };
 
 export const providerLogos = Object.freeze({
+  // local mode
+  LOCALMODE: 'static/localmode.png',
+
   // Offline Stores
   BIGQUERY: 'static/google_bigquery.svg',
   POSTGRES: 'static/Postgresql_elephant.svg',
@@ -270,6 +273,16 @@ export default class ResourcesAPI {
     return name === null
       ? {}
       : fetch(`${API_URL}/data/sourcedata?name=${name}&variant=${variant}`)
+          .then((res) => res.json())
+          .catch((error) => {
+            console.error(error);
+          });
+  }
+
+  fetchFeatureFileStats(name, variant = 'default') {
+    return name === null
+      ? {}
+      : fetch(`${API_URL}/data/filestatdata?name=${name}&variant=${variant}`)
           .then((res) => res.json())
           .catch((error) => {
             console.error(error);

@@ -1,5 +1,5 @@
 boto3
-dill==0.3.5.1
+dill==0.3.7
 pyspark==3.3.0
 pytest==7.1.2
 pytest-cov==3.0.0
@@ -7,4 +7,4 @@ python-dotenv==0.20.0
 azure-storage-blob==12.13.1
 google-cloud-storage==2.7.0
 google-oauth==1.0.1
-grpcio==1.51.3
+grpcio==1.53.0

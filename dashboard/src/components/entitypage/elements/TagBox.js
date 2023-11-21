@@ -5,7 +5,7 @@ import Chip from '@mui/material/Chip';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import { makeStyles } from '@mui/styles';
-import React from 'react';
+import React, { useRef } from 'react';
 import { useDataAPI } from '../../../hooks/dataAPI';
 
 const useStyles = makeStyles((theme) => ({
@@ -38,6 +38,7 @@ const TagBox = ({
   const [tagName, setTagName] = React.useState('');
   const [tagList, setTagsList] = React.useState(tags);
   const [displayTextOpen, setDisplayTextOpen] = React.useState(false);
+  const ref = useRef();
 
   const dataAPI = useDataAPI();
   async function handleNewTag(event) {
@@ -71,15 +72,19 @@ const TagBox = ({
 
   React.useEffect(async () => {
     let data = await dataAPI.getTags(type, resourceName, variant);
-    if (data?.tags) {
-      setTagsList(data.tags);
-      setDisplayTextOpen(false);
-      setTagName('');
+    let localTags = [...tagList];
+    if (
+      data?.tags &&
+      data.tags.sort().toString() !== localTags?.sort().toString()
+    ) {
+      if (ref?.current) {
+        setTagsList(data.tags);
+      }
     }
   }, [variant]);
 
   return (
-    <Container className={classes.attributeContainer}>
+    <Container ref={ref} className={classes.attributeContainer}>
       <Typography variant='h6' component='h5' gutterBottom>
         {title}
         <Button

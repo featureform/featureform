@@ -1,15 +1,19 @@
+import os
 import time
+import random
+import string
 from time import sleep
 
 from behave import *
-from featureform import register_spark
 import featureform as ff
-import os
+from featureform import register_spark
 
 
 @when("I generate a random variant name")
 def step_impl(context):
-    ff.set_run()
+    run_id = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
+
+    ff.set_run(run_id)
 
 
 @when("I register Spark")
@@ -136,17 +140,31 @@ def step_impl(context):
     context.exception = None
 
 
-@when("I register a transformation")
-def step_impl(context):
-    @context.spark.df_transformation(
-        name="transactions_transformation",
-        inputs=[context.file],
-    )
-    def ice_cream_transformation(df):
-        """Unedited transactions"""
-        return df
+@when(
+    'I register a "{transformation_type}" transformation named "{name}" from "{sources}"'
+)
+def step_impl(context, transformation_type, name, sources):
+    source_list = sources.split(",")
+    if transformation_type == "DF":
 
-    context.transformation = ice_cream_transformation
+        @context.spark.df_transformation(
+            name=name,
+            inputs=source_list,
+        )
+        def some_transformation(df):
+            """Unedited transactions"""
+            return df
+
+    elif transformation_type == "SQL":
+
+        @context.spark.sql_transformation(
+            name=name,
+        )
+        def some_transformation():
+            """Unedited transactions"""
+            return "SELECT * FROM {{ transactions }}"
+
+    context.transformation = some_transformation
     context.client.apply(asynchronous=False, verbose=True)
 
 

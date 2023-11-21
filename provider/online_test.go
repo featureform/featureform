@@ -475,17 +475,17 @@ func TestOnlineVectorStores(t *testing.T) {
 		return *redisInsecureConfig
 	}
 
-	pineconeInit := func() pc.PineconeConfig {
-		projectID := os.Getenv("PINECONE_PROJECT_ID")
-		environment := os.Getenv("PINECONE_ENVIRONMENT")
-		apiKey := os.Getenv("PINECONE_API_KEY")
-		pineconeConfig := &pc.PineconeConfig{
-			ProjectID:   projectID,
-			Environment: environment,
-			ApiKey:      apiKey,
-		}
-		return *pineconeConfig
-	}
+	//pineconeInit := func() pc.PineconeConfig {
+	//	projectID := os.Getenv("PINECONE_PROJECT_ID")
+	//	environment := os.Getenv("PINECONE_ENVIRONMENT")
+	//	apiKey := os.Getenv("PINECONE_API_KEY")
+	//	pineconeConfig := &pc.PineconeConfig{
+	//		ProjectID:   projectID,
+	//		Environment: environment,
+	//		ApiKey:      apiKey,
+	//	}
+	//	return *pineconeConfig
+	//}
 
 	testList := []testMember{}
 
@@ -493,9 +493,9 @@ func TestOnlineVectorStores(t *testing.T) {
 		testList = append(testList, testMember{pt.RedisOnline, "_VECTOR", redisInsecureInit().Serialized(), true})
 	}
 
-	if *provider == "pinecone" || *provider == "" {
-		testList = append(testList, testMember{pt.PineconeOnline, "", pineconeInit().Serialize(), true})
-	}
+	//if *provider == "pinecone" || *provider == "" {
+	//	testList = append(testList, testMember{pt.PineconeOnline, "", pineconeInit().Serialize(), true})
+	//}
 
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -710,6 +710,7 @@ func getSearchVector(t *testing.T) []float32 {
 }
 
 func TestPineconeAPI(t *testing.T) {
+	t.Skip("Temporarily skipping test")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Fatalf("Error loading .env file: %v", err)

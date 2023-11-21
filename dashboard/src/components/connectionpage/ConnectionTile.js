@@ -15,7 +15,7 @@ const useStyles = makeStyles((theme) => ({
     height: '100%',
     border: `2px solid black`,
     borderRadius: 16,
-    background: 'white',
+    background: '#FFFFFF',
     minWidth: '12em',
   },
 

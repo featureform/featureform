@@ -76,7 +76,7 @@ export const options = {
       text: 'Query Error Summary',
     },
   },
-  responsive: true,
+  responsive: false,
   scales: {
     x: {
       stacked: true,

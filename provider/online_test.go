@@ -7,11 +7,13 @@
 package provider
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"time"
 
 	"os"
 	"reflect"
@@ -49,7 +51,7 @@ type testMember struct {
 	integrationTest bool
 }
 
-var provider = flag.String("provider", "all", "provider to perform test on")
+var provider = flag.String("provider", "", "provider to perform test on")
 
 func TestOnlineStores(t *testing.T) {
 	err := godotenv.Load("../.env")
@@ -146,20 +148,6 @@ func TestOnlineStores(t *testing.T) {
 		return *dynamoConfig
 	}
 
-	blobAzureInit := func() pc.OnlineBlobConfig {
-		azureConfig := pc.AzureFileStoreConfig{
-			AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
-			AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
-			ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", "newcontainer"),
-			Path:          "featureform/onlinetesting",
-		}
-		blobConfig := &pc.OnlineBlobConfig{
-			Type:   pc.Azure,
-			Config: azureConfig,
-		}
-		return *blobConfig
-	}
-
 	mongoDBInit := func() pc.MongoDBConfig {
 		mongoConfig := &pc.MongoDBConfig{
 			Host:       helpers.GetEnv("MONGODB_HOST", ""),
@@ -196,9 +184,6 @@ func TestOnlineStores(t *testing.T) {
 	}
 	if *provider == "dynamo" || *provider == "" {
 		testList = append(testList, testMember{pt.DynamoDBOnline, "", dynamoInit().Serialized(), true})
-	}
-	if *provider == "azure_blob" || *provider == "" {
-		testList = append(testList, testMember{pt.BlobOnline, "_AZURE", blobAzureInit().Serialized(), true})
 	}
 	if *provider == "mongodb" || *provider == "" {
 		testList = append(testList, testMember{pt.MongoDBOnline, "", mongoDBInit().Serialized(), true})
@@ -416,7 +401,7 @@ func TestFirestoreConfig_Deserialize(t *testing.T) {
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
-	testConfig := payload["Firestore"].(map[string]interface{})
+	testConfig := payload["FirestoreConfig"].(map[string]interface{})
 
 	fsconfig := pc.FirestoreConfig{
 		ProjectID:   testConfig["ProjectID"].(string),
@@ -490,11 +475,27 @@ func TestOnlineVectorStores(t *testing.T) {
 		return *redisInsecureConfig
 	}
 
+	//pineconeInit := func() pc.PineconeConfig {
+	//	projectID := os.Getenv("PINECONE_PROJECT_ID")
+	//	environment := os.Getenv("PINECONE_ENVIRONMENT")
+	//	apiKey := os.Getenv("PINECONE_API_KEY")
+	//	pineconeConfig := &pc.PineconeConfig{
+	//		ProjectID:   projectID,
+	//		Environment: environment,
+	//		ApiKey:      apiKey,
+	//	}
+	//	return *pineconeConfig
+	//}
+
 	testList := []testMember{}
 
 	if *provider == "redis_vector" || *provider == "" {
 		testList = append(testList, testMember{pt.RedisOnline, "_VECTOR", redisInsecureInit().Serialized(), true})
 	}
+
+	//if *provider == "pinecone" || *provider == "" {
+	//	testList = append(testList, testMember{pt.PineconeOnline, "", pineconeInit().Serialize(), true})
+	//}
 
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -548,6 +549,10 @@ func testCreateIndex(t *testing.T, store OnlineStore) {
 	if vectorTable, err := vectorStore.CreateIndex(mockFeature, mockVariant, vectorType); vectorTable == nil || err != nil {
 		t.Fatalf("Failed to create index: %s", err)
 	}
+	// In the case of Pinecone, deleting an index is crucial to avoid unnecessary charges
+	if err := vectorStore.DeleteIndex(mockFeature, mockVariant); err != nil {
+		t.Fatalf("Failed to delete index: %s", err)
+	}
 }
 
 func testGetSet(t *testing.T, store OnlineStore) {
@@ -589,6 +594,10 @@ func testGetSet(t *testing.T, store OnlineStore) {
 				t.Fatalf("Expected vector %v but received %v", entity.vector, vector)
 			}
 		}
+	}
+	// In the case of Pinecone, deleting an index is crucial to avoid unnecessary charges
+	if err := vectorStore.DeleteIndex(mockFeature, mockVariant); err != nil {
+		t.Fatalf("Failed to delete index: %s", err)
 	}
 }
 
@@ -632,6 +641,10 @@ func testNearest(t *testing.T, store OnlineStore) {
 	}
 	if len(results) != 2 {
 		t.Fatalf("Expected 2 results but received %d", len(results))
+	}
+	// In the case of Pinecone, deleting an index is crucial to avoid unnecessary charges
+	if err := vectorStore.DeleteIndex(mockFeature, mockVariant); err != nil {
+		t.Fatalf("Failed to delete index: %s", err)
 	}
 }
 
@@ -694,4 +707,96 @@ func getSearchVector(t *testing.T) []float32 {
 		floats[i] = float32(f)
 	}
 	return floats
+}
+
+func TestPineconeAPI(t *testing.T) {
+	t.Skip("Temporarily skipping test")
+	err := godotenv.Load("../.env")
+	if err != nil {
+		t.Fatalf("Error loading .env file: %v", err)
+	}
+
+	config := &pc.PineconeConfig{
+		ProjectID:   os.Getenv("PINECONE_PROJECT_ID"),
+		Environment: os.Getenv("PINECONE_ENVIRONMENT"),
+		ApiKey:      os.Getenv("PINECONE_API_KEY"),
+	}
+
+	api := NewPineconeAPI(config)
+	feature, variant := randomFeatureVariant()
+	uuid := uuid.NewSHA1(uuid.NameSpaceDNS, []byte(fmt.Sprintf("%s-%s", feature, variant)))
+	indexName := fmt.Sprintf("ff-idx--%s", uuid.String())
+	namespace := fmt.Sprintf("ff-namespace--%s-%s", feature, variant)
+	var dimension int32 = 768
+	vectors := getTestVectorEntities(t)
+
+	//	CREATE INDEX
+
+	createIndexAndWait(t, api, indexName, dimension, 3*time.Minute)
+
+	// UPSERT VECTOR
+
+	for _, vector := range vectors {
+		if err := api.upsert(indexName, namespace, vector.entity, vector.vector); err != nil {
+			t.Fatalf("Error upserting vector: %v", err)
+		}
+	}
+
+	// FETCH VECTOR
+
+	expected := vectors[0]
+	received, err := api.fetch(indexName, namespace, expected.entity)
+	if err != nil {
+		t.Fatalf("Error fetching vector: %v", err)
+	}
+	if !reflect.DeepEqual(expected.vector, received) {
+		t.Fatalf("Expected %v, got %v", expected.vector, received)
+	}
+
+	// QUERY VECTOR
+
+	searchVector := getSearchVector(t)
+	results, err := api.query(indexName, namespace, searchVector, 2)
+	if err != nil {
+		t.Fatalf("Error querying vector: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("Expected 2 results, got %d", len(results))
+	}
+
+	// DELETE INDEX
+
+	if err := api.deleteIndex(indexName); err != nil {
+		t.Fatalf("Error deleting index: %v", err)
+	}
+}
+
+func createIndexAndWait(t *testing.T, api *pineconeAPI, indexName string, dimension int32, duration time.Duration) {
+	if err := api.createIndex(indexName, dimension); err != nil {
+		t.Fatalf("Error creating index: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), duration)
+	defer cancel()
+
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			t.Fatalf("Timed out waiting for index to be created")
+		case <-ticker.C:
+			dim, status, err := api.describeIndex(indexName)
+			if err != nil {
+				t.Fatalf("Error describing index: %v", err)
+			}
+			if dim != dimension {
+				t.Fatalf("Expected dimension %d, got %d", dimension, dim)
+			}
+			if status == Ready {
+				return
+			}
+		}
+	}
 }

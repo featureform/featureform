@@ -154,24 +154,17 @@ app.register_blueprint(dashboard_app)
 @click.option("--local", is_flag=True, help="Required for local mode only")
 def version(local):
     client_version = get_package_version()
-    cluster_version = ""
     host = os.getenv("FEATUREFORM_HOST", "")
-    try:
-        if local:
-            cluster_version = get_version_local()
-        elif host:
+    cluster_version = ""
+    output = f"Client Version: {client_version}"
+    if local == False:
+        try:
             cluster_version = get_version_hosted(host)
-        else:
-            cluster_version = "No host is set."
-    except:
-        cluster_version = "Cannot retrieve: Check your FEATUREFORM_HOST value. If using local mode, use the --local flag."
+        except:
+            cluster_version = "Cannot retrieve: Check your FEATUREFORM_HOST value. If using local mode, use the --local flag."
+        output += f"\nCluster Version: {cluster_version}"
 
-    print(
-        f"""
-    Client Version: {client_version}
-    Cluster Version: {cluster_version}
-    """
-    )
+    print(output)
 
 
 @cli.command()
@@ -205,7 +198,10 @@ def run_dashboard():
     "--dry-run", is_flag=True, help="Checks the definitions without applying them"
 )
 @click.option("--no-wait", is_flag=True, help="Applies the resources asynchronously")
-def apply(host, cert, insecure, local, files, dry_run, no_wait):
+@click.option(
+    "--verbose", is_flag=True, help="Prints all errors at the end of an apply"
+)
+def apply(host, cert, insecure, local, files, dry_run, no_wait, verbose):
     for file in files:
         if os.path.isfile(file):
             read_file(file)
@@ -220,7 +216,7 @@ def apply(host, cert, insecure, local, files, dry_run, no_wait):
         host=host, local=local, insecure=insecure, cert_path=cert, dry_run=dry_run
     )
     asynchronous = no_wait
-    client.apply(asynchronous=asynchronous)
+    client.apply(asynchronous=asynchronous, verbose=verbose)
 
 
 @cli.command()

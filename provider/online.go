@@ -35,6 +35,7 @@ type OnlineStoreTable interface {
 
 type VectorStore interface {
 	CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error)
+	DeleteIndex(feature, variant string) error
 	OnlineStore
 }
 
@@ -126,6 +127,10 @@ func (store *localOnlineStore) DeleteTable(feaute, variant string) error {
 
 func (store *localOnlineStore) Close() error {
 	return nil
+}
+
+func (store *localOnlineStore) CheckHealth() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
 }
 
 type localOnlineTable map[string]interface{}

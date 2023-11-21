@@ -15,9 +15,11 @@ const (
 	DynamoDBOnline  Type = "DYNAMODB_ONLINE"
 	BlobOnline      Type = "BLOB_ONLINE"
 	MongoDBOnline   Type = "MONGODB_ONLINE"
+	PineconeOnline  Type = "PINECONE_ONLINE"
 
 	// Offline
 	MemoryOffline    Type = "MEMORY_OFFLINE"
+	MySqlOffline     Type = "MYSQL_OFFLINE"
 	PostgresOffline  Type = "POSTGRES_OFFLINE"
 	SnowflakeOffline Type = "SNOWFLAKE_OFFLINE"
 	RedshiftOffline  Type = "REDSHIFT_OFFLINE"
@@ -28,6 +30,7 @@ const (
 	GCS              Type = "GCS"
 	HDFS             Type = "HDFS"
 	AZURE            Type = "AZURE"
+	UNIT_TEST        Type = "UNIT_TEST"
 )
 
 var AllProviderTypes = []Type{
@@ -39,6 +42,8 @@ var AllProviderTypes = []Type{
 	BlobOnline,
 	MongoDBOnline,
 	MemoryOffline,
+	MySqlOffline,
+	PineconeOnline,
 	PostgresOffline,
 	SnowflakeOffline,
 	RedshiftOffline,
@@ -49,4 +54,5 @@ var AllProviderTypes = []Type{
 	GCS,
 	HDFS,
 	AZURE,
+	UNIT_TEST,
 }

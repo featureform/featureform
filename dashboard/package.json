@@ -26,7 +26,7 @@
     "meilisearch": "^0.31.1",
     "moment": "^2.29.2",
     "momentjs": "^2.0.0",
-    "next": "^12.2.4-canary.8",
+    "next": "^13.5.4",
     "prometheus-query": "^3.2.5",
     "react": "^17.0.2",
     "react-chartjs-2": "^2.11.2",
@@ -51,7 +51,7 @@
     "start-empty:nix": "REACT_APP_EMPTY_RESOURCE_VIEW=true PORT=3000 next start",
     "format": "prettier --write \"./**/*.{js,jsx,json}\"",
     "lint": "eslint .",
-    "test": "jest",
+    "test": "jest --coverage",
     "snapshot": "jest --updateSnapshot",
     "prepare": "cd .. && husky install dashboard/.husky"
   },

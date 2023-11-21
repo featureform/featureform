@@ -25,13 +25,22 @@ const (
 func postgresOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.PostgresConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, fmt.Errorf("invalid postgres config: %v", config)
+		return nil, NewProviderError(Runtime, pt.PostgresOffline, ConfigDeserialize, err.Error())
 	}
+
+	// We are doing this to support older versions of
+	// featureform that did not have the sslmode field
+	// on the client side.
+	sslMode := sc.SSLMode
+	if sslMode == "" {
+		sslMode = "disable"
+	}
+
 	queries := postgresSQLQueries{}
 	queries.setVariableBinding(PostgresBindingStyle)
 	sgConfig := SQLOfflineStoreConfig{
 		Config:        config,
-		ConnectionURL: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", sc.Username, sc.Password, sc.Host, sc.Port, sc.Database),
+		ConnectionURL: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", sc.Username, sc.Password, sc.Host, sc.Port, sc.Database, sslMode),
 		Driver:        "postgres",
 		ProviderType:  pt.PostgresOffline,
 		QueryImpl:     &queries,

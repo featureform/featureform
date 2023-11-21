@@ -32,7 +32,7 @@ type redisOnlineStore struct {
 func redisOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
 	redisConfig := &pc.RedisConfig{}
 	if err := redisConfig.Deserialize(serialized); err != nil {
-		return nil, err
+		return nil, NewProviderError(Runtime, pt.RedisOnline, ConfigDeserialize, err.Error())
 	}
 	if redisConfig.Prefix == "" {
 		redisConfig.Prefix = "Featureform_table__"
@@ -61,7 +61,7 @@ func NewRedisOnlineStore(options *pc.RedisConfig) (*redisOnlineStore, error) {
 	}
 	redisClient, err := rueidis.NewClient(redisOptions)
 	if err != nil {
-		return nil, err
+		return nil, NewProviderError(Connection, pt.RedisOnline, ClientInitialization, err.Error())
 	}
 	return &redisOnlineStore{redisClient, options.Prefix, BaseProvider{
 		ProviderType:   pt.RedisOnline,
@@ -71,10 +71,6 @@ func NewRedisOnlineStore(options *pc.RedisConfig) (*redisOnlineStore, error) {
 }
 
 func (store *redisOnlineStore) AsOnlineStore() (OnlineStore, error) {
-	return store, nil
-}
-
-func (store *redisOnlineStore) AsVectorStore() (VectorStore, error) {
 	return store, nil
 }
 
@@ -188,6 +184,18 @@ func (store *redisOnlineStore) DeleteTable(feature, variant string) error {
 	return nil
 }
 
+func (store *redisOnlineStore) CheckHealth() (bool, error) {
+	cmd := store.client.B().Ping().Build()
+	resp, err := store.client.Do(context.Background(), cmd).ToString()
+	if err != nil {
+		return false, NewProviderError(Connection, pt.RedisOnline, Ping, err.Error())
+	}
+	if resp != "PONG" {
+		return false, NewProviderError(Connection, pt.RedisOnline, Ping, fmt.Sprintf("expected 'PONG' from Redis server; received: %s", resp))
+	}
+	return true, nil
+}
+
 func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error) {
 	key := redisIndexKey{Prefix: store.prefix, Feature: feature, Variant: variant}
 	cmd, err := store.createIndexCmd(key, vectorType)
@@ -200,6 +208,10 @@ func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType V
 	}
 	table := &redisOnlineIndex{client: store.client, key: key, valueType: vectorType}
 	return table, nil
+}
+
+func (store *redisOnlineStore) DeleteIndex(feature, variant string) error {
+	return nil
 }
 
 func (store *redisOnlineStore) createIndexCmd(key redisIndexKey, vectorType VectorType) (rueidis.Completed, error) {

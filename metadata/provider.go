@@ -82,6 +82,22 @@ func isValidMongoConfigUpdate(sa, sb pc.SerializedConfig) (bool, error) {
 	return a.MutableFields().Contains(diff), nil
 }
 
+func isValidMySqlConfigUpdate(sa, sb pc.SerializedConfig) (bool, error) {
+	a := pc.MySqlConfig{}
+	b := pc.MySqlConfig{}
+	if err := a.Deserialize(sa); err != nil {
+		return false, err
+	}
+	if err := b.Deserialize(sb); err != nil {
+		return false, err
+	}
+	diff, err := a.DifferingFields(b)
+	if err != nil {
+		return false, err
+	}
+	return a.MutableFields().Contains(diff), nil
+}
+
 func isValidPostgresConfigUpdate(sa, sb pc.SerializedConfig) (bool, error) {
 	a := pc.PostgresConfig{}
 	b := pc.PostgresConfig{}

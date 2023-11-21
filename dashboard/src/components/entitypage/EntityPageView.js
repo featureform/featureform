@@ -662,7 +662,8 @@ const EntityPageView = ({
                           } else if (
                             ['Dataframe Transformation'].includes(
                               metadata['source-type']
-                            )
+                            ) ||
+                            metadata['is-on-demand'] === true
                           ) {
                             return (
                               <SyntaxHighlighter

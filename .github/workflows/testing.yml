@@ -400,6 +400,8 @@ jobs:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
+          MATERIALIZE_NO_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_no_ts.sql
+          MATERIALIZE_WITH_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_ts.sql
         working-directory: ./
         run: make test_offline_spark
 
@@ -1225,9 +1227,9 @@ jobs:
         with:
           name: compiled-workdir
 
-      - name: Check pwd directory
+      - name: Check materialize query path
         run: |
-          pwd
+          ls -la provider/queries
 
       - name: Set up Go
         uses: actions/setup-go@v2
@@ -1253,8 +1255,8 @@ jobs:
           DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
           DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
           DYNAMODB_REGION: ${{ secrets.DYNAMODB_REGION }}
-          MATERIALIZE_NO_TIMESTAMP_QUERY_PATH: home/runner/work/featureform/featureform/provider/queries/materialize_no_ts.sql
-          MATERIALIZE_WITH_TIMESTAMP_QUERY_PATH: home/runner/work/featureform/featureform/provider/queries/materialize_ts.sql
+          MATERIALIZE_NO_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_no_ts.sql
+          MATERIALIZE_WITH_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_ts.sql
         working-directory: ./
         run: make test_importable_online
 

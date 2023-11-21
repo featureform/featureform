@@ -23,7 +23,10 @@ max_row_per_entity AS (
 )
 SELECT ord.entity,
     ord.value,
-    ord.ts
+    -- **NOTE:** It's critical to cast this to a timestamp despite the fact that it's a no-op;
+    -- this is due to the fact that the materialization layer expects the timestamp column
+    -- to be a timestamp type, otherwise it will fail.
+    CAST(ord.ts AS TIMESTAMP) AS ts
 FROM max_row_per_entity maxr
     JOIN ordered_rows ord ON ord.entity = maxr.entity
     AND ord.row_number = maxr.max_row

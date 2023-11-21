@@ -90,7 +90,7 @@ describe('Variant Control Tests', () => {
 
     //when:
     const dropdown = helper.getByTestId(SELECT_ID);
-    fireEvent.mouseDown(helper.getByRole('button'));
+    fireEvent.mouseDown(helper.getByRole('combobox'));
 
     //then:
     expect(dropdown.nodeName).toBeDefined();
@@ -108,7 +108,7 @@ describe('Variant Control Tests', () => {
 
     //when:
     const dropdown = helper.getByTestId(SELECT_ID);
-    fireEvent.mouseDown(helper.getByRole('button'));
+    fireEvent.mouseDown(helper.getByRole('combobox'));
 
     //then:
     expect(dropdown.nodeName).toBeDefined();
@@ -132,7 +132,7 @@ describe('Variant Control Tests', () => {
 
     //when:
     helper.getByTestId(SELECT_ID);
-    fireEvent.mouseDown(helper.getByRole('button'));
+    fireEvent.mouseDown(helper.getByRole('combobox'));
 
     const item = helper.getByText(variantOption);
     fireEvent.click(item);
@@ -152,7 +152,7 @@ describe('Variant Control Tests', () => {
 
     //when:
     const dropdown = helper.getByTestId(SELECT_ID);
-    fireEvent.mouseDown(helper.getByRole('button'));
+    fireEvent.mouseDown(helper.getByRole('combobox'));
 
     //then: an error was called but the list renders OK
     expect(console.error).toHaveBeenCalledTimes(1);

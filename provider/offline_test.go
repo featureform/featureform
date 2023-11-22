@@ -319,15 +319,14 @@ func TestOfflineStores(t *testing.T) {
 		"MaterializationNotFound": testMaterializationNotFound,
 		"TrainingSets":            testTrainingSet,
 		"TrainingSetUpdate":       testTrainingSetUpdate,
-		// "BatchFeatures":           testBatchFeature,
+		"BatchFeatures":           testBatchFeature,
 		// "TrainingSetLag":          testLagFeaturesTrainingSet,
 		"TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID,
 		"GetUnknownTrainingSet":  testGetUnknownTrainingSet,
 		"InvalidTrainingSetDefs": testInvalidTrainingSetDefs,
 		"LabelTableNotFound":     testLabelTableNotFound,
 		"FeatureTableNotFound":   testFeatureTableNotFound,
-
-		"TrainingDefShorthand": testTrainingSetDefShorthand,
+		"TrainingDefShorthand":   testTrainingSetDefShorthand,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
 		"PrimaryTableCreate":                 testPrimaryCreateTable,
@@ -4114,6 +4113,9 @@ func TestTableSchemaValue(t *testing.T) {
 }
 
 func testBatchFeature(t *testing.T, store OfflineStore) {
+	if store.Type() != pt.SnowflakeOffline && store.Type() != pt.SparkOffline {
+		t.Skip("Skipping test for non-SnowflakeOffline and non-SparkOffline providers")
+	}
 	type expectedBatchRow struct {
 		Entity   interface{}
 		Features []interface{}

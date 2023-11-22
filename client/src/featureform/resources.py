@@ -2,27 +2,25 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import sys
+import base64
+import json
 import os
 import re
-import json
+import sys
 import time
-import base64
 from abc import ABC
-from enum import Enum
-from typeguard import typechecked
-from typing import List, Tuple, Union, Optional, Dict
+from typing import Any
+from typing import List, Tuple, Union, Optional
 
 import dill
 import grpc
-from .sqlite_metadata import SQLiteMetadata
+from dataclasses import field
 from google.protobuf.duration_pb2 import Duration
 
-from featureform.proto import metadata_pb2 as pb
-from dataclasses import dataclass, field
-from .version import check_up_to_date
-from .exceptions import *
 from .enums import *
+from .exceptions import *
+from .sqlite_metadata import SQLiteMetadata
+from .version import check_up_to_date
 
 NameVariant = Tuple[str, str]
 
@@ -857,12 +855,6 @@ class Provider:
                 "properties", self.name, "", "providers", json.dumps(self.properties)
             )
 
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
-
     def to_dictionary(self):
         return {
             "name": self.name,
@@ -907,12 +899,6 @@ class User:
         if len(self.properties):
             db.upsert("properties", self.name, "", "users", json.dumps(self.properties))
 
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
-
     def to_dictionary(self):
         return {
             "name": self.name,
@@ -935,6 +921,18 @@ class Directory:
 
 
 Location = Union[SQLTable, Directory]
+
+
+class ResourceVariant(ABC):
+    name: str
+    variant: str
+
+    @staticmethod
+    def type():
+        raise NotImplementedError
+
+    def to_key(self) -> Tuple[str, str, str]:
+        return self.type(), self.name, self.variant
 
 
 @typechecked
@@ -975,6 +973,7 @@ class SQLTransformation(Transformation):
         transformation = pb.Transformation(
             SQLTransformation=pb.SQLTransformation(
                 query=self.query,
+                # We do not set the sources here as the backend figures it out
             )
         )
 
@@ -996,10 +995,18 @@ class DFTransformation(Transformation):
         return SourceType.DF_TRANSFORMATION.value
 
     def kwargs(self):
+        for i, inp in enumerate(self.inputs):
+            if hasattr(inp, "name_variant"):  # TODO shouldn't have to have this check
+                self.inputs[i] = inp.name_variant()
+
+        name_variants = []
+        for inp in self.inputs:
+            name_variants.append(pb.NameVariant(name=inp[0], variant=inp[1]))
+
         transformation = pb.Transformation(
             DFTransformation=pb.DFTransformation(
                 query=self.query,
-                inputs=[pb.NameVariant(name=v[0], variant=v[1]) for v in self.inputs],
+                inputs=name_variants,
                 source_text=self.source_text,
             )
         )
@@ -1030,7 +1037,7 @@ class Source:
 
 @typechecked
 @dataclass
-class SourceVariant:
+class SourceVariant(ResourceVariant):
     name: str
     definition: SourceDefinition
     owner: str
@@ -1045,7 +1052,9 @@ class SourceVariant:
     )
     schedule: str = ""
     schedule_obj: Schedule = None
-    is_transformation = SourceType.PRIMARY_SOURCE.value
+    is_transformation = (
+        SourceType.PRIMARY_SOURCE.value
+    )  # TODO this is the same as source_type below; pick one
     source_text: str = ""
     source_type: str = ""
     transformation: str = ""
@@ -1109,8 +1118,9 @@ class SourceVariant:
         else:
             raise Exception(f"Invalid transformation type {source}")
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> Optional[str]:
         defArgs = self.definition.kwargs()
+
         serialized = pb.SourceVariant(
             created=None,
             name=self.name,
@@ -1124,7 +1134,9 @@ class SourceVariant:
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
             **defArgs,
         )
+        _get_and_set_equivalent_variant(serialized, "source_variant", stub)
         stub.CreateSourceVariant(serialized)
+        return serialized.variant
 
     def _create_local(self, db) -> None:
         should_insert_text = False
@@ -1192,14 +1204,11 @@ class SourceVariant:
     def get_status(self):
         return ResourceStatus(self.status)
 
+    def is_transformation_type(self):
+        return isinstance(self.definition, Transformation)
+
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
-
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
 
 
 @typechecked
@@ -1236,12 +1245,6 @@ class Entity:
             db.upsert(
                 "properties", self.name, "", "entities", json.dumps(self.properties)
             )
-
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
 
     def to_dictionary(self):
         return {
@@ -1288,9 +1291,9 @@ class Feature:
 
 @typechecked
 @dataclass
-class FeatureVariant:
+class FeatureVariant(ResourceVariant):
     name: str
-    source: NameVariant
+    source: Any
     value_type: str
     entity: str
     owner: str
@@ -1355,7 +1358,9 @@ class FeatureVariant:
             error=feature.status.error_message,
         )
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> Optional[str]:
+        if hasattr(self.source, "name_variant"):
+            self.source = self.source.name_variant()
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
@@ -1377,9 +1382,13 @@ class FeatureVariant:
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
+        _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
+        return serialized.variant
 
     def _create_local(self, db) -> None:
+        if hasattr(self.source, "name_variant"):
+            self.source = self.source.name_variant()
         db.insert(
             "feature_variant",
             str(time.time()),
@@ -1440,12 +1449,6 @@ class FeatureVariant:
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
 
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
-
 
 @typechecked
 @dataclass
@@ -1481,7 +1484,7 @@ class OnDemandFeatureVariant:
     def type() -> str:
         return "ondemand_feature"
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> Optional[str]:
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
@@ -1493,7 +1496,9 @@ class OnDemandFeatureVariant:
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
         )
+        _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
+        return serialized.variant
 
     def _create_local(self, db) -> None:
         decode_query = base64.b64encode(self.query).decode("ascii")
@@ -1567,12 +1572,6 @@ class OnDemandFeatureVariant:
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
 
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
-
 
 @typechecked
 @dataclass
@@ -1591,9 +1590,9 @@ class Label:
 
 @typechecked
 @dataclass
-class LabelVariant:
+class LabelVariant(ResourceVariant):
     name: str
-    source: NameVariant
+    source: Any
     value_type: str
     entity: str
     owner: str
@@ -1642,7 +1641,9 @@ class LabelVariant:
             error=label.status.error_message,
         )
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> Optional[str]:
+        if hasattr(self.source, "name_variant"):
+            self.source = self.source.name_variant()
         serialized = pb.LabelVariant(
             name=self.name,
             variant=self.variant,
@@ -1659,9 +1660,13 @@ class LabelVariant:
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
+        _get_and_set_equivalent_variant(serialized, "label_variant", stub)
         stub.CreateLabelVariant(serialized)
+        return serialized.variant
 
     def _create_local(self, db) -> None:
+        if hasattr(self.source, "name_variant"):
+            self.source = self.source.name_variant()
         db.insert(
             "label_variant",
             str(time.time()),
@@ -1701,12 +1706,6 @@ class LabelVariant:
 
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
-
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
 
 
 @typechecked
@@ -1819,11 +1818,11 @@ class TrainingSet:
 
 @typechecked
 @dataclass
-class TrainingSetVariant:
+class TrainingSetVariant(ResourceVariant):
     name: str
     owner: str
-    label: NameVariant
-    features: List[NameVariant]
+    label: Any
+    features: List[Any]
     description: str
     variant: str
     feature_lags: list = field(default_factory=list)
@@ -1846,12 +1845,18 @@ class TrainingSetVariant:
         self.schedule = schedule
 
     def __post_init__(self):
-        if not valid_name_variant(self.label):
+        from featureform import LabelColumnResource, FeatureColumnResource
+
+        if not isinstance(self.label, LabelColumnResource) and not valid_name_variant(
+            self.label
+        ):
             raise ValueError("Label must be set")
         if len(self.features) == 0:
             raise ValueError("A training-set must have atleast one feature")
         for feature in self.features:
-            if not valid_name_variant(feature):
+            if not isinstance(
+                feature, FeatureColumnResource
+            ) and not valid_name_variant(feature):
                 raise ValueError("Invalid Feature")
 
     @staticmethod
@@ -1882,7 +1887,7 @@ class TrainingSetVariant:
             error=ts.status.error_message,
         )
 
-    def _create(self, stub) -> None:
+    def _create(self, stub) -> Optional[str]:
         feature_lags = []
         for lag in self.feature_lags:
             lag_duration = Duration()
@@ -1894,6 +1899,13 @@ class TrainingSetVariant:
                 lag=lag_duration,
             )
             feature_lags.append(feature_lag)
+
+        for i, f in enumerate(self.features):
+            if hasattr(f, "name_variant"):
+                self.features[i] = f.name_variant()
+
+        if hasattr(self.label, "name_variant"):
+            self.label = self.label.name_variant()
 
         serialized = pb.TrainingSetVariant(
             created=None,
@@ -1909,7 +1921,9 @@ class TrainingSetVariant:
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
+        _get_and_set_equivalent_variant(serialized, "training_set_variant", stub)
         stub.CreateTrainingSetVariant(serialized)
+        return serialized.variant
 
     def _create_local(self, db) -> None:
         self._check_insert_training_set_resources(db)
@@ -2010,12 +2024,6 @@ class TrainingSetVariant:
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
 
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
-
 
 @typechecked
 @dataclass
@@ -2053,12 +2061,6 @@ class Model:
             db.upsert(
                 "properties", self.name, "", "models", json.dumps(self.properties)
             )
-
-    def __eq__(self, other):
-        for attribute in vars(self):
-            if getattr(self, attribute) != getattr(other, attribute):
-                return False
-        return True
 
     def to_dictionary(self):
         return {
@@ -2128,6 +2130,9 @@ class ResourceState:
             key = (my_schedule.type(), my_schedule.name)
             self.__state[key] = my_schedule
 
+    def is_empty(self) -> bool:
+        return len(self.__state) == 0
+
     def sorted_list(self) -> List[Resource]:
         resource_order = {
             "user": 0,
@@ -2182,7 +2187,7 @@ class ResourceState:
             client.compute_feature(feature.name, feature.variant, feature.entity)
         return
 
-    def create_all(self, stub) -> None:
+    def create_all(self, stub, client_objs_for_resource: dict = None) -> None:
         check_up_to_date(False, "register")
         for resource in self.sorted_list():
             if resource.type() == "provider" and resource.name == "local-mode":
@@ -2192,26 +2197,31 @@ class ResourceState:
                     f"Inference store must be provided for feature {resource.name} ({resource.variant})"
                 )
             try:
-                # NOTE: There is an extra space before the variant name to better handle the case
-                # where a resource has no variant; ultimately, we should separate data access and
-                # logging/CLI output to avoid this unnecessary coupling.
-                resource_variant = (
-                    f" {resource.variant}" if hasattr(resource, "variant") else ""
-                )
+                resource_variant = getattr(resource, "variant", "")
+                rv_for_print = f" {resource_variant}" if resource_variant else ""
                 if resource.operation_type() is OperationType.GET:
-                    print(
-                        f"Getting {resource.type()} {resource.name}{resource_variant}"
-                    )
+                    print(f"Getting {resource.type()} {resource.name}{rv_for_print}")
                     resource._get(stub)
                 if resource.operation_type() is OperationType.CREATE:
                     if resource.name != "default_user":
                         print(
-                            f"Creating {resource.type()} {resource.name}{resource_variant}"
+                            f"Creating {resource.type()} {resource.name}{rv_for_print}"
                         )
-                    resource._create(stub)
+
+                    created_variant = resource._create(stub)
+
+                    if isinstance(resource, ResourceVariant):
+                        # look up the client object with the original resource
+                        client_obj = client_objs_for_resource.get(
+                            resource.to_key(), None
+                        )
+                        resource.variant = created_variant
+                        if client_obj is not None:
+                            client_obj.variant = created_variant
+
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
-                    print(f"{resource.name}{resource_variant} already exists.")
+                    print(f"{resource.name}{rv_for_print} already exists.")
                     continue
 
                 raise e
@@ -2482,6 +2492,32 @@ class SparkCredentials:
             "CoreSite": core_site,
             "YarnSite": yarn_site,
         }
+
+
+# Looks to see if there is an existing resource variant that matches on a resources key fields
+# and sets the serialized to it.
+#
+# i.e. for a source variant, looks for a source variant with the same name and definition
+def _get_and_set_equivalent_variant(
+    resource_variant_proto, variant_field, stub
+) -> Optional[str]:
+    if os.getenv("FF_GET_EQUIVALENT_VARIANTS"):
+        # Get equivalent from stub
+        equivalent = stub.GetEquivalent(
+            pb.ResourceVariant(**{variant_field: resource_variant_proto})
+        )
+
+        # grpc call returns the default ResourceVariant proto when equivalent doesn't exist which explains the below check
+        if equivalent != pb.ResourceVariant():
+            variant_value = getattr(getattr(equivalent, variant_field), "variant")
+            print(
+                f"Looks like an equivalent {variant_field.replace('_', ' ')} already exists, going to use its variant: ",
+                variant_value,
+            )
+            # TODO add confirmation from user before using equivalent variant
+            resource_variant_proto.variant = variant_value
+            return variant_value
+    return None
 
 
 @typechecked

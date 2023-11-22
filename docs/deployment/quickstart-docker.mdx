@@ -1,5 +1,5 @@
 ---
-title: "Quickstart (Docker)"
+title: "Quickstart"
 description: A quick start guide for Featureform with Docker.
 ---
 
@@ -20,31 +20,17 @@ detection dataset using Postgres and Redis.
 pip install featureform
 ```
 
-## Step 2: Pull Containers
+## Step 2: Start Featureform
 
-We'll use Postgres and Redis as providers in this quickstart. We've created a Featureform Postgres container that
-has preloaded data. You can checkout the source data [here](https://featureform-demo-files.s3.amazonaws.com/transactions.csv),
-we'll just be using a sample of it.
-
-We'll also run the Featureform container in the foreground so logs are available.
-
+To start Featureform, we can run:
 ```shell
-docker run -d -p 5432:5432 featureformcom/postgres
-docker run -d -p 6379:6379 redis
-docker run -p 7878:7878 -p 80:80 featureformcom/featureform
+featureform deploy docker --quickstart
 ```
 
-Note: If using an M1 Mac, run the following command instead for compatibility
+This will pull and start the Featureform container, as well as a Postgres and Redis containers containing some
+example data.
 
-```shell
-docker run -p 7878:7878 -p 80:80 -e ETCD_ARCH="ETCD_UNSUPPORTED_ARCH=arm64" featureformcom/featureform
-```
-
-Wait 30-60 seconds to allow the Postgres container to fully initialize the sample data.
-
-## Step 3: Set Environment Variables
-
-We can store the address of our container endpoint for applying definitions and serving later.
+## Step 3: Export the API Host
 
 ```shell
 export FEATUREFORM_HOST=localhost:7878 
@@ -81,6 +67,14 @@ curl https://featureform-demo-files.s3.amazonaws.com/training.py -o training.py 
 
 This will download and run sample serving and training scripts, which will serve a single feature value and a sample
 of a training data set.
+
+## Step 5: Teardown
+
+To teardown the quickstart run:
+
+```shell
+featureform stop docker
+```
 
 # How Does It Work?
 

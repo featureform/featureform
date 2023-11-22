@@ -163,6 +163,8 @@ class ServingClient:
             iterator: An iterator of entity and feature values
 
         """
+        if len(features) == 0:
+            raise ValueError("No features provided")
         return self.impl.iterate_feature_set(features)
 
 

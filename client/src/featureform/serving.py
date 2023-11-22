@@ -52,6 +52,8 @@ def check_feature_type(features):
             checked_features.append((feature, "default"))
         elif isinstance(feature, FeatureColumnResource):
             checked_features.append(feature.name_variant())
+        else:
+            raise ValueError(f"Invalid feature type {type(feature)}; must be a tuple, string, or FeatureColumnResource")    
     return checked_features
 
 
@@ -147,12 +149,12 @@ class ServingClient:
         """Closes the connection to the Featureform instance."""
         self.impl.close()
 
-    def iterate_feature_set(self, *features):
+    def batch_features(self, *features):
         """
         Return an iterator that iterates over each entity and corresponding features in feats.
         **Example:**
         ```py title="definitions.py"
-        for feature_values in client.iterate_feature_set("feature1", "feature2", "feature3"):
+        for feature_values in client.batch_features("feature1", "feature2", "feature3"):
             print(feature_values)
         ```
 
@@ -165,7 +167,7 @@ class ServingClient:
         """
         if len(features) == 0:
             raise ValueError("No features provided")
-        return self.impl.iterate_feature_set(features)
+        return self.impl.batch_features(features)
 
 
 class HostedClientImpl:
@@ -229,7 +231,7 @@ class HostedClientImpl:
 
         return feature_values
     
-    def iterate_feature_set(self, features):
+    def batch_features(self, features):
         feature_tuples = check_feature_type(features)
         return FeatureSetIterator(self._stub, feature_tuples)
 
@@ -359,8 +361,8 @@ class LocalClientImpl:
             label, training_set_df, include_label_timestamp
         )
     
-    def iterate_feature_set(self):
-        raise NotImplementedError("iterate_feature_set is not supported in local mode")
+    def batch_features(self):
+        raise NotImplementedError("batch_features is not supported in local mode")
 
     def get_lag_features_sql_query(
         self, lag_features, feature_columns, entity, label, ts

@@ -40,7 +40,7 @@ def step_impl(context):
 @then("I serve batch features")
 def step_impl(context):
     try:
-        context.iter = context.client.iterate_feature_set(("table1_feature", ff.get_run()), ("table2_feature", ff.get_run()), ("table3_feature",ff.get_run()), ("table4_feature", ff.get_run()))
+        context.iter = context.client.batch_features(("table1_feature", ff.get_run()), ("table2_feature", ff.get_run()), ("table3_feature",ff.get_run()), ("table4_feature", ff.get_run()))
     except Exception as e:
         context.exception = e
         return

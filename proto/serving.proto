@@ -44,7 +44,10 @@ message FeatureServeRequest {
 }
 
 message FeatureRow {
-    repeated ValueList values = 1;
+  // Deprecated: Use `value_lists` instead.
+  repeated Value values = 1 [deprecated=true];
+
+  repeated ValueList value_lists = 2; // New field
 }
 
 message ValueList {
@@ -57,8 +60,12 @@ message FeatureID {
 }
 
 message Entity {
-    string name = 1;
-    repeated string value = 2;
+  string name = 1;
+
+  // Deprecated: Use `values` instead.
+  string value = 2 [deprecated=true];
+
+  repeated string values = 3; // New field for multiple values
 }
 
 message Value {

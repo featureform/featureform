@@ -119,7 +119,7 @@
             ]
           },
           {
-            "group": "Supported Infastructure Providers",
+            "group": "Supported Infrastructure Providers",
             "pages": [
               "providers/overview",
               {

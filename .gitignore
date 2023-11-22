@@ -32,6 +32,9 @@ client/src/featureform/proto/
 # End to End Tests ouput
 tests/end_to_end/feature.txt 
 tests/end_to_end/version.txt
+tests/end_to_end/behave_report/*
+tests/end_to_end/data/*
+tests/end_to_end/output/*
 
 # Pytest coverage
 coverage.xml
@@ -46,3 +49,7 @@ snapshot.json
 # Offline Tests
 provider/generic_records_*.parquet
 provider/part-000*.parquet
+
+# Test Requirements:
+tls.crt
+transactions.csv

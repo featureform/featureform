@@ -693,7 +693,7 @@ func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLo
 		return nil, fmt.Errorf("error checking if source exists: %v", err)
 	}
 	if !storeExists {
-		return nil, fmt.Errorf("source table does not exist")
+		return nil, fmt.Errorf("source table does not exist in file store: %s", sourceFilePath.ToURI())
 	}
 
 	filepath, err := store.CreateFilePath(id.ToFilestorePath())
@@ -1215,19 +1215,31 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 	timestamp := time.UnixMilli(0).UTC()
 	ts, hasTimestamp := nextVal["ts"]
 	if hasTimestamp {
-		if ts, ok := ts.(time.Time); !ok {
-			iter.err = fmt.Errorf("expected timestamp to be of type time.Time, but got %T", ts)
+		if castedTS, err := castToTimestamp(ts); err != nil {
+			iter.err = err
 			return false
 		} else {
-			timestamp = ts
+			timestamp = castedTS
 		}
 	}
-	iter.cur = ResourceRecord{
-		Entity: nextVal["entity"].(string),
-		Value:  value,
-		TS:     timestamp,
+	rec := ResourceRecord{
+		Value: value,
+		TS:    timestamp,
 	}
+	if err := rec.SetEntity(nextVal["entity"]); err != nil {
+		iter.err = err
+		return false
+	}
+	iter.cur = rec
 	return true
+}
+
+func castToTimestamp(timestamp interface{}) (time.Time, error) {
+	if ts, ok := timestamp.(time.Time); !ok {
+		return time.UnixMilli(0).UTC(), fmt.Errorf("expected timestamp to be of type time.Time, but got %T", timestamp)
+	} else {
+		return ts, nil
+	}
 }
 
 // Attempts to parse value in one of the following formats:
@@ -1483,6 +1495,10 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 
 func (k8s *K8sOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
 	return fileStoreGetTrainingSet(id, k8s.store, k8s.logger)
+}
+
+func (k8s *K8sOfflineStore) CheckHealth() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
 }
 
 func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.SugaredLogger) (TrainingSetIterator, error) {

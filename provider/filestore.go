@@ -141,10 +141,10 @@ func (store *AzureFileStore) CreateFilePath(key string) (filestore.Filepath, err
 	}
 	fp.SetBucket(store.ContainerName)
 	var err error
-	if store.Path != "" {
+	if store.Path != "" && !strings.HasPrefix(key, store.Path) {
 		err = fp.SetKey(fmt.Sprintf("%s/%s", store.Path, strings.Trim(key, "/")))
 	} else {
-		err = fp.SetKey(key)
+		err = fp.SetKey(strings.Trim(key, "/"))
 	}
 	if err != nil {
 		return nil, err
@@ -193,24 +193,34 @@ func (store *AzureFileStore) FilestoreType() filestore.FileStoreType {
 func NewAzureFileStore(config Config) (FileStore, error) {
 	azureStoreConfig := &pc.AzureFileStoreConfig{}
 	if err := azureStoreConfig.Deserialize(pc.SerializedConfig(config)); err != nil {
-		return nil, fmt.Errorf("could not deserialize azure store config: %v", err)
+		return nil, fmt.Errorf("could not deserialize store config: %v", err)
+	}
+	if azureStoreConfig.AccountName == "" {
+		return nil, fmt.Errorf("account name cannot be empty")
 	}
 	if err := os.Setenv("AZURE_STORAGE_ACCOUNT", azureStoreConfig.AccountName); err != nil {
 		return nil, fmt.Errorf("could not set storage account env: %w", err)
 	}
-
+	if azureStoreConfig.AccountKey == "" {
+		return nil, fmt.Errorf("account key cannot be empty")
+	}
 	if err := os.Setenv("AZURE_STORAGE_KEY", azureStoreConfig.AccountKey); err != nil {
 		return nil, fmt.Errorf("could not set storage key env: %w", err)
 	}
+
+	azureStoreConfig.ContainerName = strings.TrimPrefix(azureStoreConfig.ContainerName, "abfss://")
+	if strings.Contains(azureStoreConfig.ContainerName, "/") {
+		return nil, fmt.Errorf("container_name cannot contain '/'. container_name should be the name of the Azure Blobstore container only")
+	}
+
 	serviceURL := azureblob.ServiceURL(fmt.Sprintf("https://%s.blob.core.windows.net", azureStoreConfig.AccountName))
 	client, err := azureblob.NewDefaultServiceClient(serviceURL)
 	if err != nil {
-		return nil, fmt.Errorf("could not create azure client: %v", err)
+		return nil, fmt.Errorf("could not create client: %v", err)
 	}
-
 	bucket, err := azureblob.OpenBucket(context.TODO(), client, azureStoreConfig.ContainerName, nil)
 	if err != nil {
-		return nil, fmt.Errorf("could not open azure bucket: %v", err)
+		return nil, fmt.Errorf("could not open bucket: %v", err)
 	}
 	connectionString := fmt.Sprintf("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s", azureStoreConfig.AccountName, azureStoreConfig.AccountKey)
 	return &AzureFileStore{
@@ -243,6 +253,14 @@ func NewS3FileStore(config Config) (FileStore, error) {
 	if err := s3StoreConfig.Deserialize(pc.SerializedConfig(config)); err != nil {
 		return nil, fmt.Errorf("could not deserialize s3 store config: %v", err)
 	}
+
+	trimmedBucket := strings.TrimPrefix(s3StoreConfig.BucketPath, "s3://")
+	trimmedBucket = strings.TrimPrefix(trimmedBucket, "s3a://")
+
+	if strings.Contains(trimmedBucket, "/") {
+		return nil, fmt.Errorf("bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only")
+	}
+
 	cfg, err := awsv2cfg.LoadDefaultConfig(context.TODO(),
 		awsv2cfg.WithCredentialsProvider(credentials.StaticCredentialsProvider{
 			Value: aws.Credentials{
@@ -254,12 +272,12 @@ func NewS3FileStore(config Config) (FileStore, error) {
 	}
 	cfg.Region = s3StoreConfig.BucketRegion
 	clientV2 := s3v2.NewFromConfig(cfg)
-	bucket, err := s3blob.OpenBucketV2(context.TODO(), clientV2, s3StoreConfig.BucketPath, nil)
+	bucket, err := s3blob.OpenBucketV2(context.TODO(), clientV2, trimmedBucket, nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not create connection to s3 bucket: config: %v, name: %s, %v", s3StoreConfig, s3StoreConfig.BucketPath, err)
 	}
 	return &S3FileStore{
-		Bucket:       s3StoreConfig.BucketPath,
+		Bucket:       trimmedBucket,
 		BucketRegion: s3StoreConfig.BucketRegion,
 		Credentials:  s3StoreConfig.Credentials,
 		Path:         s3StoreConfig.Path,
@@ -282,10 +300,10 @@ func (s3 *S3FileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 		return nil, err
 	}
 	var err error
-	if s3.Path != "" {
-		err = fp.SetKey(fmt.Sprintf("%s/%s", s3.Path, key))
+	if s3.Path != "" && !strings.HasPrefix(key, s3.Path) {
+		err = fp.SetKey(fmt.Sprintf("%s/%s", s3.Path, strings.Trim(key, "/")))
 	} else {
-		err = fp.SetKey(key)
+		err = fp.SetKey(strings.Trim(key, "/"))
 	}
 	if err != nil {
 		return nil, err
@@ -343,10 +361,10 @@ func (gs *GCSFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 		return nil, err
 	}
 	var err error
-	if gs.Path != "" {
-		err = fp.SetKey(fmt.Sprintf("%s/%s", gs.Path, key))
+	if gs.Path != "" && !strings.HasPrefix(key, gs.Path) {
+		err = fp.SetKey(fmt.Sprintf("%s/%s", gs.Path, strings.Trim(key, "/")))
 	} else {
-		err = fp.SetKey(key)
+		err = fp.SetKey(strings.Trim(key, "/"))
 	}
 	if err != nil {
 		return nil, err
@@ -408,6 +426,12 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 	err := GCSConfig.Deserialize(pc.SerializedConfig(config))
 	if err != nil {
 		return nil, fmt.Errorf("could not deserialize config: %v", err)
+	}
+
+	GCSConfig.BucketName = strings.TrimPrefix(GCSConfig.BucketName, "gs://")
+
+	if strings.Contains(GCSConfig.BucketName, "/") {
+		return nil, fmt.Errorf("bucket_name cannot contain '/'. bucket_name should be the name of the GCS bucket only")
 	}
 
 	serializedFile, err := json.Marshal(GCSConfig.Credentials.JSON)

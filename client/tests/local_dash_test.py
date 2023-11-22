@@ -224,6 +224,7 @@ sources = [
                 },
                 "tags": [],
                 "properties": {},
+                "inputs": [],
             }
         },
     },
@@ -236,7 +237,7 @@ sources = [
             "quickstart": {
                 "description": "the average transaction amount for a user",
                 "name": "average_user_transaction",
-                "source-type": "Source",
+                "source-type": "Dataframe Transformation",
                 "owner": "default_user",
                 "provider": "local-mode",
                 "variant": "quickstart",
@@ -308,6 +309,7 @@ sources = [
                 },
                 "tags": [],
                 "properties": {},
+                "inputs": [{"Name": "transactions", "Variant": "quickstart"}],
             }
         },
     },
@@ -744,7 +746,7 @@ users = [
                 {
                     "description": "the average transaction amount for a user",
                     "name": "average_user_transaction",
-                    "source-type": "Source",
+                    "source-type": "Dataframe Transformation",
                     "owner": "default_user",
                     "provider": "local-mode",
                     "variant": "quickstart",
@@ -949,13 +951,14 @@ providers = [
                     },
                     "tags": [],
                     "properties": {},
+                    "inputs": [],
                 }
             ],
             "average_user_transaction": [
                 {
                     "description": "the average transaction amount for a user",
                     "name": "average_user_transaction",
-                    "source-type": "Source",
+                    "source-type": "Dataframe Transformation",
                     "owner": "default_user",
                     "provider": "local-mode",
                     "variant": "quickstart",
@@ -1030,6 +1033,7 @@ providers = [
                     },
                     "tags": [],
                     "properties": {},
+                    "inputs": [{"Name": "transactions", "Variant": "quickstart"}],
                 }
             ],
         },
@@ -1307,13 +1311,14 @@ default_user = {
                 },
                 "tags": [],
                 "properties": {},
+                "inputs": [],
             }
         ],
         "average_user_transaction": [
             {
                 "description": "the average transaction amount for a user",
                 "name": "average_user_transaction",
-                "source-type": "Source",
+                "source-type": "Dataframe Transformation",
                 "owner": "default_user",
                 "provider": "local-mode",
                 "variant": "quickstart",
@@ -1385,6 +1390,7 @@ default_user = {
                 },
                 "tags": [],
                 "properties": {},
+                "inputs": [{"Name": "transactions", "Variant": "quickstart"}],
             }
         ],
     },
@@ -1515,13 +1521,14 @@ localmode = {
                 },
                 "tags": [],
                 "properties": {},
+                "inputs": [],
             }
         ],
         "average_user_transaction": [
             {
                 "description": "the average transaction amount for a user",
                 "name": "average_user_transaction",
-                "source-type": "Source",
+                "source-type": "Dataframe Transformation",
                 "owner": "default_user",
                 "provider": "local-mode",
                 "variant": "quickstart",
@@ -1593,6 +1600,7 @@ localmode = {
                 },
                 "tags": [],
                 "properties": {},
+                "inputs": [{"Name": "transactions", "Variant": "quickstart"}],
             }
         ],
     },
@@ -1633,7 +1641,7 @@ average_user_transaction = {
         "quickstart": {
             "description": "the average transaction amount for a user",
             "name": "average_user_transaction",
-            "source-type": "Source",
+            "source-type": "Dataframe Transformation",
             "owner": "default_user",
             "provider": "local-mode",
             "variant": "quickstart",
@@ -1705,6 +1713,7 @@ average_user_transaction = {
             },
             "tags": [],
             "properties": {},
+            "inputs": [{"Name": "transactions", "Variant": "quickstart"}],
         }
     },
 }
@@ -2144,7 +2153,6 @@ def test_sourcedata_args_not_found(client: FlaskClient):
     )
     json_data = json.loads(response.data.decode())
 
-    print(json_data)
     assert response.status == "500 INTERNAL SERVER ERROR"
     assert json_data == "Error 500: Unable to retrieve source_data columns."
 

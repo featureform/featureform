@@ -9,7 +9,6 @@ import pytest
 from featureform.resources import (
     ResourceRedefinedError,
     ResourceState,
-    Provider,
     RedisConfig,
     CassandraConfig,
     FirestoreConfig,
@@ -307,7 +306,8 @@ def test_k8s_args_apply(image):
 
 
 @pytest.mark.parametrize(
-    "query,image", [("SELECT * FROM X", ""), ("SELECT * FROM X", "my/docker:image")]
+    "query,image",
+    [("SELECT * FROM {{ X.Y }}", ""), ("SELECT * FROM {{ X.Y }}", "my/docker:image")],
 )
 def test_sql_k8s_image(query, image):
     transformation = SQLTransformation(query, K8sArgs(image, K8sResourceSpecs()))
@@ -318,7 +318,7 @@ def test_sql_k8s_image(query, image):
 
 
 def test_sql_k8s_image_none():
-    query = "SELECT * FROM X"
+    query = "SELECT * FROM {{ X.Y }}"
     transformation = SQLTransformation(query)
     recv_query = transformation.kwargs()["transformation"].SQLTransformation.query
     recv_image = transformation.kwargs()["transformation"].kubernetes_args.docker_image
@@ -374,7 +374,7 @@ def test_k8s_sql_provider(registrar, mock_provider, image):
 
     @k8s.sql_transformation(owner="mock-owner", docker_image=image)
     def mock_transform():
-        return "SELECT * FROM X"
+        return "SELECT * FROM {{ X.Y }}"
 
     config = get_transformation_config(registrar)
     docker_image = config.kubernetes_args.docker_image
@@ -386,7 +386,7 @@ def test_k8s_sql_provider_empty(registrar, mock_provider):
 
     @k8s.sql_transformation(owner="mock-owner")
     def mock_transform():
-        return "SELECT * FROM X"
+        return "SELECT * FROM {{ X.Y }}"
 
     config = get_transformation_config(registrar)
     docker_image = config.kubernetes_args.docker_image
@@ -397,7 +397,9 @@ def test_k8s_sql_provider_empty(registrar, mock_provider):
 def test_k8s_df_provider(registrar, mock_provider, image):
     k8s = OfflineK8sProvider(registrar, mock_provider)
 
-    @k8s.df_transformation(owner="mock-owner", docker_image=image)
+    @k8s.df_transformation(
+        owner="mock-owner", docker_image=image, inputs=[("df", "var")]
+    )
     def mock_transform(df):
         return df
 
@@ -411,7 +413,7 @@ def test_k8s_df_provider_empty(registrar, mock_provider):
 
     @k8s.df_transformation(owner="mock-owner")
     def mock_transform():
-        return "SELECT * FROM X"
+        return "SELECT * FROM {{ X.Y }}"
 
     config = get_transformation_config(registrar)
     docker_image = config.kubernetes_args.docker_image
@@ -955,16 +957,17 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             tags=[],
             properties={},
         ),
-        Schedule(
-            name="feature", variant="v1", resource_type=4, schedule_string="* * * * *"
-        ),
-        Schedule(
-            name="primary", variant="abc", resource_type=7, schedule_string="* * * * *"
-        ),
+        # Ordering of schedules does not matter
         Schedule(
             name="training-set",
             variant="v1",
             resource_type=6,
             schedule_string="* * * * *",
+        ),
+        Schedule(
+            name="feature", variant="v1", resource_type=4, schedule_string="* * * * *"
+        ),
+        Schedule(
+            name="primary", variant="abc", resource_type=7, schedule_string="* * * * *"
         ),
     ]

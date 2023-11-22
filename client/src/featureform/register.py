@@ -1,10 +1,10 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+import ast
 import inspect
 import warnings
 from datetime import timedelta
-from os.path import exists
 from pathlib import Path
 from typing import Dict, Tuple, Callable, List, Union, Optional
 
@@ -13,6 +13,7 @@ import pandas as pd
 from typeguard import typechecked
 
 from .enums import FileFormat
+from .exceptions import InvalidSQLQuery
 from .file_utils import absolute_file_paths
 from .get import *
 from .get_local import *
@@ -56,9 +57,6 @@ from .resources import (
     LabelVariant,
     ResourceColumnMapping,
     TrainingSetVariant,
-    ProviderReference,
-    EntityReference,
-    SourceReference,
     ExecutorCredentials,
     ResourceRedefinedError,
     ResourceStatus,
@@ -1027,6 +1025,11 @@ class SubscriptableTransformation:
         decorator_register_resources_method,
         decorator_name_variant_method,
     ):
+        # if not self.__has_return_statement(fn):
+        #     raise Exception(
+        #         "Transformation function seems to be missing a return statement"
+        #     )
+
         self.fn = fn
         self.registrar = registrar
         self.provider = provider
@@ -1035,8 +1038,8 @@ class SubscriptableTransformation:
         # and receive a tuple of (name, variant) where name was the name of the wrapped function and
         # variant was either the value passed to the decorator or the default value. This was achieved
         # via the following syntax: `self.name_variant = decorator_name_variant_method.__get__(self)`
-        # For as-of-yet unknown reasons, this behavior was not working as expected in Python 3.11.2, so
-        # so the code has been reverted to the original syntax, which simply passes a reference to the
+        # For as-of-yet unknown reasons, this behavior was not working as expected in Python 3.11.2,
+        # so the code has been reverted to the original syntax, which simply passes a reference to
         # the decorator methods to the SubscriptableTransformation class.
         self.register_resources = decorator_register_resources_method
         self.name_variant = decorator_name_variant_method
@@ -1053,8 +1056,21 @@ class SubscriptableTransformation:
             )
         return (self.registrar, self.name_variant(), columns)
 
-    def __call__(self, *args, **kwds):
-        return self.fn(*args, **kwds)
+    def __call__(self, *args, **kwargs):
+        return self.fn(*args, **kwargs)
+
+    @staticmethod
+    def __has_return_statement(fn):
+        """
+        Parses the function’s source code into an abstract syntax tree
+        and then walks through the tree to check for any Return nodes.
+        Not full-proof but will at least catch cases on the client.
+        """
+        tree = ast.parse(inspect.getsource(fn))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Return):
+                return True
+        return False
 
 
 class SQLTransformationDecorator:
@@ -1103,6 +1119,8 @@ class SQLTransformationDecorator:
     def __set_query(self, query: str):
         if query == "":
             raise ValueError("Query cannot be an empty string")
+
+        self._assert_query_contains_at_least_one_source(query)
         self.query = add_variant_to_name(query, self.run)
 
     def to_source(self) -> SourceVariant:
@@ -1147,6 +1165,14 @@ class SQLTransformationDecorator:
             schedule=schedule,
         )
 
+    @staticmethod
+    def _assert_query_contains_at_least_one_source(query):
+        # Checks to verify that the query contains a FROM {{ name.variant }}
+        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)?\s*\}\}"
+        match = re.search(pattern, query, re.IGNORECASE)
+        if match is None:
+            raise InvalidSQLQuery(query, "No source specified.")
+
 
 class DFTransformationDecorator:
     def __init__(
@@ -1181,6 +1207,13 @@ class DFTransformationDecorator:
             self.description = fn.__doc__
         if self.name == "":
             self.name = fn.__name__
+
+        func_params = inspect.signature(fn).parameters
+        if len(func_params) > len(self.inputs):
+            raise ValueError(
+                f"Transformation function has more parameters than inputs. \n"
+                f"Make sure each function parameter has a corresponding input in the decorator."
+            )
 
         if not isinstance(self.inputs, list):
             raise ValueError("Dataframe transformation inputs must be a list")
@@ -1488,7 +1521,7 @@ class Variants:
 
     def validate_variant_names(self):
         for variant_key, resource in self.resources.items():
-            if resource.variant == None:
+            if resource.variant == "":
                 resource.variant = variant_key
             if resource.variant != variant_key:
                 raise ValueError(
@@ -2228,7 +2261,7 @@ class Registrar:
         self,
         name: str,
         host: str,
-        port: int,
+        port: int = 6379,
         db: int = 0,
         password: str = "",
         description: str = "",
@@ -2422,6 +2455,13 @@ class Registrar:
         """
 
         tags, properties = set_tags_properties(tags, properties)
+
+        container_name = container_name.replace("abfss://", "")
+        if "/" in container_name:
+            raise ValueError(
+                "container_name cannot contain '/'. container_name should be the name of the Azure Blobstore container only."
+            )
+
         azure_config = AzureFileStoreConfig(
             account_name=account_name,
             account_key=account_key,
@@ -2491,7 +2531,15 @@ class Registrar:
         tags, properties = set_tags_properties(tags, properties)
 
         if bucket_name == "":
-            raise ValueError("bucket_name required")
+            raise ValueError("bucket_name is required and cannot be empty string")
+
+        # TODO: add verification into S3StoreConfig
+        bucket_name = bucket_name.replace("s3://", "").replace("s3a://", "")
+
+        if "/" in bucket_name:
+            raise ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only."
+            )
 
         s3_config = S3StoreConfig(
             bucket_path=bucket_name,
@@ -2516,7 +2564,7 @@ class Registrar:
         self,
         name: str,
         bucket_name: str,
-        bucket_path: str,
+        root_path: str,
         credentials: GCPCredentials,
         description: str = "",
         team: str = "",
@@ -2551,8 +2599,18 @@ class Registrar:
                 has all the functionality of OfflineProvider
         """
         tags, properties = set_tags_properties(tags, properties)
+
+        if bucket_name == "":
+            raise ValueError("bucket_name is required and cannot be empty string")
+
+        bucket_name = bucket_name.replace("gs://", "")
+        if "/" in bucket_name:
+            raise ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the GCS bucket only."
+            )
+
         gcs_config = GCSFileStoreConfig(
-            bucket_name=bucket_name, bucket_path=bucket_path, credentials=credentials
+            bucket_name=bucket_name, bucket_path=root_path, credentials=credentials
         )
         provider = Provider(
             name=name,
@@ -3016,10 +3074,10 @@ class Registrar:
         self,
         name: str,
         host: str,
-        port: str,
         user: str,
         password: str,
         database: str,
+        port: str = "5432",
         description: str = "",
         team: str = "",
         sslmode: str = "disable",
@@ -3933,7 +3991,7 @@ class Registrar:
         for feature in features:
             if isinstance(feature, FeatureColumnResource):
                 feature_nv_list.append(feature.name_variant())
-            if isinstance(feature, str):
+            elif isinstance(feature, str):
                 feature_nv_list.append((feature, run))
             elif isinstance(feature, dict):
                 lag = feature.get("lag")
@@ -4037,6 +4095,7 @@ class Registrar:
                 f"Invalid label type: {type(label)} "
                 "Label must be entered as a name-variant tuple (e.g. ('fraudulent', 'quickstart')), a resource name, or an instance of LabelColumnResource."
             )
+
         for resource in resources:
             features += resource.features()
             resource_label = resource.label()
@@ -4051,7 +4110,6 @@ class Registrar:
             label = label.name_variant()
 
         features, feature_lags = self.__get_feature_nv(features, self.__run)
-
         if label == ():
             raise ValueError("Label must be set")
         if features == []:
@@ -4158,7 +4216,7 @@ class ResourceClient:
             self._stub = ff_grpc.ApiStub(channel)
             self._host = host
 
-    def apply(self, asynchronous=True):
+    def apply(self, asynchronous=False, verbose=False):
         """
         Apply all definitions, creating and retrieving all specified resources.
 
@@ -4180,8 +4238,8 @@ class ResourceClient:
         """
 
         print(f"Applying Run: {get_run()}")
-        resource_state = state()
         try:
+            resource_state = state()
             if self._dry_run:
                 print(resource_state.sorted_list())
                 return
@@ -4193,7 +4251,7 @@ class ResourceClient:
 
             if not asynchronous and self._stub:
                 resources = resource_state.sorted_list()
-                display_statuses(self._stub, resources)
+                display_statuses(self._stub, resources, verbose=verbose)
 
         finally:
             clear_state()
@@ -4797,7 +4855,9 @@ class ResourceClient:
             status=source.status.Status._enum_type.values[source.status.status].name,
             tags=[],
             properties={},
-            source=source.source_text,
+            source_text=definition.source_text
+            if type(definition) == DFTransformation
+            else "",
         )
 
     def _get_source_definition(self, source):
@@ -5438,25 +5498,6 @@ class ColumnResource:
 
     def name_variant(self):
         return (self.name, self.variant)
-
-
-class Variants:
-    def __init__(self, resources: Dict[str, ColumnResource]):
-        self.resources = resources
-        self.validate_variant_names()
-
-    def validate_variant_names(self):
-        for variant_key, resource in self.resources.items():
-            if resource.variant == "default":
-                resource.variant = variant_key
-            if resource.variant != variant_key:
-                raise ValueError(
-                    f"Variant name {variant_key} does not match resource variant name {resource.variant}"
-                )
-
-    def register(self):
-        for resource in self.resources.values():
-            resource.register()
 
 
 class EmbeddingColumnResource(ColumnResource):

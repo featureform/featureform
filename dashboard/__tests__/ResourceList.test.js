@@ -9,6 +9,15 @@ import ResourceList, {
   selectFilteredResources,
 } from '../src/components/resource-list/ResourceList';
 
+jest.mock('next/dynamic', () => () => {
+  const ResourceListView =
+    // eslint-disable-next-line global-require
+    require('../src/components/resource-list/ResourceListView')
+      .ResourceListView;
+
+  return (props) => <ResourceListView {...props} />;
+});
+
 configure({ adapter: new Adapter() });
 
 describe('ResourceList', () => {
@@ -30,8 +39,10 @@ describe('ResourceList', () => {
     expect(mockFn.mock.calls[0][0]).toEqual(dataType);
   });
 
-  it('correctly maps inital props from state.', () => {
-    const viewProps = component.find('ResourceListView').props();
+  it('correctly maps inital props from state.', async () => {
+    const listComponent = component.find('ResourceListView');
+    expect(listComponent.length).toBe(1);
+    const viewProps = listComponent.props();
     expect(viewProps).toMatchObject({
       activeVariants: {},
       title: dataType,

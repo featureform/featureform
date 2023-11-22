@@ -107,7 +107,7 @@ func (k8s *K8sOfflineStore) Close() error {
 }
 
 func (k8s K8sOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
-	return nil, nil
+	return nil, fmt.Errorf("batch features not implemented for this provider")
 }
 
 type Config []byte

@@ -157,6 +157,7 @@ func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (p
 	if err != nil {
 		return nil, err
 	}
+
 	// Assuming that all the features have the same offline provider
 	feat, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{ids[0].Name, ids[0].Variant})
 	if err != nil {
@@ -171,13 +172,12 @@ func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (p
 	if err != nil {
 		return nil, errors.Wrap(err, "could not fetch provider")
 	}
-	if err != nil {
-		return nil, errors.Wrap(err, "could not fetch provider")
-	}
+
 	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get provider")
 	}
+
 	store, err := p.AsOfflineStore()
 	if err != nil {
 		// This means that the provider of the feature isn't an offline store.

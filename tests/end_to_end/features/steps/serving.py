@@ -1,5 +1,5 @@
 from behave import *
-import requests
+import featureform as ff
 
     # And I apply "snowflake_config.py" file with a "hosted" "insecure" CLI
     # And I create a "hosted" "insecure" client for "localhost:7878" (should be done)
@@ -7,8 +7,8 @@ import requests
     # Then I can iterate through the rows of the batch feature table
     # And I can get a list containing the entity name and a tuple with all the features
 
-@when("I register a Snowflake and with a {database} and {schema}")
-def step_impl(context, database, schema):
+@when("I register Snowflake")
+def step_impl(context):
     context.snowflake_name = "test_snowflake"
     try:
         context.snowflake = context.featureform.register_snowflake(
@@ -19,8 +19,8 @@ def step_impl(context, database, schema):
             password = context.snowflake_password,
             account = context.snowflake_account,
             organization = context.snowflake_organization,
-            database = database,
-            schema = schema,
+            database = "0884D0DD-468D-4C3A-8109-3C2BAAD72EF7",
+            schema = "PUBLIC",
         )
     except Exception as e:
         context.exception = e
@@ -40,7 +40,7 @@ def step_impl(context):
 @then("I serve batch features")
 def step_impl(context):
     try:
-        context.iter = context.client.iterate_feature_set(("table1_feature", "variant_628138"), ("table2_feature", "variant_628138"), ("table3_feature", "variant_628138"), ("table4_feature", "variant_628138"))
+        context.iter = context.client.iterate_feature_set(("table1_feature", ff.get_run()), ("table2_feature", ff.get_run()), ("table3_feature",ff.get_run()), ("table4_feature", ff.get_run()))
     except Exception as e:
         context.exception = e
         return

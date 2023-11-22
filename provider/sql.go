@@ -16,6 +16,7 @@ import (
 
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/google/uuid"
 	db "github.com/jackc/pgx/v4"
 	sf "github.com/snowflakedb/gosnowflake"
 )
@@ -118,7 +119,8 @@ func (store *sqlOfflineStore) getMaterializationTableName(id MaterializationID) 
 }
 
 func (store *sqlOfflineStore) getJoinedMaterializationTableName(materializationIDs string) string {
-	return fmt.Sprintf("featureform_batch_features_%s", materializationIDs)
+	joinedTableUUID := uuid.NewSHA1(uuid.NameSpaceDNS, []byte(materializationIDs))
+	return fmt.Sprintf("featureform_batch_features_%s", joinedTableUUID)
 }
 
 func (store *sqlOfflineStore) getTrainingSetName(id ResourceID) (string, error) {
@@ -576,11 +578,11 @@ func (it *sqlBatchFeatureIterator) Close() error {
 
 // Takes a list of feature resource IDs and creates a table view joining all the feature values based on the entity
 // Note: This table view doesnt store timestamps
-func (store *sqlOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
+func (store *sqlOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIterator, error) {
 
 	// if tables is empty, return an empty iterator
-	if len(tables) == 0 {
-		return newsqlBatchFeatureIterator(nil, nil, nil, store.query), nil
+	if len(ids) == 0 {
+		return newsqlBatchFeatureIterator(nil, nil, nil, store.query), fmt.Errorf("no features provided")
 	}
 
 	asEntity := ""
@@ -589,8 +591,8 @@ func (store *sqlOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatur
 	featureColumns := ""
 	var matIDs []string
 
-	tableName0 := sanitize(store.getMaterializationTableName(MaterializationID(tables[0].Name)))
-	for i, tableID := range tables {
+	tableName0 := sanitize(store.getMaterializationTableName(MaterializationID(ids[0].Name)))
+	for i, tableID := range ids {
 		matID := MaterializationID(tableID.Name)
 		matIDs = append(matIDs, string(matID))
 		matTableName := sanitize(store.getMaterializationTableName(matID))
@@ -615,7 +617,7 @@ func (store *sqlOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatur
 	sort.Strings(matIDs)
 	joinedTableName := store.getJoinedMaterializationTableName(strings.Join(matIDs, "_"))
 	createQuery := ""
-	if len(tables) == 1 {
+	if len(ids) == 1 {
 		createQuery = fmt.Sprintf("CREATE VIEW \"%s\" AS SELECT %s AS entity %s FROM %s", joinedTableName, asEntity, withFeatures, tableName0)
 	} else {
 		createQuery = fmt.Sprintf("CREATE VIEW \"%s\" AS SELECT COALESCE(%s) AS entity %s FROM %s", joinedTableName, asEntity, withFeatures, joinTables)

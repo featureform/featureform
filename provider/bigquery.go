@@ -1019,7 +1019,7 @@ func (store *bqOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, erro
 }
 
 func (store *bqOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
-	return nil, nil
+	return nil, fmt.Errorf("batch features not implemented for this provider")
 }
 
 func (store *bqOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {

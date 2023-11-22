@@ -158,7 +158,7 @@ func (MockPrimaryTable) IterateSegment(int64) (GenericTableIterator, error) {
 }
 
 func (store MockUnitTestOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
-	return nil, nil
+	return nil, fmt.Errorf("batch features not implemented for this provider")
 }
 
 func (MockPrimaryTable) NumRows() (int64, error) {

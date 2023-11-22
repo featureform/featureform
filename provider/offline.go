@@ -650,7 +650,7 @@ func (recs materializedRecords) Swap(i, j int) {
 }
 
 func (store *memoryOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
-	return nil, nil
+	return nil, fmt.Errorf("batch features not implemented for this provider")
 }
 
 // memoryOfflineStore is not exposed to the users

@@ -17,7 +17,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/credentials"
 
-	"github.com/featureform/filestore"
 	"github.com/featureform/logging"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -685,7 +684,7 @@ func (store *SparkOfflineStore) AsOfflineStore() (OfflineStore, error) {
 }
 
 func (store *SparkOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
-	return nil, nil
+	return nil, fmt.Errorf("batch features not implemented for this provider")
 }
 
 func (store *SparkOfflineStore) Close() error {

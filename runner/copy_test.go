@@ -388,6 +388,10 @@ func (b BrokenNumRowsOfflineStore) GetTrainingSet(id provider.ResourceID) (provi
 	return nil, nil
 }
 
+func (b BrokenNumRowsOfflineStore) GetBatchFeatures(tables []provider.ResourceID) (provider.BatchFeatureIterator, error) {
+	return nil, nil
+}
+
 func (b BrokenNumRowsOfflineStore) Close() error {
 	return nil
 }
@@ -788,6 +792,10 @@ func (m MockOfflineStore) CreateTrainingSet(provider.TrainingSetDef) error {
 }
 
 func (m MockOfflineStore) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
+	return nil, nil
+}
+
+func (m MockOfflineStore) GetBatchFeatures(tables []provider.ResourceID) (provider.BatchFeatureIterator, error) {
 	return nil, nil
 }
 

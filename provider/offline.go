@@ -657,7 +657,7 @@ func (recs materializedRecords) Swap(i, j int) {
 }
 
 func (store *memoryOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
-	return nil, fmt.Errorf("batch features not implemented for this provider")
+	return nil, nil
 }
 func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {

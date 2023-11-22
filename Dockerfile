@@ -6,7 +6,7 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app/dashboard
 
-COPY /dashboard/package.json /dashboard/.yarn.lock* /dashboard/package-lock.json* ./
+COPY /dashboard/package.json /dashboard/package-lock.json* ./
 RUN npm i
 
 # Rebuild the source code only when needed

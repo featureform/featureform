@@ -22,7 +22,7 @@ func (m MockOfflineCreateTrainingSetFail) CreateResourceTable(provider.ResourceI
 func (m MockOfflineCreateTrainingSetFail) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (m MockOfflineCreateTrainingSetFail) CreateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+func (m MockOfflineCreateTrainingSetFail) CreateMaterialization(id provider.ResourceID, options ...provider.MaterializationOptions) (provider.Materialization, error) {
 	return nil, nil
 }
 func (m MockOfflineCreateTrainingSetFail) UpdateMaterialization(id provider.ResourceID) (provider.Materialization, error) {

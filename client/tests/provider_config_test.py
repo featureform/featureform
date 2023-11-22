@@ -182,6 +182,7 @@ def test_dynamodb():
         region="region",
         access_key="access_key",
         secret_key="secret_key",
+        should_import_from_s3=False,
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config

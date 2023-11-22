@@ -1018,7 +1018,7 @@ func (store *bqOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, erro
 	return store.getbqResourceTable(id)
 }
 
-func (store *bqOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
+func (store *bqOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
 		return nil, errors.New("only features can be materialized")
 	}

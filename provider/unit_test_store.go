@@ -241,7 +241,7 @@ func (m MockMaterialization) IterateSegment(begin, end int64) (FeatureIterator, 
 	return MockIterator{}, nil
 }
 
-func (m MockUnitTestOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
+func (m MockUnitTestOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	return MockMaterialization{}, nil
 }
 

@@ -62,8 +62,8 @@ func TestMockMaterializeRunner(t *testing.T) {
 		Cloud:  LocalMaterializeRunner,
 		Logger: zaptest.NewLogger(t).Sugar(),
 	}
-	delete(factoryMap, string(COPY_TO_ONLINE))
-	if err := RegisterFactory(string(COPY_TO_ONLINE), mockChunkRunnerFactory); err != nil {
+	delete(factoryMap, COPY_TO_ONLINE)
+	if err := RegisterFactory(COPY_TO_ONLINE, mockChunkRunnerFactory); err != nil {
 		t.Fatalf("Failed to register factory: %v", err)
 	}
 
@@ -83,7 +83,7 @@ func TestMockMaterializeRunner(t *testing.T) {
 	if result := watcher.String(); len(result) == 0 {
 		t.Fatalf("Failed to return string on completion status")
 	}
-	delete(factoryMap, string(COPY_TO_ONLINE))
+	delete(factoryMap, COPY_TO_ONLINE)
 
 }
 

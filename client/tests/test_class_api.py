@@ -1,8 +1,9 @@
-import featureform as ff
 import pytest
+
+import featureform as ff
+from featureform import get_random_name
 from featureform.register import Registrar, DFTransformationDecorator, ResourceRegistrar
 from featureform.resources import Entity, FeatureVariant, LabelVariant
-from featureform.names_generator import get_random_name
 
 
 @pytest.mark.parametrize(
@@ -45,7 +46,18 @@ def test_class_api_syntax(provider_source_fxt, is_local, is_insecure, request):
         )
     )
 
+    # since the api's can have source objects rather than the name variants, we're going to get them in the same state
+    _update_sources_to_name_variant(original_syntax_state)
+    _update_sources_to_name_variant(class_syntax_state)
+
     assert original_syntax_state == class_syntax_state
+
+
+def _update_sources_to_name_variant(resources):
+    for r in resources:
+        if isinstance(r, (FeatureVariant, LabelVariant)):
+            if hasattr(r.source, "name_variant"):
+                r.source = r.source.name_variant()
 
 
 @pytest.mark.parametrize(

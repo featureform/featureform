@@ -59,7 +59,7 @@ az aks create --resource-group FeatureformResourceGroup --name FeatureformAKSClu
 
 ### Add To Kubeconfig
 
-Add the cluster information to the kubeconfig as a the current context
+Add the cluster information to the kubeconfig as the current context
 
 ```bash
 az aks get-credentials --resource-group FeatureformResourceGroup --name FeatureformAKSCluster
@@ -82,7 +82,7 @@ aks-nodepool1-25554489-vmss000000   Ready    agent   7m56s   v1.24.6
 
 We'll be installing three Helm Charts: Featureform, the Quickstart Demo, and Certificate Manager.
 
-First we need to add the Helm repositories.
+First, we need to add the Helm repositories.
 
 ```bash
 helm repo add featureform https://storage.googleapis.com/featureform-helm/ 
@@ -161,7 +161,7 @@ postgres = ff.register_postgres(
 
 Once we create our config file, we can apply it to our Featureform deployment.
 
-```py
+```bash
 featureform apply definitions.py
 ```
 
@@ -228,7 +228,7 @@ ff.register_training_set(
 )
 ```
 
-Now that our definitions are complete, we can apply it to our Featureform instance.
+Now that our definitions are complete, we can apply them to our Featureform instance.
 
 ```py
 featureform apply definitions.py

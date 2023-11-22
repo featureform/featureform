@@ -4,7 +4,7 @@ import stat
 import sys
 
 import featureform as ff
-from featureform import ResourceRedefinedError
+from featureform import ResourceRedefinedError, InvalidSQLQuery
 
 sys.path.insert(0, "client/src/")
 import pytest
@@ -272,9 +272,13 @@ def run_before_and_after_tests(tmpdir):
     [
         ("SELECT * FROM X", False),
         ("SELECT * FROM", False),
+        ("SELECT * FROM     \n {{ name }}", True),
+        ("SELECT * FROM     \n {{name}}", True),
         ("SELECT * FROM {{ name.variant }}", True),
         ("SELECT * FROM {{name.variant }}", True),
         ("SELECT * FROM     \n {{ name.variant }}", True),
+        ("SELECT * FROM     \n {{name.variant}}", True),
+        ("SELECT * FROM     \n {{name . variant}}", False),
         (
             """
         SELECT *
@@ -296,7 +300,7 @@ def run_before_and_after_tests(tmpdir):
         ),
     ],
 )
-def test_validate_sql_query(sql_query, expected_valid_sql_query):
+def test_assert_query_contains_at_least_one_source(sql_query, expected_valid_sql_query):
     dec = SQLTransformationDecorator(
         registrar=registrar,
         owner="",
@@ -306,8 +310,15 @@ def test_validate_sql_query(sql_query, expected_valid_sql_query):
         properties={},
     )
 
-    is_valid = dec._is_valid_sql_query(sql_query)
-    assert is_valid == expected_valid_sql_query
+    if not expected_valid_sql_query:
+        with pytest.raises(InvalidSQLQuery) as ex_info:
+            dec._assert_query_contains_at_least_one_source(sql_query)
+        assert (
+            str(ex_info.value)
+            == f"Invalid SQL query. Query: ' {sql_query} ' No source specified."
+        )
+    else:
+        dec._assert_query_contains_at_least_one_source(sql_query)
 
 
 def test_state_not_clearing_after_resource_not_defined():
@@ -358,6 +369,73 @@ def test_register_s3(bucket_name, expected_error, ff_registrar, aws_credentials)
             credentials=aws_credentials,
             bucket_region="us-east-1",
             bucket_name=bucket_name,
+        )
+    except ValueError as ve:
+        assert str(ve) == str(expected_error)
+    except Exception as e:
+        raise e
+
+
+@pytest.mark.parametrize(
+    "bucket_name, expected_error",
+    [
+        ("gs://bucket_name", None),
+        ("bucket_name", None),
+        (
+            "bucket_name/",
+            ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the GCS bucket only."
+            ),
+        ),
+        (
+            "gs://bucket_name/",
+            ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the GCS bucket only."
+            ),
+        ),
+    ],
+)
+def test_register_gcs(bucket_name, expected_error, ff_registrar, gcp_credentials):
+    try:
+        _ = ff_registrar.register_gcs(
+            name="gcs_bucket",
+            bucket_name=bucket_name,
+            root_path="",
+            credentials=gcp_credentials,
+        )
+    except ValueError as ve:
+        assert str(ve) == str(expected_error)
+    except Exception as e:
+        raise e
+
+
+@pytest.mark.parametrize(
+    "container_name, expected_error",
+    [
+        ("abfss://container_name", None),
+        ("container_name", None),
+        (
+            "container_name/",
+            ValueError(
+                "container_name cannot contain '/'. container_name should be the name of the Azure Blobstore container only."
+            ),
+        ),
+        (
+            "abfss://bucket_name/",
+            ValueError(
+                "container_name cannot contain '/'. container_name should be the name of the Azure Blobstore container only."
+            ),
+        ),
+    ],
+)
+def test_register_blob_store(container_name, expected_error, ff_registrar):
+    try:
+        _ = ff_registrar.register_blob_store(
+            name="blob_store_container",
+            container_name=container_name,
+            root_path="custom/path/in/container",
+            account_name="account_name",
+            account_key="azure_account_key",
         )
     except ValueError as ve:
         assert str(ve) == str(expected_error)

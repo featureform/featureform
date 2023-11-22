@@ -14,7 +14,7 @@ detection dataset using Postgres and Redis.
 - Python 3.7+
 - Docker
 
-## Step 1: Install The Featureform CLI
+## Step 1: Install the Featureform CLI
 
 ```shell
 pip install featureform
@@ -64,9 +64,9 @@ featureform apply https://featureform-demo-files.s3.amazonaws.com/definitions.py
 
 The dashboard is available at [localhost](http://localhost)
 
-In the dashboard you should be able to see that 2 Sources, 1 Feature, 1 Label, and 1 Training Set has been created.
+In the dashboard, you should be able to see that 2 Sources, 1 Feature, 1 Label, and 1 Training Set has been created.
 
-You can check also check the status of the training set with:
+You can also check the status of the training set with:
 
 ```shell
 featureform get training-set fraud_training default --insecure

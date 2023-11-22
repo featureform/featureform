@@ -268,7 +268,7 @@ func (def FeatureDef) ResourceType() ResourceType {
 	return FEATURE_VARIANT
 }
 
-func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) error {
+func (def FeatureDef) Serialize() (*pb.FeatureVariant, error) {
 	serialized := &pb.FeatureVariant{
 		Name:        def.Name,
 		Variant:     def.Variant,
@@ -291,11 +291,19 @@ func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) 
 	case PythonFunction:
 		serialized.Location = def.Location.(PythonFunction).SerializePythonFunction()
 	case nil:
-		return fmt.Errorf("FeatureDef Columns not set")
+		return nil, fmt.Errorf("FeatureDef Columns not set")
 	default:
-		return fmt.Errorf("FeatureDef Columns has unexpected type %T", x)
+		return nil, fmt.Errorf("FeatureDef Columns has unexpected type %T", x)
 	}
-	_, err := client.GrpcConn.CreateFeatureVariant(ctx, serialized)
+	return serialized, nil
+}
+
+func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) error {
+	serialized, err := def.Serialize()
+	if err != nil {
+		return err
+	}
+	_, err = client.GrpcConn.CreateFeatureVariant(ctx, serialized)
 	return err
 }
 
@@ -386,7 +394,7 @@ func (def LabelDef) ResourceType() ResourceType {
 	return LABEL_VARIANT
 }
 
-func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) error {
+func (def LabelDef) Serialize() (*pb.LabelVariant, error) {
 	serialized := &pb.LabelVariant{
 		Name:        def.Name,
 		Variant:     def.Variant,
@@ -404,11 +412,19 @@ func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) erro
 	case ResourceVariantColumns:
 		serialized.Location = def.Location.(ResourceVariantColumns).SerializeLabelColumns()
 	case nil:
-		return fmt.Errorf("LabelDef Primary not set")
+		return nil, fmt.Errorf("LabelDef Primary not set")
 	default:
-		return fmt.Errorf("LabelDef Primary has unexpected type %T", x)
+		return nil, fmt.Errorf("LabelDef Primary has unexpected type %T", x)
 	}
-	_, err := client.GrpcConn.CreateLabelVariant(ctx, serialized)
+	return serialized, nil
+}
+
+func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) error {
+	serialized, err := def.Serialize()
+	if err != nil {
+		return err
+	}
+	_, err = client.GrpcConn.CreateLabelVariant(ctx, serialized)
 	return err
 }
 
@@ -523,8 +539,8 @@ func (def TrainingSetDef) ResourceType() ResourceType {
 	return TRAINING_SET_VARIANT
 }
 
-func (client *Client) CreateTrainingSetVariant(ctx context.Context, def TrainingSetDef) error {
-	serialized := &pb.TrainingSetVariant{
+func (def TrainingSetDef) Serialize() *pb.TrainingSetVariant {
+	return &pb.TrainingSetVariant{
 		Name:        def.Name,
 		Variant:     def.Variant,
 		Description: def.Description,
@@ -537,6 +553,10 @@ func (client *Client) CreateTrainingSetVariant(ctx context.Context, def Training
 		Tags:        &pb.Tags{Tag: def.Tags},
 		Properties:  def.Properties.Serialize(),
 	}
+}
+
+func (client *Client) CreateTrainingSetVariant(ctx context.Context, def TrainingSetDef) error {
+	serialized := def.Serialize()
 	_, err := client.GrpcConn.CreateTrainingSetVariant(ctx, serialized)
 	return err
 }
@@ -741,7 +761,7 @@ func (def SourceDef) ResourceType() ResourceType {
 	return SOURCE_VARIANT
 }
 
-func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) error {
+func (def SourceDef) Serialize() (*pb.SourceVariant, error) {
 	serialized := &pb.SourceVariant{
 		Name:        def.Name,
 		Variant:     def.Variant,
@@ -760,10 +780,18 @@ func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) er
 	case PrimaryDataSource:
 		serialized.Definition, err = def.Definition.(PrimaryDataSource).Serialize()
 	case nil:
-		return fmt.Errorf("SourceDef Definition not set")
+		return nil, fmt.Errorf("SourceDef Definition not set")
 	default:
-		return fmt.Errorf("SourceDef Definition has unexpected type %T", x)
+		return nil, fmt.Errorf("SourceDef Definition has unexpected type %T", x)
 	}
+	if err != nil {
+		return nil, err
+	}
+	return serialized, nil
+}
+
+func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) error {
+	serialized, err := def.Serialize()
 	if err != nil {
 		return err
 	}

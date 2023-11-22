@@ -53,7 +53,7 @@ const tableCreateTimeout = 120
 func dynamodbOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
 	dynamodbConfig := &pc.DynamodbConfig{}
 	if err := dynamodbConfig.Deserialize(serialized); err != nil {
-		return nil, err
+		return nil, NewProviderError(Runtime, pt.DynamoDBOnline, ConfigDeserialize, err.Error())
 	}
 	if dynamodbConfig.Prefix == "" {
 		dynamodbConfig.Prefix = "Featureform_table__"
@@ -69,7 +69,7 @@ func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, e
 	sess := session.Must(session.NewSession(config))
 	dynamodbClient := dynamodb.New(sess)
 	if err := CreateMetadataTable(dynamodbClient); err != nil {
-		return nil, fmt.Errorf("could not create metadata table: %v", err)
+		return nil, NewProviderError(Connection, pt.DynamoDBOnline, ClientInitialization, err.Error())
 	}
 	return &dynamodbOnlineStore{dynamodbClient, options.Prefix, BaseProvider{
 		ProviderType:   pt.DynamoDBOnline,
@@ -257,6 +257,22 @@ func (store *dynamodbOnlineStore) DeleteTable(feature, variant string) error {
 		return err
 	}
 	return nil
+}
+
+func (store *dynamodbOnlineStore) CheckHealth() (bool, error) {
+	listOutput, err := store.client.ListTables(&dynamodb.ListTablesInput{Limit: aws.Int64(1)})
+	if err != nil {
+		return false, err
+	}
+	if len(listOutput.TableNames) == 0 {
+		return false, NewProviderError(Connection, pt.DynamoDBOnline, Ping, "no tables found")
+	}
+	scanInput := &dynamodb.ScanInput{TableName: listOutput.TableNames[0], Limit: aws.Int64(1)}
+	_, err = store.client.Scan(scanInput)
+	if err != nil {
+		return false, NewProviderError(Connection, pt.DynamoDBOnline, Ping, err.Error())
+	}
+	return true, nil
 }
 
 func (table dynamodbOnlineTable) Set(entity string, value interface{}) error {

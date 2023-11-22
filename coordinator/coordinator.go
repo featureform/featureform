@@ -389,6 +389,7 @@ func (c *Coordinator) verifyCompletionOfSources(sources []metadata.NameVariant) 
 			}
 		}
 		allReady = total == totalReady
+		time.Sleep(1 * time.Second)
 	}
 	return nil
 }
@@ -598,7 +599,7 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule s
 	}
 	p, err := provider.Get(pt.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
 	if err != nil {
-		return fmt.Errorf("get source's dependent provider in offline store: %v", err)
+		return fmt.Errorf("failed to initialize provider: %v", err)
 	}
 	sourceStore, err := p.AsOfflineStore()
 	if err != nil {

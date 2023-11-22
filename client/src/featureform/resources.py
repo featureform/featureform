@@ -1039,14 +1039,16 @@ class SourceVariant:
     properties: dict
     variant: str
     created: str = None
-    status: str = "ready"  # this is no status by default but it always stores ready
+    status: str = (
+        "ready"  # there is no associated status by default but it always stores ready
+    )
     schedule: str = ""
     schedule_obj: Schedule = None
     is_transformation = SourceType.PRIMARY_SOURCE.value
     source_text: str = ""
     source_type: str = ""
     transformation: str = ""
-    inputs = ([],)
+    inputs: list = ([],)
     error: Optional[str] = None
 
     def update_schedule(self, schedule) -> None:
@@ -1118,6 +1120,7 @@ class SourceVariant:
             provider=self.provider,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
             **defArgs,
         )
         stub.CreateSourceVariant(serialized)
@@ -1371,6 +1374,7 @@ class FeatureVariant:
             mode=ComputationMode.PRECOMPUTED.proto(),
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
         stub.CreateFeatureVariant(serialized)
 
@@ -1652,6 +1656,7 @@ class LabelVariant:
             columns=self.location.proto(),
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
         stub.CreateLabelVariant(serialized)
 
@@ -1901,6 +1906,7 @@ class TrainingSetVariant:
             feature_lags=feature_lags,
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
         stub.CreateTrainingSetVariant(serialized)
 
@@ -2137,8 +2143,7 @@ class ResourceState:
 
         def to_sort_key(res):
             resource_num = resource_order[res.type()]
-            variant = res.variant if hasattr(res, "variant") else ""
-            return (resource_num, res.name, variant)
+            return resource_num
 
         return sorted(self.__state.values(), key=to_sort_key)
 
@@ -2162,10 +2167,13 @@ class ResourceState:
             if resource.operation_type() is OperationType.GET:
                 print("Getting", resource.type(), resource.name, resource_variant)
                 resource._get_local(db)
+
             if resource.operation_type() is OperationType.CREATE:
-                print("Creating", resource.type(), resource.name, resource_variant)
+                if resource.name != "default_user":
+                    print("Creating", resource.type(), resource.name, resource_variant)
                 resource._create_local(db)
         db.close()
+
         from .serving import LocalClientImpl
 
         client = LocalClientImpl()
@@ -2195,9 +2203,10 @@ class ResourceState:
                     )
                     resource._get(stub)
                 if resource.operation_type() is OperationType.CREATE:
-                    print(
-                        f"Creating {resource.type()} {resource.name}{resource_variant}"
-                    )
+                    if resource.name != "default_user":
+                        print(
+                            f"Creating {resource.type()} {resource.name}{resource_variant}"
+                        )
                     resource._create(stub)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:

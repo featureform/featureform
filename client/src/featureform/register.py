@@ -1,7 +1,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
-import re
+import ast
 import inspect
 import warnings
 from datetime import timedelta
@@ -11,13 +11,14 @@ from typing import Dict, Tuple, Callable, List, Union, Optional
 import dill
 import pandas as pd
 from typeguard import typechecked
+
 from .enums import FileFormat
+from .exceptions import InvalidSQLQuery
 from .file_utils import absolute_file_paths
 from .get import *
 from .get_local import *
 from .list import *
 from .list_local import *
-from .exceptions import InvalidSQLQuery
 from .names_generator import get_random_name
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
@@ -1024,6 +1025,11 @@ class SubscriptableTransformation:
         decorator_register_resources_method,
         decorator_name_variant_method,
     ):
+        # if not self.__has_return_statement(fn):
+        #     raise Exception(
+        #         "Transformation function seems to be missing a return statement"
+        #     )
+
         self.fn = fn
         self.registrar = registrar
         self.provider = provider
@@ -1052,6 +1058,19 @@ class SubscriptableTransformation:
 
     def __call__(self, *args, **kwargs):
         return self.fn(*args, **kwargs)
+
+    @staticmethod
+    def __has_return_statement(fn):
+        """
+        Parses the function’s source code into an abstract syntax tree
+        and then walks through the tree to check for any Return nodes.
+        Not full-proof but will at least catch cases on the client.
+        """
+        tree = ast.parse(inspect.getsource(fn))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Return):
+                return True
+        return False
 
 
 class SQLTransformationDecorator:
@@ -1100,9 +1119,8 @@ class SQLTransformationDecorator:
     def __set_query(self, query: str):
         if query == "":
             raise ValueError("Query cannot be an empty string")
-        if not self._is_valid_sql_query(query):
-            raise InvalidSQLQuery(query)
 
+        self._assert_query_contains_at_least_one_source(query)
         self.query = add_variant_to_name(query, self.run)
 
     def to_source(self) -> SourceVariant:
@@ -1147,11 +1165,13 @@ class SQLTransformationDecorator:
             schedule=schedule,
         )
 
-    def _is_valid_sql_query(self, query):
+    @staticmethod
+    def _assert_query_contains_at_least_one_source(query):
         # Checks to verify that the query contains a FROM {{ name.variant }}
-        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_]+\s*\.\s*[a-zA-Z0-9_]+\s*\}\}"
+        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)?\s*\}\}"
         match = re.search(pattern, query, re.IGNORECASE)
-        return match is not None
+        if match is None:
+            raise InvalidSQLQuery(query, "No source specified.")
 
 
 class DFTransformationDecorator:
@@ -2241,7 +2261,7 @@ class Registrar:
         self,
         name: str,
         host: str,
-        port: int,
+        port: int = 6379,
         db: int = 0,
         password: str = "",
         description: str = "",
@@ -2435,6 +2455,13 @@ class Registrar:
         """
 
         tags, properties = set_tags_properties(tags, properties)
+
+        container_name = container_name.replace("abfss://", "")
+        if "/" in container_name:
+            raise ValueError(
+                "container_name cannot contain '/'. container_name should be the name of the Azure Blobstore container only."
+            )
+
         azure_config = AzureFileStoreConfig(
             account_name=account_name,
             account_key=account_key,
@@ -2504,7 +2531,7 @@ class Registrar:
         tags, properties = set_tags_properties(tags, properties)
 
         if bucket_name == "":
-            raise ValueError("bucket_name required")
+            raise ValueError("bucket_name is required and cannot be empty string")
 
         # TODO: add verification into S3StoreConfig
         bucket_name = bucket_name.replace("s3://", "").replace("s3a://", "")
@@ -2572,6 +2599,16 @@ class Registrar:
                 has all the functionality of OfflineProvider
         """
         tags, properties = set_tags_properties(tags, properties)
+
+        if bucket_name == "":
+            raise ValueError("bucket_name is required and cannot be empty string")
+
+        bucket_name = bucket_name.replace("gs://", "")
+        if "/" in bucket_name:
+            raise ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the GCS bucket only."
+            )
+
         gcs_config = GCSFileStoreConfig(
             bucket_name=bucket_name, bucket_path=root_path, credentials=credentials
         )
@@ -3037,10 +3074,10 @@ class Registrar:
         self,
         name: str,
         host: str,
-        port: str,
         user: str,
         password: str,
         database: str,
+        port: str = "5432",
         description: str = "",
         team: str = "",
         sslmode: str = "disable",
@@ -3954,7 +3991,7 @@ class Registrar:
         for feature in features:
             if isinstance(feature, FeatureColumnResource):
                 feature_nv_list.append(feature.name_variant())
-            if isinstance(feature, str):
+            elif isinstance(feature, str):
                 feature_nv_list.append((feature, run))
             elif isinstance(feature, dict):
                 lag = feature.get("lag")
@@ -4058,6 +4095,7 @@ class Registrar:
                 f"Invalid label type: {type(label)} "
                 "Label must be entered as a name-variant tuple (e.g. ('fraudulent', 'quickstart')), a resource name, or an instance of LabelColumnResource."
             )
+
         for resource in resources:
             features += resource.features()
             resource_label = resource.label()
@@ -4072,7 +4110,6 @@ class Registrar:
             label = label.name_variant()
 
         features, feature_lags = self.__get_feature_nv(features, self.__run)
-
         if label == ():
             raise ValueError("Label must be set")
         if features == []:
@@ -4179,7 +4216,7 @@ class ResourceClient:
             self._stub = ff_grpc.ApiStub(channel)
             self._host = host
 
-    def apply(self, asynchronous=True, verbose=False):
+    def apply(self, asynchronous=False, verbose=False):
         """
         Apply all definitions, creating and retrieving all specified resources.
 

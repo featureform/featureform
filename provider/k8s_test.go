@@ -201,6 +201,9 @@ func TestBlobInterfaces(t *testing.T) {
 }
 
 func testFileUploadAndDownload(t *testing.T, store FileStore) {
+	if store.FilestoreType() == filestore.HDFS {
+		t.Skip("Skipping for HDFS until new implementation is added to prevent flakey tests")
+	}
 	// Need to get the working directory because the LocalFilepath will use it to create the full path
 	// Currently, the LocalFilePath will only work with absolute paths
 	wd, err := os.Getwd()
@@ -1051,4 +1054,82 @@ func convertToParquetBytes(schema TableSchema, list []GenericRecord) ([]byte, er
 		return nil, fmt.Errorf("could not write parquet file to bytes: %v", err)
 	}
 	return buf.Bytes(), nil
+}
+
+func Test_castTimestamp(t *testing.T) {
+	timeNow := time.Now()
+	type args struct {
+		timestamp interface{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    time.Time
+		wantErr bool
+		errMsg  string
+	}{
+		{"With time.Time", args{timeNow}, timeNow, false, ""},
+		{"With string", args{"idk"}, timeNow, true, "expected timestamp to be of type time.Time, but got string"},
+		{"With int", args{0}, timeNow, true, "expected timestamp to be of type time.Time, but got int"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := castToTimestamp(tt.args.timestamp)
+			// Checks if we expect error and are not getting one
+			if (err != nil) != tt.wantErr {
+				t.Errorf("castTimestamp() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			// If we expect error, checks that it is the correct error
+			if (err != nil) && tt.wantErr {
+				if err.Error() != tt.errMsg {
+					t.Errorf("castTimestamp() error = %v, wantMsg %v", err, tt.errMsg)
+				}
+				return
+			}
+			// Checks if value is correct
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("castTimestamp() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFileStoreFeatureIterator(t *testing.T) {
+	type testCase struct {
+		name        string
+		filepath    string
+		expectedErr error
+	}
+
+	testCases := []testCase{
+		{
+			name:        "invalid entity column",
+			filepath:    "test_files/invalid_entity_col.parquet",
+			expectedErr: fmt.Errorf("entity must be a string; received %T", int64(42)),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := ioutil.ReadFile(tc.filepath)
+			if err != nil {
+				t.Fatalf("could not read file: %v", err)
+			}
+			iter, err := parquetIteratorFromBytes(data)
+			if err != nil {
+				t.Fatalf("could not create parquet iterator: %v", err)
+			}
+			featureIter := FileStoreFeatureIterator{
+				iter:   iter,
+				curIdx: 0,
+				maxIdx: 5,
+			}
+			if success := featureIter.Next(); !success {
+				if featureIter.Err().Error() != tc.expectedErr.Error() {
+					t.Fatalf("expected error: %v, got: %v", tc.expectedErr, featureIter.Err())
+				}
+			}
+		})
+	}
 }

@@ -14,7 +14,7 @@ import { makeStyles, ThemeProvider } from '@mui/styles';
 import MaterialTable, { MTableBody, MTableHeader } from 'material-table';
 import { useRouter } from 'next/router';
 import PropTypes from 'prop-types';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { PrismAsyncLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import json from 'react-syntax-highlighter/dist/cjs/languages/prism/json';
 import python from 'react-syntax-highlighter/dist/cjs/languages/prism/python';
@@ -84,12 +84,12 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: 'space-around',
   },
   border: {
-    background: 'white',
+    background: '#FFFFFF',
     border: `2px solid ${theme.palette.border.main}`,
     borderRadius: '16px',
   },
   data: {
-    background: 'white',
+    background: '#FFFFFF',
     marginTop: theme.spacing(2),
     border: `2px solid ${theme.palette.border.main}`,
     borderRadius: '16px',
@@ -233,7 +233,13 @@ export const convertInputToDate = (timestamp_string_or_mil = '') => {
   }
 };
 
-const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
+const EntityPageView = ({
+  api,
+  entity,
+  setVariant,
+  activeVariants,
+  queryVariant = '',
+}) => {
   let resources = entity.resources;
   let resourceType = Resource[resources.type];
   let type = resourceType.type;
@@ -246,14 +252,28 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
   const statsTabDisplacement = showMetrics ? 1 : 0;
   const name = resources['name'];
   const icon = resourceType.materialIcon;
+  const foundQueryVariant = resources['all-variants']?.find(
+    (vr) => vr === queryVariant
+  );
+  const [variant, setLocalVariant] = useState(
+    activeVariants[entity.resources.type][name] ||
+      foundQueryVariant ||
+      resources['default-variant']
+  );
 
-  let variant = resources['default-variant'];
-
-  if (activeVariants[entity.resources.type][name]) {
-    variant = activeVariants[entity.resources.type][name];
-  } else {
-    setVariant(entity.resources.type, name, resources['default-variant']);
-  }
+  useEffect(() => {
+    const foundQueryVariant = resources['all-variants']?.find(
+      (vr) => vr === queryVariant
+    );
+    const activeVariant = activeVariants[entity.resources.type][name];
+    if (activeVariant) {
+      setLocalVariant(activeVariant);
+    } else if (foundQueryVariant) {
+      setLocalVariant(foundQueryVariant);
+    } else {
+      setVariant(entity.resources.type, name, resources['default-variant']);
+    }
+  }, [activeVariants]);
 
   let resource;
   if (resourceType.hasVariants) {
@@ -301,8 +321,15 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
   const classes = useStyles();
   const [value, setValue] = React.useState(0);
 
-  const handleVariantChange = (event) => {
-    setVariant(type, name, event.target.value);
+  const handleVariantChange = (variantParam = '') => {
+    if (variantParam) {
+      // use replace(). do not push() into history
+      const base = Resource[type].urlPathResource(name);
+      setVariant(type, name, variantParam);
+      router.replace(`${base}?variant=${variantParam}`, null, {
+        shallow: true,
+      });
+    }
   };
 
   const handleChange = (_, newValue) => {
@@ -320,7 +347,11 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
   const linkToLineage = (nameVariant = { Name: '', Variant: '' }) => {
     if (nameVariant.Name && nameVariant.Variant) {
       setVariant('Source', nameVariant.Name, nameVariant.Variant);
-      router.push(`/sources/${nameVariant.Name}`);
+      router.push(
+        `/sources/${nameVariant.Name}?variant=${nameVariant.Variant}`
+      );
+    } else {
+      console.warn('linkToLineage() Namevariant properties are missing');
     }
   };
 
@@ -365,13 +396,16 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                   </div>
                 </div>
                 {allVariants && (
-                  <VariantControl
-                    variant={variant}
-                    variants={allVariants}
-                    handleVariantChange={handleVariantChange}
-                    type={type}
-                    name={name}
-                  />
+                  <div>
+                    <VariantControl
+                      variant={variant}
+                      variantListProp={allVariants}
+                      resources={resources}
+                      handleVariantChange={handleVariantChange}
+                      type={type}
+                      name={name}
+                    />
+                  </div>
                 )}
               </div>
             </Grid>
@@ -612,7 +646,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                       </div>
                     ) : null}
 
-                    {metadata['definition'] && (
+                    {metadata['definition'] ? (
                       <div>
                         {(() => {
                           if (
@@ -651,6 +685,7 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                         })()}
                         {(() => {
                           if (
+                            type === 'Source' &&
                             metadata['status']?.toUpperCase() !== 'FAILED' &&
                             metadata['status']?.toUpperCase() !== 'PENDING'
                           ) {
@@ -664,6 +699,25 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                           }
                         })()}
                       </div>
+                    ) : (
+                      (() => {
+                        if (
+                          type === 'Feature' &&
+                          metadata['source'] &&
+                          metadata['status']?.toUpperCase() !== 'FAILED' &&
+                          metadata['status']?.toUpperCase() !== 'PENDING'
+                        ) {
+                          return (
+                            <SourceDialog
+                              api={api}
+                              btnTxt='Feature Stats'
+                              type='Feature'
+                              sourceName={name}
+                              sourceVariant={variant}
+                            />
+                          );
+                        }
+                      })()
                     )}
                   </Grid>
 
@@ -802,20 +856,26 @@ const EntityPageView = ({ api, entity, setVariant, activeVariants }) => {
                       const resourceName = resourceEntry[0];
                       const resourceVariants = resourceEntry[1];
                       let rowData = { name: resourceName };
-                      if (resourceVariants.length === 1) {
+                      if (resourceVariants.length) {
                         rowData['variant'] = resourceVariants[0].variant;
                       } else {
-                        rowData['variant'] = '...';
+                        rowData['variant'] = '';
                       }
                       rowData['variants'] = Object.values(resourceVariants);
                       return rowData;
                     }
                   )}
-                  onRowClick={(event, rowData) =>
-                    router.push(
-                      Resource[resourceType].urlPathResource(rowData.name)
-                    )
-                  }
+                  onRowClick={(event, rowData) => {
+                    event.stopPropagation();
+                    const resource = Resource[resourceType];
+                    const base = resource.urlPathResource(rowData.name);
+                    if (resource?.hasVariants && rowData.variant) {
+                      setVariant(resource.type, rowData.name, rowData.variant);
+                      router.push(`${base}?variant=${rowData.variant}`);
+                    } else {
+                      router.push(base);
+                    }
+                  }}
                   components={{
                     Container: (props) => (
                       <div

@@ -150,13 +150,15 @@ class FileFormat(str, Enum):
         return False
 
     @classmethod
-    def get_format(cls, file_path: str) -> str:
+    def get_format(cls, file_path: str, default: str = "") -> str:
         file_name = path.basename(file_path)
 
         for file_format in cls:
             if fnmatch(file_name, f"*.{file_format.value}"):
                 return file_format.value
 
+        if default != "":
+            return default
         raise ValueError(f"File format not supported: {file_name}")
 
     @classmethod

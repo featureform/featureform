@@ -193,24 +193,34 @@ func (store *AzureFileStore) FilestoreType() filestore.FileStoreType {
 func NewAzureFileStore(config Config) (FileStore, error) {
 	azureStoreConfig := &pc.AzureFileStoreConfig{}
 	if err := azureStoreConfig.Deserialize(pc.SerializedConfig(config)); err != nil {
-		return nil, fmt.Errorf("could not deserialize azure store config: %v", err)
+		return nil, fmt.Errorf("could not deserialize store config: %v", err)
+	}
+	if azureStoreConfig.AccountName == "" {
+		return nil, fmt.Errorf("account name cannot be empty")
 	}
 	if err := os.Setenv("AZURE_STORAGE_ACCOUNT", azureStoreConfig.AccountName); err != nil {
 		return nil, fmt.Errorf("could not set storage account env: %w", err)
 	}
-
+	if azureStoreConfig.AccountKey == "" {
+		return nil, fmt.Errorf("account key cannot be empty")
+	}
 	if err := os.Setenv("AZURE_STORAGE_KEY", azureStoreConfig.AccountKey); err != nil {
 		return nil, fmt.Errorf("could not set storage key env: %w", err)
 	}
+
+	azureStoreConfig.ContainerName = strings.TrimPrefix(azureStoreConfig.ContainerName, "abfss://")
+	if strings.Contains(azureStoreConfig.ContainerName, "/") {
+		return nil, fmt.Errorf("container_name cannot contain '/'. container_name should be the name of the Azure Blobstore container only")
+	}
+
 	serviceURL := azureblob.ServiceURL(fmt.Sprintf("https://%s.blob.core.windows.net", azureStoreConfig.AccountName))
 	client, err := azureblob.NewDefaultServiceClient(serviceURL)
 	if err != nil {
-		return nil, fmt.Errorf("could not create azure client: %v", err)
+		return nil, fmt.Errorf("could not create client: %v", err)
 	}
-
 	bucket, err := azureblob.OpenBucket(context.TODO(), client, azureStoreConfig.ContainerName, nil)
 	if err != nil {
-		return nil, fmt.Errorf("could not open azure bucket: %v", err)
+		return nil, fmt.Errorf("could not open bucket: %v", err)
 	}
 	connectionString := fmt.Sprintf("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s", azureStoreConfig.AccountName, azureStoreConfig.AccountKey)
 	return &AzureFileStore{
@@ -416,6 +426,12 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 	err := GCSConfig.Deserialize(pc.SerializedConfig(config))
 	if err != nil {
 		return nil, fmt.Errorf("could not deserialize config: %v", err)
+	}
+
+	GCSConfig.BucketName = strings.TrimPrefix(GCSConfig.BucketName, "gs://")
+
+	if strings.Contains(GCSConfig.BucketName, "/") {
+		return nil, fmt.Errorf("bucket_name cannot contain '/'. bucket_name should be the name of the GCS bucket only")
 	}
 
 	serializedFile, err := json.Marshal(GCSConfig.Credentials.JSON)

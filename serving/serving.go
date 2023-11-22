@@ -234,7 +234,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	entityMap := make(map[string][]string)
 
 	for _, entity := range entities {
-		entityMap[entity.GetName()] = entity.GetValue()
+		entityMap[entity.GetName()] = entity.GetValues()
 	}
 
 	if model := req.GetModel(); model != nil {
@@ -250,7 +250,7 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 	}
 
 	return &pb.FeatureRow{
-		Values: rows,
+		ValueLists: rows,
 	}, nil
 }
 

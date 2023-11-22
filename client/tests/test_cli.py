@@ -1,5 +1,6 @@
-import pytest
 import sys
+
+import pytest
 from click.testing import CliRunner
 
 sys.path.insert(0, "client/src/")
@@ -57,7 +58,7 @@ class TestApply:
         )
         assert result.exit_code == 0
 
-    def test_hosted_version(sefl):
+    def test_hosted_version(self):
         runner = CliRunner()
         result = runner.invoke(version)
         assert result.exit_code == 0

@@ -47,7 +47,7 @@ message FeatureRow {
   // Deprecated: Use `value_lists` instead.
   repeated Value values = 1 [deprecated=true];
 
-  repeated ValueList value_lists = 2; // New field
+  repeated ValueList value_lists = 2;
 }
 
 message ValueList {
@@ -65,7 +65,7 @@ message Entity {
   // Deprecated: Use `values` instead.
   string value = 2 [deprecated=true];
 
-  repeated string values = 3; // New field for multiple values
+  repeated string values = 3;
 }
 
 message Value {

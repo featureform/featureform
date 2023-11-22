@@ -98,6 +98,14 @@ class SourceType(str, Enum):
     SQL_TRANSFORMATION = "SQL"
 
 
+class FileStore(Enum):
+    S3 = "S3"
+    HDFS = "HDFS"
+    GCS = "GCS"
+    AZURE = "AZURE"
+    MOCK = "MOCK"  # TODO: remove this once we can properly get providers. i.e. get_spark
+
+
 class FilePrefix(Enum):
     S3 = ("s3://", "s3a://")
     S3A = ("s3a://",)

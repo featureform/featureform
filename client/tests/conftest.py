@@ -213,7 +213,7 @@ def databricks_config():
     config = DatabricksCredentials(
         username="username",
         password="password",
-        cluster_id="cluster_id",
+        cluster_id="abc-123def-ghijklmn",
     )
 
     expected_config = {
@@ -221,7 +221,7 @@ def databricks_config():
         "Password": "password",
         "Host": "",
         "Token": "",
-        "Cluster": "cluster_id",
+        "Cluster": "abc-123def-ghijklmn",
     }
     return config, expected_config
 

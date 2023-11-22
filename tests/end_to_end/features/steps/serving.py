@@ -2,14 +2,30 @@ from behave import *
 import featureform as ff
 
 
+@given("The Snowflake env variables are available")
+def step_impl(context):
+    context.snowflake_username = os.getenv("SNOWFLAKE_USERNAME", "")
+    context.snowflake_password = os.getenv("SNOWFLAKE_PASSWORD", "")
+    context.snowflake_account = os.getenv("SNOWFLAKE_ACCOUNT", "")
+    context.snowflake_organization = os.getenv("SNOWFLAKE_ORG", "")
+    
+    if context.snowflake_username == "":
+       raise Exception("Snowflake uername is not set")
+    if context.snowflake_password == "":
+         raise Exception("Snowflake password is not set")
+    if context.snowflake_account == "":
+        raise Exception("Snowflake account is not set")
+    if context.snowflake_organization == "":
+        raise Exception("Snowflake organization is not set")
+
+
 @when("I register Snowflake")
 def step_impl(context):
-    context.snowflake_name = "test_snowflake"
     try:
         context.snowflake = context.featureform.register_snowflake(
-            name=context.snowflake_name,
+            name="test_snowflake",
             description="Offline store",
-            team=context.snowflake_team,
+            team="Featureform",
             username=context.snowflake_username,
             password=context.snowflake_password,
             account=context.snowflake_account,

@@ -53,7 +53,9 @@ def check_feature_type(features):
         elif isinstance(feature, FeatureColumnResource):
             checked_features.append(feature.name_variant())
         else:
-            raise ValueError(f"Invalid feature type {type(feature)}; must be a tuple, string, or FeatureColumnResource")    
+            raise ValueError(
+                f"Invalid feature type {type(feature)}; must be a tuple, string, or FeatureColumnResource"
+            )
     return checked_features
 
 
@@ -231,7 +233,7 @@ class HostedClientImpl:
             feature_values.append(parsed_value)
 
         return feature_values
-    
+
     def batch_features(self, features):
         return FeatureSetIterator(self._stub, features)
 
@@ -360,7 +362,7 @@ class LocalClientImpl:
         return self.convert_ts_df_to_dataset(
             label, training_set_df, include_label_timestamp
         )
-    
+
     def batch_features(self):
         raise NotImplementedError("batch_features is not supported in local mode")
 
@@ -899,6 +901,7 @@ class Stream:
     def restart(self):
         self._iter = self._stub.TrainingData(self._req)
 
+
 class LocalStream:
     def __init__(self, datalist, include_label_timestamp):
         self._datalist = datalist
@@ -1299,7 +1302,7 @@ def parse_proto_value(value):
 class FeatureSetIterator:
     def __init__(self, stub, features):
         req = serving_pb2.BatchFeatureServeRequest()
-        for (name, variant) in features:
+        for name, variant in features:
             feature_id = req.features.add()
             feature_id.name = name
             feature_id.version = variant
@@ -1311,7 +1314,7 @@ class FeatureSetIterator:
         return self
 
     def __next__(self):
-        return FeatureSetRow(next(self._iter)).to_numpy()
+        return FeatureSetRow(next(self._iter)).to_tuple()
 
     def restart(self):
         self._iter = self._stub.BatchFeatureServe(self._req)
@@ -1326,13 +1329,16 @@ class FeatureSetRow:
         self._row = [self._entity, self._features]
 
     def features(self):
-        return [self._row[:-1]]
+        return self._row[1]
 
     def entity(self):
         return [self._entity]
 
     def to_numpy(self):
         return self._row
+
+    def to_tuple(self):
+        return tuple((self._entity, self._features))
 
     def to_dict(self, feature_columns: List[str], entity_column: str):
         row_dict = dict(zip(feature_columns, self._features))
@@ -1341,5 +1347,7 @@ class FeatureSetRow:
 
     def __repr__(self):
         return "Features: {} , Entity: {}".format(self.features(), self.entity())
+
+
 # Create a featureset row class
 # modify restart

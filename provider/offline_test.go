@@ -4420,7 +4420,6 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 				},
 			},
 		},
-		// TODO: Add timestamps to this table
 		// 4. Multiple features with a multiple missing entities
 		"MultipleJoin": {
 			FeatureRecords: [][]ResourceRecord{
@@ -4659,7 +4658,6 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 				t.Fatalf("Failed to create materialization: %s", err)
 			}
 		}
-		// TODO: Have a list of resources, send that to the batch serving shell function
 		iter, err := store.GetBatchFeatures(featureIDs)
 		if err != nil {
 			t.Fatalf("Failed to get batch of features: %s", err)

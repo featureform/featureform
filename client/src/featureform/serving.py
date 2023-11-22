@@ -167,7 +167,8 @@ class ServingClient:
         """
         if len(features) == 0:
             raise ValueError("No features provided")
-        return self.impl.batch_features(features)
+        feature_tuples = check_feature_type(features)
+        return self.impl.batch_features(feature_tuples)
 
 
 class HostedClientImpl:
@@ -232,8 +233,7 @@ class HostedClientImpl:
         return feature_values
     
     def batch_features(self, features):
-        feature_tuples = check_feature_type(features)
-        return FeatureSetIterator(self._stub, feature_tuples)
+        return FeatureSetIterator(self._stub, features)
 
     def _get_source_as_df(self, name, variant, limit):
         columns = self._get_source_columns(name, variant)

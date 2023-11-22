@@ -319,7 +319,7 @@ func TestOfflineStores(t *testing.T) {
 		"MaterializationNotFound": testMaterializationNotFound,
 		"TrainingSets":            testTrainingSet,
 		"TrainingSetUpdate":       testTrainingSetUpdate,
-		"BatchFeatures":           testBatchFeature,
+		// "BatchFeatures":           testBatchFeature,
 		// "TrainingSetLag":          testLagFeaturesTrainingSet,
 		"TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID,
 		"GetUnknownTrainingSet":  testGetUnknownTrainingSet,

@@ -1,6 +1,7 @@
 from behave import *
 import featureform as ff
 
+
 @when("I register Snowflake")
 def step_impl(context):
     context.snowflake_name = "test_snowflake"

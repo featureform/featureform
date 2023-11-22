@@ -281,10 +281,10 @@ def run_before_and_after_tests(tmpdir):
         ("SELECT * FROM     \n {{name . variant}}", False),
         (
             """
-        SELECT *
-        FROM {{ name.variant2 }}
-        WHERE x >= 5.
-        """,
+            SELECT *
+            FROM {{ name.variant2 }}
+            WHERE x >= 5.
+            """,
             True,
         ),
         (

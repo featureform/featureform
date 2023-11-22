@@ -36,6 +36,8 @@ def sql_all_arguments():
         spark_config={},
         credential={},
         store_type=None,
+        output_format="parquet",
+        headers="include",
     )
     return (input_args, expected_args)
 
@@ -51,6 +53,8 @@ def sql_local_all_arguments():
         store_type="local",
         spark_config={},
         credential={},
+        output_format="parquet",
+        headers="include",
     )
     return expected_args
 
@@ -73,6 +77,8 @@ def sql_partial_arguments():
         spark_config={},
         credential={},
         store_type=None,
+        output_format="parquet",
+        headers="include",
     )
     return (input_args, expected_args)
 
@@ -89,6 +95,8 @@ def sql_invaild_arguments():
         spark_config={},
         credential={},
         store_type=None,
+        output_format="parquet",
+        headers="include",
     )
     return (input_args, expected_args)
 
@@ -102,6 +110,8 @@ def sql_invalid_local_arguments():
         sql_query="SELECT * FROM source_0",
         source_list=["NONE"],
         store_type=None,
+        output_format="parquet",
+        headers="include",
     )
     return expected_args
 
@@ -188,6 +198,8 @@ def sql_databricks_all_arguments():
             "fs.azure.account.key.account_name.dfs.core.windows.net": "adfjaidfasdklciadsj=="
         },
         credential={"key": "value"},
+        output_format="parquet",
+        headers="include",
     )
     return input_args, expected_args
 

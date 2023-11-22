@@ -22,7 +22,7 @@ func (m MockOfflineRegisterSourceFail) CreateResourceTable(provider.ResourceID, 
 func (m MockOfflineRegisterSourceFail) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (m MockOfflineRegisterSourceFail) CreateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+func (m MockOfflineRegisterSourceFail) CreateMaterialization(id provider.ResourceID, options ...provider.MaterializationOptions) (provider.Materialization, error) {
 	return nil, nil
 }
 func (m MockOfflineRegisterSourceFail) GetMaterialization(id provider.MaterializationID) (provider.Materialization, error) {

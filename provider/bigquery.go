@@ -1022,7 +1022,7 @@ func (store *bqOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeature
 	return nil, fmt.Errorf("batch features not implemented for this provider")
 }
 
-func (store *bqOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
+func (store *bqOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
 		return nil, errors.New("only features can be materialized")
 	}

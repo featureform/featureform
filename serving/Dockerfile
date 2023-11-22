@@ -34,9 +34,13 @@ FROM alpine
 COPY --from=0 ./app/main ./main
 COPY --from=0 ./app/provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
 COPY --from=0 ./app/provider/scripts/spark/python_packages.sh /app/provider/scripts/spark/python_packages.sh
+COPY --from=0 ./app/provider/queries/materialize_no_ts.sql /app/provider/queries/materialize_no_ts.sql
+COPY --from=0 ./app/provider/queries/materialize_ts.sql /app/provider/queries/materialize_ts.sql
 
 ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
 ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
+ENV MATERIALIZE_NO_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_no_ts.sql"
+ENV MATERIALIZE_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_ts.sql"
 
 ENV SERVING_PORT "8080"
 EXPOSE 8080

@@ -650,8 +650,7 @@ func (store *sqlOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIt
 
 	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query), nil
 }
-
-func (store *sqlOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
+func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
 		return nil, errors.New("only features can be materialized")
 	}

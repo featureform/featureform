@@ -132,7 +132,9 @@ def firesstore_config():
 
 @pytest.fixture
 def dynamodb_config():
-    return DynamodbConfig(region="abc", access_key="abc", secret_key="abc")
+    return DynamodbConfig(
+        region="abc", access_key="abc", secret_key="abc", should_import_from_s3=False
+    )
 
 
 @pytest.fixture
@@ -363,7 +365,7 @@ def registrar():
 
 
 def get_transformation_config(registrar):
-    provider_source = registrar.get_resources()[0].to_source()
+    provider_source = registrar.get_resources()[0]
     config = provider_source.definition.kwargs()["transformation"]
     return config
 

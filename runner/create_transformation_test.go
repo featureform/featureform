@@ -24,7 +24,7 @@ func (m MockOfflineCreateTransformationFail) CreateResourceTable(provider.Resour
 func (m MockOfflineCreateTransformationFail) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (m MockOfflineCreateTransformationFail) CreateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+func (m MockOfflineCreateTransformationFail) CreateMaterialization(id provider.ResourceID, options ...provider.MaterializationOptions) (provider.Materialization, error) {
 	return nil, nil
 }
 func (m MockOfflineCreateTransformationFail) GetMaterialization(id provider.MaterializationID) (provider.Materialization, error) {

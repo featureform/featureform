@@ -174,6 +174,26 @@ func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (p
 	if err != nil {
 		return nil, errors.Wrap(err, "could not fetch provider")
 	}
+	providerName := providerEntry.Name()
+
+	for id := range ids {
+		id_feature, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{ids[id].Name, ids[id].Variant})
+		if err != nil {
+			return nil, errors.Wrap(err, "could not get Feature Variant")
+		}
+		id_featureSource, err := id_feature.FetchSource(serv.Metadata, ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not fetch source")
+		}
+		id_providerEntry, err := id_featureSource.FetchProvider(serv.Metadata, ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not fetch provider")
+		}
+		if id_providerEntry.Name() != providerName {
+			return nil, errors.Wrap(err, "features have different providers")
+		}
+	}
+
 	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get provider")

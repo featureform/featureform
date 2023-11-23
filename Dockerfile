@@ -33,7 +33,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/dashboard/.next/static ./.next/st
 COPY --from=builder --chown=nextjs:nodejs /app/dashboard/out ./out
 
 # Build Go services
-FROM golang:1.18 as go-builder
+FROM golang:1.21 as go-builder
 
 RUN apt update && \
     apt install -y protobuf-compiler
@@ -74,7 +74,7 @@ RUN go build -o execs/dashboard_metadata metadata/dashboard/dashboard_metadata.g
 RUN go build -o execs/serving serving/main/main.go
 
 # Final image
-FROM golang:1.18
+FROM golang:1.21
 
 WORKDIR /app
 
@@ -87,7 +87,7 @@ RUN apt-get install -y nginx --option=Dpkg::Options::=--force-confdef
 # Install Node 16 for internal dashboard server
 RUN curl -sL https://deb.nodesource.com/setup_16.x | sh
 RUN apt-get update
-RUN apt install nodejs
+RUN apt-get install -y nodejs
 
 # Install MeiliSearch
 RUN curl -L https://install.meilisearch.com | sh

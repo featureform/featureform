@@ -3,7 +3,7 @@ Feature: Batch Serving
   @wip
   Scenario: Serving Batch Features (Snowflake)
     Given Featureform is installed
-    And The Snowflake container is running
+    And The Snowflake env variables are available
     And Redis is running
     When I register Snowflake
     And I register redis

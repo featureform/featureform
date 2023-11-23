@@ -76,6 +76,8 @@ def test_execute_sql_query(arguments, expected_output, spark, request):
         args.sql_query,
         args.spark_config,
         args.source_list,
+        args.output_format,
+        args.headers,
     )
 
     expected_df = spark.read.parquet(expected_output)

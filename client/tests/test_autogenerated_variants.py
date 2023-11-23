@@ -1,4 +1,5 @@
 import pytest
+
 from featureform.register import Registrar, ColumnMapping
 from featureform.resources import SQLTable
 
@@ -74,7 +75,8 @@ def test_register_df(set_variant):
     if set_variant:
         registrar.set_run("test")
     run = registrar.get_run()
-    registrar.df_transformation(
+
+    @registrar.df_transformation(
         name="test",
         owner="default_user",
         provider="",
@@ -82,6 +84,9 @@ def test_register_df(set_variant):
         tags=[],
         properties={},
     )
+    def some_function(x):
+        return x
+
     resource = registrar.state().sorted_list()[0]
     for input in resource.definition.inputs:
         assert input[1] == run
@@ -194,7 +199,8 @@ def test_register_df_with_variant():
     variant = "test"
     registrar = Registrar()
     run = registrar.get_run()
-    registrar.df_transformation(
+
+    @registrar.df_transformation(
         name="test",
         variant=variant,
         owner="default_user",
@@ -203,6 +209,9 @@ def test_register_df_with_variant():
         tags=[],
         properties={},
     )
+    def some_function(x):
+        return x
+
     resource = registrar.state().sorted_list()[0]
     for input in resource.definition.inputs:
         assert input[1] == run

@@ -265,7 +265,6 @@ func TestOfflineStores(t *testing.T) {
 	//}
 	if *provider == "snowflake" || *provider == "" {
 		serialSFConfig, snowflakeConfig := snowflakeInit()
-		// serialSFConfig, _ := snowflakeInit()
 		testList = append(testList, testMember{pt.SnowflakeOffline, serialSFConfig, true})
 		t.Cleanup(func() {
 			destroySnowflakeDatabase(snowflakeConfig)
@@ -327,8 +326,7 @@ func TestOfflineStores(t *testing.T) {
 		"InvalidTrainingSetDefs": testInvalidTrainingSetDefs,
 		"LabelTableNotFound":     testLabelTableNotFound,
 		"FeatureTableNotFound":   testFeatureTableNotFound,
-
-		"TrainingDefShorthand": testTrainingSetDefShorthand,
+		"TrainingDefShorthand":   testTrainingSetDefShorthand,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
 		"PrimaryTableCreate":                 testPrimaryCreateTable,
@@ -4062,116 +4060,6 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 	}
 }
 
-func TestTableSchemaToParquetRecords(t *testing.T) {
-	type TableSchemaTest struct {
-		Schema               TableSchema
-		Records              []GenericRecord
-		ExpectParquetRecords []GenericRecord
-	}
-
-	tests := map[string]TableSchemaTest{
-		"WithoutNilValues": {
-			Schema: TableSchema{
-				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "int", ValueType: Int},
-					{Name: "flt", ValueType: Float64},
-					{Name: "str", ValueType: String},
-					{Name: "bool", ValueType: Bool},
-					{Name: "ts", ValueType: Timestamp},
-				},
-			},
-			Records: []GenericRecord{
-				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
-				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
-				[]interface{}{"c", 3, 1.3, "third string", true, time.UnixMilli(0).UTC()},
-				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
-				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
-			},
-			ExpectParquetRecords: []GenericRecord{
-				[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
-				[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0).UTC()},
-				[]interface{}{"c", 3, 1.3, "third string", true, time.UnixMilli(0).UTC()},
-				[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0).UTC()},
-				[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0).UTC()},
-			},
-		},
-		"WithNilValues": {
-			Schema: TableSchema{
-				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "int", ValueType: Int},
-					{Name: "flt", ValueType: Float64},
-					{Name: "str", ValueType: String},
-					{Name: "bool", ValueType: Bool},
-					{Name: "ts", ValueType: Timestamp},
-				},
-			},
-			Records: []GenericRecord{
-				[]interface{}{nil, 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
-				[]interface{}{"b", nil, 1.2, "second string", false, time.UnixMilli(0).UTC()},
-				[]interface{}{"c", 3, nil, "third string", true, time.UnixMilli(0).UTC()},
-				[]interface{}{"d", 4, 1.4, nil, false, time.UnixMilli(0).UTC()},
-				[]interface{}{"e", 5, 1.5, "fifth string", nil, time.UnixMilli(0).UTC()},
-				[]interface{}{"f", 6, 1.6, "sixth string", false, nil},
-			},
-			ExpectParquetRecords: []GenericRecord{
-				[]interface{}{nil, 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
-				[]interface{}{"b", nil, 1.2, "second string", false, time.UnixMilli(0).UTC()},
-				[]interface{}{"c", 3, nil, "third string", true, time.UnixMilli(0).UTC()},
-				[]interface{}{"d", 4, 1.4, nil, false, time.UnixMilli(0).UTC()},
-				[]interface{}{"e", 5, 1.5, "fifth string", nil, time.UnixMilli(0).UTC()},
-				[]interface{}{"f", 6, 1.6, "sixth string", false, nil},
-			},
-		},
-	}
-
-	testSchema := func(t *testing.T, test TableSchemaTest) {
-		testFilename := fmt.Sprintf("generic_records_%s.parquet", uuid.NewString())
-		schema := parquet.SchemaOf(test.Schema.Interface())
-		parquetRecords := test.Schema.ToParquetRecords(test.Records)
-		buf := new(bytes.Buffer)
-		err := parquet.Write[any](buf, parquetRecords, schema)
-		if err != nil {
-			t.Fatalf("Could not write parquet records: %v", err)
-		}
-		err = ioutil.WriteFile(testFilename, buf.Bytes(), 0644)
-		if err != nil {
-			t.Fatalf("Could not write parquet file: %v", err)
-		}
-		data, err := ioutil.ReadFile(testFilename)
-		if err != nil {
-			t.Fatalf("Could not read parquet file: %v", err)
-		}
-		iter, err := newParquetIterator(data, -1)
-		if err != nil {
-			t.Fatalf("Could not create iterator: %v", err)
-		}
-		actualRecords := make([]GenericRecord, 0)
-		for {
-			if hasNext := iter.Next(); !hasNext {
-				if err := iter.Err(); err != nil {
-					t.Fatalf("Could not iterate: %v", err)
-				}
-				break
-			}
-			actualRecords = append(actualRecords, iter.Values())
-		}
-		if !reflect.DeepEqual(test.ExpectParquetRecords, actualRecords) {
-			t.Fatalf("Expected: %v\nGot: %v", test.ExpectParquetRecords, actualRecords)
-		}
-	}
-
-	for name, test := range tests {
-		nameConst := name
-		testConst := test
-		t.Run(nameConst, func(t *testing.T) {
-			t.Parallel()
-			testSchema(t, testConst)
-		})
-	}
-}
-
 func TestTableSchemaValue(t *testing.T) {
 	tableSchema := TableSchema{
 		Columns: []TableColumn{
@@ -4225,6 +4113,9 @@ func TestTableSchemaValue(t *testing.T) {
 }
 
 func testBatchFeature(t *testing.T, store OfflineStore) {
+	if store.Type() != pt.SnowflakeOffline && store.Type() != pt.SparkOffline {
+		t.Skip("Skipping test for non-SnowflakeOffline and non-SparkOffline providers")
+	}
 	type expectedBatchRow struct {
 		Entity   interface{}
 		Features []interface{}
@@ -4421,7 +4312,6 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 				},
 			},
 		},
-		// TODO: Add timestamps to this table
 		// 4. Multiple features with a multiple missing entities
 		"MultipleJoin": {
 			FeatureRecords: [][]ResourceRecord{
@@ -4638,310 +4528,6 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 				},
 			},
 		},
-		// // 3. Two features with TS
-		// "SimpleJoinWithTS": {
-		// 	FeatureRecords: [][]ResourceRecord{
-		// 		{
-		// 			{Entity: "a", Value: 1, TS: time.UnixMilli(1)},
-		// 			{Entity: "b", Value: 2, TS: time.UnixMilli(2)},
-		// 			{Entity: "c", Value: 3, TS: time.UnixMilli(3)},
-		// 		},
-		// 		{
-		// 			{Entity: "a", Value: false, TS: time.UnixMilli(4)},
-		// 			{Entity: "b", Value: true, TS: time.UnixMilli(5)},
-		// 			{Entity: "c", Value: true, TS: time.UnixMilli(6)},
-		// 		},
-		// 	},
-		// 	FeatureSchema: []TableSchema{
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: Int},
-		// 				{Name: "ts", ValueType: Timestamp},
-		// 			},
-		// 		},
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: Bool},
-		// 				{Name: "ts", ValueType: Timestamp},
-		// 			},
-		// 		},
-		// 	},
-		// 	ExpectedRows: []expectedBatchRow{
-		// 		{
-		// 			Entity: "a",
-		// 			Features: []interface{}{
-		// 				1,
-		// 				time.UnixMilli(1),
-		// 				false,
-		// 				time.UnixMilli(4),
-		// 			},
-		// 		},
-		// 		{
-		// 			Entity: "b",
-		// 			Features: []interface{}{
-		// 				2,
-		// 				time.UnixMilli(2),
-		// 				true,
-		// 				time.UnixMilli(5),
-		// 			},
-		// 		},
-		// 		{
-		// 			Entity: "c",
-		// 			Features: []interface{}{
-		// 				3,
-		// 				time.UnixMilli(3),
-		// 				true,
-		// 				time.UnixMilli(6),
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// // 6. Multiple tables with timestamp columns and repeated entities
-		// "TimestampJoin": {
-		// 	FeatureRecords: [][]ResourceRecord{
-		// 		{
-		// 			{Entity: "a", Value: 1, TS: time.UnixMilli(1)},
-		// 			{Entity: "b", Value: 2, TS: time.UnixMilli(2)},
-		// 			{Entity: "c", Value: 3, TS: time.UnixMilli(3)},
-		// 			{Entity: "e", Value: 5, TS: time.UnixMilli(4)},
-		// 			{Entity: "f", Value: 6, TS: time.UnixMilli(5)},
-		// 			{Entity: "e", Value: 7, TS: time.UnixMilli(6)},
-		// 		},
-		// 		{
-		// 			{Entity: "a", Value: "red", TS: time.UnixMilli(6)},
-		// 			{Entity: "b", Value: "green", TS: time.UnixMilli(5)},
-		// 			{Entity: "d", Value: "yellow", TS: time.UnixMilli(4)},
-		// 			{Entity: "e", Value: "black", TS: time.UnixMilli(3)},
-		// 			{Entity: "a", Value: "blue", TS: time.UnixMilli(2)},
-		// 			{Entity: "b", Value: "white", TS: time.UnixMilli(1)},
-		// 			{Entity: "d", Value: "orange", TS: time.UnixMilli(2)},
-		// 		},
-		// 		{
-		// 			{Entity: "b", Value: true, TS: time.UnixMilli(1)},
-		// 			{Entity: "c", Value: false, TS: time.UnixMilli(1)},
-		// 			{Entity: "d", Value: true, TS: time.UnixMilli(1)},
-		// 			{Entity: "e", Value: true, TS: time.UnixMilli(1)},
-		// 			{Entity: "b", Value: false, TS: time.UnixMilli(4)},
-		// 			{Entity: "c", Value: true, TS: time.UnixMilli(4)},
-		// 			{Entity: "d", Value: true, TS: time.UnixMilli(4)},
-		// 			{Entity: "e", Value: false, TS: time.UnixMilli(4)},
-		// 			{Entity: "b", Value: true, TS: time.UnixMilli(5)},
-		// 			{Entity: "c", Value: true, TS: time.UnixMilli(6)},
-		// 			{Entity: "d", Value: false, TS: time.UnixMilli(7)},
-		// 			{Entity: "e", Value: true, TS: time.UnixMilli(8)},
-		// 		},
-		// 		{
-		// 			{Entity: "a", Value: 343, TS: time.UnixMilli(10)},
-		// 			{Entity: "b", Value: 546, TS: time.UnixMilli(11)},
-		// 			{Entity: "c", Value: 7667, TS: time.UnixMilli(12)},
-		// 			{Entity: "d", Value: 32, TS: time.UnixMilli(13)},
-		// 			{Entity: "e", Value: 53, TS: time.UnixMilli(14)},
-		// 			{Entity: "f", Value: 64556, TS: time.UnixMilli(15)},
-		// 		},
-		// 	},
-		// 	FeatureSchema: []TableSchema{
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: Int},
-		// 				{Name: "ts", ValueType: Timestamp},
-		// 			},
-		// 		},
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: String},
-		// 				{Name: "ts", ValueType: Timestamp},
-		// 			},
-		// 		},
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: Bool},
-		// 				{Name: "ts", ValueType: Timestamp},
-		// 			},
-		// 		},
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: Int},
-		// 				{Name: "ts", ValueType: Timestamp},
-		// 			},
-		// 		},
-		// 	},
-		// 	ExpectedRows: []expectedBatchRow{
-		// 		{
-		// 			Entity: "a",
-		// 			Features: []interface{}{
-		// 				1,
-		// 				time.UnixMilli(1),
-		// 				"red",
-		// 				time.UnixMilli(6),
-		// 				nil,
-		// 				nil,
-		// 				343,
-		// 				time.UnixMilli(10),
-		// 			},
-		// 		},
-		// 		{
-		// 			Entity: "b",
-		// 			Features: []interface{}{
-		// 				2,
-		// 				time.UnixMilli(2),
-		// 				"green",
-		// 				time.UnixMilli(5),
-		// 				true,
-		// 				time.UnixMilli(5),
-		// 				546,
-		// 				time.UnixMilli(11),
-		// 			},
-		// 		},
-		// 		{
-		// 			Entity: "c",
-		// 			Features: []interface{}{
-		// 				3,
-		// 				time.UnixMilli(3),
-		// 				nil,
-		// 				nil,
-		// 				true,
-		// 				time.UnixMilli(6),
-		// 				7667,
-		// 				time.UnixMilli(12),
-		// 			},
-		// 		},
-		// 		{
-		// 			Entity: "e",
-		// 			Features: []interface{}{
-		// 				7,
-		// 				time.UnixMilli(6),
-		// 				"black",
-		// 				time.UnixMilli(3),
-		// 				true,
-		// 				time.UnixMilli(8),
-		// 				53,
-		// 				time.UnixMilli(14),
-		// 			},
-		// 		},
-		// 		{
-		// 			Entity: "d",
-		// 			Features: []interface{}{
-		// 				nil,
-		// 				nil,
-		// 				"yellow",
-		// 				time.UnixMilli(4),
-		// 				false,
-		// 				time.UnixMilli(7),
-		// 				32,
-		// 				time.UnixMilli(13),
-		// 			},
-		// 		},
-		// 		{
-		// 			Entity: "f",
-		// 			Features: []interface{}{
-		// 				6,
-		// 				time.UnixMilli(5),
-		// 				nil,
-		// 				nil,
-		// 				nil,
-		// 				nil,
-		// 				64556,
-		// 				time.UnixMilli(15),
-		// 			},
-		// 		},
-		// 	},
-		// },
-
-		// // 7. Multiple tables with some timestamp columns and repeated entities
-		// "ComplexJoin": {
-		// 	FeatureRecords: [][]GenericRecord{
-		// 		// Overwritten feature.
-		// 		{
-		// 			{"a", 1},
-		// 			{"b", 2},
-		// 			{"c", 3},
-		// 			{"a", 4},
-		// 		},
-		// 		// Feature didn't exist before label
-		// 		{
-		// 			{"a", "doesnt exist", time.UnixMilli(11)},
-		// 		},
-		// 		// Feature didn't change after label
-		// 		{
-		// 			{Entity: "c", Value: "real value first", TS: time.UnixMilli(5)},
-		// 			{Entity: "c", Value: "real value second", TS: time.UnixMilli(5)},
-		// 			{Entity: "c", Value: "overwritten", TS: time.UnixMilli(4)},
-		// 		},
-		// 		// Different feature values for different TS.
-		// 		{
-		// 			{Entity: "b", Value: "first", TS: time.UnixMilli(3)},
-		// 			{Entity: "b", Value: "second", TS: time.UnixMilli(4)},
-		// 			{Entity: "b", Value: "third", TS: time.UnixMilli(8)},
-		// 		},
-		// 		// Empty feature.
-		// 		{},
-		// 	},
-		// 	FeatureSchema: []TableSchema{
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: Int},
-		// 				{Name: "ts", ValueType: Timestamp},
-		// 			},
-		// 		},
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: String},
-		// 				{Name: "ts", ValueType: Timestamp},
-		// 			},
-		// 		},
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: String},
-		// 				{Name: "ts", ValueType: Timestamp},
-		// 			},
-		// 		},
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: String},
-		// 				{Name: "ts", ValueType: Timestamp},
-		// 			},
-		// 		},
-		// 		{
-		// 			Columns: []TableColumn{
-		// 				{Name: "entity", ValueType: String},
-		// 				{Name: "value", ValueType: String},
-		// 				{Name: "ts", ValueType: Timestamp},
-		// 			},
-		// 		},
-		// 	},
-		// 	ExpectedRows: []expectedBatchRow{
-		// 		{
-		// 			Features: []interface{}{
-		// 				4, nil, nil, nil, nil,
-		// 			},
-		// 		},
-		// 		{
-		// 			Features: []interface{}{
-		// 				2, nil, nil, "first", nil,
-		// 			},
-		// 		},
-		// 		{
-		// 			Features: []interface{}{
-		// 				2, nil, nil, "second", nil,
-		// 			},
-		// 		},
-		// 		{
-		// 			Features: []interface{}{
-		// 				3, nil, "real value second", nil, nil,
-		// 			},
-		// 		},
-		// 	},
-		// },
 	}
 	runTestCase := func(t *testing.T, test TestCase) {
 		// We have a resource ID list where each resource ID corresponds to a feature
@@ -4964,7 +4550,6 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 				t.Fatalf("Failed to create materialization: %s", err)
 			}
 		}
-		// TODO: Have a list of resources, send that to the batch serving shell function
 		iter, err := store.GetBatchFeatures(featureIDs)
 		if err != nil {
 			t.Fatalf("Failed to get batch of features: %s", err)
@@ -4973,7 +4558,6 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 		i := 0
 		expectedRows := test.ExpectedRows
 		for iter.Next() {
-			entity_feature_row := iter.Values()
 			realRow := expectedBatchRow{
 				Entity:   iter.Entity(),
 				Features: iter.Features(),
@@ -5127,57 +4711,5 @@ func TestTableSchemaToParquetRecords(t *testing.T) {
 			t.Parallel()
 			testSchema(t, testConst)
 		})
-	}
-}
-
-func TestTableSchemaValue(t *testing.T) {
-	tableSchema := TableSchema{
-		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "int", ValueType: Int},
-			{Name: "flt", ValueType: Float64},
-			{Name: "str", ValueType: String},
-			{Name: "bool", ValueType: Bool},
-			{Name: "ts", ValueType: Timestamp},
-		},
-	}
-
-	value := tableSchema.Value().Elem()
-	typ := value.Type()
-
-	if typ.Kind() != reflect.Struct {
-		t.Fatalf("Expected type to be struct, got %v", typ.Kind())
-	}
-
-	type expectedField struct {
-		Name string
-		Type reflect.Type
-		Tag  reflect.StructTag
-	}
-
-	expectedFields := []expectedField{
-		{Name: "Entity", Type: reflect.PointerTo(reflect.TypeOf("")), Tag: reflect.StructTag(`parquet:"entity,optional"`)},
-		{Name: "Int", Type: reflect.PointerTo(reflect.TypeOf(int(0))), Tag: reflect.StructTag(`parquet:"int,optional"`)},
-		{Name: "Flt", Type: reflect.PointerTo(reflect.TypeOf(float64(0))), Tag: reflect.StructTag(`parquet:"flt,optional"`)},
-		{Name: "Str", Type: reflect.PointerTo(reflect.TypeOf("")), Tag: reflect.StructTag(`parquet:"str,optional"`)},
-		{Name: "Bool", Type: reflect.PointerTo(reflect.TypeOf(false)), Tag: reflect.StructTag(`parquet:"bool,optional"`)},
-		{Name: "Ts", Type: reflect.TypeOf(time.UnixMilli(0)), Tag: reflect.StructTag(`parquet:"ts,optional,timestamp"`)},
-	}
-
-	for _, fieldName := range expectedFields {
-		field, ok := typ.FieldByName(fieldName.Name)
-		if !ok {
-			t.Fatalf("Expected field %s is missing", fieldName)
-		}
-		if field.Type != fieldName.Type {
-			t.Fatalf("Expected field %s to be type %v, got %v", fieldName.Name, fieldName.Type, field.Type)
-		}
-		if field.Tag != fieldName.Tag {
-			t.Fatalf("Expected field %s to have tag %v, got %v", fieldName.Name, fieldName.Tag, field.Tag)
-		}
-	}
-
-	if typ.NumField() != len(expectedFields) {
-		t.Fatalf("Expected %v fields, got %v", len(expectedFields), typ.NumField())
 	}
 }

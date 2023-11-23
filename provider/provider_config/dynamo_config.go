@@ -7,10 +7,11 @@ import (
 )
 
 type DynamodbConfig struct {
-	Prefix    string
-	Region    string
-	AccessKey string
-	SecretKey string
+	Prefix       string
+	Region       string
+	AccessKey    string
+	SecretKey    string
+	ImportFromS3 bool
 }
 
 func (d DynamodbConfig) Serialized() SerializedConfig {
@@ -31,8 +32,9 @@ func (d *DynamodbConfig) Deserialize(config SerializedConfig) error {
 
 func (d DynamodbConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
-		"AccessKey": true,
-		"SecretKey": true,
+		"AccessKey":    true,
+		"SecretKey":    true,
+		"ImportFromS3": true,
 	}
 }
 

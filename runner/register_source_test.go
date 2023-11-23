@@ -22,7 +22,7 @@ func (m MockOfflineRegisterSourceFail) CreateResourceTable(provider.ResourceID, 
 func (m MockOfflineRegisterSourceFail) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (m MockOfflineRegisterSourceFail) CreateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+func (m MockOfflineRegisterSourceFail) CreateMaterialization(id provider.ResourceID, options ...provider.MaterializationOptions) (provider.Materialization, error) {
 	return nil, nil
 }
 func (m MockOfflineRegisterSourceFail) GetMaterialization(id provider.MaterializationID) (provider.Materialization, error) {
@@ -33,6 +33,9 @@ func (m MockOfflineRegisterSourceFail) DeleteMaterialization(id provider.Materia
 }
 func (m MockOfflineRegisterSourceFail) CreateTrainingSet(provider.TrainingSetDef) error {
 	return nil
+}
+func (m MockOfflineRegisterSourceFail) GetBatchFeatures(tables []provider.ResourceID) (provider.BatchFeatureIterator, error) {
+	return nil, nil
 }
 func (m MockOfflineRegisterSourceFail) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
 	return nil, nil

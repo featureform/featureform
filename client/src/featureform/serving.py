@@ -52,6 +52,10 @@ def check_feature_type(features):
             checked_features.append((feature, "default"))
         elif isinstance(feature, FeatureColumnResource):
             checked_features.append(feature.name_variant())
+        else:
+            raise ValueError(
+                f"Invalid feature type {type(feature)}; must be a tuple, string, or FeatureColumnResource"
+            )
     return checked_features
 
 
@@ -147,12 +151,12 @@ class ServingClient:
         """Closes the connection to the Featureform instance."""
         self.impl.close()
 
-    def iterate_feature_set(self, *features):
+    def batch_features(self, *features):
         """
         Return an iterator that iterates over each entity and corresponding features in feats.
         **Example:**
         ```py title="definitions.py"
-        for feature_values in client.iterate_feature_set("feature1", "feature2", "feature3"):
+        for feature_values in client.batch_features("feature1", "feature2", "feature3"):
             print(feature_values)
         ```
 
@@ -165,7 +169,8 @@ class ServingClient:
         """
         if len(features) == 0:
             raise ValueError("No features provided")
-        return self.impl.iterate_feature_set(features)
+        feature_tuples = check_feature_type(features)
+        return self.impl.batch_features(feature_tuples)
 
 
 class HostedClientImpl:
@@ -228,10 +233,9 @@ class HostedClientImpl:
             feature_values.append(parsed_value)
 
         return feature_values
-    
-    def iterate_feature_set(self, features):
-        feature_tuples = check_feature_type(features)
-        return FeatureSetIterator(self._stub, feature_tuples)
+
+    def batch_features(self, features):
+        return FeatureSetIterator(self._stub, features)
 
     def _get_source_as_df(self, name, variant, limit):
         columns = self._get_source_columns(name, variant)
@@ -358,9 +362,9 @@ class LocalClientImpl:
         return self.convert_ts_df_to_dataset(
             label, training_set_df, include_label_timestamp
         )
-    
-    def iterate_feature_set(self):
-        raise NotImplementedError("iterate_feature_set is not supported in local mode")
+
+    def batch_features(self):
+        raise NotImplementedError("batch_features is not supported in local mode")
 
     def get_lag_features_sql_query(
         self, lag_features, feature_columns, entity, label, ts
@@ -897,6 +901,7 @@ class Stream:
     def restart(self):
         self._iter = self._stub.TrainingData(self._req)
 
+
 class LocalStream:
     def __init__(self, datalist, include_label_timestamp):
         self._datalist = datalist
@@ -1297,7 +1302,7 @@ def parse_proto_value(value):
 class FeatureSetIterator:
     def __init__(self, stub, features):
         req = serving_pb2.BatchFeatureServeRequest()
-        for (name, variant) in features:
+        for name, variant in features:
             feature_id = req.features.add()
             feature_id.name = name
             feature_id.version = variant
@@ -1309,7 +1314,7 @@ class FeatureSetIterator:
         return self
 
     def __next__(self):
-        return FeatureSetRow(next(self._iter)).to_numpy()
+        return FeatureSetRow(next(self._iter)).to_tuple()
 
     def restart(self):
         self._iter = self._stub.BatchFeatureServe(self._req)
@@ -1324,13 +1329,16 @@ class FeatureSetRow:
         self._row = [self._entity, self._features]
 
     def features(self):
-        return [self._row[:-1]]
+        return self._row[1]
 
     def entity(self):
         return [self._entity]
 
     def to_numpy(self):
         return self._row
+
+    def to_tuple(self):
+        return tuple((self._entity, self._features))
 
     def to_dict(self, feature_columns: List[str], entity_column: str):
         row_dict = dict(zip(feature_columns, self._features))
@@ -1339,5 +1347,7 @@ class FeatureSetRow:
 
     def __repr__(self):
         return "Features: {} , Entity: {}".format(self.features(), self.entity())
+
+
 # Create a featureset row class
 # modify restart

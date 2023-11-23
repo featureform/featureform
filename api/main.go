@@ -727,11 +727,11 @@ func (serv *OnlineServer) BatchFeatureServe(req *srv.BatchFeatureServeRequest, s
 			if err == io.EOF {
 				return nil
 			}
-			return fmt.Errorf("receive error: %w", err)
+			return fmt.Errorf("failed to fetch batch row: %w", err)
 		}
 		if err := stream.Send(row); err != nil {
 			serv.Logger.Errorw("Failed to write to stream", "Error", err)
-			return fmt.Errorf("batch feature send row: %w", err)
+			return fmt.Errorf("failed to send batch row: %w", err)
 		}
 	}
 

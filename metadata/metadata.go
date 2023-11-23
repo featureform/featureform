@@ -755,7 +755,11 @@ func (resource *featureVariantResource) ToResourceVariantProto() *pb.ResourceVar
 }
 
 func (resource *featureVariantResource) GetDefinition() string {
-	return resource.serialized.GetDefinition()
+	def := ""
+	if resource.serialized.Type == "ondemand_feature" {
+		def = resource.serialized.GetAdditionalParameters().GetOndemand().GetDefinition()
+	}
+	return def
 }
 
 type labelResource struct {

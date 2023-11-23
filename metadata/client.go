@@ -1495,7 +1495,11 @@ func (variant *FeatureVariant) Location() interface{} {
 }
 
 func (variant *FeatureVariant) Definition() string {
-	return variant.serialized.GetDefinition()
+	def := ""
+	if variant.IsOnDemand() {
+		def = variant.serialized.GetAdditionalParameters().GetOndemand().GetDefinition()
+	}
+	return def
 }
 
 func (variant *FeatureVariant) isTable() bool {

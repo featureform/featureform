@@ -200,7 +200,21 @@ message FeatureVariant {
     ComputationMode mode = 18;
     bool is_embedding = 19;
     int32 dimension = 20;
-    string definition = 21;
+    FeatureParameters additional_parameters = 21;
+}
+
+message FeatureParameters {
+    oneof featuretype {
+        PrecomputedFeatureParameters precomputed = 1;
+        OndemandFeatureParameters ondemand = 2;
+    }
+}
+
+message PrecomputedFeatureParameters {
+}
+
+message OndemandFeatureParameters {
+    string definition = 1;
 }
 
 message FeatureLag {

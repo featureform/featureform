@@ -62,6 +62,7 @@ from .resources import (
     ResourceStatus,
     K8sArgs,
     AWSCredentials,
+    OndemandFeatureParameters,
     GCPCredentials,
     HDFSConfig,
     K8sResourceSpecs,
@@ -3740,6 +3741,7 @@ class Registrar:
             tags=tags or [],
             properties=properties or {},
         )
+
         self.__resources.append(decorator)
 
         if fn is None:
@@ -3925,6 +3927,7 @@ class Registrar:
             desc = feature.get("description", "")
             feature_tags = feature.get("tags", [])
             feature_properties = feature.get("properties", {})
+            additional_Parameters = self._get_additional_parameters(ondemand_feature)
             resource = FeatureVariant(
                 created=None,
                 name=feature["name"],
@@ -3945,7 +3948,7 @@ class Registrar:
                 ),
                 tags=feature_tags,
                 properties=feature_properties,
-                definition=feature.get("definition", ""),
+                additional_parameters=additional_Parameters,
             )
             self.__resources.append(resource)
             feature_resources.append(resource)
@@ -3985,6 +3988,9 @@ class Registrar:
             self.__resources.append(resource)
             label_resources.append(resource)
         return ResourceRegistrar(self, features, labels)
+
+    def _get_additional_parameters(self, feature):
+        return OndemandFeatureParameters(definition="() => REGISTER")
 
     def __get_feature_nv(self, features, run):
         feature_nv_list = []
@@ -4253,7 +4259,6 @@ class ResourceClient:
             if not asynchronous and self._stub:
                 resources = resource_state.sorted_list()
                 display_statuses(self._stub, resources, verbose=verbose)
-
         finally:
             clear_state()
             register_local()

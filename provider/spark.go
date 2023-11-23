@@ -685,7 +685,7 @@ func (store *SparkOfflineStore) AsOfflineStore() (OfflineStore, error) {
 
 func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIterator, error) {
 	if len(ids) == 0 {
-		return &FileStoreBatchServing{store: store.Store, iter: nil}, nil
+		return &FileStoreBatchServing{store: store.Store, iter: nil}, fmt.Errorf("no features provided")
 	}
 	// Convert all IDs to materialization IDs
 	materializationIDs := make([]ResourceID, len(ids))

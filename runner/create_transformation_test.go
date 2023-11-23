@@ -40,10 +40,6 @@ func (m MockOfflineCreateTransformationFail) GetTrainingSet(id provider.Resource
 	return nil, nil
 }
 
-func (m MockOfflineCreateTransformationFail) GetBatchFeatures(tables []provider.ResourceID) (provider.BatchFeatureIterator, error) {
-	return nil, nil
-}
-
 func (m MockOfflineCreateTransformationFail) CreatePrimaryTable(id provider.ResourceID, schema provider.TableSchema) (provider.PrimaryTable, error) {
 	return nil, nil
 }

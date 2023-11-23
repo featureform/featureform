@@ -32,10 +32,6 @@ type row struct {
 	serialized *pb.TrainingDataRow
 }
 
-type batchRow struct {
-	serialized *pb.BatchFeatureRow
-}
-
 type sourceRow struct {
 	serialized *pb.SourceDataRow
 }
@@ -43,12 +39,6 @@ type sourceRow struct {
 func emptyRow() *row {
 	return &row{
 		serialized: &pb.TrainingDataRow{},
-	}
-}
-
-func emptyBatchRow() *batchRow {
-	return &batchRow{
-		serialized: &pb.BatchFeatureRow{},
 	}
 }
 
@@ -60,14 +50,6 @@ func emptySourceRow() *sourceRow {
 
 func serializedRow(features []interface{}, label interface{}) (*pb.TrainingDataRow, error) {
 	r, err := newRow(features, label)
-	if err != nil {
-		return nil, err
-	}
-	return r.Serialized(), nil
-}
-
-func serializedBatchRow(entity interface{}, features []interface{}) (*pb.BatchFeatureRow, error) {
-	r, err := newBatchRow(entity, features)
 	if err != nil {
 		return nil, err
 	}
@@ -90,19 +72,6 @@ func newRow(features []interface{}, label interface{}) (*row, error) {
 		}
 	}
 	if err := r.SetLabel(label); err != nil {
-		return nil, err
-	}
-	return r, nil
-}
-
-func newBatchRow(entity interface{}, features []interface{}) (*batchRow, error) {
-	r := emptyBatchRow()
-	for _, f := range features {
-		if err := r.AddFeature(f); err != nil {
-			return nil, err
-		}
-	}
-	if err := r.SetEntity(entity); err != nil {
 		return nil, err
 	}
 	return r, nil
@@ -150,28 +119,6 @@ func (r *sourceRow) AddValue(row interface{}) error {
 		return fmt.Errorf("add row: %w", err)
 	}
 	r.serialized.Rows = append(r.serialized.Rows, value)
-	return nil
-}
-
-func (row *batchRow) Serialized() *pb.BatchFeatureRow {
-	return row.serialized
-}
-
-func (row *batchRow) SetEntity(entity interface{}) error {
-	value, err := wrapValue(entity)
-	if err != nil {
-		return fmt.Errorf("set entity: %w", err)
-	}
-	row.serialized.Entity = value
-	return nil
-}
-
-func (row *batchRow) AddFeature(feature interface{}) error {
-	value, err := wrapValue(feature)
-	if err != nil {
-		return fmt.Errorf("add feature: %w", err)
-	}
-	row.serialized.Features = append(row.serialized.Features, value)
 	return nil
 }
 

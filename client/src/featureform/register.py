@@ -164,7 +164,7 @@ class OfflineSQLProvider(OfflineProvider):
         return self.__registrar.register_primary_data(
             name=name,
             variant=variant,
-            location=SQLTable('"{}"'.format(table)),
+            location=SQLTable(table),
             owner=owner,
             provider=self.name(),
             description=description,

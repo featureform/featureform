@@ -34,9 +34,6 @@ func (m MockOfflineRegisterSourceFail) DeleteMaterialization(id provider.Materia
 func (m MockOfflineRegisterSourceFail) CreateTrainingSet(provider.TrainingSetDef) error {
 	return nil
 }
-func (m MockOfflineRegisterSourceFail) GetBatchFeatures(tables []provider.ResourceID) (provider.BatchFeatureIterator, error) {
-	return nil, nil
-}
 func (m MockOfflineRegisterSourceFail) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
 	return nil, nil
 }

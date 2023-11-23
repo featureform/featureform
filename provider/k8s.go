@@ -106,10 +106,6 @@ func (k8s *K8sOfflineStore) Close() error {
 	return k8s.store.Close()
 }
 
-func (k8s K8sOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
-	return nil, fmt.Errorf("batch features not implemented for this provider")
-}
-
 type Config []byte
 
 type ExecutorFactory func(config Config, logger *zap.SugaredLogger) (Executor, error)

@@ -17,6 +17,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/credentials"
 
+	"github.com/featureform/filestore"
 	"github.com/featureform/logging"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -35,7 +36,6 @@ import (
 	re "github.com/avast/retry-go/v4"
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
 	"github.com/featureform/config"
-	filestore "github.com/featureform/filestore"
 	"github.com/featureform/helpers/compression"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -407,7 +407,6 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 		return fmt.Errorf("could not create local init script path: %v", err)
 	}
 	pythonRemoteInitScriptPath := config.GetPythonRemoteInitPath()
-
 	err = readAndUploadFile(sparkLocalScriptPath, sparkRemoteScriptPath, store)
 	if err != nil {
 		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath.Key(), sparkRemoteScriptPath.ToURI(), err)
@@ -492,6 +491,7 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 	if err != nil {
 		return fmt.Errorf("could not get python file path: %v", err)
 	}
+
 	pythonTask := jobs.SparkPythonTask{
 		PythonFile: pythonFilepath.ToURI(),
 		Parameters: args,
@@ -667,10 +667,6 @@ type SparkOfflineStore struct {
 
 func (store *SparkOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
-}
-
-func (store *SparkOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
-	return nil, fmt.Errorf("batch features not implemented for this provider")
 }
 
 func (store *SparkOfflineStore) Close() error {
@@ -1782,7 +1778,6 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	if err != nil {
 		return nil, fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)
 	}
-
 	var sourceURIs []string
 	if sourcePath.IsDir() {
 		err = sourcePath.ParseDirPath(sparkResourceTable.schema.SourceTable)
@@ -1836,7 +1831,6 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	} else {
 		spark.Logger.Debugw("Creating materialization", "id", id)
 	}
-
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Spark submit job failed to run", "error", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)

@@ -267,7 +267,6 @@ type OfflineStore interface {
 	GetPrimaryTable(id ResourceID) (PrimaryTable, error)
 	CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error)
 	GetResourceTable(id ResourceID) (OfflineTable, error)
-	GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error)
 	CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error)
 	GetMaterialization(id MaterializationID) (Materialization, error)
 	UpdateMaterialization(id ResourceID) (Materialization, error)
@@ -305,15 +304,6 @@ type Materialization interface {
 type FeatureIterator interface {
 	Next() bool
 	Value() ResourceRecord
-	Err() error
-	Close() error
-}
-
-type BatchFeatureIterator interface {
-	Next() bool
-	Entity() interface{}
-	Features() GenericRecord
-	Columns() []string
 	Err() error
 	Close() error
 }
@@ -357,9 +347,6 @@ type GenericResourceRecord[T any] struct {
 
 type GenericRecord []interface{}
 
-// Will try using GenericRecord first, if it doesnt work, will move onto BatchRecord
-// type BatchRecord []interface{}
-
 func (rec ResourceRecord) check() error {
 	if rec.Entity == "" {
 		return errors.New("ResourceRecord must have Entity set")
@@ -373,7 +360,6 @@ func (rec *ResourceRecord) SetEntity(entity interface{}) error {
 		rec.Entity = typedEntity
 	default:
 		return fmt.Errorf("entity must be a string; received %T", entity)
-
 	}
 	return nil
 }
@@ -656,9 +642,6 @@ func (recs materializedRecords) Swap(i, j int) {
 	recs[i], recs[j] = recs[j], recs[i]
 }
 
-func (store *memoryOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
-	return nil, nil
-}
 func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
 		return nil, errors.New("only features can be materialized")
@@ -675,7 +658,6 @@ func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, options ..
 		return true
 	})
 	sort.Sort(matData)
-	// Might be used for testing
 	matId := MaterializationID(uuid.NewString())
 	mat := &memoryMaterialization{
 		id:   matId,

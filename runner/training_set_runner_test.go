@@ -40,9 +40,6 @@ func (m MockOfflineCreateTrainingSetFail) CreateTrainingSet(provider.TrainingSet
 func (m MockOfflineCreateTrainingSetFail) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
 	return nil, nil
 }
-func (m MockOfflineCreateTrainingSetFail) GetBatchFeatures(ids []provider.ResourceID) (provider.BatchFeatureIterator, error) {
-	return nil, nil
-}
 func (m MockOfflineCreateTrainingSetFail) UpdateTrainingSet(provider.TrainingSetDef) error {
 	return nil
 }

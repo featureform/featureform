@@ -2297,7 +2297,7 @@ class DatabricksCredentials:
 
         if not self._validate_cluster_id():
             raise ValueError(
-                f"Invalid cluster_id: expected id in the format 'xxx-xxxxxx-xxxxxxxx' but received '{self.cluster_id}'"
+                f"Invalid cluster_id: expected id in the format 'xxxx-xxxxxx-xxxxxxxx' but received '{self.cluster_id}'"
             )
 
         if self.host and not self._validate_token():
@@ -2306,11 +2306,11 @@ class DatabricksCredentials:
             )
 
     def _validate_cluster_id(self):
-        cluster_id_regex = r"^\w{3}-\w{6}-\w{8}$"
+        cluster_id_regex = r"^\w{4}-\w{6}-\w{8}$"
         return re.match(cluster_id_regex, self.cluster_id)
 
     def _validate_token(self):
-        token_regex = r"^dapi[a-zA-Z0-9]{31}-[a-zA-Z0-9]"
+        token_regex = r"^dapi[a-zA-Z0-9]{32}-[a-zA-Z0-9]"
         return re.match(token_regex, self.token)
 
     def type(self):

@@ -1,5 +1,6 @@
 import argparse
 import base64
+from enum import Enum
 import io
 import json
 import os
@@ -27,6 +28,17 @@ from pyspark.sql.types import (
 from pyspark.sql.functions import when, col, asc
 
 FILESTORES = ["local", "s3", "azure_blob_store", "google_cloud_storage", "hdfs"]
+
+
+class OutputFormat(str, Enum):
+    CSV = "csv"
+    PARQUET = "parquet"
+
+
+class Headers(str, Enum):
+    INCLUDE = "include"
+    EXCLUDE = "exclude"
+
 
 if os.getenv("FEATUREFORM_LOCAL_MODE"):
     real_path = os.path.realpath(__file__)
@@ -248,6 +260,8 @@ def main(args):
                 args.sql_query,
                 args.spark_config,
                 args.source_list,
+                args.output_format,
+                args.headers,
             )
         elif args.transformation_type == "df":
             output_location = execute_df_job(
@@ -272,7 +286,9 @@ def main(args):
     return output_location
 
 
-def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_list):
+def execute_sql_query(
+    job_type, output_uri, sql_query, spark_configs, source_list, output_format, headers
+):
     # Executes the SQL Queries:
     # Parameters:
     #     job_type: string ("Transformation", "Materialization", "Training Set")
@@ -329,9 +345,26 @@ def execute_sql_query(job_type, output_uri, sql_query, spark_configs, source_lis
         # remove the '/' at the end of output_uri in order to avoid double slashes in the output file path.
         output_uri_with_timestamp = f"{output_uri.rstrip('/')}/{safe_datetime}"
 
-        output_dataframe.write.option("header", "true").mode("overwrite").parquet(
-            output_uri_with_timestamp
-        )
+        if output_format == OutputFormat.PARQUET:
+            if headers == Headers.EXCLUDE:
+                raise Exception(
+                    f"the output format '{output_format}' does not support excluding headers. Supported types: 'csv'"
+                )
+            output_dataframe.write.option("header", "true").mode("overwrite").parquet(
+                output_uri_with_timestamp
+            )
+        elif output_format == OutputFormat.CSV:
+            if headers == Headers.EXCLUDE:
+                output_dataframe.write.mode("overwrite").csv(output_uri_with_timestamp)
+            else:
+                output_dataframe.write.option("header", "true").mode("overwrite").csv(
+                    output_uri_with_timestamp
+                )
+        else:
+            raise Exception(
+                f"the output format '{output_format}' is not supported. Supported types: 'parquet', 'csv'"
+            )
+
         try:
             stats_directory = f"{output_uri.rstrip('/')}/stats"
             stats_df = display_data_metrics(output_dataframe, spark)
@@ -661,6 +694,18 @@ def parse_args(args=None):
         action="append",
         default=[],
         help="any credentials that would be need to used",
+    )
+    sql_parser.add_argument(
+        "--output_format",
+        default=OutputFormat.PARQUET,
+        choices=[OutputFormat.PARQUET, OutputFormat.CSV],
+        help="output file format",
+    )
+    sql_parser.add_argument(
+        "--headers",
+        default=Headers.INCLUDE,
+        choices=[Headers.INCLUDE, Headers.EXCLUDE],
+        help="include/exclude headers in the output file",
     )
 
     df_parser = subparser.add_parser("df")

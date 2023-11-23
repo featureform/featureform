@@ -15,6 +15,7 @@ service Feature {
   rpc SourceData(SourceDataRequest) returns (stream SourceDataRow) {}
   rpc SourceColumns(SourceColumnRequest) returns (SourceDataColumns) {}
   rpc Nearest(NearestRequest) returns (NearestResponse) {}
+  rpc BatchFeatureServe(BatchFeatureServeRequest) returns (stream BatchFeatureRow) {}
   rpc ResourceLocation(TrainingDataRequest) returns (ResourceFileLocation) {}
 }
 
@@ -52,6 +53,15 @@ message FeatureRow {
 
 message ValueList {
   repeated Value values = 1;
+}
+
+message BatchFeatureServeRequest {
+    repeated FeatureID features = 1;
+}
+
+message BatchFeatureRow {
+    Value entity = 1;
+    repeated Value features = 2;
 }
 
 message FeatureID {

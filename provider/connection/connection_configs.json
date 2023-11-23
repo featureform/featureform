@@ -73,7 +73,8 @@
   "DynamodbConfig": {
     "Region": "region",
     "AccessKey": "access_key",
-    "SecretKey": "secret_key"
+    "SecretKey": "secret_key",
+    "ImportFromS3": false
   },
   "MongoDBConfig": {
     "Username": "username",

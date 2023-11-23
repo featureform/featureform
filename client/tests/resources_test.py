@@ -132,7 +132,9 @@ def firesstore_config():
 
 @pytest.fixture
 def dynamodb_config():
-    return DynamodbConfig(region="abc", access_key="abc", secret_key="abc")
+    return DynamodbConfig(
+        region="abc", access_key="abc", secret_key="abc", should_import_from_s3=False
+    )
 
 
 @pytest.fixture

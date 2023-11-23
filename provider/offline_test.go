@@ -319,14 +319,14 @@ func TestOfflineStores(t *testing.T) {
 		"MaterializationNotFound": testMaterializationNotFound,
 		"TrainingSets":            testTrainingSet,
 		"TrainingSetUpdate":       testTrainingSetUpdate,
-		// "TrainingSetLag": testLagFeaturesTrainingSet,
+		"BatchFeatures":           testBatchFeature,
+		// "TrainingSetLag":          testLagFeaturesTrainingSet,
 		"TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID,
 		"GetUnknownTrainingSet":  testGetUnknownTrainingSet,
 		"InvalidTrainingSetDefs": testInvalidTrainingSetDefs,
 		"LabelTableNotFound":     testLabelTableNotFound,
 		"FeatureTableNotFound":   testFeatureTableNotFound,
-
-		"TrainingDefShorthand": testTrainingSetDefShorthand,
+		"TrainingDefShorthand":   testTrainingSetDefShorthand,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
 		"PrimaryTableCreate":                 testPrimaryCreateTable,
@@ -4060,6 +4060,550 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 	}
 }
 
+func TestTableSchemaValue(t *testing.T) {
+	tableSchema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "int", ValueType: Int},
+			{Name: "flt", ValueType: Float64},
+			{Name: "str", ValueType: String},
+			{Name: "bool", ValueType: Bool},
+			{Name: "ts", ValueType: Timestamp},
+		},
+	}
+
+	value := tableSchema.Value().Elem()
+	typ := value.Type()
+
+	if typ.Kind() != reflect.Struct {
+		t.Fatalf("Expected type to be struct, got %v", typ.Kind())
+	}
+
+	type expectedField struct {
+		Name string
+		Type reflect.Type
+		Tag  reflect.StructTag
+	}
+
+	expectedFields := []expectedField{
+		{Name: "Entity", Type: reflect.PointerTo(reflect.TypeOf("")), Tag: reflect.StructTag(`parquet:"entity,optional"`)},
+		{Name: "Int", Type: reflect.PointerTo(reflect.TypeOf(int(0))), Tag: reflect.StructTag(`parquet:"int,optional"`)},
+		{Name: "Flt", Type: reflect.PointerTo(reflect.TypeOf(float64(0))), Tag: reflect.StructTag(`parquet:"flt,optional"`)},
+		{Name: "Str", Type: reflect.PointerTo(reflect.TypeOf("")), Tag: reflect.StructTag(`parquet:"str,optional"`)},
+		{Name: "Bool", Type: reflect.PointerTo(reflect.TypeOf(false)), Tag: reflect.StructTag(`parquet:"bool,optional"`)},
+		{Name: "Ts", Type: reflect.TypeOf(time.UnixMilli(0)), Tag: reflect.StructTag(`parquet:"ts,optional,timestamp"`)},
+	}
+
+	for _, fieldName := range expectedFields {
+		field, ok := typ.FieldByName(fieldName.Name)
+		if !ok {
+			t.Fatalf("Expected field %s is missing", fieldName)
+		}
+		if field.Type != fieldName.Type {
+			t.Fatalf("Expected field %s to be type %v, got %v", fieldName.Name, fieldName.Type, field.Type)
+		}
+		if field.Tag != fieldName.Tag {
+			t.Fatalf("Expected field %s to have tag %v, got %v", fieldName.Name, fieldName.Tag, field.Tag)
+		}
+	}
+
+	if typ.NumField() != len(expectedFields) {
+		t.Fatalf("Expected %v fields, got %v", len(expectedFields), typ.NumField())
+	}
+}
+
+func testBatchFeature(t *testing.T, store OfflineStore) {
+	if store.Type() != pt.SnowflakeOffline && store.Type() != pt.SparkOffline {
+		t.Skip("Skipping test for non-SnowflakeOffline and non-SparkOffline providers")
+	}
+	type expectedBatchRow struct {
+		Entity   interface{}
+		Features []interface{}
+	}
+	type TestCase struct {
+		FeatureRecords [][]ResourceRecord
+		ExpectedRows   []expectedBatchRow
+		FeatureSchema  []TableSchema
+	}
+
+	tests := map[string]TestCase{
+		// 1. An empty feature -> just returns an empty iterator
+		"Empty": {
+			FeatureRecords: [][]ResourceRecord{
+				{},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+			},
+			// No rows expected
+			ExpectedRows: []expectedBatchRow{},
+		},
+		// 2. A single feature -> you write a list of features, we just return that same list
+		"SingleFeature": {
+			FeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "a", Value: 1, TS: time.UnixMilli(1)},
+					{Entity: "b", Value: 2, TS: time.UnixMilli(1)},
+					{Entity: "c", Value: 3, TS: time.UnixMilli(1)},
+				},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+						{Name: "ts", ValueType: Timestamp},
+					},
+				},
+			},
+			ExpectedRows: []expectedBatchRow{
+				{
+					Entity: "a",
+					Features: []interface{}{
+						1,
+					},
+				},
+				{
+					Entity: "b",
+					Features: []interface{}{
+						2,
+					},
+				},
+				{
+					Entity: "c",
+					Features: []interface{}{
+						3,
+					},
+				},
+			},
+		},
+
+		// 3. Two features
+		"SimpleJoin": {
+			FeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "a", Value: 1},
+					{Entity: "b", Value: 2},
+					{Entity: "c", Value: 3},
+				},
+				{
+					{Entity: "a", Value: false},
+					{Entity: "b", Value: true},
+					{Entity: "c", Value: true},
+				},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Bool},
+					},
+				},
+			},
+			ExpectedRows: []expectedBatchRow{
+				{
+					Entity: "a",
+					Features: []interface{}{
+						1,
+						false,
+					},
+				},
+				{
+					Entity: "b",
+					Features: []interface{}{
+						2,
+						true,
+					},
+				},
+				{
+					Entity: "c",
+					Features: []interface{}{
+						3,
+						true,
+					},
+				},
+			},
+		},
+
+		// 4. Three features with a missing entity
+		"TripleJoin": {
+			FeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "a", Value: 1},
+					{Entity: "b", Value: 2},
+					{Entity: "c", Value: 3},
+				},
+				{
+					{Entity: "a", Value: "red"},
+					{Entity: "b", Value: "green"},
+					{Entity: "c", Value: "blue"},
+					{Entity: "d", Value: "yellow"},
+				},
+				{
+					{Entity: "a", Value: false},
+					{Entity: "b", Value: true},
+					{Entity: "c", Value: true},
+				},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Bool},
+					},
+				},
+			},
+			ExpectedRows: []expectedBatchRow{
+				{
+					Entity: "a",
+					Features: []interface{}{
+						1,
+						"red",
+						false,
+					},
+				},
+				{
+					Entity: "b",
+					Features: []interface{}{
+						2,
+						"green",
+						true,
+					},
+				},
+				{
+					Entity: "c",
+					Features: []interface{}{
+						3,
+						"blue",
+						true,
+					},
+				},
+				{
+					Entity: "d",
+					Features: []interface{}{
+						nil,
+						"yellow",
+						nil,
+					},
+				},
+			},
+		},
+		// 4. Multiple features with a multiple missing entities
+		"MultipleJoin": {
+			FeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "a", Value: 1},
+					{Entity: "b", Value: 2},
+					{Entity: "c", Value: 3},
+					{Entity: "e", Value: 5},
+				},
+				{
+					{Entity: "a", Value: "red"},
+					{Entity: "b", Value: "green"},
+					{Entity: "d", Value: "yellow"},
+					{Entity: "e", Value: "black"},
+				},
+				{
+					{Entity: "b", Value: true},
+					{Entity: "c", Value: true},
+					{Entity: "d", Value: false},
+					{Entity: "e", Value: true},
+				},
+				{
+					{Entity: "a", Value: 343},
+					{Entity: "b", Value: 546},
+					{Entity: "c", Value: 7667},
+					{Entity: "d", Value: 32},
+				},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Bool},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+					},
+				},
+			},
+			ExpectedRows: []expectedBatchRow{
+				{
+					Entity: "a",
+					Features: []interface{}{
+						1,
+						"red",
+						nil,
+						343,
+					},
+				},
+				{
+					Entity: "b",
+					Features: []interface{}{
+						2,
+						"green",
+						true,
+						546,
+					},
+				},
+				{
+					Entity: "c",
+					Features: []interface{}{
+						3,
+						nil,
+						true,
+						7667,
+					},
+				},
+				{
+					Entity: "e",
+					Features: []interface{}{
+						5,
+						"black",
+						true,
+						nil,
+					},
+				},
+				{
+					Entity: "d",
+					Features: []interface{}{
+						nil,
+						"yellow",
+						false,
+						32,
+					},
+				},
+			},
+		},
+		// 5. Multiple tables of different sizes
+		"VariableJoin": {
+			FeatureRecords: [][]ResourceRecord{
+				{
+					{Entity: "a", Value: 1},
+					{Entity: "b", Value: 2},
+					{Entity: "c", Value: 3},
+					{Entity: "e", Value: 5},
+					{Entity: "f", Value: 6},
+				},
+				{
+					{Entity: "a", Value: "red"},
+					{Entity: "b", Value: "green"},
+					{Entity: "d", Value: "yellow"},
+					{Entity: "e", Value: "black"},
+				},
+				{
+					{Entity: "b", Value: true},
+					{Entity: "c", Value: true},
+					{Entity: "d", Value: false},
+					{Entity: "e", Value: true},
+				},
+				{
+					{Entity: "a", Value: 343},
+					{Entity: "b", Value: 546},
+					{Entity: "c", Value: 7667},
+					{Entity: "d", Value: 32},
+					{Entity: "e", Value: 53},
+					{Entity: "f", Value: 64556},
+				},
+			},
+			FeatureSchema: []TableSchema{
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: String},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Bool},
+					},
+				},
+				{
+					Columns: []TableColumn{
+						{Name: "entity", ValueType: String},
+						{Name: "value", ValueType: Int},
+					},
+				},
+			},
+			ExpectedRows: []expectedBatchRow{
+				{
+					Entity: "a",
+					Features: []interface{}{
+						1,
+						"red",
+						nil,
+						343,
+					},
+				},
+				{
+					Entity: "b",
+					Features: []interface{}{
+						2,
+						"green",
+						true,
+						546,
+					},
+				},
+				{
+					Entity: "c",
+					Features: []interface{}{
+						3,
+						nil,
+						true,
+						7667,
+					},
+				},
+				{
+					Entity: "e",
+					Features: []interface{}{
+						5,
+						"black",
+						true,
+						53,
+					},
+				},
+				{
+					Entity: "d",
+					Features: []interface{}{
+						nil,
+						"yellow",
+						false,
+						32,
+					},
+				},
+				{
+					Entity: "f",
+					Features: []interface{}{
+						6,
+						nil,
+						nil,
+						64556,
+					},
+				},
+			},
+		},
+	}
+	runTestCase := func(t *testing.T, test TestCase) {
+		// We have a resource ID list where each resource ID corresponds to a feature
+		featureIDs := make([]ResourceID, len(test.FeatureRecords))
+
+		for i, recs := range test.FeatureRecords {
+			id := randomID(Feature)
+			featureIDs[i] = id
+			// Making a table storing the corresponding Resource IDs and the feature (schema)
+			// Create a Resource Table
+			table, err := store.CreateResourceTable(id, test.FeatureSchema[i])
+			if err != nil {
+				t.Fatalf("Failed to create table: %s", err)
+			}
+			if err := table.WriteBatch(recs); err != nil {
+				t.Fatalf("Failed to write batch: %v", err)
+			}
+			_, err = store.CreateMaterialization(id)
+			if err != nil {
+				t.Fatalf("Failed to create materialization: %s", err)
+			}
+		}
+		iter, err := store.GetBatchFeatures(featureIDs)
+		if err != nil {
+			t.Fatalf("Failed to get batch of features: %s", err)
+		}
+
+		i := 0
+		expectedRows := test.ExpectedRows
+		for iter.Next() {
+			realRow := expectedBatchRow{
+				Entity:   iter.Entity(),
+				Features: iter.Features(),
+			}
+			// Row order isn't guaranteed, we make sure one row is equivalent
+			// then we delete that row. This is inefficient, but these test
+			// cases should all be small enough not to matter.
+			found := false
+			for i, expRow := range expectedRows {
+				if reflect.DeepEqual(realRow, expRow) {
+					found = true
+					lastIdx := len(expectedRows) - 1
+					// Swap the record that we've found to the end, then shrink the slice to not include it.
+					// This is essentially a delete operation expect that it re-orders the slice.
+					expectedRows[i], expectedRows[lastIdx] = expectedRows[lastIdx], expectedRows[i]
+					expectedRows = expectedRows[:lastIdx]
+					break
+				}
+			}
+			if !found {
+				for i, v := range realRow.Features {
+					fmt.Printf("Got %T Expected %T\n", v, expectedRows[0].Features[i])
+				}
+				t.Fatalf("Unexpected training row: %v, expected %v", realRow, expectedRows)
+			}
+			i++
+		}
+		if err := iter.Err(); err != nil {
+			t.Fatalf("Failed to iterate training set: %s", err)
+		}
+		if len(test.ExpectedRows) != i {
+			t.Fatalf("Training set has different number of rows %d %d", len(test.ExpectedRows), i)
+		}
+	}
+	for name, test := range tests {
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			if store.Type() != pt.MemoryOffline {
+				t.Parallel()
+			}
+			runTestCase(t, testConst)
+		})
+	}
+}
+
 func TestTableSchemaToParquetRecords(t *testing.T) {
 	type TableSchemaTest struct {
 		Schema               TableSchema
@@ -4167,57 +4711,5 @@ func TestTableSchemaToParquetRecords(t *testing.T) {
 			t.Parallel()
 			testSchema(t, testConst)
 		})
-	}
-}
-
-func TestTableSchemaValue(t *testing.T) {
-	tableSchema := TableSchema{
-		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "int", ValueType: Int},
-			{Name: "flt", ValueType: Float64},
-			{Name: "str", ValueType: String},
-			{Name: "bool", ValueType: Bool},
-			{Name: "ts", ValueType: Timestamp},
-		},
-	}
-
-	value := tableSchema.Value().Elem()
-	typ := value.Type()
-
-	if typ.Kind() != reflect.Struct {
-		t.Fatalf("Expected type to be struct, got %v", typ.Kind())
-	}
-
-	type expectedField struct {
-		Name string
-		Type reflect.Type
-		Tag  reflect.StructTag
-	}
-
-	expectedFields := []expectedField{
-		{Name: "Entity", Type: reflect.PointerTo(reflect.TypeOf("")), Tag: reflect.StructTag(`parquet:"entity,optional"`)},
-		{Name: "Int", Type: reflect.PointerTo(reflect.TypeOf(int(0))), Tag: reflect.StructTag(`parquet:"int,optional"`)},
-		{Name: "Flt", Type: reflect.PointerTo(reflect.TypeOf(float64(0))), Tag: reflect.StructTag(`parquet:"flt,optional"`)},
-		{Name: "Str", Type: reflect.PointerTo(reflect.TypeOf("")), Tag: reflect.StructTag(`parquet:"str,optional"`)},
-		{Name: "Bool", Type: reflect.PointerTo(reflect.TypeOf(false)), Tag: reflect.StructTag(`parquet:"bool,optional"`)},
-		{Name: "Ts", Type: reflect.TypeOf(time.UnixMilli(0)), Tag: reflect.StructTag(`parquet:"ts,optional,timestamp"`)},
-	}
-
-	for _, fieldName := range expectedFields {
-		field, ok := typ.FieldByName(fieldName.Name)
-		if !ok {
-			t.Fatalf("Expected field %s is missing", fieldName)
-		}
-		if field.Type != fieldName.Type {
-			t.Fatalf("Expected field %s to be type %v, got %v", fieldName.Name, fieldName.Type, field.Type)
-		}
-		if field.Tag != fieldName.Tag {
-			t.Fatalf("Expected field %s to have tag %v, got %v", fieldName.Name, fieldName.Tag, field.Tag)
-		}
-	}
-
-	if typ.NumField() != len(expectedFields) {
-		t.Fatalf("Expected %v fields, got %v", len(expectedFields), typ.NumField())
 	}
 }

@@ -43,6 +43,8 @@ COPY --from=0 ./app/worker ./worker
 COPY ./provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
 COPY ./provider/scripts/spark/python_packages.sh /app/provider/scripts/spark/python_packages.sh
 COPY ./provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
+COPY ./provider/queries/materialize_no_ts.sql /app/provider/queries/materialize_no_ts.sql
+COPY ./provider/queries/materialize_ts.sql /app/provider/queries/materialize_ts.sql
 
 # Installing pyenv
 RUN apt-get update && apt-get install -y \
@@ -71,6 +73,7 @@ RUN echo "PATH=${PATH}" > "${ENV}"
 RUN curl https://pyenv.run | bash
 
 # Install Python versions
+
 ARG TESTING
 RUN if [ "$TESTING" = "True" ]; then \
   pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
@@ -84,6 +87,8 @@ RUN if [ "$TESTING" = "True" ]; then \
 
 ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
 ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
+ENV MATERIALIZE_NO_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_no_ts.sql"
+ENV MATERIALIZE_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_ts.sql"
 
 # Download Shaded Jar
 RUN wget https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop2-2.2.11/gcs-connector-hadoop2-2.2.11-shaded.jar -P /app/provider/scripts/spark/jars/

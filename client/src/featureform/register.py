@@ -164,7 +164,7 @@ class OfflineSQLProvider(OfflineProvider):
         return self.__registrar.register_primary_data(
             name=name,
             variant=variant,
-            location=SQLTable(table),
+            location=SQLTable('"{}"'.format(table)),
             owner=owner,
             provider=self.name(),
             description=description,
@@ -2844,9 +2844,9 @@ class Registrar:
     def register_dynamodb(
         self,
         name: str,
-        access_key: str,
-        secret_key: str,
+        credentials: AWSCredentials,
         region: str,
+        should_import_from_s3: bool = False,
         description: str = "",
         team: str = "",
         tags: List[str] = [],
@@ -2859,8 +2859,7 @@ class Registrar:
         dynamodb = ff.register_dynamodb(
             name="dynamodb-quickstart",
             description="A Dynamodb deployment we created for the Featureform quickstart",
-            access_key="<AWS_ACCESS_KEY>",
-            secret_key="<AWS_SECRET_KEY>",
+            credentials=aws_creds,
             region="us-east-1"
         )
         ```
@@ -2868,8 +2867,8 @@ class Registrar:
         Args:
             name (str): (Immutable) Name of DynamoDB provider to be registered
             region (str): (Immutable) Region to create dynamo tables
-            access_key (str): (Mutable) An AWS Access Key with permissions to create DynamoDB tables
-            secret_key (str): (Mutable) An AWS Secret Key with permissions to create DynamoDB tables
+            credentials (AWSCredentials): (Mutable) AWS credentials with permissions to create DynamoDB tables
+            should_import_from_s3 (bool): (Mutable) Determines whether feature materialization will occur via a direct import of data from S3 to new table (see [docs](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/S3DataImport.HowItWorks.html) for details)
             description (str): (Mutable) Description of DynamoDB provider to be registered
             team (str): (Mutable) Name of team
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
@@ -2880,7 +2879,10 @@ class Registrar:
         """
         tags, properties = set_tags_properties(tags, properties)
         config = DynamodbConfig(
-            access_key=access_key, secret_key=secret_key, region=region
+            access_key=credentials.access_key,
+            secret_key=credentials.secret_key,
+            region=region,
+            should_import_from_s3=should_import_from_s3,
         )
         provider = Provider(
             name=name,

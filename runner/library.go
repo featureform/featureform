@@ -12,12 +12,17 @@ import (
 
 type RunnerName string
 
+func (n RunnerName) String() string {
+	return string(n)
+}
+
 const (
 	COPY_TO_ONLINE        RunnerName = "Copy to online"
-	CREATE_TRAINING_SET              = "Create training set"
-	REGISTER_SOURCE                  = "Register source"
-	CREATE_TRANSFORMATION            = "Create transformation"
-	MATERIALIZE                      = "Materialize"
+	CREATE_TRAINING_SET   RunnerName = "Create training set"
+	REGISTER_SOURCE       RunnerName = "Register source"
+	CREATE_TRANSFORMATION RunnerName = "Create transformation"
+	MATERIALIZE           RunnerName = "Materialize"
+	S3_IMPORT_DYNAMODB    RunnerName = "S3 import to DynamoDB"
 )
 
 type Config []byte
@@ -29,13 +34,13 @@ type RunnerConfig interface {
 
 type RunnerFactory func(config Config) (types.Runner, error)
 
-var factoryMap = make(map[string]RunnerFactory)
+var factoryMap = make(map[RunnerName]RunnerFactory)
 
 func ResetFactoryMap() {
-	factoryMap = make(map[string]RunnerFactory)
+	factoryMap = make(map[RunnerName]RunnerFactory)
 }
 
-func RegisterFactory(name string, runnerFactory RunnerFactory) error {
+func RegisterFactory(name RunnerName, runnerFactory RunnerFactory) error {
 	if _, exists := factoryMap[name]; exists {
 		return fmt.Errorf("factory already registered: %s", name)
 	}
@@ -43,7 +48,7 @@ func RegisterFactory(name string, runnerFactory RunnerFactory) error {
 	return nil
 }
 
-func UnregisterFactory(name string) error {
+func UnregisterFactory(name RunnerName) error {
 	if _, exists := factoryMap[name]; !exists {
 		return fmt.Errorf("factory %s not registered", name)
 	}
@@ -51,7 +56,7 @@ func UnregisterFactory(name string) error {
 	return nil
 }
 
-func Create(name string, config Config) (types.Runner, error) {
+func Create(name RunnerName, config Config) (types.Runner, error) {
 	factory, exists := factoryMap[name]
 	if !exists {
 		return nil, fmt.Errorf("factory does not exist: %s", name)

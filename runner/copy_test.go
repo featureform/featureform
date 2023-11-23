@@ -311,7 +311,7 @@ type ErrorChunkRunnerFactoryConfigs struct {
 }
 
 func testErrorConfigsFactory(config Config) error {
-	_, err := Create(string(COPY_TO_ONLINE), config)
+	_, err := Create(COPY_TO_ONLINE, config)
 	return err
 }
 
@@ -362,7 +362,7 @@ func (b BrokenNumRowsOfflineStore) CreateResourceTable(id provider.ResourceID, s
 func (b BrokenNumRowsOfflineStore) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (b BrokenNumRowsOfflineStore) CreateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+func (b BrokenNumRowsOfflineStore) CreateMaterialization(id provider.ResourceID, options ...provider.MaterializationOptions) (provider.Materialization, error) {
 	return nil, nil
 }
 
@@ -385,6 +385,10 @@ func (b BrokenNumRowsOfflineStore) UpdateTrainingSet(provider.TrainingSetDef) er
 }
 
 func (b BrokenNumRowsOfflineStore) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
+	return nil, nil
+}
+
+func (b BrokenNumRowsOfflineStore) GetBatchFeatures(tables []provider.ResourceID) (provider.BatchFeatureIterator, error) {
 	return nil, nil
 }
 
@@ -771,7 +775,7 @@ func (m MockOfflineStore) GetResourceTable(id provider.ResourceID) (provider.Off
 	return MockOfflineTable{}, nil
 }
 
-func (m MockOfflineStore) CreateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+func (m MockOfflineStore) CreateMaterialization(id provider.ResourceID, options ...provider.MaterializationOptions) (provider.Materialization, error) {
 	return MockMaterialization{}, nil
 }
 
@@ -788,6 +792,10 @@ func (m MockOfflineStore) CreateTrainingSet(provider.TrainingSetDef) error {
 }
 
 func (m MockOfflineStore) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
+	return nil, nil
+}
+
+func (m MockOfflineStore) GetBatchFeatures(tables []provider.ResourceID) (provider.BatchFeatureIterator, error) {
 	return nil, nil
 }
 

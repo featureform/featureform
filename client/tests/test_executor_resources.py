@@ -12,18 +12,18 @@ from featureform.resources import DatabricksCredentials, EMRCredentials
             "",
             "host_xyz",
             "dapiabcdefghijklmnopqrstuvwxyz12345-6",
-            "abc-123def-ghijklmn",
+            "abcd-123def-ghijklmn",
         ),  # valid token and cluster id
         pytest.param(
             "john",
             "abc123",
             "host_xyz",
             "dapiabcdefghijklmnopqrstuvwxyz12345-6",
-            "abc-123def-ghijklmn",
+            "abcd-123def-ghijklmn",
             marks=pytest.mark.xfail,
         ),
         # cluster id should always be provided
-        ("john", "abc123", "", "", "abc-123def-ghijklmn"),
+        ("john", "abc123", "", "", "abcd-123def-ghijklmn"),
         pytest.param(
             "john",
             "abc123",
@@ -40,7 +40,7 @@ from featureform.resources import DatabricksCredentials, EMRCredentials
             "",
             "host_xyz",
             "dainvalid_token",
-            "abc-123def-ghijklmn",
+            "abcd-123def-ghijklmn",
             marks=pytest.mark.xfail,
         ),
         pytest.param(
@@ -48,7 +48,7 @@ from featureform.resources import DatabricksCredentials, EMRCredentials
             "",
             "host_xyz",
             "dainvalid#$%_token!$%",
-            "abc-123def-ghijklmn",
+            "abcd-123def-ghijklmn",
             marks=pytest.mark.xfail,
         ),
         # invalid cluster id
@@ -68,7 +68,7 @@ from featureform.resources import DatabricksCredentials, EMRCredentials
             "abc-!@#4def-ghijklmnopq",
             marks=pytest.mark.xfail,
         ),
-        pytest.param("", "", "", "", "abc-123def-ghijklmn", marks=pytest.mark.xfail),
+        pytest.param("", "", "", "", "abcd-123def-ghijklmn", marks=pytest.mark.xfail),
     ],
 )
 def test_databricks_credentials(username, password, host, token, cluster_id):

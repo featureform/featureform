@@ -203,8 +203,15 @@ class HostedClientImpl:
         for name, values in entities.items():
             entity_proto = req.entities.add()
             entity_proto.name = name
-            for value in values:  # Assuming 'values' is a list of strings
-                entity_proto.value.append(value)
+            if isinstance(values, list):
+                for value in values:  # Assuming 'values' is a list of strings
+                    entity_proto.value.append(value)
+            elif isinstance(values, str):
+                entity_proto.value.append(values)
+            else:
+                raise ValueError(
+                    "Entity values must be either a string or a list of strings"
+                )
         for name, variation in features:
             feature_id = req.features.add()
             feature_id.name = name
@@ -233,6 +240,8 @@ class HostedClientImpl:
                 elif value_type == serving_pb2.Vector32:
                     parsed_value = parsed_value.value
                 entity_values.append(parsed_value)
+            if len(resp.values) == 1:
+                return entity_values
             feature_values.append(entity_values)
 
         return feature_values

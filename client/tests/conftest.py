@@ -49,7 +49,7 @@ pytest_plugins = [
 @pytest.fixture(scope="module")
 def spark_provider(ff_registrar):
     databricks = DatabricksCredentials(
-        username="a", password="b", cluster_id="abc-123def-ghijklmn"
+        username="a", password="b", cluster_id="abcd-123def-ghijklmn"
     )
     azure_blob = AzureFileStoreConfig(
         account_name="", account_key="", container_name="", root_path=""
@@ -213,7 +213,7 @@ def databricks_config():
     config = DatabricksCredentials(
         username="username",
         password="password",
-        cluster_id="abc-123def-ghijklmn",
+        cluster_id="abcd-123def-ghijklmn",
     )
 
     expected_config = {
@@ -221,7 +221,7 @@ def databricks_config():
         "Password": "password",
         "Host": "",
         "Token": "",
-        "Cluster": "abc-123def-ghijklmn",
+        "Cluster": "abcd-123def-ghijklmn",
     }
     return config, expected_config
 
@@ -278,7 +278,7 @@ def spark_executor_incorrect_deploy_mode():
 @pytest.fixture(scope="module")
 def databricks():
     return DatabricksCredentials(
-        username="a", password="b", cluster_id="abc-123def-ghijklmn"
+        username="a", password="b", cluster_id="abcd-123def-ghijklmn"
     )
 
 

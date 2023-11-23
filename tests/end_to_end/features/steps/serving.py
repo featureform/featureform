@@ -4,7 +4,6 @@ import random
 import requests
 from behave import *
 import featureform as ff
-from dotenv import load_dotenv
 
 
 @given("The Snowflake env variables are available")
@@ -26,10 +25,6 @@ def step_impl(context):
 
 @given("The Databricks env variables are available")
 def step_impl(context):
-    featureform_location = os.path.dirname(os.path.dirname(""))
-    env_file_path = os.path.join(featureform_location, ".env")
-    load_dotenv(env_file_path)
-
     context.databricks_host = os.getenv("DATABRICKS_HOST", None)
     context.databrucks_token = os.getenv("DATABRICKS_TOKEN", None)
     context.databricks_cluster_id = os.getenv("DATABRICKS_CLUSTER", None)

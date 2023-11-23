@@ -240,6 +240,8 @@ class HostedClientImpl:
                 elif value_type == serving_pb2.Vector32:
                     parsed_value = parsed_value.value
                 entity_values.append(parsed_value)
+
+            # If theres only one entity row, only return that row
             if len(resp.values) == 1:
                 return entity_values
             feature_values.append(entity_values)

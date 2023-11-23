@@ -684,7 +684,7 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 		}
 	}
 	// Convert materialization ID to file paths
-	materializationPaths, err := createFilePathsFromIDs(materializationIDs, store.Store)
+	materializationPaths, err := store.createFilePathsFromIDs(materializationIDs)
 	if err != nil {
 		return nil, fmt.Errorf("could not create file paths from materialization IDs: %v", err)
 	}
@@ -724,7 +724,7 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 	return &FileStoreBatchServing{store: store.Store, iter: iterator, numFeatures: len(ids)}, nil
 }
 
-func createFilePathsFromIDs(materializationIDs []ResourceID, store *SparkOfflineStore) ([]string, error) {
+func (store *SparkOfflineStore) createFilePathsFromIDs(materializationIDs []ResourceID) ([]string, error) {
 	materializationPaths := make([]string, len(materializationIDs))
 	for i, id := range materializationIDs {
 		path, err := store.Store.CreateDirPath(id.ToFilestorePath())

@@ -172,6 +172,11 @@ func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (p
 	if err != nil {
 		return nil, errors.Wrap(err, "could not fetch provider")
 	}
+	providerName := providerEntry.Name()
+	err = serv.checkFeatureSources(providerName, ids, ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
@@ -185,6 +190,27 @@ func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (p
 		return nil, errors.Wrap(err, "could not open as offline store")
 	}
 	return store.GetBatchFeatures(ids)
+}
+
+func (serv *FeatureServer) checkFeatureSources(firstProvider string, ids []provider.ResourceID, ctx context.Context) error {
+	for id := range ids {
+		id_feature, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{ids[id].Name, ids[id].Variant})
+		if err != nil {
+			return errors.Wrap(err, "could not get Feature Variant")
+		}
+		id_featureSource, err := id_feature.FetchSource(serv.Metadata, ctx)
+		if err != nil {
+			return errors.Wrap(err, "could not fetch source")
+		}
+		id_providerEntry, err := id_featureSource.FetchProvider(serv.Metadata, ctx)
+		if err != nil {
+			return errors.Wrap(err, "could not fetch provider")
+		}
+		if id_providerEntry.Name() != firstProvider {
+			return errors.Wrap(err, "features have different providers")
+		}
+	}
+	return nil
 }
 
 // Takes in a list of feature names and returns true if they all have the same entity name

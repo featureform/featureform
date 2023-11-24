@@ -10,6 +10,7 @@ from typing import Dict, Tuple, Callable, List, Union, Optional
 
 import dill
 import pandas as pd
+from dataclasses import dataclass, field
 from typeguard import typechecked
 
 from .enums import FileFormat
@@ -19,7 +20,6 @@ from .get import *
 from .get_local import *
 from .list import *
 from .list_local import *
-from .names_generator import get_random_name
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
 from .resources import (
@@ -68,12 +68,15 @@ from .resources import (
     FilePrefix,
     OnDemandFeatureVariant,
     WeaviateConfig,
+    ResourceVariant,
 )
 from .search import search
 from .search_local import search_local
 from .sqlite_metadata import SQLiteMetadata
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
+from .variant_names_generator import get_current_timestamp_variant
+from .variant_names_generator import get_random_name
 
 NameVariant = Tuple[str, str]
 
@@ -161,7 +164,7 @@ class OfflineSQLProvider(OfflineProvider):
         return self.__registrar.register_primary_data(
             name=name,
             variant=variant,
-            location=SQLTable(table),
+            location=SQLTable('"{}"'.format(table)),
             owner=owner,
             provider=self.name(),
             description=description,
@@ -884,6 +887,9 @@ class SourceRegistrar:
     def registrar(self):
         return self.__registrar
 
+    def __eq__(self, other):
+        return self.__source == other.__source and self.__registrar == other.__registrar
+
 
 class ColumnMapping(dict):
     name: str
@@ -1024,6 +1030,7 @@ class SubscriptableTransformation:
         provider,
         decorator_register_resources_method,
         decorator_name_variant_method,
+        transformation,
     ):
         # if not self.__has_return_statement(fn):
         #     raise Exception(
@@ -1043,6 +1050,10 @@ class SubscriptableTransformation:
         # the decorator methods to the SubscriptableTransformation class.
         self.register_resources = decorator_register_resources_method
         self.name_variant = decorator_name_variant_method
+        self.transformation = transformation
+
+    def name_variant(self):
+        return self.transformation.name_variant()
 
     def __getitem__(self, columns: List[str]):
         col_len = len(columns)
@@ -1054,7 +1065,7 @@ class SubscriptableTransformation:
             raise Exception(
                 f"Found unrecognized columns {', '.join(columns[3:])}. Expected 2 required columns and an optional 3rd timestamp column"
             )
-        return (self.registrar, self.name_variant(), columns)
+        return (self.registrar, self.transformation, columns)
 
     def __call__(self, *args, **kwargs):
         return self.fn(*args, **kwargs)
@@ -1073,33 +1084,20 @@ class SubscriptableTransformation:
         return False
 
 
+@dataclass
 class SQLTransformationDecorator:
-    def __init__(
-        self,
-        registrar,
-        owner: str,
-        provider: str,
-        tags: List[str],
-        properties: dict,
-        run: str = "",
-        variant: str = "",
-        name: str = "",
-        schedule: str = "",
-        description: str = "",
-        args: Union[K8sArgs, None] = None,
-    ):
-        self.registrar = registrar
-        self.name = name
-        self.owner = owner
-        self.schedule = schedule
-        self.provider = provider
-        self.description = description
-        self.args = args
-        self.tags = tags
-        self.properties = properties
-        self.variant = variant
-        self.run = run
-        self.query = ""
+    registrar: "Registrar"
+    owner: str
+    provider: str
+    tags: List[str]
+    properties: dict
+    run: str = ""
+    variant: str = ""
+    name: str = ""
+    schedule: str = ""
+    description: str = ""
+    args: Union[K8sArgs, None] = None
+    query: str = field(default_factory=str, init=False)
 
     def __call__(self, fn: Callable[[], str]):
         if self.description == "" and fn.__doc__ is not None:
@@ -1107,12 +1105,15 @@ class SQLTransformationDecorator:
         if self.name == "":
             self.name = fn.__name__
         self.__set_query(fn())
+        self.registrar.map_client_object_to_resource(self, self.to_source())
+        self.registrar.add_resource(self.to_source())
         return SubscriptableTransformation(
             fn,
             self.registrar,
             self.provider,
             self.register_resources,
             self.name_variant,
+            self,
         )
 
     @typechecked
@@ -1153,7 +1154,7 @@ class SQLTransformationDecorator:
         schedule: str = "",
     ):
         return self.registrar.register_column_resources(
-            source=(self.name, self.variant),
+            source=self,
             entity=entity,
             entity_column=entity_column,
             owner=owner,
@@ -1163,44 +1164,32 @@ class SQLTransformationDecorator:
             timestamp_column=timestamp_column,
             description=description,
             schedule=schedule,
+            client_object=self,
         )
 
     @staticmethod
     def _assert_query_contains_at_least_one_source(query):
         # Checks to verify that the query contains a FROM {{ name.variant }}
-        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)?\s*\}\}"
+        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_:.]+(\.[a-zA-Z0-9_:.]+)?\s*\}\}"
         match = re.search(pattern, query, re.IGNORECASE)
         if match is None:
             raise InvalidSQLQuery(query, "No source specified.")
 
 
+@dataclass
 class DFTransformationDecorator:
-    def __init__(
-        self,
-        registrar,
-        owner: str,
-        provider: str,
-        tags: List[str],
-        properties: dict,
-        variant: str = "",
-        name: str = "",
-        description: str = "",
-        inputs: list = [],
-        args: Union[K8sArgs, None] = None,
-        source_text: str = "",
-    ):
-        self.registrar = registrar
-        self.name = name
-        self.owner = owner
-        self.provider = provider
-        self.description = description
-        self.inputs = inputs
-        self.args = args
-        self.tags = tags
-        self.properties = properties
-        self.variant = variant
-        self.query = b""
-        self.source_text = source_text
+    registrar: "Registrar"
+    owner: str
+    provider: str
+    tags: List[str]
+    properties: dict
+    variant: str = ""
+    name: str = ""
+    description: str = ""
+    inputs: list = field(default_factory=list)
+    args: Union[K8sArgs, None] = None
+    source_text: str = ""
+    query: bytes = field(default_factory=bytes, init=False)
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:
@@ -1218,19 +1207,29 @@ class DFTransformationDecorator:
         if not isinstance(self.inputs, list):
             raise ValueError("Dataframe transformation inputs must be a list")
 
+        # check that input isn't self referencing
         for nv in self.inputs:
-            if self.name is nv[0] and self.variant is nv[1]:
+            if isinstance(
+                nv, tuple
+            ):  # TODO all that should be called here is name_variant()
+                n, v = nv
+            else:
+                n, v = nv.name_variant()
+            if self.name is n and self.variant is v:
                 raise ValueError(
                     f"Transformation cannot be input for itself: {self.name} {self.variant}"
                 )
         self.query = dill.dumps(fn.__code__)
         self.source_text = dill.source.getsource(fn)
+        self.registrar.map_client_object_to_resource(self, self.to_source())
+        self.registrar.add_resource(self.to_source())
         return SubscriptableTransformation(
             fn,
             self.registrar,
             self.provider,
             self.register_resources,
             self.name_variant,
+            self,
         )
 
     def to_source(self) -> SourceVariant:
@@ -1266,7 +1265,7 @@ class DFTransformationDecorator:
         description: str = "",
     ):
         return self.registrar.register_column_resources(
-            source=(self.name, self.variant),
+            source=self,
             entity=entity,
             entity_column=entity_column,
             owner=owner,
@@ -1275,6 +1274,7 @@ class DFTransformationDecorator:
             labels=labels,
             timestamp_column=timestamp_column,
             description=description,
+            client_object=self,
         )
 
 
@@ -1289,7 +1289,7 @@ class ColumnSourceRegistrar(SourceRegistrar):
             raise Exception(
                 f"Found unrecognized columns {', '.join(columns[3:])}. Expected 2 required columns and an optional 3rd timestamp column"
             )
-        return (self.registrar(), self.id(), columns)
+        return (self.registrar(), self, columns)
 
     def register_resources(
         self,
@@ -1341,6 +1341,7 @@ class ColumnSourceRegistrar(SourceRegistrar):
             timestamp_column=timestamp_column,
             description=description,
             schedule=schedule,
+            client_object=self,
         )
 
 
@@ -1468,6 +1469,7 @@ class ColumnResource:
         self.schedule = schedule
         self.tags = tags
         self.properties = properties
+        self.variant = variant
 
     def register(self):
         features, labels = self.features_and_labels()
@@ -1482,6 +1484,7 @@ class ColumnResource:
             labels=labels,
             timestamp_column=self.timestamp_column,
             schedule=self.schedule,
+            client_object=self,
         )
 
     def features_and_labels(self) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
@@ -1570,7 +1573,6 @@ class FeatureColumnResource(ColumnResource):
             type (Union[ScalarType, str]): The type of the value in for the feature.
             inference_store (Union[str, OnlineProvider, FileStoreProvider]): Where to store for online serving.
         """
-        self.variant = variant
         super().__init__(
             transformation_args=transformation_args,
             type=type,
@@ -1622,7 +1624,6 @@ class LabelColumnResource(ColumnResource):
             variant (str): An optional variant name for the label.
             type (Union[ScalarType, str]): The type of the value in for the label.
         """
-        self.variant = variant
         super().__init__(
             transformation_args=transformation_args,
             type=type,
@@ -1660,10 +1661,31 @@ class Registrar:
         self.__state = ResourceState()
         self.__resources = []
         self.__default_owner = ""
-        self.__run = get_random_name()
+        self.__variant_prefix = ""
+        if os.getenv("FF_TIMESTAMP_VARIANT") is not None:
+            self.__run = get_current_timestamp_variant(self.__variant_prefix)
+        else:
+            self.__run = get_random_name()
+
+        """
+        maps client objects (feature object, label object, source decorators) to their resource in the event we want 
+        to update the client object after the resource was created
+        
+        Introduced for timestamp variants where updates during a resource create ensures that the client object
+        has the correct variant when being used as a dependency other resources
+        """
+        self.__client_obj_to_resource_map = {}
 
     def add_resource(self, resource):
         self.__resources.append(resource)
+
+    def map_client_object_to_resource(
+        self, client_obj, resource_variant: ResourceVariant
+    ):
+        self.__client_obj_to_resource_map[resource_variant.to_key()] = client_obj
+
+    def get_client_objects_for_resource(self):
+        return self.__client_obj_to_resource_map
 
     def get_resources(self):
         return self.__resources
@@ -1699,6 +1721,15 @@ class Registrar:
         if owner == "":
             raise ValueError("Owner must be set or a default owner must be specified.")
         return owner
+
+    def set_variant_prefix(self, variant_prefix: str = ""):
+        """Set variant prefix.
+
+        Args:
+            variant_prefix (str): variant prefix to be set.
+        """
+        self.__variant_prefix = variant_prefix
+        self.set_run()
 
     def set_run(self, run: str = ""):
         """
@@ -1768,7 +1799,10 @@ class Registrar:
             run (str): Name of a run to be set.
         """
         if run == "":
-            self.__run = get_random_name()
+            if os.getenv("FF_TIMESTAMP_VARIANT") is not None:
+                self.__run = get_current_timestamp_variant(self.__variant_prefix)
+            else:
+                self.__run = get_random_name()
         else:
             self.__run = run
 
@@ -2810,9 +2844,9 @@ class Registrar:
     def register_dynamodb(
         self,
         name: str,
-        access_key: str,
-        secret_key: str,
+        credentials: AWSCredentials,
         region: str,
+        should_import_from_s3: bool = False,
         description: str = "",
         team: str = "",
         tags: List[str] = [],
@@ -2825,8 +2859,7 @@ class Registrar:
         dynamodb = ff.register_dynamodb(
             name="dynamodb-quickstart",
             description="A Dynamodb deployment we created for the Featureform quickstart",
-            access_key="<AWS_ACCESS_KEY>",
-            secret_key="<AWS_SECRET_KEY>",
+            credentials=aws_creds,
             region="us-east-1"
         )
         ```
@@ -2834,8 +2867,8 @@ class Registrar:
         Args:
             name (str): (Immutable) Name of DynamoDB provider to be registered
             region (str): (Immutable) Region to create dynamo tables
-            access_key (str): (Mutable) An AWS Access Key with permissions to create DynamoDB tables
-            secret_key (str): (Mutable) An AWS Secret Key with permissions to create DynamoDB tables
+            credentials (AWSCredentials): (Mutable) AWS credentials with permissions to create DynamoDB tables
+            should_import_from_s3 (bool): (Mutable) Determines whether feature materialization will occur via a direct import of data from S3 to new table (see [docs](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/S3DataImport.HowItWorks.html) for details)
             description (str): (Mutable) Description of DynamoDB provider to be registered
             team (str): (Mutable) Name of team
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
@@ -2846,7 +2879,10 @@ class Registrar:
         """
         tags, properties = set_tags_properties(tags, properties)
         config = DynamodbConfig(
-            access_key=access_key, secret_key=secret_key, region=region
+            access_key=credentials.access_key,
+            secret_key=credentials.secret_key,
+            region=region,
+            should_import_from_s3=should_import_from_s3,
         )
         provider = Provider(
             name=name,
@@ -3432,7 +3468,9 @@ class Registrar:
             properties=properties,
         )
         self.__resources.append(source)
-        return ColumnSourceRegistrar(self, source)
+        column_source_registrar = ColumnSourceRegistrar(self, source)
+        self.map_client_object_to_resource(column_source_registrar, source)
+        return column_source_registrar
 
     def register_sql_transformation(
         self,
@@ -3536,7 +3574,6 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(decorator)
         return decorator
 
     def register_df_transformation(
@@ -3580,9 +3617,6 @@ class Registrar:
             variant = self.__run
         if not isinstance(provider, str):
             provider = provider.name()
-        for i, nv in enumerate(inputs):
-            if not isinstance(nv, tuple):
-                inputs[i] = nv.name_variant()
         source = SourceVariant(
             created=None,
             name=name,
@@ -3638,10 +3672,8 @@ class Registrar:
         if not isinstance(inputs, list):
             raise ValueError("Dataframe transformation inputs must be a list")
         for i, nv in enumerate(inputs):
-            if isinstance(nv, str):
+            if isinstance(nv, str):  # TODO remove this functionality
                 inputs[i] = (nv, self.__run)
-            elif not isinstance(nv, tuple):
-                inputs[i] = nv.name_variant()
             elif isinstance(nv, tuple):
                 try:
                     self._verify_tuple(nv)
@@ -3654,8 +3686,8 @@ class Registrar:
                         f"DF transformation {transformation_message} requires correct inputs "
                         f" '{nv}' is not a valid tuple: {e}"
                     )
-            if inputs[i][1] == "":
-                inputs[i] = (inputs[i][0], self.__run)
+                if inputs[i][1] == "":
+                    inputs[i] = (inputs[i][0], self.__run)
 
         decorator = DFTransformationDecorator(
             registrar=self,
@@ -3669,7 +3701,6 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(decorator)
         return decorator
 
     def _verify_tuple(self, nv_tuple):
@@ -3750,10 +3781,6 @@ class Registrar:
     def state(self):
         for resource in self.__resources:
             try:
-                if isinstance(resource, SQLTransformationDecorator) or isinstance(
-                    resource, DFTransformationDecorator
-                ):
-                    resource = resource.to_source()
                 self.__state.add(resource)
 
             except ResourceRedefinedError:
@@ -3770,6 +3797,7 @@ class Registrar:
 
     def clear_state(self):
         self.__state = ResourceState()
+        self.__client_obj_to_resource_map = {}
         self.__resources = []
 
     def get_state(self):
@@ -3852,7 +3880,12 @@ class Registrar:
 
     def register_column_resources(
         self,
-        source: Union[NameVariant, SourceRegistrar, SQLTransformationDecorator],
+        source: Union[
+            NameVariant,
+            SourceRegistrar,
+            SQLTransformationDecorator,
+            DFTransformationDecorator,
+        ],
         entity: Union[str, EntityRegistrar],
         entity_column: str,
         owner: Union[str, UserRegistrar] = "",
@@ -3862,6 +3895,7 @@ class Registrar:
         timestamp_column: str = "",
         description: str = "",
         schedule: str = "",
+        client_object=None,
     ):
         """Create features and labels from a source. Used in the register_resources function.
 
@@ -3894,8 +3928,6 @@ class Registrar:
             labels = []
         if len(features) == 0 and len(labels) == 0:
             raise ValueError("No features or labels set")
-        if not isinstance(source, tuple):
-            source = source.id()
         if isinstance(source, tuple) and source[1] == "":
             source = source[0], self.__run
         if not isinstance(entity, str):
@@ -3947,6 +3979,7 @@ class Registrar:
                 properties=feature_properties,
             )
             self.__resources.append(resource)
+            self.map_client_object_to_resource(client_object, resource)
             feature_resources.append(resource)
 
         for label in labels:
@@ -3982,6 +4015,7 @@ class Registrar:
                 properties=label_properties,
             )
             self.__resources.append(resource)
+            self.map_client_object_to_resource(client_object, resource)
             label_resources.append(resource)
         return ResourceRegistrar(self, features, labels)
 
@@ -3989,9 +4023,7 @@ class Registrar:
         feature_nv_list = []
         feature_lags = []
         for feature in features:
-            if isinstance(feature, FeatureColumnResource):
-                feature_nv_list.append(feature.name_variant())
-            elif isinstance(feature, str):
+            if isinstance(feature, str):
                 feature_nv_list.append((feature, run))
             elif isinstance(feature, dict):
                 lag = feature.get("lag")
@@ -4106,9 +4138,6 @@ class Registrar:
             elif resource_label != ():
                 raise ValueError("A training set can only have one label")
 
-        if isinstance(label, LabelColumnResource):
-            label = label.name_variant()
-
         features, feature_lags = self.__get_feature_nv(features, self.__run)
         if label == ():
             raise ValueError("Label must be set")
@@ -4116,15 +4145,13 @@ class Registrar:
             raise ValueError("A training-set must have atleast one feature")
         if isinstance(label, str):
             label = (label, self.__run)
-        if label[1] == "":
+        if not isinstance(label, LabelColumnResource) and label[1] == "":
             label = (label[0], self.__run)
 
         processed_features = []
         for feature in features:
             if isinstance(feature, tuple) and feature[1] == "":
                 feature = (feature[0], self.__run)
-            elif isinstance(feature, FeatureColumnResource):
-                feature = feature.name_variant()
             processed_features.append(feature)
         resource = TrainingSetVariant(
             created=None,
@@ -4237,9 +4264,14 @@ class ResourceClient:
 
         """
 
-        print(f"Applying Run: {get_run()}")
         try:
             resource_state = state()
+            if resource_state.is_empty():
+                print("No resources to apply")
+                return
+
+            print(f"Applying Run: {get_run()}")
+
             if self._dry_run:
                 print(resource_state.sorted_list())
                 return
@@ -4247,13 +4279,17 @@ class ResourceClient:
             if self.local:
                 resource_state.create_all_local()
             else:
-                resource_state.create_all(self._stub)
+                resource_state.create_all(
+                    self._stub, global_registrar.get_client_objects_for_resource()
+                )
 
             if not asynchronous and self._stub:
                 resources = resource_state.sorted_list()
                 display_statuses(self._stub, resources, verbose=verbose)
 
         finally:
+            if os.getenv("FF_TIMESTAMP_VARIANT") is not None:
+                set_run("")
             clear_state()
             register_local()
 
@@ -5609,6 +5645,7 @@ state = global_registrar.state
 clear_state = global_registrar.clear_state
 get_state = global_registrar.get_state
 set_run = global_registrar.set_run
+set_variant_prefix = global_registrar.set_variant_prefix
 get_run = global_registrar.get_run
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis

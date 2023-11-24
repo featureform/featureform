@@ -8,14 +8,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
+	"time"
+
 	"github.com/featureform/coordinator"
 	"github.com/featureform/runner"
 	"github.com/google/uuid"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
-	"os"
-	"strconv"
-	"time"
 )
 
 type Config []byte
@@ -37,7 +38,7 @@ func CreateAndRun() error {
 	if !ok {
 		return errors.New("ETCD_CONFIG not set")
 	}
-	jobRunner, err := runner.Create(name, []byte(config))
+	jobRunner, err := runner.Create(runner.RunnerName(name), []byte(config))
 	if err != nil {
 		return err
 	}

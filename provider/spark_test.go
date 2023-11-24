@@ -1649,59 +1649,6 @@ func getDatabricksOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
 // 	}
 // }
 
-func TestMaterializationCreate(t *testing.T) {
-	t.Parallel()
-	exampleSchemaWithTS := ResourceSchema{
-		Entity: "entity",
-		Value:  "value",
-		TS:     "timestamp",
-	}
-	queries := defaultPythonOfflineQueries{}
-	materializeQuery := queries.materializationCreate(exampleSchemaWithTS)
-	correctQuery := "SELECT entity, value, ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number, rn2 FROM (SELECT entity, value, ts, ROW_NUMBER() OVER (PARTITION BY entity ORDER BY ts DESC) AS rn2 FROM (SELECT entity, value, ts, rn FROM (SELECT entity AS entity, value AS value, timestamp AS ts, ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn FROM source_0) t ORDER BY rn DESC) t2 ) t3 WHERE rn2=1"
-	if correctQuery != materializeQuery {
-		t.Fatalf("Materialize create did not produce correct query. Expected: %s, got: %s", correctQuery, materializeQuery)
-	}
-
-	// TODO: Need to figure out how to compare the two queries
-	// exampleSchemaWithoutTS := ResourceSchema{
-	// 	Entity: "entity",
-	// 	Value:  "value",
-	// }
-	// 	materializeTSQuery := queries.materializationCreate(exampleSchemaWithoutTS)
-	// 	correctTSQuery := `WITH ordered_rows AS (
-	// 		SELECT
-	// 				entity as entity,
-	// 				value as value,
-	// 				-- 0 as ts, -- TODO: determine if we even need to add this zeroed-out timestamp column
-	// 				ROW_NUMBER() over (PARTITION BY Entity ORDER BY (SELECT NULL)) as row_number
-	// 		FROM
-	// 				source_0
-	// ),
-	// max_row_per_entity AS (
-	// 		SELECT
-	// 				Entity as entity,
-	// 				MAX(row_number) as max_row
-	// 		FROM
-	// 				ordered_rows
-	// 		GROUP BY
-	// 				entity
-	// )
-	// SELECT
-	// 		ord.entity
-	// 		,ord.value
-	// 		--,ord.ts -- TODO: determine if we even need to add this zeroed-out timestamp column
-	// FROM
-	// 		max_row_per_entity maxr
-	// JOIN ordered_rows ord
-	// 		ON ord.entity = maxr.Entity AND ord.row_number = maxr.max_row
-	// ORDER BY
-	// 		maxr.max_row DESC`
-	// 	if correctTSQuery != materializeTSQuery {
-	// 		t.Fatalf("Materialize create did not produce correct query substituting timestamp. Expected: %s, got: %s", correctTSQuery, materializeTSQuery)
-	// 	}
-}
-
 func TestTrainingSetCreate(t *testing.T) {
 	testTrainingSetDef := TrainingSetDef{
 		ID: ResourceID{"test_training_set", "default", TrainingSet},

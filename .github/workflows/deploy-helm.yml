@@ -356,11 +356,6 @@ jobs:
       - name: Set production tag
         run: ./.github/helpers/set_release_type.sh ${{ inputs.type }} $GITHUB_ENV ${{ inputs.version }}
 
-      - name: Install Pre-reqs
-        run: |
-          sudo apt-get update
-          sudo apt-get install apt-transport-https ca-certificates gnupg curl sudo
-
       - name: Install Helm
         run: |
           curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
@@ -371,8 +366,7 @@ jobs:
         run: |
           echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
           curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-          sudo apt-get update
-          sudo apt-get install google-cloud-sdk
+          sudo snap install google-cloud-cli --classic
 
       - name: Create GCloud Key
         id: gcloud-key-json

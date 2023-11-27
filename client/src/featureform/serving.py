@@ -205,9 +205,9 @@ class HostedClientImpl:
             entity_proto.name = name
             if isinstance(values, list):
                 for value in values:  # Assuming 'values' is a list of strings
-                    entity_proto.value.append(value)
+                    entity_proto.values.append(value)
             elif isinstance(values, str):
-                entity_proto.value.append(values)
+                entity_proto.values.append(values)
             else:
                 raise ValueError(
                     "Entity values must be either a string or a list of strings"

@@ -1300,8 +1300,13 @@ class PrecomputedFeatureParameters:
 class OndemandFeatureParameters:
     definition: str = ""
 
-    def proto(self) -> pb.OndemandFeatureParameters:
-        return pb.OndemandFeatureParameters(definition=self.definition)
+    def proto(self) -> pb.FeatureParameters:
+        ondemand_feature_parameters = pb.OndemandFeatureParameters(
+            definition=self.definition
+        )
+        feature_parameters = pb.FeatureParameters()
+        feature_parameters.ondemand.CopyFrom(ondemand_feature_parameters)
+        return feature_parameters
 
 
 Additional_Parameters = Union[

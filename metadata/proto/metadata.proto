@@ -204,7 +204,7 @@ message FeatureVariant {
 }
 
 message FeatureParameters {
-    oneof featuretype {
+    oneof feature_type {
         PrecomputedFeatureParameters precomputed = 1;
         OndemandFeatureParameters ondemand = 2;
     }

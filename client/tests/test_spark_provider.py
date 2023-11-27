@@ -1,6 +1,7 @@
 import dill
 import pytest
-from featureform.names_generator import get_random_name
+
+from featureform import get_random_name
 from featureform.register import ColumnSourceRegistrar, OfflineSparkProvider, Registrar
 from featureform.resources import (
     DFTransformation,

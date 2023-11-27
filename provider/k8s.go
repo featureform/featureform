@@ -106,6 +106,10 @@ func (k8s *K8sOfflineStore) Close() error {
 	return k8s.store.Close()
 }
 
+func (k8s K8sOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
+	return nil, fmt.Errorf("batch features not implemented for this provider")
+}
+
 type Config []byte
 
 type ExecutorFactory func(config Config, logger *zap.SugaredLogger) (Executor, error)
@@ -1112,7 +1116,7 @@ func completePrimarySourceTablePathForGCS(sourceTable string, store FileStore) (
 	return nil, nil
 }
 
-func (k8s *K8sOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
+func (k8s *K8sOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	return k8s.materialization(id, false)
 }
 
@@ -1323,6 +1327,10 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		return nil, err
 	}
 	materializationNewestFile, err := k8s.store.NewestFileOfType(destinationPath, filestore.Parquet)
+	if err != nil {
+		k8s.logger.Errorw("Could not get newest blob", "location", destinationPath, "error", err)
+		return nil, fmt.Errorf("could not get newest blob: %s: %v", destinationPath, err)
+	}
 	k8s.logger.Debugw("Running Materialization", "id", id, "destinationPath", destinationPath, "materializationNewestFile", materializationNewestFile)
 	materializationExists, err := k8s.store.Exists(materializationNewestFile)
 	if err != nil {
@@ -1336,7 +1344,10 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		k8s.logger.Errorw("Attempted to update a materialization that does not exist", "id", id)
 		return nil, fmt.Errorf("materialization does not exist")
 	}
-	materializationQuery := k8s.query.materializationCreate(k8sResourceTable.schema)
+	materializationQuery, err := k8s.query.materializationCreate(k8sResourceTable.schema)
+	if err != nil {
+		return nil, fmt.Errorf("could not create materialization query: %v", err)
+	}
 	sourcePath, err := k8s.store.CreateFilePath(k8sResourceTable.schema.SourceTable)
 	if err != nil {
 		k8s.logger.Errorw("Could not create file path", "error", err, "sourceTable", k8sResourceTable.schema.SourceTable)
@@ -1574,4 +1585,51 @@ func (ts *FileStoreTrainingSet) Label() interface{} {
 
 func (ts *FileStoreTrainingSet) Err() error {
 	return ts.Error
+}
+
+type FileStoreBatchServing struct {
+	store       FileStore
+	iter        Iterator
+	numFeatures int
+	Error       error
+	entity      interface{}
+	features    []interface{}
+}
+
+func (ts *FileStoreBatchServing) Next() bool {
+	row, err := ts.iter.Next()
+	if err != nil {
+		ts.Error = err
+		return false
+	}
+	if row == nil {
+		return false
+	}
+	featureValues := make([]interface{}, ts.numFeatures)
+	for i := 1; i <= ts.numFeatures; i++ {
+		featureValues[i-1] = row[fmt.Sprintf("feature%d", i)]
+	}
+	ts.features = featureValues
+	ts.entity = row["entity"]
+	return true
+}
+
+func (ts *FileStoreBatchServing) Features() GenericRecord {
+	return ts.features
+}
+
+func (ts *FileStoreBatchServing) Entity() interface{} {
+	return ts.entity
+}
+
+func (ts *FileStoreBatchServing) Err() error {
+	return ts.Error
+}
+
+func (ts *FileStoreBatchServing) Close() error {
+	return ts.store.Close()
+}
+
+func (ts *FileStoreBatchServing) Columns() []string {
+	return nil
 }

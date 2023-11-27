@@ -3,13 +3,12 @@ import time
 from typing import Type, Tuple, List
 
 from dataclasses import dataclass
-from featureform.proto.metadata_pb2_grpc import ApiStub
-
 from rich.console import Console
 from rich.live import Live
 from rich.table import Table
 from rich.text import Text
 
+from featureform.proto.metadata_pb2_grpc import ApiStub
 from featureform.resources import (
     Resource,
     Provider,
@@ -80,7 +79,11 @@ class StatusDisplayer:
     def __init__(self, stub: ApiStub, resources: List[Resource], verbose=False):
         self.verbose = verbose
         filtered_resources = filter(
-            lambda r: type(r) in self.RESOURCE_TYPES_TO_CHECK, resources
+            lambda r: any(
+                isinstance(r, resource_type)
+                for resource_type in self.RESOURCE_TYPES_TO_CHECK
+            ),
+            resources,
         )
         self.stub = stub
 
@@ -150,11 +153,16 @@ class StatusDisplayer:
                     table.add_column("Status", width=10)
                     table.add_column("Error", style="red")
 
-                    for _, status in self.resource_to_status_list:
+                    for resource, status in self.resource_to_status_list:
                         error = f" {status.error}" if status.error else ""
                         if status.name == "local-mode":
                             continue
                         resource_type = status.resource_type.__name__
+                        if (
+                            isinstance(resource, SourceVariant)
+                            and resource.is_transformation_type()
+                        ):
+                            resource_type = "Transformation"
                         name = status.name
                         status_text = (
                             status.status

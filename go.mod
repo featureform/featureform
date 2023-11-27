@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/bigquery v1.50.0
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/avast/retry-go/v4 v4.0.3
-	github.com/aws/aws-sdk-go v1.44.68
+	github.com/aws/aws-sdk-go v1.47.7
 	github.com/aws/aws-sdk-go-v2/config v1.15.15
 	github.com/colinmarc/hdfs/v2 v2.3.0
 	github.com/databricks/databricks-sdk-go v0.8.0

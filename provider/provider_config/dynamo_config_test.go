@@ -9,8 +9,9 @@ import (
 
 func TestDynamoConfigMutableFields(t *testing.T) {
 	expected := ss.StringSet{
-		"AccessKey": true,
-		"SecretKey": true,
+		"AccessKey":    true,
+		"SecretKey":    true,
+		"ImportFromS3": true,
 	}
 
 	config := DynamodbConfig{

@@ -300,6 +300,7 @@ func (s3 *S3FileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 		return nil, err
 	}
 	var err error
+
 	if s3.Path != "" && !strings.HasPrefix(key, s3.Path) {
 		err = fp.SetKey(fmt.Sprintf("%s/%s", s3.Path, strings.Trim(key, "/")))
 	} else {

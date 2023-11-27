@@ -151,6 +151,91 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
 }
 
+func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (provider.BatchFeatureIterator, error) {
+	ctx := context.TODO()
+	_, err := serv.checkEntityOfFeature(ids)
+	if err != nil {
+		return nil, err
+	}
+
+	// Assuming that all the features have the same offline provider
+	feat, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{ids[0].Name, ids[0].Variant})
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get Feature Variant")
+	}
+	serv.Logger.Debugw("Fetching Feature Provider from ", "name", ids[0].Name, "variant", ids[0].Variant)
+	featureSource, err := feat.FetchSource(serv.Metadata, ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not fetch source")
+	}
+	providerEntry, err := featureSource.FetchProvider(serv.Metadata, ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not fetch provider")
+	}
+	providerName := providerEntry.Name()
+	err = serv.checkFeatureSources(providerName, ids, ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get provider")
+	}
+
+	store, err := p.AsOfflineStore()
+	if err != nil {
+		// This means that the provider of the feature isn't an offline store.
+		// That shouldn't be possible.
+		return nil, errors.Wrap(err, "could not open as offline store")
+	}
+	return store.GetBatchFeatures(ids)
+}
+
+func (serv *FeatureServer) checkFeatureSources(firstProvider string, ids []provider.ResourceID, ctx context.Context) error {
+	for id := range ids {
+		id_feature, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{ids[id].Name, ids[id].Variant})
+		if err != nil {
+			return errors.Wrap(err, "could not get Feature Variant")
+		}
+		id_featureSource, err := id_feature.FetchSource(serv.Metadata, ctx)
+		if err != nil {
+			return errors.Wrap(err, "could not fetch source")
+		}
+		id_providerEntry, err := id_featureSource.FetchProvider(serv.Metadata, ctx)
+		if err != nil {
+			return errors.Wrap(err, "could not fetch provider")
+		}
+		if id_providerEntry.Name() != firstProvider {
+			return errors.Wrap(err, "features have different providers")
+		}
+	}
+	return nil
+}
+
+// Takes in a list of feature names and returns true if they all have the same entity name
+func (serv *FeatureServer) checkEntityOfFeature(ids []provider.ResourceID) (bool, error) {
+	ctx := context.TODO()
+	entityName := ""
+	// if len(features) != len(variants) {
+	// 	return false, fmt.Errorf("Feature and Variant lists have different lengths")
+	// }
+	for _, resourceID := range ids {
+		serv.Logger.Infow("Getting Feature Variant Iterator", "name", resourceID.Name, "variant", resourceID.Variant)
+		feature, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{Name: resourceID.Name, Variant: resourceID.Variant})
+		if err != nil {
+			return false, errors.Wrap(err, "could not get feature variant")
+		}
+		correspondingEntity := feature.Entity()
+		if entityName == "" {
+			entityName = correspondingEntity
+		} else if correspondingEntity != entityName {
+			return false, fmt.Errorf("Entity names are not the same")
+		}
+	}
+	return true, nil
+}
+
 func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int64) (provider.GenericTableIterator, error) {
 	ctx := context.TODO()
 	serv.Logger.Infow("Getting Source Variant Iterator", "name", name, "variant", variant)
@@ -306,6 +391,33 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 	}
 	obs.ServeRow()
 	return f.Serialized(), nil
+}
+
+func (serv *FeatureServer) BatchFeatureServe(req *pb.BatchFeatureServeRequest, stream pb.Feature_BatchFeatureServeServer) error {
+	features := req.GetFeatures()
+	resourceIDList := make([]provider.ResourceID, len(features))
+	for i, feature := range features {
+		name, variant := feature.GetName(), feature.GetVersion()
+		serv.Logger.Infow("Serving feature", "Name", name, "Variant", variant)
+		resourceIDList[i] = provider.ResourceID{Name: name, Variant: variant, Type: provider.Feature}
+	}
+	iter, err := serv.getBatchFeatureIterator(resourceIDList)
+	if err != nil {
+		return err
+	}
+	for iter.Next() {
+		sRow, err := serializedBatchRow(iter.Entity(), iter.Features())
+		if err != nil {
+			return err
+		}
+		if err := stream.Send(sRow); err != nil {
+			return err
+		}
+	}
+	if err := iter.Err(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceColumnRequest) (*pb.SourceDataColumns, error) {

@@ -22,7 +22,7 @@ func (m MockOfflineCreateTrainingSetFail) CreateResourceTable(provider.ResourceI
 func (m MockOfflineCreateTrainingSetFail) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (m MockOfflineCreateTrainingSetFail) CreateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+func (m MockOfflineCreateTrainingSetFail) CreateMaterialization(id provider.ResourceID, options ...provider.MaterializationOptions) (provider.Materialization, error) {
 	return nil, nil
 }
 func (m MockOfflineCreateTrainingSetFail) UpdateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
@@ -38,6 +38,9 @@ func (m MockOfflineCreateTrainingSetFail) CreateTrainingSet(provider.TrainingSet
 	return fmt.Errorf("could not create training set")
 }
 func (m MockOfflineCreateTrainingSetFail) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
+	return nil, nil
+}
+func (m MockOfflineCreateTrainingSetFail) GetBatchFeatures(ids []provider.ResourceID) (provider.BatchFeatureIterator, error) {
 	return nil, nil
 }
 func (m MockOfflineCreateTrainingSetFail) UpdateTrainingSet(provider.TrainingSetDef) error {

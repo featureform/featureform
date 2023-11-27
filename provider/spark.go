@@ -669,8 +669,119 @@ func (store *SparkOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
-func (store *SparkOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
-	return nil, fmt.Errorf("batch features not implemented for this provider")
+func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIterator, error) {
+	if len(ids) == 0 {
+		return &FileStoreBatchServing{store: store.Store, iter: nil}, fmt.Errorf("no features provided")
+	}
+	// Convert all IDs to materialization IDs
+	materializationIDs := make([]ResourceID, len(ids))
+	batchDir := ""
+	for i, id := range ids {
+		materializationIDs[i] = ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
+		batchDir += fmt.Sprintf("%s-%s", id.Name, id.Variant)
+		if i != len(ids)-1 {
+			batchDir += "-"
+		}
+	}
+	// Convert materialization ID to file paths
+	materializationPaths, err := store.createFilePathsFromIDs(materializationIDs)
+	if err != nil {
+		return nil, fmt.Errorf("could not create file paths from materialization IDs: %v", err)
+	}
+
+	// Create a query that selects all features from the table
+	query := createJoinQuery(len(ids))
+
+	// Create output file path
+	batchDirUUID := uuid.NewSHA1(uuid.NameSpaceDNS, []byte(batchDir))
+	outputPath, err := store.Store.CreateDirPath(fmt.Sprintf("featureform/BatchFeatures/%s", batchDirUUID))
+	if err != nil {
+		return nil, fmt.Errorf("could not create output file path: %v", err)
+	}
+
+	// Submit arguments for a spark job
+	sparkArgs, err := store.Executor.SparkSubmitArgs(outputPath, query, materializationPaths, Transform, store.Store)
+	if err != nil {
+		store.Logger.Errorw("Problem creating spark submit arguments", "error", err)
+		return nil, fmt.Errorf("error with getting spark submit arguments %v", sparkArgs)
+	}
+
+	// Run the spark job
+	if err := store.Executor.RunSparkJob(sparkArgs, store.Store); err != nil {
+		store.Logger.Errorw("Error running Spark job", "error", err)
+		return nil, fmt.Errorf("spark submit job for transformation failed to run: %v", err)
+	}
+	// Create a batch iterator that iterates through the dir
+	outputFiles, err := store.Store.List(outputPath, filestore.Parquet)
+	if err != nil {
+		return nil, fmt.Errorf("could not get output files: %v", err)
+	}
+	iterator, err := store.Store.Serve(outputFiles)
+	if err != nil {
+		return nil, fmt.Errorf("could not serve batch features: %w", err)
+	}
+	store.Logger.Debug("Successfully created batch iterator")
+	return &FileStoreBatchServing{store: store.Store, iter: iterator, numFeatures: len(ids)}, nil
+}
+
+func (store *SparkOfflineStore) createFilePathsFromIDs(materializationIDs []ResourceID) ([]string, error) {
+	materializationPaths := make([]string, len(materializationIDs))
+	for i, id := range materializationIDs {
+		path, err := store.Store.CreateDirPath(id.ToFilestorePath())
+		if err != nil {
+			return nil, fmt.Errorf("could not create file path due to error %w (store type: %s; path: %s)", err, store.Store.FilestoreType(), id.ToFilestorePath())
+		}
+		sourceFiles, err := store.Store.List(path, filestore.Parquet)
+		if err != nil {
+			return nil, fmt.Errorf("could not get latest source file: %v", err)
+		}
+		groups, err := filestore.NewFilePathGroup(sourceFiles, filestore.DateTimeDirectoryGrouping)
+		if err != nil {
+			return nil, fmt.Errorf("could not get datetime directory grouping for source files: %v", err)
+		}
+		newest, err := groups.GetFirst()
+		if err != nil {
+			return nil, fmt.Errorf("could not get newest source file: %v", err)
+		}
+		matDir, err := store.Store.CreateDirPath(newest[0].KeyPrefix())
+		if err != nil {
+			return nil, fmt.Errorf("could not create materialization dir path: %v", err)
+		}
+		materializationPaths[i] = matDir.ToURI()
+	}
+	return materializationPaths, nil
+}
+
+func createJoinQuery(numFeatures int) string {
+	query := ""
+	asEntity := ""
+	withFeatures := ""
+	joinTables := ""
+	featureColumns := ""
+
+	for i := 0; i < numFeatures; i++ {
+		if i > 0 {
+			joinTables += "FULL OUTER JOIN "
+		}
+		withFeatures += fmt.Sprintf(", source_%d.value AS feature%d, source_%d.ts AS TS%d ", i, i+1, i, i+1)
+		featureColumns += fmt.Sprintf(", feature%d", i+1)
+		joinTables += fmt.Sprintf("source_%d ", i)
+		if i == 1 {
+			joinTables += fmt.Sprintf("ON %s = source_%d.entity ", asEntity, i)
+			asEntity += ", "
+		}
+		if i > 1 {
+			joinTables += fmt.Sprintf("ON COALESCE(%s) = source_%d.entity ", asEntity, i)
+			asEntity += ", "
+		}
+		asEntity += fmt.Sprintf("source_%d.entity", i)
+	}
+	if numFeatures == 1 {
+		query = fmt.Sprintf("SELECT %s AS entity %s FROM source_0", asEntity, withFeatures)
+	} else {
+		query = fmt.Sprintf("SELECT COALESCE(%s) AS entity %s FROM %s", asEntity, withFeatures, joinTables)
+	}
+	return query
 }
 
 func (store *SparkOfflineStore) Close() error {

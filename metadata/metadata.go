@@ -7,11 +7,12 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"github.com/featureform/lib"
 	"io"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/featureform/lib"
 
 	"github.com/pkg/errors"
 
@@ -751,6 +752,14 @@ func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) (boo
 
 func (resource *featureVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
 	return &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{FeatureVariant: resource.serialized}}
+}
+
+func (resource *featureVariantResource) GetDefinition() string {
+	def := ""
+	if resource.serialized.Type == "ondemand_feature" {
+		def = resource.serialized.GetAdditionalParameters().GetOndemand().GetDefinition()
+	}
+	return def
 }
 
 type labelResource struct {
@@ -2017,6 +2026,7 @@ type FeatureVariantResource struct {
 	Properties   Properties                              `json:"properties"`
 	Mode         string                                  `json:"mode"`
 	IsOnDemand   bool                                    `json:"is-on-demand"`
+	Definition   string                                  `json:"definition"`
 }
 
 type LabelVariantResource struct {

@@ -62,6 +62,7 @@ from .resources import (
     ResourceStatus,
     K8sArgs,
     AWSCredentials,
+    OndemandFeatureParameters,
     GCPCredentials,
     HDFSConfig,
     K8sResourceSpecs,
@@ -3771,6 +3772,7 @@ class Registrar:
             tags=tags or [],
             properties=properties or {},
         )
+
         self.__resources.append(decorator)
 
         if fn is None:
@@ -3957,6 +3959,7 @@ class Registrar:
             desc = feature.get("description", "")
             feature_tags = feature.get("tags", [])
             feature_properties = feature.get("properties", {})
+            additional_Parameters = self._get_additional_parameters(ondemand_feature)
             resource = FeatureVariant(
                 created=None,
                 name=feature["name"],
@@ -3977,6 +3980,7 @@ class Registrar:
                 ),
                 tags=feature_tags,
                 properties=feature_properties,
+                additional_parameters=additional_Parameters,
             )
             self.__resources.append(resource)
             self.map_client_object_to_resource(client_object, resource)
@@ -4018,6 +4022,9 @@ class Registrar:
             self.map_client_object_to_resource(client_object, resource)
             label_resources.append(resource)
         return ResourceRegistrar(self, features, labels)
+
+    def _get_additional_parameters(self, feature):
+        return OndemandFeatureParameters(definition="() => REGISTER")
 
     def __get_feature_nv(self, features, run):
         feature_nv_list = []
@@ -4286,7 +4293,6 @@ class ResourceClient:
             if not asynchronous and self._stub:
                 resources = resource_state.sorted_list()
                 display_statuses(self._stub, resources, verbose=verbose)
-
         finally:
             if os.getenv("FF_TIMESTAMP_VARIANT") is not None:
                 set_run("")

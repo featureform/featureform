@@ -342,6 +342,7 @@ jobs:
           file: ./provider/scripts/k8s/Dockerfile
           tags: featureformcom/k8s_runner:${{ env.TAG }}
           push: true
+
   helm:
     name: Package Helm
     environment: Deployment
@@ -355,16 +356,26 @@ jobs:
       - name: Set production tag
         run: ./.github/helpers/set_release_type.sh ${{ inputs.type }} $GITHUB_ENV ${{ inputs.version }}
 
+      - name: Install Pre-reqs
+        run: |
+          sudo apt-get update
+          sudo apt-get install apt-transport-https ca-certificates gnupg curl sudo
+
       - name: Install Helm
         run: |
           curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
           chmod 700 get_helm.sh
           ./get_helm.sh
 
+      - name: Remove Existing GCS CLI Installation
+        run: |
+          cd /etc/apt/sources.list.d
+          sudo rm google-cloud-sdk.list
+
       - name: Install GCS CLI
         run: |
-          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-          curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+          curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
           sudo apt-get update
           sudo apt-get install google-cloud-sdk
 

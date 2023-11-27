@@ -87,7 +87,9 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 		Field(key.String()).
 		Build()
 	vType, err := store.client.Do(context.TODO(), cmd).ToString()
-	if err != nil {
+	if err != nil && rueidis.IsRedisNil(err) {
+		return nil, &TableNotFound{feature, variant}
+	} else if err != nil {
 		return nil, err
 	}
 	var table OnlineStoreTable

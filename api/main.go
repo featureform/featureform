@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc/resolver"
 	"io"
 	"net"
 	"net/http"
@@ -31,41 +30,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
-
-type exampleResolverBuilder struct{}
-
-func (*exampleResolverBuilder) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOptions) (resolver.Resolver, error) {
-	r := &exampleResolver{
-		target: target,
-		cc:     cc,
-		addrsStore: map[string][]string{
-			"my_custom_service": {"10.0.2.230:8080", "10.0.3.90:8080", "10.0.3.99:8080"},
-		},
-	}
-	r.start()
-	return r, nil
-}
-
-func (*exampleResolverBuilder) Scheme() string { return "example" }
-
-// Define a custom resolver.
-type exampleResolver struct {
-	target     resolver.Target
-	cc         resolver.ClientConn
-	addrsStore map[string][]string
-}
-
-func (r *exampleResolver) start() {
-	addrStrs := r.addrsStore[r.target.Endpoint()]
-	addrs := make([]resolver.Address, len(addrStrs))
-	for i, s := range addrStrs {
-		addrs[i] = resolver.Address{Addr: s}
-	}
-	r.cc.UpdateState(resolver.State{Addresses: addrs})
-}
-
-func (*exampleResolver) ResolveNow(o resolver.ResolveNowOptions) {}
-func (*exampleResolver) Close()                                  {}
 
 type ApiServer struct {
 	Logger     *zap.SugaredLogger
@@ -839,7 +803,6 @@ func (serv *OnlineServer) ResourceLocation(ctx context.Context, req *srv.Trainin
 }
 
 func (serv *ApiServer) Serve() error {
-	resolver.Register(&exampleResolverBuilder{})
 
 	if serv.grpcServer != nil {
 		return fmt.Errorf("server already running")
@@ -850,13 +813,12 @@ func (serv *ApiServer) Serve() error {
 	}
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
 	}
 	metaConn, err := grpc.Dial(serv.metadata.address, opts...)
 	if err != nil {
 		return fmt.Errorf("metdata connection: %w", err)
 	}
-	servConn, err := grpc.Dial("example:///my_custom_service", opts...)
+	servConn, err := grpc.Dial(serv.online.address, opts...)
 	if err != nil {
 		return fmt.Errorf("serving connection: %w", err)
 	}

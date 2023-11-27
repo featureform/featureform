@@ -179,9 +179,10 @@ func (client *Client) GetFeatures(ctx context.Context, features []string) ([]*Fe
 }
 
 func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant) ([]*FeatureVariant, error) {
+	logger := client.Logger.With("ids", ids)
 	stream, err := client.GrpcConn.GetFeatureVariants(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get feature variants: %v", err)
 	}
 	go func() {
 		for _, id := range ids {
@@ -189,7 +190,7 @@ func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant)
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseFeatureVariantStream(stream)

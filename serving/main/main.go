@@ -10,11 +10,11 @@ import (
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
-	"github.com/featureform/serving"
-	"net"
-
 	pb "github.com/featureform/proto"
+	"github.com/featureform/serving"
 	"google.golang.org/grpc"
+	"net"
+	_ "net/http/pprof"
 )
 
 func main() {

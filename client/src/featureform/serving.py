@@ -200,10 +200,18 @@ class HostedClientImpl:
         self, features, entities, model: Union[str, Model] = None, params: list = None
     ):
         req = serving_pb2.FeatureServeRequest()
-        for name, value in entities.items():
+        for name, values in entities.items():
             entity_proto = req.entities.add()
             entity_proto.name = name
-            entity_proto.value = value
+            if isinstance(values, list):
+                for value in values:  # Assuming 'values' is a list of strings
+                    entity_proto.values.append(value)
+            elif isinstance(values, str):
+                entity_proto.values.append(values)
+            else:
+                raise ValueError(
+                    "Entity values must be either a string or a list of strings"
+                )
         for name, variation in features:
             feature_id = req.features.add()
             feature_id.name = name
@@ -213,24 +221,30 @@ class HostedClientImpl:
         resp = self._stub.FeatureServe(req)
 
         feature_values = []
-        for val in resp.values:
-            parsed_value = parse_proto_value(val)
-            value_type = type(parsed_value)
 
-            # TODO: Will need something similar to this for ondemand features
-            # Ondemand features are returned as a byte array
-            # which holds the pickled function
-            if value_type == bytes:
-                code = dill.loads(bytearray(parsed_value))
-                func = types.FunctionType(code, globals(), "transformation")
-                parsed_value = func(self, params, entities)
-            # Vector features are returned as a Vector32 proto due
-            # to the inability to use the `repeated` keyword in
-            # in a `oneof` field
-            elif value_type == serving_pb2.Vector32:
-                parsed_value = parsed_value.value
+        for val_list in resp.values:
+            entity_values = []
+            for val in val_list.values:
+                parsed_value = parse_proto_value(val)
+                value_type = type(parsed_value)
 
-            feature_values.append(parsed_value)
+                # Ondemand features are returned as a byte array
+                # which holds the pickled function
+                if value_type == bytes:
+                    code = dill.loads(bytearray(parsed_value))
+                    func = types.FunctionType(code, globals(), "transformation")
+                    parsed_value = func(self, params, entities)
+                # Vector features are returned as a Vector32 proto due
+                # to the inability to use the `repeated` keyword in
+                # in a `oneof` field
+                elif value_type == serving_pb2.Vector32:
+                    parsed_value = parsed_value.value
+                entity_values.append(parsed_value)
+
+            # If theres only one entity row, only return that row
+            if len(resp.values) == 1:
+                return entity_values
+            feature_values.append(entity_values)
 
         return feature_values
 

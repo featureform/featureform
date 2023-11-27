@@ -7,8 +7,8 @@ package serving
 import (
 	"context"
 	"fmt"
-
 	"github.com/pkg/errors"
+	"sync"
 
 	filestore "github.com/featureform/filestore"
 	"github.com/featureform/metadata"
@@ -22,17 +22,23 @@ import (
 
 type FeatureServer struct {
 	pb.UnimplementedFeatureServer
-	Metrics  metrics.MetricsHandler
-	Metadata *metadata.Client
-	Logger   *zap.SugaredLogger
+	Metrics   metrics.MetricsHandler
+	Metadata  *metadata.Client
+	Logger    *zap.SugaredLogger
+	Providers *sync.Map
+	Tables    *sync.Map
+	Features  *sync.Map
 }
 
 func NewFeatureServer(meta *metadata.Client, promMetrics metrics.MetricsHandler, logger *zap.SugaredLogger) (*FeatureServer, error) {
 	logger.Debug("Creating new training data server")
 	return &FeatureServer{
-		Metadata: meta,
-		Metrics:  promMetrics,
-		Logger:   logger,
+		Metadata:  meta,
+		Metrics:   promMetrics,
+		Logger:    logger,
+		Providers: &sync.Map{},
+		Tables:    &sync.Map{},
+		Features:  &sync.Map{},
 	}, nil
 }
 
@@ -291,106 +297,50 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	return primary.IterateSegment(limit)
 }
 
+func (serv *FeatureServer) addModel(ctx context.Context, model *pb.Model, features []*pb.FeatureID) error {
+	modelFeatures := make([]metadata.NameVariant, len(features))
+	for i, feature := range features {
+		modelFeatures[i] = metadata.NameVariant{Name: feature.Name, Variant: feature.Version}
+	}
+	serv.Logger.Infow("Creating model", "Name", model.GetName())
+	err := serv.Metadata.CreateModel(ctx, metadata.ModelDef{Name: model.GetName(), Features: modelFeatures})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type observer struct{}
+
 // TODO: test serving embedding features
 func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServeRequest) (*pb.FeatureRow, error) {
 	features := req.GetFeatures()
 	entities := req.GetEntities()
-	entityMap := make(map[string]string)
+	entityMap := make(map[string][]string)
+
 	for _, entity := range entities {
-		entityMap[entity.GetName()] = entity.GetValue()
+		entityMap[entity.GetName()] = entity.GetValues()
 	}
+
 	if model := req.GetModel(); model != nil {
-		modelFeatures := make([]metadata.NameVariant, len(features))
-		for i, feature := range req.GetFeatures() {
-			modelFeatures[i] = metadata.NameVariant{Name: feature.Name, Variant: feature.Version}
-		}
-		serv.Logger.Infow("Creating model", "Name", model.GetName())
-		err := serv.Metadata.CreateModel(ctx, metadata.ModelDef{Name: model.GetName(), Features: modelFeatures})
+		err := serv.addModel(ctx, model, features)
 		if err != nil {
 			return nil, err
 		}
 	}
-	vals := make([]*pb.Value, len(features))
-	for i, feature := range req.GetFeatures() {
-		name, variant := feature.GetName(), feature.GetVersion()
-		serv.Logger.Infow("Serving feature", "Name", name, "Variant", variant)
-		val, err := serv.getFeatureValue(ctx, name, variant, entityMap)
-		if err != nil {
-			return nil, errors.Wrap(err, "could not get feature value")
-		}
-		vals[i] = val
+
+	rows, err := serv.getFeatureRows(ctx, features, entityMap)
+	if err != nil {
+		return nil, err
 	}
+
 	return &pb.FeatureRow{
-		Values: vals,
+		ValueLists: rows,
 	}, nil
 }
 
-func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant string, entityMap map[string]string) (*pb.Value, error) {
-	obs := serv.Metrics.BeginObservingOnlineServe(name, variant)
-	defer obs.Finish()
-	logger := serv.Logger.With("Name", name, "Variant", variant)
-	logger.Debug("Getting metadata")
-	meta, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{name, variant})
-	if err != nil {
-		logger.Errorw("metadata lookup failed", "Err", err)
-		obs.SetError()
-		return nil, err
-	}
-
-	var val interface{}
-	switch meta.Mode() {
-	case metadata.PRECOMPUTED:
-		entity, has := entityMap[meta.Entity()]
-		if !has {
-			logger.Errorw("Entity not found", "Entity", meta.Entity())
-			obs.SetError()
-			return nil, fmt.Errorf("No value for entity %s", meta.Entity())
-		}
-		providerEntry, err := meta.FetchProvider(serv.Metadata, ctx)
-		if err != nil {
-			logger.Errorw("fetching provider metadata failed", "Error", err)
-			obs.SetError()
-			return nil, err
-		}
-		p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
-		if err != nil {
-			logger.Errorw("failed to get provider", "Error", err)
-			obs.SetError()
-			return nil, err
-		}
-		store, err := p.AsOnlineStore()
-		if err != nil {
-			logger.Errorw("failed to use provider as onlinestore for feature", "Error", err)
-			obs.SetError()
-			// This means that the provider of the feature isn't an online store.
-			// That shouldn't be possible.
-			return nil, err
-		}
-		table, err := store.GetTable(name, variant)
-		if err != nil {
-			logger.Errorw("feature not found", "Error", err)
-			obs.SetError()
-			return nil, err
-		}
-		val, err = table.Get(entity)
-		if err != nil {
-			logger.Errorw("entity not found", "Error", err)
-			obs.SetError()
-			return nil, err
-		}
-	case metadata.CLIENT_COMPUTED:
-		val = meta.LocationFunction()
-	default:
-		return nil, fmt.Errorf("unknown computation mode %v", meta.Mode())
-	}
-	f, err := newValue(val)
-	if err != nil {
-		logger.Errorw("invalid feature type", "Error", err)
-		obs.SetError()
-		return nil, err
-	}
-	obs.ServeRow()
-	return f.Serialized(), nil
+func (serv *FeatureServer) getNVCacheKey(name, variant string) string {
+	return fmt.Sprintf("%s:%s", name, variant)
 }
 
 func (serv *FeatureServer) BatchFeatureServe(req *pb.BatchFeatureServeRequest, stream pb.Feature_BatchFeatureServeServer) error {

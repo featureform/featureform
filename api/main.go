@@ -803,6 +803,7 @@ func (serv *OnlineServer) ResourceLocation(ctx context.Context, req *srv.Trainin
 }
 
 func (serv *ApiServer) Serve() error {
+
 	if serv.grpcServer != nil {
 		return fmt.Errorf("server already running")
 	}

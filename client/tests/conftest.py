@@ -41,9 +41,7 @@ import featureform as ff
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
 
-pytest_plugins = [
-    "connection_test",
-]
+pytest_plugins = []
 
 
 @pytest.fixture(scope="module")

@@ -145,6 +145,7 @@ def step_impl(context):
 )
 def step_impl(context, transformation_type, name, sources):
     source_list = sources.split(",")
+    source_list = [ff.get_source(s, ff.get_run()) for s in source_list]
     if transformation_type == "DF":
 
         @context.spark.df_transformation(

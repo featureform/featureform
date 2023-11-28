@@ -1663,7 +1663,7 @@ class Registrar:
         self.__resources = []
         self.__default_owner = ""
         self.__variant_prefix = ""
-        if os.getenv("FF_TIMESTAMP_VARIANT") is not None:
+        if os.getenv("FF_TIMESTAMP_VARIANT") is None:
             self.__run = get_current_timestamp_variant(self.__variant_prefix)
         else:
             self.__run = get_random_name()
@@ -1800,7 +1800,7 @@ class Registrar:
             run (str): Name of a run to be set.
         """
         if run == "":
-            if os.getenv("FF_TIMESTAMP_VARIANT") is not None:
+            if os.getenv("FF_TIMESTAMP_VARIANT") is None:
                 self.__run = get_current_timestamp_variant(self.__variant_prefix)
             else:
                 self.__run = get_random_name()
@@ -4294,7 +4294,7 @@ class ResourceClient:
                 resources = resource_state.sorted_list()
                 display_statuses(self._stub, resources, verbose=verbose)
         finally:
-            if os.getenv("FF_TIMESTAMP_VARIANT") is not None:
+            if os.getenv("FF_TIMESTAMP_VARIANT") is None:
                 set_run("")
             clear_state()
             register_local()

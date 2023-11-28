@@ -2538,7 +2538,7 @@ class SparkCredentials:
 def _get_and_set_equivalent_variant(
     resource_variant_proto, variant_field, stub
 ) -> Optional[str]:
-    if os.getenv("FF_GET_EQUIVALENT_VARIANTS"):
+    if os.getenv("FF_GET_EQUIVALENT_VARIANTS") is None:
         # Get equivalent from stub
         equivalent = stub.GetEquivalent(
             pb.ResourceVariant(**{variant_field: resource_variant_proto})

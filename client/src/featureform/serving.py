@@ -220,9 +220,13 @@ class HostedClientImpl:
             req.model.name = model if isinstance(model, str) else model.name
         resp = self._stub.FeatureServe(req)
 
-        feature_values = []
+        deprecated_values = resp.values
+        value_lists = (
+            deprecated_values if len(deprecated_values) > 0 else resp.value_lists
+        )
 
-        for val_list in resp.values:
+        feature_values = []
+        for val_list in value_lists:
             entity_values = []
             for val in val_list.values:
                 parsed_value = parse_proto_value(val)
@@ -242,7 +246,7 @@ class HostedClientImpl:
                 entity_values.append(parsed_value)
 
             # If theres only one entity row, only return that row
-            if len(resp.values) == 1:
+            if len(value_lists) == 1:
                 return entity_values
             feature_values.append(entity_values)
 

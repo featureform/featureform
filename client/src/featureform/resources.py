@@ -17,6 +17,7 @@ import grpc
 from dataclasses import field
 from google.protobuf.duration_pb2 import Duration
 
+from . import feature_flag
 from .enums import *
 from .exceptions import *
 from .sqlite_metadata import SQLiteMetadata
@@ -2538,7 +2539,7 @@ class SparkCredentials:
 def _get_and_set_equivalent_variant(
     resource_variant_proto, variant_field, stub
 ) -> Optional[str]:
-    if os.getenv("FF_GET_EQUIVALENT_VARIANTS"):
+    if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
         # Get equivalent from stub
         equivalent = stub.GetEquivalent(
             pb.ResourceVariant(**{variant_field: resource_variant_proto})

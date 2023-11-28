@@ -8,4 +8,6 @@ def is_enabled(feature_name, default=False):
     value = os.getenv(feature_name).lower()
     if value == "true":
         return True
+    elif value == "false":
+        return False
     return default

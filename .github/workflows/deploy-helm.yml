@@ -157,7 +157,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: ./coordinator/Dockerfile.old
+          file: ./coordinator/Dockerfile
           tags: featureformcom/coordinator:${{ env.TAG }}
           push: true
           cache-from: type=gha
@@ -342,6 +342,7 @@ jobs:
           file: ./provider/scripts/k8s/Dockerfile
           tags: featureformcom/k8s_runner:${{ env.TAG }}
           push: true
+
   helm:
     name: Package Helm
     environment: Deployment
@@ -363,10 +364,9 @@ jobs:
 
       - name: Install GCS CLI
         run: |
-          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-          curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
-          sudo apt-get update
-          sudo apt-get install google-cloud-sdk
+          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+          curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+          sudo snap install google-cloud-cli --classic
 
       - name: Create GCloud Key
         id: gcloud-key-json

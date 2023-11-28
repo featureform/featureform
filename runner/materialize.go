@@ -191,7 +191,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		m.Logger.Infow("Making Local Runner", "name", m.ID.Name, "variant", m.ID.Variant)
 		completionList := make([]types.CompletionWatcher, int(numChunks))
 		for i := 0; i < int(numChunks); i++ {
-			localRunner, err := Create(string(COPY_TO_ONLINE), serializedConfig)
+			localRunner, err := Create(COPY_TO_ONLINE, serializedConfig)
 			if err != nil {
 				return nil, fmt.Errorf("local runner create: %w", err)
 			}

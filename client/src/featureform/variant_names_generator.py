@@ -1,5 +1,5 @@
 import random
-
+from datetime import datetime
 
 # 140 adjectives
 left = [
@@ -495,3 +495,10 @@ def get_random_name(sep="_"):
         if name == "boring" + sep + "wozniak":  # Steve Wozniak is not boring
             continue
         return name
+
+
+def get_current_timestamp_variant(prefix="", sep="_"):
+    # Explore variant names and what's allowed for different providers
+    # current_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    current_timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+    return current_timestamp if prefix == "" else f"{prefix}{sep}{current_timestamp}"

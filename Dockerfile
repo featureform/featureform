@@ -6,7 +6,7 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app/dashboard
 
-COPY /dashboard/package.json /dashboard/.yarn.lock* /dashboard/package-lock.json* ./
+COPY /dashboard/package.json /dashboard/package-lock.json* ./
 RUN npm i
 
 # Rebuild the source code only when needed
@@ -33,7 +33,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/dashboard/.next/static ./.next/st
 COPY --from=builder --chown=nextjs:nodejs /app/dashboard/out ./out
 
 # Build Go services
-FROM golang:1.18 as go-builder
+FROM golang:1.21 as go-builder
 
 RUN apt update && \
     apt install -y protobuf-compiler
@@ -43,6 +43,7 @@ RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 WORKDIR /app
 COPY go.mod ./
 COPY go.sum ./
+
 RUN go mod download
 COPY ./filestore/ ./filestore/
 COPY ./health/ ./health/
@@ -73,7 +74,7 @@ RUN go build -o execs/dashboard_metadata metadata/dashboard/dashboard_metadata.g
 RUN go build -o execs/serving serving/main/main.go
 
 # Final image
-FROM golang:1.18
+FROM golang:1.21
 
 WORKDIR /app
 
@@ -86,7 +87,7 @@ RUN apt-get install -y nginx --option=Dpkg::Options::=--force-confdef
 # Install Node 16 for internal dashboard server
 RUN curl -sL https://deb.nodesource.com/setup_16.x | sh
 RUN apt-get update
-RUN apt install nodejs
+RUN apt-get install -y nodejs
 
 # Install MeiliSearch
 RUN curl -L https://install.meilisearch.com | sh
@@ -103,10 +104,14 @@ RUN ETCD_UNSUPPORTED_ARCH=arm64 ./etcd/bin/etcd --version
 ARG SPARK_FILEPATH=/app/provider/scripts/spark/offline_store_spark_runner.py
 ARG SPARK_PYTHON_PACKAGES=/app/provider/scripts/spark/python_packages.sh
 ARG SPARK_REQUIREMENTS=/app/provider/scripts/spark/requirements.txt
+ARG MATERIALIZE_NO_TIMESTAMP_QUERY_PATH=/app/provider/queries/materialize_no_ts.sql
+ARG MATERIALIZE_TIMESTAMP_QUERY_PATH=/app/provider/queries/materialize_ts.sql
 
 COPY provider/scripts/spark/offline_store_spark_runner.py $SPARK_FILEPATH
 COPY provider/scripts/spark/python_packages.sh $SPARK_PYTHON_PACKAGES
 COPY provider/scripts/spark/requirements.txt $SPARK_REQUIREMENTS
+COPY provider/queries/materialize_no_ts.sql $MATERIALIZE_NO_TIMESTAMP_QUERY_PATH
+COPY provider/queries/materialize_ts.sql $MATERIALIZE_TIMESTAMP_QUERY_PATH
 
 ENV SPARK_LOCAL_SCRIPT_PATH=$SPARK_FILEPATH
 ENV PYTHON_LOCAL_INIT_PATH=$SPARK_PYTHON_PACKAGES

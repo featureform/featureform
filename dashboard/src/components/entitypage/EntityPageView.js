@@ -396,14 +396,16 @@ const EntityPageView = ({
                   </div>
                 </div>
                 {allVariants && (
-                  <VariantControl
-                    variant={variant}
-                    variantListProp={allVariants}
-                    resources={resources}
-                    handleVariantChange={handleVariantChange}
-                    type={type}
-                    name={name}
-                  />
+                  <div>
+                    <VariantControl
+                      variant={variant}
+                      variantListProp={allVariants}
+                      resources={resources}
+                      handleVariantChange={handleVariantChange}
+                      type={type}
+                      name={name}
+                    />
+                  </div>
                 )}
               </div>
             </Grid>
@@ -662,7 +664,8 @@ const EntityPageView = ({
                           } else if (
                             ['Dataframe Transformation'].includes(
                               metadata['source-type']
-                            )
+                            ) ||
+                            metadata['is-on-demand'] === true
                           ) {
                             return (
                               <SyntaxHighlighter

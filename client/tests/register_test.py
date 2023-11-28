@@ -281,10 +281,10 @@ def run_before_and_after_tests(tmpdir):
         ("SELECT * FROM     \n {{name . variant}}", False),
         (
             """
-        SELECT *
-        FROM {{ name.variant2 }}
-        WHERE x >= 5.
-        """,
+            SELECT *
+            FROM {{ name.variant2 }}
+            WHERE x >= 5.
+            """,
             True,
         ),
         (
@@ -369,6 +369,39 @@ def test_register_s3(bucket_name, expected_error, ff_registrar, aws_credentials)
             credentials=aws_credentials,
             bucket_region="us-east-1",
             bucket_name=bucket_name,
+        )
+    except ValueError as ve:
+        assert str(ve) == str(expected_error)
+    except Exception as e:
+        raise e
+
+
+@pytest.mark.parametrize(
+    "bucket_name, expected_error",
+    [
+        ("gs://bucket_name", None),
+        ("bucket_name", None),
+        (
+            "bucket_name/",
+            ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the GCS bucket only."
+            ),
+        ),
+        (
+            "gs://bucket_name/",
+            ValueError(
+                "bucket_name cannot contain '/'. bucket_name should be the name of the GCS bucket only."
+            ),
+        ),
+    ],
+)
+def test_register_gcs(bucket_name, expected_error, ff_registrar, gcp_credentials):
+    try:
+        _ = ff_registrar.register_gcs(
+            name="gcs_bucket",
+            bucket_name=bucket_name,
+            root_path="",
+            credentials=gcp_credentials,
         )
     except ValueError as ve:
         assert str(ve) == str(expected_error)

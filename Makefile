@@ -17,7 +17,7 @@ help
 init
 	Requirements:
 		- Python 3.7-3.10
-		- Golang 1.18
+		- Golang 1.21
 
 	Description:
 		Installs grpc-tools with pip and builds the proto files for the serving and metadata connections for the
@@ -27,13 +27,13 @@ init
 test
 	Requirements:
 		- Python 3.7-3.10
-		- Golang 1.18
+		- Golang 1.21
 	Description:
 		Runs 'init' then runs the Python and Golang Unit tests
 
 test_offline
 	Requirements:
-		- Golang 1.18
+		- Golang 1.21
 
 	Description:
 		Runs offline store integration tests. Requires credentials if not using the memory provider
@@ -47,7 +47,7 @@ test_offline
 
 test_online
 	Requirements:
-		- Golang 1.18
+		- Golang 1.21
 
 	Description:
 		Runs online store integration tests. Requires credentials if not using the memory or redis_mock provider
@@ -62,14 +62,14 @@ test_online
 
 test_go_unit
 	Requirements:
-		- Golang 1.18
+		- Golang 1.21
 
 	Description:
 		Runs golang unit tests
 
 test_metadata
 	Requirements:
-		- Golang 1.18
+		- Golang 1.21
 		- ETCD installed and added to path (https://etcd.io/docs/v3.4/install/)
 
 	Description:
@@ -85,21 +85,21 @@ test_metadata
 
 test_helpers
 	Requirements:
-		- Golang 1.18
+		- Golang 1.21
 
 	Description:
 		Runs helper tests
 
 test_serving
 	Requirements:
-		- Golang 1.18
+		- Golang 1.21
 
 	Description:
 		Runs serving tests
 
 test_runner
 	Requirements:
-		- Golang 1.18
+		- Golang 1.21
 		- ETCD installed and added to path (https://etcd.io/docs/v3.4/install/)
 
 	Description:
@@ -114,7 +114,7 @@ test_runner
 
 test_api
 	Requirements:
-		- Golang 1.18
+		- Golang 1.21
 		- Python3.6-3.10
 
 	Description:
@@ -122,7 +122,7 @@ test_api
 
 test_typesense
 	Requirements:
-		- Golang 1.18
+		- Golang 1.21
 		- Docker
 
 	Description:
@@ -130,7 +130,7 @@ test_typesense
 
 test_coordinator
 	Requirements:
-		- Golang 1.18
+		- Golang 1.21
 		- ETCD installed and added to path (https://etcd.io/docs/v3.4/install/)
 		- Docker
 
@@ -146,7 +146,7 @@ test_coordinator
 
 test_filestore
 	Requirements:
-		- Golang 1.18
+		- Golang 1.21
 
 	Description:
 		Runs golang unit tests
@@ -352,6 +352,12 @@ test_healthchecks: ## Run health check tests. Run with `make test_healthchecks p
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage
 	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./health --tags=health --provider=$(provider)
+
+
+test_importable_online: ## Run importable online table tests. Run with `make test_importable_online provider=( dynamo )`
+	@echo "These tests require a .env file. Please Check .env-template for possible variables"
+	-mkdir coverage
+	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider --tags=importable_online --provider=$(provider)
 
 
 ##############################################  MINIKUBE ###############################################################

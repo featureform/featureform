@@ -252,7 +252,6 @@ func testFileUploadAndDownload(t *testing.T, store FileStore) {
 	if err := localDestinationPath.SetKey(localDestFile); err != nil {
 		t.Fatalf("could not set local destination path because %v", err)
 	}
-
 	err = store.Download(destinationPath, &localDestinationPath)
 	if err != nil {
 		t.Fatalf("could not download %s file to %s because %v", destinationPath.ToURI(), localDestinationPath.ToURI(), err)
@@ -1055,7 +1054,6 @@ func convertToParquetBytes(schema TableSchema, list []GenericRecord) ([]byte, er
 	}
 	return buf.Bytes(), nil
 }
-
 func Test_castTimestamp(t *testing.T) {
 	timeNow := time.Now()
 	type args struct {

@@ -177,12 +177,12 @@ def test_register_cassandra():
 @pytest.mark.local
 def test_register_dynamodb():
     reg = Registrar()
+    fake_creds = AWSCredentials("id", "secret")
     result = reg.register_dynamodb(
         name="name",
         description="description",
         team="team",
-        access_key="key",
-        secret_key="key",
+        credentials=fake_creds,
         region="region",
         tags=[],
         properties={},

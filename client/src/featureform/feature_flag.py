@@ -10,4 +10,3 @@ def is_enabled(feature_name, default=False):
     if value is not None:
         return value.lower() == "true"
     return default
-

@@ -13,7 +13,10 @@ from featureform import register_spark
 def step_impl(context):
     run_id = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
 
-    ff.set_variant_prefix(run_id)
+    ff.set_run(run_id)
+
+
+#   ff.set_variant_prefix(run_id)
 
 
 @when("I register Spark")
@@ -145,7 +148,7 @@ def step_impl(context):
 )
 def step_impl(context, transformation_type, name, sources):
     source_list = sources.split(",")
-    source_list = [ff.get_source(s, ff.get_run()) for s in source_list]
+    #  source_list = [ff.get_source(s, ff.get_run()) for s in source_list]
     if transformation_type == "DF":
 
         @context.spark.df_transformation(

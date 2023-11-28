@@ -10,6 +10,11 @@ def get_sql_transformation_sources(query_string):
 
 def merge_feature_into_ts(feature_row, label_row, df, trainingset_df):
     if feature_row["source_timestamp"] != "":
+        # Ensure the entity columns are both the same type from pandas' perspective
+        df[feature_row["source_entity"]] = df[feature_row["source_entity"]].astype(str)
+        trainingset_df[label_row["source_entity"]] = trainingset_df[
+            label_row["source_entity"]
+        ].astype(str)
         trainingset_df = pd.merge_asof(
             trainingset_df.sort_values(label_row["source_timestamp"]),
             df.sort_values(feature_row["source_timestamp"]),

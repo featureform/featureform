@@ -13,7 +13,7 @@ from featureform import register_spark
 def step_impl(context):
     run_id = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
 
-    ff.set_run(run_id)
+    ff.set_variant_prefix(run_id)
 
 
 @when("I register Spark")

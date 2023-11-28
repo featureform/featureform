@@ -132,7 +132,11 @@ class ServingClient:
         return self.impl.training_set(name, variant, include_label_timestamp, model)
 
     def features(
-        self, features, entities: Dict = None, model: Union[str, Model] = None, params = None
+        self,
+        features,
+        entities: Dict = None,
+        model: Union[str, Model] = None,
+        params=None,
     ):
         """Returns the feature values for the specified entities.
 
@@ -203,7 +207,11 @@ class HostedClientImpl:
         return Dataset(self._stub).from_stub(name, variation, model)
 
     def features(
-        self, features, entities: Dict = None, model: Union[str, Model] = None, params: list = None
+        self,
+        features,
+        entities: Dict = None,
+        model: Union[str, Model] = None,
+        params: list = None,
     ):
         req = serving_pb2.FeatureServeRequest()
         for name, values in entities.items():
@@ -243,6 +251,7 @@ class HostedClientImpl:
                 if value_type == bytes:
                     code = dill.loads(bytearray(parsed_value))
                     func = types.FunctionType(code, globals(), "transformation")
+
                     parsed_value = func(self, params, {} if not entities else entities)
                 # Vector features are returned as a Vector32 proto due
                 # to the inability to use the `repeated` keyword in

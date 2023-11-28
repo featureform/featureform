@@ -1,4 +1,4 @@
-FROM golang:1.18-alpine
+FROM golang:1.21-alpine
 
 WORKDIR /app
 
@@ -10,8 +10,10 @@ RUN apk update && apk add protobuf-dev && go install google.golang.org/grpc/cmd/
 ENV PATH /go/bin:$PATH
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
 
+COPY ./filestore/ ./filestore/
 COPY backup/ ./backup/
 COPY helpers/ ./helpers/
+COPY lib/ ./lib/
 COPY provider/ ./provider/
 COPY config/ ./config/
 COPY kubernetes/ ./kubernetes/
@@ -23,7 +25,7 @@ COPY proto/ ./proto/
 
 RUN go build ./backup/save/main.go 
 
-FROM golang:1.18-alpine
+FROM golang:1.21-alpine
 
 COPY --from=0 ./app/main ./main
 

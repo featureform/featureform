@@ -18,6 +18,7 @@ class FeatureVariantResource:
         source=None,
         tags=[],
         properties={},
+        definition="",
     ):
         self.__dictionary = {
             "created": created,
@@ -33,13 +34,13 @@ class FeatureVariantResource:
             "source": source,
             "tags": tags,
             "properties": properties,
-            # Training Set[] is missing
+            "definition": definition,
         }
 
-    def toDictionary(self):
+    def to_dictionary(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def to_json_literal(self):
         return json.dumps(self.__dictionary)
 
 
@@ -55,10 +56,10 @@ class FeatureResource:
             "variants": variants,
         }
 
-    def toDictionary(self):
+    def to_dictionary(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def to_json_literal(self):
         return json.dumps(self.__dictionary)
 
 
@@ -89,10 +90,10 @@ class TrainingSetVariantResource:
             "properties": properties,
         }
 
-    def toDictionary(self):
+    def to_dictionary(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def to_json_literal(self):
         return json.dumps(self.__dictionary)
 
 
@@ -108,10 +109,10 @@ class TrainingSetResource:
             "variants": variants,
         }
 
-    def toDictionary(self):
+    def to_dictionary(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def to_json_literal(self):
         return json.dumps(self.__dictionary)
 
 
@@ -132,6 +133,7 @@ class SourceVariantResource:
         trainingSets=None,
         tags=[],
         properties={},
+        inputs=[],
     ):
         self.__dictionary = {
             "created": created,
@@ -148,12 +150,13 @@ class SourceVariantResource:
             "training-sets": trainingSets,
             "tags": tags,
             "properties": properties,
+            "inputs": inputs,
         }
 
-    def toDictionary(self):
+    def to_dictionary(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def to_json_literal(self):
         return json.dumps(self.__dictionary)
 
     @property
@@ -177,10 +180,10 @@ class SourceResource:
             "variants": variants,
         }
 
-    def toDictionary(self):
+    def to_dictionary(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def to_json_literal(self):
         return json.dumps(self.__dictionary)
 
 
@@ -214,16 +217,16 @@ class LabelVariantResource:
             "status": status,
             "location": location,
             "source": source,
-            "trainingSets": trainingSets,
+            "training-sets": trainingSets,
             "tags": tags,
             "properties": properties,
             #  source is missing
         }
 
-    def toDictionary(self):
+    def to_dictionary(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def to_json_literal(self):
         return json.dumps(self.__dictionary)
 
 
@@ -239,10 +242,10 @@ class LabelResource:
             "variants": variants,
         }
 
-    def toDictionary(self):
+    def to_dictionary(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def to_json_literal(self):
         return json.dumps(self.__dictionary)
 
 
@@ -271,10 +274,10 @@ class EntityResource:
             "properties": properties,
         }
 
-    def toDictionary(self):
+    def to_dictionary(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def to_json_literal(self):
         return json.dumps(self.__dictionary)
 
 
@@ -303,10 +306,10 @@ class UserResource:
             "properties": properties,
         }
 
-    def toDictionary(self):
+    def to_dictionary(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def to_json_literal(self):
         return json.dumps(self.__dictionary)
 
 
@@ -335,10 +338,10 @@ class ModelResource:
             "properties": properties,
         }
 
-    def toDictionary(self):
+    def to_dictionary(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def to_json_literal(self):
         return json.dumps(self.__dictionary)
 
 
@@ -353,12 +356,11 @@ class ProviderResource:
         team="",
         sources=None,
         status="",
-        serializedConfig="",
+        serializedConfig="{}",
         features=None,
         labels=None,
         tags=[],
-        properties={}
-        # trainingSets=None
+        properties={},
     ):
         self.__dictionary = {
             "name": name,
@@ -370,7 +372,6 @@ class ProviderResource:
             "sources": sources,
             "features": features,
             "labels": labels,
-            # "training-sets":trainingSets,
             "status": status,
             #   Seems like we dont need serialised config
             "serializedConfig": serializedConfig,
@@ -378,8 +379,8 @@ class ProviderResource:
             "properties": properties,
         }
 
-    def toDictionary(self):
+    def to_dictionary(self):
         return self.__dictionary
 
-    def toJsonLiteral(self):
+    def to_json_literal(self):
         return json.dumps(self.__dictionary)

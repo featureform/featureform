@@ -24,7 +24,7 @@ func (m MockOfflineCreateTransformationFail) CreateResourceTable(provider.Resour
 func (m MockOfflineCreateTransformationFail) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (m MockOfflineCreateTransformationFail) CreateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+func (m MockOfflineCreateTransformationFail) CreateMaterialization(id provider.ResourceID, options ...provider.MaterializationOptions) (provider.Materialization, error) {
 	return nil, nil
 }
 func (m MockOfflineCreateTransformationFail) GetMaterialization(id provider.MaterializationID) (provider.Materialization, error) {
@@ -37,6 +37,10 @@ func (m MockOfflineCreateTransformationFail) CreateTrainingSet(provider.Training
 	return nil
 }
 func (m MockOfflineCreateTransformationFail) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
+	return nil, nil
+}
+
+func (m MockOfflineCreateTransformationFail) GetBatchFeatures(tables []provider.ResourceID) (provider.BatchFeatureIterator, error) {
 	return nil, nil
 }
 
@@ -77,6 +81,10 @@ func (m MockOfflineCreateTransformationFail) UpdateTrainingSet(provider.Training
 
 func (m MockOfflineCreateTransformationFail) Close() error {
 	return nil
+}
+
+func (m MockOfflineCreateTransformationFail) CheckHealth() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
 }
 
 func TestRun(t *testing.T) {

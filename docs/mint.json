@@ -1,0 +1,190 @@
+{
+    "name": "Featureform",
+    "logo": {
+      "light": "/logo.svg",
+      "dark": "/logo.svg"
+    },
+    "favicon": "/favicon.svg",
+    "colors": {
+      "primary": "#F7195C",
+      "light": "#FF487F",
+      "dark": "#F7195C"
+    },
+    "topbarCtaButton": {
+      "name": "Quickstart",
+      "url": "https://docs.featureform.com/"
+    },
+    "topbarLinks": [
+      {
+        "name": "Schedule a Demo",
+        "url": "https://calendly.com/d/y5h-jpf-gj7/featureform-intro-call-intro-call"
+      }
+    ],
+    "anchors": [
+      {
+        "name": "Community",
+        "icon": "slack",
+        "url": "https://join.slack.com/t/featureform-community/shared_invite/zt-xhqp2m4i-JOCaN1vRN2NDXSVif10aQg"
+      },
+      {
+        "name": "Github",
+        "icon": "github",
+        "url": "https://github.com/featureform"
+      }
+    ],
+    "tabs": [
+        {
+            "name": "Python SDK",
+            "url": "https://sdk.featureform.com/"
+        }
+    ],
+    "navigation": [
+        {
+            "group": "Overview",
+            "pages": [
+              "introduction",
+              "deployment/quickstart",
+              {
+                "group": "Concepts",
+                "pages": [
+                  "concepts/immutability-lineage-and-dags",
+                  "concepts/versioning-and-variants",
+                  "concepts/tags-and-properties",
+                  "concepts/streaming",
+                  "concepts/dataframes",
+                  "concepts/dataframe-sql-transformation",
+                  "concepts/rag-vector-db-llms",
+                  "concepts/on-demand-features-request-time",
+                  "concepts/search-and-discovery-features",
+                  "concepts/point-in-time-correctness-historical-features-timeseries-data",
+                  "concepts/governance-and-access-control",
+                  "concepts/enterprise-vs-open-source-feature-store"
+                ]
+            }
+            ]
+        },
+        {
+          "group": "Using Featureform",
+          "pages": [
+            "getting-started/featureform-workflow",
+            "getting-started/architecture-and-components",
+            "getting-started/connecting-your-data-infrastructure",
+            {
+              "group": "Register, Transform, and Interact with Data Sets",
+              "pages": [
+                "getting-started/registering-transforming-and-interacting-with-data-sets",
+                "getting-started/scheduling-resources",
+                "getting-started/streaming-features",
+                "getting-started/on-demand-features-request-time"
+              ]
+            },
+            {
+              "group": "Register and Serve Features and Training Sets",
+              "pages": [
+                "getting-started/register-and-serve-features-training-sets",
+                "getting-started/model-to-feature-lineage",
+                "getting-started/on-demand-features-request-time",
+                "getting-started/streaming-features"
+              ]
+            },
+            "getting-started/search-monitor-discovery-feature-registry-ui-cli"
+          ]
+        },
+        {
+          "group": "Featureform Resource Types",
+          "pages": [
+           "abstractions/abstractions",
+           "abstractions/data-infrastructure-providers",
+           "abstractions/primary-data-sets",
+           "abstractions/transforming-data-sets",
+           "abstractions/entity",
+           "abstractions/feature",
+           "abstractions/embedding",
+           "abstractions/label",
+           "abstractions/training-set"
+          ]
+        },
+          {
+            "group": "LLMs, Embeddings, and Vector Databases",
+            "pages": [
+              "llms-embeddings-and-vector-databases/llm-workflow-with-featureform",
+              "llms-embeddings-and-vector-databases/building-a-chatbot-with-openai-and-a-vector-database"
+            ]
+          },
+          {
+            "group": "Common Use Cases and Examples",
+            "pages": [
+              "use-cases/fraud-detection",
+              "use-cases/llm-chatbot-rag"
+            ]
+          },
+          {
+            "group": "Supported Infrastructure Providers",
+            "pages": [
+              "providers/overview",
+              {
+                "group": "Offline Stores",
+                "pages": [
+                  "providers/offline-store",
+                  "providers/snowflake",
+                  "providers/spark",
+                  "providers/spark_databricks",
+                  "providers/spark_emr",
+                  "providers/kubernetes",
+                  "providers/bigquery",
+                  "providers/postgres",
+                  "providers/redshift"
+                ]
+              },
+              {
+                "group": "Object and File Stores",
+                "pages": [
+                  "providers/object-and-file-stores",
+                  "providers/aws-s3",
+                  "providers/azure-blob-store",
+                  "providers/google-cloud-gcs",
+                  "providers/hdfs"
+                ]
+              },
+              {
+                "group": "Inference Stores",
+                "pages": [
+                  "inference-online-stores/cassandra",
+                  "inference-online-stores/dynamodb",
+                  "inference-online-stores/firestore",
+                  "inference-online-stores/mongodb",
+                  "inference-online-stores/redis"
+                ]
+              },
+              {
+                "group": "Vector Databases",
+                "pages": [
+                  "providers/vector-db",
+                  "providers/redis",
+                  "providers/pinecone",
+                  "providers/weaviate"
+                ]
+              },
+              "providers/custom-providers"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/local-mode",
+              "deployment/quickstart-docker",
+              "deployment/kubernetes",
+              "deployment/quickstart-aws",
+              "deployment/quickstart-azure",
+              "deployment/quickstart-gcp",
+              "system-architecture",
+              "deployment/backup-and-restore"
+            ]
+          }
+    ],
+    "footerSocials":
+      {
+          "twitter": "https://twitter.com/FeatureformML",
+          "linkedin": "https://www.linkedin.com/company/featureform-ml"
+      }
+  }

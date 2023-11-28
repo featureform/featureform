@@ -7,7 +7,7 @@ excluded_files = [
     "__init__.py",
     "__main__.py",
     "cli.py",
-    "dashboard_metadata.py",
+    "client.py" "dashboard_metadata.py",
     "format.py",
     "get.py",
     "list.py",

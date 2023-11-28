@@ -33,7 +33,7 @@
 
 
 [Featureform](https://featureform.com) is a virtual feature store. It enables data scientists to define, manage, and serve their ML model's features. Featureform sits atop your existing infrastructure and orchestrates it to work like a traditional feature store.
-By using Featureform, a data science team can solve the organizational problems:
+By using Featureform, a data science team can solve the following organizational problems:
 
 * **Enhance Collaboration** Featureform ensures that transformations, features, labels, and training sets are defined in a standardized form, so they can easily be shared, re-used, and understood across the team.
 * **Organize Experimentation** The days of untitled_128.ipynb are over. Transformations, features, and training sets can be pushed from notebooks to a centralized feature repository with metadata like name, variant, lineage, and owner.
@@ -78,7 +78,7 @@ By using Featureform, a data science team can solve the organizational problems:
 <br />
 <br />
 
-In reality, the feature’s definition is split across different pieces of infrastructure: the data source, the transformations, the inference store, the training store, and all their underlying data infrastructure. However, a data scientist will think of a feature in its logical form, something like: “a user’s average purchase price”. Featureform allows data scientists to define features in their logical form through transformation, providers, label, and training set resources. Featureform will then orchestrate the actual underlying components to achieve the data scientists' desired state.
+In reality, the feature’s definition is split across different pieces of infrastructure: the data source, the transformations, the inference store, the training store, and all their underlying data infrastructure. However, a data scientist will think of a feature in its logical form, something like: “a user’s average purchase price”. Featureform allows data scientists to define features in their logical form through transformations, providers, labels, and training set resources. Featureform will then orchestrate the actual underlying components to achieve the data scientists' desired state.
 
 # How to use Featureform
 Featureform can be run locally on files or in Kubernetes with your existing infrastructure.
@@ -90,7 +90,7 @@ locally on Minikube.
 To check out how to run it in the cloud,
 follow our [Kubernetes deployment](https://docs.featureform.com/deployment/kubernetes).
 
-To try Featureform with Minikube, follow our [Minikube guide](https://docs.featureform.com/minikube)
+To try Featureform in a single docker container, follow our [docker quickstart guide](https://docs.featureform.com/deployment/quickstart-docker)
 
 ## Local
 
@@ -105,7 +105,7 @@ pip install featureform
 ## Download sample data
 We'll use a fraudulent transaction dataset that can be found here: https://featureform-demo-files.s3.amazonaws.com/transactions.csv
 
-The data contains 9 columns, almost all of would require some feature engineering before using in a typical model.
+The data contains 9 columns, almost all of which would require some feature engineering before being used in a typical model.
 ```
 TransactionID,CustomerID,CustomerDOB,CustLocation,CustAccountBalance,TransactionAmount (INR),Timestamp,IsFraud
 T1,C5841053,10/1/94,JAMSHEDPUR,17819.05,25,2022-04-09 11:33:09,False
@@ -173,7 +173,7 @@ ff.register_training_set(
     features=[("avg_transactions", "quickstart")],
 )
 ```
-Now that our definitions are complete, we can apply it to our Featureform instance.
+Now that our definitions are complete, we can apply them to our Featureform instance.
 
 ```
 featureform apply definitions.py --local

@@ -1,0 +1,90 @@
+name: Behave Tests
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+concurrency:
+  group: ${{ github.head_ref }}-behave-testing
+  cancel-in-progress: true
+
+env:
+  AZURE_CONN_STRING: ${{ secrets.AZURE_CONN_STRING }}
+  AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+  AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
+  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+  DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+  DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
+  FF_TIMESTAMP_VARIANT: "false"
+  FF_GET_EQUIVALENT_VARIANTS: "false"
+
+jobs:
+  setup:
+    name: Run Behave Tests
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Check directory
+        run: |
+          ls -la
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.21
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: featureform
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Container
+        run: docker run -d -p 7878:7878 -p 80:80 featureform
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - name: Build Python Package
+        run: ./pip_update.sh --no-dash
+
+      - name: Install Behave
+        working-directory: ./tests/end_to_end/
+        run: pip install -r requirements.txt
+
+      - name: Run Behavioral Tests
+        if: github.ref != 'refs/heads/main'
+        working-directory: ./tests/end_to_end/
+        run: behave -t '~@wip' -t '~@long' --no-capture
+
+      - name: Run Behavioral Tests
+        if: github.ref == 'refs/heads/main'
+        working-directory: ./tests/end_to_end/
+        run: behave -t '~@wip' -t '@long' --no-capture

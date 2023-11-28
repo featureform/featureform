@@ -7,18 +7,18 @@ package main
 import (
 	"fmt"
 	help "github.com/featureform/helpers"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
-	"github.com/featureform/serving"
-	"net"
-
 	pb "github.com/featureform/proto"
-	"go.uber.org/zap"
+	"github.com/featureform/serving"
 	"google.golang.org/grpc"
+	"net"
+	_ "net/http/pprof"
 )
 
 func main() {
-	logger := zap.NewExample().Sugar()
+	logger := logging.NewLogger("serving")
 
 	host := help.GetEnv("SERVING_HOST", "0.0.0.0")
 	port := help.GetEnv("SERVING_PORT", "8080")

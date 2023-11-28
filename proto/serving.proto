@@ -15,6 +15,8 @@ service Feature {
   rpc SourceData(SourceDataRequest) returns (stream SourceDataRow) {}
   rpc SourceColumns(SourceColumnRequest) returns (SourceDataColumns) {}
   rpc Nearest(NearestRequest) returns (NearestResponse) {}
+  rpc BatchFeatureServe(BatchFeatureServeRequest) returns (stream BatchFeatureRow) {}
+  rpc ResourceLocation(TrainingDataRequest) returns (ResourceFileLocation) {}
 }
 
 message Model {
@@ -43,7 +45,23 @@ message FeatureServeRequest {
 }
 
 message FeatureRow {
-    repeated Value values = 1;
+  // Deprecated: Use `value_lists` instead.
+  repeated Value values = 1 [deprecated=true];
+
+  repeated ValueList value_lists = 2;
+}
+
+message ValueList {
+  repeated Value values = 1;
+}
+
+message BatchFeatureServeRequest {
+    repeated FeatureID features = 1;
+}
+
+message BatchFeatureRow {
+    Value entity = 1;
+    repeated Value features = 2;
 }
 
 message FeatureID {
@@ -52,8 +70,12 @@ message FeatureID {
 }
 
 message Entity {
-    string name = 1;
-    string value = 2;
+  string name = 1;
+
+  // Deprecated: Use `values` instead.
+  string value = 2 [deprecated=true];
+
+  repeated string values = 3;
 }
 
 message Value {
@@ -113,4 +135,8 @@ message NearestRequest {
 
 message NearestResponse {
   repeated string entities = 1;
+}
+
+message ResourceFileLocation {
+  string location = 1;
 }

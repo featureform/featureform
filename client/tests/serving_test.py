@@ -11,13 +11,14 @@ from unittest.mock import MagicMock
 import numpy as np
 import pandas as pd
 import pytest
+
 from featureform.local_utils import feature_df_with_entity, label_df_from_csv
 
 sys.path.insert(0, "client/src/")
 from featureform import ResourceClient, ServingClient
 import serving_cases as cases
 import featureform as ff
-from featureform.serving import LocalClientImpl, check_feature_type, Row
+from featureform.serving import LocalClientImpl, check_feature_type, Row, Dataset
 
 
 @pytest.mark.parametrize(
@@ -641,3 +642,36 @@ def test_read_directory():
     expected = expected.sort_values(by=expected.columns.tolist()).reset_index(drop=True)
     df = df.sort_values(by=df.columns.tolist()).reset_index(drop=True)
     assert_frame_equal(expected, df)
+
+
+@pytest.mark.parametrize(
+    "location, expected_location",
+    [
+        ("s3://bucket/path/to/file.csv", "s3a://bucket/path/to/file.csv"),
+        ("s3a://bucket/path/to/file.csv", "s3a://bucket/path/to/file.csv"),
+        (
+            "s3://bucket/path/to/directory/part-0000.parquet",
+            "s3a://bucket/path/to/directory",
+        ),
+        ("s3://bucket/path/to/directory", "s3a://bucket/path/to/directory"),
+    ],
+)
+def test_sanitize_location(location, expected_location):
+    dataset = Dataset("")
+    assert dataset._sanitize_location(location) == expected_location
+
+
+@pytest.mark.parametrize(
+    "location,format",
+    [
+        ("client/tests/test_files/input_files/transactions.csv", "csv"),
+        ("client/tests/test_files/input_files/transactions.parquet", "parquet"),
+    ],
+)
+def test_get_spark_dataframe(location, format, spark_session):
+    expected_df = (
+        spark_session.read.option("header", "true").format(format).load(location)
+    )
+    dataset = Dataset("")
+    actual_df = dataset._get_spark_dataframe(spark_session, format, location)
+    assert actual_df.collect() == expected_df.collect()

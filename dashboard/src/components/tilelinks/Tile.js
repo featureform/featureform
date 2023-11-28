@@ -19,7 +19,7 @@ const useStyles = makeStyles((theme, id) => ({
     height: '100%',
     border: (id) => `2px solid ${theme.palette.ordinalColors[id % 4]}`,
     borderRadius: 16,
-    background: 'white',
+    background: '#FFFFFF',
     minWidth: '12em',
     textTransform: 'none',
     '&:hover': {
@@ -43,7 +43,7 @@ const useStyles = makeStyles((theme, id) => ({
     height: '100%',
     border: (id) => `2px solid ${theme.palette.ordinalColors[id % 4]}`,
     borderRadius: 16,
-    background: 'white',
+    background: '#FFFFFF',
     textTransform: 'none',
     minWidth: '12em',
   },

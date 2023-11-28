@@ -9,7 +9,6 @@ import pytest
 from featureform.resources import (
     ResourceRedefinedError,
     ResourceState,
-    Provider,
     RedisConfig,
     CassandraConfig,
     FirestoreConfig,
@@ -37,6 +36,7 @@ from featureform.resources import (
     K8sArgs,
     K8sResourceSpecs,
     SparkCredentials,
+    GCPCredentials,
 )
 
 from featureform.register import OfflineK8sProvider, Registrar, FileStoreProvider
@@ -132,14 +132,16 @@ def firesstore_config():
 
 @pytest.fixture
 def dynamodb_config():
-    return DynamodbConfig(region="abc", access_key="abc", secret_key="abc")
+    return DynamodbConfig(
+        region="abc", access_key="abc", secret_key="abc", should_import_from_s3=False
+    )
 
 
 @pytest.fixture
 def redshift_config():
     return RedshiftConfig(
         host="",
-        port="5439",
+        port=5432,
         database="dev",
         user="user",
         password="p4ssw0rd",
@@ -155,7 +157,10 @@ def bigquery_config():
     return BigQueryConfig(
         project_id="bigquery-project",
         dataset_id="bigquery-dataset",
-        credentials_path=path,
+        credentials=GCPCredentials(
+            project_id="bigquery-project",
+            credentials_path=path,
+        ),
     )
 
 
@@ -303,7 +308,8 @@ def test_k8s_args_apply(image):
 
 
 @pytest.mark.parametrize(
-    "query,image", [("SELECT * FROM X", ""), ("SELECT * FROM X", "my/docker:image")]
+    "query,image",
+    [("SELECT * FROM {{ X.Y }}", ""), ("SELECT * FROM {{ X.Y }}", "my/docker:image")],
 )
 def test_sql_k8s_image(query, image):
     transformation = SQLTransformation(query, K8sArgs(image, K8sResourceSpecs()))
@@ -314,7 +320,7 @@ def test_sql_k8s_image(query, image):
 
 
 def test_sql_k8s_image_none():
-    query = "SELECT * FROM X"
+    query = "SELECT * FROM {{ X.Y }}"
     transformation = SQLTransformation(query)
     recv_query = transformation.kwargs()["transformation"].SQLTransformation.query
     recv_image = transformation.kwargs()["transformation"].kubernetes_args.docker_image
@@ -359,7 +365,7 @@ def registrar():
 
 
 def get_transformation_config(registrar):
-    provider_source = registrar.get_resources()[0].to_source()
+    provider_source = registrar.get_resources()[0]
     config = provider_source.definition.kwargs()["transformation"]
     return config
 
@@ -370,7 +376,7 @@ def test_k8s_sql_provider(registrar, mock_provider, image):
 
     @k8s.sql_transformation(owner="mock-owner", docker_image=image)
     def mock_transform():
-        return "SELECT * FROM X"
+        return "SELECT * FROM {{ X.Y }}"
 
     config = get_transformation_config(registrar)
     docker_image = config.kubernetes_args.docker_image
@@ -382,7 +388,7 @@ def test_k8s_sql_provider_empty(registrar, mock_provider):
 
     @k8s.sql_transformation(owner="mock-owner")
     def mock_transform():
-        return "SELECT * FROM X"
+        return "SELECT * FROM {{ X.Y }}"
 
     config = get_transformation_config(registrar)
     docker_image = config.kubernetes_args.docker_image
@@ -393,7 +399,9 @@ def test_k8s_sql_provider_empty(registrar, mock_provider):
 def test_k8s_df_provider(registrar, mock_provider, image):
     k8s = OfflineK8sProvider(registrar, mock_provider)
 
-    @k8s.df_transformation(owner="mock-owner", docker_image=image)
+    @k8s.df_transformation(
+        owner="mock-owner", docker_image=image, inputs=[("df", "var")]
+    )
     def mock_transform(df):
         return df
 
@@ -407,7 +415,7 @@ def test_k8s_df_provider_empty(registrar, mock_provider):
 
     @k8s.df_transformation(owner="mock-owner")
     def mock_transform():
-        return "SELECT * FROM X"
+        return "SELECT * FROM {{ X.Y }}"
 
     config = get_transformation_config(registrar)
     docker_image = config.kubernetes_args.docker_image
@@ -416,6 +424,7 @@ def test_k8s_df_provider_empty(registrar, mock_provider):
 
 def init_feature(input):
     FeatureVariant(
+        created=None,
         name="feature",
         variant="v1",
         source=("a", "b"),
@@ -509,6 +518,7 @@ def all_resources_set(redis_provider):
         User(name="Featureform", tags=[], properties={}),
         Entity(name="user", description="A user", tags=[], properties={}),
         SourceVariant(
+            created=None,
             name="primary",
             variant="abc",
             definition=PrimaryData(location=SQLTable("table")),
@@ -519,6 +529,7 @@ def all_resources_set(redis_provider):
             properties={},
         ),
         FeatureVariant(
+            created=None,
             name="feature",
             variant="v1",
             source=("a", "b"),
@@ -553,6 +564,7 @@ def all_resources_set(redis_provider):
             properties={},
         ),
         TrainingSetVariant(
+            created=None,
             name="training-set",
             variant="v1",
             description="desc",
@@ -570,6 +582,7 @@ def all_resources_set(redis_provider):
 def all_resources_strange_order(redis_provider):
     return [
         TrainingSetVariant(
+            created=None,
             name="training-set",
             variant="v1",
             description="desc",
@@ -598,6 +611,7 @@ def all_resources_strange_order(redis_provider):
             properties={},
         ),
         FeatureVariant(
+            created=None,
             name="feature",
             variant="v1",
             source=("a", "b"),
@@ -616,6 +630,7 @@ def all_resources_strange_order(redis_provider):
         ),
         Entity(name="user", description="A user", tags=[], properties={}),
         SourceVariant(
+            created=None,
             name="primary",
             variant="abc",
             definition=PrimaryData(location=SQLTable("table")),
@@ -692,6 +707,7 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
             properties={},
         ),
         SourceVariant(
+            created=None,
             name="primary",
             variant="abc",
             definition=PrimaryData(location=SQLTable("table")),
@@ -703,6 +719,7 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
         ),
         Entity(name="user", description="A user", tags=[], properties={}),
         FeatureVariant(
+            created=None,
             name="feature",
             variant="v1",
             source=("a", "b"),
@@ -737,6 +754,7 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
             properties={},
         ),
         TrainingSetVariant(
+            created=None,
             name="training-set",
             variant="v1",
             description="desc",
@@ -862,6 +880,7 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             properties={},
         ),
         SourceVariant(
+            created=None,
             name="primary",
             variant="abc",
             definition=PrimaryData(location=SQLTable("table")),
@@ -880,6 +899,7 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
         ),
         Entity(name="user", description="A user", tags=[], properties={}),
         FeatureVariant(
+            created=None,
             name="feature",
             variant="v1",
             source=("a", "b"),
@@ -921,6 +941,7 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             properties={},
         ),
         TrainingSetVariant(
+            created=None,
             name="training-set",
             variant="v1",
             description="desc",
@@ -938,16 +959,17 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             tags=[],
             properties={},
         ),
-        Schedule(
-            name="feature", variant="v1", resource_type=4, schedule_string="* * * * *"
-        ),
-        Schedule(
-            name="primary", variant="abc", resource_type=7, schedule_string="* * * * *"
-        ),
+        # Ordering of schedules does not matter
         Schedule(
             name="training-set",
             variant="v1",
             resource_type=6,
             schedule_string="* * * * *",
+        ),
+        Schedule(
+            name="feature", variant="v1", resource_type=4, schedule_string="* * * * *"
+        ),
+        Schedule(
+            name="primary", variant="abc", resource_type=7, schedule_string="* * * * *"
         ),
     ]

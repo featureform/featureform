@@ -146,6 +146,15 @@ func (pt *bqPrimaryTable) Write(rec GenericRecord) error {
 	return err
 }
 
+func (pt *bqPrimaryTable) WriteBatch(recs []GenericRecord) error {
+	for _, rec := range recs {
+		if err := pt.Write(rec); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (pt *bqPrimaryTable) getNonNullRecords(rec GenericRecord) ([]bigquery.QueryParameter, []TableColumn, string) {
 	recordsParameter := make([]bigquery.QueryParameter, 0)
 	recordColumns := make([]TableColumn, 0)
@@ -606,7 +615,10 @@ func (it *bqFeatureIterator) Next() bool {
 
 	var currValue ResourceRecord
 	valueColType := it.iter.Schema[1].Type
-	currValue.Entity = rowValue[0].(string)
+	if err := currValue.SetEntity(rowValue[0]); err != nil {
+		it.err = err
+		return false
+	}
 	currValue.Value = it.query.castTableItemType(rowValue[1], valueColType)
 	currValue.TS = rowValue[2].(time.Time)
 
@@ -682,6 +694,15 @@ func (table *bqOfflineTable) Write(rec ResourceRecord) error {
 	_, err = bqQ.Read(table.query.getContext())
 
 	return err
+}
+
+func (table *bqOfflineTable) WriteBatch(recs []ResourceRecord) error {
+	for _, rec := range recs {
+		if err := table.Write(rec); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type bqOfflineStore struct {
@@ -997,7 +1018,11 @@ func (store *bqOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, erro
 	return store.getbqResourceTable(id)
 }
 
-func (store *bqOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
+func (store *bqOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
+	return nil, fmt.Errorf("batch features not implemented for this provider")
+}
+
+func (store *bqOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
 		return nil, errors.New("only features can be materialized")
 	}
@@ -1207,6 +1232,10 @@ func (store *bqOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator,
 	}
 
 	return store.newbqTrainingSetIterator(iter), nil
+}
+
+func (store *bqOfflineStore) CheckHealth() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
 }
 
 type bqTrainingRowsIterator struct {

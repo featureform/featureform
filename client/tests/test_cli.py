@@ -1,5 +1,6 @@
-import pytest
 import sys
+
+import pytest
 from click.testing import CliRunner
 
 sys.path.insert(0, "client/src/")
@@ -34,7 +35,7 @@ class TestApply:
         runner = CliRunner()
         result = runner.invoke(
             apply,
-            "https://featureform-demo-files.s3.amazonaws.com/quickstart.py --dry-run".split(),
+            "https://featureform-demo-files.s3.amazonaws.com/quickstart_v2.py --dry-run".split(),
             catch_exceptions=False,
         )
         assert result.exit_code == 0
@@ -52,12 +53,12 @@ class TestApply:
         runner = CliRunner()
         result = runner.invoke(
             apply,
-            "client/examples/quickstart.py https://featureform-demo-files.s3.amazonaws.com/quickstart.py --dry-run".split(),
+            "client/examples/quickstart.py https://featureform-demo-files.s3.amazonaws.com/quickstart_v2.py --dry-run".split(),
             catch_exceptions=False,
         )
         assert result.exit_code == 0
 
-    def test_hosted_version(sefl):
+    def test_hosted_version(self):
         runner = CliRunner()
         result = runner.invoke(version)
         assert result.exit_code == 0

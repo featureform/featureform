@@ -58,6 +58,10 @@ def check_feature_type(features):
             checked_features.append((feature, "default"))
         elif isinstance(feature, FeatureColumnResource):
             checked_features.append(feature.name_variant())
+        else:
+            raise ValueError(
+                f"Invalid feature type {type(feature)}; must be a tuple, string, or FeatureColumnResource"
+            )
     return checked_features
 
 
@@ -67,8 +71,8 @@ class ServingClient:
     **Using the Serving Client:**
     ``` py
     import featureform as ff
-    from featureform import ServingClient
-    client = ServingClient(host="localhost:8000")
+    from featureform import Client
+    client = Client()
     # example:
     dataset = client.training_set("fraud_training", "quickstart")
     training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
@@ -117,6 +121,7 @@ class ServingClient:
             for feature_batch in training_dataset:
                 # Train model
         ```
+
         Args:
             name (str): Name of training set to be retrieved
             variant (str): Variant of training set to be retrieved
@@ -133,10 +138,11 @@ class ServingClient:
 
         **Examples**:
         ``` py
-            client = ff.Client(local=True)
+            client = ff.Client()
             fpf = client.features([("avg_transactions", "quickstart")], {"user": "C1410926"})
             # Run features through model
         ```
+
         Args:
             features (list[(str, str)], list[str]): List of Name Variant Tuples
             entities (dict): Dictionary of entity name/value pairs
@@ -150,6 +156,27 @@ class ServingClient:
     def close(self):
         """Closes the connection to the Featureform instance."""
         self.impl.close()
+
+    def batch_features(self, *features):
+        """
+        Return an iterator that iterates over each entity and corresponding features in feats.
+        **Example:**
+        ```py title="definitions.py"
+        for feature_values in client.batch_features("feature1", "feature2", "feature3"):
+            print(feature_values)
+        ```
+
+        Args:
+            *feats (str): The features to iterate over
+
+        Returns:
+            iterator: An iterator of entity and feature values
+
+        """
+        if len(features) == 0:
+            raise ValueError("No features provided")
+        feature_tuples = check_feature_type(features)
+        return self.impl.batch_features(feature_tuples)
 
 
 class HostedClientImpl:
@@ -179,10 +206,18 @@ class HostedClientImpl:
         self, features, entities: Dict = None, model: Union[str, Model] = None, params: list = None
     ):
         req = serving_pb2.FeatureServeRequest()
-        for name, value in entities.items():
+        for name, values in entities.items():
             entity_proto = req.entities.add()
             entity_proto.name = name
-            entity_proto.value = value
+            if isinstance(values, list):
+                for value in values:  # Assuming 'values' is a list of strings
+                    entity_proto.values.append(value)
+            elif isinstance(values, str):
+                entity_proto.values.append(values)
+            else:
+                raise ValueError(
+                    "Entity values must be either a string or a list of strings"
+                )
         for name, variation in features:
             feature_id = req.features.add()
             feature_id.name = name
@@ -191,26 +226,40 @@ class HostedClientImpl:
             req.model.name = model if isinstance(model, str) else model.name
         resp = self._stub.FeatureServe(req)
 
+        deprecated_values = resp.values
+        value_lists = (
+            deprecated_values if len(deprecated_values) > 0 else resp.value_lists
+        )
+
         feature_values = []
-        for val in resp.values:
-            parsed_value = parse_proto_value(val)
-            value_type = type(parsed_value)
+        for val_list in value_lists:
+            entity_values = []
+            for val in val_list.values:
+                parsed_value = parse_proto_value(val)
+                value_type = type(parsed_value)
 
-            # Ondemand features are returned as a byte array
-            # which holds the pickled function
-            if value_type == bytes:
-                code = dill.loads(bytearray(parsed_value))
-                func = types.FunctionType(code, globals(), "transformation")
-                parsed_value = func(self, params, {} if not entities else entities)
-            # Vector features are returned as a Vector32 proto due
-            # to the inability to use the `repeated` keyword in
-            # in a `oneof` field
-            elif value_type == serving_pb2.Vector32:
-                parsed_value = parsed_value.value
+                # Ondemand features are returned as a byte array
+                # which holds the pickled function
+                if value_type == bytes:
+                    code = dill.loads(bytearray(parsed_value))
+                    func = types.FunctionType(code, globals(), "transformation")
+                    parsed_value = func(self, params, {} if not entities else entities)
+                # Vector features are returned as a Vector32 proto due
+                # to the inability to use the `repeated` keyword in
+                # in a `oneof` field
+                elif value_type == serving_pb2.Vector32:
+                    parsed_value = parsed_value.value
+                entity_values.append(parsed_value)
 
-            feature_values.append(parsed_value)
+            # If theres only one entity row, only return that row
+            if len(value_lists) == 1:
+                return entity_values
+            feature_values.append(entity_values)
 
         return feature_values
+
+    def batch_features(self, features):
+        return FeatureSetIterator(self._stub, features)
 
     def _get_source_as_df(self, name, variant, limit):
         columns = self._get_source_columns(name, variant)
@@ -337,6 +386,9 @@ class LocalClientImpl:
         return self.convert_ts_df_to_dataset(
             label, training_set_df, include_label_timestamp
         )
+
+    def batch_features(self):
+        raise NotImplementedError("batch_features is not supported in local mode")
 
     def get_lag_features_sql_query(
         self, lag_features, feature_columns, entity, label, ts
@@ -477,6 +529,10 @@ class LocalClientImpl:
                     dataframes.append(self.get_input_df(source_name, source_variant))
                 func = types.FunctionType(code, globals(), "transformation")
                 new_data = func(*dataframes)
+                if new_data is None:
+                    raise ValueError(
+                        f"Transformation {name} ({variant}) returned None. Please return a dataframe."
+                    )
             return new_data
 
         return self.local_cache.get_or_put(
@@ -731,21 +787,22 @@ class LocalClientImpl:
                 )
 
         total = len(feature_df)
-        for index, row in feature_df.iterrows():
-            table.set(row[0], row[1])
-            progress_bar(
-                total,
-                index,
-                prefix="Updating Feature Table:",
-                suffix="Complete",
-                length=50,
-            )
+        if provider_type == "LOCAL_ONLINE":
+            table.set_batch(feature_df)
+        else:
+            for index, row in feature_df.iterrows():
+                table.set(row[0], row[1])
+                progress_bar(
+                    total,
+                    index,
+                    prefix="Updating Feature Table:",
+                    suffix="Complete",
+                    length=50,
+                )
         progress_bar(
             total, total, prefix="Updating Feature Table:", suffix="Complete", length=50
         )
         print("\n")
-        if provider_type == "LOCAL_ONLINE":
-            table.flush()
 
     @staticmethod
     def _file_has_changed(last_updated_at, file_path):
@@ -983,8 +1040,11 @@ class Dataset:
         stream = Stream(self._stream, name, version, model)
         return Dataset(stream)
 
-    def dataframe(self) -> pd.DataFrame:
-        """Returns the training set as a pandas DataFrame
+    def dataframe(self, spark_session=None):
+        """Returns the training set as a Pandas DataFrame or Spark DataFrame.
+        Args:
+        - spark_session: Optional(SparkSession)
+
 
         **Examples**:
         ``` py
@@ -992,7 +1052,7 @@ class Dataset:
             df = client.training_set("fraud_training", "v1").dataframe()
             print(df.head())
             # Output:
-            #                feature_avg_transactions_default  label_fraudulent_default
+            #                feature_avg_transactions_default             label
             # 0                                25.0                       False
             # 1                             27999.0                       False
             # 2                               459.0                       False
@@ -1001,9 +1061,22 @@ class Dataset:
         ```
 
         Returns:
-            pandas.DataFrame: A pandas DataFrame containing the training set.
+            df: Union[pd.DataFrame, pyspark.sql.DataFrame] A DataFrame containing the training set.
         """
+
         if self._dataframe is not None:
+            return self._dataframe
+        elif spark_session is not None:
+            req = serving_pb2.TrainingDataRequest()
+            req.id.name = self._stream.name
+            req.id.version = self._stream.version
+            resp = self._stream._stub.ResourceLocation(req)
+
+            file_format = FileFormat.get_format(resp.location, default="parquet")
+            location = self._sanitize_location(resp.location)
+            self._dataframe = self._get_spark_dataframe(
+                spark_session, file_format, location
+            )
             return self._dataframe
         else:
             name = self._stream.name
@@ -1016,7 +1089,56 @@ class Dataset:
             self._dataframe = pd.DataFrame(
                 data=data, columns=[*cols.features, cols.label]
             )
+            self._dataframe.rename(columns={cols.label: "label"}, inplace=True)
             return self._dataframe
+
+    def _sanitize_location(self, location: str) -> str:
+        # Returns the location directory rather than a single file if it is part-file.
+        # Also converts s3:// to s3a:// if necessary.
+
+        # If the location is a part-file, we want to get the directory instead.
+        is_individual_part_file = location.split("/")[-1].startswith("part-")
+        if is_individual_part_file:
+            location = "/".join(location.split("/")[:-1])
+
+        # If the schema is s3://, we want to convert it to s3a://.
+        location = (
+            location.replace("s3://", "s3a://")
+            if location.startswith("s3://")
+            else location
+        )
+
+        return location
+
+    def _get_spark_dataframe(self, spark, file_format, location):
+        if file_format not in FileFormat.supported_formats():
+            raise Exception(
+                f"file type '{file_format}' is not supported. Please use 'csv' or 'parquet'"
+            )
+
+        try:
+            df = (
+                spark.read.option("header", "true")
+                .option("recursiveFileLookup", "true")
+                .format(file_format)
+                .load(location)
+            )
+
+            label_column_name = ""
+            for col in df.columns:
+                if col.startswith("Label__"):
+                    label_column_name = col
+                    break
+
+            if label_column_name != "":
+                df = df.withColumnRenamed(label_column_name, "Label")
+
+        except Exception as e:
+            raise Exception(
+                f"please make sure the spark session has ability to read '{location}': {e}"
+            )
+
+        return df
 
     def from_dataframe(dataframe, include_label_timestamp):
         stream = LocalStream(dataframe.values.tolist(), include_label_timestamp)
@@ -1042,6 +1164,7 @@ class Dataset:
             for feature_batch in training_dataset:
                 # Train model
         ```
+
         Args:
             num (int): The number of times the dataset will be repeated
 
@@ -1068,6 +1191,7 @@ class Dataset:
             for feature_batch in training_dataset:
                 # Train model
         ```
+
         Args:
             buffer_size (int): The number of Dataset rows to be randomly swapped
 
@@ -1092,6 +1216,7 @@ class Dataset:
             for feature_batch in training_dataset:
                 # Train model
         ```
+
         Args:
             batch_size (int): The number of items to be added to each batch
 
@@ -1196,3 +1321,57 @@ class BatchRow:
 def parse_proto_value(value):
     """parse_proto_value is used to parse the one of Value message"""
     return getattr(value, value.WhichOneof("value"))
+
+
+class FeatureSetIterator:
+    def __init__(self, stub, features):
+        req = serving_pb2.BatchFeatureServeRequest()
+        for name, variant in features:
+            feature_id = req.features.add()
+            feature_id.name = name
+            feature_id.version = variant
+        self._stub = stub
+        self._req = req
+        self._iter = stub.BatchFeatureServe(req)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return FeatureSetRow(next(self._iter)).to_tuple()
+
+    def restart(self):
+        self._iter = self._stub.BatchFeatureServe(self._req)
+
+
+class FeatureSetRow:
+    def __init__(self, proto_row):
+        self._features = np.array(
+            [parse_proto_value(feature) for feature in proto_row.features]
+        )
+        self._entity = parse_proto_value(proto_row.entity)
+        self._row = [self._entity, self._features]
+
+    def features(self):
+        return self._row[1]
+
+    def entity(self):
+        return [self._entity]
+
+    def to_numpy(self):
+        return self._row
+
+    def to_tuple(self):
+        return tuple((self._entity, self._features))
+
+    def to_dict(self, feature_columns: List[str], entity_column: str):
+        row_dict = dict(zip(feature_columns, self._features))
+        row_dict[entity_column] = self._entity
+        return row_dict
+
+    def __repr__(self):
+        return "Features: {} , Entity: {}".format(self.features(), self.entity())
+
+
+# Create a featureset row class
+# modify restart

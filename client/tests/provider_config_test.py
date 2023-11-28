@@ -108,7 +108,7 @@ def test_s3store():
     conf = S3StoreConfig(
         bucket_path="bucket_path",
         bucket_region="bucket_region",
-        credentials=AWSCredentials(aws_access_key_id="id", aws_secret_access_key="key"),
+        credentials=AWSCredentials(access_key="id", secret_key="key"),
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config
@@ -150,7 +150,10 @@ def test_firestore():
     conf = FirestoreConfig(
         project_id="some-project-id",
         collection="some-collection-id",
-        credentials_path="provider/connection/gcp_test_credentials.json",
+        credentials=GCPCredentials(
+            project_id="id",
+            credentials_path="provider/connection/gcp_test_credentials.json",
+        ),
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config
@@ -162,7 +165,7 @@ def test_cassandra():
     conf = CassandraConfig(
         keyspace="keyspace",
         host="host",
-        port="port",
+        port=0,
         username="username",
         password="password",
         consistency="consistency",
@@ -179,6 +182,7 @@ def test_dynamodb():
         region="region",
         access_key="access_key",
         secret_key="secret_key",
+        should_import_from_s3=False,
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config
@@ -235,7 +239,7 @@ def test_redshift():
     expected_config = connection_configs["RedshiftConfig"]
     conf = RedshiftConfig(
         host="host",
-        port="port",
+        port=0,
         database="database",
         user="username",
         password="password",
@@ -250,7 +254,10 @@ def test_bigquery():
     conf = BigQueryConfig(
         project_id=expected_config["ProjectID"],
         dataset_id=expected_config["DatasetID"],
-        credentials_path="provider/connection/gcp_test_credentials.json",
+        credentials=GCPCredentials(
+            project_id="id",
+            credentials_path="provider/connection/gcp_test_credentials.json",
+        ),
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config

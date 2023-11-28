@@ -1,5 +1,5 @@
 # docker buildx build -f ./api/Dockerfile . -t featureformcom/api-server:latest -o type=image --platform=linux/arm64,linux/amd64 --push
-FROM golang:1.18-alpine
+FROM golang:1.21-alpine
 
 WORKDIR /app
 
@@ -13,15 +13,23 @@ ENV PATH /go/bin:$PATH
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
 RUN protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./proto/serving.proto
 
+COPY ./lib/ ./lib/
+COPY ./filestore/ ./filestore/
+COPY ./logging/ ./logging/
 COPY ./metadata/*.go ./metadata/
 COPY ./metadata/search/ ./metadata/search/
 COPY ./metadata/proto/ ./metadata/proto/
 COPY ./proto/ ./proto/
 COPY ./helpers/ ./helpers/
+COPY ./logging/ ./logging/
 COPY ./api/main.go ./api/main.go
 COPY ./provider/provider_config/ ./provider/provider_config/
 COPY ./provider/provider_type/ ./provider/provider_type/
 COPY ./config/ ./config/
+COPY ./health ./health
+COPY ./provider ./provider
+COPY ./kubernetes ./kubernetes
+COPY ./types ./types
 
 RUN go build ./api/main.go
 

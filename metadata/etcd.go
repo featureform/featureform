@@ -11,6 +11,7 @@ import (
 	"time"
 
 	help "github.com/featureform/helpers"
+	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/pkg/errors"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -181,14 +182,14 @@ func (s EtcdStorage) genericGet(key string, withPrefix bool) (*clientv3.GetRespo
 	return resp, nil
 }
 
-// Gets value from ETCD using a key
+// Gets value from ETCD using a key, error if it doesn't exist
 func (s EtcdStorage) Get(key string) ([]byte, error) {
 	resp, err := s.genericGet(key, false)
 	if err != nil {
 		return nil, err
 	}
 	if len(resp.Kvs) == 0 {
-		return []byte{}, nil
+		return nil, KeyNotFoundError{key}
 	}
 	return resp.Kvs[0].Value, nil
 }
@@ -311,7 +312,7 @@ func (lookup EtcdResourceLookup) serializeResource(res Resource) ([]byte, error)
 func (lookup EtcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 	var tmp EtcdRowTemp
 	if err := json.Unmarshal(value, &tmp); err != nil {
-		return EtcdRow{}, errors.Wrap(err, fmt.Sprintf("failed To Parse Resource: %s", value))
+		return EtcdRow{}, errors.Wrap(err, fmt.Sprintf("failed to parse resource: %s", value))
 	}
 	msg := EtcdRow{
 		ResourceType: ResourceType(tmp.ResourceType),
@@ -322,24 +323,29 @@ func (lookup EtcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 }
 
 func (lookup EtcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
+	logger := logging.NewLogger("lookup")
 	key := createKey(id)
-	fmt.Printf("Lookup Key: %s\n", key)
+	logger.Infow("Get", "key", key)
 	resp, err := lookup.Connection.Get(key)
 	if err != nil || len(resp) == 0 {
 		return nil, &ResourceNotFound{id, err}
 	}
+	logger.Infow("Deserialize", "key", key)
 	msg, err := lookup.deserialize(resp)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("lookup deserialize: %s", id))
+		return nil, errors.Wrap(err, fmt.Sprintf("failed to deserialize: %s", id))
 	}
+	logger.Infow("Create empty resource", "key", key)
 	resType, err := lookup.createEmptyResource(msg.ResourceType)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("lookup create: %s", id))
+		return nil, errors.Wrap(err, fmt.Sprintf("failed to create empty resource: %s", id))
 	}
+	logger.Infow("Parse resource", "key", key)
 	resource, err := lookup.Connection.ParseResource(msg, resType)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("lookup parse: %s", id))
+		return nil, errors.Wrap(err, fmt.Sprintf("failed to parse resource: %s", id))
 	}
+	logger.Infow("Return", "key", key)
 	return resource, nil
 }
 
@@ -431,11 +437,11 @@ func (lookup EtcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error
 
 	for _, id := range ids {
 		key := createKey(id)
-		value, err := lookup.Connection.Get(key)
+		resp, err := lookup.Connection.Get(key)
 		if err != nil {
 			return nil, &ResourceNotFound{id, err}
 		}
-		etcdStore, err := lookup.deserialize(value)
+		etcdStore, err := lookup.deserialize(resp)
 		if err != nil {
 			return nil, errors.Wrap(err, fmt.Sprintf("submap deserialize: %s", id))
 		}

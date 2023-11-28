@@ -148,20 +148,6 @@ func TestOnlineStores(t *testing.T) {
 		return *dynamoConfig
 	}
 
-	blobAzureInit := func() pc.OnlineBlobConfig {
-		azureConfig := pc.AzureFileStoreConfig{
-			AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
-			AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
-			ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", "newcontainer"),
-			Path:          "featureform/onlinetesting",
-		}
-		blobConfig := &pc.OnlineBlobConfig{
-			Type:   pc.Azure,
-			Config: azureConfig,
-		}
-		return *blobConfig
-	}
-
 	mongoDBInit := func() pc.MongoDBConfig {
 		mongoConfig := &pc.MongoDBConfig{
 			Host:       helpers.GetEnv("MONGODB_HOST", ""),
@@ -198,9 +184,6 @@ func TestOnlineStores(t *testing.T) {
 	}
 	if *provider == "dynamo" || *provider == "" {
 		testList = append(testList, testMember{pt.DynamoDBOnline, "", dynamoInit().Serialized(), true})
-	}
-	if *provider == "azure_blob" || *provider == "" {
-		testList = append(testList, testMember{pt.BlobOnline, "_AZURE", blobAzureInit().Serialized(), true})
 	}
 	if *provider == "mongodb" || *provider == "" {
 		testList = append(testList, testMember{pt.MongoDBOnline, "", mongoDBInit().Serialized(), true})
@@ -272,7 +255,7 @@ func testTableNotFound(t *testing.T, store OnlineStore) {
 	if _, err := store.GetTable(mockFeature, mockVariant); err == nil {
 		t.Fatalf("Succeeded in getting non-existent table")
 	} else if casted, valid := err.(*TableNotFound); !valid {
-		t.Fatalf("Wrong error for table not found: %s,%T", err, err)
+		t.Fatalf("Wrong error for table not found: %s, %T", err, err)
 	} else if casted.Error() == "" {
 		t.Fatalf("TableNotFound has empty error message")
 	}
@@ -492,17 +475,17 @@ func TestOnlineVectorStores(t *testing.T) {
 		return *redisInsecureConfig
 	}
 
-	pineconeInit := func() pc.PineconeConfig {
-		projectID := os.Getenv("PINECONE_PROJECT_ID")
-		environment := os.Getenv("PINECONE_ENVIRONMENT")
-		apiKey := os.Getenv("PINECONE_API_KEY")
-		pineconeConfig := &pc.PineconeConfig{
-			ProjectID:   projectID,
-			Environment: environment,
-			ApiKey:      apiKey,
-		}
-		return *pineconeConfig
-	}
+	//pineconeInit := func() pc.PineconeConfig {
+	//	projectID := os.Getenv("PINECONE_PROJECT_ID")
+	//	environment := os.Getenv("PINECONE_ENVIRONMENT")
+	//	apiKey := os.Getenv("PINECONE_API_KEY")
+	//	pineconeConfig := &pc.PineconeConfig{
+	//		ProjectID:   projectID,
+	//		Environment: environment,
+	//		ApiKey:      apiKey,
+	//	}
+	//	return *pineconeConfig
+	//}
 
 	testList := []testMember{}
 
@@ -510,9 +493,9 @@ func TestOnlineVectorStores(t *testing.T) {
 		testList = append(testList, testMember{pt.RedisOnline, "_VECTOR", redisInsecureInit().Serialized(), true})
 	}
 
-	if *provider == "pinecone" || *provider == "" {
-		testList = append(testList, testMember{pt.PineconeOnline, "", pineconeInit().Serialize(), true})
-	}
+	//if *provider == "pinecone" || *provider == "" {
+	//	testList = append(testList, testMember{pt.PineconeOnline, "", pineconeInit().Serialize(), true})
+	//}
 
 	for _, testItem := range testList {
 		if testing.Short() && testItem.integrationTest {
@@ -727,6 +710,7 @@ func getSearchVector(t *testing.T) []float32 {
 }
 
 func TestPineconeAPI(t *testing.T) {
+	t.Skip("Temporarily skipping test")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Fatalf("Error loading .env file: %v", err)

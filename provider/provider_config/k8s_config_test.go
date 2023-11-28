@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	filestore "github.com/featureform/filestore"
 	ss "github.com/featureform/helpers/string_set"
 )
 
@@ -18,7 +19,7 @@ func TestK8sConfigMutableFields(t *testing.T) {
 		ExecutorConfig: ExecutorConfig{
 			DockerImage: "container",
 		},
-		StoreType: Azure,
+		StoreType: filestore.Azure,
 		StoreConfig: &AzureFileStoreConfig{
 			AccountName:   "account name",
 			AccountKey:    "account key",
@@ -50,7 +51,7 @@ func TestK8sConfigDifferingFields(t *testing.T) {
 				ExecutorConfig: ExecutorConfig{
 					DockerImage: "container",
 				},
-				StoreType: Azure,
+				StoreType: filestore.Azure,
 				StoreConfig: &AzureFileStoreConfig{
 					AccountName:   "account name",
 					AccountKey:    "account key",
@@ -63,7 +64,7 @@ func TestK8sConfigDifferingFields(t *testing.T) {
 				ExecutorConfig: ExecutorConfig{
 					DockerImage: "container",
 				},
-				StoreType: Azure,
+				StoreType: filestore.Azure,
 				StoreConfig: &AzureFileStoreConfig{
 					AccountName:   "account name",
 					AccountKey:    "account key",
@@ -78,7 +79,7 @@ func TestK8sConfigDifferingFields(t *testing.T) {
 				ExecutorConfig: ExecutorConfig{
 					DockerImage: "container",
 				},
-				StoreType: Azure,
+				StoreType: filestore.Azure,
 				StoreConfig: &AzureFileStoreConfig{
 					AccountName:   "account name",
 					AccountKey:    "account key",
@@ -91,7 +92,7 @@ func TestK8sConfigDifferingFields(t *testing.T) {
 				ExecutorConfig: ExecutorConfig{
 					DockerImage: "container_v2",
 				},
-				StoreType: Azure,
+				StoreType: filestore.Azure,
 				StoreConfig: &AzureFileStoreConfig{
 					AccountName:   "account_name2",
 					AccountKey:    "account_key2",

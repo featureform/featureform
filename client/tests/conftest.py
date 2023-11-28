@@ -17,6 +17,7 @@ from featureform.register import (
 )
 from featureform.resources import (
     AWSCredentials,
+    GCPCredentials,
     AzureFileStoreConfig,
     DatabricksCredentials,
     EMRCredentials,
@@ -40,14 +41,14 @@ import featureform as ff
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
 
-pytest_plugins = [
-    "connection_test",
-]
+pytest_plugins = []
 
 
 @pytest.fixture(scope="module")
 def spark_provider(ff_registrar):
-    databricks = DatabricksCredentials(username="a", password="b", cluster_id="c_id")
+    databricks = DatabricksCredentials(
+        username="a", password="b", cluster_id="abcd-123def-ghijklmn"
+    )
     azure_blob = AzureFileStoreConfig(
         account_name="", account_key="", container_name="", root_path=""
     )
@@ -208,7 +209,9 @@ def azure_file_config():
 @pytest.fixture(scope="module")
 def databricks_config():
     config = DatabricksCredentials(
-        username="username", password="password", cluster_id="cluster_id"
+        username="username",
+        password="password",
+        cluster_id="abcd-123def-ghijklmn",
     )
 
     expected_config = {
@@ -216,7 +219,7 @@ def databricks_config():
         "Password": "password",
         "Host": "",
         "Token": "",
-        "Cluster": "cluster_id",
+        "Cluster": "abcd-123def-ghijklmn",
     }
     return config, expected_config
 
@@ -272,7 +275,9 @@ def spark_executor_incorrect_deploy_mode():
 
 @pytest.fixture(scope="module")
 def databricks():
-    return DatabricksCredentials(username="a", password="b", cluster_id="c_id")
+    return DatabricksCredentials(
+        username="a", password="b", cluster_id="abcd-123def-ghijklmn"
+    )
 
 
 @pytest.fixture(scope="module")
@@ -357,6 +362,7 @@ def hosted_sql_provider_and_source():
             if "docker" in custom_marks
             else "quickstart-redis",
             port=6379,
+            password="password",
         )
 
         source = provider.register_table(
@@ -368,3 +374,20 @@ def hosted_sql_provider_and_source():
         return (provider, source, redis)
 
     return get_hosted
+
+
+@pytest.fixture(scope="module")
+def spark_session():
+    from pyspark.sql import SparkSession
+
+    spark = SparkSession.builder.appName("test").master("local").getOrCreate()
+    yield spark
+    spark.stop()
+
+
+@pytest.fixture(scope="module")
+def gcp_credentials():
+    return GCPCredentials(
+        project_id="project_id",
+        credentials_path=f"{dir_path}/test_files/bigquery_dummy_credentials.json",
+    )

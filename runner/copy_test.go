@@ -311,7 +311,7 @@ type ErrorChunkRunnerFactoryConfigs struct {
 }
 
 func testErrorConfigsFactory(config Config) error {
-	_, err := Create(string(COPY_TO_ONLINE), config)
+	_, err := Create(COPY_TO_ONLINE, config)
 	return err
 }
 
@@ -362,7 +362,7 @@ func (b BrokenNumRowsOfflineStore) CreateResourceTable(id provider.ResourceID, s
 func (b BrokenNumRowsOfflineStore) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (b BrokenNumRowsOfflineStore) CreateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+func (b BrokenNumRowsOfflineStore) CreateMaterialization(id provider.ResourceID, options ...provider.MaterializationOptions) (provider.Materialization, error) {
 	return nil, nil
 }
 
@@ -385,6 +385,10 @@ func (b BrokenNumRowsOfflineStore) UpdateTrainingSet(provider.TrainingSetDef) er
 }
 
 func (b BrokenNumRowsOfflineStore) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
+	return nil, nil
+}
+
+func (b BrokenNumRowsOfflineStore) GetBatchFeatures(tables []provider.ResourceID) (provider.BatchFeatureIterator, error) {
 	return nil, nil
 }
 
@@ -680,6 +684,7 @@ func (m MockOfflineStore) AsOfflineStore() (provider.OfflineStore, error) {
 func (m MockOfflineStore) CreatePrimaryTable(id provider.ResourceID, schema provider.TableSchema) (provider.PrimaryTable, error) {
 	return nil, nil
 }
+
 func (m MockOfflineStore) GetPrimaryTable(id provider.ResourceID) (provider.PrimaryTable, error) {
 	return nil, nil
 }
@@ -709,6 +714,7 @@ func (m MockOfflineStore) UpdateMaterialization(id provider.ResourceID) (provide
 func (m MockOfflineStore) UpdateTrainingSet(provider.TrainingSetDef) error {
 	return nil
 }
+
 func (m MockOfflineStore) Close() error {
 	return nil
 }
@@ -748,6 +754,10 @@ func (m MockOnlineStoreTable) Get(entity string) (interface{}, error) {
 	return nil, nil
 }
 
+func (m MockOnlineStoreTable) CheckHealth() (bool, error) {
+	return false, fmt.Errorf("provider health check not implemented")
+}
+
 func NewMockOfflineStore() *MockOfflineStore {
 	return &MockOfflineStore{
 		BaseProvider: provider.BaseProvider{
@@ -765,7 +775,7 @@ func (m MockOfflineStore) GetResourceTable(id provider.ResourceID) (provider.Off
 	return MockOfflineTable{}, nil
 }
 
-func (m MockOfflineStore) CreateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+func (m MockOfflineStore) CreateMaterialization(id provider.ResourceID, options ...provider.MaterializationOptions) (provider.Materialization, error) {
 	return MockMaterialization{}, nil
 }
 
@@ -785,9 +795,17 @@ func (m MockOfflineStore) GetTrainingSet(id provider.ResourceID) (provider.Train
 	return nil, nil
 }
 
+func (m MockOfflineStore) GetBatchFeatures(tables []provider.ResourceID) (provider.BatchFeatureIterator, error) {
+	return nil, nil
+}
+
 type MockOfflineTable struct{}
 
 func (m MockOfflineTable) Write(provider.ResourceRecord) error {
+	return nil
+}
+
+func (m MockOfflineTable) WriteBatch([]provider.ResourceRecord) error {
 	return nil
 }
 

@@ -1,0 +1,73 @@
+---
+title: "DynamoDB"
+description: "Featureform supports [DynamoDB](https://aws.amazon.com/dynamodb/) as an Inference Store."
+---
+
+## Implementation
+
+A DynamoDB table is created for every feature. Variants of features have separate documents. Each document maps entities to their feature value. A metadata table is stored in DynamoDB as well to allow the provider to keep track of its own state. Featureform's scheduler aims to achieve consistency between DynamoDB's internal state with the user's desired state as specified in the metadata service.
+
+## Configuration
+
+First we have to add a declarative DynamoDB configuration in Python. In the following example, only name, access key, and secret key are required, but the other parameters are available.
+
+```py dynamodb\_config.py
+import featureform as ff
+
+aws_creds = ff.AWSCredentials(
+    access_key="<AWS_ACCESS_KEY>",
+    secret_key="<AWS_SECRET_KEY>"
+)
+
+ff.register_dynamodb(
+    name = "dynamodb",
+    description = "Example inference store",
+    team = "Featureform",
+    credentials = aws_creds
+)
+```
+
+Once our config file is complete, we can apply it to our Featureform deployment
+
+```bash
+featureform apply dynamodb_config.py --host $FEATUREFORM_HOST
+```
+
+We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry](/getting-started/search-monitor-discovery-feature-registry-ui-cli).
+
+## Import from S3
+
+DynamoDB supports creating new tables directly from S3 via an import job (see [docs](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/S3DataImport.HowItWorks.html) for details), and Featureform supports this functionality via the `should_import_from_s3` flag.
+
+```py dynamodb\_config.py
+import featureform as ff
+
+aws_creds = ff.AWSCredentials(
+    access_key="<AWS_ACCESS_KEY>",
+    secret_key="<AWS_SECRET_KEY>"
+)
+
+ff.register_dynamodb(
+    name = "dynamodb",
+    description = "Example inference store",
+    team = "Featureform",
+    credentials = aws_creds,
+    should_import_from_s3 = True # Feature tables in DynamoDB will be created via S3 import
+)
+```
+
+Currently, there are some considerations and limitations to be aware of when using this feature:
+
+* The AWS credentials must have access to the S3 bucket, DynamoDB, as well as CloudWatch logs (see [here](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/S3DataImport.Requesting.html) for IAM policy details)
+* Importing from S3 creates a new table in DynamoDB each time, scheduled features cannot make use of this functionality due to the fact they update existing tables
+* All imports processed by Featureform will appear in the "Imports from S3" section of the DynamoDB console
+
+### Mutable Configuration Fields
+
+* `description`
+
+* `credentials.access_key`
+
+* `credentials.secret_key`
+
+* `should_import_from_s3`

@@ -1,4 +1,5 @@
 import os
+import sys
 from argparse import Namespace
 
 import dill
@@ -35,6 +36,8 @@ def sql_all_arguments():
         spark_config={},
         credential={},
         store_type=None,
+        output_format="parquet",
+        headers="include",
     )
     return (input_args, expected_args)
 
@@ -50,6 +53,8 @@ def sql_local_all_arguments():
         store_type="local",
         spark_config={},
         credential={},
+        output_format="parquet",
+        headers="include",
     )
     return expected_args
 
@@ -72,6 +77,8 @@ def sql_partial_arguments():
         spark_config={},
         credential={},
         store_type=None,
+        output_format="parquet",
+        headers="include",
     )
     return (input_args, expected_args)
 
@@ -88,6 +95,8 @@ def sql_invaild_arguments():
         spark_config={},
         credential={},
         store_type=None,
+        output_format="parquet",
+        headers="include",
     )
     return (input_args, expected_args)
 
@@ -101,6 +110,8 @@ def sql_invalid_local_arguments():
         sql_query="SELECT * FROM source_0",
         source_list=["NONE"],
         store_type=None,
+        output_format="parquet",
+        headers="include",
     )
     return expected_args
 
@@ -187,6 +198,8 @@ def sql_databricks_all_arguments():
             "fs.azure.account.key.account_name.dfs.core.windows.net": "adfjaidfasdklciadsj=="
         },
         credential={"key": "value"},
+        output_format="parquet",
+        headers="include",
     )
     return input_args, expected_args
 
@@ -256,3 +269,16 @@ def container_client():
         os.getenv("AZURE_CONTAINER_NAME")
     )
     return container_client
+
+
+@pytest.fixture(scope="module")
+def dill_python_version_error():
+    version = sys.version_info
+    python_version = f"{version.major}.{version.minor}.{version.micro}"
+    error_message = f"""This error is most likely caused by different Python versions between the client and Spark provider. Check to see if you are running Python version '{python_version}' on the client."""
+    return Exception(error_message)
+
+
+@pytest.fixture(scope="module")
+def generic_error():
+    return Exception("generic error")

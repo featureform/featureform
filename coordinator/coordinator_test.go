@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -11,6 +12,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 
 	help "github.com/featureform/helpers"
 	"github.com/google/uuid"
@@ -871,7 +875,7 @@ func TestRegisterSourceJobErrors(t *testing.T) {
 	}
 	sourceWithOnlineProvider := metadata.ResourceID{sourceWithoutOfflineProvider, "", metadata.SOURCE_VARIANT}
 	if err := coord.runRegisterSourceJob(sourceWithOnlineProvider, ""); err == nil {
-		t.Fatalf("did not catch error registering registering resource with online provider")
+		t.Fatalf("did not catch error registering resource with online provider")
 	}
 }
 
@@ -1156,8 +1160,9 @@ func createTransformationWithProvider(client *metadata.Client, config pc.Seriali
 	return nil
 }
 
-func createTrainingSetWithProvider(client *metadata.Client, config pc.SerializedConfig, sourceName string, featureName string, labelName string, tsName string, originalTableName string, schedule string) error {
-	providerName := createSafeUUID()
+func createTrainingSetWithProvider(client *metadata.Client, offlineConfig pc.SerializedConfig, onlineConfig pc.SerializedConfig, sourceName string, featureName string, labelName string, tsName string, originalTableName string, schedule string) error {
+	offlineProviderName := createSafeUUID()
+	onlineProviderName := createSafeUUID()
 	userName := createSafeUUID()
 	entityName := createSafeUUID()
 	defs := []metadata.ResourceDef{
@@ -1165,12 +1170,20 @@ func createTrainingSetWithProvider(client *metadata.Client, config pc.Serialized
 			Name: userName,
 		},
 		metadata.ProviderDef{
-			Name:             providerName,
+			Name:             offlineProviderName,
 			Description:      "",
 			Type:             "POSTGRES_OFFLINE",
 			Software:         "",
 			Team:             "",
-			SerializedConfig: config,
+			SerializedConfig: offlineConfig,
+		},
+		metadata.ProviderDef{
+			Name:             onlineProviderName,
+			Description:      "",
+			Type:             "REDIS_ONLINE",
+			Software:         "",
+			Team:             "",
+			SerializedConfig: onlineConfig,
 		},
 		metadata.EntityDef{
 			Name:        entityName,
@@ -1181,7 +1194,7 @@ func createTrainingSetWithProvider(client *metadata.Client, config pc.Serialized
 			Variant:     "",
 			Description: "",
 			Owner:       userName,
-			Provider:    providerName,
+			Provider:    offlineProviderName,
 			Definition: metadata.PrimaryDataSource{
 				Location: metadata.SQLTable{
 					Name: originalTableName,
@@ -1196,7 +1209,7 @@ func createTrainingSetWithProvider(client *metadata.Client, config pc.Serialized
 			Source:      metadata.NameVariant{sourceName, ""},
 			Entity:      entityName,
 			Owner:       userName,
-			Provider:    providerName,
+			Provider:    offlineProviderName,
 			Location: metadata.ResourceVariantColumns{
 				Entity: "entity",
 				Value:  "value",
@@ -1211,7 +1224,7 @@ func createTrainingSetWithProvider(client *metadata.Client, config pc.Serialized
 			Entity:      entityName,
 			Owner:       userName,
 			Description: "",
-			Provider:    providerName,
+			Provider:    onlineProviderName,
 			Location: metadata.ResourceVariantColumns{
 				Entity: "entity",
 				Value:  "value",
@@ -1223,7 +1236,7 @@ func createTrainingSetWithProvider(client *metadata.Client, config pc.Serialized
 			Variant:     "",
 			Description: "",
 			Owner:       userName,
-			Provider:    providerName,
+			Provider:    offlineProviderName,
 			Label:       metadata.NameVariant{labelName, ""},
 			Features:    []metadata.NameVariant{{featureName, ""}},
 			Schedule:    schedule,
@@ -1236,10 +1249,18 @@ func createTrainingSetWithProvider(client *metadata.Client, config pc.Serialized
 }
 
 func testCoordinatorTrainingSet(addr string) error {
-	if err := runner.RegisterFactory(string(runner.CREATE_TRAINING_SET), runner.TrainingSetRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(runner.COPY_TO_ONLINE, runner.MaterializedChunkRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
-	defer runner.UnregisterFactory(string(runner.CREATE_TRAINING_SET))
+	defer runner.UnregisterFactory(runner.COPY_TO_ONLINE)
+	if err := runner.RegisterFactory(runner.MATERIALIZE, runner.MaterializeRunnerFactory); err != nil {
+		return fmt.Errorf("Failed to register training set runner factory: %v", err)
+	}
+	defer runner.UnregisterFactory(runner.MATERIALIZE)
+	if err := runner.RegisterFactory(runner.CREATE_TRAINING_SET, runner.TrainingSetRunnerFactory); err != nil {
+		return fmt.Errorf("Failed to register training set runner factory: %v", err)
+	}
+	defer runner.UnregisterFactory(runner.CREATE_TRAINING_SET)
 	logger := zap.NewExample().Sugar()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
@@ -1255,6 +1276,11 @@ func testCoordinatorTrainingSet(addr string) error {
 	featureName := createSafeUUID()
 	labelName := createSafeUUID()
 	tsName := createSafeUUID()
+	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
+	redisConfig := &pc.RedisConfig{
+		Addr: liveAddr,
+	}
+	serialRedisConfig := redisConfig.Serialized()
 	serialPGConfig := postgresConfig.Serialize()
 	my_provider, err := provider.Get(pt.PostgresOffline, serialPGConfig)
 	if err != nil {
@@ -1270,7 +1296,7 @@ func testCoordinatorTrainingSet(addr string) error {
 		return err
 	}
 	sourceName := createSafeUUID()
-	if err := createTrainingSetWithProvider(client, serialPGConfig, sourceName, featureName, labelName, tsName, originalTableName, ""); err != nil {
+	if err := createTrainingSetWithProvider(client, serialPGConfig, serialRedisConfig, sourceName, featureName, labelName, tsName, originalTableName, ""); err != nil {
 		return fmt.Errorf("could not create training set %v", err)
 	}
 	ctx := context.Background()
@@ -1362,14 +1388,14 @@ func testCoordinatorTrainingSet(addr string) error {
 }
 
 func testCoordinatorMaterializeFeature(addr string) error {
-	if err := runner.RegisterFactory(string(runner.COPY_TO_ONLINE), runner.MaterializedChunkRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(runner.COPY_TO_ONLINE, runner.MaterializedChunkRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
-	defer runner.UnregisterFactory(string(runner.COPY_TO_ONLINE))
-	if err := runner.RegisterFactory(string(runner.MATERIALIZE), runner.MaterializeRunnerFactory); err != nil {
+	defer runner.UnregisterFactory(runner.COPY_TO_ONLINE)
+	if err := runner.RegisterFactory(runner.MATERIALIZE, runner.MaterializeRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
-	defer runner.UnregisterFactory(string(runner.MATERIALIZE))
+	defer runner.UnregisterFactory(runner.MATERIALIZE)
 	logger := zap.NewExample().Sugar()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
@@ -1539,7 +1565,7 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 	}
 	sourceComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: sourceName, Variant: ""})
 	if err != nil {
-		return fmt.Errorf("could not get source variant")
+		return fmt.Errorf("could not get source variant, %s", sourceName)
 	}
 	if metadata.READY != sourceComplete.Status() {
 		return fmt.Errorf("source variant not set to ready once job completes")
@@ -1587,10 +1613,10 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 }
 
 func testRegisterTransformationFromSource(addr string) error {
-	if err := runner.RegisterFactory(string(runner.CREATE_TRANSFORMATION), runner.CreateTransformationRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(runner.CREATE_TRANSFORMATION, runner.CreateTransformationRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
-	defer runner.UnregisterFactory(string(runner.CREATE_TRANSFORMATION))
+	defer runner.UnregisterFactory(runner.CREATE_TRANSFORMATION)
 	logger := zap.NewExample().Sugar()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
@@ -1638,7 +1664,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	}
 	sourceComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: sourceName, Variant: ""})
 	if err != nil {
-		return fmt.Errorf("could not get source variant")
+		return fmt.Errorf("could not get source variant, %s", sourceName)
 	}
 	if metadata.READY != sourceComplete.Status() {
 		return fmt.Errorf("source variant not set to ready once job completes")
@@ -1662,7 +1688,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	}
 	transformationComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: transformationName, Variant: ""})
 	if err != nil {
-		return fmt.Errorf("could not get source variant")
+		return fmt.Errorf("could not get source variant, %s", transformationName)
 	}
 	if metadata.READY != transformationComplete.Status() {
 		return fmt.Errorf("transformation variant not set to ready once job completes")
@@ -1726,7 +1752,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	}
 	joinTransformationComplete, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: joinTransformationName, Variant: ""})
 	if err != nil {
-		return fmt.Errorf("could not get source variant")
+		return fmt.Errorf("could not get source variant, %s", joinTransformationName)
 	}
 	if metadata.READY != joinTransformationComplete.Status() {
 		return fmt.Errorf("transformation variant not set to ready once job completes")
@@ -1898,6 +1924,120 @@ func TestGetOrderedSourceMappings(t *testing.T) {
 			}
 			if !reflect.DeepEqual(sourceMap, tc.expectedSourceMap) {
 				t.Fatalf("source mapping did not generate the SourceMapping correctly. Expected %v, got %v", sourceMap, tc.expectedSourceMap)
+			}
+		})
+	}
+}
+
+func TestCoordinator_checkError(t *testing.T) {
+	type fields struct {
+		Metadata   *metadata.Client
+		Logger     *zap.SugaredLogger
+		EtcdClient *clientv3.Client
+		KVClient   *clientv3.KV
+		Spawner    JobSpawner
+		Timeout    int
+	}
+	type args struct {
+		err     error
+		jobName string
+	}
+	tests := []struct {
+		name          string
+		fields        fields
+		args          args
+		expectedLevel zapcore.Level
+		expectedMsg   string
+	}{
+		{
+			name: "Custom error",
+			fields: fields{
+				Metadata:   nil,
+				Logger:     nil,
+				EtcdClient: nil,
+				KVClient:   nil,
+				Spawner:    nil,
+				Timeout:    0,
+			},
+			args: args{
+				err:     errors.New("test error"),
+				jobName: "test job",
+			},
+			expectedLevel: zapcore.ErrorLevel,
+			expectedMsg:   "Error executing job",
+		},
+		{
+			name: "JobDoesNotExistError",
+			fields: fields{
+				Metadata:   nil,
+				Logger:     nil,
+				EtcdClient: nil,
+				KVClient:   nil,
+				Spawner:    nil,
+				Timeout:    0,
+			},
+			args: args{
+				err:     JobDoesNotExistError{},
+				jobName: "CompletedJob",
+			},
+			expectedLevel: zapcore.InfoLevel,
+			expectedMsg:   "Coordinator Job No Longer Exists",
+		},
+		{
+			name: "ResourceAlreadyFailedError",
+			fields: fields{
+				Metadata:   nil,
+				Logger:     nil,
+				EtcdClient: nil,
+				KVClient:   nil,
+				Spawner:    nil,
+				Timeout:    0,
+			},
+			args: args{
+				err:     ResourceAlreadyFailedError{},
+				jobName: "CompletedJob",
+			},
+			expectedLevel: zapcore.InfoLevel,
+			expectedMsg:   "resource has failed previously. Ignoring....",
+		},
+		{
+			name: "ResourceAlreadyCompleteError",
+			fields: fields{
+				Metadata:   nil,
+				Logger:     nil,
+				EtcdClient: nil,
+				KVClient:   nil,
+				Spawner:    nil,
+				Timeout:    0,
+			},
+			args: args{
+				err:     ResourceAlreadyCompleteError{},
+				jobName: "CompletedJob",
+			},
+			expectedLevel: zapcore.InfoLevel,
+			expectedMsg:   "resource has already completed. Ignoring....",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			observedZapCore, observedLogs := observer.New(zap.InfoLevel)
+			observedLogger := zap.New(observedZapCore).Sugar()
+			c := &Coordinator{
+				Metadata:   tt.fields.Metadata,
+				Logger:     observedLogger,
+				EtcdClient: tt.fields.EtcdClient,
+				KVClient:   tt.fields.KVClient,
+				Spawner:    tt.fields.Spawner,
+				Timeout:    tt.fields.Timeout,
+			}
+			c.checkError(tt.args.err, tt.args.jobName)
+			for _, log := range observedLogs.All() {
+				if log.Level != tt.expectedLevel {
+					t.Errorf("Expected log level %v, got %v", tt.expectedLevel, log.Level)
+				}
+				if !strings.Contains(log.Message, tt.expectedMsg) {
+					t.Errorf("Expected log message %v, got %v", tt.expectedMsg, log.Message)
+				}
 			}
 		})
 	}

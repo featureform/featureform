@@ -62,7 +62,7 @@ aws_creds = ff.AWSCredentials(
 s3 = ff.register_s3(
     name=f"s3-quickstart_{VERSION}",
     credentials=aws_creds,
-    bucket_path=os.getenv("S3_BUCKET_PATH", None),
+    bucket_name=os.getenv("S3_BUCKET_PATH", None),
     bucket_region=os.getenv("S3_BUCKET_REGION", None),
     path=f"end_to_end_tests/{VERSION}",
 )

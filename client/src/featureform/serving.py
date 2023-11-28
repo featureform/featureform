@@ -274,7 +274,7 @@ class HostedClientImpl:
         id = serving_pb2.SourceID(name=name, version=variant)
         req = serving_pb2.SourceDataRequest(id=id)
         resp = self._stub.SourceColumns(req)
-        return resp.columns
+        return list(resp.columns)
 
     def nearest(self, name, variant, vector, k):
         id = serving_pb2.FeatureID(name=name, version=variant)

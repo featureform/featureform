@@ -11,9 +11,10 @@ from featureform.resources import DatabricksCredentials, EMRCredentials
             "",
             "",
             "host_xyz",
-            "dapiabcdefghijklmnopqrstuvwxyz12345-6",
+            "dapiabcdefghijklmnopqrstuvwxyz123456-6",
             "abcd-123def-ghijklmn",
-        ),  # valid token and cluster id
+        ),
+        # valid token and cluster id
         pytest.param(
             "john",
             "abc123",
@@ -21,6 +22,14 @@ from featureform.resources import DatabricksCredentials, EMRCredentials
             "dapiabcdefghijklmnopqrstuvwxyz12345-6",
             "abcd-123def-ghijklmn",
             marks=pytest.mark.xfail,
+        ),
+        # valid token w/o hyphenated suffix and cluster id
+        pytest.param(
+            "",
+            "",
+            "host_xyz",
+            "dapiabcdefghijklmnopqrstuvwxyz123456",
+            "abcd-123def-ghijklmn",
         ),
         # cluster id should always be provided
         ("john", "abc123", "", "", "abcd-123def-ghijklmn"),

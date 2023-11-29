@@ -2338,7 +2338,7 @@ class DatabricksCredentials:
 
         if self.host and not self._validate_token():
             raise ValueError(
-                f"Invalid token: expected token in the format 'dapixxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-x' but received '{self.token}'"
+                f"Invalid token: expected token in the format 'dapi' + 32 alphanumeric characters (optionally ending with '-' and 1 alphanumeric character) but received '{self.token}'"
             )
 
     def _validate_cluster_id(self):
@@ -2346,7 +2346,7 @@ class DatabricksCredentials:
         return re.match(cluster_id_regex, self.cluster_id)
 
     def _validate_token(self):
-        token_regex = r"^dapi[a-zA-Z0-9]{32}-[a-zA-Z0-9]"
+        token_regex = r"^dapi[a-zA-Z0-9]{32}(-[a-zA-Z0-9])?$"
         return re.match(token_regex, self.token)
 
     def type(self):

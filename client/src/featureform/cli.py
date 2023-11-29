@@ -282,6 +282,27 @@ def deploy(deploy_type, quickstart):
     return deployment_status
 
 
+@cli.command()
+@click.argument(
+    "deploy_type",
+    required=True,
+    default="docker",
+    type=click.Choice(SUPPORTED_DEPLOY_TYPES, case_sensitive=False),
+)
+def teardown(deploy_type):
+    print(f"Tearing down Featureform on {deploy_type.capitalize()}")
+    if deploy_type.lower() == "docker":
+        deployment = DockerDeployment(True)
+    else:
+        supported_types = ", ".join(SUPPORTED_DEPLOY_TYPES)
+        raise ValueError(
+            f"Invalid deployment type: Supported types are '{supported_types}'"
+        )
+
+    deployment_status = deployment.stop()
+    return deployment_status
+
+
 def read_file(file):
     with open(file, "r") as py:
         exec_file(py, file)

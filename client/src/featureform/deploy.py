@@ -161,6 +161,7 @@ class DockerDeployment(Deployment):
             try:
                 container = self._client.containers.get(config.name)
                 if container.status == "running":
+                    print(f"\tStopping {config.name} container")
                     container.stop()
             except docker.errors.NotFound:
                 print(f"Container {config.name} not found. Skipping...")

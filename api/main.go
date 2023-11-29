@@ -715,6 +715,28 @@ func (serv *OnlineServer) FeatureServe(ctx context.Context, req *srv.FeatureServ
 	return serv.client.FeatureServe(ctx, req)
 }
 
+func (serv *OnlineServer) BatchFeatureServe(req *srv.BatchFeatureServeRequest, stream srv.Feature_BatchFeatureServeServer) error {
+	serv.Logger.Infow("Serving Batch Features", "request", req.String())
+	client, err := serv.client.BatchFeatureServe(context.Background(), req)
+	if err != nil {
+		return fmt.Errorf("could not serve batch features: %w", err)
+	}
+	for {
+		row, err := client.Recv()
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return fmt.Errorf("failed to fetch batch row: %w", err)
+		}
+		if err := stream.Send(row); err != nil {
+			serv.Logger.Errorw("Failed to write to stream", "Error", err)
+			return fmt.Errorf("failed to send batch row: %w", err)
+		}
+	}
+
+}
+
 func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.Feature_TrainingDataServer) error {
 	serv.Logger.Infow("Serving Training Data", "id", req.Id.String())
 	client, err := serv.client.TrainingData(context.Background(), req)
@@ -781,6 +803,7 @@ func (serv *OnlineServer) ResourceLocation(ctx context.Context, req *srv.Trainin
 }
 
 func (serv *ApiServer) Serve() error {
+
 	if serv.grpcServer != nil {
 		return fmt.Errorf("server already running")
 	}

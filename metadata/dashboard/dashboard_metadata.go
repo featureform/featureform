@@ -224,6 +224,7 @@ func featureShallowMap(variant *metadata.FeatureVariant) metadata.FeatureVariant
 			Properties:  variant.Properties(),
 			Mode:        variant.Mode().String(),
 			IsOnDemand:  variant.IsOnDemand(),
+			Definition:  variant.Definition(),
 		}
 	default:
 		fmt.Printf("Unknown computation mode %v\n", variant.Mode())

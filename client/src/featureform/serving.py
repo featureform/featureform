@@ -52,6 +52,10 @@ def check_feature_type(features):
             checked_features.append((feature, "default"))
         elif isinstance(feature, FeatureColumnResource):
             checked_features.append(feature.name_variant())
+        else:
+            raise ValueError(
+                f"Invalid feature type {type(feature)}; must be a tuple, string, or FeatureColumnResource"
+            )
     return checked_features
 
 
@@ -147,6 +151,27 @@ class ServingClient:
         """Closes the connection to the Featureform instance."""
         self.impl.close()
 
+    def batch_features(self, *features):
+        """
+        Return an iterator that iterates over each entity and corresponding features in feats.
+        **Example:**
+        ```py title="definitions.py"
+        for feature_values in client.batch_features("feature1", "feature2", "feature3"):
+            print(feature_values)
+        ```
+
+        Args:
+            *feats (str): The features to iterate over
+
+        Returns:
+            iterator: An iterator of entity and feature values
+
+        """
+        if len(features) == 0:
+            raise ValueError("No features provided")
+        feature_tuples = check_feature_type(features)
+        return self.impl.batch_features(feature_tuples)
+
 
 class HostedClientImpl:
     def __init__(self, host=None, insecure=False, cert_path=None):
@@ -175,10 +200,18 @@ class HostedClientImpl:
         self, features, entities, model: Union[str, Model] = None, params: list = None
     ):
         req = serving_pb2.FeatureServeRequest()
-        for name, value in entities.items():
+        for name, values in entities.items():
             entity_proto = req.entities.add()
             entity_proto.name = name
-            entity_proto.value = value
+            if isinstance(values, list):
+                for value in values:  # Assuming 'values' is a list of strings
+                    entity_proto.values.append(value)
+            elif isinstance(values, str):
+                entity_proto.values.append(values)
+            else:
+                raise ValueError(
+                    "Entity values must be either a string or a list of strings"
+                )
         for name, variation in features:
             feature_id = req.features.add()
             feature_id.name = name
@@ -187,26 +220,40 @@ class HostedClientImpl:
             req.model.name = model if isinstance(model, str) else model.name
         resp = self._stub.FeatureServe(req)
 
+        deprecated_values = resp.values
+        value_lists = (
+            deprecated_values if len(deprecated_values) > 0 else resp.value_lists
+        )
+
         feature_values = []
-        for val in resp.values:
-            parsed_value = parse_proto_value(val)
-            value_type = type(parsed_value)
+        for val_list in value_lists:
+            entity_values = []
+            for val in val_list.values:
+                parsed_value = parse_proto_value(val)
+                value_type = type(parsed_value)
 
-            # Ondemand features are returned as a byte array
-            # which holds the pickled function
-            if value_type == bytes:
-                code = dill.loads(bytearray(parsed_value))
-                func = types.FunctionType(code, globals(), "transformation")
-                parsed_value = func(self, params, entities)
-            # Vector features are returned as a Vector32 proto due
-            # to the inability to use the `repeated` keyword in
-            # in a `oneof` field
-            elif value_type == serving_pb2.Vector32:
-                parsed_value = parsed_value.value
+                # Ondemand features are returned as a byte array
+                # which holds the pickled function
+                if value_type == bytes:
+                    code = dill.loads(bytearray(parsed_value))
+                    func = types.FunctionType(code, globals(), "transformation")
+                    parsed_value = func(self, params, entities)
+                # Vector features are returned as a Vector32 proto due
+                # to the inability to use the `repeated` keyword in
+                # in a `oneof` field
+                elif value_type == serving_pb2.Vector32:
+                    parsed_value = parsed_value.value
+                entity_values.append(parsed_value)
 
-            feature_values.append(parsed_value)
+            # If theres only one entity row, only return that row
+            if len(value_lists) == 1:
+                return entity_values
+            feature_values.append(entity_values)
 
         return feature_values
+
+    def batch_features(self, features):
+        return FeatureSetIterator(self._stub, features)
 
     def _get_source_as_df(self, name, variant, limit):
         columns = self._get_source_columns(name, variant)
@@ -333,6 +380,9 @@ class LocalClientImpl:
         return self.convert_ts_df_to_dataset(
             label, training_set_df, include_label_timestamp
         )
+
+    def batch_features(self):
+        raise NotImplementedError("batch_features is not supported in local mode")
 
     def get_lag_features_sql_query(
         self, lag_features, feature_columns, entity, label, ts
@@ -1265,3 +1315,57 @@ class BatchRow:
 def parse_proto_value(value):
     """parse_proto_value is used to parse the one of Value message"""
     return getattr(value, value.WhichOneof("value"))
+
+
+class FeatureSetIterator:
+    def __init__(self, stub, features):
+        req = serving_pb2.BatchFeatureServeRequest()
+        for name, variant in features:
+            feature_id = req.features.add()
+            feature_id.name = name
+            feature_id.version = variant
+        self._stub = stub
+        self._req = req
+        self._iter = stub.BatchFeatureServe(req)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return FeatureSetRow(next(self._iter)).to_tuple()
+
+    def restart(self):
+        self._iter = self._stub.BatchFeatureServe(self._req)
+
+
+class FeatureSetRow:
+    def __init__(self, proto_row):
+        self._features = np.array(
+            [parse_proto_value(feature) for feature in proto_row.features]
+        )
+        self._entity = parse_proto_value(proto_row.entity)
+        self._row = [self._entity, self._features]
+
+    def features(self):
+        return self._row[1]
+
+    def entity(self):
+        return [self._entity]
+
+    def to_numpy(self):
+        return self._row
+
+    def to_tuple(self):
+        return tuple((self._entity, self._features))
+
+    def to_dict(self, feature_columns: List[str], entity_column: str):
+        row_dict = dict(zip(feature_columns, self._features))
+        row_dict[entity_column] = self._entity
+        return row_dict
+
+    def __repr__(self):
+        return "Features: {} , Entity: {}".format(self.features(), self.entity())
+
+
+# Create a featureset row class
+# modify restart

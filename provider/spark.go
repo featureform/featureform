@@ -17,7 +17,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/credentials"
 
-	"github.com/featureform/filestore"
 	"github.com/featureform/logging"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -33,8 +32,10 @@ import (
 
 	"golang.org/x/exp/slices"
 
+	re "github.com/avast/retry-go/v4"
 	emrTypes "github.com/aws/aws-sdk-go-v2/service/emr/types"
 	"github.com/featureform/config"
+	filestore "github.com/featureform/filestore"
 	"github.com/featureform/helpers/compression"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -406,6 +407,7 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 		return fmt.Errorf("could not create local init script path: %v", err)
 	}
 	pythonRemoteInitScriptPath := config.GetPythonRemoteInitPath()
+
 	err = readAndUploadFile(sparkLocalScriptPath, sparkRemoteScriptPath, store)
 	if err != nil {
 		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath.Key(), sparkRemoteScriptPath.ToURI(), err)
@@ -437,21 +439,35 @@ func NewDatabricksExecutor(databricksConfig pc.DatabricksConfig) (SparkExecutor,
 			Username: databricksConfig.Username,
 			Password: databricksConfig.Password,
 		}))
-	// Creating a new workspace client doesn't actually test that the client is able to successfully connect and communicate with
-	// the cluster given the provided credentials; to fail earlier in the process (i.e. _before_ submitting a job) we'll make a call
-	// to Databricks's Clusters API to get information about the cluster with the provided ID.
-	if _, err := client.Clusters.Get(context.Background(), compute.GetClusterRequest{ClusterId: databricksConfig.Cluster}); err != nil {
-		// The Databricks SDK uses Go's "net/url" under the hood for parsing the hostname; this _can_ result in error messages that
-		// are not very helpful. For example, if the hostname is "_https://my-hostname" the error message will be:
-		// parse '_https://my-hostname': first path segment in URL cannot contain colon
-		// To direct users to a solution, we'll check for message prefix 'parse' and provide a more helpful error message that wraps
-		// the original error message.
-		if strings.Contains(err.Error(), "parse") {
-			parsingError := strings.TrimPrefix(err.Error(), "parse ")
-			return nil, fmt.Errorf("the hostname %s is invalid and resulted in a parsing error (%s); check that the hostname is correct before trying again", databricksConfig.Host, parsingError)
-		}
+
+	if err := re.Do(
+		func() error {
+			// Creating a new workspace client doesn't actually test that the client is able to successfully connect and communicate with
+			// the cluster given the provided credentials; to fail earlier in the process (i.e. _before_ submitting a job) we'll make a call
+			// to Databricks's Clusters API to get information about the cluster with the provided ID.
+			_, err := client.Clusters.Get(context.Background(), compute.GetClusterRequest{ClusterId: databricksConfig.Cluster})
+			if err != nil {
+				// The Databricks SDK uses Go's "net/url" under the hood for parsing the hostname; this _can_ result in error messages that
+				// are not very helpful. For example, if the hostname is "_https://my-hostname" the error message will be:
+				// parse '_https://my-hostname': first path segment in URL cannot contain colon
+				// To direct users to a solution, we'll check for message prefix 'parse' and provide a more helpful error message that wraps
+				// the original error message.
+				if strings.Contains(err.Error(), "parse") {
+					parsingError := strings.TrimPrefix(err.Error(), "parse ")
+					return fmt.Errorf("the hostname %s is invalid and resulted in a parsing error (%s); check that the hostname is correct before trying again", databricksConfig.Host, parsingError)
+				}
+			}
+			return nil
+		},
+		re.DelayType(func(n uint, err error, config *re.Config) time.Duration {
+			return re.BackOffDelay(n, err, config)
+		}),
+		re.Attempts(5),
+	); err != nil {
+		fmt.Printf("failed to get cluster information for %s due to error: %v\n", databricksConfig.Cluster, err)
 		return nil, err
 	}
+
 	errorMessageClient, err := dbClient.New(&dbConfig.Config{
 		Host:     databricksConfig.Host,
 		Token:    databricksConfig.Token,
@@ -476,7 +492,6 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 	if err != nil {
 		return fmt.Errorf("could not get python file path: %v", err)
 	}
-
 	pythonTask := jobs.SparkPythonTask{
 		PythonFile: pythonFilepath.ToURI(),
 		Parameters: args,
@@ -561,49 +576,20 @@ type PythonOfflineQueries interface {
 
 type defaultPythonOfflineQueries struct{}
 
-func (q defaultPythonOfflineQueries) materializationCreate(schema ResourceSchema) string {
+func (q defaultPythonOfflineQueries) materializationCreate(schema ResourceSchema) (string, error) {
 	timestampColumn := schema.TS
 	if schema.TS == "" {
-		// If the schema lacks a timestamp, we assume each entity only has single entry. The
-		// below query enforces this assumption by:
-		// 1. Adding a row number to each row (this currently relies on the implicit ordering of the rows) - order_rows CTE
-		// 2. Grouping by entity and selecting the max row number for each entity - max_row_per_entity CTE
-		// 3. Joining the max row number back to the original table and selecting only the rows with the max row number - final select
-		return fmt.Sprintf(`WITH ordered_rows AS (
-				SELECT 
-					%s AS entity,
-					%s AS value,
-					-- 0 AS ts, -- TODO: determine if we even need to add this zeroed-out timestamp column
-					ROW_NUMBER() over (PARTITION BY %s ORDER BY (SELECT NULL)) AS row_number
-				FROM
-					source_0
-			),
-			max_row_per_entity AS (
-				SELECT 
-					entity,
-					MAX(row_number) AS max_row
-				FROM
-					ordered_rows
-				GROUP BY
-					entity
-			)
-			SELECT
-				ord.entity 
-				,ord.value 
-				--,ord.ts -- TODO: determine if we even need to add this zeroed-out timestamp column
-			FROM
-				max_row_per_entity maxr
-			JOIN ordered_rows ord
-				ON ord.entity = maxr.entity AND ord.row_number = maxr.max_row
-			ORDER BY
-				maxr.max_row DESC`, schema.Entity, schema.Value, schema.Entity)
+		data, err := os.ReadFile(config.GetMaterializeNoTimestampQueryPath())
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf(string(data), schema.Entity, schema.Value, schema.Entity), nil
 	}
-	return fmt.Sprintf(
-		"SELECT entity, value, ts, ROW_NUMBER() over (ORDER BY (SELECT NULL)) AS row_number, rn2 FROM "+
-			"(SELECT entity, value, ts, ROW_NUMBER() OVER (PARTITION BY entity ORDER BY ts DESC) AS rn2 FROM "+
-			"(SELECT entity, value, ts, rn FROM (SELECT %s AS entity, %s AS value, %s AS ts, "+
-			"ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn FROM %s) t ORDER BY rn DESC) t2 ) t3 WHERE rn2=1",
-		schema.Entity, schema.Value, timestampColumn, "source_0")
+	data, err := os.ReadFile(config.GetMaterializeWithTimestampQueryPath())
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf(string(data), schema.Entity, schema.Value, timestampColumn, "source_0"), nil
 }
 
 // Spark SQL _seems_ to have some issues with double quotes in column names based on troubleshooting
@@ -683,6 +669,121 @@ func (store *SparkOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
+func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIterator, error) {
+	if len(ids) == 0 {
+		return &FileStoreBatchServing{store: store.Store, iter: nil}, fmt.Errorf("no features provided")
+	}
+	// Convert all IDs to materialization IDs
+	materializationIDs := make([]ResourceID, len(ids))
+	batchDir := ""
+	for i, id := range ids {
+		materializationIDs[i] = ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
+		batchDir += fmt.Sprintf("%s-%s", id.Name, id.Variant)
+		if i != len(ids)-1 {
+			batchDir += "-"
+		}
+	}
+	// Convert materialization ID to file paths
+	materializationPaths, err := store.createFilePathsFromIDs(materializationIDs)
+	if err != nil {
+		return nil, fmt.Errorf("could not create file paths from materialization IDs: %v", err)
+	}
+
+	// Create a query that selects all features from the table
+	query := createJoinQuery(len(ids))
+
+	// Create output file path
+	batchDirUUID := uuid.NewSHA1(uuid.NameSpaceDNS, []byte(batchDir))
+	outputPath, err := store.Store.CreateDirPath(fmt.Sprintf("featureform/BatchFeatures/%s", batchDirUUID))
+	if err != nil {
+		return nil, fmt.Errorf("could not create output file path: %v", err)
+	}
+
+	// Submit arguments for a spark job
+	sparkArgs, err := store.Executor.SparkSubmitArgs(outputPath, query, materializationPaths, Transform, store.Store)
+	if err != nil {
+		store.Logger.Errorw("Problem creating spark submit arguments", "error", err)
+		return nil, fmt.Errorf("error with getting spark submit arguments %v", sparkArgs)
+	}
+
+	// Run the spark job
+	if err := store.Executor.RunSparkJob(sparkArgs, store.Store); err != nil {
+		store.Logger.Errorw("Error running Spark job", "error", err)
+		return nil, fmt.Errorf("spark submit job for transformation failed to run: %v", err)
+	}
+	// Create a batch iterator that iterates through the dir
+	outputFiles, err := store.Store.List(outputPath, filestore.Parquet)
+	if err != nil {
+		return nil, fmt.Errorf("could not get output files: %v", err)
+	}
+	iterator, err := store.Store.Serve(outputFiles)
+	if err != nil {
+		return nil, fmt.Errorf("could not serve batch features: %w", err)
+	}
+	store.Logger.Debug("Successfully created batch iterator")
+	return &FileStoreBatchServing{store: store.Store, iter: iterator, numFeatures: len(ids)}, nil
+}
+
+func (store *SparkOfflineStore) createFilePathsFromIDs(materializationIDs []ResourceID) ([]string, error) {
+	materializationPaths := make([]string, len(materializationIDs))
+	for i, id := range materializationIDs {
+		path, err := store.Store.CreateDirPath(id.ToFilestorePath())
+		if err != nil {
+			return nil, fmt.Errorf("could not create file path due to error %w (store type: %s; path: %s)", err, store.Store.FilestoreType(), id.ToFilestorePath())
+		}
+		sourceFiles, err := store.Store.List(path, filestore.Parquet)
+		if err != nil {
+			return nil, fmt.Errorf("could not get latest source file: %v", err)
+		}
+		groups, err := filestore.NewFilePathGroup(sourceFiles, filestore.DateTimeDirectoryGrouping)
+		if err != nil {
+			return nil, fmt.Errorf("could not get datetime directory grouping for source files: %v", err)
+		}
+		newest, err := groups.GetFirst()
+		if err != nil {
+			return nil, fmt.Errorf("could not get newest source file: %v", err)
+		}
+		matDir, err := store.Store.CreateDirPath(newest[0].KeyPrefix())
+		if err != nil {
+			return nil, fmt.Errorf("could not create materialization dir path: %v", err)
+		}
+		materializationPaths[i] = matDir.ToURI()
+	}
+	return materializationPaths, nil
+}
+
+func createJoinQuery(numFeatures int) string {
+	query := ""
+	asEntity := ""
+	withFeatures := ""
+	joinTables := ""
+	featureColumns := ""
+
+	for i := 0; i < numFeatures; i++ {
+		if i > 0 {
+			joinTables += "FULL OUTER JOIN "
+		}
+		withFeatures += fmt.Sprintf(", source_%d.value AS feature%d, source_%d.ts AS TS%d ", i, i+1, i, i+1)
+		featureColumns += fmt.Sprintf(", feature%d", i+1)
+		joinTables += fmt.Sprintf("source_%d ", i)
+		if i == 1 {
+			joinTables += fmt.Sprintf("ON %s = source_%d.entity ", asEntity, i)
+			asEntity += ", "
+		}
+		if i > 1 {
+			joinTables += fmt.Sprintf("ON COALESCE(%s) = source_%d.entity ", asEntity, i)
+			asEntity += ", "
+		}
+		asEntity += fmt.Sprintf("source_%d.entity", i)
+	}
+	if numFeatures == 1 {
+		query = fmt.Sprintf("SELECT %s AS entity %s FROM source_0", asEntity, withFeatures)
+	} else {
+		query = fmt.Sprintf("SELECT COALESCE(%s) AS entity %s FROM %s", asEntity, withFeatures, joinTables)
+	}
+	return query
+}
+
 func (store *SparkOfflineStore) Close() error {
 	return nil
 }
@@ -716,8 +817,6 @@ func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to build arguments for Spark submit due to: %v", err)
 	}
-	fmt.Println("SPARK SUBMIT ARGS: ", args)
-
 	if err := store.Executor.RunSparkJob(args, store.Store); err != nil {
 		return false, NewProviderError(Connection, store.Type(), JobSubmission, fmt.Sprintf("failed to read health check file due to: %v", err))
 	}
@@ -1754,7 +1853,7 @@ func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, e
 	return fileStoreGetResourceTable(id, spark.Store, spark.Logger)
 }
 
-func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate bool) (Materialization, error) {
+func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate bool, outputFormat filestore.FileType, shouldIncludeHeaders bool) (Materialization, error) {
 	if err := id.check(Feature); err != nil {
 		spark.Logger.Errorw("Attempted to create a materialization of a non feature resource", "type", id.Type)
 		return nil, fmt.Errorf("only features can be materialized")
@@ -1766,7 +1865,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	}
 	sparkResourceTable, ok := resourceTable.(*BlobOfflineTable)
 	if !ok {
-		spark.Logger.Errorw("Could not convert resource table to S3 offline table", "id", id)
+		spark.Logger.Errorw("Could not convert resource table to blob offline table", "id", id)
 		return nil, fmt.Errorf("could not convert offline table with id %v to sparkResourceTable", id)
 	}
 	// get destination path for the materialization
@@ -1777,7 +1876,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	}
 	materializationExists, err := spark.Store.Exists(destinationPath)
 	if err != nil {
-		return nil, fmt.Errorf("could check if materialization exists: %v", err)
+		return nil, fmt.Errorf("could not check if materialization exists: %v", err)
 	}
 	if materializationExists && !isUpdate {
 		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", "id", id)
@@ -1786,11 +1885,15 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", "id", id)
 		return nil, fmt.Errorf("materialization already exists")
 	}
-	materializationQuery := spark.query.materializationCreate(sparkResourceTable.schema)
+	materializationQuery, err := spark.query.materializationCreate(sparkResourceTable.schema)
+	if err != nil {
+		return nil, fmt.Errorf("could not create materialization query: %v", err)
+	}
 	sourcePath, err := filestore.NewEmptyFilepath(spark.Store.FilestoreType())
 	if err != nil {
 		return nil, fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)
 	}
+
 	var sourceURIs []string
 	if sourcePath.IsDir() {
 		err = sourcePath.ParseDirPath(sparkResourceTable.schema.SourceTable)
@@ -1829,11 +1932,22 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err)
 		return nil, fmt.Errorf("error with getting spark submit arguments %v", sparkArgs)
 	}
+	// The default value for output_format in offline_store_spark_runner.py is parquet,
+	// so it's only necessary to append CSV in this case; if we support more output formats
+	// (e.g. JSON), then we should refactor this to a method and append in all cases.
+	if outputFormat == filestore.CSV {
+		sparkArgs = append(sparkArgs, "--output_format", string(outputFormat))
+	}
+	// The default value for headers in offline_store_spark_runner.py is "include"
+	if !shouldIncludeHeaders {
+		sparkArgs = append(sparkArgs, "--headers", "exclude")
+	}
 	if isUpdate {
 		spark.Logger.Debugw("Updating materialization", "id", id)
 	} else {
 		spark.Logger.Debugw("Creating materialization", "id", id)
 	}
+
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Spark submit job failed to run", "error", err)
 		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
@@ -1851,8 +1965,21 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	return &FileStoreMaterialization{materializationID, spark.Store}, nil
 }
 
-func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID) (Materialization, error) {
-	return blobSparkMaterialization(id, spark, false)
+func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
+	var option MaterializationOptions
+	var outputFormat filestore.FileType
+	shouldIncludeHeaders := true
+	if len(options) > 0 {
+		option = options[0]
+		if option.StoreType() != spark.Type() {
+			return nil, fmt.Errorf("expected options for store type %s but received options for %s instead", spark.Type(), option.StoreType())
+		}
+		outputFormat = option.Output()
+		shouldIncludeHeaders = option.ShouldIncludeHeaders()
+	} else {
+		outputFormat = filestore.Parquet
+	}
+	return blobSparkMaterialization(id, spark, false, outputFormat, shouldIncludeHeaders)
 }
 
 func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
@@ -1860,7 +1987,7 @@ func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materi
 }
 
 func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
-	return blobSparkMaterialization(id, spark, true)
+	return blobSparkMaterialization(id, spark, true, filestore.Parquet, true)
 }
 
 func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) error {

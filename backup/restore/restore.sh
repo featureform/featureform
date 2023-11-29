@@ -2,7 +2,7 @@
 
 echo "WARNING: Executing on context $(kubectl config current-context)"
 echo "This will overwrite any data on the cluster"
-echo "NOTE: Requires Go 1.18 to run"
+echo "NOTE: Requires Go 1.21 to run"
 
 if [[ $* != *--force* ]]; then
   echo "Press 'y' to continue"

@@ -379,6 +379,10 @@ def build_feature_resource(feature_main: Feature):
 
 
 def build_feature_variant_resource(variant_data: FeatureVariant):
+    definition = ""
+    if variant_data.additional_parameters is not None:
+        definition = variant_data.additional_parameters.definition
+
     feature_variant_resource = FeatureVariantResource(
         created=variant_data.created,
         description=variant_data.description,
@@ -402,6 +406,7 @@ def build_feature_variant_resource(variant_data: FeatureVariant):
         properties=variant_data.properties
         if variant_data.properties is not None
         else {},
+        definition=definition,
     ).to_dictionary()
 
     return feature_variant_resource

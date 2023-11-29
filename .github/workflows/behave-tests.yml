@@ -17,6 +17,8 @@ env:
   DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
   DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
   DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
+  FF_TIMESTAMP_VARIANT: "false"
+  FF_GET_EQUIVALENT_VARIANTS: "false"
 
 jobs:
   setup:
@@ -40,7 +42,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.21
 
       - uses: actions/setup-python@v4
         with:

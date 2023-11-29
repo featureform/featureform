@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go.uber.org/zap/zapcore"
-	"go.uber.org/zap/zaptest/observer"
 	"io/ioutil"
 	"net"
 	"os"
@@ -14,6 +12,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 
 	help "github.com/featureform/helpers"
 	"github.com/google/uuid"
@@ -1159,8 +1160,9 @@ func createTransformationWithProvider(client *metadata.Client, config pc.Seriali
 	return nil
 }
 
-func createTrainingSetWithProvider(client *metadata.Client, config pc.SerializedConfig, sourceName string, featureName string, labelName string, tsName string, originalTableName string, schedule string) error {
-	providerName := createSafeUUID()
+func createTrainingSetWithProvider(client *metadata.Client, offlineConfig pc.SerializedConfig, onlineConfig pc.SerializedConfig, sourceName string, featureName string, labelName string, tsName string, originalTableName string, schedule string) error {
+	offlineProviderName := createSafeUUID()
+	onlineProviderName := createSafeUUID()
 	userName := createSafeUUID()
 	entityName := createSafeUUID()
 	defs := []metadata.ResourceDef{
@@ -1168,12 +1170,20 @@ func createTrainingSetWithProvider(client *metadata.Client, config pc.Serialized
 			Name: userName,
 		},
 		metadata.ProviderDef{
-			Name:             providerName,
+			Name:             offlineProviderName,
 			Description:      "",
 			Type:             "POSTGRES_OFFLINE",
 			Software:         "",
 			Team:             "",
-			SerializedConfig: config,
+			SerializedConfig: offlineConfig,
+		},
+		metadata.ProviderDef{
+			Name:             onlineProviderName,
+			Description:      "",
+			Type:             "REDIS_ONLINE",
+			Software:         "",
+			Team:             "",
+			SerializedConfig: onlineConfig,
 		},
 		metadata.EntityDef{
 			Name:        entityName,
@@ -1184,7 +1194,7 @@ func createTrainingSetWithProvider(client *metadata.Client, config pc.Serialized
 			Variant:     "",
 			Description: "",
 			Owner:       userName,
-			Provider:    providerName,
+			Provider:    offlineProviderName,
 			Definition: metadata.PrimaryDataSource{
 				Location: metadata.SQLTable{
 					Name: originalTableName,
@@ -1199,7 +1209,7 @@ func createTrainingSetWithProvider(client *metadata.Client, config pc.Serialized
 			Source:      metadata.NameVariant{sourceName, ""},
 			Entity:      entityName,
 			Owner:       userName,
-			Provider:    providerName,
+			Provider:    offlineProviderName,
 			Location: metadata.ResourceVariantColumns{
 				Entity: "entity",
 				Value:  "value",
@@ -1214,7 +1224,7 @@ func createTrainingSetWithProvider(client *metadata.Client, config pc.Serialized
 			Entity:      entityName,
 			Owner:       userName,
 			Description: "",
-			Provider:    providerName,
+			Provider:    onlineProviderName,
 			Location: metadata.ResourceVariantColumns{
 				Entity: "entity",
 				Value:  "value",
@@ -1226,7 +1236,7 @@ func createTrainingSetWithProvider(client *metadata.Client, config pc.Serialized
 			Variant:     "",
 			Description: "",
 			Owner:       userName,
-			Provider:    providerName,
+			Provider:    offlineProviderName,
 			Label:       metadata.NameVariant{labelName, ""},
 			Features:    []metadata.NameVariant{{featureName, ""}},
 			Schedule:    schedule,
@@ -1239,10 +1249,18 @@ func createTrainingSetWithProvider(client *metadata.Client, config pc.Serialized
 }
 
 func testCoordinatorTrainingSet(addr string) error {
-	if err := runner.RegisterFactory(string(runner.CREATE_TRAINING_SET), runner.TrainingSetRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(runner.COPY_TO_ONLINE, runner.MaterializedChunkRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
-	defer runner.UnregisterFactory(string(runner.CREATE_TRAINING_SET))
+	defer runner.UnregisterFactory(runner.COPY_TO_ONLINE)
+	if err := runner.RegisterFactory(runner.MATERIALIZE, runner.MaterializeRunnerFactory); err != nil {
+		return fmt.Errorf("Failed to register training set runner factory: %v", err)
+	}
+	defer runner.UnregisterFactory(runner.MATERIALIZE)
+	if err := runner.RegisterFactory(runner.CREATE_TRAINING_SET, runner.TrainingSetRunnerFactory); err != nil {
+		return fmt.Errorf("Failed to register training set runner factory: %v", err)
+	}
+	defer runner.UnregisterFactory(runner.CREATE_TRAINING_SET)
 	logger := zap.NewExample().Sugar()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
@@ -1258,6 +1276,11 @@ func testCoordinatorTrainingSet(addr string) error {
 	featureName := createSafeUUID()
 	labelName := createSafeUUID()
 	tsName := createSafeUUID()
+	liveAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
+	redisConfig := &pc.RedisConfig{
+		Addr: liveAddr,
+	}
+	serialRedisConfig := redisConfig.Serialized()
 	serialPGConfig := postgresConfig.Serialize()
 	my_provider, err := provider.Get(pt.PostgresOffline, serialPGConfig)
 	if err != nil {
@@ -1273,7 +1296,7 @@ func testCoordinatorTrainingSet(addr string) error {
 		return err
 	}
 	sourceName := createSafeUUID()
-	if err := createTrainingSetWithProvider(client, serialPGConfig, sourceName, featureName, labelName, tsName, originalTableName, ""); err != nil {
+	if err := createTrainingSetWithProvider(client, serialPGConfig, serialRedisConfig, sourceName, featureName, labelName, tsName, originalTableName, ""); err != nil {
 		return fmt.Errorf("could not create training set %v", err)
 	}
 	ctx := context.Background()
@@ -1365,14 +1388,14 @@ func testCoordinatorTrainingSet(addr string) error {
 }
 
 func testCoordinatorMaterializeFeature(addr string) error {
-	if err := runner.RegisterFactory(string(runner.COPY_TO_ONLINE), runner.MaterializedChunkRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(runner.COPY_TO_ONLINE, runner.MaterializedChunkRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
-	defer runner.UnregisterFactory(string(runner.COPY_TO_ONLINE))
-	if err := runner.RegisterFactory(string(runner.MATERIALIZE), runner.MaterializeRunnerFactory); err != nil {
+	defer runner.UnregisterFactory(runner.COPY_TO_ONLINE)
+	if err := runner.RegisterFactory(runner.MATERIALIZE, runner.MaterializeRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
-	defer runner.UnregisterFactory(string(runner.MATERIALIZE))
+	defer runner.UnregisterFactory(runner.MATERIALIZE)
 	logger := zap.NewExample().Sugar()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
@@ -1590,10 +1613,10 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 }
 
 func testRegisterTransformationFromSource(addr string) error {
-	if err := runner.RegisterFactory(string(runner.CREATE_TRANSFORMATION), runner.CreateTransformationRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(runner.CREATE_TRANSFORMATION, runner.CreateTransformationRunnerFactory); err != nil {
 		return fmt.Errorf("Failed to register training set runner factory: %v", err)
 	}
-	defer runner.UnregisterFactory(string(runner.CREATE_TRANSFORMATION))
+	defer runner.UnregisterFactory(runner.CREATE_TRANSFORMATION)
 	logger := zap.NewExample().Sugar()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {

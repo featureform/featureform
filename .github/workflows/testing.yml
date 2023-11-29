@@ -47,7 +47,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.21
 
       - name: Install grpc_tools
         run: pip install grpcio-tools build
@@ -89,7 +89,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.21
 
       - name: Run Golang Unit Tests
         run: make test_go_unit
@@ -107,7 +107,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.21
 
       - name: Install Search Container
         run: docker pull getmeili/meilisearch:v1.0
@@ -188,7 +188,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.21
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
@@ -288,7 +288,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.21
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
@@ -368,7 +368,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.21
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
@@ -400,6 +400,8 @@ jobs:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
+          MATERIALIZE_NO_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_no_ts.sql
+          MATERIALIZE_WITH_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_ts.sql
         working-directory: ./
         run: make test_offline_spark
 
@@ -439,7 +441,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.21
 
       # Should be switched to a container, but the available etcd containers
       # haven't been running easily locally yet. Will create a custom one
@@ -493,7 +495,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.21
 
       # Should be switched to a container, but the available etcd containers
       # haven't been running easily locally yet. Will create a custom one
@@ -561,7 +563,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.21
 
       - name: Make Coverage Directory
         working-directory: ./
@@ -606,7 +608,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.21
 
       - name: Make Coverage Directory
         working-directory: ./
@@ -651,7 +653,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.21
 
       - name: Install ETCD
         run: |
@@ -705,7 +707,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.21
 
       - name: Make Coverage Directory
         working-directory: ./
@@ -767,7 +769,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.21
 
       # Already installed in metadata tests, how to preserve it so we don't repeat?
       - name: Install ETCD
@@ -826,59 +828,6 @@ jobs:
           name: coordinator-coverage-reports
           path: ./coverage
 
-  api:
-    name: API Testing
-    needs: setup
-    runs-on: ubuntu-latest
-    env:
-      API_PORT: 7878
-      METADATA_HOST: "featureform-metadata-server"
-      METADATA_PORT: 8080
-      SERVING_HOST: "featureform-feature-server"
-      SERVING_PORT: 8080
-
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.18
-
-      - name: Make Coverage Directory
-        working-directory: ./
-        run: mkdir coverage
-
-      - name: Build API.go
-        working-directory: ./api
-        run: go build
-
-      - name: Start API Server
-        working-directory: ./api
-        env:
-          API_PORT: 7878
-          METADATA_HOST: "featureform-metadata-server"
-          METADATA_PORT: 8080
-          SERVING_HOST: "featureform-feature-server"
-          SERVING_PORT: 8080
-        run: go run main.go &
-
-      - name: Install python dependencies
-        working-directory: ./
-        run: |
-          python3 -m pip install build pytest python-dotenv
-          python3 -m build ./client/
-          python3 -m pip install client/dist/*.whl
-
-      - name: Testing
-        env:
-          API_ADDRESS: "localhost:7878"
-        working-directory: ./client/tests/
-        run: pytest connection_test.py
-
   spark-script:
     name: PySpark Script Testing
     needs: setup
@@ -924,7 +873,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.21
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -1105,7 +1054,7 @@ jobs:
 #      - name: Set up Go
 #        uses: actions/setup-go@v2
 #        with:
-#          go-version: 1.18
+#          go-version: 1.21
 #
 #      - name: Install grpc_tools
 #        run: pip install grpcio-tools build
@@ -1151,7 +1100,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.21
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
@@ -1211,4 +1160,63 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: provider-health-checks-coverage-reports
+          path: ./coverage
+
+  importable-online-store:
+    name: Importable Online Store
+    timeout-minutes: 45
+    environment: Integration testing
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: compiled-workdir
+
+      - name: Check materialize query path
+        run: |
+          ls -la provider/queries
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.21
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Make Coverage Directory
+        working-directory: ./
+        run: mkdir coverage
+
+      - name: Testing
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
+          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
+          DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
+          DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
+          DYNAMODB_REGION: ${{ secrets.DYNAMODB_REGION }}
+          MATERIALIZE_NO_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_no_ts.sql
+          MATERIALIZE_WITH_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_ts.sql
+        working-directory: ./
+        run: make test_importable_online
+
+      - name: Convert Coverage Test Results
+        if: always()
+        working-directory: ./coverage
+        run: |
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
+          go tool cover -html=cover.out -o cover.html
+
+      - name: Archive code coverage results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: importable-online-store-coverage-reports
           path: ./coverage

@@ -255,7 +255,7 @@ func testTableNotFound(t *testing.T, store OnlineStore) {
 	if _, err := store.GetTable(mockFeature, mockVariant); err == nil {
 		t.Fatalf("Succeeded in getting non-existent table")
 	} else if casted, valid := err.(*TableNotFound); !valid {
-		t.Fatalf("Wrong error for table not found: %s,%T", err, err)
+		t.Fatalf("Wrong error for table not found: %s, %T", err, err)
 	} else if casted.Error() == "" {
 		t.Fatalf("TableNotFound has empty error message")
 	}

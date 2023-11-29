@@ -274,7 +274,11 @@ class HostedClientImpl:
         id = serving_pb2.SourceID(name=name, version=variant)
         req = serving_pb2.SourceDataRequest(id=id)
         resp = self._stub.SourceColumns(req)
-        return resp.columns
+        # The Python type of resp.columns is <class 'google._upb._message.RepeatedScalarContainer'>
+        # which is not a "recognized" type by pandas internal type check, which resulted in the following error:
+        # `Index(...) must be called with a collection of some kind`
+        # To avoid this issue, we convert the resp.columns to a Python list
+        return list(resp.columns)
 
     def nearest(self, name, variant, vector, k):
         id = serving_pb2.FeatureID(name=name, version=variant)
@@ -1171,7 +1175,7 @@ class Dataset:
         if self._dataframe is not None:
             temp_df = self._dataframe
             for i in range(num):
-                self._dataframe = self._dataframe.append(temp_df)
+                self._dataframe = pd.concat([self._dataframe, temp_df])
         return self
 
     def shuffle(self, buffer_size):

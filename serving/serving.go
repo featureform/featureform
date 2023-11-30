@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"sync"
+	"time"
 
 	filestore "github.com/featureform/filestore"
 	"github.com/featureform/metadata"
@@ -344,6 +345,7 @@ func (serv *FeatureServer) getNVCacheKey(name, variant string) string {
 }
 
 func (serv *FeatureServer) BatchFeatureServe(req *pb.BatchFeatureServeRequest, stream pb.Feature_BatchFeatureServeServer) error {
+	time.Sleep(70 * time.Second)
 	features := req.GetFeatures()
 	resourceIDList := make([]provider.ResourceID, len(features))
 	for i, feature := range features {

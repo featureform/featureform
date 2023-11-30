@@ -466,7 +466,6 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
         )
         feature_variant_list = []
         for row in db_result:
-            
             feature_variant_list.append(
                 FeatureVariant(
                     created=row["created"],

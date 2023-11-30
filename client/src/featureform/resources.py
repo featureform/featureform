@@ -1389,6 +1389,10 @@ class FeatureVariant(ResourceVariant):
     def _create(self, stub) -> Optional[str]:
         if hasattr(self.source, "name_variant"):
             self.source = self.source.name_variant()
+
+        # TODO: remove this hack
+        if self.provider == "local-mode":
+            self.provider = ""
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,

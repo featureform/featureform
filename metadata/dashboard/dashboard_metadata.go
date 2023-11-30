@@ -1041,6 +1041,8 @@ type SourceDataResponse struct {
 	Stats   []ColumnStat `json:"stats"`
 }
 
+const MaxPreviewCols = 15
+
 func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	name := c.Query("name")
 	variant := c.Query("variant")
@@ -1069,15 +1071,23 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 			return
 		}
 		dataRow := []string{}
-		for _, rowElement := range sRow.Rows {
+		for i, rowElement := range sRow.Rows {
 			dataRow = append(dataRow, extractElementValue(rowElement))
+			if i == MaxPreviewCols {
+				dataRow = append(dataRow, "")
+				break
+			}
 		}
 		response.Rows = append(response.Rows, dataRow)
 	}
 
-	for _, columnName := range iter.Columns() {
+	for i, columnName := range iter.Columns() {
 		cleanName := strings.ReplaceAll(columnName, "\"", "")
 		response.Columns = append(response.Columns, cleanName)
+		if i == MaxPreviewCols {
+			response.Columns = append(response.Columns, fmt.Sprintf("%d More Columns...", len(iter.Columns())-MaxPreviewCols))
+			break
+		}
 	}
 
 	//intentional

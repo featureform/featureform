@@ -1586,3 +1586,50 @@ func (ts *FileStoreTrainingSet) Label() interface{} {
 func (ts *FileStoreTrainingSet) Err() error {
 	return ts.Error
 }
+
+type FileStoreBatchServing struct {
+	store       FileStore
+	iter        Iterator
+	numFeatures int
+	Error       error
+	entity      interface{}
+	features    []interface{}
+}
+
+func (ts *FileStoreBatchServing) Next() bool {
+	row, err := ts.iter.Next()
+	if err != nil {
+		ts.Error = err
+		return false
+	}
+	if row == nil {
+		return false
+	}
+	featureValues := make([]interface{}, ts.numFeatures)
+	for i := 1; i <= ts.numFeatures; i++ {
+		featureValues[i-1] = row[fmt.Sprintf("feature%d", i)]
+	}
+	ts.features = featureValues
+	ts.entity = row["entity"]
+	return true
+}
+
+func (ts *FileStoreBatchServing) Features() GenericRecord {
+	return ts.features
+}
+
+func (ts *FileStoreBatchServing) Entity() interface{} {
+	return ts.entity
+}
+
+func (ts *FileStoreBatchServing) Err() error {
+	return ts.Error
+}
+
+func (ts *FileStoreBatchServing) Close() error {
+	return ts.store.Close()
+}
+
+func (ts *FileStoreBatchServing) Columns() []string {
+	return nil
+}

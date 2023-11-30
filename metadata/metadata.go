@@ -7,11 +7,12 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"github.com/featureform/lib"
 	"io"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/featureform/lib"
 
 	"github.com/pkg/errors"
 
@@ -753,6 +754,14 @@ func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) (boo
 
 func (resource *featureVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
 	return &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{FeatureVariant: resource.serialized}}
+}
+
+func (resource *featureVariantResource) GetDefinition() string {
+	def := ""
+	if resource.serialized.Type == "ondemand_feature" {
+		def = resource.serialized.GetAdditionalParameters().GetOndemand().GetDefinition()
+	}
+	return def
 }
 
 type labelResource struct {
@@ -1842,6 +1851,7 @@ type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
 	serv.Logger.Info("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
+  
 	id := res.ID()
 	if err := resourceNamedSafely(id); err != nil {
 		return nil, err
@@ -1865,7 +1875,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
 			return nil, fmt.Errorf("set job: %w", err)
 		}
-		serv.Logger.Info("Successfully Created Job", res.ID().Name, res.ID().Variant)
+		serv.Logger.Info("Successfully Created Job ", res.ID().Name, res.ID().Variant)
 	}
 	parentId, hasParent := id.Parent()
 	if hasParent {
@@ -1954,16 +1964,19 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 			serv.Logger.Errorw("Generic Get receive error", "error", recvErr)
 			return recvErr
 		}
+		serv.Logger.Infow("Looking up Resource", "id", id)
 		resource, err := serv.lookup.Lookup(id)
 		if err != nil {
 			serv.Logger.Errorw("Generic Get lookup error", "error", err)
 			return err
 		}
+		serv.Logger.Infow("Sending Resource", "id", id)
 		serialized := resource.Proto()
 		if err := send(serialized); err != nil {
 			serv.Logger.Errorw("Generic Get send error", "error", err)
 			return err
 		}
+		serv.Logger.Infow("Send Complete", "id", id)
 	}
 }
 
@@ -2015,6 +2028,7 @@ type FeatureVariantResource struct {
 	Properties   Properties                              `json:"properties"`
 	Mode         string                                  `json:"mode"`
 	IsOnDemand   bool                                    `json:"is-on-demand"`
+	Definition   string                                  `json:"definition"`
 }
 
 type LabelVariantResource struct {

@@ -17,6 +17,7 @@ import grpc
 from dataclasses import field
 from google.protobuf.duration_pb2 import Duration
 
+from . import feature_flag
 from .enums import *
 from .exceptions import *
 from .sqlite_metadata import SQLiteMetadata
@@ -1291,6 +1292,29 @@ class Feature:
         }
 
 
+class PrecomputedFeatureParameters:
+    pass
+
+
+@typechecked
+@dataclass
+class OndemandFeatureParameters:
+    definition: str = ""
+
+    def proto(self) -> pb.FeatureParameters:
+        ondemand_feature_parameters = pb.OndemandFeatureParameters(
+            definition=self.definition
+        )
+        feature_parameters = pb.FeatureParameters()
+        feature_parameters.ondemand.CopyFrom(ondemand_feature_parameters)
+        return feature_parameters
+
+
+Additional_Parameters = Union[
+    PrecomputedFeatureParameters, OndemandFeatureParameters, None
+]
+
+
 @typechecked
 @dataclass
 class FeatureVariant(ResourceVariant):
@@ -1312,6 +1336,7 @@ class FeatureVariant(ResourceVariant):
     schedule_obj: Schedule = None
     status: str = "NO_STATUS"
     error: Optional[str] = None
+    additional_parameters: Optional[Additional_Parameters] = None
 
     def __post_init__(self):
         col_types = [member.value for member in ScalarType]
@@ -1358,6 +1383,7 @@ class FeatureVariant(ResourceVariant):
             properties={k: v for k, v in feature.properties.property.items()},
             status=feature.status.Status._enum_type.values[feature.status.status].name,
             error=feature.status.error_message,
+            additional_parameters=None,
         )
 
     def _create(self, stub) -> Optional[str]:
@@ -1383,6 +1409,7 @@ class FeatureVariant(ResourceVariant):
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+            additional_parameters=None,
         )
         _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
@@ -1463,6 +1490,7 @@ class OnDemandFeatureVariant:
     description: str = ""
     status: str = "READY"
     error: Optional[str] = None
+    additional_parameters: Optional[Additional_Parameters] = None
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:
@@ -1471,6 +1499,8 @@ class OnDemandFeatureVariant:
             self.name = fn.__name__
 
         self.query = dill.dumps(fn.__code__)
+        feature_text = dill.source.getsource(fn)
+        self.additional_parameters = OndemandFeatureParameters(definition=feature_text)
         fn.name_variant = self.name_variant
         fn.query = self.query
         return fn
@@ -1497,6 +1527,7 @@ class OnDemandFeatureVariant:
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
+            additional_parameters=self.additional_parameters.proto(),
         )
         _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
@@ -1554,6 +1585,7 @@ class OnDemandFeatureVariant:
     def get(self, stub) -> "OnDemandFeatureVariant":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
         ondemand_feature = next(stub.GetFeatureVariants(iter([name_variant])))
+        additional_Parameters = self._get_additional_parameters(ondemand_feature)
 
         return OnDemandFeatureVariant(
             name=ondemand_feature.name,
@@ -1566,7 +1598,11 @@ class OnDemandFeatureVariant:
                 ondemand_feature.status.status
             ].name,
             error=ondemand_feature.status.error_message,
+            additional_parameters=additional_Parameters,
         )
+
+    def _get_additional_parameters(self, feature):
+        return OndemandFeatureParameters(definition="() => FUNCTION")
 
     def get_status(self):
         return ResourceStatus(self.status)
@@ -2302,7 +2338,7 @@ class DatabricksCredentials:
 
         if self.host and not self._validate_token():
             raise ValueError(
-                f"Invalid token: expected token in the format 'dapixxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-x' but received '{self.token}'"
+                f"Invalid token: expected token in the format 'dapi' + 32 alphanumeric characters (optionally ending with '-' and 1 alphanumeric character) but received '{self.token}'"
             )
 
     def _validate_cluster_id(self):
@@ -2310,7 +2346,7 @@ class DatabricksCredentials:
         return re.match(cluster_id_regex, self.cluster_id)
 
     def _validate_token(self):
-        token_regex = r"^dapi[a-zA-Z0-9]{32}-[a-zA-Z0-9]"
+        token_regex = r"^dapi[a-zA-Z0-9]{32}(-[a-zA-Z0-9])?$"
         return re.match(token_regex, self.token)
 
     def type(self):
@@ -2503,7 +2539,7 @@ class SparkCredentials:
 def _get_and_set_equivalent_variant(
     resource_variant_proto, variant_field, stub
 ) -> Optional[str]:
-    if os.getenv("FF_GET_EQUIVALENT_VARIANTS"):
+    if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
         # Get equivalent from stub
         equivalent = stub.GetEquivalent(
             pb.ResourceVariant(**{variant_field: resource_variant_proto})

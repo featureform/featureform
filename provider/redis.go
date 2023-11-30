@@ -87,8 +87,10 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 		Field(key.String()).
 		Build()
 	vType, err := store.client.Do(context.TODO(), cmd).ToString()
-	if err != nil {
+	if err != nil && rueidis.IsRedisNil(err) {
 		return nil, &TableNotFound{feature, variant}
+	} else if err != nil {
+		return nil, err
 	}
 	var table OnlineStoreTable
 	// This maintains backwards compatibility with the previous implementation,
@@ -294,8 +296,8 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 	if resp.Error() != nil {
 		return nil, &EntityNotFound{entity}
 	}
-	var result interface{}
 	var err error
+	var result interface{}
 	val, err := resp.ToString()
 	if err != nil {
 		return nil, err

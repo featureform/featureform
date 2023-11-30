@@ -151,17 +151,17 @@ class ServingClient:
         """Closes the connection to the Featureform instance."""
         self.impl.close()
 
-    def batch_features(self, *features):
+    def batch_features(self, features):
         """
         Return an iterator that iterates over each entity and corresponding features in feats.
         **Example:**
         ```py title="definitions.py"
-        for feature_values in client.batch_features("feature1", "feature2", "feature3"):
+        for feature_values in client.batch_features([("feature1", "variant"), ("feature2", "variant"), ("feature3", "variant")]):
             print(feature_values)
         ```
 
         Args:
-            *feats (str): The features to iterate over
+            features (List[NameVariant]): The features to iterate over
 
         Returns:
             iterator: An iterator of entity and feature values
@@ -200,10 +200,18 @@ class HostedClientImpl:
         self, features, entities, model: Union[str, Model] = None, params: list = None
     ):
         req = serving_pb2.FeatureServeRequest()
-        for name, value in entities.items():
+        for name, values in entities.items():
             entity_proto = req.entities.add()
             entity_proto.name = name
-            entity_proto.value = value
+            if isinstance(values, list):
+                for value in values:  # Assuming 'values' is a list of strings
+                    entity_proto.values.append(value)
+            elif isinstance(values, str):
+                entity_proto.values.append(values)
+            else:
+                raise ValueError(
+                    "Entity values must be either a string or a list of strings"
+                )
         for name, variation in features:
             feature_id = req.features.add()
             feature_id.name = name
@@ -212,25 +220,39 @@ class HostedClientImpl:
             req.model.name = model if isinstance(model, str) else model.name
         resp = self._stub.FeatureServe(req)
 
+        deprecated_values = resp.values
+        value_lists = (
+            deprecated_values if len(deprecated_values) > 0 else resp.value_lists
+        )
+
         feature_values = []
-        for val in resp.values:
-            parsed_value = parse_proto_value(val)
-            value_type = type(parsed_value)
+        for val_list in value_lists:
+            entity_values = []
+            for val in val_list.values:
+                parsed_value = parse_proto_value(val)
+                value_type = type(parsed_value)
 
-            # TODO: Will need something similar to this for ondemand features
-            # Ondemand features are returned as a byte array
-            # which holds the pickled function
-            if value_type == bytes:
-                code = dill.loads(bytearray(parsed_value))
-                func = types.FunctionType(code, globals(), "transformation")
-                parsed_value = func(self, params, entities)
-            # Vector features are returned as a Vector32 proto due
-            # to the inability to use the `repeated` keyword in
-            # in a `oneof` field
-            elif value_type == serving_pb2.Vector32:
-                parsed_value = parsed_value.value
+                # Ondemand features are returned as a byte array
+                # which holds the pickled function
+                if value_type == bytes:
+                    code = dill.loads(bytearray(parsed_value))
+                    func = types.FunctionType(code, globals(), "transformation")
+                    parsed_value = func(self, params, entities)
+                # Vector features are returned as a Vector32 proto due
+                # to the inability to use the `repeated` keyword in
+                # in a `oneof` field
+                elif value_type == serving_pb2.Vector32:
+                    parsed_value = parsed_value.value
+                entity_values.append(parsed_value)
 
-            feature_values.append(parsed_value)
+            # If theres only one entity row, only return that row
+            if len(value_lists) == 1:
+                return entity_values
+            feature_values.append(entity_values)
+
+        # if only one entity is requested, return a flat list
+        if len(entities.keys()) == 1 and type(feature_values[0]) is list:
+            return [j for sub in feature_values for j in sub]
 
         return feature_values
 
@@ -256,7 +278,11 @@ class HostedClientImpl:
         id = serving_pb2.SourceID(name=name, version=variant)
         req = serving_pb2.SourceDataRequest(id=id)
         resp = self._stub.SourceColumns(req)
-        return resp.columns
+        # The Python type of resp.columns is <class 'google._upb._message.RepeatedScalarContainer'>
+        # which is not a "recognized" type by pandas internal type check, which resulted in the following error:
+        # `Index(...) must be called with a collection of some kind`
+        # To avoid this issue, we convert the resp.columns to a Python list
+        return list(resp.columns)
 
     def nearest(self, name, variant, vector, k):
         id = serving_pb2.FeatureID(name=name, version=variant)
@@ -1153,7 +1179,7 @@ class Dataset:
         if self._dataframe is not None:
             temp_df = self._dataframe
             for i in range(num):
-                self._dataframe = self._dataframe.append(temp_df)
+                self._dataframe = pd.concat([self._dataframe, temp_df])
         return self
 
     def shuffle(self, buffer_size):
@@ -1322,9 +1348,7 @@ class FeatureSetIterator:
 
 class FeatureSetRow:
     def __init__(self, proto_row):
-        self._features = np.array(
-            [parse_proto_value(feature) for feature in proto_row.features]
-        )
+        self._features = [parse_proto_value(feature) for feature in proto_row.features]
         self._entity = parse_proto_value(proto_row.entity)
         self._row = [self._entity, self._features]
 
@@ -1335,7 +1359,7 @@ class FeatureSetRow:
         return [self._entity]
 
     def to_numpy(self):
-        return self._row
+        return np.array(self._row)
 
     def to_tuple(self):
         return tuple((self._entity, self._features))

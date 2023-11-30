@@ -1121,7 +1121,7 @@ func (c *Coordinator) hasJob(id metadata.ResourceID) (bool, error) {
 func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*concurrency.Mutex, error) {
 	mtx := concurrency.NewMutex(s, GetLockKey(jobKey))
 	if err := mtx.Lock(context.Background()); err != nil {
-		c.Logger.Debugw("could not create job lock restarting.....", "error", err)
+		c.Logger.Errorw("could not create job lock restarting.....", "error", err)
 		os.Exit(1)
 	}
 	return mtx, nil
@@ -1129,7 +1129,7 @@ func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*con
 
 func (c *Coordinator) ExecuteJob(jobKey string) error {
 	c.Logger.Info("Executing new job with key ", jobKey)
-	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(10_000))
+	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(10_000_000))
 	if err != nil {
 		return fmt.Errorf("new session: %v", err)
 	}

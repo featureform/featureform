@@ -1,4 +1,4 @@
-FROM golang:1.18-alpine
+FROM golang:1.21-alpine
 
 WORKDIR /app
 
@@ -25,7 +25,7 @@ COPY proto/ ./proto/
 
 RUN go build ./backup/save/main.go 
 
-FROM golang:1.18-alpine
+FROM golang:1.21-alpine
 
 COPY --from=0 ./app/main ./main
 

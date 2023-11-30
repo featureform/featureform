@@ -1,5 +1,5 @@
 # docker buildx build -f ./metadata/dashboard/Dockerfile . -t featureformcom/metadata-dashboard:latest -o type=image --platform=linux/arm64,linux/amd64 --push
-FROM golang:1.18-alpine
+FROM golang:1.21-alpine
 
 WORKDIR /app
 
@@ -13,6 +13,7 @@ ENV PATH /go/bin:$PATH
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
 RUN protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./proto/serving.proto
 
+COPY ./lib/ ./lib/
 COPY ./filestore/ ./filestore/
 COPY ./metadata/*.go ./metadata/
 COPY ./helpers/ ./helpers/
@@ -33,6 +34,23 @@ RUN go build ./metadata/dashboard/dashboard_metadata.go
 FROM alpine
 
 COPY --from=0 ./app/dashboard_metadata ./dashboard_metadata
+
+ARG SPARK_FILEPATH=/app/provider/scripts/spark/offline_store_spark_runner.py
+ARG SPARK_PYTHON_PACKAGES=/app/provider/scripts/spark/python_packages.sh
+ARG SPARK_REQUIREMENTS=/app/provider/scripts/spark/requirements.txt
+ARG MATERIALIZE_NO_TIMESTAMP_QUERY_PATH=/app/provider/queries/materialize_no_ts.sql
+ARG MATERIALIZE_TIMESTAMP_QUERY_PATH=/app/provider/queries/materialize_ts.sql
+
+COPY provider/scripts/spark/offline_store_spark_runner.py $SPARK_FILEPATH
+COPY provider/scripts/spark/python_packages.sh $SPARK_PYTHON_PACKAGES
+COPY provider/scripts/spark/requirements.txt $SPARK_REQUIREMENTS
+COPY provider/queries/materialize_no_ts.sql $MATERIALIZE_NO_TIMESTAMP_QUERY_PATH
+COPY provider/queries/materialize_ts.sql $MATERIALIZE_TIMESTAMP_QUERY_PATH
+
+ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
+ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
+ENV MATERIALIZE_NO_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_no_ts.sql"
+ENV MATERIALIZE_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_ts.sql"
 
 EXPOSE 8080
 ENTRYPOINT ["./dashboard_metadata"]

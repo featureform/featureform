@@ -151,17 +151,17 @@ class ServingClient:
         """Closes the connection to the Featureform instance."""
         self.impl.close()
 
-    def batch_features(self, *features):
+    def batch_features(self, features):
         """
         Return an iterator that iterates over each entity and corresponding features in feats.
         **Example:**
         ```py title="definitions.py"
-        for feature_values in client.batch_features("feature1", "feature2", "feature3"):
+        for feature_values in client.batch_features([("feature1", "variant"), ("feature2", "variant"), ("feature3", "variant")]):
             print(feature_values)
         ```
 
         Args:
-            *feats (str): The features to iterate over
+            features (List[NameVariant]): The features to iterate over
 
         Returns:
             iterator: An iterator of entity and feature values

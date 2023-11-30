@@ -151,9 +151,11 @@ def step_impl(context):
         ("f", ["", 64556, "64556"]),
     ]
     context.iter = context.client.batch_features(
-        ("boolean_feature", ff.get_run()),
-        ("numerical_feature", ff.get_run()),
-        ("string_feature", ff.get_run()),
+        [
+            ("boolean_feature", ff.get_run()),
+            ("numerical_feature", ff.get_run()),
+            ("string_feature", ff.get_run()),
+        ]
     )
 
 
@@ -168,9 +170,11 @@ def step_impl(context):
         ("C1010085", [225.0, "319080.2", 0.0007051518709089439]),
     ]
     context.iter = context.client.batch_features(
-        ("transaction_feature", ff.get_run()),
-        ("balance_feature", ff.get_run()),
-        ("perc_feature", ff.get_run()),
+        [
+            ("transaction_feature", ff.get_run()),
+            ("balance_feature", ff.get_run()),
+            ("perc_feature", ff.get_run()),
+        ]
     )
 
 

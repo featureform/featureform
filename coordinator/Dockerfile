@@ -38,9 +38,6 @@ RUN go build ./coordinator/main/main.go
 
 FROM ubuntu:22.04
 
-COPY --from=builder ./app/main /app/main
-COPY --from=builder ./provider/scripts/spark/ /app/provider/scripts/spark/
-COPY --from=builder ./app/provider/queries/ /app/provider/queries/
 
 # Installing pyenv
 RUN apt-get update && apt-get install -y \
@@ -79,6 +76,18 @@ RUN if [ "$TESTING" = "True" ]; then \
   pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
   pyenv install 3.11.2 && pyenv global 3.11.2 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
   fi
+
+ARG SPARK_FILEPATH=/app/provider/scripts/spark/offline_store_spark_runner.py
+ARG SPARK_PYTHON_PACKAGES=/app/provider/scripts/spark/python_packages.sh
+ARG SPARK_REQUIREMENTS=/app/provider/scripts/spark/requirements.txt
+ARG MATERIALIZE_NO_TIMESTAMP_QUERY_PATH=/app/provider/queries/materialize_no_ts.sql
+ARG MATERIALIZE_TIMESTAMP_QUERY_PATH=/app/provider/queries/materialize_ts.sql
+
+COPY provider/scripts/spark/offline_store_spark_runner.py $SPARK_FILEPATH
+COPY provider/scripts/spark/python_packages.sh $SPARK_PYTHON_PACKAGES
+COPY provider/scripts/spark/requirements.txt $SPARK_REQUIREMENTS
+COPY provider/queries/materialize_no_ts.sql $MATERIALIZE_NO_TIMESTAMP_QUERY_PATH
+COPY provider/queries/materialize_ts.sql $MATERIALIZE_TIMESTAMP_QUERY_PATH
 
 ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
 ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"

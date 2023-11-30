@@ -250,6 +250,10 @@ class HostedClientImpl:
                 return entity_values
             feature_values.append(entity_values)
 
+        # if only one entity is requested, return a flat list
+        if len(entities.items) == 1 and type(feature_values[0]) is list:
+            return [j for sub in feature_values for j in sub]
+
         return feature_values
 
     def batch_features(self, features):

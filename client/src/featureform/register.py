@@ -12,6 +12,7 @@ import dill
 import pandas as pd
 from dataclasses import dataclass, field
 from typeguard import typechecked
+import numpy
 
 from . import feature_flag
 from .enums import FileFormat
@@ -1590,6 +1591,103 @@ class FeatureColumnResource(ColumnResource):
             properties=properties,
         )
 
+### Problems: the user is forced to specify th entity column. If they put the same entity name as the class that they are defining the multiple features in, will it error? 
+### If the mention a different class name, then will it get applied and work?
+class MultiFeatureColumnResource(ColumnResource):
+    def __init__(
+        self,
+        dataset: SourceVariant,
+        df: pd.DataFrame,
+        entity_column: Union[Entity, str] = "",
+        variant: str = "",
+        owner: str = "",
+        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
+        timestamp_column: str = "",
+        include_columns: List[str] = [],
+        exclude_columns: List[str] = [],
+        description: str = "",
+        schedule: str = "",
+        tags: List[str] = [],
+        properties: Dict[str, str] = {},
+    ):
+        """
+        Feature registration object.
+
+        **Example**
+        ```
+        @ff.entity
+        class Customer:
+        # Register mulitple columns from a dataframe as a feature
+            transaction_amount = ff.MultiFeature(
+                dataframe_name,
+                variant="quickstart",
+                inference_store=redis,
+                entity_column="CustomerID",
+                include_columns=["Amount", "Transaction Time"],
+            )
+        ```
+
+        Args:
+            inference_store (Union[str, OnlineProvider, FileStoreProvider]): Where to store for online serving.
+        """
+
+        # check if it is include or exclude and get one list of columns accordingly
+        # client = ServingClient(insecure=True, host="localhost:7878")
+        # dataset_df = client.dataframe(dataset)
+        pd_to_ff_datatype = {numpy.dtype('float64'): ScalarType.FLOAT64, numpy.dtype('int64'): ScalarType.INT64, numpy.dtype('O'): ScalarType.STRING, numpy.dtype('bool'): ScalarType.BOOL}
+
+        register_columns = self.get_feature_columns(df, include_columns, exclude_columns, entity_column, timestamp_column)
+        print("register columns are: ", register_columns)
+        register_features_list = []
+        for column_name in register_columns:
+            column_name = column_name[1:-1]
+            if timestamp_column != "":
+                feature = FeatureColumnResource(dataset[[entity_column, column_name, timestamp_column]], variant=variant, type=pd_to_ff_datatype[df[column_name].dtype], inference_store=inference_store)
+            else:
+                feature = FeatureColumnResource(dataset[[entity_column, column_name]], variant=variant, type=pd_to_ff_datatype[df[column_name].dtype], inference_store=inference_store)
+            feature.name = column_name
+            register_features_list.append(feature)
+            
+        self._resources = register_features_list
+
+    def get_feature_columns(self, df, include_columns, exclude_columns, entity_column, timestamp_column):
+        all_columns_set = set(df.columns)
+        print(df.columns)
+        include_columns_set = set(include_columns)
+        exclude_columns_set = set(exclude_columns)
+
+        if not include_columns_set.issubset(all_columns_set):
+            raise ValueError("Include columns must be in the dataframe")
+        if not exclude_columns_set.issubset(all_columns_set):
+            raise ValueError("Exclude columns must be in the dataframe")
+        if not include_columns_set.isdisjoint(exclude_columns_set):
+            raise ValueError("Include and exclude columns cannot have the same columns")
+        if len(include_columns_set) > 0:
+            return list(include_columns_set - {entity_column, timestamp_column})
+        else:
+            return list(all_columns_set - exclude_columns_set - {entity_column, timestamp_column})
+        
+
+
+    # def register_multiple_features(df, entity, variant="default", entity_column="", include_columns=[], exclude_columns=[], inference_store="", timestamp_column=""):
+    #     # TODO: add support for include and exclude columns. If there are items in include and exclude, ignore exclude
+    #     # TODO: Check for columns that are not in th df
+    #     if len(include_columns) > 0 and len(exclude_columns) > 0:
+    #         raise ValueError("Cannot include and exclude columns at the same time")
+    #     # May need to add a map to convert pandas datatypes to FF datatypes
+    #     elif len(include_columns) == 0:
+    #         for column in df.columns:
+    #             if column != entity_column and column not in exclude_columns and column != timestamp_column:
+    #                 if timestamp_column != "":
+    #                     setattr(entity, f'{column}', ff.Feature(df[[entity_column, column, timestamp_column]], variant=variant, type=df[column].dtype))
+    #                 else:
+    #                     setattr(entity, f'{column}', ff.Feature(df[[entity_column, column]], variant=variant, type=df[column].dtype))
+    #     elif len(include_columns) > 0:
+    #         for column in include_columns:
+    #             if timestamp_column != "":
+    #                 setattr(entity, f'{column}', ff.Feature(df[[entity_column, column, timestamp_column]], variant=variant, type=df[column].dtype))
+    #             else:
+    #                 setattr(entity, f'{column}', ff.Feature(df[[entity_column, column]], variant=variant, type=df[column].dtype))
 
 class LabelColumnResource(ColumnResource):
     def __init__(
@@ -4194,6 +4292,7 @@ class Registrar:
         return model
 
 
+
 class ResourceClient:
     """
     The resource client is used to retrieve information on specific resources
@@ -5642,6 +5741,12 @@ def entity(cls):
             variants = cls.__dict__[attr_name]
             for variant_key, resource in variants.resources.items():
                 resource.name = attr_name
+                resource.entity = entity
+                resource.register()
+        elif isinstance(cls.__dict__[attr_name], MultiFeatureColumnResource):
+            multi_feature_resources = cls.__dict__[attr_name]._resources
+            for resource in multi_feature_resources:
+                setattr(entity, resource.name, resource)
                 resource.entity = entity
                 resource.register()
     return cls

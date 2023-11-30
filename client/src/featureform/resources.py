@@ -1323,10 +1323,10 @@ class FeatureVariant(ResourceVariant):
     value_type: str
     entity: str
     owner: str
-    provider: str
     location: ResourceLocation
     description: str
     variant: str
+    provider: Optional[str] = None
     created: str = None
     is_embedding: bool = False
     dims: int = 0
@@ -1634,12 +1634,12 @@ class LabelVariant(ResourceVariant):
     value_type: str
     entity: str
     owner: str
-    provider: str
     description: str
     tags: list
     properties: dict
     location: ResourceLocation
     variant: str
+    provider: Optional[str] = None
     created: str = None
     status: str = "NO_STATUS"
     error: Optional[str] = None
@@ -2230,10 +2230,6 @@ class ResourceState:
         for resource in self.sorted_list():
             if resource.type() == "provider" and resource.name == "local-mode":
                 continue
-            if resource.type() == "feature" and resource.provider == "local-mode":
-                raise ValueError(
-                    f"Inference store must be provided for feature {resource.name} ({resource.variant})"
-                )
             try:
                 resource_variant = getattr(resource, "variant", "")
                 rv_for_print = f" {resource_variant}" if resource_variant else ""

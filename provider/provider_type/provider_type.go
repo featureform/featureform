@@ -31,6 +31,8 @@ const (
 	HDFS             Type = "HDFS"
 	AZURE            Type = "AZURE"
 	UNIT_TEST        Type = "UNIT_TEST"
+
+	NONE Type = "NONE"
 )
 
 var AllProviderTypes = []Type{

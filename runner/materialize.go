@@ -96,6 +96,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	var materialization provider.Materialization
 	var err error
 
+	// offline
 	if m.IsUpdate {
 		m.Logger.Infow("Updating Materialization", "name", m.ID.Name, "variant", m.ID.Variant)
 		materialization, err = m.Offline.UpdateMaterialization(m.ID)
@@ -106,6 +107,12 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// online
+	if m.Online == nil {
+		return m.handleNoOlineStore()
+	}
+
 	// Create the vector similarity index prior to writing any values to the
 	// inference store. This is currently only required for RediSearch, but other
 	// vector databases allow for manual index configuration even if they support
@@ -133,6 +140,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	if exists && !m.IsUpdate {
 		return nil, fmt.Errorf("table already exists despite being new job")
 	}
+
 	chunkSize := MAXIMUM_CHUNK_ROWS
 	var numChunks int64
 	m.Logger.Debugw("Getting number of rows", "name", m.ID.Name, "variant", m.ID.Variant)
@@ -220,6 +228,19 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	return materializeWatcher, nil
 }
 
+func (m MaterializeRunner) handleNoOlineStore() (types.CompletionWatcher, error) {
+	m.Logger.Infow("No Online Store, skipping materialization", "name", m.ID.Name, "variant", m.ID.Variant)
+	done := make(chan interface{})
+	materializeWatcher := &SyncWatcher{
+		ResultSync:  &ResultSync{},
+		DoneChannel: done,
+	}
+	go func() {
+		materializeWatcher.EndWatch(nil)
+	}()
+	return materializeWatcher, nil
+}
+
 type MaterializedRunnerConfig struct {
 	OnlineType    pt.Type
 	OfflineType   pt.Type
@@ -252,27 +273,30 @@ func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 	if err := runnerConfig.Deserialize(config); err != nil {
 		return nil, fmt.Errorf("failed to deserialize materialize runner config: %v", err)
 	}
-	onlineProvider, err := provider.Get(runnerConfig.OnlineType, runnerConfig.OnlineConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to configure %s provider: %v", runnerConfig.OnlineType, err)
+	var onlineStore provider.OnlineStore
+	if runnerConfig.OnlineType != pt.NONE {
+		onlineProvider, err := provider.Get(runnerConfig.OnlineType, runnerConfig.OnlineConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to configure %s provider: %v", runnerConfig.OnlineType, err)
+		}
+		onlineStore, err = onlineProvider.AsOnlineStore()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert provider to online store: %v", err)
+		}
 	}
 	offlineProvider, err := provider.Get(runnerConfig.OfflineType, runnerConfig.OfflineConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure %s provider: %v", runnerConfig.OfflineType, err)
-	}
-	onlineStore, err := onlineProvider.AsOnlineStore()
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert provider to online store: %v", err)
 	}
 	offlineStore, err := offlineProvider.AsOfflineStore()
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
 	}
 	return &MaterializeRunner{
-		Online:   onlineStore,
+		Online:   onlineStore, // This can be nil if onlineProvider is nil
 		Offline:  offlineStore,
 		ID:       runnerConfig.ResourceID,
-		VType:    runnerConfig.VType.ValueType,
+		VType:    runnerConfig.VType,
 		IsUpdate: runnerConfig.IsUpdate,
 		Cloud:    runnerConfig.Cloud,
 		Logger:   logging.NewLogger("materializer"),

@@ -162,7 +162,7 @@ func newJobSpec(config KubernetesRunnerConfig, rsrcReqs v1.ResourceRequirements)
 	} else {
 		pullPolicy = v1.PullIfNotPresent
 	}
-  
+
 	return batchv1.JobSpec{
 		Completions:             &config.NumTasks,
 		Parallelism:             &config.NumTasks,

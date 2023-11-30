@@ -743,7 +743,14 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		}
 	}(sourceStore)
 
-	featureProvider, err := feature.FetchProvider(c.Metadata, context.Background())
+	var featureProvider *metadata.Provider
+	if feature.Provider() != "" {
+		featureProvider, err = feature.FetchProvider(c.Metadata, context.Background())
+		if err != nil {
+			return fmt.Errorf("could not fetch online provider: %v", err)
+		}
+	}
+
 	if err != nil {
 		return fmt.Errorf("could not fetch online provider: %v", err)
 	}
@@ -795,14 +802,19 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	c.Logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
 
 	materializedRunnerConfig := runner.MaterializedRunnerConfig{
-		OnlineType:    pt.Type(featureProvider.Type()),
 		OfflineType:   pt.Type(sourceProvider.Type()),
-		OnlineConfig:  featureProvider.SerializedConfig(),
-		OfflineConfig: sourceProvider.SerializedConfig(),
+		OfflineConfig: pc.SerializedConfig(sourceProvider.SerializedConfig()),
 		ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
 		VType:         provider.ValueTypeJSONWrapper{ValueType: vType},
 		Cloud:         runner.LocalMaterializeRunner,
 		IsUpdate:      false,
+	}
+
+	if featureProvider != nil {
+		materializedRunnerConfig.OnlineType = pt.Type(featureProvider.Type())
+		materializedRunnerConfig.OnlineConfig = featureProvider.SerializedConfig()
+	} else {
+		materializedRunnerConfig.OnlineType = pt.NONE
 	}
 
 	isImportToS3Enabled, err := c.checkS3Import(featureProvider)
@@ -899,7 +911,7 @@ func (c *Coordinator) materializeFeatureViaS3Import(id metadata.ResourceID, conf
 }
 
 func (c *Coordinator) checkS3Import(featureProvider *metadata.Provider) (bool, error) {
-	if featureProvider.Type() == string(pt.DynamoDBOnline) {
+	if featureProvider != nil && featureProvider.Type() == string(pt.DynamoDBOnline) {
 		c.Logger.Debugw("Feature provider is DynamoDB")
 		config := pc.DynamodbConfig{}
 		if err := config.Deserialize(featureProvider.SerializedConfig()); err != nil {

@@ -1928,6 +1928,7 @@ func (serv *MetadataServer) setDefaultVariant(id ResourceID, defaultVariant stri
 	if err != nil {
 		return err
 	}
+	return nil
 }
 
 func (serv *MetadataServer) propagateChange(newRes Resource) error {

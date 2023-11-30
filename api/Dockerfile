@@ -39,6 +39,7 @@ WORKDIR /app
 
 COPY --from=0 ./app/main ./main
 COPY --from=0 ./app/provider/scripts/ /app/provider/scripts/
+COPY --from=0 ./app/provider/queries/ /app/provider/queries/
 
 ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
 ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"

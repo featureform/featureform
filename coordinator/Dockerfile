@@ -97,5 +97,7 @@ ENV MATERIALIZE_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_ts.sql"
 ## Download Shaded Jar
 #RUN wget https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop2-2.2.11/gcs-connector-hadoop2-2.2.11-shaded.jar -P /app/provider/scripts/spark/jars/
 
+COPY --from=builder ./app/main /app/main
+
 EXPOSE 8080
 ENTRYPOINT ["/app/main"]

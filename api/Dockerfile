@@ -35,7 +35,16 @@ RUN go build ./api/main.go
 
 FROM alpine
 
+WORKDIR /app
+
 COPY --from=0 ./app/main ./main
+COPY --from=0 ./app/provider/scripts/ /app/provider/scripts/
+
+ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
+ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
+ENV MATERIALIZE_NO_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_no_ts.sql"
+ENV MATERIALIZE_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_ts.sql"
+
 
 EXPOSE 8080
 ENTRYPOINT ["./main"]

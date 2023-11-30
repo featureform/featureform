@@ -716,7 +716,15 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 	if err != nil {
 		return nil, fmt.Errorf("could not get output files: %v", err)
 	}
-	iterator, err := store.Store.Serve(outputFiles)
+	groups, err := filestore.NewFilePathGroup(outputFiles, filestore.DateTimeDirectoryGrouping)
+	if err != nil {
+		return nil, fmt.Errorf("could not get datetime directory grouping for output files: %v", err)
+	}
+	newest, err := groups.GetFirst()
+	if err != nil {
+		return nil, fmt.Errorf("could not get newest output file: %v", err)
+	}
+	iterator, err := store.Store.Serve(newest)
 	if err != nil {
 		return nil, fmt.Errorf("could not serve batch features: %w", err)
 	}

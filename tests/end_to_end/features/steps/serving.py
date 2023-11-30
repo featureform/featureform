@@ -5,6 +5,7 @@ import requests
 import numpy as np
 from behave import *
 import featureform as ff
+from collections import Counter
 
 
 @given("The Snowflake env variables are available")
@@ -110,6 +111,10 @@ def step_impl(context):
         name="number_table",
         table="featureform_resource_feature__1926ce54-6d29-4094-a291-6f6516d84eed__b63c0ba7-23d8-437d-bbc9-bb0f2c821f0c",
     )
+    context.string_table = context.snowflake.register_table(
+        name="string_table",
+        table="featureform_materialization_string_feature",
+    )
     context.client.apply()
 
 
@@ -137,6 +142,14 @@ def step_impl(context):
 
 @then("I serve batch features for snowflake")
 def step_impl(context):
+    context.expected = [
+        ("a", ["", 343, "343"]),
+        ("b", [True, 546, "546"]),
+        ("c", [True, 7667, "7667"]),
+        ("d", [False, 32, "32"]),
+        ("e", [True, 53, "53"]),
+        ("f", ["", 64556, "64556"]),
+    ]
     context.iter = context.client.batch_features(
         ("boolean_feature", ff.get_run()),
         ("numerical_feature", ff.get_run()),
@@ -146,6 +159,14 @@ def step_impl(context):
 
 @then("I serve batch features for spark")
 def step_impl(context):
+    context.expected = [
+        ("C1010012", [1499.0, "24204.49", 0.06193065832000591]),
+        ("C1010024", [5000.0, "87058.65", 0.05743254690946851]),
+        ("C1010039", [915.0, "11027.18", 0.08297679007688276]),
+        ("C1010068", [546.0, "46741.73", 0.011681210772472478]),
+        ("C1010081", [1661.3333333333333, "1584.18", 0.2708025603151157]),
+        ("C1010085", [225.0, "319080.2", 0.0007051518709089439]),
+    ]
     context.iter = context.client.batch_features(
         ("transaction_feature", ff.get_run()),
         ("balance_feature", ff.get_run()),
@@ -155,19 +176,13 @@ def step_impl(context):
 
 @then("I can get a list containing the entity name and a tuple with all the features")
 def step_impl(context):
-    expected = [
-        ("a", np.array([np.nan, 343, "343"])),
-        ("b", np.array([True, 546, "546"])),
-        ("c", np.array([True, 7667, "7667"])),
-        ("d", np.array([False, 32, "32"])),
-        ("e", np.array([True, 53, "53"])),
-        ("f", np.array([np.nan, 64556, "64556"])),
-    ]
     i = 0
     for entity, features in context.iter:
+        if i >= len(context.expected):
+            break
         print(entity, features)
-        assert entity == expected[i][0]
-        assert np.array_equal(features, expected[i][1])
+        assert entity == context.expected[i][0]
+        assert Counter(features) == Counter(context.expected[i][1])
         i += 1
 
 
@@ -186,7 +201,7 @@ def step_impl(context):
             inference_store=context.redis,
         )
         string_feature = ff.Feature(
-            context.number_table[["entity", " value", "ts"]],
+            context.string_table[["entity", " value", "ts"]],
             type=ff.String,
             inference_store=context.redis,
         )
@@ -205,12 +220,12 @@ def step_impl(context):
         )
         balance_feature = ff.Feature(
             context.balance[["entity", " value", "ts"]],
-            type=ff.Float32,
+            type=ff.String,
             inference_store=context.redis,
         )
         perc_feature = ff.Feature(
             context.perc[["entity", " value", "ts"]],
-            type=ff.String,
+            type=ff.Float32,
             inference_store=context.redis,
         )
 

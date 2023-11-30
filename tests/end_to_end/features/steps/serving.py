@@ -2,8 +2,10 @@ import os
 import random
 
 import requests
+import numpy as np
 from behave import *
 import featureform as ff
+from collections import Counter
 
 
 @given("The Snowflake env variables are available")
@@ -14,7 +16,7 @@ def step_impl(context):
     context.snowflake_organization = os.getenv("SNOWFLAKE_ORG", "")
 
     if context.snowflake_username == "":
-        raise Exception("Snowflake uername is not set")
+        raise Exception("Snowflake username is not set")
     if context.snowflake_password == "":
         raise Exception("Snowflake password is not set")
     if context.snowflake_account == "":
@@ -40,7 +42,7 @@ def step_impl(context):
 @given("The S3 env variables are available")
 def step_impl(context):
     context.s3_credentials = (
-        context.featureform.AWSCredentials(
+        ff.AWSCredentials(
             access_key=os.getenv("AWS_ACCESS_KEY_ID", ""),
             secret_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
         ),
@@ -58,173 +60,173 @@ def step_impl(context):
 @when("I register Spark with Databricks S3")
 def step_impl(context):
     context.snowflake_name = "test_spark"
-    try:
-        databricks = context.featureform.DatabricksCredentials(
-            host=context.databricks_host,
-            token=context.databricks_token,
-            cluster_id=context.databricks_cluster_id,
-        )
+    databricks = ff.DatabricksCredentials(
+        host=context.databricks_host,
+        token=context.databricks_token,
+        cluster_id=context.databricks_cluster_id,
+    )
 
-        s3 = context.featureform.register_s3(
-            name="s3",
-            credentials=context.s3_credentials,
-            bucket_name=context.s3_bucket_name,
-            path="",
-            bucket_region=context.s3_bucket_region,
-        )
+    s3 = ff.register_s3(
+        name="s3",
+        credentials=context.s3_credentials,
+        bucket_name=context.s3_bucket_name,
+        path="",
+        bucket_region=context.s3_bucket_region,
+    )
 
-        # Offline store
-        context.spark = context.featureform.register_spark(
-            name="spark_provider",
-            description="A Spark deployment we created for the Featureform quickstart",
-            team="featureform-team",
-            executor=databricks,
-            filestore=s3,
-        )
-    except Exception as e:
-        context.exception = e
+    # Offline store
+    context.spark = ff.register_spark(
+        name="spark_provider",
+        description="A Spark deployment we created for the Featureform quickstart",
+        team="featureform-team",
+        executor=databricks,
+        filestore=s3,
+    )
+    context.client.apply()
 
 
 @when("I register Snowflake")
 def step_impl(context):
-    try:
-        context.snowflake = context.featureform.register_snowflake(
-            name="test_snowflake",
-            description="Offline store",
-            team="Featureform",
-            username=context.snowflake_username,
-            password=context.snowflake_password,
-            account=context.snowflake_account,
-            organization=context.snowflake_organization,
-            database="0884D0DD-468D-4C3A-8109-3C2BAAD72EF7",
-            schema="PUBLIC",
-        )
-    except Exception as e:
-        context.exception = e
+    context.snowflake = ff.register_snowflake(
+        name="test_snowflake",
+        description="Offline store",
+        team="Featureform",
+        username=context.snowflake_username,
+        password=context.snowflake_password,
+        account=context.snowflake_account,
+        organization=context.snowflake_organization,
+        database="0884D0DD-468D-4C3A-8109-3C2BAAD72EF7",
+        schema="PUBLIC",
+    )
+    context.client.apply()
 
 
 @when("I register the tables from the database")
 def step_impl(context):
     context.boolean_table = context.snowflake.register_table(
         name="boolean_table",
-        table="featureform_resource_feature__8a49dead-41a6-48c39ee7-7ed75d783fe4__0efdd949-f967-4796-8ed3-6c6f736344e8",
+        table="featureform_resource_feature__08b1cc23-18ce-4ae7-9ee0-d68216f19079__2e2a8e99-7a60-4e10-98e2-1d17e44ba476",
     )
     context.number_table = context.snowflake.register_table(
         name="number_table",
-        table="featureform_resource_feature__f4d42278-0889-44d7-9928-8aef22d23c16__6a6e8ff4-8a8f-4217-8096-bb360ae1e99b",
+        table="featureform_resource_feature__1926ce54-6d29-4094-a291-6f6516d84eed__b63c0ba7-23d8-437d-bbc9-bb0f2c821f0c",
     )
+    context.string_table = context.snowflake.register_table(
+        name="string_table",
+        table="featureform_materialization_string_feature",
+    )
+    context.client.apply()
 
 
 @when("I register the files from the database")
 def step_impl(context):
-    num = random.randint(0, 1000000)
     context.transactions = context.spark.register_file(
         name="transactions",
-        variant=f"variant_{num}",
         description="A dataset of average transactions",
-        file_path="s3://featureform-internal-sandbox/featureform/Materialization/avg_trans/databricks-webinar/2023-11-14-13-54-43-521232/part-00000-tid-3732459543582589042-bf8734da-26f4-47ea-9920-fe7bd4b4bc8c-201-1-c000.snappy.parquet",
+        file_path="s3://featureform-spark-testing/data/avg_trans.snappy.parquet",
     )
 
     context.balance = context.spark.register_file(
         name="balances",
-        variant=f"variant_{num}",
         description="A dataset of balances",
-        file_path="s3://featureform-internal-sandbox/featureform/Materialization/balance/databricks-webinar/2023-11-14-13-54-44-141964/part-00000-tid-6907362395273500345-7899298e-e815-42d8-9e7e-98b7cab7e9be-205-1-c000.snappy.parquet",
+        file_path="s3://featureform-spark-testing/data/balance.snappy.parquet",
     )
 
     context.perc = context.spark.register_file(
         name="perc",
-        variant=f"variant_{num}",
         description="A dataset of perc",
-        file_path="s3://featureform-internal-sandbox/featureform/Materialization/perc/databricks-webinar/2023-11-14-13-54-45-900722/part-00000-tid-8883202944540201246-2c2cc6c1-7d6b-49a3-86b6-36576fadf072-207-1-c000.snappy.parquet",
+        file_path="s3://featureform-spark-testing/data/perc.snappy.parquet",
     )
+    context.client.apply()
 
 
 @then("I serve batch features for snowflake")
 def step_impl(context):
-    try:
-        context.iter = context.client.batch_features(
-            ("table1_feature", ff.get_run()),
-            ("table2_feature", ff.get_run()),
-            ("table3_feature", ff.get_run()),
-            ("table4_feature", ff.get_run()),
-        )
-    except Exception as e:
-        context.exception = e
-        return
-    context.exception = None
+    context.expected = [
+        ("a", ["", 343, "343"]),
+        ("b", [True, 546, "546"]),
+        ("c", [True, 7667, "7667"]),
+        ("d", [False, 32, "32"]),
+        ("e", [True, 53, "53"]),
+        ("f", ["", 64556, "64556"]),
+    ]
+    context.iter = context.client.batch_features(
+        ("boolean_feature", ff.get_run()),
+        ("numerical_feature", ff.get_run()),
+        ("string_feature", ff.get_run()),
+    )
 
 
 @then("I serve batch features for spark")
 def step_impl(context):
-    try:
-        context.iter = context.client.batch_features(
-            ("transaction_feature", ff.get_run()),
-            ("balance_feature", ff.get_run()),
-            ("perc_feature", ff.get_run()),
-        )
-    except Exception as e:
-        context.exception = e
-        return
-    context.exception = None
+    context.expected = [
+        ("C1010012", [1499.0, "24204.49", 0.06193065832000591]),
+        ("C1010024", [5000.0, "87058.65", 0.05743254690946851]),
+        ("C1010039", [915.0, "11027.18", 0.08297679007688276]),
+        ("C1010068", [546.0, "46741.73", 0.011681210772472478]),
+        ("C1010081", [1661.3333333333333, "1584.18", 0.2708025603151157]),
+        ("C1010085", [225.0, "319080.2", 0.0007051518709089439]),
+    ]
+    context.iter = context.client.batch_features(
+        ("transaction_feature", ff.get_run()),
+        ("balance_feature", ff.get_run()),
+        ("perc_feature", ff.get_run()),
+    )
 
 
 @then("I can get a list containing the entity name and a tuple with all the features")
 def step_impl(context):
-    try:
-        for row in context.iter:
-            assert len(row) == 2
-    except Exception as e:
-        context.exception = e
-        return
-    context.exception = None
+    i = 0
+    for entity, features in context.iter:
+        if i >= len(context.expected):
+            break
+        print(entity, features)
+        assert entity == context.expected[i][0]
+        assert Counter(features) == Counter(context.expected[i][1])
+        i += 1
 
 
 @when("I define a SnowflakeUser and register features")
 def step_impl(context):
+    @ff.entity
     class SnowflakeUser:
-        context.boolean_feature = context.featureform.Feature(
+        boolean_feature = ff.Feature(
             context.boolean_table[["entity", " value", "ts"]],
-            variant="batch_serving_test_15",
-            type=context.featureform.Boolean,
+            type=ff.Bool,
             inference_store=context.redis,
         )
-        context.numerical_feature = context.featureform.Feature(
+        numerical_feature = ff.Feature(
             context.number_table[["entity", " value", "ts"]],
-            variant="batch_serving_test_15",
-            type=context.featureform.Float32,
+            type=ff.Float32,
             inference_store=context.redis,
         )
-        context.string_feature = context.featureform.Feature(
-            context.number_table[["entity", " value", "ts"]],
-            variant="batch_serving_test_15",
-            type=context.featureform.String,
+        string_feature = ff.Feature(
+            context.string_table[["entity", " value", "ts"]],
+            type=ff.String,
             inference_store=context.redis,
         )
 
-    context.featureform.entity(SnowflakeUser)
+    context.client.apply()
 
 
 @when("I define a SparkUser and register features")
 def step_impl(context):
+    @ff.entity
     class SparkUser:
-        context.transaction_feature = ff.Feature(
-            transactions[["entity", " value", "ts"]],
-            variant=f"variant_{num}",
+        transaction_feature = ff.Feature(
+            context.transactions[["entity", " value", "ts"]],
             type=ff.Float32,
-            inference_store=redis,
+            inference_store=context.redis,
         )
-        context.balance_feature = ff.Feature(
-            balance[["entity", " value", "ts"]],
-            variant=f"variant_{num}",
-            type=ff.Float32,
-            inference_store=redis,
-        )
-        context.perc_feature = ff.Feature(
-            perc[["entity", " value", "ts"]],
-            variant=f"variant_{num}",
+        balance_feature = ff.Feature(
+            context.balance[["entity", " value", "ts"]],
             type=ff.String,
-            inference_store=redis,
+            inference_store=context.redis,
+        )
+        perc_feature = ff.Feature(
+            context.perc[["entity", " value", "ts"]],
+            type=ff.Float32,
+            inference_store=context.redis,
         )
 
-    context.featureform.entity(SparkUser)
+    context.client.apply()

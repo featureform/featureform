@@ -1344,9 +1344,7 @@ class FeatureSetIterator:
 
 class FeatureSetRow:
     def __init__(self, proto_row):
-        self._features = np.array(
-            [parse_proto_value(feature) for feature in proto_row.features]
-        )
+        self._features = [parse_proto_value(feature) for feature in proto_row.features]
         self._entity = parse_proto_value(proto_row.entity)
         self._row = [self._entity, self._features]
 
@@ -1357,7 +1355,7 @@ class FeatureSetRow:
         return [self._entity]
 
     def to_numpy(self):
-        return self._row
+        return np.array(self._row)
 
     def to_tuple(self):
         return tuple((self._entity, self._features))

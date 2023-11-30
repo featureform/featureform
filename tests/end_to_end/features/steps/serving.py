@@ -16,7 +16,7 @@ def step_impl(context):
     context.snowflake_organization = os.getenv("SNOWFLAKE_ORG", "")
 
     if context.snowflake_username == "":
-        raise Exception("Snowflake uername is not set")
+        raise Exception("Snowflake username is not set")
     if context.snowflake_password == "":
         raise Exception("Snowflake password is not set")
     if context.snowflake_account == "":

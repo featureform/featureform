@@ -1849,7 +1849,7 @@ type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
 	serv.Logger.Info("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
-  
+
 	id := res.ID()
 	if err := resourceNamedSafely(id); err != nil {
 		return nil, err
@@ -1888,6 +1888,10 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 			if err != nil {
 				return nil, err
 			}
+		} else {
+			if err := serv.setDefaultVariant(parentId, res.ID().Variant); err != nil {
+				return nil, err
+			}
 		}
 	}
 	if err := serv.propagateChange(res); err != nil {
@@ -1896,6 +1900,34 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 	return &pb.Empty{}, nil
+}
+
+func (serv *MetadataServer) setDefaultVariant(id ResourceID, defaultVariant string) error {
+	parent, err := serv.lookup.Lookup(id)
+	if err != nil {
+		return err
+	}
+	var parentResource Resource
+	if resource, ok := parent.(*SourceResource); ok {
+		resource.serialized.DefaultVariant = defaultVariant
+		parentResource = resource
+	}
+	if resource, ok := parent.(*labelResource); ok {
+		resource.serialized.DefaultVariant = defaultVariant
+		parentResource = resource
+	}
+	if resource, ok := parent.(*featureResource); ok {
+		resource.serialized.DefaultVariant = defaultVariant
+		parentResource = resource
+	}
+	if resource, ok := parent.(*trainingSetResource); ok {
+		resource.serialized.DefaultVariant = defaultVariant
+		parentResource = resource
+	}
+	err = serv.lookup.Set(id, parentResource)
+	if err != nil {
+		return err
+	}
 }
 
 func (serv *MetadataServer) propagateChange(newRes Resource) error {

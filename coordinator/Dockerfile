@@ -58,24 +58,24 @@ RUN apt-get update && apt-get install -y \
   wget \
   && rm -rf /var/lib/apt/lists/*
 
-ENV ENV="/root/.bashrc"
-ENV PYENV_ROOT="/.pyenv"
-ENV PATH="$PYENV_ROOT/bin:$PATH"
-RUN echo "PATH=${PATH}" > "${ENV}"
-
-RUN curl https://pyenv.run | bash
+#ENV ENV="/root/.bashrc"
+#ENV PYENV_ROOT="/.pyenv"
+#ENV PATH="$PYENV_ROOT/bin:$PATH"
+#RUN echo "PATH=${PATH}" > "${ENV}"
+#
+#RUN curl https://pyenv.run | bash
 
 ## Install Python versions
-ARG TESTING
-RUN if [ "$TESTING" = "True" ]; then \
-  pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
-  else \
-  pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-  pyenv install 3.8.16 && pyenv global 3.8.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-  pyenv install 3.9.16 && pyenv global 3.9.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-  pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-  pyenv install 3.11.2 && pyenv global 3.11.2 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
-  fi
+#ARG TESTING
+#RUN if [ "$TESTING" = "True" ]; then \
+#  pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
+#  else \
+#  pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+#  pyenv install 3.8.16 && pyenv global 3.8.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+#  pyenv install 3.9.16 && pyenv global 3.9.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+#  pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+#  pyenv install 3.11.2 && pyenv global 3.11.2 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
+#  fi
 
 ARG SPARK_FILEPATH=/app/provider/scripts/spark/offline_store_spark_runner.py
 ARG SPARK_PYTHON_PACKAGES=/app/provider/scripts/spark/python_packages.sh

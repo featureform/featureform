@@ -3,18 +3,24 @@ on:
   push:
     branches:
       - fake-main
-
 jobs:
-  cherry_pick_release_v1_0:
+  update-release:
     runs-on: ubuntu-latest
-    name: Cherry pick into release-v1.0
-#   if: ${{ contains(github.event.pull_request.labels.*.name, 'release-v1.0') && github.event.pull_request.merged == true }}
+    name: release_pull_request
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Cherry pick into release-v1.0
-        uses: carloscastrojumo/github-cherry-pick-action@v1.0.1
-        with:
-          branch: fake-release
+      - name: Get Latest Release
+        run: |
+          ./.github/helpers/get_latest_release.sh
+
+#  release_pull_request:
+#    runs-on: ubuntu-latest
+#    name: release_pull_request
+#    steps:
+#      - name: checkout
+#        uses: actions/checkout@v1
+#      - name: Create PR to branch
+#        uses: gorillio/github-action-cherry-pick@master
+#        with:
+#          pr_branch: 'fake-release'
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

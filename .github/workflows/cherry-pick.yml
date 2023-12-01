@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Get Latest Release
-        run: bash ./.github/helpers/get_latest_release.sh
+        run: ./.github/helpers/get_latest_release.sh
 
 #  release_pull_request:
 #    runs-on: ubuntu-latest

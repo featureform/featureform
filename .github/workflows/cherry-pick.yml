@@ -15,9 +15,9 @@ jobs:
       - name: Get Latest Release Branch
         id: get_branch
         run: |
-          LATEST_BRANCH=$(git branch -r --list "origin/release/*" | sed 's/.*\///' | sort -rV | head -n 1)
-          echo "Latest release branch is $LATEST_BRANCH"
-          echo "::set-output name=latest_release_branch::${LATEST_BRANCH}"
+        LATEST_BRANCH=$(git branch -r --list "origin/release/*" | sed 's/origin\///' | sort -rV | head -n 1)
+        echo "Latest release branch is $LATEST_BRANCH"
+        echo "::set-output name=latest_release_branch::${LATEST_BRANCH}"
 
       # Example of using the output
       - name: Use Latest Branch

@@ -12,13 +12,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: get branches
+      - name: Get Latest Release Branch
+        id: get_branch
         run: |
-          git fetch
-          git for-each-ref --format="%(refname:short)" refs/heads/
+          LATEST_BRANCH=$(git branch -r --list origin/release/* | sort -r | head -n 1)
+          LATEST_BRANCH=${LATEST_BRANCH#origin/}
+          echo "Latest release branch is $LATEST_BRANCH"
+          echo "::set-output name=latest_release_branch::${LATEST_BRANCH}"
 
-      - name: Get Latest Release
-        run: ./.github/helpers/get_latest_release.sh
+      # Example of using the output
+      - name: Use Latest Branch
+        run: echo "The latest release branch is ${{ steps.get_branch.outputs.latest_release_branch }}"
 
 #  release_pull_request:
 #    runs-on: ubuntu-latest

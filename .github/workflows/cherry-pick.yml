@@ -23,15 +23,9 @@ jobs:
       - name: Use Latest Branch
         run: echo "The latest release branch is ${{ steps.get_branch.outputs.latest_release_branch }}"
 
-#  release_pull_request:
-#    runs-on: ubuntu-latest
-#    name: release_pull_request
-#    steps:
-#      - name: checkout
-#        uses: actions/checkout@v1
-#      - name: Create PR to branch
-#        uses: gorillio/github-action-cherry-pick@master
-#        with:
-#          pr_branch: 'fake-release'
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create PR to branch
+        uses: gorillio/github-action-cherry-pick@master
+        with:
+          pr_branch: ${{ steps.get_branch.outputs.latest_release_branch }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

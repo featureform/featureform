@@ -1390,9 +1390,6 @@ class FeatureVariant(ResourceVariant):
         if hasattr(self.source, "name_variant"):
             self.source = self.source.name_variant()
 
-        # TODO: remove this hack
-        if self.provider == "local-mode":
-            self.provider = ""
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
@@ -1422,6 +1419,8 @@ class FeatureVariant(ResourceVariant):
     def _create_local(self, db) -> None:
         if hasattr(self.source, "name_variant"):
             self.source = self.source.name_variant()
+        if self.provider == "":
+            self.provider = "local-mode"
         db.insert(
             "feature_variant",
             str(time.time()),

@@ -23,10 +23,9 @@ jobs:
       - name: Use Latest Branch
         run: echo "The latest release branch is ${{ steps.get_branch.outputs.latest_release_branch }}"
 
-      - name: Create PR to branch
-        uses: gorillio/github-action-cherry-pick@master
+      - name: Cherry pick into release-v2.0
+        uses: carloscastrojumo/github-cherry-pick-action@v1.0.1
         with:
-          #pr_branch: ${{ steps.get_branch.outputs.latest_release_branch }}
-          pr_branch: "fake-release"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ steps.get_branch.outputs.latest_release_branch }}
+          title: '[TEST] {test}'
+          body: 'Cherry picking {test} onto this branch'

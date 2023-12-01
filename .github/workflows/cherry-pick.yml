@@ -12,7 +12,7 @@ jobs:
 
       - name: Get Latest Release
         run: |
-          echo ./.github/helpers/get_latest_release.sh
+          ./.github/helpers/get_latest_release.sh
 
 #  release_pull_request:
 #    runs-on: ubuntu-latest

@@ -296,7 +296,7 @@ func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 		Online:   onlineStore, // This can be nil if onlineProvider is nil
 		Offline:  offlineStore,
 		ID:       runnerConfig.ResourceID,
-		VType:    runnerConfig.VType,
+		VType:    runnerConfig.VType.ValueType,
 		IsUpdate: runnerConfig.IsUpdate,
 		Cloud:    runnerConfig.Cloud,
 		Logger:   logging.NewLogger("materializer"),

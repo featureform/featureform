@@ -110,7 +110,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 
 	// online
 	if m.Online == nil {
-		return m.handleNoOlineStore()
+		return m.handleNoOnlineStore()
 	}
 
 	// Create the vector similarity index prior to writing any values to the
@@ -228,7 +228,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	return materializeWatcher, nil
 }
 
-func (m MaterializeRunner) handleNoOlineStore() (types.CompletionWatcher, error) {
+func (m MaterializeRunner) handleNoOnlineStore() (types.CompletionWatcher, error) {
 	m.Logger.Infow("No Online Store, skipping materialization", "name", m.ID.Name, "variant", m.ID.Variant)
 	done := make(chan interface{})
 	materializeWatcher := &SyncWatcher{

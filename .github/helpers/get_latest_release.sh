@@ -17,5 +17,7 @@ for branch in $(git for-each-ref --format="%(refname:short)" refs/heads/); do
 done
 
 # Sort the list in descending order
-printf "%s\n" "${branches[@]}" | sort -t. -k1,1 -k2,2nr | head -n 1
+latest_value=$(printf "%s\n" "${branches[@]}" | sort -t. -k1,1 -k2,2nr | head -n 1)
+
+echo $latest_value
 

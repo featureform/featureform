@@ -8,6 +8,8 @@ jobs:
     runs-on: ubuntu-latest
     name: release_pull_request
     steps:
+      - uses: actions/checkout@v2
+        - 
       - name: Get Latest Release
         run: |
           ./.github/helpers/get_latest_release.sh

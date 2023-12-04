@@ -197,17 +197,14 @@ def step_impl(context):
         boolean_feature = ff.Feature(
             context.boolean_table[["entity", " value", "ts"]],
             type=ff.Bool,
-            inference_store=context.redis,
         )
         numerical_feature = ff.Feature(
             context.number_table[["entity", " value", "ts"]],
             type=ff.Float32,
-            inference_store=context.redis,
         )
         string_feature = ff.Feature(
             context.string_table[["entity", " value", "ts"]],
             type=ff.String,
-            inference_store=context.redis,
         )
 
     context.client.apply()
@@ -220,17 +217,14 @@ def step_impl(context):
         transaction_feature = ff.Feature(
             context.transactions[["entity", " value", "ts"]],
             type=ff.Float32,
-            inference_store=context.redis,
         )
         balance_feature = ff.Feature(
             context.balance[["entity", " value", "ts"]],
             type=ff.String,
-            inference_store=context.redis,
         )
         perc_feature = ff.Feature(
             context.perc[["entity", " value", "ts"]],
             type=ff.Float32,
-            inference_store=context.redis,
         )
 
     context.client.apply()

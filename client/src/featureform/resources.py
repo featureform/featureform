@@ -1323,10 +1323,10 @@ class FeatureVariant(ResourceVariant):
     value_type: str
     entity: str
     owner: str
-    provider: str
     location: ResourceLocation
     description: str
     variant: str
+    provider: Optional[str] = None
     created: str = None
     is_embedding: bool = False
     dims: int = 0
@@ -1389,6 +1389,7 @@ class FeatureVariant(ResourceVariant):
     def _create(self, stub) -> Optional[str]:
         if hasattr(self.source, "name_variant"):
             self.source = self.source.name_variant()
+
         serialized = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
@@ -1418,6 +1419,8 @@ class FeatureVariant(ResourceVariant):
     def _create_local(self, db) -> None:
         if hasattr(self.source, "name_variant"):
             self.source = self.source.name_variant()
+        if self.provider == "":
+            self.provider = "local-mode"
         db.insert(
             "feature_variant",
             str(time.time()),
@@ -1634,12 +1637,12 @@ class LabelVariant(ResourceVariant):
     value_type: str
     entity: str
     owner: str
-    provider: str
     description: str
     tags: list
     properties: dict
     location: ResourceLocation
     variant: str
+    provider: Optional[str] = None
     created: str = None
     status: str = "NO_STATUS"
     error: Optional[str] = None
@@ -2230,10 +2233,6 @@ class ResourceState:
         for resource in self.sorted_list():
             if resource.type() == "provider" and resource.name == "local-mode":
                 continue
-            if resource.type() == "feature" and resource.provider == "local-mode":
-                raise ValueError(
-                    f"Inference store must be provided for feature {resource.name} ({resource.variant})"
-                )
             try:
                 resource_variant = getattr(resource, "variant", "")
                 rv_for_print = f" {resource_variant}" if resource_variant else ""

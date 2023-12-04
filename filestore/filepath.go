@@ -514,9 +514,11 @@ func groupByDateTimeDirectory(files []Filepath) (FilePathGroup, error) {
 		pathParts := strings.Split(file.Key(), "/")
 		// The path to a file follows the format:
 		// <OPTIONAL PATH>/featureform/<TYPE>/<NAME DIR>/<VARIANT DIR>/<DATETIME DIR>/<FILENAME>
-		// so there should be at least 6 path components.
-		if len(pathParts) < 6 {
-			return FilePathGroup{}, fmt.Errorf("expected 5 path components: %s", file.Key())
+		// or in the case of batch features:
+		// <OPTIONAL PATH>/featureform/BatchFeatures/<UUID 5>/<DATETIME DIR>/<FILENAME>
+		// so there should be at least 5 path components.
+		if len(pathParts) < 5 {
+			return FilePathGroup{}, fmt.Errorf("expected at least 5 path components, but found: %s", file.Key())
 		}
 		// The datetime directory is the second to last path component and follows the format:
 		// <YEAR>-<MONTH>-<DAY>-<HOUR>-<MINUTE>-<SECOND>-<FRACTIONAL SECONDS>

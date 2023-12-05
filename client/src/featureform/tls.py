@@ -10,9 +10,9 @@ secure_protocol = "https://"
 def insecure_channel(host):
     channel_options = [
         ("grpc.enable_http_proxy", 0),
-        ("grpc.keepalive_time_ms", 20000),
-        ("grpc.keepalive_timeout_ms", 5000),
-        ("grpc.http2.max_pings_without_data", 5),
+        ("grpc.keepalive_time_ms", 25000),
+        ("grpc.keepalive_timeout_ms", 55000),
+        ("grpc.http2.max_pings_without_data", 100),
         ("grpc.keepalive_permit_without_calls", 1),
     ]
     return grpc.insecure_channel(host, options=channel_options)
@@ -20,9 +20,9 @@ def insecure_channel(host):
 
 def secure_channel(host, cert_path):
     channel_options = [
-        ("grpc.keepalive_time_ms", 20000),
-        ("grpc.keepalive_timeout_ms", 5000),
-        ("grpc.http2.max_pings_without_data", 5),
+        ("grpc.keepalive_time_ms", 25000),
+        ("grpc.keepalive_timeout_ms", 55000),
+        ("grpc.http2.max_pings_without_data", 100),
         ("grpc.keepalive_permit_without_calls", 1),
     ]
     cert_path = cert_path or os.getenv("FEATUREFORM_CERT")

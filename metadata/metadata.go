@@ -659,11 +659,15 @@ func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (Res
 			ResourceID{
 				Name: serialized.Entity,
 				Type: ENTITY,
-			},
-			ResourceID{
+			})
+
+		// Only add the Provider if it is non-empty
+		if serialized.Provider != "" {
+			depIds = append(depIds, ResourceID{
 				Name: serialized.Provider,
 				Type: PROVIDER,
 			})
+		}
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
@@ -1851,7 +1855,7 @@ type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
 	serv.Logger.Info("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
-  
+
 	id := res.ID()
 	if err := resourceNamedSafely(id); err != nil {
 		return nil, err

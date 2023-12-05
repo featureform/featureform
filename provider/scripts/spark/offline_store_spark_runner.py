@@ -269,9 +269,6 @@ def main(args):
                 args.source_list,
                 args.output_format,
                 args.headers,
-                args.store_type,
-                args.credential,
-                args.submit_params_uri,
             )
         elif args.transformation_type == "df":
             output_location = execute_df_job(
@@ -304,9 +301,6 @@ def execute_sql_query(
     source_list,
     output_format,
     headers,
-    store_type,
-    credentials,
-    submit_params_uri,
 ):
     # Executes the SQL Queries:
     # Parameters:
@@ -327,21 +321,6 @@ def execute_sql_query(
             or job_type == JobType.TRAINING_SET
             or job_type == JobType.BATCH_FEATURES
         ):
-            if submit_params_uri is not None:
-                print("=====>>>>> PULLING SUBMIT PARAMS FROM URI <<<<<=====")
-                if store_type == "s3":
-                    s3_object = get_s3_object(submit_params_uri, credentials)
-                    with io.BytesIO() as f:
-                        s3_object.download_fileobj(f)
-                        f.seek(0)
-                        submit_params = json.load(f)
-                        sql_query = submit_params["sql_query"]
-                        source_list = submit_params["source_list"]
-                else:
-                    raise Exception(
-                        f"the '{store_type}' is not supported. Supported types: 's3'"
-                    )
-
             for i, source in enumerate(source_list):
                 file_extension = Path(source).suffix
                 is_directory = file_extension == ""
@@ -400,7 +379,7 @@ def execute_sql_query(
                 f"the output format '{output_format}' is not supported. Supported types: 'parquet', 'csv'"
             )
 
-        if job_type != JobType.BATCH_FEATURES:
+        if job_type == JobType.MATERIALIZATION:
             try:
                 stats_directory = f"{output_uri.rstrip('/')}/stats"
                 stats_df = display_data_metrics(output_dataframe, spark)
@@ -409,7 +388,7 @@ def execute_sql_query(
                 print(e)
                 print("Failed to display data metrics")
         else:
-            print("Skipping data metrics for Batch Features")
+            print(f"Skipping data metrics for {job_type} job")
         return output_uri_with_timestamp
     except Exception as e:
         print(e)
@@ -720,13 +699,13 @@ def parse_args(args=None):
         "--output_uri",
         help="output file location; eg. s3a://featureform/{type}/{name}/{variant}",
     )
-    sql_parser.add_argument(  # TODO: Determine if this is required and if so, make it optional
+    sql_parser.add_argument(
         "--sql_query",
         help="The SQL query you would like to run on the data source. eg. SELECT * FROM source_1 INNER JOIN source_2 ON source_1.id = source_2.id",
     )
-    sql_parser.add_argument(  # TODO: Determine if this is required and if so, make it optional
+    sql_parser.add_argument(
         "--source_list",
-        nargs="*",
+        nargs="*",  # 0 or more arguments
         help="list of sources in the transformation string",
     )
     sql_parser.add_argument("--store_type", choices=FILESTORES)
@@ -794,6 +773,24 @@ def parse_args(args=None):
     # converts the key=value into a dictionary
     arguments.spark_config = split_key_value(arguments.spark_config)
     arguments.credential = split_key_value(arguments.credential)
+
+    if (
+        arguments.transformation_type == "sql"
+        and arguments.job_type == JobType.BATCH_FEATURES
+        and arguments.submit_params_uri is not None
+    ):
+        if arguments.store_type == "s3":
+            s3_object = get_s3_object(arguments.submit_params_uri, arguments.credential)
+            with io.BytesIO() as f:
+                s3_object.download_fileobj(f)
+                f.seek(0)
+                submit_params = json.load(f)
+                arguments.sql_query = submit_params["sql_query"]
+                arguments.source_list = submit_params["source_list"]
+        else:
+            raise Exception(
+                f"the '{arguments.store_type}' is not supported. Supported types: 's3'"
+            )
 
     return arguments
 

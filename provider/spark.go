@@ -704,8 +704,8 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 	// Submit arguments for a spark job
 	sparkArgs, err := store.Executor.SparkSubmitArgs(outputPath, query, materializationPaths, BatchFeatures, store.Store)
 	if err != nil {
-		store.Logger.Errorw("Problem creating spark submit arguments", "error", err)
-		return nil, fmt.Errorf("error with getting spark submit arguments %v", sparkArgs)
+		store.Logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
+		return nil, fmt.Errorf("error with getting spark submit arguments")
 	}
 
 	// Run the spark job
@@ -1390,8 +1390,6 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath filestore.Filepath, cleanQ
 		"sql",
 		"--output_uri",
 		destPath.ToURI(),
-		// "--sql_query",
-		// cleanQuery,
 		"--job_type",
 		string(jobType),
 		"--store_type",
@@ -1403,29 +1401,13 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath filestore.Filepath, cleanQ
 	credentialConfigs := store.CredentialsConfig()
 	argList = append(argList, credentialConfigs...)
 
-	// argList = append(argList, "--source_list")
-	// argList = append(argList, sourceList...)
-
-	totalBytes := 0
-	for _, str := range argList {
-		fmt.Printf("=====>>>>> LENGTH OF STRING %s: %d\n", str, len(str))
-		totalBytes += len(str)
-	}
-
-	fmt.Printf("=====>>>>> LENGTH OF ARGS AFTER INITIAL LIST: %d\n", totalBytes)
-
-	totalBytes += len(cleanQuery)
-
-	fmt.Printf("=====>>>>> LENGTH OF ARGS AFTER QUERY: %d\n", totalBytes)
-
-	for _, source := range sourceList {
-		totalBytes += len(source)
-	}
-
-	fmt.Printf("=====>>>>> LENGTH OF ARGS AFTER SOURCES: %d\n", totalBytes)
-
-	if totalBytes >= SPARK_SUBMIT_PARAMS_BYTE_LIMIT {
-		fmt.Printf("=====>>>>> SPARK SUBMIT ARGS EXCEEDED LIMIT AT %d BYTES\n", totalBytes)
+	// Databricks's API enforces a 10K-byte limit on job submit params, so to avoid a 400, we need to check to ensure
+	// the args are below this limit. If they exceed this limit, it's most likely due to the query and/or the list of
+	// sources, so we write these as a JSON file and read them from the PySpark runner script to side-step this constraint
+	if d.exceedsSubmitParamsTotalByteLimit(argList, cleanQuery, sourceList) {
+		if store.FilestoreType() != filestore.S3 {
+			return argList, fmt.Errorf("%s is not a currently support file store for writing submit params; supported types: %s", store.FilestoreType(), filestore.S3)
+		}
 		paramsFileId := uuid.New()
 		paramsPath, err := store.CreateFilePath(fmt.Sprintf("featureform/spark-submit-params/%s.json", paramsFileId.String()))
 		if err != nil {
@@ -1446,15 +1428,27 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath filestore.Filepath, cleanQ
 
 		argList = append(argList, "--submit_params_uri", paramsPath.Key())
 	} else {
-		fmt.Printf("=====>>>>> SPARK SUBMIT ARGS UNDER LIMIT AT %d BYTES\n", totalBytes)
 		argList = append(argList, "--sql_query", cleanQuery)
 		argList = append(argList, "--source_list")
 		argList = append(argList, sourceList...)
 	}
 
-	fmt.Println("=====>>>>> DATABRICKS S3 SPARK SUBMIT ARGS: ", argList)
-
 	return argList, nil
+}
+
+func (d *DatabricksExecutor) exceedsSubmitParamsTotalByteLimit(argsList []string, query string, sources []string) bool {
+	totalBytes := 0
+	for _, str := range argsList {
+		totalBytes += len(str)
+	}
+
+	totalBytes += len(query)
+
+	for _, source := range sources {
+		totalBytes += len(source)
+	}
+
+	return totalBytes >= SPARK_SUBMIT_PARAMS_BYTE_LIMIT
 }
 
 func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourcePath string) (PrimaryTable, error) {
@@ -1510,8 +1504,8 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	spark.Logger.Debugw("Running SQL transformation")
 	sparkArgs, err := spark.Executor.SparkSubmitArgs(transformationDestination, updatedQuery, sources, JobType(Transform), spark.Store)
 	if err != nil {
-		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err)
-		return fmt.Errorf("error with getting spark submit arguments %v", sparkArgs)
+		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
+		return fmt.Errorf("error with getting spark submit arguments")
 	}
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("spark submit job for transformation failed to run", "target", config.TargetTableID, "error", err)
@@ -1988,8 +1982,8 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	spark.Logger.Debugw("Fetched source files of type", "latestSourcePath", sourcePath.ToURI(), "fileFound", len(sourceURIs), "fileType", filestore.Parquet)
 	sparkArgs, err := spark.Executor.SparkSubmitArgs(destinationPath, materializationQuery, sourceURIs, Materialize, spark.Store)
 	if err != nil {
-		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err)
-		return nil, fmt.Errorf("error with getting spark submit arguments %v", sparkArgs)
+		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
+		return nil, fmt.Errorf("error with getting spark submit arguments")
 	}
 	// The default value for output_format in offline_store_spark_runner.py is parquet,
 	// so it's only necessary to append CSV in this case; if we support more output formats
@@ -2147,8 +2141,8 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 
 	sparkArgs, err := spark.Executor.SparkSubmitArgs(destinationPath, trainingSetQuery, sourcePaths, CreateTrainingSet, spark.Store)
 	if err != nil {
-		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err)
-		return fmt.Errorf("error with getting spark submit arguments %v", sparkArgs)
+		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
+		return fmt.Errorf("error with getting spark submit arguments")
 	}
 
 	spark.Logger.Debugw("Creating training set", "definition", def)

@@ -47,12 +47,14 @@ const (
 	Materialize       JobType = "Materialization"
 	Transform         JobType = "Transformation"
 	CreateTrainingSet JobType = "Training Set"
+	BatchFeatures     JobType = "Batch Features"
 )
 
 const MATERIALIZATION_ID_SEGMENTS = 3
 const ENTITY_INDEX = 0
 const VALUE_INDEX = 1
 const TIMESTAMP_INDEX = 2
+const SPARK_SUBMIT_PARAMS_BYTE_LIMIT = 10_240
 
 type SparkExecutorConfig interface {
 	Serialize() ([]byte, error)
@@ -700,7 +702,7 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 	}
 
 	// Submit arguments for a spark job
-	sparkArgs, err := store.Executor.SparkSubmitArgs(outputPath, query, materializationPaths, Transform, store.Store)
+	sparkArgs, err := store.Executor.SparkSubmitArgs(outputPath, query, materializationPaths, BatchFeatures, store.Store)
 	if err != nil {
 		store.Logger.Errorw("Problem creating spark submit arguments", "error", err)
 		return nil, fmt.Errorf("error with getting spark submit arguments %v", sparkArgs)
@@ -1388,8 +1390,8 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath filestore.Filepath, cleanQ
 		"sql",
 		"--output_uri",
 		destPath.ToURI(),
-		"--sql_query",
-		cleanQuery,
+		// "--sql_query",
+		// cleanQuery,
 		"--job_type",
 		string(jobType),
 		"--store_type",
@@ -1401,8 +1403,57 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath filestore.Filepath, cleanQ
 	credentialConfigs := store.CredentialsConfig()
 	argList = append(argList, credentialConfigs...)
 
-	argList = append(argList, "--source_list")
-	argList = append(argList, sourceList...)
+	// argList = append(argList, "--source_list")
+	// argList = append(argList, sourceList...)
+
+	totalBytes := 0
+	for _, str := range argList {
+		fmt.Printf("=====>>>>> LENGTH OF STRING %s: %d\n", str, len(str))
+		totalBytes += len(str)
+	}
+
+	fmt.Printf("=====>>>>> LENGTH OF ARGS AFTER INITIAL LIST: %d\n", totalBytes)
+
+	totalBytes += len(cleanQuery)
+
+	fmt.Printf("=====>>>>> LENGTH OF ARGS AFTER QUERY: %d\n", totalBytes)
+
+	for _, source := range sourceList {
+		totalBytes += len(source)
+	}
+
+	fmt.Printf("=====>>>>> LENGTH OF ARGS AFTER SOURCES: %d\n", totalBytes)
+
+	if totalBytes >= SPARK_SUBMIT_PARAMS_BYTE_LIMIT {
+		fmt.Printf("=====>>>>> SPARK SUBMIT ARGS EXCEEDED LIMIT AT %d BYTES\n", totalBytes)
+		paramsFileId := uuid.New()
+		paramsPath, err := store.CreateFilePath(fmt.Sprintf("featureform/spark-submit-params/%s.json", paramsFileId.String()))
+		if err != nil {
+			return argList, fmt.Errorf("could not create filepath for Spark submit params larger than 10K-byte limit: %v", err)
+		}
+		paramsMap := map[string]interface{}{}
+		paramsMap["sql_query"] = cleanQuery
+		paramsMap["source_list"] = sourceList
+
+		data, err := json.Marshal(paramsMap)
+		if err != nil {
+			return argList, fmt.Errorf("could not marshal Spark submit params larger than 10K-byte limit: %v", err)
+		}
+
+		if err := store.Write(paramsPath, data); err != nil {
+			return argList, fmt.Errorf("could not write Spark submit params larger than 10-byte limit to %s: %v", paramsPath.ToURI(), err)
+		}
+
+		argList = append(argList, "--submit_params_uri", paramsPath.Key())
+	} else {
+		fmt.Printf("=====>>>>> SPARK SUBMIT ARGS UNDER LIMIT AT %d BYTES\n", totalBytes)
+		argList = append(argList, "--sql_query", cleanQuery)
+		argList = append(argList, "--source_list")
+		argList = append(argList, sourceList...)
+	}
+
+	fmt.Println("=====>>>>> DATABRICKS S3 SPARK SUBMIT ARGS: ", argList)
+
 	return argList, nil
 }
 

@@ -1870,12 +1870,11 @@ func (serv *MetadataServer) validateExisting(res Resource, existing Resource) er
 	// we'll let the user know to ideally use a different variant
 	// i.e. user tries to register transformation with same name and variant but different definition.
 	_, isResourceVariant := res.(ResourceVariant)
-	if isResourceVariant && existing != nil {
+	if isResourceVariant {
 		isEquivalent, err := serv.isEquivalent(res, existing)
 		if err != nil {
 			return err
 		}
-		// If the existing resource is not equivalent to the new resource, it means something has changed
 		if !isEquivalent {
 			return &ResourceChangedError{res.ID()}
 		}

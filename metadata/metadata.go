@@ -24,8 +24,6 @@ import (
 	pt "github.com/featureform/provider/provider_type"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -183,44 +181,6 @@ func resourceNamedSafely(id ResourceID) error {
 	return nil
 }
 
-type ResourceNotFound struct {
-	ID ResourceID
-	E  error
-}
-
-func (err *ResourceNotFound) Error() string {
-	id := err.ID
-	var errMsg string
-	if err.E != nil {
-		errMsg = fmt.Sprintf("resource not found. %s err: %v", id.String(), err.E)
-	} else {
-		errMsg = fmt.Sprintf("resource not found. %s", id.String())
-	}
-	return errMsg
-}
-
-func (err *ResourceNotFound) GRPCStatus() *status.Status {
-	return status.New(codes.NotFound, err.Error())
-}
-
-type ResourceExists struct {
-	ID ResourceID
-}
-
-func (err *ResourceExists) Error() string {
-	id := err.ID
-	name, variant, t := id.Name, id.Variant, id.Type
-	errMsg := fmt.Sprintf("%s Exists.\nName: %s", t, name)
-	if variant != "" {
-		errMsg += "\nVariant: " + variant
-	}
-	return errMsg
-}
-
-func (err *ResourceExists) GRPCStatus() *status.Status {
-	return status.New(codes.AlreadyExists, err.Error())
-}
-
 type ResourceVariant interface {
 	IsEquivalent(ResourceVariant) (bool, error)
 	ToResourceVariantProto() *pb.ResourceVariant
@@ -282,7 +242,7 @@ type LocalResourceLookup map[ResourceID]Resource
 func (lookup LocalResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	res, has := lookup[id]
 	if !has {
-		return nil, &ResourceNotFound{id, nil}
+		return nil, &ResourceNotFoundError{id, nil}
 	}
 	return res, nil
 }
@@ -302,7 +262,7 @@ func (lookup LocalResourceLookup) Submap(ids []ResourceID) (ResourceLookup, erro
 	for _, id := range ids {
 		resource, has := lookup[id]
 		if !has {
-			return nil, &ResourceNotFound{id, nil}
+			return nil, &ResourceNotFoundError{id, nil}
 		}
 		resources[id] = resource
 	}
@@ -330,7 +290,7 @@ func (lookup LocalResourceLookup) List() ([]Resource, error) {
 func (lookup LocalResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
 	res, has := lookup[id]
 	if !has {
-		return &ResourceNotFound{id, nil}
+		return &ResourceNotFoundError{id, nil}
 	}
 	if err := res.UpdateStatus(status); err != nil {
 		return err
@@ -346,7 +306,7 @@ func (lookup LocalResourceLookup) SetJob(id ResourceID, schedule string) error {
 func (lookup LocalResourceLookup) SetSchedule(id ResourceID, schedule string) error {
 	res, has := lookup[id]
 	if !has {
-		return &ResourceNotFound{id, nil}
+		return &ResourceNotFoundError{id, nil}
 	}
 	if err := res.UpdateSchedule(schedule); err != nil {
 		return err
@@ -410,7 +370,7 @@ func (resource *SourceResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *SourceResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExists{updateRes.ID()}
+	return &ResourceExistsError{updateRes.ID()}
 }
 
 type sourceVariantResource struct {
@@ -617,7 +577,7 @@ func (resource *featureResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *featureResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExists{updateRes.ID()}
+	return &ResourceExistsError{updateRes.ID()}
 }
 
 type featureVariantResource struct {
@@ -817,7 +777,7 @@ func (resource *labelResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *labelResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExists{updateRes.ID()}
+	return &ResourceExistsError{updateRes.ID()}
 }
 
 type labelVariantResource struct {
@@ -993,7 +953,7 @@ func (resource *trainingSetResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *trainingSetResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExists{updateRes.ID()}
+	return &ResourceExistsError{updateRes.ID()}
 }
 
 type trainingSetVariantResource struct {
@@ -1335,7 +1295,7 @@ func (resource *providerResource) Update(lookup ResourceLookup, resourceUpdate R
 		return err
 	}
 	if !isValid {
-		return &ResourceExists{resourceUpdate.ID()}
+		return &ResourceExistsError{resourceUpdate.ID()}
 	}
 	resource.serialized.SerializedConfig = providerUpdate.SerializedConfig
 	resource.serialized.Description = providerUpdate.Description
@@ -1853,13 +1813,12 @@ type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
 	serv.Logger.Info("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
-
 	id := res.ID()
 	if err := resourceNamedSafely(id); err != nil {
 		return nil, err
 	}
 	existing, err := serv.lookup.Lookup(id)
-	if _, isResourceError := err.(*ResourceNotFound); err != nil && !isResourceError {
+	if _, isResourceError := err.(*ResourceNotFoundError); err != nil && !isResourceError {
 		return nil, err
 	}
 
@@ -1877,7 +1836,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
 			return nil, fmt.Errorf("set job: %w", err)
 		}
-		serv.Logger.Info("Successfully Created Job ", res.ID().Name, res.ID().Variant)
+		serv.Logger.Info("Successfully Created Job: ", res.ID().Name, res.ID().Variant)
 	}
 	parentId, hasParent := id.Parent()
 	if hasParent {

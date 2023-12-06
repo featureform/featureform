@@ -26,10 +26,11 @@ jobs:
       - name: Cherry-Pick
         id: cherryPick
         continue-on-error: true
+        # Manually adding the release name for now since the variable is not working properly
         run: |
           git config user.name "$(git log -n 1 --pretty=format:%an)"
           git config user.email "$(git log -n 1 --pretty=format:%ae)"
-          git checkout ${LATEST_BRANCH}
+          git checkout release/0.11 
           git cherry-pick "${{ github.sha }}"
           git push
 
@@ -38,7 +39,6 @@ jobs:
         id: slack
         uses: slackapi/slack-github-action@v1.24.0
         with:
-          # This data can be any valid JSON from a previous step in the GitHub Action
           payload: |
             {
               "commit": "${{ github.sha }}",

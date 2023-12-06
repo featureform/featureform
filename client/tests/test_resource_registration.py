@@ -108,6 +108,20 @@ def arrange_resources_out_of_order(
         ],
     )
 
+    # register feature with no inference store
+    average_user_transaction.register_resources(
+        entity="user",
+        entity_column="CustomerID" if is_local else "user_id",
+        features=[
+            {
+                "name": "avg_transactions2",
+                "variant": "quickstart",
+                "column": feature_column,
+                "type": "float32",
+            },
+        ],
+    )
+
     source.register_resources(
         entity="user",
         entity_column="CustomerID" if is_local else "customerid",

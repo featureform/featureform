@@ -39,7 +39,8 @@ RUN go build ./coordinator/main/main.go
 FROM ubuntu:22.04
 
 COPY --from=builder ./app/main /app/main
-COPY ./provider/scripts/spark/ /app/provider/scripts/spark/
+COPY --from=builder ./provider/scripts/spark/ /app/provider/scripts/spark/
+COPY --from=builder ./app/provider/queries/ /app/provider/queries/
 
 # Installing pyenv
 RUN apt-get update && apt-get install -y \

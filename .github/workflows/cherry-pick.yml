@@ -24,6 +24,8 @@ jobs:
         run: echo "The latest release branch is ${{ steps.get_branch.outputs.latest_release_branch }}"
 
       - name: Cherry-Pick
+        id: cherryPick
+        continue-on-error: true
         run: |
           git config user.name "$(git log -n 1 --pretty=format:%an)"
           git config user.email "$(git log -n 1 --pretty=format:%ae)"
@@ -31,6 +33,7 @@ jobs:
           git cherry-pick "${{ github.sha }}"
 
       - name: Send GitHub Action trigger data to Slack workflow
+        if: steps.cherryPick.outcome == 'failure'
         id: slack
         uses: slackapi/slack-github-action@v1.24.0
         with:

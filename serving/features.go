@@ -93,7 +93,7 @@ func (serv *FeatureServer) getFeatureValues(ctx context.Context, name, variant s
 	ctx = context.WithValue(ctx, observer{}, obs)
 	defer obs.Finish()
 
-	meta, err := serv.cacheFeatureMetadata(ctx, name, variant)
+	meta, err := serv.getOrCacheFeatureMetadata(ctx, name, variant)
 	if err != nil {
 		return nil, err
 	}
@@ -101,6 +101,10 @@ func (serv *FeatureServer) getFeatureValues(ctx context.Context, name, variant s
 	var values []interface{}
 	switch meta.Mode() {
 	case metadata.PRECOMPUTED:
+		if meta.Provider() == "" {
+			return nil, fmt.Errorf("feature %s:%s has no inference store", name, variant)
+		}
+
 		precomputedValues, err := serv.getPrecomputedValues(ctx, entityMap, meta)
 		if err != nil {
 			return nil, err
@@ -117,7 +121,7 @@ func (serv *FeatureServer) getFeatureValues(ctx context.Context, name, variant s
 	return serv.castValues(ctx, values)
 }
 
-func (serv *FeatureServer) cacheFeatureMetadata(ctx context.Context, name, variant string) (*metadata.FeatureVariant, error) {
+func (serv *FeatureServer) getOrCacheFeatureMetadata(ctx context.Context, name, variant string) (*metadata.FeatureVariant, error) {
 	logger := serv.Logger
 	obs := ctx.Value(observer{}).(metrics.FeatureObserver)
 	// Checking if we've already cached a reference to the metadata for this feature. Otherwise
@@ -149,7 +153,7 @@ func (serv *FeatureServer) getPrecomputedValues(ctx context.Context, entityMap m
 		return nil, fmt.Errorf("no value for entity %s", meta.Entity())
 	}
 
-	store, err := serv.cacheFeatureProvider(ctx, meta)
+	store, err := serv.getOrCacheFeatureProvider(ctx, meta)
 	if err != nil {
 		logger.Errorw("Could not fetch provider", "Entity", meta.Entity())
 		obs.SetError()
@@ -169,7 +173,7 @@ func (serv *FeatureServer) getPrecomputedValues(ctx context.Context, entityMap m
 
 }
 
-func (serv *FeatureServer) cacheFeatureProvider(ctx context.Context, meta *metadata.FeatureVariant) (provider.OnlineStore, error) {
+func (serv *FeatureServer) getOrCacheFeatureProvider(ctx context.Context, meta *metadata.FeatureVariant) (provider.OnlineStore, error) {
 	if store, has := serv.Providers.Load(meta.Provider()); has {
 		return store.(provider.OnlineStore), nil
 	} else {

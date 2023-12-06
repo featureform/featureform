@@ -25,7 +25,7 @@ jobs:
 
       - name: Cherry-Pick
         run: |
-          git config --global user.email "github-action@users.noreply.github.com"
-          git config --global user.name "GitHub Action"
+          git config user.name "$(git log -n 1 --pretty=format:%an)"
+          git config user.email "$(git log -n 1 --pretty=format:%ae)"
           git checkout fake-release
           git cherry-pick "$GITHUB_SHA"

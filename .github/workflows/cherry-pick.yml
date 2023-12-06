@@ -30,7 +30,8 @@ jobs:
 #          git checkout release/0.11
 #          git cherry-pick "$GITHUB_SHA"
 
-      - name: Slack Notification
-        uses: rtCamp/action-slack-notify@v2
+      - name: Send GitHub Action trigger data to Slack workflow
+        id: slack
+        uses: slackapi/slack-github-action@v1.24.0
         env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

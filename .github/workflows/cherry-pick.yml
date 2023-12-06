@@ -37,7 +37,7 @@ jobs:
           # This data can be any valid JSON from a previous step in the GitHub Action
           payload: |
             {
-              "commit": "$GITHUB_SHA",
+              "commit": "${{ github.sha }}",
               "job": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
               "release": "release/0.11"
             }

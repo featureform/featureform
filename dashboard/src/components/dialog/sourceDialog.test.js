@@ -6,6 +6,7 @@ import {
 } from '@testing-library/react';
 import 'jest-canvas-mock';
 import React from 'react';
+import faultyData from './faultyTimestamp.test.json';
 import SourceDialog from './SourceDialog';
 import testData from './transactions.test.json';
 
@@ -39,6 +40,10 @@ describe('Source Table Dialog Tests', () => {
 
   const apiStatsMock = {
     fetchFeatureFileStats: jest.fn().mockResolvedValue(testData),
+  };
+
+  const apiFaultyStatsMock = {
+    fetchFeatureFileStats: jest.fn().mockResolvedValue(faultyData),
   };
 
   const apiEmptyMock = {
@@ -148,6 +153,43 @@ describe('Source Table Dialog Tests', () => {
       const foundRow = helper.getAllByText(row);
       expect(foundRow.length).toBeGreaterThan(0);
       expect(foundRow[0].nodeName).toBe(P_NODE);
+    });
+  });
+
+  test('A null "ts" dataframe stat column is not rendered', async () => {
+    //given:
+    const { testBody, apiParam } = getTestBody(
+      apiFaultyStatsMock,
+      DEFAULT_NAME,
+      DEFAULT_VARIANT,
+      'Feature'
+    );
+    const helper = render(testBody);
+
+    //when: the user clicks open
+    fireEvent.click(helper.getByTestId(OPEN_BTN_ID));
+    await helper.findByTestId(TITLE_ID);
+
+    //then: the stast api is called, and data row's values are rendered OK
+    expect(apiParam.fetchFeatureFileStats).toHaveBeenCalledTimes(1);
+    expect(apiParam.fetchFeatureFileStats).toHaveBeenCalledWith(
+      DEFAULT_NAME,
+      DEFAULT_VARIANT
+    );
+
+    let skipIndex = faultyData.columns.indexOf('ts'); //1
+
+    faultyData.rows[0].map((row, index) => {
+      if (index !== skipIndex) {
+        //rowItem should render
+        const foundRow = helper.getAllByText(row);
+        expect(foundRow.length).toBeGreaterThan(0);
+        expect(foundRow[0].nodeName).toBe(P_NODE);
+      } else {
+        //rowItem should not render
+        const shouldNotExist = helper.queryAllByText(row);
+        expect(shouldNotExist.length).toBe(0);
+      }
     });
   });
 

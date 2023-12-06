@@ -66,7 +66,7 @@ export default function SourceDialogTable({
           <TableHead>
             <TableRow>
               {columns?.map((col, i) => (
-                <>
+                <React.Fragment key={i}>
                   {!skipIndexList.includes(i) && (
                     <TableCell
                       key={col + i}
@@ -76,14 +76,14 @@ export default function SourceDialogTable({
                       {`${col}`}
                     </TableCell>
                   )}
-                </>
+                </React.Fragment>
               ))}
             </TableRow>
             {stats?.length ? (
-              <>
+              <React.Fragment>
                 <TableRow>
                   {stats?.map((statObj, index) => (
-                    <>
+                    <React.Fragment key={index}>
                       {!skipIndexList.includes(index) && (
                         <TableCell
                           key={index}
@@ -104,10 +104,10 @@ export default function SourceDialogTable({
                           )}
                         </TableCell>
                       )}
-                    </>
+                    </React.Fragment>
                   ))}
                 </TableRow>
-              </>
+              </React.Fragment>
             ) : null}
           </TableHead>
           <TableBody>
@@ -118,7 +118,7 @@ export default function SourceDialogTable({
                 sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
               >
                 {currentRow?.map((row, index) => (
-                  <>
+                  <React.Fragment key={index}>
                     {!skipIndexList.includes(index) && (
                       <TableCell
                         key={row + index}
@@ -136,7 +136,7 @@ export default function SourceDialogTable({
                         </Tooltip>
                       </TableCell>
                     )}
-                  </>
+                  </React.Fragment>
                 ))}
               </TableRow>
             ))}

@@ -2277,3 +2277,180 @@ func Test_GetEquivalent(t *testing.T) {
 		t.Fatalf("there was no equivalent but we got one")
 	}
 }
+
+// TODO split these up into better tests
+func Test_CreateResourceVariantResourceChanged(t *testing.T) {
+	_, addr := startServNoPanic(t)
+	client := client(t, addr)
+	context := context.Background()
+
+	redisConfig := pc.RedisConfig{
+		Addr:     "0.0.0.0",
+		Password: "root",
+		DB:       0,
+	}
+	snowflakeConfig := pc.SnowflakeConfig{
+		Username:     "featureformer",
+		Password:     "password",
+		Organization: "featureform",
+		Account:      "featureform-test",
+		Database:     "transactions_db",
+		Schema:       "fraud",
+		Warehouse:    "ff_wh_xs",
+		Role:         "sysadmin",
+	}
+	userDef := UserDef{
+		Name:       "Featureform",
+		Tags:       Tags{},
+		Properties: Properties{},
+	}
+	onlineDef := ProviderDef{
+		Name:             "mockOnline",
+		Description:      "A mock online provider",
+		Type:             string(pt.RedisOnline),
+		Software:         "redis",
+		Team:             "fraud",
+		SerializedConfig: redisConfig.Serialized(),
+		Tags:             Tags{},
+		Properties:       Properties{},
+	}
+	offlineDef := ProviderDef{
+		Name:             "mockOffline",
+		Description:      "A mock offline provider",
+		Type:             string(pt.SnowflakeOffline),
+		Software:         "snowflake",
+		Team:             "recommendations",
+		SerializedConfig: snowflakeConfig.Serialize(),
+		Tags:             Tags{},
+		Properties:       Properties{},
+	}
+	entityDef := EntityDef{
+		Name:        "user",
+		Description: "A user entity",
+		Tags:        Tags{},
+		Properties:  Properties{},
+	}
+	sourceDef := SourceDef{
+		Name:        "mockSource",
+		Variant:     "var",
+		Description: "A CSV source",
+		Definition: TransformationSource{
+			TransformationType: SQLTransformationType{
+				Query: "SELECT * FROM dummy",
+				Sources: []NameVariant{{
+					Name:    "mockName",
+					Variant: "mockVariant"},
+				},
+			},
+		},
+		Owner:      "Featureform",
+		Provider:   "mockOffline",
+		Tags:       Tags{},
+		Properties: Properties{},
+	}
+	featureDef := FeatureDef{
+		Name:        "feature",
+		Variant:     "variant",
+		Description: "Feature3 on-demand",
+		Owner:       "Featureform",
+		Location: PythonFunction{
+			Query: []byte(PythonFunc),
+		},
+		Tags:       Tags{},
+		Properties: Properties{},
+		Mode:       CLIENT_COMPUTED,
+		IsOnDemand: true,
+	}
+	featureDef2 := FeatureDef{
+		Name:        "feature2",
+		Variant:     "variant",
+		Description: "Feature3 on-demand",
+		Owner:       "Featureform",
+		Location: PythonFunction{
+			Query: []byte(PythonFunc),
+		},
+		Tags:       Tags{},
+		Properties: Properties{},
+		Mode:       CLIENT_COMPUTED,
+		IsOnDemand: true,
+	}
+	labelDef := LabelDef{
+		Name:        "label",
+		Variant:     "variant",
+		Type:        "int64",
+		Description: "label variant",
+		Provider:    "mockOffline",
+		Entity:      "user",
+		Source:      NameVariant{"mockSource", "var"},
+		Owner:       "Featureform",
+		Location: ResourceVariantColumns{
+			Entity: "col1",
+			Value:  "col2",
+			TS:     "col3",
+		},
+		Tags:       Tags{},
+		Properties: Properties{},
+	}
+
+	trainingSetDef := TrainingSetDef{
+		Name:        "training-set",
+		Variant:     "variant",
+		Provider:    "mockOffline",
+		Description: "training-set variant",
+		Label:       NameVariant{"label", "variant"},
+		Features: NameVariants{
+			{"feature", "variant"},
+			{"feature2", "variant"},
+		},
+		Owner:      "Featureform",
+		Tags:       Tags{},
+		Properties: Properties{},
+	}
+
+	resourceDefs := []ResourceDef{userDef, entityDef, onlineDef, offlineDef, sourceDef, featureDef, featureDef2, labelDef, trainingSetDef}
+
+	err := client.CreateAll(context, resourceDefs)
+	if err != nil {
+		t.Fatalf("Failed to create resources: %s", err)
+	}
+
+	// change sourceDef
+	sourceDef.Definition = TransformationSource{
+		TransformationType: SQLTransformationType{
+			Query: "SELECT count(*) FROM dummy",
+			Sources: []NameVariant{{
+				Name:    "mockName",
+				Variant: "mockVariant"},
+			},
+		},
+	}
+	err = client.Create(context, sourceDef)
+	if err == nil {
+		t.Fatalf("Expected error but got none")
+	}
+
+	// change labelDef
+	labelDef.Source = NameVariant{"mockSource", "var2"}
+	err = client.Create(context, labelDef)
+	if err == nil {
+		t.Fatalf("Expected error but got none")
+	}
+
+	// change featureDef
+	featureDef.Location = PythonFunction{
+		Query: []byte("def feature(): return 1"),
+	}
+	err = client.Create(context, featureDef)
+	if err == nil {
+		t.Fatalf("Expected error but got none")
+	}
+
+	// change trainingSetDef
+	trainingSetDef.Features = NameVariants{
+		{"feature", "variant"},
+	}
+	err = client.Create(context, trainingSetDef)
+	if err == nil {
+		t.Fatalf("Expected error but got none")
+	}
+}

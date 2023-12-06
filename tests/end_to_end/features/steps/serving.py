@@ -208,7 +208,7 @@ def step_impl(context):
 def step_impl(context):
     i = 0
     for entity, features in context.iter:
-        if i >= len(context.expected):
+        if i >= context.expected:
             break
         print(entity, features)
         assert len(features) == context.expected

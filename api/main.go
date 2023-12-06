@@ -6,15 +6,18 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 
 	"github.com/joho/godotenv"
@@ -849,10 +852,28 @@ func (serv *ApiServer) ServeOnListener(lis net.Listener) error {
 		grpc_logrus.WithLevels(customFunc),
 	}
 	grpc_logrus.ReplaceGrpcLogger(logrusEntry)
+	minTimeStr := helpers.GetEnv("FEATUREFORM_KEEPALIVE_MINTIME", "1")
+	minTime, err := strconv.ParseInt(minTimeStr, 0, 0)
+	if err != nil {
+		return fmt.Errorf("failed to parse keep alive min time: %w", err)
+	}
+	kaep := keepalive.EnforcementPolicy{
+		MinTime: time.Duration(minTime) * time.Minute, // minimum amount of time a client should wait before sending a keepalive ping
+	}
+	kaTimeout := helpers.GetEnv("FEATUREFORM_KEEPALIVE_TIMEOUT", "5")
+	timeout, err := strconv.ParseInt(kaTimeout, 0, 0)
+	if err != nil {
+		return fmt.Errorf("failed to parse keep alive timeout: %w", err)
+	}
+	kasp := keepalive.ServerParameters{
+		Timeout: time.Duration(timeout) * time.Minute, // time after which the connection is closed if no activity
+	}
 	opt := []grpc.ServerOption{
 		grpc_middleware.WithUnaryServerChain(
 			grpc_logrus.UnaryServerInterceptor(logrusEntry, lorgusOpts...),
 		),
+		grpc.KeepaliveEnforcementPolicy(kaep),
+		grpc.KeepaliveParams(kasp),
 	}
 	grpcServer := grpc.NewServer(opt...)
 	reflection.Register(grpcServer)

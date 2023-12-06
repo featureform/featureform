@@ -38,7 +38,7 @@ jobs:
           payload: |
             {
               "commit": "Example commit",
-              "job": "Example job"
+              "job": "Example job",
               "release": "Release"
             }
         env:

@@ -23,12 +23,12 @@ jobs:
       - name: Use Latest Branch
         run: echo "The latest release branch is ${{ steps.get_branch.outputs.latest_release_branch }}"
 
-#      - name: Cherry-Pick
-#        run: |
-#          git config user.name "$(git log -n 1 --pretty=format:%an)"
-#          git config user.email "$(git log -n 1 --pretty=format:%ae)"
-#          git checkout release/0.11
-#          git cherry-pick "$GITHUB_SHA"
+      - name: Cherry-Pick
+        run: |
+          git config user.name "$(git log -n 1 --pretty=format:%an)"
+          git config user.email "$(git log -n 1 --pretty=format:%ae)"
+          git checkout fake-release
+          git cherry-pick "${{ github.sha }}"
 
       - name: Send GitHub Action trigger data to Slack workflow
         id: slack

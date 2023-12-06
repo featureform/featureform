@@ -29,7 +29,7 @@ jobs:
         run: |
           git config user.name "$(git log -n 1 --pretty=format:%an)"
           git config user.email "$(git log -n 1 --pretty=format:%ae)"
-          git checkout "${LATEST_BRANCH}"
+          git checkout ${LATEST_BRANCH}
           git cherry-pick "${{ github.sha }}"
           git push
 
@@ -41,7 +41,7 @@ jobs:
           # This data can be any valid JSON from a previous step in the GitHub Action
           payload: |
             {
-              "commit": "${{ github.sha }}",
+              "commit": ${LATEST_BRANCH},
               "job": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
               "release": "release/0.11"
             }

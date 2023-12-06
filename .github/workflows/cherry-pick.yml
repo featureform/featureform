@@ -31,6 +31,7 @@ jobs:
           git config user.email "$(git log -n 1 --pretty=format:%ae)"
           git checkout fake-release
           git cherry-pick "${{ github.sha }}"
+          git push
 
       - name: Send GitHub Action trigger data to Slack workflow
         if: steps.cherryPick.outcome == 'failure'

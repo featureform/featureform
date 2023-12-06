@@ -23,9 +23,19 @@ jobs:
       - name: Use Latest Branch
         run: echo "The latest release branch is ${{ steps.get_branch.outputs.latest_release_branch }}"
 
-      - name: Cherry pick into release-v2.0
-        uses: carloscastrojumo/github-cherry-pick-action@v1.0.1
+      - name: Create PR to branch
+        uses: gorillio/github-action-cherry-pick@master
         with:
-          branch: ${{ steps.get_branch.outputs.latest_release_branch }}
-          title: '[TEST] {test}'
-          body: 'Cherry picking {test} onto this branch'
+          pr_branch: ${{ steps.get_branch.outputs.latest_release_branch }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: true
+
+
+
+#      - name: Cherry pick into release-v2.0
+#        uses: carloscastrojumo/github-cherry-pick-action@v1.0.1
+#        with:
+#          branch: ${{ steps.get_branch.outputs.latest_release_branch }}
+#          title: '[TEST] {test}'
+#          body: 'Cherry picking {test} onto this branch'

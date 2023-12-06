@@ -26,7 +26,7 @@ jobs:
       - name: Create PR to branch
         uses: gorillio/github-action-cherry-pick@master
         with:
-          pr_branch: "${{ steps.get_branch.outputs.latest_release_branch }}"
+          pr_branch: ${ steps.get_branch.outputs.latest_release_branch }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DRY_RUN: false

@@ -1,12 +1,12 @@
-name: PR for release branch
+name: Update Release Branch
 on:
   push:
     branches:
-      - fake-main
+      - main
 jobs:
-  update-release:
+  update_release:
     runs-on: ubuntu-latest
-    name: release_pull_request
+    name: Update Release
     steps:
       - uses: actions/checkout@v2
         with:
@@ -20,10 +20,10 @@ jobs:
           echo "::set-output name=latest_release_branch::${LATEST_BRANCH}"
 
       # Example of using the output
-      - name: Use Latest Branch
+      - name: Print Latest Release
         run: echo "The latest release branch is ${{ steps.get_branch.outputs.latest_release_branch }}"
 
-      - name: Cherry-Pick
+      - name: Cherry-Pick This Commit
         id: cherryPick
         continue-on-error: true
         # Manually adding the release name for now since the variable is not working properly
@@ -34,7 +34,7 @@ jobs:
           git cherry-pick "${{ github.sha }}"
           git push
 
-      - name: Send GitHub Action trigger data to Slack workflow
+      - name: Send Errors To Slack
         if: steps.cherryPick.outcome == 'failure'
         id: slack
         uses: slackapi/slack-github-action@v1.24.0

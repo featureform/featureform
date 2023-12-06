@@ -1408,22 +1408,10 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath filestore.Filepath, cleanQ
 		if store.FilestoreType() != filestore.S3 {
 			return argList, fmt.Errorf("%s is not a currently support file store for writing submit params; supported types: %s", store.FilestoreType(), filestore.S3)
 		}
-		paramsFileId := uuid.New()
-		paramsPath, err := store.CreateFilePath(fmt.Sprintf("featureform/spark-submit-params/%s.json", paramsFileId.String()))
-		if err != nil {
-			return argList, fmt.Errorf("could not create filepath for Spark submit params larger than 10K-byte limit: %v", err)
-		}
-		paramsMap := map[string]interface{}{}
-		paramsMap["sql_query"] = cleanQuery
-		paramsMap["source_list"] = sourceList
 
-		data, err := json.Marshal(paramsMap)
+		paramsPath, err := d.writeSubmitParamsToFileStore(cleanQuery, sourceList, store)
 		if err != nil {
-			return argList, fmt.Errorf("could not marshal Spark submit params larger than 10K-byte limit: %v", err)
-		}
-
-		if err := store.Write(paramsPath, data); err != nil {
-			return argList, fmt.Errorf("could not write Spark submit params larger than 10-byte limit to %s: %v", paramsPath.ToURI(), err)
+			return nil, fmt.Errorf("could not write Spark submit params larger than 10K-byte limit: %v", err)
 		}
 
 		argList = append(argList, "--submit_params_uri", paramsPath.Key())
@@ -1449,6 +1437,28 @@ func (d *DatabricksExecutor) exceedsSubmitParamsTotalByteLimit(argsList []string
 	}
 
 	return totalBytes >= SPARK_SUBMIT_PARAMS_BYTE_LIMIT
+}
+
+func (d *DatabricksExecutor) writeSubmitParamsToFileStore(query string, sources []string, store SparkFileStore) (filestore.Filepath, error) {
+	paramsFileId := uuid.New()
+	paramsPath, err := store.CreateFilePath(fmt.Sprintf("featureform/spark-submit-params/%s.json", paramsFileId.String()))
+	if err != nil {
+		return nil, fmt.Errorf("could not create filepath for Spark submit params larger than 10K-byte limit: %v", err)
+	}
+	paramsMap := map[string]interface{}{}
+	paramsMap["sql_query"] = query
+	paramsMap["source_list"] = sources
+
+	data, err := json.Marshal(paramsMap)
+	if err != nil {
+		return nil, fmt.Errorf("could not marshal Spark submit params larger than 10K-byte limit: %v", err)
+	}
+
+	if err := store.Write(paramsPath, data); err != nil {
+		return nil, fmt.Errorf("could not write Spark submit params larger than 10-byte limit to %s: %v", paramsPath.ToURI(), err)
+	}
+
+	return paramsPath, nil
 }
 
 func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourcePath string) (PrimaryTable, error) {

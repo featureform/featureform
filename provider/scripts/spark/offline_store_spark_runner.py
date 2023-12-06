@@ -315,12 +315,7 @@ def execute_sql_query(
         spark = SparkSession.builder.appName("Execute SQL Query").getOrCreate()
         set_spark_configs(spark, spark_configs)
 
-        if (
-            job_type == JobType.TRANSFORMATION
-            or job_type == JobType.MATERIALIZATION
-            or job_type == JobType.TRAINING_SET
-            or job_type == JobType.BATCH_FEATURES
-        ):
+        if job_type in list(JobType):
             for i, source in enumerate(source_list):
                 file_extension = Path(source).suffix
                 is_directory = file_extension == ""
@@ -563,7 +558,7 @@ def get_s3_object(file_path, credentials):
     bucket_name = credentials.get("aws_bucket_name")
     if not (aws_region and aws_access_key_id and aws_secret_access_key and bucket_name):
         raise Exception(
-            "the values for 'aws_region', 'aws_access_key_id', 'aws_secret_access_key', 'aws_bucket_name' need to be set as credential"
+            "Missing credential values for 'aws_region', 'aws_access_key_id', 'aws_secret_access_key', 'aws_bucket_name'"
         )
 
     session = boto3.Session(
@@ -687,12 +682,7 @@ def parse_args(args=None):
     sql_parser = subparser.add_parser("sql")
     sql_parser.add_argument(
         "--job_type",
-        choices=[
-            JobType.TRANSFORMATION,
-            JobType.MATERIALIZATION,
-            JobType.TRAINING_SET,
-            JobType.BATCH_FEATURES,
-        ],
+        choices=list(JobType),
         help="type of job being run on spark",
     )
     sql_parser.add_argument(

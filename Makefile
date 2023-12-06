@@ -240,6 +240,7 @@ pytest:
 	python -m pytest -m 'local' client/tests/test_source_dataframe.py
 	python -m pytest -m 'local' client/tests/test_training_set_dataframe.py
 	python -m pytest -m 'local' client/tests/get_provider_test.py
+	python -m pytest client/tests/test_deploy.py
 	-rm -r .featureform
 	-rm -f transactions.csv
 

@@ -43,7 +43,7 @@
             "group": "Overview",
             "pages": [
               "introduction",
-              "deployment/quickstart",
+              "deployment/quickstart-docker",
               {
                 "group": "Concepts",
                 "pages": [

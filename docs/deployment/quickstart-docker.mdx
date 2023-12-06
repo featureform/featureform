@@ -1,5 +1,5 @@
 ---
-title: "Quickstart (Docker)"
+title: "Quickstart"
 description: A quick start guide for Featureform with Docker.
 ---
 
@@ -20,31 +20,17 @@ detection dataset using Postgres and Redis.
 pip install featureform
 ```
 
-## Step 2: Pull Containers
+## Step 2: Start Featureform
 
-We'll use Postgres and Redis as providers in this quickstart. We've created a Featureform Postgres container that
-has preloaded data. You can checkout the source data [here](https://featureform-demo-files.s3.amazonaws.com/transactions.csv),
-we'll just be using a sample of it.
-
-We'll also run the Featureform container in the foreground so logs are available.
-
+To start Featureform, we can run:
 ```shell
-docker run -d -p 5432:5432 featureformcom/postgres
-docker run -d -p 6379:6379 redis
-docker run -p 7878:7878 -p 80:80 featureformcom/featureform
+featureform deploy docker --quickstart
 ```
 
-Note: If using an M1 Mac, run the following command instead for compatibility
+This will pull and start the Featureform container, as well as a Postgres and Redis containers containing some
+example data.
 
-```shell
-docker run -p 7878:7878 -p 80:80 -e ETCD_ARCH="ETCD_UNSUPPORTED_ARCH=arm64" featureformcom/featureform
-```
-
-Wait 30-60 seconds to allow the Postgres container to fully initialize the sample data.
-
-## Step 3: Set Environment Variables
-
-We can store the address of our container endpoint for applying definitions and serving later.
+## Step 3: Set the Featureform Host
 
 ```shell
 export FEATUREFORM_HOST=localhost:7878 
@@ -57,7 +43,7 @@ Featureform definitions can be stored as both a local file and URL. Multiple fil
 We'll set the `--insecure` flag since we're using an unencrypted endpoint on the container.
 
 ```shell
-featureform apply https://featureform-demo-files.s3.amazonaws.com/definitions.py --insecure
+featureform apply quickstart/definitions.py --insecure
 ```
 
 ## Step 5: Dashboard and Serving
@@ -69,18 +55,26 @@ In the dashboard, you should be able to see that 2 Sources, 1 Feature, 1 Label, 
 You can also check the status of the training set with:
 
 ```shell
-featureform get training-set fraud_training default --insecure
+featureform get training-set fraud_training quickstart --insecure
 ```
 
 When the status of these resources is READY, you can serve them with:
 
 ```shell
-curl https://featureform-demo-files.s3.amazonaws.com/serving.py -o serving.py && python serving.py
-curl https://featureform-demo-files.s3.amazonaws.com/training.py -o training.py && python training.py
+python quickstart/serving.py
+python quickstart/training.py
 ```
 
 This will download and run sample serving and training scripts, which will serve a single feature value and a sample
 of a training data set.
+
+## Step 5: Teardown
+
+To teardown the quickstart run:
+
+```shell
+featureform stop docker
+```
 
 # How Does It Work?
 
@@ -122,7 +116,7 @@ executed in Postgres and saved in a table.
 ```python definitions.py
 transactions = postgres.register_table(
     name="transactions",
-    table="Transactions",  # This is the table's name in Postgres
+    table="transactions",  # This is the table's name in Postgres
 )
 
 @postgres.sql_transformation()
@@ -190,11 +184,11 @@ We can serve single features from Redis with the Serving Client. The `features()
 and an entity that we want the value for.
 
 ```python serving.py
-from featureform import ServingClient
+from featureform import Client
 
-serving = ServingClient(insecure=True)
+serving = Client(insecure=True)
 
-user_feat = serving.features(["avg_transactions"], {"user": "C1214240"})
+user_feat = serving.features([("avg_transactions", "quickstart")], {"user": "C1214240"})
 print("User Result: ")
 print(user_feat)
 ```
@@ -205,10 +199,10 @@ We can serve a training dataset from Postgres with the Serving Client as well. T
 training set and returns 25 rows of the training set.
 
 ```python training.py
-from featureform import ServingClient
+from featureform import Client
 
-client = ServingClient(insecure=True)
-dataset = client.training_set("fraud_training", "default")
+client = Client(insecure=True)
+dataset = client.training_set("fraud_training", "quickstart")
 
 for i, batch in enumerate(dataset):
     print(batch)

@@ -133,4 +133,6 @@ ENV MEILI_LOG_LEVEL="WARN"
 EXPOSE 7878
 EXPOSE 80
 
+HEALTHCHECK --interval=5m --timeout=10s --start-period=10s --retries=3 CMD curl --fail http://localhost/ || exit 1
+
 CMD ["/usr/bin/supervisord"]

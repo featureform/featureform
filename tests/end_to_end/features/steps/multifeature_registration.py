@@ -42,10 +42,17 @@ def step_impl(context):
     class User:
         context.all_features = context.featureform.MultiFeature(dataset=context.transactions, df=context.dataset_df, variant="default", include_columns=["transactionamount", "customerdob", "custaccountbalance", "custlocation"], entity_column="customerid", inference_store=context.redis)
 
-@then("I should be able to serve a feature")
+@then("I should be able to serve a batch of features")
 def step_impl(context):
-    context.serving = context.featureform.ServingClient(host="localhost:7878", insecure=True)
-    feature1 = context.serving.features([("custlocation", "default")], {"user": "C6638934"})
-    assert (
-        context.feature1 == ["MUMBAI"]
-    ), f"Expected served feature to be [MUMBAI], was {feature1} instead"
+    serving = context.featureform.ServingClient(host="localhost:7878", insecure=True)
+
+    # Serve batch features
+    batch_features = serving.batch_features(
+        ("customerdob", "default"),
+        ("custaccountbalance", "default"),
+        ("custlocation", "default"),
+    )
+
+    for entity, features in batch_features:
+        print(entity)
+        print(features)

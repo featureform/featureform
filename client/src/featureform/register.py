@@ -1619,6 +1619,7 @@ class MultiFeatureColumnResource(ColumnResource):
         class Customer:
         # Register mulitple columns from a dataframe as a feature
             transaction_amount = ff.MultiFeature(
+                dataset,
                 dataframe_name,
                 variant="quickstart",
                 inference_store=redis,
@@ -1638,23 +1639,28 @@ class MultiFeatureColumnResource(ColumnResource):
         numpy.dtype('O'): ScalarType.STRING,
         numpy.dtype('str'): ScalarType.STRING,
         numpy.dtype('bool'): ScalarType.BOOL}
-
+        self._resources = []
         register_columns = self.get_feature_columns(df, include_columns, exclude_columns, entity_column, timestamp_column)
-        register_features_list = []
+        df_has_quotes = False
+        for column_name in df.columns:
+            if "\"" in column_name:
+                df_has_quotes = True
+                break
         for column_name in register_columns:
             if timestamp_column != "":
-                feature = FeatureColumnResource(dataset[[entity_column, column_name, timestamp_column]], variant=variant, type=pd_to_ff_datatype[df[self.add_quotes(column_name)].dtype], inference_store=inference_store)
+                feature = FeatureColumnResource(dataset[[entity_column, column_name, timestamp_column]], variant=variant, type=pd_to_ff_datatype[df[self.modify_quotes(column_name, df_has_quotes)].dtype], inference_store=inference_store)
+
             else:
-                feature = FeatureColumnResource(dataset[[entity_column, column_name]], variant=variant, type=pd_to_ff_datatype[df[self.add_quotes(column_name)].dtype], inference_store=inference_store)
+                feature = FeatureColumnResource(dataset[[entity_column, column_name]], variant=variant, type=pd_to_ff_datatype[df[self.modify_quotes(column_name, df_has_quotes)].dtype], inference_store=inference_store)
             feature.name = column_name
-            register_features_list.append(feature)
-            
-        self._resources = register_features_list
+            self._resources.append(feature)
 
     def get_feature_columns(self, df, include_columns, exclude_columns, entity_column, timestamp_column):
         all_columns_set = set([self.strip_quotes(col) for col in df.columns])
         include_columns_set = set(include_columns)
         exclude_columns_set = set(exclude_columns)
+        exclude_columns_set.add(entity_column)
+        exclude_columns_set.add(timestamp_column)
 
         if not include_columns_set.issubset(all_columns_set):
             raise ValueError("Include columns must be in the dataframe")
@@ -1663,15 +1669,17 @@ class MultiFeatureColumnResource(ColumnResource):
         if not include_columns_set.isdisjoint(exclude_columns_set):
             raise ValueError("Include and exclude columns cannot have the same columns")
         if len(include_columns_set) > 0:
-            return list(include_columns_set - {entity_column, timestamp_column})
+            return list(include_columns_set - exclude_columns_set)
         else:
-            return list(all_columns_set - exclude_columns_set - {entity_column, timestamp_column})
+            return list(all_columns_set - exclude_columns_set)
 
     def strip_quotes(self, string_name):
         return string_name.replace("\"", "")
 
-    def add_quotes(self, string_name):
-        return "\"" + self.strip_quotes(string_name) + "\""
+    def modify_quotes(self, string_name, has_quotes):
+        if has_quotes:
+            return "\"" + self.strip_quotes(string_name) + "\""
+        return self.strip_quotes(string_name)
 
         
 class LabelColumnResource(ColumnResource):

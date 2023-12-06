@@ -9,7 +9,7 @@ Feature: MultiFeature Registration
     And I register a table from postgres
     And I create a dataframe from a serving client
     Then I define a User and register multiple features excluding one
-    Then I should be able to serve a feature
+    Then I should be able to serve a batch of features
 
   @wip
   Scenario: Registering three features from one large table
@@ -20,4 +20,4 @@ Feature: MultiFeature Registration
     And I register a table from postgres
     And I create a dataframe from a serving client
     Then I define a User and register multiple but not all features, with no timestamp column
-    Then I should be able to serve a feature
+    Then I should be able to serve a batch of features

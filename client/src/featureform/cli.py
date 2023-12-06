@@ -289,7 +289,7 @@ def deploy(deploy_type, quickstart):
     default="docker",
     type=click.Choice(SUPPORTED_DEPLOY_TYPES, case_sensitive=False),
 )
-def teardown(deploy_type):
+def stop(deploy_type):
     print(f"Tearing down Featureform on {deploy_type.capitalize()}")
     if deploy_type.lower() == "docker":
         deployment = DockerDeployment(True)

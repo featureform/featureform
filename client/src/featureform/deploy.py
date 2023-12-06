@@ -43,9 +43,11 @@ class DockerDeployment(Deployment):
     def __init__(self, quickstart: bool):
         super().__init__(quickstart)
 
-        self._quickstart_directory = "featureform_quickstart"
+        self._quickstart_directory = "quickstart"
         self._quickstart_files = [
-            "https://featureform-demo-files.s3.amazonaws.com/definitions.py"
+            "https://featureform-demo-files.s3.amazonaws.com/definitions.py",
+            "https://featureform-demo-files.s3.amazonaws.com/serving.py",
+            "https://featureform-demo-files.s3.amazonaws.com/training.py",
         ]
 
         try:

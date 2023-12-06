@@ -29,3 +29,12 @@ jobs:
           git config user.email "$(git log -n 1 --pretty=format:%ae)"
           git checkout release/0.11
           git cherry-pick "$GITHUB_SHA"
+
+      - name: Slack Notification
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_CHANNEL: release-updates
+          SLACK_MESSAGE: 'Post Content'
+          SLACK_TITLE: Post Title
+          SLACK_USERNAME: rtCamp
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

@@ -33,8 +33,6 @@ jobs:
       - name: Slack Notification
         uses: rtCamp/action-slack-notify@v2
         env:
-          SLACK_CHANNEL: release-updates
           SLACK_MESSAGE: 'Post Content'
           SLACK_TITLE: Post Title
-          SLACK_USERNAME: rtCamp
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

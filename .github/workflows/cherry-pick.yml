@@ -27,5 +27,5 @@ jobs:
         run: |
           git config user.name "$(git log -n 1 --pretty=format:%an)"
           git config user.email "$(git log -n 1 --pretty=format:%ae)"
-          git checkout "${LATEST_BRANCH}"
+          git checkout release/0.11
           git cherry-pick "$GITHUB_SHA"

@@ -54,18 +54,18 @@ export default function ErrorModal({ errorTxt = '', buttonTxt = '' }) {
         </Alert>
       </Snackbar>
       <Typography data-testid='errorMessageId' variant='body1'>
-        {truncated}
-        {isShowMore && (
-          <Button
-            data-testid='openErrorModalId'
-            variant='text'
-            onClick={handleClickOpen}
-            sx={{ paddingLeft: 0, fontSize: 15 }}
-          >
-            {`...${buttonTxt}`}
-          </Button>
-        )}
+        {`${truncated + (isShowMore ? '...' : '')}`}
       </Typography>
+      {isShowMore && (
+        <Button
+          data-testid='openErrorModalId'
+          variant='text'
+          onClick={handleClickOpen}
+          sx={{ paddingLeft: 0, fontSize: 15 }}
+        >
+          {buttonTxt}
+        </Button>
+      )}
 
       <Dialog
         fullWidth={true}

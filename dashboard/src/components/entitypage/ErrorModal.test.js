@@ -57,7 +57,9 @@ describe('Error modal tests', () => {
     const helper = render(testBody);
 
     //when:
-    const foundError = helper.getByText(errorMsg.substring(0, ERROR_MSG_MAX));
+    const foundError = helper.getByText(errorMsg.substring(0, ERROR_MSG_MAX), {
+      exact: false,
+    });
     const foundButton = helper.getByTestId(OPEN_BTN_ID);
 
     //then:

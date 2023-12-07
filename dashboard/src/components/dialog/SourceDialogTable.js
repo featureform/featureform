@@ -20,6 +20,7 @@ export default function SourceDialogTable({
   stats = [],
   columns = [],
   rowList = [],
+  skipIndexList = [],
 }) {
   const textEllipsis = {
     whiteSpace: 'nowrap',
@@ -65,35 +66,48 @@ export default function SourceDialogTable({
           <TableHead>
             <TableRow>
               {columns?.map((col, i) => (
-                <TableCell
-                  key={col + i}
-                  data-testid={col + i}
-                  align={i === 0 ? 'left' : 'right'}
-                >
-                  {`${col}`}
-                </TableCell>
+                <React.Fragment key={i}>
+                  {!skipIndexList.includes(i) && (
+                    <TableCell
+                      key={col + i}
+                      data-testid={col + i}
+                      align={i === 0 ? 'left' : 'right'}
+                    >
+                      {`${col}`}
+                    </TableCell>
+                  )}
+                </React.Fragment>
               ))}
             </TableRow>
             {stats?.length ? (
-              <TableRow>
-                {stats?.map((statObj, index) => (
-                  <TableCell key={index} align={index === 0 ? 'left' : 'right'}>
-                    {['numeric', 'boolean'].includes(statObj.type) ? (
-                      <Barchart
-                        categories={
-                          statObj.type === 'boolean'
-                            ? statObj.string_categories
-                            : statObj.numeric_categories
-                        }
-                        categoryCounts={statObj.categoryCounts}
-                        type={statObj.type}
-                      />
-                    ) : (
-                      <UniqueValues count={statObj?.categoryCounts[0]} />
-                    )}
-                  </TableCell>
-                ))}
-              </TableRow>
+              <React.Fragment>
+                <TableRow>
+                  {stats?.map((statObj, index) => (
+                    <React.Fragment key={index}>
+                      {!skipIndexList.includes(index) && (
+                        <TableCell
+                          key={index}
+                          align={index === 0 ? 'left' : 'right'}
+                        >
+                          {['numeric', 'boolean'].includes(statObj.type) ? (
+                            <Barchart
+                              categories={
+                                statObj.type === 'boolean'
+                                  ? statObj.string_categories
+                                  : statObj.numeric_categories
+                              }
+                              categoryCounts={statObj.categoryCounts}
+                              type={statObj.type}
+                            />
+                          ) : (
+                            <UniqueValues count={statObj?.categoryCounts[0]} />
+                          )}
+                        </TableCell>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </TableRow>
+              </React.Fragment>
             ) : null}
           </TableHead>
           <TableBody>
@@ -104,21 +118,25 @@ export default function SourceDialogTable({
                 sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
               >
                 {currentRow?.map((row, index) => (
-                  <TableCell
-                    key={row + index}
-                    align={index === 0 ? 'left' : 'right'}
-                    sx={{ maxHeight: '50px' }}
-                  >
-                    <Tooltip title='Copy to Clipboard'>
-                      <Typography
-                        onClick={copyToClipBoard}
-                        fontSize={11.5}
-                        style={textEllipsis}
+                  <React.Fragment key={index}>
+                    {!skipIndexList.includes(index) && (
+                      <TableCell
+                        key={row + index}
+                        align={index === 0 ? 'left' : 'right'}
+                        sx={{ maxHeight: '50px' }}
                       >
-                        {`${row}`}
-                      </Typography>
-                    </Tooltip>
-                  </TableCell>
+                        <Tooltip title='Copy to Clipboard'>
+                          <Typography
+                            onClick={copyToClipBoard}
+                            fontSize={11.5}
+                            style={textEllipsis}
+                          >
+                            {`${row}`}
+                          </Typography>
+                        </Tooltip>
+                      </TableCell>
+                    )}
+                  </React.Fragment>
                 ))}
               </TableRow>
             ))}

@@ -87,15 +87,15 @@ s3_config = S3StoreConfig("", "", AWSCredentials("id", "secret"))
 NON_INFERENCE_STORES = [s3_config.type()]
 
 pd_to_ff_datatype = {
-            numpy.dtype("float64"): ScalarType.FLOAT64,
-            numpy.dtype("float32"): ScalarType.FLOAT32,
-            numpy.dtype("int64"): ScalarType.INT64,
-            numpy.dtype("int"): ScalarType.INT,
-            numpy.dtype("int32"): ScalarType.INT32,
-            numpy.dtype("O"): ScalarType.STRING,
-            numpy.dtype("str"): ScalarType.STRING,
-            numpy.dtype("bool"): ScalarType.BOOL,
-        }
+    numpy.dtype("float64"): ScalarType.FLOAT64,
+    numpy.dtype("float32"): ScalarType.FLOAT32,
+    numpy.dtype("int64"): ScalarType.INT64,
+    numpy.dtype("int"): ScalarType.INT,
+    numpy.dtype("int32"): ScalarType.INT32,
+    numpy.dtype("O"): ScalarType.STRING,
+    numpy.dtype("str"): ScalarType.STRING,
+    numpy.dtype("bool"): ScalarType.BOOL,
+}
 
 
 def set_tags_properties(tags: List[str], properties: dict):
@@ -1662,10 +1662,26 @@ class MultiFeatureColumnResource(ColumnResource):
         register_columns = self._get_feature_columns(
             df, include_columns, exclude_columns, entity_column, timestamp_column
         )
-        self._create_feature_columns(df, dataset, register_columns, entity_column, timestamp_column, inference_store, variant)
-        
+        self._create_feature_columns(
+            df,
+            dataset,
+            register_columns,
+            entity_column,
+            timestamp_column,
+            inference_store,
+            variant,
+        )
 
-    def _create_feature_columns(self, df, dataset, register_columns, entity_column, timestamp_column, inference_store, variant):
+    def _create_feature_columns(
+        self,
+        df,
+        dataset,
+        register_columns,
+        entity_column,
+        timestamp_column,
+        inference_store,
+        variant,
+    ):
         df_has_quotes = False
         for column_name in df.columns:
             if '"' in column_name:

@@ -21,6 +21,7 @@ export default function SourceDialog({
   const [stats, setStats] = React.useState([]);
   const [error, setError] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(true);
+  const [skipIndexList, setSkipIndexList] = React.useState([]);
 
   React.useEffect(async () => {
     if (sourceName && sourceVariant && open && api) {
@@ -33,6 +34,21 @@ export default function SourceDialog({
         response = await api.fetchFeatureFileStats(sourceName, sourceVariant);
       }
       if (response?.columns && response?.rows) {
+        if (type === 'Feature') {
+          let skipList = [];
+          response.columns?.map((col, index) => {
+            if (
+              col === 'ts' &&
+              response.stats?.[index]?.string_categories?.[0] === 'unique' &&
+              response.stats?.[index]?.categoryCounts?.[0] === 1
+            ) {
+              skipList.push(index);
+              return false;
+            }
+            return true;
+          });
+          setSkipIndexList(skipList);
+        }
         setColumns(response.columns);
         setRowList(response.rows);
         setStats(response.stats);
@@ -46,7 +62,6 @@ export default function SourceDialog({
   const handleClickOpen = () => {
     setOpen(true);
   };
-
   const handleClose = () => {
     setOpen(false);
   };
@@ -88,6 +103,7 @@ export default function SourceDialog({
               stats={stats}
               columns={columns}
               rowList={rowList}
+              skipIndexList={skipIndexList}
             />
           ) : (
             <div data-testid='errorMessageId'>{error}</div>

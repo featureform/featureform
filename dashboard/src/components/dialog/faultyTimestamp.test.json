@@ -1,0 +1,49 @@
+{
+  "columns": ["entity", "ts", "value"],
+  "rows": [
+    [
+      "entity-value",
+      "java.util.GregorianCalendar[time=?,areFieldsSet=false,areAllFieldsSet=false,lenient=true,zone=sun.util.calendar.ZoneInfo[id=\"Etc/UTC\",offset=0,dstSavings=0,useDaylight=false,transitions=0,lastRule=null],firstDayOfWeek=1,minimalDaysInFirstWeek=1,ERA=?,YEAR=1970,MONTH=0,WEEK_OF_YEAR=?,WEEK_OF_MONTH=?,DAY_OF_MONTH=1,DAY_OF_YEAR=?,DAY_OF_WEEK=?,DAY_OF_WEEK_IN_MONTH=?,AM_PM=0,HOUR=0,HOUR_OF_DAY=0,MINUTE=0,SECOND=0,MILLISECOND=0,ZONE_OFFSET=?,DST_OFFSET=?]",
+      "-0.9724802301485045"
+    ],
+    [
+      "ACH-000783",
+      "java.util.GregorianCalendar[time=?,areFieldsSet=false,areAllFieldsSet=false,lenient=true,zone=sun.util.calendar.ZoneInfo[id=\"Etc/UTC\",offset=0,dstSavings=0,useDaylight=false,transitions=0,lastRule=null],firstDayOfWeek=1,minimalDaysInFirstWeek=1,ERA=?,YEAR=1970,MONTH=0,WEEK_OF_YEAR=?,WEEK_OF_MONTH=?,DAY_OF_MONTH=1,DAY_OF_YEAR=?,DAY_OF_WEEK=?,DAY_OF_WEEK_IN_MONTH=?,AM_PM=0,HOUR=0,HOUR_OF_DAY=0,MINUTE=0,SECOND=0,MILLISECOND=0,ZONE_OFFSET=?,DST_OFFSET=?]",
+      "2.748565292845975"
+    ]
+  ],
+  "stats": [
+    {
+      "name": "entity",
+      "type": "string",
+      "string_categories": ["unique"],
+      "numeric_categories": [],
+      "categoryCounts": [1095]
+    },
+    {
+      "name": "ts",
+      "type": "string",
+      "string_categories": ["unique"],
+      "numeric_categories": [],
+      "categoryCounts": [1]
+    },
+    {
+      "name": "value",
+      "type": "numeric",
+      "string_categories": [],
+      "numeric_categories": [
+        [-9, -8],
+        [-8, -6],
+        [-6, -4],
+        [-4, -3],
+        [-3, -1],
+        [-1, 0],
+        [0, 1],
+        [1, 3],
+        [3, 5],
+        [5, 6]
+      ],
+      "categoryCounts": [7, 15, 16, 49, 129, 303, 403, 147, 21, 5]
+    }
+  ]
+}

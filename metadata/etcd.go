@@ -328,7 +328,7 @@ func (lookup EtcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	logger.Infow("Get", "key", key)
 	resp, err := lookup.Connection.Get(key)
 	if err != nil || len(resp) == 0 {
-		return nil, &ResourceNotFound{id, err}
+		return nil, &ResourceNotFoundError{id, err}
 	}
 	logger.Infow("Deserialize", "key", key)
 	msg, err := lookup.deserialize(resp)
@@ -439,7 +439,7 @@ func (lookup EtcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error
 		key := createKey(id)
 		resp, err := lookup.Connection.Get(key)
 		if err != nil {
-			return nil, &ResourceNotFound{id, err}
+			return nil, &ResourceNotFoundError{id, err}
 		}
 		etcdStore, err := lookup.deserialize(resp)
 		if err != nil {

@@ -10,6 +10,7 @@ metadata:
     nginx.ingress.kubernetes.io/backend-protocol: GRPC
     nginx.ingress.kubernetes.io/proxy-body-size: 64ms
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/server-snippet: "grpc_read_timeout 3600s; grpc_send_timeout 3600s; client_body_timeout 3600s;"
     cert-manager.io/issuer: letsencrypt-prod
     kots.io/exclude: {{ .Values.global.embeddedIngress.disabled | quote }}
   name: grpc-ingress

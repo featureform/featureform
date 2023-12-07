@@ -151,9 +151,11 @@ def step_impl(context):
         ("f", ["", 64556, "64556"]),
     ]
     context.iter = context.client.batch_features(
-        ("boolean_feature", ff.get_run()),
-        ("numerical_feature", ff.get_run()),
-        ("string_feature", ff.get_run()),
+        [
+            ("boolean_feature", ff.get_run()),
+            ("numerical_feature", ff.get_run()),
+            ("string_feature", ff.get_run()),
+        ]
     )
 
 
@@ -168,9 +170,25 @@ def step_impl(context):
         ("C1010085", [225.0, "319080.2", 0.0007051518709089439]),
     ]
     context.iter = context.client.batch_features(
-        ("transaction_feature", ff.get_run()),
-        ("balance_feature", ff.get_run()),
-        ("perc_feature", ff.get_run()),
+        [
+            ("transaction_feature", ff.get_run()),
+            ("balance_feature", ff.get_run()),
+            ("perc_feature", ff.get_run()),
+        ]
+    )
+
+
+@then(
+    "I serve batch features for spark with submit params that exceed the 10K-byte API limit"
+)
+def step_impl(context):
+    context.expected = 30
+    context.iter = context.client.batch_features(
+        [
+            *([("transaction_feature", ff.get_run())] * 10),
+            *([("balance_feature", ff.get_run())] * 10),
+            *([("perc_feature", ff.get_run())] * 10),
+        ]
     )
 
 
@@ -186,6 +204,17 @@ def step_impl(context):
         i += 1
 
 
+@then("I can get a list containing the correct number of features")
+def step_impl(context):
+    i = 0
+    for entity, features in context.iter:
+        if i >= context.expected:
+            break
+        print(entity, features)
+        assert len(features) == context.expected
+        i += 1
+
+
 @when("I define a SnowflakeUser and register features")
 def step_impl(context):
     @ff.entity
@@ -193,17 +222,14 @@ def step_impl(context):
         boolean_feature = ff.Feature(
             context.boolean_table[["entity", " value", "ts"]],
             type=ff.Bool,
-            inference_store=context.redis,
         )
         numerical_feature = ff.Feature(
             context.number_table[["entity", " value", "ts"]],
             type=ff.Float32,
-            inference_store=context.redis,
         )
         string_feature = ff.Feature(
             context.string_table[["entity", " value", "ts"]],
             type=ff.String,
-            inference_store=context.redis,
         )
 
     context.client.apply()
@@ -216,17 +242,14 @@ def step_impl(context):
         transaction_feature = ff.Feature(
             context.transactions[["entity", " value", "ts"]],
             type=ff.Float32,
-            inference_store=context.redis,
         )
         balance_feature = ff.Feature(
             context.balance[["entity", " value", "ts"]],
             type=ff.String,
-            inference_store=context.redis,
         )
         perc_feature = ff.Feature(
             context.perc[["entity", " value", "ts"]],
             type=ff.Float32,
-            inference_store=context.redis,
         )
 
     context.client.apply()

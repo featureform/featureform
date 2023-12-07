@@ -90,16 +90,16 @@ func (m *MaterializedFeaturesIterateRunBroken) IterateSegment(begin int64, end i
 }
 
 type MockOnlineTable struct {
-	DataTable map[string]interface{}
+	DataTable sync.Map
 }
 
 func (m *MockOnlineTable) Set(entity string, value interface{}) error {
-	m.DataTable[entity] = value
+	m.DataTable.Store(entity, value)
 	return nil
 }
 
 func (m *MockOnlineTable) Get(entity string) (interface{}, error) {
-	value, exists := m.DataTable[entity]
+	value, exists := m.DataTable.Load(entity)
 	if !exists {
 		return nil, errors.New("Value does not exist in online table")
 	}
@@ -184,7 +184,7 @@ type ErrorJobTestParams struct {
 
 func testParams(params JobTestParams) error {
 	table := &MockOnlineTable{
-		DataTable: make(map[string]interface{}),
+		DataTable: sync.Map{},
 	}
 	online := NewMockOnlineStore()
 	featureRows := params.Materialized.Rows

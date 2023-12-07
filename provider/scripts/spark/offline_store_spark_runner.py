@@ -40,6 +40,13 @@ class Headers(str, Enum):
     EXCLUDE = "exclude"
 
 
+class JobType(str, Enum):
+    TRANSFORMATION = "Transformation"
+    MATERIALIZATION = "Materialization"
+    TRAINING_SET = "Training Set"
+    BATCH_FEATURES = "Batch Features"
+
+
 if os.getenv("FEATUREFORM_LOCAL_MODE"):
     real_path = os.path.realpath(__file__)
     dir_path = os.path.dirname(real_path)
@@ -287,7 +294,13 @@ def main(args):
 
 
 def execute_sql_query(
-    job_type, output_uri, sql_query, spark_configs, source_list, output_format, headers
+    job_type,
+    output_uri,
+    sql_query,
+    spark_configs,
+    source_list,
+    output_format,
+    headers,
 ):
     # Executes the SQL Queries:
     # Parameters:
@@ -302,11 +315,7 @@ def execute_sql_query(
         spark = SparkSession.builder.appName("Execute SQL Query").getOrCreate()
         set_spark_configs(spark, spark_configs)
 
-        if (
-            job_type == "Transformation"
-            or job_type == "Materialization"
-            or job_type == "Training Set"
-        ):
+        if job_type in list(JobType):
             for i, source in enumerate(source_list):
                 file_extension = Path(source).suffix
                 is_directory = file_extension == ""
@@ -365,13 +374,16 @@ def execute_sql_query(
                 f"the output format '{output_format}' is not supported. Supported types: 'parquet', 'csv'"
             )
 
-        try:
-            stats_directory = f"{output_uri.rstrip('/')}/stats"
-            stats_df = display_data_metrics(output_dataframe, spark)
-            stats_df.write.json(stats_directory, mode="overwrite")
-        except Exception as e:
-            print(e)
-            print("Failed to display data metrics")
+        if job_type == JobType.MATERIALIZATION:
+            try:
+                stats_directory = f"{output_uri.rstrip('/')}/stats"
+                stats_df = display_data_metrics(output_dataframe, spark)
+                stats_df.write.json(stats_directory, mode="overwrite")
+            except Exception as e:
+                print(e)
+                print("Failed to display data metrics")
+        else:
+            print(f"Skipping data metrics for {job_type} job")
         return output_uri_with_timestamp
     except Exception as e:
         print(e)
@@ -474,23 +486,7 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
         # the split below separates the bucket name and the key that is
         # used to read the object in the bucket.
 
-        aws_region = credentials.get("aws_region")
-        aws_access_key_id = credentials.get("aws_access_key_id")
-        aws_secret_access_key = credentials.get("aws_secret_access_key")
-        bucket_name = credentials.get("aws_bucket_name")
-        if not (
-            aws_region and aws_access_key_id and aws_secret_access_key and bucket_name
-        ):
-            raise Exception(
-                "the values for 'aws_region', 'aws_access_key_id', 'aws_secret_access_key', 'aws_bucket_name' need to be set as credential"
-            )
-
-        session = boto3.Session(
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-        )
-        s3_resource = session.resource("s3", region_name=aws_region)
-        s3_object = s3_resource.Object(bucket_name, file_path)
+        s3_object = get_s3_object(file_path, credentials)
 
         with io.BytesIO() as f:
             s3_object.download_fileobj(f)
@@ -553,6 +549,26 @@ def get_code_from_file(file_path, store_type=None, credentials=None):
     print("Retrieved code.")
     code = dill.loads(transformation_pkl)
     return code
+
+
+def get_s3_object(file_path, credentials):
+    aws_region = credentials.get("aws_region")
+    aws_access_key_id = credentials.get("aws_access_key_id")
+    aws_secret_access_key = credentials.get("aws_secret_access_key")
+    bucket_name = credentials.get("aws_bucket_name")
+    if not (aws_region and aws_access_key_id and aws_secret_access_key and bucket_name):
+        raise Exception(
+            "Missing credential values for 'aws_region', 'aws_access_key_id', 'aws_secret_access_key', 'aws_bucket_name'"
+        )
+
+    session = boto3.Session(
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+    )
+    s3_resource = session.resource("s3", region_name=aws_region)
+    s3_object = s3_resource.Object(bucket_name, file_path)
+
+    return s3_object
 
 
 def download_blobs_to_local(container_client, blob, local_filename):
@@ -666,7 +682,7 @@ def parse_args(args=None):
     sql_parser = subparser.add_parser("sql")
     sql_parser.add_argument(
         "--job_type",
-        choices=["Transformation", "Materialization", "Training Set"],
+        choices=list(JobType),
         help="type of job being run on spark",
     )
     sql_parser.add_argument(
@@ -678,7 +694,9 @@ def parse_args(args=None):
         help="The SQL query you would like to run on the data source. eg. SELECT * FROM source_1 INNER JOIN source_2 ON source_1.id = source_2.id",
     )
     sql_parser.add_argument(
-        "--source_list", nargs="+", help="list of sources in the transformation string"
+        "--source_list",
+        nargs="*",  # 0 or more arguments
+        help="list of sources in the transformation string",
     )
     sql_parser.add_argument("--store_type", choices=FILESTORES)
     sql_parser.add_argument(
@@ -706,6 +724,10 @@ def parse_args(args=None):
         default=Headers.INCLUDE,
         choices=[Headers.INCLUDE, Headers.EXCLUDE],
         help="include/exclude headers in the output file",
+    )
+    sql_parser.add_argument(
+        "--submit_params_uri",
+        help="the path to the submit params file",
     )
 
     df_parser = subparser.add_parser("df")
@@ -741,6 +763,24 @@ def parse_args(args=None):
     # converts the key=value into a dictionary
     arguments.spark_config = split_key_value(arguments.spark_config)
     arguments.credential = split_key_value(arguments.credential)
+
+    if (
+        arguments.transformation_type == "sql"
+        and arguments.job_type == JobType.BATCH_FEATURES
+        and arguments.submit_params_uri is not None
+    ):
+        if arguments.store_type == "s3":
+            s3_object = get_s3_object(arguments.submit_params_uri, arguments.credential)
+            with io.BytesIO() as f:
+                s3_object.download_fileobj(f)
+                f.seek(0)
+                submit_params = json.load(f)
+                arguments.sql_query = submit_params["sql_query"]
+                arguments.source_list = submit_params["source_list"]
+        else:
+            raise Exception(
+                f"the '{arguments.store_type}' is not supported. Supported types: 's3'"
+            )
 
     return arguments
 

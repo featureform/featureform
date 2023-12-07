@@ -30,6 +30,7 @@ import MetricsDropdown from './elements/MetricsDropdown';
 import StatsDropdown from './elements/StatsDropdown';
 import TagBox from './elements/TagBox.js';
 import VariantControl from './elements/VariantControl';
+import ErrorModal from './ErrorModal.js';
 
 SyntaxHighlighter.registerLanguage('python', python);
 SyntaxHighlighter.registerLanguage('sql', sql);
@@ -507,15 +508,20 @@ const EntityPageView = ({
                         <b>Team:</b> {metadata['team']}
                       </Typography>
                     )}
-                    {metadata['status'] && metadata['status'] !== 'NO_STATUS' && (
-                      <Typography variant='body1'>
-                        <b>Status:</b> {metadata['status']}
-                      </Typography>
-                    )}
+                    {metadata['status'] &&
+                      metadata['status'] !== 'NO_STATUS' && (
+                        <Typography variant='body1'>
+                          <b>Status:</b> {metadata['status']}
+                        </Typography>
+                      )}
                     {metadata['error'] && metadata['error'] !== '' && (
-                      <Typography variant='body1'>
-                        <b>Error Message:</b> {metadata['error']}
-                      </Typography>
+                      <>
+                        <b>Error Message:</b>
+                        <ErrorModal
+                          buttonTxt='See More'
+                          errorTxt={metadata['error']}
+                        />
+                      </>
                     )}
                     {metadata['source-type'] && (
                       <Typography variant='body1'>

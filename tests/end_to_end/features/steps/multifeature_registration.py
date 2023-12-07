@@ -28,7 +28,7 @@ def step_impl(context):
     )
 @when("I create a dataframe from a serving client")
 def step_impl(context):
-    context.client = contet.featureform.Client(host="localhost:7878", insecure=True)
+    context.client = context.featureform.Client(host="localhost:7878", insecure=True)
     context.dataset_df = context.client.dataframe(context.transactions)
 
 

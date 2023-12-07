@@ -86,6 +86,17 @@ NameVariant = Tuple[str, str]
 s3_config = S3StoreConfig("", "", AWSCredentials("id", "secret"))
 NON_INFERENCE_STORES = [s3_config.type()]
 
+pd_to_ff_datatype = {
+            numpy.dtype("float64"): ScalarType.FLOAT64,
+            numpy.dtype("float32"): ScalarType.FLOAT32,
+            numpy.dtype("int64"): ScalarType.INT64,
+            numpy.dtype("int"): ScalarType.INT,
+            numpy.dtype("int32"): ScalarType.INT32,
+            numpy.dtype("O"): ScalarType.STRING,
+            numpy.dtype("str"): ScalarType.STRING,
+            numpy.dtype("bool"): ScalarType.BOOL,
+        }
+
 
 def set_tags_properties(tags: List[str], properties: dict):
     if tags is None:
@@ -1591,7 +1602,8 @@ class FeatureColumnResource(ColumnResource):
             properties=properties,
         )
 
-### Problems: the user is forced to specify th entity column. If they put the same entity name as the class that they are defining the multiple features in, will it error? 
+
+### Problems: the user is forced to specify th entity column. If they put the same entity name as the class that they are defining the multiple features in, will it error?
 ### If the mention a different class name, then will it get applied and work?
 class MultiFeatureColumnResource(ColumnResource):
     def __init__(
@@ -1603,12 +1615,12 @@ class MultiFeatureColumnResource(ColumnResource):
         owner: str = "",
         inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
         timestamp_column: str = "",
-        include_columns: List[str] = [],
-        exclude_columns: List[str] = [],
+        include_columns: List[str] = None,
+        exclude_columns: List[str] = None,
         description: str = "",
         schedule: str = "",
-        tags: List[str] = [],
-        properties: Dict[str, str] = {},
+        tags: List[str] = None,
+        properties: Dict[str, str] = None,
     ):
         """
         Feature registration object.
@@ -1631,34 +1643,52 @@ class MultiFeatureColumnResource(ColumnResource):
         Args:
             inference_store (Union[str, OnlineProvider, FileStoreProvider]): Where to store for online serving.
         """
-        pd_to_ff_datatype = {numpy.dtype('float64'): ScalarType.FLOAT64,
-        numpy.dtype('float32'): ScalarType.FLOAT32,
-        numpy.dtype('int64'): ScalarType.INT64,
-        numpy.dtype('int'): ScalarType.INT,
-        numpy.dtype('int32'): ScalarType.INT32,
-        numpy.dtype('O'): ScalarType.STRING,
-        numpy.dtype('str'): ScalarType.STRING,
-        numpy.dtype('bool'): ScalarType.BOOL}
+        self.include_columns = include_columns or []
+        self.exclude_columns = exclude_columns or []
+        self.tags = tags or []
+        self.properties = properties or {}
         self._resources = []
-        register_columns = self.get_feature_columns(df, include_columns, exclude_columns, entity_column, timestamp_column)
+        register_columns = self._get_feature_columns(
+            df, include_columns, exclude_columns, entity_column, timestamp_column
+        )
+        self._create_feature_columns(df, dataset, register_columns, entity_column, timestamp_column, inference_store, variant)
+        
+
+    def _create_feature_columns(self, df, dataset, register_columns, entity_column, timestamp_column, inference_store, variant):
         df_has_quotes = False
         for column_name in df.columns:
-            if "\"" in column_name:
+            if '"' in column_name:
                 df_has_quotes = True
                 break
         for column_name in register_columns:
             if timestamp_column != "":
-                feature = FeatureColumnResource(dataset[[entity_column, column_name, timestamp_column]], variant=variant, type=pd_to_ff_datatype[df[self.modify_quotes(column_name, df_has_quotes)].dtype], inference_store=inference_store)
+                feature = FeatureColumnResource(
+                    dataset[[entity_column, column_name, timestamp_column]],
+                    variant=variant,
+                    type=pd_to_ff_datatype[
+                        df[self._modify_quotes(column_name, df_has_quotes)].dtype
+                    ],
+                    inference_store=inference_store,
+                )
 
             else:
-                feature = FeatureColumnResource(dataset[[entity_column, column_name]], variant=variant, type=pd_to_ff_datatype[df[self.modify_quotes(column_name, df_has_quotes)].dtype], inference_store=inference_store)
+                feature = FeatureColumnResource(
+                    dataset[[entity_column, column_name]],
+                    variant=variant,
+                    type=pd_to_ff_datatype[
+                        df[self._modify_quotes(column_name, df_has_quotes)].dtype
+                    ],
+                    inference_store=inference_store,
+                )
             feature.name = column_name
             self._resources.append(feature)
 
-    def get_feature_columns(self, df, include_columns, exclude_columns, entity_column, timestamp_column):
-        all_columns_set = set([self.strip_quotes(col) for col in df.columns])
-        include_columns_set = set(include_columns)
-        exclude_columns_set = set(exclude_columns)
+    def _get_feature_columns(
+        self, df, include_columns, exclude_columns, entity_column, timestamp_column
+    ):
+        all_columns_set = set([self._strip_quotes(col) for col in df.columns])
+        include_columns_set = set(self.include_columns)
+        exclude_columns_set = set(self.exclude_columns)
         exclude_columns_set.add(entity_column)
         exclude_columns_set.add(timestamp_column)
 
@@ -1673,15 +1703,15 @@ class MultiFeatureColumnResource(ColumnResource):
         else:
             return list(all_columns_set - exclude_columns_set)
 
-    def strip_quotes(self, string_name):
-        return string_name.replace("\"", "")
+    def _strip_quotes(self, string_name):
+        return string_name.replace('"', "")
 
-    def modify_quotes(self, string_name, has_quotes):
+    def _modify_quotes(self, string_name, has_quotes):
         if has_quotes:
-            return "\"" + self.strip_quotes(string_name) + "\""
-        return self.strip_quotes(string_name)
+            return '"' + self._strip_quotes(string_name) + '"'
+        return self._strip_quotes(string_name)
 
-        
+
 class LabelColumnResource(ColumnResource):
     def __init__(
         self,
@@ -4283,7 +4313,6 @@ class Registrar:
         model = Model(name, description="", tags=tags, properties=properties)
         self.__resources.append(model)
         return model
-
 
 
 class ResourceClient:

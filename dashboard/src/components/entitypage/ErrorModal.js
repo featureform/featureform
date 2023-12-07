@@ -8,11 +8,12 @@ import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
 import * as React from 'react';
 
+export const ERROR_MSG_MAX = 200;
+
 export default function ErrorModal({ errorTxt = '', buttonTxt = '' }) {
-  const MAX = 200;
   const [open, setOpen] = React.useState(false);
-  const [isShowMore] = React.useState(errorTxt.length > MAX);
-  const [truncated] = React.useState(errorTxt.substring(0, MAX));
+  const [isShowMore] = React.useState(errorTxt.length > ERROR_MSG_MAX);
+  const [truncated] = React.useState(errorTxt.substring(0, ERROR_MSG_MAX));
   const [openSnack, setOpenSnack] = React.useState(false);
 
   const closeSnackBar = (_, reason) => {
@@ -52,7 +53,7 @@ export default function ErrorModal({ errorTxt = '', buttonTxt = '' }) {
           <Typography>Copied to clipboard!</Typography>
         </Alert>
       </Snackbar>
-      <Typography variant='body1'>
+      <Typography data-testid='errorMessageId' variant='body1'>
         {truncated}
         {isShowMore && (
           <Button
@@ -94,7 +95,9 @@ export default function ErrorModal({ errorTxt = '', buttonTxt = '' }) {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          <Typography variant='body1'>{errorTxt}</Typography>
+          <Typography variant='body1' data-testid='fullTextContent'>
+            {errorTxt}
+          </Typography>
         </DialogContent>
       </Dialog>
     </div>

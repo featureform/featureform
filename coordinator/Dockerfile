@@ -39,8 +39,8 @@ RUN go build ./coordinator/main/main.go
 FROM ubuntu:22.04
 
 COPY --from=builder ./app/main /app/main
-COPY --from=builder ./provider/scripts/spark/ /app/provider/scripts/spark/
-COPY --from=builder ./app/provider/queries/ /app/provider/queries/
+COPY ./provider/scripts/spark/ /app/provider/scripts/spark/
+COPY ./app/provider/queries/ /app/provider/queries/
 
 # Installing pyenv
 RUN apt-get update && apt-get install -y \
@@ -86,7 +86,7 @@ ENV MATERIALIZE_NO_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_no_ts
 ENV MATERIALIZE_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_ts.sql"
 
 ## Download Shaded Jar
-#RUN wget https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop2-2.2.11/gcs-connector-hadoop2-2.2.11-shaded.jar -P /app/provider/scripts/spark/jars/
+RUN wget https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop2-2.2.11/gcs-connector-hadoop2-2.2.11-shaded.jar -P /app/provider/scripts/spark/jars/
 
 EXPOSE 8080
 ENTRYPOINT ["/app/main"]

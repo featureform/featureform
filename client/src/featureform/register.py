@@ -1582,7 +1582,7 @@ class FeatureColumnResource(ColumnResource):
         ```
 
         Args:
-            transformation_args (tuple): A transformation or source function and the columns name in the format: <transformation_function>[[<entity_column>, <value_column>, <timestamp_column (optional)>]]
+            transformation_args (tuple): A transformation or source function and the columns name in the format: <transformation_function>[[<entity_column>, <value_column>, <timestamp_column (optional)>]].
             variant (str): An optional variant name for the feature.
             type (Union[ScalarType, str]): The type of the value in for the feature.
             inference_store (Union[str, OnlineProvider, FileStoreProvider]): Where to store for online serving.
@@ -1623,30 +1623,41 @@ class MultiFeatureColumnResource(ColumnResource):
         properties: Dict[str, str] = None,
     ):
         """
-        Feature registration object.
+        Registering multiple features from the same table.
 
         **Example**
         ```
         @ff.entity
         class Customer:
-        # Register mulitple columns from a dataframe as a feature
-            transaction_amount = ff.MultiFeature(
+        # Register multiple columns from a dataset as features
+            transaction_features = ff.MultiFeature(
                 dataset,
                 dataframe_name,
                 variant="quickstart",
                 inference_store=redis,
                 entity_column="CustomerID",
-                include_columns=["Amount", "Transaction Time"],
+                timestamp_column="Timestamp",
+                exclude_columns=["TransactionID", "IsFraud"],
+                inference_store=redis,
             )
         ```
 
         Args:
+            dataset (SourceVariant): The dataset to register features from
+            df (pd.DataFrame): The client.dataframe to register features from
+            entity_column (Union[Entity, str]): The name of the column in the source to be used as the entity
+            variant (str): An optional variant name for the feature.
             inference_store (Union[str, OnlineProvider, FileStoreProvider]): Where to store for online serving.
+            include_columns (List[str]): List of columns to be registered as features
+            exclude_columns (List[str]): List of columns to be excluded from registration. Cannot be used with include_columns
         """
         self.include_columns = include_columns or []
         self.exclude_columns = exclude_columns or []
         self.tags = tags or []
         self.properties = properties or {}
+        self.owner = owner
+        self.description = description
+        self.schedule = schedule
         self._resources = []
         register_columns = self._get_feature_columns(
             df, include_columns, exclude_columns, entity_column, timestamp_column

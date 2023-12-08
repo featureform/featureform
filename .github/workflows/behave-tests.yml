@@ -86,9 +86,16 @@ jobs:
       - name: Run Behavioral Tests
         if: github.ref != 'refs/heads/main'
         working-directory: ./tests/end_to_end/
-        run: behave -t '~@wip' -t '~@long' --no-capture
+        run: behavex -t '~@wip' -t '~@long' --no-capture
 
       - name: Run Behavioral Tests
         if: github.ref == 'refs/heads/main'
         working-directory: ./tests/end_to_end/
-        run: behave -t '~@wip' -t '@long' --no-capture
+        run: behavex -t '~@wip' -t '@long' --no-capture
+
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: behave-reports
+          path: ./tests/end_to_end/output/

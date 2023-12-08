@@ -1,6 +1,3 @@
-//go:build offline
-// +build offline
-
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -13,7 +10,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -33,9 +29,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-var provider = flag.String("provider", "", "provider to perform test on")
-
-type testMember struct {
+type offlineTestMembers struct {
 	t               pt.Type
 	c               pc.SerializedConfig
 	integrationTest bool
@@ -245,34 +239,34 @@ func TestOfflineStores(t *testing.T) {
 		return serializedConfig, sparkConfig
 	}
 
-	testList := []testMember{}
+	testList := []offlineTestMembers{}
 
 	if *provider == "memory" || *provider == "" {
-		testList = append(testList, testMember{pt.MemoryOffline, []byte{}, false})
+		testList = append(testList, offlineTestMembers{pt.MemoryOffline, []byte{}, false})
 	}
 	if *provider == "bigquery" || *provider == "" {
 		serialBQConfig, bigQueryConfig := bqInit()
-		testList = append(testList, testMember{pt.BigQueryOffline, serialBQConfig, true})
+		testList = append(testList, offlineTestMembers{pt.BigQueryOffline, serialBQConfig, true})
 		t.Cleanup(func() {
 			destroyBigQueryDataset(bigQueryConfig)
 		})
 	}
 	if *provider == "postgres" || *provider == "" {
-		testList = append(testList, testMember{pt.PostgresOffline, postgresInit(), true})
+		testList = append(testList, offlineTestMembers{pt.PostgresOffline, postgresInit(), true})
 	}
 	//if *provider == "mysql" || *provider == "" {
-	//	testList = append(testList, testMember{pt.MySqlOffline, mySqlInit(), true})
+	//	testList = append(testList, tableImportTestMembers{pt.MySqlOffline, mySqlInit(), true})
 	//}
 	if *provider == "snowflake" || *provider == "" {
 		serialSFConfig, snowflakeConfig := snowflakeInit()
-		testList = append(testList, testMember{pt.SnowflakeOffline, serialSFConfig, true})
+		testList = append(testList, offlineTestMembers{pt.SnowflakeOffline, serialSFConfig, true})
 		t.Cleanup(func() {
 			destroySnowflakeDatabase(snowflakeConfig)
 		})
 	}
 	if *provider == "redshift" || *provider == "" {
 		serialRSConfig, redshiftConfig := redshiftInit()
-		testList = append(testList, testMember{pt.RedshiftOffline, serialRSConfig, true})
+		testList = append(testList, offlineTestMembers{pt.RedshiftOffline, serialRSConfig, true})
 		t.Cleanup(func() {
 			destroyRedshiftDatabase(redshiftConfig)
 		})
@@ -280,30 +274,30 @@ func TestOfflineStores(t *testing.T) {
 	// TODO: update testing.yaml to include local PySpark instance generic Spark tests
 	// if *provider == "spark-generic-s3" || *provider == "" {
 	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.S3)
-	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	// 	testList = append(testList, tableImportTestMembers{pt.SparkOffline, serialSparkConfig, true})
 	// }
 	// if *provider == "spark-generic-abs" || *provider == "" {
 	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.Azure)
-	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	// 	testList = append(testList, tableImportTestMembers{pt.SparkOffline, serialSparkConfig, true})
 	// }
 	// if *provider == "spark-generic-gcs" || *provider == "" {
 	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.GCS)
-	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	// 	testList = append(testList, tableImportTestMembers{pt.SparkOffline, serialSparkConfig, true})
 	// }
 	// TODO: Uncomments when databricks test is fixed
 	//if *provider == "spark-databricks-s3" || *provider == "" {
 	//	serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.S3)
-	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	//	testList = append(testList, tableImportTestMembers{pt.SparkOffline, serialSparkConfig, true})
 	//}
 	// TODO: Uncomments when abs test is fixed
 	//if *provider == "spark-databricks-abs" || *provider == "" {
 	//	serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.Azure)
-	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	//	testList = append(testList, tableImportTestMembers{pt.SparkOffline, serialSparkConfig, true})
 	//}
 	// TODO: Uncomment when EMR can be configured to run these tests quicker. Currently taking > 60 minutes.
 	//if *provider == "spark-emr-s3" || *provider == "" {
 	//	serialSparkConfig, _ := sparkInit(t, pc.EMR, fs.S3)
-	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
+	//	testList = append(testList, tableImportTestMembers{pt.SparkOffline, serialSparkConfig, true})
 	//}
 
 	testFns := map[string]func(*testing.T, OfflineStore){
@@ -359,7 +353,7 @@ func TestOfflineStores(t *testing.T) {
 	}
 }
 
-func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func(*testing.T, OfflineStore), testSQLFns map[string]func(*testing.T, OfflineStore), db *sql.DB) {
+func testWithProvider(t *testing.T, testItem offlineTestMembers, testFns map[string]func(*testing.T, OfflineStore), testSQLFns map[string]func(*testing.T, OfflineStore), db *sql.DB) {
 	var err error
 	if testing.Short() && testItem.integrationTest {
 		t.Logf("Skipping %s, because it is an integration test", testItem.t)

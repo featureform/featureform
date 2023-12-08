@@ -1,6 +1,5 @@
 Feature: MultiFeature Registration
 
-  @wip
   Scenario: Registering all but one feature from one table
     Given Featureform is installed
     And The Postgres Quickstart container is running
@@ -11,7 +10,6 @@ Feature: MultiFeature Registration
     Then I define a User and register multiple features excluding one
     Then I should be able to serve a batch of features
 
-  @wip
   Scenario: Registering three features from one large table
     Given Featureform is installed
     And The Postgres Quickstart container is running

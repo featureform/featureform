@@ -1602,9 +1602,6 @@ class FeatureColumnResource(ColumnResource):
             properties=properties,
         )
 
-
-### Problems: the user is forced to specify th entity column. If they put the same entity name as the class that they are defining the multiple features in, will it error?
-### If the mention a different class name, then will it get applied and work?
 class MultiFeatureColumnResource(ColumnResource):
     def __init__(
         self,
@@ -1682,18 +1679,14 @@ class MultiFeatureColumnResource(ColumnResource):
         inference_store,
         variant,
     ):
-        df_has_quotes = False
-        for column_name in df.columns:
-            if '"' in column_name:
-                df_has_quotes = True
-                break
+        df_has_quotes = self._check_df_column_format(df)
         for column_name in register_columns:
             if timestamp_column != "":
                 feature = FeatureColumnResource(
                     dataset[[entity_column, column_name, timestamp_column]],
                     variant=variant,
                     type=pd_to_ff_datatype[
-                        df[self._modify_quotes(column_name, df_has_quotes)].dtype
+                        df[self._modify_column_name(column_name, df_has_quotes)].dtype
                     ],
                     inference_store=inference_store,
                 )
@@ -1703,7 +1696,7 @@ class MultiFeatureColumnResource(ColumnResource):
                     dataset[[entity_column, column_name]],
                     variant=variant,
                     type=pd_to_ff_datatype[
-                        df[self._modify_quotes(column_name, df_has_quotes)].dtype
+                        df[self._modify_column_name(column_name, df_has_quotes)].dtype
                     ],
                     inference_store=inference_store,
                 )
@@ -1713,7 +1706,7 @@ class MultiFeatureColumnResource(ColumnResource):
     def _get_feature_columns(
         self, df, include_columns, exclude_columns, entity_column, timestamp_column
     ):
-        all_columns_set = set([self._strip_quotes(col) for col in df.columns])
+        all_columns_set = set([self._clean_name(col) for col in df.columns])
         include_columns_set = set(self.include_columns)
         exclude_columns_set = set(self.exclude_columns)
         exclude_columns_set.add(entity_column)
@@ -1730,13 +1723,20 @@ class MultiFeatureColumnResource(ColumnResource):
         else:
             return list(all_columns_set - exclude_columns_set)
 
-    def _strip_quotes(self, string_name):
+    def _check_df_column_format(self, df):
+        df_has_quotes = False
+        for column_name in df.columns:
+            if '"' in column_name:
+                df_has_quotes = True
+            return df_has_quotes
+
+    def _clean_name(self, string_name):
         return string_name.replace('"', "")
 
-    def _modify_quotes(self, string_name, has_quotes):
-        if has_quotes:
-            return '"' + self._strip_quotes(string_name) + '"'
-        return self._strip_quotes(string_name)
+    def _modify_column_name(self, string_name, df_has_quotes):
+        if df_has_quotes:
+            return '"' + self._clean_name(string_name) + '"'
+        return self._clean_name(string_name)
 
 
 class LabelColumnResource(ColumnResource):

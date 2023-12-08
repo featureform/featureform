@@ -16,6 +16,10 @@ theme:
 extra_css:
   - stylesheets/extra.css
 
+extra:
+  version:
+    provider: mike
+
 nav:
   - Home: index.md
   - Getting Started:

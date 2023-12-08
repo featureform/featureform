@@ -72,10 +72,8 @@ def step_impl(context):
 
 @then("I should be able to serve a batch of features")
 def step_impl(context):
-    serving = context.featureform.ServingClient(host="localhost:7878", insecure=True)
-
     # Serve batch features
-    batch_features = serving.batch_features(
+    batch_features = context.client.batch_features(
         ("customerdob", "default"),
         ("custaccountbalance", "default"),
         ("custlocation", "default"),

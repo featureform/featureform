@@ -78,6 +78,7 @@ from .search_local import search_local
 from .sqlite_metadata import SQLiteMetadata
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
+from .types import pd_to_ff_datatype
 from .variant_names_generator import get_current_timestamp_variant
 from .variant_names_generator import get_random_name
 
@@ -85,18 +86,6 @@ NameVariant = Tuple[str, str]
 
 s3_config = S3StoreConfig("", "", AWSCredentials("id", "secret"))
 NON_INFERENCE_STORES = [s3_config.type()]
-
-pd_to_ff_datatype = {
-    numpy.dtype("float64"): ScalarType.FLOAT64,
-    numpy.dtype("float32"): ScalarType.FLOAT32,
-    numpy.dtype("int64"): ScalarType.INT64,
-    numpy.dtype("int"): ScalarType.INT,
-    numpy.dtype("int32"): ScalarType.INT32,
-    numpy.dtype("O"): ScalarType.STRING,
-    numpy.dtype("str"): ScalarType.STRING,
-    numpy.dtype("bool"): ScalarType.BOOL,
-}
-
 
 def set_tags_properties(tags: List[str], properties: dict):
     if tags is None:
@@ -1620,16 +1609,21 @@ class MultiFeatureColumnResource(ColumnResource):
         properties: Dict[str, str] = None,
     ):
         """
-        Registering multiple features from the same table.
+        Registering multiple features from the same table. The name of each feature is the name of the column in the table.
 
         **Example**
         ```
+        # Register a file or table from an offline provider as a dataset
+
+        client = ff.Client()
+        df = client.dataframe(dataset)
+
         @ff.entity
         class Customer:
         # Register multiple columns from a dataset as features
             transaction_features = ff.MultiFeature(
                 dataset,
-                dataframe_name,
+                df,
                 variant="quickstart",
                 inference_store=redis,
                 entity_column="CustomerID",
@@ -1642,11 +1636,11 @@ class MultiFeatureColumnResource(ColumnResource):
         Args:
             dataset (SourceVariant): The dataset to register features from
             df (pd.DataFrame): The client.dataframe to register features from
+            include_columns (List[str]): List of columns to be registered as features
+            exclude_columns (List[str]): List of columns to be excluded from registration
             entity_column (Union[Entity, str]): The name of the column in the source to be used as the entity
             variant (str): An optional variant name for the feature.
             inference_store (Union[str, OnlineProvider, FileStoreProvider]): Where to store for online serving.
-            include_columns (List[str]): List of columns to be registered as features
-            exclude_columns (List[str]): List of columns to be excluded from registration. Cannot be used with include_columns
         """
         self.include_columns = include_columns or []
         self.exclude_columns = exclude_columns or []

@@ -19,6 +19,10 @@ env:
   DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
   FF_TIMESTAMP_VARIANT: "false"
   FF_GET_EQUIVALENT_VARIANTS: "false"
+  SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
+  SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+  SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+  SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
 
 jobs:
   setup:
@@ -82,9 +86,16 @@ jobs:
       - name: Run Behavioral Tests
         if: github.ref != 'refs/heads/main'
         working-directory: ./tests/end_to_end/
-        run: behave -t '~@wip' -t '~@long' --no-capture
+        run: behavex -t '~@wip' -t '~@long' --no-capture
 
       - name: Run Behavioral Tests
         if: github.ref == 'refs/heads/main'
         working-directory: ./tests/end_to_end/
-        run: behave -t '~@wip' -t '@long' --no-capture
+        run: behavex -t '~@wip' -t '@long' --no-capture
+
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: behave-reports
+          path: ./tests/end_to_end/output/

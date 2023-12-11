@@ -4,6 +4,7 @@
 import ast
 import inspect
 import warnings
+from abc import ABC
 from datetime import timedelta
 from pathlib import Path
 from typing import Dict, Tuple, Callable, List, Union, Optional
@@ -87,7 +88,7 @@ NameVariant = Tuple[str, str]
 s3_config = S3StoreConfig("", "", AWSCredentials("id", "secret"))
 NON_INFERENCE_STORES = [s3_config.type()]
 
-def set_tags_properties(tags: List[str], properties: dict):
+def set_tags_properties(tags: Optional[List[str]], properties: Optional[dict]):
     if tags is None:
         tags = []
     if properties is None:
@@ -1426,7 +1427,7 @@ class ModelRegistrar:
         return self.__model.name
 
 
-class ColumnResource:
+class ColumnResource(ABC):
     """
     Base class for all column resources. This class is not meant to be instantiated directly.
     In the original syntax, features and labels were registered using the `register_resources`
@@ -1443,12 +1444,12 @@ class ColumnResource:
         resource_type: str,
         entity: Union[Entity, str],
         owner: Union[str, UserRegistrar],
-        inference_store: Union[str, OnlineProvider, FileStoreProvider],
         timestamp_column: str,
         description: str,
         schedule: str,
         tags: List[str],
         properties: Dict[str, str],
+        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
         variant: str = "",
     ):
         registrar, source_name_variant, columns = transformation_args
@@ -1470,6 +1471,7 @@ class ColumnResource:
             self.timestamp_column = timestamp_column
         self.description = description
         self.schedule = schedule
+        tags, properties = set_tags_properties(tags, properties)
         self.tags = tags
         self.properties = properties
         self.variant = variant
@@ -1551,8 +1553,8 @@ class FeatureColumnResource(ColumnResource):
         timestamp_column: str = "",
         description: str = "",
         schedule: str = "",
-        tags: List[str] = [],
-        properties: Dict[str, str] = {},
+        tags: Optional[List[str]] = None,
+        properties: Optional[Dict[str, str]] = None,
     ):
         """
         Feature registration object.
@@ -1741,7 +1743,6 @@ class LabelColumnResource(ColumnResource):
         entity: Union[Entity, str] = "",
         variant: str = "",
         owner: str = "",
-        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
         timestamp_column: str = "",
         description: str = "",
         schedule: str = "",
@@ -1775,7 +1776,6 @@ class LabelColumnResource(ColumnResource):
             entity=entity,
             variant=variant,
             owner=owner,
-            inference_store=inference_store,
             timestamp_column=timestamp_column,
             description=description,
             schedule=schedule,
@@ -4079,8 +4079,6 @@ class Registrar:
             entity = entity.name()
         if not isinstance(inference_store, str):
             inference_store = inference_store.name()
-        if len(features) > 0 and inference_store == "":
-            inference_store = "local-mode"
         if not isinstance(owner, str):
             owner = owner.name()
         if owner == "":

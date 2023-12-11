@@ -1,0 +1,49 @@
+name: Update Release Branch
+on:
+  push:
+    branches:
+      - main
+jobs:
+  update_release:
+    runs-on: ubuntu-latest
+    name: Update Release
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Get Latest Release Branch
+        id: get_branch
+        run: |
+          LATEST_BRANCH=$(git branch -r --list "origin/release/*" | sed 's/origin\///' | sort -rV | head -n 1)
+          echo "Latest release branch is $LATEST_BRANCH"
+          echo "::set-output name=latest_release_branch::${LATEST_BRANCH}"
+
+      # Example of using the output
+      - name: Print Latest Release
+        run: echo "The latest release branch is ${{ steps.get_branch.outputs.latest_release_branch }}"
+
+      - name: Cherry-Pick This Commit
+        id: cherryPick
+        continue-on-error: true
+        # Manually adding the release name for now since the variable is not working properly
+        run: |
+          git config user.name "$(git log -n 1 --pretty=format:%an)"
+          git config user.email "$(git log -n 1 --pretty=format:%ae)"
+          git checkout release/0.11 
+          git cherry-pick "${{ github.sha }}"
+          git push
+
+      - name: Send Errors To Slack
+        if: steps.cherryPick.outcome == 'failure'
+        id: slack
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "commit": "${{ github.sha }}",
+              "job": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+              "release": "release/0.11"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

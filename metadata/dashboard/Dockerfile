@@ -35,5 +35,22 @@ FROM alpine
 
 COPY --from=0 ./app/dashboard_metadata ./dashboard_metadata
 
+ARG SPARK_FILEPATH=/app/provider/scripts/spark/offline_store_spark_runner.py
+ARG SPARK_PYTHON_PACKAGES=/app/provider/scripts/spark/python_packages.sh
+ARG SPARK_REQUIREMENTS=/app/provider/scripts/spark/requirements.txt
+ARG MATERIALIZE_NO_TIMESTAMP_QUERY_PATH=/app/provider/queries/materialize_no_ts.sql
+ARG MATERIALIZE_TIMESTAMP_QUERY_PATH=/app/provider/queries/materialize_ts.sql
+
+COPY provider/scripts/spark/offline_store_spark_runner.py $SPARK_FILEPATH
+COPY provider/scripts/spark/python_packages.sh $SPARK_PYTHON_PACKAGES
+COPY provider/scripts/spark/requirements.txt $SPARK_REQUIREMENTS
+COPY provider/queries/materialize_no_ts.sql $MATERIALIZE_NO_TIMESTAMP_QUERY_PATH
+COPY provider/queries/materialize_ts.sql $MATERIALIZE_TIMESTAMP_QUERY_PATH
+
+ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
+ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
+ENV MATERIALIZE_NO_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_no_ts.sql"
+ENV MATERIALIZE_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_ts.sql"
+
 EXPOSE 8080
 ENTRYPOINT ["./dashboard_metadata"]

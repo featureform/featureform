@@ -1,74 +1,82 @@
-from unittest.mock import MagicMock
 import pytest
-import featureform as ff
-import pandas as pd
-from featureform.register import ColumnSourceRegistrar
-from featureform.register import Registrar
-from featureform.resources import SourceVariant
-
-# Mock DataFrameStats for testing
-mock_stats_df = pd.DataFrame({"a": [1, 4], "b": [2, 5], "c": [3, 6]})
-
-
-@pytest.fixture()
-def client():
-    return ff.Client(insecure=True, local=True)
-
-
-@pytest.fixture()
-def mock_proto():
-    return pd.DataFrame({"a": [1, 4], "b": [2, 5], "c": [3, 6]})
-
-
-def create_datatset(mock_proto):
-    ColumnSourceRegistrar()
-    return pd.DataFrame(mock_proto)
-
 
 # conftest.py
 # 1. data_dictionary() (fixture) -> {columns: [""], data: [[],[]]}
 # 2. features_dataframe(data_dictionary) (fixture) -> pandas dataframe from dictionary
-# 3. features_dataset() (fixture) -> ColumnSourceRegistrar() fall the register_file method and see the return type
+# 3. primary_dataset() (fixture) -> ColumnSourceRegistrar() fall the register_file method and see the return type
 # 4. MultiFeature(features_dataframe, features_dataset) (fixture) -> MultiFeature object with dataset and dataframe
 
 
-@pytest.fixture()
-def features_dataframe(mock_proto):
-    return pd.DataFrame(mock_proto)
-
-
-@pytest.fixture()
-def features_dataset():
-    registrar = MagicMock(return_value=Registrar())
-    # or it could be SourceVariantResource
-    source = MagicMock(return_value=SourceVariant)
-    return ColumnSourceRegistrar(registrar, source)
+def test_multi_feature(multi_feature):
+    assert multi_feature.tags == []
 
 
 @pytest.mark.parametrize(
-    "name, variant",
+    "input_str, expected_str",
     [
-        ("n", "v"),
+        ("column1", "column1"),
+        ('"column2"', "column2"),
+        ('"column3', "column3"),
+        ('""', ""),
     ],
 )
-def test_dataframe(
-    name, variant, client, mock_proto, features_dataframe, features_dataset
-):
-    client.dataframe = MagicMock(return_value=features_dataframe)
-    client.dataset = MagicMock(return_value=features_dataset)
-    df = client.dataframe(name, variant)
-
-    assert df.equals(mock_stats_df)
+def test_clean_name(multi_feature, input_str, expected_str):
+    result = multi_feature._clean_name(input_str)
+    assert result == expected_str
 
 
-@pytest.fixture()
-def multi_feature(features_dataframe, features_dataset):
-    return ff.MultiFeature(features_dataframe, features_dataset)
+@pytest.mark.parametrize(
+    "input_str, has_quotes, expected_str",
+    [
+        ("column1", True, '"column1"'),
+        ('"column2"', True, '"column2"'),
+        ('""', True, '""'),
+        ('"column3', False, "column3"),
+        ('""', False, ""),
+    ],
+)
+def test_modify_column_name(multi_feature, input_str, has_quotes, expected_str):
+    result = multi_feature._modify_column_name(input_str, has_quotes)
+    assert result == expected_str
 
 
-# test_multi_feature.py
+@pytest.mark.parametrize(
+    "include_cols, exclude_cols, expected_list",
+    [
+        ([], [], ["a", "b", "c", "ts"]),
+        (["a"], ["ts"], ["a"]),
+        (["a", "b", "ts"], ["c"], ["a", "b", "ts"]),
+        ([], ["b", "c"], ["a", "ts"]),
+    ],
+)
+def test_get_feature_columns_no_ts(include_cols, exclude_cols, expected_list, multi_feature, features_dataframe):
+    result = multi_feature._get_feature_columns(df=features_dataframe, include_columns=include_cols, exclude_columns=exclude_cols, entity_column="entity", timestamp_column="")
+    assert set(result) == set(expected_list)
 
 
-def test_multi_feature(multi_feature, features_dataframe, features_dataset):
-    assert multi_feature.dataframe == features_dataframe
-    assert multi_feature.dataset == features_dataset
+
+@pytest.mark.parametrize(
+    "include_cols, exclude_cols, expected_list",
+    [
+        ([], [], ["a", "b", "c"]),
+        (["a"], [], ["a"]),
+        (["a", "b"], ["c"], ["a", "b"]),
+        ([], ["b", "c"], ["a"]),
+    ],
+)
+def test_get_feature_columns(include_cols, exclude_cols, expected_list, multi_feature, features_dataframe):
+    result = multi_feature._get_feature_columns(df=features_dataframe, include_columns=include_cols, exclude_columns=exclude_cols, entity_column="entity", timestamp_column="ts")
+    assert set(result) == set(expected_list)
+
+
+@pytest.mark.parametrize(
+    "include_cols, exclude_cols",
+    [
+        (["a", "b", "c"], ["c"]),
+        (["a", "d"], []),
+        ([], ["c", "d"]),
+    ],
+)
+def test_get_feature_columns_errors(include_cols, exclude_cols, multi_feature, features_dataframe):
+    with pytest.raises(ValueError):
+        result = multi_feature._get_feature_columns(df=features_dataframe, include_columns=include_cols, exclude_columns=exclude_cols, entity_column="entity", timestamp_column="ts")

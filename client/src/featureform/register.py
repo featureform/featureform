@@ -1600,7 +1600,7 @@ class MultiFeatureColumnResource(ColumnResource):
         self,
         dataset: SourceVariant,
         df: pd.DataFrame,
-        entity_column: Union[Entity, str] = "",
+        entity_column: Union[Entity, str],
         variant: str = "",
         owner: str = "",
         inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
@@ -1646,14 +1646,16 @@ class MultiFeatureColumnResource(ColumnResource):
             variant (str): An optional variant name for the feature.
             inference_store (Union[str, OnlineProvider, FileStoreProvider]): Where to store for online serving.
         """
-        self.include_columns = include_columns or []
-        self.exclude_columns = exclude_columns or []
         self.tags = tags or []
         self.properties = properties or {}
         self.owner = owner
         self.description = description
         self.schedule = schedule
         self._resources = []
+
+        include_columns = include_columns or []
+        exclude_columns = exclude_columns or []
+
         register_columns = self._get_feature_columns(
             df, include_columns, exclude_columns, entity_column, timestamp_column
         )
@@ -1705,17 +1707,22 @@ class MultiFeatureColumnResource(ColumnResource):
         self, df, include_columns, exclude_columns, entity_column, timestamp_column
     ):
         all_columns_set = set([self._clean_name(col) for col in df.columns])
-        include_columns_set = set(self.include_columns)
-        exclude_columns_set = set(self.exclude_columns)
+        include_columns_set = set(include_columns)
+        exclude_columns_set = set(exclude_columns)
         exclude_columns_set.add(entity_column)
-        exclude_columns_set.add(timestamp_column)
+
+        if timestamp_column != "":
+            exclude_columns_set.add(timestamp_column)
 
         if not include_columns_set.issubset(all_columns_set):
             raise ValueError("Include columns must be in the dataframe")
+
         if not exclude_columns_set.issubset(all_columns_set):
             raise ValueError("Exclude columns must be in the dataframe")
+
         if not include_columns_set.isdisjoint(exclude_columns_set):
             raise ValueError("Include and exclude columns cannot have the same columns")
+
         if len(include_columns_set) > 0:
             return list(include_columns_set - exclude_columns_set)
         else:
@@ -1728,6 +1735,7 @@ class MultiFeatureColumnResource(ColumnResource):
                 df_has_quotes = True
             return df_has_quotes
 
+    # TODO: Verify if you can have empty strings as column names (Add unit test for it)
     def _clean_name(self, string_name):
         return string_name.replace('"', "")
 

@@ -6,6 +6,8 @@ from tempfile import NamedTemporaryFile
 
 import dill
 import pytest
+import datetime
+import pandas as pd
 
 sys.path.insert(0, "client/src/")
 
@@ -15,6 +17,7 @@ from featureform.register import (
     Registrar,
     OfflineSparkProvider,
     ColumnSourceRegistrar,
+    MultiFeatureColumnResource,
 )
 from featureform.resources import (
     AWSCredentials,
@@ -449,3 +452,23 @@ def gcp_credentials():
         project_id="project_id",
         credentials_path=f"{dir_path}/test_files/bigquery_dummy_credentials.json",
     )
+
+
+@pytest.fixture(scope="module")
+def multi_feature(primary_dataset, features_dataframe):
+    return ff.MultiFeature(dataset=primary_dataset[0], df=features_dataframe, entity_column="entity", timestamp_column="ts")
+
+
+@pytest.fixture(scope="module")
+def client():
+    return ff.Client(insecure=True, local=True)
+
+
+@pytest.fixture(scope="module")
+def data_dict():
+    return {"entity": [7, 8], "a": [1, 4], "b": [2, 5], "c": [3, 6], "ts":[datetime.datetime.now(), datetime.datetime.now()]}
+
+
+@pytest.fixture(scope="module")
+def features_dataframe(data_dict):
+    return pd.DataFrame(data_dict)

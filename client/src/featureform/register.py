@@ -88,6 +88,7 @@ NameVariant = Tuple[str, str]
 s3_config = S3StoreConfig("", "", AWSCredentials("id", "secret"))
 NON_INFERENCE_STORES = [s3_config.type()]
 
+
 def set_tags_properties(tags: Optional[List[str]], properties: Optional[dict]):
     if tags is None:
         tags = []
@@ -1592,6 +1593,7 @@ class FeatureColumnResource(ColumnResource):
             tags=tags,
             properties=properties,
         )
+
 
 class MultiFeatureColumnResource(ColumnResource):
     def __init__(

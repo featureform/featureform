@@ -456,7 +456,12 @@ def gcp_credentials():
 
 @pytest.fixture(scope="module")
 def multi_feature(primary_dataset, features_dataframe):
-    return ff.MultiFeature(dataset=primary_dataset[0], df=features_dataframe, entity_column="entity", timestamp_column="ts")
+    return ff.MultiFeature(
+        dataset=primary_dataset[0],
+        df=features_dataframe,
+        entity_column="entity",
+        timestamp_column="ts",
+    )
 
 
 @pytest.fixture(scope="module")
@@ -466,7 +471,13 @@ def client():
 
 @pytest.fixture(scope="module")
 def data_dict():
-    return {"entity": [7, 8], "a": [1, 4], "b": [2, 5], "c": [3, 6], "ts":[datetime.datetime.now(), datetime.datetime.now()]}
+    return {
+        "entity": [7, 8],
+        "a": [1, 4],
+        "b": [2, 5],
+        "c": [3, 6],
+        "ts": [datetime.datetime.now(), datetime.datetime.now()],
+    }
 
 
 @pytest.fixture(scope="module")

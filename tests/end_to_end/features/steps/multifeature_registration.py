@@ -1,6 +1,5 @@
 import os
 import random
-
 import requests
 from behave import *
 import featureform as ff
@@ -42,7 +41,7 @@ def step_impl(context):
         context.all_features = context.featureform.MultiFeature(
             dataset=context.transactions,
             df=context.dataset_df,
-            variant="default",
+            variant=ff.get_run(),
             exclude_columns=["transactionamount"],
             entity_column="customerid",
             timestamp_column="timestamp",
@@ -58,7 +57,7 @@ def step_impl(context):
         context.all_features = context.featureform.MultiFeature(
             dataset=context.transactions,
             df=context.dataset_df,
-            variant="default",
+            variant=ff.get_run(),
             include_columns=[
                 "transactionamount",
                 "customerdob",
@@ -74,11 +73,7 @@ def step_impl(context):
 def step_impl(context):
     # Serve batch features
     batch_features = context.client.batch_features(
-        ("customerdob", "default"),
-        ("custaccountbalance", "default"),
-        ("custlocation", "default"),
+        ("customerdob", ff.get_run()),
+        ("custaccountbalance", ff.get_run()),
+        ("custlocation", ff.get_run()),
     )
-
-    for entity, features in batch_features:
-        print(entity)
-        print(features)

@@ -15,6 +15,7 @@ def step_impl(context):
     run_id = "".join(random.choice(string.ascii_lowercase) for _ in range(15))
 
     ff.set_run(run_id)
+    context.variant = run_id
 
 
 #   ff.set_variant_prefix(run_id)

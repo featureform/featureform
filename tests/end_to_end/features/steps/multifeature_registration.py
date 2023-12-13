@@ -23,7 +23,7 @@ def step_impl(context):
 def step_impl(context):
     context.transactions = context.postgres.register_table(
         name="transactions",
-        variant="v4",
+        variant=ff.get_run(),
         table="transactions",  # This is the table's name in Postgres
     )
 
@@ -41,7 +41,7 @@ def step_impl(context):
         all_features = ff.MultiFeature(
             dataset=context.transactions,
             df=context.dataset_df,
-            variant="version_3",
+            variant=ff.get_run(),
             exclude_columns=["transactionamount"],
             entity_column="customerid",
             timestamp_column="timestamp",
@@ -60,7 +60,7 @@ def step_impl(context):
         all_features = ff.MultiFeature(
             dataset=context.transactions,
             df=context.dataset_df,
-            variant="version_3",
+            variant=ff.get_run(),
             include_columns=[
                 "transactionamount",
                 "customerdob",
@@ -79,9 +79,9 @@ def step_impl(context):
     # Serve batch features
     batch_features = context.client.batch_features(
         [
-            ("customerdob", "version_2"),
-            ("custaccountbalance", "version_2"),
-            ("custlocation", "version_2"),
+            ("customerdob", ff.get_run()),
+            ("custaccountbalance", ff.get_run()),
+            ("custlocation", ff.get_run()),
         ]
     )
 

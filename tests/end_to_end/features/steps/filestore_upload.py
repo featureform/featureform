@@ -70,8 +70,7 @@ def download_file(file_uri, local_file_name, filetype):
 
 
 def download_and_split_csv(file_uri, local_dir_name):
-    if not os.path.exists(local_dir_name):
-        os.mkdir(local_dir_name)
+    os.mkdir(local_dir_name, exist_ok=True)
 
     df = pd.read_csv(file_uri)
     dfs = np.array_split(df, 4)
@@ -91,11 +90,6 @@ def get_file_rows(local_file_name, filetype):
                 file_path = os.path.join(local_file_name, filename)
                 total_rows += len(pd.read_parquet(file_path))
         return total_rows
-
-
-def create_local_path(local_path):
-    if not os.path.exists(local_path):
-        os.mkdir(local_path)
 
 
 def upload_to_azure(
@@ -178,7 +172,8 @@ def step_impl(context, filesize, filetype, storage_provider):
     filename, file_uri = get_filename_and_uri(filesize, filetype)
 
     local_path = f"data/{context.variant}"
-    create_local_path(local_path)
+
+    os.makedirs(local_path, exist_ok=True)
 
     local_file_name = f"{local_path}/{filename}"
 

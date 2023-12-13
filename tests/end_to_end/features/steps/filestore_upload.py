@@ -57,8 +57,6 @@ def download_file(file_uri, local_file_name, filetype):
             df = pd.read_csv(file_uri)
             df.to_parquet(local_file_name)
         elif filetype == "directory":
-            if not os.path.exists(local_file_name):
-                os.mkdir(local_file_name)
             df = pd.read_csv(file_uri)
             dfs = np.array_split(df, 4)
             for i in range(4):
@@ -67,13 +65,16 @@ def download_file(file_uri, local_file_name, filetype):
 
 def get_file_rows(local_file_name, filetype):
     if filetype == "csv":
-        df = pd.read_csv(local_file_name)
+        return len(pd.read_csv(local_file_name))
     elif filetype == "parquet":
-        df = pd.read_parquet(local_file_name)
-    else:
-        raise ValueError("Unsupported file type")
-
-    return len(df.index)
+        return len(pd.read_parquet(local_file_name))
+    elif filetype == "directory":
+        total_rows = 0
+        for filename in os.listdir(local_file_name):
+            if filename.endswith(".parquet"):
+                file_path = os.path.join(local_file_name, filename)
+                total_rows += len(pd.read_parquet(file_path))
+        return total_rows
 
 
 def create_local_path(local_path):

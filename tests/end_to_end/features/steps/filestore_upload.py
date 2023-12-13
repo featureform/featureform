@@ -190,6 +190,7 @@ def step_impl(context, filesize, filetype, storage_provider):
     download_file(file_uri, local_file_name, filetype)
 
     context.file_length = get_file_rows(local_file_name, filetype)
+    logging.info(f"File length: {context.file_length}")
 
     if storage_provider == "azure":
         context.cloud_file_path = (

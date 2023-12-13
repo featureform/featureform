@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 import random
@@ -177,9 +178,12 @@ def step_impl(context):
     df = context.client.dataframe(
         context.transformation,
     )
+    logging.info(f"this is the head of the dataframe: {df.head()}")
+    logging.info(f"this is the first row of the dataframe: {df.iloc[0]}")
+    logging.info(f"transformation vars: {vars(context.transformation)}")
     assert (
         len(df) == context.file_length
-    ), f"Expected {context.file_length} rows, got {len(df)} rows for transformation {context.transformation.name_variant()}"
+    ), f"Expected {context.file_length} rows, got {len(df)} rows for transformation {vars(context.transformation)}"
 
 
 @when('I register a feature from a "{source_type}"')

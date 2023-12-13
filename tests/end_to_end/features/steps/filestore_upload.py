@@ -67,9 +67,13 @@ def download_file(file_uri, local_file_name, filetype):
 
 def get_file_rows(local_file_name, filetype):
     if filetype == "csv":
-        return len(pd.read_csv(local_file_name))
+        df = pd.read_csv(local_file_name)
     elif filetype == "parquet":
-        return len(pd.read_parquet(local_file_name))
+        df = pd.read_parquet(local_file_name)
+    else:
+        raise ValueError("Unsupported file type")
+
+    return len(df.index)
 
 
 def create_local_path(local_path):

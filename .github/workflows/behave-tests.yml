@@ -33,12 +33,9 @@ jobs:
         ports:
           - 6379:6379
       postgres:
-        image: postgres
-        restart: always
-        environment:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: postgres
+        image: featureformcom/postgres
+        ports:
+          - 5432:5432
     defaults:
       run:
         working-directory: ./
@@ -93,7 +90,7 @@ jobs:
       - name: Run Behavioral Tests
         if: github.ref != 'refs/heads/main'
         working-directory: ./tests/end_to_end/
-        run: behavex -t '~@wip' -t '~@long' --no-capture
+        run: behavex -t '@MultiFeature' --no-capture
 
       - name: Run Behavioral Tests
         if: github.ref == 'refs/heads/main'

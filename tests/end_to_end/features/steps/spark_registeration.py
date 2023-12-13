@@ -180,10 +180,11 @@ def step_impl(context):
     )
     logging.info(f"this is the head of the dataframe: {df.head()}")
     logging.info(f"this is the first row of the dataframe: {df.iloc[0]}")
-    logging.info(f"transformation vars: {vars(context.transformation)}")
+    logging.info("context.file_length: " + str(context.file_length))
+    logging.info("the length of the dataframe is: " + str(len(df.index)))
     assert (
         len(df) == context.file_length
-    ), f"Expected {context.file_length} rows, got {len(df)} rows for transformation {vars(context.transformation)}"
+    ), f"Expected {context.file_length} rows, got {len(df)} rows."
 
 
 @when('I register a feature from a "{source_type}"')

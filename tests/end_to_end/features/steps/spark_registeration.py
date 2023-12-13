@@ -11,7 +11,7 @@ from featureform import register_spark
 
 @when("I generate a random variant name")
 def step_impl(context):
-    run_id = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
+    run_id = "".join(random.choice(string.ascii_lowercase) for _ in range(15))
 
     ff.set_run(run_id)
 

@@ -90,7 +90,7 @@ def get_file_rows(local_file_name, filetype):
                 file_path = os.path.join(local_file_name, filename)
                 total_rows += len(pd.read_parquet(file_path))
         return total_rows
-    
+
 
 def create_local_path(local_path):
     if not os.path.exists(local_path):

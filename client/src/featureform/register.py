@@ -1715,13 +1715,19 @@ class MultiFeatureColumnResource(ColumnResource):
             exclude_columns_set.add(timestamp_column)
 
         if not include_columns_set.issubset(all_columns_set):
-            raise ValueError(f"{all_columns_set - include_columns_set} columns are not in the dataframe")
+            raise ValueError(
+                f"{all_columns_set - include_columns_set} columns are not in the dataframe"
+            )
 
         if not exclude_columns_set.issubset(all_columns_set):
-            raise ValueError(f"{all_columns_set - exclude_columns_set} columns are not in the dataframe")
+            raise ValueError(
+                f"{all_columns_set - exclude_columns_set} columns are not in the dataframe"
+            )
 
         if not include_columns_set.isdisjoint(exclude_columns_set):
-            raise ValueError("Include and exclude columns cannot have the same columns")
+            raise ValueError(
+                f"{include_columns_set.intersection(exclude_columns_set)} cannot be in the include and exclude lists"
+            )
 
         if len(include_columns_set) > 0:
             return list(include_columns_set - exclude_columns_set)

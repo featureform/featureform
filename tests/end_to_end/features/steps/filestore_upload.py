@@ -53,8 +53,9 @@ def download_file(file_uri, local_file_name, filetype):
 
     try:
         if filetype == "csv":
-            urllib.request.urlretrieve(file_uri, local_file_name)
-        elif filetype == "parquet":
+            _, response = urllib.request.urlretrieve(file_uri, local_file_name)
+            logging.info(f"Downloaded file: {response}")
+            # check # of rows in file
             df = pd.read_csv(file_uri)
             df.to_parquet(local_file_name)
         elif filetype == "directory":
@@ -179,7 +180,7 @@ def step_impl(context, filesize, filetype, storage_provider):
     local_path = "data"
     create_local_path(local_path)
 
-    local_file_name = f"{local_path}/{filename}"
+    local_file_name = f"{local_path}/{context.variant}/{filename}"
 
     remote_path = "data"
 

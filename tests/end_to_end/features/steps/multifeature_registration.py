@@ -6,22 +6,14 @@ from behave import given, when, then
 
 @when("I register postgres")
 def step_impl(context):
-    context.postgres_password = os.getenv("POSTGRES_PASSWORD", "")
-    context.postgres_database = os.getenv("POSTGRES_DB", "")
-
-    if context.postgres_password == "":
-        raise Exception("Postgres password is not set")
-    if context.postgres_database == "":
-        raise Exception("Postgres database is not set")
-
     try:
         context.postgres = ff.register_postgres(
             name="postgres-quickstart",
             host="host.docker.internal",  # The docker dns name for postgres
             port="5432",
             user="postgres",
-            password=context.postgres_password,
-            database=context.postgres_database,
+            password="password",
+            database="postgres",
         )
     except Exception as e:
         context.exception = e

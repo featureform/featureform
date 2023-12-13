@@ -47,20 +47,35 @@ def get_filename_and_uri(filesize, filetype):
 
 
 def download_file(file_uri, local_file_name, filetype):
-    if not os.path.exists(local_file_name):
+    if os.path.exists(local_file_name):
+        logging.warning(f"The file {local_file_name} already exists.")
+        return False
+
+    try:
         if filetype == "csv":
-            urllib.request.urlretrieve(
-                file_uri,
-                local_file_name,
-            )
+            urllib.request.urlretrieve(file_uri, local_file_name)
         elif filetype == "parquet":
             df = pd.read_csv(file_uri)
             df.to_parquet(local_file_name)
         elif filetype == "directory":
-            df = pd.read_csv(file_uri)
-            dfs = np.array_split(df, 4)
-            for i in range(4):
-                dfs[i].to_parquet(f"{local_file_name}/part-{i}.parquet")
+            download_and_split_csv(file_uri, local_file_name)
+        else:
+            raise ValueError(f"Unsupported file type: {filetype}")
+    except Exception as e:
+        logging.error(f"Error in downloading file: {e}")
+        return False
+
+    return True
+
+
+def download_and_split_csv(file_uri, local_dir_name):
+    if not os.path.exists(local_dir_name):
+        os.mkdir(local_dir_name)
+
+    df = pd.read_csv(file_uri)
+    dfs = np.array_split(df, 4)
+    for i, part_df in enumerate(dfs):
+        part_df.to_parquet(os.path.join(local_dir_name, f"part-{i}.parquet"))
 
 
 def get_file_rows(local_file_name, filetype):
@@ -68,13 +83,6 @@ def get_file_rows(local_file_name, filetype):
         return len(pd.read_csv(local_file_name))
     elif filetype == "parquet":
         return len(pd.read_parquet(local_file_name))
-    elif filetype == "directory":
-        total_rows = 0
-        for filename in os.listdir(local_file_name):
-            if filename.endswith(".parquet"):
-                file_path = os.path.join(local_file_name, filename)
-                total_rows += len(pd.read_parquet(file_path))
-        return total_rows
 
 
 def create_local_path(local_path):

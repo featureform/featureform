@@ -6,14 +6,25 @@ from behave import given, when, then
 
 @when("I register postgres")
 def step_impl(context):
+    context.postgres_user = os.getenv("POSTGRES_USER", "")
+    context.postgres_password = os.getenv("POSTGRES_PASSWORD", "")
+    context.postgres_database = os.getenv("POSTGRES_DB", "")
+
+    if context.postgres_user == "":
+        raise Exception("Postgres username is not set")
+    if context.postgres_password == "":
+        raise Exception("Postgres password is not set")
+    if context.postgres_database == "":
+        raise Exception("Postgres database is not set")
+
     try:
         context.postgres = ff.register_postgres(
             name="postgres-quickstart",
             host="host.docker.internal",  # The docker dns name for postgres
             port="5432",
-            user="postgres",
-            password="",
-            database="",
+            user=context.postgres_user,
+            password=context.postgres_password,
+            database=context.postgres_database,
         )
     except Exception as e:
         context.exception = e
@@ -23,7 +34,7 @@ def step_impl(context):
 def step_impl(context):
     context.transactions = context.postgres.register_table(
         name="transactions",
-        variant="v1",
+        variant="v4",
         table="transactions",  # This is the table's name in Postgres
     )
 
@@ -41,7 +52,7 @@ def step_impl(context):
         all_features = ff.MultiFeature(
             dataset=context.transactions,
             df=context.dataset_df,
-            variant="version_1",
+            variant="version_3",
             exclude_columns=["transactionamount"],
             entity_column="customerid",
             timestamp_column="timestamp",
@@ -60,7 +71,7 @@ def step_impl(context):
         all_features = ff.MultiFeature(
             dataset=context.transactions,
             df=context.dataset_df,
-            variant="version_1",
+            variant="version_3",
             include_columns=[
                 "transactionamount",
                 "customerdob",
@@ -79,13 +90,13 @@ def step_impl(context):
     # Serve batch features
     batch_features = context.client.batch_features(
         [
-            ("customerdob", "version_1"),
-            ("custaccountbalance", "version_1"),
-            ("custlocation", "version_1"),
+            ("customerdob", "version_2"),
+            ("custaccountbalance", "version_2"),
+            ("custlocation", "version_2"),
         ]
     )
 
     for entity, features in batch_features:
         assert len(features) == 3
-        assert entity != "" and entity is not None
+        assert entity != "" and entity != None
         break

@@ -70,7 +70,8 @@ def download_file(file_uri, local_file_name, filetype):
 
 
 def download_and_split_csv(file_uri, local_dir_name):
-    os.mkdir(local_dir_name, exist_ok=True)
+    if not os.path.exists(local_dir_name):
+        os.mkdir(local_dir_name)
 
     df = pd.read_csv(file_uri)
     dfs = np.array_split(df, 4)

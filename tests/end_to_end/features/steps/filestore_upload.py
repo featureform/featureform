@@ -83,7 +83,14 @@ def get_file_rows(local_file_name, filetype):
         return len(pd.read_csv(local_file_name))
     elif filetype == "parquet":
         return len(pd.read_parquet(local_file_name))
-
+    elif filetype == "directory":
+        total_rows = 0
+        for filename in os.listdir(local_file_name):
+            if filename.endswith(".parquet"):
+                file_path = os.path.join(local_file_name, filename)
+                total_rows += len(pd.read_parquet(file_path))
+        return total_rows
+    
 
 def create_local_path(local_path):
     if not os.path.exists(local_path):

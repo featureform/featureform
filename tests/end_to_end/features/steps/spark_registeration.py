@@ -179,7 +179,7 @@ def step_impl(context):
     )
     assert (
         len(df) == context.file_length
-    ), f"Expected {context.file_length} rows, got {len(df)} rows"
+    ), f"Expected {context.file_length} rows, got {len(df)} rows for transformation {context.transformation.name_variant()}"
 
 
 @when('I register a feature from a "{source_type}"')

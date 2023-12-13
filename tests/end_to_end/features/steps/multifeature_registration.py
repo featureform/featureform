@@ -6,12 +6,9 @@ from behave import given, when, then
 
 @when("I register postgres")
 def step_impl(context):
-    context.postgres_user = os.getenv("POSTGRES_USER", "")
     context.postgres_password = os.getenv("POSTGRES_PASSWORD", "")
     context.postgres_database = os.getenv("POSTGRES_DB", "")
 
-    if context.postgres_user == "":
-        raise Exception("Postgres username is not set")
     if context.postgres_password == "":
         raise Exception("Postgres password is not set")
     if context.postgres_database == "":
@@ -22,7 +19,7 @@ def step_impl(context):
             name="postgres-quickstart",
             host="host.docker.internal",  # The docker dns name for postgres
             port="5432",
-            user=context.postgres_user,
+            user="postgres",
             password=context.postgres_password,
             database=context.postgres_database,
         )

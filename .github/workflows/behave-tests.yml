@@ -92,7 +92,7 @@ jobs:
       - name: Run Behavioral Tests
         if: github.ref != 'refs/heads/main'
         working-directory: ./tests/end_to_end/
-        run: behavex -t '@MultiFeature' --no-capture
+        run: behavex -t '~@wip' -t '@long' --no-capture
 
       - name: Run Behavioral Tests
         if: github.ref == 'refs/heads/main'

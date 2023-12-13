@@ -6,17 +6,14 @@ from behave import given, when, then
 
 @when("I register postgres")
 def step_impl(context):
-    try:
-        context.postgres = ff.register_postgres(
-            name="postgres-quickstart",
-            host="172.17.0.1",  # The docker dns name for postgres
-            port="5432",
-            user="postgres",
-            password="password",
-            database="postgres",
-        )
-    except Exception as e:
-        context.exception = e
+    context.postgres = ff.register_postgres(
+        name="postgres-quickstart",
+        host="172.17.0.1",  # The docker dns name for postgres
+        port="5432",
+        user="postgres",
+        password="password",
+        database="postgres",
+    )
 
 
 @when("I register a table from postgres")
@@ -30,7 +27,6 @@ def step_impl(context):
 
 @when("I create a dataframe from a serving client")
 def step_impl(context):
-    context.client = ff.Client(host="localhost:7878", insecure=True)
     context.dataset_df = context.client.dataframe(context.transactions)
 
 

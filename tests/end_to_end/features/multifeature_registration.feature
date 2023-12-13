@@ -5,6 +5,7 @@ Feature: MultiFeature Registration
     Given Featureform is installed
     When I register postgres
     And I register a table from postgres
+    And I create a "hosted" "insecure" client for "localhost:7878"
     And I create a dataframe from a serving client
     And I register redis
     Then I define a User and register multiple features excluding one
@@ -15,6 +16,7 @@ Feature: MultiFeature Registration
     Given Featureform is installed
     When I register postgres
     And I register a table from postgres
+    And I create a "hosted" "insecure" client for "localhost:7878"
     And I create a dataframe from a serving client
     And I register redis
     Then I define a User and register multiple but not all features, with no timestamp column

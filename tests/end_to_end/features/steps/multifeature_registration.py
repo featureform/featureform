@@ -9,7 +9,7 @@ def step_impl(context):
     try:
         context.postgres = ff.register_postgres(
             name="postgres-quickstart",
-            host="host.docker.internal",  # The docker dns name for postgres
+            host="172.17.0.1",  # The docker dns name for postgres
             port="5432",
             user="postgres",
             password="password",

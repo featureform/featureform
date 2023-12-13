@@ -24,6 +24,7 @@ env:
   SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
   SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
 
+
 jobs:
   setup:
     name: Run Behave Tests
@@ -36,6 +37,7 @@ jobs:
         image: featureformcom/postgres
         ports:
           - 5432:5432
+        host: 172.17.0.1
     defaults:
       run:
         working-directory: ./

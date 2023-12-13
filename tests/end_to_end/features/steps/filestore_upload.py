@@ -55,7 +55,7 @@ def download_file(file_uri, local_file_name, filetype):
         if filetype == "csv":
             _, response = urllib.request.urlretrieve(file_uri, local_file_name)
             logging.info(f"Downloaded file: {response}")
-            # check # of rows in file
+        elif filetype == "parquet":
             df = pd.read_csv(file_uri)
             df.to_parquet(local_file_name)
         elif filetype == "directory":
@@ -177,14 +177,14 @@ def upload_to_gcs(bucket_name, local_file_name, upload_file_path, filetype):
 def step_impl(context, filesize, filetype, storage_provider):
     filename, file_uri = get_filename_and_uri(filesize, filetype)
 
-    local_path = "data"
+    local_path = f"data/{context.variant}"
     create_local_path(local_path)
 
-    local_file_name = f"{local_path}/{context.variant}/{filename}"
+    local_file_name = f"{local_path}/{filename}"
 
     remote_path = "data"
 
-    upload_file_path = os.path.join(remote_path, filename)
+    upload_file_path = os.path.join(remote_path, context.variant, filename)
     context.filename = upload_file_path
 
     # Create a file in the local data directory to upload and download

@@ -19,6 +19,9 @@ jobs:
       with:
         python-version: '3.10.12'
 
+    - name: Install dependencies
+      run: pip install requests
+
     - name: Run cleanup script
       env:
         DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}

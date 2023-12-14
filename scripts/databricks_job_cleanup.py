@@ -1,4 +1,5 @@
 import os
+
 import requests
 
 # for local
@@ -7,10 +8,12 @@ import requests
 # home_directory = os.getenv("HOME")
 # env_path = os.path.join(home_directory, "Development/featureform/.env")
 # load_dotenv(env_path)
+
 # Configuration
 DATABRICKS_HOST = os.getenv("DATABRICKS_HOST")
 DATABRICKS_TOKEN = os.getenv("ANOTHER_DATABRICKS_TOKEN")
 HEADERS = {"Authorization": f"Bearer {DATABRICKS_TOKEN}"}
+
 
 def delete_databricks_jobs():
     """List all jobs and trigger their deletion."""

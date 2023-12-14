@@ -92,12 +92,12 @@ jobs:
       - name: Run Behavioral Tests
         if: github.ref != 'refs/heads/main'
         working-directory: ./tests/end_to_end/
-        run: behavex -t '~@wip' -t '~@long' --no-capture --parallel-processes 15 --parallel-scheme scenario
+        run: behavex -t '~@wip' -t '~@long' --no-capture --parallel-processes 5 --parallel-scheme scenario
 
       - name: Run Behavioral Tests
         if: github.ref == 'refs/heads/main'
         working-directory: ./tests/end_to_end/
-        run: behavex -t '~@wip' -t '@long' --no-capture  --parallel-processes 15 --parallel-scheme scenario
+        run: behavex -t '~@wip' -t '@long' --no-capture  --parallel-processes 5 --parallel-scheme scenario
 
       - name: Archive test results
         if: always()

@@ -1,0 +1,27 @@
+name: Databricks Job Cleanup
+
+on:
+  schedule:
+    # Runs at 2 AM every day. Times are in UTC.
+    - cron: '0 2 * * *'
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10.12'
+
+    - name: Run cleanup script
+      env:
+        HOME: /home/runner
+        DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+        DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      run: python scripts/databricks-job-cleanup.yml
+

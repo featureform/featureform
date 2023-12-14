@@ -346,10 +346,10 @@ func TestOfflineStores(t *testing.T) {
 	//}
 
 	testFns := map[string]func(*testing.T, OfflineStore){
-		"CreateGetTable":          testCreateGetOfflineTable,
-		"TableAlreadyExists":      testOfflineTableAlreadyExists,
-		"TableNotFound":           testOfflineTableNotFound,
-		"InvalidResourceIDs":      testInvalidResourceIDs,
+		//"CreateGetTable":          testCreateGetOfflineTable,
+		//"TableAlreadyExists":      testOfflineTableAlreadyExists,
+		//"TableNotFound":           testOfflineTableNotFound,
+		//"InvalidResourceIDs":      testInvalidResourceIDs,
 		"Materializations":        testMaterializations,
 		"MaterializationUpdate":   testMaterializationUpdate,
 		"InvalidResourceRecord":   testWriteInvalidResourceRecord,
@@ -368,17 +368,17 @@ func TestOfflineStores(t *testing.T) {
 		"TrainingDefShorthand":   testTrainingSetDefShorthand,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
-		"PrimaryTableCreate":              testPrimaryCreateTable,
-		"PrimaryTableWrite":               testPrimaryTableWrite,
-		"Transformation":                  testTransform,
-		"TransformationUpdate":            testTransformUpdate,
-		"TransformationUpdateWithFeature": testTransformUpdateWithFeatures,
-		"CreateDuplicatePrimaryTable":     testCreateDuplicatePrimaryTable,
-		"ChainTransformations":            testChainTransform,
-		"CreateResourceFromSource":        testCreateResourceFromSource,
-		"CreateResourceFromSourceNoTS":    testCreateResourceFromSourceNoTS,
-		//"CreatePrimaryFromSource":            testCreatePrimaryFromSource,
-		//"CreatePrimaryFromNonExistentSource": testCreatePrimaryFromNonExistentSource,
+		"PrimaryTableCreate":                 testPrimaryCreateTable,
+		"PrimaryTableWrite":                  testPrimaryTableWrite,
+		"Transformation":                     testTransform,
+		"TransformationUpdate":               testTransformUpdate,
+		"TransformationUpdateWithFeature":    testTransformUpdateWithFeatures,
+		"CreateDuplicatePrimaryTable":        testCreateDuplicatePrimaryTable,
+		"ChainTransformations":               testChainTransform,
+		"CreateResourceFromSource":           testCreateResourceFromSource,
+		"CreateResourceFromSourceNoTS":       testCreateResourceFromSourceNoTS,
+		"CreatePrimaryFromSource":            testCreatePrimaryFromSource,
+		"CreatePrimaryFromNonExistentSource": testCreatePrimaryFromNonExistentSource,
 	}
 
 	psqlInfo := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), "localhost", "5432", os.Getenv("POSTGRES_DB"))

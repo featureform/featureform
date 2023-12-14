@@ -907,7 +907,7 @@ func (q clickhouseSQLQueries) primaryTableRegister(tableName string, sourceName 
 func (q clickhouseSQLQueries) materializationCreate(tableName string, sourceName string) []string {
 	return []string{fmt.Sprintf("CREATE TABLE %s ENGINE = ReplacingMergeTree ORDER BY (entity, ts) SETTINGS allow_nullable_key=1 EMPTY AS SELECT * FROM %s", sanitizeCH(tableName), sanitizeCH(sourceName)),
 		fmt.Sprintf("ALTER TABLE %s ADD COLUMN row_number UInt64;", sanitizeCH(tableName)),
-		fmt.Sprintf("INSERT INTO %s SELECT entity, value, tis AS ts, row_number() OVER () AS row_number FROM (SELECT entity, max(ts) AS tis, argMax(value, ts) AS value FROM %s GROUP BY entity);", sanitizeCH(tableName), sanitizeCH(sourceName)),
+		fmt.Sprintf("INSERT INTO %s SELECT entity, value, tis AS ts, row_number() OVER () AS row_number FROM (SELECT entity, max(ts) AS tis, argMax(value, ts) AS value FROM %s GROUP BY entity ORDER BY entity ASC, value ASC);", sanitizeCH(tableName), sanitizeCH(sourceName)),
 	}
 	return nil
 }
@@ -919,7 +919,7 @@ func (q clickhouseSQLQueries) materializationUpdate(db *sql.DB, tableName string
 	if _, err := db.Exec(fmt.Sprintf("CREATE TABLE %s AS %s", sanitizeCH(fmt.Sprintf("%s_%d", tableName, epochMilliseconds)), sanitizeCH(tableName))); err != nil {
 		return err
 	}
-	if _, err := db.Exec(fmt.Sprintf("INSERT INTO %s SELECT entity, value, tis AS ts, row_number() OVER () AS row_number FROM (SELECT entity, max(ts) AS tis, argMax(value, ts) AS value FROM %s GROUP BY entity);", sanitizeCH(fmt.Sprintf("%s_%d", tableName, epochMilliseconds)), sanitizeCH(sourceName))); err != nil {
+	if _, err := db.Exec(fmt.Sprintf("INSERT INTO %s SELECT entity, value, tis AS ts, row_number() OVER () AS row_number FROM (SELECT entity, max(ts) AS tis, argMax(value, ts) AS value FROM %s GROUP BY entity ORDER BY entity ASC, value ASC);", sanitizeCH(fmt.Sprintf("%s_%d", tableName, epochMilliseconds)), sanitizeCH(sourceName))); err != nil {
 		return err
 	}
 	if _, err := db.Exec(fmt.Sprintf("EXCHANGE TABLES %s AND %s", sanitizeCH(fmt.Sprintf("%s_%d", tableName, epochMilliseconds)), sanitizeCH(tableName))); err != nil {

@@ -284,7 +284,12 @@ func (table *clickhouseOfflineTable) WriteBatch(recs []ResourceRecord) error {
 	}
 	b := 0
 	for i, _ := range recs {
-		_, err := batch.Exec(recs[i].Entity, recs[i].Value, recs[i].TS)
+		ts := recs[i].TS
+		// insert empty time.Time{} as 1970
+		if recs[i].TS.IsZero() {
+			ts = time.UnixMilli(0)
+		}
+		_, err := batch.Exec(recs[i].Entity, recs[i].Value, ts)
 		if err != nil {
 			return err
 		}
@@ -1005,7 +1010,7 @@ func buildTrainingSelect(store *sqlOfflineStore, def TrainingSetDef, tableName s
 		}
 		santizedName := sanitizeCH(tableName)
 		tableJoinAlias := fmt.Sprintf("t%d", i)
-		columns = append(columns, fmt.Sprintf("%s.%s", tableJoinAlias, santizedName))
+		columns = append(columns, fmt.Sprintf("%s.value", tableJoinAlias))
 		query = fmt.Sprintf("%s ASOF LEFT JOIN (SELECT entity, value, ts FROM %s) AS %s ON (%s.entity = l.entity) AND (%s.ts <= l.ts)",
 			query, santizedName, tableJoinAlias, tableJoinAlias, tableJoinAlias)
 	}

@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 import random
@@ -11,9 +12,10 @@ from featureform import register_spark
 
 @when("I generate a random variant name")
 def step_impl(context):
-    run_id = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
+    run_id = "".join(random.choice(string.ascii_lowercase) for _ in range(15))
 
     ff.set_run(run_id)
+    context.variant = run_id
 
 
 #   ff.set_variant_prefix(run_id)
@@ -179,7 +181,7 @@ def step_impl(context):
     )
     assert (
         len(df) == context.file_length
-    ), f"Expected {context.file_length} rows, got {len(df)} rows"
+    ), f"Expected {context.file_length} rows, got {len(df)} rows."
 
 
 @when('I register a feature from a "{source_type}"')

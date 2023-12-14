@@ -1010,7 +1010,7 @@ func buildTrainingSelect(store *sqlOfflineStore, def TrainingSetDef, tableName s
 		}
 		santizedName := sanitizeCH(tableName)
 		tableJoinAlias := fmt.Sprintf("t%d", i)
-		columns = append(columns, fmt.Sprintf("%s.value", tableJoinAlias))
+		columns = append(columns, fmt.Sprintf("%s.value AS %s", tableJoinAlias, santizedName))
 		query = fmt.Sprintf("%s ASOF LEFT JOIN (SELECT entity, value, ts FROM %s) AS %s ON (%s.entity = l.entity) AND (%s.ts <= l.ts)",
 			query, santizedName, tableJoinAlias, tableJoinAlias, tableJoinAlias)
 	}
@@ -1045,7 +1045,7 @@ func (q clickhouseSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Train
 		if _, err := store.db.Exec(insertQuery); err != nil {
 			return err
 		}
-		if _, err := store.db.Exec(fmt.Sprintf("EXCHANGE TABLES %s AND %s", tableName, tempName)); err != nil {
+		if _, err := store.db.Exec(fmt.Sprintf("EXCHANGE TABLES %s AND %s", sanitizeCH(tableName), tempName)); err != nil {
 			return err
 		}
 		if _, err := store.db.Exec(fmt.Sprintf("DROP TABLE %s", tempName)); err != nil {

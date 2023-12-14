@@ -46,6 +46,7 @@ Feature = FeatureColumnResource
 Label = LabelColumnResource
 Variants = Variants
 Embedding = EmbeddingColumnResource
+MultiFeature = MultiFeatureColumnResource
 
 
 local = register_local()

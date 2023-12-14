@@ -1,6 +1,6 @@
 import pytest
 
-from featureform.resources import DatabricksCredentials, EMRCredentials
+from featureform.resources import DatabricksCredentials, EMRCredentials, AWSCredentials
 
 
 @pytest.mark.parametrize(
@@ -113,18 +113,22 @@ def test_emr_credentials(
     aws_access_key_id, aws_secret_access_key, emr_cluster_id, emr_cluster_region
 ):
     emr = EMRCredentials(
-        aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key,
         emr_cluster_id=emr_cluster_id,
         emr_cluster_region=emr_cluster_region,
+        credentials=AWSCredentials(
+            access_key=aws_access_key_id,
+            secret_key=aws_secret_access_key
+        )
     )
 
     expected_config = {
-        "AWSAccessKeyId": aws_access_key_id,
-        "AWSSecretKey": aws_secret_access_key,
         "ClusterName": emr_cluster_id,
         "ClusterRegion": emr_cluster_region,
+        "Credentials": {
+            "AWSAccessKeyId": "a",
+            "AWSSecretKey": "b"
+        }
     }
 
-    assert emr.type() == "emr"
+    assert emr.type() == "EMR"
     assert emr.config() == expected_config

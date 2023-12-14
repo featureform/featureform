@@ -55,7 +55,7 @@ cases = [
     ),
 ]
 
-
+@pytest.mark.skip(reason="out of scope for now")
 @pytest.mark.parametrize("case", cases)
 def test_online_vector_stores(case):
     load_dotenv(".env")

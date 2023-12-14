@@ -21,6 +21,7 @@ class SetupFixture:
 
 @pytest.fixture(scope="function")
 def setup(tmp_path_factory):
+    ff.register_local()
     variant = "cache_test"
 
     temp_dir = tmp_path_factory.mktemp("test_inputs")

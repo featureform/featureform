@@ -40,7 +40,8 @@ class LocalFileTable(OnlineStoreTable):
             df = df.astype({"entity": "str", "value": self.stype})
         except:
             raise ValueError(f"Could not cast feature to type {self.stype}")
-        self.df = self.df.append(df)
+        self.df = pd.concat([self.df, df], ignore_index=True)
+
 
     def set_batch(self, df):
         columns = df.columns
@@ -79,7 +80,7 @@ class LocalFileTable(OnlineStoreTable):
 
 
 class LocalFileStore(OnlineStore):
-    def __init__(self, config):
+    def __init__(self, config=""):
         self.path = ".featureform/features"
         self.type_table = f"{self.path}/types.csv"
         if not os.path.exists(self.path):

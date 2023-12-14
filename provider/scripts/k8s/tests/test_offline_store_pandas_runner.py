@@ -134,6 +134,8 @@ def test_execute_df_job(df_transformation, variables, expected_output, request):
         ),
     ],
 )
+
+
 def test_get_args(variables, request):
     environment_variables = request.getfixturevalue(variables)
     set_environment_variables(environment_variables)
@@ -179,6 +181,7 @@ def test_get_blob_credentials(variables, type, request):
     assert credentials == expected_output
 
 
+@pytest.mark.skip("Requires actual connection strings")
 @pytest.mark.parametrize(
     "variables,",
     [

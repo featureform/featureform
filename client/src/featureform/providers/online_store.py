@@ -42,15 +42,15 @@ class VectorType(ValueType):
 
 class OnlineStore(ABC):
     @abstractmethod
-    def get_table(self, feature: str, variant: str):
+    def get_table(self, name: str, variant: str):
         pass
 
     @abstractmethod
-    def create_table(self, feature: str, variant: str, entity_type: ValueType):
+    def create_table(self, name: str, variant: str, entity_type: ValueType):
         pass
 
     @abstractmethod
-    def delete_table(self, feature: str, variant: str):
+    def delete_table(self, name: str, variant: str):
         pass
 
     @abstractmethod

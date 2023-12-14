@@ -127,6 +127,7 @@ def test_set_spark_config(spark):
         assert spark.conf.get(key) == value
 
 
+@pytest.mark.skip("Requires actual connection strings")
 def test_download_blobs_to_local(container_client):
     blob = "scripts/spark/python_packages.sh"
     local_filename = "python_packages.sh"

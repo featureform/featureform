@@ -29,6 +29,8 @@ client/src/featureform/proto/
 **fileUploadTest**
 **fileDownloadTest**
 .ipynb_checkpoints
+iris.csv
+provider/scripts/spark/tests/test_files/output
 
 # End to End Tests ouput
 tests/end_to_end/feature.txt 

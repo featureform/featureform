@@ -1149,7 +1149,7 @@ func (q clickhouseSQLQueries) transformationUpdate(db *sql.DB, tableName string,
 	if _, err := db.Exec(insertQuery); err != nil {
 		return err
 	}
-	exchangeTableQuery := fmt.Sprintf("EXCHANGE TABLE %s AND %s", tempName, tableName)
+	exchangeTableQuery := fmt.Sprintf("EXCHANGE TABLES %s AND %s", tempName, sanitizeCH(tableName))
 	if _, err := db.Exec(exchangeTableQuery); err != nil {
 		return err
 	}

@@ -3747,6 +3747,8 @@ func getTableName(testName string, tableName string) string {
 	if strings.Contains(testName, "BIGQUERY") {
 		prefix := fmt.Sprintf("%s.%s", os.Getenv("BIGQUERY_PROJECT_ID"), os.Getenv("BIGQUERY_DATASET_ID"))
 		tableName = fmt.Sprintf("`%s.%s`", prefix, tableName)
+	} else if strings.Contains(testName, "CLICKHOUSE") {
+		tableName = sanitizeCH(tableName)
 	} else {
 		tableName = sanitize(tableName)
 	}
@@ -3756,6 +3758,8 @@ func getTableName(testName string, tableName string) string {
 func sanitizeTableName(testName string, tableName string) string {
 	if !strings.Contains(testName, "BIGQUERY") {
 		tableName = sanitize(tableName)
+	} else if strings.Contains(testName, "CLICKHOUSE") {
+		tableName = sanitizeCH(tableName)
 	}
 	return tableName
 }

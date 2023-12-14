@@ -23,5 +23,5 @@ jobs:
       env:
         DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
         DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-      run: python scripts/databricks-job-cleanup.py
+      run: python scripts/databricks_job_cleanup.py
 

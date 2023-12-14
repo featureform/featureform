@@ -24,7 +24,7 @@ def delete_databricks_jobs():
     url = f"{DATABRICKS_HOST}/api/2.1/jobs/list"
     print("https in url?", 'https' in url)
     print(".net in url:", '.net' in url)
-    print("this in it?" '5709078.18' in url)
+    print("this in it?", '5709078.18' in url)
     response = requests.get(url, headers=HEADERS)
 
     if response.status_code == 200:

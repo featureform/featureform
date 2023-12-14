@@ -87,7 +87,7 @@ const queryFormats = {
       type: 'count',
     },
   },
-  'Training Set': {
+  TrainingSet: {
     Throughput: {
       query: function (name, variant, step) {
         return `rate(test_counter{feature="${name}",key="${variant}",status="training_row_serve"}[${step}])`;

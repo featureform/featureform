@@ -185,16 +185,12 @@ func (store *clickHouseOfflineStore) getsqlResourceTable(id ResourceID) (*clickh
 func (store *clickHouseOfflineStore) materializationExists(id MaterializationID) (bool, error) {
 	tableName := store.getMaterializationTableName(id)
 	getMatQry := store.query.materializationExists()
-	rows, err := store.db.Query(getMatQry, tableName)
+	n := -1
+	err := store.db.QueryRow(getMatQry, tableName).Scan(&n)
 	if err != nil {
 		return false, err
 	}
-	defer rows.Close()
-	rowCount := 0
-	if rows.Next() {
-		rowCount++
-	}
-	if rowCount == 0 {
+	if n == 0 {
 		return false, nil
 	}
 	return true, nil
@@ -284,11 +280,12 @@ func (table *clickhouseOfflineTable) WriteBatch(recs []ResourceRecord) error {
 	}
 	b := 0
 	for i, _ := range recs {
+		if recs[i].Entity == "" && recs[i].Value == nil && recs[i].TS.IsZero() {
+			return fmt.Errorf("invalid record at offset %d", i)
+		}
 		ts := recs[i].TS
 		// insert empty time.Time{} as 1970
-		if recs[i].TS.IsZero() {
-			ts = time.UnixMilli(0)
-		}
+		ts = checkZeroTime(recs[i].TS)
 		_, err := batch.Exec(recs[i].Entity, recs[i].Value, ts)
 		if err != nil {
 			return err
@@ -588,17 +585,17 @@ func (store *clickHouseOfflineStore) CreateTransformation(config TransformationC
 }
 
 func (store *clickHouseOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+	n := -1
 	name, err := GetPrimaryTableName(id)
 	if err != nil {
 		return nil, err
 	}
 	existsQuery := store.query.tableExists()
-	rows, err := store.db.Query(existsQuery, name)
+	err = store.db.QueryRow(existsQuery, name).Scan(&n)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	if !rows.Next() {
+	if n == 0 {
 		return nil, fmt.Errorf("transformation not found: %v", name)
 	}
 	columnNames, err := store.query.getColumns(store.db, name)
@@ -733,18 +730,12 @@ func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (M
 	tableName := store.getMaterializationTableName(id)
 
 	getMatQry := store.query.materializationExists()
-
-	rows, err := store.db.Query(getMatQry, tableName)
+	n := -1
+	err := store.db.QueryRow(getMatQry, tableName).Scan(&n)
 	if err != nil {
 		return nil, fmt.Errorf("could not get materialization: %w", err)
 	}
-	defer rows.Close()
-
-	rowCount := 0
-	if rows.Next() {
-		rowCount++
-	}
-	if rowCount == 0 {
+	if n == 0 {
 		return nil, &MaterializationNotFound{id}
 	}
 	return &clickHouseMaterialization{
@@ -941,7 +932,7 @@ func (q clickhouseSQLQueries) materializationUpdate(db *sql.DB, tableName string
 }
 
 func (q clickhouseSQLQueries) materializationExists() string {
-	return "SELECT count() FROM system.tables WHERE table  = $1"
+	return q.tableExists()
 }
 
 func (q clickhouseSQLQueries) determineColumnType(valueType ValueType) (string, error) {

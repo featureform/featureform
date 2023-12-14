@@ -890,8 +890,8 @@ func (q clickhouseSQLQueries) registerResources(db *sql.DB, tableName string, sc
 		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, %s as ts FROM %s", sanitizeCH(tableName),
 			sanitizeCH(schema.Entity), sanitizeCH(schema.Value), sanitizeCH(schema.TS), sanitizeCH(schema.SourceTable))
 	} else {
-		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, %s ts FROM %s", sanitizeCH(tableName),
-			sanitizeCH(schema.Entity), sanitizeCH(schema.Value), time.UnixMilli(0).UTC(), sanitizeCH(schema.SourceTable))
+		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, toDateTime64(0, 9) AS ts FROM %s", sanitizeCH(tableName),
+			sanitizeCH(schema.Entity), sanitizeCH(schema.Value), sanitizeCH(schema.SourceTable))
 	}
 	fmt.Printf("Resource creation query: %s", query)
 	if _, err := db.Exec(query); err != nil {

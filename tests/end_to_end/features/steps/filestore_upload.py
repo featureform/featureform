@@ -47,26 +47,20 @@ def get_filename_and_uri(filesize, filetype):
 
 
 def download_file(file_uri, local_file_name, filetype):
-    if os.path.exists(local_file_name):
-        logging.warning(f"The file {local_file_name} already exists.")
-        return False
-
-    try:
-        if filetype == "csv":
-            _, response = urllib.request.urlretrieve(file_uri, local_file_name)
-            logging.info(f"Downloaded file: {response}")
-        elif filetype == "parquet":
-            df = pd.read_csv(file_uri)
-            df.to_parquet(local_file_name)
-        elif filetype == "directory":
-            download_and_split_csv(file_uri, local_file_name)
-        else:
-            raise ValueError(f"Unsupported file type: {filetype}")
-    except Exception as e:
-        logging.error(f"Error in downloading file: {e}")
-        return False
-
-    return True
+    if not os.path.exists(local_file_name):
+        try:
+            if filetype == "csv":
+                _, response = urllib.request.urlretrieve(file_uri, local_file_name)
+                logging.info(f"Downloaded file: {response}")
+            elif filetype == "parquet":
+                df = pd.read_csv(file_uri)
+                df.to_parquet(local_file_name)
+            elif filetype == "directory":
+                download_and_split_csv(file_uri, local_file_name)
+            else:
+                raise ValueError(f"Unsupported file type: {filetype}")
+        except Exception as e:
+            logging.error(f"Error in downloading file: {e}")
 
 
 def download_and_split_csv(file_uri, local_dir_name):
@@ -187,7 +181,7 @@ def step_impl(context, filesize, filetype, storage_provider):
     download_file(file_uri, local_file_name, filetype)
 
     context.file_length = get_file_rows(local_file_name, filetype)
-    logging.info(f"File length: {context.file_length}")
+    logging.info(f"File length for uploaded file: {context.file_length}")
 
     if storage_provider == "azure":
         context.cloud_file_path = (

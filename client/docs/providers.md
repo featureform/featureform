@@ -75,7 +75,7 @@ Credentials are objects that can be reused in the same definitions file when reg
 
 
 #### Databricks
-::: featureform.resources.DatabricksCredentials.__init__
+::: featureform.resources.DatabricksCredentials
     handler: python
     options:
         show_root_heading: false

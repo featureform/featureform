@@ -24,7 +24,7 @@ def delete_databricks_jobs():
             )
             delete_jobs(response.json().get("jobs", []))
     else:
-        raise Exception(f"Error listing jobs: {response.content}")
+        raise Exception(f"Error listing jobs: {response}")
 
 
 def delete_jobs(jobs):

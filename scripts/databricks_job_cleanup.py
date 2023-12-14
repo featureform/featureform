@@ -9,12 +9,8 @@ import requests
 # load_dotenv(env_path)
 # Configuration
 DATABRICKS_HOST = os.getenv("DATABRICKS_HOST")
-DATABRICKS_TOKEN = os.getenv("DATABRICKS_TOKEN")
+DATABRICKS_TOKEN = os.getenv("ANOTHER_DATABRICKS_TOKEN")
 HEADERS = {"Authorization": f"Bearer {DATABRICKS_TOKEN}"}
-
-print('is this in it?', 'dapi80ee1361f82ac1e45' in DATABRICKS_TOKEN)
-# md5 hash of databricks host
-
 
 def delete_databricks_jobs():
     """List all jobs and trigger their deletion."""

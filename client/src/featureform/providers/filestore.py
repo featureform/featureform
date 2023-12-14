@@ -42,7 +42,6 @@ class LocalFileTable(OnlineStoreTable):
             raise ValueError(f"Could not cast feature to type {self.stype}")
         self.df = pd.concat([self.df, df], ignore_index=True)
 
-
     def set_batch(self, df):
         columns = df.columns
         df = (

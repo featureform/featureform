@@ -55,16 +55,18 @@ dir_path = os.path.dirname(real_path)
 
 pytest_plugins = []
 
+
 def pytest_configure(config):
     import requests
-    url = 'https://featureform-demo-files.s3.amazonaws.com/transactions_short.csv'
+
+    url = "https://featureform-demo-files.s3.amazonaws.com/transactions_short.csv"
     response = requests.get(url)
-    with open('transactions.csv', 'wb') as file:
+    with open("transactions.csv", "wb") as file:
         file.write(response.content)
 
-    url = 'https://featureform-demo-files.s3.amazonaws.com/Iris.csv'
+    url = "https://featureform-demo-files.s3.amazonaws.com/Iris.csv"
     response = requests.get(url)
-    with open('iris.csv', 'wb') as file:
+    with open("iris.csv", "wb") as file:
         file.write(response.content)
 
 

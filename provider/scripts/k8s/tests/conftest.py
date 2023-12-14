@@ -9,13 +9,13 @@ from azure.storage.blob import BlobServiceClient
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
 
-os.environ['AWS_ACCESS_KEY_ID'] = "secret"
-os.environ['AWS_SECRET_KEY'] = "secret"
-os.environ['S3_BUCKET_NAME'] = "secret"
-os.environ['S3_BUCKET_REGION'] = "secret"
+os.environ["AWS_ACCESS_KEY_ID"] = "secret"
+os.environ["AWS_SECRET_KEY"] = "secret"
+os.environ["S3_BUCKET_NAME"] = "secret"
+os.environ["S3_BUCKET_REGION"] = "secret"
 
-os.environ['AZURE_CONNECTION_STRING'] = "secret"
-os.environ['AZURE_CONTAINER_NAME'] = "secret"
+os.environ["AZURE_CONNECTION_STRING"] = "secret"
+os.environ["AZURE_CONTAINER_NAME"] = "secret"
 
 
 @pytest.fixture(scope="module")

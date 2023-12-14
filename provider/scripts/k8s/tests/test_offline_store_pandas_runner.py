@@ -134,8 +134,6 @@ def test_execute_df_job(df_transformation, variables, expected_output, request):
         ),
     ],
 )
-
-
 def test_get_args(variables, request):
     environment_variables = request.getfixturevalue(variables)
     set_environment_variables(environment_variables)

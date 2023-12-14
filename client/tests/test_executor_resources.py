@@ -116,18 +116,14 @@ def test_emr_credentials(
         emr_cluster_id=emr_cluster_id,
         emr_cluster_region=emr_cluster_region,
         credentials=AWSCredentials(
-            access_key=aws_access_key_id,
-            secret_key=aws_secret_access_key
-        )
+            access_key=aws_access_key_id, secret_key=aws_secret_access_key
+        ),
     )
 
     expected_config = {
         "ClusterName": emr_cluster_id,
         "ClusterRegion": emr_cluster_region,
-        "Credentials": {
-            "AWSAccessKeyId": "a",
-            "AWSSecretKey": "b"
-        }
+        "Credentials": {"AWSAccessKeyId": "a", "AWSSecretKey": "b"},
     }
 
     assert emr.type() == "EMR"

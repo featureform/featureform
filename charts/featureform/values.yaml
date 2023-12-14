@@ -116,6 +116,9 @@ etcd:
     token:
       ttl: 100h
   replicaCount: 3
+  extraEnvVarsCM: etcd-upgrade-configmap
+  removeMemberOnContainerTermination: false
+
 
 meilisearch:
   fullnameOverride: featureform-search

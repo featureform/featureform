@@ -21,8 +21,7 @@ jobs:
 
     - name: Run cleanup script
       env:
-        HOME: /home/runner
         DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
         DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-      run: python scripts/databricks-job-cleanup.py
+      run: python /scripts/databricks-job-cleanup.py
 

@@ -9,21 +9,13 @@ package provider
 
 import (
 	"bytes"
+	"cloud.google.com/go/bigquery"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
-	"math/rand"
-	"os"
-	"reflect"
-	"strings"
-	"testing"
-	"time"
-
-	"cloud.google.com/go/bigquery"
 	fs "github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -31,6 +23,14 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/parquet-go/parquet-go"
 	"google.golang.org/api/option"
+	"io/ioutil"
+	"math/rand"
+	"os"
+	"reflect"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
 )
 
 var provider = flag.String("provider", "clickhouse", "provider to perform test on")
@@ -60,6 +60,13 @@ func TestOfflineStores(t *testing.T) {
 		return value
 	}
 
+	getEnv := func(key, fallback string) string {
+		if value, ok := os.LookupEnv(key); ok {
+			return value
+		}
+		return fallback
+	}
+
 	postgresInit := func() pc.SerializedConfig {
 		db := checkEnv("POSTGRES_DB")
 		user := checkEnv("POSTGRES_USER")
@@ -73,21 +80,6 @@ func TestOfflineStores(t *testing.T) {
 			SSLMode:  "disable",
 		}
 		return postgresConfig.Serialize()
-	}
-
-	clickhouseInt := func() pc.SerializedConfig {
-		db := checkEnv("CLICKHOUSE_DB")
-		user := checkEnv("CLICKHOUSE_USER")
-		password := checkEnv("CLICKHOUSE_PASSWORD")
-		var clickhouseConfig = pc.ClickHouseConfig{
-			Host:     "localhost",
-			Port:     9000,
-			Database: db,
-			Username: user,
-			Password: password,
-			SSL:      false,
-		}
-		return clickhouseConfig.Serialize()
 	}
 
 	//mySqlInit := func() pc.SerializedConfig {
@@ -122,6 +114,34 @@ func TestOfflineStores(t *testing.T) {
 			t.Fatalf("%v", err)
 		}
 		return snowflakeConfig.Serialize(), snowflakeConfig
+	}
+
+	clickHouseInit := func() (pc.SerializedConfig, pc.ClickHouseConfig) {
+		clickHouseDb := ""
+		ok := true
+		if clickHouseDb, ok = os.LookupEnv("CLICKHOUSE_DATABASE"); !ok {
+			clickHouseDb = fmt.Sprintf("feature_form_%d", time.Now().UnixMilli())
+		}
+		t.Log("ClickHouse Database: ", clickHouseDb)
+		username := checkEnv("CLICKHOUSE_USER")
+		password := checkEnv("CLICKHOUSE_PASSWORD")
+		host := getEnv("CLICKHOUSE_HOST", "localhost")
+		port, err := strconv.ParseUint(getEnv("CLICKHOUSE_PORT", "9000"), 10, 16)
+		if err != nil {
+			port = 9000
+		}
+		var clickHouseConfig = pc.ClickHouseConfig{
+			Host:     host,
+			Port:     uint16(port),
+			Username: username,
+			Password: password,
+			Database: clickHouseDb,
+			SSL:      false,
+		}
+		if err := createClickHouseDatabase(clickHouseConfig); err != nil {
+			t.Fatalf("%v", err)
+		}
+		return clickHouseConfig.Serialize(), clickHouseConfig
 	}
 
 	redshiftInit := func() (pc.SerializedConfig, pc.RedshiftConfig) {
@@ -276,7 +296,8 @@ func TestOfflineStores(t *testing.T) {
 		testList = append(testList, testMember{pt.PostgresOffline, postgresInit(), true})
 	}
 	if *provider == "clickhouse" || *provider == "" {
-		testList = append(testList, testMember{pt.ClickHouseOffline, clickhouseInt(), true})
+		serialCHConfig, _ := clickHouseInit()
+		testList = append(testList, testMember{pt.ClickHouseOffline, serialCHConfig, true})
 	}
 	//if *provider == "mysql" || *provider == "" {
 	//	testList = append(testList, testMember{pt.MySqlOffline, mySqlInit(), true})
@@ -471,6 +492,20 @@ func createSnowflakeDatabase(c pc.SnowflakeConfig) error {
 	}
 	databaseQuery := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", sanitize(c.Database))
 	if _, err := db.Exec(databaseQuery); err != nil {
+		return err
+	}
+	return nil
+}
+
+func createClickHouseDatabase(c pc.ClickHouseConfig) error {
+	conn, err := sql.Open("clickhouse", fmt.Sprintf("clickhouse://%s:%d?username=%s&password=%s&secure=%t", c.Host, c.Port, c.Username, c.Password, c.SSL))
+	if err != nil {
+		return err
+	}
+	if _, err := conn.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", sanitizeCH(c.Database))); err != nil {
+		return err
+	}
+	if _, err := conn.Exec(fmt.Sprintf("CREATE DATABASE %s", sanitizeCH(c.Database))); err != nil {
 		return err
 	}
 	return nil

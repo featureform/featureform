@@ -905,7 +905,7 @@ func (q clickhouseSQLQueries) primaryTableRegister(tableName string, sourceName 
 }
 
 func (q clickhouseSQLQueries) materializationCreate(tableName string, sourceName string) []string {
-	return []string{fmt.Sprintf("CREATE TABLE %s ENGINE = ReplacingMergeTree ORDER BY (entity, ts) EMPTY AS SELECT * FROM %s", sanitizeCH(tableName), sanitizeCH(sourceName)),
+	return []string{fmt.Sprintf("CREATE TABLE %s ENGINE = ReplacingMergeTree ORDER BY (entity, ts) SETTINGS allow_nullable_key=1 EMPTY AS SELECT * FROM %s", sanitizeCH(tableName), sanitizeCH(sourceName)),
 		fmt.Sprintf("ALTER TABLE %s ADD COLUMN row_number UInt64;", sanitizeCH(tableName)),
 		fmt.Sprintf("INSERT INTO %s SELECT entity, value, tis AS ts, row_number() OVER () AS row_number FROM (SELECT entity, max(ts) AS tis, argMax(value, ts) AS value FROM %s GROUP BY entity);", sanitizeCH(tableName), sanitizeCH(sourceName)),
 	}
@@ -962,7 +962,7 @@ func (q clickhouseSQLQueries) determineColumnType(valueType ValueType) (string, 
 }
 
 func (q clickhouseSQLQueries) newSQLOfflineTable(name string, columnType string) string {
-	return fmt.Sprintf("CREATE TABLE %s (entity String, value Nullable(%s), ts DateTime64(9)) ENGINE = ReplacingMergeTree ORDER BY (entity, ts)", sanitizeCH(name), columnType)
+	return fmt.Sprintf("CREATE TABLE %s (entity String, value Nullable(%s), ts DateTime64(9)) ENGINE = ReplacingMergeTree ORDER BY (entity, ts) SETTINGS allow_nullable_key=1", sanitizeCH(name), columnType)
 }
 
 func (q clickhouseSQLQueries) writeUpdate(table string) string {
@@ -1006,8 +1006,7 @@ func buildTrainingSelect(store *sqlOfflineStore, def TrainingSetDef, tableName s
 			query, santizedName, tableJoinAlias, tableJoinAlias, tableJoinAlias)
 	}
 	columnStr := strings.Join(columns, ", ")
-	// assumeNotNull allows us to later order by the label
-	query = fmt.Sprintf("SELECT %s, assumeNotNull(l.value) as label FROM %s AS l %s", columnStr, sanitizeCH(labelName), query)
+	query = fmt.Sprintf("SELECT %s, l.value as label FROM %s AS l %s", columnStr, sanitizeCH(labelName), query)
 	return query, nil
 }
 
@@ -1018,7 +1017,7 @@ func (q clickhouseSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Train
 	}
 	if !isUpdate {
 		// use a 2-step EMPTY create so ClickHouse Cloud compatible
-		createQuery := fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY label EMPTY AS (%s)", sanitizeCH(tableName), query)
+		createQuery := fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY label SETTINGS allow_nullable_key=1 EMPTY AS (%s)", sanitizeCH(tableName), query)
 		if _, err := store.db.Exec(createQuery); err != nil {
 			return err
 		}
@@ -1028,7 +1027,7 @@ func (q clickhouseSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Train
 		}
 	} else {
 		tempName := sanitizeCH(fmt.Sprintf("tmp_%s", tableName))
-		createQuery := fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY label EMPTY AS (%s)", tempName, query)
+		createQuery := fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY label SETTINGS allow_nullable_key=1 EMPTY AS (%s)", tempName, query)
 		if _, err := store.db.Exec(createQuery); err != nil {
 			return err
 		}

@@ -23,6 +23,8 @@ env:
   SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
   SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
   SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
+  POSTGRES_HOST: 172.17.0.1
+
 
 jobs:
   setup:
@@ -32,6 +34,10 @@ jobs:
         image: redis
         ports:
           - 6379:6379
+      postgres:
+        image: featureformcom/postgres
+        ports:
+          - 5432:5432
     defaults:
       run:
         working-directory: ./

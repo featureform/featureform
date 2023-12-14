@@ -17,7 +17,7 @@ func TestClickHouseConfigMutableFields(t *testing.T) {
 
 	config := ClickHouseConfig{
 		Host:     "0.0.0.0",
-		Port:     "9000",
+		Port:     9000,
 		Username: "default",
 		Password: "password",
 		Database: "clickhouse",
@@ -44,7 +44,7 @@ func TestClickHouseConfigDifferingFields(t *testing.T) {
 		{"No Differing Fields", args{
 			a: ClickHouseConfig{
 				Host:     "0.0.0.0",
-				Port:     "5432",
+				Port:     9000,
 				Username: "clickhouse",
 				Password: "password",
 				Database: "default",
@@ -52,7 +52,7 @@ func TestClickHouseConfigDifferingFields(t *testing.T) {
 			},
 			b: ClickHouseConfig{
 				Host:     "0.0.0.0",
-				Port:     "5432",
+				Port:     9000,
 				Username: "clickhouse",
 				Password: "password",
 				Database: "default",
@@ -62,7 +62,7 @@ func TestClickHouseConfigDifferingFields(t *testing.T) {
 		{"Differing Fields", args{
 			a: ClickHouseConfig{
 				Host:     "0.0.0.0",
-				Port:     "5432",
+				Port:     9000,
 				Username: "clickhouse",
 				Password: "password",
 				Database: "default",
@@ -70,7 +70,7 @@ func TestClickHouseConfigDifferingFields(t *testing.T) {
 			},
 			b: ClickHouseConfig{
 				Host:     "127.0.0.1",
-				Port:     "5432",
+				Port:     9000,
 				Username: "root",
 				Password: "password",
 				Database: "transaction",

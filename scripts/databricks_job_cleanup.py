@@ -2,7 +2,7 @@ import os
 import requests
 
 # for local
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 # Load .env file
 # home_directory = os.getenv("HOME")
 # env_path = os.path.join(home_directory, "Development/featureform/.env")

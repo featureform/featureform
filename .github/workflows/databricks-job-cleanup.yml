@@ -1,9 +1,10 @@
 name: Databricks Job Cleanup
 
 on:
-  schedule:
-    # Runs at 2 AM every day. Times are in UTC.
-    - cron: '0 2 * * *'
+  pull_request:
+  push:
+    branches:
+      - main
 
 jobs:
   cleanup:

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etcd-upgrade-configmap
+data:
+  DYNAMIC_IS_INSTALL:  {{ .Release.IsInstall | quote }}
+  DYNAMIC_IS_UPGRADE:  {{ .Release.IsUpgrade | quote }}
+  DYNAMIC_ETCD_INITIAL_CLUSTER_STATE:  {{ ternary "new" "existing" .Release.IsInstall | quote }}
+  ETCD_INITIAL_CLUSTER_STATE: {{ ternary "new" "existing" .Release.IsInstall | quote }} 

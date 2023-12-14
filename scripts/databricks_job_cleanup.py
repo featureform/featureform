@@ -11,7 +11,7 @@ import requests
 
 # Configuration
 DATABRICKS_HOST = os.getenv("DATABRICKS_HOST")
-DATABRICKS_TOKEN = os.getenv("ANOTHER_DATABRICKS_TOKEN")
+DATABRICKS_TOKEN = os.getenv("DATABRICKS_TOKEN")
 HEADERS = {"Authorization": f"Bearer {DATABRICKS_TOKEN}"}
 
 

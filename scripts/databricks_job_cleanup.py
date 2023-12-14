@@ -9,7 +9,7 @@ HEADERS = {"Authorization": f"Bearer {DATABRICKS_TOKEN}"}
 
 def delete_databricks_jobs():
     """List all jobs and trigger their deletion."""
-    url = f"{DATABRICKS_HOST}/api/2.1/jobs/list"
+    url = f"https://{DATABRICKS_HOST}/api/2.1/jobs/list"
     print(f"DataBricks URL: {url}")
     response = requests.get(url, headers=HEADERS)
 
@@ -36,7 +36,7 @@ def delete_jobs(jobs):
 def delete_job(job_id):
     """Delete a job by job ID."""
     print(f"Deleting job ID: {job_id}")
-    url = f"{DATABRICKS_HOST}/api/2.1/jobs/delete"
+    url = f"https://{DATABRICKS_HOST}/api/2.1/jobs/delete"
     response = requests.post(url, headers=HEADERS, json={"job_id": job_id})
 
     if response.status_code == 200:

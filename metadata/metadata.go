@@ -1318,6 +1318,8 @@ func (resource *providerResource) isValidConfigUpdate(configUpdate pc.Serialized
 		return isValidMongoConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.PostgresOffline:
 		return isValidPostgresConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
+	case pt.ClickHouseOffline:
+		return isValidClickHouseConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.RedisOnline:
 		return isValidRedisConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.SnowflakeOffline:

@@ -77,13 +77,13 @@ func (q redshiftSQLQueries) primaryTableRegister(tableName string, sourceName st
 	return query
 }
 
-func (q redshiftSQLQueries) materializationCreate(tableName string, resultName string) string {
-	query := fmt.Sprintf(
-		"CREATE TABLE %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (entity)) as row_number FROM ("+
-			"SELECT entity, value, ts, row_number() OVER (PARTITION BY entity ORDER BY entity, ts DESC) as rn "+
-			"FROM %s) WHERE rn=1 ORDER BY entity)", sanitize(tableName), sanitize(resultName))
-
-	return query
+func (q redshiftSQLQueries) materializationCreate(tableName string, resultName string) []string {
+	return []string{
+		fmt.Sprintf(
+			"CREATE TABLE %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (entity)) as row_number FROM ("+
+				"SELECT entity, value, ts, row_number() OVER (PARTITION BY entity ORDER BY entity, ts DESC) as rn "+
+				"FROM %s) WHERE rn=1 ORDER BY entity)", sanitize(tableName), sanitize(resultName)),
+	}
 }
 
 func (q redshiftSQLQueries) materializationUpdate(db *sql.DB, tableName string, sourceName string) error {
@@ -237,9 +237,8 @@ func (q redshiftSQLQueries) numRows(n interface{}) (int64, error) {
 	return n.(int64), nil
 }
 
-func (q redshiftSQLQueries) transformationCreate(name string, query string) string {
-	que := fmt.Sprintf("CREATE TABLE %s AS %s", sanitize(name), query)
-	return que
+func (q redshiftSQLQueries) transformationCreate(name string, query string) []string {
+	return []string{fmt.Sprintf("CREATE TABLE %s AS %s", sanitize(name), query)}
 }
 
 func (q redshiftSQLQueries) transformationUpdate(db *sql.DB, tableName string, query string) error {

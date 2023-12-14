@@ -63,6 +63,20 @@ func TestHealth_Check(t *testing.T) {
 		)
 	}
 
+	if *providerType == "clickhouse" || *providerType == "" {
+		config := initProvider(t, pt.ClickHouseOffline, "", "")
+		providers = append(providers,
+			metadata.ProviderDef{
+				Name:             "clickhouse",
+				Type:             string(pt.ClickHouseOffline),
+				SerializedConfig: config,
+				Software:         "clickhouse",
+				Tags:             metadata.Tags{},
+				Properties:       metadata.Properties{},
+			},
+		)
+	}
+
 	if *providerType == "spark-databricks-s3" || *providerType == "spark" || *providerType == "" {
 		config := initProvider(t, pt.SparkOffline, pc.Databricks, fs.S3)
 		providers = append(providers,
@@ -284,6 +298,19 @@ func initProvider(t *testing.T, providerType pt.Type, executorType pc.SparkExecu
 			SSLMode:  "disable",
 		}
 		return postgresConfig.Serialize()
+	case pt.ClickHouseOffline:
+		db := checkEnv("CLICKHOUSE_DB")
+		user := checkEnv("CLICKHOUSE_USER")
+		password := checkEnv("CLICKHOUSE_PASSWORD")
+		clickhouseConfig := pc.ClickHouseConfig{
+			Host:     "0.0.0.0",
+			Port:     "9000",
+			Username: user,
+			Password: password,
+			Database: db,
+			SSL:      false,
+		}
+		return clickhouseConfig.Serialize()
 	case pt.SparkOffline:
 		serializedConfig, _ := initSpark(t, executorType, storeType)
 		return serializedConfig
@@ -354,6 +381,14 @@ func testUnsuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *
 		failureConfig.SSLMode = "require"
 		def.SerializedConfig = failureConfig.Serialize()
 		def.Name = "postgres-failure"
+	case pt.ClickHouseOffline:
+		failureConfig := pc.ClickHouseConfig{}
+		if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {
+			t.Fatalf("Failed to deserialize config: %s", err)
+		}
+		failureConfig.SSL = true
+		def.SerializedConfig = failureConfig.Serialize()
+		def.Name = "clickhouse-failure"
 	case pt.SparkOffline:
 		failureConfig := pc.SparkConfig{}
 		if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {

@@ -33,7 +33,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-var provider = flag.String("provider", "", "provider to perform test on")
+var provider = flag.String("provider", "clickhouse", "provider to perform test on")
 
 type testMember struct {
 	t               pt.Type
@@ -73,6 +73,21 @@ func TestOfflineStores(t *testing.T) {
 			SSLMode:  "disable",
 		}
 		return postgresConfig.Serialize()
+	}
+
+	clickhouseInt := func() pc.SerializedConfig {
+		db := checkEnv("CLICKHOUSE_DB")
+		user := checkEnv("CLICKHOUSE_USER")
+		password := checkEnv("CLICKHOUSE_PASSWORD")
+		var clickhouseConfig = pc.ClickHouseConfig{
+			Host:     "localhost",
+			Port:     9000,
+			Database: db,
+			Username: user,
+			Password: password,
+			SSL:      false,
+		}
+		return clickhouseConfig.Serialize()
 	}
 
 	//mySqlInit := func() pc.SerializedConfig {
@@ -259,6 +274,9 @@ func TestOfflineStores(t *testing.T) {
 	}
 	if *provider == "postgres" || *provider == "" {
 		testList = append(testList, testMember{pt.PostgresOffline, postgresInit(), true})
+	}
+	if *provider == "clickhouse" || *provider == "" {
+		testList = append(testList, testMember{pt.ClickHouseOffline, clickhouseInt(), true})
 	}
 	//if *provider == "mysql" || *provider == "" {
 	//	testList = append(testList, testMember{pt.MySqlOffline, mySqlInit(), true})
@@ -3748,7 +3766,7 @@ func modifyTransformationConfig(t *testing.T, testName, tableName string, provid
 		// In contrast to the SQL provider, that only needed change is the table name to perform the required transformation configuration,
 		// The Spark implementation needs to update the source mappings to ensure the source file is used in the transformation query.
 		config.SourceMapping[0].Source = tableName
-	case pt.MemoryOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.MySqlOffline, pt.SnowflakeOffline, pt.RedshiftOffline:
+	case pt.MemoryOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.MySqlOffline, pt.SnowflakeOffline, pt.ClickHouseOffline, pt.RedshiftOffline:
 		tableName := getTableName(testName, tableName)
 		config.Query = strings.Replace(config.Query, "tb", tableName, 1)
 	default:

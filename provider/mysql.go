@@ -81,8 +81,8 @@ func (q mySQLQueries) primaryTableRegister(tableName string, sourceName string) 
 
 // materializationCreate satisfies the OfflineTableQueries interface.
 // mySQL doesn't have materialized views.
-func (q mySQLQueries) materializationCreate(tableName string, sourceName string) string {
-	return q.primaryTableRegister(tableName, sourceName)
+func (q mySQLQueries) materializationCreate(tableName string, sourceName string) []string {
+	return []string{q.primaryTableRegister(tableName, sourceName)}
 }
 
 func (q mySQLQueries) materializationUpdate(db *sql.DB, tableName string, sourceName string) error {
@@ -217,8 +217,10 @@ func (q mySQLQueries) numRows(n interface{}) (int64, error) {
 	return n.(int64), nil
 }
 
-func (q mySQLQueries) transformationCreate(name string, query string) string {
-	return fmt.Sprintf("CREATE TABLE  %s AS %s", sanitize(name), query)
+func (q mySQLQueries) transformationCreate(name string, query string) []string {
+	return []string{
+		fmt.Sprintf("CREATE TABLE  %s AS %s", sanitize(name), query),
+	}
 }
 
 func (q mySQLQueries) transformationUpdate(db *sql.DB, tableName string, query string) error {

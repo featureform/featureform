@@ -4331,6 +4331,8 @@ class Registrar:
             properties=properties,
         )
         self.__resources.append(resource)
+        self.map_client_object_to_resource(resource, resource)
+        return resource
 
     def register_model(
         self, name: str, tags: List[str] = [], properties: dict = {}

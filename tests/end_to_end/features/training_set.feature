@@ -13,7 +13,6 @@ Feature: Training Sets
   Scenario: Training Set Label Column Databricks
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"
-    And I generate a random variant name
     And I upload a "small" "csv" file to "s3"
     And I register redis
     And I register "s3" filestore with bucket "featureform-spark-testing" and root path "behave"
@@ -21,7 +20,7 @@ Feature: Training Sets
     And I register the file
     Then I should be able to pull the file as a dataframe
     When I register a "DF" transformation named "first_transformation" from "transactions"
-    Then I should be able to pull the transformation as a dataframe
+    Then I should be able to pull the transformation "first_transformation" as a dataframe
     When I register a feature from a "transformation"
     When I register a label from a "transformation"
     And I register a training set

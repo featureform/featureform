@@ -14,7 +14,7 @@ from featureform import register_spark
 def step_impl(context):
     run_id = "".join(random.choice(string.ascii_lowercase) for _ in range(15))
 
-    ff.set_run(run_id)
+    context.variant = ff.set_run(run_id)
     context.variant = run_id
 
 
@@ -125,8 +125,9 @@ def step_impl(context):
 
 @when("I register the file")
 def step_impl(context):
+    file_name = f"transactions-{context.filetype}"
     context.file = context.spark.register_file(
-        name="transactions",
+        name=file_name,
         file_path=context.cloud_file_path,
     )
     context.client.apply(asynchronous=False, verbose=True)
@@ -149,35 +150,38 @@ def step_impl(context):
     'I register a "{transformation_type}" transformation named "{name}" from "{sources}"'
 )
 def step_impl(context, transformation_type, name, sources):
-    source_list = sources.split(",")
-    #  source_list = [ff.get_source(s, ff.get_run()) for s in source_list]
+    # source_list = sources.split(",")
+    # source_list = [ff.get_source(s, ff.get_run()) for s in source_list]
     if transformation_type == "DF":
 
         @context.spark.df_transformation(
             name=name,
-            inputs=source_list,
+            inputs=[context.file],
         )
         def some_transformation(df):
             """Unedited transactions"""
             return df
 
     elif transformation_type == "SQL":
+        name, variant = context.file.name, context.file.variant
 
         @context.spark.sql_transformation(
             name=name,
         )
         def some_transformation():
             """Unedited transactions"""
-            return "SELECT * FROM {{ transactions }}"
+            return "SELECT * FROM {{ name.variant }}"
 
+    setattr(context, name, some_transformation)
     context.transformation = some_transformation
     context.client.apply(asynchronous=False, verbose=True)
 
 
-@then("I should be able to pull the transformation as a dataframe")
-def step_impl(context):
+@then('I should be able to pull the transformation "{name}" as a dataframe')
+def step_impl(context, name):
+    tf = getattr(context, name)
     df = context.client.dataframe(
-        context.transformation,
+        tf,
     )
     assert (
         len(df) == context.file_length
@@ -206,15 +210,13 @@ def step_impl(context, source_type):
                 inference_store=context.redis,
             )
 
-    context.feature_name = "avg_transactions"
+    context.feature = User.avg_transactions
     context.client.apply(asynchronous=False, verbose=True)
 
 
 @then("I should be able to pull the feature as a dataframe")
 def step_impl(context):
-    feature = context.client.features(
-        [(context.feature_name, ff.get_run())], {"user": "C1578767"}
-    )
+    feature = context.client.features([context.feature], {"user": "C1578767"})
 
 
 @when('I register a label from a "{source_type}"')
@@ -237,21 +239,23 @@ def step_impl(context, source_type):
                 type=ff.Bool,
             )
 
-    context.label_name = "fraudulent"
+    context.label = User.fraudulent
     context.client.apply(asynchronous=False, verbose=True)
 
 
 @when("I register a training set")
 def step_impl(context):
-    ff.register_training_set(
+    ts = ff.register_training_set(
         "fraud_training",
-        label=(context.label_name, ff.get_run()),
-        features=[(context.feature_name, ff.get_run())],
+        label=context.label,
+        features=[context.feature],
     )
     context.client.apply(asynchronous=False, verbose=True)
+    context.training_set = ts
 
 
 @then("I should be able to pull the trainingset as a dataframe")
 def step_impl(context):
-    dataset = context.client.training_set("fraud_training", ff.get_run())
+    ts = context.training_set
+    dataset = context.client.training_set(ts.name, ts.variant)
     context.training_set_dataframe = dataset.dataframe()

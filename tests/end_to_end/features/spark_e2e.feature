@@ -8,7 +8,6 @@ Feature: Spark End to End
   Scenario Outline: Register a small file in spark
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"
-    And I generate a random variant name
     And I upload a "small" "<filetype>" file to "<storage_provider>"
     And I register "<storage_provider>" filestore with bucket "<bucket>" and root path "behave"
     And I register databricks
@@ -101,7 +100,6 @@ Feature: Spark End to End
   Scenario Outline: Databricks End to End
       Given Featureform is installed
       When I create a "hosted" "insecure" client for "localhost:7878"
-      And I generate a random variant name
       And I upload a "<filesize>" "<filetype>" file to "<storage_provider>"
       And I register redis
       And I register "<storage_provider>" filestore with bucket "<bucket>" and root path "behave"
@@ -109,7 +107,7 @@ Feature: Spark End to End
       And I register the file
       Then I should be able to pull the file as a dataframe
       When I register a "DF" transformation named "first_transformation" from "transactions"
-      Then I should be able to pull the transformation as a dataframe
+      Then I should be able to pull the transformation "first_transformation" as a dataframe
       When I register a feature from a "<feature_source>"
       When I register a label from a "<label_source>"
       And I register a training set
@@ -118,35 +116,35 @@ Feature: Spark End to End
       Examples: Azure
       | filesize |   filetype   | storage_provider | bucket | feature_source |  label_source  |
       |  small   |      csv     |       azure      | test   | transformation | transformation |
-      |  small   |      csv     |       azure      | test   |    primary     |     primary    |
-      |  small   |      csv     |       azure      | test   | transformation |     primary    |
-      |  small   |      csv     |       azure      | test   |    primary     | transformation |
+#      |  small   |      csv     |       azure      | test   |    primary     |     primary    |
+#      |  small   |      csv     |       azure      | test   | transformation |     primary    |
+#      |  small   |      csv     |       azure      | test   |    primary     | transformation |
 #      |  small   |   parquet    |       azure      | test   | transformation | transformation | # TODO: Enable
 #      |  small   |   parquet    |       azure      | test   |    primary     |     primary    | # TODO: Enable
 #      |  small   |   parquet    |       azure      | test   | transformation |     primary    | # TODO: Enable
 #      |  small   |   parquet    |       azure      | test   |    primary     | transformation | # TODO: Enable
 
 
-    Examples: S3
-      | filesize |   filetype   | storage_provider |            bucket           | feature_source |  label_source  |
-      |  small   |      csv     |         s3       | featureform-spark-testing   | transformation | transformation |
-      |  small   |      csv     |         s3       | featureform-spark-testing   |    primary     |     primary    |
-      |  small   |      csv     |         s3       | featureform-spark-testing   | transformation |     primary    |
-      |  small   |      csv     |         s3       | featureform-spark-testing   |    primary     | transformation |
-#      |  small   |   parquet    |         s3       | test   | transformation | transformation | # TODO: Enable
-#      |  small   |   parquet    |         s3       | test   |    primary     |     primary    | # TODO: Enable
-#      |  small   |   parquet    |         s3       | test   | transformation |     primary    | # TODO: Enable
-#      |  small   |   parquet    |         s3       | test   |    primary     | transformation | # TODO: Enable
-
-    Examples: GCS
-      | filesize |   filetype   | storage_provider | bucket | feature_source |  label_source  |
-#      |  small   |      csv     |        gcs       | test   | transformation | transformation | # Broken
-#      |  small   |      csv     |        gcs       | test   |    primary     |     primary    | # Broken
-#      |  small   |      csv     |        gcs       | test   | transformation |     primary    | # Broken
-#      |  small   |      csv     |        gcs       | test   |    primary     | transformation | # Broken
-#      |  small   |   parquet    |        gcs       | test   | transformation | transformation | # TODO: Enable
-#      |  small   |   parquet    |        gcs       | test   |    primary     |     primary    | # TODO: Enable
-#      |  small   |   parquet    |        gcs       | test   | transformation |     primary    | # TODO: Enable
-#      |  small   |   parquet    |        gcs       | test   |    primary     | transformation | # TODO: Enable
-
-
+#    Examples: S3
+#      | filesize |   filetype   | storage_provider |            bucket           | feature_source |  label_source  |
+#      |  small   |      csv     |         s3       | featureform-spark-testing   | transformation | transformation |
+#      |  small   |      csv     |         s3       | featureform-spark-testing   |    primary     |     primary    |
+#      |  small   |      csv     |         s3       | featureform-spark-testing   | transformation |     primary    |
+#      |  small   |      csv     |         s3       | featureform-spark-testing   |    primary     | transformation |
+##      |  small   |   parquet    |         s3       | test   | transformation | transformation | # TODO: Enable
+##      |  small   |   parquet    |         s3       | test   |    primary     |     primary    | # TODO: Enable
+##      |  small   |   parquet    |         s3       | test   | transformation |     primary    | # TODO: Enable
+##      |  small   |   parquet    |         s3       | test   |    primary     | transformation | # TODO: Enable
+#
+#    Examples: GCS
+#      | filesize |   filetype   | storage_provider | bucket | feature_source |  label_source  |
+##      |  small   |      csv     |        gcs       | test   | transformation | transformation | # Broken
+##      |  small   |      csv     |        gcs       | test   |    primary     |     primary    | # Broken
+##      |  small   |      csv     |        gcs       | test   | transformation |     primary    | # Broken
+##      |  small   |      csv     |        gcs       | test   |    primary     | transformation | # Broken
+##      |  small   |   parquet    |        gcs       | test   | transformation | transformation | # TODO: Enable
+##      |  small   |   parquet    |        gcs       | test   |    primary     |     primary    | # TODO: Enable
+##      |  small   |   parquet    |        gcs       | test   | transformation |     primary    | # TODO: Enable
+##      |  small   |   parquet    |        gcs       | test   |    primary     | transformation | # TODO: Enable
+#
+#

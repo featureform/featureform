@@ -37,12 +37,13 @@ def step_impl(context):
         all_features = ff.MultiFeature(
             dataset=context.transactions,
             df=context.dataset_df,
-            variant=ff.get_run(),
             exclude_columns=["transactionamount"],
             entity_column="customerid",
             timestamp_column="timestamp",
             inference_store=context.redis,
         )
+
+    context.multifeature = User.all_features
 
     context.client.apply()
 
@@ -56,7 +57,6 @@ def step_impl(context):
         all_features = ff.MultiFeature(
             dataset=context.transactions,
             df=context.dataset_df,
-            variant=ff.get_run(),
             include_columns=[
                 "transactionamount",
                 "customerdob",
@@ -66,6 +66,8 @@ def step_impl(context):
             entity_column="customerid",
             inference_store=context.redis,
         )
+
+    context.multifeature = User.all_features
 
     context.client.apply()
 

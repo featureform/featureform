@@ -1,0 +1,29 @@
+name: Databricks Job Cleanup
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+
+jobs:
+  cleanup:
+    environment: Integration testing
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10.12'
+
+    - name: Install dependencies
+      run: pip install requests
+
+    - name: Run cleanup script
+      env:
+        DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+        DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      run: python scripts/databricks_job_cleanup.py
+

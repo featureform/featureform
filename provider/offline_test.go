@@ -33,7 +33,7 @@ import (
 	"time"
 )
 
-var provider = flag.String("provider", "clickhouse", "provider to perform test on")
+var provider = flag.String("provider", "", "provider to perform test on")
 
 type testMember struct {
 	t               pt.Type

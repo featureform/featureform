@@ -427,7 +427,6 @@ func (mat *sqlMaterialization) NumRows() (int64, error) {
 
 func (mat *sqlMaterialization) IterateSegment(start, end int64) (FeatureIterator, error) {
 	query := mat.query.materializationIterateSegment(mat.tableName)
-	fmt.Println(query)
 	rows, err := mat.db.Query(query, start, end)
 	if err != nil {
 		return nil, err

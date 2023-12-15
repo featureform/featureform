@@ -346,10 +346,10 @@ func TestOfflineStores(t *testing.T) {
 	//}
 
 	testFns := map[string]func(*testing.T, OfflineStore){
-		//"CreateGetTable":          testCreateGetOfflineTable,
-		//"TableAlreadyExists":      testOfflineTableAlreadyExists,
-		//"TableNotFound":           testOfflineTableNotFound,
-		//"InvalidResourceIDs":      testInvalidResourceIDs,
+		"CreateGetTable":          testCreateGetOfflineTable,
+		"TableAlreadyExists":      testOfflineTableAlreadyExists,
+		"TableNotFound":           testOfflineTableNotFound,
+		"InvalidResourceIDs":      testInvalidResourceIDs,
 		"Materializations":        testMaterializations,
 		"MaterializationUpdate":   testMaterializationUpdate,
 		"InvalidResourceRecord":   testWriteInvalidResourceRecord,

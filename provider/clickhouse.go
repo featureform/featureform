@@ -260,7 +260,6 @@ func (table *clickhouseOfflineTable) Write(rec ResourceRecord) error {
 	if err := rec.check(); err != nil {
 		return err
 	}
-	// we use a ReplacingMergeTree off offline tables so and thus don't distinguish between updates and inserts
 	insertQuery := table.query.writeInserts(tb)
 	_, err := table.db.Exec(insertQuery, rec.Entity, rec.Value, rec.TS)
 	return err
@@ -905,8 +904,7 @@ func (q clickhouseSQLQueries) primaryTableRegister(tableName string, sourceName 
 }
 
 func (q clickhouseSQLQueries) materializationCreate(tableName string, sourceName string) []string {
-	// currently we allow nullable keys and use a ReplacingMergeTree to handle updates. We may wish to remove ts from the ordering key and remove nullable keys
-	return []string{fmt.Sprintf("CREATE TABLE %s ENGINE = ReplacingMergeTree ORDER BY (entity, ts) SETTINGS allow_nullable_key=1 EMPTY AS SELECT * FROM %s", sanitizeCH(tableName), sanitizeCH(sourceName)),
+	return []string{fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY (entity, ts) SETTINGS allow_nullable_key=1 EMPTY AS SELECT * FROM %s", sanitizeCH(tableName), sanitizeCH(sourceName)),
 		fmt.Sprintf("ALTER TABLE %s ADD COLUMN row_number UInt64;", sanitizeCH(tableName)),
 		fmt.Sprintf("INSERT INTO %s SELECT entity, value, tis AS ts, row_number() OVER () AS row_number FROM (SELECT entity, max(ts) AS tis, argMax(value, ts) AS value FROM %s GROUP BY entity ORDER BY entity ASC, value ASC);", sanitizeCH(tableName), sanitizeCH(sourceName)),
 	}
@@ -1019,7 +1017,6 @@ func (q clickhouseSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Train
 	}
 	if !isUpdate {
 		// use a 2-step EMPTY create so ClickHouse Cloud compatible
-		// currently we allow nullable keys and use a ReplacingMergeTree to handle updates. We may wish to remove ts from the ordering key and remove nullable keys
 		createQuery := fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY label SETTINGS allow_nullable_key=1 EMPTY AS (%s)", sanitizeCH(tableName), query)
 		if _, err := store.db.Exec(createQuery); err != nil {
 			return err
@@ -1030,7 +1027,6 @@ func (q clickhouseSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Train
 		}
 	} else {
 		tempName := sanitizeCH(fmt.Sprintf("tmp_%s", tableName))
-		// currently we allow nullable keys and use a ReplacingMergeTree to handle updates. We may wish to remove ts from the ordering key and remove nullable keys
 		createQuery := fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY label SETTINGS allow_nullable_key=1 EMPTY AS (%s)", tempName, query)
 		if _, err := store.db.Exec(createQuery); err != nil {
 			return err

@@ -1027,7 +1027,7 @@ func expectedSources() ResourceTests {
 		SourceTest{
 			Name:     "mockSource",
 			Variants: []string{"var", "var2"},
-			Default:  "var",
+			Default:  "var2",
 		},
 	}
 }
@@ -1119,7 +1119,7 @@ func expectedFeatures() ResourceTests {
 		FeatureTest{
 			Name:     "feature",
 			Variants: []string{"variant", "variant2"},
-			Default:  "variant",
+			Default:  "variant2",
 		},
 		FeatureTest{
 			Name:     "feature2",
@@ -1396,7 +1396,7 @@ func expectedTrainingSets() ResourceTests {
 		TrainingSetTest{
 			Name:     "training-set",
 			Variants: []string{"variant", "variant2"},
-			Default:  "variant",
+			Default:  "variant2",
 		},
 	}
 }

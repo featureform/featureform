@@ -13,6 +13,7 @@ import dill
 import pandas as pd
 from dataclasses import dataclass, field
 from typeguard import typechecked
+import numpy
 
 from . import feature_flag
 from .enums import FileFormat
@@ -79,6 +80,7 @@ from .search_local import search_local
 from .sqlite_metadata import SQLiteMetadata
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
+from .types import pd_to_ff_datatype
 from .variant_names_generator import get_current_timestamp_variant
 from .variant_names_generator import get_random_name
 
@@ -1573,7 +1575,7 @@ class FeatureColumnResource(ColumnResource):
         ```
 
         Args:
-            transformation_args (tuple): A transformation or source function and the columns name in the format: <transformation_function>[[<entity_column>, <value_column>, <timestamp_column (optional)>]]
+            transformation_args (tuple): A transformation or source function and the columns name in the format: <transformation_function>[[<entity_column>, <value_column>, <timestamp_column (optional)>]].
             variant (str): An optional variant name for the feature.
             type (Union[ScalarType, str]): The type of the value in for the feature.
             inference_store (Union[str, OnlineProvider, FileStoreProvider]): Where to store for online serving.
@@ -1592,6 +1594,162 @@ class FeatureColumnResource(ColumnResource):
             tags=tags,
             properties=properties,
         )
+
+
+class MultiFeatureColumnResource(ColumnResource):
+    def __init__(
+        self,
+        dataset: SourceVariant,
+        df: pd.DataFrame,
+        entity_column: Union[Entity, str],
+        variant: str = "",
+        owner: str = "",
+        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
+        timestamp_column: str = "",
+        include_columns: List[str] = None,
+        exclude_columns: List[str] = None,
+        description: str = "",
+        schedule: str = "",
+        tags: List[str] = None,
+        properties: Dict[str, str] = None,
+    ):
+        """
+        Registering multiple features from the same table. The name of each feature is the name of the column in the table.
+
+        **Example**
+        ```
+        # Register a file or table from an offline provider as a dataset
+
+        client = ff.Client()
+        df = client.dataframe(dataset)
+
+        @ff.entity
+        class Customer:
+        # Register multiple columns from a dataset as features
+            transaction_features = ff.MultiFeature(
+                dataset,
+                df,
+                variant="quickstart",
+                inference_store=redis,
+                entity_column="CustomerID",
+                timestamp_column="Timestamp",
+                exclude_columns=["TransactionID", "IsFraud"],
+                inference_store=redis,
+            )
+        ```
+
+        Args:
+            dataset (SourceVariant): The dataset to register features from
+            df (pd.DataFrame): The client.dataframe to register features from
+            include_columns (List[str]): List of columns to be registered as features
+            exclude_columns (List[str]): List of columns to be excluded from registration
+            entity_column (Union[Entity, str]): The name of the column in the source to be used as the entity
+            variant (str): An optional variant name for the feature.
+            inference_store (Union[str, OnlineProvider, FileStoreProvider]): Where to store for online serving.
+        """
+        self.tags = tags or []
+        self.properties = properties or {}
+        self.owner = owner
+        self.description = description
+        self.schedule = schedule
+        self._resources = []
+
+        include_columns = include_columns or []
+        exclude_columns = exclude_columns or []
+
+        register_columns = self._get_feature_columns(
+            df, include_columns, exclude_columns, entity_column, timestamp_column
+        )
+        self._create_feature_columns(
+            df,
+            dataset,
+            register_columns,
+            entity_column,
+            timestamp_column,
+            inference_store,
+            variant,
+        )
+
+    def _create_feature_columns(
+        self,
+        df,
+        dataset,
+        register_columns,
+        entity_column,
+        timestamp_column,
+        inference_store,
+        variant,
+    ):
+        df_has_quotes = self._check_df_column_format(df)
+        for column_name in register_columns:
+            if timestamp_column != "":
+                feature = FeatureColumnResource(
+                    dataset[[entity_column, column_name, timestamp_column]],
+                    variant=variant,
+                    type=pd_to_ff_datatype[
+                        df[self._modify_column_name(column_name, df_has_quotes)].dtype
+                    ],
+                    inference_store=inference_store,
+                )
+
+            else:
+                feature = FeatureColumnResource(
+                    dataset[[entity_column, column_name]],
+                    variant=variant,
+                    type=pd_to_ff_datatype[
+                        df[self._modify_column_name(column_name, df_has_quotes)].dtype
+                    ],
+                    inference_store=inference_store,
+                )
+            feature.name = column_name
+            self._resources.append(feature)
+
+    def _get_feature_columns(
+        self, df, include_columns, exclude_columns, entity_column, timestamp_column
+    ):
+        all_columns_set = set([self._clean_name(col) for col in df.columns])
+        include_columns_set = set(include_columns)
+        exclude_columns_set = set(exclude_columns)
+        exclude_columns_set.add(entity_column)
+
+        if timestamp_column != "":
+            exclude_columns_set.add(timestamp_column)
+
+        if not include_columns_set.issubset(all_columns_set):
+            raise ValueError(
+                f"{all_columns_set - include_columns_set} columns are not in the dataframe"
+            )
+
+        if not exclude_columns_set.issubset(all_columns_set):
+            raise ValueError(
+                f"{all_columns_set - exclude_columns_set} columns are not in the dataframe"
+            )
+
+        if not include_columns_set.isdisjoint(exclude_columns_set):
+            raise ValueError(
+                f"{include_columns_set.intersection(exclude_columns_set)} cannot be in the include and exclude lists"
+            )
+
+        if len(include_columns_set) > 0:
+            return list(include_columns_set - exclude_columns_set)
+        else:
+            return list(all_columns_set - exclude_columns_set)
+
+    def _check_df_column_format(self, df):
+        df_has_quotes = False
+        for column_name in df.columns:
+            if '"' in column_name:
+                df_has_quotes = True
+            return df_has_quotes
+
+    # TODO: Verify if you can have empty strings as column names (Add unit test for it)
+    def _clean_name(self, string_name):
+        return string_name.replace('"', "")
+
+    def _modify_column_name(self, string_name, df_has_quotes):
+        if df_has_quotes:
+            return '"' + self._clean_name(string_name) + '"'
+        return self._clean_name(string_name)
 
 
 class LabelColumnResource(ColumnResource):
@@ -5735,6 +5893,12 @@ def entity(cls):
             variants = cls.__dict__[attr_name]
             for variant_key, resource in variants.resources.items():
                 resource.name = attr_name
+                resource.entity = entity
+                resource.register()
+        elif isinstance(cls.__dict__[attr_name], MultiFeatureColumnResource):
+            multi_feature_resources = cls.__dict__[attr_name]._resources
+            for resource in multi_feature_resources:
+                setattr(entity, resource.name, resource)
                 resource.entity = entity
                 resource.register()
     return cls

@@ -16,6 +16,14 @@
         show_source: false
         show_root_toc_entry: false
 
+## MultiFeature
+::: featureform.register.MultiFeatureColumnResource.__init__
+    handler: python
+    options:
+        show_root_heading: false
+        show_source: false
+        show_root_toc_entry: false
+
 ## Label
 ::: featureform.register.LabelColumnResource.__init__
     handler: python

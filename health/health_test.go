@@ -299,12 +299,12 @@ func initProvider(t *testing.T, providerType pt.Type, executorType pc.SparkExecu
 		}
 		return postgresConfig.Serialize()
 	case pt.ClickHouseOffline:
-		db := checkEnv("CLICKHOUSE_DB")
+		db := checkEnv("CLICKHOUSE_DATABASE")
 		user := checkEnv("CLICKHOUSE_USER")
 		password := checkEnv("CLICKHOUSE_PASSWORD")
 		clickhouseConfig := pc.ClickHouseConfig{
 			Host:     "0.0.0.0",
-			Port:     "9000",
+			Port:     uint16(9000),
 			Username: user,
 			Password: password,
 			Database: db,

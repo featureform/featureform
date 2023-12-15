@@ -600,7 +600,7 @@ class PostgresConfig:
 @dataclass
 class ClickHouseConfig:
     host: str
-    port: str
+    port: int
     database: str
     user: str
     password: str
@@ -780,6 +780,7 @@ Config = Union[
     PineconeConfig,
     SnowflakeConfig,
     PostgresConfig,
+    ClickHouseConfig,
     RedshiftConfig,
     PineconeConfig,
     LocalConfig,

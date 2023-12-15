@@ -3227,7 +3227,7 @@ class Registrar:
 
         **Examples**:
         ```
-        redshift = ff.register_clickhouse(
+        clickhouse = ff.register_clickhouse(
             name="clickhouse-quickstart",
             description="A ClickHouse deployment we created for the Featureform quickstart",
             host="quickstart-clickhouse",  # The internal dns name for clickhouse

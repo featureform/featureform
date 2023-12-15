@@ -126,17 +126,17 @@ func TestOfflineStores(t *testing.T) {
 		username := checkEnv("CLICKHOUSE_USER")
 		password := checkEnv("CLICKHOUSE_PASSWORD")
 		host := getEnv("CLICKHOUSE_HOST", "localhost")
-		port, err := strconv.ParseUint(getEnv("CLICKHOUSE_PORT", "9000"), 10, 16)
-		if err != nil {
-			port = 9000
-		}
+		port := uint64(9000)
+		port, _ = strconv.ParseUint(getEnv("CLICKHOUSE_PORT", "9000"), 10, 16)
+		ssl := false
+		ssl, _ = strconv.ParseBool(getEnv("CLICKHOUSE_SSL", "false"))
 		var clickHouseConfig = pc.ClickHouseConfig{
 			Host:     host,
 			Port:     uint16(port),
 			Username: username,
 			Password: password,
 			Database: clickHouseDb,
-			SSL:      false,
+			SSL:      ssl,
 		}
 		if err := createClickHouseDatabase(clickHouseConfig); err != nil {
 			t.Fatalf("%v", err)

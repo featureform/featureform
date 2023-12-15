@@ -598,6 +598,34 @@ class PostgresConfig:
 
 @typechecked
 @dataclass
+class ClickHouseConfig:
+    host: str
+    port: str
+    database: str
+    user: str
+    password: str
+    ssl: bool
+
+    def software(self) -> str:
+        return "clickhouse"
+
+    def type(self) -> str:
+        return "CLICKHOUSE_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Host": self.host,
+            "Port": self.port,
+            "Username": self.user,
+            "Password": self.password,
+            "Database": self.database,
+            "SSL": self.ssl,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+
+@typechecked
+@dataclass
 class RedshiftConfig:
     host: str
     port: int

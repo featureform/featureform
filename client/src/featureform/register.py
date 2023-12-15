@@ -40,6 +40,7 @@ from .resources import (
     LocalConfig,
     RedshiftConfig,
     BigQueryConfig,
+    ClickHouseConfig,
     SparkConfig,
     AzureFileStoreConfig,
     OnlineBlobConfig,
@@ -2028,6 +2029,39 @@ class Registrar:
         )
         return OfflineSQLProvider(self, mock_provider)
 
+    def get_clickhouse(self, name):
+        """Get a ClickHouse provider. The returned object can be used to register additional resources.
+
+        **Examples**:
+        ``` py
+        clickhouse = ff.get_clickhouse("clickhouse-quickstart")
+        transactions = clickhouse.register_table(
+            name="transactions",
+            variant="kaggle",
+            description="Fraud Dataset From Kaggle",
+            table="Transactions",  # This is the table's name in ClickHouse
+        )
+        ```
+
+        Args:
+            name (str): Name of ClickHouse provider to be retrieved
+
+        Returns:
+            clickhouse (OfflineSQLProvider): Provider
+        """
+        mock_config = ClickHouseConfig(
+            host="",
+            port=9000,
+            database="",
+            user="",
+            password="",
+            ssl=False,
+        )
+        mock_provider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=mock_config
+        )
+        return OfflineSQLProvider(self, mock_provider)
+
     def get_snowflake(self, name):
         """Get a Snowflake provider. The returned object can be used to register additional resources.
 
@@ -3172,6 +3206,67 @@ class Registrar:
             properties=properties or {},
         )
 
+        self.__resources.append(provider)
+        return OfflineSQLProvider(self, provider)
+
+    def register_clickhouse(
+            self,
+            name: str,
+            host: str,
+            user: str,
+            password: str,
+            database: str,
+            port: int = 9000,
+            description: str = "",
+            team: str = "",
+            ssl: bool = False,
+            tags: List[str] = [],
+            properties: dict = {},
+    ):
+        """Register a ClickHouse provider.
+
+        **Examples**:
+        ```
+        redshift = ff.register_clickhouse(
+            name="clickhouse-quickstart",
+            description="A ClickHouse deployment we created for the Featureform quickstart",
+            host="quickstart-clickhouse",  # The internal dns name for clickhouse
+            port=9000,
+            user="default",
+            password="", #pragma: allowlist secret
+            database="default"
+        )
+        ```
+
+        Args:
+            name (str): (Immutable) Name of ClickHouse provider to be registered
+            host (str): (Immutable) Hostname for ClickHouse
+            database (str): (Immutable) ClickHouse database
+            port (int): (Mutable) Port
+            ssl (bool): (Mutable) Enable SSL
+            user (str): (Mutable) User
+            password (str): (Mutable) ClickHouse password
+            description (str): (Mutable) Description of ClickHouse provider to be registered
+            team (str): (Mutable) Name of team
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
+
+        Returns:
+            clickhouse (OfflineSQLProvider): Provider
+        """
+        tags, properties = set_tags_properties(tags, properties)
+        config = ClickHouseConfig(
+            host=host, port=port, database=database, user=user, password=password, ssl=ssl
+        )
+        provider = Provider(
+            name=name,
+            function="OFFLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
@@ -5658,6 +5753,7 @@ register_pinecone = global_registrar.register_pinecone
 register_weaviate = global_registrar.register_weaviate
 register_blob_store = global_registrar.register_blob_store
 register_bigquery = global_registrar.register_bigquery
+register_clickhouse = global_registrar.register_clickhouse
 register_firestore = global_registrar.register_firestore
 register_cassandra = global_registrar.register_cassandra
 register_dynamodb = global_registrar.register_dynamodb
@@ -5688,6 +5784,7 @@ get_snowflake = global_registrar.get_snowflake
 get_snowflake_legacy = global_registrar.get_snowflake_legacy
 get_redshift = global_registrar.get_redshift
 get_bigquery = global_registrar.get_bigquery
+get_clickhouse = global_registrar.get_clickhouse
 get_spark = global_registrar.get_spark
 get_kubernetes = global_registrar.get_kubernetes
 get_blob_store = global_registrar.get_blob_store

@@ -17,6 +17,7 @@ from featureform.resources import (
     PostgresConfig,
     RedshiftConfig,
     BigQueryConfig,
+    ClickHouseConfig,
     OnlineBlobConfig,
     K8sConfig,
     User,
@@ -53,6 +54,18 @@ def postgres_config():
         user="user",
         password="p4ssw0rd",
         sslmode="disable",
+    )
+
+
+@pytest.fixture
+def clickhouse_config():
+    return ClickHouseConfig(
+        host="localhost",
+        port=9000,
+        database="default",
+        user="user",
+        password="",
+        ssl=False,
     )
 
 
@@ -176,6 +189,19 @@ def postgres_provider(postgres_config):
         function="fn2",
         team="team2",
         config=postgres_config,
+        tags=[],
+        properties={},
+    )
+
+
+@pytest.fixture
+def clickhouse_provider(clickhouse_config):
+    return Provider(
+        name="clickhouse",
+        description="desc2",
+        function="fn2",
+        team="team2",
+        config=clickhouse_config,
         tags=[],
         properties={},
     )
@@ -651,6 +677,7 @@ def test_create_all_provider_types(
     postgres_provider,
     redshift_provider,
     bigquery_provider,
+    clickhouse_provider,
 ):
     providers = [
         redis_provider,
@@ -658,6 +685,7 @@ def test_create_all_provider_types(
         postgres_provider,
         redshift_provider,
         bigquery_provider,
+        clickhouse_provider,
     ]
     state = ResourceState()
     for provider in providers:

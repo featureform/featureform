@@ -39,6 +39,8 @@
 
 [//]: # (|                [Snowflake]&#40;#snowflake&#41;                |    x    |        |    x    |    x    |        |                        |)
 
+[//]: # (|                [ClickHouse]&#40;#clickhouse&#41;               |    x    |        |    x    |    x    |        |                        |)
+
 [//]: # (|                    [Spark]&#40;#spark&#41;                    |    x    |        |    x    |         |        |                        |)
 
 [//]: # (|                 [Weaviate]&#40;#weaviate&#41;                 |         |   x    |         |    x    |   x    | x                      |)
@@ -183,6 +185,14 @@ This page provides reference and examples for how to register the various provid
 
 ### Postgres
 ::: featureform.register.Registrar.register_postgres
+    handler: python
+    options:
+        show_root_heading: false
+        show_source: false
+        show_root_toc_entry: false
+
+### ClickHouse
+::: featureform.register.Registrar.register_clickhouse
     handler: python
     options:
         show_root_heading: false

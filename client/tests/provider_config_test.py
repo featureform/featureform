@@ -6,6 +6,7 @@ import pytest
 sys.path.insert(0, "client/src/")
 from featureform.resources import (
     BigQueryConfig,
+    ClickHouseConfig,
     FirestoreConfig,
     RedisConfig,
     PineconeConfig,
@@ -229,6 +230,21 @@ def test_postgres():
         user="username",
         password="password",
         sslmode="sslmode",
+    )
+    serialized_config = conf.serialize()
+    assert json.loads(serialized_config) == expected_config
+
+
+@pytest.mark.local
+def test_clickhouse():
+    expected_config = connection_configs["ClickHouseConfig"]
+    conf = ClickHouseConfig(
+        host="host",
+        port=9000,
+        database="database",
+        user="username",
+        password="password",
+        ssl=False,
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config

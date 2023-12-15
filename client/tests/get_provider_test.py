@@ -91,6 +91,15 @@ def test_registrar_get_redshift():
 
 
 @pytest.mark.local
+def test_registrar_get_clickhouse():
+    reg = Registrar()
+    result = reg.get_clickhouse(
+        name="unit-test",
+    )
+    assert isinstance(result, OfflineSQLProvider)
+
+
+@pytest.mark.local
 def test_registrar_get_bigquery():
     reg = Registrar()
     result = reg.get_bigquery(

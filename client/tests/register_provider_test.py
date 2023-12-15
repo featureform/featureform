@@ -269,6 +269,25 @@ def test_register_postgres():
 
 
 @pytest.mark.local
+def test_register_clickhouse():
+    reg = Registrar()
+    result = reg.register_clickhouse(
+        name="name",
+        description="description",
+        team="team",
+        host="host",
+        port=9000,
+        user="user",
+        password="pass",
+        database="db",
+        ssl=False,
+        tags=[],
+        properties={},
+    )
+    assert isinstance(result, OfflineSQLProvider)
+
+
+@pytest.mark.local
 def test_register_redshift():
     reg = Registrar()
     result = reg.register_redshift(

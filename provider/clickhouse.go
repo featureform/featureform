@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"crypto/tls"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -213,6 +214,10 @@ func NewClickHouseOfflineStore(config pc.SerializedConfig) (*clickHouseOfflineSt
 	if err := cc.Deserialize(config); err != nil {
 		return nil, NewProviderError(Runtime, pt.ClickHouseOffline, ConfigDeserialize, err.Error())
 	}
+	var t *tls.Config
+	if cc.SSL {
+		t = &tls.Config{}
+	}
 	db := clickhouse.OpenDB(&clickhouse.Options{
 		Addr: []string{fmt.Sprintf("%s:%d", cc.Host, cc.Port)},
 		Auth: clickhouse.Auth{
@@ -223,6 +228,7 @@ func NewClickHouseOfflineStore(config pc.SerializedConfig) (*clickHouseOfflineSt
 		Settings: clickhouse.Settings{
 			"final": "1",
 		},
+		TLS: t,
 	})
 	queries := clickhouseSQLQueries{}
 	// numeric and should work
@@ -232,9 +238,6 @@ func NewClickHouseOfflineStore(config pc.SerializedConfig) (*clickHouseOfflineSt
 		Driver:       "clickhouse",
 		ProviderType: pt.ClickHouseOffline,
 		QueryImpl:    &queries,
-	}
-	if err := db.Ping(); err != nil {
-		return nil, NewProviderError(Connection, pt.ClickHouseOffline, ClientInitialization, err.Error())
 	}
 	//we bypass NewSQLOfflineStore as we want to estalish our connection using non dsn syntax
 	return &clickHouseOfflineStore{sqlOfflineStore{

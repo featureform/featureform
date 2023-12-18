@@ -9,7 +9,7 @@ package provider
 
 import (
 	"bytes"
-	"cloud.google.com/go/bigquery"
+	bigquery "cloud.google.com/go/bigquery"
 	"context"
 	"database/sql"
 	"encoding/json"

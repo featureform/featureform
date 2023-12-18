@@ -89,6 +89,8 @@ message Value {
         bool   bool_value = 7;
         bytes on_demand_function = 8;
         Vector32 vector32_value = 9;
+        uint32  uint32_value = 10;
+        uint64  uint64_value = 11;
     }
 }
 

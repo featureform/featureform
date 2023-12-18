@@ -19,9 +19,13 @@ import (
 
 const (
 	chInt     = "Int"
+	chInt8    = "Int8"
+	chInt16   = "Int16"
 	chInt32   = "Int32"
-	chUInt32  = "UInt32"
 	chInt64   = "Int64"
+	chUInt8   = "UInt8"
+	chUInt16  = "UInt16"
+	chUInt32  = "UInt32"
 	chUInt64  = "UInt64"
 	chFloat64 = "Float64"
 	chFloat32 = "Float32"
@@ -941,10 +945,22 @@ func (q clickhouseSQLQueries) determineColumnType(valueType ValueType) (string, 
 	switch valueType {
 	case Int:
 		return chInt, nil
+	case Int8:
+		return chInt8, nil
+	case Int16:
+		return chInt16, nil
 	case Int64:
 		return chInt64, nil
 	case Int32:
 		return chInt32, nil
+	case UInt8:
+		return chUInt8, nil
+	case UInt16:
+		return chUInt16, nil
+	case UInt32:
+		return chUInt32, nil
+	case UInt64:
+		return chUInt64, nil
 	case Float32:
 		return chFloat32, nil
 	case Float64:

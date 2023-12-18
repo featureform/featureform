@@ -46,10 +46,22 @@ func (t ScalarType) Type() reflect.Type {
 	switch t {
 	case Int:
 		return reflect.PointerTo(reflect.TypeOf(int(0)))
+	case Int8:
+		return reflect.PointerTo(reflect.TypeOf(int8(0)))
+	case Int16:
+		return reflect.PointerTo(reflect.TypeOf(int16(0)))
 	case Int32:
 		return reflect.PointerTo(reflect.TypeOf(int32(0)))
 	case Int64:
 		return reflect.PointerTo(reflect.TypeOf(int64(0)))
+	case UInt8:
+		return reflect.PointerTo(reflect.TypeOf(uint8(0)))
+	case UInt16:
+		return reflect.PointerTo(reflect.TypeOf(uint16(0)))
+	case UInt32:
+		return reflect.PointerTo(reflect.TypeOf(uint32(0)))
+	case UInt64:
+		return reflect.PointerTo(reflect.TypeOf(uint64(0)))
 	case Float32:
 		return reflect.PointerTo(reflect.TypeOf(float32(0)))
 	case Float64:
@@ -89,8 +101,14 @@ const (
 var ScalarTypes = map[ScalarType]bool{
 	NilType:   true,
 	Int:       true,
+	Int8:      true,
+	Int16:     true,
 	Int32:     true,
 	Int64:     true,
+	UInt8:     true,
+	UInt16:    true,
+	UInt32:    true,
+	UInt64:    true,
 	Float32:   true,
 	Float64:   true,
 	String:    true,

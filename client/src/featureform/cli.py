@@ -2,15 +2,20 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import click
-from .client import Client
-from .list import *
-from .get import *
 import os
-from flask import Flask
-from .dashboard_metadata import dashboard_app
+import click
 import validators
 import urllib.request
+from flask import Flask
+
+
+from .client import Client
+from .deploy import (
+    DockerDeployment,
+)
+from .list import *
+from .get import *
+from .dashboard_metadata import dashboard_app
 from .version import get_package_version
 from .tls import get_version_local, get_version_hosted
 
@@ -26,6 +31,7 @@ resource_types = [
 ]
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
+SUPPORTED_DEPLOY_TYPES = ["docker"]
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
@@ -250,6 +256,51 @@ def search(query, host, cert, insecure, local):
                 else ""
             )
             format_rows(r["name"], r["variant"], r["resource_type"])
+
+
+@cli.command()
+@click.argument(
+    "deploy_type",
+    required=True,
+    default="docker",
+    type=click.Choice(SUPPORTED_DEPLOY_TYPES, case_sensitive=False),
+)
+@click.option(
+    "--quickstart", is_flag=True, help="Install Featureform Quickstart as well"
+)
+def deploy(deploy_type, quickstart):
+    print(f"Deploying Featureform on {deploy_type.capitalize()}")
+    if deploy_type.lower() == "docker":
+        deployment = DockerDeployment(quickstart)
+    else:
+        supported_types = ", ".join(SUPPORTED_DEPLOY_TYPES)
+        raise ValueError(
+            f"Invalid deployment type: Supported types are '{supported_types}'"
+        )
+
+    deployment_status = deployment.start()
+    return deployment_status
+
+
+@cli.command()
+@click.argument(
+    "deploy_type",
+    required=True,
+    default="docker",
+    type=click.Choice(SUPPORTED_DEPLOY_TYPES, case_sensitive=False),
+)
+def stop(deploy_type):
+    print(f"Tearing down Featureform on {deploy_type.capitalize()}")
+    if deploy_type.lower() == "docker":
+        deployment = DockerDeployment(True)
+    else:
+        supported_types = ", ".join(SUPPORTED_DEPLOY_TYPES)
+        raise ValueError(
+            f"Invalid deployment type: Supported types are '{supported_types}'"
+        )
+
+    deployment_status = deployment.stop()
+    return deployment_status
 
 
 def read_file(file):

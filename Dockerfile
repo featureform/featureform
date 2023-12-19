@@ -113,7 +113,14 @@ COPY provider/scripts/spark/requirements.txt $SPARK_REQUIREMENTS
 COPY provider/queries/materialize_no_ts.sql $MATERIALIZE_NO_TIMESTAMP_QUERY_PATH
 COPY provider/queries/materialize_ts.sql $MATERIALIZE_TIMESTAMP_QUERY_PATH
 
-ENV SPARK_LOCAL_SCRIPT_PATH=$SPARK_FILEPATH
+# Take the MD5 hash of the Spark runner script and store it in a file for use by the config package
+# when determining the remove filepath in cloud object storage (e.g. S3). By adding the hash as a suffix
+# to the file, we ensure that different versions of the script are uploaded to cloud object storage
+# without overwriting previous or future versions.
+RUN cat /app/provider/scripts/spark/offline_store_spark_runner.py | md5sum \
+    | awk '{print $1}' \
+    | xargs echo -n > /app/provider/scripts/spark/offline_store_spark_runner_md5.txt
+
 ENV PYTHON_LOCAL_INIT_PATH=$SPARK_PYTHON_PACKAGES
 
 # Setup Nginx
@@ -132,5 +139,7 @@ ENV MEILI_LOG_LEVEL="WARN"
 
 EXPOSE 7878
 EXPOSE 80
+
+HEALTHCHECK --interval=5m --timeout=10s --start-period=10s --retries=3 CMD curl --fail http://localhost/ || exit 1
 
 CMD ["/usr/bin/supervisord"]

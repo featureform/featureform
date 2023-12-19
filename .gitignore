@@ -54,3 +54,7 @@ provider/part-000*.parquet
 # Test Requirements:
 tls.crt
 transactions.csv
+
+# Docker Deploy
+featureform_quickstart
+quickstart

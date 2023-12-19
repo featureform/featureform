@@ -6,14 +6,18 @@ from tempfile import NamedTemporaryFile
 
 import dill
 import pytest
+import datetime
+import pandas as pd
 
 sys.path.insert(0, "client/src/")
 
 
+import featureform as ff
 from featureform.register import (
     Registrar,
     OfflineSparkProvider,
     ColumnSourceRegistrar,
+    MultiFeatureColumnResource,
 )
 from featureform.resources import (
     AWSCredentials,
@@ -36,7 +40,11 @@ from featureform.type_objects import (
     SourceVariantResource,
 )
 from featureform.enums import FileFormat
-import featureform as ff
+from featureform.deploy import (
+    DOCKER_CONFIG,
+    DockerDeployment,
+)
+
 
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
@@ -377,6 +385,59 @@ def hosted_sql_provider_and_source():
 
 
 @pytest.fixture(scope="module")
+def docker_deployment_config():
+    featureform_config = DOCKER_CONFIG(
+        name="featureform",
+        image="featureformcom/featureform:latest",
+        env={},
+        port={"7878/tcp": 7878, "80/tcp": 80},
+        detach_mode=True,
+    )
+    return [featureform_config]
+
+
+@pytest.fixture(scope="module")
+def docker_quickstart_deployment_config():
+    featureform_config = DOCKER_CONFIG(
+        name="featureform",
+        image="featureformcom/featureform:latest",
+        env={},
+        port={"7878/tcp": 7878, "80/tcp": 80},
+        detach_mode=True,
+    )
+    quickstart_postgres = DOCKER_CONFIG(
+        name="quickstart-postgres",
+        image="featureformcom/postgres",
+        env={},
+        port={"5432/tcp": 5432},
+        detach_mode=True,
+    )
+    quickstart_redis = DOCKER_CONFIG(
+        name="quickstart-redis",
+        image="redis:latest",
+        env={},
+        port={"6379/tcp": 6379},
+        detach_mode=True,
+    )
+    return [featureform_config, quickstart_postgres, quickstart_redis]
+
+
+@pytest.fixture(scope="module")
+def docker_deployment():
+    return DockerDeployment(False)
+
+
+@pytest.fixture(scope="module")
+def docker_quickstart_deployment():
+    return DockerDeployment(True)
+
+
+@pytest.fixture(scope="module")
+def docker_deployment_status():
+    return None
+
+
+@pytest.fixture(scope="module")
 def spark_session():
     from pyspark.sql import SparkSession
 
@@ -391,3 +452,34 @@ def gcp_credentials():
         project_id="project_id",
         credentials_path=f"{dir_path}/test_files/bigquery_dummy_credentials.json",
     )
+
+
+@pytest.fixture(scope="module")
+def multi_feature(primary_dataset, features_dataframe):
+    return ff.MultiFeature(
+        dataset=primary_dataset[0],
+        df=features_dataframe,
+        entity_column="entity",
+        timestamp_column="ts",
+    )
+
+
+@pytest.fixture(scope="module")
+def client():
+    return ff.Client(insecure=True, local=True)
+
+
+@pytest.fixture(scope="module")
+def data_dict():
+    return {
+        "entity": [7, 8],
+        "a": [1, 4],
+        "b": [2, 5],
+        "c": [3, 6],
+        "ts": [datetime.datetime.now(), datetime.datetime.now()],
+    }
+
+
+@pytest.fixture(scope="module")
+def features_dataframe(data_dict):
+    return pd.DataFrame(data_dict)

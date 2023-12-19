@@ -171,9 +171,23 @@ def step_impl(context):
     ]
     context.iter = context.client.batch_features(
         [
-            ("transaction_feature", ff.get_run()),
-            ("balance_feature", ff.get_run()),
-            ("perc_feature", ff.get_run()),
+            ("transaction_feature", context.variant),
+            ("balance_feature", context.variant),
+            ("perc_feature", context.variant),
+        ]
+    )
+
+
+@then(
+    "I serve batch features for spark with submit params that exceed the 10K-byte API limit"
+)
+def step_impl(context):
+    context.expected = 30
+    context.iter = context.client.batch_features(
+        [
+            *([("transaction_feature", ff.get_run())] * 10),
+            *([("balance_feature", ff.get_run())] * 10),
+            *([("perc_feature", ff.get_run())] * 10),
         ]
     )
 
@@ -187,6 +201,17 @@ def step_impl(context):
         print(entity, features)
         assert entity == context.expected[i][0]
         assert Counter(features) == Counter(context.expected[i][1])
+        i += 1
+
+
+@then("I can get a list containing the correct number of features")
+def step_impl(context):
+    i = 0
+    for entity, features in context.iter:
+        if i >= context.expected:
+            break
+        print(entity, features)
+        assert len(features) == context.expected
         i += 1
 
 

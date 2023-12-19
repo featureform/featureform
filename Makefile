@@ -240,6 +240,7 @@ pytest:
 	python -m pytest -m 'local' client/tests/test_source_dataframe.py
 	python -m pytest -m 'local' client/tests/test_training_set_dataframe.py
 	python -m pytest -m 'local' client/tests/get_provider_test.py
+	python -m pytest client/tests/test_deploy.py
 	-rm -r .featureform
 	-rm -f transactions.csv
 
@@ -365,7 +366,7 @@ test_importable_online: ## Run importable online table tests. Run with `make tes
 containers: gen_grpc						## Build Docker containers for Minikube
 	minikube image build --v=3 -f ./api/Dockerfile . -t local/api-server:stable & \
 	minikube image build --v=3 -f ./dashboard/Dockerfile . -t local/dashboard:stable & \
-	minikube image build --v=3 -f ./coordinator/Dockerfile.old --build-opt=build-arg=TESTING=True . -t local/coordinator:stable & \
+	minikube image build --v=3 -f ./coordinator/Dockerfile --build-opt=build-arg=TESTING=True . -t local/coordinator:stable & \
 	minikube image build --v=3 -f ./metadata/Dockerfile . -t local/metadata:stable & \
 	minikube image build --v=3 -f ./metadata/dashboard/Dockerfile . -t local/metadata-dashboard:stable & \
 	minikube image build --v=3 -f ./serving/Dockerfile . -t local/serving:stable & \

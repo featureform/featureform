@@ -8,10 +8,11 @@
 package provider
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"os"
 	"regexp"
 
@@ -22,6 +23,7 @@ import (
 
 	"bytes"
 	"encoding/csv"
+	random "math/rand"
 	"reflect"
 	"strings"
 	"testing"
@@ -982,7 +984,7 @@ func sparkSafeRandomID(types ...OfflineResourceType) ResourceID {
 	} else if len(types) == 1 {
 		t = types[0]
 	} else {
-		t = types[rand.Intn(len(types))]
+		t = types[random.Intn(len(types))]
 	}
 	return ResourceID{
 		Name:    strings.ReplaceAll(uuid.NewString(), "-", ""),
@@ -3325,4 +3327,57 @@ func TestSparkOfflineStore_getResourceInformationFromFilePath(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDatabricksSubmitParams(t *testing.T) {
+	executor := &DatabricksExecutor{}
+
+	testCases := []struct {
+		name                 string
+		argsList             []string
+		query                string
+		sourceList           []string
+		shouldExceedAPILimit bool
+	}{
+		{
+			name:     "SubmitParamsWithinLimit",
+			argsList: []string{"sql", "--output_uri", "s3://bucket/featureform/Feature/t_name/t_variant/", "--job_type", "Materialization", "--store_type", "s3"},
+			query:    "SELECT * FROM table",
+			sourceList: []string{
+				"s3://bucket/featureform/Feature/t_name/t_variant/",
+			},
+			shouldExceedAPILimit: false,
+		},
+		{
+			name:     "SubmitParamsExceedsLimit",
+			argsList: []string{"sql", "--output_uri", "s3://bucket/featureform/Feature/t_name/t_variant/", "--job_type", "Materialization", "--store_type", "s3"},
+			query:    randomStringNBytes(5_000, t),
+			sourceList: []string{
+				randomStringNBytes(1_000, t),
+				randomStringNBytes(1_000, t),
+				randomStringNBytes(1_000, t),
+				randomStringNBytes(1_000, t),
+				randomStringNBytes(1_000, t),
+			},
+			shouldExceedAPILimit: true,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := executor.exceedsSubmitParamsTotalByteLimit(tt.argsList, tt.query, tt.sourceList)
+			if actual != tt.shouldExceedAPILimit {
+				t.Fatalf("Expected %v, got %v", tt.shouldExceedAPILimit, actual)
+			}
+		})
+	}
+}
+
+func randomStringNBytes(size int, t *testing.T) string {
+	randomBytes := make([]byte, size)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		t.Fatalf("Error generating random bytes: %v", err)
+	}
+	return base64.StdEncoding.EncodeToString(randomBytes)
 }

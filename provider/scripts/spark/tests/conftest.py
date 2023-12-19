@@ -38,6 +38,7 @@ def sql_all_arguments():
         store_type=None,
         output_format="parquet",
         headers="include",
+        submit_params_uri=None,
     )
     return (input_args, expected_args)
 
@@ -55,6 +56,7 @@ def sql_local_all_arguments():
         credential={},
         output_format="parquet",
         headers="include",
+        submit_params_uri=None,
     )
     return expected_args
 
@@ -79,6 +81,7 @@ def sql_partial_arguments():
         store_type=None,
         output_format="parquet",
         headers="include",
+        submit_params_uri=None,
     )
     return (input_args, expected_args)
 
@@ -97,6 +100,7 @@ def sql_invaild_arguments():
         store_type=None,
         output_format="parquet",
         headers="include",
+        submit_params_uri=None,
     )
     return (input_args, expected_args)
 
@@ -112,6 +116,7 @@ def sql_invalid_local_arguments():
         store_type=None,
         output_format="parquet",
         headers="include",
+        submit_params_uri=None,
     )
     return expected_args
 
@@ -200,6 +205,7 @@ def sql_databricks_all_arguments():
         credential={"key": "value"},
         output_format="parquet",
         headers="include",
+        submit_params_uri=None,
     )
     return input_args, expected_args
 

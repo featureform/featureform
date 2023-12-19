@@ -156,7 +156,7 @@ def step_impl(context, transformation_type, name, sources):
     if transformation_type == "DF":
 
         @context.spark.df_transformation(
-            name=tf_name,
+            name=f"{tf_name}-{transformation_type}",
             inputs=[context.file],
         )
         def some_transformation(df):
@@ -167,7 +167,7 @@ def step_impl(context, transformation_type, name, sources):
         name, variant = context.file.name_variant()
 
         @context.spark.sql_transformation(
-            name=name,
+            name=f"{tf_name}-{transformation_type}",
         )
         def some_transformation():
             """Unedited transactions"""

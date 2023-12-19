@@ -122,7 +122,6 @@ type ResourceID struct {
 	Name    string
 	Variant string
 	Type    ResourceType
-	Tags 	[]string
 }
 
 func (id ResourceID) Proto() *pb.NameVariant {

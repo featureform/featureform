@@ -272,7 +272,7 @@ func (lookup LocalResourceLookup) Has(id ResourceID) (bool, error) {
 }
 
 func (lookup LocalResourceLookup) Set(id ResourceID, res Resource) error {
-		lookup[id] = res
+	lookup[id] = res
 	return nil
 }
 

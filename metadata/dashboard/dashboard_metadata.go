@@ -1458,7 +1458,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 		Variant: variant,
 		Tags:    requestBody.Tags,
 	})
-	}
+}
 
 func replaceTags(resourceTypeParam string, currentResource metadata.Resource, newTagList *pb.Tags) error {
 	deserialized := currentResource.Proto()

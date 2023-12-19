@@ -1444,12 +1444,21 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 
 	m.lookup.Set(objID, foundResource)
 
+	updatedResource := search.ResourceDoc{
+		Name:    name,
+		Variant: variant,
+		Type:    resourceTypeParam,
+		Tags:    requestBody.Tags,
+	}
+	// Update search index for Meilisearch
+	searchClient.Upsert(updatedResource)
+
 	c.JSON(http.StatusOK, TagResult{
 		Name:    name,
 		Variant: variant,
 		Tags:    requestBody.Tags,
 	})
-}
+	}
 
 func replaceTags(resourceTypeParam string, currentResource metadata.Resource, newTagList *pb.Tags) error {
 	deserialized := currentResource.Proto()

@@ -229,12 +229,30 @@ func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
 	if err := wrapper.ResourceLookup.Set(id, res); err != nil {
 		return err
 	}
-	doc := search.ResourceDoc{
-		Name:    id.Name,
-		Type:    id.Type.String(),
-		Variant: id.Variant,
-		Tags: 	 id.Tags,
-	}
+
+	var allTags []string
+	if sourceVariant, ok := res.(*sourceVariantResource); ok {
+        allTags = append(allTags, sourceVariant.serialized.Tags.Tag...)
+    }
+
+	if featureVariant, ok := res.(*featureVariantResource); ok {
+        allTags = append(allTags, featureVariant.serialized.Tags.Tag...)
+    }
+
+	if labelVariant, ok := res.(*labelVariantResource); ok {
+        allTags = append(allTags, labelVariant.serialized.Tags.Tag...)
+    }
+
+	if trainingSetVariant, ok := res.(*trainingSetVariantResource); ok {
+        allTags = append(allTags, trainingSetVariant.serialized.Tags.Tag...)
+    }
+	
+    doc := search.ResourceDoc{
+        Name:    id.Name,
+        Type:    id.Type.String(),
+		Tags:    allTags,
+        Variant: id.Variant,
+    }
 	return wrapper.Searcher.Upsert(doc)
 }
 
@@ -254,7 +272,7 @@ func (lookup LocalResourceLookup) Has(id ResourceID) (bool, error) {
 }
 
 func (lookup LocalResourceLookup) Set(id ResourceID, res Resource) error {
-	lookup[id] = res
+		lookup[id] = res
 	return nil
 }
 

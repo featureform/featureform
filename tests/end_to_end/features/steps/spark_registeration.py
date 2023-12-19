@@ -164,7 +164,7 @@ def step_impl(context, transformation_type, name, sources):
             return df
 
     elif transformation_type == "SQL":
-        name, variant = context.file.name, context.file.variant
+        name, variant = context.file.name_variant()
 
         @context.spark.sql_transformation(
             name=name,

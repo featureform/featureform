@@ -117,13 +117,13 @@ func (s Search) initializeCollection() error {
 }
 
 func (s Search) Upsert(doc ResourceDoc) error {
-		document := map[string]interface{}{
-		"ID":      strings.ReplaceAll(fmt.Sprintf("%s__%s__%s", doc.Type, doc.Name, doc.Variant), " ", ""),
-		"Parsed":  strings.ReplaceAll(fmt.Sprintf("%s__%s__%s", doc.Type, doc.Name, doc.Variant), "_", " "),
-		"Name":    doc.Name,
-		"Type":    doc.Type,
-		"Variant": doc.Variant,
-		"Tags":	   doc.Tags,
+	document := map[string]interface{}{
+	"ID":      strings.ReplaceAll(fmt.Sprintf("%s__%s__%s", doc.Type, doc.Name, doc.Variant), " ", ""),
+	"Parsed":  strings.ReplaceAll(fmt.Sprintf("%s__%s__%s", doc.Type, doc.Name, doc.Variant), "_", " "),
+	"Name":    doc.Name,
+	"Type":    doc.Type,
+	"Variant": doc.Variant,
+	"Tags":	   doc.Tags,
 	}
 	resp, err := s.client.Index("resources").UpdateDocuments(document)
 	if err != nil {
@@ -144,13 +144,13 @@ func (s Search) DeleteAll() error {
 }
 
 func (s Search) RunSearch(q string) ([]ResourceDoc, error) {
-		results, err := s.client.Index("resources").Search(q, &ms.SearchRequest{})
+	results, err := s.client.Index("resources").Search(q, &ms.SearchRequest{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to search: %v", err)
 	}
-	
+
 	var searchResults []ResourceDoc
-	
+
 	for _, hit := range results.Hits {
 				doc := hit.(map[string]interface{})
 

@@ -31,13 +31,13 @@ func TestFullSearch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to Initialize Search %s", err)
 	}
-		res := ResourceDoc{
+	res := ResourceDoc{
 		Name:    "name",
 		Variant: "default",
 		Type:    "string",
 		Tags:    []string{"tag1", "tag2"},
 	}
-		if err := searcher.Upsert(res); err != nil {
+	if err := searcher.Upsert(res); err != nil {
 		t.Fatalf("Failed to Upsert %s", err)
 	}
 	if _, err := searcher.RunSearch("name"); err != nil {
@@ -49,7 +49,7 @@ func TestFullSearch(t *testing.T) {
 	if err := searcher.DeleteAll(); err != nil {
 		t.Fatalf("Failed to reset %s", err)
 	}
-	}
+}
 
 func TestCharacters(t *testing.T) {
 	if testing.Short() {

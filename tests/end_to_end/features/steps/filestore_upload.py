@@ -165,6 +165,7 @@ def upload_to_gcs(bucket_name, local_file_name, upload_file_path, filetype):
 @when('I upload a "{filesize}" "{filetype}" file to "{storage_provider}"')
 def step_impl(context, filesize, filetype, storage_provider):
     context.filetype = filetype
+    context.storage_provider = storage_provider
 
     filename, file_uri = get_filename_and_uri(filesize, filetype)
 

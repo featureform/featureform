@@ -125,7 +125,7 @@ def step_impl(context):
 
 @when("I register the file")
 def step_impl(context):
-    file_name = f"transactions-{context.filetype}"
+    file_name = f"transactions-{context.filetype}-{context.storage_provider}"
     context.file = context.spark.register_file(
         name=file_name,
         file_path=context.cloud_file_path,

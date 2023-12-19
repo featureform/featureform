@@ -3933,6 +3933,7 @@ class Registrar:
         )
 
         self.__resources.append(decorator)
+        self.map_client_object_to_resource(decorator, decorator)
 
         if fn is None:
             return decorator

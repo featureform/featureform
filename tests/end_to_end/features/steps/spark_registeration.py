@@ -152,10 +152,11 @@ def step_impl(context):
 def step_impl(context, transformation_type, name, sources):
     # source_list = sources.split(",")
     # source_list = [ff.get_source(s, ff.get_run()) for s in source_list]
+    tf_name = name
     if transformation_type == "DF":
 
         @context.spark.df_transformation(
-            name=name,
+            name=tf_name,
             inputs=[context.file],
         )
         def some_transformation(df):
@@ -172,7 +173,7 @@ def step_impl(context, transformation_type, name, sources):
             """Unedited transactions"""
             return "SELECT * FROM {{ name.variant }}"
 
-    setattr(context, name, some_transformation)
+    setattr(context, tf_name, some_transformation)
     context.transformation = some_transformation
     context.client.apply(asynchronous=False, verbose=True)
 

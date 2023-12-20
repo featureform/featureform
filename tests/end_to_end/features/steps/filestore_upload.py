@@ -165,11 +165,12 @@ def upload_to_gcs(bucket_name, local_file_name, upload_file_path, filetype):
 @when('I upload a "{filesize}" "{filetype}" file to "{storage_provider}"')
 def step_impl(context, filesize, filetype, storage_provider):
     context.filetype = filetype
-    context.storage_provider = storage_provider
+    context.storage_provider_name = storage_provider
+    # context.filename = f"transactions-{filesize}-{filetype}-{storage_provider}"
 
     filename, file_uri = get_filename_and_uri(filesize, filetype)
 
-    run_id = ff.get_run()
+    run_id = context.run_name
     local_path = f"data/{run_id}"
 
     os.makedirs(local_path, exist_ok=True)

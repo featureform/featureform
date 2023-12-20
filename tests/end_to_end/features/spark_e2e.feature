@@ -35,7 +35,6 @@ Feature: Spark End to End
   Scenario Outline: Register a large file in spark
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"
-    And I generate a random variant name
     And I upload a "large" "<filetype>" file to "<storage_provider>"
     And I register "<storage_provider>" filestore with bucket "<bucket>" and root path "behave"
     And I register databricks

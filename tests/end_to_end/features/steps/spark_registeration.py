@@ -12,13 +12,13 @@ from featureform import register_spark
 
 @when("I generate a random variant name")
 def step_impl(context):
-    run_id = "".join(random.choice(string.ascii_lowercase) for _ in range(15))
+    variant = "".join(random.choice(string.ascii_lowercase) for _ in range(15))
+    run_name = "".join(random.choice(string.ascii_lowercase) for _ in range(15))
 
-    context.variant = ff.set_run(run_id)
-    context.variant = run_id
+    context.variant = variant
+    context.run_name = run_name
 
-
-#   ff.set_variant_prefix(run_id)
+    ff.set_variant_prefix(variant)
 
 
 @when("I register Spark")
@@ -50,7 +50,7 @@ def step_impl(context):
 def step_impl(context, storage_provider, bucket, root_path):
     from dotenv import load_dotenv
 
-    run = ff.get_run()
+    run = context.run_name
 
     if root_path == "empty":
         root_path = ""
@@ -98,7 +98,7 @@ def step_impl(context, storage_provider, bucket, root_path):
 def step_impl(context):
     from dotenv import load_dotenv
 
-    run = ff.get_run()
+    run = context.run_name
 
     load_dotenv("../../.env")
     databricks = ff.DatabricksCredentials(
@@ -125,7 +125,8 @@ def step_impl(context):
 
 @when("I register the file")
 def step_impl(context):
-    file_name = f"transactions-{context.filetype}-{context.storage_provider}"
+    file_name = context.filename
+    print("THIS IS THE CLOUD PATH: ", context.cloud_file_path)
     context.file = context.spark.register_file(
         name=file_name,
         file_path=context.cloud_file_path,
@@ -150,13 +151,15 @@ def step_impl(context):
     'I register a "{transformation_type}" transformation named "{name}" from "{sources}"'
 )
 def step_impl(context, transformation_type, name, sources):
-    # source_list = sources.split(",")
+    # source_list = sources.split(",")p
     # source_list = [ff.get_source(s, ff.get_run()) for s in source_list]
     tf_name = name
+    print("THIS IS THE CONTECXT FIEL: ", context.file.name_variant())
+    print('here are the vars: ', vars(context.file))
     if transformation_type == "DF":
 
         @context.spark.df_transformation(
-            name=f"{tf_name}-{transformation_type}",
+            name=f"{tf_name}-{transformation_type}-{context.storage_provider_name}",
             inputs=[context.file],
         )
         def some_transformation(df):
@@ -167,11 +170,11 @@ def step_impl(context, transformation_type, name, sources):
         name, variant = context.file.name_variant()
 
         @context.spark.sql_transformation(
-            name=f"{tf_name}-{transformation_type}",
+            name=f"{tf_name}-{transformation_type}-{context.storage_provider_name}",
         )
         def some_transformation():
             """Unedited transactions"""
-            return "SELECT * FROM {{ name.variant }}"
+            return "SELECT * FROM {{" + f"{name}.{variant}" + "}}"
 
     setattr(context, tf_name, some_transformation)
     context.transformation = some_transformation

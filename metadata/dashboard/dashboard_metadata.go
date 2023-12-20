@@ -1447,7 +1447,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	updatedResource := search.ResourceDoc{
 		Name:    name,
 		Variant: variant,
-		Type:    resourceTypeParam,
+		Type:    resourceType.String(),
 		Tags:    requestBody.Tags,
 	}
 	// Update search index for Meilisearch

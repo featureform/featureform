@@ -383,10 +383,12 @@ func (table *clickhousePrimaryTable) IterateSegment(n int64) (GenericTableIterat
 		return nil, err
 	}
 	columnNames := make([]string, 0)
+	ecolumnNames := make([]string, 0)
 	for _, col := range columns {
-		columnNames = append(columnNames, sanitizeCH(col.Name))
+		columnNames = append(columnNames, col.Name)
+		ecolumnNames = append(ecolumnNames, sanitizeCH(col.Name))
 	}
-	names := strings.Join(columnNames[:], ", ")
+	names := strings.Join(ecolumnNames[:], ", ")
 	var query string
 	if n == -1 {
 		query = fmt.Sprintf("SELECT %s FROM %s", names, sanitizeCH(table.name))
@@ -879,11 +881,11 @@ type clickhouseSQLQueries struct {
 }
 
 func (q clickhouseSQLQueries) tableExists() string {
-	return "SELECT count() FROM system.tables WHERE table = $1"
+	return "SELECT count() FROM system.tables WHERE table = $1 AND (database = currentDatabase())"
 }
 
 func (q clickhouseSQLQueries) viewExists() string {
-	return "SELECT count() FROM system.tables WHERE table = $1 AND engine='View'"
+	return "SELECT count() FROM system.tables WHERE table = $1 AND engine='View' AND (database = currentDatabase())"
 }
 
 func (q clickhouseSQLQueries) primaryTableCreate(name string, columnString string) string {
@@ -1216,7 +1218,7 @@ func (mat *clickHouseMaterialization) ID() MaterializationID {
 
 func (mat *clickHouseMaterialization) NumRows() (int64, error) {
 	var n interface{}
-	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitize(mat.tableName))
+	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitizeCH(mat.tableName))
 	rows := mat.db.QueryRow(query)
 	err := rows.Scan(&n)
 	if err != nil {
@@ -1234,7 +1236,6 @@ func (mat *clickHouseMaterialization) NumRows() (int64, error) {
 
 func (mat *clickHouseMaterialization) IterateSegment(start, end int64) (FeatureIterator, error) {
 	query := mat.query.materializationIterateSegment(mat.tableName)
-	fmt.Println(query)
 	rows, err := mat.db.Query(query, start, end)
 	if err != nil {
 		return nil, err

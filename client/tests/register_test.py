@@ -278,6 +278,7 @@ def run_before_and_after_tests(tmpdir):
         ("SELECT * FROM {{name.variant }}", True),
         ("SELECT * FROM     \n {{ name.variant }}", True),
         ("SELECT * FROM     \n {{name.variant}}", True),
+        ("SELECT * FROM {{data_lsbrqxjvevhqeat_transactions_short_csv.aexftowrixasmlv_2023-12-20T15-16-44}}", True),
         ("SELECT * FROM     \n {{name . variant}}", False),
         (
             """

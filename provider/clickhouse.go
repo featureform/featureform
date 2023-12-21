@@ -892,6 +892,11 @@ func (q clickhouseSQLQueries) primaryTableCreate(name string, columnString strin
 	return fmt.Sprintf("CREATE TABLE %s ( %s ) ENGINE=MergeTree ORDER BY ()", sanitizeCH(name), columnString)
 }
 
+func (q clickhouseSQLQueries) trainingRowSelect(columns string, trainingSetName string) string {
+	// ensures random order - table is ordered by _row which is inserted at insert time
+	return fmt.Sprintf("SELECT * EXCEPT _row FROM (SELECT %s FROM %s ORDER BY _row ASC)", columns, sanitize(trainingSetName))
+}
+
 func (q clickhouseSQLQueries) registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error {
 	var query string
 	if timestamp {
@@ -1027,7 +1032,8 @@ func buildTrainingSelect(store *sqlOfflineStore, def TrainingSetDef, tableName s
 			query, santizedName, tableJoinAlias, tableJoinAlias, tableJoinAlias)
 	}
 	columnStr := strings.Join(columns, ", ")
-	query = fmt.Sprintf("SELECT %s, l.value as label FROM %s AS l %s", columnStr, sanitizeCH(labelName), query)
+	// rand gives us a UInt32 to ensure random order
+	query = fmt.Sprintf("SELECT %s, l.value as label, rand() as _row FROM %s AS l %s", columnStr, sanitizeCH(labelName), query)
 	return query, nil
 }
 
@@ -1038,7 +1044,7 @@ func (q clickhouseSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Train
 	}
 	if !isUpdate {
 		// use a 2-step EMPTY create so ClickHouse Cloud compatible
-		createQuery := fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY label SETTINGS allow_nullable_key=1 EMPTY AS (%s)", sanitizeCH(tableName), query)
+		createQuery := fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY _row EMPTY AS (%s)", sanitizeCH(tableName), query)
 		if _, err := store.db.Exec(createQuery); err != nil {
 			return err
 		}
@@ -1048,7 +1054,7 @@ func (q clickhouseSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Train
 		}
 	} else {
 		tempName := sanitizeCH(fmt.Sprintf("tmp_%s", tableName))
-		createQuery := fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY label SETTINGS allow_nullable_key=1 EMPTY AS (%s)", tempName, query)
+		createQuery := fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY _row EMPTY AS (%s)", tempName, query)
 		if _, err := store.db.Exec(createQuery); err != nil {
 			return err
 		}

@@ -9,6 +9,7 @@ import (
 	"math"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -704,7 +705,74 @@ func (store *clickHouseOfflineStore) GetResourceTable(id ResourceID) (OfflineTab
 }
 
 func (store *clickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIterator, error) {
-	return nil, fmt.Errorf("not implemented")
+
+	// if tables is empty, return an empty iterator
+	if len(ids) == 0 {
+		return newsqlBatchFeatureIterator(nil, nil, nil, store.query), fmt.Errorf("no features provided")
+	}
+
+	asEntity := ""
+	withFeatures := ""
+	joinTables := ""
+	featureColumns := ""
+	var matIDs []string
+	tableName0 := sanitizeCH(store.getMaterializationTableName(MaterializationID(fmt.Sprintf("%s__%s", ids[0].Name, ids[0].Variant))))
+	for i, tableID := range ids {
+		matID := MaterializationID(fmt.Sprintf("%s__%s", tableID.Name, tableID.Variant))
+		matIDs = append(matIDs, string(matID))
+		matTableName := sanitizeCH(store.getMaterializationTableName(matID))
+
+		if i > 0 {
+			joinTables += "FULL OUTER JOIN "
+		}
+		withFeatures += fmt.Sprintf(", %s.value AS feature%d, %s.ts AS TS%d ", matTableName, i+1, matTableName, i+1)
+		featureColumns += fmt.Sprintf(", feature%d", i+1)
+		joinTables += fmt.Sprintf("%s ", matTableName)
+		if i == 1 {
+			joinTables += fmt.Sprintf("ON %s = %s.entity ", asEntity, matTableName)
+			asEntity += ", "
+		}
+		if i > 1 {
+			joinTables += fmt.Sprintf("ON COALESCE(%s) = %s.entity ", asEntity, matTableName)
+			asEntity += ", "
+		}
+		asEntity += fmt.Sprintf("nullIf(%s.entity, '')", matTableName)
+	}
+
+	sort.Strings(matIDs)
+	joinedTableName := store.getJoinedMaterializationTableName(strings.Join(matIDs, "_"))
+	createQuery := ""
+	if len(ids) == 1 {
+		createQuery = fmt.Sprintf("CREATE VIEW `%s` AS SELECT %s AS entity %s FROM %s", joinedTableName, asEntity, withFeatures, tableName0)
+	} else {
+		createQuery = fmt.Sprintf("CREATE VIEW `%s` AS SELECT COALESCE(%s) AS entity %s FROM %s", joinedTableName, asEntity, withFeatures, joinTables)
+	}
+	store.db.Query(createQuery)
+	createQueryWithoutTS := fmt.Sprintf("CREATE VIEW `no_ts_%s` AS SELECT entity%s FROM \"%s\"", joinedTableName, featureColumns, joinedTableName)
+	store.db.Query(createQueryWithoutTS)
+	select_query := fmt.Sprintf("SELECT * FROM `no_ts_%s`", joinedTableName)
+	resultRows, err := store.db.Query(select_query)
+	if err != nil {
+		return nil, err
+	}
+	if resultRows == nil {
+		return newsqlBatchFeatureIterator(nil, nil, nil, store.query), nil
+	}
+	columnTypes, err := store.getValueColumnTypes(fmt.Sprintf("no_ts_%s", joinedTableName))
+	if err != nil {
+		return nil, err
+	}
+	columns, err := store.query.getColumns(store.db, fmt.Sprintf("no_ts_%s", joinedTableName))
+	if err != nil {
+		return nil, err
+	}
+	dropQuery := fmt.Sprintf("DROP VIEW `no_ts_%s`", joinedTableName)
+	store.db.Query(dropQuery)
+	columnNames := make([]string, 0)
+	for _, col := range columns {
+		columnNames = append(columnNames, sanitizeCH(col.Name))
+	}
+	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query), nil
 }
 
 func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
@@ -716,7 +784,7 @@ func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, option
 		return nil, err
 	}
 
-	matID := MaterializationID(id.Name)
+	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
 	matTableName := store.getMaterializationTableName(matID)
 	materializeQueries := store.query.materializationCreate(matTableName, resTable.name)
 	for _, materializeQry := range materializeQueries {
@@ -755,7 +823,7 @@ func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (M
 }
 
 func (store *clickHouseOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
-	matID := MaterializationID(id.Name)
+	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
 	tableName := store.getMaterializationTableName(matID)
 	getMatQry := store.query.materializationExists()
 	resTable, err := store.getsqlResourceTable(id)
@@ -894,7 +962,7 @@ func (q clickhouseSQLQueries) primaryTableCreate(name string, columnString strin
 
 func (q clickhouseSQLQueries) trainingRowSelect(columns string, trainingSetName string) string {
 	// ensures random order - table is ordered by _row which is inserted at insert time
-	return fmt.Sprintf("SELECT * EXCEPT _row FROM (SELECT %s FROM %s ORDER BY _row ASC)", columns, sanitize(trainingSetName))
+	return fmt.Sprintf("SELECT * EXCEPT _row FROM (SELECT %s FROM %s ORDER BY _row ASC)", columns, sanitizeCH(trainingSetName))
 }
 
 func (q clickhouseSQLQueries) registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error {

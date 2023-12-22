@@ -25,11 +25,8 @@ from pyspark.sql.types import (
     ArrayType,
     IntegerType,
     DoubleType,
-    BooleanType,
-    FloatType
 )
-from pyspark.sql.functions import when, col, asc, expr, avg, desc, stddev, sqrt
-from scipy.stats import t
+from pyspark.sql.functions import when, col, asc
 
 FILESTORES = ["local", "s3", "azure_blob_store", "google_cloud_storage", "hdfs"]
 
@@ -254,107 +251,6 @@ def boolean_count(df, column_name):
         "numeric_categories": [],
         "categoryCounts": false_true_count,
     }
-
-def find_p_value(df_col1, df_col2, column1, column2):
-    # Calculate means and standard deviations
-    mean1 = df_col1.select(avg(column1)).collect()[0][0]
-    mean2 = df_col2.select(avg(column2)).collect()[0][0]
-    std1 = df_col1.select(stddev(column1)).collect()[0][0]
-    std2 = df_col2.select(stddev(column2)).collect()[0][0]
-    num_rows_1 = df_col1.count()
-    num_rows_2 = df_col2.count()
-    
-
-    # Calculate the standard error of the difference between means
-    std_error_diff = np.sqrt((std1**2 / num_rows_1) + (std2**2 / num_rows_2))
-
-    # Calculate the t-statistic
-    t_statistic = (mean1 - mean2) / std_error_diff
-
-    # Degrees of freedom
-    dof = 2 * num_rows_1 - 2
-
-    # Calculate the p-value
-    p_value = 2 * (1 - t.cdf(abs(t_statistic), dof))
-
-    return p_value
-
-# Find the Jenson Shannon Divergence between two columns P and Q in dataframe DF
-def jensen_shannon_divergence(df_p, df_q, p, q):
-    p_norm = expr(f"""SQRT(SUM(POWER({p}, 2)))""")
-    p_norm = df_p.select(p_norm).collect()[0][0]
-
-    q_norm = expr(f"""SQRT(SUM(POWER({q}, 2)))""")
-    q_norm = df_q.select(q_norm).collect()[0][0]
-
-    df = df_p.withColumn("p_normalized", df_p[p]/q_norm)
-    df = df.withColumn("q_normalized", df_q[q]/q_norm)
-    # Calculate the average distribution
-    df = df.withColumn("m", (df["p_normalized"] + df["q_normalized"])/2)
-
-    # Calculate the KL divergence for p relative to m
-    p_kl_divergence_expr = expr("""SUM(CASE WHEN p_normalized != 0 AND m != 0 THEN p_normalized * LOG2(p_normalized / m) ELSE 0 END) AS p_kl_divergence""")
-    kl_pm = df.select(p_kl_divergence_expr).collect()[0][0]
-
-    # Calculate the KL divergence for q relative to m
-    q_kl_divergence_expr = expr("""SUM(CASE WHEN q_normalized != 0 AND m != 0 THEN q_normalized * LOG2(q_normalized / m) ELSE 0 END) AS q_kl_divergence""")
-    kl_qm = df.select(q_kl_divergence_expr).collect()[0][0]
-
-    # Calculate the Jensen-Shannon divergence
-    js_distance = (kl_pm + kl_qm) / 2.0
-    if js_distance < 0:
-        return("Jensen shannon distance is less than 0")
-    return sqrt(js_distance)
-
-def drift_detection(current_filepath, previous_filepath, current_column, previous_column, spark):
-    current_df = spark.read.load(current_filepath)
-    current_df = current_df.select(col(current_column).cast("float"))
-
-    previous_df = spark.read.load(previous_filepath)
-    previous_df = previous_df.select(col(previous_column).cast("float"))
-
-    stats_scheme = StructType([
-                StructField("name", StringType(), True),
-                StructField("type", StringType(), True),
-                StructField("string_categories", ArrayType(StringType(), True), True),
-                StructField("numeric_categories", ArrayType(ArrayType(DoubleType()), True), True),
-                StructField("categoryCounts", ArrayType(IntegerType()), True)
-            ])
-
-    schema = StructType([
-                StructField("type", StringType(), True),
-                StructField("pValue", FloatType(), True),
-                StructField("jenson-shannon", FloatType(), True),
-                StructField("driftDetected", BooleanType(), True),
-                StructField("previous", stats_scheme, True),
-                StructField("current", stats_scheme, True),
-            ])
-
-    data = {}
-    
-    current_column_stats = numerical_bar_chart(current_df, current_column)
-    data["current"] = current_column_stats
-
-
-    data["type"] = "num"
-    
-    if previous_filepath == "":
-        
-        data["previous"] = None
-        data["pValue"] = None
-        data["jenson-shannon"] = None
-  
-    else:
-        previous_column_stats = numerical_bar_chart(previous_df, previous_column)
-        data["previous"] = previous_column_stats
-
-        js_divergence = jensen_shannon_divergence(current_df, previous_df, current_column, previous_column)
-        data["jenson-shannon"] = float(js_divergence)
-        
-        p_value = find_p_value(current_df, previous_df, current_column, previous_column)
-        data["pValue"] = float(p_value)
-        
-    return spark.createDataFrame([(data)], schema=schema)
 
 
 def main(args):

@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/featureform/helpers"
 	"io/ioutil"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -190,13 +190,6 @@ func checkEnv(envVar string) string {
 	return value
 }
 
-func getEnv(key string, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return fallback
-}
-
 func initSpark(t *testing.T, executorType pc.SparkExecutorType, storeType fs.FileStoreType) (pc.SerializedConfig, pc.SparkConfig) {
 	var executorConfig pc.SparkExecutorConfig
 
@@ -310,11 +303,9 @@ func initProvider(t *testing.T, providerType pt.Type, executorType pc.SparkExecu
 		db := checkEnv("CLICKHOUSE_DATABASE")
 		user := checkEnv("CLICKHOUSE_USER")
 		password := checkEnv("CLICKHOUSE_PASSWORD")
-		host := getEnv("CLICKHOUSE_HOST", "localhost")
-		port := uint64(9000)
-		port, _ = strconv.ParseUint(getEnv("CLICKHOUSE_PORT", "9000"), 10, 16)
-		ssl := false
-		ssl, _ = strconv.ParseBool(getEnv("CLICKHOUSE_SSL", "false"))
+		host := helpers.GetEnv("CLICKHOUSE_HOST", "localhost")
+		port := helpers.GetEnvUInt16("CLICKHOUSE_PORT", uint16(9000))
+		ssl := helpers.GetEnvBool("CLICKHOUSE_SSL", false)
 		clickhouseConfig := pc.ClickHouseConfig{
 			Host:     host,
 			Port:     uint16(port),

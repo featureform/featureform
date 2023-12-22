@@ -17,6 +17,7 @@ import (
 	"flag"
 	"fmt"
 	fs "github.com/featureform/filestore"
+	"github.com/featureform/helpers"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
@@ -27,7 +28,6 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -58,13 +58,6 @@ func TestOfflineStores(t *testing.T) {
 			panic(fmt.Sprintf("Environment variable not found: %s", envVar))
 		}
 		return value
-	}
-
-	getEnv := func(key, fallback string) string {
-		if value, ok := os.LookupEnv(key); ok {
-			return value
-		}
-		return fallback
 	}
 
 	postgresInit := func() pc.SerializedConfig {
@@ -125,14 +118,12 @@ func TestOfflineStores(t *testing.T) {
 		t.Log("ClickHouse Database: ", clickHouseDb)
 		username := checkEnv("CLICKHOUSE_USER")
 		password := checkEnv("CLICKHOUSE_PASSWORD")
-		host := getEnv("CLICKHOUSE_HOST", "localhost")
-		port := uint64(9000)
-		port, _ = strconv.ParseUint(getEnv("CLICKHOUSE_PORT", "9000"), 10, 16)
-		ssl := false
-		ssl, _ = strconv.ParseBool(getEnv("CLICKHOUSE_SSL", "false"))
+		host := helpers.GetEnv("CLICKHOUSE_HOST", "localhost")
+		port := helpers.GetEnvUInt16("CLICKHOUSE_PORT", uint16(9000))
+		ssl := helpers.GetEnvBool("CLICKHOUSE_SSL", false)
 		var clickHouseConfig = pc.ClickHouseConfig{
 			Host:     host,
-			Port:     uint16(port),
+			Port:     port,
 			Username: username,
 			Password: password,
 			Database: clickHouseDb,

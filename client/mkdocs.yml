@@ -6,39 +6,35 @@ repo_url: https://github.com/featureform/featureform
 edit_uri: ""
 
 theme:
-    name: "material"
-    favicon: "images/featureform.png"
-    logo: "images/featureform.png"
-    palette:
-        scheme: default
-        primary: custom
-        accent: custom
+  name: "material"
+  favicon: "images/featureform.png"
+  logo: "images/featureform.png"
+  palette:
+    scheme: default
+    primary: custom
+    accent: custom
 extra_css:
   - stylesheets/extra.css
-
-extra:
-  version:
-    provider: mike
 
 nav:
   - Home: index.md
   - Getting Started:
-#    - Choosing a Deployment:
-#      - Overview: deployment_overview.md
-#      - Localmode: localmode.md
-#      - Docker: docker.md
-#      - Kubernetes: kubernetes.md
-#      - Deployment Comparison: compatibility.md
-    - Installation:
-      - Python: installation.md
-      - Helm: https://docs.featureform.com/deployment/kubernetes
+      #    - Choosing a Deployment:
+      #      - Overview: deployment_overview.md
+      #      - Localmode: localmode.md
+      #      - Docker: docker.md
+      #      - Kubernetes: kubernetes.md
+      #      - Deployment Comparison: compatibility.md
+      - Installation:
+          - Python: installation.md
+          - Helm: https://docs.featureform.com/deployment/kubernetes
   - Register:
-    - Providers: providers.md
-    - Sources:
-      - Primary: primary_sources.md
-      - Transformations: transformations.md
-    - Features: features.md
-    - Training Sets: training_sets.md
+      - Providers: providers.md
+      - Sources:
+          - Primary: primary_sources.md
+          - Transformations: transformations.md
+      - Features: features.md
+      - Training Sets: training_sets.md
   - Apply:
       - Client: client_apply.md
       - CLI: cli.md
@@ -52,23 +48,23 @@ nav:
       - On Demand functions: on_demand_functions.md
       - Properties and Tags: properties_and_tags.md
       - Provider Updating: provider_updating.md
-#      - Scheduling: scheduling.md
-#      - Search: search.md
-#      - Sources as to Pandas: sources_as_dataframes.md
-#      - Streaming: streaming.md
-#      - Training Sets to Pandas: training_sets_as_dataframes.md
+  #      - Scheduling: scheduling.md
+  #      - Search: search.md
+  #      - Sources as to Pandas: sources_as_dataframes.md
+  #      - Streaming: streaming.md
+  #      - Training Sets to Pandas: training_sets_as_dataframes.md
   - Deployment Comparison: compatibility.md
 
 plugins:
-- search
-- section-index
-- mkdocstrings:
-    handlers:
+  - search
+  - section-index
+  - mkdocstrings:
+      handlers:
         python:
-            paths: [src]
-- gen-files:
-    scripts:
-    - gen_pages.py
+          paths: [src]
+  - gen-files:
+      scripts:
+        - gen_pages.py
 #- literate-nav:
 #      nav_file: index.md
 markdown_extensions:

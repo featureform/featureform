@@ -300,7 +300,7 @@ func initProvider(t *testing.T, providerType pt.Type, executorType pc.SparkExecu
 		}
 		return postgresConfig.Serialize()
 	case pt.ClickHouseOffline:
-		db := checkEnv("CLICKHOUSE_DATABASE")
+		db := checkEnv("CLICKHOUSE_DB")
 		user := checkEnv("CLICKHOUSE_USER")
 		password := checkEnv("CLICKHOUSE_PASSWORD")
 		host := helpers.GetEnv("CLICKHOUSE_HOST", "localhost")

@@ -112,7 +112,7 @@ func TestOfflineStores(t *testing.T) {
 	clickHouseInit := func() (pc.SerializedConfig, pc.ClickHouseConfig) {
 		clickHouseDb := ""
 		ok := true
-		if clickHouseDb, ok = os.LookupEnv("CLICKHOUSE_DATABASE"); !ok {
+		if clickHouseDb, ok = os.LookupEnv("CLICKHOUSE_DB"); !ok {
 			clickHouseDb = fmt.Sprintf("feature_form_%d", time.Now().UnixMilli())
 		}
 		t.Log("ClickHouse Database: ", clickHouseDb)

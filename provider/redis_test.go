@@ -7,6 +7,9 @@ package provider
 import (
 	"context"
 	"fmt"
+	"github.com/alicebob/miniredis"
+	"github.com/joho/godotenv"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -16,6 +19,127 @@ import (
 
 	"github.com/redis/rueidis"
 )
+
+func mockRedis() *miniredis.Miniredis {
+	s, err := miniredis.Run()
+	if err != nil {
+		panic(err)
+	}
+	return s
+}
+
+func TestOnlineStoreRedisMock(t *testing.T) {
+	mRedis := mockRedis()
+	defer mRedis.Close()
+	mockRedisAddr := mRedis.Addr()
+	redisMockConfig := &pc.RedisConfig{
+		Addr: mockRedisAddr,
+	}
+
+	store, err := GetOnlineStore(pt.RedisOnline, redisMockConfig.Serialized())
+	if err != nil {
+		t.Fatalf("could not initialize store: %s\n", err)
+	}
+
+	test := OnlineStoreTest{
+		t:     t,
+		store: store,
+	}
+	test.Run()
+}
+
+func TestOnlineStoreRedisInsecure(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+	err := godotenv.Load("../.env")
+	if err != nil {
+		t.Logf("could not open .env file... Checking environment: %s", err)
+	}
+	redisInsecurePort, ok := os.LookupEnv("REDIS_INSECURE_PORT")
+	if !ok {
+		t.Fatalf("missing REDIS_INSECURE_PORT variable")
+	}
+	insecureAddr := fmt.Sprintf("%s:%s", "localhost", redisInsecurePort)
+	redisInsecureConfig := &pc.RedisConfig{
+		Addr: insecureAddr,
+	}
+
+	store, err := GetOnlineStore(pt.RedisOnline, redisInsecureConfig.Serialized())
+	if err != nil {
+		t.Fatalf("could not initialize store: %s\n", err)
+	}
+
+	test := OnlineStoreTest{
+		t:     t,
+		store: store,
+	}
+	test.Run()
+}
+
+func TestOnlineStoreRedisSecure(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+	err := godotenv.Load("../.env")
+	if err != nil {
+		t.Logf("could not open .env file... Checking environment: %s", err)
+	}
+	redisSecurePort, ok := os.LookupEnv("REDIS_SECURE_PORT")
+	if !ok {
+		t.Fatalf("missing REDIS_SECURE_PORT variable")
+	}
+	redisPassword, ok := os.LookupEnv("REDIS_PASSWORD")
+	if !ok {
+		t.Fatalf("missing REDIS_PASSWORD variable")
+	}
+
+	secureAddr := fmt.Sprintf("%s:%s", "localhost", redisSecurePort)
+	redisSecureConfig := &pc.RedisConfig{
+		Addr:     secureAddr,
+		Password: redisPassword,
+	}
+
+	store, err := GetOnlineStore(pt.RedisOnline, redisSecureConfig.Serialized())
+	if err != nil {
+		t.Fatalf("could not initialize store: %s\n", err)
+	}
+
+	test := OnlineStoreTest{
+		t:     t,
+		store: store,
+	}
+	test.Run()
+}
+
+func TestVectorStoreRedis(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+	err := godotenv.Load("../.env")
+	if err != nil {
+		t.Logf("could not open .env file... Checking environment: %s", err)
+	}
+	redisInsecurePort, ok := os.LookupEnv("REDIS_INSECURE_PORT")
+	if !ok {
+		t.Fatalf("missing REDIS_INSECURE_PORT variable")
+	}
+	insecureAddr := fmt.Sprintf("%s:%s", "localhost", redisInsecurePort)
+	redisInsecureConfig := &pc.RedisConfig{
+		Addr: insecureAddr,
+	}
+
+	store, err := GetOnlineStore(pt.RedisOnline, redisInsecureConfig.Serialized())
+	if err != nil {
+		t.Fatalf("could not initialize store: %s\n", err)
+	}
+
+	test := VectorStoreTest{
+		t:     t,
+		store: store,
+	}
+	test.Run()
+}
 
 func Test_redisOnlineTable_Get(t *testing.T) {
 	miniRedis := mockRedis()

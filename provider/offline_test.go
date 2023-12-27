@@ -1,6 +1,3 @@
-//go:build offline
-// +build offline
-
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -33,7 +30,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-var provider = flag.String("provider", "", "provider to perform test on")
+var offlineProvider = flag.String("offline_provider", "", "provider to perform test on")
 
 type testMember struct {
 	t               pt.Type
@@ -247,30 +244,30 @@ func TestOfflineStores(t *testing.T) {
 
 	testList := []testMember{}
 
-	if *provider == "memory" || *provider == "" {
+	if *offlineProvider == "memory" || *offlineProvider == "" {
 		testList = append(testList, testMember{pt.MemoryOffline, []byte{}, false})
 	}
-	if *provider == "bigquery" || *provider == "" {
+	if *offlineProvider == "bigquery" || *offlineProvider == "" {
 		serialBQConfig, bigQueryConfig := bqInit()
 		testList = append(testList, testMember{pt.BigQueryOffline, serialBQConfig, true})
 		t.Cleanup(func() {
 			destroyBigQueryDataset(bigQueryConfig)
 		})
 	}
-	if *provider == "postgres" || *provider == "" {
+	if *offlineProvider == "postgres" || *offlineProvider == "" {
 		testList = append(testList, testMember{pt.PostgresOffline, postgresInit(), true})
 	}
 	//if *provider == "mysql" || *provider == "" {
 	//	testList = append(testList, testMember{pt.MySqlOffline, mySqlInit(), true})
 	//}
-	if *provider == "snowflake" || *provider == "" {
+	if *offlineProvider == "snowflake" || *offlineProvider == "" {
 		serialSFConfig, snowflakeConfig := snowflakeInit()
 		testList = append(testList, testMember{pt.SnowflakeOffline, serialSFConfig, true})
 		t.Cleanup(func() {
 			destroySnowflakeDatabase(snowflakeConfig)
 		})
 	}
-	if *provider == "redshift" || *provider == "" {
+	if *offlineProvider == "redshift" || *offlineProvider == "" {
 		serialRSConfig, redshiftConfig := redshiftInit()
 		testList = append(testList, testMember{pt.RedshiftOffline, serialRSConfig, true})
 		t.Cleanup(func() {

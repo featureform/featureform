@@ -1,6 +1,3 @@
-//go:build k8s
-// +build k8s
-
 package provider
 
 import (
@@ -111,6 +108,7 @@ func TestDeserializeExecutorConfig(t *testing.T) {
 }
 
 func TestBlobInterfaces(t *testing.T) {
+
 	fileStoreTests := map[string]func(*testing.T, FileStore){
 		"Test Filestore Read and Write": testFilestoreReadAndWrite,
 		"Test Exists":                   testExists,
@@ -185,6 +183,9 @@ func TestBlobInterfaces(t *testing.T) {
 		fileTest = fileTest
 		testName = testName
 		for blobName, blobProvider := range blobProviders {
+			if testing.Short() && blobName == "Azure" {
+				t.Skip()
+			}
 			if blobName != "HDFS" {
 				continue
 			}
@@ -730,6 +731,9 @@ func testNumRows(t *testing.T, store FileStore) {
 }
 
 func TestDatabricksInitialization(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	host := helpers.GetEnv("DATABRICKS_HOST", "")
 	token := helpers.GetEnv("DATABRICKS_ACCESS_TOKEN", "")
 	cluster := helpers.GetEnv("DATABRICKS_CLUSTER", "")

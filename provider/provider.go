@@ -20,7 +20,7 @@ func init() {
 		pt.DynamoDBOnline:   dynamodbOnlineStoreFactory,
 		pt.PineconeOnline:   pineconeOnlineStoreFactory,
 		pt.MemoryOffline:    memoryOfflineStoreFactory,
-		pt.MySqlOffline:     memoryOfflineStoreFactory,
+		pt.MySqlOffline:     mySqlOfflineStoreFactory,
 		pt.PostgresOffline:  postgresOfflineStoreFactory,
 		pt.SnowflakeOffline: snowflakeOfflineStoreFactory,
 		pt.RedshiftOffline:  redshiftOfflineStoreFactory,

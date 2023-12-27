@@ -71,6 +71,16 @@ func TestProviderConfigUpdates(t *testing.T) {
 			providerType: pt.MongoDBOnline,
 		},
 		{
+			name:         "Valid MSSQL Configuration Update",
+			valid:        true,
+			providerType: pt.MSSQLOffline,
+		},
+		{
+			name:         "Invalid MSSQL Configuration Update",
+			valid:        false,
+			providerType: pt.MSSQLOffline,
+		},
+		{
 			name:         "Valid mySQL Configuration Update",
 			valid:        true,
 			providerType: pt.MySqlOffline,
@@ -154,6 +164,8 @@ func TestProviderConfigUpdates(t *testing.T) {
 				testFirestoreConfigUpdates(t, c.providerType, c.valid)
 			case pt.MongoDBOnline:
 				testMongoConfigUpdates(t, c.providerType, c.valid)
+			case pt.MSSQLOffline:
+				testMSSQLConfigUpdates(t, c.providerType, c.valid)		
 			case pt.MySqlOffline:
 				testMySqlConfigUpdates(t, c.providerType, c.valid)
 			case pt.PostgresOffline:
@@ -356,6 +368,44 @@ func testMongoConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 	b := configB.Serialized()
 
 	actual, err := isValidMongoConfigUpdate(a, b)
+	assertConfigUpdateResult(t, valid, actual, err, providerType)
+}
+
+func testMSSQLConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
+	host := "0.0.0.0"
+	port := "1433"
+	username := "mssql"
+	password := "password"
+	database := "mssql"
+
+	configA := pc.MSSQLConfig{
+		Host:     host,
+		Port:     port,
+		Username: username,
+		Password: password,
+		Database: database,
+	}
+	a := configA.Serialize()
+
+	if valid {
+		username += updateSuffix
+		password += updateSuffix
+		port = "1434"
+	} else {
+		host = "127.0.0.1"
+		database += updateSuffix
+	}
+
+	configB := pc.MSSQLConfig{
+		Host:     host,
+		Port:     port,
+		Username: username,
+		Password: password,
+		Database: database,
+	}
+	b := configB.Serialize()
+
+	actual, err := isValidMSSQLConfigUpdate(a, b)
 	assertConfigUpdateResult(t, valid, actual, err, providerType)
 }
 

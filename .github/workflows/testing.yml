@@ -31,126 +31,14 @@ env:
   PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
 
 jobs:
-  setup:
-    name: Setup Test Dependencies
+  test:
+    name: Run Go Tests
     defaults:
       run:
         working-directory: ./
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Check directory
-        run: |
-          ls -la
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.21
-
-      - name: Install grpc_tools
-        run: pip install grpcio-tools build
-
-      - name: Install Protobuf
-        run: sudo snap install protobuf --classic
-
-      - name: Setup Proto
-        run: ./gen_grpc.sh
-
-      - name: Build
-        run: go build ./metadata/*.go
-
-      - name: Build Python Package
-        run: ./pip_update.sh --no-dash
-
-      - name: Remove Node Modules
-        run: rm -rf dashboard/node_modules
-
-      - name: Remove Git Objects
-        run: rm -rf .git
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: compiled-workdir
-          path: ./
-          retention-days: 1
-
-  unit-go:
-    name: Golang Unit Tests
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.21
-
-      - name: Run Golang Unit Tests
-        run: make test_go_unit
-
-  search:
-    name: Search Testing
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.21
-
-      - name: Install Search Container
-        run: docker pull getmeili/meilisearch:v1.0
-
-      - name: Start Search
-        run: |
-          docker run -d -p $MEILISEARCH_PORT:7700 getmeili/meilisearch:v1.0
-
-      - name: Make Coverage Directory
-        working-directory: ./
-        run: mkdir ./coverage
-
-      - name: Testing
-        working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile ./coverage/cover.out.tmp ./metadata/search/... ./lib/...
-
-      - name: Convert Coverage Test Results
-        if: always()
-        working-directory: ./coverage
-        run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
-          go tool cover -html=cover.out -o cover.html
-
-#      - uses: codecov/codecov-action@v2
-#        if: always()
-#        with:
-#          files: ./coverage/cover.out
-#          name: search-coverage
-#          verbose: true
-
-      - name: Archive code coverage results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: search-coverage-reports
-          path: ./coverage
-
-  provider-online:
-    name: Online Provider Testing
+    timeout-minutes: 120
     environment: Integration testing
-    needs: setup
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
     services:
       redis-insecure:
         image: redis
@@ -172,30 +60,50 @@ jobs:
         # supported for use outside of 'steps'
         ports:
           - 6380:6379
-
+      postgres:
+        image: postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+      - uses: actions/checkout@v2
 
-      - uses: getong/redis-action@v1
-        with:
-          host port: 6378
-          container port: 6379
-          redis password: "password"
+      - name: Check directory
+        run: |
+          ls -la
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.21
 
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
 
-      - name: Make Coverage Directory
-        working-directory: ./
-        run: mkdir coverage
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - name: Unit Tests
+        run: go test ./... -short
+
+      - name: Install Search Container
+        run: docker pull getmeili/meilisearch:v1.0
+
+      - name: Start Search
+        run: |
+          docker run -d -p $MEILISEARCH_PORT:7700 getmeili/meilisearch:v1.0
+
+      - uses: getong/redis-action@v1
+        with:
+          host port: 6378
+          container port: 6379
+          redis password: "password"
 
       - name: create-json
         id: create-json
@@ -204,10 +112,24 @@ jobs:
           name: "./provider/firestore_credentials.json"
           json: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
 
-      - name: Check running containers
-        run: docker ps
+      - name: create-json
+        id: create-json-2
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "./provider/bigquery_credentials.json"
+          json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
 
-      - name: Testing
+      - name: Install ETCD
+        run: |
+          git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
+          cd etcd
+          ./build
+          export PATH="$PATH:`pwd`/bin"
+          etcd --version
+          etcd --logger=zap &
+
+      - name: Integration Tests
+        run: go test ./... -parallel 1000
         env:
           DYNAMO_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
           DYNAMO_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
@@ -221,91 +143,6 @@ jobs:
           MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
           MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
           MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
-        working-directory: ./
-        run: make test_online
-
-      - name: Convert Coverage Test Results
-        if: always()
-        working-directory: ./coverage
-        run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
-          go tool cover -html=cover.out -o cover.html
-
-#      - uses: codecov/codecov-action@v2
-#        if: always()
-#        with:
-#          root_dir: ./
-#          files: ./coverage/cover.out
-#          name: provider-online-coverage
-#          verbose: true
-
-      - name: Archive code coverage results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: provider-online-coverage-reports
-          path: ./coverage
-
-#      - name: Clear Pinecone Indexes
-#        env:
-#          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
-#          PINECONE_ENVIRONMENT: ${{ secrets.PINECONE_ENVIRONMENT }}
-#        if: always()
-#        run: |
-#          pip install pinecone-cli
-#          pinecli list-indexes --apikey="$PINECONE_API_KEY" | while read -r index; do pinecli delete-index --apikey="$PINECONE_API_KEY" --disable-safety "$index"; done
-
-
-  provider-offline:
-    name: Offline Provider Testing
-    timeout-minutes: 120
-    environment: Integration testing
-    needs: setup
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres
-        ports:
-          - 5432:5432
-        env:
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-      
-      mysql:
-        image: mysql
-        ports:
-          - 3306:3306
-        env:
-          MYSQL_ROOT_PASSWORD: "password"
-
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.21
-
-      - name: Install Protobuf
-        run: sudo snap install protobuf --classic
-
-      - name: Make Coverage Directory
-        working-directory: ./
-        run: mkdir coverage
-
-      - name: create-json
-        id: create-json-2
-        uses: jsdaniell/create-json@1.1.2
-        with:
-          name: "./provider/bigquery_credentials.json"
-          json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
-
-      - name: Testing
-        env:
           SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
           SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
           SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
@@ -322,79 +159,9 @@ jobs:
           BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
           BIGQUERY_DATASET_ID: ${{ secrets.BIGQUERY_DATASET_ID }}
           BIGQUERY_CREDENTIALS: "bigquery_credentials.json"
-          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
-          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
-          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
           MYSQL_USER: "root"
           MYSQL_PASSWORD: "password"
           MYSQL_DB: "mysql"
-        working-directory: ./
-        run: make test_offline
-
-      - name: Convert Coverage Test Results
-        if: always()
-        working-directory: ./coverage
-        run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
-          go tool cover -html=cover.out -o cover.html
-
-#      - uses: codecov/codecov-action@v2
-#        if: always()
-#        with:
-#          root_dir: ./
-#          files: ./coverage/cover.out
-#          name: provider-offline-coverage
-#          verbose: true
-
-      - name: Archive code coverage results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: provider-offline-coverage-reports
-          path: ./coverage
-
-  spark-offline:
-    name: Offline Spark Testing
-    timeout-minutes: 60
-    environment: Integration testing
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.21
-
-      - name: Install Protobuf
-        run: sudo snap install protobuf --classic
-
-      - name: Make Coverage Directory
-        working-directory: ./
-        run: mkdir coverage
-
-      - name: create-json
-        id: create-json-2
-        uses: jsdaniell/create-json@1.1.2
-        with:
-          name: "./provider/bigquery_credentials.json"
-          json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
-
-      - name: Testing
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-          AWS_EMR_CLUSTER_REGION: ${{ secrets.AWS_EMR_CLUSTER_REGION }}
-          AWS_EMR_CLUSTER_ID: ${{ secrets.AWS_EMR_CLUSTER_ID }}
-          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
-          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
-          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
-          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
-          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
           AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
           AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
@@ -402,431 +169,82 @@ jobs:
           DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
           MATERIALIZE_NO_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_no_ts.sql
           MATERIALIZE_WITH_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_ts.sql
-        working-directory: ./
-        run: make test_offline_spark
-
-      - name: Convert Coverage Test Results
-        if: always()
-        working-directory: ./coverage
-        run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
-          go tool cover -html=cover.out -o cover.html
-
-#      - uses: codecov/codecov-action@v2
-#        if: always()
-#        with:
-#          root_dir: ./
-#          files: ./coverage/cover.out
-#          name: provider-offline-coverage
-#          verbose: true
-
-      - name: Archive code coverage results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: provider-offline-coverage-reports
-          path: ./coverage
-
-  metadata:
-    name: Metadata Testing (Excluding Search)
-    needs: setup
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.21
-
-      # Should be switched to a container, but the available etcd containers
-      # haven't been running easily locally yet. Will create a custom one
-      # in the future
-      - name: Install ETCD
-        run: |
-          git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
-          cd etcd
-          ./build
-          export PATH="$PATH:`pwd`/bin"
-          etcd --version
-          etcd --logger=zap &
-
-      - name: Make Coverage Directory
-        working-directory: ./
-        run: mkdir coverage
-
-      - name: Testing
-        env:
           ETCD_HOST: ${{ env.ETCD_HOST }}
           ETCD_PORT: ${{ env.ETCD_PORT }}
-        working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./metadata/
+          SPARK_LOCAL_SCRIPT_PATH: home/runner/work/featureform/featureform/provider/scripts/spark/offline_store_spark_runner.py
+          PYTHON_LOCAL_INIT_PATH: home/runner/work/featureform/featureform/provider/scripts/spark/python_packages.sh
 
-      - name: Convert Coverage Test Results
-        if: always()
-        working-directory: ./coverage
-        run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
-          go tool cover -html=cover.out -o cover.html
 
-#      - uses: codecov/codecov-action@v2
-#        if: always()
+
+#  backup:
+#    name: Backup Test
+#    needs: setup
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#      - name: Download Working Compiled Directories
+#        uses: actions/download-artifact@v3
 #        with:
-#          root_dir: ./
-#          files: ./coverage/cover.out
-#          name: metadata-coverage
-#          verbose: true
-
-  backup:
-    name: Backup Test
-    needs: setup
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.21
-
-      # Should be switched to a container, but the available etcd containers
-      # haven't been running easily locally yet. Will create a custom one
-      # in the future
-      - name: Install ETCD
-        run: |
-          git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
-          cd etcd
-          ./build
-          echo "Adding etcd to github actions path:"
-          echo "`pwd`/bin"
-          echo "`pwd`/bin" >> $GITHUB_PATH
-
-      - name: Check Path
-        run: |
-          echo $GITHUB_PATH
-          etcd --version
-          etcd --logger=zap &
-
-      - name: Set Permissions
-        run: chmod +x ./tests/integration/backup/test.sh
-
-      - name: Run Backup Test Local
-        env:
-          CLOUD_PROVIDER: "LOCAL_FILESYSTEM"
-        run: ./tests/integration/backup/test.sh
-
-      - name: Run Backup Test Azure
-        env:
-          CLOUD_PROVIDER: "AZURE"
-          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_ACCOUNT_NAME }}
-          AZURE_STORAGE_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
-          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
-          AZURE_STORAGE_PATH: "backup"
-        run: ./tests/integration/backup/test.sh
-
-      - name: Run Backup Test S3
-        env:
-          CLOUD_PROVIDER: "S3"
-          AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-          AWS_BUCKET_REGION: "us-east-1"
-          AWS_BUCKET_NAME: "featureform-testing"
-          AWS_BUCKET_PATH: "backup"
-        run: ./tests/integration/backup/test.sh
-
-      - name: Run Backup Test GCS
-        env:
-          CLOUD_PROVIDER: "GCS"
-          GCS_BUCKET_NAME: "featureform-test"
-          GCS_BUCKET_PATH: "backup"
-          GCS_CREDENTIALS: ${{ secrets.GCS_CREDENTIALS }}
-        run: ./tests/integration/backup/test.sh
-
-  metrics:
-    name: Metrics Testing
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.21
-
-      - name: Make Coverage Directory
-        working-directory: ./
-        run: mkdir coverage
-
-      - name: Testing
-        working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./metrics/...
-
-      - name: Convert Coverage Test Results
-        if: always()
-        working-directory: ./coverage
-        run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
-          go tool cover -html=cover.out -o cover.html
-
-#      - uses: codecov/codecov-action@v2
-#        if: always()
+#          name: compiled-workdir
+#
+#      - name: Set up Go
+#        uses: actions/setup-go@v2
 #        with:
-#          root_dir: ./
-#          files: ./coverage/cover.out
-#          name: metrics-coverage
-#          verbose: true
+#          go-version: 1.21
+#
+#      # Should be switched to a container, but the available etcd containers
+#      # haven't been running easily locally yet. Will create a custom one
+#      # in the future
+#      - name: Install ETCD
+#        run: |
+#          git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
+#          cd etcd
+#          ./build
+#          echo "Adding etcd to github actions path:"
+#          echo "`pwd`/bin"
+#          echo "`pwd`/bin" >> $GITHUB_PATH
+#
+#      - name: Check Path
+#        run: |
+#          echo $GITHUB_PATH
+#          etcd --version
+#          etcd --logger=zap &
+#
+#      - name: Set Permissions
+#        run: chmod +x ./tests/integration/backup/test.sh
+#
+#      - name: Run Backup Test Local
+#        env:
+#          CLOUD_PROVIDER: "LOCAL_FILESYSTEM"
+#        run: ./tests/integration/backup/test.sh
+#
+#      - name: Run Backup Test Azure
+#        env:
+#          CLOUD_PROVIDER: "AZURE"
+#          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_ACCOUNT_NAME }}
+#          AZURE_STORAGE_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+#          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+#          AZURE_STORAGE_PATH: "backup"
+#        run: ./tests/integration/backup/test.sh
+#
+#      - name: Run Backup Test S3
+#        env:
+#          CLOUD_PROVIDER: "S3"
+#          AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+#          AWS_BUCKET_REGION: "us-east-1"
+#          AWS_BUCKET_NAME: "featureform-testing"
+#          AWS_BUCKET_PATH: "backup"
+#        run: ./tests/integration/backup/test.sh
+#
+#      - name: Run Backup Test GCS
+#        env:
+#          CLOUD_PROVIDER: "GCS"
+#          GCS_BUCKET_NAME: "featureform-test"
+#          GCS_BUCKET_PATH: "backup"
+#          GCS_CREDENTIALS: ${{ secrets.GCS_CREDENTIALS }}
+#        run: ./tests/integration/backup/test.sh
 
-      - name: Archive code coverage results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: metrics-coverage-reports
-          path: ./coverage
-
-  helpers:
-    name: Helper Testing
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.21
-
-      - name: Make Coverage Directory
-        working-directory: ./
-        run: mkdir coverage
-
-      - name: Testing
-        working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./helpers/...
-
-      - name: Convert Coverage Test Results
-        if: always()
-        working-directory: ./coverage
-        run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
-          go tool cover -html=cover.out -o cover.html
-
-#      - uses: codecov/codecov-action@v2
-#        if: always()
-#        with:
-#          root_dir: ./
-#          files: ./coverage/cover.out
-#          name: helper-coverage
-#          verbose: true
-
-      - name: Archive code coverage results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: helper-coverage-reports
-          path: ./coverage
-
-  runner:
-    name: Runner Testing
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.21
-
-      - name: Install ETCD
-        run: |
-          git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
-          cd etcd
-          ./build
-          export PATH="$PATH:`pwd`/bin"
-          etcd --version
-          etcd --logger=zap &
-
-      - name: Make Coverage Directory
-        working-directory: ./
-        run: mkdir coverage
-
-      - name: Testing
-        working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./runner/...
-
-      - name: Convert Coverage Test Results
-        if: always()
-        working-directory: ./coverage
-        run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
-          go tool cover -html=cover.out -o cover.html
-
-#      - uses: codecov/codecov-action@v2
-#        if: always()
-#        with:
-#          root_dir: ./
-#          files: ./coverage/cover.out
-#          name: runner-coverage
-#          verbose: true
-
-      - name: Archive code coverage results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: runner-coverage-reports
-          path: ./coverage
-
-  serving:
-    name: Serving Testing
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.21
-
-      - name: Make Coverage Directory
-        working-directory: ./
-        run: mkdir coverage
-
-      - name: Testing
-        working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./serving/...
-
-      - name: Convert Coverage Test Results
-        if: always()
-        working-directory: ./coverage
-        run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main" > cover.out
-          go tool cover -html=cover.out -o cover.html
-
-#      - uses: codecov/codecov-action@v2
-#        if: always()
-#        with:
-#          root_dir: ./
-#          files: ./coverage/cover.out
-#          name: serving-coverage
-#          verbose: true
-
-      - name: Archive code coverage results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: serving-coverage-reports
-          path: ./coverage
-
-  coordinator:
-    name: Coordinator Testing
-    environment: Integration testing
-    needs: setup
-    runs-on: ubuntu-latest
-    services:
-      redis:
-        image: redis
-        # Hard coded port because environment variables not currently
-        # supported for use outside of 'steps'
-        ports:
-          - 6379:6379
-
-      postgres:
-        image: postgres
-        ports:
-          - 5432:5432
-        env:
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.21
-
-      # Already installed in metadata tests, how to preserve it so we don't repeat?
-      - name: Install ETCD
-        run: |
-          git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
-          cd etcd
-          ./build
-          export PATH="$PATH:`pwd`/bin"
-          etcd --version
-          etcd --logger=zap &
-
-      - name: Make Coverage Directory
-        working-directory: ./
-        run: mkdir coverage
-
-      - name: create-json
-        id: create-json-2
-        uses: jsdaniell/create-json@1.1.2
-        with:
-          name: "./coordinator/bigquery_credentials.json"
-          json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
-
-      - name: Testing
-        env:
-          SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
-          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-          SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
-          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-          ETCD_HOST: ${{ env.ETCD_HOST }}
-          ETCD_PORT: ${{ env.ETCD_PORT }}
-          BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
-          BIGQUERY_DATASET_ID: ${{ secrets.BIGQUERY_DATASET_ID }}
-          BIGQUERY_CREDENTIALS: "bigquery_credentials.json"
-        working-directory: ./
-        run: go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./coordinator/...
-
-      - name: Convert Coverage Test Results
-        if: always()
-        working-directory: ./coverage
-        run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
-          go tool cover -html=cover.out -o cover.html
-
-#      - uses: codecov/codecov-action@v2
-#        if: always()
-#        with:
-#          root_dir: ./
-#          files: ./coverage/cover.out
-#          name: coordinator-coverage
-#          verbose: true
-
-      - name: Archive code coverage results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: coordinator-coverage-reports
-          path: ./coverage
 
   spark-script:
     name: PySpark Script Testing
@@ -835,10 +253,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+      - uses: actions/checkout@v2
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -858,109 +273,6 @@ jobs:
           AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
         run: make test_pyspark
 
-  k8s:
-    name: K8s Testing
-    needs: setup
-    environment: Integration testing
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.21
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-
-      - name: Install Packages
-        run: pip install -r ./provider/scripts/k8s/requirements.txt
-
-      - name: Build and Run HDFS
-        run: |
-          git clone https://github.com/rancavil/hadoop-single-node-cluster.git
-          cd hadoop-single-node-cluster
-          docker build -t hadoop .
-          docker run -d -p 9864:9864 -p 9870:9870 -p 8088:8088 -p 9000:9000 -p 9866:9866 --hostname localhost hadoop
-
-      - name: Testing Go
-        env:
-          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
-          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
-          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
-          AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
-          AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_PATH }}
-          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
-        run: make test_offline_k8s
-
-      - name: Testing Python
-        env:
-          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
-          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
-          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
-          AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
-          AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_PATH }}
-          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
-        run: make test_pandas
-
-      - name: Creating GCS Secret File
-        id: create-json-2
-        uses: jsdaniell/create-json@1.1.2
-        with:
-          name: "./provider/gcp_credentials.json"
-          json: ${{ secrets.GCS_CREDENTIALS }}
-
-      - name: Testing Filestore
-        env:
-          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
-          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
-          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
-          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
-          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          GCP_CREDENTIALS_FILE: "./gcp_credentials.json" # this path needs to be relative to the test file location
-        run: make test_filestore
-
-      - name: Convert Coverage Test Results
-        if: always()
-        working-directory: ./coverage
-        run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
-          go tool cover -html=cover.out -o cover.html
-
-#      - uses: codecov/codecov-action@v2
-#        if: always()
-#        with:
-#          root_dir: ./
-#          files: ./coverage/cover.out
-#          name: k8s-coverage
-#          verbose: true
-
-      - name: Archive code coverage results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: k8s-coverage-reports
-          path: ./coverage
 
   localmode:
     name: Test Localmode
@@ -975,10 +287,7 @@ jobs:
           - os: windows-latest
             python-version: "3.11"
     steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
+      - uses: actions/checkout@v2
 
       #
       # https://github.com/actions/setup-python/issues/682
@@ -1008,215 +317,3 @@ jobs:
       - name: Run Tests
         run: make pytest
 
-  client-coverage:
-    name: Client Test Coverage
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.9"
-
-      - name: Install pytest and pytest-cov
-        run: pip install pytest protobuf==3.20.1 python-dotenv pytest-mock pytest-cov
-
-      - name: Install featureform
-        run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
-
-      - name: Generate Coverage Report
-        run: make pytest_coverage
-
-#      - name: Upload Coverage Report
-#        uses: codecov/codecov-action@v2
-#        with:
-#          token: ${{ secrets.CODECOV_TOKEN }}
-#          root_dir: ./
-#          files: ./coverage.xml
-#          name: client-coverage
-#          verbose: true
-
-#  notebook:
-#    name: Test Notebook
-#    runs-on: ubuntu-latest
-#    timeout-minutes: 5
-#    steps:
-#      - uses: actions/checkout@v2
-#
-#      - name: Set up Python
-#        uses: actions/setup-python@v4
-#        with:
-#          python-version: "3.8"
-#
-#      - name: Set up Go
-#        uses: actions/setup-go@v2
-#        with:
-#          go-version: 1.21
-#
-#      - name: Install grpc_tools
-#        run: pip install grpcio-tools build
-#
-#      - name: Install Protobuf
-#        run: sudo snap install protobuf --classic
-#
-#      - name: Setup Proto
-#        run: ./gen_grpc.sh
-#
-#      - name: Run Tests
-#        run: make jupyter
-
-  health-checks:
-    name: Provider Health Checks
-    timeout-minutes: 45
-    environment: Integration testing
-    needs: setup
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres
-        ports:
-          - 5432:5432
-        env:
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-      redis:
-        image: redis
-        ports:
-          - 6379:6379
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-
-      - name: Check pwd directory
-        run: |
-          pwd
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.21
-
-      - name: Install Protobuf
-        run: sudo snap install protobuf --classic
-
-      - name: Make Coverage Directory
-        working-directory: ./
-        run: mkdir coverage
-
-      - name: Create GCloud Key
-        id: gcloud-key-json
-        uses: jsdaniell/create-json@1.1.2
-        with:
-          name: "./gcloud-key.json"
-          json: ${{ secrets.GCLOUD_CREDENTIALS }}
-
-      - name: Testing
-        env:
-          SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
-          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-          SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
-          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-          AWS_EMR_CLUSTER_REGION: ${{ secrets.AWS_EMR_CLUSTER_REGION }}
-          AWS_EMR_CLUSTER_ID: ${{ secrets.AWS_EMR_CLUSTER_ID }}
-          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
-          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
-          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
-          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
-          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
-          AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
-          GENERIC_SPARK_MASTER: ${{ secrets.GENERIC_SPARK_MASTER}}
-          GENERIC_SPARK_DEPLOY_MODE: ${{ secrets.GENERIC_SPARK_DEPLOY_MODE }}
-          GENERIC_SPARK_PYTHON_VERSION: ${{ secrets.GENERIC_SPARK_PYTHON_VERSION }}
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
-          DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
-          DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
-          DYNAMODB_REGION: ${{ secrets.DYNAMODB_REGION }}
-          SPARK_LOCAL_SCRIPT_PATH: home/runner/work/featureform/featureform/provider/scripts/spark/offline_store_spark_runner.py
-          PYTHON_LOCAL_INIT_PATH: home/runner/work/featureform/featureform/provider/scripts/spark/python_packages.sh
-        working-directory: ./
-        run: make test_healthchecks
-        
-      - name: Convert Coverage Test Results
-        if: always()
-        working-directory: ./coverage
-        run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
-          go tool cover -html=cover.out -o cover.html
-
-      - name: Archive code coverage results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: provider-health-checks-coverage-reports
-          path: ./coverage
-
-  importable-online-store:
-    name: Importable Online Store
-    timeout-minutes: 45
-    environment: Integration testing
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
-        with:
-          name: compiled-workdir
-
-      - name: Check materialize query path
-        run: |
-          ls -la provider/queries
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.21
-
-      - name: Install Protobuf
-        run: sudo snap install protobuf --classic
-
-      - name: Make Coverage Directory
-        working-directory: ./
-        run: mkdir coverage
-
-      - name: Testing
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
-          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
-          DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
-          DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
-          DYNAMODB_REGION: ${{ secrets.DYNAMODB_REGION }}
-          MATERIALIZE_NO_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_no_ts.sql
-          MATERIALIZE_WITH_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_ts.sql
-        working-directory: ./
-        run: make test_importable_online
-
-      - name: Convert Coverage Test Results
-        if: always()
-        working-directory: ./coverage
-        run: |
-          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
-          go tool cover -html=cover.out -o cover.html
-
-      - name: Archive code coverage results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: importable-online-store-coverage-reports
-          path: ./coverage

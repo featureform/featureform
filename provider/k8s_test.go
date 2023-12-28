@@ -108,6 +108,9 @@ func TestDeserializeExecutorConfig(t *testing.T) {
 }
 
 func TestBlobInterfaces(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
 
 	fileStoreTests := map[string]func(*testing.T, FileStore){
 		"Test Filestore Read and Write": testFilestoreReadAndWrite,

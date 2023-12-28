@@ -4,11 +4,107 @@
 package provider
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
+	"os"
 	"reflect"
+	"strings"
 	"testing"
 )
+
+func TestOfflineStoreSnowflake(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+
+	err := godotenv.Load("../.env")
+	if err != nil {
+		t.Logf("could not open .env file... Checking environment: %s", err)
+	}
+
+	snowFlakeDatabase := strings.ToUpper(uuid.NewString())
+	t.Log("Snowflake Database: ", snowFlakeDatabase)
+
+	username, ok := os.LookupEnv("SNOWFLAKE_USERNAME")
+	if !ok {
+		t.Fatalf("missing SNOWFLAKE_USERNAME variable")
+	}
+	password, ok := os.LookupEnv("SNOWFLAKE_PASSWORD")
+	if !ok {
+		t.Fatalf("missing SNOWFLAKE_PASSWORD variable")
+	}
+	org, ok := os.LookupEnv("SNOWFLAKE_ORG")
+	if !ok {
+		t.Fatalf("missing SNOWFLAKE_ORG variable")
+	}
+	account, ok := os.LookupEnv("SNOWFLAKE_ACCOUNT")
+	if !ok {
+		t.Fatalf("missing SNOWFLAKE_ACCOUNT variable")
+	}
+
+	snowflakeConfig := pc.SnowflakeConfig{
+		Username:     username,
+		Password:     password,
+		Organization: org,
+		Account:      account,
+		Database:     snowFlakeDatabase,
+	}
+	if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	t.Cleanup(func() {
+		err := destroySnowflakeDatabase(snowflakeConfig)
+		if err != nil {
+			t.Logf("failed to cleanup database: %s\n", err)
+		}
+	})
+
+	store, err := GetOfflineStore(pt.SnowflakeOffline, snowflakeConfig.Serialize())
+	if err != nil {
+		t.Fatalf("could not initialize store: %s\n", err)
+	}
+
+	test := OfflineStoreTest{
+		t:     t,
+		store: store,
+	}
+	test.Run()
+	test.RunSQL()
+}
+
+func createSnowflakeDatabase(c pc.SnowflakeConfig) error {
+	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
+	db, err := sql.Open("snowflake", url)
+	if err != nil {
+		return err
+	}
+	databaseQuery := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", sanitize(c.Database))
+	if _, err := db.Exec(databaseQuery); err != nil {
+		return err
+	}
+	return nil
+}
+
+func destroySnowflakeDatabase(c pc.SnowflakeConfig) error {
+	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
+	db, err := sql.Open("snowflake", url)
+	if err != nil {
+		fmt.Errorf(err.Error())
+		return err
+	}
+	databaseQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", sanitize(c.Database))
+	if _, err := db.Exec(databaseQuery); err != nil {
+		fmt.Errorf(err.Error())
+		return err
+	}
+	return nil
+}
 
 func TestSnowflakeConfigHasLegacyCredentials(t *testing.T) {
 	type fields struct {

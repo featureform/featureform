@@ -396,7 +396,7 @@ func testRegisterPrimary(store *SparkOfflineStore) error {
 
 func TestParquetUpload(t *testing.T) {
 	if testing.Short() {
-		return
+		t.Skip("skipping integration tests")
 	}
 	// emrSparkOfflineStore, err := getSparkOfflineStore(t)
 	// if err != nil {
@@ -2758,6 +2758,9 @@ func TestCreateLogS3FileStore(t *testing.T) {
 }
 
 func TestEMRErrorMessages(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
 	err := godotenv.Load("../.env")
 	if err != nil {
 		fmt.Println(err)
@@ -2874,6 +2877,9 @@ func createEMRAndS3(bucketName string) (SparkExecutor, SparkFileStore, error) {
 }
 
 func TestCreateSparkFileStore(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
 	type args struct {
 		name   string
 		config Config
@@ -2902,6 +2908,9 @@ func TestCreateSparkFileStore(t *testing.T) {
 }
 
 func TestSparkFilestore(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
 	testCases := []struct {
 		name                string
 		store               SparkFileStore

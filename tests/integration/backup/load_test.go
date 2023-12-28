@@ -9,6 +9,9 @@ import (
 )
 
 func TestReadETCD(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
 	host := help.GetEnv("ETCD_HOST", "localhost")
 	port := help.GetEnv("ETCD_PORT", "2379")
 	address := fmt.Sprintf("%s:%s", host, port)

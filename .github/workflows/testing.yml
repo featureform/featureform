@@ -2,8 +2,7 @@ name: Testing
 on:
   pull_request:
   push:
-    branches:
-      - main
+    
 concurrency:
   group: ${{ github.head_ref }}-testing
   cancel-in-progress: true
@@ -31,7 +30,7 @@ env:
   PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
 
 jobs:
-  test:
+  go-tests:
     name: Run Go Tests
     defaults:
       run:
@@ -248,7 +247,6 @@ jobs:
 
   spark-script:
     name: PySpark Script Testing
-    needs: setup
     environment: Integration testing
     runs-on: ubuntu-latest
 
@@ -276,7 +274,6 @@ jobs:
 
   localmode:
     name: Test Localmode
-    needs: setup
     runs-on: ${{ matrix.os }}
     if: github.ref != 'refs/heads/main'
     strategy:

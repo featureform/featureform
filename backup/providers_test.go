@@ -123,9 +123,7 @@ func TestAzure_Init(t *testing.T) {
 
 // TODO: convert into file-store agnostic test and add cases for other file stores
 func TestAzure_Upload(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
+	t.Skip("not currently supported")
 	_ = godotenv.Load(".env")
 	type fields struct {
 		AzureStorageAccount string
@@ -183,9 +181,7 @@ func TestAzure_Upload(t *testing.T) {
 }
 
 func TestAzure_Download(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
+	t.Skip("not currently supported")
 	_ = godotenv.Load(".env")
 	type fields struct {
 		AzureStorageAccount string

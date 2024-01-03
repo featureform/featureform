@@ -136,11 +136,13 @@ jobs:
         env:
           DYNAMO_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
           DYNAMO_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          DYNAMO_REGION: "us-east-1"
           FIRESTORE_CRED: "firestore_credentials.json"
           FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
           AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
           AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
           AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AZURE_BACKUP_STORAGE_PATH: "backup"
           MONGODB_HOST: ${{ secrets.MONGODB_HOST }}
           MONGODB_PORT: ${{ secrets.MONGODB_PORT }}
           MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}

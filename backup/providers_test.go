@@ -97,10 +97,10 @@ func TestAzure_Init(t *testing.T) {
 		{
 			"Success",
 			fields{
-				AzureStorageAccount: help.GetEnv("AZURE_STORAGE_ACCOUNT", ""),
-				AzureStorageKey:     help.GetEnv("AZURE_STORAGE_TOKEN", ""),
+				AzureStorageAccount: help.GetEnv("AZURE_ACCOUNT_NAME", ""),
+				AzureStorageKey:     help.GetEnv("AZURE_ACCOUNT_KEY", ""),
 				AzureContainerName:  help.GetEnv("AZURE_CONTAINER_NAME", ""),
-				AzureStoragePath:    help.GetEnv("AZURE_STORAGE_PATH", ""),
+				AzureStoragePath:    help.GetEnv("AZURE_BACKUP_STORAGE_PATH", ""),
 			},
 			false,
 		},

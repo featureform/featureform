@@ -55,6 +55,8 @@ def step_impl(context, storage_provider, bucket, root_path):
     if root_path == "empty":
         root_path = ""
 
+    root_path = f"{root_path}/{run}"
+
     context.filestore = storage_provider
     if storage_provider == "azure":
         context.storage_provider = ff.register_blob_store(

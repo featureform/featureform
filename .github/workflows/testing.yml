@@ -79,7 +79,12 @@ jobs:
           go-version: 1.21
 
       - name: Install grpc_tools
-        run: pip install grpcio-tools build dill pyspark
+        run: pip install grpcio-tools build
+
+      - name: Install pyspark packages
+        run: |
+          pip install -r provider/scripts/k8s/requirements.txt
+          pip install -r provider/scripts/spark/requirements.txt
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic

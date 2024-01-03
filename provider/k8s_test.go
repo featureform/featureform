@@ -336,6 +336,9 @@ func TestExecutorRunLocal(t *testing.T) {
 
 func TestNewConfig(t *testing.T) {
 	err := godotenv.Load("../.env")
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 
 	k8sConfig := pc.K8sConfig{
 		ExecutorType:   pc.K8s,

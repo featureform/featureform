@@ -214,7 +214,7 @@ func k8sOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	logger.Info("Creating blob store with type:", k8.StoreType)
 	store, err := CreateFileStore(string(k8.StoreType), serializedBlob)
 	if err != nil {
-		logger.Errorw("Failure initializing blob store with type", k8.StoreType, err)
+		logger.Errorw("Failure initializing blob store with type", "type", k8.StoreType, "error", err)
 		return nil, err
 	}
 	logger.Debugf("Store type: %s", k8.StoreType)

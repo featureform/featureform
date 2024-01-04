@@ -3,34 +3,32 @@ package provider
 import (
 	"context"
 	"fmt"
-	pc "github.com/featureform/provider/provider_config"
-	pt "github.com/featureform/provider/provider_type"
-	"github.com/google/uuid"
-	"github.com/joho/godotenv"
 	"os"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/featureform/helpers"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 )
 
 func TestVectorStorePinecone(t *testing.T) {
 	t.Skip("temporarily disabled")
+
+	secrets := GetSecrets("/testing/pinecone")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)
 	}
-	projectID, ok := os.LookupEnv("PINECONE_PROJECT_ID")
-	if !ok {
-		t.Fatalf("missing PINECONE_PROJECT_ID variable")
-	}
-	environment, ok := os.LookupEnv("PINECONE_ENVIRONMENT")
-	if !ok {
-		t.Fatalf("missing PINECONE_ENVIRONMENT variable")
-	}
-	apiKey, ok := os.LookupEnv("PINECONE_API_KEY")
-	if !ok {
-		t.Fatalf("missing PINECONE_API_KEY variable")
-	}
+	projectID := helpers.GetEnv("PINECONE_PROJECT_ID", secrets["PINECONE_PROJECT_ID"])
+
+	environment := helpers.GetEnv("PINECONE_ENVIRONMENT", secrets["PINECONE_ENVIRONMENT"])
+
+	apiKey := helpers.GetEnv("PINECONE_API_KEY", secrets["PINECONE_API_KEY"])
+
 	pineconeConfig := &pc.PineconeConfig{
 		ProjectID:   projectID,
 		Environment: environment,

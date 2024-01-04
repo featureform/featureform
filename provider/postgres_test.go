@@ -1,11 +1,12 @@
 package provider
 
 import (
+	"testing"
+
+	"github.com/featureform/helpers"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/joho/godotenv"
-	"os"
-	"testing"
 )
 
 func TestOfflineStorePostgres(t *testing.T) {
@@ -13,23 +14,17 @@ func TestOfflineStorePostgres(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
+	secrets := GetSecrets("/testing/postgres")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)
 	}
 
-	db, ok := os.LookupEnv("POSTGRES_DB")
-	if !ok {
-		t.Fatalf("missing POSTGRES_DB variable")
-	}
-	user, ok := os.LookupEnv("POSTGRES_USER")
-	if !ok {
-		t.Fatalf("missing POSTGRES_USER variable")
-	}
-	password, ok := os.LookupEnv("POSTGRES_PASSWORD")
-	if !ok {
-		t.Fatalf("missing POSTGRES_PASSWORD variable")
-	}
+	db := helpers.GetEnv("POSTGRES_DB", secrets["POSTGRES_DB"])
+
+	user := helpers.GetEnv("POSTGRES_USER", secrets["POSTGRES_USER"])
+
+	password := helpers.GetEnv("POSTGRES_PASSWORD", secrets["POSTGRES_PASSWORD"])
 
 	postgresConfig := pc.PostgresConfig{
 		Host:     "localhost",

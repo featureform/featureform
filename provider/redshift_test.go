@@ -3,14 +3,15 @@ package provider
 import (
 	"database/sql"
 	"fmt"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/featureform/helpers"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
-	"os"
-	"strings"
-	"testing"
-	"time"
 )
 
 func TestOfflineStoreRedshift(t *testing.T) {
@@ -18,27 +19,19 @@ func TestOfflineStoreRedshift(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
+	secrets := GetSecrets("/testing/redshift")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)
 	}
 
-	endpoint, ok := os.LookupEnv("REDSHIFT_ENDPOINT")
-	if !ok {
-		t.Fatalf("missing REDSHIFT_ENDPOINT variable")
-	}
-	port, ok := os.LookupEnv("REDSHIFT_PORT")
-	if !ok {
-		t.Fatalf("missing REDSHIFT_PORT variable")
-	}
-	username, ok := os.LookupEnv("REDSHIFT_USERNAME")
-	if !ok {
-		t.Fatalf("missing REDSHIFT_USERNAME variable")
-	}
-	password, ok := os.LookupEnv("REDSHIFT_PASSWORD")
-	if !ok {
-		t.Fatalf("missing REDSHIFT_PASSWORD variable")
-	}
+	endpoint := helpers.GetEnv("REDSHIFT_ENDPOINT", secrets["REDSHIFT_ENDPOINT"])
+
+	port := helpers.GetEnv("REDSHIFT_PORT", secrets["REDSHIFT_PORT"])
+
+	username := helpers.GetEnv("REDSHIFT_USERNAME", secrets["REDSHIFT_USERNAME"])
+
+	password := helpers.GetEnv("REDSHIFT_PASSWORD", secrets["REDSHIFT_PASSWORD"])
 
 	redshiftDatabase := fmt.Sprintf("ff%s", strings.ToLower(uuid.NewString()))
 

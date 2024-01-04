@@ -3,30 +3,28 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"testing"
+
+	"github.com/featureform/helpers"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/joho/godotenv"
-	"io/ioutil"
-	"os"
-	"testing"
 )
 
 func TestOnlineStoreFirestore(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
 	}
+	secrets := GetSecrets("/testing/firestore")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)
 	}
-	project, ok := os.LookupEnv("FIRESTORE_PROJECT")
-	if !ok {
-		t.Fatalf("missing FIRESTORE_PROJECT variable")
-	}
-	credentials, ok := os.LookupEnv("FIRESTORE_CRED")
-	if !ok {
-		t.Fatalf("missing FIRESTORE_CRED variable")
-	}
+	project := helpers.GetEnv("FIRESTORE_PROJECT", secrets["FIRESTORE_PROJECT"])
+
+	credentials := helpers.GetEnv("FIRESTORE_CRED", secrets["FIRESTORE_CRED"])
+
 	JSONCredentials, err := ioutil.ReadFile(credentials)
 	if err != nil {
 		panic(fmt.Sprintf("Could not open firestore credentials: %v", err))

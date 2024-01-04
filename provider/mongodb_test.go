@@ -1,41 +1,34 @@
 package provider
 
 import (
+	"testing"
+
+	"github.com/featureform/helpers"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/joho/godotenv"
-	"os"
-	"testing"
 )
 
 func TestOnlineStoreMongoDB(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
 	}
+
+	secrets := GetSecrets("/testing/mongodb")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)
 	}
-	host, ok := os.LookupEnv("MONGODB_HOST")
-	if !ok {
-		t.Fatalf("missing MONGODB_HOST variable")
-	}
-	port, ok := os.LookupEnv("MONGODB_PORT")
-	if !ok {
-		t.Fatalf("missing MONGODB_PORT variable")
-	}
-	username, ok := os.LookupEnv("MONGODB_USERNAME")
-	if !ok {
-		t.Fatalf("missing MONGODB_USERNAME variable")
-	}
-	password, ok := os.LookupEnv("MONGODB_PASSWORD")
-	if !ok {
-		t.Fatalf("missing MONGODB_PASSWORD variable")
-	}
-	database, ok := os.LookupEnv("MONGODB_DATABASE")
-	if !ok {
-		t.Fatalf("missing MONGODB_DATABASE variable")
-	}
+	host := helpers.GetEnv("MONGODB_HOST", secrets["MONGODB_HOST"])
+
+	port := helpers.GetEnv("MONGODB_PORT", secrets["MONGODB_PORT"])
+
+	username := helpers.GetEnv("MONGODB_USERNAME", secrets["MONGODB_USERNAME"])
+
+	password := helpers.GetEnv("MONGODB_PASSWORD", secrets["MONGODB_PASSWORD"])
+
+	database := helpers.GetEnv("MONGODB_DATABASE", secrets["MONGODB_DATABASE"])
+
 	mongoConfig := &pc.MongoDBConfig{
 		Host:       host,
 		Port:       port,

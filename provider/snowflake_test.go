@@ -7,14 +7,15 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"strings"
+	"testing"
+
+	"github.com/featureform/helpers"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
-	"os"
-	"reflect"
-	"strings"
-	"testing"
 )
 
 func TestOfflineStoreSnowflake(t *testing.T) {
@@ -22,6 +23,7 @@ func TestOfflineStoreSnowflake(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
+	secrets := GetSecrets("/testing/snowflake")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)
@@ -30,22 +32,13 @@ func TestOfflineStoreSnowflake(t *testing.T) {
 	snowFlakeDatabase := strings.ToUpper(uuid.NewString())
 	t.Log("Snowflake Database: ", snowFlakeDatabase)
 
-	username, ok := os.LookupEnv("SNOWFLAKE_USERNAME")
-	if !ok {
-		t.Fatalf("missing SNOWFLAKE_USERNAME variable")
-	}
-	password, ok := os.LookupEnv("SNOWFLAKE_PASSWORD")
-	if !ok {
-		t.Fatalf("missing SNOWFLAKE_PASSWORD variable")
-	}
-	org, ok := os.LookupEnv("SNOWFLAKE_ORG")
-	if !ok {
-		t.Fatalf("missing SNOWFLAKE_ORG variable")
-	}
-	account, ok := os.LookupEnv("SNOWFLAKE_ACCOUNT")
-	if !ok {
-		t.Fatalf("missing SNOWFLAKE_ACCOUNT variable")
-	}
+	username := helpers.GetEnv("SNOWFLAKE_USERNAME", secrets["SNOWFLAKE_USERNAME"])
+
+	password := helpers.GetEnv("SNOWFLAKE_PASSWORD", secrets["SNOWFLAKE_PASSWORD"])
+
+	org := helpers.GetEnv("SNOWFLAKE_ORG", secrets["SNOWFLAKE_ORG"])
+
+	account := helpers.GetEnv("SNOWFLAKE_ACCOUNT", secrets["SNOWFLAKE_ACCOUNT"])
 
 	snowflakeConfig := pc.SnowflakeConfig{
 		Username:     username,

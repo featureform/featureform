@@ -1,29 +1,27 @@
 package provider
 
 import (
+	"testing"
+
+	"github.com/featureform/helpers"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/joho/godotenv"
-	"os"
-	"testing"
 )
 
 func TestOnlineStoreCassandra(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
 	}
+	secrets := GetSecrets("/testing/cassandra")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)
 	}
-	cassandraUsername, ok := os.LookupEnv("CASSANDRA_USER")
-	if !ok {
-		t.Fatalf("missing CASSANDRA_USER variable")
-	}
-	cassandraPassword, ok := os.LookupEnv("CASSANDRA_PASSWORD")
-	if !ok {
-		t.Fatalf("missing CASSANDRA_PASSWORD variable")
-	}
+	cassandraUsername := helpers.GetEnv("CASSANDRA_USER", secrets["CASSANDRA_USER"])
+
+	cassandraPassword := helpers.GetEnv("CASSANDRA_PASSWORD", secrets["CASSANDRA_PASSWORD"])
+
 	cassandraAddr := "localhost:9042"
 	cassandraConfig := &pc.CassandraConfig{
 		Addr:        cassandraAddr,

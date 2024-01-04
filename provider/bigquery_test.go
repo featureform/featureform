@@ -1,20 +1,22 @@
 package provider
 
 import (
-	"cloud.google.com/go/bigquery"
 	"context"
 	"encoding/json"
 	"fmt"
-	pc "github.com/featureform/provider/provider_config"
-	pt "github.com/featureform/provider/provider_type"
-	"github.com/google/uuid"
-	"github.com/joho/godotenv"
-	"google.golang.org/api/option"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"cloud.google.com/go/bigquery"
+	"github.com/featureform/helpers"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
+	"google.golang.org/api/option"
 )
 
 func TestOfflineStoreBigQuery(t *testing.T) {
@@ -22,19 +24,15 @@ func TestOfflineStoreBigQuery(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
+	secrets := GetSecrets("/testing/bigquery")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)
 	}
 
-	credentials, ok := os.LookupEnv("BIGQUERY_CREDENTIALS")
-	if !ok {
-		t.Fatalf("missing BIGQUERY_CREDENTIALS variable")
-	}
-	projectID, ok := os.LookupEnv("BIGQUERY_PROJECT_ID")
-	if !ok {
-		t.Fatalf("missing BIGQUERY_PROJECT_ID variable")
-	}
+	credentials := helpers.GetEnv("BIGQUERY_CREDENTIALS", secrets["BIGQUERY_CREDENTIALS"])
+
+	projectID := helpers.GetEnv("BIGQUERY_PROJECT_ID", secrets["BIGQUERY_PROJECT_ID"])
 
 	JSONCredentials, err := ioutil.ReadFile(credentials)
 	if err != nil {

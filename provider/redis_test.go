@@ -7,13 +7,14 @@ package provider
 import (
 	"context"
 	"fmt"
-	"github.com/alicebob/miniredis"
-	"github.com/joho/godotenv"
-	"os"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis"
+	"github.com/joho/godotenv"
+
+	"github.com/featureform/helpers"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 
@@ -52,14 +53,13 @@ func TestOnlineStoreRedisInsecure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
 	}
+	secrets := GetSecrets("/testing/redis")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)
 	}
-	redisInsecurePort, ok := os.LookupEnv("REDIS_INSECURE_PORT")
-	if !ok {
-		t.Fatalf("missing REDIS_INSECURE_PORT variable")
-	}
+	redisInsecurePort := helpers.GetEnv("REDIS_INSECURE_PORT", secrets["REDIS_INSECURE_PORT"])
+
 	insecureAddr := fmt.Sprintf("%s:%s", "localhost", redisInsecurePort)
 	redisInsecureConfig := &pc.RedisConfig{
 		Addr: insecureAddr,
@@ -81,18 +81,13 @@ func TestOnlineStoreRedisSecure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
 	}
+	secrets := GetSecrets("/testing/redis")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)
 	}
-	redisSecurePort, ok := os.LookupEnv("REDIS_SECURE_PORT")
-	if !ok {
-		t.Fatalf("missing REDIS_SECURE_PORT variable")
-	}
-	redisPassword, ok := os.LookupEnv("REDIS_PASSWORD")
-	if !ok {
-		t.Fatalf("missing REDIS_PASSWORD variable")
-	}
+	redisSecurePort := helpers.GetEnv("REDIS_SECURE_PORT", secrets["REDIS_SECURE_PORT"])
+	redisPassword := helpers.GetEnv("REDIS_PASSWORD", secrets["REDIS_PASSWORD"])
 
 	secureAddr := fmt.Sprintf("%s:%s", "localhost", redisSecurePort)
 	redisSecureConfig := &pc.RedisConfig{
@@ -116,14 +111,13 @@ func TestVectorStoreRedis(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
 	}
+	secrets := GetSecrets("/testing/redis")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)
 	}
-	redisInsecurePort, ok := os.LookupEnv("REDIS_INSECURE_PORT")
-	if !ok {
-		t.Fatalf("missing REDIS_INSECURE_PORT variable")
-	}
+	redisInsecurePort := helpers.GetEnv("REDIS_INSECURE_PORT", secrets["REDIS_INSECURE_PORT"])
+
 	insecureAddr := fmt.Sprintf("%s:%s", "localhost", redisInsecurePort)
 	redisInsecureConfig := &pc.RedisConfig{
 		Addr: insecureAddr,

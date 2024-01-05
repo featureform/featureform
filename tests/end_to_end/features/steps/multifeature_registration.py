@@ -25,7 +25,6 @@ def step_impl(context):
     )
 
 
-
 @when("I create a dataframe from a serving client")
 def step_impl(context):
     context.dataset_df = context.client.dataframe(context.transactions)

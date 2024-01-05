@@ -23,7 +23,7 @@ func TestOfflineStoreSnowflake(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
-	secrets := GetSecrets("/testing/snowflake")
+	secrets := GetSecrets("testing/snowflake")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)

@@ -53,7 +53,7 @@ func TestOnlineStoreRedisInsecure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
 	}
-	secrets := GetSecrets("/testing/redis")
+	secrets := GetSecrets("testing/redis")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)

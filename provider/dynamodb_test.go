@@ -13,7 +13,7 @@ func TestOnlineStoreDynamoDB(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
 	}
-	secrets := GetSecrets("/testing/dynamodb")
+	secrets := GetSecrets("testing/dynamodb")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)

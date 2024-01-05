@@ -16,7 +16,7 @@ func TestOnlineStoreFirestore(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
 	}
-	secrets := GetSecrets("/testing/firestore")
+	secrets := GetSecrets("testing/firestore")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)

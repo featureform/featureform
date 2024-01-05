@@ -24,7 +24,7 @@ func TestOfflineStoreBigQuery(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
-	secrets := GetSecrets("/testing/bigquery")
+	secrets := GetSecrets("testing/bigquery")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)

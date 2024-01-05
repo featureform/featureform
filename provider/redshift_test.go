@@ -19,7 +19,7 @@ func TestOfflineStoreRedshift(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
-	secrets := GetSecrets("/testing/redshift")
+	secrets := GetSecrets("testing/redshift")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)

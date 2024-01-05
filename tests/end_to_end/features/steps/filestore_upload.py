@@ -1,7 +1,9 @@
+import re
+
+import featureform as ff
+
 from behave import *
-from azure.identity import DefaultAzureCredential, AzureCliCredential
-from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
-import os
+from azure.storage.blob import BlobClient
 import urllib.request
 import pandas as pd
 import numpy as np
@@ -164,9 +166,14 @@ def upload_to_gcs(bucket_name, local_file_name, upload_file_path, filetype):
 
 @when('I upload a "{filesize}" "{filetype}" file to "{storage_provider}"')
 def step_impl(context, filesize, filetype, storage_provider):
+    context.filetype = filetype
+    context.storage_provider_name = storage_provider
+    # context.filename = f"transactions-{filesize}-{filetype}-{storage_provider}"
+
     filename, file_uri = get_filename_and_uri(filesize, filetype)
 
-    local_path = f"data/{context.variant}"
+    run_id = context.run_name
+    local_path = f"data/{run_id}"
 
     os.makedirs(local_path, exist_ok=True)
 
@@ -174,8 +181,8 @@ def step_impl(context, filesize, filetype, storage_provider):
 
     remote_path = "data"
 
-    upload_file_path = os.path.join(remote_path, context.variant, filename)
-    context.filename = upload_file_path
+    upload_file_path = os.path.join(remote_path, run_id, filename)
+    context.filename = re.sub(r"[/.-]", "_", upload_file_path)
 
     # Create a file in the local data directory to upload and download
     download_file(file_uri, local_file_name, filetype)

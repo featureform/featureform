@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 
@@ -150,13 +151,7 @@ def step_impl(context):
         ("e", [True, 53, "53"]),
         ("f", ["", 64556, "64556"]),
     ]
-    context.iter = context.client.batch_features(
-        [
-            ("boolean_feature", ff.get_run()),
-            ("numerical_feature", ff.get_run()),
-            ("string_feature", ff.get_run()),
-        ]
-    )
+    context.iter = context.client.batch_features(context.features)
 
 
 @then("I serve batch features for spark")
@@ -169,13 +164,7 @@ def step_impl(context):
         ("C1010081", [1661.3333333333333, "1584.18", 0.2708025603151157]),
         ("C1010085", [225.0, "319080.2", 0.0007051518709089439]),
     ]
-    context.iter = context.client.batch_features(
-        [
-            ("transaction_feature", context.variant),
-            ("balance_feature", context.variant),
-            ("perc_feature", context.variant),
-        ]
-    )
+    context.iter = context.client.batch_features(context.features)
 
 
 @then(
@@ -183,13 +172,11 @@ def step_impl(context):
 )
 def step_impl(context):
     context.expected = 30
-    context.iter = context.client.batch_features(
-        [
-            *([("transaction_feature", ff.get_run())] * 10),
-            *([("balance_feature", ff.get_run())] * 10),
-            *([("perc_feature", ff.get_run())] * 10),
-        ]
-    )
+    # make duplicates of the features
+    features = []
+    for feature in context.features:
+        features.extend([feature] * 10)
+    context.iter = context.client.batch_features(features)
 
 
 @then("I can get a list containing the entity name and a tuple with all the features")
@@ -199,6 +186,7 @@ def step_impl(context):
         if i >= len(context.expected):
             break
         print(entity, features)
+        logging.info(f"Entity: {entity} and expected {context.expected[i][0]}")
         assert entity == context.expected[i][0]
         assert Counter(features) == Counter(context.expected[i][1])
         i += 1
@@ -232,6 +220,12 @@ def step_impl(context):
             type=ff.String,
         )
 
+    context.features = [
+        SnowflakeUser.boolean_feature,
+        SnowflakeUser.numerical_feature,
+        SnowflakeUser.string_feature,
+    ]
+
     context.client.apply()
 
 
@@ -251,5 +245,11 @@ def step_impl(context):
             context.perc[["entity", " value", "ts"]],
             type=ff.Float32,
         )
+
+    context.features = [
+        SparkUser.transaction_feature,
+        SparkUser.balance_feature,
+        SparkUser.perc_feature,
+    ]
 
     context.client.apply()

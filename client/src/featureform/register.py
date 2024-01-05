@@ -1175,7 +1175,7 @@ class SQLTransformationDecorator:
     @staticmethod
     def _assert_query_contains_at_least_one_source(query):
         # Checks to verify that the query contains a FROM {{ name.variant }}
-        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_:.]+(\.[a-zA-Z0-9_:.]+)?\s*\}\}"
+        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_:]+(\.[a-zA-Z0-9_:.-]+)?\s*\}\}"
         match = re.search(pattern, query, re.IGNORECASE)
         if match is None:
             raise InvalidSQLQuery(query, "No source specified.")
@@ -3933,6 +3933,7 @@ class Registrar:
         )
 
         self.__resources.append(decorator)
+        self.map_client_object_to_resource(decorator, decorator)
 
         if fn is None:
             return decorator
@@ -4331,6 +4332,8 @@ class Registrar:
             properties=properties,
         )
         self.__resources.append(resource)
+        self.map_client_object_to_resource(resource, resource)
+        return resource
 
     def register_model(
         self, name: str, tags: List[str] = [], properties: dict = {}

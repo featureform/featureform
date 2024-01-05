@@ -1,9 +1,14 @@
+import random
+import string
+
 from behave import *
 
 
 @given("Featureform is installed")
 def step_impl(context):
     import featureform
+
+    context.run_name = "".join(random.choice(string.ascii_lowercase) for _ in range(15))
 
 
 @when('I create a "{mode}" "{secure}" client for "{host}"')

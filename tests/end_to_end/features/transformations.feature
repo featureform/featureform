@@ -10,7 +10,7 @@ Feature: Transformations
     And I register the file
     When I register a "<transformation_type>" transformation named "first_transformation" from "transactions"
     When I register a "<transformation_type>" transformation named "second_transformation" from "first_transformation"
-    Then I should be able to pull the transformation as a dataframe
+    Then I should be able to pull the transformation "second_transformation" as a dataframe
 
     Examples:
       | transformation_type | storage_provider   |         bucket            |    root_path               |
@@ -33,7 +33,7 @@ Feature: Transformations
     And I register databricks
     And I register the file
     When I register a "<transformation_type>" transformation named "first_transformation" from "transactions"
-    Then I should be able to pull the transformation as a dataframe
+    Then I should be able to pull the transformation "first_transformation" as a dataframe
 
     Examples:
     | transformation_type | storage_provider | bucket |

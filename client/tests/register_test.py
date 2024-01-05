@@ -272,19 +272,19 @@ def run_before_and_after_tests(tmpdir):
     [
         ("SELECT * FROM X", False),
         ("SELECT * FROM", False),
-        ("SELECT * FROM     \n {{ name }}", True),
-        ("SELECT * FROM     \n {{name}}", True),
+        ("SELECT * FROM\n{{ name }}", True),
+        ("SELECT * FROM\n{{name}}", True),
         ("SELECT * FROM {{ name.variant }}", True),
         ("SELECT * FROM {{name.variant }}", True),
-        ("SELECT * FROM     \n {{ name.variant }}", True),
-        ("SELECT * FROM     \n {{name.variant}}", True),
-        ("SELECT * FROM     \n {{name . variant}}", False),
+        ("SELECT * FROM\n{{ name.variant }}", True),
+        ("SELECT * FROM\n{{name.variant}}", True),
         (
-            """
-            SELECT *
-            FROM {{ name.variant2 }}
-            WHERE x >= 5.
-            """,
+            "SELECT * FROM {{data_lsbrqxjvevhqeat_transactions_short_csv.aexftowrixasmlv_2023-12-20T15-16-44}}",
+            True,
+        ),
+        ("SELECT * FROM\n{{name . variant}}", False),
+        (
+            "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id",
             True,
         ),
         (
@@ -292,10 +292,11 @@ def run_before_and_after_tests(tmpdir):
             True,
         ),
         (
-            (
-                "SELECT CustomerID as user_id, avg(TransactionAmount) "
-                "as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
-            ),
+            """
+                SELECT *
+                FROM {{ name.variant2 }}
+                WHERE x >= 5.
+                """,
             True,
         ),
     ],

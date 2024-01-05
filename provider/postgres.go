@@ -234,19 +234,26 @@ func (q postgresSQLQueries) transformationExists() string {
 }
 
 func (q postgresSQLQueries) getColumns(db *sql.DB, tableName string) ([]TableColumn, error) {
-	qry := fmt.Sprintf("SELECT attname AS column_name FROM   pg_attribute WHERE  attrelid = 'public.%s'::regclass AND    attnum > 0 ORDER  BY attnum", tableName)
+	// Ensure tableName is safe or validated
+	qry := fmt.Sprintf("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = '%s'", tableName)
 	rows, err := db.Query(qry)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	columnNames := make([]TableColumn, 0)
+
+	var columnNames []TableColumn
 	for rows.Next() {
-		var column string
-		if err := rows.Scan(&column); err != nil {
+		var column TableColumn
+		if err := rows.Scan(&column.Name); err != nil {
 			return nil, err
 		}
-		columnNames = append(columnNames, TableColumn{Name: column})
+		columnNames = append(columnNames, column)
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return columnNames, nil
 }

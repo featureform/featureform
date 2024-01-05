@@ -1484,7 +1484,7 @@ class FeatureVariant(ResourceVariant):
 
 @typechecked
 @dataclass
-class OnDemandFeatureVariant:
+class OnDemandFeatureVariant(ResourceVariant):
     owner: str
     variant: str
     tags: List[str] = field(default_factory=list)

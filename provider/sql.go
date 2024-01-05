@@ -312,7 +312,7 @@ func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, erro
 	} else if !exists {
 		return nil, &TableNotFound{id.Name, id.Variant}
 	}
-	columnNames, err := store.query.getColumns(store.db, sanitize(name))
+	columnNames, err := store.query.getColumns(store.db, name)
 
 	return &sqlPrimaryTable{
 		db:     store.db,
@@ -336,7 +336,7 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 	if !rows.Next() {
 		return nil, fmt.Errorf("transformation not found: %v", name)
 	}
-	columnNames, err := store.query.getColumns(store.db, sanitize(name))
+	columnNames, err := store.query.getColumns(store.db, name)
 
 	return &sqlPrimaryTable{
 		db:     store.db,

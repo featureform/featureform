@@ -37,6 +37,7 @@ def step_impl(context):
         all_features = ff.MultiFeature(
             dataset=context.transactions,
             df=context.dataset_df,
+            variant=context.run_name,
             exclude_columns=["transactionamount"],
             entity_column="customerid",
             timestamp_column="timestamp",
@@ -78,9 +79,9 @@ def step_impl(context):
     # Serve batch features
     batch_features = context.client.batch_features(
         [
-            ("customerdob", ff.get_run()),
-            ("custaccountbalance", ff.get_run()),
-            ("custlocation", ff.get_run()),
+            ("customerdob", context.run_name),
+            ("custaccountbalance", context.run_name),
+            ("custlocation", context.run_name),
         ]
     )
     expected_output = [

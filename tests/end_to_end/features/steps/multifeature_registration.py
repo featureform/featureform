@@ -25,6 +25,7 @@ def step_impl(context):
     )
 
 
+
 @when("I create a dataframe from a serving client")
 def step_impl(context):
     context.dataset_df = context.client.dataframe(context.transactions)
@@ -57,6 +58,7 @@ def step_impl(context):
         all_features = ff.MultiFeature(
             dataset=context.transactions,
             df=context.dataset_df,
+            variant=context.run_name,
             include_columns=[
                 "transactionamount",
                 "customerdob",

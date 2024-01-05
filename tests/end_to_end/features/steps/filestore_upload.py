@@ -182,7 +182,7 @@ def step_impl(context, filesize, filetype, storage_provider):
     remote_path = "data"
 
     upload_file_path = os.path.join(remote_path, run_id, filename)
-    context.filename = re.sub(r'[/.-]', '_', upload_file_path)
+    context.filename = re.sub(r"[/.-]", "_", upload_file_path)
 
     # Create a file in the local data directory to upload and download
     download_file(file_uri, local_file_name, filetype)

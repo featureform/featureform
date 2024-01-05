@@ -269,7 +269,6 @@ def run_before_and_after_tests(tmpdir):
 
 @pytest.mark.parametrize(
     "sql_query, expected_valid_sql_query",
-    # fmt: off
     [
         ("SELECT * FROM X", False),
         ("SELECT * FROM", False),
@@ -279,21 +278,28 @@ def run_before_and_after_tests(tmpdir):
         ("SELECT * FROM {{name.variant }}", True),
         ("SELECT * FROM\n{{ name.variant }}", True),
         ("SELECT * FROM\n{{name.variant}}", True),
-        ("SELECT * FROM {{data_lsbrqxjvevhqeat_transactions_short_csv.aexftowrixasmlv_2023-12-20T15-16-44}}", True),
-        ("SELECT * FROM\n{{name . variant}}", False),
-        ("SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id", True),
-        ("SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id", True),
         (
-                """
+            "SELECT * FROM {{data_lsbrqxjvevhqeat_transactions_short_csv.aexftowrixasmlv_2023-12-20T15-16-44}}",
+            True,
+        ),
+        ("SELECT * FROM\n{{name . variant}}", False),
+        (
+            "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id",
+            True,
+        ),
+        (
+            "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id",
+            True,
+        ),
+        (
+            """
                 SELECT *
                 FROM {{ name.variant2 }}
                 WHERE x >= 5.
                 """,
-                True
+            True,
         ),
-    ]
-    # fmt: on
-
+    ],
 )
 def test_assert_query_contains_at_least_one_source(sql_query, expected_valid_sql_query):
     dec = SQLTransformationDecorator(

@@ -8,12 +8,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"math"
+	"os"
+	"strings"
+
 	"github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	"github.com/featureform/types"
 	"github.com/google/uuid"
 	"github.com/gorhill/cronexpr"
-	"io"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -22,9 +26,6 @@ import (
 	watch "k8s.io/apimachinery/pkg/watch"
 	kubernetes "k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
-	"math"
-	"os"
-	"strings"
 )
 
 type CronSchedule string
@@ -56,7 +57,7 @@ func CreateJobName(id metadata.ResourceID, prefixes ...string) string {
 
 func makeCronSchedule(schedule string) (*CronSchedule, error) {
 	if _, err := cronexpr.Parse(schedule); err != nil {
-		return nil, fmt.Errorf("invalid cron expression: %v", err)
+		return nil, err
 	}
 	cronSchedule := CronSchedule(schedule)
 	return &cronSchedule, nil
@@ -307,7 +308,7 @@ func (k KubernetesCompletionWatcher) Err() error {
 		return err
 	}
 	if job.Status.Failed > 0 {
-		return fmt.Errorf("job failed while running: container: %s: %w", job.Name, err)
+		return err
 	}
 	return nil
 }

@@ -119,11 +119,11 @@ func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB) error {
 	}
 	_, err = dynamodbClient.CreateTable(params)
 	if err != nil {
-		return fmt.Errorf("create attempt: %v", err)
+		return err
 	}
 	describeTableOutput, err := dynamodbClient.DescribeTable(describeMetadataTableParams)
 	if err != nil {
-		return fmt.Errorf("could not check dynamo table: %v", err)
+		return err
 	}
 	duration := 0
 	for describeTableOutput == nil || *describeTableOutput.Table.TableStatus != "ACTIVE" {

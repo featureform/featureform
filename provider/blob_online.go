@@ -34,7 +34,7 @@ func NewOnlineFileStore(config *pc.OnlineBlobConfig) (*OnlineFileStore, error) {
 
 	FileStore, err := CreateFileStore(string(config.Type), Config(serializedBlob))
 	if err != nil {
-		return nil, fmt.Errorf("could not create blob store: %v", err)
+		return nil, err
 	}
 	return &OnlineFileStore{
 		FileStore,
@@ -93,14 +93,16 @@ func (store OnlineFileStore) deleteTable(feature, variant string) error {
 		return err
 	}
 	if err := store.Delete(&filepath); err != nil {
-		return fmt.Errorf("could not delete table index key %s: %v", tableKey, err)
+		// ("could not delete table index key %s: %v", tableKey, err)
+		return err
 	}
 	filepath = filestore.AzureFilepath{}
 	if err := filepath.ParseFilePath(entityDirectory); err != nil {
 		return err
 	}
 	if err := store.DeleteAll(&filepath); err != nil {
-		return fmt.Errorf("could not delete entity directory %s: %v", entityDirectory, err)
+		// ("could not delete entity directory %s: %v", entityDirectory, err)
+		return err
 	}
 	return nil
 }

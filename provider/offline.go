@@ -214,7 +214,7 @@ func (m *TransformationConfig) UnmarshalJSON(data []byte) error {
 	var temp tempConfig
 	err := json.Unmarshal(data, &temp)
 	if err != nil {
-		return fmt.Errorf("unmarshal: %w", err)
+		return err
 	}
 
 	m.Type = temp.Type
@@ -225,7 +225,7 @@ func (m *TransformationConfig) UnmarshalJSON(data []byte) error {
 
 	err = m.decodeArgs(temp.ArgType, temp.Args)
 	if err != nil {
-		return fmt.Errorf("decode: %w", err)
+		return err
 	}
 
 	return nil
@@ -245,7 +245,7 @@ func (m *TransformationConfig) decodeArgs(t metadata.TransformationArgType, argM
 	}
 	err := mapstructure.Decode(argMap, &args)
 	if err != nil {
-		return fmt.Errorf("could not decode map: %w", err)
+		return err
 	}
 	m.Args = args
 	return nil
@@ -415,7 +415,7 @@ type ResourceSchema struct {
 func (schema *ResourceSchema) Serialize() ([]byte, error) {
 	config, err := json.Marshal(schema)
 	if err != nil {
-		return nil, fmt.Errorf("failed to serialize resource schema due to: %w", err)
+		return nil, err
 	}
 	return config, nil
 }
@@ -423,7 +423,7 @@ func (schema *ResourceSchema) Serialize() ([]byte, error) {
 func (schema *ResourceSchema) Deserialize(config []byte) error {
 	err := json.Unmarshal(config, schema)
 	if err != nil {
-		return fmt.Errorf("failed to deserialize resource schema due to: %w", err)
+		return err
 	}
 	return nil
 }
@@ -489,7 +489,7 @@ func (schema *TableSchema) Serialize() ([]byte, error) {
 	}
 	config, err := json.Marshal(wrapper)
 	if err != nil {
-		return nil, fmt.Errorf("failed to serialize table schema due to: %w", err)
+		return nil, err
 	}
 	return config, nil
 }
@@ -498,7 +498,7 @@ func (schema *TableSchema) Deserialize(config []byte) error {
 	wrapper := &TableSchemaJSONWrapper{}
 	err := json.Unmarshal(config, wrapper)
 	if err != nil {
-		return fmt.Errorf("failed to deserialize table schema due to: %w", err)
+		return err
 	}
 	schema.Columns = make([]TableColumn, len(wrapper.Columns))
 	for i, col := range wrapper.Columns {

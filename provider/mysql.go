@@ -67,7 +67,7 @@ func (q mySQLQueries) registerResources(db *sql.DB, tableName string, schema Res
 	}
 	query, err = db.Prepare("CREATE VIEW ? AS SELECT ? as entity, ? as value, ? as ts FROM ?")
 	if err != nil {
-		return fmt.Errorf("error registering view: %w", err)
+		return err
 	}
 	defer query.Close()
 	fmt.Printf("Resource creation query: %v", query)

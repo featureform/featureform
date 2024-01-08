@@ -19,7 +19,7 @@ type value struct {
 func newValue(val interface{}) (*value, error) {
 	serial, err := wrapValue(val)
 	if err != nil {
-		return nil, fmt.Errorf("new value: %w", err)
+		return nil, err
 	}
 	return &value{serial}, nil
 }
@@ -115,7 +115,7 @@ func (row *row) Serialized() *pb.TrainingDataRow {
 func (row *row) SetLabel(label interface{}) error {
 	value, err := wrapValue(label)
 	if err != nil {
-		return fmt.Errorf("set label: %w", err)
+		return err
 	}
 	row.serialized.Label = value
 	return nil
@@ -124,7 +124,7 @@ func (row *row) SetLabel(label interface{}) error {
 func (row *row) AddFeature(feature interface{}) error {
 	value, err := wrapValue(feature)
 	if err != nil {
-		return fmt.Errorf("add feature: %w", err)
+		return err
 	}
 	row.serialized.Features = append(row.serialized.Features, value)
 	return nil
@@ -147,7 +147,7 @@ func (row *sourceRow) Serialized() *pb.SourceDataRow {
 func (r *sourceRow) AddValue(row interface{}) error {
 	value, err := wrapValue(row)
 	if err != nil {
-		return fmt.Errorf("add row: %w", err)
+		return err
 	}
 	r.serialized.Rows = append(r.serialized.Rows, value)
 	return nil
@@ -160,7 +160,7 @@ func (row *batchRow) Serialized() *pb.BatchFeatureRow {
 func (row *batchRow) SetEntity(entity interface{}) error {
 	value, err := wrapValue(entity)
 	if err != nil {
-		return fmt.Errorf("set entity: %w", err)
+		return err
 	}
 	row.serialized.Entity = value
 	return nil
@@ -169,7 +169,7 @@ func (row *batchRow) SetEntity(entity interface{}) error {
 func (row *batchRow) AddFeature(feature interface{}) error {
 	value, err := wrapValue(feature)
 	if err != nil {
-		return fmt.Errorf("add feature: %w", err)
+		return err
 	}
 	row.serialized.Features = append(row.serialized.Features, value)
 	return nil

@@ -3,12 +3,13 @@ package serving
 import (
 	"context"
 	"fmt"
+	"sort"
+
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
-	"sort"
 )
 
 type indexedValue struct {
@@ -133,7 +134,7 @@ func (serv *FeatureServer) getOrCacheFeatureMetadata(ctx context.Context, name, 
 		if err != nil {
 			logger.Errorw("metadata lookup failed", "Err", err)
 			obs.SetError()
-			return nil, fmt.Errorf("metadata lookup failed: %w", err)
+			return nil, err
 		}
 		serv.Features.Range(func(key, value interface{}) bool {
 			return true
@@ -193,13 +194,13 @@ func (serv *FeatureServer) initializeFeatureProvider(ctx context.Context, meta *
 	if err != nil {
 		logger.Errorw("fetching provider metadata failed", "Error", err)
 		obs.SetError()
-		return nil, fmt.Errorf("fetching provider metadata failed: %w", err)
+		return nil, err
 	}
 	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
 		logger.Errorw("failed to get provider", "Error", err)
 		obs.SetError()
-		return nil, fmt.Errorf("failed to get provider: %w", err)
+		return nil, err
 	}
 	store, err := p.AsOnlineStore()
 	if err != nil {
@@ -207,7 +208,7 @@ func (serv *FeatureServer) initializeFeatureProvider(ctx context.Context, meta *
 		obs.SetError()
 		// This means that the provider of the feature isn't an online store.
 		// That shouldn't be possible.
-		return nil, fmt.Errorf("failed to use provider as onlinestore for feature: %w", err)
+		return nil, err
 	}
 	return store, nil
 }
@@ -223,7 +224,7 @@ func (serv *FeatureServer) cacheFeatureTable(ctx context.Context, store provider
 		if err != nil {
 			serv.Logger.Errorw("feature not found", "Error", err)
 			obs.SetError()
-			return nil, fmt.Errorf("feature not found: %w", err)
+			return nil, err
 		}
 		serv.Tables.Store(serv.getNVCacheKey(name, variant), table)
 		featureTable = table

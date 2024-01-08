@@ -38,16 +38,16 @@ func (b *BackupManager) Save() error {
 func (b *BackupManager) SaveTo(filename string) error {
 	err := b.takeSnapshot(filename)
 	if err != nil {
-		return fmt.Errorf("could not take snapshot: %v", err)
+		return err
 	}
 
 	err = b.Provider.Init()
 	if err != nil {
-		return fmt.Errorf("could not initialize provider: %v", err)
+		return err
 	}
 	err = b.Provider.Upload(filename, filename)
 	if err != nil {
-		return fmt.Errorf("cannot upload snapshot to filestore: %v", err)
+		return err
 	}
 	return nil
 }
@@ -56,19 +56,19 @@ func (b *BackupManager) Restore(filenamePrefix string) error {
 	b.Logger.Info("Starting Restore")
 	err := b.Provider.Init()
 	if err != nil {
-		return fmt.Errorf("could not initialize provider: %v", err)
+		return err
 	}
 
 	b.Logger.Infof("Getting Latest Backup With Prefix `%s`", filenamePrefix)
 	filename, err := b.Provider.LatestBackupName(filenamePrefix)
 	if err != nil {
-		return fmt.Errorf("could not get latest backup: %v", err)
+		return err
 	}
 
 	b.Logger.Infof("Restoring with file: %s", filename.ToURI())
 	err = b.RestoreFrom(filename)
 	if err != nil {
-		return fmt.Errorf("could not restore file %s: %v", filename.ToURI(), err)
+		return err
 	}
 	return nil
 }
@@ -76,23 +76,23 @@ func (b *BackupManager) Restore(filenamePrefix string) error {
 func (b *BackupManager) RestoreFrom(source filestore.Filepath) error {
 	err := b.Provider.Init()
 	if err != nil {
-		return fmt.Errorf("could not initialize provider: %v", err)
+		return err
 	}
 	b.Logger.Info("Downloading Restore File")
 	destination := &filestore.LocalFilepath{}
 	if err := destination.SetKey(SnapshotFilename); err != nil {
-		return fmt.Errorf("cannot set destination key: %v", err)
+		return err
 	}
 
 	err = b.Provider.Download(source, destination)
 	if err != nil {
-		return fmt.Errorf("could not download snapshot file %s: %v", source.ToURI(), err)
+		return err
 	}
 
 	b.Logger.Info("Loading Snapshot")
 	err = b.loadSnapshot(SnapshotFilename)
 	if err != nil {
-		return fmt.Errorf("could not load snapshot: %v", err)
+		return err
 	}
 	return nil
 }
@@ -107,10 +107,10 @@ type backup []backupRow
 func (f backup) writeTo(filename string) error {
 	file, err := json.Marshal(f)
 	if err != nil {
-		return fmt.Errorf("could not marshal snapshot: %v", err)
+		return err
 	}
 	if err = ioutil.WriteFile(filename, file, 0644); err != nil {
-		return fmt.Errorf("could not write snapshot to file: %v", err)
+		return err
 	}
 	return nil
 }
@@ -118,11 +118,11 @@ func (f backup) writeTo(filename string) error {
 func (f *backup) readFrom(filename string) error {
 	file, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return fmt.Errorf("could not read file %s: %v", filename, err)
+		return err
 	}
 	err = json.Unmarshal(file, &f)
 	if err != nil {
-		return fmt.Errorf("could not unmarshal file %s: %v", filename, err)
+		return err
 	}
 	return nil
 }
@@ -130,7 +130,7 @@ func (f *backup) readFrom(filename string) error {
 func (b *BackupManager) takeSnapshot(filename string) error {
 	resp, err := b.ETCDClient.Get(context.Background(), "", clientv3.WithPrefix())
 	if err != nil {
-		return fmt.Errorf("could get snapshot values: %v", err)
+		return err
 	}
 
 	err = b.convertEtcdToBackup(resp.Kvs).writeTo(filename)
@@ -156,17 +156,17 @@ func (b *BackupManager) loadSnapshot(filename string) error {
 	b.Logger.Info("Reading From Snapshot File")
 	err := backupData.readFrom(filename)
 	if err != nil {
-		return fmt.Errorf("could not read from file %s: %v", filename, err)
+		return err
 	}
 	b.Logger.Info("Clearing ETCD")
 	err = b.clearEtcd()
 	if err != nil {
-		return fmt.Errorf("could not clear ETCD: %v", err)
+		return err
 	}
 	b.Logger.Info("Writing Snapshot to ETCD")
 	if err := b.writeToEtcd(backupData); err != nil {
 		b.Logger.Error("BACKUP FAILED: Backup was unable to complete. Partial snapshot has been restored")
-		return fmt.Errorf("could not write to ETCD: %v", err)
+		return err
 	}
 
 	return nil
@@ -176,7 +176,8 @@ func (b *BackupManager) writeToEtcd(data backup) error {
 	for _, row := range data {
 		_, err := b.ETCDClient.Put(context.Background(), string(row.Key), string(row.Value))
 		if err != nil {
-			return fmt.Errorf("could not Put K/V (%s:%s): %v", row.Key, row.Value, err)
+			b.Logger.Error("could not Put K/V (%s:%s): %v", row.Key, row.Value, err)
+			return err
 		}
 	}
 	return nil
@@ -185,7 +186,7 @@ func (b *BackupManager) writeToEtcd(data backup) error {
 func (b *BackupManager) clearEtcd() error {
 	_, err := b.ETCDClient.Delete(context.Background(), "", clientv3.WithPrefix())
 	if err != nil {
-		return fmt.Errorf("delete: %v", err)
+		return err
 	}
 	return nil
 }

@@ -722,7 +722,8 @@ func (serv *OnlineServer) BatchFeatureServe(req *srv.BatchFeatureServeRequest, s
 	serv.Logger.Infow("Serving Batch Features", "request", req.String())
 	client, err := serv.client.BatchFeatureServe(context.Background(), req)
 	if err != nil {
-		return fmt.Errorf("could not serve batch features: %w", err)
+		serv.Logger.Errorw("could not serve batch features: %w", err)
+		return err
 	}
 	for {
 		row, err := client.Recv()
@@ -730,11 +731,12 @@ func (serv *OnlineServer) BatchFeatureServe(req *srv.BatchFeatureServeRequest, s
 			if err == io.EOF {
 				return nil
 			}
-			return fmt.Errorf("failed to fetch batch row: %w", err)
+			serv.Logger.Errorw("failed to fetch batch row: %w", err)
+			return err
 		}
 		if err := stream.Send(row); err != nil {
 			serv.Logger.Errorw("Failed to write to stream", "Error", err)
-			return fmt.Errorf("failed to send batch row: %w", err)
+			return err
 		}
 	}
 
@@ -744,7 +746,8 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 	serv.Logger.Infow("Serving Training Data", "id", req.Id.String())
 	client, err := serv.client.TrainingData(context.Background(), req)
 	if err != nil {
-		return fmt.Errorf("could not serve training data: %w", err)
+		serv.Logger.Errorw("could not serve training data: %w", err)
+		return err
 	}
 	for {
 		row, err := client.Recv()
@@ -752,11 +755,12 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 			if err == io.EOF {
 				return nil
 			}
-			return fmt.Errorf("receive error: %w", err)
+			serv.Logger.Errorw("receive error: %w", err)
+			return err
 		}
 		if err := stream.Send(row); err != nil {
 			serv.Logger.Errorw("Failed to write to stream", "Error", err)
-			return fmt.Errorf("training send row: %w", err)
+			return err
 		}
 	}
 }
@@ -773,7 +777,8 @@ func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feat
 	}
 	client, err := serv.client.SourceData(context.Background(), req)
 	if err != nil {
-		return fmt.Errorf("could not serve source data: %w", err)
+		serv.Logger.Errorw("could not serve source data: %w", err)
+		return err
 	}
 	for {
 		row, err := client.Recv()
@@ -781,11 +786,12 @@ func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feat
 			if err == io.EOF {
 				return nil
 			}
-			return fmt.Errorf("receive error: %w", err)
+			serv.Logger.Errorw("receive error: %w", err)
+			return err
 		}
 		if err := stream.Send(row); err != nil {
 			serv.Logger.Errorf("failed to write to source data stream: %w", err)
-			return fmt.Errorf("source send row: %w", err)
+			return err
 		}
 	}
 }
@@ -812,23 +818,23 @@ func (serv *ApiServer) Serve() error {
 	}
 	lis, err := net.Listen("tcp", serv.address)
 	if err != nil {
-		return fmt.Errorf("listen: %w", err)
+		return err
 	}
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	metaConn, err := grpc.Dial(serv.metadata.address, opts...)
 	if err != nil {
-		return fmt.Errorf("metdata connection: %w", err)
+		return err
 	}
 	servConn, err := grpc.Dial(serv.online.address, opts...)
 	if err != nil {
-		return fmt.Errorf("serving connection: %w", err)
+		return err
 	}
 	serv.metadata.meta = pb.NewMetadataClient(metaConn)
 	client, err := metadata.NewClient(serv.metadata.address, serv.Logger)
 	if err != nil {
-		return fmt.Errorf("metdata new client: %w", err)
+		return err
 	}
 	serv.metadata.client = client
 	serv.online.client = srv.NewFeatureClient(servConn)
@@ -855,7 +861,8 @@ func (serv *ApiServer) ServeOnListener(lis net.Listener) error {
 	minTimeStr := helpers.GetEnv("FEATUREFORM_KEEPALIVE_MINTIME", "1")
 	minTime, err := strconv.ParseInt(minTimeStr, 0, 0)
 	if err != nil {
-		return fmt.Errorf("failed to parse keep alive min time: %w", err)
+		serv.Logger.Errorw("failed to parse keep alive min time: %w", err)
+		return err
 	}
 	kaep := keepalive.EnforcementPolicy{
 		MinTime: time.Duration(minTime) * time.Minute, // minimum amount of time a client should wait before sending a keepalive ping
@@ -863,7 +870,8 @@ func (serv *ApiServer) ServeOnListener(lis net.Listener) error {
 	kaTimeout := helpers.GetEnv("FEATUREFORM_KEEPALIVE_TIMEOUT", "5")
 	timeout, err := strconv.ParseInt(kaTimeout, 0, 0)
 	if err != nil {
-		return fmt.Errorf("failed to parse keep alive timeout: %w", err)
+		serv.Logger.Errorw("failed to parse keep alive timeout: %w", err)
+		return err
 	}
 	kasp := keepalive.ServerParameters{
 		Timeout: time.Duration(timeout) * time.Minute, // time after which the connection is closed if no activity

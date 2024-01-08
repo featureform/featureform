@@ -402,7 +402,7 @@ func (q defaultBQQueries) monitorJob(job *bigquery.Job) error {
 		if err != nil {
 			return err
 		} else if status.Err() != nil {
-			return fmt.Errorf("%s", status.Err())
+			return status.Err()
 		}
 
 		switch status.State {
@@ -763,10 +763,10 @@ func bigQueryOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 
 func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
-		return nil, fmt.Errorf("type check: %w", err)
+		return nil, err
 	}
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, fmt.Errorf("exists error: %w", err)
+		return nil, err
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
@@ -775,15 +775,15 @@ func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sche
 	}
 	tableName, err := store.getResourceTableName(id)
 	if err != nil {
-		return nil, fmt.Errorf("get name: %w", err)
+		return nil, err
 	}
 	if schema.TS == "" {
 		if err := store.query.registerResources(store.client, tableName, schema, false); err != nil {
-			return nil, fmt.Errorf("register no ts: %w", err)
+			return nil, err
 		}
 	} else {
 		if err := store.query.registerResources(store.client, tableName, schema, true); err != nil {
-			return nil, fmt.Errorf("register ts: %w", err)
+			return nil, err
 		}
 	}
 
@@ -796,17 +796,17 @@ func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sche
 
 func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
 	if err := id.check(Primary); err != nil {
-		return nil, fmt.Errorf("check fail: %w", err)
+		return nil, err
 	}
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, fmt.Errorf("table exist: %w", err)
+		return nil, err
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 
 	tableName, err := GetPrimaryTableName(id)
 	if err != nil {
-		return nil, fmt.Errorf("get name: %w", err)
+		return nil, err
 	}
 	query := store.query.primaryTableRegister(tableName, sourceName)
 
@@ -1028,7 +1028,7 @@ func (store *bqOfflineStore) CreateMaterialization(id ResourceID, options ...Mat
 	}
 	resTable, err := store.getbqResourceTable(id)
 	if err != nil {
-		return nil, fmt.Errorf("get resource table: %v", err)
+		return nil, err
 	}
 
 	matID := MaterializationID(id.Name)
@@ -1038,7 +1038,7 @@ func (store *bqOfflineStore) CreateMaterialization(id ResourceID, options ...Mat
 	bqQ := store.client.Query(materializeQry)
 	_, err = bqQ.Read(store.query.getContext())
 	if err != nil {
-		return nil, fmt.Errorf("ready query result: %v", err)
+		return nil, err
 	}
 	return &bqMaterialization{
 		id:        matID,
@@ -1077,13 +1077,13 @@ func (store *bqOfflineStore) GetMaterialization(id MaterializationID) (Materiali
 	bqQry := store.client.Query(getMatQry)
 	it, err := bqQry.Read(store.query.getContext())
 	if err != nil {
-		return nil, fmt.Errorf("could not get materialization: %w", err)
+		return nil, err
 	}
 
 	var row []bigquery.Value
 	err = it.Next(&row)
 	if err != nil {
-		return nil, fmt.Errorf("could not get materialization: %w", err)
+		return nil, err
 	}
 
 	if len(row) == 0 {
@@ -1111,7 +1111,7 @@ func (store *bqOfflineStore) UpdateMaterialization(id ResourceID) (Materializati
 	var row []bigquery.Value
 	err = it.Next(&row)
 	if err != nil {
-		return nil, fmt.Errorf("could not get materialization: %w", err)
+		return nil, err
 	}
 	if len(row) == 0 {
 		return nil, &MaterializationNotFound{matID}

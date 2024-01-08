@@ -150,21 +150,21 @@ func (store *sqlOfflineStore) tableExists(id ResourceID) (bool, error) {
 		tableName, err = GetPrimaryTableName(id)
 	}
 	if err != nil {
-		return false, fmt.Errorf("type check: %v: %v", id, err)
+		return false, err
 	}
 	query := store.query.tableExists()
 	err = store.db.QueryRow(query, tableName).Scan(&n)
 	if n > 0 && err == nil {
 		return true, nil
 	} else if err != nil {
-		return false, fmt.Errorf("table exists check: %v", err)
+		return false, err
 	}
 	query = store.query.viewExists()
 	err = store.db.QueryRow(query, tableName).Scan(&n)
 	if n > 0 && err == nil {
 		return true, nil
 	} else if err != nil {
-		return false, fmt.Errorf("view exists check: %v", err)
+		return false, err
 	}
 	return false, nil
 }
@@ -187,10 +187,10 @@ func (store *sqlOfflineStore) CheckHealth() (bool, error) {
 
 func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
-		return nil, fmt.Errorf("type check: %w", err)
+		return nil, err
 	}
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, fmt.Errorf("exists error: %w", err)
+		return nil, err
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
@@ -199,15 +199,15 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 	}
 	tableName, err := store.getResourceTableName(id)
 	if err != nil {
-		return nil, fmt.Errorf("get name: %w", err)
+		return nil, err
 	}
 	if schema.TS == "" {
 		if err := store.query.registerResources(store.db, tableName, schema, false); err != nil {
-			return nil, fmt.Errorf("register no ts: %w", err)
+			return nil, err
 		}
 	} else {
 		if err := store.query.registerResources(store.db, tableName, schema, true); err != nil {
-			return nil, fmt.Errorf("register ts: %w", err)
+			return nil, err
 		}
 	}
 
@@ -220,20 +220,20 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 
 func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
 	if err := id.check(Primary); err != nil {
-		return nil, fmt.Errorf("check fail: %w", err)
+		return nil, err
 	}
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, fmt.Errorf("table exist: %w", err)
+		return nil, err
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	tableName, err := GetPrimaryTableName(id)
 	if err != nil {
-		return nil, fmt.Errorf("get name: %w", err)
+		return nil, err
 	}
 	query := store.query.primaryTableRegister(tableName, sourceName)
 	if _, err := store.db.Exec(query); err != nil {
-		return nil, fmt.Errorf("register table: %w", err)
+		return nil, err
 	}
 
 	columnNames, err := store.query.getColumns(store.db, tableName)
@@ -351,17 +351,17 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 // Returns an error if the table already exists or if table is the wrong type.
 func (store *sqlOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
-		return nil, fmt.Errorf("ID check failed: %v", err)
+		return nil, err
 	}
 
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, fmt.Errorf("could not check if table exists: %v", err)
+		return nil, err
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	tableName, err := store.getResourceTableName(id)
 	if err != nil {
-		return nil, fmt.Errorf("could not get resource table name: %v", err)
+		return nil, err
 	}
 	var valueType ValueType
 	if valueIndex := store.getValueIndex(schema.Columns); valueIndex > 0 {
@@ -372,7 +372,7 @@ func (store *sqlOfflineStore) CreateResourceTable(id ResourceID, schema TableSch
 	}
 	table, err := store.newsqlOfflineTable(store.db, tableName, valueType)
 	if err != nil {
-		return nil, fmt.Errorf("could not return SQL offline table: %v", err)
+		return nil, err
 	}
 	return table, nil
 }
@@ -683,7 +683,7 @@ func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Material
 
 	rows, err := store.db.Query(getMatQry, tableName)
 	if err != nil {
-		return nil, fmt.Errorf("could not get materialization: %w", err)
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -1088,12 +1088,12 @@ func determineColumnType(valueType ValueType) (string, error) {
 func (store *sqlOfflineStore) newsqlOfflineTable(db *sql.DB, name string, valueType ValueType) (*sqlOfflineTable, error) {
 	columnType, err := determineColumnType(valueType)
 	if err != nil {
-		return nil, fmt.Errorf("could not determine column type: %v", err)
+		return nil, err
 	}
 	tableCreateQry := store.query.newSQLOfflineTable(name, columnType)
 	_, err = db.Exec(tableCreateQry)
 	if err != nil {
-		return nil, fmt.Errorf("could not create table query: %v", err)
+		return nil, err
 	}
 	return &sqlOfflineTable{
 		db:    db,

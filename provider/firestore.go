@@ -50,17 +50,17 @@ func firestoreOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, erro
 func NewFirestoreOnlineStore(options *pc.FirestoreConfig) (*firestoreOnlineStore, error) {
 	credBytes, err := json.Marshal(options.Credentials)
 	if err != nil {
-		return nil, fmt.Errorf("could not serialized firestore config, %v", err)
+		return nil, err
 	}
 	firestoreClient, err := firestore.NewClient(context.TODO(), options.ProjectID, option.WithCredentialsJSON(credBytes))
 	if err != nil {
-		return nil, fmt.Errorf("could not create firestore connection, %v", err)
+		return nil, err
 	}
 
 	firestoreCollection := firestoreClient.Collection(options.Collection)
 	_, err = firestoreCollection.Doc(GetMetadataTable()).Set(context.TODO(), map[string]interface{}{}, firestore.MergeAll)
 	if err != nil {
-		return nil, fmt.Errorf("could not create firestore document: %v", err)
+		return nil, err
 	}
 	return &firestoreOnlineStore{
 		firestoreClient,
@@ -92,16 +92,16 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 		return nil, &TableNotFound{feature, variant}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("could not get table: %v", err)
+		return nil, err
 	}
 
 	metadata, err := store.collection.Doc(GetMetadataTable()).Get(context.TODO())
 	if err != nil {
-		return nil, fmt.Errorf("could not get metadata table: %v", err)
+		return nil, err
 	}
 	valueType, err := metadata.DataAt(tableName)
 	if err != nil {
-		return nil, fmt.Errorf("could not get data at: %v", err)
+		return nil, err
 	}
 	return &firestoreOnlineTable{
 		document:  table.Ref,
@@ -127,7 +127,7 @@ func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueTyp
 		tableName: valueType,
 	}, firestore.MergeAll)
 	if err != nil {
-		return nil, fmt.Errorf("could not insert into metadata table: %v", err)
+		return nil, err
 	}
 	return &firestoreOnlineTable{
 		document:  store.collection.Doc(tableName),

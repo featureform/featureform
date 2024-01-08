@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 
 	filestore "github.com/featureform/filestore"
 	"github.com/featureform/provider"
@@ -41,12 +40,12 @@ func (az *Azure) Init() error {
 	}
 	config, err := filestoreConfig.Serialize()
 	if err != nil {
-		return fmt.Errorf("cannot serialize the AzureFileStoreConfig: %v", err)
+		return err
 	}
 
 	filestore, err := provider.NewAzureFileStore(config)
 	if err != nil {
-		return fmt.Errorf("cannot create Azure Filestore: %v", err)
+		return err
 	}
 	az.store = filestore
 	return nil
@@ -55,11 +54,11 @@ func (az *Azure) Init() error {
 func (az *Azure) Upload(src, dest string) error {
 	source := &filestore.LocalFilepath{}
 	if err := source.SetKey(src); err != nil {
-		return fmt.Errorf("cannot set source key: %v", err)
+		return err
 	}
 	destination, err := az.store.CreateFilePath(dest)
 	if err != nil {
-		return fmt.Errorf("cannot create destination file path: %v", err)
+		return err
 	}
 	return az.store.Upload(source, destination)
 }
@@ -71,7 +70,7 @@ func (az *Azure) Download(src, dest filestore.Filepath) error {
 func (az *Azure) LatestBackupName(dir string) (filestore.Filepath, error) {
 	dirPath, err := az.store.CreateDirPath(dir)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create dir path: %v", err)
+		return nil, err
 	}
 	return az.store.NewestFileOfType(dirPath, filestore.DB)
 }
@@ -98,12 +97,12 @@ func (s3 *S3) Init() error {
 
 	config, err := filestoreConfig.Serialize()
 	if err != nil {
-		return fmt.Errorf("cannot serialize S3 Config: %v", err)
+		return err
 	}
 
 	filestore, err := provider.NewS3FileStore(config)
 	if err != nil {
-		return fmt.Errorf("cannot create S3 Filestore: %v", err)
+		return err
 	}
 	s3.store = filestore
 	return nil
@@ -112,11 +111,11 @@ func (s3 *S3) Init() error {
 func (s3 *S3) Upload(src, dest string) error {
 	source := &filestore.LocalFilepath{}
 	if err := source.SetKey(src); err != nil {
-		return fmt.Errorf("cannot set source key: %v", err)
+		return err
 	}
 	destination, err := s3.store.CreateFilePath(dest)
 	if err != nil {
-		return fmt.Errorf("cannot create destination file path: %v", err)
+		return err
 	}
 	return s3.store.Upload(source, destination)
 }
@@ -128,7 +127,7 @@ func (s3 *S3) Download(src, dest filestore.Filepath) error {
 func (s3 *S3) LatestBackupName(dir string) (filestore.Filepath, error) {
 	dirPath, err := s3.store.CreateDirPath(dir)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create dir path: %v", err)
+		return nil, err
 	}
 	return s3.store.NewestFileOfType(dirPath, filestore.DB)
 }
@@ -144,12 +143,12 @@ func (fs *Local) Init() error {
 	}
 	config, err := filestoreConfig.Serialize()
 	if err != nil {
-		return fmt.Errorf("cannot serialize the LocalFileStoreConfig: %v", err)
+		return err
 	}
 
 	filestore, err := provider.NewLocalFileStore(config)
 	if err != nil {
-		return fmt.Errorf("cannot create Local Filestore: %v", err)
+		return err
 	}
 	fs.store = filestore
 	return nil
@@ -158,11 +157,11 @@ func (fs *Local) Init() error {
 func (fs *Local) Upload(src, dest string) error {
 	source := &filestore.LocalFilepath{}
 	if err := source.SetKey(src); err != nil {
-		return fmt.Errorf("cannot set source key: %v", err)
+		return err
 	}
 	destination, err := fs.store.CreateFilePath(dest)
 	if err != nil {
-		return fmt.Errorf("cannot create destination file path: %v", err)
+		return err
 	}
 	return fs.store.Upload(source, destination)
 }
@@ -174,7 +173,7 @@ func (fs *Local) Download(src, dest filestore.Filepath) error {
 func (fs *Local) LatestBackupName(dir string) (filestore.Filepath, error) {
 	dirPath, err := fs.store.CreateDirPath(dir)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create dir path: %v", err)
+		return nil, err
 	}
 	return fs.store.NewestFileOfType(dirPath, filestore.DB)
 }
@@ -203,7 +202,7 @@ func (g *GCS) checkEmptyCredentials() (map[string]interface{}, error) {
 		var err error
 		serializedCreds, err = g.getDefaultCredentials()
 		if err != nil {
-			return nil, fmt.Errorf("could not get default credentials: %v", err)
+			return nil, err
 		}
 	} else {
 		serializedCreds = g.Credentials
@@ -211,7 +210,7 @@ func (g *GCS) checkEmptyCredentials() (map[string]interface{}, error) {
 
 	err := json.Unmarshal(serializedCreds, &creds)
 	if err != nil {
-		return nil, fmt.Errorf("could not deserialize credentials: %v", err)
+		return nil, err
 	}
 	return creds, nil
 }
@@ -219,7 +218,7 @@ func (g *GCS) checkEmptyCredentials() (map[string]interface{}, error) {
 func (g *GCS) Init() error {
 	credentials, err := g.checkEmptyCredentials()
 	if err != nil {
-		return fmt.Errorf("failed to check credentials: %v", err)
+		return err
 	}
 
 	filestoreConfig := pc.GCSFileStoreConfig{
@@ -231,12 +230,12 @@ func (g *GCS) Init() error {
 	}
 	config, err := filestoreConfig.Serialize()
 	if err != nil {
-		return fmt.Errorf("cannot serialize GCS config: %v", err)
+		return err
 	}
 
 	filestore, err := provider.NewGCSFileStore(config)
 	if err != nil {
-		return fmt.Errorf("cannot create GCS Filestore: %v", err)
+		return err
 	}
 	g.store = filestore
 	return nil
@@ -245,11 +244,11 @@ func (g *GCS) Init() error {
 func (g *GCS) Upload(src, dest string) error {
 	source := &filestore.LocalFilepath{}
 	if err := source.SetKey(src); err != nil {
-		return fmt.Errorf("cannot set source key: %v", err)
+		return err
 	}
 	destination, err := g.store.CreateFilePath(dest)
 	if err != nil {
-		return fmt.Errorf("cannot create destination file path: %v", err)
+		return err
 	}
 	return g.store.Upload(source, destination)
 }
@@ -261,7 +260,7 @@ func (g *GCS) Download(src, dest filestore.Filepath) error {
 func (g *GCS) LatestBackupName(dir string) (filestore.Filepath, error) {
 	dirPath, err := g.store.CreateDirPath(dir)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create dir path: %v", err)
+		return nil, err
 	}
 	return g.store.NewestFileOfType(dirPath, filestore.DB)
 }

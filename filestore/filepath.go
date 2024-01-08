@@ -219,7 +219,7 @@ func (fp *FilePath) IsDir() bool {
 func (fp *FilePath) ParseFilePath(fullPath string) error {
 	err := fp.parsePath(fullPath)
 	if err != nil {
-		return fmt.Errorf("file: %v", err)
+		return err
 	}
 	return nil
 }
@@ -227,7 +227,7 @@ func (fp *FilePath) ParseFilePath(fullPath string) error {
 func (fp *FilePath) ParseDirPath(fullPath string) error {
 	err := fp.parsePath(fullPath)
 	if err != nil {
-		return fmt.Errorf("dir: %v", err)
+		return err
 	}
 	// To ensure consistency, we check to see if the last element has an extension, and if so,
 	// we remove it to ensure we're always dealing with a directory path.
@@ -252,7 +252,7 @@ func (fp *FilePath) parsePath(fullPath string) error {
 	// Parse the URI into a url.URL object.
 	u, err := url.Parse(fullPath)
 	if err != nil {
-		return fmt.Errorf("could not parse full path '%s': %v", fullPath, err)
+		return err
 	}
 	// Extract the bucket and path components from the URI.
 	bucket := u.Host
@@ -341,7 +341,7 @@ func (azure *AzureFilepath) ToURI() string {
 func (azure *AzureFilepath) ParseFilePath(fullPath string) error {
 	u, err := url.Parse(fullPath)
 	if err != nil {
-		return fmt.Errorf("could not parse full path '%s': %v", fullPath, err)
+		return err
 	}
 	// Our scheme is the protocol + "://", so we need to suffix the scheme with "://"
 	// to ensure the comparison works.
@@ -529,7 +529,7 @@ func groupByDateTimeDirectory(files []Filepath) (FilePathGroup, error) {
 		// valid datetime, we'll remove the fractional seconds component.
 		_, err := time.Parse("2006-01-02-15-04-05", datetime[:fractionalSecondsIdx])
 		if err != nil {
-			return FilePathGroup{}, fmt.Errorf("expected path component %s to be a valid datetime: %v", datetime, err)
+			return FilePathGroup{}, err
 		}
 		if _, exists := groups[datetime]; !exists {
 			groups[datetime] = []Filepath{file}

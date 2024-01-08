@@ -332,7 +332,7 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 		result, err = val, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("could not cast value: %v to %s: %w", resp, table.valueType, err)
+		return nil, err
 	}
 	return result, nil
 }

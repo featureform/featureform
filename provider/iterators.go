@@ -190,11 +190,11 @@ func newMultipleFileParquetIterator(files []filestore.Filepath, store FileStore,
 	}
 	b, err := store.Read(files[0])
 	if err != nil {
-		return nil, fmt.Errorf("could not read bucket: %w", err)
+		return nil, err
 	}
 	iterator, err := newParquetIterator(b, limit)
 	if err != nil {
-		return nil, fmt.Errorf("could not open first parquet file: %w", err)
+		return nil, err
 	}
 	parquetIterator, isParquetIterator := iterator.(*parquetIterator)
 	if !isParquetIterator {
@@ -224,11 +224,11 @@ type ParquetIteratorMultipleFiles struct {
 func parquetIteratorOverMultipleFiles(fileParts []filestore.Filepath, store FileStore) (Iterator, error) {
 	b, err := store.Read(fileParts[0])
 	if err != nil {
-		return nil, fmt.Errorf("could not read bucket: %w", err)
+		return nil, err
 	}
 	iterator, err := parquetIteratorFromBytes(b)
 	if err != nil {
-		return nil, fmt.Errorf("could not open first parquet file: %w", err)
+		return nil, err
 	}
 	return &ParquetIteratorMultipleFiles{
 		fileList:       fileParts,
@@ -378,7 +378,7 @@ func parquetIteratorFromBytes(b []byte) (Iterator, error) {
 	}, nil
 }
 
-/// CSV
+// CSV
 type csvIterator struct {
 	reader        *csv.Reader
 	currentValues GenericRecord
@@ -442,7 +442,7 @@ func newCSVIterator(b []byte, limit int64) (GenericTableIterator, error) {
 	reader := csv.NewReader(bytes.NewReader(b))
 	headers, err := reader.Read()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create CSV reader: %w", err)
+		return nil, err
 	}
 	if limit == -1 {
 		limit = math.MaxInt64

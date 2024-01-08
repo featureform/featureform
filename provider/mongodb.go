@@ -50,16 +50,16 @@ func NewMongoDBOnlineStore(config *pc.MongoDBConfig) (*mongoDBOnlineStore, error
 	uri := fmt.Sprintf("mongodb://%s:%s@%s:%s/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000", config.Username, config.Password, config.Host, config.Port)
 	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(uri))
 	if err != nil {
-		return nil, fmt.Errorf("could not connect to mongodb: %w", err)
+		return nil, err
 	}
 	cur, err := client.Database(config.Database).ListCollections(context.TODO(), bson.D{{"name", "featureform__metadata"}})
 	if err != nil {
-		return nil, fmt.Errorf("could not create check if metadata exists: %w", err)
+		return nil, err
 	}
 	var res []interface{}
 	err = cur.All(context.TODO(), &res)
 	if err != nil {
-		return nil, fmt.Errorf("could not get metadata results: %w", err)
+		return nil, err
 	}
 	if len(res) == 0 {
 		command := bson.D{{"customAction", "CreateCollection"}, {"collection", "featureform__metadata"}, {"autoScaleSettings", bson.D{{"maxThroughput", 1000}}}}
@@ -69,7 +69,8 @@ func NewMongoDBOnlineStore(config *pc.MongoDBConfig) (*mongoDBOnlineStore, error
 			WriteConcern: wConcern,
 		}).RunCommand(context.TODO(), command).Decode(&cmdResult)
 		if err != nil {
-			return nil, fmt.Errorf("could not set metadata table throughput: %w", err)
+			// ("could not set metadata table throughput: %w", err)
+			return nil, err
 		}
 	}
 
@@ -91,7 +92,7 @@ func (store *mongoDBOnlineStore) AsOnlineStore() (OnlineStore, error) {
 func (store *mongoDBOnlineStore) Close() error {
 	err := store.client.Disconnect(context.TODO())
 	if err != nil {
-		return fmt.Errorf("could not close mongoDB online store session: %w", err)
+		return err
 	}
 	return nil
 }
@@ -120,14 +121,16 @@ func (store *mongoDBOnlineStore) CreateTable(feature, variant string, valueType 
 		WriteConcern: wConcern,
 	}).Collection(metadataTableName).InsertOne(context.TODO(), mongoDBMetadataRow{tableName, vType})
 	if err != nil {
-		return nil, fmt.Errorf("could not insert metadata table name: %w", err)
+		// ("could not insert metadata table name: %w", err)
+		return nil, err
 	}
 
 	command := bson.D{{"customAction", "CreateCollection"}, {"collection", tableName}, {"autoScaleSettings", bson.D{{"maxThroughput", store.tableThroughput}}}}
 	var cmdResult interface{}
 	err = store.client.Database(store.database).RunCommand(context.TODO(), command).Decode(&cmdResult)
 	if err != nil {
-		return nil, fmt.Errorf("could not set table throughput: %s, %w", tableName, err)
+		// ("could not set table throughput: %s, %w", tableName, err)
+		return nil, err
 	}
 
 	table := &mongoDBOnlineTable{
@@ -145,12 +148,14 @@ func (store *mongoDBOnlineStore) GetTable(feature, variant string) (OnlineStoreT
 	tableName := store.GetTableName(feature, variant)
 	cur, err := store.client.Database(store.database).ListCollections(context.TODO(), bson.D{{"name", tableName}})
 	if err != nil {
-		return nil, fmt.Errorf("could not create check if metadata exists: %w", err)
+		// ("could not create check if metadata exists: %w", err)
+		return nil, err
 	}
 	var res []interface{}
 	err = cur.All(context.TODO(), &res)
 	if err != nil {
-		return nil, fmt.Errorf("could not get metadata results: %w", err)
+		// ("could not get metadata results: %w", err)
+		return nil, err
 	}
 	if len(res) == 0 {
 		return nil, &TableNotFound{feature, variant}
@@ -159,10 +164,12 @@ func (store *mongoDBOnlineStore) GetTable(feature, variant string) (OnlineStoreT
 	var row mongoDBMetadataRow
 	err = store.client.Database(store.database).Collection(store.GetMetadataTableName()).FindOne(context.TODO(), bson.D{{"name", tableName}}).Decode(&row)
 	if err != nil {
-		return nil, fmt.Errorf("could not get metadata table value: %s, %w", tableName, err)
+		// ("could not get metadata table value: %s, %w", tableName, err)
+		return nil, err
 	}
 	if err != nil {
-		return nil, fmt.Errorf("could not get metadata table value type: %s, %w", tableName, err)
+		// ("could not get metadata table value: %s, %w", tableName, err)
+		return nil, err
 	}
 	table := &mongoDBOnlineTable{
 		client:    store.client,
@@ -177,11 +184,11 @@ func (store *mongoDBOnlineStore) DeleteTable(feature, variant string) error {
 	tableName := store.GetTableName(feature, variant)
 	err := store.client.Database(store.database).Collection(tableName).Drop(context.TODO())
 	if err != nil {
-		return fmt.Errorf("could not drop collection: %s: %w", tableName, err)
+		return err
 	}
 	_, err = store.client.Database(store.database).Collection(store.GetMetadataTableName()).DeleteOne(context.TODO(), bson.D{{"name", tableName}})
 	if err != nil {
-		return fmt.Errorf("could not drop collection: %s: %w", tableName, err)
+		return err
 	}
 	return nil
 }
@@ -203,7 +210,8 @@ func (table mongoDBOnlineTable) Set(entity string, value interface{}) error {
 			},
 		)
 	if err != nil {
-		return fmt.Errorf("could not set values: (entity: %s, value: %v): %w", entity, value, err)
+		// ("could not set values: (entity: %s, value: %v): %w", entity, value, err)
+		return err
 	}
 	return nil
 }
@@ -222,7 +230,8 @@ func (table mongoDBOnlineTable) Get(entity string) (interface{}, error) {
 			fmt.Printf("could not get table value: %s: %s: %s", table.name, entity, err.Error())
 			return nil, &EntityNotFound{entity}
 		}
-		return nil, fmt.Errorf("could not get table value: %s: %s: %w", table.name, entity, err)
+		// ("could not get table value: %s: %s: %w", table.name, entity, err)
+		return nil, err
 	}
 
 	switch table.valueType {

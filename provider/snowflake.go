@@ -33,7 +33,7 @@ func snowflakeOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) 
 	queries.setVariableBinding(MySQLBindingStyle)
 	connectionString, err := sc.ConnectionString()
 	if err != nil {
-		return nil, fmt.Errorf("could not get snowflake connection string: %v", err)
+		return nil, err
 	}
 	sgConfig := SQLOfflineStoreConfig{
 		Config:        config,

@@ -200,7 +200,7 @@ func (azureStore SparkAzureFileStore) Type() string {
 func NewSparkGCSFileStore(config Config) (SparkFileStore, error) {
 	fileStore, err := NewGCSFileStore(config)
 	if err != nil {
-		return nil, fmt.Errorf("could not create gcs file store: %v", err)
+		return nil, err
 	}
 	gcs, ok := fileStore.(*GCSFileStore)
 	if !ok {
@@ -263,7 +263,7 @@ func (gcs SparkGCSFileStore) Type() string {
 func NewSparkHDFSFileStore(config Config) (SparkFileStore, error) {
 	fileStore, err := NewHDFSFileStore(config)
 	if err != nil {
-		return nil, fmt.Errorf("could not create hdfs file store: %v", err)
+		return nil, err
 	}
 	hdfs, ok := fileStore.(*HDFSFileStore)
 	if !ok {
@@ -296,7 +296,7 @@ func (hdfs SparkHDFSFileStore) Type() string {
 func NewSparkLocalFileStore(config Config) (SparkFileStore, error) {
 	fileStore, err := NewLocalFileStore(config)
 	if err != nil {
-		return nil, fmt.Errorf("could not create local file store: %v", err)
+		return nil, err
 	}
 	local, ok := fileStore.(*LocalFileStore)
 	if !ok {
@@ -370,12 +370,12 @@ func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath
 
 	f, err := os.Open(filePath.Key())
 	if err != nil {
-		return fmt.Errorf("could not open file: %v", err)
+		return err
 	}
 
 	fileStats, err := f.Stat()
 	if err != nil {
-		return fmt.Errorf("could not get file stats: %v", err)
+		return err
 	}
 
 	pythonScriptBytes := make([]byte, fileStats.Size())
@@ -395,40 +395,40 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 	// which will always fail given it's a local file without a valid scheme or bucket, for example.
 	sparkLocalScriptPath := &filestore.LocalFilepath{}
 	if err := sparkLocalScriptPath.SetKey(config.GetSparkLocalScriptPath()); err != nil {
-		return fmt.Errorf("could not create local script path: %v", err)
+		return err
 	}
 	sparkRemoteScriptPath, err := store.CreateFilePath(config.GetSparkRemoteScriptPath())
 	if err != nil {
-		return fmt.Errorf("could not create remote script path: %v", err)
+		return err
 	}
 	pythonLocalInitScriptPath := &filestore.LocalFilepath{}
 	if err := pythonLocalInitScriptPath.SetKey(config.GetPythonLocalInitPath()); err != nil {
-		return fmt.Errorf("could not create local init script path: %v", err)
+		return err
 	}
 	if err != nil {
-		return fmt.Errorf("could not create local init script path: %v", err)
+		return err
 	}
 	pythonRemoteInitScriptPath := config.GetPythonRemoteInitPath()
 
 	err = readAndUploadFile(sparkLocalScriptPath, sparkRemoteScriptPath, store)
 	if err != nil {
-		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath.Key(), sparkRemoteScriptPath.ToURI(), err)
+		return err
 	}
 	sparkExists, err := store.Exists(sparkRemoteScriptPath)
 	if err != nil || !sparkExists {
-		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", sparkRemoteScriptPath.ToURI(), err)
+		return err
 	}
 	remoteInitScriptPathWithPrefix, err := store.CreateFilePath(pythonRemoteInitScriptPath)
 	if err != nil {
-		return fmt.Errorf("could not create remote init script path: %v", err)
+		return err
 	}
 	err = readAndUploadFile(pythonLocalInitScriptPath, remoteInitScriptPathWithPrefix, store)
 	if err != nil {
-		return fmt.Errorf("could not upload '%s' to '%s': %v", pythonLocalInitScriptPath.Key(), remoteInitScriptPathWithPrefix, err)
+		return err
 	}
 	initExists, err := store.Exists(remoteInitScriptPathWithPrefix)
 	if err != nil || !initExists {
-		return fmt.Errorf("could not upload python initialization script: Path: %s, Error: %v", remoteInitScriptPathWithPrefix, err)
+		return err
 	}
 	return nil
 }
@@ -492,7 +492,7 @@ func NewDatabricksExecutor(databricksConfig pc.DatabricksConfig) (SparkExecutor,
 func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) error {
 	pythonFilepath, err := db.PythonFileURI(store)
 	if err != nil {
-		return fmt.Errorf("could not get python file path: %v", err)
+		return err
 	}
 	pythonTask := jobs.SparkPythonTask{
 		PythonFile: pythonFilepath.ToURI(),
@@ -512,7 +512,7 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("error creating job: %v", err)
+		return err
 	}
 
 	// Making the timeout a week because we don't want to timeout on long-running jobs
@@ -529,7 +529,7 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 			}
 		}
 
-		return fmt.Errorf("the '%v' job failed: %v", jobToRun.JobId, errorMessage)
+		return errorMessage
 	}
 
 	return nil
@@ -544,7 +544,7 @@ func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {
 
 	runs, err := db.client.Jobs.ListRunsAll(ctx, runRequest)
 	if err != nil {
-		return nil, fmt.Errorf("could not get run id: %v", err)
+		return nil, err
 	}
 
 	if len(runs) == 0 {
@@ -565,7 +565,7 @@ func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {
 	path := "/api/2.0/jobs/runs/get-output"
 	err = db.errorMessageClient.Do(ctx, http.MethodGet, path, request, &runOutput)
 	if err != nil {
-		return nil, fmt.Errorf("could not get run output: %v", err)
+		return nil, err
 	}
 
 	return fmt.Errorf("%s", runOutput.Error), nil
@@ -688,7 +688,7 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 	// Convert materialization ID to file paths
 	materializationPaths, err := store.createFilePathsFromIDs(materializationIDs)
 	if err != nil {
-		return nil, fmt.Errorf("could not create file paths from materialization IDs: %v", err)
+		return nil, err
 	}
 
 	// Create a query that selects all features from the table
@@ -698,7 +698,7 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 	batchDirUUID := uuid.NewSHA1(uuid.NameSpaceDNS, []byte(batchDir))
 	outputPath, err := store.Store.CreateDirPath(fmt.Sprintf("featureform/BatchFeatures/%s", batchDirUUID))
 	if err != nil {
-		return nil, fmt.Errorf("could not create output file path: %v", err)
+		return nil, err
 	}
 
 	// Submit arguments for a spark job
@@ -711,24 +711,24 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 	// Run the spark job
 	if err := store.Executor.RunSparkJob(sparkArgs, store.Store); err != nil {
 		store.Logger.Errorw("Error running Spark job", "error", err)
-		return nil, fmt.Errorf("spark submit job for transformation failed to run: %v", err)
+		return nil, err
 	}
 	// Create a batch iterator that iterates through the dir
 	outputFiles, err := store.Store.List(outputPath, filestore.Parquet)
 	if err != nil {
-		return nil, fmt.Errorf("could not get output files: %v", err)
+		return nil, err
 	}
 	groups, err := filestore.NewFilePathGroup(outputFiles, filestore.DateTimeDirectoryGrouping)
 	if err != nil {
-		return nil, fmt.Errorf("could not get datetime directory grouping for output files: %v", err)
+		return nil, err
 	}
 	newest, err := groups.GetFirst()
 	if err != nil {
-		return nil, fmt.Errorf("could not get newest output file: %v", err)
+		return nil, err
 	}
 	iterator, err := store.Store.Serve(newest)
 	if err != nil {
-		return nil, fmt.Errorf("could not serve batch features: %w", err)
+		return nil, err
 	}
 	store.Logger.Debug("Successfully created batch iterator")
 	return &FileStoreBatchServing{store: store.Store, iter: iterator, numFeatures: len(ids)}, nil
@@ -739,23 +739,23 @@ func (store *SparkOfflineStore) createFilePathsFromIDs(materializationIDs []Reso
 	for i, id := range materializationIDs {
 		path, err := store.Store.CreateDirPath(id.ToFilestorePath())
 		if err != nil {
-			return nil, fmt.Errorf("could not create file path due to error %w (store type: %s; path: %s)", err, store.Store.FilestoreType(), id.ToFilestorePath())
+			return nil, err
 		}
 		sourceFiles, err := store.Store.List(path, filestore.Parquet)
 		if err != nil {
-			return nil, fmt.Errorf("could not get latest source file: %v", err)
+			return nil, err
 		}
 		groups, err := filestore.NewFilePathGroup(sourceFiles, filestore.DateTimeDirectoryGrouping)
 		if err != nil {
-			return nil, fmt.Errorf("could not get datetime directory grouping for source files: %v", err)
+			return nil, err
 		}
 		newest, err := groups.GetFirst()
 		if err != nil {
-			return nil, fmt.Errorf("could not get newest source file: %v", err)
+			return nil, err
 		}
 		matDir, err := store.Store.CreateDirPath(newest[0].KeyPrefix())
 		if err != nil {
-			return nil, fmt.Errorf("could not create materialization dir path: %v", err)
+			return nil, err
 		}
 		materializationPaths[i] = matDir.ToURI()
 	}
@@ -813,7 +813,7 @@ func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 	}
 	csvBytes, err := store.getHealthCheckCSVBytes()
 	if err != nil {
-		return false, fmt.Errorf("failed to create mock CSV data for health check file: %v", err)
+		return false, err
 	}
 	if err := store.Store.Write(healthCheckPath, csvBytes); err != nil {
 		return false, NewProviderError(Connection, store.Type(), Write, fmt.Sprintf("failed to write health check file due to: %v", err))
@@ -825,7 +825,7 @@ func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 	}
 	args, err := store.Executor.SparkSubmitArgs(healthCheckOutPath, "SELECT * FROM source_0", []string{healthCheckPath.ToURI()}, Transform, store.Store)
 	if err != nil {
-		return false, fmt.Errorf("failed to build arguments for Spark submit due to: %v", err)
+		return false, err
 	}
 	if err := store.Executor.RunSparkJob(args, store.Store); err != nil {
 		return false, NewProviderError(Connection, store.Type(), JobSubmission, fmt.Sprintf("failed to read health check file due to: %v", err))
@@ -843,7 +843,7 @@ func (store *SparkOfflineStore) getHealthCheckCSVBytes() ([]byte, error) {
 		{"entity3", "value3", "2020-01-03T00:00:00Z"},
 	}
 	if err := w.WriteAll(records); err != nil {
-		return nil, fmt.Errorf("could not write health check csv: %v", err)
+		return nil, err
 	}
 	return buf.Bytes(), nil
 }
@@ -913,20 +913,20 @@ func (e EMRExecutor) InitializeExecutor(store SparkFileStore) error {
 	e.logger.Info("Uploading PySpark script to filestore")
 	sparkLocalScriptPath := &filestore.LocalFilepath{}
 	if err := sparkLocalScriptPath.SetKey(config.GetSparkLocalScriptPath()); err != nil {
-		return fmt.Errorf("could not create local script path: %v", err)
+		return err
 	}
 	sparkRemoteScriptPath, err := store.CreateFilePath(config.GetSparkRemoteScriptPath())
 	if err != nil {
-		return fmt.Errorf("could not create file path: %v", err)
+		return err
 	}
 
 	err = readAndUploadFile(sparkLocalScriptPath, sparkRemoteScriptPath, store)
 	if err != nil {
-		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath.Key(), sparkRemoteScriptPath.ToURI(), err)
+		return err
 	}
 	scriptExists, err := store.Exists(sparkRemoteScriptPath)
 	if err != nil || !scriptExists {
-		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", sparkRemoteScriptPath.ToURI(), err)
+		return err
 	}
 	return nil
 }
@@ -946,21 +946,21 @@ func (s *SparkGenericExecutor) InitializeExecutor(store SparkFileStore) error {
 	// which will always fail given it's a local file without a valid scheme or bucket, for example.
 	sparkLocalScriptPath := &filestore.LocalFilepath{}
 	if err := sparkLocalScriptPath.SetKey(config.GetSparkLocalScriptPath()); err != nil {
-		return fmt.Errorf("could not create local script path: %v", err)
+		return err
 	}
 
 	sparkRemoteScriptPath, err := store.CreateFilePath(config.GetSparkRemoteScriptPath())
 	if err != nil {
-		return fmt.Errorf("could not create file path: %v", err)
+		return err
 	}
 
 	err = readAndUploadFile(sparkLocalScriptPath, sparkRemoteScriptPath, store)
 	if err != nil {
-		return fmt.Errorf("could not upload '%s' to '%s': %v", sparkLocalScriptPath.Key(), sparkRemoteScriptPath.ToURI(), err)
+		return err
 	}
 	scriptExists, err := store.Exists(sparkRemoteScriptPath)
 	if err != nil || !scriptExists {
-		return fmt.Errorf("could not upload spark script: Path: %s, Error: %v", sparkRemoteScriptPath.ToURI(), err)
+		return err
 	}
 	return nil
 }
@@ -968,17 +968,17 @@ func (s *SparkGenericExecutor) InitializeExecutor(store SparkFileStore) error {
 func (s *SparkGenericExecutor) getYarnCommand(args string) (string, error) {
 	configDir, err := os.MkdirTemp("", "hadoop-conf")
 	if err != nil {
-		return "", fmt.Errorf("could not create temp dir: %v", err)
+		return "", err
 	}
 	coreSitePath := filepath.Join(configDir, "core-site.xml")
 	err = os.WriteFile(coreSitePath, []byte(s.coreSite), 0644)
 	if err != nil {
-		return "", fmt.Errorf("could not write core-site.xml: %v", err)
+		return "", err
 	}
 	yarnSitePath := filepath.Join(configDir, "yarn-site.xml")
 	err = os.WriteFile(yarnSitePath, []byte(s.yarnSite), 0644)
 	if err != nil {
-		return "", fmt.Errorf("could not write core-site.xml: %v", err)
+		return "", err
 	}
 	return fmt.Sprintf(""+
 		"pyenv global %s && "+
@@ -1001,7 +1001,7 @@ func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore) 
 		var err error
 		commandString, err = s.getYarnCommand(sparkArgsString)
 		if err != nil {
-			return fmt.Errorf("could not run yarn job: %v", err)
+			return err
 		}
 	} else {
 		commandString = s.getGenericCommand(sparkArgsString)
@@ -1019,7 +1019,7 @@ func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore) 
 
 	err := cmd.Start()
 	if err != nil {
-		return fmt.Errorf("could not run spark job: %v", err)
+		return err
 	}
 
 	err = cmd.Wait()
@@ -1218,7 +1218,7 @@ func (e *EMRExecutor) RunSparkJob(args []string, store SparkFileStore) error {
 		}
 
 		e.logger.Errorf("Failure waiting for completion of EMR cluster: %s", err)
-		return fmt.Errorf("failure waiting for completion of EMR cluster: %s", err)
+		return err
 	}
 	return nil
 }
@@ -1252,7 +1252,7 @@ func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string) (stri
 
 			errorMessage, err := e.getLogFileMessage(logFile)
 			if err != nil {
-				return "", fmt.Errorf("could not get error message from log file '%s': %v", logFile, err)
+				return "", err
 			}
 
 			return errorMessage, nil
@@ -1266,23 +1266,23 @@ func (e *EMRExecutor) getLogFileMessage(logFile string) (string, error) {
 	outputFilepath := &filestore.S3Filepath{}
 	err := outputFilepath.ParseFilePath(fmt.Sprintf("%s/stdout.gz", logFile))
 	if err != nil {
-		return "", fmt.Errorf("could not parse log file path '%s': %v", logFile, err)
+		return "", err
 	}
 
 	err = e.waitForLogFile(outputFilepath)
 	if err != nil {
-		return "", fmt.Errorf("could not wait for log file '%s' to be available: %v", outputFilepath.ToURI(), err)
+		return "", err
 	}
 
 	logs, err := (*e.logFileStore).Read(outputFilepath)
 	if err != nil {
-		return "", fmt.Errorf("could not read log file in '%s' bucket at '%s' path: %v", outputFilepath.Bucket(), outputFilepath.ToURI(), err)
+		return "", err
 	}
 
 	// the output file is compressed so we need uncompress it
 	errorMessage, err := compression.GunZip(logs)
 	if err != nil {
-		return "", fmt.Errorf("could not uncompress error message: %v", err)
+		return "", err
 	}
 	return errorMessage, nil
 }
@@ -1292,7 +1292,7 @@ func (e *EMRExecutor) waitForLogFile(logFile filestore.Filepath) error {
 	for {
 		fileExists, err := (*e.logFileStore).Exists(logFile)
 		if err != nil {
-			return fmt.Errorf("could not determine if file '%s' exists: %v", logFile, err)
+			return err
 		}
 
 		if fileExists {
@@ -1317,7 +1317,7 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath filestore.Filepath, cleanQuery st
 	sparkScriptPathEnv := config.GetSparkRemoteScriptPath()
 	sparkScriptPath, err := store.CreateFilePath(sparkScriptPathEnv)
 	if err != nil {
-		return nil, fmt.Errorf("could not create file path for '%s': %v", sparkScriptPathEnv, err)
+		return nil, err
 	}
 	scriptArgs := []string{
 		sparkScriptPath.ToURI(),
@@ -1351,7 +1351,7 @@ func createLogS3FileStore(emrRegion string, s3LogLocation string, awsAccessKeyId
 	s3FilePath := &filestore.S3Filepath{}
 	err := s3FilePath.ParseFilePath(s3LogLocation)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse file path '%s': %v", s3LogLocation, err)
+		return nil, err
 	}
 
 	bucketName := s3FilePath.Bucket()
@@ -1371,7 +1371,7 @@ func createLogS3FileStore(emrRegion string, s3LogLocation string, awsAccessKeyId
 
 	logFileStore, err := NewS3FileStore(config)
 	if err != nil {
-		return nil, fmt.Errorf("could not create s3 file store (bucket: %s, path: %s) for emr logs: %v", err, bucketName, path)
+		return nil, err
 	}
 	return &logFileStore, nil
 }
@@ -1411,7 +1411,7 @@ func (d *DatabricksExecutor) SparkSubmitArgs(destPath filestore.Filepath, cleanQ
 
 		paramsPath, err := d.writeSubmitParamsToFileStore(cleanQuery, sourceList, store)
 		if err != nil {
-			return nil, fmt.Errorf("could not write Spark submit params larger than 10K-byte limit: %v", err)
+			return nil, err
 		}
 
 		argList = append(argList, "--submit_params_uri", paramsPath.Key())
@@ -1443,7 +1443,7 @@ func (d *DatabricksExecutor) writeSubmitParamsToFileStore(query string, sources 
 	paramsFileId := uuid.New()
 	paramsPath, err := store.CreateFilePath(fmt.Sprintf("featureform/spark-submit-params/%s.json", paramsFileId.String()))
 	if err != nil {
-		return nil, fmt.Errorf("could not create filepath for Spark submit params larger than 10K-byte limit: %v", err)
+		return nil, err
 	}
 	paramsMap := map[string]interface{}{}
 	paramsMap["sql_query"] = query
@@ -1451,11 +1451,11 @@ func (d *DatabricksExecutor) writeSubmitParamsToFileStore(query string, sources 
 
 	data, err := json.Marshal(paramsMap)
 	if err != nil {
-		return nil, fmt.Errorf("could not marshal Spark submit params larger than 10K-byte limit: %v", err)
+		return nil, err
 	}
 
 	if err := store.Write(paramsPath, data); err != nil {
-		return nil, fmt.Errorf("could not write Spark submit params larger than 10-byte limit to %s: %v", paramsPath.ToURI(), err)
+		return nil, err
 	}
 
 	return paramsPath, nil
@@ -1497,11 +1497,11 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	}
 	transformationDestination, err := spark.Store.CreateDirPath(config.TargetTableID.ToFilestorePath())
 	if err != nil {
-		return fmt.Errorf("could not create file path for spark transformation: %v", err)
+		return err
 	}
 	transformationExists, err := spark.Store.Exists(transformationDestination)
 	if err != nil {
-		return fmt.Errorf("could not check if transformation exists: %v", err)
+		return err
 	}
 	if !isUpdate && transformationExists {
 		spark.Logger.Errorw("Creation when transformation already exists", "target", config.TargetTableID, "path", transformationDestination)
@@ -1519,7 +1519,7 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	}
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("spark submit job for transformation failed to run", "target", config.TargetTableID, "error", err)
-		return fmt.Errorf("spark submit job for transformation %v failed to run: %v", config.TargetTableID, err)
+		return err
 	}
 	spark.Logger.Debugw("Successfully ran SQL transformation")
 	return nil
@@ -1533,7 +1533,7 @@ func GetTransformationFileLocation(id ResourceID) string {
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
 	transformationDestination, err := spark.Store.CreateFilePath(config.TargetTableID.ToFilestorePath())
 	if err != nil {
-		return fmt.Errorf("could not create file path for spark transformation: %v", err)
+		return err
 	}
 	spark.Logger.Infow("Transformation Destination", "dest", transformationDestination)
 	// TODO: understand why the trailing slash is needed
@@ -1542,7 +1542,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 
 	transformationDirPath, err := spark.Store.CreateDirPath(GetTransformationFileLocation(config.TargetTableID))
 	if err != nil {
-		return fmt.Errorf("could not create directory path for spark transformation: %v", err)
+		return err
 	}
 
 	transformationExists, err := spark.Store.Exists(transformationDirPath)
@@ -1560,27 +1560,27 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 
 	pklFilepath, err := spark.Store.CreateFilePath(fmt.Sprintf("featureform/DFTransformations/%s/%s/transformation.pkl", config.TargetTableID.Name, config.TargetTableID.Variant))
 	if err != nil {
-		return fmt.Errorf("could not create file path for spark transformation: %v", err)
+		return err
 	}
 	spark.Logger.Infow("Transformation file path", "dest", pklFilepath.ToURI())
 	if err := spark.Store.Write(pklFilepath, config.Code); err != nil {
-		return fmt.Errorf("could not upload file: %s", err)
+		return err
 	}
 
 	sources, err := spark.getSources(config.SourceMapping)
 	if err != nil {
-		return fmt.Errorf("could not get sources for df transformation. Error: %v", err)
+		return err
 	}
 
 	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestination, pklFilepath.Key(), sources, spark.Store)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark dataframe arguments", err)
-		return fmt.Errorf("error with getting df arguments %v", sparkArgs)
+		return err
 	}
 	spark.Logger.Debugw("Running DF transformation")
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Error running Spark dataframe job", "error", err)
-		return fmt.Errorf("spark submit job for transformation failed to run: (name: %s variant:%s) %v", config.TargetTableID.Name, config.TargetTableID.Variant, err)
+		return err
 	}
 	spark.Logger.Debugw("Successfully ran transformation", "type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)
 	return nil
@@ -1594,7 +1594,7 @@ func (spark *SparkOfflineStore) getSources(mapping []SourceMapping) ([]string, e
 		sourcePath, err := spark.getSourcePath(m.Source)
 		if err != nil {
 			spark.Logger.Errorw("Error getting source path for spark source", "source", m.Source, "error", err)
-			return nil, fmt.Errorf("issue with retrieving the source path for %s because %s", m.Source, err)
+			return nil, err
 		}
 
 		sources = append(sources, sourcePath)
@@ -1614,7 +1614,7 @@ func (spark *SparkOfflineStore) updateQuery(query string, mapping []SourceMappin
 		sourcePath, err := spark.getSourcePath(m.Source)
 		if err != nil {
 			spark.Logger.Errorw("Error getting source path of spark source", m.Source, err)
-			return "", nil, fmt.Errorf("could not get the sourcePath for %s because %s", m.Source, err)
+			return "", nil, err
 		}
 
 		sources[i] = sourcePath
@@ -1639,7 +1639,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 		fileTable, err := spark.GetPrimaryTable(fileResourceId)
 		if err != nil {
 			spark.Logger.Errorw("Issue getting primary table", fileResourceId, err)
-			return "", fmt.Errorf("could not get the primary table for {%v} because %s", fileResourceId, err)
+			return "", err
 		}
 		fsPrimary, ok := fileTable.(*FileStorePrimaryTable)
 		if !ok {
@@ -1647,7 +1647,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 		}
 		filePath, err := fsPrimary.GetSource()
 		if err != nil {
-			return "", fmt.Errorf("failed to get primary table source due to %v", err)
+			return "", err
 		}
 		return filePath.ToURI(), nil
 	} else if fileType == "transformation" {
@@ -1655,17 +1655,17 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 
 		transformationDirPath, err := spark.Store.CreateDirPath(fileResourceId.ToFilestorePath())
 		if err != nil {
-			return "", fmt.Errorf("could not create directory path for spark transformation: %v", err)
+			return "", err
 		}
 
 		transformationPath, err := spark.Store.NewestFileOfType(transformationDirPath, filestore.Parquet)
 		if err != nil {
-			return "", fmt.Errorf("could not get transformation file path: %v", err)
+			return "", err
 		}
 		exists, err := spark.Store.Exists(transformationPath)
 		if err != nil {
 			spark.Logger.Errorf("could not check if transformation file exists: %v", err)
-			return "", fmt.Errorf("could not check if transformation file exists: %v", err)
+			return "", err
 		}
 		if !exists {
 			spark.Logger.Errorf("transformation file does not exist: %s", transformationPath.ToURI())
@@ -1673,7 +1673,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 		}
 		transformationDirPathDateTime, err := spark.Store.CreateDirPath(transformationPath.KeyPrefix())
 		if err != nil {
-			return "", fmt.Errorf("could not create directory path for spark transformation: %v", err)
+			return "", err
 		}
 		return transformationDirPathDateTime.ToURI(), nil
 	} else {
@@ -1754,7 +1754,7 @@ func (e *EMRExecutor) GetDFArgs(outputURI filestore.Filepath, code string, sourc
 	sparkScriptPathEnv := config.GetSparkRemoteScriptPath()
 	sparkScriptPath, err := store.CreateFilePath(sparkScriptPathEnv)
 	if err != nil {
-		return nil, fmt.Errorf("could not create spark script path: %v", err)
+		return nil, err
 	}
 	codePath := strings.Replace(code, filestore.S3APrefix, filestore.S3Prefix, -1)
 
@@ -1808,7 +1808,7 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI filestore.Filepath, code string
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	transformationPath, err := spark.Store.CreateDirPath(id.ToFilestorePath())
 	if err != nil {
-		return nil, fmt.Errorf("could not create file path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), id.ToFilestorePath())
+		return nil, err
 	}
 	spark.Logger.Debugw("Retrieved transformation source", "id", id, "filePath", transformationPath.ToURI())
 	return &FileStorePrimaryTable{spark.Store, transformationPath, TableSchema{}, true, id}, nil
@@ -1824,14 +1824,14 @@ func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig
 // fully qualified URL pointing to the source file), so it's important to consider what pattern we adopt here.
 func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
 	if err := id.check(Primary); err != nil {
-		return nil, fmt.Errorf("ID check failed: %v", err)
+		return nil, err
 	}
 	primaryTableFilepath, err := spark.Store.CreateFilePath(id.ToFilestorePath())
 	if err != nil {
-		return nil, fmt.Errorf("could not create file path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), id.ToFilestorePath())
+		return nil, err
 	}
 	if exists, err := spark.Store.Exists(primaryTableFilepath); err != nil {
-		return nil, fmt.Errorf("could not check if table exists: %v", err)
+		return nil, err
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
@@ -1866,14 +1866,14 @@ func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, er
 // the resource directory in the pattern Spark uses (i.e. /featureform/Feature/<NAME DIR>/<VARIANT DIR>/<DATETIME DIR>/src.parquet).
 func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
-		return nil, fmt.Errorf("ID check failed: %v", err)
+		return nil, err
 	}
 	resourceTableFilepath, err := spark.Store.CreateFilePath(id.ToFilestorePath())
 	if err != nil {
-		return nil, fmt.Errorf("could not create file path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), id.ToFilestorePath())
+		return nil, err
 	}
 	if exists, err := spark.Store.Exists(resourceTableFilepath); err != nil {
-		return nil, fmt.Errorf("could not check if table exists: %v", err)
+		return nil, err
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
@@ -1903,11 +1903,11 @@ func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableS
 	}
 	data, err := table.schema.Serialize()
 	if err != nil {
-		return nil, fmt.Errorf("could not serialize schema: %v", err)
+		return nil, err
 	}
 	err = spark.Store.Write(resourceTableFilepath, data)
 	if err != nil {
-		return nil, fmt.Errorf("could not write schema to file: %v", err)
+		return nil, err
 	}
 	return &table, nil
 }
@@ -1924,7 +1924,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	resourceTable, err := spark.GetResourceTable(id)
 	if err != nil {
 		spark.Logger.Errorw("Attempted to fetch resource table of non registered resource", "error", err)
-		return nil, fmt.Errorf("resource not registered: %v", err)
+		return nil, err
 	}
 	sparkResourceTable, ok := resourceTable.(*BlobOfflineTable)
 	if !ok {
@@ -1935,11 +1935,11 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
 	destinationPath, err := spark.Store.CreateDirPath(materializationID.ToFilestorePath())
 	if err != nil {
-		return nil, fmt.Errorf("could not create file path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), materializationID.ToFilestorePath())
+		return nil, err
 	}
 	materializationExists, err := spark.Store.Exists(destinationPath)
 	if err != nil {
-		return nil, fmt.Errorf("could not check if materialization exists: %v", err)
+		return nil, err
 	}
 	if materializationExists && !isUpdate {
 		spark.Logger.Errorw("Attempted to materialize a materialization that already exists", "id", id)
@@ -1950,32 +1950,32 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	}
 	materializationQuery, err := spark.query.materializationCreate(sparkResourceTable.schema)
 	if err != nil {
-		return nil, fmt.Errorf("could not create materialization query: %v", err)
+		return nil, err
 	}
 	sourcePath, err := filestore.NewEmptyFilepath(spark.Store.FilestoreType())
 	if err != nil {
-		return nil, fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)
+		return nil, err
 	}
 
 	var sourceURIs []string
 	if sourcePath.IsDir() {
 		err = sourcePath.ParseDirPath(sparkResourceTable.schema.SourceTable)
 		if err != nil {
-			return nil, fmt.Errorf("could not parse full path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)
+			return nil, err
 		}
 		spark.Logger.Debugw("Parsed source table path:", "sourceTablePath", sourcePath.ToURI(), "sourceTable", sparkResourceTable.schema.SourceTable)
 		// TODO: Refactor this into a separate method
 		sourceFiles, err := spark.Store.List(sourcePath, filestore.Parquet)
 		if err != nil {
-			return nil, fmt.Errorf("could not get latest source file: %v", err)
+			return nil, err
 		}
 		groups, err := filestore.NewFilePathGroup(sourceFiles, filestore.DateTimeDirectoryGrouping)
 		if err != nil {
-			return nil, fmt.Errorf("could not get datetime directory grouping for source files: %v", err)
+			return nil, err
 		}
 		newest, err := groups.GetFirst()
 		if err != nil {
-			return nil, fmt.Errorf("could not get newest source file: %v", err)
+			return nil, err
 		}
 		sourceUris := make([]string, len(newest))
 		for i, sourceFile := range newest {
@@ -1985,7 +1985,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	} else {
 		err = sourcePath.ParseFilePath(sparkResourceTable.schema.SourceTable)
 		if err != nil {
-			return nil, fmt.Errorf("could not parse full path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), sparkResourceTable.schema.SourceTable)
+			return nil, err
 		}
 		sourceURIs = append(sourceURIs, sourcePath.ToURI())
 	}
@@ -2013,12 +2013,12 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Spark submit job failed to run", "error", err)
-		return nil, fmt.Errorf("spark submit job for materialization %v failed to run: %v", materializationID, err)
+		return nil, err
 	}
 	exists, err := spark.Store.Exists(destinationPath)
 	if err != nil {
 		spark.Logger.Errorf("could not check if materialization file exists: %v", err)
-		return nil, fmt.Errorf("could not check if materialization file exists: %v", err)
+		return nil, err
 	}
 	if !exists {
 		spark.Logger.Errorf("materialization not found in directory: %s", destinationPath.ToURI())
@@ -2059,13 +2059,13 @@ func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) erro
 
 func (spark *SparkOfflineStore) getResourceSchema(id ResourceID) (ResourceSchema, error) {
 	if err := id.check(Feature, Label); err != nil {
-		return ResourceSchema{}, fmt.Errorf("ID check failed: %v", err)
+		return ResourceSchema{}, err
 	}
 	spark.Logger.Debugw("Getting resource schema", "id", id)
 	table, err := spark.GetResourceTable(id)
 	if err != nil {
 		spark.Logger.Errorw("Resource not registered in spark store", "id", id, "error", err)
-		return ResourceSchema{}, fmt.Errorf("resource not registered: %v", err)
+		return ResourceSchema{}, err
 	}
 	sparkResourceTable, ok := table.(*BlobOfflineTable)
 	if !ok {
@@ -2085,11 +2085,11 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	featureSchemas := make([]ResourceSchema, 0)
 	destinationPath, err := spark.Store.CreateDirPath(def.ID.ToFilestorePath())
 	if err != nil {
-		return fmt.Errorf("could not create destination path: %v", err)
+		return err
 	}
 	trainingSetExists, err := spark.Store.Exists(destinationPath)
 	if err != nil {
-		return fmt.Errorf("could not check if training set exists: %v", err)
+		return err
 	}
 	if trainingSetExists && !isUpdate {
 		spark.Logger.Errorw("Training set already exists", "id", def.ID)
@@ -2101,13 +2101,13 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	labelSchema, err := spark.getResourceSchema(def.Label)
 	if err != nil {
 		spark.Logger.Errorw("Could not get schema of label in spark store", "label", def.Label, "error", err)
-		return fmt.Errorf("could not get schema of label %s: %v", def.Label, err)
+		return err
 	}
 	// NOTE: labelSchema.SourceTable should be the absolute path to the label source table
 	labelSourcePath := labelSchema.SourceTable
 	filepath, err := filestore.NewEmptyFilepath(spark.Store.FilestoreType())
 	if err != nil {
-		return fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), labelSchema.SourceTable)
+		return err
 	}
 	err = filepath.ParseFilePath(labelSourcePath)
 	if err != nil {
@@ -2117,7 +2117,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		if filepath, err := spark.Store.CreateFilePath(labelSchema.SourceTable); err == nil {
 			labelSourcePath = filepath.ToURI()
 		} else {
-			return fmt.Errorf("could not create file path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), labelSchema.SourceTable)
+			return err
 		}
 	}
 	sourcePaths = append(sourcePaths, labelSourcePath)
@@ -2125,13 +2125,13 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		featureSchema, err := spark.getResourceSchema(feature)
 		if err != nil {
 			spark.Logger.Errorw("Could not get schema of feature in spark store", "feature", feature, "error", err)
-			return fmt.Errorf("could not get schema of feature %s: %v", feature, err)
+			return err
 		}
 		featureSourcePath := featureSchema.SourceTable
 		// NOTE: featureSchema.SourceTable should be the absolute path to the feature source table
 		filepath, err := filestore.NewEmptyFilepath(spark.Store.FilestoreType())
 		if err != nil {
-			return fmt.Errorf("could not create empty filepath due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), featureSchema.SourceTable)
+			return err
 		}
 		// Features registered prior to PR #947 will not have a full path; given Spark requires an absolute path, we will
 		// assume an error here means the value of SourceTable is just the relative path and attempt to construct the absolute path
@@ -2141,7 +2141,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 			if filepath, err := spark.Store.CreateFilePath(featureSchema.SourceTable); err == nil {
 				featureSourcePath = filepath.ToURI()
 			} else {
-				return fmt.Errorf("could not create file path due to error %w (store type: %s; path: %s)", err, spark.Store.FilestoreType(), featureSchema.SourceTable)
+				return err
 			}
 		}
 		sourcePaths = append(sourcePaths, featureSourcePath)
@@ -2158,11 +2158,11 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	spark.Logger.Debugw("Creating training set", "definition", def)
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
 		spark.Logger.Errorw("Spark submit training set job failed to run", "definition", def.ID, "error", err)
-		return fmt.Errorf("spark submit job for training set %v failed to run: %v", def.ID, err)
+		return err
 	}
 	trainingSetExists, err = spark.Store.Exists(destinationPath)
 	if err != nil {
-		return fmt.Errorf("could not check that training set was created: %v", err)
+		return err
 	}
 	if !trainingSetExists {
 		spark.Logger.Errorw("Could not get training set resource key in offline store")

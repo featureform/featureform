@@ -20,6 +20,9 @@ env:
   POSTGRES_USER: "username"
   POSTGRES_DB: "default"
   POSTGRES_PASSWORD: "password"
+  CLICKHOUSE_USER: "default"
+  CLICKHOUSE_PASSWORD: "password"
+  CLICKHOUSE_DB: "default"
   ETCD_HOST: "localhost"
   ETCD_PORT: 2379
   REDSHIFT_PORT: 5439
@@ -271,7 +274,16 @@ jobs:
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_DB: ${{ env.POSTGRES_DB }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-      
+
+      clickhouse:
+        image: clickhouse/clickhouse-server
+        ports:
+          - 9000:9000
+        env:
+          CLICKHOUSE_USER: ${{ env.CLICKHOUSE_USER }}
+          CLICKHOUSE_DB: ${{ env.CLICKHOUSE_DB }}
+          CLICKHOUSE_PASSWORD: ${{ env.CLICKHOUSE_PASSWORD }}
+
       mysql:
         image: mysql
         ports:
@@ -760,6 +772,16 @@ jobs:
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_DB: ${{ env.POSTGRES_DB }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+
+      clickhouse:
+        image: clickhouse/clickhouse-server
+        ports:
+          - 9000:9000
+        env:
+          CLICKHOUSE_USER: ${{ env.CLICKHOUSE_USER }}
+          CLICKHOUSE_DB: ${{ env.CLICKHOUSE_DB }}
+          CLICKHOUSE_PASSWORD: ${{ env.CLICKHOUSE_PASSWORD }}
+
     steps:
       - name: Download Working Compiled Directories
         uses: actions/download-artifact@v3

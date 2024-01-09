@@ -9,12 +9,21 @@ package provider
 
 import (
 	"bytes"
+	bigquery "cloud.google.com/go/bigquery"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	fs "github.com/featureform/filestore"
+	"github.com/featureform/helpers"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
+	"github.com/parquet-go/parquet-go"
+	"google.golang.org/api/option"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -22,15 +31,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"cloud.google.com/go/bigquery"
-	fs "github.com/featureform/filestore"
-	pc "github.com/featureform/provider/provider_config"
-	pt "github.com/featureform/provider/provider_type"
-	"github.com/google/uuid"
-	"github.com/joho/godotenv"
-	"github.com/parquet-go/parquet-go"
-	"google.golang.org/api/option"
 )
 
 var provider = flag.String("provider", "", "provider to perform test on")
@@ -107,6 +107,32 @@ func TestOfflineStores(t *testing.T) {
 			t.Fatalf("%v", err)
 		}
 		return snowflakeConfig.Serialize(), snowflakeConfig
+	}
+
+	clickHouseInit := func() (pc.SerializedConfig, pc.ClickHouseConfig) {
+		clickHouseDb := ""
+		ok := true
+		if clickHouseDb, ok = os.LookupEnv("CLICKHOUSE_DB"); !ok {
+			clickHouseDb = fmt.Sprintf("feature_form_%d", time.Now().UnixMilli())
+		}
+		t.Log("ClickHouse Database: ", clickHouseDb)
+		username := checkEnv("CLICKHOUSE_USER")
+		password := checkEnv("CLICKHOUSE_PASSWORD")
+		host := helpers.GetEnv("CLICKHOUSE_HOST", "localhost")
+		port := helpers.GetEnvUInt16("CLICKHOUSE_PORT", uint16(9000))
+		ssl := helpers.GetEnvBool("CLICKHOUSE_SSL", false)
+		var clickHouseConfig = pc.ClickHouseConfig{
+			Host:     host,
+			Port:     port,
+			Username: username,
+			Password: password,
+			Database: clickHouseDb,
+			SSL:      ssl,
+		}
+		if err := createClickHouseDatabase(clickHouseConfig); err != nil {
+			t.Fatalf("%v", err)
+		}
+		return clickHouseConfig.Serialize(), clickHouseConfig
 	}
 
 	redshiftInit := func() (pc.SerializedConfig, pc.RedshiftConfig) {
@@ -259,6 +285,10 @@ func TestOfflineStores(t *testing.T) {
 	}
 	if *provider == "postgres" || *provider == "" {
 		testList = append(testList, testMember{pt.PostgresOffline, postgresInit(), true})
+	}
+	if *provider == "clickhouse" || *provider == "" {
+		serialCHConfig, _ := clickHouseInit()
+		testList = append(testList, testMember{pt.ClickHouseOffline, serialCHConfig, true})
 	}
 	//if *provider == "mysql" || *provider == "" {
 	//	testList = append(testList, testMember{pt.MySqlOffline, mySqlInit(), true})
@@ -453,6 +483,20 @@ func createSnowflakeDatabase(c pc.SnowflakeConfig) error {
 	}
 	databaseQuery := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", sanitize(c.Database))
 	if _, err := db.Exec(databaseQuery); err != nil {
+		return err
+	}
+	return nil
+}
+
+func createClickHouseDatabase(c pc.ClickHouseConfig) error {
+	conn, err := sql.Open("clickhouse", fmt.Sprintf("clickhouse://%s:%d?username=%s&password=%s&secure=%t", c.Host, c.Port, c.Username, c.Password, c.SSL))
+	if err != nil {
+		return err
+	}
+	if _, err := conn.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", sanitizeCH(c.Database))); err != nil {
+		return err
+	}
+	if _, err := conn.Exec(fmt.Sprintf("CREATE DATABASE %s", sanitizeCH(c.Database))); err != nil {
 		return err
 	}
 	return nil
@@ -3729,6 +3773,8 @@ func getTableName(testName string, tableName string) string {
 	if strings.Contains(testName, "BIGQUERY") {
 		prefix := fmt.Sprintf("%s.%s", os.Getenv("BIGQUERY_PROJECT_ID"), os.Getenv("BIGQUERY_DATASET_ID"))
 		tableName = fmt.Sprintf("`%s.%s`", prefix, tableName)
+	} else if strings.Contains(testName, "CLICKHOUSE") {
+		tableName = sanitizeCH(tableName)
 	} else {
 		tableName = sanitize(tableName)
 	}
@@ -3738,6 +3784,8 @@ func getTableName(testName string, tableName string) string {
 func sanitizeTableName(testName string, tableName string) string {
 	if !strings.Contains(testName, "BIGQUERY") {
 		tableName = sanitize(tableName)
+	} else if strings.Contains(testName, "CLICKHOUSE") {
+		tableName = sanitizeCH(tableName)
 	}
 	return tableName
 }
@@ -3748,7 +3796,7 @@ func modifyTransformationConfig(t *testing.T, testName, tableName string, provid
 		// In contrast to the SQL provider, that only needed change is the table name to perform the required transformation configuration,
 		// The Spark implementation needs to update the source mappings to ensure the source file is used in the transformation query.
 		config.SourceMapping[0].Source = tableName
-	case pt.MemoryOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.MySqlOffline, pt.SnowflakeOffline, pt.RedshiftOffline:
+	case pt.MemoryOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.MySqlOffline, pt.SnowflakeOffline, pt.ClickHouseOffline, pt.RedshiftOffline:
 		tableName := getTableName(testName, tableName)
 		config.Query = strings.Replace(config.Query, "tb", tableName, 1)
 	default:
@@ -4113,8 +4161,8 @@ func TestTableSchemaValue(t *testing.T) {
 }
 
 func testBatchFeature(t *testing.T, store OfflineStore) {
-	if store.Type() != pt.SnowflakeOffline && store.Type() != pt.SparkOffline {
-		t.Skip("Skipping test for non-SnowflakeOffline and non-SparkOffline providers")
+	if store.Type() != pt.SnowflakeOffline && store.Type() != pt.SparkOffline && store.Type() != pt.ClickHouseOffline {
+		t.Skip("Skipping test for non-SnowflakeOffline, SparkOffline or ClickHouseOffline providers")
 	}
 	type expectedBatchRow struct {
 		Entity   interface{}

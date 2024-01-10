@@ -184,6 +184,7 @@ class OfflineSQLProvider(OfflineProvider):
         name: str = "",
         schedule: str = "",
         description: str = "",
+        inputs: list = field(default_factory=list),
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -222,6 +223,7 @@ class OfflineSQLProvider(OfflineProvider):
             schedule=schedule,
             provider=self.name(),
             description=description,
+            inputs=inputs,
             tags=tags,
             properties=properties,
         )
@@ -300,6 +302,7 @@ class OfflineSparkProvider(OfflineProvider):
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         schedule: str = "",
+        inputs: list = field(default_factory=list),
         description: str = "",
         tags: List[str] = [],
         properties: dict = {},
@@ -337,6 +340,7 @@ class OfflineSparkProvider(OfflineProvider):
             schedule=schedule,
             provider=self.name(),
             description=description,
+            inputs=inputs,
             tags=tags,
             properties=properties,
         )
@@ -447,6 +451,7 @@ class OfflineK8sProvider(OfflineProvider):
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         schedule: str = "",
+        inputs: list = field(default_factory=list),
         description: str = "",
         docker_image: str = "",
         resource_specs: Union[K8sResourceSpecs, None] = None,
@@ -488,6 +493,7 @@ class OfflineK8sProvider(OfflineProvider):
             schedule=schedule,
             provider=self.name(),
             description=description,
+            inputs=inputs,
             args=K8sArgs(docker_image=docker_image, specs=resource_specs),
             tags=tags,
             properties=properties,
@@ -789,6 +795,7 @@ class LocalProvider:
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         description: str = "",
+        inputs: list = [],
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -824,6 +831,7 @@ class LocalProvider:
             owner=owner,
             provider=self.name(),
             description=description,
+            inputs=inputs,
             tags=tags,
             properties=properties,
         )
@@ -1101,6 +1109,7 @@ class SQLTransformationDecorator:
     name: str = ""
     schedule: str = ""
     description: str = ""
+    inputs: list = field(default_factory=list)
     args: Union[K8sArgs, None] = None
     query: str = field(default_factory=str, init=False)
 
@@ -1109,7 +1118,19 @@ class SQLTransformationDecorator:
             self.description = fn.__doc__
         if self.name == "":
             self.name = fn.__name__
-        self.__set_query(fn())
+
+        if self.inputs:
+            func_params = inspect.signature(fn).parameters
+            if len(func_params) > len(self.inputs):
+                raise ValueError(
+                    f"Transformation function has more parameters than inputs. \n"
+                    f"Make sure each function parameter has a corresponding input in the decorator."
+                )
+
+            if not isinstance(self.inputs, list):
+                raise ValueError("Dataframe transformation inputs must be a list")
+
+        self.__set_query(fn(*self.inputs))
         self.registrar.map_client_object_to_resource(self, self.to_source())
         self.registrar.add_resource(self.to_source())
         return SubscriptableTransformation(
@@ -1127,14 +1148,17 @@ class SQLTransformationDecorator:
             raise ValueError("Query cannot be an empty string")
 
         self._assert_query_contains_at_least_one_source(query)
-        self.query = add_variant_to_name(query, self.run)
+        if self.inputs is None:
+            self.query = add_variant_to_name(query, self.run)
+        else:
+            self.query = query
 
     def to_source(self) -> SourceVariant:
         return SourceVariant(
             created=None,
             name=self.name,
             variant=self.variant,
-            definition=SQLTransformation(self.query, self.args),
+            definition=SQLTransformation(self.query, self.args, self.inputs),
             owner=self.owner,
             schedule=self.schedule,
             provider=self.provider,
@@ -3642,6 +3666,7 @@ class Registrar:
         description: str = "",
         schedule: str = "",
         args: K8sArgs = None,
+        inputs: Union[List[NameVariant], List[str], List[ColumnSourceRegistrar]] = None,
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -3694,6 +3719,7 @@ class Registrar:
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
         args: K8sArgs = None,
+        inputs: Union[List[NameVariant], List[str], List[ColumnSourceRegistrar]] = None,
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -3730,6 +3756,7 @@ class Registrar:
             schedule=schedule,
             owner=owner,
             description=description,
+            inputs=inputs,
             args=args,
             tags=tags,
             properties=properties,

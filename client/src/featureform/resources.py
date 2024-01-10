@@ -968,14 +968,32 @@ class Transformation:
 class SQLTransformation(Transformation):
     query: str
     args: K8sArgs = None
+    inputs: list = None
 
     def type(self):
         return SourceType.SQL_TRANSFORMATION.value
 
     def kwargs(self):
+        source_name_variants = []
+        if self.inputs is not None:
+            for i, inp in enumerate(self.inputs):
+                if hasattr(inp, "name_variant"):  # TODO shouldn't have to have this check
+                    source_name_variants.append(inp.name_variant())
+                elif isinstance(inp, tuple):
+                    source_name_variants.append(inp)
+
+        # replace in the query with source name variants
+        # Find all placeholders in the string
+        placeholders = re.findall(r"\{\{ \w+ \}\}", self.query)
+        final_query = self.query
+        # Replace each placeholder with the corresponding value from the tuples
+        for placeholder, (n, v) in zip(placeholders, source_name_variants):
+            final_query = final_query.replace(placeholder, f"{{{{ {n}.{v} }}}}")
+
+
         transformation = pb.Transformation(
             SQLTransformation=pb.SQLTransformation(
-                query=self.query,
+                query=final_query,
                 # We do not set the sources here as the backend figures it out
             )
         )

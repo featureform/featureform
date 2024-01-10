@@ -232,25 +232,25 @@ func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
 
 	var allTags []string
 	switch res.(type) {
-    case *sourceVariantResource:
-        allTags = res.(*sourceVariantResource).serialized.Tags.Tag
+	case *sourceVariantResource:
+		allTags = res.(*sourceVariantResource).serialized.Tags.Tag
 
 	case *featureVariantResource:
-        allTags = res.(*featureVariantResource).serialized.Tags.Tag
+		allTags = res.(*featureVariantResource).serialized.Tags.Tag
 		
 	case *labelVariantResource:
-        allTags = res.(*labelVariantResource).serialized.Tags.Tag
+		allTags = res.(*labelVariantResource).serialized.Tags.Tag
 
 	case *trainingSetVariantResource:
-        allTags = res.(*trainingSetVariantResource).serialized.Tags.Tag
+		allTags = res.(*trainingSetVariantResource).serialized.Tags.Tag
 	}
 	
-    doc := search.ResourceDoc{
-        Name:    id.Name,
-        Type:    id.Type.String(),
-	Tags:    allTags,
-        Variant: id.Variant,
-    }
+	doc := search.ResourceDoc{
+		Name:    id.Name,
+		Type:    id.Type.String(),
+		Tags:	allTags,
+		Variant: id.Variant,
+	}
 	return wrapper.Searcher.Upsert(doc)
 }
 

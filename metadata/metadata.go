@@ -231,21 +231,19 @@ func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
 	}
 
 	var allTags []string
-	if sourceVariant, ok := res.(*sourceVariantResource); ok {
-        allTags = append(allTags, sourceVariant.serialized.Tags.Tag...)
-    }
+	switch res.(type) {
+    case *sourceVariantResource:
+        allTags = res.(*sourceVariantResource).serialized.Tags.Tag
 
-	if featureVariant, ok := res.(*featureVariantResource); ok {
-        allTags = append(allTags, featureVariant.serialized.Tags.Tag...)
-    }
+	case *featureVariantResource:
+        allTags = res.(*featureVariantResource).serialized.Tags.Tag
+		
+	case *labelVariantResource:
+        allTags = res.(*labelVariantResource).serialized.Tags.Tag
 
-	if labelVariant, ok := res.(*labelVariantResource); ok {
-        allTags = append(allTags, labelVariant.serialized.Tags.Tag...)
-    }
-
-	if trainingSetVariant, ok := res.(*trainingSetVariantResource); ok {
-        allTags = append(allTags, trainingSetVariant.serialized.Tags.Tag...)
-    }
+	case *trainingSetVariantResource:
+        allTags = res.(*trainingSetVariantResource).serialized.Tags.Tag
+	}
 	
     doc := search.ResourceDoc{
         Name:    id.Name,

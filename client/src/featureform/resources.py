@@ -977,7 +977,9 @@ class SQLTransformation(Transformation):
         source_name_variants = []
         if self.inputs is not None:
             for i, inp in enumerate(self.inputs):
-                if hasattr(inp, "name_variant"):  # TODO shouldn't have to have this check
+                if hasattr(
+                    inp, "name_variant"
+                ):  # TODO shouldn't have to have this check
                     source_name_variants.append(inp.name_variant())
                 elif isinstance(inp, tuple):
                     source_name_variants.append(inp)
@@ -989,7 +991,6 @@ class SQLTransformation(Transformation):
         # Replace each placeholder with the corresponding value from the tuples
         for placeholder, (n, v) in zip(placeholders, source_name_variants):
             final_query = final_query.replace(placeholder, f"{{{{ {n}.{v} }}}}")
-
 
         transformation = pb.Transformation(
             SQLTransformation=pb.SQLTransformation(

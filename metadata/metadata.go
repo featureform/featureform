@@ -248,7 +248,7 @@ func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
     doc := search.ResourceDoc{
         Name:    id.Name,
         Type:    id.Type.String(),
-		Tags:    allTags,
+	Tags:    allTags,
         Variant: id.Variant,
     }
 	return wrapper.Searcher.Upsert(doc)

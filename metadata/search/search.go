@@ -144,31 +144,30 @@ func (s Search) DeleteAll() error {
 }
 
 func (s Search) RunSearch(q string) ([]ResourceDoc, error) {
-	results, err := s.client.Index("resources").Search(q, &ms.SearchRequest{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to search: %v", err)
-	}
+    results, err := s.client.Index("resources").Search(q, &ms.SearchRequest{})
+    if err != nil {
+        return nil, fmt.Errorf("failed to search: %v", err)
+    }
 
-	var searchResults []ResourceDoc
+    var searchResults []ResourceDoc
 
-	for _, hit := range results.Hits {
-				doc := hit.(map[string]interface{})
+    for _, hit := range results.Hits {
+        doc := hit.(map[string]interface{})
 
-		var tags []string
-		if tagSlice, ok := doc["Tags"].([]interface{}); ok {
-			for _, tag := range tagSlice {
-				if strTag, ok := tag.(string); ok {
-					tags = append(tags, strTag)
-				}
-			}
-		}
-		searchResults = append(searchResults, ResourceDoc{
-			Name:    doc["Name"].(string),
-			Type:    doc["Type"].(string),
-			Variant: doc["Variant"].(string),
-			Tags:    tags,
-		})
+        var tags []string
+        if tagSlice, ok := doc["Tags"].([]interface{}); ok {
+            for _, tag := range tagSlice {
+                if strTag, ok := tag.(string); ok {
+                    tags = append(tags, strTag)}
+            }
+        }
+        searchResults = append(searchResults, ResourceDoc{
+            Name:    doc["Name"].(string),
+            Type:    doc["Type"].(string),
+            Variant: doc["Variant"].(string),
+            Tags:    tags,
+        })
 
-	}
-	return searchResults, nil
+    }
+    return searchResults, nil
 }

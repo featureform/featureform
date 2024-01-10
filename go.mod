@@ -31,6 +31,7 @@ require (
 	github.com/prometheus/client_model v0.2.0
 	github.com/redis/rueidis v1.0.22
 	github.com/repeale/fp-go v0.11.1
+	github.com/rotisserie/eris v0.5.4
 	github.com/snowflakedb/gosnowflake v1.6.8
 	github.com/stretchr/testify v1.8.3
 	go.etcd.io/etcd/api/v3 v3.5.6

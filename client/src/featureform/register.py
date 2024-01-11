@@ -1130,7 +1130,10 @@ class SQLTransformationDecorator:
             if not isinstance(self.inputs, list):
                 raise ValueError("Dataframe transformation inputs must be a list")
 
-        self.__set_query(fn(*self.inputs))
+        if self.inputs is not None:
+            self.__set_query(fn(*self.inputs))
+        else:
+            self.__set_query(fn())
         self.registrar.map_client_object_to_resource(self, self.to_source())
         self.registrar.add_resource(self.to_source())
         return SubscriptableTransformation(

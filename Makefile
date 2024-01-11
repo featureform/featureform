@@ -39,7 +39,7 @@ test_offline
 		Runs offline store integration tests. Requires credentials if not using the memory provider
 
 	Options:
-		- provider (memory | postgres | snowflake | redshift | bigquery | spark )
+		- provider (memory | postgres | snowflake | redshift | bigquery | spark | mysql)
 			Description:
 				Runs specified provider. If left blank or not included, runs all providers
 			Usage:
@@ -264,7 +264,7 @@ test_pandas:
 
 
 ##############################################  GO TESTS ###############################################################
-test_offline: gen_grpc 					## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`
+test_offline: gen_grpc 					## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark | mysql)`
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage
 	go test -v -parallel 1000 -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider --tags=offline,filepath --provider=$(provider)

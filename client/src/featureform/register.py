@@ -1119,7 +1119,7 @@ class SQLTransformationDecorator:
         if self.name == "":
             self.name = fn.__name__
 
-        if self.inputs:
+        if self.inputs is not None and len(self.inputs) > 0:
             func_params = inspect.signature(fn).parameters
             if len(func_params) > len(self.inputs):
                 raise ValueError(

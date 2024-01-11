@@ -10,6 +10,7 @@ import dill
 import pytest
 import datetime
 import pandas as pd
+import psutil
 
 sys.path.insert(0, "client/src/")
 
@@ -358,9 +359,21 @@ def setup_teardown():
 
 
 def del_rw(action, name, exc):
-    if os.path.exists(name):
-        os.chmod(name, stat.S_IWRITE)
+    database = ".featureform/SQLiteDB/metadata.db"
+    if os.path.exists(database):
+        for proc in psutil.process_iter():
+            try:
+                for item in proc.open_files():
+                    if database == item.path:
+                        proc.kill()
+            except Exception as e:
+                continue
+
+    # Now try to delete the file
+    try:
         os.remove(name)
+    except OSError as e:
+        print(f"Error: {e}")
 
 
 @pytest.fixture(scope="module")

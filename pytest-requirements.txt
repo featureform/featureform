@@ -12,3 +12,4 @@ pytest-mock
 python-dotenv
 s3transfer
 urllib3
+psutil

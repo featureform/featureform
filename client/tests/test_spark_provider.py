@@ -85,7 +85,6 @@ def test_sql_transformation(name, variant, sql, spark_provider):
 
     decorator = spark_provider.sql_transformation(name=name, variant=variant)
     decorator(transformation)
-    a= decorator.to_source()
 
     assert decorator.to_source() == SourceVariant(
         created=None,

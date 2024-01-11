@@ -184,7 +184,7 @@ class OfflineSQLProvider(OfflineProvider):
         name: str = "",
         schedule: str = "",
         description: str = "",
-        inputs: list = field(default_factory=list),
+        inputs: list = [],
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -302,7 +302,7 @@ class OfflineSparkProvider(OfflineProvider):
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         schedule: str = "",
-        inputs: list = field(default_factory=list),
+        inputs: list = [],
         description: str = "",
         tags: List[str] = [],
         properties: dict = {},
@@ -451,7 +451,7 @@ class OfflineK8sProvider(OfflineProvider):
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         schedule: str = "",
-        inputs: list = field(default_factory=list),
+        inputs: list = [],
         description: str = "",
         docker_image: str = "",
         resource_specs: Union[K8sResourceSpecs, None] = None,
@@ -1109,7 +1109,7 @@ class SQLTransformationDecorator:
     name: str = ""
     schedule: str = ""
     description: str = ""
-    inputs: list = field(default_factory=list)
+    inputs: list = None
     args: Union[K8sArgs, None] = None
     query: str = field(default_factory=str, init=False)
 

@@ -179,13 +179,12 @@ def test_get_blob_credentials(variables, type, request):
     assert credentials == expected_output
 
 
-@pytest.mark.skip("Requires actual connection strings")
 @pytest.mark.parametrize(
     "variables,",
     [
-        "local_variables_success",
-        "k8s_df_variables_success",
-        "k8s_s3_df_variables_success",
+        pytest.param("local_variables_success",  marks=pytest.mark.local),
+        pytest.param("k8s_df_variables_success",  marks=pytest.mark.hosted),
+        pytest.param("k8s_s3_df_variables_success",  marks=pytest.mark.hosted),
         pytest.param("not_supported_blob_store", marks=pytest.mark.xfail),
     ],
 )

@@ -496,12 +496,12 @@ class SQLiteMetadata:
         )[0]
 
     def get_provider(self, name, should_fetch_tags_properties):
-        try:
-            return self.query_resource(
-                "providers", "name", name, should_fetch_tags_properties
-            )[0]
-        except:
+        providers = self.query_resource(
+            "providers", "name", name, should_fetch_tags_properties
+        )
+        if len(providers) == 0:
             raise ValueError(f"Provider {name} not found")
+        return providers[0]
 
     def get_feature_variant(self, name, variant):
         query = """SELECT fv.*, t.tag_list as tags, p.property_list as properties

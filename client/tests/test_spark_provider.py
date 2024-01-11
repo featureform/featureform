@@ -85,12 +85,13 @@ def test_sql_transformation(name, variant, sql, spark_provider):
 
     decorator = spark_provider.sql_transformation(name=name, variant=variant)
     decorator(transformation)
+    a= decorator.to_source()
 
     assert decorator.to_source() == SourceVariant(
         created=None,
         name=name,
         variant=variant,
-        definition=SQLTransformation(query=sql),
+        definition=SQLTransformation(query=sql, inputs=[]),
         owner="tester",
         provider="spark",
         description="doc string",
@@ -111,7 +112,7 @@ def test_sql_transformation_without_variant(sql, spark_provider):
         return sql
 
     variant = get_random_name()
-    decorator = spark_provider.sql_transformation(variant=variant)
+    decorator = spark_provider.sql_transformation(variant=variant, inputs=None)
     decorator(transformation)
 
     assert decorator.to_source() == SourceVariant(

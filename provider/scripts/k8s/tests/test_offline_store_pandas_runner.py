@@ -47,12 +47,12 @@ def test_main(variables, df_transformation, request):
     "variables,expected_output",
     [
         (
-                "local_variables_success",
-                f"{dir_path}/test_files/inputs/transactions_short.csv",
+            "local_variables_success",
+            f"{dir_path}/test_files/inputs/transactions_short.csv",
         ),
         (
-                "local_variables_parquet_success",
-                f"{dir_path}/test_files/inputs/transaction_short",
+            "local_variables_parquet_success",
+            f"{dir_path}/test_files/inputs/transaction_short",
         ),
         pytest.param(
             "df_local_pass_none_code_failure",
@@ -90,12 +90,12 @@ def test_execute_sql_job(variables, expected_output, request):
     "variables,expected_output",
     [
         (
-                "local_df_variables_success",
-                f"{dir_path}/test_files/inputs/transactions_short.csv",
+            "local_df_variables_success",
+            f"{dir_path}/test_files/inputs/transactions_short.csv",
         ),
         (
-                "local_df_parquet_variables_success",
-                f"{dir_path}/test_files/inputs/transaction_short",
+            "local_df_parquet_variables_success",
+            f"{dir_path}/test_files/inputs/transaction_short",
         ),
     ],
 )
@@ -183,6 +183,7 @@ def test_get_blob_credentials(variables, type, request):
     set_environment_variables(environment_variables, delete=True)
     assert credentials == expected_output
 
+
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="should not run on windows")
 @pytest.mark.parametrize(
     "variables,",
@@ -248,8 +249,8 @@ def load_env_file():
     "exception_message, error",
     [
         (
-                Exception("TypeError: code() takes at most 16 arguments (19 given)"),
-                "dill_python_version_error",
+            Exception("TypeError: code() takes at most 16 arguments (19 given)"),
+            "dill_python_version_error",
         ),
         (Exception("generic error"), "generic_error"),
     ],

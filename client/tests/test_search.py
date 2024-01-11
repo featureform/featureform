@@ -4,6 +4,7 @@ from featureform.resources import Model
 import os
 import pytest
 
+
 @pytest.fixture(autouse=True)
 def before_and_after_each(setup_teardown):
     setup_teardown()

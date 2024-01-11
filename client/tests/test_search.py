@@ -4,6 +4,12 @@ from featureform.resources import Model
 import os
 import pytest
 
+@pytest.fixture(autouse=True)
+def before_and_after_each(setup_teardown):
+    setup_teardown()
+    yield
+    setup_teardown()
+
 
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
@@ -139,13 +145,6 @@ def test_query_type_in_search(provider_source_fxt, is_local, is_insecure, reques
         TypeError, match="missing 1 required positional argument: 'raw_query'"
     ):
         phrase = resource_client.search(local=is_local)
-
-
-@pytest.fixture(autouse=True)
-def before_and_after_each(setup_teardown):
-    setup_teardown()
-    yield
-    setup_teardown()
 
 
 def arrange_resources(provider, source, online_store, is_local, is_insecure):

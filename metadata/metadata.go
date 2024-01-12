@@ -408,7 +408,7 @@ func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) (Reso
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not create submap for IDs: %v", depIds))
+		return nil, fferr.NewInternalError(fmt.Errorf("could not create submap for IDs: %v", depIds))
 	}
 	return deps, nil
 }
@@ -417,11 +417,11 @@ func (resource *sourceVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *sourceVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (sourceVariantResource *sourceVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
 	id := that.ID()
 	t := id.Type
 	key := id.Proto()
-	serialized := this.serialized
+	serialized := sourceVariantResource.serialized
 	switch t {
 	case TRAINING_SET_VARIANT:
 		serialized.Trainingsets = append(serialized.Trainingsets, key)
@@ -452,7 +452,7 @@ func (resource *sourceVariantResource) Update(lookup ResourceLookup, updateRes R
 	deserialized := updateRes.Proto()
 	variantUpdate, ok := deserialized.(*pb.SourceVariant)
 	if !ok {
-		return errors.New("failed to deserialize existing source variant record")
+		return fferr.NewInternalError(fmt.Errorf("failed to deserialize existing source variant record"))
 	}
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
@@ -482,7 +482,7 @@ func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) (bool
 		if otherDef, ok := otherProto.Definition.(*pb.SourceVariant_Transformation); ok {
 			isDefinitionEqual, err = isSourceProtoDefinitionEqual(thisDef, otherDef)
 			if err != nil {
-				return false, fmt.Errorf("error comparing source definitions: %v", err)
+				return false, fferr.NewInternalError(fmt.Errorf("error comparing source definitions: %v", err))
 			}
 
 		}
@@ -510,7 +510,7 @@ func isSourceProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transforma
 			sourceTextEqual := thisDef.Transformation.GetDFTransformation().SourceText == otherDef.DFTransformation.SourceText
 			inputsEqual, err := lib.EqualProtoContents(thisDef.Transformation.GetDFTransformation().Inputs, otherDef.DFTransformation.Inputs)
 			if err != nil {
-				return false, fmt.Errorf("error comparing transformation inputs: %v", err)
+				return false, fferr.NewInternalError(fmt.Errorf("error comparing transformation inputs: %v", err))
 			}
 			isDefinitionEqual = sourceTextEqual &&
 				inputsEqual
@@ -630,7 +630,7 @@ func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (Res
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not create submap for IDs: %v", depIds))
+		return nil, fferr.NewInternalError(fmt.Errorf("could not create submap for IDs: %v", depIds))
 	}
 	return deps, nil
 }
@@ -672,7 +672,7 @@ func (resource *featureVariantResource) Update(lookup ResourceLookup, updateRes 
 	deserialized := updateRes.Proto()
 	variantUpdate, ok := deserialized.(*pb.FeatureVariant)
 	if !ok {
-		return errors.New("failed to deserialize existing feature variant record")
+		return fferr.NewInternalError(fmt.Errorf("failed to deserialize existing feature variant record"))
 	}
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
@@ -774,7 +774,7 @@ func (resource *labelResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *labelResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *labelResource) Update(lookup ResourceLookup, updateRes Resource) error {
@@ -824,7 +824,7 @@ func (resource *labelVariantResource) Dependencies(lookup ResourceLookup) (Resou
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not create submap for IDs: %v", depIds))
+		return nil, fferr.NewInternalError(fmt.Errorf("could not create submap for IDs: %v", depIds))
 	}
 	return deps, nil
 }
@@ -861,7 +861,7 @@ func (resource *labelVariantResource) Update(lookup ResourceLookup, updateRes Re
 	deserialized := updateRes.Proto()
 	variantUpdate, ok := deserialized.(*pb.LabelVariant)
 	if !ok {
-		return errors.New("failed to deserialize existing label variant record")
+		return fferr.NewInternalError(fmt.Errorf("failed to deserialize existing label variant record"))
 	}
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
@@ -950,7 +950,7 @@ func (resource *trainingSetResource) UpdateStatus(status pb.ResourceStatus) erro
 }
 
 func (resource *trainingSetResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *trainingSetResource) Update(lookup ResourceLookup, updateRes Resource) error {
@@ -1003,7 +1003,7 @@ func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) 
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not create submap for IDs: %v", depIds))
+		return nil, fferr.NewInternalError(fmt.Errorf("could not create submap for IDs: %v", depIds))
 	}
 	return deps, nil
 }
@@ -1119,7 +1119,7 @@ func (resource *modelResource) Dependencies(lookup ResourceLookup) (ResourceLook
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not create submap for IDs: %v", depIds))
+		return nil, fferr.NewInternalError(fmt.Errorf("could not create submap for IDs: %v", depIds))
 	}
 	return deps, nil
 }

@@ -184,7 +184,7 @@ class OfflineSQLProvider(OfflineProvider):
         name: str = "",
         schedule: str = "",
         description: str = "",
-        inputs: list = [],
+        inputs: list = None,
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -211,6 +211,7 @@ class OfflineSQLProvider(OfflineProvider):
             schedule (str): The frequency at which the transformation is run as a cron expression
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of primary data to be registered
+            inputs (list): A list of Source NameVariant Tuples to input into the transformation
 
 
         Returns:
@@ -302,7 +303,7 @@ class OfflineSparkProvider(OfflineProvider):
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         schedule: str = "",
-        inputs: list = [],
+        inputs: list = None,
         description: str = "",
         tags: List[str] = [],
         properties: dict = {},
@@ -451,7 +452,7 @@ class OfflineK8sProvider(OfflineProvider):
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         schedule: str = "",
-        inputs: list = [],
+        inputs: list = None,
         description: str = "",
         docker_image: str = "",
         resource_specs: Union[K8sResourceSpecs, None] = None,
@@ -478,6 +479,7 @@ class OfflineK8sProvider(OfflineProvider):
             name (str): Name of source
             variant (str): Name of variant
             owner (Union[str, UserRegistrar]): Owner
+            inputs (list): A list of Source NameVariant Tuples to input into the transformation
             description (str): Description of primary data to be registered
             docker_image (str): A custom Docker image to run the transformation
             resource_specs (K8sResourceSpecs): Custom resource requests and limits
@@ -505,7 +507,6 @@ class OfflineK8sProvider(OfflineProvider):
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         description: str = "",
-        inputs: list = [],
         docker_image: str = "",
         resource_specs: Union[K8sResourceSpecs, None] = None,
         tags: List[str] = [],
@@ -794,8 +795,8 @@ class LocalProvider:
         variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
+        inputs: list = None,
         description: str = "",
-        inputs: list = [],
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -819,13 +820,14 @@ class LocalProvider:
             name (str): Name of source
             variant (str): Name of variant
             owner (Union[str, UserRegistrar]): Owner
+            inputs (list): A list of Source NameVariant Tuples to input into the transformation
             description (str): Description of primary data to be registered
 
 
         Returns:
             source (ColumnSourceRegistrar): Source
         """
-        return self.__registrar.sql_transformation(
+        return self.__registrar.sql_transfoarmation(
             name=name,
             variant=variant,
             owner=owner,
@@ -1108,10 +1110,14 @@ class SQLTransformationDecorator:
     variant: str = ""
     name: str = ""
     schedule: str = ""
+    inputs: list = field(default_factory=list),
     description: str = ""
-    inputs: list = None
     args: Union[K8sArgs, None] = None
     query: str = field(default_factory=str, init=False)
+
+    def __post_init__(self):
+        if self.inputs is None:
+            self.inputs = []
 
     def __call__(self, fn: Callable[[], str]):
         if self.description == "" and fn.__doc__ is not None:
@@ -1119,7 +1125,7 @@ class SQLTransformationDecorator:
         if self.name == "":
             self.name = fn.__name__
 
-        if self.inputs is not None and len(self.inputs) > 0:
+        if len(self.inputs) > 0:
             func_params = inspect.signature(fn).parameters
             if len(func_params) > len(self.inputs):
                 raise ValueError(
@@ -1130,10 +1136,10 @@ class SQLTransformationDecorator:
             if not isinstance(self.inputs, list):
                 raise ValueError("Dataframe transformation inputs must be a list")
 
-        if self.inputs is not None:
             self.__set_query(fn(*self.inputs))
         else:
             self.__set_query(fn())
+
         self.registrar.map_client_object_to_resource(self, self.to_source())
         self.registrar.add_resource(self.to_source())
         return SubscriptableTransformation(
@@ -1151,7 +1157,7 @@ class SQLTransformationDecorator:
             raise ValueError("Query cannot be an empty string")
 
         self._assert_query_contains_at_least_one_source(query)
-        if self.inputs is None:
+        if len(self.inputs) > 0:
             self.query = add_variant_to_name(query, self.run)
         else:
             self.query = query
@@ -3720,9 +3726,9 @@ class Registrar:
         name: str = "",
         schedule: str = "",
         owner: Union[str, UserRegistrar] = "",
+        inputs: Union[List[NameVariant], List[str], List[ColumnSourceRegistrar]] = None,
         description: str = "",
         args: K8sArgs = None,
-        inputs: Union[List[NameVariant], List[str], List[ColumnSourceRegistrar]] = None,
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -3734,6 +3740,7 @@ class Registrar:
             name (str): Name of source
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
             owner (Union[str, UserRegistrar]): Owner
+            inputs (list): Inputs to transformation
             description (str): Description of SQL transformation
             args (K8sArgs): Additional transformation arguments
             tags (List[str]): Optional grouping mechanism for resources

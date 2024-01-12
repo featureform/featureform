@@ -6,7 +6,7 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func NewDatasetNotFoundError(resourceName, resourceVariant string, err error) DatasetNotFoundError {
+func NewDatasetNotFoundError(resourceName, resourceVariant string, err error) *DatasetNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("initial dataset not found error")
 	}
@@ -14,7 +14,7 @@ func NewDatasetNotFoundError(resourceName, resourceVariant string, err error) Da
 	baseError.AddDetail("Resource Name", resourceName)
 	baseError.AddDetail("Resource Variant", resourceVariant)
 
-	return DatasetNotFoundError{
+	return &DatasetNotFoundError{
 		baseError,
 	}
 }
@@ -23,7 +23,7 @@ type DatasetNotFoundError struct {
 	baseGRPCError
 }
 
-func NewTransformationNotFoundError(resourceName, resourceVariant string, err error) TransformationNotFoundError {
+func NewTransformationNotFoundError(resourceName, resourceVariant string, err error) *TransformationNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("initial transformation not found error")
 	}
@@ -31,7 +31,7 @@ func NewTransformationNotFoundError(resourceName, resourceVariant string, err er
 	baseError.AddDetail("Resource Name", resourceName)
 	baseError.AddDetail("Resource Variant", resourceVariant)
 
-	return TransformationNotFoundError{
+	return &TransformationNotFoundError{
 		baseError,
 	}
 }
@@ -40,7 +40,7 @@ type TransformationNotFoundError struct {
 	baseGRPCError
 }
 
-func NewEntityNotFoundError(featureName, featureVariant, entityName string, err error) EntityNotFoundError {
+func NewEntityNotFoundError(featureName, featureVariant, entityName string, err error) *EntityNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("initial entity not found error")
 	}
@@ -49,7 +49,7 @@ func NewEntityNotFoundError(featureName, featureVariant, entityName string, err 
 	baseError.AddDetail("Feature Variant", featureVariant)
 	baseError.AddDetail("Entity Name", entityName)
 
-	return EntityNotFoundError{
+	return &EntityNotFoundError{
 		baseError,
 	}
 }
@@ -58,7 +58,7 @@ type EntityNotFoundError struct {
 	baseGRPCError
 }
 
-func NewFeatureNotFoundError(featureName, featureVariant string, err error) FeatureNotFoundError {
+func NewFeatureNotFoundError(featureName, featureVariant string, err error) *FeatureNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("initial feature not found error")
 	}
@@ -66,7 +66,7 @@ func NewFeatureNotFoundError(featureName, featureVariant string, err error) Feat
 	baseError.AddDetail("Feature Name", featureName)
 	baseError.AddDetail("Feature Variant", featureVariant)
 
-	return FeatureNotFoundError{
+	return &FeatureNotFoundError{
 		baseError,
 	}
 }
@@ -75,7 +75,7 @@ type FeatureNotFoundError struct {
 	baseGRPCError
 }
 
-func NewTrainingSetNotFoundError(resourceName, resourceVariant string, err error) TrainingSetNotFoundError {
+func NewTrainingSetNotFoundError(resourceName, resourceVariant string, err error) *TrainingSetNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("initial training set not found error")
 	}
@@ -83,7 +83,7 @@ func NewTrainingSetNotFoundError(resourceName, resourceVariant string, err error
 	baseError.AddDetail("Resource Name", resourceName)
 	baseError.AddDetail("Resource Variant", resourceVariant)
 
-	return TrainingSetNotFoundError{
+	return &TrainingSetNotFoundError{
 		baseError,
 	}
 }
@@ -92,7 +92,7 @@ type TrainingSetNotFoundError struct {
 	baseGRPCError
 }
 
-func NewInvalidResourceTypeError(resourceName, resourceVariant, resourceType string, err error) InvalidResourceTypeError {
+func NewInvalidResourceTypeError(resourceName, resourceVariant, resourceType string, err error) *InvalidResourceTypeError {
 	if err == nil {
 		err = fmt.Errorf("initial invalid resource type not found error")
 	}
@@ -101,7 +101,7 @@ func NewInvalidResourceTypeError(resourceName, resourceVariant, resourceType str
 	baseError.AddDetail("Resource Variant", resourceVariant)
 	baseError.AddDetail("Resource Type", resourceType)
 
-	return InvalidResourceTypeError{
+	return &InvalidResourceTypeError{
 		baseError,
 	}
 }

@@ -23,7 +23,7 @@ type DatasetNotFoundError struct {
 	baseGRPCError
 }
 
-func NewTransformationNotFoundError(resourceName, resourceVariant string, err error) TransformationNotFound {
+func NewTransformationNotFoundError(resourceName, resourceVariant string, err error) TransformationNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("initial transformation not found error")
 	}
@@ -40,7 +40,7 @@ type TransformationNotFoundError struct {
 	baseGRPCError
 }
 
-func NewEntityNotFoundError(featureName, featureVariant, entityName string, err error) EntityNotFound {
+func NewEntityNotFoundError(featureName, featureVariant, entityName string, err error) EntityNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("initial entity not found error")
 	}
@@ -58,7 +58,7 @@ type EntityNotFoundError struct {
 	baseGRPCError
 }
 
-func NewFeatureNotFoundError(featureName, featureVariant string, err error) FeatureNotFound {
+func NewFeatureNotFoundError(featureName, featureVariant string, err error) FeatureNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("initial feature not found error")
 	}
@@ -75,7 +75,7 @@ type FeatureNotFoundError struct {
 	baseGRPCError
 }
 
-func NewTrainingSetNotFoundError(resourceName, resourceVariant string, err error) TrainingSetNotFound {
+func NewTrainingSetNotFoundError(resourceName, resourceVariant string, err error) TrainingSetNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("initial training set not found error")
 	}

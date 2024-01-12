@@ -1817,30 +1817,30 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 
 	id := res.ID()
 	if err := resourceNamedSafely(id); err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	existing, err := serv.lookup.Lookup(id)
 	if _, isResourceError := err.(*ResourceNotFoundError); err != nil && !isResourceError {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 
 	if existing != nil {
 		err = serv.validateExisting(res, existing)
 		if err != nil {
-			return nil, err
+			return nil, fferr.NewInternalError(err)
 		}
 		if err := existing.Update(serv.lookup, res); err != nil {
-			return nil, err
+			return nil, fferr.NewInternalError(err)
 		}
 		res = existing
 	}
 	if err := serv.lookup.Set(id, res); err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	if serv.needsJob(res) && existing == nil {
 		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
 		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
-			return nil, fmt.Errorf("set job: %w", err)
+			return nil, fferr.NewInternalError(fmt.Errorf("set job: %w", err))
 		}
 		serv.Logger.Info("Successfully Created Job: ", res.ID().Name, res.ID().Variant)
 	}
@@ -1848,25 +1848,25 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if hasParent {
 		parentExists, err := serv.lookup.Has(parentId)
 		if err != nil {
-			return nil, err
+			return nil, fferr.NewInternalError(err)
 		}
 
 		if !parentExists {
 			parent := init(id.Name, id.Variant)
 			err = serv.lookup.Set(parentId, parent)
 			if err != nil {
-				return nil, err
+				return nil, fferr.NewInternalError(err)
 			}
 		} else {
 			if err := serv.setDefaultVariant(parentId, res.ID().Variant); err != nil {
-				return nil, err
+				return nil, fferr.NewInternalError(err)
 			}
 		}
 	}
 	if err := serv.propagateChange(res); err != nil {
 		err := errors.Wrap(err, fmt.Sprintf("failed to update parent resources for: %s", res.ID().String()))
 		serv.Logger.Error(errors.WithStack(err))
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	return &pb.Empty{}, nil
 }
@@ -1874,7 +1874,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 func (serv *MetadataServer) setDefaultVariant(id ResourceID, defaultVariant string) error {
 	parent, err := serv.lookup.Lookup(id)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	var parentResource Resource
 	if resource, ok := parent.(*SourceResource); ok {
@@ -1895,7 +1895,7 @@ func (serv *MetadataServer) setDefaultVariant(id ResourceID, defaultVariant stri
 	}
 	err = serv.lookup.Set(id, parentResource)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -1907,7 +1907,7 @@ func (serv *MetadataServer) validateExisting(newRes Resource, existing Resource)
 	if isResourceVariant {
 		isEquivalent, err := serv.isEquivalent(newRes, existing)
 		if err != nil {
-			return err
+			return fferr.NewInternalError(err)
 		}
 		if !isEquivalent {
 			return &ResourceChangedError{newRes.ID()}
@@ -1932,7 +1932,7 @@ func (serv *MetadataServer) isEquivalent(newRes Resource, existing Resource) (bo
 	}
 	isEquivalent, err := resVariant.IsEquivalent(existingVariant)
 	if err != nil {
-		return false, err
+		return false, fferr.NewInternalError(err)
 	}
 	return isEquivalent, nil
 }
@@ -1944,11 +1944,11 @@ func (serv *MetadataServer) propagateChange(newRes Resource) error {
 	propagateChange = func(parent Resource) error {
 		deps, err := parent.Dependencies(serv.lookup)
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("could not get dependencies for parent: %s", parent.ID().String()))
+			return fferr.NewInternalError(fmt.Errorf("could not get dependencies for parent: %s", parent.ID().String()))
 		}
 		depList, err := deps.List()
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("could not get dependencies list for parent: %s", parent))
+			return fferr.NewInternalError(fmt.Errorf("could not get dependencies for parent: %s", parent.ID().String()))
 		}
 		for _, res := range depList {
 			id := res.ID()
@@ -1957,13 +1957,13 @@ func (serv *MetadataServer) propagateChange(newRes Resource) error {
 			}
 			visited[id] = struct{}{}
 			if err := res.Notify(serv.lookup, create_op, newRes); err != nil {
-				return err
+				return fferr.NewInternalError(err)
 			}
 			if err := serv.lookup.Set(res.ID(), res); err != nil {
-				return nil
+				return fferr.NewInternalError(err)
 			}
 			if err := propagateChange(res); err != nil {
-				return err
+				return fferr.NewInternalError(err)
 			}
 		}
 		return nil
@@ -1992,26 +1992,26 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 				Type:    t,
 			}
 		default:
-			return fmt.Errorf("Invalid Stream for Get: %T", casted)
+			return fferr.NewInternalError(fmt.Errorf("invalid Stream for Get: %T", casted))
 		}
 		if recvErr == io.EOF {
 			return nil
 		}
 		if recvErr != nil {
 			serv.Logger.Errorw("Generic Get receive error", "error", recvErr)
-			return recvErr
+			return fferr.NewInternalError(recvErr)
 		}
 		serv.Logger.Infow("Looking up Resource", "id", id)
 		resource, err := serv.lookup.Lookup(id)
 		if err != nil {
 			serv.Logger.Errorw("Generic Get lookup error", "error", err)
-			return err
+			return fferr.NewInternalError(err)
 		}
 		serv.Logger.Infow("Sending Resource", "id", id)
 		serialized := resource.Proto()
 		if err := send(serialized); err != nil {
 			serv.Logger.Errorw("Generic Get send error", "error", err)
-			return err
+			return fferr.NewInternalError(err)
 		}
 		serv.Logger.Infow("Send Complete", "id", id)
 	}
@@ -2020,12 +2020,12 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 func (serv *MetadataServer) genericList(t ResourceType, send sendFn) error {
 	resources, err := serv.lookup.ListForType(t)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	for _, res := range resources {
 		serialized := res.Proto()
 		if err := send(serialized); err != nil {
-			return err
+			return fferr.NewInternalError(err)
 		}
 	}
 	return nil

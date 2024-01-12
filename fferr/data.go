@@ -42,7 +42,7 @@ type DatasetAlreadyExistsError struct {
 
 func NewDataTypeNotFoundError(valueType string, err error) *DataTypeNotFoundError {
 	if err == nil {
-		err = fmt.Errorf("initial datatype not found error")
+		err = fmt.Errorf("initial datatype already exists error")
 	}
 	baseError := newBaseGRPCError(err, DATATYPE_NOT_FOUND, codes.NotFound)
 	baseError.AddDetail("Value Type", valueType)
@@ -145,7 +145,7 @@ type InvalidResourceTypeError struct {
 
 func NewInvalidResourceVariantNameError(resourceName, resourceVariant, resourceType string, err error) *InvalidResourceTypeError {
 	if err == nil {
-		err = fmt.Errorf("invalid resource variant name")
+		err = fmt.Errorf("initial invalid resource variant name")
 	}
 	baseError := newBaseGRPCError(err, INVALID_RESOURCE_TYPE, codes.InvalidArgument)
 	baseError.AddDetail("Resource Name", resourceName)
@@ -163,7 +163,7 @@ type InvalidResourceNameVariantError struct {
 
 func NewInvalidFileTypeError(extension string, err error) *InvalidFileTypeError {
 	if err == nil {
-		err = fmt.Errorf("invalid resource variant name")
+		err = fmt.Errorf("initial invalid filetype name")
 	}
 	baseError := newBaseGRPCError(err, INVALID_FILE_TYPE, codes.InvalidArgument)
 	baseError.AddDetail("Extension", extension)

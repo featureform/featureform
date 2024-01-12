@@ -109,3 +109,21 @@ func NewInvalidResourceTypeError(resourceName, resourceVariant, resourceType str
 type InvalidResourceTypeError struct {
 	baseGRPCError
 }
+
+func NewInvalidResourceVariantNameError(resourceName, resourceVariant, resourceType string, err error) *InvalidResourceTypeError {
+	if err == nil {
+		err = fmt.Errorf("invalid resource variant name")
+	}
+	baseError := newBaseGRPCError(err, INVALID_RESOURCE_TYPE, codes.InvalidArgument)
+	baseError.AddDetail("Resource Name", resourceName)
+	baseError.AddDetail("Resource Variant", resourceVariant)
+	baseError.AddDetail("Resource Type", resourceType)
+
+	return &InvalidResourceTypeError{
+		baseError,
+	}
+}
+
+type InvalidResourceNameVariantError struct {
+	baseGRPCError
+}

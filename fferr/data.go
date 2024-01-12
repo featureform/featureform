@@ -27,7 +27,7 @@ func NewDatasetAlreadyExistsError(resourceName, resourceVariant string, err erro
 	if err == nil {
 		err = fmt.Errorf("initial dataset not found error")
 	}
-	baseError := newBaseGRPCError(err, DATASET_NOT_FOUND, codes.NotFound)
+	baseError := newBaseGRPCError(err, DATASET_ALREADY_EXISTS, codes.AlreadyExists)
 	baseError.AddDetail("Resource Name", resourceName)
 	baseError.AddDetail("Resource Variant", resourceVariant)
 
@@ -158,5 +158,21 @@ func NewInvalidResourceVariantNameError(resourceName, resourceVariant, resourceT
 }
 
 type InvalidResourceNameVariantError struct {
+	baseGRPCError
+}
+
+func NewInvalidFileTypeError(extension string, err error) *InvalidFileTypeError {
+	if err == nil {
+		err = fmt.Errorf("invalid resource variant name")
+	}
+	baseError := newBaseGRPCError(err, INVALID_FILE_TYPE, codes.InvalidArgument)
+	baseError.AddDetail("Extension", extension)
+
+	return &InvalidFileTypeError{
+		baseError,
+	}
+}
+
+type InvalidFileTypeError struct {
 	baseGRPCError
 }

@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 
 	cfg "github.com/featureform/config"
+	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
@@ -890,7 +891,7 @@ func (c *Coordinator) materializeFeatureViaS3Import(id metadata.ResourceID, conf
 	c.Logger.Infow("Materializing Feature Via S3 Import", "id", id)
 	sparkOfflineStore, isSparkOfflineStore := sourceStore.(*provider.SparkOfflineStore)
 	if !isSparkOfflineStore {
-		return fmt.Errorf("offline store is not spark offline store")
+		return fferr.NewConnectionError("spark", fmt.Errorf("offline store is not spark offline store"))
 	}
 	if sparkOfflineStore.Store.FilestoreType() != filestore.S3 {
 		return fmt.Errorf("offline file store must be S3; %s is not supported", sparkOfflineStore.Store.FilestoreType())

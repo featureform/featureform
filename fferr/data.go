@@ -23,7 +23,7 @@ type DatasetNotFoundError struct {
 	baseGRPCError
 }
 
-func NewTransformationNotFound(resourceName, resourceVariant string, err error) TransformationNotFound {
+func NewTransformationNotFoundError(resourceName, resourceVariant string, err error) TransformationNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("initial transformation not found error")
 	}
@@ -31,16 +31,16 @@ func NewTransformationNotFound(resourceName, resourceVariant string, err error) 
 	baseError.AddDetail("Resource Name", resourceName)
 	baseError.AddDetail("Resource Variant", resourceVariant)
 
-	return TransformationNotFound{
+	return TransformationNotFoundError{
 		baseError,
 	}
 }
 
-type TransformationNotFound struct {
+type TransformationNotFoundError struct {
 	baseGRPCError
 }
 
-func NewEntityNotFound(featureName, featureVariant, entityName string, err error) EntityNotFound {
+func NewEntityNotFoundError(featureName, featureVariant, entityName string, err error) EntityNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("initial entity not found error")
 	}
@@ -49,16 +49,16 @@ func NewEntityNotFound(featureName, featureVariant, entityName string, err error
 	baseError.AddDetail("Feature Variant", featureVariant)
 	baseError.AddDetail("Entity Name", entityName)
 
-	return EntityNotFound{
+	return EntityNotFoundError{
 		baseError,
 	}
 }
 
-type EntityNotFound struct {
+type EntityNotFoundError struct {
 	baseGRPCError
 }
 
-func NewFeatureNotFound(featureName, featureVariant string, err error) FeatureNotFound {
+func NewFeatureNotFoundError(featureName, featureVariant string, err error) FeatureNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("initial feature not found error")
 	}
@@ -66,16 +66,16 @@ func NewFeatureNotFound(featureName, featureVariant string, err error) FeatureNo
 	baseError.AddDetail("Feature Name", featureName)
 	baseError.AddDetail("Feature Variant", featureVariant)
 
-	return FeatureNotFound{
+	return FeatureNotFoundError{
 		baseError,
 	}
 }
 
-type FeatureNotFound struct {
+type FeatureNotFoundError struct {
 	baseGRPCError
 }
 
-func NewTrainingSetNotFound(resourceName, resourceVariant string, err error) TrainingSetNotFound {
+func NewTrainingSetNotFoundError(resourceName, resourceVariant string, err error) TrainingSetNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("initial training set not found error")
 	}
@@ -83,12 +83,12 @@ func NewTrainingSetNotFound(resourceName, resourceVariant string, err error) Tra
 	baseError.AddDetail("Resource Name", resourceName)
 	baseError.AddDetail("Resource Variant", resourceVariant)
 
-	return TrainingSetNotFound{
+	return TrainingSetNotFoundError{
 		baseError,
 	}
 }
 
-type TrainingSetNotFound struct {
+type TrainingSetNotFoundError struct {
 	baseGRPCError
 }
 

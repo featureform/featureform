@@ -23,6 +23,22 @@ type DatasetNotFoundError struct {
 	baseGRPCError
 }
 
+func NewDataTypeNotFoundError(valueType string, err error) *DataTypeNotFoundError {
+	if err == nil {
+		err = fmt.Errorf("initial datatype not found error")
+	}
+	baseError := newBaseGRPCError(err, DATATYPE_NOT_FOUND, codes.NotFound)
+	baseError.AddDetail("Value Type", valueType)
+
+	return &DataTypeNotFoundError{
+		baseError,
+	}
+}
+
+type DataTypeNotFoundError struct {
+	baseGRPCError
+}
+
 func NewTransformationNotFoundError(resourceName, resourceVariant string, err error) *TransformationNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("initial transformation not found error")

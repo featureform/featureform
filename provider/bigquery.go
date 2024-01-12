@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	_ "github.com/lib/pq"
@@ -867,14 +868,14 @@ func (store *bqOfflineStore) createTransformationName(id ResourceID) (string, er
 func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	name, err := GetPrimaryTableName(id)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
 	}
 
 	existsQuery := store.query.tableExists(name)
 	bqQ := store.client.Query(existsQuery)
 	it, err := bqQ.Read(store.query.getContext())
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
 	}
 
 	var row []bigquery.Value
@@ -884,7 +885,7 @@ func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (Transformati
 		return nil, err
 	}
 	if len(row) == 0 {
-		return nil, fmt.Errorf("transformation not found: %v", name)
+		return nil, fferr.NewTransformationNotFoundError(id.Name, id.Variant, nil)
 	}
 
 	columnNames, err := store.query.getColumns(store.client, name)

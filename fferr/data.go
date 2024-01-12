@@ -23,6 +23,23 @@ type DatasetNotFoundError struct {
 	baseGRPCError
 }
 
+func NewDatasetAlreadyExistsError(resourceName, resourceVariant string, err error) *DatasetAlreadyExistsError {
+	if err == nil {
+		err = fmt.Errorf("initial dataset not found error")
+	}
+	baseError := newBaseGRPCError(err, DATASET_NOT_FOUND, codes.NotFound)
+	baseError.AddDetail("Resource Name", resourceName)
+	baseError.AddDetail("Resource Variant", resourceVariant)
+
+	return &DatasetAlreadyExistsError{
+		baseError,
+	}
+}
+
+type DatasetAlreadyExistsError struct {
+	baseGRPCError
+}
+
 func NewDataTypeNotFoundError(valueType string, err error) *DataTypeNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("initial datatype not found error")

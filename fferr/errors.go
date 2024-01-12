@@ -20,7 +20,8 @@ const (
 	INVALID_RESOURCE_TYPE         = "Invalid Resource Type"
 	INVALID_RESOURCE_NAME_VARIANT = "Invalid Resource Name Variant"
 	// MISCELLANEOUS:
-	INTERNAL_ERROR = "Internal Error"
+	INTERNAL_ERROR   = "Internal Error"
+	INVALID_ARGUMENT = "Invalid Argument"
 )
 
 type JSONStackTrace map[string]interface{}

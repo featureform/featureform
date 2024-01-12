@@ -39,3 +39,19 @@ func NewExecutionError(providerName, resourceName, resourceVariant, resourceType
 type ExecutionError struct {
 	baseGRPCError
 }
+
+func NewProviderConfigError(providerName string, err error) *ProviderConfigError {
+	if err == nil {
+		err = fmt.Errorf("initial provider error")
+	}
+	baseError := newBaseGRPCError(err, EXECUTION_ERROR, codes.Internal)
+	baseError.AddDetail("Provider", providerName)
+
+	return &ProviderConfigError{
+		baseError,
+	}
+}
+
+type ProviderConfigError struct {
+	baseGRPCError
+}

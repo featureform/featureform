@@ -23,6 +23,39 @@ type DatasetNotFoundError struct {
 	baseGRPCError
 }
 
+func NewDatasetAlreadyExistsError(resourceName, resourceVariant string, err error) *DatasetAlreadyExistsError {
+	if err == nil {
+		err = fmt.Errorf("initial dataset not found error")
+	}
+	baseError := newBaseGRPCError(err, DATASET_ALREADY_EXISTS, codes.AlreadyExists)
+	baseError.AddDetail("Resource Name", resourceName)
+	baseError.AddDetail("Resource Variant", resourceVariant)
+
+	return &DatasetAlreadyExistsError{
+		baseError,
+	}
+}
+
+type DatasetAlreadyExistsError struct {
+	baseGRPCError
+}
+
+func NewDataTypeNotFoundError(valueType string, err error) *DataTypeNotFoundError {
+	if err == nil {
+		err = fmt.Errorf("initial datatype already exists error")
+	}
+	baseError := newBaseGRPCError(err, DATATYPE_NOT_FOUND, codes.NotFound)
+	baseError.AddDetail("Value Type", valueType)
+
+	return &DataTypeNotFoundError{
+		baseError,
+	}
+}
+
+type DataTypeNotFoundError struct {
+	baseGRPCError
+}
+
 func NewTransformationNotFoundError(resourceName, resourceVariant string, err error) *TransformationNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("initial transformation not found error")
@@ -112,7 +145,7 @@ type InvalidResourceTypeError struct {
 
 func NewInvalidResourceVariantNameError(resourceName, resourceVariant, resourceType string, err error) *InvalidResourceTypeError {
 	if err == nil {
-		err = fmt.Errorf("invalid resource variant name")
+		err = fmt.Errorf("initial invalid resource variant name")
 	}
 	baseError := newBaseGRPCError(err, INVALID_RESOURCE_TYPE, codes.InvalidArgument)
 	baseError.AddDetail("Resource Name", resourceName)
@@ -125,5 +158,21 @@ func NewInvalidResourceVariantNameError(resourceName, resourceVariant, resourceT
 }
 
 type InvalidResourceNameVariantError struct {
+	baseGRPCError
+}
+
+func NewInvalidFileTypeError(extension string, err error) *InvalidFileTypeError {
+	if err == nil {
+		err = fmt.Errorf("initial invalid filetype name")
+	}
+	baseError := newBaseGRPCError(err, INVALID_FILE_TYPE, codes.InvalidArgument)
+	baseError.AddDetail("Extension", extension)
+
+	return &InvalidFileTypeError{
+		baseError,
+	}
+}
+
+type InvalidFileTypeError struct {
 	baseGRPCError
 }

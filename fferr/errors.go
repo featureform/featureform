@@ -13,12 +13,15 @@ const (
 	CONNECTION_ERROR = "Connection Error"
 	// DATA:
 	DATASET_NOT_FOUND             = "Dataset Not Found"
+	DATASET_ALREADY_EXISTS        = "Dataset Already Exists"
+	DATATYPE_NOT_FOUND            = "Datatype Not Found"
 	TRANSFORMATION_NOT_FOUND      = "Transformation Not Found"
 	ENTITY_NOT_FOUND              = "Entity Not Found"
 	FEATURE_NOT_FOUND             = "Feature Not Found"
 	TRAINING_SET_NOT_FOUND        = "Training Set Not Found"
 	INVALID_RESOURCE_TYPE         = "Invalid Resource Type"
 	INVALID_RESOURCE_NAME_VARIANT = "Invalid Resource Name Variant"
+	INVALID_FILE_TYPE             = "Invalid File Type"
 	// MISCELLANEOUS:
 	INTERNAL_ERROR   = "Internal Error"
 	INVALID_ARGUMENT = "Invalid Argument"

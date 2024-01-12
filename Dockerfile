@@ -47,6 +47,7 @@ COPY go.sum ./
 RUN go mod download
 COPY ./filestore/ ./filestore/
 COPY ./health/ ./health/
+COPY fferr/ fferr/
 COPY api/ api/
 COPY helpers/ helpers/
 COPY lib/ lib/

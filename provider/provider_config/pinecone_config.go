@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"github.com/featureform/fferr"
 
 	ss "github.com/featureform/helpers/string_set"
 )
@@ -28,7 +29,7 @@ func (pc PineconeConfig) Serialize() SerializedConfig {
 func (pc *PineconeConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, pc)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }

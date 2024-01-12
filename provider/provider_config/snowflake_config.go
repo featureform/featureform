@@ -25,7 +25,7 @@ type SnowflakeConfig struct {
 func (sf *SnowflakeConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, sf)
 	if err != nil {
-		return fferr.NewProviderConfigError(provider_type.SnowflakeOffline, err)
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }

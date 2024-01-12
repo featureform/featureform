@@ -1109,6 +1109,14 @@ jobs:
         image: redis
         ports:
           - 6379:6379
+      clickhouse:
+        image: clickhouse/clickhouse-server
+        ports:
+          - 9000:9000
+        env:
+          CLICKHOUSE_USER: ${{ env.CLICKHOUSE_USER }}
+          CLICKHOUSE_DB: ${{ env.CLICKHOUSE_DB }}
+          CLICKHOUSE_PASSWORD: ${{ env.CLICKHOUSE_PASSWORD }}
     steps:
       - name: Download Working Compiled Directories
         uses: actions/download-artifact@v3

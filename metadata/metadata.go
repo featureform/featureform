@@ -1035,7 +1035,7 @@ func (resource *trainingSetVariantResource) Update(lookup ResourceLookup, update
 	deserialized := updateRes.Proto()
 	variantUpdate, ok := deserialized.(*pb.TrainingSetVariant)
 	if !ok {
-		return errors.New("failed to deserialize existing training set variant record")
+		return fferr.NewInternalError(fmt.Errorf("failed to deserialize existing training set variant record"))
 	}
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
@@ -1141,14 +1141,14 @@ func (resource *modelResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *modelResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *modelResource) Update(lookup ResourceLookup, updateRes Resource) error {
 	deserialized := updateRes.Proto()
 	modelUpdate, ok := deserialized.(*pb.Model)
 	if !ok {
-		return errors.New("failed to deserialize existing model record")
+		return fferr.NewInternalError(fmt.Errorf("failed to deserialize existing model record"))
 	}
 	resource.serialized.Features = unionNameVariants(resource.serialized.Features, modelUpdate.Features)
 	resource.serialized.Trainingsets = unionNameVariants(resource.serialized.Trainingsets, modelUpdate.Trainingsets)
@@ -1213,14 +1213,14 @@ func (resource *userResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *userResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *userResource) Update(lookup ResourceLookup, updateRes Resource) error {
 	deserialized := updateRes.Proto()
 	userUpdate, ok := deserialized.(*pb.User)
 	if !ok {
-		return errors.New("failed to deserialize existing user record")
+		return fferr.NewInternalError(errors.New("failed to deserialize existing user record"))
 	}
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, userUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, userUpdate.Properties)
@@ -1283,13 +1283,13 @@ func (resource *providerResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *providerResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *providerResource) Update(lookup ResourceLookup, resourceUpdate Resource) error {
 	providerUpdate, ok := resourceUpdate.Proto().(*pb.Provider)
 	if !ok {
-		return errors.New("failed to deserialize existing provider record")
+		return fferr.NewInternalError(errors.New("failed to deserialize existing provider record"))
 	}
 	isValid, err := resource.isValidConfigUpdate(providerUpdate.SerializedConfig)
 	if err != nil {
@@ -1385,14 +1385,14 @@ func (resource *entityResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *entityResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *entityResource) Update(lookup ResourceLookup, updateRes Resource) error {
 	deserialized := updateRes.Proto()
 	entityUpdate, ok := deserialized.(*pb.Entity)
 	if !ok {
-		return errors.New("failed to deserialize existing training entity record")
+		return fferr.NewInternalError(errors.New("failed to deserialize existing training entity record"))
 	}
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, entityUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, entityUpdate.Properties)
@@ -1413,7 +1413,7 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	lookup, err := config.StorageProvider.GetResourceLookup()
 
 	if err != nil {
-		return nil, fmt.Errorf("could not configure storage provider: %v", err)
+		return nil, fferr.NewInternalError(fmt.Errorf("could not configure storage provider: %v", err))
 	}
 	if config.SearchParams != nil {
 		searcher, errInitializeSearch := search.NewMeilisearch(config.SearchParams)
@@ -1434,11 +1434,11 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 
 func (serv *MetadataServer) Serve() error {
 	if serv.grpcServer != nil {
-		return fmt.Errorf("Server already running")
+		return fferr.NewInternalError(fmt.Errorf("server already running"))
 	}
 	lis, err := net.Listen("tcp", serv.address)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(fmt.Errorf("cannot listen to server address %s", serv.address))
 	}
 	return serv.ServeOnListener(lis)
 }
@@ -1454,7 +1454,7 @@ func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
 
 func (serv *MetadataServer) GracefulStop() error {
 	if serv.grpcServer == nil {
-		return fmt.Errorf("Server not running")
+		return fferr.NewInternalError(fmt.Errorf("server not running"))
 	}
 	serv.grpcServer.GracefulStop()
 	serv.grpcServer = nil
@@ -1464,7 +1464,7 @@ func (serv *MetadataServer) GracefulStop() error {
 
 func (serv *MetadataServer) Stop() error {
 	if serv.grpcServer == nil {
-		return fmt.Errorf("Server not running")
+		return fferr.NewInternalError(fmt.Errorf("server not running"))
 	}
 	serv.grpcServer.Stop()
 	serv.grpcServer = nil
@@ -1491,7 +1491,7 @@ type EtcdStorageProvider struct {
 func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 	client, err := sp.Config.InitClient()
 	if err != nil {
-		return nil, fmt.Errorf("could not init etcd client: %v", err)
+		return nil, fferr.NewInternalError(fmt.Errorf("could not init etcd client: %v", err))
 	}
 	lookup := EtcdResourceLookup{
 		Connection: EtcdStorage{
@@ -1512,7 +1512,7 @@ type Config struct {
 func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.ScheduleChangeRequest) (*pb.Empty, error) {
 	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
 	err := serv.lookup.SetSchedule(resID, req.Schedule)
-	return &pb.Empty{}, err
+	return &pb.Empty{}, fferr.NewInternalError(fmt.Errorf("could not init etcd client: %v", err))
 }
 
 func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetStatusRequest) (*pb.Empty, error) {
@@ -1523,7 +1523,7 @@ func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetSt
 		serv.Logger.Errorw("Could not set resource status", "error", err.Error())
 	}
 
-	return &pb.Empty{}, err
+	return &pb.Empty{}, fferr.NewInternalError(fmt.Errorf("could not set resource status: %v", err))
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {
@@ -1734,17 +1734,17 @@ func (serv *MetadataServer) getEquivalent(req *pb.ResourceVariant, filterReadySt
 
 	currentResource, resourceType, err := serv.extractResourceVariant(req)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(fmt.Errorf("could not extract resource variant %v", err))
 	}
 
 	resourcesForType, err := serv.lookup.ListForType(resourceType)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(fmt.Errorf("could not find list for type %v", err))
 	}
 
 	equivalentResourceVariant, err := findEquivalent(resourcesForType, currentResource, filterReadyStatus)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 
 	if equivalentResourceVariant == nil {
@@ -1764,12 +1764,12 @@ func findEquivalent(resources []Resource, resource ResourceVariant, filterReadyS
 
 		other, ok := res.(ResourceVariant)
 		if !ok {
-			return nil, fmt.Errorf("resource is not a ResourceVariant: %T", res)
+			return nil, fferr.NewInvalidResourceTypeError(res.ID().Name, res.ID().Variant, res.ID().Type.String(), fmt.Errorf("resource is not a ResourceVariant: %T", res))
 		}
 
 		equivalent, err := resource.IsEquivalent(other)
 		if err != nil {
-			return nil, err
+			return nil, fferr.NewInternalError(err)
 		}
 		if equivalent {
 			return other, nil

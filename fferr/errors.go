@@ -12,12 +12,13 @@ const (
 	EXECUTION_ERROR  = "Execution Error"
 	CONNECTION_ERROR = "Connection Error"
 	// DATA:
-	DATASET_NOT_FOUND        = "Dataset Not Found"
-	TRANSFORMATION_NOT_FOUND = "Transformation Not Found"
-	ENTITY_NOT_FOUND         = "Entity Not Found"
-	FEATURE_NOT_FOUND        = "Feature Not Found"
-	TRAINING_SET_NOT_FOUND   = "Training Set Not Found"
-	INVALID_RESOURCE_TYPE    = "Invalid Resource Type"
+	DATASET_NOT_FOUND             = "Dataset Not Found"
+	TRANSFORMATION_NOT_FOUND      = "Transformation Not Found"
+	ENTITY_NOT_FOUND              = "Entity Not Found"
+	FEATURE_NOT_FOUND             = "Feature Not Found"
+	TRAINING_SET_NOT_FOUND        = "Training Set Not Found"
+	INVALID_RESOURCE_TYPE         = "Invalid Resource Type"
+	INVALID_RESOURCE_NAME_VARIANT = "Invalid Resource Name Variant"
 	// MISCELLANEOUS:
 	INTERNAL_ERROR = "Internal Error"
 )

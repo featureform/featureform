@@ -90,7 +90,7 @@ def test_sql_transformation(name, variant, sql, spark_provider):
         created=None,
         name=name,
         variant=variant,
-        definition=SQLTransformation(query=sql),
+        definition=SQLTransformation(query=sql, inputs=[]),
         owner="tester",
         provider="spark",
         description="doc string",

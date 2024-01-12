@@ -95,6 +95,29 @@ def test_sql_transformation_decorator_invalid_fn(local, fn):
         decorator(fn)
 
 
+def test_sql_transformation_with_inputs(registrar):
+    def my_function(arg1, arg2):
+        return "SELECT * FROM {{ arg1 }} JOIN {{ arg2 }}"
+
+    dec = SQLTransformationDecorator(
+        registrar=registrar,
+        owner="",
+        provider="",
+        variant="sql",
+        tags=[],
+        properties={},
+        inputs=[("df", "var"), ("df2", "var2")],
+    )
+    dec.__call__(my_function)
+
+    # Checks that Transformation definition does not error when converting to source
+    source = dec.to_source()
+    assert (
+        source.definition.kwargs()["transformation"].SQLTransformation.query
+        == "SELECT * FROM {{ df.var }} JOIN {{ df2.var2 }}"
+    )
+
+
 def test_sql_transformation_empty_description(registrar):
     def my_function():
         return "SELECT * FROM {{ name.variant }}"
@@ -281,10 +304,10 @@ def run_before_and_after_tests(tmpdir):
         ("SELECT * FROM     \n {{name . variant}}", False),
         (
             """
-            SELECT *
-            FROM {{ name.variant2 }}
-            WHERE x >= 5.
-            """,
+                    SELECT *
+                    FROM {{ name.variant2 }}
+                    WHERE x >= 5.
+                    """,
             True,
         ),
         (

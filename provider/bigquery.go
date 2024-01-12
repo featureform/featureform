@@ -890,7 +890,7 @@ func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (Transformati
 
 	columnNames, err := store.query.getColumns(store.client, name)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
 	}
 
 	return &bqPrimaryTable{
@@ -904,11 +904,11 @@ func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (Transformati
 func (store *bqOfflineStore) UpdateTransformation(config TransformationConfig) error {
 	name, err := store.createTransformationName(config.TargetTableID)
 	if err != nil {
-		return err
+		return fferr.NewTransformationNotFoundError(config.TargetTableID.Name, config.TargetTableID.Variant, nil)
 	}
 	err = store.query.transformationUpdate(store.client, name, config.Query)
 	if err != nil {
-		return err
+		return fferr.NewTransformationNotFoundError(config.TargetTableID.Name, config.TargetTableID.Variant, nil)
 	}
 
 	return nil

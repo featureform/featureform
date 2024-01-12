@@ -13,6 +13,7 @@ const (
 	CONNECTION_ERROR = "Connection Error"
 	// DATA:
 	DATASET_NOT_FOUND             = "Dataset Not Found"
+	DATATYPE_NOT_FOUND            = "Datatype Not Found"
 	TRANSFORMATION_NOT_FOUND      = "Transformation Not Found"
 	ENTITY_NOT_FOUND              = "Entity Not Found"
 	FEATURE_NOT_FOUND             = "Feature Not Found"

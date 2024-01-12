@@ -1110,7 +1110,7 @@ class SQLTransformationDecorator:
     variant: str = ""
     name: str = ""
     schedule: str = ""
-    inputs: list = field(default_factory=list),
+    inputs: list = field(default_factory=list)
     description: str = ""
     args: Union[K8sArgs, None] = None
     query: str = field(default_factory=str, init=False)

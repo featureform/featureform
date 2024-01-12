@@ -111,7 +111,7 @@ def test_sql_transformation_without_variant(sql, spark_provider):
         return sql
 
     variant = get_random_name()
-    decorator = spark_provider.sql_transformation(variant=variant, inputs=None)
+    decorator = spark_provider.sql_transformation(variant=variant)
     decorator(transformation)
 
     assert decorator.to_source() == SourceVariant(

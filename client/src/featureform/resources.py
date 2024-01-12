@@ -968,14 +968,14 @@ class Transformation:
 class SQLTransformation(Transformation):
     query: str
     args: K8sArgs = None
-    inputs: list = None
+    inputs: list = field(default_factory=list)
 
     def type(self):
         return SourceType.SQL_TRANSFORMATION.value
 
     def kwargs(self):
         source_name_variants = []
-        if self.inputs is not None:
+        if self.inputs is not None and len(self.inputs) > 0:
             for i, inp in enumerate(self.inputs):
                 if hasattr(
                     inp, "name_variant"

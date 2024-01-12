@@ -1158,9 +1158,10 @@ class SQLTransformationDecorator:
 
         self._assert_query_contains_at_least_one_source(query)
         if len(self.inputs) > 0:
-            self.query = add_variant_to_name(query, self.run)
-        else:
+            # if inputs are specified, then the query will be resolved at the time of creation (when #kwargs is called)
             self.query = query
+        else:
+            self.query = add_variant_to_name(query, self.run)
 
     def to_source(self) -> SourceVariant:
         return SourceVariant(

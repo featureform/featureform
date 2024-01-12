@@ -20,3 +20,18 @@ func NewInternalError(err error) *InternalError {
 type InternalError struct {
 	baseGRPCError
 }
+
+func NewInvalidArgument(err error) *InvalidArgument {
+	if err == nil {
+		err = fmt.Errorf("initial invalid argument error")
+	}
+	baseError := newBaseGRPCError(err, INVALID_ARGUMENT, codes.InvalidArgument)
+
+	return &InvalidArgument{
+		baseError,
+	}
+}
+
+type InvalidArgument struct {
+	baseGRPCError
+}

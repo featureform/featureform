@@ -6,16 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"math"
 	"reflect"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
-
-	_ "github.com/ClickHouse/clickhouse-go/v2"
-	pc "github.com/featureform/provider/provider_config"
-	pt "github.com/featureform/provider/provider_type"
 )
 
 const (
@@ -1253,8 +1251,8 @@ func (q clickhouseSQLQueries) transformationExists() string {
 }
 
 func (q clickhouseSQLQueries) getColumns(db *sql.DB, tableName string) ([]TableColumn, error) {
-	qry := fmt.Sprintf("SELECT name FROM system.columns WHERE table = '%s'", tableName)
-	rows, err := db.Query(qry)
+	qry := "SELECT name FROM system.columns WHERE table = ?"
+	rows, err := db.Query(qry, tableName)
 	if err != nil {
 		return nil, err
 	}

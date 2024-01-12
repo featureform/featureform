@@ -411,7 +411,7 @@ func testMySqlConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 
 func testClickHouseConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 	host := "0.0.0.0"
-	port := "9000"
+	port := uint16(9000)
 	username := "default"
 	password := "password"
 	database := "default"
@@ -428,7 +428,7 @@ func testClickHouseConfigUpdates(t *testing.T, providerType pt.Type, valid bool)
 	if valid {
 		username += updateSuffix
 		password += updateSuffix
-		port = "9000"
+		port = uint16(9001)
 	} else {
 		host = "127.0.0.1"
 		database += updateSuffix
@@ -443,7 +443,7 @@ func testClickHouseConfigUpdates(t *testing.T, providerType pt.Type, valid bool)
 	}
 	b := configB.Serialize()
 
-	actual, err := isValidPostgresConfigUpdate(a, b)
+	actual, err := isValidClickHouseConfigUpdate(a, b)
 	assertConfigUpdateResult(t, valid, actual, err, providerType)
 }
 

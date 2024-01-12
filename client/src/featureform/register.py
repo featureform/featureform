@@ -3368,18 +3368,18 @@ class Registrar:
         return OfflineSQLProvider(self, provider)
 
     def register_clickhouse(
-            self,
-            name: str,
-            host: str,
-            user: str,
-            password: str,
-            database: str,
-            port: int = 9000,
-            description: str = "",
-            team: str = "",
-            ssl: bool = False,
-            tags: List[str] = [],
-            properties: dict = {},
+        self,
+        name: str,
+        host: str,
+        user: str,
+        password: str,
+        database: str,
+        port: int = 9000,
+        description: str = "",
+        team: str = "",
+        ssl: bool = False,
+        tags: List[str] = [],
+        properties: dict = {},
     ):
         """Register a ClickHouse provider.
 
@@ -3414,7 +3414,12 @@ class Registrar:
         """
         tags, properties = set_tags_properties(tags, properties)
         config = ClickHouseConfig(
-            host=host, port=port, database=database, user=user, password=password, ssl=ssl
+            host=host,
+            port=port,
+            database=database,
+            user=user,
+            password=password,
+            ssl=ssl,
         )
         provider = Provider(
             name=name,

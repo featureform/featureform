@@ -6,14 +6,14 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func NewConnectionError(providerName string, err error) ConnectionError {
+func NewConnectionError(providerName string, err error) *ConnectionError {
 	if err == nil {
 		err = fmt.Errorf("initial connection error")
 	}
 	baseError := newBaseGRPCError(err, CONNECTION_ERROR, codes.Internal)
 	baseError.AddDetail("Provider", providerName)
 
-	return ConnectionError{
+	return &ConnectionError{
 		baseError,
 	}
 }
@@ -22,7 +22,7 @@ type ConnectionError struct {
 	baseGRPCError
 }
 
-func NewExecutionError(providerName, resourceName, resourceVariant, resourceType string, err error) ExecutionError {
+func NewExecutionError(providerName, resourceName, resourceVariant, resourceType string, err error) *ExecutionError {
 	if err == nil {
 		err = fmt.Errorf("initial execution error")
 	}
@@ -31,7 +31,7 @@ func NewExecutionError(providerName, resourceName, resourceVariant, resourceType
 	baseError.AddDetail("Resource Name", resourceName)
 	baseError.AddDetail("Resource Variant", resourceVariant)
 
-	return ExecutionError{
+	return &ExecutionError{
 		baseError,
 	}
 }

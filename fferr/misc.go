@@ -6,13 +6,13 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func NewInternalError(err error) InternalError {
+func NewInternalError(err error) *InternalError {
 	if err == nil {
 		err = fmt.Errorf("initial internal error")
 	}
 	baseError := newBaseGRPCError(err, INTERNAL_ERROR, codes.Internal)
 
-	return InternalError{
+	return &InternalError{
 		baseError,
 	}
 }

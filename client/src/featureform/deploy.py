@@ -95,7 +95,7 @@ class DockerDeployment(Deployment):
                     image="clickhouse/clickhouse-server",
                     port={"9000/tcp": 9000, "8123/tcp": 8123},
                     detach_mode=True,
-                    env={}
+                    env={},
                 )
             )
 

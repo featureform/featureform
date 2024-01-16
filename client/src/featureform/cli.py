@@ -269,7 +269,9 @@ def search(query, host, cert, insecure, local):
     "--quickstart", is_flag=True, help="Install Featureform Quickstart as well"
 )
 @click.option(
-    "--include_clickhouse", is_flag=True, help="Includes ClickHouse in the deployment. Requires quickstart."
+    "--include_clickhouse",
+    is_flag=True,
+    help="Includes ClickHouse in the deployment. Requires quickstart.",
 )
 def deploy(deploy_type, quickstart, include_clickhouse):
     print(f"Deploying Featureform on {deploy_type.capitalize()}")

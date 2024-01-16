@@ -122,6 +122,11 @@ jobs:
           name: "./provider/bigquery_credentials.json"
           json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
 
+      - name: Check credentials location
+        run: |
+          ls
+          ls provider
+
       - name: Install ETCD
         run: |
           git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
@@ -163,7 +168,7 @@ jobs:
           S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
           BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
           BIGQUERY_DATASET_ID: ${{ secrets.BIGQUERY_DATASET_ID }}
-          BIGQUERY_CREDENTIALS: "provider/bigquery_credentials.json"
+          BIGQUERY_CREDENTIALS: "./provider/bigquery_credentials.json"
           MYSQL_USER: "root"
           MYSQL_PASSWORD: "password"
           MYSQL_DB: "mysql"

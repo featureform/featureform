@@ -30,6 +30,7 @@ const (
 	RESOURCE_ALREADY_COMPLETE = "Resource Already Complete"
 	RESOURCE_ALREADY_FAILED   = "Resource Already Failed"
 	RESOURCE_NOT_READY        = "Resource Not Ready"
+	RESOURCE_FAILED           = "Resource Failed"
 )
 
 type JSONStackTrace map[string]interface{}

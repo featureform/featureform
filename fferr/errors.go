@@ -29,6 +29,7 @@ const (
 	JOB_DOES_NOT_EXIST        = "Job Does Not Exist"
 	RESOURCE_ALREADY_COMPLETE = "Resource Already Complete"
 	RESOURCE_ALREADY_FAILED   = "Resource Already Failed"
+	RESOURCE_NOT_READY        = "Resource Not Ready"
 )
 
 type JSONStackTrace map[string]interface{}

@@ -676,7 +676,11 @@ func (table *bqOfflineTable) Write(rec ResourceRecord) error {
 	}
 
 	if n == nil {
+<<<<<<< HEAD
 		return fferr.NewInternalError(fmt.Errorf("cannot find %s table", tb))
+=======
+		// return fferr.NewDatasetNotFoundError()
+>>>>>>> 5e35e73a (changes)
 	}
 
 	var writeQuery string

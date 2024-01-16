@@ -25,6 +25,10 @@ const (
 	// MISCELLANEOUS:
 	INTERNAL_ERROR   = "Internal Error"
 	INVALID_ARGUMENT = "Invalid Argument"
+	// JOBS:
+	JOB_DOES_NOT_EXIST        = "Job Does Not Exist"
+	RESOURCE_ALREADY_COMPLETE = "Resource Already Complete"
+	RESOURCE_ALREADY_FAILED   = "Resource Already Failed"
 )
 
 type JSONStackTrace map[string]interface{}

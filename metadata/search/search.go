@@ -77,7 +77,7 @@ type ResourceDoc struct {
 	Name    string
 	Variant string
 	Type    string
-	Tags 	[]string
+	Tags    []string
 }
 
 func (s Search) waitForSync(taskUID int64) error {
@@ -118,12 +118,12 @@ func (s Search) initializeCollection() error {
 
 func (s Search) Upsert(doc ResourceDoc) error {
 	document := map[string]interface{}{
-	"ID":      strings.ReplaceAll(fmt.Sprintf("%s__%s__%s", doc.Type, doc.Name, doc.Variant), " ", ""),
-	"Parsed":  strings.ReplaceAll(fmt.Sprintf("%s__%s__%s", doc.Type, doc.Name, doc.Variant), "_", " "),
-	"Name":    doc.Name,
-	"Type":    doc.Type,
-	"Variant": doc.Variant,
-	"Tags":	   doc.Tags,
+		"ID":      strings.ReplaceAll(fmt.Sprintf("%s__%s__%s", doc.Type, doc.Name, doc.Variant), " ", ""),
+		"Parsed":  strings.ReplaceAll(fmt.Sprintf("%s__%s__%s", doc.Type, doc.Name, doc.Variant), "_", " "),
+		"Name":    doc.Name,
+		"Type":    doc.Type,
+		"Variant": doc.Variant,
+		"Tags":    doc.Tags,
 	}
 	resp, err := s.client.Index("resources").UpdateDocuments(document)
 	if err != nil {
@@ -144,30 +144,46 @@ func (s Search) DeleteAll() error {
 }
 
 func (s Search) RunSearch(q string) ([]ResourceDoc, error) {
-    results, err := s.client.Index("resources").Search(q, &ms.SearchRequest{})
-    if err != nil {
-        return nil, fmt.Errorf("failed to search: %v", err)
-    }
+	results, err := s.client.Index("resources").Search(q, &ms.SearchRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to search: %v", err)
+	}
 
-    var searchResults []ResourceDoc
+	var searchResults []ResourceDoc
 
-    for _, hit := range results.Hits {
-        doc := hit.(map[string]interface{})
+	for _, hit := range results.Hits {
+		doc := hit.(map[string]interface{})
 
-        var tags []string
-        if tagSlice, ok := doc["Tags"].([]interface{}); ok {
-            for _, tag := range tagSlice {
-                if strTag, ok := tag.(string); ok {
-                    tags = append(tags, strTag)}
-            }
-        }
-        searchResults = append(searchResults, ResourceDoc{
-            Name:    doc["Name"].(string),
-            Type:    doc["Type"].(string),
-            Variant: doc["Variant"].(string),
-            Tags:    tags,
-        })
+		var tags []string
+		if tagSlice, ok := doc["Tags"].([]interface{}); ok {
+			for _, tag := range tagSlice {
+				if strTag, ok := tag.(string); ok {
+					tags = append(tags, strTag)
+				}
+			}
+		}
+		searchResults = append(searchResults, ResourceDoc{
+			Name:    doc["Name"].(string),
+			Type:    doc["Type"].(string),
+			Variant: doc["Variant"].(string),
+			Tags:    tags,
+		})
 
-    }
-    return searchResults, nil
+	}
+	return searchResults, nil
+}
+
+type SearchMock struct {
+}
+
+func (s SearchMock) Upsert(doc ResourceDoc) error {
+	return nil
+}
+
+func (s SearchMock) DeleteAll() error {
+	return nil
+}
+
+func (s SearchMock) RunSearch(q string) ([]ResourceDoc, error) {
+	return nil, nil
 }

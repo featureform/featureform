@@ -75,3 +75,21 @@ func NewResourceNotReadyError(resourceName, resourceVariant, resourceType string
 type ResourceNotReadyError struct {
 	baseGRPCError
 }
+
+func NewResourceFailedError(resourceName, resourceVariant, resourceType string, err error) *ResourceFailedError {
+	if err == nil {
+		err = fmt.Errorf("initial resource failed error")
+	}
+	baseError := newBaseGRPCError(err, RESOURCE_FAILED, codes.Internal)
+	baseError.AddDetail("Resource Name", resourceName)
+	baseError.AddDetail("Resource Variant", resourceVariant)
+	baseError.AddDetail("Resource Type", resourceType)
+
+	return &ResourceFailedError{
+		baseError,
+	}
+}
+
+type ResourceFailedError struct {
+	baseGRPCError
+}

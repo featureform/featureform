@@ -38,12 +38,12 @@ jobs:
     timeout-minutes: 120
     environment: Integration testing
     services:
-      redis-insecure:
-        image: redis
-        # Hard coded port because environment variables not currently
-        # supported for use outside of 'steps'
-        ports:
-          - 6379:6379
+#      redis-insecure:
+#        image: redis
+#        # Hard coded port because environment variables not currently
+#        # supported for use outside of 'steps'
+#        ports:
+#          - 6379:6379
 
       cassandra:
         image: cassandra
@@ -57,7 +57,7 @@ jobs:
         # Hard coded port because environment variables not currently
         # supported for use outside of 'steps'
         ports:
-          - 6380:6379
+          - 6379:6379
       postgres:
         image: postgres
         ports:
@@ -136,9 +136,17 @@ jobs:
           export PATH="$PATH:`pwd`/bin"
           etcd --version
           etcd --logger=zap &
+          
+
+      - name: Build and Run HDFS
+        run: |
+          git clone https://github.com/rancavil/hadoop-single-node-cluster.git
+          cd hadoop-single-node-cluster
+          docker build -t hadoop .
+          docker run -d -p 9864:9864 -p 9870:9870 -p 8088:8088 -p 9000:9000 -p 9866:9866 --hostname localhost hadoop
 
       - name: Integration Tests
-        run: go test ./... -parallel 1000
+        run: go test -parallel 1000 -coverprofile=coverage.out ./... && go tool cover -func=coverage.out
         env:
           DYNAMO_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
           DYNAMO_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}

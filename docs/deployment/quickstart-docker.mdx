@@ -30,6 +30,13 @@ featureform deploy docker --quickstart
 This will pull and start the Featureform container, as well as a Postgres and Redis containers containing some
 example data.
 
+Users can optionally also use ClickHouse, should they wish to use an OLAP database for their offline store, by specifying
+the `--include_clickhouse` flag i.e.
+
+```shell
+featureform deploy docker --quickstart --include_clickhouse
+```
+
 ## Step 3: Set the Featureform Host
 
 ```shell

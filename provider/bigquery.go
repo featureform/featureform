@@ -278,7 +278,7 @@ func (q defaultBQQueries) determineColumnType(valueType ValueType) (string, erro
 	case NilType:
 		return "STRING", nil
 	default:
-		return "", fmt.Errorf("cannot find column type for value type: %s", valueType)
+		return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", valueType), fmt.Errorf("cannot find column type for value type: %s", valueType))
 	}
 }
 
@@ -776,7 +776,7 @@ func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sche
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	if schema.Entity == "" || schema.Value == "" {
-		return nil, fmt.Errorf("non-empty entity and value columns required")
+		return nil, fferr.NewInvalidArgument(fmt.Errorf("non-empty entity and value columns required"))
 	}
 	tableName, err := store.getResourceTableName(id)
 	if err != nil {

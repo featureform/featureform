@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
@@ -96,7 +97,7 @@ func NewSQLOfflineStore(config SQLOfflineStoreConfig) (*sqlOfflineStore, error) 
 
 func checkName(id ResourceID) error {
 	if strings.Contains(id.Name, "__") || strings.Contains(id.Variant, "__") {
-		return fmt.Errorf("names cannot contain double underscores '__': %s", id.Name)
+		return fferr.NewInvalidArgument(fmt.Errorf("names cannot contain double underscores '__': %s", id.Name))
 	}
 	return nil
 }

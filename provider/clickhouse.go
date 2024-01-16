@@ -5,18 +5,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/ClickHouse/clickhouse-go/v2"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"math"
 	"reflect"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/ClickHouse/clickhouse-go/v2"
-
-	_ "github.com/ClickHouse/clickhouse-go/v2"
-	pc "github.com/featureform/provider/provider_config"
-	pt "github.com/featureform/provider/provider_type"
 )
 
 const (

@@ -28,7 +28,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var searchClient search.Searcher
+var SearchClient search.Searcher
 
 type StorageProvider interface {
 	GetResourceLookup() (metadata.ResourceLookup, error)
@@ -1011,7 +1011,7 @@ func (m *MetadataServer) GetSearch(c *gin.Context) {
 		c.JSON(500, "Missing query")
 	}
 
-	result, err := searchClient.RunSearch(query)
+	result, err := SearchClient.RunSearch(query)
 	if err != nil {
 		m.logger.Errorw("Failed to fetch resources", "error", err)
 		c.JSON(500, "Failed to fetch resources")
@@ -1451,7 +1451,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 		Tags:    requestBody.Tags,
 	}
 	// Update search index for Meilisearch
-	searchClient.Upsert(updatedResource)
+	SearchClient.Upsert(updatedResource)
 
 	c.JSON(http.StatusOK, TagResult{
 		Name:    name,
@@ -1555,7 +1555,7 @@ func main() {
 		logger.Panicw("Failed to create new meil search", err)
 	}
 
-	searchClient = sc
+	SearchClient = sc
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	logger.Infof("Looking for metadata at: %s\n", metadataAddress)
 	client, err := metadata.NewClient(metadataAddress, logger)

@@ -194,6 +194,7 @@ jobs:
           PYTHON_LOCAL_INIT_PATH: home/runner/work/featureform/featureform/provider/scripts/spark/python_packages.sh
 
       - name: Print Coverage
+        if: always()
         run: go tool cover -func=coverage.out
 
 

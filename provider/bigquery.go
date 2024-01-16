@@ -672,11 +672,11 @@ func (table *bqOfflineTable) Write(rec ResourceRecord) error {
 
 	err = iter.Next(&n)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 
 	if n == nil {
-		// return fferr.NewDatasetNotFoundError()
+		return fferr.NewInternalError(fmt.Errorf("cannot find %s table", tb))
 	}
 
 	var writeQuery string
@@ -716,16 +716,16 @@ type bqOfflineStore struct {
 func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
 	sc := pc.BigQueryConfig{}
 	if err := sc.Deserialize(config.Config); err != nil {
-		return nil, errors.New("invalid bigquery config")
+		return nil, fferr.NewProviderConfigError("bigquery", err)
 	}
 
 	creds, err := json.Marshal(sc.Credentials)
 	if err != nil {
-		return nil, fmt.Errorf("could not serialize bigquery credentials")
+		return nil, fferr.NewConnectionError("bigquery", err)
 	}
 	client, err := bigquery.NewClient(context.TODO(), config.ProjectId, option.WithCredentialsJSON(creds))
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewConnectionError("bigquery", err)
 	}
 	defer client.Close()
 
@@ -743,7 +743,7 @@ func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
 func bigQueryOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.BigQueryConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, errors.New("invalid bigquery config")
+		return nil, fferr.NewProviderConfigError("bigquery", err)
 	}
 	queries := defaultBQQueries{}
 	queries.setTablePrefix(fmt.Sprintf("%s.%s", sc.ProjectId, sc.DatasetId))

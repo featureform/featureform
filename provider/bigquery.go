@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	_ "github.com/lib/pq"
@@ -675,7 +676,7 @@ func (table *bqOfflineTable) Write(rec ResourceRecord) error {
 	}
 
 	if n == nil {
-		return fmt.Errorf("Cannot find %s table", tb)
+		// return fferr.NewDatasetNotFoundError()
 	}
 
 	var writeQuery string
@@ -799,21 +800,21 @@ func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourc
 		return nil, err
 	}
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, err
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 
 	tableName, err := GetPrimaryTableName(id)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
 	}
 	query := store.query.primaryTableRegister(tableName, sourceName)
 
 	bqQ := store.client.Query(query)
 	job, err := bqQ.Run(store.query.getContext())
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError("bigquery", id.Name, id.Variant, "", err)
 	}
 
 	err = store.query.monitorJob(job)
@@ -867,14 +868,14 @@ func (store *bqOfflineStore) createTransformationName(id ResourceID) (string, er
 func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	name, err := GetPrimaryTableName(id)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
 	}
 
 	existsQuery := store.query.tableExists(name)
 	bqQ := store.client.Query(existsQuery)
 	it, err := bqQ.Read(store.query.getContext())
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
 	}
 
 	var row []bigquery.Value
@@ -884,12 +885,12 @@ func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (Transformati
 		return nil, err
 	}
 	if len(row) == 0 {
-		return nil, fmt.Errorf("transformation not found: %v", name)
+		return nil, fferr.NewTransformationNotFoundError(id.Name, id.Variant, nil)
 	}
 
 	columnNames, err := store.query.getColumns(store.client, name)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
 	}
 
 	return &bqPrimaryTable{
@@ -903,11 +904,11 @@ func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (Transformati
 func (store *bqOfflineStore) UpdateTransformation(config TransformationConfig) error {
 	name, err := store.createTransformationName(config.TargetTableID)
 	if err != nil {
-		return err
+		return fferr.NewTransformationNotFoundError(config.TargetTableID.Name, config.TargetTableID.Variant, nil)
 	}
 	err = store.query.transformationUpdate(store.client, name, config.Query)
 	if err != nil {
-		return err
+		return fferr.NewTransformationNotFoundError(config.TargetTableID.Name, config.TargetTableID.Variant, nil)
 	}
 
 	return nil
@@ -915,15 +916,15 @@ func (store *bqOfflineStore) UpdateTransformation(config TransformationConfig) e
 
 func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
 	if err := id.check(Primary); err != nil {
-		return nil, err
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
 	}
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, err
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
 	if len(schema.Columns) == 0 {
-		return nil, fmt.Errorf("cannot create primary table without columns")
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("cannot create primary table without columns"))
 	}
 	tableName, err := GetPrimaryTableName(id)
 	if err != nil {
@@ -931,7 +932,7 @@ func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchem
 	}
 	table, err := store.newBigQueryPrimaryTable(store.client, tableName, schema)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError("bigquery", id.Name, id.Variant, "", err)
 	}
 	return table, nil
 }
@@ -939,7 +940,7 @@ func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchem
 func (store *bqOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
 	name, err := GetPrimaryTableName(id)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
 	}
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
@@ -1321,7 +1322,7 @@ func (store *bqOfflineStore) tableExists(id ResourceID) (bool, error) {
 		tableName, err = GetPrimaryTableName(id)
 	}
 	if err != nil {
-		return false, err
+		return false, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
 	}
 
 	query := store.query.tableExists(tableName)

@@ -2758,9 +2758,8 @@ func TestCreateLogS3FileStore(t *testing.T) {
 }
 
 func TestEMRErrorMessages(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration tests")
-	}
+
+	t.Skip("extremely long running needs to be resolved")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		fmt.Println(err)

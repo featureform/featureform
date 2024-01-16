@@ -136,7 +136,7 @@ jobs:
         env:
           DYNAMO_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
           DYNAMO_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-          DYNAMO_REGION: "us-east-1"
+          DYNAMODB_REGION: "us-east-1"
           FIRESTORE_CRED: "firestore_credentials.json"
           FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
           AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
@@ -163,7 +163,7 @@ jobs:
           S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
           BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
           BIGQUERY_DATASET_ID: ${{ secrets.BIGQUERY_DATASET_ID }}
-          BIGQUERY_CREDENTIALS: "bigquery_credentials.json"
+          BIGQUERY_CREDENTIALS: "provider/bigquery_credentials.json"
           MYSQL_USER: "root"
           MYSQL_PASSWORD: "password"
           MYSQL_DB: "mysql"

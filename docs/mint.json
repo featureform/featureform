@@ -133,7 +133,8 @@
                   "providers/kubernetes",
                   "providers/bigquery",
                   "providers/postgres",
-                  "providers/redshift"
+                  "providers/redshift",
+                  "providers/clickhouse"
                 ]
               },
               {

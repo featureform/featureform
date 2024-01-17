@@ -110,6 +110,14 @@
     "Database": "database",
     "SSLMode": "sslmode"
   },
+  "ClickHouseConfig": {
+    "Host": "host",
+    "Port": 9000,
+    "Username": "username",
+    "Password": "password",
+    "Database": "database",
+    "SSL": false
+  },
   "RedshiftConfig": {
     "Host": "host",
     "Port": "0",

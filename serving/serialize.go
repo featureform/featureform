@@ -199,10 +199,22 @@ func wrapValue(value interface{}) (proto *pb.Value, err error) {
 		proto = wrapDouble(typed)
 	case int:
 		proto = wrapInt(typed)
+	case int8:
+		proto = wrapInt32(int32(typed))
+	case int16:
+		proto = wrapInt32(int32(typed))
 	case int32:
 		proto = wrapInt32(typed)
 	case int64:
 		proto = wrapInt64(typed)
+	case uint8:
+		proto = wrapUInt32(uint32(typed))
+	case uint16:
+		proto = wrapUInt32(uint32(typed))
+	case uint32:
+		proto = wrapUInt32(typed)
+	case uint64:
+		proto = wrapUInt64(typed)
 	case bool:
 		proto = wrapBool(typed)
 	case metadata.PythonFunction:
@@ -252,6 +264,18 @@ func wrapInt32(val int32) *pb.Value {
 func wrapInt64(val int64) *pb.Value {
 	return &pb.Value{
 		Value: &pb.Value_Int64Value{val},
+	}
+}
+
+func wrapUInt32(val uint32) *pb.Value {
+	return &pb.Value{
+		Value: &pb.Value_Uint32Value{val},
+	}
+}
+
+func wrapUInt64(val uint64) *pb.Value {
+	return &pb.Value{
+		Value: &pb.Value_Uint64Value{val},
 	}
 }
 

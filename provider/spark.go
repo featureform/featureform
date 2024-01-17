@@ -542,11 +542,11 @@ func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {
 
 	runs, err := db.client.Jobs.ListRunsAll(ctx, runRequest)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError(string(pt.SparkOffline), "", "", "", fmt.Errorf("could not get runs for Databricks job ID %v: %v", jobId, err))
 	}
 
 	if len(runs) == 0 {
-		return nil, fmt.Errorf("no runs found for job id: %v", jobId)
+		return nil, fferr.NewInternalError(fmt.Errorf("no runs found for Databricks job ID: %v", jobId))
 	}
 	runID := runs[0].RunId
 	request := jobs.GetRunRequest{
@@ -563,7 +563,7 @@ func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {
 	path := "/api/2.0/jobs/runs/get-output"
 	err = db.errorMessageClient.Do(ctx, http.MethodGet, path, request, &runOutput)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError(string(pt.SparkOffline), "", "", "", fmt.Errorf("could not get run output for Databricks job ID %v: %v", jobId, err))
 	}
 
 	return fmt.Errorf("%s", runOutput.Error), nil
@@ -841,7 +841,7 @@ func (store *SparkOfflineStore) getHealthCheckCSVBytes() ([]byte, error) {
 		{"entity3", "value3", "2020-01-03T00:00:00Z"},
 	}
 	if err := w.WriteAll(records); err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	return buf.Bytes(), nil
 }
@@ -1127,19 +1127,19 @@ func NewSparkExecutor(execType pc.SparkExecutorType, config pc.SparkExecutorConf
 	case pc.EMR:
 		emrConfig, ok := config.(*pc.EMRConfig)
 		if !ok {
-			return nil, fferr.NewInvalidArgument(fmt.Errorf("cannot convert config into 'EMRConfig'"))
+			return nil, fferr.NewInternalError(fmt.Errorf("cannot convert config into 'EMRConfig'"))
 		}
 		return NewEMRExecutor(*emrConfig, logger)
 	case pc.Databricks:
 		databricksConfig, ok := config.(*pc.DatabricksConfig)
 		if !ok {
-			return nil, fferr.NewInvalidArgument(fmt.Errorf("cannot convert config into 'DatabricksConfig'"))
+			return nil, fferr.NewInternalError(fmt.Errorf("cannot convert config into 'DatabricksConfig'"))
 		}
 		return NewDatabricksExecutor(*databricksConfig)
 	case pc.SparkGeneric:
 		sparkGenericConfig, ok := config.(*pc.SparkGenericConfig)
 		if !ok {
-			return nil, fferr.NewInvalidArgument(fmt.Errorf("cannot convert config into 'SparkGenericConfig'"))
+			return nil, fferr.NewInternalError(fmt.Errorf("cannot convert config into 'SparkGenericConfig'"))
 		}
 		return NewSparkGenericExecutor(*sparkGenericConfig, logger)
 	default:
@@ -1449,7 +1449,7 @@ func (d *DatabricksExecutor) writeSubmitParamsToFileStore(query string, sources 
 
 	data, err := json.Marshal(paramsMap)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 
 	if err := store.Write(paramsPath, data); err != nil {

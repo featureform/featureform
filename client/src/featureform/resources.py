@@ -1026,7 +1026,7 @@ class SQLTransformation(Transformation):
             SQLTransformation=pb.SQLTransformation(query=final_query)
         )
 
-        if self.args:
+        if self.args is not None:
             transformation = self.args.apply(transformation)
 
         return {"transformation": transformation}

@@ -1183,7 +1183,7 @@ class SQLTransformationDecorator:
             name=self.name,
             variant=self.variant,
             definition=SQLTransformation(
-                query=self.query, func_params_to_inputs=self.func_params_to_inputs
+                query=self.query, args=self.args, func_params_to_inputs=self.func_params_to_inputs
             ),
             owner=self.owner,
             schedule=self.schedule,

@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	sn "github.com/mrz1836/go-sanitize"
@@ -40,7 +41,7 @@ type mongoDBOnlineTable struct {
 func mongoOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
 	mongoConfig := &pc.MongoDBConfig{}
 	if err := mongoConfig.Deserialize(serialized); err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 
 	return NewMongoDBOnlineStore(mongoConfig)
@@ -50,16 +51,16 @@ func NewMongoDBOnlineStore(config *pc.MongoDBConfig) (*mongoDBOnlineStore, error
 	uri := fmt.Sprintf("mongodb://%s:%s@%s:%s/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000", config.Username, config.Password, config.Host, config.Port)
 	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(uri))
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewConnectionError("mongodb", err)
 	}
 	cur, err := client.Database(config.Database).ListCollections(context.TODO(), bson.D{{"name", "featureform__metadata"}})
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	var res []interface{}
 	err = cur.All(context.TODO(), &res)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	if len(res) == 0 {
 		command := bson.D{{"customAction", "CreateCollection"}, {"collection", "featureform__metadata"}, {"autoScaleSettings", bson.D{{"maxThroughput", 1000}}}}
@@ -70,7 +71,7 @@ func NewMongoDBOnlineStore(config *pc.MongoDBConfig) (*mongoDBOnlineStore, error
 		}).RunCommand(context.TODO(), command).Decode(&cmdResult)
 		if err != nil {
 			// ("could not set metadata table throughput: %w", err)
-			return nil, err
+			return nil, fferr.NewExecutionError("mongodb", "", "", "", err)
 		}
 	}
 
@@ -92,7 +93,7 @@ func (store *mongoDBOnlineStore) AsOnlineStore() (OnlineStore, error) {
 func (store *mongoDBOnlineStore) Close() error {
 	err := store.client.Disconnect(context.TODO())
 	if err != nil {
-		return err
+		return fferr.NewConnectionError("mongodb", err)
 	}
 	return nil
 }
@@ -129,8 +130,7 @@ func (store *mongoDBOnlineStore) CreateTable(feature, variant string, valueType 
 	var cmdResult interface{}
 	err = store.client.Database(store.database).RunCommand(context.TODO(), command).Decode(&cmdResult)
 	if err != nil {
-		// ("could not set table throughput: %s, %w", tableName, err)
-		return nil, err
+		return nil, fferr.NewExecutionError("mongodb", feature, variant, "", err)
 	}
 
 	table := &mongoDBOnlineTable{
@@ -248,7 +248,7 @@ func (table mongoDBOnlineTable) Get(entity string) (interface{}, error) {
 	case String, NilType:
 		return row.Value.(string), nil
 	default:
-		return nil, fmt.Errorf("given data type not recognized: %v", table.valueType)
+		return nil, fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", table.valueType), fmt.Errorf("could not get table value"))
 	}
 
 }

@@ -13,9 +13,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
+	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	sn "github.com/mrz1836/go-sanitize"
+	"go.uber.org/zap"
 )
 
 type dynamodbTableKey struct {
@@ -32,6 +34,7 @@ type dynamodbOnlineStore struct {
 	prefix string
 	BaseProvider
 	timeout int
+	logger  *zap.SugaredLogger
 }
 
 type dynamodbOnlineTable struct {
@@ -70,13 +73,14 @@ func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, e
 	}
 	sess := session.Must(session.NewSession(config))
 	dynamodbClient := dynamodb.New(sess)
-	if err := CreateMetadataTable(dynamodbClient); err != nil {
+	logger := logging.NewLogger("provider")
+	if err := CreateMetadataTable(dynamodbClient, logger); err != nil {
 		return nil, NewProviderError(Connection, pt.DynamoDBOnline, ClientInitialization, err.Error())
 	}
 	return &dynamodbOnlineStore{dynamodbClient, options.Prefix, BaseProvider{
 		ProviderType:   pt.DynamoDBOnline,
 		ProviderConfig: options.Serialized(),
-	}, 360,
+	}, 360, logger,
 	}, nil
 }
 
@@ -89,7 +93,7 @@ func (store *dynamodbOnlineStore) Close() error {
 	return nil
 }
 
-func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB) error {
+func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB, logger *zap.SugaredLogger) error {
 	params := &dynamodb.CreateTableInput{
 		TableName: aws.String("Metadata"),
 		AttributeDefinitions: []*dynamodb.AttributeDefinition{
@@ -114,7 +118,7 @@ func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB) error {
 	}
 	_, err := dynamodbClient.DescribeTable(describeMetadataTableParams)
 	if err != nil {
-		fmt.Println("Could not describe dynamo metadata table, attempting to create...", err)
+		logger.Errorf("Could not describe dynamo metadata table, attempting to create...", err)
 	} else {
 		return nil
 	}
@@ -280,19 +284,19 @@ func (store *dynamodbOnlineStore) CheckHealth() (bool, error) {
 }
 
 func (store *dynamodbOnlineStore) ImportTable(feature, variant string, valueType ValueType, source filestore.Filepath) (ImportID, error) {
-	fmt.Printf("Checking metadata table for existing table %s\n", GetTablename(store.prefix, feature, variant))
+	store.logger.Infof("Checking metadata table for existing table %s\n", GetTablename(store.prefix, feature, variant))
 	_, err := store.GetFromMetadataTable(GetTablename(store.prefix, feature, variant))
 	if err == nil {
 		return "", fferr.NewDatasetAlreadyExistsError(feature, variant, fmt.Errorf("table %s already exists", GetTablename(store.prefix, feature, variant)))
 	}
 
-	fmt.Printf("Updating metadata table %s\n", GetTablename(store.prefix, feature, variant))
+	store.logger.Infof("Updating metadata table %s\n", GetTablename(store.prefix, feature, variant))
 	err = store.UpdateMetadataTable(GetTablename(store.prefix, feature, variant), valueType)
 	if err != nil {
 		return "", fferr.NewExecutionError(pt.DynamoDBOnline.String(), feature, variant, "FEATURE_VARIANT", err)
 	}
 
-	fmt.Printf("Building import table input for %s\n", GetTablename(store.prefix, feature, variant))
+	store.logger.Infof("Building import table input for %s\n", GetTablename(store.prefix, feature, variant))
 	// https://pkg.go.dev/github.com/aws/aws-sdk-go@v1.47.7/service/dynamodb#ImportTableInput
 	importInput := &dynamodb.ImportTableInput{
 		// This is optional but it ensures idempotency within an 8-hour window,
@@ -338,13 +342,13 @@ func (store *dynamodbOnlineStore) ImportTable(feature, variant string, valueType
 		},
 	}
 
-	fmt.Printf("Importing table %s from source %s\n", GetTablename(store.prefix, feature, variant), source.KeyPrefix())
+	store.logger.Infof("Importing table %s from source %s\n", GetTablename(store.prefix, feature, variant), source.KeyPrefix())
 	output, err := store.client.ImportTable(importInput)
 	if err != nil {
 		return "", fferr.NewExecutionError(pt.DynamoDBOnline.String(), feature, variant, "FEATURE_VARIANT", err)
 	}
 
-	fmt.Printf("Import table response: %v\n", output)
+	store.logger.Infof("Import table response: %v\n", output)
 	return ImportID(*output.ImportTableDescription.ImportArn), nil
 }
 

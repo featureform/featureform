@@ -829,7 +829,7 @@ class LocalProvider:
         Returns:
             source (ColumnSourceRegistrar): Source
         """
-        return self.__registrar.sql_transfoarmation(
+        return self.__registrar.sql_transformation(
             name=name,
             variant=variant,
             owner=owner,

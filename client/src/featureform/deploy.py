@@ -40,7 +40,7 @@ class Deployment:
 
 class DockerDeployment(Deployment):
     # TODO: Add support for custom ports, better formatted text output
-    def __init__(self, quickstart: bool):
+    def __init__(self, quickstart: bool, clickhouse: bool = False):
         super().__init__(quickstart)
 
         self._quickstart_directory = "quickstart"
@@ -88,6 +88,16 @@ class DockerDeployment(Deployment):
                 env={},
             ),
         ]
+        if clickhouse:
+            quickstart_deployment.append(
+                DOCKER_CONFIG(
+                    name="quickstart-clickhouse",
+                    image="clickhouse/clickhouse-server",
+                    port={"9000/tcp": 9000, "8123/tcp": 8123},
+                    detach_mode=True,
+                    env={},
+                )
+            )
 
         if self._quickstart:
             self._config = [featureform_deployment] + quickstart_deployment

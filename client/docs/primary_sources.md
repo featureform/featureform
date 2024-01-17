@@ -2,7 +2,7 @@
 
 
 ## Tables
-Tables can be registered off of any [SQL database](providers.md). Supported databases are: BigQuery, Postgres, Redshift, and Snowflake.
+Tables can be registered off of any [SQL database](providers.md). Supported databases are: BigQuery, Postgres, Redshift, ClickHouse and Snowflake.
 
 ::: featureform.register.OfflineSQLProvider.register_table
     handler: python

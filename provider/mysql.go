@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	_ "github.com/go-sql-driver/mysql"
@@ -25,7 +26,7 @@ const (
 func mySqlOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.MySqlConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, fmt.Errorf("invalid postgres config: %v", config)
+		return nil, fferr.NewConnectionError("mysql", err)
 	}
 	queries := mySQLQueries{}
 	queries.setVariableBinding(MySQLBindingStyle)
@@ -110,7 +111,7 @@ func (q mySQLQueries) determineColumnType(valueType ValueType) (string, error) {
 	case NilType:
 		return "VARCHAR", nil
 	default:
-		return "", fmt.Errorf("cannot find column type for value type: %s", valueType)
+		return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", valueType), fmt.Errorf("could not determine column type"))
 	}
 }
 

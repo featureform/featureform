@@ -272,7 +272,7 @@ func (config *LocalExecutorConfig) Serialize() ([]byte, error) {
 func (config *LocalExecutorConfig) Deserialize(data []byte) error {
 	err := json.Unmarshal(data, config)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -280,7 +280,7 @@ func (config *LocalExecutorConfig) Deserialize(data []byte) error {
 func NewLocalExecutor(config Config, logger *zap.SugaredLogger) (Executor, error) {
 	localConfig := LocalExecutorConfig{}
 	if err := localConfig.Deserialize(config); err != nil {
-		return nil, fferr.NewInternalError(err)
+		return nil, err
 	}
 	_, err := os.Open(localConfig.ScriptPath)
 	if err != nil {
@@ -301,7 +301,7 @@ type KubernetesExecutor struct {
 func (kube *KubernetesExecutor) isDefaultImage() (bool, error) {
 	parse, err := dp.Parse(kube.image)
 	if err != nil {
-		return false, fferr.NewInvalidArgument(err)
+		return false, fferr.NewInvalidArgument(fmt.Errorf("invalid Docker image name (%s): %w", kube.image, err))
 	}
 	return parse.ShortName() == cfg.PandasBaseImage, nil
 }
@@ -840,7 +840,7 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 func (k8s *K8sOfflineStore) checkArgs(args metadata.TransformationArgs) (metadata.KubernetesArgs, error) {
 	k8sArgs, ok := args.(metadata.KubernetesArgs)
 	if !ok {
-		return metadata.KubernetesArgs{}, fferr.NewInvalidArgument(fmt.Errorf("args is not of type KubernetesArgs"))
+		return metadata.KubernetesArgs{}, fferr.NewInternalError(fmt.Errorf("args is not of type KubernetesArgs"))
 	}
 	return k8sArgs, nil
 }

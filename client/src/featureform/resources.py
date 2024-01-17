@@ -1019,7 +1019,7 @@ class SQLTransformation(Transformation):
         for placeholder in self._get_placeholders():
             clean_placeholder = placeholder.strip(" {}")
             name_variant = input_to_name_variant[clean_placeholder]
-            replacement = f"{{ {name_variant[0]}.{name_variant[1]} }}"
+            replacement = "{{ " + f"{name_variant[0]}.{name_variant[1]}" + " }}"
             final_query = final_query.replace(placeholder, replacement)
 
         transformation = pb.Transformation(

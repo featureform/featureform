@@ -110,7 +110,7 @@ def test_sql_transformation_decorator_invalid_fn(local, fn):
         ),
     ],
 )
-def test_sql_transformation_inputs_valid(sql_query, expected_query, inputs):
+def test_sql_transformation_inputs_valid(registrar, sql_query, expected_query, inputs):
     def my_function(arg1, arg2):
         return sql_query
 

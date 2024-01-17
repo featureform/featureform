@@ -95,6 +95,85 @@ def test_sql_transformation_decorator_invalid_fn(local, fn):
         decorator(fn)
 
 
+@pytest.mark.parametrize(
+    "sql_query, expected_query, inputs",
+    [
+        (
+            "SELECT * FROM {{ arg1 }} JOIN {{ arg2 }}",
+            "SELECT * FROM {{ df.var }} JOIN {{ df2.var2 }}",
+            [("df", "var"), ("df2", "var2")],
+        ),
+        (
+            "SELECT * FROM {{ arg1 }} JOIN {{ arg1 }} JOIN {{ arg2 }} JOIN {{ arg2 }}",
+            "SELECT * FROM {{ df.var }} JOIN {{ df.var }} JOIN {{ df2.var2 }} JOIN {{ df2.var2 }}",
+            [("df", "var"), ("df2", "var2")],
+        ),
+    ],
+)
+def test_sql_transformation_inputs_valid(sql_query, expected_query, inputs):
+    def my_function(arg1, arg2):
+        return sql_query
+
+    dec = SQLTransformationDecorator(
+        registrar=registrar,
+        owner="",
+        provider="",
+        variant="sql",
+        tags=[],
+        properties={},
+        inputs=inputs,
+    )
+    dec.__call__(my_function)
+
+    # Check that Transformation definition does not error when converting to source
+    source = dec.to_source()
+    assert (
+        source.definition.kwargs()["transformation"].SQLTransformation.query
+        == expected_query
+    )
+
+
+@pytest.mark.parametrize(
+    "fn, inputs, error_message",
+    [
+        (
+            lambda arg1, arg2, arg3: "SELECT * FROM {{ arg1 }} JOIN {{ arg2 }}",
+            [("df", "var"), ("df2", "var2")],
+            "Transformation function has more parameters than inputs.",
+        ),
+        (
+            lambda arg1, arg2: "SELECT * FROM {{ arg1 }} JOIN {{ arg2 }} JOIN {{ arg3 }}",
+            [("df", "var"), ("df2", "var2")],
+            "SQL placeholder '{{ arg3 }}' not found in input arguments",
+        ),
+        (
+            lambda arg1, arg2: "SELECT * FROM {{ arg1 }} JOIN {{ arg2 }}",
+            [],
+            "Transformation function has more parameters than inputs.",
+        ),
+        (
+            lambda arg1: "SELECT * FROM {{ arg1 }} JOIN {{ arg2 }}",
+            [("df", "var"), ("df2", "var2")],
+            "Too many inputs for transformation function.",
+        ),
+    ],
+)
+def test_sql_transformation_inputs_error(registrar, fn, inputs, error_message):
+    with pytest.raises(ValueError) as e:
+        dec = SQLTransformationDecorator(
+            registrar=registrar,
+            owner="",
+            provider="",
+            variant="sql",
+            tags=[],
+            properties={},
+            inputs=inputs,
+        )
+        dec.__call__(fn)
+        dec.to_source().definition.kwargs()
+    assert error_message in str(e.value)
+
+
 def test_sql_transformation_empty_description(registrar):
     def my_function():
         return "SELECT * FROM {{ name.variant }}"
@@ -281,10 +360,10 @@ def run_before_and_after_tests(tmpdir):
         ("SELECT * FROM     \n {{name . variant}}", False),
         (
             """
-            SELECT *
-            FROM {{ name.variant2 }}
-            WHERE x >= 5.
-            """,
+                                            SELECT *
+                                            FROM {{ name.variant2 }}
+                                            WHERE x >= 5.
+                                            """,
             True,
         ),
         (

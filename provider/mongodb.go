@@ -70,7 +70,6 @@ func NewMongoDBOnlineStore(config *pc.MongoDBConfig) (*mongoDBOnlineStore, error
 			WriteConcern: wConcern,
 		}).RunCommand(context.TODO(), command).Decode(&cmdResult)
 		if err != nil {
-			// ("could not set metadata table throughput: %w", err)
 			return nil, fferr.NewExecutionError("mongodb", "", "", "", err)
 		}
 	}
@@ -122,8 +121,7 @@ func (store *mongoDBOnlineStore) CreateTable(feature, variant string, valueType 
 		WriteConcern: wConcern,
 	}).Collection(metadataTableName).InsertOne(context.TODO(), mongoDBMetadataRow{tableName, vType})
 	if err != nil {
-		// ("could not insert metadata table name: %w", err)
-		return nil, err
+		return nil, fferr.NewExecutionError("mongodb", feature, variant, "", err)
 	}
 
 	command := bson.D{{"customAction", "CreateCollection"}, {"collection", tableName}, {"autoScaleSettings", bson.D{{"maxThroughput", store.tableThroughput}}}}
@@ -148,14 +146,12 @@ func (store *mongoDBOnlineStore) GetTable(feature, variant string) (OnlineStoreT
 	tableName := store.GetTableName(feature, variant)
 	cur, err := store.client.Database(store.database).ListCollections(context.TODO(), bson.D{{"name", tableName}})
 	if err != nil {
-		// ("could not create check if metadata exists: %w", err)
-		return nil, err
+		return nil, fferr.NewExecutionError("mongodb", feature, variant, "", err)
 	}
 	var res []interface{}
 	err = cur.All(context.TODO(), &res)
 	if err != nil {
-		// ("could not get metadata results: %w", err)
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	if len(res) == 0 {
 		return nil, &TableNotFound{feature, variant}
@@ -164,12 +160,10 @@ func (store *mongoDBOnlineStore) GetTable(feature, variant string) (OnlineStoreT
 	var row mongoDBMetadataRow
 	err = store.client.Database(store.database).Collection(store.GetMetadataTableName()).FindOne(context.TODO(), bson.D{{"name", tableName}}).Decode(&row)
 	if err != nil {
-		// ("could not get metadata table value: %s, %w", tableName, err)
-		return nil, err
+		return nil, fferr.NewExecutionError("mongodb", feature, variant, "", err)
 	}
 	if err != nil {
-		// ("could not get metadata table value: %s, %w", tableName, err)
-		return nil, err
+		return nil, fferr.NewExecutionError("mongodb", feature, variant, "", err)
 	}
 	table := &mongoDBOnlineTable{
 		client:    store.client,
@@ -184,17 +178,17 @@ func (store *mongoDBOnlineStore) DeleteTable(feature, variant string) error {
 	tableName := store.GetTableName(feature, variant)
 	err := store.client.Database(store.database).Collection(tableName).Drop(context.TODO())
 	if err != nil {
-		return err
+		return fferr.NewExecutionError("mongodb", feature, variant, "", err)
 	}
 	_, err = store.client.Database(store.database).Collection(store.GetMetadataTableName()).DeleteOne(context.TODO(), bson.D{{"name", tableName}})
 	if err != nil {
-		return err
+		return fferr.NewExecutionError("mongodb", feature, variant, "", err)
 	}
 	return nil
 }
 
 func (store *mongoDBOnlineStore) CheckHealth() (bool, error) {
-	return false, fmt.Errorf("provider health check not implemented")
+	return false, fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (table mongoDBOnlineTable) Set(entity string, value interface{}) error {
@@ -210,8 +204,7 @@ func (table mongoDBOnlineTable) Set(entity string, value interface{}) error {
 			},
 		)
 	if err != nil {
-		// ("could not set values: (entity: %s, value: %v): %w", entity, value, err)
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -230,8 +223,7 @@ func (table mongoDBOnlineTable) Get(entity string) (interface{}, error) {
 			fmt.Printf("could not get table value: %s: %s: %s", table.name, entity, err.Error())
 			return nil, &EntityNotFound{entity}
 		}
-		// ("could not get table value: %s: %s: %w", table.name, entity, err)
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 
 	switch table.valueType {

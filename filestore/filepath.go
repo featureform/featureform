@@ -126,7 +126,9 @@ func NewEmptyFilepath(storeType FileStoreType) (Filepath, error) {
 	case HDFS:
 		return &HDFSFilepath{FilePath{isDir: false}}, nil
 	default:
-		return nil, fferr.NewDataTypeNotFoundError(string(storeType), fmt.Errorf("unknown store type"))
+		err := fferr.NewInternalError(fmt.Errorf("unknown store type"))
+		err.AddDetail("store_type", string(storeType))
+		return nil, err
 	}
 }
 
@@ -147,7 +149,9 @@ func NewEmptyDirpath(storeType FileStoreType) (Filepath, error) {
 	case HDFS:
 		return &HDFSFilepath{FilePath{isDir: true}}, nil
 	default:
-		return nil, fferr.NewDataTypeNotFoundError(string(storeType), fmt.Errorf("unknown store type"))
+		err := fferr.NewInternalError(fmt.Errorf("unknown store type"))
+		err.AddDetail("store_type", string(storeType))
+		return nil, err
 	}
 }
 

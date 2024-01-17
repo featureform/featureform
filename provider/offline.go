@@ -80,11 +80,11 @@ func (id *ResourceID) FromFilestorePath(path string) error {
 	featureformRootPathPart := "featureform/"
 	idx := strings.Index(path, featureformRootPathPart)
 	if idx == -1 {
-		return fferr.NewInvalidArgument(fmt.Errorf("expected \"featureform\" root path part in path %s", path))
+		return fferr.NewInternalError(fmt.Errorf("expected \"featureform\" root path part in path %s", path))
 	}
 	resourceParts := strings.Split(path[idx+len(featureformRootPathPart):], "/")
 	if len(resourceParts) < 3 {
-		return fferr.NewInvalidArgument(fmt.Errorf("expected path %s to contain OfflineResourceType/Name/Variant", strings.Join(resourceParts, "/")))
+		return fferr.NewInternalError(fmt.Errorf("expected path %s to contain OfflineResourceType/Name/Variant", strings.Join(resourceParts, "/")))
 	}
 	switch resourceParts[0] {
 	case "Label":
@@ -100,7 +100,7 @@ func (id *ResourceID) FromFilestorePath(path string) error {
 	case "Materialization":
 		id.Type = OfflineResourceType(6)
 	default:
-		return fferr.NewInvalidArgument(fmt.Errorf("unrecognized OfflineResourceType: %s", resourceParts[0]))
+		return fferr.NewInternalError(fmt.Errorf("unrecognized OfflineResourceType: %s", resourceParts[0]))
 	}
 	id.Name = resourceParts[1]
 	id.Variant = resourceParts[2]

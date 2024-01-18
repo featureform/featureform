@@ -56,7 +56,7 @@ func (sf *SnowflakeConfig) HasLegacyCredentials() bool {
 
 func (sf *SnowflakeConfig) HasCurrentCredentials() (bool, error) {
 	if (sf.Account != "" && sf.Organization == "") || (sf.Account == "" && sf.Organization != "") {
-		return false, fferr.NewProviderConfigError(provider_type.SnowflakeOffline, fmt.Errorf("credentials must include both Account and Organization"))
+		return false, fferr.NewProviderConfigError(string(provider_type.SnowflakeOffline), fmt.Errorf("credentials must include both Account and Organization"))
 	} else {
 		return sf.Account != "" && sf.Organization != "", nil
 	}
@@ -131,7 +131,7 @@ func (sf *SnowflakeConfig) getBaseConnection() (string, error) {
 	} else if !isLegacy && isCurrent {
 		return fmt.Sprintf("%s:%s@%s-%s/%s/%s", sf.Username, sf.Password, sf.Organization, sf.Account, sf.Database, sf.schema()), nil
 	} else {
-		return "", fferr.NewProviderConfigError(provider_type.SnowflakeOffline, fmt.Errorf("credentials not found"))
+		return "", fferr.NewProviderConfigError(string(provider_type.SnowflakeOffline), fmt.Errorf("credentials not found"))
 	}
 }
 

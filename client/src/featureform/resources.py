@@ -1029,8 +1029,6 @@ class SQLTransformation(Transformation):
         if self.args is not None:
             transformation = self.args.apply(transformation)
 
-        print('transformation')
-
         return {"transformation": transformation}
 
     def _validate_inputs_to_func_params(self, inputs: Dict[str, Any]) -> None:

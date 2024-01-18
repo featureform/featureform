@@ -927,7 +927,10 @@ func (store *genericFileStore) Write(path filestore.Filepath, data []byte) error
 		}),
 		re.Attempts(10),
 	)
-	return fferr.NewInternalError(err)
+	if err != nil {
+		return fferr.NewInternalError(err)
+	}
+	return nil
 }
 
 func (store *genericFileStore) Read(path filestore.Filepath) ([]byte, error) {

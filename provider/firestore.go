@@ -115,8 +115,8 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 }
 
 func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
-	getTable, err := store.GetTable(feature, variant)
-	if getTable != nil {
+	table, err := store.GetTable(feature, variant)
+	if table != nil {
 		return nil, fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
 	}
 	if err != nil {
@@ -186,7 +186,7 @@ func (table firestoreOnlineTable) Get(entity string) (interface{}, error) {
 	}
 	value, err := dataSnap.DataAt(entity)
 	if err != nil {
-		return nil, fferr.NewDatasetNotFoundError(table.key.Feature, table.key.Variant, fmt.Errorf("entity %s not found", entity))
+		return nil, fferr.NewEntityNotFoundError(table.key.Feature, table.key.Variant, entity, err)
 	}
 
 	switch table.valueType {

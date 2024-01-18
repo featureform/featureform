@@ -26,7 +26,7 @@ const (
 func mySqlOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.MySqlConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, fferr.NewConnectionError("mysql", err)
+		return nil, err
 	}
 	queries := mySQLQueries{}
 	queries.setVariableBinding(MySQLBindingStyle)
@@ -68,12 +68,11 @@ func (q mySQLQueries) registerResources(db *sql.DB, tableName string, schema Res
 	}
 	query, err = db.Prepare("CREATE VIEW ? AS SELECT ? as entity, ? as value, ? as ts FROM ?")
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	defer query.Close()
-	fmt.Printf("Resource creation query: %v", query)
 	_, err = query.Exec(tableName, schema.Entity, schema.Value, schema.TS, schema.SourceTable)
-	return err
+	return fferr.NewExecutionError("mysql", tableName, "", "entity", err)
 }
 
 func (q mySQLQueries) primaryTableRegister(tableName string, sourceName string) string {
@@ -89,7 +88,7 @@ func (q mySQLQueries) materializationCreate(tableName string, sourceName string)
 func (q mySQLQueries) materializationUpdate(db *sql.DB, tableName string, sourceName string) error {
 	query := `DROP VIEW IF EXISTS ?;` + q.primaryTableCreate(tableName, sourceName)
 	_, err := db.Exec(query, tableName)
-	return err
+	return fferr.NewExecutionError("mysql", tableName, "", "materialization", err)
 }
 
 func (q mySQLQueries) materializationExists() string {

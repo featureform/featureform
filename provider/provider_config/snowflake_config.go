@@ -125,7 +125,7 @@ func (sf *SnowflakeConfig) getBaseConnection() (string, error) {
 		return "", err
 	}
 	if isLegacy && isCurrent {
-		return "", fferr.NewProviderConfigError(provider_type.SnowflakeOffline, fmt.Errorf("cannot use both legacy and current credentials"))
+		return "", fferr.NewProviderConfigError(string(provider_type.SnowflakeOffline), fmt.Errorf("cannot use both legacy and current credentials"))
 	} else if isLegacy && !isCurrent {
 		return fmt.Sprintf("%s:%s@%s/%s/%s", sf.Username, sf.Password, sf.AccountLocator, sf.Database, sf.schema()), nil
 	} else if !isLegacy && isCurrent {

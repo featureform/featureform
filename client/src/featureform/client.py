@@ -9,6 +9,7 @@ from .register import (
     FeatureColumnResource,
 )
 from .serving import ServingClient
+from .enums import ResourceType
 
 
 class Client(ResourceClient, ServingClient):
@@ -127,8 +128,54 @@ class Client(ResourceClient, ServingClient):
             )
 
         if k < 1:
-            raise ValueError(f"k must be a positive integer")
+            raise ValueError("k must be a positive integer")
         return self.impl.nearest(name, variant, vector, k)
+
+    def location(
+        self,
+        source: Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str],
+        variant: Optional[str] = None,
+        resource_type: Optional[ResourceType] = None,
+    ):
+        """
+        Returns the location of a registered resource. For SQL resources, it will return the table name
+        and for file resources, it will return the file path.
+
+        **Example:**
+        ```py title="definitions.py"
+        transaction_location = client.location("transactions", "quickstart", ff.SOURCE)
+        ```
+
+        Args:
+            source (Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
+            variant (str): The source variant; can't be None if source is a string
+            type (ResourceType): The type of resource; can be one of ff.SOURCE, ff.FEATURE, ff.LABEL, or ff.TRAINING_SET
+        """
+        if isinstance(
+            source, (SourceRegistrar, LocalSource, SubscriptableTransformation)
+        ):
+            name, variant = source.name_variant()
+            resource_type = ResourceType.SOURCE
+        elif isinstance(source, str):
+            name = source
+            if variant is None:
+                raise ValueError("variant must be specified if source is a string")
+            if variant == "":
+                raise ValueError("variant cannot be an empty string")
+
+            if resource_type is None:
+                raise ValueError(
+                    "resource_type must be specified if source is a string"
+                )
+
+        else:
+            raise ValueError(
+                f"source must be of type SourceRegistrar, LocalSource, SubscriptableTransformation or str, not {type(resource)}\n"
+                "use client.dataframe(name, variant) or client.dataframe(source) or client.dataframe(transformation)"
+            )
+
+        location = self.impl.location(name, variant, resource_type)
+        return location
 
     def close(self):
         """

@@ -800,9 +800,9 @@ func (serv *OnlineServer) Nearest(ctx context.Context, req *srv.NearestRequest) 
 	return serv.client.Nearest(ctx, req)
 }
 
-func (serv *OnlineServer) ResourceLocation(ctx context.Context, req *srv.TrainingDataRequest) (*srv.ResourceFileLocation, error) {
-	serv.Logger.Infow("Serving Resource Location", "id", req.Id.String())
-	return serv.client.ResourceLocation(ctx, req)
+func (serv *OnlineServer) GetResourceLocation(ctx context.Context, req *srv.ResourceIdRequest) (*srv.ResourceLocation, error) {
+	serv.Logger.Infow("Serving Resource Location", "resource", req.String())
+	return serv.client.GetResourceLocation(ctx, req)
 }
 
 func (serv *ApiServer) Serve() error {

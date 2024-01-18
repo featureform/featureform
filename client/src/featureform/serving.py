@@ -26,7 +26,7 @@ from . import progress_bar
 from .register import FeatureColumnResource
 
 from .constants import NO_RECORD_LIMIT
-from .enums import FileFormat, ScalarType
+from .enums import FileFormat, ScalarType, ResourceType
 from .file_utils import absolute_file_paths
 from .local_cache import LocalCache
 from .local_utils import (
@@ -290,6 +290,16 @@ class HostedClientImpl:
         req = serving_pb2.NearestRequest(id=id, vector=vec, k=k)
         resp = self._stub.Nearest(req)
         return resp.entities
+
+    def location(self, name: str, variant: str, resource_type: ResourceType) -> str:
+        req = serving_pb2.ResourceIdRequest()
+        req.name = name
+        req.variant = variant
+        req.type = int(resource_type.value)
+
+        resp = self._stub.GetResourceLocation(req)
+
+        return resp.location
 
     def close(self):
         self._channel.close()

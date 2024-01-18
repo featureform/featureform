@@ -3,12 +3,14 @@ package serving
 import (
 	"context"
 	"fmt"
+	"sort"
+
+	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
-	"sort"
 )
 
 type indexedValue struct {
@@ -54,7 +56,7 @@ func (serv *FeatureServer) sendFeatureRequests(ctx context.Context, features []*
 			// Features can have multiple values (one per entity)
 			valueList, err := serv.getFeatureValues(ctx, name, variant, entityMap)
 			if err != nil {
-				errc <- fmt.Errorf("error getting feature value: %w", err)
+				errc <- err
 				serv.Logger.Errorw("Could not get feature value", "Name", name, "Variant", variant, "Error", err.Error())
 				return
 			}
@@ -70,7 +72,7 @@ func (serv *FeatureServer) collectFeatures(features []*pb.FeatureID, vals chan i
 	for {
 		select {
 		case internalError := <-errc:
-			err := internalError
+			err := fferr.NewInternalError(internalError)
 			return nil, err
 		case val := <-vals:
 			valueLists = append(valueLists, val)
@@ -102,7 +104,7 @@ func (serv *FeatureServer) getFeatureValues(ctx context.Context, name, variant s
 	switch meta.Mode() {
 	case metadata.PRECOMPUTED:
 		if meta.Provider() == "" {
-			return nil, fmt.Errorf("feature %s:%s has no inference store", name, variant)
+			return nil, fferr.NewInvalidArgument(fmt.Errorf("feature %s:%s is not saved in an inference store", name, variant))
 		}
 
 		precomputedValues, err := serv.getPrecomputedValues(ctx, entityMap, meta)
@@ -115,7 +117,7 @@ func (serv *FeatureServer) getFeatureValues(ctx context.Context, name, variant s
 	case metadata.CLIENT_COMPUTED:
 		values = append(values, meta.LocationFunction())
 	default:
-		return nil, fmt.Errorf("unknown computation mode %v", meta.Mode())
+		return nil, fferr.NewInternalError(fmt.Errorf("unknown computation mode %v", meta.Mode()))
 	}
 
 	return serv.castValues(ctx, values)
@@ -133,7 +135,7 @@ func (serv *FeatureServer) getOrCacheFeatureMetadata(ctx context.Context, name, 
 		if err != nil {
 			logger.Errorw("metadata lookup failed", "Err", err)
 			obs.SetError()
-			return nil, fmt.Errorf("metadata lookup failed: %w", err)
+			return nil, fferr.NewInternalError(fmt.Errorf("metadata lookup failed: %w", err))
 		}
 		serv.Features.Range(func(key, value interface{}) bool {
 			return true
@@ -150,14 +152,14 @@ func (serv *FeatureServer) getPrecomputedValues(ctx context.Context, entityMap m
 	if !has {
 		logger.Errorw("Entity not found", "Entity", meta.Entity())
 		obs.SetError()
-		return nil, fmt.Errorf("no value for entity %s", meta.Entity())
+		return nil, fferr.NewEntityNotFoundError(meta.Name(), meta.Variant(), meta.Entity(), nil)
 	}
 
 	store, err := serv.getOrCacheFeatureProvider(ctx, meta)
 	if err != nil {
 		logger.Errorw("Could not fetch provider", "Entity", meta.Entity())
 		obs.SetError()
-		return nil, fmt.Errorf("could not fetch online provider %s", meta.Provider())
+		return nil, err
 	}
 
 	featureTable, err := serv.cacheFeatureTable(ctx, store, meta.Name(), meta.Variant())
@@ -193,13 +195,13 @@ func (serv *FeatureServer) initializeFeatureProvider(ctx context.Context, meta *
 	if err != nil {
 		logger.Errorw("fetching provider metadata failed", "Error", err)
 		obs.SetError()
-		return nil, fmt.Errorf("fetching provider metadata failed: %w", err)
+		return nil, fferr.NewInternalError(fmt.Errorf("fetching provider metadata failed: %w", err))
 	}
 	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
 		logger.Errorw("failed to get provider", "Error", err)
 		obs.SetError()
-		return nil, fmt.Errorf("failed to get provider: %w", err)
+		return nil, fferr.NewInternalError(fmt.Errorf("failed to get provider: %w", err))
 	}
 	store, err := p.AsOnlineStore()
 	if err != nil {
@@ -207,7 +209,7 @@ func (serv *FeatureServer) initializeFeatureProvider(ctx context.Context, meta *
 		obs.SetError()
 		// This means that the provider of the feature isn't an online store.
 		// That shouldn't be possible.
-		return nil, fmt.Errorf("failed to use provider as onlinestore for feature: %w", err)
+		return nil, err
 	}
 	return store, nil
 }
@@ -223,7 +225,7 @@ func (serv *FeatureServer) cacheFeatureTable(ctx context.Context, store provider
 		if err != nil {
 			serv.Logger.Errorw("feature not found", "Error", err)
 			obs.SetError()
-			return nil, fmt.Errorf("feature not found: %w", err)
+			return nil, err
 		}
 		serv.Tables.Store(serv.getNVCacheKey(name, variant), table)
 		featureTable = table
@@ -243,7 +245,7 @@ func (serv *FeatureServer) getEntityValues(ctx context.Context, entities []strin
 			val, err := featureTable.(provider.OnlineStoreTable).Get(ev)
 			if err != nil {
 				// Push error into the error channel
-				errCh <- fmt.Errorf("entity not found: %w", err)
+				errCh <- err
 				return
 			}
 			// If no error, push value into the value channel

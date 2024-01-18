@@ -104,7 +104,7 @@ func (serv *FeatureServer) getFeatureValues(ctx context.Context, name, variant s
 	switch meta.Mode() {
 	case metadata.PRECOMPUTED:
 		if meta.Provider() == "" {
-			return nil, fferr.NewInvalidArgument(fmt.Errorf("feature %s:%s has no inference store", name, variant))
+			return nil, fferr.NewInvalidArgument(fmt.Errorf("feature %s:%s is not saved in an inference store", name, variant))
 		}
 
 		precomputedValues, err := serv.getPrecomputedValues(ctx, entityMap, meta)
@@ -152,7 +152,7 @@ func (serv *FeatureServer) getPrecomputedValues(ctx context.Context, entityMap m
 	if !has {
 		logger.Errorw("Entity not found", "Entity", meta.Entity())
 		obs.SetError()
-		return nil, fferr.NewDatasetNotFoundError(meta.Name(), meta.Variant(), fmt.Errorf("no value for entity %s", meta.Entity()))
+		return nil, fferr.NewEntityNotFoundError(meta.Name(), meta.Variant(), meta.Entity(), nil)
 	}
 
 	store, err := serv.getOrCacheFeatureProvider(ctx, meta)

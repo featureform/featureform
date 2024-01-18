@@ -12,6 +12,7 @@ import (
 
 	"github.com/featureform/metadata"
 	"github.com/parquet-go/parquet-go"
+	"github.com/pkg/errors"
 
 	dp "github.com/novln/docker-parser"
 	"go.uber.org/zap"
@@ -1122,6 +1123,20 @@ func (k8s *K8sOfflineStore) CreateMaterialization(id ResourceID, options ...Mate
 
 func (k8s *K8sOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
 	return fileStoreGetMaterialization(id, k8s.store, k8s.logger)
+}
+
+func (k8s *K8sOfflineStore) ResourceLocation(id ResourceID) (string, error) {
+	path, err := k8s.store.CreateDirPath(id.ToFilestorePath())
+	if err != nil {
+		return "", errors.Wrap(err, "could not create dir path")
+	}
+
+	newestFile, err := k8s.store.NewestFileOfType(path, filestore.Parquet)
+	if err != nil {
+		return "", errors.Wrap(err, "could not get newest file")
+	}
+
+	return newestFile.ToURI(), nil
 }
 
 func fileStoreGetMaterialization(id MaterializationID, store FileStore, logger *zap.SugaredLogger) (Materialization, error) {

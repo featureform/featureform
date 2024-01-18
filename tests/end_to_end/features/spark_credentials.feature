@@ -14,7 +14,7 @@ Feature: Spark Credentials
       |       DUMMYID         |         us-east-1          |      empty     |     type of argument "credentials" must be featureform.resources.AWSCredentials; got NoneType instead     |
       |       DUMMYID         |         us-east-1          |      GCP       |     type of argument "credentials" must be featureform.resources.AWSCredentials; got featureform.resources.GCPCredentials instead     |
 
-  @wip
+
   Scenario Outline: Databricks Credentials
     Given Featureform is installed
     When I create Databricks credentials with username "<username>", password "<password>", host "<host>", token "<token>", cluster ID "<cluster_id>"
@@ -23,17 +23,16 @@ Feature: Spark Credentials
       | username | password | host | token | cluster_id | exception |
       |   dummy  |   dummy  | empty| empty |   dummy    |   None   |
       |   empty  |   empty  | dummy| dummy |   dummy    |   None   |
-      |   dummy  |   dummy  | dummy| dummy |   dummy    |   'DatabricksCredentials' requires either 'username' and 'password' or 'host' and 'token' to be set    |
-      |   empty  |   empty  | empty| empty |   empty    |   'DatabricksCredentials' requires either 'username' and 'password' or 'host' and 'token' to be set   |
-      |   dummy  |   empty  | empty| empty |   empty    |   'DatabricksCredentials' requires either 'username' and 'password' or 'host' and 'token' to be set   |
-      |   empty  |   dummy  | empty| empty |   empty    |   'DatabricksCredentials' requires either 'username' and 'password' or 'host' and 'token' to be set   |
-      |   empty  |   empty  | dummy| empty |   empty    |   'DatabricksCredentials' requires either 'username' and 'password' or 'host' and 'token' to be set   |
-      |   empty  |   empty  | empty| dummy |   empty    |   'DatabricksCredentials' requires either 'username' and 'password' or 'host' and 'token' to be set   |
-      |   empty  |   empty  | empty| empty |   dummy    |   'DatabricksCredentials' requires either 'username' and 'password' or 'host' and 'token' to be set   |
+      |   dummy  |   dummy  | dummy| dummy |   dummy    |   'DatabricksCredentials' requires either ('username' and 'password') or ('host' and 'token') to be set   |
+      |   empty  |   empty  | empty| empty |   empty    |   'DatabricksCredentials' requires either ('username' and 'password') or ('host' and 'token') to be set   |
+      |   dummy  |   empty  | empty| empty |   empty    |   'DatabricksCredentials' requires either ('username' and 'password') or ('host' and 'token') to be set   |
+      |   empty  |   dummy  | empty| empty |   empty    |   'DatabricksCredentials' requires either ('username' and 'password') or ('host' and 'token') to be set   |
+      |   empty  |   empty  | dummy| empty |   empty    |   'DatabricksCredentials' requires either ('username' and 'password') or ('host' and 'token') to be set   |
+      |   empty  |   empty  | empty| dummy |   empty    |   'DatabricksCredentials' requires either ('username' and 'password') or ('host' and 'token') to be set   |
+      |   empty  |   empty  | empty| empty |   dummy    |   'DatabricksCredentials' requires either ('username' and 'password') or ('host' and 'token') to be set   |
       |   dummy  |   dummy  | empty| empty |   empty    |   Cluster_id of existing cluster must be provided   |
       |   empty  |   empty  | dummy| dummy |   empty    |   Cluster_id of existing cluster must be provided   |
 
-  @wip
   Scenario Outline: Generic Credentials
     Given Featureform is installed
     When I create Generic Spark credentials with master "<master>", deploy mode "<deploy_mode>", python version "<python_version>", core site path "<core_site_path>", yarn site path "<yarn_site_path>"

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	_ "github.com/go-sql-driver/mysql"
@@ -25,7 +26,7 @@ const (
 func mySqlOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.MySqlConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, fmt.Errorf("invalid postgres config: %v", config)
+		return nil, err
 	}
 	queries := mySQLQueries{}
 	queries.setVariableBinding(MySQLBindingStyle)
@@ -67,12 +68,11 @@ func (q mySQLQueries) registerResources(db *sql.DB, tableName string, schema Res
 	}
 	query, err = db.Prepare("CREATE VIEW ? AS SELECT ? as entity, ? as value, ? as ts FROM ?")
 	if err != nil {
-		return fmt.Errorf("error registering view: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	defer query.Close()
-	fmt.Printf("Resource creation query: %v", query)
 	_, err = query.Exec(tableName, schema.Entity, schema.Value, schema.TS, schema.SourceTable)
-	return err
+	return fferr.NewExecutionError("mysql", tableName, "", "entity", err)
 }
 
 func (q mySQLQueries) primaryTableRegister(tableName string, sourceName string) string {
@@ -88,7 +88,7 @@ func (q mySQLQueries) materializationCreate(tableName string, sourceName string)
 func (q mySQLQueries) materializationUpdate(db *sql.DB, tableName string, sourceName string) error {
 	query := `DROP VIEW IF EXISTS ?;` + q.primaryTableCreate(tableName, sourceName)
 	_, err := db.Exec(query, tableName)
-	return err
+	return fferr.NewExecutionError("mysql", tableName, "", "materialization", err)
 }
 
 func (q mySQLQueries) materializationExists() string {
@@ -110,7 +110,7 @@ func (q mySQLQueries) determineColumnType(valueType ValueType) (string, error) {
 	case NilType:
 		return "VARCHAR", nil
 	default:
-		return "", fmt.Errorf("cannot find column type for value type: %s", valueType)
+		return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", valueType), fmt.Errorf("could not determine column type"))
 	}
 }
 

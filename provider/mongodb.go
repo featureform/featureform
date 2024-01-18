@@ -41,7 +41,7 @@ type mongoDBOnlineTable struct {
 func mongoOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
 	mongoConfig := &pc.MongoDBConfig{}
 	if err := mongoConfig.Deserialize(serialized); err != nil {
-		return nil, fferr.NewInternalError(err)
+		return nil, err
 	}
 
 	return NewMongoDBOnlineStore(mongoConfig)
@@ -55,7 +55,7 @@ func NewMongoDBOnlineStore(config *pc.MongoDBConfig) (*mongoDBOnlineStore, error
 	}
 	cur, err := client.Database(config.Database).ListCollections(context.TODO(), bson.D{{"name", "featureform__metadata"}})
 	if err != nil {
-		return nil, fferr.NewInternalError(err)
+		return nil, fferr.NewExecutionError("mongodb", "", "", "", err)
 	}
 	var res []interface{}
 	err = cur.All(context.TODO(), &res)
@@ -128,7 +128,7 @@ func (store *mongoDBOnlineStore) CreateTable(feature, variant string, valueType 
 	var cmdResult interface{}
 	err = store.client.Database(store.database).RunCommand(context.TODO(), command).Decode(&cmdResult)
 	if err != nil {
-		return nil, fferr.NewExecutionError("mongodb", feature, variant, "", err)
+		return nil, fferr.NewExecutionError("mongodb", feature, variant, "feature", err)
 	}
 
 	table := &mongoDBOnlineTable{
@@ -146,7 +146,7 @@ func (store *mongoDBOnlineStore) GetTable(feature, variant string) (OnlineStoreT
 	tableName := store.GetTableName(feature, variant)
 	cur, err := store.client.Database(store.database).ListCollections(context.TODO(), bson.D{{"name", tableName}})
 	if err != nil {
-		return nil, fferr.NewExecutionError("mongodb", feature, variant, "", err)
+		return nil, fferr.NewExecutionError("mongodb", feature, variant, "feature", err)
 	}
 	var res []interface{}
 	err = cur.All(context.TODO(), &res)
@@ -160,10 +160,10 @@ func (store *mongoDBOnlineStore) GetTable(feature, variant string) (OnlineStoreT
 	var row mongoDBMetadataRow
 	err = store.client.Database(store.database).Collection(store.GetMetadataTableName()).FindOne(context.TODO(), bson.D{{"name", tableName}}).Decode(&row)
 	if err != nil {
-		return nil, fferr.NewExecutionError("mongodb", feature, variant, "", err)
+		return nil, fferr.NewExecutionError("mongodb", feature, variant, "feature", err)
 	}
 	if err != nil {
-		return nil, fferr.NewExecutionError("mongodb", feature, variant, "", err)
+		return nil, fferr.NewExecutionError("mongodb", feature, variant, "feature", err)
 	}
 	table := &mongoDBOnlineTable{
 		client:    store.client,
@@ -178,11 +178,11 @@ func (store *mongoDBOnlineStore) DeleteTable(feature, variant string) error {
 	tableName := store.GetTableName(feature, variant)
 	err := store.client.Database(store.database).Collection(tableName).Drop(context.TODO())
 	if err != nil {
-		return fferr.NewExecutionError("mongodb", feature, variant, "", err)
+		return fferr.NewExecutionError("mongodb", feature, variant, "feature", err)
 	}
 	_, err = store.client.Database(store.database).Collection(store.GetMetadataTableName()).DeleteOne(context.TODO(), bson.D{{"name", tableName}})
 	if err != nil {
-		return fferr.NewExecutionError("mongodb", feature, variant, "", err)
+		return fferr.NewExecutionError("mongodb", feature, variant, "feature", err)
 	}
 	return nil
 }
@@ -223,7 +223,7 @@ func (table mongoDBOnlineTable) Get(entity string) (interface{}, error) {
 			fmt.Printf("could not get table value: %s: %s: %s", table.name, entity, err.Error())
 			return nil, &EntityNotFound{entity}
 		}
-		return nil, fferr.NewInternalError(err)
+		return nil, fferr.NewExecutionError("mongodb", "", "", "entity", err)
 	}
 
 	switch table.valueType {

@@ -7,7 +7,6 @@ package provider
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -175,7 +174,10 @@ func (store *sqlOfflineStore) AsOfflineStore() (OfflineStore, error) {
 }
 
 func (store *sqlOfflineStore) Close() error {
-	return store.db.Close()
+	if err := store.db.Close(); err != nil {
+		return fferr.NewConnectionError(string(store.Type()), err)
+	}
+	return nil
 }
 
 func (store *sqlOfflineStore) CheckHealth() (bool, error) {
@@ -213,9 +215,10 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 	}
 
 	return &sqlOfflineTable{
-		db:    store.db,
-		name:  tableName,
-		query: store.query,
+		db:           store.db,
+		name:         tableName,
+		query:        store.query,
+		providerType: store.Type(),
 	}, nil
 }
 
@@ -280,10 +283,11 @@ func (store *sqlOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema
 		return nil, err
 	}
 	return &sqlPrimaryTable{
-		db:     db,
-		name:   name,
-		schema: schema,
-		query:  store.query,
+		db:           db,
+		name:         name,
+		schema:       schema,
+		query:        store.query,
+		providerType: store.Type(),
 	}, nil
 }
 
@@ -311,15 +315,16 @@ func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, erro
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if !exists {
-		return nil, &TableNotFound{id.Name, id.Variant}
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	columnNames, err := store.query.getColumns(store.db, name)
 
 	return &sqlPrimaryTable{
-		db:     store.db,
-		name:   name,
-		schema: TableSchema{Columns: columnNames},
-		query:  store.query,
+		db:           store.db,
+		name:         name,
+		schema:       TableSchema{Columns: columnNames},
+		query:        store.query,
+		providerType: store.Type(),
 	}, nil
 }
 
@@ -340,10 +345,11 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 	columnNames, err := store.query.getColumns(store.db, name)
 
 	return &sqlPrimaryTable{
-		db:     store.db,
-		name:   name,
-		schema: TableSchema{Columns: columnNames},
-		query:  store.query,
+		db:           store.db,
+		name:         name,
+		schema:       TableSchema{Columns: columnNames},
+		query:        store.query,
+		providerType: store.Type(),
 	}, nil
 }
 
@@ -358,7 +364,7 @@ func (store *sqlOfflineStore) CreateResourceTable(id ResourceID, schema TableSch
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if exists {
-		return nil, &TableAlreadyExists{id.Name, id.Variant}
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	tableName, err := store.getResourceTableName(id)
 	if err != nil {
@@ -394,10 +400,11 @@ func (store *sqlOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, err
 }
 
 type sqlMaterialization struct {
-	id        MaterializationID
-	db        *sql.DB
-	tableName string
-	query     OfflineTableQueries
+	id           MaterializationID
+	db           *sql.DB
+	tableName    string
+	query        OfflineTableQueries
+	providerType pt.Type
 }
 
 func (mat *sqlMaterialization) ID() MaterializationID {
@@ -413,7 +420,7 @@ func (mat *sqlMaterialization) NumRows() (int64, error) {
 	rows := mat.db.QueryRow(query)
 	err := rows.Scan(&n)
 	if err != nil {
-		return 0, err
+		return 0, fferr.NewExecutionError(string(mat.providerType), "", "", "", err)
 	}
 	if n == nil {
 		return 0, nil
@@ -430,17 +437,17 @@ func (mat *sqlMaterialization) IterateSegment(start, end int64) (FeatureIterator
 	query := mat.query.materializationIterateSegment(mat.tableName)
 	rows, err := mat.db.Query(query, start, end)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError(string(mat.providerType), "", "", "", err)
 	}
 	types, err := rows.ColumnTypes()
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError(string(mat.providerType), "", "", "", err)
 	}
 	colType := mat.query.getValueColumnType(types[1])
 	if err != nil {
 		return nil, err
 	}
-	return newsqlFeatureIterator(rows, colType, mat.query), nil
+	return newsqlFeatureIterator(rows, colType, mat.query, mat.providerType), nil
 }
 
 type sqlFeatureIterator struct {
@@ -449,15 +456,17 @@ type sqlFeatureIterator struct {
 	currentValue ResourceRecord
 	columnType   interface{}
 	query        OfflineTableQueries
+	providerType pt.Type
 }
 
-func newsqlFeatureIterator(rows *sql.Rows, columnType interface{}, query OfflineTableQueries) FeatureIterator {
+func newsqlFeatureIterator(rows *sql.Rows, columnType interface{}, query OfflineTableQueries, providerType pt.Type) FeatureIterator {
 	return &sqlFeatureIterator{
 		rows:         rows,
 		err:          nil,
 		currentValue: ResourceRecord{},
 		columnType:   columnType,
 		query:        query,
+		providerType: providerType,
 	}
 }
 
@@ -472,7 +481,7 @@ func (iter *sqlFeatureIterator) Next() bool {
 	var ts time.Time
 	if err := iter.rows.Scan(&entity, &value, &ts); err != nil {
 		iter.rows.Close()
-		iter.err = err
+		iter.err = fferr.NewExecutionError(string(iter.providerType), "", "", "", err)
 		return false
 	}
 	if err := rec.SetEntity(entity); err != nil {
@@ -494,7 +503,10 @@ func (iter *sqlFeatureIterator) Err() error {
 }
 
 func (iter *sqlFeatureIterator) Close() error {
-	return iter.rows.Close()
+	if err := iter.rows.Close(); err != nil {
+		return fferr.NewConnectionError(string(iter.providerType), err)
+	}
+	return nil
 }
 
 // Batch Feature Iterator
@@ -505,10 +517,11 @@ type sqlBatchFeatureIterator struct {
 	columnTypes   []interface{}
 	columnNames   []string
 	query         OfflineTableQueries
+	providerType  pt.Type
 }
 
 // Need to figure out columntype
-func newsqlBatchFeatureIterator(rows *sql.Rows, columnTypes []interface{}, columnNames []string, query OfflineTableQueries) BatchFeatureIterator {
+func newsqlBatchFeatureIterator(rows *sql.Rows, columnTypes []interface{}, columnNames []string, query OfflineTableQueries, providerType pt.Type) BatchFeatureIterator {
 	return &sqlBatchFeatureIterator{
 		rows:          rows,
 		err:           nil,
@@ -516,6 +529,7 @@ func newsqlBatchFeatureIterator(rows *sql.Rows, columnTypes []interface{}, colum
 		columnTypes:   columnTypes,
 		columnNames:   columnNames,
 		query:         query,
+		providerType:  providerType,
 	}
 }
 
@@ -526,12 +540,7 @@ func (it *sqlBatchFeatureIterator) Next() bool {
 	}
 	columnNames, err := it.rows.Columns()
 	if err != nil {
-		it.rows.Close()
-		it.err = err
-		return false
-	}
-	if err != nil {
-		it.err = err
+		it.err = fferr.NewExecutionError(string(it.providerType), "", "", "", err)
 		it.rows.Close()
 		return false
 	}
@@ -541,8 +550,8 @@ func (it *sqlBatchFeatureIterator) Next() bool {
 		pointers[i] = &values[i]
 	}
 	if err := it.rows.Scan(pointers...); err != nil {
+		it.err = fferr.NewExecutionError(string(it.providerType), "", "", "", err)
 		it.rows.Close()
-		it.err = err
 		return false
 	}
 	rowValues := make(GenericRecord, len(columnNames))
@@ -573,7 +582,10 @@ func (it *sqlBatchFeatureIterator) Err() error {
 }
 
 func (it *sqlBatchFeatureIterator) Close() error {
-	return it.rows.Close()
+	if err := it.rows.Close(); err != nil {
+		return fferr.NewConnectionError(string(it.providerType), err)
+	}
+	return nil
 }
 
 // Takes a list of feature resource IDs and creates a table view joining all the feature values based on the entity
@@ -582,7 +594,7 @@ func (store *sqlOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIt
 
 	// if tables is empty, return an empty iterator
 	if len(ids) == 0 {
-		return newsqlBatchFeatureIterator(nil, nil, nil, store.query), fferr.NewInvalidArgument(fmt.Errorf("no features provided"))
+		return newsqlBatchFeatureIterator(nil, nil, nil, store.query, store.Type()), fferr.NewInvalidArgument(fmt.Errorf("no features provided"))
 	}
 
 	asEntity := ""
@@ -631,7 +643,7 @@ func (store *sqlOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIt
 		return nil, err
 	}
 	if resultRows == nil {
-		return newsqlBatchFeatureIterator(nil, nil, nil, store.query), nil
+		return newsqlBatchFeatureIterator(nil, nil, nil, store.query, store.Type()), nil
 	}
 	columnTypes, err := store.getValueColumnTypes(fmt.Sprintf("no_ts_%s", joinedTableName))
 	if err != nil {
@@ -648,11 +660,11 @@ func (store *sqlOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIt
 		columnNames = append(columnNames, sanitize(col.Name))
 	}
 
-	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query), nil
+	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query, store.Type()), nil
 }
 func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
-		return nil, errors.New("only features can be materialized")
+		return nil, fferr.NewInvalidArgument(fmt.Errorf("received %s; only features can be materialized", id.Type))
 	}
 	resTable, err := store.getsqlResourceTable(id)
 	if err != nil {
@@ -665,14 +677,15 @@ func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, options ...Ma
 	for _, materializeQry := range materializeQueries {
 		_, err = store.db.Exec(materializeQry)
 		if err != nil {
-			return nil, err
+			return nil, fferr.NewExecutionError(string(store.Type()), id.Name, id.Variant, id.Type.String(), err)
 		}
 	}
 	return &sqlMaterialization{
-		id:        matID,
-		db:        store.db,
-		tableName: matTableName,
-		query:     store.query,
+		id:           matID,
+		db:           store.db,
+		tableName:    matTableName,
+		query:        store.query,
+		providerType: store.Type(),
 	}, nil
 }
 
@@ -684,7 +697,7 @@ func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Material
 
 	rows, err := store.db.Query(getMatQry, tableName)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError(string(store.Type()), string(id), "", "", err)
 	}
 	defer rows.Close()
 
@@ -693,13 +706,14 @@ func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Material
 		rowCount++
 	}
 	if rowCount == 0 {
-		return nil, &MaterializationNotFound{id}
+		return nil, fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
 	return &sqlMaterialization{
-		id:        id,
-		db:        store.db,
-		tableName: tableName,
-		query:     store.query,
+		id:           id,
+		db:           store.db,
+		tableName:    tableName,
+		query:        store.query,
+		providerType: store.Type(),
 	}, err
 }
 
@@ -714,21 +728,22 @@ func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID) (Materializat
 
 	rows, err := store.db.Query(getMatQry, tableName)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError(string(store.Type()), id.Name, id.Variant, id.Type.String(), err)
 	}
 	defer rows.Close()
 	if !rows.Next() {
-		return nil, &MaterializationNotFound{matID}
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	err = store.query.materializationUpdate(store.db, tableName, resTable.name)
 	if err != nil {
 		return nil, err
 	}
 	return &sqlMaterialization{
-		id:        matID,
-		db:        store.db,
-		tableName: tableName,
-		query:     store.query,
+		id:           matID,
+		db:           store.db,
+		tableName:    tableName,
+		query:        store.query,
+		providerType: store.Type(),
 	}, err
 }
 
@@ -737,11 +752,11 @@ func (store *sqlOfflineStore) DeleteMaterialization(id MaterializationID) error 
 	if exists, err := store.materializationExists(id); err != nil {
 		return err
 	} else if !exists {
-		return &MaterializationNotFound{id}
+		return fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
 	query := store.query.materializationDrop(tableName)
 	if _, err := store.db.Exec(query); err != nil {
-		return err
+		return fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
 	return nil
 }
@@ -751,7 +766,7 @@ func (store *sqlOfflineStore) materializationExists(id MaterializationID) (bool,
 	getMatQry := store.query.materializationExists()
 	rows, err := store.db.Query(getMatQry, tableName)
 	if err != nil {
-		return false, err
+		return false, fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
 	defer rows.Close()
 	rowCount := 0
@@ -811,7 +826,7 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if !exists {
-		return nil, &TrainingSetNotFound{id}
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	trainingSetName, err := store.getTrainingSetName(id)
 	if err != nil {
@@ -830,13 +845,13 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 	fmt.Printf("Training Set Query: %s\n", trainingSetQry)
 	rows, err := store.db.Query(trainingSetQry)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError(string(store.Type()), id.Name, id.Variant, id.Type.String(), err)
 	}
 	colTypes, err := store.getValueColumnTypes(trainingSetName)
 	if err != nil {
 		return nil, err
 	}
-	return store.newsqlTrainingSetIterator(rows, colTypes), nil
+	return store.newsqlTrainingSetIterator(rows, colTypes, store.Type()), nil
 }
 
 // getValueColumnTypes returns a list of column types. Columns consist of feature and label values
@@ -845,7 +860,7 @@ func (store *sqlOfflineStore) getValueColumnTypes(table string) ([]interface{}, 
 	query := store.query.getValueColumnTypes(table)
 	rows, err := store.db.Query(query)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError(string(store.Type()), "", "", "", err)
 	}
 	defer rows.Close()
 	colTypes := make([]interface{}, 0)
@@ -854,7 +869,7 @@ func (store *sqlOfflineStore) getValueColumnTypes(table string) ([]interface{}, 
 
 		rawType, err := rows.ColumnTypes()
 		if err != nil {
-			return nil, err
+			return nil, fferr.NewExecutionError(string(store.Type()), "", "", "", err)
 		}
 		for _, t := range rawType {
 			colTypes = append(colTypes, store.query.getValueColumnType(t))
@@ -871,9 +886,10 @@ type sqlTrainingRowsIterator struct {
 	columnTypes     []interface{}
 	isHeaderRow     bool
 	query           OfflineTableQueries
+	providerType    pt.Type
 }
 
-func (store *sqlOfflineStore) newsqlTrainingSetIterator(rows *sql.Rows, columnTypes []interface{}) TrainingSetIterator {
+func (store *sqlOfflineStore) newsqlTrainingSetIterator(rows *sql.Rows, columnTypes []interface{}, providerType pt.Type) TrainingSetIterator {
 	return &sqlTrainingRowsIterator{
 		rows:            rows,
 		currentFeatures: nil,
@@ -882,6 +898,7 @@ func (store *sqlOfflineStore) newsqlTrainingSetIterator(rows *sql.Rows, columnTy
 		columnTypes:     columnTypes,
 		isHeaderRow:     true,
 		query:           store.query,
+		providerType:    providerType,
 	}
 }
 
@@ -892,12 +909,7 @@ func (it *sqlTrainingRowsIterator) Next() bool {
 	}
 	columnNames, err := it.rows.Columns()
 	if err != nil {
-		it.rows.Close()
-		it.err = err
-		return false
-	}
-	if err != nil {
-		it.err = err
+		it.err = fferr.NewExecutionError(string(it.providerType), "", "", "", err)
 		it.rows.Close()
 		return false
 	}
@@ -907,8 +919,8 @@ func (it *sqlTrainingRowsIterator) Next() bool {
 		pointers[i] = &values[i]
 	}
 	if err := it.rows.Scan(pointers...); err != nil {
+		it.err = fferr.NewExecutionError(string(it.providerType), "", "", "", err)
 		it.rows.Close()
-		it.err = err
 		return false
 	}
 	var label interface{}
@@ -946,30 +958,33 @@ func (store *sqlOfflineStore) getsqlResourceTable(id ResourceID) (*sqlOfflineTab
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if !exists {
-		return nil, &TableNotFound{id.Name, id.Variant}
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	table, err := store.getResourceTableName(id)
 	if err != nil {
 		return nil, err
 	}
 	return &sqlOfflineTable{
-		db:    store.db,
-		name:  table,
-		query: store.query,
+		db:           store.db,
+		name:         table,
+		query:        store.query,
+		providerType: store.Type(),
 	}, nil
 }
 
 type sqlOfflineTable struct {
-	db    *sql.DB
-	query OfflineTableQueries
-	name  string
+	db           *sql.DB
+	query        OfflineTableQueries
+	name         string
+	providerType pt.Type
 }
 
 type sqlPrimaryTable struct {
-	db     *sql.DB
-	name   string
-	query  OfflineTableQueries
-	schema TableSchema
+	db           *sql.DB
+	name         string
+	query        OfflineTableQueries
+	schema       TableSchema
+	providerType pt.Type
 }
 
 func (table *sqlPrimaryTable) GetName() string {
@@ -984,7 +999,7 @@ func (table *sqlPrimaryTable) Write(rec GenericRecord) error {
 		"INSERT INTO %s ( %s ) "+
 		"VALUES ( %s ) ", tb, columns, placeholder)
 	if _, err := table.db.Exec(upsertQuery, rec...); err != nil {
-		return err
+		return fferr.NewExecutionError(string(table.providerType), "", "", "", err)
 	}
 	return nil
 }
@@ -1024,20 +1039,20 @@ func (pt *sqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error)
 	}
 	rows, err := pt.db.Query(query)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError(string(pt.providerType), "", "", "", err)
 	}
 	colTypes, err := pt.getValueColumnTypes(pt.name)
 	if err != nil {
 		return nil, err
 	}
-	return newsqlGenericTableIterator(rows, colTypes, columnNames, pt.query), nil
+	return newsqlGenericTableIterator(rows, colTypes, columnNames, pt.query, pt.providerType), nil
 }
 
 func (pt *sqlPrimaryTable) getValueColumnTypes(table string) ([]interface{}, error) {
 	query := pt.query.getValueColumnTypes(table)
 	rows, err := pt.db.Query(query)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError(string(pt.providerType), "", "", "", err)
 	}
 	defer rows.Close()
 	colTypes := make([]interface{}, 0)
@@ -1045,7 +1060,7 @@ func (pt *sqlPrimaryTable) getValueColumnTypes(table string) ([]interface{}, err
 
 		rawType, err := rows.ColumnTypes()
 		if err != nil {
-			return nil, err
+			return nil, fferr.NewExecutionError(string(pt.providerType), "", "", "", err)
 		}
 		for _, t := range rawType {
 			colTypes = append(colTypes, pt.query.getValueColumnType(t))
@@ -1062,7 +1077,7 @@ func (pt *sqlPrimaryTable) NumRows() (int64, error) {
 
 	err := rows.Scan(&n)
 	if err != nil {
-		return 0, err
+		return 0, fferr.NewExecutionError(string(pt.providerType), "", "", "", err)
 	}
 	return n, nil
 }
@@ -1094,12 +1109,13 @@ func (store *sqlOfflineStore) newsqlOfflineTable(db *sql.DB, name string, valueT
 	tableCreateQry := store.query.newSQLOfflineTable(name, columnType)
 	_, err = db.Exec(tableCreateQry)
 	if err != nil {
-		return nil, fferr.NewInternalError(err)
+		return nil, fferr.NewExecutionError(string(store.Type()), "", "", "", err)
 	}
 	return &sqlOfflineTable{
-		db:    db,
-		name:  name,
-		query: store.query,
+		db:           db,
+		name:         name,
+		query:        store.query,
+		providerType: store.Type(),
 	}, nil
 }
 
@@ -1114,17 +1130,17 @@ func (table *sqlOfflineTable) Write(rec ResourceRecord) error {
 	existsQuery := table.query.writeExists(tb)
 
 	if err := table.db.QueryRow(existsQuery, rec.Entity, rec.TS).Scan(&n); err != nil {
-		return err
+		return fferr.NewExecutionError(string(table.providerType), rec.Entity, "", "ENTITY", err)
 	}
 	if n == 0 {
 		insertQuery := table.query.writeInserts(tb)
 		if _, err := table.db.Exec(insertQuery, rec.Entity, rec.Value, rec.TS); err != nil {
-			return err
+			return fferr.NewExecutionError(string(table.providerType), rec.Entity, "", "ENTITY", err)
 		}
 	} else if n > 0 {
 		updateQuery := table.query.writeUpdate(tb)
 		if _, err := table.db.Exec(updateQuery, rec.Value, rec.Entity, rec.TS); err != nil {
-			return err
+			return fferr.NewExecutionError(string(table.providerType), rec.Entity, "", "ENTITY", err)
 		}
 	}
 	return nil
@@ -1145,7 +1161,7 @@ func (table *sqlOfflineTable) resourceExists(rec ResourceRecord) (bool, error) {
 
 	rows, err := table.db.Query(query, rec.Entity, rec.TS)
 	if err != nil {
-		return false, err
+		return false, fferr.NewExecutionError(string(table.providerType), rec.Entity, "", "ENTITY", err)
 	}
 	defer rows.Close()
 	rowCount := 0
@@ -1166,7 +1182,7 @@ func (store *sqlOfflineStore) CreateTransformation(config TransformationConfig) 
 	queries := store.query.transformationCreate(name, config.Query)
 	for _, query := range queries {
 		if _, err := store.db.Exec(query); err != nil {
-			return err
+			return fferr.NewExecutionError(string(store.Type()), config.TargetTableID.Name, config.TargetTableID.Variant, config.TargetTableID.Type.String(), err)
 		}
 	}
 	return nil
@@ -1190,15 +1206,15 @@ func (store *sqlOfflineStore) createTransformationName(id ResourceID) (string, e
 	case Transformation:
 		return GetPrimaryTableName(id)
 	case Label:
-		return "", TransformationTypeError{"Invalid Transformation Type: Label"}
+		return "", fferr.NewInvalidArgument(fmt.Errorf("invalid transformation type: Label"))
 	case Feature:
-		return "", TransformationTypeError{"Invalid Transformation Type: Feature"}
+		return "", fferr.NewInvalidArgument(fmt.Errorf("invalid transformation type: Feature"))
 	case TrainingSet:
-		return "", TransformationTypeError{"Invalid Transformation Type: Training Set"}
+		return "", fferr.NewInvalidArgument(fmt.Errorf("invalid transformation type: Training Set"))
 	case Primary:
-		return "", TransformationTypeError{"Invalid Transformation Type: Primary"}
+		return "", fferr.NewInvalidArgument(fmt.Errorf("invalid transformation type: Primary"))
 	default:
-		return "", TransformationTypeError{"Invalid Transformation Type"}
+		return "", fferr.NewInvalidArgument(fmt.Errorf("invalid transformation type"))
 	}
 }
 
@@ -1209,9 +1225,10 @@ type sqlGenericTableIterator struct {
 	columnTypes   []interface{}
 	columnNames   []string
 	query         OfflineTableQueries
+	providerType  pt.Type
 }
 
-func newsqlGenericTableIterator(rows *sql.Rows, columnTypes []interface{}, columnNames []string, query OfflineTableQueries) GenericTableIterator {
+func newsqlGenericTableIterator(rows *sql.Rows, columnTypes []interface{}, columnNames []string, query OfflineTableQueries, providerType pt.Type) GenericTableIterator {
 	return &sqlGenericTableIterator{
 		rows:          rows,
 		currentValues: nil,
@@ -1219,6 +1236,7 @@ func newsqlGenericTableIterator(rows *sql.Rows, columnTypes []interface{}, colum
 		columnTypes:   columnTypes,
 		columnNames:   columnNames,
 		query:         query,
+		providerType:  providerType,
 	}
 }
 
@@ -1229,12 +1247,7 @@ func (it *sqlGenericTableIterator) Next() bool {
 	}
 	columnNames, err := it.rows.Columns()
 	if err != nil {
-		it.rows.Close()
-		it.err = err
-		return false
-	}
-	if err != nil {
-		it.err = err
+		it.err = fferr.NewExecutionError(string(it.providerType), "", "", "", err)
 		it.rows.Close()
 		return false
 	}
@@ -1244,8 +1257,8 @@ func (it *sqlGenericTableIterator) Next() bool {
 		pointers[i] = &values[i]
 	}
 	if err := it.rows.Scan(pointers...); err != nil {
+		it.err = fferr.NewExecutionError(string(it.providerType), "", "", "", err)
 		it.rows.Close()
-		it.err = err
 		return false
 	}
 
@@ -1273,7 +1286,10 @@ func (it *sqlGenericTableIterator) Err() error {
 }
 
 func (it *sqlGenericTableIterator) Close() error {
-	return it.rows.Close()
+	if err := it.rows.Close(); err != nil {
+		return fferr.NewConnectionError(string(it.providerType), err)
+	}
+	return nil
 }
 
 type defaultOfflineSQLQueries struct {
@@ -1291,7 +1307,7 @@ type variableBindingStyle string
 
 const (
 	PostgresBindingStyle variableBindingStyle = "POSTGRESBIND"
-	MySQLBindingStyle                         = "SQLBIND"
+	MySQLBindingStyle    variableBindingStyle = "SQLBIND"
 )
 
 type VariableBindingIterator struct {
@@ -1332,7 +1348,7 @@ func (q defaultOfflineSQLQueries) registerResources(db *sql.DB, tableName string
 			schema.Entity, schema.Value, time.UnixMilli(0).UTC(), sanitize(schema.SourceTable))
 	}
 	if _, err := db.Exec(query); err != nil {
-		return err
+		return fferr.NewExecutionError("SQL", "", "", "", err)
 	}
 	return nil
 }
@@ -1345,14 +1361,14 @@ func (q defaultOfflineSQLQueries) getColumns(db *sql.DB, name string) ([]TableCo
 	qry := fmt.Sprintf("SELECT column_name FROM information_schema.columns WHERE table_name = %s order by ordinal_position", bind.Next())
 	rows, err := db.Query(qry, name)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError("SQL", "", "", "", err)
 	}
 	defer rows.Close()
 	columnNames := make([]TableColumn, 0)
 	for rows.Next() {
 		var column string
 		if err := rows.Scan(&column); err != nil {
-			return nil, err
+			return nil, fferr.NewExecutionError("SQL", "", "", "", err)
 		}
 		columnNames = append(columnNames, TableColumn{Name: column})
 	}
@@ -1386,9 +1402,10 @@ func (q defaultOfflineSQLQueries) materializationUpdate(db *sql.DB, tableName st
 			"", tempTable, sanitize(sourceName), sanitizedTable, oldTable, tempTable, sanitizedTable, oldTable)
 	var numStatements = 6
 	stmt, _ := sf.WithMultiStatement(context.TODO(), numStatements)
-	_, err := db.QueryContext(stmt, query)
-
-	return err
+	if _, err := db.QueryContext(stmt, query); err != nil {
+		return fferr.NewExecutionError("SQL", "", "", "", err)
+	}
+	return nil
 }
 
 func (q defaultOfflineSQLQueries) getTable() string {
@@ -1512,7 +1529,7 @@ func (q defaultOfflineSQLQueries) trainingSetQuery(store *sqlOfflineStore, def T
 				"SELECT t0.entity as e, t0.value as label, t0.ts as time, %s from %s as t0 %s )",
 			sanitize(tableName), columnStr, columnStr, sanitize(labelName), query)
 		if _, err := store.db.Exec(fullQuery); err != nil {
-			return err
+			return fferr.NewExecutionError("SQL", "", "", "", err)
 		}
 	} else {
 		tempTable := sanitize(fmt.Sprintf("tmp_%s", tableName))
@@ -1540,8 +1557,10 @@ func (q defaultOfflineSQLQueries) atomicUpdate(db *sql.DB, tableName string, tem
 	var numStatements = 6
 	// Gets around the fact that the go redshift driver doesn't support multi statement trx queries
 	stmt, _ := sf.WithMultiStatement(context.TODO(), numStatements)
-	_, err := db.QueryContext(stmt, transaction)
-	return err
+	if _, err := db.QueryContext(stmt, transaction); err != nil {
+		return fferr.NewExecutionError("SQL", "", "", "", err)
+	}
+	return nil
 }
 
 func (q defaultOfflineSQLQueries) trainingSetCreate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
@@ -1596,7 +1615,7 @@ func (q defaultOfflineSQLQueries) getValueColumnType(t *sql.ColumnType) interfac
 
 func (q defaultOfflineSQLQueries) numRows(n interface{}) (int64, error) {
 	if intVar, err := strconv.Atoi(n.(string)); err != nil {
-		return 0, err
+		return 0, fferr.NewInternalError(err)
 	} else {
 		return int64(intVar), nil
 	}

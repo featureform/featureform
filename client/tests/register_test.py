@@ -109,9 +109,14 @@ def test_sql_transformation_decorator_invalid_fn(local, fn):
             [("df", "var"), ("df2", "var2")],
         ),
         (
-                "SELECT * FROM {{arg1}} JOIN {{         arg1  }} JOIN {{     arg2 }} JOIN {{ arg2       }}",
-                "SELECT * FROM {{ df.var }} JOIN {{ df.var }} JOIN {{ df2.var2 }} JOIN {{ df2.var2 }}",
-                [("df", "var"), ("df2", "var2")],
+            "SELECT * FROM {{arg1}} JOIN {{         arg1  }} JOIN {{     arg2 }} JOIN {{ arg2       }}",
+            "SELECT * FROM {{ df.var }} JOIN {{ df.var }} JOIN {{ df2.var2 }} JOIN {{ df2.var2 }}",
+            [("df", "var"), ("df2", "var2")],
+        ),
+        (
+            "SELECT * FROM {{arg1}} JOIN {{         arg1  }} JOIN {{     arg2 }} JOIN {{ some_transformation.variant       }}",
+            "SELECT * FROM {{ df.var }} JOIN {{ df.var }} JOIN {{ df2.var2 }} JOIN {{ some_transformation.variant       }}",
+            [("df", "var"), ("df2", "var2")],
         ),
     ],
 )

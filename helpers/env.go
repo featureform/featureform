@@ -44,6 +44,13 @@ func GetEnvInt32(key string, fallback int32) int32 {
 	}).(int32)
 }
 
+func GetEnvUInt16(key string, fallback uint16) uint16 {
+	return getEnvGeneric(key, fallback, func(val string) (interface{}, error) {
+		parsedValue, err := strconv.ParseUint(val, 10, 16)
+		return uint16(parsedValue), err
+	}).(uint16)
+}
+
 func GetEnvBool(key string, fallback bool) bool {
 	return getEnvGeneric(key, fallback, func(val string) (interface{}, error) {
 		parsedValue, err := strconv.ParseBool(val)

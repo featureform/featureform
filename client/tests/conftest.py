@@ -433,6 +433,11 @@ def docker_quickstart_deployment():
 
 
 @pytest.fixture(scope="module")
+def docker_quickstart_deployment_with_clickhouse():
+    return DockerDeployment(True, clickhouse=True)
+
+
+@pytest.fixture(scope="module")
 def docker_deployment_status():
     return None
 

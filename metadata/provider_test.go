@@ -91,6 +91,16 @@ func TestProviderConfigUpdates(t *testing.T) {
 			providerType: pt.PostgresOffline,
 		},
 		{
+			name:         "Valid ClickHouse Configuration Update",
+			valid:        true,
+			providerType: pt.ClickHouseOffline,
+		},
+		{
+			name:         "Invalid ClickHouse Configuration Update",
+			valid:        false,
+			providerType: pt.ClickHouseOffline,
+		},
+		{
 			name:         "Valid Redis Configuration Update",
 			valid:        true,
 			providerType: pt.RedisOnline,
@@ -158,6 +168,8 @@ func TestProviderConfigUpdates(t *testing.T) {
 				testMySqlConfigUpdates(t, c.providerType, c.valid)
 			case pt.PostgresOffline:
 				testPostgresConfigUpdates(t, c.providerType, c.valid)
+			case pt.ClickHouseOffline:
+				testClickHouseConfigUpdates(t, c.providerType, c.valid)
 			case pt.RedisOnline:
 				testRedisConfigUpdates(t, c.providerType, c.valid)
 			case pt.SnowflakeOffline:
@@ -394,6 +406,44 @@ func testMySqlConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 	b := configB.Serialize()
 
 	actual, err := isValidPostgresConfigUpdate(a, b)
+	assertConfigUpdateResult(t, valid, actual, err, providerType)
+}
+
+func testClickHouseConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
+	host := "0.0.0.0"
+	port := uint16(9000)
+	username := "default"
+	password := "password"
+	database := "default"
+
+	configA := pc.ClickHouseConfig{
+		Host:     host,
+		Port:     port,
+		Username: username,
+		Password: password,
+		Database: database,
+	}
+	a := configA.Serialize()
+
+	if valid {
+		username += updateSuffix
+		password += updateSuffix
+		port = uint16(9001)
+	} else {
+		host = "127.0.0.1"
+		database += updateSuffix
+	}
+
+	configB := pc.ClickHouseConfig{
+		Host:     host,
+		Port:     port,
+		Username: username,
+		Password: password,
+		Database: database,
+	}
+	b := configB.Serialize()
+
+	actual, err := isValidClickHouseConfigUpdate(a, b)
 	assertConfigUpdateResult(t, valid, actual, err, providerType)
 }
 

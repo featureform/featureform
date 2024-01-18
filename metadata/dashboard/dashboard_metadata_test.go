@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/featureform/metadata"
+	"github.com/featureform/metadata/search"
 	"github.com/featureform/provider"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -18,6 +19,7 @@ import (
 )
 
 func GetTestGinContext(mockRecorder *httptest.ResponseRecorder) *gin.Context {
+	SearchClient = search.SearchMock{}
 	gin.SetMode(gin.TestMode)
 	ctx, _ := gin.CreateTestContext(mockRecorder)
 	ctx.Request = &http.Request{

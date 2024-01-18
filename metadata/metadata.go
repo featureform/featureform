@@ -230,9 +230,26 @@ func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
 	if err := wrapper.ResourceLookup.Set(id, res); err != nil {
 		return err
 	}
+
+	var allTags []string
+	switch res.(type) {
+	case *sourceVariantResource:
+		allTags = res.(*sourceVariantResource).serialized.Tags.Tag
+
+	case *featureVariantResource:
+		allTags = res.(*featureVariantResource).serialized.Tags.Tag
+		
+	case *labelVariantResource:
+		allTags = res.(*labelVariantResource).serialized.Tags.Tag
+
+	case *trainingSetVariantResource:
+		allTags = res.(*trainingSetVariantResource).serialized.Tags.Tag
+	}
+	
 	doc := search.ResourceDoc{
 		Name:    id.Name,
 		Type:    id.Type.String(),
+		Tags:	allTags,
 		Variant: id.Variant,
 	}
 	return wrapper.Searcher.Upsert(doc)

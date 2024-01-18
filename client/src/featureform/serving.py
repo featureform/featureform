@@ -1079,9 +1079,10 @@ class Dataset:
         if self._dataframe is not None:
             return self._dataframe
         elif spark_session is not None:
-            req = serving_pb2.TrainingDataRequest()
-            req.id.name = self._stream.name
-            req.id.version = self._stream.version
+            req = serving_pb2.ResourceIdRequest()
+            req.name = self._stream.name
+            req.variant = self._stream.version
+            req.type = int(ResourceType.TRAINING_DATA.value)
             resp = self._stream._stub.ResourceLocation(req)
 
             file_format = FileFormat.get_format(resp.location, default="parquet")

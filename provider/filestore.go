@@ -604,7 +604,7 @@ func (fs *HDFSFileStore) Serve(files []filestore.Filepath) (Iterator, error) {
 	case filestore.CSV:
 		return nil, fferr.NewInternalError(fmt.Errorf("CSV reader not implemented"))
 	default:
-		return nil, fferr.NewDataTypeNotFoundError(string(file.Ext()), fmt.Errorf("unsupported file type"))
+		return nil, fferr.NewInvalidArgument(fmt.Errorf("unsupported file type: %s", file.Ext()))
 	}
 }
 
@@ -613,7 +613,7 @@ func (fs *HDFSFileStore) Exists(path filestore.Filepath) (bool, error) {
 	if err != nil && strings.Contains(err.Error(), "file does not exist") {
 		return false, nil
 	} else if err != nil {
-		return false, fferr.NewInternalError(err)
+		return false, fferr.NewExecutionError(string(filestore.HDFS), "", "", "", err)
 	}
 	return true, nil
 }

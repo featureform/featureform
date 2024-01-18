@@ -73,7 +73,7 @@ func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, e
 	}
 	sess := session.Must(session.NewSession(config))
 	dynamodbClient := dynamodb.New(sess)
-	logger := logging.NewLogger("provider")
+	logger := logging.NewLogger("dynamodb")
 	if err := CreateMetadataTable(dynamodbClient, logger); err != nil {
 		return nil, NewProviderError(Connection, pt.DynamoDBOnline, ClientInitialization, err.Error())
 	}

@@ -1000,7 +1000,7 @@ class SQLTransformation(Transformation):
     func_params_to_inputs: Dict[str, Any] = field(default_factory=dict)
 
     _sql_placeholder_regex: str = field(
-        default=r"\{\{ \w+ \}\}", init=False, repr=False
+        default=r"\{\{\s*\w+\s*\}\}", init=False, repr=False
     )
 
     def __post_init__(self):
@@ -1028,6 +1028,8 @@ class SQLTransformation(Transformation):
 
         if self.args is not None:
             transformation = self.args.apply(transformation)
+
+        print('transformation')
 
         return {"transformation": transformation}
 

@@ -2,7 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
-	"fmt"
+	"github.com/featureform/fferr"
 
 	cfg "github.com/featureform/config"
 	ss "github.com/featureform/helpers/string_set"
@@ -15,7 +15,7 @@ type ExecutorConfig struct {
 func (c *ExecutorConfig) Serialize() ([]byte, error) {
 	serialized, err := json.Marshal(c)
 	if err != nil {
-		return nil, fmt.Errorf("could not serialize K8s Config: %w", err)
+		return nil, fferr.NewInternalError(err)
 	}
 	return serialized, nil
 }
@@ -23,7 +23,7 @@ func (c *ExecutorConfig) Serialize() ([]byte, error) {
 func (c *ExecutorConfig) Deserialize(config []byte) error {
 	err := json.Unmarshal(config, &c)
 	if err != nil {
-		return fmt.Errorf("could not deserialize K8s Executor Config: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }

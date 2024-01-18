@@ -17,6 +17,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 
+	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	"github.com/featureform/metadata"
 	pc "github.com/featureform/provider/provider_config"
@@ -79,11 +80,11 @@ func (id *ResourceID) FromFilestorePath(path string) error {
 	featureformRootPathPart := "featureform/"
 	idx := strings.Index(path, featureformRootPathPart)
 	if idx == -1 {
-		return fmt.Errorf("expected \"featureform\" root path part in path %s", path)
+		return fferr.NewInternalError(fmt.Errorf("expected \"featureform\" root path part in path %s", path))
 	}
 	resourceParts := strings.Split(path[idx+len(featureformRootPathPart):], "/")
 	if len(resourceParts) < 3 {
-		return fmt.Errorf("expected path %s to contain OfflineResourceType/Name/Variant", strings.Join(resourceParts, "/"))
+		return fferr.NewInternalError(fmt.Errorf("expected path %s to contain OfflineResourceType/Name/Variant", strings.Join(resourceParts, "/")))
 	}
 	switch resourceParts[0] {
 	case "Label":
@@ -99,7 +100,7 @@ func (id *ResourceID) FromFilestorePath(path string) error {
 	case "Materialization":
 		id.Type = OfflineResourceType(6)
 	default:
-		return fmt.Errorf("unrecognized OfflineResourceType: %s", resourceParts[0])
+		return fferr.NewInternalError(fmt.Errorf("unrecognized OfflineResourceType: %s", resourceParts[0]))
 	}
 	id.Name = resourceParts[1]
 	id.Variant = resourceParts[2]
@@ -108,7 +109,7 @@ func (id *ResourceID) FromFilestorePath(path string) error {
 
 func (id *ResourceID) check(expectedType OfflineResourceType, otherTypes ...OfflineResourceType) error {
 	if id.Name == "" {
-		return errors.New("ResourceID must have Name set")
+		return fferr.NewInvalidArgument(errors.New("ResourceID must have Name set"))
 	}
 	// If there is one expected type, we will default to it.
 	if id.Type == NoType && len(otherTypes) == 0 {
@@ -121,7 +122,7 @@ func (id *ResourceID) check(expectedType OfflineResourceType, otherTypes ...Offl
 			return nil
 		}
 	}
-	return fmt.Errorf("unexpected ResourceID Type: %v", id.Type)
+	return fferr.NewInvalidArgument(fmt.Errorf("unexpected ResourceID Type: %v", id.Type))
 }
 
 func GetOfflineStore(t pt.Type, c pc.SerializedConfig) (OfflineStore, error) {
@@ -158,7 +159,7 @@ func (def *TrainingSetDef) check() error {
 		return err
 	}
 	if len(def.Features) == 0 {
-		return errors.New("training set must have atleast one feature")
+		return fferr.NewInvalidArgument(errors.New("training set must have at least one feature"))
 	}
 	for i := range def.Features {
 		// We use features[i] to make sure that the Type value is updated to
@@ -207,7 +208,7 @@ func (m *TransformationConfig) MarshalJSON() ([]byte, error) {
 	c := config(*m)
 	marshal, err := json.Marshal(&c)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	return marshal, nil
 }
@@ -226,7 +227,7 @@ func (m *TransformationConfig) UnmarshalJSON(data []byte) error {
 	var temp tempConfig
 	err := json.Unmarshal(data, &temp)
 	if err != nil {
-		return fmt.Errorf("unmarshal: %w", err)
+		return fferr.NewInternalError(err)
 	}
 
 	m.Type = temp.Type
@@ -237,14 +238,13 @@ func (m *TransformationConfig) UnmarshalJSON(data []byte) error {
 
 	err = m.decodeArgs(temp.ArgType, temp.Args)
 	if err != nil {
-		return fmt.Errorf("decode: %w", err)
+		return err
 	}
 
 	return nil
 }
 
 func (m *TransformationConfig) decodeArgs(t metadata.TransformationArgType, argMap map[string]interface{}) error {
-
 	var args metadata.TransformationArgs
 	switch t {
 	case metadata.K8sArgs:
@@ -253,11 +253,11 @@ func (m *TransformationConfig) decodeArgs(t metadata.TransformationArgType, argM
 		m.Args = nil
 		return nil
 	default:
-		return fmt.Errorf("invalid transformation arg type")
+		return fferr.NewInvalidArgument(fmt.Errorf("invalid transformation arg type: %v", t))
 	}
 	err := mapstructure.Decode(argMap, &args)
 	if err != nil {
-		return fmt.Errorf("could not decode map: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	m.Args = args
 	return nil
@@ -376,7 +376,7 @@ type GenericRecord []interface{}
 
 func (rec ResourceRecord) check() error {
 	if rec.Entity == "" {
-		return errors.New("ResourceRecord must have Entity set")
+		return fferr.NewInvalidArgument(fmt.Errorf("ResourceRecord must have Entity set"))
 	}
 	return nil
 }
@@ -386,7 +386,7 @@ func (rec *ResourceRecord) SetEntity(entity interface{}) error {
 	case string:
 		rec.Entity = typedEntity
 	default:
-		return fmt.Errorf("entity must be a string; received %T", entity)
+		return fferr.NewInvalidArgument(fmt.Errorf("entity must be a string; received %T", entity))
 
 	}
 	return nil
@@ -429,7 +429,7 @@ type ResourceSchema struct {
 func (schema *ResourceSchema) Serialize() ([]byte, error) {
 	config, err := json.Marshal(schema)
 	if err != nil {
-		return nil, fmt.Errorf("failed to serialize resource schema due to: %w", err)
+		return nil, fferr.NewInternalError(err)
 	}
 	return config, nil
 }
@@ -437,7 +437,7 @@ func (schema *ResourceSchema) Serialize() ([]byte, error) {
 func (schema *ResourceSchema) Deserialize(config []byte) error {
 	err := json.Unmarshal(config, schema)
 	if err != nil {
-		return fmt.Errorf("failed to deserialize resource schema due to: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -503,7 +503,7 @@ func (schema *TableSchema) Serialize() ([]byte, error) {
 	}
 	config, err := json.Marshal(wrapper)
 	if err != nil {
-		return nil, fmt.Errorf("failed to serialize table schema due to: %w", err)
+		return nil, fferr.NewInternalError(err)
 	}
 	return config, nil
 }
@@ -512,7 +512,7 @@ func (schema *TableSchema) Deserialize(config []byte) error {
 	wrapper := &TableSchemaJSONWrapper{}
 	err := json.Unmarshal(config, wrapper)
 	if err != nil {
-		return fmt.Errorf("failed to deserialize table schema due to: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	schema.Columns = make([]TableColumn, len(wrapper.Columns))
 	for i, col := range wrapper.Columns {
@@ -604,31 +604,31 @@ func (store *memoryOfflineStore) AsOfflineStore() (OfflineStore, error) {
 }
 
 func (store *memoryOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
-	return nil, fmt.Errorf("Snowflake RegisterResourceFromSourceTable not implemented")
+	return nil, fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (store *memoryOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
-	return nil, fmt.Errorf("Snowflake RegisterPrimaryFromSourceTable not implemented")
+	return nil, fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (store *memoryOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
-	return nil, errors.New("primary table unsupported for this provider")
+	return nil, fferr.NewInternalError(fmt.Errorf("primary table unsupported for this provider"))
 }
 
 func (store *memoryOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
-	return nil, errors.New("primary table unsupported for this provider")
+	return nil, fferr.NewInternalError(fmt.Errorf("primary table unsupported for this provider"))
 }
 
 func (store *memoryOfflineStore) CreateTransformation(config TransformationConfig) error {
-	return errors.New("CreateTransformation unsupported for this provider")
+	return fferr.NewInternalError(fmt.Errorf("CreateTransformation unsupported for this provider"))
 }
 
 func (store *memoryOfflineStore) UpdateTransformation(config TransformationConfig) error {
-	return errors.New("UpdateTransformation unsupported for this provider")
+	return fferr.NewInternalError(fmt.Errorf("UpdateTransformation unsupported for this provider"))
 }
 
 func (store *memoryOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	return nil, errors.New("GetTransformationTable unsupported for this provider")
+	return nil, fferr.NewInternalError(fmt.Errorf("GetTransformationTable unsupported for this provider"))
 }
 
 func (store *memoryOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
@@ -636,7 +636,7 @@ func (store *memoryOfflineStore) CreateResourceTable(id ResourceID, schema Table
 		return nil, err
 	}
 	if _, has := store.tables.Load(id); has {
-		return nil, &TableAlreadyExists{id.Name, id.Variant}
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	table := newMemoryOfflineTable()
 	store.tables.Store(id, table)
@@ -650,7 +650,7 @@ func (store *memoryOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, 
 func (store *memoryOfflineStore) getMemoryResourceTable(id ResourceID) (*memoryOfflineTable, error) {
 	table, has := store.tables.Load(id)
 	if !has {
-		return nil, &TableNotFound{id.Name, id.Variant}
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	return table.(*memoryOfflineTable), nil
 }
@@ -677,9 +677,10 @@ func (recs materializedRecords) Swap(i, j int) {
 func (store *memoryOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
 	return nil, nil
 }
+
 func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
-		return nil, errors.New("only features can be materialized")
+		return nil, fferr.NewInvalidArgument(fmt.Errorf("only features can be materialized"))
 	}
 	table, err := store.getMemoryResourceTable(id)
 	if err != nil {
@@ -703,6 +704,7 @@ func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, options ..
 	return mat, nil
 }
 
+// TODO: remove in favor of fferr.DatasetNotFoundError
 type MaterializationNotFound struct {
 	id MaterializationID
 }
@@ -714,7 +716,7 @@ func (err *MaterializationNotFound) Error() string {
 func (store *memoryOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
 	mat, has := store.materializations.Load(id)
 	if !has {
-		return nil, &MaterializationNotFound{id}
+		return nil, fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
 	return mat.(Materialization), nil
 }
@@ -725,7 +727,7 @@ func (store *memoryOfflineStore) UpdateMaterialization(id ResourceID) (Materiali
 
 func (store *memoryOfflineStore) DeleteMaterialization(id MaterializationID) error {
 	if _, has := store.materializations.Load(id); !has {
-		return &MaterializationNotFound{id}
+		return fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
 	store.materializations.Delete(id)
 	return nil
@@ -784,7 +786,7 @@ func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetItera
 	}
 	data, has := store.trainingSets.Load(id)
 	if !has {
-		return nil, &TrainingSetNotFound{id}
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	return data.(trainingRows).Iterator(), nil
 }
@@ -798,9 +800,10 @@ func (store *memoryOfflineStore) Close() error {
 }
 
 func (store *memoryOfflineStore) CheckHealth() (bool, error) {
-	return false, fmt.Errorf("provider health check not implemented")
+	return false, fferr.NewInternalError(fmt.Errorf("provider health check not implemented"))
 }
 
+// TODO: remove in favor of fferr.DatasetNotFoundError
 type TrainingSetNotFound struct {
 	ID ResourceID
 }
@@ -1007,7 +1010,9 @@ func replaceSourceName(query string, mapping []SourceMapping, sanitize sanitizat
 	replacedQuery := replacer.Replace(query)
 
 	if strings.Contains(replacedQuery, "{{") {
-		return "", fmt.Errorf("could not replace all the templates with the current mapping. Mapping: %v; Replaced Query: %s", mapping, replacedQuery)
+		err := fferr.NewInternalError(fmt.Errorf("template replacement error"))
+		err.AddDetail("query", replacedQuery)
+		return "", err
 	}
 
 	return replacedQuery, nil

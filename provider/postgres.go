@@ -85,11 +85,14 @@ func (q postgresSQLQueries) primaryTableRegister(tableName string, sourceName st
 	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM %s", sanitize(tableName), sourceName)
 }
 
-func (q postgresSQLQueries) materializationCreate(tableName string, sourceName string) string {
-	return fmt.Sprintf(
-		"CREATE MATERIALIZED VIEW IF NOT EXISTS %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
-			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
-			"AS rn FROM %s) t WHERE rn=1);  CREATE UNIQUE INDEX ON %s (entity);", sanitize(tableName), sanitize(sourceName), sanitize(tableName))
+func (q postgresSQLQueries) materializationCreate(tableName string, sourceName string) []string {
+	return []string{
+		fmt.Sprintf(
+			"CREATE MATERIALIZED VIEW IF NOT EXISTS %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
+				"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
+				"AS rn FROM %s) t WHERE rn=1);", sanitize(tableName), sanitize(sourceName)),
+		fmt.Sprintf("CREATE UNIQUE INDEX ON %s (entity);", sanitize(tableName)),
+	}
 }
 
 func (q postgresSQLQueries) materializationUpdate(db *sql.DB, tableName string, sourceName string) error {
@@ -219,8 +222,10 @@ func (q postgresSQLQueries) numRows(n interface{}) (int64, error) {
 	return n.(int64), nil
 }
 
-func (q postgresSQLQueries) transformationCreate(name string, query string) string {
-	return fmt.Sprintf("CREATE TABLE  %s AS %s", sanitize(name), query)
+func (q postgresSQLQueries) transformationCreate(name string, query string) []string {
+	return []string{
+		fmt.Sprintf("CREATE TABLE  %s AS %s", sanitize(name), query),
+	}
 }
 
 func (q postgresSQLQueries) transformationUpdate(db *sql.DB, tableName string, query string) error {

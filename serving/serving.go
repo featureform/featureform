@@ -7,9 +7,11 @@ package serving
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"sync"
 
+	"github.com/pkg/errors"
+
+	"github.com/featureform/fferr"
 	filestore "github.com/featureform/filestore"
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
@@ -70,7 +72,7 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 		if err := stream.Send(sRow); err != nil {
 			logger.Errorw("Failed to write to stream", "Error", err)
 			featureObserver.SetError()
-			return err
+			return fferr.NewInternalError(err)
 		}
 		featureObserver.ServeRow()
 	}
@@ -88,7 +90,7 @@ func (serv *FeatureServer) TrainingDataColumns(ctx context.Context, req *pb.Trai
 	serv.Logger.Infow("Getting training set columns", "Name", name, "Variant", variant)
 	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get training set variant")
+		return nil, err
 	}
 	fv := ts.Features()
 	features := make([]string, len(fv))
@@ -121,7 +123,7 @@ func (serv *FeatureServer) SourceData(req *pb.SourceDataRequest, stream pb.Featu
 		}
 		if err := stream.Send(sRow); err != nil {
 			logger.Errorw("Failed to write to source data stream", "Error", err)
-			return err
+			return fferr.NewInternalError(err)
 		}
 	}
 	if err := iter.Err(); err != nil {
@@ -134,24 +136,24 @@ func (serv *FeatureServer) SourceData(req *pb.SourceDataRequest, stream pb.Featu
 func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provider.TrainingSetIterator, error) {
 	ctx := context.TODO()
 	serv.Logger.Infow("Getting Training Set Iterator", "name", name, "variant", variant)
-	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{name, variant})
+	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get training set variant")
+		return nil, err
 	}
 	serv.Logger.Debugw("Fetching Training Set Provider", "name", name, "variant", variant)
 	providerEntry, err := ts.FetchProvider(serv.Metadata, ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get fetch provider")
+		return nil, err
 	}
 	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get provider")
+		return nil, err
 	}
 	store, err := p.AsOfflineStore()
 	if err != nil {
 		// This means that the provider of the training set isn't an offline store.
 		// That shouldn't be possible.
-		return nil, errors.Wrap(err, "could not open as offline store")
+		return nil, err
 	}
 	serv.Logger.Debugw("Get Training Set From Store", "name", name, "variant", variant)
 	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
@@ -167,16 +169,16 @@ func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (p
 	// Assuming that all the features have the same offline provider
 	feat, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{ids[0].Name, ids[0].Variant})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get Feature Variant")
+		return nil, err
 	}
 	serv.Logger.Debugw("Fetching Feature Provider from ", "name", ids[0].Name, "variant", ids[0].Variant)
 	featureSource, err := feat.FetchSource(serv.Metadata, ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not fetch source")
+		return nil, err
 	}
 	providerEntry, err := featureSource.FetchProvider(serv.Metadata, ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not fetch provider")
+		return nil, err
 	}
 	providerName := providerEntry.Name()
 	err = serv.checkFeatureSources(providerName, ids, ctx)
@@ -186,34 +188,34 @@ func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (p
 
 	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get provider")
+		return nil, err
 	}
 
 	store, err := p.AsOfflineStore()
 	if err != nil {
 		// This means that the provider of the feature isn't an offline store.
 		// That shouldn't be possible.
-		return nil, errors.Wrap(err, "could not open as offline store")
+		return nil, err
 	}
 	return store.GetBatchFeatures(ids)
 }
 
 func (serv *FeatureServer) checkFeatureSources(firstProvider string, ids []provider.ResourceID, ctx context.Context) error {
 	for id := range ids {
-		id_feature, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{ids[id].Name, ids[id].Variant})
+		id_feature, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{Name: ids[id].Name, Variant: ids[id].Variant})
 		if err != nil {
-			return errors.Wrap(err, "could not get Feature Variant")
+			return err
 		}
 		id_featureSource, err := id_feature.FetchSource(serv.Metadata, ctx)
 		if err != nil {
-			return errors.Wrap(err, "could not fetch source")
+			return err
 		}
 		id_providerEntry, err := id_featureSource.FetchProvider(serv.Metadata, ctx)
 		if err != nil {
-			return errors.Wrap(err, "could not fetch provider")
+			return err
 		}
 		if id_providerEntry.Name() != firstProvider {
-			return errors.Wrap(err, "features have different providers")
+			return err
 		}
 	}
 	return nil
@@ -223,20 +225,17 @@ func (serv *FeatureServer) checkFeatureSources(firstProvider string, ids []provi
 func (serv *FeatureServer) checkEntityOfFeature(ids []provider.ResourceID) (bool, error) {
 	ctx := context.TODO()
 	entityName := ""
-	// if len(features) != len(variants) {
-	// 	return false, fmt.Errorf("Feature and Variant lists have different lengths")
-	// }
 	for _, resourceID := range ids {
 		serv.Logger.Infow("Getting Feature Variant Iterator", "name", resourceID.Name, "variant", resourceID.Variant)
 		feature, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{Name: resourceID.Name, Variant: resourceID.Variant})
 		if err != nil {
-			return false, errors.Wrap(err, "could not get feature variant")
+			return false, err
 		}
 		correspondingEntity := feature.Entity()
 		if entityName == "" {
 			entityName = correspondingEntity
 		} else if correspondingEntity != entityName {
-			return false, fmt.Errorf("Entity names are not the same")
+			return false, fferr.NewInternalError(fmt.Errorf("entity names are not the same"))
 		}
 	}
 	return true, nil
@@ -247,24 +246,24 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	serv.Logger.Infow("Getting Source Variant Iterator", "name", name, "variant", variant)
 	sv, err := serv.Metadata.GetSourceVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get source variant")
+		return nil, err
 	}
 	// TODO: Determine if we want to add a backoff here to wait for the source
 	if sv.Status() != metadata.READY {
-		return nil, fmt.Errorf("source variant is not ready; current status is %v", sv.Status())
+		return nil, fferr.NewResourceNotReadyError(name, variant, "SOURCE_VARIANT", fmt.Errorf("current status: %s", sv.Status()))
 	}
 	providerEntry, err := sv.FetchProvider(serv.Metadata, ctx)
 	serv.Logger.Debugw("Fetched Source Variant Provider", "name", providerEntry.Name(), "type", providerEntry.Type())
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get fetch provider")
+		return nil, err
 	}
 	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get provider")
+		return nil, err
 	}
 	store, err := p.AsOfflineStore()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not open as offline store")
+		return nil, err
 	}
 	var primary provider.PrimaryTable
 	var providerErr error
@@ -280,7 +279,7 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 			// the method. This assertion should never fail.
 			if tbl, isPrimaryTable := t.(provider.PrimaryTable); !isPrimaryTable {
 				serv.Logger.Errorw("transformation table is not a primary table", "name", name, "variant", variant)
-				providerErr = fmt.Errorf("transformation table is not a primary table")
+				providerErr = fferr.NewInvalidResourceTypeError(name, variant, provider.Transformation.String(), fmt.Errorf("transformation table is not a primary table"))
 			} else {
 				primary = tbl
 			}
@@ -291,7 +290,7 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	}
 	if providerErr != nil {
 		serv.Logger.Errorw("Could not get primary table", "name", name, "variant", variant, "Error", providerErr)
-		return nil, errors.Wrap(err, "could not get primary table")
+		return nil, err
 	}
 	serv.Logger.Debugw("Getting source data iterator", "name", name, "variant", variant)
 	return primary.IterateSegment(limit)
@@ -312,7 +311,6 @@ func (serv *FeatureServer) addModel(ctx context.Context, model *pb.Model, featur
 
 type observer struct{}
 
-// TODO: test serving embedding features
 func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServeRequest) (*pb.FeatureRow, error) {
 	features := req.GetFeatures()
 	entities := req.GetEntities()
@@ -361,7 +359,7 @@ func (serv *FeatureServer) BatchFeatureServe(req *pb.BatchFeatureServeRequest, s
 			return err
 		}
 		if err := stream.Send(sRow); err != nil {
-			return err
+			return fferr.NewInternalError(err)
 		}
 	}
 	if err := iter.Err(); err != nil {
@@ -380,7 +378,7 @@ func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceColu
 	}
 	if it == nil {
 		serv.Logger.Errorf("source data iterator is nil", "Name", name, "Variant", variant, "Error", err.Error())
-		return nil, fmt.Errorf("could not fetch source data due to error; check the data source registration to ensure it is valid")
+		return nil, fferr.NewDatasetNotFoundError(name, variant, fmt.Errorf("source data iterator is nil"))
 	}
 	defer it.Close()
 	return &pb.SourceDataColumns{
@@ -405,7 +403,7 @@ func (serv *FeatureServer) Nearest(ctx context.Context, req *pb.NearestRequest) 
 	searchVector := req.GetVector()
 	k := req.GetK()
 	if searchVector == nil {
-		return nil, fmt.Errorf("no embedding provided")
+		return nil, fferr.NewInvalidArgument(fmt.Errorf("no embedding provided"))
 	}
 	entities, err := vectorTable.Nearest(name, variant, searchVector.Value, k)
 	if err != nil {
@@ -440,7 +438,8 @@ func (serv *FeatureServer) getVectorTable(ctx context.Context, fv *metadata.Feat
 	}
 	vectorTable, ok := table.(provider.VectorStoreTable)
 	if !ok {
-		serv.Logger.Errorw("failed to use table as vector store table", "Error", err)
+		serv.Logger.Errorw("failed to use table as vector store table")
+		return nil, fferr.NewInternalError(fmt.Errorf("received %T; expected VectorStoreTable", table))
 	}
 	return vectorTable, nil
 }
@@ -456,44 +455,44 @@ func (serv *FeatureServer) ResourceLocation(ctx context.Context, req *pb.Trainin
 
 	tv, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get training set variant")
+		return nil, err
 	}
 
 	// There might be an edge case where you have successfully ran a previous job and currently, you run a new job
 	// the status would be PENDING
 	if tv.Status() != metadata.READY {
-		return nil, fmt.Errorf("training set variant is not ready; current status is %v", tv.Status())
+		return nil, fferr.NewResourceNotReadyError(name, variant, "TRAINING_SET_VARIANT", fmt.Errorf("current status: %s", tv.Status()))
 	}
 
 	providerEntry, err := tv.FetchProvider(serv.Metadata, ctx)
 	serv.Logger.Debugw("Fetched Source Variant Provider", "name", providerEntry.Name(), "type", providerEntry.Type())
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get fetch provider")
+		return nil, err
 	}
 	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get provider")
+		return nil, err
 	}
 	store, err := p.AsOfflineStore()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not open as offline store")
+		return nil, err
 	}
 
 	spark, ok := store.(*provider.SparkOfflineStore)
 	if !ok {
-		return nil, errors.Wrap(err, "could not cast to spark store")
+		return nil, fferr.NewInternalError(errors.Wrap(err, "could not cast to spark store"))
 	}
 	resourceID := provider.ResourceID{Name: name, Variant: variant, Type: provider.TrainingSet}
 
 	path, err := spark.Store.CreateDirPath(resourceID.ToFilestorePath())
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create dir path")
+		return nil, err
 	}
 
 	serv.Logger.Debugw("Getting resource location", "name", name, "variant", variant)
 	newestFile, err := spark.Store.NewestFileOfType(path, filestore.Parquet)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get newest file")
+		return nil, err
 	}
 
 	return &pb.ResourceFileLocation{

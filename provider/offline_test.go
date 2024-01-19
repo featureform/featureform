@@ -624,11 +624,12 @@ func testResourceLocation(t *testing.T, store OfflineStore) {
 		t.Fatalf("Failed to get table: %v", err)
 	}
 
-	if location, err := store.ResourceLocation(id); location == nil || err != nil {
+	location, err := store.ResourceLocation(id)
+	if location == "" || err != nil {
 		t.Fatalf("Failed to get location: %v", err)
 	}
 
-	if store.Type() == pt.SparkOffline || store.Type() == K8sOffline {
+	if store.Type() == pt.SparkOffline || store.Type() == pt.K8sOffline {
 		expectedLocation := fmt.Sprintf("featureform/transformation/%s/%s", id.Name, id.Variant)
 		if !location.Contains(expectedLocation) {
 			t.Fatalf("Location is incorrect: %s needs to have %s", location, expectedLocation)

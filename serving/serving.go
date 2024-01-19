@@ -455,7 +455,7 @@ func (serv *FeatureServer) GetResourceLocation(ctx context.Context, req *pb.Reso
 
 	var location string
 	var err error
-	if resourceType == provider.Feature {
+	if provider.OfflineResourceType(resourceType) == provider.Feature {
 		location, err = serv.getOnlineResourceLocation(ctx, name, variant, resourceType)
 	} else {
 		location, err = serv.getOfflineResourceLocation(ctx, name, variant, resourceType)
@@ -471,7 +471,7 @@ func (serv *FeatureServer) GetResourceLocation(ctx context.Context, req *pb.Reso
 
 func (serv *FeatureServer) getOfflineResourceLocation(ctx context.Context, name, variant string, resourceType int32) (string, error) {
 	var providerEntry *metadata.Provider
-	switch resourceType {
+	switch provider.OfflineResourceType(resourceType) {
 	case provider.Primary, provider.Transformation:
 		serv.Logger.Infow("Getting Source Variant Provider", "name", name, "variant", variant)
 		sv, err := serv.Metadata.GetSourceVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})

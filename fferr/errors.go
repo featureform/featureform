@@ -30,6 +30,7 @@ type JSONStackTrace map[string]interface{}
 type GRPCError interface {
 	GRPCErrorType() codes.Code
 	ToString() string
+	StringType() string
 	ToMetadataPairs() metadata.MD
 }
 

@@ -28,8 +28,8 @@ func NewExecutionError(providerName, resourceName, resourceVariant, resourceType
 	}
 	baseError := newBaseGRPCError(err, EXECUTION_ERROR, codes.Internal)
 	baseError.AddDetail("Provider", providerName)
-	baseError.AddDetail("Resource Name", resourceName)
-	baseError.AddDetail("Resource Variant", resourceVariant)
+	baseError.AddDetail("Resource_Name", resourceName)
+	baseError.AddDetail("Resource_Variant", resourceVariant)
 
 	return &ExecutionError{
 		baseError,

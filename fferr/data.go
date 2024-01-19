@@ -11,8 +11,8 @@ func NewDatasetNotFoundError(resourceName, resourceVariant string, err error) *D
 		err = fmt.Errorf("initial dataset not found error")
 	}
 	baseError := newBaseGRPCError(err, DATASET_NOT_FOUND, codes.NotFound)
-	baseError.AddDetail("Resource Name", resourceName)
-	baseError.AddDetail("Resource Variant", resourceVariant)
+	baseError.AddDetail("Resource_Name", resourceName)
+	baseError.AddDetail("Resource_Variant", resourceVariant)
 
 	return &DatasetNotFoundError{
 		baseError,
@@ -44,8 +44,8 @@ func NewTransformationNotFoundError(resourceName, resourceVariant string, err er
 		err = fmt.Errorf("initial transformation not found error")
 	}
 	baseError := newBaseGRPCError(err, TRANSFORMATION_NOT_FOUND, codes.NotFound)
-	baseError.AddDetail("Resource Name", resourceName)
-	baseError.AddDetail("Resource Variant", resourceVariant)
+	baseError.AddDetail("Resource_Name", resourceName)
+	baseError.AddDetail("Resource_Variant", resourceVariant)
 
 	return &TransformationNotFoundError{
 		baseError,
@@ -131,9 +131,9 @@ func NewInvalidResourceVariantNameError(resourceName, resourceVariant, resourceT
 		err = fmt.Errorf("invalid resource variant name")
 	}
 	baseError := newBaseGRPCError(err, INVALID_RESOURCE_TYPE, codes.InvalidArgument)
-	baseError.AddDetail("Resource Name", resourceName)
-	baseError.AddDetail("Resource Variant", resourceVariant)
-	baseError.AddDetail("Resource Type", resourceType)
+	baseError.AddDetail("Resource_Name", resourceName)
+	baseError.AddDetail("Resource_Variant", resourceVariant)
+	baseError.AddDetail("Resource_Type", resourceType)
 
 	return &InvalidResourceTypeError{
 		baseError,

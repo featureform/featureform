@@ -7,6 +7,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc/status"
 	"io"
 	"net"
 	"strings"
@@ -1566,7 +1567,7 @@ func (serv *MetadataServer) ListLabels(_ *pb.Empty, stream pb.Metadata_ListLabel
 
 func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variant *pb.LabelVariant) (*pb.Empty, error) {
 	variant.Created = tspb.New(time.Now())
-	return serv.genericCreate(ctx, &labelVariantResource{variant}, func(name, variant string) Resource {
+	res, err := serv.genericCreate(ctx, &labelVariantResource{variant}, func(name, variant string) Resource {
 		return &labelResource{
 			&pb.Label{
 				Name:           name,
@@ -1576,6 +1577,13 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variant *pb.
 			},
 		}
 	})
+	if err != nil {
+		if err, ok := err.(fferr.GRPCError); ok {
+			_ = grpc.SetTrailer(ctx, err.ToMetadataPairs())
+			return nil, status.Error(err.GRPCErrorType(), err.ToString())
+		}
+	}
+	return res, err
 }
 
 func (serv *MetadataServer) GetLabels(stream pb.Metadata_GetLabelsServer) error {

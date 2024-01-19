@@ -48,6 +48,7 @@ RUN go mod download
 COPY ./filestore/ ./filestore/
 COPY ./health/ ./health/
 COPY api/ api/
+COPY fferr/ fferr/
 COPY helpers/ helpers/
 COPY lib/ lib/
 COPY metadata/ metadata/

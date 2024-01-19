@@ -40,6 +40,9 @@ Example:
 def fn(sales_data):
   """This transformation filters data where the value is greater than 10."""
   return "SELECT * from {{sales_data}} WHERE value > 10"
+
+# We can retrieve any registered data set as a dataframe.
+df = client.dataframe(fn)
 ```
 
 ## Dataframe Transformations

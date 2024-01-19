@@ -11,8 +11,8 @@ func NewDatasetNotFoundError(resourceName, resourceVariant string, err error) *D
 		err = fmt.Errorf("initial dataset not found error")
 	}
 	baseError := newBaseGRPCError(err, DATASET_NOT_FOUND, codes.NotFound)
-	baseError.AddDetail("Resource Name", resourceName)
-	baseError.AddDetail("Resource Variant", resourceVariant)
+	baseError.AddDetail("resource_name", resourceName)
+	baseError.AddDetail("resource_variant", resourceVariant)
 
 	return &DatasetNotFoundError{
 		baseError,
@@ -25,11 +25,11 @@ type DatasetNotFoundError struct {
 
 func NewDatasetAlreadyExistsError(resourceName, resourceVariant string, err error) *DatasetAlreadyExistsError {
 	if err == nil {
-		err = fmt.Errorf("initial dataset not found error")
+		err = fmt.Errorf("initial dataset already exists error")
 	}
 	baseError := newBaseGRPCError(err, DATASET_ALREADY_EXISTS, codes.AlreadyExists)
-	baseError.AddDetail("Resource Name", resourceName)
-	baseError.AddDetail("Resource Variant", resourceVariant)
+	baseError.AddDetail("resource_name", resourceName)
+	baseError.AddDetail("resource_variant", resourceVariant)
 
 	return &DatasetAlreadyExistsError{
 		baseError,
@@ -42,10 +42,10 @@ type DatasetAlreadyExistsError struct {
 
 func NewDataTypeNotFoundError(valueType string, err error) *DataTypeNotFoundError {
 	if err == nil {
-		err = fmt.Errorf("initial datatype already exists error")
+		err = fmt.Errorf("initial datatype not found error")
 	}
 	baseError := newBaseGRPCError(err, DATATYPE_NOT_FOUND, codes.NotFound)
-	baseError.AddDetail("Value Type", valueType)
+	baseError.AddDetail("value_type", valueType)
 
 	return &DataTypeNotFoundError{
 		baseError,
@@ -61,8 +61,8 @@ func NewTransformationNotFoundError(resourceName, resourceVariant string, err er
 		err = fmt.Errorf("initial transformation not found error")
 	}
 	baseError := newBaseGRPCError(err, TRANSFORMATION_NOT_FOUND, codes.NotFound)
-	baseError.AddDetail("Resource Name", resourceName)
-	baseError.AddDetail("Resource Variant", resourceVariant)
+	baseError.AddDetail("resource_name", resourceName)
+	baseError.AddDetail("resource_variant", resourceVariant)
 
 	return &TransformationNotFoundError{
 		baseError,
@@ -113,8 +113,8 @@ func NewTrainingSetNotFoundError(resourceName, resourceVariant string, err error
 		err = fmt.Errorf("initial training set not found error")
 	}
 	baseError := newBaseGRPCError(err, TRAINING_SET_NOT_FOUND, codes.NotFound)
-	baseError.AddDetail("Resource Name", resourceName)
-	baseError.AddDetail("Resource Variant", resourceVariant)
+	baseError.AddDetail("resource_name", resourceName)
+	baseError.AddDetail("resource_variant", resourceVariant)
 
 	return &TrainingSetNotFoundError{
 		baseError,
@@ -127,11 +127,11 @@ type TrainingSetNotFoundError struct {
 
 func NewInvalidResourceTypeError(resourceName, resourceVariant, resourceType string, err error) *InvalidResourceTypeError {
 	if err == nil {
-		err = fmt.Errorf("initial invalid resource type not found error")
+		err = fmt.Errorf("initial invalid resource type error")
 	}
 	baseError := newBaseGRPCError(err, INVALID_RESOURCE_TYPE, codes.InvalidArgument)
-	baseError.AddDetail("Resource Name", resourceName)
-	baseError.AddDetail("Resource Variant", resourceVariant)
+	baseError.AddDetail("resource_name", resourceName)
+	baseError.AddDetail("resource_variant", resourceVariant)
 	baseError.AddDetail("Resource Type", resourceType)
 
 	return &InvalidResourceTypeError{
@@ -145,11 +145,11 @@ type InvalidResourceTypeError struct {
 
 func NewInvalidResourceVariantNameError(resourceName, resourceVariant, resourceType string, err error) *InvalidResourceTypeError {
 	if err == nil {
-		err = fmt.Errorf("initial invalid resource variant name")
+		err = fmt.Errorf("initial invalid resource variant name error")
 	}
 	baseError := newBaseGRPCError(err, INVALID_RESOURCE_TYPE, codes.InvalidArgument)
-	baseError.AddDetail("Resource Name", resourceName)
-	baseError.AddDetail("Resource Variant", resourceVariant)
+	baseError.AddDetail("resource_name", resourceName)
+	baseError.AddDetail("resource_variant", resourceVariant)
 	baseError.AddDetail("Resource Type", resourceType)
 
 	return &InvalidResourceTypeError{
@@ -163,7 +163,7 @@ type InvalidResourceNameVariantError struct {
 
 func NewInvalidFileTypeError(extension string, err error) *InvalidFileTypeError {
 	if err == nil {
-		err = fmt.Errorf("initial invalid filetype name")
+		err = fmt.Errorf("initial invalid filetype name error")
 	}
 	baseError := newBaseGRPCError(err, INVALID_FILE_TYPE, codes.InvalidArgument)
 	baseError.AddDetail("Extension", extension)

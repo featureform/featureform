@@ -1136,7 +1136,11 @@ func (k8s *K8sOfflineStore) ResourceLocation(id ResourceID) (string, error) {
 		return "", errors.Wrap(err, "could not get newest file")
 	}
 
-	return newestFile.ToURI(), nil
+	newestDirPathDateTime, err := k8s.store.CreateDirPath(newestFile.KeyPrefix())
+	if err != nil {
+		return "", fmt.Errorf("could not create directory path for k8s newest file: %v", err)
+	}
+	return newestDirPathDateTime.ToURI(), nil
 }
 
 func fileStoreGetMaterialization(id MaterializationID, store FileStore, logger *zap.SugaredLogger) (Materialization, error) {

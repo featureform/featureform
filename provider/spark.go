@@ -1753,7 +1753,11 @@ func (spark *SparkOfflineStore) ResourceLocation(id ResourceID) (string, error) 
 		return "", errors.Wrap(err, "could not get newest file")
 	}
 
-	return newestFile.ToURI(), nil
+	newestFileDirPathDateTime, err := spark.Store.CreateDirPath(newestFile.KeyPrefix())
+	if err != nil {
+		return "", fmt.Errorf("could not create directory path for spark newestFile: %v", err)
+	}
+	return newestFileDirPathDateTime.ToURI(), nil
 }
 
 func (e *EMRExecutor) GetDFArgs(outputURI filestore.Filepath, code string, sources []string, store SparkFileStore) ([]string, error) {

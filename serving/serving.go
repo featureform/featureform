@@ -455,7 +455,7 @@ func (serv *FeatureServer) GetResourceLocation(ctx context.Context, req *pb.Reso
 
 	var location string
 	var err error
-	if resourceType == 2 {
+	if resourceType == provider.Feature {
 		location, err = serv.getOnlineResourceLocation(ctx, name, variant, resourceType)
 	} else {
 		location, err = serv.getOfflineResourceLocation(ctx, name, variant, resourceType)
@@ -472,7 +472,7 @@ func (serv *FeatureServer) GetResourceLocation(ctx context.Context, req *pb.Reso
 func (serv *FeatureServer) getOfflineResourceLocation(ctx context.Context, name, variant string, resourceType int32) (string, error) {
 	var providerEntry *metadata.Provider
 	switch resourceType {
-	case 4, 5: // Primary & Transformation
+	case provider.Primary, provider.Transformation:
 		serv.Logger.Infow("Getting Source Variant Provider", "name", name, "variant", variant)
 		sv, err := serv.Metadata.GetSourceVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 		if err != nil {
@@ -482,7 +482,7 @@ func (serv *FeatureServer) getOfflineResourceLocation(ctx context.Context, name,
 		if err != nil {
 			return "", errors.Wrap(err, "could not get fetch provider")
 		}
-	case 3: // Training Set
+	case provider.TrainingSet:
 		serv.Logger.Infow("Getting Training Set Provider", "name", name, "variant", variant)
 		ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 		if err != nil {

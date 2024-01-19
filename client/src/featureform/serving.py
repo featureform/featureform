@@ -295,7 +295,7 @@ class HostedClientImpl:
         req = serving_pb2.ResourceIdRequest()
         req.name = name
         req.variant = variant
-        req.type = int(resource_type.value)
+        req.type = resource_type.value
 
         resp = self._stub.GetResourceLocation(req)
 
@@ -1082,7 +1082,7 @@ class Dataset:
             req = serving_pb2.ResourceIdRequest()
             req.name = self._stream.name
             req.variant = self._stream.version
-            req.type = int(ResourceType.TRAINING_DATA.value)
+            req.type = ResourceType.TRAINING_DATA.value
             resp = self._stream._stub.ResourceLocation(req)
 
             file_format = FileFormat.get_format(resp.location, default="parquet")

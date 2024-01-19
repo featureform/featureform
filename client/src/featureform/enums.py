@@ -160,7 +160,7 @@ class FileFormat(str, Enum):
 
 @typechecked
 @dataclass
-class ResourceType(str, Enum):
+class ResourceType(Enum):
     # ResourceType is an enumeration representing the possible types of
     # resources that may be registered with Featureform. Each value is based
     # on OfflineResourceType in providers/offline.go

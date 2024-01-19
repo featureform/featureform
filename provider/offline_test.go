@@ -358,7 +358,7 @@ func TestOfflineStores(t *testing.T) {
 		"LabelTableNotFound":     testLabelTableNotFound,
 		"FeatureTableNotFound":   testFeatureTableNotFound,
 		"TrainingDefShorthand":   testTrainingSetDefShorthand,
-		"ResourceLocation": testResourceLocation,
+		"ResourceLocation":       testResourceLocation,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
 		"PrimaryTableCreate":                 testPrimaryCreateTable,
@@ -628,15 +628,15 @@ func testResourceLocation(t *testing.T, store OfflineStore) {
 		t.Fatalf("Failed to get location: %v", err)
 	}
 
-	if store.Type() != pt.SparkOffline || store.Type() != K8sOffline {
-		expectedLocation := fmt.Sprintf("featureform_primary__%s__%s", id.Name, id.Variant)
-		if location != expectedLocation {
-			t.Fatalf("Location is incorrect: %s != expected location (%s)", location, expectedLocation)
-		}
-	else {
+	if store.Type() == pt.SparkOffline || store.Type() == K8sOffline {
 		expectedLocation := fmt.Sprintf("featureform/transformation/%s/%s", id.Name, id.Variant)
 		if !location.Contains(expectedLocation) {
 			t.Fatalf("Location is incorrect: %s needs to have %s", location, expectedLocation)
+		}
+	} else {
+		expectedLocation := fmt.Sprintf("featureform_primary__%s__%s", id.Name, id.Variant)
+		if location != expectedLocation {
+			t.Fatalf("Location is incorrect: %s != expected location (%s)", location, expectedLocation)
 		}
 	}
 }

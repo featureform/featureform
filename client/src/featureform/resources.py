@@ -824,9 +824,17 @@ class Provider:
     tags: list = field(default_factory=list)
     properties: dict = field(default_factory=dict)
     error: Optional[str] = None
+    has_health_check: bool = False
 
     def __post_init__(self):
         self.software = self.config.software() if self.config is not None else None
+        if self.config.type() in [
+            "REDIS_ONLINE",
+            "DYNAMODB_ONLINE",
+            "POSTGRES_OFFLINE",
+            "SPARK_OFFLINE",
+        ]:
+            self.has_health_check = True
 
     @staticmethod
     def operation_type() -> OperationType:

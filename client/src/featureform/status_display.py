@@ -35,13 +35,16 @@ class DisplayStatus:
     variant: str
     status: str = "NO_STATUS"
     error: str = None
+    has_health_check: bool = False
 
     def is_finished(self) -> bool:
         return (
             self.status == "READY"
             or self.status == "FAILED"
             or (
-                self.resource_type is Provider and self.status == "NO_STATUS"
+                self.resource_type is Provider
+                and self.status == "NO_STATUS"
+                and not self.has_health_check
             )  # Provider is a special case
         )
 
@@ -54,6 +57,7 @@ class DisplayStatus:
             variant=variant,
             status=resource.status,
             error=resource.error,
+            has_health_check=bool(getattr(resource, "has_health_check", False)),
         )
 
 
@@ -167,6 +171,7 @@ class StatusDisplayer:
                         status_text = (
                             status.status
                             if status.resource_type is not Provider
+                            or status.has_health_check
                             else "CREATED"
                         )
 

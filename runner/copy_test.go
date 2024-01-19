@@ -396,6 +396,10 @@ func (b BrokenNumRowsOfflineStore) Close() error {
 	return nil
 }
 
+func (b BrokenNumRowsOfflineStore) ResourceLocation(id provider.ResourceID) (string, error) {
+	return "", nil
+}
+
 type BrokenGetTableOnlineStore struct {
 	provider.BaseProvider
 }
@@ -717,6 +721,10 @@ func (m MockOfflineStore) UpdateTrainingSet(provider.TrainingSetDef) error {
 
 func (m MockOfflineStore) Close() error {
 	return nil
+}
+
+func (m MockOfflineStore) ResourceLocation(id provider.ResourceID) (string, error) {
+	return "", nil
 }
 
 type MockOnlineStoreTable struct{}

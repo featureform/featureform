@@ -631,7 +631,7 @@ func testResourceLocation(t *testing.T, store OfflineStore) {
 
 	if store.Type() == pt.SparkOffline || store.Type() == pt.K8sOffline {
 		expectedLocation := fmt.Sprintf("featureform/transformation/%s/%s", id.Name, id.Variant)
-		if !location.Contains(expectedLocation) {
+		if !strings.Contains(location, expectedLocation) {
 			t.Fatalf("Location is incorrect: %s needs to have %s", location, expectedLocation)
 		}
 	} else {

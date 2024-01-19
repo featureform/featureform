@@ -716,8 +716,12 @@ func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) (boo
 	thisProto := resource.serialized
 	otherProto := otherVariant.serialized
 
-	isEquivalentLocation := proto.Equal(thisProto.GetFunction(), otherProto.GetFunction()) ||
-		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns())
+	isEquivalentLocation := false
+	if thisProto.GetFunction() != nil {
+		isEquivalentLocation = proto.Equal(thisProto.GetFunction(), otherProto.GetFunction())
+	} else {
+		isEquivalentLocation = proto.Equal(thisProto.GetColumns(), otherProto.GetColumns())
+	}
 
 	if thisProto.GetName() == otherProto.GetName() &&
 		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&

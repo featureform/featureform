@@ -176,3 +176,21 @@ func NewInvalidFileTypeError(extension string, err error) *InvalidFileTypeError 
 type InvalidFileTypeError struct {
 	baseGRPCError
 }
+
+func NewResourceChangedError(resourceName, resourceVariant string, resourceType ResourceType, err error) *ResourceChangedError {
+	if err == nil {
+		err = fmt.Errorf("initial resource changed error")
+	}
+	baseError := newBaseGRPCError(err, RESOURCE_CHANGED, codes.Internal)
+	baseError.AddDetail("resource_name", resourceName)
+	baseError.AddDetail("resource_variant", resourceVariant)
+	baseError.AddDetail("Resource Type", string(resourceType))
+
+	return &ResourceChangedError{
+		baseError,
+	}
+}
+
+type ResourceChangedError struct {
+	baseGRPCError
+}

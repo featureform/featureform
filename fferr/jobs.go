@@ -93,3 +93,19 @@ func NewResourceFailedError(resourceName, resourceVariant, resourceType string, 
 type ResourceFailedError struct {
 	baseGRPCError
 }
+
+func NewJobAlreadyExistsError(key string, err error) *JobAlreadyExistsError {
+	if err == nil {
+		err = fmt.Errorf("initial job already exists error")
+	}
+	baseError := newBaseGRPCError(err, JOB_ALREADY_EXISTS, codes.AlreadyExists)
+	baseError.AddDetail("key", key)
+
+	return &JobAlreadyExistsError{
+		baseError,
+	}
+}
+
+type JobAlreadyExistsError struct {
+	baseGRPCError
+}

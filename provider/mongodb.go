@@ -51,11 +51,11 @@ func NewMongoDBOnlineStore(config *pc.MongoDBConfig) (*mongoDBOnlineStore, error
 	uri := fmt.Sprintf("mongodb://%s:%s@%s:%s/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000", config.Username, config.Password, config.Host, config.Port)
 	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(uri))
 	if err != nil {
-		return nil, fferr.NewConnectionError(string(pt.MongoDBOnline), err)
+		return nil, fferr.NewConnectionError(pt.MongoDBOnline.String(), err)
 	}
-	cur, err := client.Database(config.Database).ListCollections(context.TODO(), bson.D{{"name", "featureform__metadata"}})
+	cur, err := client.Database(config.Database).ListCollections(context.TODO(), bson.D{{Key: "name", Value: "featureform__metadata"}})
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(pt.MongoDBOnline), "", "", "", err)
+		return nil, fferr.NewExecutionError(pt.MongoDBOnline.String(), err)
 	}
 	var res []interface{}
 	err = cur.All(context.TODO(), &res)
@@ -63,14 +63,14 @@ func NewMongoDBOnlineStore(config *pc.MongoDBConfig) (*mongoDBOnlineStore, error
 		return nil, fferr.NewInternalError(err)
 	}
 	if len(res) == 0 {
-		command := bson.D{{"customAction", "CreateCollection"}, {"collection", "featureform__metadata"}, {"autoScaleSettings", bson.D{{"maxThroughput", 1000}}}}
+		command := bson.D{{Key: "customAction", Value: "CreateCollection"}, {Key: "collection", Value: "featureform__metadata"}, {Key: "autoScaleSettings", Value: bson.D{{Key: "maxThroughput", Value: 1000}}}}
 		var cmdResult interface{}
 		wConcern := writeconcern.New(writeconcern.J(true), writeconcern.WMajority())
 		err := client.Database(config.Database, &options.DatabaseOptions{
 			WriteConcern: wConcern,
 		}).RunCommand(context.TODO(), command).Decode(&cmdResult)
 		if err != nil {
-			return nil, fferr.NewExecutionError(string(pt.MongoDBOnline), "", "", "", err)
+			return nil, fferr.NewExecutionError(pt.MongoDBOnline.String(), err)
 		}
 	}
 
@@ -92,7 +92,7 @@ func (store *mongoDBOnlineStore) AsOnlineStore() (OnlineStore, error) {
 func (store *mongoDBOnlineStore) Close() error {
 	err := store.client.Disconnect(context.TODO())
 	if err != nil {
-		return fferr.NewConnectionError(string(pt.MongoDBOnline), err)
+		return fferr.NewConnectionError(pt.MongoDBOnline.String(), err)
 	}
 	return nil
 }
@@ -120,14 +120,18 @@ func (store *mongoDBOnlineStore) CreateTable(feature, variant string, valueType 
 		WriteConcern: wConcern,
 	}).Collection(metadataTableName).InsertOne(context.TODO(), mongoDBMetadataRow{tableName, vType})
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(pt.MongoDBOnline), feature, variant, "FEATURE_VARIANT", err)
+		wrapped := fferr.NewResourceExecutionError(pt.MongoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 
 	command := bson.D{{Key: "customAction", Value: "CreateCollection"}, {Key: "collection", Value: tableName}, {Key: "autoScaleSettings", Value: bson.D{{Key: "maxThroughput", Value: store.tableThroughput}}}}
 	var cmdResult interface{}
 	err = store.client.Database(store.database).RunCommand(context.TODO(), command).Decode(&cmdResult)
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(pt.MongoDBOnline), feature, variant, "FEATURE_VARIANT", err)
+		wrapped := fferr.NewResourceExecutionError(pt.MongoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 
 	table := &mongoDBOnlineTable{
@@ -144,12 +148,16 @@ func (store *mongoDBOnlineStore) GetTable(feature, variant string) (OnlineStoreT
 	tableName := store.GetTableName(feature, variant)
 	cur, err := store.client.Database(store.database).ListCollections(context.TODO(), bson.D{{Key: "name", Value: tableName}})
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(pt.MongoDBOnline), feature, variant, "FEATURE_VARIANT", err)
+		wrapped := fferr.NewResourceExecutionError(pt.MongoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 	var res []interface{}
 	err = cur.All(context.TODO(), &res)
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(pt.MongoDBOnline), feature, variant, "FEATURE_VARIANT", err)
+		wrapped := fferr.NewResourceExecutionError(pt.MongoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 	if len(res) == 0 {
 		return nil, fferr.NewDatasetNotFoundError(feature, variant, nil)
@@ -158,7 +166,9 @@ func (store *mongoDBOnlineStore) GetTable(feature, variant string) (OnlineStoreT
 	var row mongoDBMetadataRow
 	err = store.client.Database(store.database).Collection(store.GetMetadataTableName()).FindOne(context.TODO(), bson.D{{Key: "name", Value: tableName}}).Decode(&row)
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(pt.MongoDBOnline), feature, variant, "FEATURE_VARIANT", err)
+		wrapped := fferr.NewResourceExecutionError(pt.MongoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 	table := &mongoDBOnlineTable{
 		client:    store.client,
@@ -173,11 +183,15 @@ func (store *mongoDBOnlineStore) DeleteTable(feature, variant string) error {
 	tableName := store.GetTableName(feature, variant)
 	err := store.client.Database(store.database).Collection(tableName).Drop(context.TODO())
 	if err != nil {
-		return fferr.NewExecutionError(string(pt.MongoDBOnline), feature, variant, "FEATURE_VARIANT", err)
+		wrapped := fferr.NewResourceExecutionError(pt.MongoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	_, err = store.client.Database(store.database).Collection(store.GetMetadataTableName()).DeleteOne(context.TODO(), bson.D{{Key: "name", Value: tableName}})
 	if err != nil {
-		return fferr.NewExecutionError(string(pt.MongoDBOnline), feature, variant, "FEATURE_VARIANT", err)
+		wrapped := fferr.NewResourceExecutionError(pt.MongoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	return nil
 }
@@ -199,7 +213,9 @@ func (table mongoDBOnlineTable) Set(entity string, value interface{}) error {
 			},
 		)
 	if err != nil {
-		return fferr.NewExecutionError(string(pt.MongoDBOnline), entity, "", "ENTITY", err)
+		wrapped := fferr.NewResourceExecutionError(pt.MongoDBOnline.String(), entity, "", fferr.ENTITY, err)
+		wrapped.AddDetail("table", table.name)
+		return wrapped
 	}
 	return nil
 }
@@ -215,9 +231,13 @@ func (table mongoDBOnlineTable) Get(entity string) (interface{}, error) {
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			fmt.Printf("could not get table value: %s: %s: %s", table.name, entity, err.Error())
-			return nil, fferr.NewEntityNotFoundError("", "", entity, nil)
+			wrapped := fferr.NewEntityNotFoundError("", "", entity, nil)
+			wrapped.AddDetail("table", table.name)
+			return nil, wrapped
 		}
-		return nil, fferr.NewExecutionError(string(pt.MongoDBOnline), entity, "", "ENTITY", err)
+		wrapped := fferr.NewResourceExecutionError(pt.MongoDBOnline.String(), entity, "", fferr.ENTITY, err)
+		wrapped.AddDetail("table", table.name)
+		return nil, wrapped
 	}
 
 	switch table.valueType {

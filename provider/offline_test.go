@@ -609,7 +609,12 @@ func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
 }
 
 func testResourceLocation(t *testing.T, store OfflineStore) {
-	id := randomID(OfflineResourceType(4))
+	resourcePath := fmt.Sprintf("featureform/Primary/%s/%s", uuid.NewString(), uuid.NewString())
+	id := ResourceID{}
+	if err := id.FromFilestorePath(resourcePath); err != nil {
+		t.Fatalf("Failed to create resource ID from path: %v", err)
+	}
+
 	schema := TableSchema{
 		Columns: []TableColumn{
 			{Name: "entity", ValueType: String},

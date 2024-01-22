@@ -2,6 +2,7 @@ package fferr
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/rotisserie/eris"
 )
@@ -43,5 +44,7 @@ func (e *GenericError) Details() map[string]string {
 }
 
 func (e *GenericError) AddDetail(key, value string) {
+	key = strings.ReplaceAll(key, " ", "_")
+	key = strings.ToLower(key)
 	e.details[key] = value
 }

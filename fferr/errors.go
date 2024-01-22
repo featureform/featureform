@@ -7,6 +7,8 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+type ResourceType string
+
 const (
 	// PROVIDERS:
 	EXECUTION_ERROR  = "Execution Error"
@@ -31,6 +33,20 @@ const (
 	RESOURCE_ALREADY_FAILED   = "Resource Already Failed"
 	RESOURCE_NOT_READY        = "Resource Not Ready"
 	RESOURCE_FAILED           = "Resource Failed"
+
+	// RESOURCE TYPES:
+	FEATURE              ResourceType = "FEATURE"
+	LABEL                ResourceType = "LABEL"
+	TRAINING_SET         ResourceType = "TRAINING_SET"
+	SOURCE               ResourceType = "SOURCE"
+	FEATURE_VARIANT      ResourceType = "FEATURE_VARIANT"
+	LABEL_VARIANT        ResourceType = "LABEL_VARIANT"
+	TRAINING_SET_VARIANT ResourceType = "TRAINING_SET_VARIANT"
+	SOURCE_VARIANT       ResourceType = "SOURCE_VARIANT"
+	PROVIDER             ResourceType = "PROVIDER"
+	ENTITY               ResourceType = "ENTITY"
+	MODEL                ResourceType = "MODEL"
+	USER                 ResourceType = "USER"
 )
 
 type JSONStackTrace map[string]interface{}

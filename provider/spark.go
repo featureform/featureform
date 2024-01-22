@@ -520,7 +520,12 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 		},
 	})
 	if err != nil {
-		return fferr.NewExecutionError("Databricks", "", "", "", err)
+		wrapped := fferr.NewExecutionError(pt.SparkOffline.String(), err)
+		wrapped.AddDetail("job_name", fmt.Sprintf("featureform-job-%s", id))
+		wrapped.AddDetail("job_id", fmt.Sprint(jobToRun.JobId))
+		wrapped.AddDetail("executor_type", "Databricks")
+		wrapped.AddDetail("store_type", store.Type())
+		return wrapped
 	}
 
 	// Making the timeout a week because we don't want to timeout on long-running jobs
@@ -536,8 +541,12 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore) e
 				fmt.Printf("the '%v' job failed, could not get error message: %v\n", jobToRun.JobId, err)
 			}
 		}
-
-		return fferr.NewExecutionError("Databricks", "", "", "", fmt.Errorf("the '%v' job failed: %v", jobToRun.JobId, errorMessage))
+		wrapped := fferr.NewExecutionError(pt.SparkOffline.String(), fmt.Errorf("job failed: %v", errorMessage))
+		wrapped.AddDetail("job_name", fmt.Sprintf("featureform-job-%s", id))
+		wrapped.AddDetail("job_id", fmt.Sprint(jobToRun.JobId))
+		wrapped.AddDetail("executor_type", "Databricks")
+		wrapped.AddDetail("store_type", store.Type())
+		return wrapped
 	}
 
 	return nil
@@ -552,11 +561,17 @@ func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {
 
 	runs, err := db.client.Jobs.ListRunsAll(ctx, runRequest)
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(pt.SparkOffline), "", "", "", fmt.Errorf("could not get runs for Databricks job ID %v: %v", jobId, err))
+		wrapped := fferr.NewExecutionError(pt.SparkOffline.String(), fmt.Errorf("could not get runs for job: %v", err))
+		wrapped.AddDetail("job_id", fmt.Sprint(jobId))
+		wrapped.AddDetail("executor_type", "Databricks")
+		return nil, wrapped
 	}
 
 	if len(runs) == 0 {
-		return nil, fferr.NewInternalError(fmt.Errorf("no runs found for Databricks job ID: %v", jobId))
+		wrapped := fferr.NewInternalError(fmt.Errorf("no runs found for job"))
+		wrapped.AddDetail("job_id", fmt.Sprint(jobId))
+		wrapped.AddDetail("executor_type", "Databricks")
+		return nil, wrapped
 	}
 	runID := runs[0].RunId
 	request := jobs.GetRunRequest{
@@ -573,7 +588,10 @@ func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {
 	path := "/api/2.0/jobs/runs/get-output"
 	err = db.errorMessageClient.Do(ctx, http.MethodGet, path, request, &runOutput)
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(pt.SparkOffline), "", "", "", fmt.Errorf("could not get run output for Databricks job ID %v: %v", jobId, err))
+		wrapped := fferr.NewExecutionError(pt.SparkOffline.String(), fmt.Errorf("could not get run output for job: %v", err))
+		wrapped.AddDetail("job_id", fmt.Sprint(jobId))
+		wrapped.AddDetail("executor_type", "Databricks")
+		return nil, wrapped
 	}
 
 	return fmt.Errorf("%s", runOutput.Error), nil
@@ -1027,12 +1045,20 @@ func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore) 
 
 	err := cmd.Start()
 	if err != nil {
-		return fferr.NewExecutionError("Spark", "", "", "", fmt.Errorf("could not run spark job: %v", err))
+		wrapped := fferr.NewExecutionError(pt.SparkOffline.String(), fmt.Errorf("could not run spark job: %v", err))
+		wrapped.AddDetail("executor_type", "Spark Generic")
+		wrapped.AddDetail("store_type", store.Type())
+		return wrapped
 	}
 
 	err = cmd.Wait()
 	if err != nil {
-		return fferr.NewExecutionError("Spark", "", "", "", fmt.Errorf("spark job failed: %v : stdout %s : stderr %s", err, outb.String(), errb.String()))
+		wrapped := fferr.NewExecutionError(pt.SparkOffline.String(), fmt.Errorf("spark job failed: %v", err))
+		wrapped.AddDetail("executor_type", "Spark Generic")
+		wrapped.AddDetail("store_type", store.Type())
+		wrapped.AddDetail("stdout", outb.String())
+		wrapped.AddDetail("stderr", errb.String())
+		return wrapped
 	}
 
 	return nil
@@ -1222,18 +1248,24 @@ func (e *EMRExecutor) RunSparkJob(args []string, store SparkFileStore) error {
 			e.logger.Infof("could not get error message for EMR step '%s': %s", stepId, getErr)
 		}
 		if errorMessage != "" {
-			return fferr.NewExecutionError("EMR", "", "", "", fmt.Errorf("the EMR step '%s' failed: %s", stepId, errorMessage))
+			wrapped := fferr.NewExecutionError(pt.SparkOffline.String(), fmt.Errorf("step failed: %s", errorMessage))
+			wrapped.AddDetail("executor_type", "EMR")
+			wrapped.AddDetail("store_type", store.Type())
+			return wrapped
 		}
 
 		e.logger.Errorf("Failure waiting for completion of EMR cluster: %s", err)
-		return fferr.NewExecutionError("EMR", "", "", "", fmt.Errorf("failure waiting for completion of EMR cluster: %s", err))
+		wrapped := fferr.NewExecutionError(pt.SparkOffline.String(), fmt.Errorf("failure waiting for completion of cluster: %w", err))
+		wrapped.AddDetail("executor_type", "EMR")
+		wrapped.AddDetail("store_type", store.Type())
+		return wrapped
 	}
 	return nil
 }
 
 func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string) (string, error) {
 	if e.logFileStore == nil {
-		return "", fmt.Errorf("cannot get error message for EMR step '%s' because the log file store is not set", stepId)
+		return "", fferr.NewInternalError(fmt.Errorf("cannot get error message for EMR step '%s' because the log file store is not set", stepId))
 	}
 
 	stepResults, err := e.client.DescribeStep(context.TODO(), &emr.DescribeStepInput{
@@ -1241,7 +1273,11 @@ func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string) (stri
 		StepId:    aws.String(stepId),
 	})
 	if err != nil {
-		return "", fferr.NewExecutionError("EMR", "", "", "", fmt.Errorf("could not get information on EMR step '%s'", stepId))
+		wrapped := fferr.NewExecutionError(pt.SparkOffline.String(), fmt.Errorf("could not get information on step: %w", err))
+		wrapped.AddDetail("executor_type", "EMR")
+		wrapped.AddDetail("cluster_id", clusterId)
+		wrapped.AddDetail("step_id", stepId)
+		return "", wrapped
 	}
 
 	if stepResults.Step.Status.State == "FAILED" {
@@ -1260,7 +1296,12 @@ func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string) (stri
 
 			errorMessage, err := e.getLogFileMessage(logFile)
 			if err != nil {
-				return "", fferr.NewExecutionError("EMR", "", "", "", fmt.Errorf("could not get error message from log file '%s': %v", logFile, err))
+				wrapped := fferr.NewExecutionError(pt.SparkOffline.String(), fmt.Errorf("could not get error message from log file: %v", err))
+				wrapped.AddDetail("executor_type", "EMR")
+				wrapped.AddDetail("cluster_id", clusterId)
+				wrapped.AddDetail("step_id", stepId)
+				wrapped.AddDetail("log_file", logFile)
+				return "", wrapped
 			}
 
 			return errorMessage, nil

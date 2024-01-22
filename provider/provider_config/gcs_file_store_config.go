@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"github.com/featureform/fferr"
 
 	ss "github.com/featureform/helpers/string_set"
 )
@@ -15,7 +16,7 @@ type GCSFileStoreConfig struct {
 func (s *GCSFileStoreConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, s)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -23,7 +24,7 @@ func (s *GCSFileStoreConfig) Deserialize(config SerializedConfig) error {
 func (s *GCSFileStoreConfig) Serialize() ([]byte, error) {
 	conf, err := json.Marshal(s)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	return conf, nil
 }

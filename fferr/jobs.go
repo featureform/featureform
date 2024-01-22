@@ -11,7 +11,7 @@ func NewJobDoesNotExistError(key string, err error) *JobDoesNotExistError {
 		err = fmt.Errorf("initial job does not exist error")
 	}
 	baseError := newBaseGRPCError(err, JOB_DOES_NOT_EXIST, codes.NotFound)
-	baseError.AddDetail("Key", key)
+	baseError.AddDetail("key", key)
 
 	return &JobDoesNotExistError{
 		baseError,
@@ -27,9 +27,9 @@ func NewResourceAlreadyCompleteError(resourceName, resourceVariant, resourceType
 		err = fmt.Errorf("initial resource already complete error")
 	}
 	baseError := newBaseGRPCError(err, RESOURCE_ALREADY_COMPLETE, codes.Internal)
-	baseError.AddDetail("Resource Name", resourceName)
-	baseError.AddDetail("Resource Variant", resourceVariant)
-	baseError.AddDetail("Resource Type", resourceType)
+	baseError.AddDetail("resource_name", resourceName)
+	baseError.AddDetail("resource_variant", resourceVariant)
+	baseError.AddDetail("resource_type", resourceType)
 
 	return &ResourceAlreadyCompleteError{
 		baseError,
@@ -45,9 +45,9 @@ func NewResourceAlreadyFailedError(resourceName, resourceVariant, resourceType s
 		err = fmt.Errorf("initial resource already failed error")
 	}
 	baseError := newBaseGRPCError(err, RESOURCE_ALREADY_FAILED, codes.Internal)
-	baseError.AddDetail("Resource Name", resourceName)
-	baseError.AddDetail("Resource Variant", resourceVariant)
-	baseError.AddDetail("Resource Type", resourceType)
+	baseError.AddDetail("resource_name", resourceName)
+	baseError.AddDetail("resource_variant", resourceVariant)
+	baseError.AddDetail("resource_type", resourceType)
 
 	return &ResourceAlreadyFailedError{
 		baseError,
@@ -63,9 +63,9 @@ func NewResourceNotReadyError(resourceName, resourceVariant, resourceType string
 		err = fmt.Errorf("initial resource not ready error")
 	}
 	baseError := newBaseGRPCError(err, RESOURCE_NOT_READY, codes.Internal)
-	baseError.AddDetail("Resource Name", resourceName)
-	baseError.AddDetail("Resource Variant", resourceVariant)
-	baseError.AddDetail("Resource Type", resourceType)
+	baseError.AddDetail("resource_name", resourceName)
+	baseError.AddDetail("resource_variant", resourceVariant)
+	baseError.AddDetail("resource_type", resourceType)
 
 	return &ResourceNotReadyError{
 		baseError,
@@ -81,9 +81,9 @@ func NewResourceFailedError(resourceName, resourceVariant, resourceType string, 
 		err = fmt.Errorf("initial resource failed error")
 	}
 	baseError := newBaseGRPCError(err, RESOURCE_FAILED, codes.Internal)
-	baseError.AddDetail("Resource Name", resourceName)
-	baseError.AddDetail("Resource Variant", resourceVariant)
-	baseError.AddDetail("Resource Type", resourceType)
+	baseError.AddDetail("resource_name", resourceName)
+	baseError.AddDetail("resource_variant", resourceVariant)
+	baseError.AddDetail("resource_type", resourceType)
 
 	return &ResourceFailedError{
 		baseError,

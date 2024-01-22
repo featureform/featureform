@@ -609,7 +609,7 @@ func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
 }
 
 func testResourceLocation(t *testing.T, store OfflineStore) {
-	id := randomID(Feature)
+	id := randomID(Primary)
 	schema := TableSchema{
 		Columns: []TableColumn{
 			{Name: "entity", ValueType: String},

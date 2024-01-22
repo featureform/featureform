@@ -643,7 +643,7 @@ func (store *memoryOfflineStore) getMemoryResourceTable(id ResourceID) (*memoryO
 }
 
 func (store *memoryOfflineStore) ResourceLocation(id ResourceID) (string, error) {
-	return "", errors.New("ResourceLocation unsupported for this provider")
+	return fmt.Sprintf("featureform_primary__%s__%s", id.Name, id.Variant), nil
 }
 
 // Used to implement sort.Interface for sorting.

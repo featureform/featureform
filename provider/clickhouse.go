@@ -5,15 +5,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/ClickHouse/clickhouse-go/v2"
-	pc "github.com/featureform/provider/provider_config"
-	pt "github.com/featureform/provider/provider_type"
 	"math"
 	"reflect"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ClickHouse/clickhouse-go/v2"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 )
 
 const (
@@ -706,7 +707,7 @@ func (store *clickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFe
 
 	// if tables is empty, return an empty iterator
 	if len(ids) == 0 {
-		return newsqlBatchFeatureIterator(nil, nil, nil, store.query), fmt.Errorf("no features provided")
+		return newsqlBatchFeatureIterator(nil, nil, nil, store.query, store.Type()), fmt.Errorf("no features provided")
 	}
 
 	asEntity := ""
@@ -754,7 +755,7 @@ func (store *clickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFe
 		return nil, err
 	}
 	if resultRows == nil {
-		return newsqlBatchFeatureIterator(nil, nil, nil, store.query), nil
+		return newsqlBatchFeatureIterator(nil, nil, nil, store.query, store.Type()), nil
 	}
 	columnTypes, err := store.getValueColumnTypes(fmt.Sprintf("no_ts_%s", joinedTableName))
 	if err != nil {
@@ -770,7 +771,7 @@ func (store *clickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFe
 	for _, col := range columns {
 		columnNames = append(columnNames, sanitizeCH(col.Name))
 	}
-	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query), nil
+	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query, store.Type()), nil
 }
 
 func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
@@ -935,7 +936,7 @@ func (store *clickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetI
 	if err != nil {
 		return nil, err
 	}
-	return store.newsqlTrainingSetIterator(rows, colTypes), nil
+	return store.newsqlTrainingSetIterator(rows, colTypes, store.Type()), nil
 }
 
 func (store *clickHouseOfflineStore) Close() error {

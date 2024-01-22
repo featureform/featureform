@@ -609,22 +609,27 @@ func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
 }
 
 func testResourceLocation(t *testing.T, store OfflineStore) {
-	resourcePath := fmt.Sprintf("featureform/Primary/%s/%s", uuid.NewString(), uuid.NewString())
-	id := ResourceID{}
-	if err := id.FromFilestorePath(resourcePath); err != nil {
-		t.Fatalf("Failed to create resource ID from path: %v", err)
+	id := ResourceID{
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Primary,
 	}
 
 	schema := TableSchema{
 		Columns: []TableColumn{
 			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Int},
-			{Name: "ts", ValueType: Timestamp},
+			{Name: "int", ValueType: Int},
+			{Name: "bool", ValueType: Bool},
+			{Name: "string", ValueType: String},
+			{Name: "float", ValueType: Float32},
 		},
 	}
-	if tab, err := store.CreateResourceTable(id, schema); tab == nil || err != nil {
-		t.Fatalf("Failed to create table: %v", err)
+
+	_, err := store.CreatePrimaryTable(c.Rec, c.Schema)
+	if err != nil && c.ExpectError == false {
+		t.Fatalf("Did not expected error, received: %v", err)
 	}
+
 	if tab, err := store.GetResourceTable(id); tab == nil || err != nil {
 		t.Fatalf("Failed to get table: %v", err)
 	}

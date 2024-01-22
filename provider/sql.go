@@ -175,7 +175,7 @@ func (store *sqlOfflineStore) AsOfflineStore() (OfflineStore, error) {
 
 func (store *sqlOfflineStore) Close() error {
 	if err := store.db.Close(); err != nil {
-		return fferr.NewConnectionError(string(store.Type()), err)
+		return fferr.NewConnectionError(store.Type().String(), err)
 	}
 	return nil
 }
@@ -343,6 +343,9 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 		return nil, fferr.NewTransformationNotFoundError(name, id.Variant, err)
 	}
 	columnNames, err := store.query.getColumns(store.db, name)
+	if err != nil {
+		return nil, err
+	}
 
 	return &sqlPrimaryTable{
 		db:           store.db,
@@ -420,7 +423,9 @@ func (mat *sqlMaterialization) NumRows() (int64, error) {
 	rows := mat.db.QueryRow(query)
 	err := rows.Scan(&n)
 	if err != nil {
-		return 0, fferr.NewExecutionError(string(mat.providerType), "", "", "", err)
+		wrapped := fferr.NewExecutionError(mat.providerType.String(), err)
+		wrapped.AddDetail("table_name", mat.tableName)
+		return 0, wrapped
 	}
 	if n == nil {
 		return 0, nil
@@ -437,11 +442,15 @@ func (mat *sqlMaterialization) IterateSegment(start, end int64) (FeatureIterator
 	query := mat.query.materializationIterateSegment(mat.tableName)
 	rows, err := mat.db.Query(query, start, end)
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(mat.providerType), "", "", "", err)
+		wrapped := fferr.NewExecutionError(mat.providerType.String(), err)
+		wrapped.AddDetail("table_name", mat.tableName)
+		return nil, wrapped
 	}
 	types, err := rows.ColumnTypes()
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(mat.providerType), "", "", "", err)
+		wrapped := fferr.NewExecutionError(mat.providerType.String(), err)
+		wrapped.AddDetail("table_name", mat.tableName)
+		return nil, wrapped
 	}
 	colType := mat.query.getValueColumnType(types[1])
 	if err != nil {
@@ -481,7 +490,7 @@ func (iter *sqlFeatureIterator) Next() bool {
 	var ts time.Time
 	if err := iter.rows.Scan(&entity, &value, &ts); err != nil {
 		iter.rows.Close()
-		iter.err = fferr.NewExecutionError(string(iter.providerType), "", "", "", err)
+		iter.err = fferr.NewExecutionError(iter.providerType.String(), err)
 		return false
 	}
 	if err := rec.SetEntity(entity); err != nil {
@@ -540,7 +549,7 @@ func (it *sqlBatchFeatureIterator) Next() bool {
 	}
 	columnNames, err := it.rows.Columns()
 	if err != nil {
-		it.err = fferr.NewExecutionError(string(it.providerType), "", "", "", err)
+		it.err = fferr.NewExecutionError(it.providerType.String(), err)
 		it.rows.Close()
 		return false
 	}
@@ -550,7 +559,7 @@ func (it *sqlBatchFeatureIterator) Next() bool {
 		pointers[i] = &values[i]
 	}
 	if err := it.rows.Scan(pointers...); err != nil {
-		it.err = fferr.NewExecutionError(string(it.providerType), "", "", "", err)
+		it.err = fferr.NewExecutionError(it.providerType.String(), err)
 		it.rows.Close()
 		return false
 	}
@@ -583,7 +592,7 @@ func (it *sqlBatchFeatureIterator) Err() error {
 
 func (it *sqlBatchFeatureIterator) Close() error {
 	if err := it.rows.Close(); err != nil {
-		return fferr.NewConnectionError(string(it.providerType), err)
+		return fferr.NewConnectionError(it.providerType.String(), err)
 	}
 	return nil
 }
@@ -677,7 +686,7 @@ func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, options ...Ma
 	for _, materializeQry := range materializeQueries {
 		_, err = store.db.Exec(materializeQry)
 		if err != nil {
-			return nil, fferr.NewExecutionError(string(store.Type()), id.Name, id.Variant, id.Type.String(), err)
+			return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 		}
 	}
 	return &sqlMaterialization{
@@ -697,7 +706,9 @@ func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Material
 
 	rows, err := store.db.Query(getMatQry, tableName)
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(store.Type()), string(id), "", "", err)
+		wrapped := fferr.NewExecutionError(store.Type().String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 	defer rows.Close()
 
@@ -728,7 +739,7 @@ func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID) (Materializat
 
 	rows, err := store.db.Query(getMatQry, tableName)
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(store.Type()), id.Name, id.Variant, id.Type.String(), err)
+		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	defer rows.Close()
 	if !rows.Next() {
@@ -845,7 +856,7 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 	fmt.Printf("Training Set Query: %s\n", trainingSetQry)
 	rows, err := store.db.Query(trainingSetQry)
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(store.Type()), id.Name, id.Variant, id.Type.String(), err)
+		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	colTypes, err := store.getValueColumnTypes(trainingSetName)
 	if err != nil {
@@ -860,7 +871,9 @@ func (store *sqlOfflineStore) getValueColumnTypes(table string) ([]interface{}, 
 	query := store.query.getValueColumnTypes(table)
 	rows, err := store.db.Query(query)
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(store.Type()), "", "", "", err)
+		wrapped := fferr.NewExecutionError(store.Type().String(), err)
+		wrapped.AddDetail("table_name", table)
+		return nil, wrapped
 	}
 	defer rows.Close()
 	colTypes := make([]interface{}, 0)
@@ -869,7 +882,9 @@ func (store *sqlOfflineStore) getValueColumnTypes(table string) ([]interface{}, 
 
 		rawType, err := rows.ColumnTypes()
 		if err != nil {
-			return nil, fferr.NewExecutionError(string(store.Type()), "", "", "", err)
+			wrapped := fferr.NewExecutionError(store.Type().String(), err)
+			wrapped.AddDetail("table_name", table)
+			return nil, wrapped
 		}
 		for _, t := range rawType {
 			colTypes = append(colTypes, store.query.getValueColumnType(t))
@@ -909,7 +924,7 @@ func (it *sqlTrainingRowsIterator) Next() bool {
 	}
 	columnNames, err := it.rows.Columns()
 	if err != nil {
-		it.err = fferr.NewExecutionError(string(it.providerType), "", "", "", err)
+		it.err = fferr.NewExecutionError(it.providerType.String(), err)
 		it.rows.Close()
 		return false
 	}
@@ -919,7 +934,7 @@ func (it *sqlTrainingRowsIterator) Next() bool {
 		pointers[i] = &values[i]
 	}
 	if err := it.rows.Scan(pointers...); err != nil {
-		it.err = fferr.NewExecutionError(string(it.providerType), "", "", "", err)
+		it.err = fferr.NewExecutionError(it.providerType.String(), err)
 		it.rows.Close()
 		return false
 	}
@@ -999,7 +1014,9 @@ func (table *sqlPrimaryTable) Write(rec GenericRecord) error {
 		"INSERT INTO %s ( %s ) "+
 		"VALUES ( %s ) ", tb, columns, placeholder)
 	if _, err := table.db.Exec(upsertQuery, rec...); err != nil {
-		return fferr.NewExecutionError(string(table.providerType), "", "", "", err)
+		wrapped := fferr.NewExecutionError(table.providerType.String(), err)
+		wrapped.AddDetail("table_name", table.name)
+		return wrapped
 	}
 	return nil
 }
@@ -1039,7 +1056,9 @@ func (pt *sqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error)
 	}
 	rows, err := pt.db.Query(query)
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(pt.providerType), "", "", "", err)
+		wrapped := fferr.NewExecutionError(pt.providerType.String(), err)
+		wrapped.AddDetail("table_name", pt.name)
+		return nil, wrapped
 	}
 	colTypes, err := pt.getValueColumnTypes(pt.name)
 	if err != nil {
@@ -1052,7 +1071,9 @@ func (pt *sqlPrimaryTable) getValueColumnTypes(table string) ([]interface{}, err
 	query := pt.query.getValueColumnTypes(table)
 	rows, err := pt.db.Query(query)
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(pt.providerType), "", "", "", err)
+		wrapped := fferr.NewExecutionError(pt.providerType.String(), err)
+		wrapped.AddDetail("table_name", pt.name)
+		return nil, wrapped
 	}
 	defer rows.Close()
 	colTypes := make([]interface{}, 0)
@@ -1060,7 +1081,9 @@ func (pt *sqlPrimaryTable) getValueColumnTypes(table string) ([]interface{}, err
 
 		rawType, err := rows.ColumnTypes()
 		if err != nil {
-			return nil, fferr.NewExecutionError(string(pt.providerType), "", "", "", err)
+			wrapped := fferr.NewExecutionError(pt.providerType.String(), err)
+			wrapped.AddDetail("table_name", pt.name)
+			return nil, wrapped
 		}
 		for _, t := range rawType {
 			colTypes = append(colTypes, pt.query.getValueColumnType(t))
@@ -1077,7 +1100,9 @@ func (pt *sqlPrimaryTable) NumRows() (int64, error) {
 
 	err := rows.Scan(&n)
 	if err != nil {
-		return 0, fferr.NewExecutionError(string(pt.providerType), "", "", "", err)
+		wrapped := fferr.NewExecutionError(pt.providerType.String(), err)
+		wrapped.AddDetail("table_name", pt.name)
+		return 0, wrapped
 	}
 	return n, nil
 }
@@ -1109,7 +1134,9 @@ func (store *sqlOfflineStore) newsqlOfflineTable(db *sql.DB, name string, valueT
 	tableCreateQry := store.query.newSQLOfflineTable(name, columnType)
 	_, err = db.Exec(tableCreateQry)
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(store.Type()), "", "", "", err)
+		wrapped := fferr.NewExecutionError(store.Type().String(), err)
+		wrapped.AddDetail("table_name", name)
+		return nil, wrapped
 	}
 	return &sqlOfflineTable{
 		db:           db,
@@ -1130,17 +1157,23 @@ func (table *sqlOfflineTable) Write(rec ResourceRecord) error {
 	existsQuery := table.query.writeExists(tb)
 
 	if err := table.db.QueryRow(existsQuery, rec.Entity, rec.TS).Scan(&n); err != nil {
-		return fferr.NewExecutionError(string(table.providerType), rec.Entity, "", "ENTITY", err)
+		wrapped := fferr.NewResourceExecutionError(table.providerType.String(), rec.Entity, "", fferr.ENTITY, err)
+		wrapped.AddDetail("table_name", table.name)
+		return wrapped
 	}
 	if n == 0 {
 		insertQuery := table.query.writeInserts(tb)
 		if _, err := table.db.Exec(insertQuery, rec.Entity, rec.Value, rec.TS); err != nil {
-			return fferr.NewExecutionError(string(table.providerType), rec.Entity, "", "ENTITY", err)
+			wrapped := fferr.NewResourceExecutionError(table.providerType.String(), rec.Entity, "", fferr.ENTITY, err)
+			wrapped.AddDetail("table_name", table.name)
+			return wrapped
 		}
 	} else if n > 0 {
 		updateQuery := table.query.writeUpdate(tb)
 		if _, err := table.db.Exec(updateQuery, rec.Value, rec.Entity, rec.TS); err != nil {
-			return fferr.NewExecutionError(string(table.providerType), rec.Entity, "", "ENTITY", err)
+			wrapped := fferr.NewResourceExecutionError(table.providerType.String(), rec.Entity, "", fferr.ENTITY, err)
+			wrapped.AddDetail("table_name", table.name)
+			return wrapped
 		}
 	}
 	return nil
@@ -1161,7 +1194,7 @@ func (table *sqlOfflineTable) resourceExists(rec ResourceRecord) (bool, error) {
 
 	rows, err := table.db.Query(query, rec.Entity, rec.TS)
 	if err != nil {
-		return false, fferr.NewExecutionError(string(table.providerType), rec.Entity, "", "ENTITY", err)
+		return false, fferr.NewResourceExecutionError(table.providerType.String(), rec.Entity, "", fferr.ENTITY, err)
 	}
 	defer rows.Close()
 	rowCount := 0
@@ -1182,7 +1215,7 @@ func (store *sqlOfflineStore) CreateTransformation(config TransformationConfig) 
 	queries := store.query.transformationCreate(name, config.Query)
 	for _, query := range queries {
 		if _, err := store.db.Exec(query); err != nil {
-			return fferr.NewExecutionError(string(store.Type()), config.TargetTableID.Name, config.TargetTableID.Variant, config.TargetTableID.Type.String(), err)
+			return fferr.NewResourceExecutionError(store.Type().String(), config.TargetTableID.Name, config.TargetTableID.Variant, fferr.ResourceType(config.TargetTableID.Type.String()), err)
 		}
 	}
 	return nil
@@ -1247,7 +1280,7 @@ func (it *sqlGenericTableIterator) Next() bool {
 	}
 	columnNames, err := it.rows.Columns()
 	if err != nil {
-		it.err = fferr.NewExecutionError(string(it.providerType), "", "", "", err)
+		it.err = fferr.NewExecutionError(it.providerType.String(), err)
 		it.rows.Close()
 		return false
 	}
@@ -1257,7 +1290,7 @@ func (it *sqlGenericTableIterator) Next() bool {
 		pointers[i] = &values[i]
 	}
 	if err := it.rows.Scan(pointers...); err != nil {
-		it.err = fferr.NewExecutionError(string(it.providerType), "", "", "", err)
+		it.err = fferr.NewExecutionError(it.providerType.String(), err)
 		it.rows.Close()
 		return false
 	}
@@ -1287,7 +1320,7 @@ func (it *sqlGenericTableIterator) Err() error {
 
 func (it *sqlGenericTableIterator) Close() error {
 	if err := it.rows.Close(); err != nil {
-		return fferr.NewConnectionError(string(it.providerType), err)
+		return fferr.NewConnectionError(it.providerType.String(), err)
 	}
 	return nil
 }
@@ -1348,7 +1381,9 @@ func (q defaultOfflineSQLQueries) registerResources(db *sql.DB, tableName string
 			schema.Entity, schema.Value, time.UnixMilli(0).UTC(), sanitize(schema.SourceTable))
 	}
 	if _, err := db.Exec(query); err != nil {
-		return fferr.NewExecutionError("SQL", "", "", "", err)
+		wrapped := fferr.NewExecutionError("SQL", err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	return nil
 }
@@ -1356,27 +1391,34 @@ func (q defaultOfflineSQLQueries) registerResources(db *sql.DB, tableName string
 func (q defaultOfflineSQLQueries) primaryTableRegister(tableName string, sourceName string) string {
 	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sourceName)
 }
+
 func (q defaultOfflineSQLQueries) getColumns(db *sql.DB, name string) ([]TableColumn, error) {
 	bind := q.newVariableBindingIterator()
 	qry := fmt.Sprintf("SELECT column_name FROM information_schema.columns WHERE table_name = %s order by ordinal_position", bind.Next())
 	rows, err := db.Query(qry, name)
 	if err != nil {
-		return nil, fferr.NewExecutionError("SQL", "", "", "", err)
+		wrapped := fferr.NewExecutionError("SQL", err)
+		wrapped.AddDetail("table_name", name)
+		return nil, wrapped
 	}
 	defer rows.Close()
 	columnNames := make([]TableColumn, 0)
 	for rows.Next() {
 		var column string
 		if err := rows.Scan(&column); err != nil {
-			return nil, fferr.NewExecutionError("SQL", "", "", "", err)
+			wrapped := fferr.NewExecutionError("SQL", err)
+			wrapped.AddDetail("table_name", name)
+			return nil, wrapped
 		}
 		columnNames = append(columnNames, TableColumn{Name: column})
 	}
 	return columnNames, nil
 }
+
 func (q defaultOfflineSQLQueries) primaryTableCreate(name string, columnString string) string {
 	return fmt.Sprintf("CREATE TABLE %s ( %s )", sanitize(name), columnString)
 }
+
 func (q defaultOfflineSQLQueries) materializationCreate(tableName string, sourceName string) []string {
 	return []string{
 		fmt.Sprintf(
@@ -1403,7 +1445,9 @@ func (q defaultOfflineSQLQueries) materializationUpdate(db *sql.DB, tableName st
 	var numStatements = 6
 	stmt, _ := sf.WithMultiStatement(context.TODO(), numStatements)
 	if _, err := db.QueryContext(stmt, query); err != nil {
-		return fferr.NewExecutionError("SQL", "", "", "", err)
+		wrapped := fferr.NewExecutionError("SQL", err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	return nil
 }
@@ -1529,7 +1573,9 @@ func (q defaultOfflineSQLQueries) trainingSetQuery(store *sqlOfflineStore, def T
 				"SELECT t0.entity as e, t0.value as label, t0.ts as time, %s from %s as t0 %s )",
 			sanitize(tableName), columnStr, columnStr, sanitize(labelName), query)
 		if _, err := store.db.Exec(fullQuery); err != nil {
-			return fferr.NewExecutionError("SQL", "", "", "", err)
+			wrapped := fferr.NewExecutionError("SQL", err)
+			wrapped.AddDetail("table_name", tableName)
+			return wrapped
 		}
 	} else {
 		tempTable := sanitize(fmt.Sprintf("tmp_%s", tableName))
@@ -1558,7 +1604,9 @@ func (q defaultOfflineSQLQueries) atomicUpdate(db *sql.DB, tableName string, tem
 	// Gets around the fact that the go redshift driver doesn't support multi statement trx queries
 	stmt, _ := sf.WithMultiStatement(context.TODO(), numStatements)
 	if _, err := db.QueryContext(stmt, transaction); err != nil {
-		return fferr.NewExecutionError("SQL", "", "", "", err)
+		wrapped := fferr.NewExecutionError("SQL", err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	return nil
 }

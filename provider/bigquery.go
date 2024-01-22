@@ -107,7 +107,9 @@ func (pt *bqPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) 
 	bqQ := pt.client.Query(query)
 	it, err := bqQ.Read(pt.query.getContext())
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 	return newBigQueryGenericTableIterator(it, pt.query), nil
 }
@@ -121,12 +123,16 @@ func (pt *bqPrimaryTable) NumRows() (int64, error) {
 
 	it, err := bqQ.Read(pt.query.getContext())
 	if err != nil {
-		return 0, fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return 0, wrapped
 	}
 
 	err = it.Next(&n)
 	if err != nil {
-		return 0, fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return 0, wrapped
 	}
 
 	return n[0].(int64), nil
@@ -143,7 +149,9 @@ func (pt *bqPrimaryTable) Write(rec GenericRecord) error {
 	bqQ.Parameters = recordsParameter
 
 	if _, err := bqQ.Read(pt.query.getContext()); err != nil {
-		return fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
+		wrapped.AddDetail("table_name", tb)
+		return wrapped
 	}
 
 	return nil
@@ -183,7 +191,7 @@ func (it *bqGenericTableIterator) Next() bool {
 		it.err = nil
 		return false
 	} else if err != nil {
-		it.err = fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+		it.err = fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 		return false
 	}
 
@@ -241,7 +249,9 @@ func (q defaultBQQueries) registerResources(client *bigquery.Client, tableName s
 
 	bqQ := client.Query(query)
 	if _, err := bqQ.Read(q.getContext()); err != nil {
-		return fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	return nil
 }
@@ -297,8 +307,8 @@ func (q defaultBQQueries) upsertQuery(tb string, columns string, placeholder str
 
 func (q defaultBQQueries) createValuePlaceholderString(columns []TableColumn) string {
 	placeholders := make([]string, 0)
-	for _ = range columns {
-		placeholders = append(placeholders, fmt.Sprintf("?"))
+	for range columns {
+		placeholders = append(placeholders, "?")
 	}
 	return strings.Join(placeholders, ", ")
 }
@@ -393,7 +403,10 @@ func (q defaultBQQueries) materializationUpdate(client *bigquery.Client, tableNa
 	bqQ := client.Query(query)
 	job, err := bqQ.Run(q.getContext())
 	if err != nil {
-		return fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("source_name", sourceName)
+		return wrapped
 	}
 
 	err = q.monitorJob(job)
@@ -405,9 +418,13 @@ func (q defaultBQQueries) monitorJob(job *bigquery.Job) error {
 		time.Sleep(sleepTime)
 		status, err := job.Status(q.getContext())
 		if err != nil {
-			return fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+			wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
+			wrapped.AddDetail("job_id", job.ID())
+			return wrapped
 		} else if status.Err() != nil {
-			return fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", status.Err())
+			wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), status.Err())
+			wrapped.AddDetail("job_id", job.ID())
+			return wrapped
 		}
 
 		switch status.State {
@@ -430,7 +447,9 @@ func (q defaultBQQueries) getColumns(client *bigquery.Client, name string) ([]Ta
 	bqQ := client.Query(qry)
 	it, err := bqQ.Read(q.getContext())
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
+		wrapped.AddDetail("table_name", name)
+		return nil, wrapped
 	}
 
 	columnNames := make([]TableColumn, 0)
@@ -440,7 +459,9 @@ func (q defaultBQQueries) getColumns(client *bigquery.Client, name string) ([]Ta
 		if err == iterator.Done {
 			break
 		} else if err != nil {
-			return nil, fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+			wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
+			wrapped.AddDetail("table_name", name)
+			return nil, wrapped
 		}
 		columnNames = append(columnNames, TableColumn{Name: column[0].(string)})
 	}
@@ -454,7 +475,9 @@ func (q defaultBQQueries) transformationUpdate(client *bigquery.Client, tableNam
 
 	err := q.atomicUpdate(client, tableName, tempName, fullQuery)
 	if err != nil {
-		return fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	return nil
 }
@@ -472,7 +495,9 @@ func (q defaultBQQueries) atomicUpdate(client *bigquery.Client, tableName string
 	bdQ := client.Query(updateQuery)
 	job, err := bdQ.Run(q.getContext())
 	if err != nil {
-		return fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 
 	err = q.monitorJob(job)
@@ -519,7 +544,7 @@ func (q defaultBQQueries) trainingSetQuery(store *bqOfflineStore, def TrainingSe
 		bqQ := store.client.Query(fullQuery)
 		job, err := bqQ.Run(store.query.getContext())
 		if err != nil {
-			return fferr.NewExecutionError(string(p_type.BigQueryOffline), def.ID.Name, def.ID.Variant, def.ID.Type.String(), err)
+			return fferr.NewResourceExecutionError(p_type.BigQueryOffline.String(), def.ID.Name, def.ID.Variant, fferr.ResourceType(def.ID.Type.String()), err)
 		}
 
 		err = store.query.monitorJob(job)
@@ -566,12 +591,16 @@ func (mat *bqMaterialization) NumRows() (int64, error) {
 	bqQ := mat.client.Query(query)
 	it, err := bqQ.Read(mat.query.getContext())
 	if err != nil {
-		return 0, fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
+		wrapped.AddDetail("table_name", mat.tableName)
+		return 0, wrapped
 	}
 
 	err = it.Next(&n)
 	if err != nil {
-		return 0, fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
+		wrapped.AddDetail("table_name", mat.tableName)
+		return 0, wrapped
 	}
 	if n == nil {
 		return 0, nil
@@ -586,7 +615,7 @@ func (mat *bqMaterialization) IterateSegment(start, end int64) (FeatureIterator,
 	bqQ := mat.client.Query(query)
 	it, err := bqQ.Read(mat.query.getContext())
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+		return nil, fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 	}
 	return newbqFeatureIterator(it, mat.query), nil
 }
@@ -614,7 +643,7 @@ func (it *bqFeatureIterator) Next() bool {
 		it.err = nil
 		return false
 	} else if err != nil {
-		it.err = fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+		it.err = fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 		return false
 	}
 
@@ -671,12 +700,12 @@ func (table *bqOfflineTable) Write(rec ResourceRecord) error {
 
 	iter, err := bqQ.Read(table.query.getContext())
 	if err != nil {
-		return fferr.NewExecutionError(string(p_type.BigQueryOffline), rec.Entity, "", "ENTITY", err)
+		return fferr.NewResourceExecutionError(p_type.BigQueryOffline.String(), rec.Entity, "", fferr.ENTITY, err)
 	}
 
 	err = iter.Next(&n)
 	if err != nil {
-		return fferr.NewExecutionError(string(p_type.BigQueryOffline), rec.Entity, "", "ENTITY", err)
+		return fferr.NewResourceExecutionError(p_type.BigQueryOffline.String(), rec.Entity, "", fferr.ENTITY, err)
 	}
 
 	if n == nil {
@@ -697,7 +726,7 @@ func (table *bqOfflineTable) Write(rec ResourceRecord) error {
 	bqQ.Parameters = params
 
 	if _, err = bqQ.Read(table.query.getContext()); err != nil {
-		return fferr.NewExecutionError(string(p_type.BigQueryOffline), rec.Entity, "", "ENTITY", err)
+		return fferr.NewResourceExecutionError(p_type.BigQueryOffline.String(), rec.Entity, "", fferr.ENTITY, err)
 	}
 
 	return nil
@@ -722,7 +751,7 @@ type bqOfflineStore struct {
 func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
 	sc := pc.BigQueryConfig{}
 	if err := sc.Deserialize(config.Config); err != nil {
-		return nil, fferr.NewProviderConfigError(string(pt.BigQueryOffline), err)
+		return nil, err
 	}
 
 	creds, err := json.Marshal(sc.Credentials)
@@ -749,7 +778,7 @@ func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
 func bigQueryOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.BigQueryConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, fferr.NewProviderConfigError(string(pt.BigQueryOffline), err)
+		return nil, err
 	}
 	queries := defaultBQQueries{}
 	queries.setTablePrefix(fmt.Sprintf("%s.%s", sc.ProjectId, sc.DatasetId))
@@ -806,21 +835,21 @@ func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourc
 		return nil, err
 	}
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
+		return nil, err
 	} else if exists {
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 
 	tableName, err := GetPrimaryTableName(id)
 	if err != nil {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
+		return nil, err
 	}
 	query := store.query.primaryTableRegister(tableName, sourceName)
 
 	bqQ := store.client.Query(query)
 	job, err := bqQ.Run(store.query.getContext())
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(store.Type()), id.Name, id.Variant, id.Type.String(), err)
+		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 
 	err = store.query.monitorJob(job)
@@ -850,7 +879,7 @@ func (store *bqOfflineStore) CreateTransformation(config TransformationConfig) e
 	bqQ := store.client.Query(query)
 	job, err := bqQ.Run(store.query.getContext())
 	if err != nil {
-		return fferr.NewExecutionError(string(store.Type()), config.TargetTableID.Name, config.TargetTableID.Variant, config.TargetTableID.Type.String(), err)
+		return fferr.NewResourceExecutionError(store.Type().String(), config.TargetTableID.Name, config.TargetTableID.Variant, fferr.ResourceType(config.TargetTableID.Type.String()), err)
 	}
 
 	err = store.query.monitorJob(job)
@@ -877,7 +906,7 @@ func (store *bqOfflineStore) createTransformationName(id ResourceID) (string, er
 func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	name, err := GetPrimaryTableName(id)
 	if err != nil {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
+		return nil, err
 	}
 
 	existsQuery := store.query.tableExists(name)
@@ -891,7 +920,7 @@ func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (Transformati
 	err = it.Next(&row)
 
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(store.Type()), id.Name, id.Variant, id.Type.String(), err)
+		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	if len(row) == 0 {
 		return nil, fferr.NewTransformationNotFoundError(id.Name, id.Variant, nil)
@@ -899,7 +928,7 @@ func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (Transformati
 
 	columnNames, err := store.query.getColumns(store.client, name)
 	if err != nil {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
+		return nil, err
 	}
 
 	return &bqPrimaryTable{
@@ -913,11 +942,11 @@ func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (Transformati
 func (store *bqOfflineStore) UpdateTransformation(config TransformationConfig) error {
 	name, err := store.createTransformationName(config.TargetTableID)
 	if err != nil {
-		return fferr.NewTransformationNotFoundError(config.TargetTableID.Name, config.TargetTableID.Variant, nil)
+		return err
 	}
 	err = store.query.transformationUpdate(store.client, name, config.Query)
 	if err != nil {
-		return fferr.NewTransformationNotFoundError(config.TargetTableID.Name, config.TargetTableID.Variant, nil)
+		return err
 	}
 
 	return nil
@@ -925,10 +954,10 @@ func (store *bqOfflineStore) UpdateTransformation(config TransformationConfig) e
 
 func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
 	if err := id.check(Primary); err != nil {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
+		return nil, err
 	}
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
+		return nil, err
 	} else if exists {
 		return nil, &TableAlreadyExists{id.Name, id.Variant}
 	}
@@ -937,11 +966,11 @@ func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchem
 	}
 	tableName, err := GetPrimaryTableName(id)
 	if err != nil {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
+		return nil, err
 	}
 	table, err := store.newBigQueryPrimaryTable(store.client, tableName, schema)
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(store.Type()), id.Name, id.Variant, id.Type.String(), err)
+		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	return table, nil
 }
@@ -949,7 +978,7 @@ func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchem
 func (store *bqOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
 	name, err := GetPrimaryTableName(id)
 	if err != nil {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
+		return nil, err
 	}
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
@@ -1015,7 +1044,9 @@ func (store *bqOfflineStore) newbqOfflineTable(client *bigquery.Client, name str
 	bqQ := client.Query(tableCreateQry)
 	_, err = bqQ.Read(store.query.getContext())
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(store.Type()), "", "", "", err)
+		wrapped := fferr.NewExecutionError(store.Type().String(), err)
+		wrapped.AddDetail("table_name", name)
+		return nil, wrapped
 	}
 	return &bqOfflineTable{
 		client: client,
@@ -1048,7 +1079,7 @@ func (store *bqOfflineStore) CreateMaterialization(id ResourceID, options ...Mat
 	bqQ := store.client.Query(materializeQry)
 	_, err = bqQ.Read(store.query.getContext())
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(store.Type()), id.Name, id.Variant, id.Type.String(), err)
+		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	return &bqMaterialization{
 		id:        matID,
@@ -1087,13 +1118,19 @@ func (store *bqOfflineStore) GetMaterialization(id MaterializationID) (Materiali
 	bqQry := store.client.Query(getMatQry)
 	it, err := bqQry.Read(store.query.getContext())
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(store.Type()), string(id), "", "", err)
+		wrapped := fferr.NewExecutionError(store.Type().String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("materialization_id", string(id))
+		return nil, wrapped
 	}
 
 	var row []bigquery.Value
 	err = it.Next(&row)
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(store.Type()), string(id), "", "", err)
+		wrapped := fferr.NewExecutionError(store.Type().String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("materialization_id", string(id))
+		return nil, wrapped
 	}
 
 	if len(row) == 0 {
@@ -1119,15 +1156,15 @@ func (store *bqOfflineStore) UpdateMaterialization(id ResourceID) (Materializati
 	bqQ := store.client.Query(getMatQry)
 	it, err := bqQ.Read(store.query.getContext())
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(store.Type()), id.Name, id.Variant, id.Type.String(), err)
+		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	var row []bigquery.Value
 	err = it.Next(&row)
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(store.Type()), id.Name, id.Variant, id.Type.String(), err)
+		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	if len(row) == 0 {
-		return nil, fferr.NewExecutionError(string(store.Type()), id.Name, id.Variant, id.Type.String(), err)
+		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 
 	err = store.query.materializationUpdate(store.client, tableName, resTable.name)
@@ -1153,7 +1190,10 @@ func (store *bqOfflineStore) DeleteMaterialization(id MaterializationID) error {
 	query := store.query.materializationDrop(tableName)
 	bqQ := store.client.Query(query)
 	if _, err := bqQ.Read(store.query.getContext()); err != nil {
-		return fferr.NewExecutionError(string(store.Type()), string(id), "", "", err)
+		wrapped := fferr.NewExecutionError(store.Type().String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("materialization_id", string(id))
+		return wrapped
 	}
 
 	return nil
@@ -1166,7 +1206,10 @@ func (store *bqOfflineStore) materializationExists(id MaterializationID) (bool, 
 	bqQ := store.client.Query(getMatQry)
 	it, err := bqQ.Read(store.query.getContext())
 	if err != nil {
-		return false, fferr.NewExecutionError(string(store.Type()), string(id), "", "", err)
+		wrapped := fferr.NewExecutionError(store.Type().String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("materialization_id", string(id))
+		return false, wrapped
 	}
 
 	var row []bigquery.Value
@@ -1243,7 +1286,7 @@ func (store *bqOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator,
 	bqQ := store.client.Query(trainingSetQry)
 	iter, err := bqQ.Read(store.query.getContext())
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(store.Type()), id.Name, id.Variant, id.Type.String(), err)
+		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 
 	return store.newbqTrainingSetIterator(iter), nil
@@ -1280,7 +1323,7 @@ func (it *bqTrainingRowsIterator) Next() bool {
 		it.err = nil
 		return false
 	} else if err != nil {
-		it.err = fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+		it.err = fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 		return false
 	}
 
@@ -1322,7 +1365,7 @@ func (store *bqOfflineStore) AsOfflineStore() (OfflineStore, error) {
 
 func (store *bqOfflineStore) Close() error {
 	if err := store.client.Close(); err != nil {
-		return fferr.NewConnectionError(string(store.Type()), err)
+		return fferr.NewConnectionError(store.Type().String(), err)
 	}
 	return nil
 }
@@ -1339,7 +1382,7 @@ func (store *bqOfflineStore) tableExists(id ResourceID) (bool, error) {
 		tableName, err = GetPrimaryTableName(id)
 	}
 	if err != nil {
-		return false, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
+		return false, err
 	}
 
 	query := store.query.tableExists(tableName)
@@ -1347,7 +1390,7 @@ func (store *bqOfflineStore) tableExists(id ResourceID) (bool, error) {
 
 	iter, err := bqQ.Read(store.query.getContext())
 	if err != nil {
-		return false, fferr.NewExecutionError(string(p_type.BigQueryOffline), id.Name, id.Variant, id.Type.String(), err)
+		return false, fferr.NewResourceExecutionError(p_type.BigQueryOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 
 	err = iter.Next(&n)
@@ -1362,14 +1405,14 @@ func (store *bqOfflineStore) tableExists(id ResourceID) (bool, error) {
 
 	iter, err = bqQ.Read(store.query.getContext())
 	if err != nil {
-		return false, fferr.NewExecutionError(string(p_type.BigQueryOffline), id.Name, id.Variant, id.Type.String(), err)
+		return false, fferr.NewResourceExecutionError(p_type.BigQueryOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 
 	err = iter.Next(&n)
 	if n != nil && n[0].(int64) > 0 && err == nil {
 		return true, nil
 	} else if err != nil {
-		return false, fferr.NewExecutionError(string(p_type.BigQueryOffline), id.Name, id.Variant, id.Type.String(), err)
+		return false, fferr.NewResourceExecutionError(p_type.BigQueryOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	return false, nil
 }
@@ -1383,7 +1426,7 @@ func (store *bqOfflineStore) newBigQueryPrimaryTable(client *bigquery.Client, na
 	qry := client.Query(query)
 	_, err = qry.Read(store.query.getContext())
 	if err != nil {
-		return nil, fferr.NewExecutionError(string(p_type.BigQueryOffline), "", "", "", err)
+		return nil, fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 	}
 	return &bqPrimaryTable{
 		client: client,

@@ -80,7 +80,10 @@ func NewSQLOfflineStore(config SQLOfflineStoreConfig) (*sqlOfflineStore, error) 
 	url := config.ConnectionURL
 	db, err := sql.Open(config.Driver, url)
 	if err != nil {
-		return nil, NewProviderError(Connection, config.ProviderType, ClientInitialization, err.Error())
+		wrapped := fferr.NewConnectionError(config.ProviderType.String(), err)
+		wrapped.AddDetail("action", "connection_initialization")
+		wrapped.AddDetail("connection_url", url)
+		return nil, wrapped
 	}
 
 	return &sqlOfflineStore{
@@ -183,7 +186,9 @@ func (store *sqlOfflineStore) Close() error {
 func (store *sqlOfflineStore) CheckHealth() (bool, error) {
 	err := store.db.Ping()
 	if err != nil {
-		return false, NewProviderError(Connection, store.Type(), Ping, err.Error())
+		wrapped := fferr.NewConnectionError(store.Type().String(), err)
+		wrapped.AddDetail("action", "ping")
+		return false, wrapped
 	}
 	return true, nil
 }

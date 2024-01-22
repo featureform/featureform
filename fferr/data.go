@@ -145,7 +145,7 @@ type InvalidResourceTypeError struct {
 
 func NewInvalidResourceVariantNameError(resourceName, resourceVariant, resourceType string, err error) *InvalidResourceTypeError {
 	if err == nil {
-		err = fmt.Errorf("initial invalid resource variant name error")
+		err = fmt.Errorf("initial invalid resource variant name or variant error")
 	}
 	baseError := newBaseGRPCError(err, INVALID_RESOURCE_TYPE, codes.InvalidArgument)
 	baseError.AddDetail("resource_name", resourceName)
@@ -163,7 +163,7 @@ type InvalidResourceNameVariantError struct {
 
 func NewInvalidFileTypeError(extension string, err error) *InvalidFileTypeError {
 	if err == nil {
-		err = fmt.Errorf("initial invalid filetype name error")
+		err = fmt.Errorf("initial invalid filetype error")
 	}
 	baseError := newBaseGRPCError(err, INVALID_FILE_TYPE, codes.InvalidArgument)
 	baseError.AddDetail("Extension", extension)

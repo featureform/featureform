@@ -295,9 +295,7 @@ func (store *dynamodbOnlineStore) ImportTable(feature, variant string, valueType
 	store.logger.Infof("Checking metadata table for existing table %s\n", GetTablename(store.prefix, feature, variant))
 	_, err := store.GetFromMetadataTable(GetTablename(store.prefix, feature, variant))
 	if err == nil {
-		wrapped := fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
-		wrapped.AddDetail("tablename", GetTablename(store.prefix, feature, variant))
-		return "", wrapped
+		return "", err
 	}
 
 	store.logger.Infof("Updating metadata table %s\n", GetTablename(store.prefix, feature, variant))
@@ -429,7 +427,7 @@ func (table dynamodbOnlineTable) Get(entity string) (interface{}, error) {
 	}
 	output_val, err := table.client.GetItem(input)
 	if len(output_val.Item) == 0 {
-		wrapped := fferr.NewDatasetNotFoundError(table.key.Feature, table.key.Variant, fmt.Errorf("entity %s not found", entity))
+		wrapped := fferr.NewEntityNotFoundError(table.key.Feature, table.key.Variant, entity, nil)
 		wrapped.AddDetail("entity", entity)
 		return nil, wrapped
 	}

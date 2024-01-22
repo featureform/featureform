@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"cloud.google.com/go/firestore"
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"google.golang.org/api/option"
@@ -50,17 +51,17 @@ func firestoreOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, erro
 func NewFirestoreOnlineStore(options *pc.FirestoreConfig) (*firestoreOnlineStore, error) {
 	credBytes, err := json.Marshal(options.Credentials)
 	if err != nil {
-		return nil, fmt.Errorf("could not serialized firestore config, %v", err)
+		return nil, fferr.NewInternalError(err)
 	}
 	firestoreClient, err := firestore.NewClient(context.TODO(), options.ProjectID, option.WithCredentialsJSON(credBytes))
 	if err != nil {
-		return nil, fmt.Errorf("could not create firestore connection, %v", err)
+		return nil, fferr.NewExecutionError(pt.FirestoreOnline.String(), err)
 	}
 
 	firestoreCollection := firestoreClient.Collection(options.Collection)
 	_, err = firestoreCollection.Doc(GetMetadataTable()).Set(context.TODO(), map[string]interface{}{}, firestore.MergeAll)
 	if err != nil {
-		return nil, fmt.Errorf("could not create firestore document: %v", err)
+		return nil, fferr.NewExecutionError(pt.FirestoreOnline.String(), err)
 	}
 	return &firestoreOnlineStore{
 		firestoreClient,
@@ -76,7 +77,10 @@ func (store *firestoreOnlineStore) AsOnlineStore() (OnlineStore, error) {
 }
 
 func (store *firestoreOnlineStore) Close() error {
-	return store.client.Close()
+	if err := store.client.Close(); err != nil {
+		fferr.NewExecutionError(pt.FirestoreOnline.String(), err)
+	}
+	return nil
 }
 
 func GetMetadataTable() string {
@@ -89,19 +93,27 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 
 	table, err := store.collection.Doc(tableName).Get(context.TODO())
 	if status.Code(err) == codes.NotFound {
-		return nil, &TableNotFound{feature, variant}
+		wrapped := fferr.NewDatasetNotFoundError(feature, variant, err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 	if err != nil {
-		return nil, fmt.Errorf("could not get table: %v", err)
+		wrapped := fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 
 	metadata, err := store.collection.Doc(GetMetadataTable()).Get(context.TODO())
 	if err != nil {
-		return nil, fmt.Errorf("could not get metadata table: %v", err)
+		wrapped := fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 	valueType, err := metadata.DataAt(tableName)
 	if err != nil {
-		return nil, fmt.Errorf("could not get data at: %v", err)
+		wrapped := fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 	return &firestoreOnlineTable{
 		document:  table.Ref,
@@ -111,23 +123,26 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 }
 
 func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
-	getTable, _ := store.GetTable(feature, variant)
-	if getTable != nil {
-		return nil, &TableAlreadyExists{feature, variant}
+	table, err := store.GetTable(feature, variant)
+	if table != nil {
+		return nil, fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
+	}
+	if err != nil {
+		return nil, fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
 
 	key := firestoreTableKey{store.collection.ID, feature, variant}
 	tableName := key.String()
-	_, err := store.collection.Doc(tableName).Set(context.TODO(), map[string]interface{}{})
+	_, err = store.collection.Doc(tableName).Set(context.TODO(), map[string]interface{}{})
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
 
 	_, err = store.collection.Doc(GetMetadataTable()).Set(context.TODO(), map[string]interface{}{
 		tableName: valueType,
 	}, firestore.MergeAll)
 	if err != nil {
-		return nil, fmt.Errorf("could not insert into metadata table: %v", err)
+		return nil, fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
 	return &firestoreOnlineTable{
 		document:  store.collection.Doc(tableName),
@@ -142,7 +157,7 @@ func (store *firestoreOnlineStore) DeleteTable(feature, variant string) error {
 	tableName := key.String()
 	_, err := store.collection.Doc(tableName).Delete(context.TODO())
 	if err != nil {
-		return err
+		return fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
 
 	_, err = store.collection.Doc(GetMetadataTable()).Update(context.TODO(), []firestore.Update{
@@ -153,32 +168,37 @@ func (store *firestoreOnlineStore) DeleteTable(feature, variant string) error {
 	})
 
 	if err != nil {
-		return err
+		return fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
 
 	return nil
 }
 
 func (store *firestoreOnlineStore) CheckHealth() (bool, error) {
-	return false, fmt.Errorf("provider health check not implemented")
+	return false, fferr.NewInternalError(fmt.Errorf("provider health check not implemented"))
 }
 
 func (table firestoreOnlineTable) Set(entity string, value interface{}) error {
-	_, err := table.document.Set(context.TODO(), map[string]interface{}{
+	if _, err := table.document.Set(context.TODO(), map[string]interface{}{
 		entity: value,
-	}, firestore.MergeAll)
-
-	return err
+	}, firestore.MergeAll); err != nil {
+		wrapped := fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), table.key.Feature, table.key.Variant, fferr.ENTITY, err)
+		wrapped.AddDetail("entity", entity)
+		return wrapped
+	}
+	return nil
 }
 
 func (table firestoreOnlineTable) Get(entity string) (interface{}, error) {
 	dataSnap, err := table.document.Get(context.TODO())
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), table.key.Feature, table.key.Variant, fferr.ENTITY, err)
+		wrapped.AddDetail("entity", entity)
+		return nil, wrapped
 	}
 	value, err := dataSnap.DataAt(entity)
 	if err != nil {
-		return nil, &EntityNotFound{entity}
+		return nil, fferr.NewEntityNotFoundError(table.key.Feature, table.key.Variant, entity, err)
 	}
 
 	switch table.valueType {

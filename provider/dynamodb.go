@@ -11,10 +11,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
+	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	sn "github.com/mrz1836/go-sanitize"
+	"go.uber.org/zap"
 )
 
 type dynamodbTableKey struct {
@@ -31,6 +34,7 @@ type dynamodbOnlineStore struct {
 	prefix string
 	BaseProvider
 	timeout int
+	logger  *zap.SugaredLogger
 }
 
 type dynamodbOnlineTable struct {
@@ -69,13 +73,14 @@ func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, e
 	}
 	sess := session.Must(session.NewSession(config))
 	dynamodbClient := dynamodb.New(sess)
-	if err := CreateMetadataTable(dynamodbClient); err != nil {
+	logger := logging.NewLogger("dynamodb")
+	if err := CreateMetadataTable(dynamodbClient, logger); err != nil {
 		return nil, NewProviderError(Connection, pt.DynamoDBOnline, ClientInitialization, err.Error())
 	}
 	return &dynamodbOnlineStore{dynamodbClient, options.Prefix, BaseProvider{
 		ProviderType:   pt.DynamoDBOnline,
 		ProviderConfig: options.Serialized(),
-	}, 360,
+	}, 360, logger,
 	}, nil
 }
 
@@ -88,7 +93,7 @@ func (store *dynamodbOnlineStore) Close() error {
 	return nil
 }
 
-func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB) error {
+func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB, logger *zap.SugaredLogger) error {
 	params := &dynamodb.CreateTableInput{
 		TableName: aws.String("Metadata"),
 		AttributeDefinitions: []*dynamodb.AttributeDefinition{
@@ -113,17 +118,17 @@ func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB) error {
 	}
 	_, err := dynamodbClient.DescribeTable(describeMetadataTableParams)
 	if err != nil {
-		fmt.Println("Could not describe dynamo metadata table, attemping to create...", err)
+		logger.Errorf("Could not describe dynamo metadata table, attempting to create...", err)
 	} else {
 		return nil
 	}
 	_, err = dynamodbClient.CreateTable(params)
 	if err != nil {
-		return fmt.Errorf("create attempt: %v", err)
+		return fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
 	}
 	describeTableOutput, err := dynamodbClient.DescribeTable(describeMetadataTableParams)
 	if err != nil {
-		return fmt.Errorf("could not check dynamo table: %v", err)
+		return fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
 	}
 	duration := 0
 	for describeTableOutput == nil || *describeTableOutput.Table.TableStatus != "ACTIVE" {
@@ -134,7 +139,7 @@ func CreateMetadataTable(dynamodbClient *dynamodb.DynamoDB) error {
 		time.Sleep(5 * time.Second)
 		duration += 5
 		if duration > tableCreateTimeout {
-			return fmt.Errorf("timeout creating table Metadata Table")
+			return fferr.NewExecutionError(pt.DynamoDBOnline.String(), fmt.Errorf("timeout creating table Metadata Table"))
 		}
 	}
 	return nil
@@ -156,7 +161,12 @@ func (store *dynamodbOnlineStore) UpdateMetadataTable(tablename string, valueTyp
 		UpdateExpression: aws.String("set ValueType = :valtype"),
 	}
 	_, err := store.client.UpdateItem(input)
-	return err
+	if err != nil {
+		wrappedErr := fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
+		wrappedErr.AddDetail("tablename", tablename)
+		return wrappedErr
+	}
+	return nil
 }
 
 func (store *dynamodbOnlineStore) GetFromMetadataTable(tablename string) (ValueType, error) {
@@ -170,16 +180,19 @@ func (store *dynamodbOnlineStore) GetFromMetadataTable(tablename string) (ValueT
 	}
 	output_val, err := store.client.GetItem(input)
 	if len(output_val.Item) == 0 {
-		return NilType, &CustomError{"Table not found"}
+		return NilType, fferr.NewDatasetNotFoundError("", "", fmt.Errorf("table %s not found", tablename))
 	}
 	if err != nil {
-		return NilType, err
+		wrappedErr := fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
+		wrappedErr.AddDetail("tablename", tablename)
+		return NilType, wrappedErr
 	}
 	metadata_item := Metadata{}
 	err = dynamodbattribute.UnmarshalMap(output_val.Item, &metadata_item)
-
 	if err != nil {
-		return NilType, err
+		wrappedErr := fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
+		wrappedErr.AddDetail("tablename", tablename)
+		return NilType, wrappedErr
 	}
 	return ScalarType(metadata_item.Valuetype), nil
 }
@@ -193,7 +206,7 @@ func (store *dynamodbOnlineStore) GetTable(feature, variant string) (OnlineStore
 	key := dynamodbTableKey{store.prefix, feature, variant}
 	typeOfValue, err := store.GetFromMetadataTable(GetTablename(store.prefix, feature, variant))
 	if err != nil {
-		return nil, &TableNotFound{feature, variant}
+		return nil, fferr.NewDatasetNotFoundError(feature, variant, err)
 	}
 	table := &dynamodbOnlineTable{client: store.client, key: key, valueType: typeOfValue}
 	return table, nil
@@ -203,7 +216,9 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 	key := dynamodbTableKey{store.prefix, feature, variant}
 	_, err := store.GetFromMetadataTable(GetTablename(store.prefix, feature, variant))
 	if err == nil {
-		return nil, &TableAlreadyExists{feature, variant}
+		wrapped := fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
+		wrapped.AddDetail("tablename", GetTablename(store.prefix, feature, variant))
+		return nil, wrapped
 	}
 	params := &dynamodb.CreateTableInput{
 		TableName: aws.String(GetTablename(store.prefix, feature, variant)),
@@ -227,23 +242,23 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 	}
 	_, err = store.client.CreateTable(params)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewResourceExecutionError(pt.DynamoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
 	describeTableParams := &dynamodb.DescribeTableInput{TableName: aws.String(GetTablename(store.prefix, feature, variant))}
 	describeTableOutput, err := store.client.DescribeTable(describeTableParams)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewResourceExecutionError(pt.DynamoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
 	duration := 0
 	for describeTableOutput == nil || *describeTableOutput.Table.TableStatus != "ACTIVE" {
 		describeTableOutput, err = store.client.DescribeTable(describeTableParams)
 		if err != nil {
-			return nil, err
+			return nil, fferr.NewResourceExecutionError(pt.DynamoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 		}
 		time.Sleep(5 * time.Second)
 		duration += 5
 		if duration > store.timeout {
-			return nil, fmt.Errorf("timeout creating table")
+			return nil, fferr.NewResourceExecutionError(pt.DynamoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, fmt.Errorf("timeout creating table"))
 		}
 	}
 	return &dynamodbOnlineTable{store.client, key, valueType}, nil
@@ -255,7 +270,7 @@ func (store *dynamodbOnlineStore) DeleteTable(feature, variant string) error {
 	}
 	_, err := store.client.DeleteTable(params)
 	if err != nil {
-		return err
+		return fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
 	}
 	return nil
 }
@@ -263,7 +278,7 @@ func (store *dynamodbOnlineStore) DeleteTable(feature, variant string) error {
 func (store *dynamodbOnlineStore) CheckHealth() (bool, error) {
 	listOutput, err := store.client.ListTables(&dynamodb.ListTablesInput{Limit: aws.Int64(1)})
 	if err != nil {
-		return false, err
+		return false, fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
 	}
 	if len(listOutput.TableNames) == 0 {
 		return false, NewProviderError(Connection, pt.DynamoDBOnline, Ping, "no tables found")
@@ -277,19 +292,19 @@ func (store *dynamodbOnlineStore) CheckHealth() (bool, error) {
 }
 
 func (store *dynamodbOnlineStore) ImportTable(feature, variant string, valueType ValueType, source filestore.Filepath) (ImportID, error) {
-	fmt.Printf("Checking metadata table for existing table %s\n", GetTablename(store.prefix, feature, variant))
+	store.logger.Infof("Checking metadata table for existing table %s\n", GetTablename(store.prefix, feature, variant))
 	_, err := store.GetFromMetadataTable(GetTablename(store.prefix, feature, variant))
 	if err == nil {
-		return "", &TableAlreadyExists{feature, variant}
-	}
-
-	fmt.Printf("Updating metadata table %s\n", GetTablename(store.prefix, feature, variant))
-	err = store.UpdateMetadataTable(GetTablename(store.prefix, feature, variant), valueType)
-	if err != nil {
 		return "", err
 	}
 
-	fmt.Printf("Building import table input for %s\n", GetTablename(store.prefix, feature, variant))
+	store.logger.Infof("Updating metadata table %s\n", GetTablename(store.prefix, feature, variant))
+	err = store.UpdateMetadataTable(GetTablename(store.prefix, feature, variant), valueType)
+	if err != nil {
+		return "", fferr.NewResourceExecutionError(pt.DynamoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
+	}
+
+	store.logger.Infof("Building import table input for %s\n", GetTablename(store.prefix, feature, variant))
 	// https://pkg.go.dev/github.com/aws/aws-sdk-go@v1.47.7/service/dynamodb#ImportTableInput
 	importInput := &dynamodb.ImportTableInput{
 		// This is optional but it ensures idempotency within an 8-hour window,
@@ -335,13 +350,13 @@ func (store *dynamodbOnlineStore) ImportTable(feature, variant string, valueType
 		},
 	}
 
-	fmt.Printf("Importing table %s from source %s\n", GetTablename(store.prefix, feature, variant), source.KeyPrefix())
+	store.logger.Infof("Importing table %s from source %s\n", GetTablename(store.prefix, feature, variant), source.KeyPrefix())
 	output, err := store.client.ImportTable(importInput)
 	if err != nil {
-		return "", err
+		return "", fferr.NewResourceExecutionError(pt.DynamoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
 
-	fmt.Printf("Import table response: %v\n", output)
+	store.logger.Infof("Import table response: %v\n", output)
 	return ImportID(*output.ImportTableDescription.ImportArn), nil
 }
 
@@ -365,7 +380,9 @@ func (store *dynamodbOnlineStore) GetImport(id ImportID) (Import, error) {
 	}
 	output, err := store.client.DescribeImport(input)
 	if err != nil {
-		return S3Import{id: id}, err
+		wrapped := fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
+		wrapped.AddDetail("import_id", string(id))
+		return S3Import{id: id}, wrapped
 	}
 	var errorMessage string
 	if output.ImportTableDescription.FailureCode != nil {
@@ -390,7 +407,13 @@ func (table dynamodbOnlineTable) Set(entity string, value interface{}) error {
 		UpdateExpression: aws.String("set FeatureValue = :val"),
 	}
 	_, err := table.client.UpdateItem(input)
-	return err
+	if err != nil {
+		wrapped := fferr.NewResourceExecutionError(pt.DynamoDBOnline.String(), table.key.Feature, table.key.Variant, "FEATURE_VARIANT", fmt.Errorf("error setting entity: %w", err))
+		wrapped.AddDetail("entity", entity)
+		wrapped.AddDetail("value", fmt.Sprintf("%v", value))
+		return wrapped
+	}
+	return nil
 }
 
 func (table dynamodbOnlineTable) Get(entity string) (interface{}, error) {
@@ -404,7 +427,9 @@ func (table dynamodbOnlineTable) Get(entity string) (interface{}, error) {
 	}
 	output_val, err := table.client.GetItem(input)
 	if len(output_val.Item) == 0 {
-		return nil, &EntityNotFound{entity}
+		wrapped := fferr.NewEntityNotFoundError(table.key.Feature, table.key.Variant, entity, nil)
+		wrapped.AddDetail("entity", entity)
+		return nil, wrapped
 	}
 	if err != nil {
 		return nil, err
@@ -412,7 +437,9 @@ func (table dynamodbOnlineTable) Get(entity string) (interface{}, error) {
 	dynamodb_item := dynamodbItem{}
 	err = dynamodbattribute.UnmarshalMap(output_val.Item, &dynamodb_item)
 	if err != nil {
-		return nil, &EntityNotFound{entity}
+		wrapped := fferr.NewDatasetNotFoundError(table.key.Feature, table.key.Variant, fmt.Errorf("entity %s not found", entity))
+		wrapped.AddDetail("entity", entity)
+		return nil, wrapped
 	}
 	var result interface{}
 	var result_float float64
@@ -432,7 +459,7 @@ func (table dynamodbOnlineTable) Get(entity string) (interface{}, error) {
 		result, err = strconv.ParseBool(dynamodb_item.Value)
 	}
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	return result, nil
 }

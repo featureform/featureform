@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"github.com/featureform/fferr"
 
 	ss "github.com/featureform/helpers/string_set"
 )
@@ -23,7 +24,7 @@ func (fs FirestoreConfig) Serialize() SerializedConfig {
 func (fs *FirestoreConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, fs)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }

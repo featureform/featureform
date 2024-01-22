@@ -30,6 +30,7 @@ const (
 	INVALID_ARGUMENT = "Invalid Argument"
 	// JOBS:
 	JOB_DOES_NOT_EXIST        = "Job Does Not Exist"
+	JOB_ALREADY_EXISTS        = "Job Already Exists"
 	RESOURCE_ALREADY_COMPLETE = "Resource Already Complete"
 	RESOURCE_ALREADY_FAILED   = "Resource Already Failed"
 	RESOURCE_NOT_READY        = "Resource Not Ready"

@@ -625,9 +625,9 @@ func testResourceLocation(t *testing.T, store OfflineStore) {
 		},
 	}
 
-	_, err := store.CreatePrimaryTable(c.Rec, c.Schema)
-	if err != nil && c.ExpectError == false {
-		t.Fatalf("Did not expected error, received: %v", err)
+	_, err := store.CreatePrimaryTable(id, schema)
+	if err != nil {
+		t.Fatalf("could not create primary table: %v", err)
 	}
 
 	if tab, err := store.GetResourceTable(id); tab == nil || err != nil {

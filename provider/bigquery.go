@@ -1302,9 +1302,9 @@ func (store *bqOfflineStore) CheckHealth() (bool, error) {
 
 func (store *bqOfflineStore) ResourceLocation(id ResourceID) (string, error) {
 	if exists, err := store.tableExists(id); err != nil {
-		return "", fmt.Errorf("could not check if table exists: %v", err)
+		return "", err
 	} else if !exists {
-		return "", fmt.Errorf("table does not exist: %v", id)
+		return "", fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 
 	var tableName string

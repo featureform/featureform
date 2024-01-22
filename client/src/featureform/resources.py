@@ -9,7 +9,7 @@ import re
 import sys
 import time
 from abc import ABC
-from typing import Any
+from typing import Any, Dict
 from typing import List, Tuple, Union, Optional
 
 import dill
@@ -824,9 +824,17 @@ class Provider:
     tags: list = field(default_factory=list)
     properties: dict = field(default_factory=dict)
     error: Optional[str] = None
+    has_health_check: bool = False
 
     def __post_init__(self):
         self.software = self.config.software() if self.config is not None else None
+        if self.config.type() in [
+            "REDIS_ONLINE",
+            "DYNAMODB_ONLINE",
+            "POSTGRES_OFFLINE",
+            "SPARK_OFFLINE",
+        ]:
+            self.has_health_check = True
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -996,23 +1004,62 @@ class Transformation:
 @dataclass
 class SQLTransformation(Transformation):
     query: str
-    args: K8sArgs = None
+    args: Optional[K8sArgs] = None
+    func_params_to_inputs: Dict[str, Any] = field(default_factory=dict)
 
-    def type(self):
+    _sql_placeholder_regex: str = field(
+        default=r"\{\{\s*\w+\s*\}\}", init=False, repr=False
+    )
+
+    def __post_init__(self):
+        self._validate_inputs_to_func_params(self.func_params_to_inputs)
+
+    def type(self) -> str:
+        """Return the type of the SQL transformation."""
         return SourceType.SQL_TRANSFORMATION.value
 
-    def kwargs(self):
+    def kwargs(self) -> Dict[str, pb.Transformation]:
+        """Construct kwargs for the SQL transformation."""
+        input_to_name_variant = self._resolve_input_variants()
+
+        # Find and replace placeholders in the query with source name variants
+        final_query = self.query
+        for placeholder in self._get_placeholders():
+            clean_placeholder = placeholder.strip(" {}")
+            name_variant = input_to_name_variant[clean_placeholder]
+            replacement = "{{ " + f"{name_variant[0]}.{name_variant[1]}" + " }}"
+            final_query = final_query.replace(placeholder, replacement)
+
         transformation = pb.Transformation(
-            SQLTransformation=pb.SQLTransformation(
-                query=self.query,
-                # We do not set the sources here as the backend figures it out
-            )
+            SQLTransformation=pb.SQLTransformation(query=final_query)
         )
 
         if self.args is not None:
             transformation = self.args.apply(transformation)
 
         return {"transformation": transformation}
+
+    def _validate_inputs_to_func_params(self, inputs: Dict[str, Any]) -> None:
+        # Find and replace placeholders in the query with source name variants
+        for placeholder in self._get_placeholders():
+            clean_placeholder = placeholder.strip(" {}")
+            if clean_placeholder not in self.func_params_to_inputs.keys():
+                raise ValueError(
+                    f"SQL placeholder '{placeholder}' not found in input arguments. "
+                    f"Available input arguments: {', '.join(inputs.keys())}.\n"
+                    f"Expected inputs based on function parameters: {', '.join(self.func_params_to_inputs.keys())}."
+                )
+
+    def _resolve_input_variants(self) -> Dict[str, Any]:
+        """Resolve inputs to their name variants."""
+        return {
+            func_param: inp.name_variant() if hasattr(inp, "name_variant") else inp
+            for func_param, inp in self.func_params_to_inputs.items()
+        }
+
+    def _get_placeholders(self) -> List[str]:
+        """Get placeholders from the query."""
+        return re.findall(self._sql_placeholder_regex, self.query)
 
 
 @typechecked

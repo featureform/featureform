@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 )
@@ -174,7 +175,7 @@ func (store *clickHouseOfflineStore) getsqlResourceTable(id ResourceID) (*clickh
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if !exists {
-		return nil, &TableNotFound{id.Name, id.Variant}
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	table, err := store.getResourceTableName(id)
 	if err != nil {
@@ -512,7 +513,7 @@ func (store *clickHouseOfflineStore) RegisterResourceFromSourceTable(id Resource
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, fmt.Errorf("exists error: %w", err)
 	} else if exists {
-		return nil, &TableAlreadyExists{id.Name, id.Variant}
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	if schema.Entity == "" || schema.Value == "" {
 		return nil, fmt.Errorf("non-empty entity and value columns required")
@@ -557,7 +558,7 @@ func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceI
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, fmt.Errorf("table exist: %w", err)
 	} else if exists {
-		return nil, &TableAlreadyExists{id.Name, id.Variant}
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	tableName, err := GetPrimaryTableName(id)
 	if err != nil {
@@ -635,7 +636,7 @@ func (store *clickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema Ta
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if exists {
-		return nil, &TableAlreadyExists{id.Name, id.Variant}
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	if len(schema.Columns) == 0 {
 		return nil, fmt.Errorf("cannot create primary table without columns")
@@ -659,7 +660,7 @@ func (store *clickHouseOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTabl
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if !exists {
-		return nil, &TableNotFound{id.Name, id.Variant}
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	columnNames, err := store.query.getColumns(store.db, name)
 
@@ -679,7 +680,7 @@ func (store *clickHouseOfflineStore) CreateResourceTable(id ResourceID, schema T
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, fmt.Errorf("could not check if table exists: %v", err)
 	} else if exists {
-		return nil, &TableAlreadyExists{id.Name, id.Variant}
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	tableName, err := store.getResourceTableName(id)
 	if err != nil {

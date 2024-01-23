@@ -1244,15 +1244,15 @@ func (store *sqlOfflineStore) createTransformationName(id ResourceID) (string, e
 	case Transformation:
 		return GetPrimaryTableName(id)
 	case Label:
-		return "", fferr.NewInvalidArgument(fmt.Errorf("invalid transformation type: Label"))
+		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Label"))
 	case Feature:
-		return "", fferr.NewInvalidArgument(fmt.Errorf("invalid transformation type: Feature"))
+		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Feature"))
 	case TrainingSet:
-		return "", fferr.NewInvalidArgument(fmt.Errorf("invalid transformation type: Training Set"))
+		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Training Set"))
 	case Primary:
-		return "", fferr.NewInvalidArgument(fmt.Errorf("invalid transformation type: Primary"))
+		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Primary"))
 	default:
-		return "", fferr.NewInvalidArgument(fmt.Errorf("invalid transformation type"))
+		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type"))
 	}
 }
 

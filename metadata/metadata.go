@@ -157,26 +157,26 @@ var bannedSuffixes = [...]string{"_"}
 func resourceNamedSafely(id ResourceID) error {
 	for _, substr := range bannedStrings {
 		if strings.Contains(id.Name, substr) {
-			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, id.Type.String(), fmt.Errorf("resource name contains banned string %s", substr))
+			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource name contains banned string %s", substr))
 		}
 		if strings.Contains(id.Variant, substr) {
-			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, id.Type.String(), fmt.Errorf("resource variant %s contains banned string %s", id.Name, substr))
+			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource variant %s contains banned string %s", id.Name, substr))
 		}
 	}
 	for _, substr := range bannedPrefixes {
 		if strings.HasPrefix(id.Name, substr) {
-			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, id.Type.String(), fmt.Errorf("resource name %s contains banned prefix %s", id.Name, substr))
+			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource name %s contains banned prefix %s", id.Name, substr))
 		}
 		if strings.HasPrefix(id.Variant, substr) {
-			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, id.Type.String(), fmt.Errorf("resource variant %s contains banned prefix %s", id.Name, substr))
+			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource variant %s contains banned prefix %s", id.Name, substr))
 		}
 	}
 	for _, substr := range bannedSuffixes {
 		if strings.HasSuffix(id.Name, substr) {
-			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, id.Type.String(), fmt.Errorf("resource name %s contains banned suffix %s", id.Name, substr))
+			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource name %s contains banned suffix %s", id.Name, substr))
 		}
 		if strings.HasSuffix(id.Variant, substr) {
-			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, id.Type.String(), fmt.Errorf("resource variant %s contains banned suffix %s", id.Name, substr))
+			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource variant %s contains banned suffix %s", id.Name, substr))
 		}
 	}
 	return nil
@@ -1766,7 +1766,7 @@ func findEquivalent(resources []Resource, resource ResourceVariant, filterReadyS
 
 		other, ok := res.(ResourceVariant)
 		if !ok {
-			return nil, fferr.NewInvalidResourceTypeError(res.ID().Name, res.ID().Variant, res.ID().Type.String(), fmt.Errorf("resource is not a ResourceVariant: %T", res))
+			return nil, fferr.NewInvalidResourceTypeError(res.ID().Name, res.ID().Variant, fferr.ResourceType(res.ID().Type.String()), fmt.Errorf("resource is not a ResourceVariant: %T", res))
 		}
 
 		equivalent, err := resource.IsEquivalent(other)

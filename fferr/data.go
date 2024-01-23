@@ -61,8 +61,8 @@ func NewTransformationNotFoundError(resourceName, resourceVariant string, err er
 		err = fmt.Errorf("initial transformation not found error")
 	}
 	baseError := newBaseGRPCError(err, TRANSFORMATION_NOT_FOUND, codes.NotFound)
-	baseError.AddDetail("resource_name", resourceName)
-	baseError.AddDetail("resource_variant", resourceVariant)
+	baseError.AddDetail("Resource Name", resourceName)
+	baseError.AddDetail("Resource Variant", resourceVariant)
 
 	return &TransformationNotFoundError{
 		baseError,
@@ -96,8 +96,8 @@ func NewFeatureNotFoundError(featureName, featureVariant string, err error) *Fea
 		err = fmt.Errorf("initial feature not found error")
 	}
 	baseError := newBaseGRPCError(err, FEATURE_NOT_FOUND, codes.NotFound)
-	baseError.AddDetail("Feature Name", featureName)
-	baseError.AddDetail("Feature Variant", featureVariant)
+	baseError.AddDetail("feature_name", featureName)
+	baseError.AddDetail("feature_variant", featureVariant)
 
 	return &FeatureNotFoundError{
 		baseError,
@@ -132,7 +132,7 @@ func NewInvalidResourceTypeError(resourceName, resourceVariant, resourceType str
 	baseError := newBaseGRPCError(err, INVALID_RESOURCE_TYPE, codes.InvalidArgument)
 	baseError.AddDetail("resource_name", resourceName)
 	baseError.AddDetail("resource_variant", resourceVariant)
-	baseError.AddDetail("Resource Type", resourceType)
+	baseError.AddDetail("resource_variant", resourceType)
 
 	return &InvalidResourceTypeError{
 		baseError,

@@ -21,6 +21,7 @@ from .exceptions import InvalidSQLQuery
 from .file_utils import absolute_file_paths
 from .get import *
 from .get_local import *
+from .grpc_client import GrpcClient
 from .list import *
 from .list_local import *
 from .parse import *
@@ -4504,7 +4505,7 @@ class ResourceClient:
                 channel = insecure_channel(host)
             else:
                 channel = secure_channel(host, cert_path)
-            self._stub = ff_grpc.ApiStub(channel)
+            self._stub = GrpcClient(ff_grpc.ApiStub(channel))
             self._host = host
 
     def apply(self, asynchronous=False, verbose=False):

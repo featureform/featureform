@@ -835,26 +835,36 @@ func (store *SparkOfflineStore) Close() error {
 func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 	healthCheckPath, err := store.Store.CreateFilePath("featureform/HealthCheck/health_check.csv")
 	if err != nil {
-		return false, NewProviderError(Internal, store.Type(), FilePathCreation, fmt.Sprintf("failed to create file path for health check file due to: %v", err))
+		wrapped := fferr.NewInternalError(err)
+		wrapped.AddDetail("store_type", store.Type().String())
+		wrapped.AddDetail("action", "file_path_creation")
+		return false, wrapped
 	}
 	csvBytes, err := store.getHealthCheckCSVBytes()
 	if err != nil {
 		return false, fmt.Errorf("failed to create mock CSV data for health check file: %v", err)
 	}
 	if err := store.Store.Write(healthCheckPath, csvBytes); err != nil {
-		return false, NewProviderError(Connection, store.Type(), Write, fmt.Sprintf("failed to write health check file due to: %v", err))
+		wrapped := fferr.NewConnectionError(store.Type().String(), err)
+		wrapped.AddDetail("action", "write")
+		return false, wrapped
 	}
 	healthCheckOutPath, err := store.Store.CreateDirPath("featureform/HealthCheck/health_check_out")
 	fmt.Println("HEALTH CHECK PATHS: ", healthCheckOutPath.ToURI(), healthCheckPath.ToURI())
 	if err != nil {
-		return false, NewProviderError(Internal, store.Type(), FilePathCreation, fmt.Sprintf("failed to create file path for health check output file due to: %v", err))
+		wrapped := fferr.NewInternalError(err)
+		wrapped.AddDetail("store_type", store.Type().String())
+		wrapped.AddDetail("action", "file_path_creation")
+		return false, wrapped
 	}
 	args, err := store.Executor.SparkSubmitArgs(healthCheckOutPath, "SELECT * FROM source_0", []string{healthCheckPath.ToURI()}, Transform, store.Store)
 	if err != nil {
 		return false, fmt.Errorf("failed to build arguments for Spark submit due to: %v", err)
 	}
 	if err := store.Executor.RunSparkJob(args, store.Store); err != nil {
-		return false, NewProviderError(Connection, store.Type(), JobSubmission, fmt.Sprintf("failed to read health check file due to: %v", err))
+		wrapped := fferr.NewConnectionError(store.Type().String(), err)
+		wrapped.AddDetail("action", "job_submission")
+		return false, wrapped
 	}
 	return true, nil
 }
@@ -879,31 +889,31 @@ func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	logger := logging.NewLogger("spark")
 	if err := sc.Deserialize(config); err != nil {
 		logger.Errorw("Invalid config to initialize spark offline store", "error", err)
-		return nil, NewProviderError(Runtime, "SPARK_OFFLINE", ConfigDeserialize, err.Error())
+		return nil, err
 	}
 	logger.Infow("Creating Spark executor:", "type", sc.ExecutorType)
 	exec, err := NewSparkExecutor(sc.ExecutorType, sc.ExecutorConfig, logger)
 	if err != nil {
 		logger.Errorw("Failure initializing Spark executor", "type", sc.ExecutorType, "error", err)
-		return nil, NewProviderError(Connection, pt.SparkOffline, ClientInitialization, err.Error())
+		return nil, err
 	}
 
 	logger.Infow("Creating Spark store:", "type", sc.StoreType)
 	serializedFilestoreConfig, err := sc.StoreConfig.Serialize()
 	if err != nil {
-		return nil, NewProviderError(Runtime, pt.SparkOffline, ConfigSerialize, err.Error())
+		return nil, err
 	}
 	store, err := CreateSparkFileStore(sc.StoreType, Config(serializedFilestoreConfig))
 	if err != nil {
 		logger.Errorw("Failure initializing blob store", "type", sc.StoreType, "error", err)
-		return nil, NewProviderError(Connection, pt.SparkOffline, ClientInitialization, fmt.Sprintf("failed to initialize blob store due to: %v", err))
+		return nil, err
 	}
 	logger.Info("Uploading Spark script to store")
 
 	logger.Debugf("Store type: %s", sc.StoreType)
 	if err := exec.InitializeExecutor(store); err != nil {
 		logger.Errorw("Failure initializing executor", "error", err)
-		return nil, NewProviderError(Connection, pt.SparkOffline, ClientInitialization, err.Error())
+		return nil, err
 	}
 	logger.Info("Created Spark Offline Store")
 	queries := defaultPythonOfflineQueries{}

@@ -28,7 +28,7 @@ type snowflakeSQLQueries struct {
 func snowflakeOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.SnowflakeConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, NewProviderError(Runtime, pt.SnowflakeOffline, ConfigDeserialize, err.Error())
+		return nil, err
 	}
 	queries := snowflakeSQLQueries{}
 	queries.setVariableBinding(MySQLBindingStyle)

@@ -9,13 +9,21 @@ package provider
 
 import (
 	"bytes"
-	bigquery "cloud.google.com/go/bigquery"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"math/rand"
+	"os"
+	"reflect"
+	"strings"
+	"testing"
+	"time"
+
+	bigquery "cloud.google.com/go/bigquery"
 	fs "github.com/featureform/filestore"
 	"github.com/featureform/helpers"
 	pc "github.com/featureform/provider/provider_config"
@@ -24,13 +32,6 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/parquet-go/parquet-go"
 	"google.golang.org/api/option"
-	"io/ioutil"
-	"math/rand"
-	"os"
-	"reflect"
-	"strings"
-	"testing"
-	"time"
 )
 
 var provider = flag.String("provider", "", "provider to perform test on")
@@ -357,6 +358,7 @@ func TestOfflineStores(t *testing.T) {
 		"LabelTableNotFound":     testLabelTableNotFound,
 		"FeatureTableNotFound":   testFeatureTableNotFound,
 		"TrainingDefShorthand":   testTrainingSetDefShorthand,
+		"ResourceLocation":       testResourceLocation,
 	}
 	testSQLFns := map[string]func(*testing.T, OfflineStore){
 		"PrimaryTableCreate":                 testPrimaryCreateTable,
@@ -603,6 +605,54 @@ func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
 	}
 	if tab, err := store.GetResourceTable(id); tab == nil || err != nil {
 		t.Fatalf("Failed to get table: %v", err)
+	}
+}
+
+func testResourceLocation(t *testing.T, store OfflineStore) {
+	if store.Type() == pt.MemoryOffline {
+		t.Skip("Skipping test for memory store")
+	}
+
+	id := ResourceID{
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Primary,
+	}
+
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "int", ValueType: Int},
+			{Name: "bool", ValueType: Bool},
+			{Name: "string", ValueType: String},
+			{Name: "float", ValueType: Float32},
+		},
+	}
+
+	_, err := store.CreatePrimaryTable(id, schema)
+	if err != nil {
+		t.Fatalf("could not create primary table: %v", err)
+	}
+
+	if tab, err := store.GetResourceTable(id); tab == nil || err != nil {
+		t.Fatalf("Failed to get table: %v", err)
+	}
+
+	location, err := store.ResourceLocation(id)
+	if location == "" || err != nil {
+		t.Fatalf("Failed to get location: %v", err)
+	}
+
+	if store.Type() == pt.SparkOffline || store.Type() == pt.K8sOffline {
+		expectedLocation := fmt.Sprintf("featureform/transformation/%s/%s", id.Name, id.Variant)
+		if !strings.Contains(location, expectedLocation) {
+			t.Fatalf("Location is incorrect: %s needs to have %s", location, expectedLocation)
+		}
+	} else {
+		expectedLocation := fmt.Sprintf("featureform_primary__%s__%s", id.Name, id.Variant)
+		if location != expectedLocation {
+			t.Fatalf("Location is incorrect: %s != expected location (%s)", location, expectedLocation)
+		}
 	}
 }
 

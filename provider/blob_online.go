@@ -30,12 +30,12 @@ func blobOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
 func NewOnlineFileStore(config *pc.OnlineBlobConfig) (*OnlineFileStore, error) {
 	serializedBlob, err := config.Config.Serialize()
 	if err != nil {
-		return nil, fmt.Errorf("could not serialize blob store config")
+		return nil, err
 	}
 
 	FileStore, err := CreateFileStore(string(config.Type), Config(serializedBlob))
 	if err != nil {
-		return nil, fmt.Errorf("could not create blob store: %v", err)
+		return nil, err
 	}
 	return &OnlineFileStore{
 		FileStore,
@@ -94,14 +94,14 @@ func (store OnlineFileStore) deleteTable(feature, variant string) error {
 		return err
 	}
 	if err := store.Delete(&filepath); err != nil {
-		return fmt.Errorf("could not delete table index key %s: %v", tableKey, err)
+		return err
 	}
 	filepath = filestore.AzureFilepath{}
 	if err := filepath.ParseFilePath(entityDirectory); err != nil {
 		return err
 	}
 	if err := store.DeleteAll(&filepath); err != nil {
-		return fmt.Errorf("could not delete entity directory %s: %v", entityDirectory, err)
+		return err
 	}
 	return nil
 }
@@ -140,7 +140,7 @@ func (store OnlineFileStore) CreateTable(feature, variant string, valueType Valu
 }
 
 func (store OnlineFileStore) CheckHealth() (bool, error) {
-	return false, fmt.Errorf("provider health check not implemented")
+	return false, fferr.NewInternalError(fmt.Errorf("provider health check not implemented"))
 }
 
 type OnlineFileStoreTable struct {
@@ -241,7 +241,7 @@ func castBytesToValue(value []byte, valueType ValueType) (interface{}, error) {
 	case Timestamp:
 		return time.Parse(time.ANSIC, valueString)
 	default:
-		return nil, fmt.Errorf("undefined value type: %v", valueType)
+		return nil, fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", valueType), fmt.Errorf("cannot cast unknown value type"))
 	}
 
 }

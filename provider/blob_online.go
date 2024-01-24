@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -111,7 +112,9 @@ func (store OnlineFileStore) GetTable(feature, variant string) (OnlineStoreTable
 		return nil, err
 	}
 	if !exists {
-		return nil, &TableNotFound{feature, variant}
+		wrapped := fferr.NewDatasetNotFoundError(feature, variant, nil)
+		wrapped.AddDetail("provider", store.ProviderType.String())
+		return nil, wrapped
 	}
 	tableType, err := store.readTableValue(feature, variant)
 	if err != nil {
@@ -126,7 +129,9 @@ func (store OnlineFileStore) CreateTable(feature, variant string, valueType Valu
 		return nil, err
 	}
 	if exists {
-		return nil, &TableAlreadyExists{feature, variant}
+		wrapped := fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
+		wrapped.AddDetail("provider", store.ProviderType.String())
+		return nil, wrapped
 	}
 	if err := store.writeTableValue(feature, variant, valueType); err != nil {
 		return nil, err
@@ -152,7 +157,9 @@ func (store OnlineFileStore) DeleteTable(feature, variant string) error {
 		return err
 	}
 	if !exists {
-		return &TableNotFound{feature, variant}
+		wrapped := fferr.NewDatasetNotFoundError(feature, variant, nil)
+		wrapped.AddDetail("provider", store.ProviderType.String())
+		return wrapped
 	}
 	return store.deleteTable(feature, variant)
 }
@@ -186,7 +193,9 @@ func (table OnlineFileStoreTable) getEntityValue(feature, variant, entity string
 		return nil, err
 	}
 	if !exists {
-		return nil, &EntityNotFound{entity}
+		wrapped := fferr.NewEntityNotFoundError(feature, variant, entity, nil)
+		wrapped.AddDetail("provider", string(table.store.FilestoreType()))
+		return nil, wrapped
 	}
 
 	return table.store.Read(&filepath)
@@ -198,7 +207,7 @@ func (table OnlineFileStoreTable) Set(entity string, value interface{}) error {
 
 func (table OnlineFileStoreTable) Get(entity string) (interface{}, error) {
 	value, err := table.getEntityValue(table.feature, table.variant, entity)
-	entityNotFoundError, ok := err.(*EntityNotFound)
+	entityNotFoundError, ok := err.(*fferr.EntityNotFoundError)
 	if ok {
 		return nil, entityNotFoundError
 	} else if err != nil {

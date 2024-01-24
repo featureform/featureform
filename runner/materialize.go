@@ -122,7 +122,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		m.Logger.Infow("Creating Index", "name", m.ID.Name, "variant", m.ID.Variant)
 		vectorStore, ok := m.Online.(provider.VectorStore)
 		if !ok {
-			return nil, fferr.NewInternalError(fmt.Errorf("cannot create index on non-vector store: %v", m.Online))
+			return nil, fferr.NewInternalError(fmt.Errorf("cannot create index on non-vector store: %s", m.Online.Type().String()))
 		}
 		_, err := vectorStore.CreateIndex(m.ID.Name, m.ID.Variant, vectorType)
 		if err != nil {
@@ -136,7 +136,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		return nil, err
 	}
 	if exists && !m.IsUpdate {
-		return nil, fferr.NewDatasetAlreadyExistsError(m.ID.Name, m.ID.Variant, fmt.Errorf("table already exists despite being new job"))
+		return nil, fferr.NewDatasetAlreadyExistsError(m.ID.Name, m.ID.Variant, fmt.Errorf("table already exists"))
 	}
 
 	chunkSize := MAXIMUM_CHUNK_ROWS

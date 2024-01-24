@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	cfg "github.com/featureform/config"
+	"github.com/featureform/fferr"
 	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/logging"
@@ -133,7 +134,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	}
 	m.Logger.Infow("Creating Table", "name", m.ID.Name, "variant", m.ID.Variant)
 	_, err = m.Online.CreateTable(m.ID.Name, m.ID.Variant, m.VType)
-	_, exists := err.(*provider.TableAlreadyExists)
+	_, exists := err.(*fferr.DatasetAlreadyExistsError)
 	if err != nil && !exists {
 		return nil, fmt.Errorf("create table error: %w", err)
 	}

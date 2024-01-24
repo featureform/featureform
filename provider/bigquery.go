@@ -959,7 +959,7 @@ func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchem
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if exists {
-		return nil, &TableAlreadyExists{id.Name, id.Variant}
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	if len(schema.Columns) == 0 {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("cannot create primary table without columns"))

@@ -24,6 +24,7 @@ import (
 	"time"
 
 	bigquery "cloud.google.com/go/bigquery"
+	"github.com/featureform/fferr"
 	fs "github.com/featureform/filestore"
 	"github.com/featureform/helpers"
 	pc "github.com/featureform/provider/provider_config"
@@ -676,7 +677,7 @@ func testOfflineTableAlreadyExists(t *testing.T, store OfflineStore) {
 	}
 	if _, err := store.CreateResourceTable(id, schema); err == nil {
 		t.Fatalf("Succeeded in creating table twice")
-	} else if casted, valid := err.(*TableAlreadyExists); !valid {
+	} else if casted, valid := err.(*fferr.DatasetAlreadyExistsError); !valid {
 		t.Fatalf("Wrong error for table already exists: %T", err)
 	} else if casted.Error() == "" {
 		t.Fatalf("TableAlreadyExists has empty error message")
@@ -687,7 +688,7 @@ func testOfflineTableNotFound(t *testing.T, store OfflineStore) {
 	id := randomID(Feature, Label)
 	if _, err := store.GetResourceTable(id); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
-	} else if casted, valid := err.(*TableNotFound); !valid {
+	} else if casted, valid := err.(*fferr.DatasetNotFoundError); !valid {
 		t.Fatalf("Wrong error for table not found: %T", err)
 	} else if casted.Error() == "" {
 		t.Fatalf("TableNotFound has empty error message")

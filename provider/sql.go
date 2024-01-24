@@ -200,7 +200,7 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if exists {
-		return nil, &TableAlreadyExists{id.Name, id.Variant}
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	if schema.Entity == "" || schema.Value == "" {
 		return nil, fferr.NewInvalidArgument(fmt.Errorf("non-empty entity and value columns required"))
@@ -234,7 +234,7 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sour
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if exists {
-		return nil, &TableAlreadyExists{id.Name, id.Variant}
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	tableName, err := GetPrimaryTableName(id)
 	if err != nil {
@@ -262,7 +262,7 @@ func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSche
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if exists {
-		return nil, &TableAlreadyExists{id.Name, id.Variant}
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	if len(schema.Columns) == 0 {
 		return nil, fferr.NewInvalidArgument(fmt.Errorf("cannot create primary table without columns"))

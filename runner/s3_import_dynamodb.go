@@ -61,10 +61,6 @@ func (r S3ImportDynamoDBRunner) IsUpdateJob() bool {
 func (r S3ImportDynamoDBRunner) Run() (types.CompletionWatcher, error) {
 	r.Logger.Infow("Staring S3 import to DynamoDB materialization runner", "name", r.ID.Name, "variant", r.ID.Variant)
 
-	if r.IsUpdate {
-		return nil, fferr.NewInternalError(fmt.Errorf("materialization updates are not implemented for S3 import to DynamoDB"))
-	}
-
 	option := S3ImportMaterializationOption{
 		storeType:  pt.SparkOffline,
 		outputType: filestore.CSV,
@@ -193,6 +189,11 @@ func S3ImportDynamoDBRunnerFactory(config Config) (types.Runner, error) {
 	runnerConfig := &MaterializedRunnerConfig{}
 	if err := runnerConfig.Deserialize(config); err != nil {
 		return nil, err
+	}
+	// S3 import to DynamoDB creates new tables only, so updates would require some sort of swap
+	// strategy, which has not yet been implemented.
+	if runnerConfig.IsUpdate {
+		return nil, fferr.NewInternalError(fmt.Errorf("materialization updates are not implemented for S3 import to DynamoDB"))
 	}
 	onlineProvider, err := provider.Get(runnerConfig.OnlineType, runnerConfig.OnlineConfig)
 	if err != nil {

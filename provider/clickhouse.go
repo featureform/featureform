@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 )
@@ -101,15 +102,15 @@ func (store *clickHouseOfflineStore) createTransformationName(id ResourceID) (st
 	case Transformation:
 		return GetPrimaryTableName(id)
 	case Label:
-		return "", TransformationTypeError{"Invalid Transformation Type: Label"}
+		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Label"))
 	case Feature:
-		return "", TransformationTypeError{"Invalid Transformation Type: Feature"}
+		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Feature"))
 	case TrainingSet:
-		return "", TransformationTypeError{"Invalid Transformation Type: Training Set"}
+		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Training Set"))
 	case Primary:
-		return "", TransformationTypeError{"Invalid Transformation Type: Primary"}
+		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Primary"))
 	default:
-		return "", TransformationTypeError{"Invalid Transformation Type"}
+		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type"))
 	}
 }
 
@@ -216,7 +217,7 @@ func clickhouseOfflineStoreFactory(config pc.SerializedConfig) (Provider, error)
 func NewClickHouseOfflineStore(config pc.SerializedConfig) (*clickHouseOfflineStore, error) {
 	cc := pc.ClickHouseConfig{}
 	if err := cc.Deserialize(config); err != nil {
-		return nil, NewProviderError(Runtime, pt.ClickHouseOffline, ConfigDeserialize, err.Error())
+		return nil, err
 	}
 	var t *tls.Config
 	if cc.SSL {
@@ -545,7 +546,9 @@ func (store *clickHouseOfflineStore) AsOfflineStore() (OfflineStore, error) {
 func (store *clickHouseOfflineStore) CheckHealth() (bool, error) {
 	err := store.db.Ping()
 	if err != nil {
-		return false, NewProviderError(Connection, store.Type(), Ping, err.Error())
+		wrapped := fferr.NewConnectionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("action", "ping")
+		return false, wrapped
 	}
 	return true, nil
 }

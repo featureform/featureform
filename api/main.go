@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -19,6 +20,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 
 	"github.com/joho/godotenv"
 
@@ -592,9 +594,15 @@ func (serv *MetadataServer) ListProviders(in *pb.Empty, stream pb.Api_ListProvid
 }
 
 func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Provider) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Provider", "name", provider.Name)
-	_, err := serv.meta.CreateProvider(ctx, provider)
+	// The existence of a provider is part of the determination for checking provider health, hence why it
+	// needs to happen prior to the call to CreateProvider, which is an upsert operation.
+	shouldCheckProviderHealth, err := serv.shouldCheckProviderHealth(ctx, provider)
 	if err != nil {
+		return nil, err
+	}
+	serv.Logger.Infow("Creating Provider", "name", provider.Name)
+	_, err = serv.meta.CreateProvider(ctx, provider)
+	if err != nil && status.Code(err) != codes.AlreadyExists {
 		serv.Logger.Errorw("Failed to create provider", "error", err)
 		return nil, err
 	}
@@ -602,8 +610,52 @@ func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Pro
 		serv.Logger.Infow("Provider type is currently not supported for health check", "type", provider.Type)
 		return &pb.Empty{}, nil
 	}
+	if shouldCheckProviderHealth {
+		serv.Logger.Infow("Checking provider health", "name", provider.Name)
+		err := serv.checkProviderHealth(ctx, provider.Name)
+		if err != nil {
+			serv.Logger.Errorw("Failed to set provider status", "error", err, "health check error", err)
+			return nil, err
+		}
+	}
+	return &pb.Empty{}, err
+}
+
+func (serv *MetadataServer) shouldCheckProviderHealth(ctx context.Context, provider *pb.Provider) (bool, error) {
+	var existingProvider *pb.Provider
+	for {
+		stream, err := serv.meta.GetProviders(ctx)
+		if err != nil {
+			return false, err
+		}
+		if err := stream.Send(&pb.Name{Name: provider.Name}); err != nil {
+			return false, err
+		}
+		res, err := stream.Recv()
+		if status.Code(err) == codes.NotFound {
+			break
+		}
+		if err != nil {
+			return false, err
+		}
+		if res.Name == provider.Name && res.Type == provider.Type {
+			existingProvider = res
+			break
+		}
+	}
+	// We should check provider health if:
+	// 1. The provider does not exist
+	// 2. The provider exists but the config has changed
+	// 3. The provider exists but the previous health check failed
+	return (existingProvider == nil ||
+			!bytes.Equal(existingProvider.SerializedConfig, provider.SerializedConfig) ||
+			(existingProvider.Status != nil && existingProvider.Status.Status == pb.ResourceStatus_FAILED)),
+		nil
+}
+
+func (serv *MetadataServer) checkProviderHealth(ctx context.Context, providerName string) error {
 	var status *pb.ResourceStatus
-	isHealthy, err := serv.health.CheckProvider(provider.Name)
+	isHealthy, err := serv.health.CheckProvider(providerName)
 	if err != nil || !isHealthy {
 		serv.Logger.Errorw("Provider health check failed", "error", err)
 		status = &pb.ResourceStatus{
@@ -611,7 +663,7 @@ func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Pro
 			ErrorMessage: err.Error(),
 		}
 	} else {
-		serv.Logger.Infow("Provider health check passed", "name", provider.Name)
+		serv.Logger.Infow("Provider health check passed", "name", providerName)
 		status = &pb.ResourceStatus{
 			Status: pb.ResourceStatus_READY,
 		}
@@ -619,18 +671,14 @@ func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Pro
 	statusReq := &pb.SetStatusRequest{
 		ResourceId: &pb.ResourceID{
 			Resource: &pb.NameVariant{
-				Name: provider.Name,
+				Name: providerName,
 			},
 			ResourceType: pb.ResourceType_PROVIDER,
 		},
 		Status: status,
 	}
 	_, statusErr := serv.meta.SetResourceStatus(ctx, statusReq)
-	if statusErr != nil {
-		serv.Logger.Errorw("Failed to set provider status", "error", statusErr, "health check error", err)
-		return nil, statusErr
-	}
-	return &pb.Empty{}, err
+	return statusErr
 }
 
 func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, source *pb.SourceVariant) (*pb.Empty, error) {

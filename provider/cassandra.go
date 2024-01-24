@@ -113,11 +113,11 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 	tableName := GetTableName(store.keyspace, feature, variant)
 	vType := cassandraTypeMap[string(valueType.Scalar())]
 	key := cassandraTableKey{store.keyspace, feature, variant}
-	getTable, err := store.GetTable(feature, variant)
+	table, err := store.GetTable(feature, variant)
 	if err != nil {
 		return nil, err
 	}
-	if getTable != nil {
+	if table != nil {
 		wrapped := fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
 		wrapped.AddDetail("provider", store.ProviderType.String())
 		return nil, wrapped
@@ -136,14 +136,11 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 		return nil, err
 	}
 
-	table := &cassandraOnlineTable{
+	return &cassandraOnlineTable{
 		session:   store.session,
 		key:       key,
 		valueType: valueType,
-	}
-
-	return table, nil
-
+	}, nil
 }
 
 func (store *cassandraOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {

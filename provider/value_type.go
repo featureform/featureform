@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"reflect"
 	"time"
+
+	"github.com/featureform/fferr"
 )
 
 type ValueType interface {
@@ -134,7 +136,7 @@ func (vt *ValueTypeJSONWrapper) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("could not unmarshal value type: %v", data)
+	return fferr.NewInternalError(fmt.Errorf("could not unmarshal value type: %v", data))
 }
 
 func (vt ValueTypeJSONWrapper) MarshalJSON() ([]byte, error) {
@@ -144,6 +146,6 @@ func (vt ValueTypeJSONWrapper) MarshalJSON() ([]byte, error) {
 	case ScalarType:
 		return json.Marshal(map[string]ScalarType{"ValueType": vt.ValueType.(ScalarType)})
 	default:
-		return nil, fmt.Errorf("could not marshal value type: %v", vt.ValueType)
+		return nil, fferr.NewInternalError(fmt.Errorf("could not marshal value type: %v", vt.ValueType))
 	}
 }

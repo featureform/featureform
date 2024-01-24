@@ -7,7 +7,8 @@ package compression
 import (
 	"bytes"
 	"compress/gzip"
-	"fmt"
+
+	"github.com/featureform/fferr"
 )
 
 func GunZip(message []byte) (string, error) {
@@ -18,13 +19,13 @@ func GunZip(message []byte) (string, error) {
 
 	gr, err := gzip.NewReader(buffer)
 	if err != nil {
-		return "", fmt.Errorf("could not create a new gzip Reader: %v", err)
+		return "", fferr.NewInternalError(err)
 	}
 	defer gr.Close()
 
 	var uncompressed bytes.Buffer
 	if _, err := uncompressed.ReadFrom(gr); err != nil {
-		return "", fmt.Errorf("could not read from gzip Reader: %v", err)
+		return "", fferr.NewInternalError(err)
 	}
 
 	return uncompressed.String(), nil

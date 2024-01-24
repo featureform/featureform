@@ -48,3 +48,7 @@ func (e *GenericError) AddDetail(key, value string) {
 	key = strings.ToLower(key)
 	e.details[key] = value
 }
+
+func (e *GenericError) SetMessage(msg string) {
+	e.msg = fmt.Sprintf("%s: %s", msg, e.msg)
+}

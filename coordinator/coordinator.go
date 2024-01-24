@@ -181,10 +181,10 @@ func (c *Coordinator) AwaitPendingLabel(labelNameVariant metadata.NameVariant) (
 
 func (c *Coordinator) setPending(resID metadata.ResourceID, currentStatus metadata.ResourceStatus) error {
 	if currentStatus == metadata.READY {
-		return fferr.NewResourceAlreadyCompleteError(resID.Name, resID.Variant, resID.Type.String(), nil)
+		return fferr.NewResourceAlreadyCompleteError(resID.Name, resID.Variant, fferr.ResourceType(resID.Type.String()), nil)
 	}
 	if currentStatus == metadata.FAILED {
-		return fferr.NewResourceAlreadyFailedError(resID.Name, resID.Variant, resID.Type.String(), nil)
+		return fferr.NewResourceAlreadyFailedError(resID.Name, resID.Variant, fferr.ResourceType(resID.Type.String()), nil)
 	}
 	return c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, "")
 }
@@ -1181,7 +1181,7 @@ func (c *Coordinator) ExecuteJob(jobKey string) error {
 	}
 	jobFunc, has := fns[job.Resource.Type]
 	if !has {
-		return fferr.NewInvalidResourceTypeError(job.Resource.Name, job.Resource.Variant, job.Resource.Type.String(), nil)
+		return fferr.NewInvalidResourceTypeError(job.Resource.Name, job.Resource.Variant, fferr.ResourceType(job.Resource.Type.String()), nil)
 	}
 
 	if err := jobFunc(job.Resource, job.Schedule); err != nil {

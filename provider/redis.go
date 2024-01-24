@@ -33,7 +33,7 @@ type redisOnlineStore struct {
 func redisOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
 	redisConfig := &pc.RedisConfig{}
 	if err := redisConfig.Deserialize(serialized); err != nil {
-		return nil, NewProviderError(Runtime, pt.RedisOnline, ConfigDeserialize, err.Error())
+		return nil, err
 	}
 	if redisConfig.Prefix == "" {
 		redisConfig.Prefix = "Featureform_table__"
@@ -62,7 +62,10 @@ func NewRedisOnlineStore(options *pc.RedisConfig) (*redisOnlineStore, error) {
 	}
 	redisClient, err := rueidis.NewClient(redisOptions)
 	if err != nil {
-		return nil, NewProviderError(Connection, pt.RedisOnline, ClientInitialization, err.Error())
+		wrapped := fferr.NewConnectionError(pt.RedisOnline.String(), err)
+		wrapped.AddDetail("action", "client initialization")
+		wrapped.AddDetail("addr", options.Addr)
+		return nil, wrapped
 	}
 	return &redisOnlineStore{redisClient, options.Prefix, BaseProvider{
 		ProviderType:   pt.RedisOnline,
@@ -195,10 +198,14 @@ func (store *redisOnlineStore) CheckHealth() (bool, error) {
 	cmd := store.client.B().Ping().Build()
 	resp, err := store.client.Do(context.Background(), cmd).ToString()
 	if err != nil {
-		return false, NewProviderError(Connection, pt.RedisOnline, Ping, err.Error())
+		wrapped := fferr.NewConnectionError(pt.RedisOnline.String(), err)
+		wrapped.AddDetail("action", "ping")
+		return false, wrapped
 	}
 	if resp != "PONG" {
-		return false, NewProviderError(Connection, pt.RedisOnline, Ping, fmt.Sprintf("expected 'PONG' from Redis server; received: %s", resp))
+		wrapped := fferr.NewConnectionError(pt.RedisOnline.String(), fmt.Errorf("expected 'PONG' from Redis server; received: %s", resp))
+		wrapped.AddDetail("action", "ping")
+		return false, wrapped
 	}
 	return true, nil
 }

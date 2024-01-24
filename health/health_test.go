@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/featureform/helpers"
-	"io/ioutil"
 	"net"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/featureform/helpers"
 
 	fs "github.com/featureform/filestore"
 	"github.com/featureform/metadata"
@@ -233,7 +233,7 @@ func initSpark(t *testing.T, executorType pc.SparkExecutorType, storeType fs.Fil
 		}
 	case fs.GCS:
 		credsFile := os.Getenv("GCP_CREDENTIALS_FILE")
-		content, err := ioutil.ReadFile(credsFile)
+		content, err := os.ReadFile(credsFile)
 		if err != nil {
 			t.Errorf("Error when opening file: %v", err)
 		}

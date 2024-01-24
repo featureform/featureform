@@ -392,6 +392,26 @@ func (store *sqlOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, err
 	return store.getsqlResourceTable(id)
 }
 
+func (store *sqlOfflineStore) ResourceLocation(id ResourceID) (string, error) {
+	if exists, err := store.tableExists(id); err != nil {
+		return "", fmt.Errorf("could not check if table exists: %v", err)
+	} else if !exists {
+		return "", fmt.Errorf("table does not exist: %v", id)
+	}
+
+	var tableName string
+	var err error
+	if id.check(Feature, Label) == nil {
+		tableName, err = store.getResourceTableName(id)
+	} else if id.check(TrainingSet) == nil {
+		tableName, err = store.getTrainingSetName(id)
+	} else if id.check(Primary) == nil || id.check(Transformation) == nil {
+		tableName, err = GetPrimaryTableName(id)
+	}
+
+	return tableName, err
+}
+
 type sqlMaterialization struct {
 	id        MaterializationID
 	db        *sql.DB

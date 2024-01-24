@@ -276,6 +276,7 @@ type OfflineStore interface {
 	UpdateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
 	Close() error
+	ResourceLocation(id ResourceID) (string, error)
 	Provider
 }
 
@@ -639,6 +640,10 @@ func (store *memoryOfflineStore) getMemoryResourceTable(id ResourceID) (*memoryO
 		return nil, &TableNotFound{id.Name, id.Variant}
 	}
 	return table.(*memoryOfflineTable), nil
+}
+
+func (store *memoryOfflineStore) ResourceLocation(id ResourceID) (string, error) {
+	return "", errors.New("ResourceLocation unsupported for this provider")
 }
 
 // Used to implement sort.Interface for sorting.

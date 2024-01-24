@@ -904,7 +904,7 @@ func (store *clickHouseOfflineStore) UpdateMaterialization(id ResourceID) (Mater
 	}
 	defer rows.Close()
 	if !rows.Next() {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("table %s is empty", tableName))
 	}
 	err = store.query.materializationUpdate(store.db, tableName, resTable.name)
 	if err != nil {

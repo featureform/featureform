@@ -420,14 +420,6 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 		return err
 	}
 
-	// sourceNameVariant := transformation.Source()
-	// c.Logger.Infow("transformation obj", "name", transformation.Name(), "source", transformation.Source())
-
-	// _, err = c.AwaitPendingSource(sourceNameVariant)
-	// if err != nil {
-	// 	return fmt.Errorf("source of transformation could not complete job: %v", err)
-	// }
-
 	createTransformationConfig := runner.CreateTransformationConfig{
 		OfflineType:          pt.Type(sourceProvider.Type()),
 		OfflineConfig:        sourceProvider.SerializedConfig(),

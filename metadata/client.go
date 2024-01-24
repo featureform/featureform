@@ -1964,7 +1964,6 @@ func (source Source) FetchVariants(client *Client, ctx context.Context) ([]*Sour
 type SourceVariant struct {
 	serialized *pb.SourceVariant
 	fetchTrainingSetsFns
-	fetchSourceFns
 	fetchFeaturesFns
 	fetchLabelsFns
 	fetchProviderFns

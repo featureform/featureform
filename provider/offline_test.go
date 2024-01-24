@@ -609,7 +609,7 @@ func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
 }
 
 func testResourceLocation(t *testing.T, store OfflineStore) {
-	if pt.Type() == pt.MemoryOffline {
+	if store.Type() == pt.MemoryOffline {
 		t.Skip("Skipping test for memory store")
 	}
 

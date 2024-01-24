@@ -122,24 +122,21 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		m.Logger.Infow("Creating Index", "name", m.ID.Name, "variant", m.ID.Variant)
 		vectorStore, ok := m.Online.(provider.VectorStore)
 		if !ok {
-			return nil, fmt.Errorf("cannot create index on non-vector store: %v", m.Online)
-		}
-		if !ok {
-			return nil, fmt.Errorf("cannot create index on non-vector type: %v", m.VType)
+			return nil, fferr.NewInternalError(fmt.Errorf("cannot create index on non-vector store: %s", m.Online.Type().String()))
 		}
 		_, err := vectorStore.CreateIndex(m.ID.Name, m.ID.Variant, vectorType)
 		if err != nil {
-			return nil, fmt.Errorf("create index error: %w", err)
+			return nil, err
 		}
 	}
 	m.Logger.Infow("Creating Table", "name", m.ID.Name, "variant", m.ID.Variant)
 	_, err = m.Online.CreateTable(m.ID.Name, m.ID.Variant, m.VType)
 	_, exists := err.(*fferr.DatasetAlreadyExistsError)
 	if err != nil && !exists {
-		return nil, fmt.Errorf("create table error: %w", err)
+		return nil, err
 	}
 	if exists && !m.IsUpdate {
-		return nil, fmt.Errorf("table already exists despite being new job")
+		return nil, fferr.NewDatasetAlreadyExistsError(m.ID.Name, m.ID.Variant, fmt.Errorf("table already exists"))
 	}
 
 	chunkSize := MAXIMUM_CHUNK_ROWS
@@ -147,7 +144,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	m.Logger.Debugw("Getting number of rows", "name", m.ID.Name, "variant", m.ID.Variant)
 	numRows, err := materialization.NumRows()
 	if err != nil {
-		return nil, fmt.Errorf("num rows: %w", err)
+		return nil, err
 	}
 	m.Logger.Debugw("Got materialization rows", "name", m.ID.Name, "variant", m.ID.Variant, "count", numRows)
 	if numRows <= MAXIMUM_CHUNK_ROWS {
@@ -174,7 +171,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	}
 	serializedConfig, err := config.Serialize()
 	if err != nil {
-		return nil, fmt.Errorf("could not serialize config : %w", err)
+		return nil, err
 	}
 	var cloudWatcher types.CompletionWatcher
 	switch m.Cloud {
@@ -190,11 +187,11 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		}
 		kubernetesRunner, err := kubernetes.NewKubernetesRunner(kubernetesConfig)
 		if err != nil {
-			return nil, fmt.Errorf("kubernetes runner: %w", err)
+			return nil, err
 		}
 		cloudWatcher, err = kubernetesRunner.Run()
 		if err != nil {
-			return nil, fmt.Errorf("kubernetes run: %w", err)
+			return nil, err
 		}
 	case LocalMaterializeRunner:
 		m.Logger.Infow("Making Local Runner", "name", m.ID.Name, "variant", m.ID.Variant)
@@ -202,17 +199,17 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		for i := 0; i < int(numChunks); i++ {
 			localRunner, err := Create(COPY_TO_ONLINE, serializedConfig)
 			if err != nil {
-				return nil, fmt.Errorf("local runner create: %w", err)
+				return nil, err
 			}
 			watcher, err := localRunner.Run()
 			if err != nil {
-				return nil, fmt.Errorf("local runner run: %w", err)
+				return nil, err
 			}
 			completionList[i] = watcher
 		}
 		cloudWatcher = WatcherMultiplex{completionList}
 	default:
-		return nil, fmt.Errorf("no valid job cloud set")
+		return nil, fferr.NewInternalError(fmt.Errorf("no valid job cloud set"))
 	}
 	done := make(chan interface{})
 	materializeWatcher := &SyncWatcher{
@@ -221,7 +218,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	}
 	go func() {
 		if err := cloudWatcher.Wait(); err != nil {
-			materializeWatcher.EndWatch(fmt.Errorf("cloud watch: %w", err))
+			materializeWatcher.EndWatch(err)
 			return
 		}
 		materializeWatcher.EndWatch(nil)
@@ -256,7 +253,7 @@ type MaterializedRunnerConfig struct {
 func (m *MaterializedRunnerConfig) Serialize() (Config, error) {
 	config, err := json.Marshal(m)
 	if err != nil {
-		panic(err)
+		return nil, fferr.NewInternalError(err)
 	}
 	return config, nil
 }
@@ -264,7 +261,7 @@ func (m *MaterializedRunnerConfig) Serialize() (Config, error) {
 func (m *MaterializedRunnerConfig) Deserialize(config Config) error {
 	err := json.Unmarshal(config, m)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -272,26 +269,26 @@ func (m *MaterializedRunnerConfig) Deserialize(config Config) error {
 func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 	runnerConfig := &MaterializedRunnerConfig{}
 	if err := runnerConfig.Deserialize(config); err != nil {
-		return nil, fmt.Errorf("failed to deserialize materialize runner config: %v", err)
+		return nil, err
 	}
 	var onlineStore provider.OnlineStore
 	if runnerConfig.OnlineType != pt.NONE {
 		onlineProvider, err := provider.Get(runnerConfig.OnlineType, runnerConfig.OnlineConfig)
 		if err != nil {
-			return nil, fmt.Errorf("failed to configure %s provider: %v", runnerConfig.OnlineType, err)
+			return nil, err
 		}
 		onlineStore, err = onlineProvider.AsOnlineStore()
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert provider to online store: %v", err)
+			return nil, err
 		}
 	}
 	offlineProvider, err := provider.Get(runnerConfig.OfflineType, runnerConfig.OfflineConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure %s provider: %v", runnerConfig.OfflineType, err)
+		return nil, err
 	}
 	offlineStore, err := offlineProvider.AsOfflineStore()
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
+		return nil, err
 	}
 	return &MaterializeRunner{
 		Online:   onlineStore, // This can be nil if onlineProvider is nil

@@ -87,6 +87,10 @@ func (m MockOfflineCreateTransformationFail) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 
+func (m MockOfflineCreateTransformationFail) ResourceLocation(id provider.ResourceID) (string, error) {
+	return "", nil
+}
+
 func TestRun(t *testing.T) {
 	runner := CreateTransformationRunner{
 		MockOfflineStore{},

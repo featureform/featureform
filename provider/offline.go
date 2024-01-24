@@ -704,15 +704,6 @@ func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, options ..
 	return mat, nil
 }
 
-// TODO: remove in favor of fferr.DatasetNotFoundError
-type MaterializationNotFound struct {
-	id MaterializationID
-}
-
-func (err *MaterializationNotFound) Error() string {
-	return fmt.Sprintf("Materialization %s not found", err.id)
-}
-
 func (store *memoryOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
 	mat, has := store.materializations.Load(id)
 	if !has {
@@ -801,15 +792,6 @@ func (store *memoryOfflineStore) Close() error {
 
 func (store *memoryOfflineStore) CheckHealth() (bool, error) {
 	return false, fferr.NewInternalError(fmt.Errorf("provider health check not implemented"))
-}
-
-// TODO: remove in favor of fferr.DatasetNotFoundError
-type TrainingSetNotFound struct {
-	ID ResourceID
-}
-
-func (err *TrainingSetNotFound) Error() string {
-	return fmt.Sprintf("TrainingSet with ID %v not found", err.ID)
 }
 
 type trainingRows []trainingRow

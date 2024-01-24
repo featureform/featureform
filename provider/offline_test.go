@@ -833,7 +833,7 @@ func testMaterializationNotFound(t *testing.T, store OfflineStore) {
 	if err == nil {
 		t.Fatalf("Succeeded in deleting uninitialized materialization")
 	}
-	var notFoundErr *MaterializationNotFound
+	var notFoundErr *fferr.DatasetNotFoundError
 	if validCast := errors.As(err, &notFoundErr); !validCast {
 		t.Fatalf("Wrong Error type for materialization not found: %T", err)
 	}
@@ -1586,7 +1586,7 @@ func testGetUnknownTrainingSet(t *testing.T, store OfflineStore) {
 	id := randomID(NoType)
 	if _, err := store.GetTrainingSet(id); err == nil {
 		t.Fatalf("Succeeded in getting unknown training set ResourceID")
-	} else if _, valid := err.(*TrainingSetNotFound); !valid {
+	} else if _, valid := err.(*fferr.DatasetNotFoundError); !valid {
 		t.Fatalf("Wrong error for training set not found: %T", err)
 	} else if err.Error() == "" {
 		t.Fatalf("Training set not found error msg not set")

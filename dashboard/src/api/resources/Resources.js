@@ -121,6 +121,7 @@ export const providerLogos = Object.freeze({
   SNOWFLAKE: 'static/Snowflake_Logo.svg',
   SPARK: 'static/Apache_Spark_logo.svg',
   KUBERNETES: 'static/kubernetes_logo.svg',
+  CLICKHOUSE: 'static/clickhouse-logo.svg',
 
   // Filestores
   AZURE: 'static/azure_storage_accounts.svg',

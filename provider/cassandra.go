@@ -60,24 +60,24 @@ func NewCassandraOnlineStore(options *pc.CassandraConfig) (*cassandraOnlineStore
 	}
 	err := cassandraCluster.Consistency.UnmarshalText([]byte(options.Consistency))
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError(pt.CassandraOnline.String(), err)
 	}
 	newSession, err := cassandraCluster.CreateSession()
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError(pt.CassandraOnline.String(), err)
 	}
 
 	query := fmt.Sprintf("CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class' : 'SimpleStrategy','replication_factor' : %d }", options.Keyspace, options.Replication)
 	err = newSession.Query(query).WithContext(context.TODO()).Exec()
-	cassandraCluster.Keyspace = options.Keyspace
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError(pt.CassandraOnline.String(), err)
 	}
+	cassandraCluster.Keyspace = options.Keyspace
 
 	query = fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (tableName text PRIMARY KEY, tableType text)", fmt.Sprintf("%s.featureform__metadata", options.Keyspace))
 	err = newSession.Query(query).WithContext(context.TODO()).Exec()
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError(pt.CassandraOnline.String(), err)
 	}
 
 	return &cassandraOnlineStore{newSession, options.Keyspace, BaseProvider{
@@ -94,7 +94,7 @@ func (store *cassandraOnlineStore) AsOnlineStore() (OnlineStore, error) {
 func (store *cassandraOnlineStore) Close() error {
 	store.session.Close()
 	if !store.session.Closed() {
-		return fmt.Errorf("Could not close cassandra online store session")
+		return fferr.NewExecutionError(pt.CassandraOnline.String(), fmt.Errorf("could not close cassandra online store session"))
 	}
 	return nil
 }
@@ -127,13 +127,17 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 	query := fmt.Sprintf("INSERT INTO %s (tableName, tableType) VALUES (?, ?)", metadataTableName)
 	err = store.session.Query(query, tableName, string(valueType.Scalar())).WithContext(context.TODO()).Exec()
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewResourceExecutionError(pt.CassandraOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 
 	query = fmt.Sprintf("CREATE TABLE %s (entity text PRIMARY KEY, value %s)", tableName, vType)
 	err = store.session.Query(query).WithContext(context.TODO()).Exec()
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewResourceExecutionError(pt.CassandraOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 
 	return &cassandraOnlineTable{
@@ -157,7 +161,9 @@ func (store *cassandraOnlineStore) GetTable(feature, variant string) (OnlineStor
 		return nil, wrapped
 	}
 	if err != nil {
-		return nil, fferr.NewExecutionError(store.ProviderType.String(), err)
+		wrapped := fferr.NewResourceExecutionError(store.ProviderType.String(), feature, variant, fferr.FEATURE_VARIANT, err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 
 	table := &cassandraOnlineTable{
@@ -175,19 +181,23 @@ func (store *cassandraOnlineStore) DeleteTable(feature, variant string) error {
 	query := fmt.Sprintf("DELETE FROM %s WHERE tableName = '%s' IF EXISTS", metadataTableName, tableName)
 	err := store.session.Query(query).WithContext(context.TODO()).Exec()
 	if err != nil {
-		return err
+		wrapped := fferr.NewResourceExecutionError(store.ProviderType.String(), feature, variant, fferr.FEATURE_VARIANT, err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	query = fmt.Sprintf("DROP TABLE [IF EXISTS] %s", tableName)
 	err = store.session.Query(query).WithContext(context.TODO()).Exec()
 	if err != nil {
-		return err
+		wrapped := fferr.NewResourceExecutionError(store.ProviderType.String(), feature, variant, fferr.FEATURE_VARIANT, err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 
 	return nil
 }
 
 func (store *cassandraOnlineStore) CheckHealth() (bool, error) {
-	return false, fmt.Errorf("provider health check not implemented")
+	return false, fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (table cassandraOnlineTable) Set(entity string, value interface{}) error {
@@ -197,7 +207,9 @@ func (table cassandraOnlineTable) Set(entity string, value interface{}) error {
 	query := fmt.Sprintf("INSERT INTO %s (entity, value) VALUES (?, ?)", tableName)
 	err := table.session.Query(query, entity, value).WithContext(context.TODO()).Exec()
 	if err != nil {
-		return err
+		wrapped := fferr.NewResourceExecutionError(pt.CassandraOnline.String(), entity, "", fferr.ENTITY, err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 
 	return nil
@@ -223,16 +235,20 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 	case String, NilType:
 		ptr = new(string)
 	default:
-		return nil, fmt.Errorf("data type not recognized")
+		return nil, fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", table.valueType), fmt.Errorf("could not determine column type"))
 	}
 
 	query := fmt.Sprintf("SELECT value FROM %s WHERE entity = '%s'", tableName, entity)
 	err := table.session.Query(query).WithContext(context.TODO()).Scan(ptr)
 	if err == gocql.ErrNotFound {
-		return nil, fferr.NewEntityNotFoundError(key.Feature, key.Variant, entity, nil)
+		wrapped := fferr.NewEntityNotFoundError(key.Feature, key.Variant, entity, nil)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 	if err != nil {
-		return nil, fferr.NewExecutionError(pt.CassandraOnline.String(), err)
+		wrapped := fferr.NewExecutionError(pt.CassandraOnline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 
 	var val interface{}
@@ -250,7 +266,7 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 	case *string:
 		val = *casted
 	default:
-		return nil, fmt.Errorf("data type not recognized")
+		return nil, fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", table.valueType), fmt.Errorf("could not determine column type"))
 	}
 	return val, nil
 

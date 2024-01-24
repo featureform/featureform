@@ -100,8 +100,8 @@ func (r S3ImportDynamoDBRunner) Run() (types.CompletionWatcher, error) {
 
 	if len(files) == 0 {
 		r.Logger.Errorf("no files found in source dir path %s", sourceDirPath)
-		wrapped := fferr.NewInvalidArgument(fmt.Errorf("no files found in source dir path"))
-		wrapped.AddDetail("sourceDirPath", sourceDirPath.ToURI())
+		wrapped := fferr.NewInvalidArgument(fmt.Errorf("failed to find files in specified directory"))
+		wrapped.AddDetail("source_dir_path", sourceDirPath.ToURI())
 		return nil, wrapped
 	}
 
@@ -209,6 +209,7 @@ func S3ImportDynamoDBRunnerFactory(config Config) (types.Runner, error) {
 	importableOfflineStore, ok := onlineStore.(provider.ImportableOnlineStore)
 	if !ok {
 		wrapped := fferr.NewInternalError(fmt.Errorf("online store is not importable"))
+		wrapped.AddDetail("online_store_type", runnerConfig.OnlineType.String())
 		wrapped.AddDetail("resource_name", runnerConfig.ResourceID.Name)
 		wrapped.AddDetail("resource_variant", runnerConfig.ResourceID.Variant)
 		wrapped.AddDetail("resource_type", runnerConfig.ResourceID.Type.String())
@@ -219,7 +220,8 @@ func S3ImportDynamoDBRunnerFactory(config Config) (types.Runner, error) {
 		return nil, err
 	}
 	if offlineStore.Type() != pt.SparkOffline {
-		wrapped := fferr.NewInternalError(fmt.Errorf("expected offline store to be Spark"))
+		wrapped := fferr.NewInternalError(fmt.Errorf("expected offline store to be SparkOfflineStore"))
+		wrapped.AddDetail("online_store_type", runnerConfig.OfflineType.String())
 		wrapped.AddDetail("resource_name", runnerConfig.ResourceID.Name)
 		wrapped.AddDetail("resource_variant", runnerConfig.ResourceID.Variant)
 		wrapped.AddDetail("resource_type", runnerConfig.ResourceID.Type.String())
@@ -227,7 +229,8 @@ func S3ImportDynamoDBRunnerFactory(config Config) (types.Runner, error) {
 	}
 	sparkOfflineStore, isSparkOfflineStore := offlineStore.(*provider.SparkOfflineStore)
 	if !isSparkOfflineStore {
-		wrapped := fferr.NewInternalError(fmt.Errorf("expected offline store to be Spark"))
+		wrapped := fferr.NewInternalError(fmt.Errorf("expected offline store to be SparkOfflineStore"))
+		wrapped.AddDetail("online_store_type", runnerConfig.OfflineType.String())
 		wrapped.AddDetail("resource_name", runnerConfig.ResourceID.Name)
 		wrapped.AddDetail("resource_variant", runnerConfig.ResourceID.Variant)
 		wrapped.AddDetail("resource_type", runnerConfig.ResourceID.Type.String())

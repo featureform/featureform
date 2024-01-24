@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/gocql/gocql"
@@ -112,14 +113,19 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 	tableName := GetTableName(store.keyspace, feature, variant)
 	vType := cassandraTypeMap[string(valueType.Scalar())]
 	key := cassandraTableKey{store.keyspace, feature, variant}
-	getTable, _ := store.GetTable(feature, variant)
-	if getTable != nil {
-		return nil, &TableAlreadyExists{feature, variant}
+	table, err := store.GetTable(feature, variant)
+	if err != nil {
+		return nil, err
+	}
+	if table != nil {
+		wrapped := fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
+		wrapped.AddDetail("provider", store.ProviderType.String())
+		return nil, wrapped
 	}
 
 	metadataTableName := GetMetadataTableName(store.keyspace)
 	query := fmt.Sprintf("INSERT INTO %s (tableName, tableType) VALUES (?, ?)", metadataTableName)
-	err := store.session.Query(query, tableName, string(valueType.Scalar())).WithContext(context.TODO()).Exec()
+	err = store.session.Query(query, tableName, string(valueType.Scalar())).WithContext(context.TODO()).Exec()
 	if err != nil {
 		return nil, err
 	}
@@ -130,14 +136,11 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 		return nil, err
 	}
 
-	table := &cassandraOnlineTable{
+	return &cassandraOnlineTable{
 		session:   store.session,
 		key:       key,
 		valueType: valueType,
-	}
-
-	return table, nil
-
+	}, nil
 }
 
 func (store *cassandraOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
@@ -149,10 +152,12 @@ func (store *cassandraOnlineStore) GetTable(feature, variant string) (OnlineStor
 	query := fmt.Sprintf("SELECT tableType FROM %s WHERE tableName = '%s'", metadataTableName, tableName)
 	err := store.session.Query(query).WithContext(context.TODO()).Scan(&vType)
 	if err == gocql.ErrNotFound {
-		return nil, &TableNotFound{feature, variant}
+		wrapped := fferr.NewDatasetNotFoundError(feature, variant, nil)
+		wrapped.AddDetail("provider", store.ProviderType.String())
+		return nil, wrapped
 	}
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError(store.ProviderType.String(), err)
 	}
 
 	table := &cassandraOnlineTable{
@@ -224,10 +229,10 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 	query := fmt.Sprintf("SELECT value FROM %s WHERE entity = '%s'", tableName, entity)
 	err := table.session.Query(query).WithContext(context.TODO()).Scan(ptr)
 	if err == gocql.ErrNotFound {
-		return nil, &EntityNotFound{entity}
+		return nil, fferr.NewEntityNotFoundError(key.Feature, key.Variant, entity, nil)
 	}
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError(pt.CassandraOnline.String(), err)
 	}
 
 	var val interface{}

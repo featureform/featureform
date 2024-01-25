@@ -86,17 +86,14 @@ class ServingClient:
             )
         """
         Args:
-            host (str): The hostname of the Featureform instance. Exclude if using Localmode.
-            local (bool): True if using Localmode.
+            host (str): The hostname of the Featureform instance.
             insecure (bool): True if connecting to an insecure Featureform endpoint. False if using a self-signed or public TLS certificate
             cert_path (str): The path to a public certificate if using a self-signed certificate.
         """
-        if local and host:
-            raise ValueError("Host and local cannot both be set")
         if local:
-            self.impl = LocalClientImpl()
-        else:
-            self.impl = HostedClientImpl(host, insecure, cert_path)
+            raise Exception("Local mode is not supported in this version. Use featureform <= 1.12.0 for localmode")
+
+        self.impl = HostedClientImpl(host, insecure, cert_path)
 
     def training_set(
         self,
@@ -178,7 +175,7 @@ class HostedClientImpl:
         host = host or os.getenv("FEATUREFORM_HOST")
         if host is None:
             raise ValueError(
-                "If not in local mode then `host` must be passed or the environment"
+                "The `host` parameter must be passed or the environment"
                 " variable FEATUREFORM_HOST must be set."
             )
         check_up_to_date(False, "serving")

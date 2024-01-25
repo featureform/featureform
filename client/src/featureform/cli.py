@@ -17,7 +17,7 @@ from .list import *
 from .get import *
 from .dashboard_metadata import dashboard_app
 from .version import get_package_version
-from .tls import get_version_local, get_version_hosted
+from .tls import get_version_hosted
 
 resource_types = [
     "feature",
@@ -63,24 +63,18 @@ def cli():
     "--cert", "cert", required=False, help="Path to self-signed TLS certificate"
 )
 @click.option("--insecure", is_flag=True, help="Disables TLS verification")
-@click.option("--local", is_flag=True, help="Enables local mode")
 @click.argument("resource_type", required=True)
 @click.argument("name", required=True)
 @click.argument("variant", required=False)
-def get(host, cert, insecure, local, resource_type, name, variant):
+def get(host, cert, insecure, resource_type, name, variant):
     """Get resources of a given type."""
-    if local:
-        if host != None:
-            raise ValueError("Cannot be local and have a host")
+    host = host or os.getenv("FEATUREFORM_HOST")
+    if host is None:
+        raise ValueError(
+            "Host value must be set with --host flag or in env as FEATUREFORM_HOST"
+        )
 
-    elif host == None:
-        host = os.getenv("FEATUREFORM_HOST")
-        if host == None:
-            raise ValueError(
-                "Host value must be set with --host flag or in env as FEATUREFORM_HOST"
-            )
-
-    client = Client(host=host, local=local, insecure=insecure, cert_path=cert)
+    client = Client(host=host, insecure=insecure, cert_path=cert)
 
     resource_get_functions_variant = {
         "feature": client.print_feature,
@@ -99,10 +93,10 @@ def get(host, cert, insecure, local, resource_type, name, variant):
 
     if resource_type in resource_get_functions_variant:
         resource_get_functions_variant[resource_type](
-            name=name, variant=variant, local=local
+            name=name, variant=variant,
         )
     elif resource_type in resource_get_functions:
-        resource_get_functions[resource_type](name=name, local=local)
+        resource_get_functions[resource_type](name=name)
     else:
         raise ValueError("Resource type not found")
 
@@ -118,21 +112,15 @@ def get(host, cert, insecure, local, resource_type, name, variant):
     "--cert", "cert", required=False, help="Path to self-signed TLS certificate"
 )
 @click.option("--insecure", is_flag=True, help="Disables TLS verification")
-@click.option("--local", is_flag=True, help="Enable local mode")
 @click.argument("resource_type", required=True)
-def list(host, cert, insecure, local, resource_type):
-    if local:
-        if host != None:
-            raise ValueError("Cannot be local and have a host")
+def list(host, cert, insecure, resource_type):
+    host = host or os.getenv("FEATUREFORM_HOST")
+    if host is None:
+        raise ValueError(
+            "Host value must be set with --host flag or in env as FEATUREFORM_HOST"
+        )
 
-    elif host == None:
-        host = os.getenv("FEATUREFORM_HOST")
-        if host == None:
-            raise ValueError(
-                "Host value must be set with --host flag or in env as FEATUREFORM_HOST"
-            )
-
-    client = Client(host=host, local=local, insecure=insecure, cert_path=cert)
+    client = Client(host=host, insecure=insecure, cert_path=cert)
 
     resource_list_functions = {
         "features": client.list_features,
@@ -147,7 +135,7 @@ def list(host, cert, insecure, local, resource_type):
     }
 
     if resource_type in resource_list_functions:
-        resource_list_functions[resource_type](local=local)
+        resource_list_functions[resource_type]()
     else:
         raise ValueError("Resource type not found")
 
@@ -157,35 +145,18 @@ app.register_blueprint(dashboard_app)
 
 
 @cli.command()
-@click.option("--local", is_flag=True, help="Required for local mode only")
-def version(local):
+def version():
     client_version = get_package_version()
     host = os.getenv("FEATUREFORM_HOST", "")
     cluster_version = ""
     output = f"Client Version: {client_version}"
-    if local == False:
-        try:
-            cluster_version = get_version_hosted(host)
-        except:
-            cluster_version = "Cannot retrieve: Check your FEATUREFORM_HOST value. If using local mode, use the --local flag."
-        output += f"\nCluster Version: {cluster_version}"
+    try:
+        cluster_version = get_version_hosted(host)
+    except Exception:
+        cluster_version = "Cannot retrieve: Check your FEATUREFORM_HOST value."
+    output += f"\nCluster Version: {cluster_version}"
 
     print(output)
-
-
-@cli.command()
-def dash():
-    run_dashboard()
-
-
-@cli.command()
-def dashboard():
-    run_dashboard()
-
-
-def run_dashboard():
-    app.run(threaded=True, port=os.getenv("LOCALMODE_DASHBOARD_PORT", 3000))
-
 
 @cli.command()
 @click.argument("files", required=True, nargs=-1)
@@ -199,7 +170,6 @@ def run_dashboard():
     "--cert", "cert", required=False, help="Path to self-signed TLS certificate"
 )
 @click.option("--insecure", is_flag=True, help="Disables TLS verification")
-@click.option("--local", is_flag=True, help="Enable local mode")
 @click.option(
     "--dry-run", is_flag=True, help="Checks the definitions without applying them"
 )
@@ -207,7 +177,7 @@ def run_dashboard():
 @click.option(
     "--verbose", is_flag=True, help="Prints all errors at the end of an apply"
 )
-def apply(host, cert, insecure, local, files, dry_run, no_wait, verbose):
+def apply(host, cert, insecure, files, dry_run, no_wait, verbose):
     for file in files:
         if os.path.isfile(file):
             read_file(file)
@@ -219,7 +189,7 @@ def apply(host, cert, insecure, local, files, dry_run, no_wait, verbose):
             )
 
     client = Client(
-        host=host, local=local, insecure=insecure, cert_path=cert, dry_run=dry_run
+        host=host, insecure=insecure, cert_path=cert, dry_run=dry_run
     )
     asynchronous = no_wait
     client.apply(asynchronous=asynchronous, verbose=verbose)
@@ -243,19 +213,9 @@ def apply(host, cert, insecure, local, files, dry_run, no_wait, verbose):
     "--cert", "cert", required=False, help="Path to self-signed TLS certificate"
 )
 @click.option("--insecure", is_flag=True, help="Disables TLS verification")
-@click.option("--local", is_flag=True, help="Enable local mode")
-def search(query, host, cert, insecure, local):
-    client = Client(host=host, local=local, insecure=insecure, cert_path=cert)
-    results = client.search(query, local)
-    if local:
-        format_rows("NAME", "VARIANT", "TYPE")
-        for r in results:
-            desc = (
-                r["description"][:cutoff_length] + "..."
-                if len(r["description"]) > 0
-                else ""
-            )
-            format_rows(r["name"], r["variant"], r["resource_type"])
+def search(query, host, cert, insecure):
+    client = Client(host=host, insecure=insecure, cert_path=cert)
+    _ = client.search(query)
 
 
 @cli.command()

@@ -260,7 +260,9 @@ type LocalResourceLookup map[ResourceID]Resource
 func (lookup LocalResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	res, has := lookup[id]
 	if !has {
-		return nil, &ResourceNotFoundError{id, nil}
+		wrapped := fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("resource not found"))
+		wrapped.AddDetail("resource_type", id.Type.String())
+		return nil, wrapped
 	}
 	return res, nil
 }
@@ -280,7 +282,9 @@ func (lookup LocalResourceLookup) Submap(ids []ResourceID) (ResourceLookup, erro
 	for _, id := range ids {
 		resource, has := lookup[id]
 		if !has {
-			return nil, &ResourceNotFoundError{id, nil}
+			wrapped := fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("resource not found"))
+			wrapped.AddDetail("resource_type", id.Type.String())
+			return nil, wrapped
 		}
 		resources[id] = resource
 	}
@@ -308,7 +312,9 @@ func (lookup LocalResourceLookup) List() ([]Resource, error) {
 func (lookup LocalResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
 	res, has := lookup[id]
 	if !has {
-		return &ResourceNotFoundError{id, nil}
+		wrapped := fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("resource not found"))
+		wrapped.AddDetail("resource_type", id.Type.String())
+		return wrapped
 	}
 	if err := res.UpdateStatus(status); err != nil {
 		return err
@@ -324,7 +330,9 @@ func (lookup LocalResourceLookup) SetJob(id ResourceID, schedule string) error {
 func (lookup LocalResourceLookup) SetSchedule(id ResourceID, schedule string) error {
 	res, has := lookup[id]
 	if !has {
-		return &ResourceNotFoundError{id, nil}
+		wrapped := fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("resource not found"))
+		wrapped.AddDetail("resource_type", id.Type.String())
+		return wrapped
 	}
 	if err := res.UpdateSchedule(schedule); err != nil {
 		return err
@@ -384,11 +392,13 @@ func (resource *SourceResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *SourceResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *SourceResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExistsError{updateRes.ID()}
+	wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
+	wrapped.AddDetail("resource_type", resource.ID().Type.String())
+	return wrapped
 }
 
 type sourceVariantResource struct {
@@ -425,7 +435,7 @@ func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) (Reso
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("could not create submap for IDs: %v", depIds))
+		return nil, err
 	}
 	return deps, nil
 }
@@ -593,11 +603,13 @@ func (resource *featureResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *featureResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *featureResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExistsError{updateRes.ID()}
+	wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
+	wrapped.AddDetail("resource_type", resource.ID().Type.String())
+	return wrapped
 }
 
 type featureVariantResource struct {
@@ -649,7 +661,7 @@ func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (Res
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("could not create submap for IDs: %v", depIds))
+		return nil, err
 	}
 	return deps, nil
 }
@@ -801,7 +813,9 @@ func (resource *labelResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *labelResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExistsError{updateRes.ID()}
+	wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
+	wrapped.AddDetail("resource_type", resource.ID().Type.String())
+	return wrapped
 }
 
 type labelVariantResource struct {
@@ -847,7 +861,7 @@ func (resource *labelVariantResource) Dependencies(lookup ResourceLookup) (Resou
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("could not create submap for IDs: %v", depIds))
+		return nil, err
 	}
 	return deps, nil
 }
@@ -877,7 +891,7 @@ func (resource *labelVariantResource) UpdateStatus(status pb.ResourceStatus) err
 }
 
 func (resource *labelVariantResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *labelVariantResource) Update(lookup ResourceLookup, updateRes Resource) error {
@@ -977,7 +991,9 @@ func (resource *trainingSetResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *trainingSetResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExistsError{updateRes.ID()}
+	wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
+	wrapped.AddDetail("resource_type", resource.ID().Type.String())
+	return wrapped
 }
 
 type trainingSetVariantResource struct {
@@ -1026,7 +1042,7 @@ func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) 
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("could not create submap for IDs: %v", depIds))
+		return nil, err
 	}
 	return deps, nil
 }
@@ -1142,7 +1158,7 @@ func (resource *modelResource) Dependencies(lookup ResourceLookup) (ResourceLook
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("could not create submap for IDs: %v", depIds))
+		return nil, err
 	}
 	return deps, nil
 }
@@ -1319,7 +1335,9 @@ func (resource *providerResource) Update(lookup ResourceLookup, resourceUpdate R
 		return err
 	}
 	if !isValid {
-		return &ResourceExistsError{resourceUpdate.ID()}
+		wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
+		wrapped.AddDetail("resource_type", resource.ID().Type.String())
+		return wrapped
 	}
 	resource.serialized.SerializedConfig = providerUpdate.SerializedConfig
 	resource.serialized.Description = providerUpdate.Description
@@ -1357,7 +1375,7 @@ func (resource *providerResource) isValidConfigUpdate(configUpdate pc.Serialized
 	case pt.S3, pt.HDFS, pt.GCS, pt.AZURE, pt.BlobOnline:
 		return true, nil
 	default:
-		return false, fmt.Errorf("unable to update config for provider. Provider type %s not found", resource.serialized.Type)
+		return false, fferr.NewInternalError(fmt.Errorf("unable to update config for provider. Provider type %s not found", resource.serialized.Type))
 	}
 }
 
@@ -1438,7 +1456,7 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	lookup, err := config.StorageProvider.GetResourceLookup()
 
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("could not configure storage provider: %v", err))
+		return nil, err
 	}
 	if config.SearchParams != nil {
 		searcher, errInitializeSearch := search.NewMeilisearch(config.SearchParams)
@@ -1516,7 +1534,7 @@ type EtcdStorageProvider struct {
 func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 	client, err := sp.Config.InitClient()
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("could not init etcd client: %v", err))
+		return nil, err
 	}
 	lookup := EtcdResourceLookup{
 		Connection: EtcdStorage{
@@ -1537,7 +1555,7 @@ type Config struct {
 func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.ScheduleChangeRequest) (*pb.Empty, error) {
 	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
 	err := serv.lookup.SetSchedule(resID, req.Schedule)
-	return &pb.Empty{}, fferr.NewInternalError(fmt.Errorf("could not init etcd client: %v", err))
+	return &pb.Empty{}, err
 }
 
 func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetStatusRequest) (*pb.Empty, error) {
@@ -1547,8 +1565,7 @@ func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetSt
 	if err != nil {
 		serv.Logger.Errorw("Could not set resource status", "error", err.Error())
 	}
-
-	return &pb.Empty{}, fferr.NewInternalError(fmt.Errorf("could not set resource status: %v", err))
+	return &pb.Empty{}, err
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {
@@ -1759,17 +1776,17 @@ func (serv *MetadataServer) getEquivalent(req *pb.ResourceVariant, filterReadySt
 
 	currentResource, resourceType, err := serv.extractResourceVariant(req)
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("could not extract resource variant %v", err))
+		return nil, err
 	}
 
 	resourcesForType, err := serv.lookup.ListForType(resourceType)
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("could not find list for type %v", err))
+		return nil, err
 	}
 
 	equivalentResourceVariant, err := findEquivalent(resourcesForType, currentResource, filterReadyStatus)
 	if err != nil {
-		return nil, fferr.NewInternalError(err)
+		return nil, err
 	}
 
 	if equivalentResourceVariant == nil {
@@ -1815,7 +1832,7 @@ func (serv *MetadataServer) extractResourceVariant(req *pb.ResourceVariant) (Res
 	case *pb.ResourceVariant_TrainingSetVariant:
 		return &trainingSetVariantResource{res.TrainingSetVariant}, TRAINING_SET_VARIANT, nil
 	default:
-		return nil, 0, fmt.Errorf("unknown resource variant type: %T", req.Resource)
+		return nil, 0, fferr.NewInvalidArgument(fmt.Errorf("unknown resource variant type: %T", req.Resource))
 	}
 }
 
@@ -1842,30 +1859,30 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 
 	id := res.ID()
 	if err := resourceNamedSafely(id); err != nil {
-		return nil, fferr.NewInternalError(err)
+		return nil, err
 	}
 	existing, err := serv.lookup.Lookup(id)
-	if _, isResourceError := err.(*ResourceNotFoundError); err != nil && !isResourceError {
+	if _, isResourceError := err.(*fferr.DatasetNotFoundError); err != nil && !isResourceError {
 		return nil, fferr.NewInternalError(err)
 	}
 
 	if existing != nil {
 		err = serv.validateExisting(res, existing)
 		if err != nil {
-			return nil, fferr.NewInternalError(err)
+			return nil, err
 		}
 		if err := existing.Update(serv.lookup, res); err != nil {
-			return nil, fferr.NewInternalError(err)
+			return nil, err
 		}
 		res = existing
 	}
 	if err := serv.lookup.Set(id, res); err != nil {
-		return nil, fferr.NewInternalError(err)
+		return nil, err
 	}
 	if serv.needsJob(res) && existing == nil {
 		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
 		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
-			return nil, fferr.NewInternalError(fmt.Errorf("set job: %w", err))
+			return nil, err
 		}
 		serv.Logger.Info("Successfully Created Job: ", res.ID().Name, res.ID().Variant)
 	}
@@ -1873,25 +1890,24 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if hasParent {
 		parentExists, err := serv.lookup.Has(parentId)
 		if err != nil {
-			return nil, fferr.NewInternalError(err)
+			return nil, err
 		}
 
 		if !parentExists {
 			parent := init(id.Name, id.Variant)
 			err = serv.lookup.Set(parentId, parent)
 			if err != nil {
-				return nil, fferr.NewInternalError(err)
+				return nil, err
 			}
 		} else {
 			if err := serv.setDefaultVariant(parentId, res.ID().Variant); err != nil {
-				return nil, fferr.NewInternalError(err)
+				return nil, err
 			}
 		}
 	}
 	if err := serv.propagateChange(res); err != nil {
-		err := errors.Wrap(err, fmt.Sprintf("failed to update parent resources for: %s", res.ID().String()))
-		serv.Logger.Error(errors.WithStack(err))
-		return nil, fferr.NewInternalError(err)
+		serv.Logger.Error(err)
+		return nil, err
 	}
 	return &pb.Empty{}, nil
 }
@@ -1899,7 +1915,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 func (serv *MetadataServer) setDefaultVariant(id ResourceID, defaultVariant string) error {
 	parent, err := serv.lookup.Lookup(id)
 	if err != nil {
-		return fferr.NewInternalError(err)
+		return err
 	}
 	var parentResource Resource
 	if resource, ok := parent.(*SourceResource); ok {
@@ -1920,7 +1936,7 @@ func (serv *MetadataServer) setDefaultVariant(id ResourceID, defaultVariant stri
 	}
 	err = serv.lookup.Set(id, parentResource)
 	if err != nil {
-		return fferr.NewInternalError(err)
+		return err
 	}
 	return nil
 }
@@ -1932,10 +1948,10 @@ func (serv *MetadataServer) validateExisting(newRes Resource, existing Resource)
 	if isResourceVariant {
 		isEquivalent, err := serv.isEquivalent(newRes, existing)
 		if err != nil {
-			return fferr.NewInternalError(err)
+			return err
 		}
 		if !isEquivalent {
-			return &ResourceChangedError{newRes.ID()}
+			return fferr.NewResourceChangedError(newRes.ID().Name, newRes.ID().Variant, fferr.ResourceType(newRes.ID().Type), nil)
 		}
 	}
 	return nil
@@ -1969,11 +1985,11 @@ func (serv *MetadataServer) propagateChange(newRes Resource) error {
 	propagateChange = func(parent Resource) error {
 		deps, err := parent.Dependencies(serv.lookup)
 		if err != nil {
-			return fferr.NewInternalError(fmt.Errorf("could not get dependencies for parent: %s", parent.ID().String()))
+			return err
 		}
 		depList, err := deps.List()
 		if err != nil {
-			return fferr.NewInternalError(fmt.Errorf("could not get dependencies for parent: %s", parent.ID().String()))
+			return err
 		}
 		for _, res := range depList {
 			id := res.ID()
@@ -1982,13 +1998,13 @@ func (serv *MetadataServer) propagateChange(newRes Resource) error {
 			}
 			visited[id] = struct{}{}
 			if err := res.Notify(serv.lookup, create_op, newRes); err != nil {
-				return fferr.NewInternalError(err)
+				return err
 			}
 			if err := serv.lookup.Set(res.ID(), res); err != nil {
-				return fferr.NewInternalError(err)
+				return err
 			}
 			if err := propagateChange(res); err != nil {
-				return fferr.NewInternalError(err)
+				return err
 			}
 		}
 		return nil
@@ -2030,7 +2046,7 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 		resource, err := serv.lookup.Lookup(id)
 		if err != nil {
 			serv.Logger.Errorw("Generic Get lookup error", "error", err)
-			return fferr.NewInternalError(err)
+			return err
 		}
 		serv.Logger.Infow("Sending Resource", "id", id)
 		serialized := resource.Proto()
@@ -2045,7 +2061,7 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 func (serv *MetadataServer) genericList(t ResourceType, send sendFn) error {
 	resources, err := serv.lookup.ListForType(t)
 	if err != nil {
-		return fferr.NewInternalError(err)
+		return err
 	}
 	for _, res := range resources {
 		serialized := res.Proto()

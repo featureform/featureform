@@ -3664,7 +3664,7 @@ func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 	t.Log("Primary Name: ", primaryCopyID.Name)
 	// Need to sanitize name here b/c the the xxx-xxx format of the uuid. Cannot do it within
 	// register function because precreated tables do not necessarily use double quotes
-	tableName := table.GetName()
+	tableName := sanitizeTableName(string(store.Type()), table.GetName())
 	// Currently, the assumption is that a primary table will always have an absolute path
 	// to the source data file in its schema; to keep with this assumption until we determine
 	// a better approach (e.g. handling directories of primary sources), we will use the

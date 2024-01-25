@@ -82,7 +82,9 @@ func (q postgresSQLQueries) registerResources(db *sql.DB, tableName string, sche
 }
 
 func (q postgresSQLQueries) primaryTableRegister(tableName string, sourceName string) string {
-	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM %s", sanitize(tableName), sourceName)
+	registerTableQuery := fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM %s", sanitize(tableName), sanitize(sourceName))
+	fmt.Println(registerTableQuery)
+	return registerTableQuery
 }
 
 func (q postgresSQLQueries) materializationCreate(tableName string, sourceName string) []string {

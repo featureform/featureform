@@ -84,6 +84,10 @@ func (m MockOfflineRegisterSourceFail) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 
+func (m MockOfflineRegisterSourceFail) ResourceLocation(id provider.ResourceID) (string, error) {
+	return "", nil
+}
+
 func TestRunRegisterResource(t *testing.T) {
 	runner := RegisterSourceRunner{
 		MockOfflineStore{},

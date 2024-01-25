@@ -213,6 +213,10 @@ func (M MockUnitTestOfflineStore) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 
+func (M MockUnitTestOfflineStore) ResourceLocation(id ResourceID) (string, error) {
+	return id.ToFilestorePath(), nil
+}
+
 type MockMaterialization struct{}
 
 func (m MockMaterialization) ID() MaterializationID {

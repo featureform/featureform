@@ -8,12 +8,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	"log"
 	"reflect"
 	"testing"
 	"time"
 
+	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
+
+	"github.com/featureform/fferr"
 	pb "github.com/featureform/metadata/proto"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/proto"
@@ -722,7 +724,7 @@ func TestEtcdConfig_Get(t *testing.T) {
 		error error
 	}{
 		{"Test Get Empty Key", "", rpctypes.EtcdError{}},
-		{"Test Get Non Existent Key", "non_existent", KeyNotFoundError{}},
+		{"Test Get Non Existent Key", "non_existent", &fferr.JobAlreadyExistsError{}},
 		{"Test Get Valid Key", "key", nil},
 	}
 	for _, tt := range tests {

@@ -3627,10 +3627,14 @@ func testCreatePrimaryFromNonExistentSource(t *testing.T, store OfflineStore) {
 	}
 }
 
+func createUUID() string {
+	return strings.Replace(uuid.NewString(), "-", "_", -1)
+}
+
 func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 	primaryID := ResourceID{
-		Name:    uuid.NewString(),
-		Variant: uuid.NewString(),
+		Name:    createUUID(),
+		Variant: createUUID(),
 		Type:    Primary,
 	}
 	schema := TableSchema{
@@ -3656,15 +3660,16 @@ func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not write batch: %v", err)
 	}
 	primaryCopyID := ResourceID{
-		Name:    uuid.NewString(),
-		Variant: uuid.NewString(),
+		Name:    createUUID(),
+		Variant: createUUID(),
 		Type:    Primary,
 	}
 
 	t.Log("Primary Name: ", primaryCopyID.Name)
 	// Need to sanitize name here b/c the the xxx-xxx format of the uuid. Cannot do it within
 	// register function because precreated tables do not necessarily use double quotes
-	tableName := sanitizeTableName(string(store.Type()), table.GetName())
+	tableName := table.GetName()
+	t.Log("Table Name: ", tableName)
 	// Currently, the assumption is that a primary table will always have an absolute path
 	// to the source data file in its schema; to keep with this assumption until we determine
 	// a better approach (e.g. handling directories of primary sources), we will use the

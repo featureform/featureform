@@ -1357,8 +1357,10 @@ func (q defaultOfflineSQLQueries) registerResources(db *sql.DB, tableName string
 }
 
 func (q defaultOfflineSQLQueries) primaryTableRegister(tableName string, sourceName string) string {
-	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sourceName)
+	sprintf := fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sanitize(sourceName))
+	return sprintf
 }
+
 func (q defaultOfflineSQLQueries) getColumns(db *sql.DB, name string) ([]TableColumn, error) {
 	bind := q.newVariableBindingIterator()
 	qry := fmt.Sprintf("SELECT column_name FROM information_schema.columns WHERE table_name = %s order by ordinal_position", bind.Next())
@@ -1636,6 +1638,7 @@ func (q defaultOfflineSQLQueries) transformationUpdate(db *sql.DB, tableName str
 	}
 	return nil
 }
+
 func (q defaultOfflineSQLQueries) transformationExists() string {
 	bind := q.newVariableBindingIterator()
 	return fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=%s", bind.Next())

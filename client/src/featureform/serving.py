@@ -91,7 +91,9 @@ class ServingClient:
             cert_path (str): The path to a public certificate if using a self-signed certificate.
         """
         if local:
-            raise Exception("Local mode is not supported in this version. Use featureform <= 1.12.0 for localmode")
+            raise Exception(
+                "Local mode is not supported in this version. Use featureform <= 1.12.0 for localmode"
+            )
 
         self.impl = HostedClientImpl(host, insecure, cert_path)
 

@@ -93,7 +93,8 @@ def get(host, cert, insecure, resource_type, name, variant):
 
     if resource_type in resource_get_functions_variant:
         resource_get_functions_variant[resource_type](
-            name=name, variant=variant,
+            name=name,
+            variant=variant,
         )
     elif resource_type in resource_get_functions:
         resource_get_functions[resource_type](name=name)
@@ -158,6 +159,7 @@ def version():
 
     print(output)
 
+
 @cli.command()
 @click.argument("files", required=True, nargs=-1)
 @click.option(
@@ -188,9 +190,7 @@ def apply(host, cert, insecure, files, dry_run, no_wait, verbose):
                 f"Argument must be a path to a file or URL with a valid schema (http:// or https://): {file}"
             )
 
-    client = Client(
-        host=host, insecure=insecure, cert_path=cert, dry_run=dry_run
-    )
+    client = Client(host=host, insecure=insecure, cert_path=cert, dry_run=dry_run)
     asynchronous = no_wait
     client.apply(asynchronous=asynchronous, verbose=verbose)
 

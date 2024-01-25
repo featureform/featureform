@@ -34,7 +34,9 @@ class Client(ResourceClient, ServingClient):
         self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
     ):
         if local:
-            raise Exception("Local mode is not supported in this version. Use featureform <= 1.12.0 for localmode")
+            raise Exception(
+                "Local mode is not supported in this version. Use featureform <= 1.12.0 for localmode"
+            )
 
         if host is not None:
             self._validate_host(host)
@@ -83,9 +85,7 @@ class Client(ResourceClient, ServingClient):
 
         """
         self.apply(asynchronous=asynchronous, verbose=verbose)
-        if isinstance(
-            source, (SourceRegistrar, SubscriptableTransformation)
-        ):
+        if isinstance(source, (SourceRegistrar, SubscriptableTransformation)):
             name, variant = source.name_variant()
         elif isinstance(source, str):
             name = source
@@ -153,9 +153,7 @@ class Client(ResourceClient, ServingClient):
             variant (str): The source variant; can't be None if source is a string
             type (ResourceType): The type of resource; can be one of ff.SOURCE, ff.FEATURE, ff.LABEL, or ff.TRAINING_SET
         """
-        if isinstance(
-            source, (SourceRegistrar, SubscriptableTransformation)
-        ):
+        if isinstance(source, (SourceRegistrar, SubscriptableTransformation)):
             name, variant = source.name_variant()
             resource_type = ResourceType.SOURCE
         elif isinstance(source, str):

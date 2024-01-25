@@ -4532,8 +4532,10 @@ class ResourceClient:
         self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
     ):
         if local:
-            raise Exception("Local mode is not supported in this version. Use featureform <= 1.12.0 for localmode")
-        
+            raise Exception(
+                "Local mode is not supported in this version. Use featureform <= 1.12.0 for localmode"
+            )
+
         # This line ensures that the warning is only raised if ResourceClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
         is_instantiated_directed = inspect.stack()[1].function != "__init__"

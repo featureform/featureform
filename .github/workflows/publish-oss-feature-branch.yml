@@ -325,6 +325,6 @@ jobs:
       - name: Install helm chart
         uses: WyriHaximus/github-action-helm3@v3
         with:
-          exec: helm install -f ./.github/helm/feature_branch_values.yml  featureform ./charts/featureform --namespace rc${{ inputs.version-postfix }} --create-namespace --set global.hostname=rc${{ inputs.version-postfix }}.pr.featureform.com --set global.version=0.0.0-rc${{ inputs.version-postfix }} --set nginx.enabled=false
+          exec: helm install featureform ./charts/featureform --namespace rc${{ inputs.version-postfix }} --create-namespace --set global.hostname=rc${{ inputs.version-postfix }}.pr.featureform.com --set global.version=0.0.0-rc${{ inputs.version-postfix }} --set nginx.enabled=false
           kubeconfig: "${{ secrets.KUBECONFIG }}"
           overrule_existing_kubeconfig: "true"

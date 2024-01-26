@@ -35,3 +35,20 @@ func NewInvalidArgument(err error) *InvalidArgument {
 type InvalidArgument struct {
 	baseGRPCError
 }
+
+// TODO: Consider moving to etcd.go
+func NewKeyNotFoundError(key string, err error) *KeyNotFoundError {
+	if err == nil {
+		err = fmt.Errorf("initial key not found error")
+	}
+	baseError := newBaseGRPCError(err, KEY_NOT_FOUND, codes.NotFound)
+	baseError.AddDetail("key", key)
+
+	return &KeyNotFoundError{
+		baseError,
+	}
+}
+
+type KeyNotFoundError struct {
+	baseGRPCError
+}

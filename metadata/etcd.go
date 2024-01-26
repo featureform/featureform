@@ -190,7 +190,7 @@ func (s EtcdStorage) Get(key string) ([]byte, error) {
 		return nil, err
 	}
 	if len(resp.Kvs) == 0 {
-		return nil, fferr.NewInternalError(fmt.Errorf("key not found: %s", key))
+		return nil, fferr.NewKeyNotFoundError(key, nil)
 	}
 	return resp.Kvs[0].Value, nil
 }
@@ -331,9 +331,7 @@ func (lookup EtcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	logger.Infow("Get", "key", key)
 	resp, err := lookup.Connection.Get(key)
 	if err != nil || len(resp) == 0 {
-		wrapped := fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
-		wrapped.AddDetail("resource_type", id.Type.String())
-		return nil, wrapped
+		return nil, err
 	}
 	logger.Infow("Deserialize", "key", key)
 	msg, err := lookup.deserialize(resp)

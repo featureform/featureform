@@ -828,7 +828,8 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 func (client *Client) GetSourceVariant(ctx context.Context, id NameVariant) (*SourceVariant, error) {
 	variants, err := client.GetSourceVariants(ctx, []NameVariant{id})
 	if err != nil {
-		return nil, fmt.Errorf("get source variant: %w", err)
+		return nil, err
+
 	}
 	return variants[0], nil
 }

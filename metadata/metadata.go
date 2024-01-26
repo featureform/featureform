@@ -1860,7 +1860,8 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 	existing, err := serv.lookup.Lookup(id)
-	if _, isResourceError := err.(*fferr.DatasetNotFoundError); err != nil && !isResourceError {
+	if _, isResourceError := err.(*fferr.KeyNotFoundError); err != nil && !isResourceError {
+		// TODO: consider checking the GRPCError interface to avoid double wrapping error
 		return nil, fferr.NewInternalError(err)
 	}
 
@@ -2044,6 +2045,9 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 		resource, err := serv.lookup.Lookup(id)
 		if err != nil {
 			serv.Logger.Errorw("Generic Get lookup error", "error", err)
+			if grpcErr, ok := err.(fferr.GRPCError); ok {
+				return grpcErr.ToErr()
+			}
 			return err
 		}
 		serv.Logger.Infow("Sending Resource", "id", id)

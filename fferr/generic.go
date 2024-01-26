@@ -25,14 +25,7 @@ type GenericError struct {
 }
 
 func (e *GenericError) Error() string {
-	msg := e.msg
-	if len(e.details) > 0 {
-		msg = fmt.Sprintf("%s\n", msg)
-	}
-	for key, value := range e.details {
-		msg = fmt.Sprintf("%s%s: %s\n", msg, key, value)
-	}
-	return msg
+	return e.msg
 }
 
 func (e *GenericError) Stack() JSONStackTrace {

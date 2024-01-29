@@ -2,24 +2,15 @@ import sys
 
 import grpc
 
-
-class BCOLORS:
-    HEADER = "\033[95m"
-    OKBLUE = "\033[94m"
-    OKCYAN = "\033[96m"
-    OKGREEN = "\033[92m"
-    WARNING = "\033[93m"
-    FAIL = "\033[91m"
-    ENDC = "\033[0m"
-    BOLD = "\033[1m"
-    UNDERLINE = "\033[4m"
+from google.rpc import error_details_pb2, status_pb2
+from google.protobuf import any_pb2
 
 
 class GrpcClient:
     def __init__(self, wrapped, debug=False, insecure=False, host=None):
+        self.wrapped = wrapped
         self._insecure = insecure
         self._host = host
-        self.wrapped = wrapped
         self.debug = debug
         # Store metadata as an instance variable
 
@@ -30,6 +21,12 @@ class GrpcClient:
         except grpc.RpcError as e:
             # Handle the error gracefully here.
             self.handle_grpc_error(e)
+
+    @staticmethod
+    def is_streaming_response(obj):
+        return hasattr(obj, "__iter__") and not isinstance(
+            obj, (str, bytes, dict, list)
+        )
 
     def __getattr__(self, name):
         attr = getattr(self.wrapped, name)
@@ -48,28 +45,37 @@ class GrpcClient:
         return wrapper
 
     def handle_grpc_error(self, e):
-        sys.tracebacklimit = 0
         initial_ex = None
+
         if self.debug:
             initial_ex = e
             sys.tracebacklimit = None
-        if e.code() == grpc.StatusCode.UNAUTHENTICATED:
-            raise Exception(
-                f"{BCOLORS.FAIL}Authentication failed.{BCOLORS.ENDC}\n"
-                "Your access token is no longer valid. Please re-run the previous command to authenticate."
-            )
 
+        # get details from the error
+        if e.code() == grpc.StatusCode.INTERNAL:
+            status_proto = status_pb2.Status()
+            status_proto.MergeFromString(e.trailing_metadata()[0].value)
+
+            for detail in status_proto.details:
+                any_msg = any_pb2.Any()
+                any_msg.CopyFrom(detail)
+                if any_msg.Is(error_details_pb2.ErrorInfo.DESCRIPTOR):
+                    error_info = error_details_pb2.ErrorInfo()
+                    any_msg.Unpack(error_info)
+                    reason = error_info.reason
+                    metadata = error_info.metadata
+
+                    # log reason and metadata
+            raise Exception(f"{e.details()}\n")
         elif e.code() == grpc.StatusCode.UNAVAILABLE:
             print("\n")
             raise Exception(
-                f"{BCOLORS.FAIL}Could not connect to Featureform.{BCOLORS.ENDC}\n"
+                f"Could not connect to Featureform.\n"
                 "Please check if your FEATUREFORM_HOST and FEATUREFORM_CERT environment variables are set "
                 "correctly or are explicitly set in the client or command line.\n"
                 f"Details: {e.details()}"
             ) from initial_ex
         elif e.code() == grpc.StatusCode.UNKNOWN:
-            raise Exception(
-                f"{BCOLORS.FAIL}Error: {e.details()}{BCOLORS.ENDC}"
-            ) from initial_ex
+            raise Exception(f"Error: {e.details()}") from initial_ex
         else:
             raise e

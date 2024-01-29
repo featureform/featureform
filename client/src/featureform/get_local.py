@@ -52,9 +52,9 @@ def get_entity_info_local(name):
         "labels": returned_labels_list,
         "trainingsets": returned_training_sets_list,
         "tags": json.loads(entity["tags"]) if entity["tags"] is not None else [],
-        "properties": json.loads(entity["properties"])
-        if entity["properties"] is not None
-        else {},
+        "properties": (
+            json.loads(entity["properties"]) if entity["properties"] is not None else {}
+        ),
     }
 
     format_rows(
@@ -133,9 +133,11 @@ def get_feature_variant_info_local(name, variant):
         },
         "trainingsets": returned_training_sets_list,
         "tags": json.loads(feature["tags"]) if feature["tags"] is not None else [],
-        "properties": json.loads(feature["properties"])
-        if feature["properties"] is not None
-        else {},
+        "properties": (
+            json.loads(feature["properties"])
+            if feature["properties"] is not None
+            else {}
+        ),
     }
     format_rows(
         [
@@ -192,9 +194,9 @@ def get_label_variant_info_local(name, variant):
         "source": {"name": label["source_name"], "variant": label["source_variant"]},
         "trainingsets": returned_training_sets_list,
         "tags": json.loads(label["tags"]) if label["tags"] is not None else [],
-        "properties": json.loads(label["properties"])
-        if label["properties"] is not None
-        else {},
+        "properties": (
+            json.loads(label["properties"]) if label["properties"] is not None else {}
+        ),
     }
     format_rows(
         [
@@ -278,9 +280,9 @@ def get_source_variant_info_local(name, variant):
         "labels": returned_labels_list,
         "trainingsets": returned_training_sets_list,
         "tags": json.loads(source["tags"]) if source["tags"] is not None else [],
-        "properties": json.loads(source["properties"])
-        if source["properties"] is not None
-        else {},
+        "properties": (
+            json.loads(source["properties"]) if source["properties"] is not None else {}
+        ),
     }
 
     format_rows(
@@ -335,12 +337,14 @@ def get_training_set_variant_info_local(name, variant):
             "variant": training_set["label_variant"],
         },
         "features": returned_features_list,
-        "tags": json.loads(training_set["tags"])
-        if training_set["tags"] is not None
-        else [],
-        "properties": json.loads(training_set["properties"])
-        if training_set["properties"] is not None
-        else {},
+        "tags": (
+            json.loads(training_set["tags"]) if training_set["tags"] is not None else []
+        ),
+        "properties": (
+            json.loads(training_set["properties"])
+            if training_set["properties"] is not None
+            else {}
+        ),
     }
 
     format_rows(
@@ -402,9 +406,11 @@ def get_provider_info_local(name):
         "features": returned_features_list,
         "labels": returned_labels_list,
         "tags": json.loads(provider["tags"]) if provider["tags"] is not None else [],
-        "properties": json.loads(provider["properties"])
-        if provider["properties"] is not None
-        else {},
+        "properties": (
+            json.loads(provider["properties"])
+            if provider["properties"] is not None
+            else {}
+        ),
     }
 
     format_rows(

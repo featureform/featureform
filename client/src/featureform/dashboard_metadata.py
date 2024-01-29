@@ -403,9 +403,9 @@ def build_feature_variant_resource(variant_data: FeatureVariant):
             "Variant": variant_data.source[1],
         },
         tags=variant_data.tags if variant_data.tags is not None else [],
-        properties=variant_data.properties
-        if variant_data.properties is not None
-        else {},
+        properties=(
+            variant_data.properties if variant_data.properties is not None else {}
+        ),
         definition=definition,
     ).to_dictionary()
 
@@ -457,9 +457,9 @@ def build_training_set_variant_resource(variant_data: TrainingSetVariant):
         status=variant_data.status,
         features=resources_list_to_dict(training_set_feature_list),
         tags=variant_data.tags if variant_data.tags is not None else [],
-        properties=variant_data.properties
-        if variant_data.properties is not None
-        else [],
+        properties=(
+            variant_data.properties if variant_data.properties is not None else []
+        ),
     ).to_dictionary()
 
     return training_set_variant_resource
@@ -579,9 +579,9 @@ def build_source_variant_resource(variant_data: SourceVariant):
         features=resources_list_to_dict(feature_variant_resource_list),
         trainingSets=resources_list_to_dict(training_set_variant_resource_list),
         tags=variant_data.tags if variant_data.tags is not None else [],
-        properties=variant_data.properties
-        if variant_data.properties is not None
-        else [],
+        properties=(
+            variant_data.properties if variant_data.properties is not None else []
+        ),
         inputs=name_variant_list_to_dict_list(variant_data.inputs),
     ).to_dictionary()
 
@@ -634,9 +634,9 @@ def build_label_variant_resource(variant_data: LabelVariant):
         },
         trainingSets=resources_list_to_dict(label_training_set_list),
         tags=variant_data.tags if variant_data.tags is not None else [],
-        properties=variant_data.properties
-        if variant_data.properties is not None
-        else [],
+        properties=(
+            variant_data.properties if variant_data.properties is not None else []
+        ),
     ).to_dictionary()
     return label_variant_resource
 
@@ -845,7 +845,7 @@ def build_provider_resource(provider_obj: Provider):
         features=resources_list_to_dict(provider_feature_list),
         labels=resources_list_to_dict(provider_label_list),
         tags=provider_obj.tags if provider_obj.tags is not None else [],
-        properties=provider_obj.properties
-        if provider_obj.properties is not None
-        else [],
+        properties=(
+            provider_obj.properties if provider_obj.properties is not None else []
+        ),
     ).to_dictionary()

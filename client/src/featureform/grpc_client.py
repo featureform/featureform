@@ -1,9 +1,12 @@
+import logging
 import sys
 
 import grpc
 
 from google.rpc import error_details_pb2, status_pb2
 from google.protobuf import any_pb2
+
+logging.basicConfig(level=logging.DEBUG, filename="grpc_debug.log")
 
 
 class GrpcClient:
@@ -64,6 +67,8 @@ class GrpcClient:
                     any_msg.Unpack(error_info)
                     reason = error_info.reason
                     metadata = error_info.metadata
+
+                    logging.debug(f"Error: {e.details} {reason} {metadata}")
 
                     # log reason and metadata
             raise Exception(f"{e.details()}\n")

@@ -7,7 +7,7 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc/status"
+	grpc2 "github.com/featureform/helpers/grpc"
 	"io"
 	"net"
 	"strings"
@@ -156,29 +156,33 @@ var bannedPrefixes = [...]string{"_"}
 var bannedSuffixes = [...]string{"_"}
 
 func resourceNamedSafely(id ResourceID) error {
+	var er error
 	for _, substr := range bannedStrings {
 		if strings.Contains(id.Name, substr) {
-			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource name contains banned string %s", substr))
+			er = fmt.Errorf("resource name contains banned string %s", substr)
 		}
 		if strings.Contains(id.Variant, substr) {
-			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource variant %s contains banned string %s", id.Name, substr))
+			er = fmt.Errorf("resource variant contains banned string %s", substr)
 		}
 	}
 	for _, substr := range bannedPrefixes {
 		if strings.HasPrefix(id.Name, substr) {
-			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource name %s contains banned prefix %s", id.Name, substr))
+			er = fmt.Errorf("resource name contains banned prefix %s", substr)
 		}
 		if strings.HasPrefix(id.Variant, substr) {
-			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource variant %s contains banned prefix %s", id.Name, substr))
+			er = fmt.Errorf("resource variant contains banned prefix %s", substr)
 		}
 	}
 	for _, substr := range bannedSuffixes {
 		if strings.HasSuffix(id.Name, substr) {
-			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource name %s contains banned suffix %s", id.Name, substr))
+			er = fmt.Errorf("resource name contains banned suffix %s", substr)
 		}
 		if strings.HasSuffix(id.Variant, substr) {
-			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource variant %s contains banned suffix %s", id.Name, substr))
+			er = fmt.Errorf("resource variant contains banned suffix %s", substr)
 		}
+	}
+	if er != nil {
+		return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), er)
 	}
 	return nil
 }
@@ -1466,7 +1470,7 @@ func (serv *MetadataServer) Serve() error {
 
 func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
 	serv.listener = lis
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(grpc2.ErrorHandlingInterceptor))
 	pb.RegisterMetadataServer(grpcServer, serv)
 	serv.grpcServer = grpcServer
 	serv.Logger.Infow("Server starting", "Address", serv.listener.Addr().String())
@@ -1586,7 +1590,7 @@ func (serv *MetadataServer) ListLabels(_ *pb.Empty, stream pb.Metadata_ListLabel
 
 func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variant *pb.LabelVariant) (*pb.Empty, error) {
 	variant.Created = tspb.New(time.Now())
-	res, err := serv.genericCreate(ctx, &labelVariantResource{variant}, func(name, variant string) Resource {
+	return serv.genericCreate(ctx, &labelVariantResource{variant}, func(name, variant string) Resource {
 		return &labelResource{
 			&pb.Label{
 				Name:           name,
@@ -1596,13 +1600,6 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variant *pb.
 			},
 		}
 	})
-	if err != nil {
-		if err, ok := err.(fferr.GRPCError); ok {
-			_ = grpc.SetTrailer(ctx, err.ToMetadataPairs())
-			return nil, status.Error(err.GRPCErrorType(), err.ToString())
-		}
-	}
-	return res, err
 }
 
 func (serv *MetadataServer) GetLabels(stream pb.Metadata_GetLabelsServer) error {
@@ -1848,6 +1845,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	}
 	existing, err := serv.lookup.Lookup(id)
 	if _, isResourceError := err.(*fferr.DatasetNotFoundError); err != nil && !isResourceError {
+		// TODO: consider checking the GRPCError interface to avoid double wrapping error
 		return nil, fferr.NewInternalError(err)
 	}
 
@@ -2031,6 +2029,9 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 		resource, err := serv.lookup.Lookup(id)
 		if err != nil {
 			serv.Logger.Errorw("Generic Get lookup error", "error", err)
+			if grpcErr, ok := err.(fferr.GRPCError); ok {
+				return grpcErr.ToStatusErr()
+			}
 			return err
 		}
 		serv.Logger.Infow("Sending Resource", "id", id)

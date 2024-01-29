@@ -400,7 +400,7 @@ func (c *Coordinator) verifyCompletionOfSources(sources []metadata.NameVariant) 
 				totalReady += 1
 			}
 			if sourceVariant.Status() == metadata.FAILED {
-				fmt.Errorf("dependent source variant, %s, failed", sourceVariant.Name())
+				return fmt.Errorf("dependent source variant, %s, failed", sourceVariant.Name())
 			}
 		}
 		allReady = total == totalReady
@@ -644,7 +644,7 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 
 	source, err := c.AwaitPendingSource(sourceNameVariant)
 	if err != nil {
-		return fmt.Errorf("source of could not complete job: %v", err)
+		return fmt.Errorf("source of label could not complete job: %v", err)
 	}
 	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
@@ -713,7 +713,6 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		return fmt.Errorf("get feature variant from metadata: %v", err)
 	}
 	c.Logger.Infow("feature variant", "name", feature.Name(), "source", feature.Source(), "location", feature.Location(), "location_col", feature.LocationColumns())
-
 	err = c.setPending(resID, feature.Status())
 	if err != nil {
 		return err
@@ -722,7 +721,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	sourceNameVariant := feature.Source()
 	source, err := c.AwaitPendingSource(sourceNameVariant)
 	if err != nil {
-		return fmt.Errorf("source of could not complete job: %v", err)
+		return fmt.Errorf("source of feature could not complete job: %v", err)
 	}
 	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
 	if err != nil {

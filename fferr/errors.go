@@ -70,6 +70,11 @@ type GRPCError interface {
 }
 
 func FromErr(err error) GRPCError {
+	// If the error is nil, then simply pass it through to
+	// avoid having to check for nil errors at the call site
+	if err == nil {
+		return nil
+	}
 	st, ok := status.FromError(err)
 	if !ok {
 		return NewInternalError(err)

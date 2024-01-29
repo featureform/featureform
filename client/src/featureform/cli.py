@@ -268,10 +268,15 @@ def search(query, host, cert, insecure, local):
 @click.option(
     "--quickstart", is_flag=True, help="Install Featureform Quickstart as well"
 )
-def deploy(deploy_type, quickstart):
+@click.option(
+    "--include_clickhouse",
+    is_flag=True,
+    help="Includes ClickHouse in the deployment. Requires quickstart.",
+)
+def deploy(deploy_type, quickstart, include_clickhouse):
     print(f"Deploying Featureform on {deploy_type.capitalize()}")
     if deploy_type.lower() == "docker":
-        deployment = DockerDeployment(quickstart)
+        deployment = DockerDeployment(quickstart, clickhouse=include_clickhouse)
     else:
         supported_types = ", ".join(SUPPORTED_DEPLOY_TYPES)
         raise ValueError(
@@ -292,7 +297,7 @@ def deploy(deploy_type, quickstart):
 def stop(deploy_type):
     print(f"Tearing down Featureform on {deploy_type.capitalize()}")
     if deploy_type.lower() == "docker":
-        deployment = DockerDeployment(True)
+        deployment = DockerDeployment(True, clickhouse=True)
     else:
         supported_types = ", ".join(SUPPORTED_DEPLOY_TYPES)
         raise ValueError(

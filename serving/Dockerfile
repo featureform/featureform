@@ -43,6 +43,14 @@ ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
 ENV MATERIALIZE_NO_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_no_ts.sql"
 ENV MATERIALIZE_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_ts.sql"
 
+# Take the MD5 hash of the Spark runner script and store it in a file for use by the config package
+# when determining the remove filepath in cloud object storage (e.g. S3). By adding the hash as a suffix
+# to the file, we ensure that different versions of the script are uploaded to cloud object storage
+# without overwriting previous or future versions.
+RUN cat $SPARK_SCRIPT_PATH | md5sum \
+    | awk '{print $1}' \
+    | xargs echo -n > /app/provider/scripts/spark/offline_store_spark_runner_md5.txt
+
 ENV SERVING_PORT "8080"
 EXPOSE 8080
 ENTRYPOINT ["./main"]

@@ -48,21 +48,29 @@ def get_filename_and_uri(filesize, filetype):
 
 def download_file(file_uri, local_file_name, filetype):
     if not os.path.exists(local_file_name):
-        if filetype == "csv":
-            urllib.request.urlretrieve(
-                file_uri,
-                local_file_name,
-            )
-        elif filetype == "parquet":
-            df = pd.read_csv(file_uri)
-            df.to_parquet(local_file_name)
-        elif filetype == "directory":
-            if not os.path.exists(local_file_name):
-                os.mkdir(local_file_name)
-            df = pd.read_csv(file_uri)
-            dfs = np.array_split(df, 4)
-            for i in range(4):
-                dfs[i].to_parquet(f"{local_file_name}/part-{i}.parquet")
+        try:
+            if filetype == "csv":
+                _, response = urllib.request.urlretrieve(file_uri, local_file_name)
+                logging.info(f"Downloaded file: {response}")
+            elif filetype == "parquet":
+                df = pd.read_csv(file_uri)
+                df.to_parquet(local_file_name)
+            elif filetype == "directory":
+                download_and_split_csv(file_uri, local_file_name)
+            else:
+                raise ValueError(f"Unsupported file type: {filetype}")
+        except Exception as e:
+            logging.error(f"Error in downloading file: {e}")
+
+
+def download_and_split_csv(file_uri, local_dir_name):
+    if not os.path.exists(local_dir_name):
+        os.mkdir(local_dir_name)
+
+    df = pd.read_csv(file_uri)
+    dfs = np.array_split(df, 4)
+    for i, part_df in enumerate(dfs):
+        part_df.to_parquet(os.path.join(local_dir_name, f"part-{i}.parquet"))
 
 
 def get_file_rows(local_file_name, filetype):
@@ -70,11 +78,13 @@ def get_file_rows(local_file_name, filetype):
         return len(pd.read_csv(local_file_name))
     elif filetype == "parquet":
         return len(pd.read_parquet(local_file_name))
-
-
-def create_local_path(local_path):
-    if not os.path.exists(local_path):
-        os.mkdir(local_path)
+    elif filetype == "directory":
+        total_rows = 0
+        for filename in os.listdir(local_file_name):
+            if filename.endswith(".parquet"):
+                file_path = os.path.join(local_file_name, filename)
+                total_rows += len(pd.read_parquet(file_path))
+        return total_rows
 
 
 def upload_to_azure(
@@ -156,20 +166,22 @@ def upload_to_gcs(bucket_name, local_file_name, upload_file_path, filetype):
 def step_impl(context, filesize, filetype, storage_provider):
     filename, file_uri = get_filename_and_uri(filesize, filetype)
 
-    local_path = "data"
-    create_local_path(local_path)
+    local_path = f"data/{context.variant}"
+
+    os.makedirs(local_path, exist_ok=True)
 
     local_file_name = f"{local_path}/{filename}"
 
     remote_path = "data"
 
-    upload_file_path = os.path.join(remote_path, filename)
+    upload_file_path = os.path.join(remote_path, context.variant, filename)
     context.filename = upload_file_path
 
     # Create a file in the local data directory to upload and download
     download_file(file_uri, local_file_name, filetype)
 
     context.file_length = get_file_rows(local_file_name, filetype)
+    logging.info(f"File length for uploaded file: {context.file_length}")
 
     if storage_provider == "azure":
         context.cloud_file_path = (

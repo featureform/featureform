@@ -1027,7 +1027,7 @@ func expectedSources() ResourceTests {
 		SourceTest{
 			Name:     "mockSource",
 			Variants: []string{"var", "var2"},
-			Default:  "var",
+			Default:  "var2",
 		},
 	}
 }
@@ -1119,7 +1119,7 @@ func expectedFeatures() ResourceTests {
 		FeatureTest{
 			Name:     "feature",
 			Variants: []string{"variant", "variant2"},
-			Default:  "variant",
+			Default:  "variant2",
 		},
 		FeatureTest{
 			Name:     "feature2",
@@ -1396,7 +1396,7 @@ func expectedTrainingSets() ResourceTests {
 		TrainingSetTest{
 			Name:     "training-set",
 			Variants: []string{"variant", "variant2"},
-			Default:  "variant",
+			Default:  "variant2",
 		},
 	}
 }
@@ -2117,8 +2117,10 @@ func Test_GetEquivalent(t *testing.T) {
 		Variant:     "variant",
 		Description: "Feature3 on-demand",
 		Owner:       "Featureform",
-		Location: PythonFunction{
-			Query: []byte(PythonFunc),
+		Location: ResourceVariantColumns{
+			Entity: "col1",
+			Value:  "col2",
+			TS:     "col3",
 		},
 		Tags:       Tags{},
 		Properties: Properties{},
@@ -2233,6 +2235,23 @@ func Test_GetEquivalent(t *testing.T) {
 	}
 	if proto.Equal(equivalent, defaultResourceVariant) {
 		t.Fatalf("There was an equivalent but we didn't get one")
+	}
+
+	fvProto2, err := featureDef2.Serialize()
+	fvProto2.Location = &pb.FeatureVariant_Columns{
+		&pb.Columns{
+			Entity: "col10",
+			Value:  "col11",
+			Ts:     "col12",
+		},
+	}
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto2}}
+	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	if err != nil {
+		t.Fatalf("Failed to get equivalent: %s", err)
+	}
+	if !proto.Equal(equivalent, defaultResourceVariant) {
+		t.Fatalf("there was no equivalent but we got one")
 	}
 
 	// trainingSetDef

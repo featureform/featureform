@@ -13,6 +13,7 @@ import dill
 import pandas as pd
 from dataclasses import dataclass, field
 from typeguard import typechecked
+import numpy
 
 from . import feature_flag
 from .enums import FileFormat
@@ -40,6 +41,7 @@ from .resources import (
     LocalConfig,
     RedshiftConfig,
     BigQueryConfig,
+    ClickHouseConfig,
     SparkConfig,
     AzureFileStoreConfig,
     OnlineBlobConfig,
@@ -78,6 +80,7 @@ from .search_local import search_local
 from .sqlite_metadata import SQLiteMetadata
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
+from .types import pd_to_ff_datatype
 from .variant_names_generator import get_current_timestamp_variant
 from .variant_names_generator import get_random_name
 
@@ -167,7 +170,7 @@ class OfflineSQLProvider(OfflineProvider):
         return self.__registrar.register_primary_data(
             name=name,
             variant=variant,
-            location=SQLTable('"{}"'.format(table)),
+            location=SQLTable(table),
             owner=owner,
             provider=self.name(),
             description=description,
@@ -182,6 +185,7 @@ class OfflineSQLProvider(OfflineProvider):
         name: str = "",
         schedule: str = "",
         description: str = "",
+        inputs: list = None,
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -208,6 +212,7 @@ class OfflineSQLProvider(OfflineProvider):
             schedule (str): The frequency at which the transformation is run as a cron expression
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of primary data to be registered
+            inputs (list): A list of Source NameVariant Tuples to input into the transformation
 
 
         Returns:
@@ -220,6 +225,7 @@ class OfflineSQLProvider(OfflineProvider):
             schedule=schedule,
             provider=self.name(),
             description=description,
+            inputs=inputs,
             tags=tags,
             properties=properties,
         )
@@ -298,6 +304,7 @@ class OfflineSparkProvider(OfflineProvider):
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         schedule: str = "",
+        inputs: list = None,
         description: str = "",
         tags: List[str] = [],
         properties: dict = {},
@@ -335,6 +342,7 @@ class OfflineSparkProvider(OfflineProvider):
             schedule=schedule,
             provider=self.name(),
             description=description,
+            inputs=inputs,
             tags=tags,
             properties=properties,
         )
@@ -445,6 +453,7 @@ class OfflineK8sProvider(OfflineProvider):
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         schedule: str = "",
+        inputs: list = None,
         description: str = "",
         docker_image: str = "",
         resource_specs: Union[K8sResourceSpecs, None] = None,
@@ -471,6 +480,7 @@ class OfflineK8sProvider(OfflineProvider):
             name (str): Name of source
             variant (str): Name of variant
             owner (Union[str, UserRegistrar]): Owner
+            inputs (list): A list of Source NameVariant Tuples to input into the transformation
             description (str): Description of primary data to be registered
             docker_image (str): A custom Docker image to run the transformation
             resource_specs (K8sResourceSpecs): Custom resource requests and limits
@@ -486,6 +496,7 @@ class OfflineK8sProvider(OfflineProvider):
             schedule=schedule,
             provider=self.name(),
             description=description,
+            inputs=inputs,
             args=K8sArgs(docker_image=docker_image, specs=resource_specs),
             tags=tags,
             properties=properties,
@@ -786,6 +797,7 @@ class LocalProvider:
         variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
+        inputs: list = None,
         description: str = "",
         tags: List[str] = [],
         properties: dict = {},
@@ -810,6 +822,7 @@ class LocalProvider:
             name (str): Name of source
             variant (str): Name of variant
             owner (Union[str, UserRegistrar]): Owner
+            inputs (list): A list of Source NameVariant Tuples to input into the transformation
             description (str): Description of primary data to be registered
 
 
@@ -822,6 +835,7 @@ class LocalProvider:
             owner=owner,
             provider=self.name(),
             description=description,
+            inputs=inputs,
             tags=tags,
             properties=properties,
         )
@@ -1098,16 +1112,48 @@ class SQLTransformationDecorator:
     variant: str = ""
     name: str = ""
     schedule: str = ""
+    inputs: list = field(default_factory=list)
     description: str = ""
     args: Union[K8sArgs, None] = None
     query: str = field(default_factory=str, init=False)
+
+    func_params_to_inputs: dict = field(default_factory=dict, init=False)
+
+    def __post_init__(self):
+        if self.inputs is None:
+            self.inputs = []
 
     def __call__(self, fn: Callable[[], str]):
         if self.description == "" and fn.__doc__ is not None:
             self.description = fn.__doc__
         if self.name == "":
             self.name = fn.__name__
-        self.__set_query(fn())
+
+        func_params = inspect.signature(fn).parameters
+
+        if len(func_params) > 0:
+            if len(func_params) > len(self.inputs):
+                raise ValueError(
+                    f"Transformation function has more parameters than inputs. \n"
+                    f"Make sure each function parameter has a corresponding input in the decorator."
+                )
+
+            if len(func_params) < len(self.inputs):
+                raise ValueError(
+                    f"Too many inputs for transformation function. Expected {len(func_params)} inputs, but found {len(self.inputs)}.\n"
+                )
+
+            if not isinstance(self.inputs, list):
+                raise ValueError("Dataframe transformation inputs must be a list")
+
+            self.func_params_to_inputs = {
+                param: inp for param, inp in zip(func_params, self.inputs)
+            }
+
+            self.__set_query(fn(*self.inputs))
+        else:
+            self.__set_query(fn())
+
         self.registrar.map_client_object_to_resource(self, self.to_source())
         self.registrar.add_resource(self.to_source())
         return SubscriptableTransformation(
@@ -1125,14 +1171,22 @@ class SQLTransformationDecorator:
             raise ValueError("Query cannot be an empty string")
 
         self._assert_query_contains_at_least_one_source(query)
-        self.query = add_variant_to_name(query, self.run)
+        if len(self.inputs) > 0:
+            # if inputs are specified, then the query will be resolved at the time of creation (when #kwargs is called)
+            self.query = query
+        else:
+            self.query = add_variant_to_name(query, self.run)
 
     def to_source(self) -> SourceVariant:
         return SourceVariant(
             created=None,
             name=self.name,
             variant=self.variant,
-            definition=SQLTransformation(self.query, self.args),
+            definition=SQLTransformation(
+                query=self.query,
+                args=self.args,
+                func_params_to_inputs=self.func_params_to_inputs,
+            ),
             owner=self.owner,
             schedule=self.schedule,
             provider=self.provider,
@@ -1572,7 +1626,7 @@ class FeatureColumnResource(ColumnResource):
         ```
 
         Args:
-            transformation_args (tuple): A transformation or source function and the columns name in the format: <transformation_function>[[<entity_column>, <value_column>, <timestamp_column (optional)>]]
+            transformation_args (tuple): A transformation or source function and the columns name in the format: <transformation_function>[[<entity_column>, <value_column>, <timestamp_column (optional)>]].
             variant (str): An optional variant name for the feature.
             type (Union[ScalarType, str]): The type of the value in for the feature.
             inference_store (Union[str, OnlineProvider, FileStoreProvider]): Where to store for online serving.
@@ -1591,6 +1645,162 @@ class FeatureColumnResource(ColumnResource):
             tags=tags,
             properties=properties,
         )
+
+
+class MultiFeatureColumnResource(ColumnResource):
+    def __init__(
+        self,
+        dataset: SourceVariant,
+        df: pd.DataFrame,
+        entity_column: Union[Entity, str],
+        variant: str = "",
+        owner: str = "",
+        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
+        timestamp_column: str = "",
+        include_columns: List[str] = None,
+        exclude_columns: List[str] = None,
+        description: str = "",
+        schedule: str = "",
+        tags: List[str] = None,
+        properties: Dict[str, str] = None,
+    ):
+        """
+        Registering multiple features from the same table. The name of each feature is the name of the column in the table.
+
+        **Example**
+        ```
+        # Register a file or table from an offline provider as a dataset
+
+        client = ff.Client()
+        df = client.dataframe(dataset)
+
+        @ff.entity
+        class Customer:
+        # Register multiple columns from a dataset as features
+            transaction_features = ff.MultiFeature(
+                dataset,
+                df,
+                variant="quickstart",
+                inference_store=redis,
+                entity_column="CustomerID",
+                timestamp_column="Timestamp",
+                exclude_columns=["TransactionID", "IsFraud"],
+                inference_store=redis,
+            )
+        ```
+
+        Args:
+            dataset (SourceVariant): The dataset to register features from
+            df (pd.DataFrame): The client.dataframe to register features from
+            include_columns (List[str]): List of columns to be registered as features
+            exclude_columns (List[str]): List of columns to be excluded from registration
+            entity_column (Union[Entity, str]): The name of the column in the source to be used as the entity
+            variant (str): An optional variant name for the feature.
+            inference_store (Union[str, OnlineProvider, FileStoreProvider]): Where to store for online serving.
+        """
+        self.tags = tags or []
+        self.properties = properties or {}
+        self.owner = owner
+        self.description = description
+        self.schedule = schedule
+        self._resources = []
+
+        include_columns = include_columns or []
+        exclude_columns = exclude_columns or []
+
+        register_columns = self._get_feature_columns(
+            df, include_columns, exclude_columns, entity_column, timestamp_column
+        )
+        self._create_feature_columns(
+            df,
+            dataset,
+            register_columns,
+            entity_column,
+            timestamp_column,
+            inference_store,
+            variant,
+        )
+
+    def _create_feature_columns(
+        self,
+        df,
+        dataset,
+        register_columns,
+        entity_column,
+        timestamp_column,
+        inference_store,
+        variant,
+    ):
+        df_has_quotes = self._check_df_column_format(df)
+        for column_name in register_columns:
+            if timestamp_column != "":
+                feature = FeatureColumnResource(
+                    dataset[[entity_column, column_name, timestamp_column]],
+                    variant=variant,
+                    type=pd_to_ff_datatype[
+                        df[self._modify_column_name(column_name, df_has_quotes)].dtype
+                    ],
+                    inference_store=inference_store,
+                )
+
+            else:
+                feature = FeatureColumnResource(
+                    dataset[[entity_column, column_name]],
+                    variant=variant,
+                    type=pd_to_ff_datatype[
+                        df[self._modify_column_name(column_name, df_has_quotes)].dtype
+                    ],
+                    inference_store=inference_store,
+                )
+            feature.name = column_name
+            self._resources.append(feature)
+
+    def _get_feature_columns(
+        self, df, include_columns, exclude_columns, entity_column, timestamp_column
+    ):
+        all_columns_set = set([self._clean_name(col) for col in df.columns])
+        include_columns_set = set(include_columns)
+        exclude_columns_set = set(exclude_columns)
+        exclude_columns_set.add(entity_column)
+
+        if timestamp_column != "":
+            exclude_columns_set.add(timestamp_column)
+
+        if not include_columns_set.issubset(all_columns_set):
+            raise ValueError(
+                f"{all_columns_set - include_columns_set} columns are not in the dataframe"
+            )
+
+        if not exclude_columns_set.issubset(all_columns_set):
+            raise ValueError(
+                f"{all_columns_set - exclude_columns_set} columns are not in the dataframe"
+            )
+
+        if not include_columns_set.isdisjoint(exclude_columns_set):
+            raise ValueError(
+                f"{include_columns_set.intersection(exclude_columns_set)} cannot be in the include and exclude lists"
+            )
+
+        if len(include_columns_set) > 0:
+            return list(include_columns_set - exclude_columns_set)
+        else:
+            return list(all_columns_set - exclude_columns_set)
+
+    def _check_df_column_format(self, df):
+        df_has_quotes = False
+        for column_name in df.columns:
+            if '"' in column_name:
+                df_has_quotes = True
+            return df_has_quotes
+
+    # TODO: Verify if you can have empty strings as column names (Add unit test for it)
+    def _clean_name(self, string_name):
+        return string_name.replace('"', "")
+
+    def _modify_column_name(self, string_name, df_has_quotes):
+        if df_has_quotes:
+            return '"' + self._clean_name(string_name) + '"'
+        return self._clean_name(string_name)
 
 
 class LabelColumnResource(ColumnResource):
@@ -2022,6 +2232,39 @@ class Registrar:
             user="",
             password="",
             sslmode="",
+        )
+        mock_provider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=mock_config
+        )
+        return OfflineSQLProvider(self, mock_provider)
+
+    def get_clickhouse(self, name):
+        """Get a ClickHouse provider. The returned object can be used to register additional resources.
+
+        **Examples**:
+        ``` py
+        clickhouse = ff.get_clickhouse("clickhouse-quickstart")
+        transactions = clickhouse.register_table(
+            name="transactions",
+            variant="kaggle",
+            description="Fraud Dataset From Kaggle",
+            table="Transactions",  # This is the table's name in ClickHouse
+        )
+        ```
+
+        Args:
+            name (str): Name of ClickHouse provider to be retrieved
+
+        Returns:
+            clickhouse (OfflineSQLProvider): Provider
+        """
+        mock_config = ClickHouseConfig(
+            host="",
+            port=9000,
+            database="",
+            user="",
+            password="",
+            ssl=False,
         )
         mock_provider = Provider(
             name=name, function="OFFLINE", description="", team="", config=mock_config
@@ -3175,6 +3418,72 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
+    def register_clickhouse(
+        self,
+        name: str,
+        host: str,
+        user: str,
+        password: str,
+        database: str,
+        port: int = 9000,
+        description: str = "",
+        team: str = "",
+        ssl: bool = False,
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
+        """Register a ClickHouse provider.
+
+        **Examples**:
+        ```
+        clickhouse = ff.register_clickhouse(
+            name="clickhouse-quickstart",
+            description="A ClickHouse deployment we created for the Featureform quickstart",
+            host="quickstart-clickhouse",  # The internal dns name for clickhouse
+            port=9000,
+            user="default",
+            password="", #pragma: allowlist secret
+            database="default"
+        )
+        ```
+
+        Args:
+            name (str): (Immutable) Name of ClickHouse provider to be registered
+            host (str): (Immutable) Hostname for ClickHouse
+            database (str): (Immutable) ClickHouse database
+            port (int): (Mutable) Port
+            ssl (bool): (Mutable) Enable SSL
+            user (str): (Mutable) User
+            password (str): (Mutable) ClickHouse password
+            description (str): (Mutable) Description of ClickHouse provider to be registered
+            team (str): (Mutable) Name of team
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
+
+        Returns:
+            clickhouse (OfflineSQLProvider): Provider
+        """
+        tags, properties = set_tags_properties(tags, properties)
+        config = ClickHouseConfig(
+            host=host,
+            port=port,
+            database=database,
+            user=user,
+            password=password,
+            ssl=ssl,
+        )
+        provider = Provider(
+            name=name,
+            function="OFFLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
+        self.__resources.append(provider)
+        return OfflineSQLProvider(self, provider)
+
     def register_redshift(
         self,
         name: str,
@@ -3484,6 +3793,7 @@ class Registrar:
         description: str = "",
         schedule: str = "",
         args: K8sArgs = None,
+        inputs: Union[List[NameVariant], List[str], List[ColumnSourceRegistrar]] = None,
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -3534,6 +3844,7 @@ class Registrar:
         name: str = "",
         schedule: str = "",
         owner: Union[str, UserRegistrar] = "",
+        inputs: Union[List[NameVariant], List[str], List[ColumnSourceRegistrar]] = None,
         description: str = "",
         args: K8sArgs = None,
         tags: List[str] = [],
@@ -3547,6 +3858,7 @@ class Registrar:
             name (str): Name of source
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
             owner (Union[str, UserRegistrar]): Owner
+            inputs (list): Inputs to transformation
             description (str): Description of SQL transformation
             args (K8sArgs): Additional transformation arguments
             tags (List[str]): Optional grouping mechanism for resources
@@ -3572,6 +3884,7 @@ class Registrar:
             schedule=schedule,
             owner=owner,
             description=description,
+            inputs=inputs,
             args=args,
             tags=tags,
             properties=properties,
@@ -5642,6 +5955,12 @@ def entity(cls):
                 resource.name = attr_name
                 resource.entity = entity
                 resource.register()
+        elif isinstance(cls.__dict__[attr_name], MultiFeatureColumnResource):
+            multi_feature_resources = cls.__dict__[attr_name]._resources
+            for resource in multi_feature_resources:
+                setattr(entity, resource.name, resource)
+                resource.entity = entity
+                resource.register()
     return cls
 
 
@@ -5658,6 +5977,7 @@ register_pinecone = global_registrar.register_pinecone
 register_weaviate = global_registrar.register_weaviate
 register_blob_store = global_registrar.register_blob_store
 register_bigquery = global_registrar.register_bigquery
+register_clickhouse = global_registrar.register_clickhouse
 register_firestore = global_registrar.register_firestore
 register_cassandra = global_registrar.register_cassandra
 register_dynamodb = global_registrar.register_dynamodb
@@ -5688,6 +6008,7 @@ get_snowflake = global_registrar.get_snowflake
 get_snowflake_legacy = global_registrar.get_snowflake_legacy
 get_redshift = global_registrar.get_redshift
 get_bigquery = global_registrar.get_bigquery
+get_clickhouse = global_registrar.get_clickhouse
 get_spark = global_registrar.get_spark
 get_kubernetes = global_registrar.get_kubernetes
 get_blob_store = global_registrar.get_blob_store

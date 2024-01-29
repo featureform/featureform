@@ -39,6 +39,19 @@ class User:
   age = ff.Feature(dataset[["user", "top_item", "timestamp"]], variant="simple", type=ff.Int, inference_store=redis)
 ```
 
+#### Registering Multiple Features
+
+You can register multiple columns from the same table. You may choose to register columns by specifying the column names in `include_columns` or register all columns except a few by specifying `exclude_columns`.
+
+Example:
+```python
+import featureform as ff
+
+@ff.entity
+class User:
+  age = ff.MultiFeature(dataset, dataframe, variant="simple", include_columns=["age", "top_item"], entity_column="user", timestamp_column="timestamp", inference_store=redis)
+```
+
 ### Serving Features for Inference
 
 Once a feature is defined and applied, it will be materialized into the inference store for serving. The Featureform client provides a `features` method to serve your features.

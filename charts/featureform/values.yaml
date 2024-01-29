@@ -116,6 +116,9 @@ etcd:
     token:
       ttl: 100h
   replicaCount: 3
+  extraEnvVarsCM: etcd-upgrade-configmap
+  removeMemberOnContainerTermination: false
+
 
 meilisearch:
   fullnameOverride: featureform-search
@@ -135,3 +138,11 @@ loki-stack:
       enabled: false
   grafana:
     enabled: true
+
+# Ensure AWS Load Balancer idle timeout doesn't default to 60 seconds,
+# which cannot support longer running operations
+ingress-nginx:
+  controller:
+    service:
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "4000"

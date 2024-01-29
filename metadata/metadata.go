@@ -229,9 +229,26 @@ func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
 	if err := wrapper.ResourceLookup.Set(id, res); err != nil {
 		return err
 	}
+
+	var allTags []string
+	switch res.(type) {
+	case *sourceVariantResource:
+		allTags = res.(*sourceVariantResource).serialized.Tags.Tag
+
+	case *featureVariantResource:
+		allTags = res.(*featureVariantResource).serialized.Tags.Tag
+		
+	case *labelVariantResource:
+		allTags = res.(*labelVariantResource).serialized.Tags.Tag
+
+	case *trainingSetVariantResource:
+		allTags = res.(*trainingSetVariantResource).serialized.Tags.Tag
+	}
+	
 	doc := search.ResourceDoc{
 		Name:    id.Name,
 		Type:    id.Type.String(),
+		Tags:	allTags,
 		Variant: id.Variant,
 	}
 	return wrapper.Searcher.Upsert(doc)
@@ -698,8 +715,12 @@ func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) (boo
 	thisProto := resource.serialized
 	otherProto := otherVariant.serialized
 
-	isEquivalentLocation := proto.Equal(thisProto.GetFunction(), otherProto.GetFunction()) ||
-		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns())
+	isEquivalentLocation := false
+	if thisProto.GetFunction() != nil {
+		isEquivalentLocation = proto.Equal(thisProto.GetFunction(), otherProto.GetFunction())
+	} else {
+		isEquivalentLocation = proto.Equal(thisProto.GetColumns(), otherProto.GetColumns())
+	}
 
 	if thisProto.GetName() == otherProto.GetName() &&
 		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
@@ -1318,6 +1339,8 @@ func (resource *providerResource) isValidConfigUpdate(configUpdate pc.Serialized
 		return isValidMongoConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.PostgresOffline:
 		return isValidPostgresConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
+	case pt.ClickHouseOffline:
+		return isValidClickHouseConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.RedisOnline:
 		return isValidRedisConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.SnowflakeOffline:
@@ -1813,6 +1836,7 @@ type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
 	serv.Logger.Info("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
+
 	id := res.ID()
 	if err := resourceNamedSafely(id); err != nil {
 		return nil, err
@@ -1855,6 +1879,10 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 			if err != nil {
 				return nil, err
 			}
+		} else {
+			if err := serv.setDefaultVariant(parentId, res.ID().Variant); err != nil {
+				return nil, err
+			}
 		}
 	}
 	if err := serv.propagateChange(res); err != nil {
@@ -1865,6 +1893,34 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	return &pb.Empty{}, nil
 }
 
+func (serv *MetadataServer) setDefaultVariant(id ResourceID, defaultVariant string) error {
+	parent, err := serv.lookup.Lookup(id)
+	if err != nil {
+		return err
+	}
+	var parentResource Resource
+	if resource, ok := parent.(*SourceResource); ok {
+		resource.serialized.DefaultVariant = defaultVariant
+		parentResource = resource
+	}
+	if resource, ok := parent.(*labelResource); ok {
+		resource.serialized.DefaultVariant = defaultVariant
+		parentResource = resource
+	}
+	if resource, ok := parent.(*featureResource); ok {
+		resource.serialized.DefaultVariant = defaultVariant
+		parentResource = resource
+	}
+	if resource, ok := parent.(*trainingSetResource); ok {
+		resource.serialized.DefaultVariant = defaultVariant
+		parentResource = resource
+	}
+	err = serv.lookup.Set(id, parentResource)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 func (serv *MetadataServer) validateExisting(newRes Resource, existing Resource) error {
 	// It's possible we found a resource with the same name and variant but different contents, if different contents
 	// we'll let the user know to ideally use a different variant

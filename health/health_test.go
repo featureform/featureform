@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/featureform/helpers"
 	"io/ioutil"
 	"net"
 	"os"
@@ -57,6 +58,20 @@ func TestHealth_Check(t *testing.T) {
 				Type:             string(pt.PostgresOffline),
 				SerializedConfig: config,
 				Software:         "postgres",
+				Tags:             metadata.Tags{},
+				Properties:       metadata.Properties{},
+			},
+		)
+	}
+
+	if *providerType == "clickhouse" || *providerType == "" {
+		config := initProvider(t, pt.ClickHouseOffline, "", "")
+		providers = append(providers,
+			metadata.ProviderDef{
+				Name:             "clickhouse",
+				Type:             string(pt.ClickHouseOffline),
+				SerializedConfig: config,
+				Software:         "clickhouse",
 				Tags:             metadata.Tags{},
 				Properties:       metadata.Properties{},
 			},
@@ -284,6 +299,22 @@ func initProvider(t *testing.T, providerType pt.Type, executorType pc.SparkExecu
 			SSLMode:  "disable",
 		}
 		return postgresConfig.Serialize()
+	case pt.ClickHouseOffline:
+		db := checkEnv("CLICKHOUSE_DB")
+		user := checkEnv("CLICKHOUSE_USER")
+		password := checkEnv("CLICKHOUSE_PASSWORD")
+		host := helpers.GetEnv("CLICKHOUSE_HOST", "localhost")
+		port := helpers.GetEnvUInt16("CLICKHOUSE_PORT", uint16(9000))
+		ssl := helpers.GetEnvBool("CLICKHOUSE_SSL", false)
+		clickhouseConfig := pc.ClickHouseConfig{
+			Host:     host,
+			Port:     uint16(port),
+			Username: user,
+			Password: password,
+			Database: db,
+			SSL:      ssl,
+		}
+		return clickhouseConfig.Serialize()
 	case pt.SparkOffline:
 		serializedConfig, _ := initSpark(t, executorType, storeType)
 		return serializedConfig
@@ -354,6 +385,15 @@ func testUnsuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *
 		failureConfig.SSLMode = "require"
 		def.SerializedConfig = failureConfig.Serialize()
 		def.Name = "postgres-failure"
+	case pt.ClickHouseOffline:
+		failureConfig := pc.ClickHouseConfig{}
+		if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {
+			t.Fatalf("Failed to deserialize config: %s", err)
+		}
+		//flip SSL
+		failureConfig.SSL = !failureConfig.SSL
+		def.SerializedConfig = failureConfig.Serialize()
+		def.Name = "clickhouse-failure"
 	case pt.SparkOffline:
 		failureConfig := pc.SparkConfig{}
 		if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {

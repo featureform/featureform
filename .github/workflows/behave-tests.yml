@@ -23,6 +23,8 @@ env:
   SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
   SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
   SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
+  POSTGRES_HOST: 172.17.0.1
+
 
 jobs:
   setup:
@@ -32,6 +34,10 @@ jobs:
         image: redis
         ports:
           - 6379:6379
+      postgres:
+        image: featureformcom/postgres
+        ports:
+          - 5432:5432
     defaults:
       run:
         working-directory: ./
@@ -86,9 +92,16 @@ jobs:
       - name: Run Behavioral Tests
         if: github.ref != 'refs/heads/main'
         working-directory: ./tests/end_to_end/
-        run: behave -t '~@wip' -t '~@long' --no-capture
+        run: behavex -t '~@wip' -t '~@long' --no-capture --parallel-processes 5 --parallel-scheme scenario
 
       - name: Run Behavioral Tests
         if: github.ref == 'refs/heads/main'
         working-directory: ./tests/end_to_end/
-        run: behave -t '~@wip' -t '@long' --no-capture
+        run: behavex -t '~@wip' -t '@long' --no-capture  --parallel-processes 5 --parallel-scheme scenario
+
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: behave-reports
+          path: ./tests/end_to_end/output/

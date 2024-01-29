@@ -1,6 +1,11 @@
 package config
 
-import "github.com/featureform/helpers"
+import (
+	"fmt"
+	"os"
+
+	"github.com/featureform/helpers"
+)
 
 // image paths
 const (
@@ -11,12 +16,24 @@ const (
 // script paths
 const (
 	SparkLocalScriptPath              = "/app/provider/scripts/spark/offline_store_spark_runner.py"
-	SparkRemoteScriptPath             = "featureform/scripts/spark/offline_store_spark_runner.py"
 	PythonLocalInitPath               = "/app/provider/scripts/spark/python_packages.sh"
 	PythonRemoteInitPath              = "featureform/scripts/spark/python_packages.sh"
 	MaterializeNoTimestampQueryPath   = "/app/provider/queries/materialize_no_ts.sql"
 	MaterializeWithTimestampQueryPath = "/app/provider/queries/materialize_ts.sql"
 )
+
+// In the event adding the MD5 hash as a suffix to the filename fails, the default ensures the program
+// can continue to process transformations and materialization without exceptions
+var SparkRemoteScriptPath = "featureform/scripts/spark/offline_store_spark_runner.py"
+
+func init() {
+	runnerMD5, err := os.ReadFile("/app/provider/scripts/spark/offline_store_spark_runner_md5.txt")
+	if err != nil {
+		fmt.Printf("failed to read MD5 hash file: %v\nUsing fallback value instead (%s)\n", err, SparkRemoteScriptPath)
+	} else {
+		SparkRemoteScriptPath = fmt.Sprintf("featureform/scripts/spark/offline_store_spark_runner_%s.py", string(runnerMD5))
+	}
+}
 
 func GetWorkerImage() string {
 	return helpers.GetEnv("WORKER_IMAGE", WorkerImage)
@@ -31,7 +48,7 @@ func GetSparkLocalScriptPath() string {
 }
 
 func GetSparkRemoteScriptPath() string {
-	return helpers.GetEnv("SPARK_REMOTE_SCRIPT_PATH", SparkRemoteScriptPath)
+	return SparkRemoteScriptPath
 }
 
 func GetPythonLocalInitPath() string {

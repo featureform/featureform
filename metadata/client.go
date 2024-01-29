@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/featureform/fferr"
 	pb "github.com/featureform/metadata/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -141,7 +142,7 @@ func (client *Client) Create(ctx context.Context, def ResourceDef) error {
 	case ModelDef:
 		return client.CreateModel(ctx, casted)
 	default:
-		return fmt.Errorf("%T not implemented in Create", casted)
+		return fferr.NewInvalidArgument(fmt.Errorf("%T not implemented in Create", casted))
 	}
 }
 
@@ -182,7 +183,7 @@ func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant)
 	logger := client.Logger.With("ids", ids)
 	stream, err := client.GrpcConn.GetFeatureVariants(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get feature variants: %v", err)
+		return nil, err
 	}
 	go func() {
 		for _, id := range ids {
@@ -293,9 +294,9 @@ func (def FeatureDef) Serialize() (*pb.FeatureVariant, error) {
 	case PythonFunction:
 		serialized.Location = def.Location.(PythonFunction).SerializePythonFunction()
 	case nil:
-		return nil, fmt.Errorf("FeatureDef Columns not set")
+		return nil, fferr.NewInvalidArgument(fmt.Errorf("FeatureDef Columns not set"))
 	default:
-		return nil, fmt.Errorf("FeatureDef Columns has unexpected type %T", x)
+		return nil, fferr.NewInvalidArgument(fmt.Errorf("FeatureDef Columns has unexpected type %T", x))
 	}
 	return serialized, nil
 }
@@ -414,9 +415,9 @@ func (def LabelDef) Serialize() (*pb.LabelVariant, error) {
 	case ResourceVariantColumns:
 		serialized.Location = def.Location.(ResourceVariantColumns).SerializeLabelColumns()
 	case nil:
-		return nil, fmt.Errorf("LabelDef Primary not set")
+		return nil, fferr.NewInvalidArgument(fmt.Errorf("LabelDef Primary not set"))
 	default:
-		return nil, fmt.Errorf("LabelDef Primary has unexpected type %T", x)
+		return nil, fferr.NewInvalidArgument(fmt.Errorf("LabelDef Primary has unexpected type %T", x))
 	}
 	return serialized, nil
 }
@@ -729,9 +730,9 @@ func (s TransformationSource) Serialize() (*pb.SourceVariant_Transformation, err
 			},
 		}
 	case nil:
-		return nil, fmt.Errorf("TransformationSource Type not set")
+		return nil, fferr.NewInvalidArgument(fmt.Errorf("TransformationSource Type not set"))
 	default:
-		return nil, fmt.Errorf("TransformationSource Type has unexpected type %T", x)
+		return nil, fferr.NewInvalidArgument(fmt.Errorf("TransformationSource Type has unexpected type %T", x))
 	}
 	return &pb.SourceVariant_Transformation{
 		Transformation: transformation,
@@ -750,9 +751,9 @@ func (s PrimaryDataSource) Serialize() (*pb.SourceVariant_PrimaryData, error) {
 			},
 		}
 	case nil:
-		return nil, fmt.Errorf("PrimaryDataSource Type not set")
+		return nil, fferr.NewInvalidArgument(fmt.Errorf("PrimaryDataSource Type not set"))
 	default:
-		return nil, fmt.Errorf("PrimaryDataSource Type has unexpected type %T", x)
+		return nil, fferr.NewInvalidArgument(fmt.Errorf("PrimaryDataSource Type has unexpected type %T", x))
 	}
 	return &pb.SourceVariant_PrimaryData{
 		PrimaryData: primaryData,
@@ -782,9 +783,9 @@ func (def SourceDef) Serialize() (*pb.SourceVariant, error) {
 	case PrimaryDataSource:
 		serialized.Definition, err = def.Definition.(PrimaryDataSource).Serialize()
 	case nil:
-		return nil, fmt.Errorf("SourceDef Definition not set")
+		return nil, fferr.NewInvalidArgument(fmt.Errorf("SourceDef Definition not set"))
 	default:
-		return nil, fmt.Errorf("SourceDef Definition has unexpected type %T", x)
+		return nil, fferr.NewInvalidArgument(fmt.Errorf("SourceDef Definition has unexpected type %T", x))
 	}
 	if err != nil {
 		return nil, err
@@ -804,7 +805,7 @@ func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) er
 func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) ([]*SourceVariant, error) {
 	stream, err := client.GrpcConn.GetSourceVariants(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("grpc connect: %w", err)
+		return nil, err
 	}
 	go func() {
 		for _, id := range ids {
@@ -2244,10 +2245,12 @@ func (entity *Entity) Properties() Properties {
 func NewClient(host string, logger *zap.SugaredLogger) (*Client, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(fferr.UnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(fferr.StreamClientInterceptor()),
 	}
 	conn, err := grpc.Dial(host, opts...)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	client := pb.NewMetadataClient(conn)
 	return &Client{
@@ -2258,5 +2261,7 @@ func NewClient(host string, logger *zap.SugaredLogger) (*Client, error) {
 }
 
 func (client *Client) Close() {
-	client.conn.Close()
+	if err := client.conn.Close(); err != nil {
+		client.Logger.Errorw("Failed to close connection", "Err", err)
+	}
 }

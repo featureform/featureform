@@ -1486,7 +1486,7 @@ func (serv *MetadataServer) Serve() error {
 
 func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
 	serv.listener = lis
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(fferr.UnaryServerInterceptor), grpc.StreamInterceptor(fferr.StreamServerInterceptor))
 	pb.RegisterMetadataServer(grpcServer, serv)
 	serv.grpcServer = grpcServer
 	serv.Logger.Infow("Server starting", "Address", serv.listener.Addr().String())
@@ -2045,9 +2045,6 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 		resource, err := serv.lookup.Lookup(id)
 		if err != nil {
 			serv.Logger.Errorw("Generic Get lookup error", "error", err)
-			if grpcErr, ok := err.(fferr.GRPCError); ok {
-				return grpcErr.ToErr()
-			}
 			return err
 		}
 		serv.Logger.Infow("Sending Resource", "id", id)

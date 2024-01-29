@@ -8,8 +8,6 @@ from rich.live import Live
 from rich.table import Table
 from rich.text import Text
 
-from featureform import GrpcClient
-from featureform.proto.metadata_pb2_grpc import ApiStub
 from featureform.resources import (
     Resource,
     Provider,
@@ -25,7 +23,9 @@ MAX_NUM_RUNNING_DOTS = 10
 SECONDS_BETWEEN_STATUS_CHECKS = 2
 
 
-def display_statuses(grpc_client: GrpcClient, resources: List[Resource], verbose=False):
+def display_statuses(
+    grpc_client: "GrpcClient", resources: List[Resource], verbose=False
+):
     StatusDisplayer(grpc_client, resources, verbose=verbose).display()
 
 
@@ -36,13 +36,16 @@ class DisplayStatus:
     variant: str
     status: str = "NO_STATUS"
     error: str = None
+    has_health_check: bool = False
 
     def is_finished(self) -> bool:
         return (
             self.status == "READY"
             or self.status == "FAILED"
             or (
-                self.resource_type is Provider and self.status == "NO_STATUS"
+                self.resource_type is Provider
+                and self.status == "NO_STATUS"
+                and not self.has_health_check
             )  # Provider is a special case
         )
 
@@ -55,6 +58,7 @@ class DisplayStatus:
             variant=variant,
             status=resource.status,
             error=resource.error,
+            has_health_check=bool(getattr(resource, "has_health_check", False)),
         )
 
 
@@ -78,7 +82,7 @@ class StatusDisplayer:
     }
 
     def __init__(
-        self, grpc_client: GrpcClient, resources: List[Resource], verbose=False
+        self, grpc_client: "GrpcClient", resources: List[Resource], verbose=False
     ):
         self.verbose = verbose
         filtered_resources = filter(
@@ -170,6 +174,7 @@ class StatusDisplayer:
                         status_text = (
                             status.status
                             if status.resource_type is not Provider
+                            or status.has_health_check
                             else "CREATED"
                         )
 

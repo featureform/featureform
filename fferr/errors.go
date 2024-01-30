@@ -79,7 +79,16 @@ func FromErr(err error) GRPCError {
 	if !ok {
 		return NewInternalError(err)
 	}
+	// If the error is a valid status error but doesn't have any details, it stems from a
+	// location in the codebase we haven't covered yet. In this case, we'll just return an
+	// InternalError
+	if len(st.Details()) == 0 {
+		return NewInternalError(err)
+	}
 	var grpcError GRPCError
+	// All fferr errors should have an ErrorInfo detail, so we'll iterate through the details
+	// and cast them to ErrorInfo. If we find one, we'll create the appropriate error type
+	// and return it
 	for _, detail := range st.Details() {
 		if errorInfo, ok := detail.(*errdetails.ErrorInfo); ok {
 			baseGRPCError := baseGRPCError{

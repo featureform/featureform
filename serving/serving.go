@@ -276,7 +276,7 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 			// the method. This assertion should never fail.
 			if tbl, isPrimaryTable := t.(provider.PrimaryTable); !isPrimaryTable {
 				serv.Logger.Errorw("transformation table is not a primary table", "name", name, "variant", variant)
-				providerErr = fferr.NewInvalidResourceTypeError(name, variant, provider.Transformation.String(), fmt.Errorf("transformation table is not a primary table"))
+				providerErr = fferr.NewInvalidResourceTypeError(name, variant, fferr.SOURCE_VARIANT, fmt.Errorf("transformation table is not a primary table"))
 			} else {
 				primary = tbl
 			}

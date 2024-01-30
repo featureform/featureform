@@ -21,6 +21,8 @@ from .enums import FileFormat
 from .exceptions import InvalidSQLQuery
 from .file_utils import absolute_file_paths
 from .get import *
+from .get_local import *
+from .grpc_client import GrpcClient
 from .list import *
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
@@ -4130,7 +4132,7 @@ class ResourceClient:
             channel = insecure_channel(host)
         else:
             channel = secure_channel(host, cert_path)
-        self._stub = ff_grpc.ApiStub(channel)
+        self._stub = GrpcClient(ff_grpc.ApiStub(channel))
         self._host = host
 
     def apply(self, asynchronous=False, verbose=False):

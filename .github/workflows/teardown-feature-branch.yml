@@ -33,17 +33,6 @@ jobs:
             args: delete ns rc${{ inputs.version-postfix }}
         env:
           KUBE_CONFIG_DATA: ${{ secrets.KUBECONFIG_BASE }}
-          # docker pull featureformenterprise/backup:${{ env.TAG }}
-          # docker rmi -f featureformenterprise/backup:${{ env.TAG }}
-          # docker rmi -f featureformenterprise/api-server:${{ env.TAG }}
-          # docker rmi -f featureformenterprise/metadata:${{ env.TAG }}
-          # docker rmi -f featureformenterprise/coordinator:${{ env.TAG }}
-          # docker rmi -f featureformenterprise/dashboard:${{ env.TAG }}
-          # docker rmi -f featureformenterprise/metadata-dashboard:${{ env.TAG }}
-          # docker rmi -f featureformenterprise/serving:${{ env.TAG }}
-          # docker rmi -f featureformenterprise/worker:${{ env.TAG }}
-          # docker rmi -f featureformenterprise/k8s_runner:${{ env.TAG }}
-
 
   uninstall-helm:
     name: Uninstall Helm Release

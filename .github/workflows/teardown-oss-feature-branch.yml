@@ -1,4 +1,4 @@
-name: Remove Docker Images and Uninstall Helm Release
+name: Remove Kubernetes Namespace and Uninstall Helm Release
 on:
   workflow_dispatch:
     inputs:
@@ -25,21 +25,4 @@ jobs:
             args: delete ns rc${{ inputs.version-postfix }}
         env:
           KUBE_CONFIG_DATA: ${{ secrets.KUBECONFIG_BASE }}
-
-  uninstall-helm:
-    name: Uninstall Helm Release
-    environment: Deployment
-    defaults:
-      run:
-        working-directory: ./
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v2
-
-      - name: Uninstall Helm Release
-        uses: WyriHaximus/github-action-helm3@v3
-        with:
-          exec: helm uninstall -n rc${{ inputs.version-postfix }} featureform
-          kubeconfig: "${{ secrets.KUBECONFIG }}"
           

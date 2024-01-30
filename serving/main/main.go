@@ -6,6 +6,10 @@ package main
 
 import (
 	"fmt"
+	"net"
+	_ "net/http/pprof"
+
+	"github.com/featureform/fferr"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -13,8 +17,6 @@ import (
 	pb "github.com/featureform/proto"
 	"github.com/featureform/serving"
 	"google.golang.org/grpc"
-	"net"
-	_ "net/http/pprof"
 )
 
 func main() {
@@ -44,7 +46,7 @@ func main() {
 	if err != nil {
 		logger.Panicw("Failed to create training server", "Err", err)
 	}
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(fferr.UnaryServerInterceptor), grpc.StreamInterceptor(fferr.StreamServerInterceptor))
 
 	pb.RegisterFeatureServer(grpcServer, serv)
 	logger.Infow("Serving metrics", "Port", metricsPort)

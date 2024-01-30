@@ -353,9 +353,11 @@ def hosted_sql_provider_and_source():
         provider = ff.register_postgres(
             name="postgres-quickstart",
             # The host name for postgres is different between Docker and Minikube
-            host="host.docker.internal"
-            if "docker" in custom_marks
-            else "quickstart-postgres",
+            host=(
+                "host.docker.internal"
+                if "docker" in custom_marks
+                else "quickstart-postgres"
+            ),
             port="5432",
             user="postgres",
             password="password",
@@ -366,9 +368,11 @@ def hosted_sql_provider_and_source():
         redis = ff.register_redis(
             name="redis-quickstart",
             # The host name for postgres is different between Docker and Minikube
-            host="host.docker.internal"
-            if "docker" in custom_marks
-            else "quickstart-redis",
+            host=(
+                "host.docker.internal"
+                if "docker" in custom_marks
+                else "quickstart-redis"
+            ),
             port=6379,
             password="password",
         )

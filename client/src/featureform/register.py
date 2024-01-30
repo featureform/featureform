@@ -170,7 +170,7 @@ class OfflineSQLProvider(OfflineProvider):
         return self.__registrar.register_primary_data(
             name=name,
             variant=variant,
-            location=SQLTable('"{}"'.format(table)),
+            location=SQLTable(table),
             owner=owner,
             provider=self.name(),
             description=description,
@@ -5209,9 +5209,9 @@ class ResourceClient:
             status=source.status.Status._enum_type.values[source.status.status].name,
             tags=[],
             properties={},
-            source_text=definition.source_text
-            if type(definition) == DFTransformation
-            else "",
+            source_text=(
+                definition.source_text if type(definition) == DFTransformation else ""
+            ),
         )
 
     def _get_source_definition(self, source):

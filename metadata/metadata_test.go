@@ -3,11 +3,12 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"google.golang.org/protobuf/proto"
 	"net"
 	"reflect"
 	"testing"
 	"time"
+
+	"google.golang.org/protobuf/proto"
 
 	pb "github.com/featureform/metadata/proto"
 	"golang.org/x/exp/slices"

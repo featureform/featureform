@@ -260,7 +260,7 @@ type LocalResourceLookup map[ResourceID]Resource
 func (lookup LocalResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	res, has := lookup[id]
 	if !has {
-		wrapped := fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("resource not found"))
+		wrapped := fferr.NewKeyNotFoundError(id.String(), nil)
 		wrapped.AddDetail("resource_type", id.Type.String())
 		return nil, wrapped
 	}

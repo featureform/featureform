@@ -14,20 +14,12 @@ env:
   AWS_DEFAULT_REGION: "us-east-1"
 
 jobs:
-  remove-images:
+  remove-namespace:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Set production tag
-        run: echo "TAG=0.0.0-rc${{ inputs.version-postfix }}" >> $GITHUB_ENV
   
-      - name: Log in to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-  
-      - name: Remove Docker Images
+      - name: Delete Kubernetes Namespace
         uses: kodermax/kubectl-aws-eks@main
         with:
             args: delete ns rc${{ inputs.version-postfix }}

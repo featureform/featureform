@@ -12,10 +12,7 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
-<<<<<<< HEAD
 	"github.com/featureform/fferr"
-=======
->>>>>>> 3aa7f24d (Other/error handling/provider/sql (#1250))
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 )
@@ -773,11 +770,7 @@ func (store *clickHouseOfflineStore) GetResourceTable(id ResourceID) (OfflineTab
 func (store *clickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIterator, error) {
 	// if tables is empty, return an empty iterator
 	if len(ids) == 0 {
-<<<<<<< HEAD
 		return newsqlBatchFeatureIterator(nil, nil, nil, store.query, store.Type()), fferr.NewInvalidArgument(fmt.Errorf("no features provided"))
-=======
-		return newsqlBatchFeatureIterator(nil, nil, nil, store.query, store.Type()), fmt.Errorf("no features provided")
->>>>>>> 3aa7f24d (Other/error handling/provider/sql (#1250))
 	}
 
 	asEntity := ""

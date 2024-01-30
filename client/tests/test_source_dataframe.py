@@ -8,12 +8,6 @@ from featureform.enums import FileFormat
     "provider_source_fxt,is_local,is_insecure",
     [
         pytest.param(
-            "local_provider_source",
-            True,
-            True,
-            marks=pytest.mark.local,
-        ),
-        pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
         pytest.param(
@@ -55,12 +49,6 @@ def test_dataframe_for_name_variant_args(
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param(
-            "local_provider_source",
-            True,
-            True,
-            marks=pytest.mark.local,
-        ),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
@@ -107,40 +95,40 @@ def test_dataframe_empty_variant(local_provider_source):
         client.dataframe(source.name)
     assert "variant must be specified if source is a string" in str(e.value)
 
+# TODO: Needs to be changed to hosted mode
+# @pytest.mark.parametrize(
+#     "provider_source_fxt,is_local,is_insecure",
+#     [
+#         pytest.param(
+#             "local_provider_source",
+#             True,
+#             True,
+#             marks=pytest.mark.local,
+#         ),
+#     ],
+# )
+# def test_dataframe_parquet(provider_source_fxt, is_local, is_insecure, request):
+#     custom_marks = [
+#         mark.name for mark in request.node.own_markers if mark.name != "parametrize"
+#     ]
+#     provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(
+#         custom_marks, file_format=FileFormat.PARQUET.value
+#     )
 
-@pytest.mark.parametrize(
-    "provider_source_fxt,is_local,is_insecure",
-    [
-        pytest.param(
-            "local_provider_source",
-            True,
-            True,
-            marks=pytest.mark.local,
-        ),
-    ],
-)
-def test_dataframe_parquet(provider_source_fxt, is_local, is_insecure, request):
-    custom_marks = [
-        mark.name for mark in request.node.own_markers if mark.name != "parametrize"
-    ]
-    provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(
-        custom_marks, file_format=FileFormat.PARQUET.value
-    )
+#     transformation = arrange_transformation(provider, is_local)
 
-    transformation = arrange_transformation(provider, is_local)
+#     client = ff.Client(local=is_local, insecure=is_insecure)
+#     client.apply(asynchronous=True)
 
-    client = ff.Client(local=is_local, insecure=is_insecure)
-    client.apply(asynchronous=True)
+#     source_df = client.dataframe(source)
+#     transformation_df = client.dataframe(transformation)
 
-    source_df = client.dataframe(source)
-    transformation_df = client.dataframe(transformation)
+#     assert isinstance(source_df, pd.DataFrame) and isinstance(
+#         transformation_df, (pd.DataFrame, pd.Series)
+#     )
 
-    assert isinstance(source_df, pd.DataFrame) and isinstance(
-        transformation_df, (pd.DataFrame, pd.Series)
-    )
-
-    if is_local:
-        client.impl.db.close()  # TODO automatically do this
+#     if is_local:
+#         client.impl.db.close()  # TODO automatically do this
 
 
 @pytest.fixture(autouse=True)

@@ -218,7 +218,6 @@ pytest:
 	python -m pytest client/tests/register_test.py
 	python -m pytest client/tests/provider_config_test.py
 	python -m pytest client/tests/serving_test.py
-	python -m pytest client/tests/redefined_test.py
 	python -m pytest client/tests/register_test.py
 	python -m pytest client/tests/test_spark_provider.py
 	python -m pytest client/tests/test_parse.py

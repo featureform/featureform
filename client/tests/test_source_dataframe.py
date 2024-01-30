@@ -95,6 +95,7 @@ def test_dataframe_empty_variant(local_provider_source):
         client.dataframe(source.name)
     assert "variant must be specified if source is a string" in str(e.value)
 
+
 # TODO: Needs to be changed to hosted mode
 # @pytest.mark.parametrize(
 #     "provider_source_fxt,is_local,is_insecure",

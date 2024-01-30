@@ -14,6 +14,7 @@ import (
 	"regexp"
 
 	"github.com/featureform/config"
+	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	fs "github.com/featureform/filestore"
 	"go.uber.org/zap/zaptest"
@@ -549,7 +550,7 @@ func sparkTestGetUnknownTrainingSet(t *testing.T, store *SparkOfflineStore) {
 	id := sparkSafeRandomID(NoType)
 	if _, err := store.GetTrainingSet(id); err == nil {
 		t.Fatalf("Succeeded in getting unknown training set ResourceID")
-	} else if _, valid := err.(*TrainingSetNotFound); !valid {
+	} else if _, valid := err.(*fferr.TrainingSetNotFoundError); !valid {
 		t.Fatalf("Wrong error for training set not found: %T", err)
 	} else if err.Error() == "" {
 		t.Fatalf("Training set not found error msg not set")
@@ -665,7 +666,7 @@ func sparkTestOfflineTableNotFound(t *testing.T, store *SparkOfflineStore) {
 	id := sparkSafeRandomID(Feature, Label)
 	if _, err := store.GetResourceTable(id); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
-	} else if casted, valid := err.(*TableNotFound); !valid {
+	} else if casted, valid := err.(*fferr.DatasetNotFoundError); !valid {
 		t.Fatalf("Wrong error for table not found: %v, %T", err, err)
 	} else if casted.Error() == "" {
 		t.Fatalf("TableNotFound has empty error message")
@@ -746,7 +747,7 @@ func sparkTestOfflineTableAlreadyExists(t *testing.T, store *SparkOfflineStore) 
 	}
 	if err := registerRandomResource(id, store); err == nil {
 		t.Fatalf("Succeeded in creating table twice")
-	} else if casted, valid := err.(*TableAlreadyExists); !valid {
+	} else if casted, valid := err.(*fferr.DatasetAlreadyExistsError); !valid {
 		t.Fatalf("Wrong error for table already exists: %T", err)
 	} else if casted.Error() == "" {
 		t.Fatalf("TableAlreadyExists has empty error message")
@@ -965,7 +966,7 @@ func sparkTestMaterializationNotFound(t *testing.T, store *SparkOfflineStore) {
 	if err == nil {
 		t.Fatalf("Succeeded in deleting uninitialized materialization")
 	}
-	var notFoundErr *MaterializationNotFound
+	var notFoundErr *fferr.DatasetNotFoundError
 	if validCast := errors.As(err, &notFoundErr); !validCast {
 		t.Fatalf("Wrong Error type for materialization not found: %T", err)
 	}

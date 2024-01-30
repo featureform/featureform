@@ -13,8 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
-
 	"github.com/featureform/fferr"
 	pb "github.com/featureform/metadata/proto"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -723,8 +721,8 @@ func TestEtcdConfig_Get(t *testing.T) {
 		key   string
 		error error
 	}{
-		{"Test Get Empty Key", "", rpctypes.EtcdError{}},
-		{"Test Get Non Existent Key", "non_existent", &fferr.JobAlreadyExistsError{}},
+		{"Test Get Empty Key", "", &fferr.InvalidArgument{}},
+		{"Test Get Non Existent Key", "non_existent", &fferr.KeyNotFoundError{}},
 		{"Test Get Valid Key", "key", nil},
 	}
 	for _, tt := range tests {

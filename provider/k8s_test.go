@@ -1077,8 +1077,8 @@ func Test_castTimestamp(t *testing.T) {
 		errMsg  string
 	}{
 		{"With time.Time", args{timeNow}, timeNow, false, ""},
-		{"With string", args{"idk"}, timeNow, true, "expected timestamp to be of type time.Time, but got string"},
-		{"With int", args{0}, timeNow, true, "expected timestamp to be of type time.Time, but got int"},
+		{"With string", args{"idk"}, timeNow, true, "expected timestamp to be of type time.Time"},
+		{"With int", args{0}, timeNow, true, "expected timestamp to be of type time.Time"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

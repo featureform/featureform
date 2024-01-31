@@ -1,9 +1,12 @@
 package fferr
 
 import (
+	"encoding/json"
 	"errors"
+	"io"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -11,13 +14,26 @@ import (
 var logger *zap.SugaredLogger
 
 func init() {
-	baseLogger, err := zap.NewDevelopment(
-		zap.AddStacktrace(zap.ErrorLevel),
-	)
+	cfg := zap.Config{
+		Encoding:         "json",
+		Level:            zap.NewAtomicLevelAt(zap.DebugLevel),
+		Development:      true,
+		OutputPaths:      []string{"stdout"},
+		ErrorOutputPaths: []string{"stderr"},
+		EncoderConfig: zapcore.EncoderConfig{
+			NewReflectedEncoder: func(w io.Writer) zapcore.ReflectedEncoder {
+				enc := json.NewEncoder(w)
+				enc.SetEscapeHTML(false)
+				enc.SetIndent("", "    ")
+				return enc
+			},
+		},
+	}
+	lg, err := cfg.Build()
 	if err != nil {
 		panic(err)
 	}
-	logger = baseLogger.Sugar().Named("fferr")
+	logger = lg.Sugar().Named("fferr")
 }
 
 // ErrorHandlingInterceptor is a server interceptor for handling errors

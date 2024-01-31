@@ -7,7 +7,6 @@ import featureform as ff
 @pytest.mark.parametrize(
     "is_local,is_insecure",
     [
-        pytest.param(True, True, marks=pytest.mark.local),
         pytest.param(False, False, marks=pytest.mark.hosted),
         pytest.param(False, True, marks=pytest.mark.docker),
     ],
@@ -29,7 +28,6 @@ def test_getting_model_successfully(is_local, is_insecure):
 @pytest.mark.parametrize(
     "is_local,is_insecure",
     [
-        pytest.param(True, True, marks=pytest.mark.local),
         pytest.param(False, False, marks=pytest.mark.hosted),
         pytest.param(False, True, marks=pytest.mark.docker),
     ],
@@ -49,7 +47,6 @@ def test_getting_model_by_unregistered_name(is_local, is_insecure):
 @pytest.mark.parametrize(
     "is_local,is_insecure",
     [
-        pytest.param(True, True, marks=pytest.mark.local),
         pytest.param(False, False, marks=pytest.mark.hosted),
         pytest.param(False, True, marks=pytest.mark.docker),
     ],

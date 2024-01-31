@@ -153,9 +153,9 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             name=model_row["name"],
             description="",
             tags=json.loads(model_row["tags"]) if model_row["tags"] else [],
-            properties=json.loads(model_row["properties"])
-            if model_row["properties"]
-            else {},
+            properties=(
+                json.loads(model_row["properties"]) if model_row["properties"] else {}
+            ),
         )
 
     def get_models(self) -> List[Model]:
@@ -360,9 +360,9 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
             description=entity_row["description"],
             status=entity_row["status"],
             tags=json.loads(entity_row["tags"]) if entity_row["tags"] else [],
-            properties=json.loads(entity_row["properties"])
-            if entity_row["properties"]
-            else {},
+            properties=(
+                json.loads(entity_row["properties"]) if entity_row["properties"] else {}
+            ),
         )
 
     def get_entities(self) -> List[Entity]:
@@ -486,9 +486,9 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
                     ),
                     description=row["description"],
                     tags=json.loads(row["tags"]) if row["tags"] else [],
-                    properties=json.loads(row["properties"])
-                    if row["properties"]
-                    else {},
+                    properties=(
+                        json.loads(row["properties"]) if row["properties"] else {}
+                    ),
                 )
             )
 
@@ -539,9 +539,9 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
                     ),
                     description=row["description"],
                     tags=json.loads(row["tags"]) if row["tags"] else [],
-                    properties=json.loads(row["properties"])
-                    if row["properties"]
-                    else {},
+                    properties=(
+                        json.loads(row["properties"]) if row["properties"] else {}
+                    ),
                 )
             )
 
@@ -571,9 +571,9 @@ class MetadataRepositoryLocalImpl(MetadataRepository):
                     features=feature_name_variants,
                     description=row["description"],
                     tags=json.loads(row["tags"]) if row["tags"] else [],
-                    properties=json.loads(row["properties"])
-                    if row["properties"]
-                    else {},
+                    properties=(
+                        json.loads(row["properties"]) if row["properties"] else {}
+                    ),
                     status=row["status"],
                 )
             )

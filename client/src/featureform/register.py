@@ -1,6 +1,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+import os
 import ast
 import inspect
 import warnings
@@ -41,6 +42,7 @@ from .resources import (
     LocalConfig,
     RedshiftConfig,
     BigQueryConfig,
+    ClickHouseConfig,
     SparkConfig,
     AzureFileStoreConfig,
     OnlineBlobConfig,
@@ -169,7 +171,7 @@ class OfflineSQLProvider(OfflineProvider):
         return self.__registrar.register_primary_data(
             name=name,
             variant=variant,
-            location=SQLTable('"{}"'.format(table)),
+            location=SQLTable(table),
             owner=owner,
             provider=self.name(),
             description=description,
@@ -184,6 +186,7 @@ class OfflineSQLProvider(OfflineProvider):
         name: str = "",
         schedule: str = "",
         description: str = "",
+        inputs: list = None,
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -210,6 +213,7 @@ class OfflineSQLProvider(OfflineProvider):
             schedule (str): The frequency at which the transformation is run as a cron expression
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of primary data to be registered
+            inputs (list): A list of Source NameVariant Tuples to input into the transformation
 
 
         Returns:
@@ -222,6 +226,7 @@ class OfflineSQLProvider(OfflineProvider):
             schedule=schedule,
             provider=self.name(),
             description=description,
+            inputs=inputs,
             tags=tags,
             properties=properties,
         )
@@ -300,6 +305,7 @@ class OfflineSparkProvider(OfflineProvider):
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         schedule: str = "",
+        inputs: list = None,
         description: str = "",
         tags: List[str] = [],
         properties: dict = {},
@@ -337,6 +343,7 @@ class OfflineSparkProvider(OfflineProvider):
             schedule=schedule,
             provider=self.name(),
             description=description,
+            inputs=inputs,
             tags=tags,
             properties=properties,
         )
@@ -447,6 +454,7 @@ class OfflineK8sProvider(OfflineProvider):
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
         schedule: str = "",
+        inputs: list = None,
         description: str = "",
         docker_image: str = "",
         resource_specs: Union[K8sResourceSpecs, None] = None,
@@ -473,6 +481,7 @@ class OfflineK8sProvider(OfflineProvider):
             name (str): Name of source
             variant (str): Name of variant
             owner (Union[str, UserRegistrar]): Owner
+            inputs (list): A list of Source NameVariant Tuples to input into the transformation
             description (str): Description of primary data to be registered
             docker_image (str): A custom Docker image to run the transformation
             resource_specs (K8sResourceSpecs): Custom resource requests and limits
@@ -488,6 +497,7 @@ class OfflineK8sProvider(OfflineProvider):
             schedule=schedule,
             provider=self.name(),
             description=description,
+            inputs=inputs,
             args=K8sArgs(docker_image=docker_image, specs=resource_specs),
             tags=tags,
             properties=properties,
@@ -788,6 +798,7 @@ class LocalProvider:
         variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         name: str = "",
+        inputs: list = None,
         description: str = "",
         tags: List[str] = [],
         properties: dict = {},
@@ -812,6 +823,7 @@ class LocalProvider:
             name (str): Name of source
             variant (str): Name of variant
             owner (Union[str, UserRegistrar]): Owner
+            inputs (list): A list of Source NameVariant Tuples to input into the transformation
             description (str): Description of primary data to be registered
 
 
@@ -824,6 +836,7 @@ class LocalProvider:
             owner=owner,
             provider=self.name(),
             description=description,
+            inputs=inputs,
             tags=tags,
             properties=properties,
         )
@@ -1100,16 +1113,48 @@ class SQLTransformationDecorator:
     variant: str = ""
     name: str = ""
     schedule: str = ""
+    inputs: list = field(default_factory=list)
     description: str = ""
     args: Union[K8sArgs, None] = None
     query: str = field(default_factory=str, init=False)
+
+    func_params_to_inputs: dict = field(default_factory=dict, init=False)
+
+    def __post_init__(self):
+        if self.inputs is None:
+            self.inputs = []
 
     def __call__(self, fn: Callable[[], str]):
         if self.description == "" and fn.__doc__ is not None:
             self.description = fn.__doc__
         if self.name == "":
             self.name = fn.__name__
-        self.__set_query(fn())
+
+        func_params = inspect.signature(fn).parameters
+
+        if len(func_params) > 0:
+            if len(func_params) > len(self.inputs):
+                raise ValueError(
+                    f"Transformation function has more parameters than inputs. \n"
+                    f"Make sure each function parameter has a corresponding input in the decorator."
+                )
+
+            if len(func_params) < len(self.inputs):
+                raise ValueError(
+                    f"Too many inputs for transformation function. Expected {len(func_params)} inputs, but found {len(self.inputs)}.\n"
+                )
+
+            if not isinstance(self.inputs, list):
+                raise ValueError("Dataframe transformation inputs must be a list")
+
+            self.func_params_to_inputs = {
+                param: inp for param, inp in zip(func_params, self.inputs)
+            }
+
+            self.__set_query(fn(*self.inputs))
+        else:
+            self.__set_query(fn())
+
         self.registrar.map_client_object_to_resource(self, self.to_source())
         self.registrar.add_resource(self.to_source())
         return SubscriptableTransformation(
@@ -1127,14 +1172,22 @@ class SQLTransformationDecorator:
             raise ValueError("Query cannot be an empty string")
 
         self._assert_query_contains_at_least_one_source(query)
-        self.query = add_variant_to_name(query, self.run)
+        if len(self.inputs) > 0:
+            # if inputs are specified, then the query will be resolved at the time of creation (when #kwargs is called)
+            self.query = query
+        else:
+            self.query = add_variant_to_name(query, self.run)
 
     def to_source(self) -> SourceVariant:
         return SourceVariant(
             created=None,
             name=self.name,
             variant=self.variant,
-            definition=SQLTransformation(self.query, self.args),
+            definition=SQLTransformation(
+                query=self.query,
+                args=self.args,
+                func_params_to_inputs=self.func_params_to_inputs,
+            ),
             owner=self.owner,
             schedule=self.schedule,
             provider=self.provider,
@@ -2180,6 +2233,39 @@ class Registrar:
             user="",
             password="",
             sslmode="",
+        )
+        mock_provider = Provider(
+            name=name, function="OFFLINE", description="", team="", config=mock_config
+        )
+        return OfflineSQLProvider(self, mock_provider)
+
+    def get_clickhouse(self, name):
+        """Get a ClickHouse provider. The returned object can be used to register additional resources.
+
+        **Examples**:
+        ``` py
+        clickhouse = ff.get_clickhouse("clickhouse-quickstart")
+        transactions = clickhouse.register_table(
+            name="transactions",
+            variant="kaggle",
+            description="Fraud Dataset From Kaggle",
+            table="Transactions",  # This is the table's name in ClickHouse
+        )
+        ```
+
+        Args:
+            name (str): Name of ClickHouse provider to be retrieved
+
+        Returns:
+            clickhouse (OfflineSQLProvider): Provider
+        """
+        mock_config = ClickHouseConfig(
+            host="",
+            port=9000,
+            database="",
+            user="",
+            password="",
+            ssl=False,
         )
         mock_provider = Provider(
             name=name, function="OFFLINE", description="", team="", config=mock_config
@@ -3333,6 +3419,72 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
+    def register_clickhouse(
+        self,
+        name: str,
+        host: str,
+        user: str,
+        password: str,
+        database: str,
+        port: int = 9000,
+        description: str = "",
+        team: str = "",
+        ssl: bool = False,
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
+        """Register a ClickHouse provider.
+
+        **Examples**:
+        ```
+        clickhouse = ff.register_clickhouse(
+            name="clickhouse-quickstart",
+            description="A ClickHouse deployment we created for the Featureform quickstart",
+            host="quickstart-clickhouse",  # The internal dns name for clickhouse
+            port=9000,
+            user="default",
+            password="", #pragma: allowlist secret
+            database="default"
+        )
+        ```
+
+        Args:
+            name (str): (Immutable) Name of ClickHouse provider to be registered
+            host (str): (Immutable) Hostname for ClickHouse
+            database (str): (Immutable) ClickHouse database
+            port (int): (Mutable) Port
+            ssl (bool): (Mutable) Enable SSL
+            user (str): (Mutable) User
+            password (str): (Mutable) ClickHouse password
+            description (str): (Mutable) Description of ClickHouse provider to be registered
+            team (str): (Mutable) Name of team
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
+
+        Returns:
+            clickhouse (OfflineSQLProvider): Provider
+        """
+        tags, properties = set_tags_properties(tags, properties)
+        config = ClickHouseConfig(
+            host=host,
+            port=port,
+            database=database,
+            user=user,
+            password=password,
+            ssl=ssl,
+        )
+        provider = Provider(
+            name=name,
+            function="OFFLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
+        self.__resources.append(provider)
+        return OfflineSQLProvider(self, provider)
+
     def register_redshift(
         self,
         name: str,
@@ -3642,6 +3794,7 @@ class Registrar:
         description: str = "",
         schedule: str = "",
         args: K8sArgs = None,
+        inputs: Union[List[NameVariant], List[str], List[ColumnSourceRegistrar]] = None,
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -3692,6 +3845,7 @@ class Registrar:
         name: str = "",
         schedule: str = "",
         owner: Union[str, UserRegistrar] = "",
+        inputs: Union[List[NameVariant], List[str], List[ColumnSourceRegistrar]] = None,
         description: str = "",
         args: K8sArgs = None,
         tags: List[str] = [],
@@ -3705,6 +3859,7 @@ class Registrar:
             name (str): Name of source
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
             owner (Union[str, UserRegistrar]): Owner
+            inputs (list): Inputs to transformation
             description (str): Description of SQL transformation
             args (K8sArgs): Additional transformation arguments
             tags (List[str]): Optional grouping mechanism for resources
@@ -3730,6 +3885,7 @@ class Registrar:
             schedule=schedule,
             owner=owner,
             description=description,
+            inputs=inputs,
             args=args,
             tags=tags,
             properties=properties,
@@ -4356,8 +4512,7 @@ class ResourceClient:
     (entities, providers, features, labels, training sets, models, users).
 
     Args:
-        host (str): The hostname of the Featureform instance. Exclude if using Localmode.
-        local (bool): True if using Localmode.
+        host (str): The hostname of the Featureform instance.
         insecure (bool): True if connecting to an insecure Featureform endpoint. False if using a self-signed or public TLS certificate
         cert_path (str): The path to a public certificate if using a self-signed certificate.
 
@@ -4376,6 +4531,11 @@ class ResourceClient:
     def __init__(
         self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
     ):
+        if local:
+            raise Exception(
+                "Local mode is not supported in this version. Use featureform <= 1.12.0 for localmode"
+            )
+
         # This line ensures that the warning is only raised if ResourceClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
         is_instantiated_directed = inspect.stack()[1].function != "__init__"
@@ -4391,21 +4551,18 @@ class ResourceClient:
         if dry_run:
             return
 
-        if local and host:
-            raise ValueError("Cannot be local and have a host")
-        elif not local:
-            host = host or os.getenv("FEATUREFORM_HOST")
-            if host is None:
-                raise RuntimeError(
-                    "If not in local mode then `host` must be passed or the environment"
-                    " variable FEATUREFORM_HOST must be set."
-                )
-            if insecure:
-                channel = insecure_channel(host)
-            else:
-                channel = secure_channel(host, cert_path)
-            self._stub = ff_grpc.ApiStub(channel)
-            self._host = host
+        host = host or os.getenv("FEATUREFORM_HOST")
+        if host is None:
+            raise RuntimeError(
+                "If not in local mode then `host` must be passed or the environment"
+                " variable FEATUREFORM_HOST must be set."
+            )
+        if insecure:
+            channel = insecure_channel(host)
+        else:
+            channel = secure_channel(host, cert_path)
+        self._stub = ff_grpc.ApiStub(channel)
+        self._host = host
 
     def apply(self, asynchronous=False, verbose=False):
         """
@@ -5054,9 +5211,9 @@ class ResourceClient:
             status=source.status.Status._enum_type.values[source.status.status].name,
             tags=[],
             properties={},
-            source_text=definition.source_text
-            if type(definition) == DFTransformation
-            else "",
+            source_text=(
+                definition.source_text if type(definition) == DFTransformation else ""
+            ),
         )
 
     def _get_source_definition(self, source):
@@ -5822,6 +5979,7 @@ register_pinecone = global_registrar.register_pinecone
 register_weaviate = global_registrar.register_weaviate
 register_blob_store = global_registrar.register_blob_store
 register_bigquery = global_registrar.register_bigquery
+register_clickhouse = global_registrar.register_clickhouse
 register_firestore = global_registrar.register_firestore
 register_cassandra = global_registrar.register_cassandra
 register_dynamodb = global_registrar.register_dynamodb
@@ -5852,6 +6010,7 @@ get_snowflake = global_registrar.get_snowflake
 get_snowflake_legacy = global_registrar.get_snowflake_legacy
 get_redshift = global_registrar.get_redshift
 get_bigquery = global_registrar.get_bigquery
+get_clickhouse = global_registrar.get_clickhouse
 get_spark = global_registrar.get_spark
 get_kubernetes = global_registrar.get_kubernetes
 get_blob_store = global_registrar.get_blob_store

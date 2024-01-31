@@ -6,10 +6,11 @@ package search
 
 import (
 	"fmt"
-	re "github.com/avast/retry-go/v4"
-	ms "github.com/meilisearch/meilisearch-go"
 	"strings"
 	"time"
+
+	re "github.com/avast/retry-go/v4"
+	ms "github.com/meilisearch/meilisearch-go"
 )
 
 type Searcher interface {
@@ -76,6 +77,7 @@ type ResourceDoc struct {
 	Name    string
 	Variant string
 	Type    string
+	Tags    []string
 }
 
 func (s Search) waitForSync(taskUID int64) error {
@@ -121,6 +123,7 @@ func (s Search) Upsert(doc ResourceDoc) error {
 		"Name":    doc.Name,
 		"Type":    doc.Type,
 		"Variant": doc.Variant,
+		"Tags":    doc.Tags,
 	}
 	resp, err := s.client.Index("resources").UpdateDocuments(document)
 	if err != nil {
@@ -150,12 +153,37 @@ func (s Search) RunSearch(q string) ([]ResourceDoc, error) {
 
 	for _, hit := range results.Hits {
 		doc := hit.(map[string]interface{})
+
+		var tags []string
+		if tagSlice, ok := doc["Tags"].([]interface{}); ok {
+			for _, tag := range tagSlice {
+				if strTag, ok := tag.(string); ok {
+					tags = append(tags, strTag)
+				}
+			}
+		}
 		searchResults = append(searchResults, ResourceDoc{
 			Name:    doc["Name"].(string),
 			Type:    doc["Type"].(string),
 			Variant: doc["Variant"].(string),
+			Tags:    tags,
 		})
 
 	}
 	return searchResults, nil
+}
+
+type SearchMock struct {
+}
+
+func (s SearchMock) Upsert(doc ResourceDoc) error {
+	return nil
+}
+
+func (s SearchMock) DeleteAll() error {
+	return nil
+}
+
+func (s SearchMock) RunSearch(q string) ([]ResourceDoc, error) {
+	return nil, nil
 }

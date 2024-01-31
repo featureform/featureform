@@ -44,7 +44,7 @@ type OfflineTableQueries interface {
 	getColumns(db *sql.DB, tableName string) ([]TableColumn, error)
 	getValueColumnTypes(tableName string) string
 	determineColumnType(valueType ValueType) (string, error)
-	materializationCreate(tableName string, sourceName string) string
+	materializationCreate(tableName string, sourceName string) []string
 	materializationUpdate(db *sql.DB, tableName string, sourceName string) error
 	materializationExists() string
 	materializationDrop(tableName string) string
@@ -62,7 +62,7 @@ type OfflineTableQueries interface {
 	castTableItemType(v interface{}, t interface{}) interface{}
 	getValueColumnType(t *sql.ColumnType) interface{}
 	numRows(n interface{}) (int64, error)
-	transformationCreate(name string, query string) string
+	transformationCreate(name string, query string) []string
 	transformationUpdate(db *sql.DB, tableName string, query string) error
 	transformationExists() string
 }
@@ -392,6 +392,26 @@ func (store *sqlOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, err
 	return store.getsqlResourceTable(id)
 }
 
+func (store *sqlOfflineStore) ResourceLocation(id ResourceID) (string, error) {
+	if exists, err := store.tableExists(id); err != nil {
+		return "", fmt.Errorf("could not check if table exists: %v", err)
+	} else if !exists {
+		return "", fmt.Errorf("table does not exist: %v", id)
+	}
+
+	var tableName string
+	var err error
+	if id.check(Feature, Label) == nil {
+		tableName, err = store.getResourceTableName(id)
+	} else if id.check(TrainingSet) == nil {
+		tableName, err = store.getTrainingSetName(id)
+	} else if id.check(Primary) == nil || id.check(Transformation) == nil {
+		tableName, err = GetPrimaryTableName(id)
+	}
+
+	return tableName, err
+}
+
 type sqlMaterialization struct {
 	id        MaterializationID
 	db        *sql.DB
@@ -427,7 +447,6 @@ func (mat *sqlMaterialization) NumRows() (int64, error) {
 
 func (mat *sqlMaterialization) IterateSegment(start, end int64) (FeatureIterator, error) {
 	query := mat.query.materializationIterateSegment(mat.tableName)
-
 	rows, err := mat.db.Query(query, start, end)
 	if err != nil {
 		return nil, err
@@ -661,11 +680,12 @@ func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, options ...Ma
 
 	matID := MaterializationID(id.Name)
 	matTableName := store.getMaterializationTableName(matID)
-	materializeQry := store.query.materializationCreate(matTableName, resTable.name)
-
-	_, err = store.db.Exec(materializeQry)
-	if err != nil {
-		return nil, err
+	materializeQueries := store.query.materializationCreate(matTableName, resTable.name)
+	for _, materializeQry := range materializeQueries {
+		_, err = store.db.Exec(materializeQry)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &sqlMaterialization{
 		id:        matID,
@@ -1162,11 +1182,12 @@ func (store *sqlOfflineStore) CreateTransformation(config TransformationConfig) 
 	if err != nil {
 		return err
 	}
-	query := store.query.transformationCreate(name, config.Query)
-	if _, err := store.db.Exec(query); err != nil {
-		return err
+	queries := store.query.transformationCreate(name, config.Query)
+	for _, query := range queries {
+		if _, err := store.db.Exec(query); err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 
@@ -1336,8 +1357,10 @@ func (q defaultOfflineSQLQueries) registerResources(db *sql.DB, tableName string
 }
 
 func (q defaultOfflineSQLQueries) primaryTableRegister(tableName string, sourceName string) string {
-	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sourceName)
+	sprintf := fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM TABLE('%s')", sanitize(tableName), sanitize(sourceName))
+	return sprintf
 }
+
 func (q defaultOfflineSQLQueries) getColumns(db *sql.DB, name string) ([]TableColumn, error) {
 	bind := q.newVariableBindingIterator()
 	qry := fmt.Sprintf("SELECT column_name FROM information_schema.columns WHERE table_name = %s order by ordinal_position", bind.Next())
@@ -1359,11 +1382,13 @@ func (q defaultOfflineSQLQueries) getColumns(db *sql.DB, name string) ([]TableCo
 func (q defaultOfflineSQLQueries) primaryTableCreate(name string, columnString string) string {
 	return fmt.Sprintf("CREATE TABLE %s ( %s )", sanitize(name), columnString)
 }
-func (q defaultOfflineSQLQueries) materializationCreate(tableName string, sourceName string) string {
-	return fmt.Sprintf(
-		"CREATE TABLE IF NOT EXISTS %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
-			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
-			"AS rn FROM %s) t WHERE rn=1)", sanitize(tableName), sanitize(sourceName))
+func (q defaultOfflineSQLQueries) materializationCreate(tableName string, sourceName string) []string {
+	return []string{
+		fmt.Sprintf(
+			"CREATE TABLE IF NOT EXISTS %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
+				"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
+				"AS rn FROM %s) t WHERE rn=1)", sanitize(tableName), sanitize(sourceName)),
+	}
 }
 
 func (q defaultOfflineSQLQueries) materializationUpdate(db *sql.DB, tableName string, sourceName string) error {
@@ -1598,8 +1623,10 @@ func (q defaultOfflineSQLQueries) numRows(n interface{}) (int64, error) {
 	}
 }
 
-func (q defaultOfflineSQLQueries) transformationCreate(name string, query string) string {
-	return fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM ( %s )", sanitize(name), query)
+func (q defaultOfflineSQLQueries) transformationCreate(name string, query string) []string {
+	return []string{
+		fmt.Sprintf("CREATE TABLE %s AS SELECT * FROM ( %s )", sanitize(name), query),
+	}
 }
 
 func (q defaultOfflineSQLQueries) transformationUpdate(db *sql.DB, tableName string, query string) error {
@@ -1611,6 +1638,7 @@ func (q defaultOfflineSQLQueries) transformationUpdate(db *sql.DB, tableName str
 	}
 	return nil
 }
+
 func (q defaultOfflineSQLQueries) transformationExists() string {
 	bind := q.newVariableBindingIterator()
 	return fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=%s", bind.Next())

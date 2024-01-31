@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/pkg/errors"
 
 	"github.com/featureform/logging"
 
@@ -1739,6 +1740,24 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 		fileType, fileName, fileVariant = filePaths[0], filePaths[1], filePaths[2]
 	}
 	return fileType, fileName, fileVariant
+}
+
+func (spark *SparkOfflineStore) ResourceLocation(id ResourceID) (string, error) {
+	path, err := spark.Store.CreateDirPath(id.ToFilestorePath())
+	if err != nil {
+		return "", errors.Wrap(err, "could not create dir path")
+	}
+
+	newestFile, err := spark.Store.NewestFileOfType(path, filestore.Parquet)
+	if err != nil {
+		return "", errors.Wrap(err, "could not get newest file")
+	}
+
+	newestFileDirPathDateTime, err := spark.Store.CreateDirPath(newestFile.KeyPrefix())
+	if err != nil {
+		return "", fmt.Errorf("could not create directory path for spark newestFile: %v", err)
+	}
+	return newestFileDirPathDateTime.ToURI(), nil
 }
 
 func (e *EMRExecutor) GetDFArgs(outputURI filestore.Filepath, code string, sources []string, store SparkFileStore) ([]string, error) {

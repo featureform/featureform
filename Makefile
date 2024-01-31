@@ -39,7 +39,7 @@ test_offline
 		Runs offline store integration tests. Requires credentials if not using the memory provider
 
 	Options:
-		- provider (memory | postgres | snowflake | redshift | bigquery | spark )
+		- provider (memory | postgres | snowflake | redshift | bigquery | spark | clickhouse )
 			Description:
 				Runs specified provider. If left blank or not included, runs all providers
 			Usage:
@@ -211,6 +211,8 @@ stop_postgres:
 ##############################################  PYTHON TESTS ###########################################################
 pytest:
 	python -m pytest
+	-rm -r .featureform
+	-rm -f transactions.csv
 
 pytest_coverage:
 	-rm -r .featureform
@@ -232,7 +234,7 @@ test_pandas:
 
 
 ##############################################  GO TESTS ###############################################################
-test_offline: gen_grpc 					## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark )`
+test_offline: gen_grpc 					## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark | clickhouse)`
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage
 	go test -v -parallel 1000 -timeout 60m -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider --tags=offline,filepath --provider=$(provider)
@@ -317,7 +319,7 @@ cleanup_coordinator:
 	-docker kill redis
 	-docker rm redis
 
-test_healthchecks: ## Run health check tests. Run with `make test_healthchecks provider=(redis | postgres | snowflake | dynamo | spark )`
+test_healthchecks: ## Run health check tests. Run with `make test_healthchecks provider=(redis | postgres | snowflake | dynamo | spark | clickhouse)`
 	@echo "These tests require a .env file. Please Check .env-template for possible variables"
 	-mkdir coverage
 	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./health --tags=health --provider=$(provider)
@@ -334,7 +336,7 @@ test_importable_online: ## Run importable online table tests. Run with `make tes
 containers: gen_grpc						## Build Docker containers for Minikube
 	minikube image build --v=3 -f ./api/Dockerfile . -t local/api-server:stable & \
 	minikube image build --v=3 -f ./dashboard/Dockerfile . -t local/dashboard:stable & \
-	minikube image build --v=3 -f ./coordinator/Dockerfile.old --build-opt=build-arg=TESTING=True . -t local/coordinator:stable & \
+	minikube image build --v=3 -f ./coordinator/Dockerfile --build-opt=build-arg=TESTING=True . -t local/coordinator:stable & \
 	minikube image build --v=3 -f ./metadata/Dockerfile . -t local/metadata:stable & \
 	minikube image build --v=3 -f ./metadata/dashboard/Dockerfile . -t local/metadata-dashboard:stable & \
 	minikube image build --v=3 -f ./serving/Dockerfile . -t local/serving:stable & \

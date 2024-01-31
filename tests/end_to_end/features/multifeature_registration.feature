@@ -4,6 +4,7 @@ Feature: MultiFeature Registration
   Scenario: Registering all but one feature from one table
     Given Featureform is installed
     When I register postgres
+    And I generate a random variant name
     And I register a table from postgres
     And I create a "hosted" "insecure" client for "localhost:7878"
     And I create a dataframe from a serving client
@@ -15,6 +16,7 @@ Feature: MultiFeature Registration
   Scenario: Registering three features from one large table
     Given Featureform is installed
     When I register postgres
+    And I generate a random variant name
     And I register a table from postgres
     And I create a "hosted" "insecure" client for "localhost:7878"
     And I create a dataframe from a serving client

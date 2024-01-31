@@ -1238,6 +1238,26 @@ func (store *bqOfflineStore) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 
+func (store *bqOfflineStore) ResourceLocation(id ResourceID) (string, error) {
+	if exists, err := store.tableExists(id); err != nil {
+		return "", fmt.Errorf("could not check if table exists: %v", err)
+	} else if !exists {
+		return "", fmt.Errorf("table does not exist: %v", id)
+	}
+
+	var tableName string
+	var err error
+	if id.check(Feature, Label) == nil {
+		tableName, err = store.getResourceTableName(id)
+	} else if id.check(TrainingSet) == nil {
+		tableName, err = store.getTrainingSetName(id)
+	} else if id.check(Primary) == nil || id.check(Transformation) == nil {
+		tableName, err = GetPrimaryTableName(id)
+	}
+
+	return tableName, err
+}
+
 type bqTrainingRowsIterator struct {
 	iter            *bigquery.RowIterator
 	currentFeatures []interface{}

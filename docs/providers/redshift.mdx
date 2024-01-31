@@ -32,7 +32,7 @@ You will use the Postgres registration to set up a connection to the target Reds
 ```py redshift\_config.py
 import featureform as ff
 
-ff.register_postgres(
+ff.register_redshift(
     name = "redshift_docs",
     description = "Example offline store store",
     team = "Featureform",

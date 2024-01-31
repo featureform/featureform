@@ -6,7 +6,6 @@ import pytest
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),

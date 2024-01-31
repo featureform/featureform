@@ -3708,34 +3708,6 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineK8sProvider(self, provider)
 
-    def register_local(self):
-        """Register a Local provider.
-        The local provider is automatically registered when Featureform is imported. This method is not needed in most
-        cases.
-
-        **Examples**:
-        ```
-        local = ff.register_local()
-        ```
-
-        Returns:
-            local (LocalProvider): Provider
-        """
-        config = LocalConfig()
-        provider = Provider(
-            name="local-mode",
-            function="LOCAL_ONLINE",
-            description="This is local mode",
-            team="team",
-            config=config,
-            tags=["local-mode"],
-            properties={"resource_type": "Provider"},
-        )
-        self.__resources.append(provider)
-        local_provider = LocalProvider(self, provider)
-        local_provider.insert_provider()
-        return local_provider
-
     def register_primary_data(
         self,
         name: str,

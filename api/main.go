@@ -946,8 +946,8 @@ func (serv *ApiServer) Serve() error {
 	}
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(fferr.UnaryClientInterceptor()),
-		grpc.WithStreamInterceptor(fferr.StreamClientInterceptor()),
+		// grpc.WithUnaryInterceptor(fferr.UnaryClientInterceptor()),
+		// grpc.WithStreamInterceptor(fferr.StreamClientInterceptor()),
 	}
 	metaConn, err := grpc.Dial(serv.metadata.address, opts...)
 	if err != nil {

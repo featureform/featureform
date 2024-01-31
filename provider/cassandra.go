@@ -113,9 +113,9 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 	tableName := GetTableName(store.keyspace, feature, variant)
 	vType := cassandraTypeMap[string(valueType.Scalar())]
 	key := cassandraTableKey{store.keyspace, feature, variant}
-	table, err := store.GetTable(feature, variant)
-	if err != nil {
-		return nil, err
+	table, _ := store.GetTable(feature, variant)
+	if table != nil {
+		return nil, fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
 	}
 	if table != nil {
 		wrapped := fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
@@ -125,7 +125,7 @@ func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueTyp
 
 	metadataTableName := GetMetadataTableName(store.keyspace)
 	query := fmt.Sprintf("INSERT INTO %s (tableName, tableType) VALUES (?, ?)", metadataTableName)
-	err = store.session.Query(query, tableName, string(valueType.Scalar())).WithContext(context.TODO()).Exec()
+	err := store.session.Query(query, tableName, string(valueType.Scalar())).WithContext(context.TODO()).Exec()
 	if err != nil {
 		wrapped := fferr.NewResourceExecutionError(pt.CassandraOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 		wrapped.AddDetail("table_name", tableName)

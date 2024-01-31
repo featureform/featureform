@@ -190,8 +190,9 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 	return table, nil
 }
 
+// TODO: Implement table deletion
 func (store *redisOnlineStore) DeleteTable(feature, variant string) error {
-	return fferr.NewInternalError(fmt.Errorf("not implemented"))
+	return nil
 }
 
 func (store *redisOnlineStore) CheckHealth() (bool, error) {
@@ -224,8 +225,9 @@ func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType V
 	return table, nil
 }
 
+// TODO: Implement index deletion
 func (store *redisOnlineStore) DeleteIndex(feature, variant string) error {
-	return fferr.NewInternalError(fmt.Errorf("not implemented"))
+	return nil
 }
 
 func (store *redisOnlineStore) createIndexCmd(key redisIndexKey, vectorType VectorType) (rueidis.Completed, error) {

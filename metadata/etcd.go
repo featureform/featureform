@@ -168,7 +168,7 @@ func (s EtcdStorage) Put(key string, value string) error {
 }
 
 func (s EtcdStorage) genericGet(key string, withPrefix bool) (*clientv3.GetResponse, error) {
-	if key == "" {
+	if key == "" && !withPrefix {
 		return nil, fferr.NewInvalidArgument(fmt.Errorf("key cannot be empty"))
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)

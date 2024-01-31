@@ -123,17 +123,14 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 }
 
 func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
-	table, err := store.GetTable(feature, variant)
+	table, _ := store.GetTable(feature, variant)
 	if table != nil {
 		return nil, fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
-	}
-	if err != nil {
-		return nil, fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
 
 	key := firestoreTableKey{store.collection.ID, feature, variant}
 	tableName := key.String()
-	_, err = store.collection.Doc(tableName).Set(context.TODO(), map[string]interface{}{})
+	_, err := store.collection.Doc(tableName).Set(context.TODO(), map[string]interface{}{})
 	if err != nil {
 		return nil, fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}

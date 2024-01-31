@@ -67,6 +67,7 @@ type GRPCError interface {
 	ToErr() error
 	AddDetail(key, value string)
 	Error() string
+	Stack() JSONStackTrace
 }
 
 func FromErr(err error) GRPCError {
@@ -201,4 +202,8 @@ func (e *baseGRPCError) AddDetail(key, value string) {
 
 func (e *baseGRPCError) Error() string {
 	return e.GenericError.Error()
+}
+
+func (e *baseGRPCError) Stack() JSONStackTrace {
+	return e.GenericError.Stack()
 }

@@ -3,9 +3,22 @@ package fferr
 import (
 	"errors"
 
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
+
+var logger *zap.SugaredLogger
+
+func init() {
+	baseLogger, err := zap.NewDevelopment(
+		zap.AddStacktrace(zap.ErrorLevel),
+	)
+	if err != nil {
+		panic(err)
+	}
+	logger = baseLogger.Sugar().Named("fferr")
+}
 
 // ErrorHandlingInterceptor is a server interceptor for handling errors
 func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
@@ -15,6 +28,7 @@ func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.Una
 	if err != nil {
 		var grpcErr GRPCError
 		if errors.As(err, &grpcErr) {
+			logger.Errorw("GRPCError", "error", grpcErr, "method", info.FullMethod, "request", req, "response", h, "stackTrace", grpcErr.Stack())
 			return h, grpcErr.ToErr()
 		}
 	}
@@ -29,6 +43,7 @@ func StreamServerInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.S
 	if err != nil {
 		var grpcErr GRPCError
 		if errors.As(err, &grpcErr) {
+			logger.Errorw("GRPCError", "error", grpcErr, "method", info.FullMethod, "stackTrace", grpcErr.Stack())
 			return grpcErr.ToErr()
 		}
 	}

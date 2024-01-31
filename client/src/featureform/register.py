@@ -1,6 +1,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+import os
 import ast
 import inspect
 import warnings
@@ -4511,8 +4512,7 @@ class ResourceClient:
     (entities, providers, features, labels, training sets, models, users).
 
     Args:
-        host (str): The hostname of the Featureform instance. Exclude if using Localmode.
-        local (bool): True if using Localmode.
+        host (str): The hostname of the Featureform instance.
         insecure (bool): True if connecting to an insecure Featureform endpoint. False if using a self-signed or public TLS certificate
         cert_path (str): The path to a public certificate if using a self-signed certificate.
 
@@ -4531,6 +4531,11 @@ class ResourceClient:
     def __init__(
         self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
     ):
+        if local:
+            raise Exception(
+                "Local mode is not supported in this version. Use featureform <= 1.12.0 for localmode"
+            )
+
         # This line ensures that the warning is only raised if ResourceClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
         is_instantiated_directed = inspect.stack()[1].function != "__init__"
@@ -4546,21 +4551,18 @@ class ResourceClient:
         if dry_run:
             return
 
-        if local and host:
-            raise ValueError("Cannot be local and have a host")
-        elif not local:
-            host = host or os.getenv("FEATUREFORM_HOST")
-            if host is None:
-                raise RuntimeError(
-                    "If not in local mode then `host` must be passed or the environment"
-                    " variable FEATUREFORM_HOST must be set."
-                )
-            if insecure:
-                channel = insecure_channel(host)
-            else:
-                channel = secure_channel(host, cert_path)
-            self._stub = ff_grpc.ApiStub(channel)
-            self._host = host
+        host = host or os.getenv("FEATUREFORM_HOST")
+        if host is None:
+            raise RuntimeError(
+                "If not in local mode then `host` must be passed or the environment"
+                " variable FEATUREFORM_HOST must be set."
+            )
+        if insecure:
+            channel = insecure_channel(host)
+        else:
+            channel = secure_channel(host, cert_path)
+        self._stub = ff_grpc.ApiStub(channel)
+        self._host = host
 
     def apply(self, asynchronous=False, verbose=False):
         """

@@ -410,21 +410,6 @@ def test_assert_query_contains_at_least_one_source(sql_query, expected_valid_sql
         dec._assert_query_contains_at_least_one_source(sql_query)
 
 
-def test_state_not_clearing_after_resource_not_defined():
-    ff.local.register_file(name="a", path="a.csv")
-
-    ff.local.register_file(name="a", path="b.csv")
-
-    client = ff.Client(local=True)
-
-    with pytest.raises(ResourceRedefinedError):
-        client.apply()  # should clear state after
-
-    ff.local.register_file(name="a", path="a.csv")
-
-    client.apply()  # should throw no error, previously this was a bug
-
-
 @pytest.mark.parametrize(
     "bucket_name, expected_error",
     [

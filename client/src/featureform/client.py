@@ -4,7 +4,6 @@ from .constants import NO_RECORD_LIMIT
 from .register import (
     ResourceClient,
     SourceRegistrar,
-    LocalSource,
     SubscriptableTransformation,
     FeatureColumnResource,
 )
@@ -34,6 +33,11 @@ class Client(ResourceClient, ServingClient):
     def __init__(
         self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
     ):
+        if local:
+            raise Exception(
+                "Local mode is not supported in this version. Use featureform <= 1.12.0 for localmode"
+            )
+
         if host is not None:
             self._validate_host(host)
 
@@ -54,7 +58,7 @@ class Client(ResourceClient, ServingClient):
 
     def dataframe(
         self,
-        source: Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str],
+        source: Union[SourceRegistrar, SubscriptableTransformation, str],
         variant: Optional[str] = None,
         limit=NO_RECORD_LIMIT,
         asynchronous=False,
@@ -71,7 +75,7 @@ class Client(ResourceClient, ServingClient):
         ```
 
         Args:
-            source (Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
+            source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
             variant (str): The source variant; can't be None if source is a string
             limit (int): The maximum number of records to return; defaults to NO_RECORD_LIMIT
             asynchronous (bool): Flag to determine whether the client should wait for resources to be in either a READY or FAILED state before returning. Defaults to False to ensure that newly registered resources are in a READY state prior to serving them as dataframes.
@@ -81,9 +85,7 @@ class Client(ResourceClient, ServingClient):
 
         """
         self.apply(asynchronous=asynchronous, verbose=verbose)
-        if isinstance(
-            source, (SourceRegistrar, LocalSource, SubscriptableTransformation)
-        ):
+        if isinstance(source, (SourceRegistrar, SubscriptableTransformation)):
             name, variant = source.name_variant()
         elif isinstance(source, str):
             name = source
@@ -93,7 +95,7 @@ class Client(ResourceClient, ServingClient):
                 raise ValueError("variant cannot be an empty string")
         else:
             raise ValueError(
-                f"source must be of type SourceRegistrar, LocalSource, SubscriptableTransformation or str, not {type(source)}\n"
+                f"source must be of type SourceRegistrar, SubscriptableTransformation or str, not {type(source)}\n"
                 "use client.dataframe(name, variant) or client.dataframe(source) or client.dataframe(transformation)"
             )
         return self.impl._get_source_as_df(name, variant, limit)
@@ -133,7 +135,7 @@ class Client(ResourceClient, ServingClient):
 
     def location(
         self,
-        source: Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str],
+        source: Union[SourceRegistrar, SubscriptableTransformation, str],
         variant: Optional[str] = None,
         resource_type: Optional[ResourceType] = None,
     ):
@@ -147,13 +149,11 @@ class Client(ResourceClient, ServingClient):
         ```
 
         Args:
-            source (Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
+            source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
             variant (str): The source variant; can't be None if source is a string
             type (ResourceType): The type of resource; can be one of ff.SOURCE, ff.FEATURE, ff.LABEL, or ff.TRAINING_SET
         """
-        if isinstance(
-            source, (SourceRegistrar, LocalSource, SubscriptableTransformation)
-        ):
+        if isinstance(source, (SourceRegistrar, SubscriptableTransformation)):
             name, variant = source.name_variant()
             resource_type = ResourceType.SOURCE
         elif isinstance(source, str):
@@ -170,7 +170,7 @@ class Client(ResourceClient, ServingClient):
 
         else:
             raise ValueError(
-                f"source must be of type SourceRegistrar, LocalSource, SubscriptableTransformation or str, not {type(resource)}\n"
+                f"source must be of type SourceRegistrar, SubscriptableTransformation or str, not {type(resource)}\n"
                 "use client.dataframe(name, variant) or client.dataframe(source) or client.dataframe(transformation)"
             )
 
@@ -179,7 +179,7 @@ class Client(ResourceClient, ServingClient):
 
     def close(self):
         """
-        Closes the client, closes channel for hosted mode and db for local mode
+        Closes the client, closes channel for hosted mode
         """
         self.impl.close()
 

@@ -8,7 +8,6 @@ import pytest
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
@@ -48,7 +47,6 @@ def test_simple_search(provider_source_fxt, is_local, is_insecure, request):
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
@@ -84,7 +82,6 @@ def test_special_character_search(provider_source_fxt, is_local, is_insecure, re
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
@@ -113,7 +110,6 @@ def test_empty_query_to_search(provider_source_fxt, is_local, is_insecure, reque
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),

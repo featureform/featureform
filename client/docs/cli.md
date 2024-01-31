@@ -36,16 +36,6 @@ Upon success, all definitions in the **definitions.py** (or whatever you choose 
 
 After applying new resource definitions, you can use the **GET** command to see the status of the resources you applied. A resource with the status **READY** is available for serving.
 
-## Dashboard
-
-```shell
-featureform dash
-```
-
-The **DASH** command is used to access the featureform dashboard. It returns a URL to the locally hosted dashboard.
-
-The dashboard can be viewed at `http://localhost:3000` in your browser
-
 
 ## Get
 
@@ -169,12 +159,6 @@ featureform list users --insecure --host $FEATUREFORM_HOST
 
 The commands are both valid ways to retrieve a list of users. The first is when the user uses a self-signed cert.
 
-The following uses the local flag to access resources created and stored in localmode:
-
-``` shell
-featureform list users –-local
-```
-
 The above commands return the following list of users which have been registered:
 
 ```shell
@@ -188,12 +172,6 @@ featureformer      ready
 ```shell
 featureform list features --host $FEATUREFORM_HOST --cert $FEATUREFORM_CERT
 featureform list features --insecure --host $FEATUREFORM_HOST
-```
-
-In localmode:
-
-```shell
-featureform list features –-local
 ```
 
 The given commands return the list of registered features and their variants

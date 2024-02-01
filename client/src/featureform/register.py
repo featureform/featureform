@@ -1656,7 +1656,9 @@ class Registrar:
             source (ColumnSourceRegistrar): Source
         """
         if local:
-            raise Exception("Localmode is not supported; please try featureform <= 1.12.0")
+            raise Exception(
+                "Localmode is not supported; please try featureform <= 1.12.0"
+            )
         else:
             mock_definition = PrimaryData(location=SQLTable(name=""))
             mock_source = SourceVariant(

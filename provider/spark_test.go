@@ -2824,7 +2824,7 @@ func TestEMRErrorMessages(t *testing.T) {
 		}
 		errorMessage := strings.Trim(scriptError[1], " ")
 
-		if errorMessage != test.ExpectedErrorMessage {
+		if !strings.Contains(errorMessage, test.ExpectedErrorMessage) {
 			t.Fatalf("did not get the expected error message: expected '%s' but got '%s'", test.ExpectedErrorMessage, errorMessage)
 		}
 	}

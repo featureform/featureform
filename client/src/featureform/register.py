@@ -1661,15 +1661,7 @@ class Registrar:
             source (ColumnSourceRegistrar): Source
         """
         if local:
-            return LocalSource(
-                self,
-                name=name,
-                owner="",
-                variant=variant,
-                provider="",
-                description="",
-                path="",
-            )
+            raise Exception("Localmode is not supported; please try featureform <= 1.12.0")
         else:
             mock_definition = PrimaryData(location=SQLTable(name=""))
             mock_source = SourceVariant(
@@ -1684,17 +1676,6 @@ class Registrar:
                 properties={},
             )
             return ColumnSourceRegistrar(self, mock_source)
-
-    def get_local_provider(self, name="local-mode"):
-        mock_config = LocalConfig()
-        mock_provider = Provider(
-            name=name,
-            function="LOCAL_ONLINE",
-            description="",
-            team="",
-            config=mock_config,
-        )
-        return LocalProvider(self, mock_provider)
 
     def get_redis(self, name):
         """Get a Redis provider. The returned object can be used to register additional resources.
@@ -4167,7 +4148,6 @@ class ResourceClient:
             if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
                 set_run("")
             clear_state()
-            register_local()
 
     def get_user(self, name, local=False):
         """Get a user. Prints out name of user, and all resources associated with the user.
@@ -5549,7 +5529,6 @@ register_k8s = global_registrar.register_k8s
 register_s3 = global_registrar.register_s3
 register_hdfs = global_registrar.register_hdfs
 register_gcs = global_registrar.register_gcs
-register_local = global_registrar.register_local
 register_entity = global_registrar.register_entity
 register_column_resources = global_registrar.register_column_resources
 register_training_set = global_registrar.register_training_set

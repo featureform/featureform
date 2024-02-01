@@ -9,7 +9,6 @@ from featureform import ResourceRedefinedError, InvalidSQLQuery
 sys.path.insert(0, "client/src/")
 import pytest
 from featureform.register import (
-    LocalProvider,
     Provider,
     Registrar,
     LocalConfig,
@@ -67,7 +66,7 @@ def local():
         tags=[],
         properties={},
     )
-    return LocalProvider(Registrar(), provider)
+    return provider
 
 
 @pytest.fixture

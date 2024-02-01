@@ -8,7 +8,6 @@ from featureform.register import (
     OfflineSparkProvider,
     OfflineK8sProvider,
     Registrar,
-    LocalProvider,
 )
 
 from featureform.resources import AWSCredentials, GCPCredentials, SparkCredentials
@@ -381,7 +380,3 @@ def test_register_k8s():
     )
     assert isinstance(result, OfflineK8sProvider)
 
-
-@pytest.mark.local
-def test_register_local():
-    assert isinstance(Registrar().register_local(), LocalProvider)

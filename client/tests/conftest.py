@@ -306,23 +306,6 @@ def s3(aws_credentials):
 
 
 @pytest.fixture(scope="module")
-def local_provider_source():
-    # empty param to match the signature of the other fixtures
-    def get_local(_, file_format=FileFormat.CSV.value):
-        ff.register_user("test_user").make_default_owner()
-        provider = ff.register_local()
-        source = provider.register_file(
-            name="transactions",
-            variant="quickstart",
-            description="A dataset of fraudulent transactions.",
-            path=f"{dir_path}/test_files/input_files/transactions.{file_format}",
-        )
-        return (provider, source, None)
-
-    return get_local
-
-
-@pytest.fixture(scope="module")
 def serving_client():
     def get_clients_for_context(is_local, is_insecure):
         return ff.ServingClient(local=is_local, insecure=is_insecure)

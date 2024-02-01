@@ -174,7 +174,7 @@ func (e *baseGRPCError) Error() string {
 	}
 	msg = fmt.Sprintf("%sDetails:\n", msg)
 	for k, v := range e.details {
-		msg = fmt.Sprintf("%s\t%s: %s\n", msg, k, v)
+		msg = fmt.Sprintf("%s*%s: %s\n", msg, k, v)
 	}
 	return msg
 }

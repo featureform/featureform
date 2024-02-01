@@ -8,7 +8,8 @@ from featureform.resources import Entity, FeatureVariant, LabelVariant
 
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
-    [        pytest.param(
+    [
+        pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
         pytest.param(

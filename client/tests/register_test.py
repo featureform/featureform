@@ -71,7 +71,6 @@ def return_5():
     return 5
 
 
-
 @pytest.mark.parametrize(
     "sql_query, expected_query, inputs",
     [

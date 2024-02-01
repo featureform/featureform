@@ -139,8 +139,6 @@ def list(host, cert, insecure, resource_type):
         raise ValueError("Resource type not found")
 
 
-
-
 @cli.command()
 def version():
     client_version = get_package_version()

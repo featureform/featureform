@@ -575,6 +575,7 @@ class FileStoreProvider:
     def config(self):
         return self.__config
 
+
 class SourceRegistrar:
     def __init__(self, registrar, source):
         self.__registrar = registrar
@@ -1656,18 +1657,17 @@ class Registrar:
         """
         mock_definition = PrimaryData(location=SQLTable(name=""))
         mock_source = SourceVariant(
-                created=None,
-                name=name,
-                variant=variant,
-                definition=mock_definition,
-                owner="",
-                provider="",
-                description="",
-                tags=[],
-                properties={},
+            created=None,
+            name=name,
+            variant=variant,
+            definition=mock_definition,
+            owner="",
+            provider="",
+            description="",
+            tags=[],
+            properties={},
         )
         return ColumnSourceRegistrar(self, mock_source)
-
 
     def get_redis(self, name):
         """Get a Redis provider. The returned object can be used to register additional resources.
@@ -3265,7 +3265,6 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineK8sProvider(self, provider)
 
-
     def register_primary_data(
         self,
         name: str,
@@ -4126,7 +4125,6 @@ class ResourceClient:
             if self._dry_run:
                 print(resource_state.sorted_list())
                 return
-
 
             resource_state.create_all(
                 self._stub, global_registrar.get_client_objects_for_resource()
@@ -5131,9 +5129,7 @@ class ResourceClient:
         """
         model_protos = list_name(self._stub, "model")
         # TODO: apply values from proto
-        models = [
-            Model(proto.name, tags=[], properties={}) for proto in model_protos
-        ]
+        models = [Model(proto.name, tags=[], properties={}) for proto in model_protos]
 
         return models
 

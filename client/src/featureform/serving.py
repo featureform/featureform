@@ -292,6 +292,7 @@ class HostedClientImpl:
     def close(self):
         self._channel.close()
 
+
 class Stream:
     def __init__(self, stub, name, version, model: Union[str, Model] = None):
         req = serving_pb2.TrainingDataRequest()

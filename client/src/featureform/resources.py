@@ -761,7 +761,6 @@ class EmptyConfig:
         return self
 
 
-
 Config = Union[
     RedisConfig,
     PineconeConfig,
@@ -1176,7 +1175,6 @@ class SourceVariant(ResourceVariant):
         stub.CreateSourceVariant(serialized)
         return serialized.variant
 
-
     def get_status(self):
         return ResourceStatus(self.status)
 
@@ -1212,7 +1210,6 @@ class Entity:
             properties=Properties(self.properties).serialized,
         )
         stub.CreateEntity(serialized)
-
 
     def to_dictionary(self):
         return {
@@ -1381,7 +1378,6 @@ class FeatureVariant(ResourceVariant):
         stub.CreateFeatureVariant(serialized)
         return serialized.variant
 
-
     def get_status(self):
         return ResourceStatus(self.status)
 
@@ -1442,7 +1438,6 @@ class OnDemandFeatureVariant:
         _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
         return serialized.variant
-
 
     def get(self, stub) -> "OnDemandFeatureVariant":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
@@ -1593,6 +1588,7 @@ class EntityReference:
         except grpc._channel._MultiThreadedRendezvous:
             raise ValueError(f"Entity {self.name} not found.")
 
+
 @typechecked
 @dataclass
 class ProviderReference:
@@ -1618,6 +1614,7 @@ class ProviderReference:
                 f"Provider {self.name} of type {self.provider_type} not found."
             )
 
+
 @typechecked
 @dataclass
 class SourceReference:
@@ -1642,6 +1639,7 @@ class SourceReference:
                 self.obj = source
         except grpc._channel._MultiThreadedRendezvous:
             raise ValueError(f"Source {self.name}, variant {self.variant} not found.")
+
 
 @typechecked
 @dataclass
@@ -1797,8 +1795,6 @@ class Model:
             properties=Properties(self.properties).serialized,
         )
         stub.CreateModel(serialized)
-
-
 
     def to_dictionary(self):
         return {

@@ -997,7 +997,7 @@ jobs:
           path: ./coverage
 
   localmode:
-    name: Test Localmode
+    name: Test Client
     needs: setup
     runs-on: ${{ matrix.os }}
     if: github.ref != 'refs/heads/main'
@@ -1042,36 +1042,16 @@ jobs:
       - name: Run Tests
         run: pytest -vv -s
 
-  client-coverage:
-    name: Client Test Coverage
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
+      - name: Upload Coverage Report
+        uses: codecov/codecov-action@v2
+        if: matrix.os == 'macos-latest' && matrix.python-version == '3.10'
         with:
-          name: compiled-workdir
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.9"
+          token: ${{ secrets.CODECOV_TOKEN }}
+          root_dir: ./
+          files: ./coverage.xml
+          name: client-coverage
+          verbose: true
 
-      - name: Install pytest and pytest-cov
-        run: pip install pytest protobuf==3.20.1 python-dotenv pytest-mock pytest-cov psutil
-
-      - name: Install featureform
-        run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
-
-      - name: Generate Coverage Report
-        run: make pytest_coverage
-
-#      - name: Upload Coverage Report
-#        uses: codecov/codecov-action@v2
-#        with:
-#          token: ${{ secrets.CODECOV_TOKEN }}
-#          root_dir: ./
-#          files: ./coverage.xml
-#          name: client-coverage
-#          verbose: true
 
 #  notebook:
 #    name: Test Notebook

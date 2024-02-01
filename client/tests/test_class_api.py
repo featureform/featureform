@@ -8,9 +8,7 @@ from featureform.resources import Entity, FeatureVariant, LabelVariant
 
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
-    [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
-        pytest.param(
+    [        pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
         pytest.param(
@@ -63,7 +61,6 @@ def _update_sources_to_name_variant(resources):
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local",
     [
-        pytest.param("local_provider_source", True, marks=pytest.mark.local),
         pytest.param("hosted_sql_provider_and_source", False, marks=pytest.mark.hosted),
         pytest.param("hosted_sql_provider_and_source", False, marks=pytest.mark.docker),
     ],
@@ -136,7 +133,6 @@ def test_subscriptable_transformation_decorator_method_call():
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local",
     [
-        pytest.param("local_provider_source", True, marks=pytest.mark.local),
         pytest.param("hosted_sql_provider_and_source", False, marks=pytest.mark.hosted),
         pytest.param("hosted_sql_provider_and_source", False, marks=pytest.mark.docker),
     ],
@@ -155,7 +151,6 @@ def test_indexing_with_fewer_than_two_columns(provider_source_fxt, is_local, req
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local",
     [
-        pytest.param("local_provider_source", True, marks=pytest.mark.local),
         pytest.param("hosted_sql_provider_and_source", False, marks=pytest.mark.hosted),
         pytest.param("hosted_sql_provider_and_source", False, marks=pytest.mark.docker),
     ],
@@ -182,7 +177,6 @@ def test_indexing_with_more_than_three_columns(provider_source_fxt, is_local, re
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local",
     [
-        pytest.param("local_provider_source", True, marks=pytest.mark.local),
         pytest.param("hosted_sql_provider_and_source", False, marks=pytest.mark.hosted),
         pytest.param("hosted_sql_provider_and_source", False, marks=pytest.mark.docker),
     ],

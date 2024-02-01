@@ -3,7 +3,6 @@ import pytest
 
 from featureform.register import (
     EntityRegistrar,
-    LocalProvider,
     OnlineProvider,
     FileStoreProvider,
     OfflineSQLProvider,
@@ -22,13 +21,6 @@ def test_registrar_get_source():
     reg = Registrar()
     result = reg.get_source(name="name", variant="variant")
     assert isinstance(result, ColumnSourceRegistrar)
-
-
-@pytest.mark.local
-def test_registrar_get_local_provider():
-    reg = Registrar()
-    result = reg.get_local_provider(name="unit-test")
-    assert isinstance(result, LocalProvider)
 
 
 @pytest.mark.local

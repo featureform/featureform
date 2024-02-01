@@ -60,3 +60,4 @@ transactions.csv
 # Docker Deploy
 featureform_quickstart
 quickstart
+.coverage*

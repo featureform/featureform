@@ -13,9 +13,7 @@ from .client import Client
 from .deploy import (
     DockerDeployment,
 )
-from .list import *
-from .get import *
-from .dashboard_metadata import dashboard_app
+
 from .version import get_package_version
 from .tls import get_version_hosted
 
@@ -141,8 +139,6 @@ def list(host, cert, insecure, resource_type):
         raise ValueError("Resource type not found")
 
 
-app = Flask(__name__)
-app.register_blueprint(dashboard_app)
 
 
 @cli.command()

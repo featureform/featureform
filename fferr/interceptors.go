@@ -3,6 +3,7 @@ package fferr
 import (
 	"errors"
 
+	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
@@ -12,7 +13,11 @@ import (
 var logger *zap.SugaredLogger
 
 func init() {
-	logger = logging.NewStackTraceLogger("fferr")
+	if shouldUseStackTraceLogger := helpers.GetEnvBool("FEATUREFORM_DEBUG", false); shouldUseStackTraceLogger {
+		logger = logging.NewStackTraceLogger("fferr")
+	} else {
+		logger = logging.NewLogger("fferr")
+	}
 }
 
 // ErrorHandlingInterceptor is a server interceptor for handling errors

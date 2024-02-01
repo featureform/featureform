@@ -1037,7 +1037,7 @@ jobs:
         run: pip install -r pytest-requirements.txt
 
       - name: Install featureform
-        run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
+        run: pip install client/dist/featureform-0.0.0-py3-none-any.whl pytest-cov
 
       - name: Run Tests
         run: pytest -vv -s

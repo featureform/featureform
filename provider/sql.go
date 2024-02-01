@@ -161,14 +161,14 @@ func (store *sqlOfflineStore) tableExists(id ResourceID) (bool, error) {
 	if n > 0 && err == nil {
 		return true, nil
 	} else if err != nil {
-		return false, err
+		return false, fferr.NewExecutionError(store.Type().String(), err)
 	}
 	query = store.query.viewExists()
 	err = store.db.QueryRow(query, tableName).Scan(&n)
 	if n > 0 && err == nil {
 		return true, nil
 	} else if err != nil {
-		return false, err
+		return false, fferr.NewExecutionError(store.Type().String(), err)
 	}
 	return false, nil
 }
@@ -247,6 +247,9 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sour
 	}
 
 	columnNames, err := store.query.getColumns(store.db, tableName)
+	if err != nil {
+		return nil, err
+	}
 
 	return &sqlPrimaryTable{
 		db:     store.db,

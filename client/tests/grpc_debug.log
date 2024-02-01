@@ -1,0 +1,16 @@
+DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): controller.us-west1-gcp.pinecone.io:443
+DEBUG:urllib3.connectionpool:https://controller.us-west1-gcp.pinecone.io:443 "GET /actions/whoami HTTP/1.1" 200 57
+DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): controller.us-west1-gcp.pinecone.io:443
+DEBUG:urllib3.connectionpool:https://controller.us-west1-gcp.pinecone.io:443 "GET /actions/whoami HTTP/1.1" 200 57
+DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): controller.us-west1-gcp.pinecone.io:443
+DEBUG:urllib3.connectionpool:https://controller.us-west1-gcp.pinecone.io:443 "GET /actions/whoami HTTP/1.1" 200 57
+DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): controller.us-west1-gcp.pinecone.io:443
+DEBUG:urllib3.connectionpool:https://controller.us-west1-gcp.pinecone.io:443 "GET /actions/whoami HTTP/1.1" 200 57
+DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): controller.us-west1-gcp.pinecone.io:443
+DEBUG:urllib3.connectionpool:https://controller.us-west1-gcp.pinecone.io:443 "GET /actions/whoami HTTP/1.1" 200 57
+DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): controller.us-west1-gcp.pinecone.io:443
+DEBUG:urllib3.connectionpool:https://controller.us-west1-gcp.pinecone.io:443 "GET /actions/whoami HTTP/1.1" 200 57
+DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): controller.us-west1-gcp.pinecone.io:443
+DEBUG:urllib3.connectionpool:https://controller.us-west1-gcp.pinecone.io:443 "GET /actions/whoami HTTP/1.1" 200 57
+DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): controller.us-west1-gcp.pinecone.io:443
+DEBUG:urllib3.connectionpool:https://controller.us-west1-gcp.pinecone.io:443 "GET /actions/whoami HTTP/1.1" 200 57

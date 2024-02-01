@@ -2,6 +2,7 @@ package fferr
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/rotisserie/eris"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
@@ -76,6 +77,9 @@ func FromErr(err error) GRPCError {
 	if err == nil {
 		return nil
 	}
+	if grpcError, ok := err.(GRPCError); ok {
+		return grpcError
+	}
 	st, ok := status.FromError(err)
 	if !ok {
 		return NewInternalError(err)
@@ -92,63 +96,26 @@ func FromErr(err error) GRPCError {
 	// and return it
 	for _, detail := range st.Details() {
 		if errorInfo, ok := detail.(*errdetails.ErrorInfo); ok {
-			baseGRPCError := baseGRPCError{
+			errorMsg := err.Error()
+			// This addresses the edge case where we receive a status error from another service and persist the
+			// error message to ETCD, which currently only occurs in the coordinator service. If the error message
+			// contains "rpc error:", we'll just return an empty string and let the GRPCError implementation of Error()
+			// handle the error message
+			if strings.Contains(err.Error(), "rpc error:") {
+				errorMsg = ""
+			}
+			grpcError = &baseGRPCError{
 				code:      st.Code(),
 				errorType: errorInfo.Reason,
 				GenericError: GenericError{
-					msg:     err.Error(),
+					msg:     errorMsg,
 					err:     eris.New(err.Error()),
 					details: errorInfo.Metadata,
 				},
 			}
-			switch errorInfo.Reason {
-			case KEY_NOT_FOUND:
-				grpcError = &KeyNotFoundError{baseGRPCError}
-			case EXECUTION_ERROR:
-				grpcError = &ExecutionError{baseGRPCError}
-			case CONNECTION_ERROR:
-				grpcError = &ConnectionError{baseGRPCError}
-			case DATASET_NOT_FOUND:
-				grpcError = &DatasetNotFoundError{baseGRPCError}
-			case DATASET_ALREADY_EXISTS:
-				grpcError = &DatasetAlreadyExistsError{baseGRPCError}
-			case DATATYPE_NOT_FOUND:
-				grpcError = &DataTypeNotFoundError{baseGRPCError}
-			case TRANSFORMATION_NOT_FOUND:
-				grpcError = &TransformationNotFoundError{baseGRPCError}
-			case ENTITY_NOT_FOUND:
-				grpcError = &EntityNotFoundError{baseGRPCError}
-			case FEATURE_NOT_FOUND:
-				grpcError = &FeatureNotFoundError{baseGRPCError}
-			case TRAINING_SET_NOT_FOUND:
-				grpcError = &TrainingSetNotFoundError{baseGRPCError}
-			case INVALID_RESOURCE_TYPE:
-				grpcError = &InvalidResourceTypeError{baseGRPCError}
-			case INVALID_RESOURCE_NAME_VARIANT:
-				grpcError = &InvalidResourceNameVariantError{baseGRPCError}
-			case INVALID_FILE_TYPE:
-				grpcError = &InvalidFileTypeError{baseGRPCError}
-			case RESOURCE_CHANGED:
-				grpcError = &ResourceChangedError{baseGRPCError}
-			case INTERNAL_ERROR:
-				grpcError = &InternalError{baseGRPCError}
-			case INVALID_ARGUMENT:
-				grpcError = &InvalidArgument{baseGRPCError}
-			case JOB_DOES_NOT_EXIST:
-				grpcError = &JobDoesNotExistError{baseGRPCError}
-			case JOB_ALREADY_EXISTS:
-				grpcError = &JobAlreadyExistsError{baseGRPCError}
-			case RESOURCE_ALREADY_COMPLETE:
-				grpcError = &ResourceAlreadyCompleteError{baseGRPCError}
-			case RESOURCE_ALREADY_FAILED:
-				grpcError = &ResourceAlreadyFailedError{baseGRPCError}
-			case RESOURCE_NOT_READY:
-				grpcError = &ResourceNotReadyError{baseGRPCError}
-			case RESOURCE_FAILED:
-				grpcError = &ResourceFailedError{baseGRPCError}
-			default:
-				grpcError = &InternalError{baseGRPCError}
-			}
+			// If there's a need to return a public implementation of GRPCError (e.g. InvalidArgument)
+			// we can add a switch statement that checks the error type and returns the appropriate
+			// error type, which will simply wrap the baseGRPCError (e.g. &InvalidArgument{baseGRPCError})
 		} else {
 			grpcError = NewInternalError(err)
 		}
@@ -201,7 +168,15 @@ func (e *baseGRPCError) AddDetail(key, value string) {
 }
 
 func (e *baseGRPCError) Error() string {
-	return e.GenericError.Error()
+	msg := fmt.Sprintf("%s: %s\n", e.errorType, e.msg)
+	if len(e.details) == 0 {
+		return msg
+	}
+	msg = fmt.Sprintf("%sDetails:\n", msg)
+	for k, v := range e.details {
+		msg = fmt.Sprintf("%s\t%s: %s\n", msg, k, v)
+	}
+	return msg
 }
 
 func (e *baseGRPCError) Stack() JSONStackTrace {

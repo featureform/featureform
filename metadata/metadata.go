@@ -1559,7 +1559,7 @@ func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.S
 }
 
 func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetStatusRequest) (*pb.Empty, error) {
-	serv.Logger.Infow("Setting resource status", "request", req.String())
+	serv.Logger.Infow("Setting resource status", "resource_id", req.ResourceId, "status", req.Status.Status)
 	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
 	err := serv.lookup.SetStatus(resID, *req.Status)
 	if err != nil {
@@ -2040,19 +2040,16 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 			return nil
 		}
 		if recvErr != nil {
-			serv.Logger.Errorw("Generic Get receive error", "error", recvErr)
 			return fferr.NewInternalError(recvErr)
 		}
 		serv.Logger.Infow("Looking up Resource", "id", id)
 		resource, err := serv.lookup.Lookup(id)
 		if err != nil {
-			serv.Logger.Errorw("Generic Get lookup error", "error", err)
 			return err
 		}
 		serv.Logger.Infow("Sending Resource", "id", id)
 		serialized := resource.Proto()
 		if err := send(serialized); err != nil {
-			serv.Logger.Errorw("Generic Get send error", "error", err)
 			return fferr.NewInternalError(err)
 		}
 		serv.Logger.Infow("Send Complete", "id", id)

@@ -821,6 +821,7 @@ class Provider:
             "POSTGRES_OFFLINE",
             "SPARK_OFFLINE",
             "REDSHIFT_OFFLINE",
+            "CLICKHOUSE_OFFLINE",
         ]:
             self.has_health_check = True
 

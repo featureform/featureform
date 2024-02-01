@@ -406,7 +406,9 @@ func (c *Coordinator) verifyCompletionOfSources(sources []metadata.NameVariant) 
 				totalReady += 1
 			}
 			if sourceVariant.Status() == metadata.FAILED {
-				return fferr.NewResourceFailedError(sourceVariant.Name(), sourceVariant.Variant(), "SOURCE_VARIANT", nil)
+				wrapped := fferr.NewResourceFailedError(sourceVariant.Name(), sourceVariant.Variant(), fferr.SOURCE_VARIANT, fmt.Errorf("expected source to be ready"))
+				wrapped.AddDetail("resource_status", sourceVariant.Status().String())
+				return wrapped
 			}
 		}
 		allReady = total == totalReady
@@ -1189,7 +1191,7 @@ func (c *Coordinator) ExecuteJob(jobKey string) error {
 		case *fferr.ResourceAlreadyFailedError:
 			return err
 		default:
-			return c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, err.Error())
+			return c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, fferr.FromErr(err).Error())
 		}
 	}
 	c.Logger.Info("Successfully executed job with key: ", jobKey)

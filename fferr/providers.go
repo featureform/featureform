@@ -8,7 +8,7 @@ import (
 
 func NewConnectionError(providerName string, err error) *ConnectionError {
 	if err == nil {
-		err = fmt.Errorf("connection error")
+		err = fmt.Errorf("failed connection")
 	}
 	baseError := newBaseGRPCError(err, CONNECTION_ERROR, codes.Internal)
 	baseError.AddDetail("provider", providerName)
@@ -24,7 +24,7 @@ type ConnectionError struct {
 
 func NewExecutionError(providerName string, err error) *ExecutionError {
 	if err == nil {
-		err = fmt.Errorf("execution error")
+		err = fmt.Errorf("execution failed")
 	}
 	baseError := newBaseGRPCError(err, EXECUTION_ERROR, codes.Internal)
 	baseError.AddDetail("provider", providerName)
@@ -36,7 +36,7 @@ func NewExecutionError(providerName string, err error) *ExecutionError {
 
 func NewResourceExecutionError(providerName, resourceName, resourceVariant string, resourceType ResourceType, err error) *ExecutionError {
 	if err == nil {
-		err = fmt.Errorf("execution error")
+		err = fmt.Errorf("execution failed on resource")
 	}
 	baseError := newBaseGRPCError(err, EXECUTION_ERROR, codes.Internal)
 	baseError.AddDetail("provider", providerName)
@@ -55,7 +55,7 @@ type ExecutionError struct {
 
 func NewProviderConfigError(providerName string, err error) *ProviderConfigError {
 	if err == nil {
-		err = fmt.Errorf("provider error")
+		err = fmt.Errorf("provider config")
 	}
 	baseError := newBaseGRPCError(err, EXECUTION_ERROR, codes.Internal)
 	baseError.AddDetail("provider", providerName)

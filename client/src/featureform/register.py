@@ -21,9 +21,7 @@ from .enums import FileFormat
 from .exceptions import InvalidSQLQuery
 from .file_utils import absolute_file_paths
 from .get import *
-from .get_local import *
 from .list import *
-from .list_local import *
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
 from .resources import (
@@ -39,7 +37,6 @@ from .resources import (
     MongoDBConfig,
     PostgresConfig,
     SnowflakeConfig,
-    LocalConfig,
     RedshiftConfig,
     BigQueryConfig,
     ClickHouseConfig,
@@ -77,8 +74,6 @@ from .resources import (
     ResourceVariant,
 )
 from .search import search
-from .search_local import search_local
-from .sqlite_metadata import SQLiteMetadata
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
 from .types import pd_to_ff_datatype
@@ -4134,12 +4129,9 @@ class ResourceClient:
                 print(resource_state.sorted_list())
                 return
 
-            if self.local:
-                resource_state.create_all_local()
-            else:
-                resource_state.create_all(
-                    self._stub, global_registrar.get_client_objects_for_resource()
-                )
+            resource_state.create_all(
+                self._stub, global_registrar.get_client_objects_for_resource()
+            )
 
             if not asynchronous and self._stub:
                 resources = resource_state.sorted_list()
@@ -4208,8 +4200,6 @@ class ResourceClient:
         Returns:
             user (User): User
         """
-        if local:
-            return get_user_info_local(name)
         return get_user_info(self._stub, name)
 
     def get_entity(self, name, local=False):
@@ -4257,8 +4247,6 @@ class ResourceClient:
         }
         ```
         """
-        if local:
-            return get_entity_info_local(name)
         return get_entity_info(self._stub, name)
 
     def get_model(self, name, local=False) -> Model:
@@ -4270,15 +4258,10 @@ class ResourceClient:
         Returns:
             model (Model): Model
         """
-        if local:
-            model = get_model_info_local(name)
-        else:
-            model_proto = get_resource_info(self._stub, "model", name)
-            if model_proto is None:
-                model = None
-            else:
-                # TODO: apply values from proto
-                model = Model(model_proto.name, description="", tags=[], properties={})
+        model = None
+        model_proto = get_resource_info(self._stub, "model", name)
+        if model_proto is not None:
+            model = Model(model_proto.name, description="", tags=[], properties={})
 
         return model
 
@@ -4358,8 +4341,6 @@ class ResourceClient:
         Returns:
             provider (Provider): Provider
         """
-        if local:
-            return get_provider_info_local(name)
         return get_provider_info(self._stub, name)
 
     def get_feature(self, name, variant):
@@ -4478,10 +4459,6 @@ class ResourceClient:
         Returns:
             feature (Union[Feature, FeatureVariant]): Feature or FeatureVariant
         """
-        if local:
-            if not variant:
-                return get_resource_info_local("feature", name)
-            return get_feature_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "feature", name)
         return get_feature_variant_info(self._stub, name, variant)
@@ -4601,10 +4578,6 @@ class ResourceClient:
         Returns:
             label (Union[label, LabelVariant]): Label or LabelVariant
         """
-        if local:
-            if not variant:
-                return get_resource_info_local("label", name)
-            return get_label_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "label", name)
         return get_label_variant_info(self._stub, name, variant)
@@ -4719,10 +4692,6 @@ class ResourceClient:
         Returns:
             training_set (Union[TrainingSet, TrainingSetVariant]): TrainingSet or TrainingSetVariant
         """
-        if local:
-            if not variant:
-                return get_resource_info_local("training-set", name)
-            return get_training_set_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "training-set", name)
         return get_training_set_variant_info(self._stub, name, variant)
@@ -4879,10 +4848,6 @@ class ResourceClient:
         Returns:
             source (Union[Source, SourceVariant]): Source or SourceVariant
         """
-        if local:
-            if not variant:
-                return get_resource_info_local("source", name)
-            return get_source_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "source", name)
         return get_source_variant_info(self._stub, name, variant)
@@ -4924,10 +4889,6 @@ class ResourceClient:
         Returns:
             features (List[Feature]): List of Feature Objects
         """
-        if local:
-            return list_local(
-                "feature", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS]
-            )
         return list_name_variant_status(self._stub, "feature")
 
     def list_labels(self, local=False):
@@ -4967,10 +4928,6 @@ class ResourceClient:
         Returns:
             labels (List[Label]): List of Label Objects
         """
-        if local:
-            return list_local(
-                "label", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS]
-            )
         return list_name_variant_status(self._stub, "label")
 
     def list_users(self, local=False):
@@ -5032,8 +4989,6 @@ class ResourceClient:
         Returns:
             users (List[User]): List of User Objects
         """
-        if local:
-            return list_local("user", [ColumnName.NAME, ColumnName.STATUS])
         return list_name_status(self._stub, "user")
 
     def list_entities(self, local=False):
@@ -5092,8 +5047,6 @@ class ResourceClient:
         Returns:
             entities (List[Entity]): List of Entity Objects
         """
-        if local:
-            return list_local("entity", [ColumnName.NAME, ColumnName.STATUS])
         return list_name_status(self._stub, "entity")
 
     def list_sources(self, local=False):
@@ -5131,16 +5084,6 @@ class ResourceClient:
         Returns:
             sources (List[Source]): List of Source Objects
         """
-        if local:
-            return list_local(
-                "source",
-                [
-                    ColumnName.NAME,
-                    ColumnName.VARIANT,
-                    ColumnName.STATUS,
-                    ColumnName.DESCRIPTION,
-                ],
-            )
         return list_name_variant_status_desc(self._stub, "source")
 
     def list_training_sets(self, local=False):
@@ -5179,10 +5122,6 @@ class ResourceClient:
         Returns:
             training_sets (List[TrainingSet]): List of TrainingSet Objects
         """
-        if local:
-            return list_local(
-                "training-set", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS]
-            )
         return list_name_variant_status_desc(self._stub, "training-set")
 
     def list_models(self, local=False) -> List[Model]:
@@ -5191,16 +5130,9 @@ class ResourceClient:
         Returns:
             models (List[Model]): List of Model Objects
         """
-        models = []
-        if local:
-            rows = list_local("model", [ColumnName.NAME])
-            models = [Model(row["name"], tags=[], properties={}) for row in rows]
-        else:
-            model_protos = list_name(self._stub, "model")
-            # TODO: apply values from proto
-            models = [
-                Model(proto.name, tags=[], properties={}) for proto in model_protos
-            ]
+        model_protos = list_name(self._stub, "model")
+        # TODO: apply values from proto
+        models = [Model(proto.name, tags=[], properties={}) for proto in model_protos]
 
         return models
 
@@ -5271,10 +5203,6 @@ class ResourceClient:
         Returns:
             providers (List[Provider]): List of Provider Objects
         """
-        if local:
-            return list_local(
-                "provider", [ColumnName.NAME, ColumnName.STATUS, ColumnName.DESCRIPTION]
-            )
         return list_name_status_desc(self._stub, "provider")
 
     def search(self, raw_query, local=False):
@@ -5295,10 +5223,7 @@ class ResourceClient:
         if type(raw_query) != str or len(raw_query) == 0:
             raise Exception("query must be string and cannot be empty")
         processed_query = raw_query.translate({ord(i): None for i in ".,-@!*#"})
-        if local:
-            return search_local(processed_query)
-        else:
-            return search(processed_query, self._host)
+        return search(processed_query, self._host)
 
 
 class ColumnResource:
@@ -5537,7 +5462,6 @@ sql_transformation = global_registrar.sql_transformation
 register_sql_transformation = global_registrar.register_sql_transformation
 get_entity = global_registrar.get_entity
 get_source = global_registrar.get_source
-get_local_provider = global_registrar.get_local_provider
 get_redis = global_registrar.get_redis
 get_postgres = global_registrar.get_postgres
 get_mongodb = global_registrar.get_mongodb

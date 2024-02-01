@@ -379,4 +379,3 @@ def test_register_k8s():
         properties={},
     )
     assert isinstance(result, OfflineK8sProvider)
-

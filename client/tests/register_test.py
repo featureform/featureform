@@ -11,7 +11,6 @@ import pytest
 from featureform.register import (
     Provider,
     Registrar,
-    LocalConfig,
     SQLTransformationDecorator,
     DFTransformationDecorator,
     SnowflakeConfig,
@@ -56,17 +55,7 @@ def test_snowflake_config_credentials(
 
 @pytest.fixture
 def local():
-    config = LocalConfig()
-    provider = Provider(
-        name="local-mode",
-        function="LOCAL_ONLINE",
-        description="This is local mode",
-        team="team",
-        config=config,
-        tags=[],
-        properties={},
-    )
-    return provider
+    return ""
 
 
 @pytest.fixture
@@ -85,13 +74,6 @@ def empty_string():
 
 def return_5():
     return 5
-
-
-@pytest.mark.parametrize("fn", [empty_string, return_5])
-def test_sql_transformation_decorator_invalid_fn(local, fn):
-    decorator = local.sql_transformation(variant="var", owner="owner")
-    with pytest.raises((TypeError, ValueError)):
-        decorator(fn)
 
 
 @pytest.mark.parametrize(

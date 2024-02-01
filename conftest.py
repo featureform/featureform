@@ -2,14 +2,19 @@ import os
 import sys
 import stat
 import shutil
+import platform
 from tempfile import NamedTemporaryFile
+import urllib
 
 import dill
 import pytest
 import datetime
 import pandas as pd
+import psutil
 
 sys.path.insert(0, "client/src/")
+
+collect_ignore = ["embeddinghub"]
 
 
 import featureform as ff
@@ -50,6 +55,20 @@ real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
 
 pytest_plugins = []
+
+
+def pytest_configure(config):
+    import requests
+
+    url = "https://featureform-demo-files.s3.amazonaws.com/transactions_short.csv"
+    response = requests.get(url)
+    with open("transactions.csv", "wb") as file:
+        file.write(response.content)
+
+    url = "https://featureform-demo-files.s3.amazonaws.com/Iris.csv"
+    response = requests.get(url)
+    with open("iris.csv", "wb") as file:
+        file.write(response.content)
 
 
 @pytest.fixture(scope="module")
@@ -323,9 +342,21 @@ def setup_teardown():
 
 
 def del_rw(action, name, exc):
-    if os.path.exists(name):
-        os.chmod(name, stat.S_IWRITE)
+    database = ".featureform/SQLiteDB/metadata.db"
+    if os.path.exists(database):
+        for proc in psutil.process_iter():
+            try:
+                for item in proc.open_files():
+                    if database == item.path:
+                        proc.kill()
+            except Exception as e:
+                continue
+
+    # Now try to delete the file
+    try:
         os.remove(name)
+    except OSError as e:
+        print(f"Error: {e}")
 
 
 @pytest.fixture(scope="module")
@@ -373,10 +404,14 @@ def hosted_sql_provider_and_source():
 
 @pytest.fixture(scope="module")
 def docker_deployment_config():
+    environment_variables = {}
+    is_mac_m1_chip = platform.machine() == "arm64" and platform.system() == "Darwin"
+    if is_mac_m1_chip:
+        environment_variables["ETCD_ARCH"] = "ETCD_UNSUPPORTED_ARCH=arm64"
     featureform_config = DOCKER_CONFIG(
         name="featureform",
         image="featureformcom/featureform:latest",
-        env={},
+        env=environment_variables,
         port={"7878/tcp": 7878, "80/tcp": 80},
         detach_mode=True,
     )
@@ -385,10 +420,14 @@ def docker_deployment_config():
 
 @pytest.fixture(scope="module")
 def docker_quickstart_deployment_config():
+    environment_variables = {}
+    is_mac_m1_chip = platform.machine() == "arm64" and platform.system() == "Darwin"
+    if is_mac_m1_chip:
+        environment_variables["ETCD_ARCH"] = "ETCD_UNSUPPORTED_ARCH=arm64"
     featureform_config = DOCKER_CONFIG(
         name="featureform",
         image="featureformcom/featureform:latest",
-        env={},
+        env=environment_variables,
         port={"7878/tcp": 7878, "80/tcp": 80},
         detach_mode=True,
     )
@@ -442,7 +481,7 @@ def spark_session():
 def gcp_credentials():
     return GCPCredentials(
         project_id="project_id",
-        credentials_path=f"{dir_path}/test_files/bigquery_dummy_credentials.json",
+        credentials_path=f"{dir_path}/client/tests/test_files/bigquery_dummy_credentials.json",
     )
 
 

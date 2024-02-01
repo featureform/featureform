@@ -83,55 +83,6 @@ def test_dataframe_for_source_args(provider_source_fxt, is_local, is_insecure, r
         client.impl.db.close()  # TODO automatically do this
 
 
-# Ensures that the dataframe method raises an error when the variant is not specified and the source is a string
-def test_dataframe_empty_variant(local_provider_source):
-    provider, source, inference_store = local_provider_source("_empty_param")
-    arrange_transformation(provider, "true")
-
-    client = ff.Client(local=True, insecure=True)
-    client.apply(asynchronous=True)
-
-    with pytest.raises(ValueError) as e:
-        client.dataframe(source.name)
-    assert "variant must be specified if source is a string" in str(e.value)
-
-
-# TODO: Needs to be changed to hosted mode
-# @pytest.mark.parametrize(
-#     "provider_source_fxt,is_local,is_insecure",
-#     [
-#         pytest.param(
-#             "local_provider_source",
-#             True,
-#             True,
-#             marks=pytest.mark.local,
-#         ),
-#     ],
-# )
-# def test_dataframe_parquet(provider_source_fxt, is_local, is_insecure, request):
-#     custom_marks = [
-#         mark.name for mark in request.node.own_markers if mark.name != "parametrize"
-#     ]
-#     provider, source, inference_store = request.getfixturevalue(provider_source_fxt)(
-#         custom_marks, file_format=FileFormat.PARQUET.value
-#     )
-
-#     transformation = arrange_transformation(provider, is_local)
-
-#     client = ff.Client(local=is_local, insecure=is_insecure)
-#     client.apply(asynchronous=True)
-
-#     source_df = client.dataframe(source)
-#     transformation_df = client.dataframe(transformation)
-
-#     assert isinstance(source_df, pd.DataFrame) and isinstance(
-#         transformation_df, (pd.DataFrame, pd.Series)
-#     )
-
-#     if is_local:
-#         client.impl.db.close()  # TODO automatically do this
-
-
 @pytest.fixture(autouse=True)
 def before_and_after_each(setup_teardown):
     setup_teardown()

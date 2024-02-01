@@ -54,11 +54,6 @@ def test_snowflake_config_credentials(
 
 
 @pytest.fixture
-def local():
-    return "local"
-
-
-@pytest.fixture
 def registrar():
     return Registrar()
 

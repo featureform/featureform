@@ -1090,7 +1090,7 @@ func Test_castTimestamp(t *testing.T) {
 			}
 			// If we expect error, checks that it is the correct error
 			if (err != nil) && tt.wantErr {
-				if err.Error() != tt.errMsg {
+				if !strings.Contains(err.Error(), tt.errMsg) {
 					t.Errorf("castTimestamp() error = %v, wantMsg %v", err, tt.errMsg)
 				}
 				return

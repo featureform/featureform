@@ -23,6 +23,7 @@ real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="should not run on windows")
 @pytest.mark.parametrize(
     "arguments",
     [
@@ -37,6 +38,7 @@ def test_main(arguments, request):
     main(expected_args)
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="should not run on windows")
 @pytest.mark.parametrize(
     "arguments",
     [
@@ -57,6 +59,7 @@ def test_parse_args(arguments, request):
     assert args == expected_args
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="should not run on windows")
 @pytest.mark.parametrize(
     "arguments,expected_output",
     [
@@ -87,6 +90,7 @@ def test_execute_sql_query(arguments, expected_output, spark, request):
     assert expected_df.schema == output_df.schema
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="should not run on windows")
 @pytest.mark.parametrize(
     "arguments,expected_output",
     [
@@ -127,6 +131,8 @@ def test_set_spark_config(spark):
         assert spark.conf.get(key) == value
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="should not run on windows")
+@pytest.mark.hosted
 def test_download_blobs_to_local(container_client):
     blob = "scripts/spark/python_packages.sh"
     local_filename = "python_packages.sh"
@@ -165,6 +171,7 @@ def test_split_key_value():
     assert output == expected_output
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="should not run on windows")
 @pytest.mark.parametrize(
     "exception_message, error",
     [

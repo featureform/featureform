@@ -1,6 +1,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+import os
 import ast
 import inspect
 import warnings
@@ -20,9 +21,7 @@ from .enums import FileFormat
 from .exceptions import InvalidSQLQuery
 from .file_utils import absolute_file_paths
 from .get import *
-from .get_local import *
 from .list import *
-from .list_local import *
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
 from .resources import (
@@ -38,7 +37,6 @@ from .resources import (
     MongoDBConfig,
     PostgresConfig,
     SnowflakeConfig,
-    LocalConfig,
     RedshiftConfig,
     BigQueryConfig,
     ClickHouseConfig,
@@ -76,8 +74,6 @@ from .resources import (
     ResourceVariant,
 )
 from .search import search
-from .search_local import search_local
-from .sqlite_metadata import SQLiteMetadata
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
 from .types import pd_to_ff_datatype
@@ -580,316 +576,6 @@ class FileStoreProvider:
         return self.__config
 
 
-class LocalProvider:
-    """
-    The LocalProvider exposes the registration functions for LocalMode
-
-    **Using the LocalProvider:**
-    ``` py title="definitions.py"
-    from featureform import local
-
-    transactions = local.register_file(
-        name="transactions",
-        variant="quickstart",
-        description="A dataset of fraudulent transactions",
-        path="transactions.csv"
-    )
-    ```
-    """
-
-    def __init__(self, registrar, provider):
-        self.__registrar = registrar
-        self.__provider = provider
-
-    def name(self) -> str:
-        return self.__provider.name
-
-    def register_file(
-        self,
-        name,
-        path,
-        description="",
-        variant: str = "",
-        owner="",
-        tags: List[str] = [],
-        properties: dict = {},
-    ):
-        """Register a local file.
-
-        **Examples**:
-        ```
-        transactions = local.register_file(
-            name="transactions",
-            variant="quickstart",
-            description="A dataset of fraudulent transactions",
-            path="transactions.csv"
-        )
-        ```
-
-        Args:
-            name (str): Name for how to reference the file later
-            description (str): Description of the file
-            path (str): Path to the file (supported formats: csv, parquet)
-            variant (str): File variant
-            owner (str): Owner of the file
-
-        Returns:
-            source (LocalSource): source
-        """
-        path = os.path.abspath(path)
-        if not FileFormat.is_supported(path):
-            print(f"File format not supported: {path}")
-            raise Exception(
-                "File format not supported. Supported formats: {}".format(
-                    FileFormat.supported_formats()
-                )
-            )
-        if owner == "":
-            owner = self.__registrar.must_get_default_owner()
-        if variant == "":
-            variant = self.__registrar.get_run()
-        # Store the file as a source
-        self.__registrar.register_primary_data(
-            name=name,
-            variant=variant,
-            location=SQLTable(path),
-            provider=self.__provider.name,
-            owner=owner,
-            description=description,
-            tags=tags,
-            properties=properties,
-        )
-        return LocalSource(
-            self.__registrar, name, owner, self.name(), path, variant, description
-        )
-
-    def register_directory(
-        self,
-        name,
-        path,
-        description="",
-        variant: str = "",
-        owner="",
-        tags: List[str] = [],
-        properties: dict = {},
-    ):
-        """Register a directory.
-        When registering a directory, files can be interacted with as a table with columns "filename" and "body". Where
-        each row in the table is a file in the directory. The filename is the name of the file and the body is the
-        contents of the file.
-
-
-        **Examples**:
-        ```
-        pages = local.register_directory(
-            name="scraped_pages",
-            description="A directory of scraped web pages",
-            path="scraper/"
-        )
-        ```
-
-        Args:
-            name (str): Name for how to reference the directory
-            description (str): Description of the directory
-            path (str): Path to directory
-            variant (str): Directory variant
-            owner (str): Owner of the file
-
-        Returns:
-            source (LocalSource): source
-        """
-        path = os.path.abspath(path)
-        if not os.path.isdir(path):
-            raise Exception(f"Path {path} is not a directory")
-
-        for absolute_fn, _ in absolute_file_paths(path):
-            try:
-                Path(absolute_fn).read_text()
-            except Exception as e:
-                raise IOError(
-                    f"Cannot read file {absolute_fn}: {e}\nFile must be a text file"
-                )
-
-        if owner == "":
-            owner = self.__registrar.must_get_default_owner()
-        if variant == "":
-            variant = self.__registrar.get_run()
-        # Store the file as a source
-        self.__registrar.register_primary_data(
-            name=name,
-            variant=variant,
-            location=Directory(path),
-            provider=self.__provider.name,
-            owner=owner,
-            description=description,
-            tags=tags,
-            properties=properties,
-        )
-        return LocalSource(
-            self.__registrar, name, owner, self.name(), path, variant, description
-        )
-
-    def insert_provider(self):
-        sqldb = SQLiteMetadata()
-        # Store a new provider row
-        sqldb.insert(
-            "providers",
-            self.__provider.name,
-            "Provider",
-            self.__provider.description,
-            self.__provider.config.type(),
-            self.__provider.config.software(),
-            self.__provider.team,
-            "sources",
-            "status",
-            str(self.__provider.config.serialize(), "utf-8"),
-        )
-        sqldb.close()
-
-    def df_transformation(
-        self,
-        variant: str = "",
-        owner: Union[str, UserRegistrar] = "",
-        name: str = "",
-        description: str = "",
-        inputs: list = [],
-        tags: List[str] = [],
-        properties: dict = {},
-    ):
-        """
-        Register a Dataframe transformation source. The local.df_transformation decorator takes the contents
-        of the following function and executes the code it contains at serving time.
-
-        The name of the function is used as the name of the source when being registered.
-
-        The specified inputs are loaded into dataframes that can be accessed using the function parameters.
-
-        **Examples**:
-        ``` py
-        @local.df_transformation(inputs=[("source", "one"), ("source", "two"), source_obj]) # Sources are added as inputs
-        def average_user_transaction(df_one, df_two):                           # Sources can be manipulated by adding them as params
-            return source_one.groupby("CustomerID")["TransactionAmount"].mean()
-        ```
-
-        Args:
-            name (str): Name of source
-            variant (str): Name of variant
-            owner (Union[str, UserRegistrar]): Owner
-            description (str): Description of primary data to be registered
-            inputs (list[Union[Tuple(str, str),ColumnSourceRegistrar]]): A list of Source NameVariant Tuples to input into the transformation and/or a list of Source objects
-
-        Returns:
-            source (ColumnSourceRegistrar): Source
-        """
-        return self.__registrar.df_transformation(
-            name=name,
-            variant=variant,
-            owner=owner,
-            provider=self.name(),
-            description=description,
-            inputs=inputs,
-            tags=tags,
-            properties=properties,
-        )
-
-    def sql_transformation(
-        self,
-        variant: str = "",
-        owner: Union[str, UserRegistrar] = "",
-        name: str = "",
-        inputs: list = None,
-        description: str = "",
-        tags: List[str] = [],
-        properties: dict = {},
-    ):
-        """
-        Register a SQL transformation source. The local.sql_transformation decorator takes the returned string in the
-        following function and executes it as a SQL Query.
-
-        The name of the function is the name of the resulting source.
-
-        Sources for the transformation can be specified by adding the Name and Variant in brackets '{{ name.variant }}'.
-        The correct source is substituted when the query is run.
-
-        **Examples**:
-        ``` py
-        @local.sql_transformation(variant="quickstart")
-        def average_user_transaction():
-            return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.v1}} GROUP BY user_id"
-        ```
-
-        Args:
-            name (str): Name of source
-            variant (str): Name of variant
-            owner (Union[str, UserRegistrar]): Owner
-            inputs (list): A list of Source NameVariant Tuples to input into the transformation
-            description (str): Description of primary data to be registered
-
-
-        Returns:
-            source (ColumnSourceRegistrar): Source
-        """
-        return self.__registrar.sql_transformation(
-            name=name,
-            variant=variant,
-            owner=owner,
-            provider=self.name(),
-            description=description,
-            inputs=inputs,
-            tags=tags,
-            properties=properties,
-        )
-
-    def ondemand_feature(
-        self,
-        fn=None,
-        *,
-        tags: List[str] = [],
-        properties: dict = {},
-        variant: str = "",
-        name: str = "",
-        owner: Union[str, UserRegistrar] = "",
-        description: str = "",
-    ):
-        """On Demand Feature decorator.
-
-        ```python
-        @ff.ondemand_feature(variant="quickstart")
-        def avg_user_transactions(client, params, entities):
-            return params[0] + params[1]
-
-
-        features = client.features([("avg_user_transactions", "quickstart"), params=[1, 2])
-        print(features)
-        # [3]
-        ```
-
-
-        Args:
-            variant (str): Name of variant
-            name (str): Name of source
-            owner (Union[str, UserRegistrar]): Owner
-            description (str): Description of on demand feature
-            tags (List[str]): Optional grouping mechanism for resources
-            properties (dict): Optional grouping mechanism for resources
-
-        Returns:
-            decorator (OnDemandFeature): decorator
-
-
-        """
-
-        return self.__registrar.ondemand_feature(
-            fn=fn,
-            name=name,
-            variant=variant,
-            owner=owner,
-            description=description,
-            tags=tags,
-            properties=properties,
-        )
-
-
 class SourceRegistrar:
     def __init__(self, registrar, source):
         self.__registrar = registrar
@@ -915,112 +601,6 @@ class ColumnMapping(dict):
     tags: List[str]
     properties: dict
     variant: str = ""
-
-
-class LocalSource:
-    """
-    LocalSource creates a reference to a source that can be accessed locally.
-    """
-
-    def __init__(
-        self,
-        registrar,
-        name: str,
-        owner: str,
-        provider: str,
-        path: str,
-        variant: str = "",
-        description: str = "",
-    ):
-        self.registrar = registrar
-        self.name = name
-        self.variant = variant
-        self.owner = owner
-        self.provider = provider
-        self.path = path
-        self.description = description
-
-    def __call__(self, fn: Callable[[], str]):
-        if self.description == "":
-            self.description = fn.__doc__
-        if self.name == "":
-            self.name = fn.__name__
-        self.__set_query(fn())
-        fn.register_resources = self.register_resources
-        return fn
-
-    def __getitem__(self, columns: List[str]):
-        col_len = len(columns)
-        if col_len < 2:
-            raise Exception(
-                f"Expected 2 columns, but found {col_len}. Missing entity and/or source columns"
-            )
-        elif col_len > 3:
-            raise Exception(
-                f"Found unrecognized columns {', '.join(columns[3:])}. Expected 2 required columns and an optional 3rd timestamp column"
-            )
-        return (self.registrar, self.name_variant(), columns)
-
-    def name_variant(self):
-        return (self.name, self.variant)
-
-    def pandas(self):
-        """
-        Returns the local source as a pandas datafame.
-
-        Returns:
-            dataframe (pandas.Dataframe): A pandas Dataframe
-        """
-        return pd.read_csv(self.path)
-
-    def register_resources(
-        self,
-        entity: Union[str, EntityRegistrar],
-        entity_column: str,
-        owner: Union[str, UserRegistrar] = "",
-        inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
-        features: List[ColumnMapping] = None,
-        labels: List[ColumnMapping] = None,
-        timestamp_column: str = "",
-    ):
-        """
-        Registers a features and/or labels that can be used in training sets or served.
-
-        **Examples**:
-        ``` py
-        average_user_transaction.register_resources(
-            entity=user,
-            entity_column="CustomerID",
-            inference_store=local,
-            features=[
-                {"name": <feature name>, "variant": <feature variant>, "column": <value column>, "type": "float32"}, # Column Mapping
-            ],
-        )
-        ```
-
-        Args:
-            entity (Union[str, EntityRegistrar]): The name to reference the entity by when serving features
-            entity_column (str): The name of the column in the source to be used as the entity
-            owner (Union[str, UserRegistrar]): The owner of the resource(s)
-            inference_store (Union[str, OnlineProvider, FileStoreProvider]): Where to store the materialized feature for serving. (Use the local provider in Localmode)
-            features (List[ColumnMapping]): A list of column mappings to define the features
-            labels (List[ColumnMapping]): A list of column mappings to define the labels
-            timestamp_column: (str): The name of an optional timestamp column in the dataset. Will be used to match the features and labels with point-in-time correctness
-
-        Returns:
-            registrar (ResourceRegister): Registrar
-        """
-        return self.registrar.register_column_resources(
-            source=(self.name, self.variant),
-            entity=entity,
-            entity_column=entity_column,
-            owner=owner,
-            inference_store=inference_store,
-            features=features,
-            labels=labels,
-            timestamp_column=timestamp_column,
-            description=self.description,
-        )
 
 
 class SubscriptableTransformation:
@@ -2076,14 +1656,8 @@ class Registrar:
             source (ColumnSourceRegistrar): Source
         """
         if local:
-            return LocalSource(
-                self,
-                name=name,
-                owner="",
-                variant=variant,
-                provider="",
-                description="",
-                path="",
+            raise Exception(
+                "Localmode is not supported; please try featureform <= 1.12.0"
             )
         else:
             mock_definition = PrimaryData(location=SQLTable(name=""))
@@ -2099,17 +1673,6 @@ class Registrar:
                 properties={},
             )
             return ColumnSourceRegistrar(self, mock_source)
-
-    def get_local_provider(self, name="local-mode"):
-        mock_config = LocalConfig()
-        mock_provider = Provider(
-            name=name,
-            function="LOCAL_ONLINE",
-            description="",
-            team="",
-            config=mock_config,
-        )
-        return LocalProvider(self, mock_provider)
 
     def get_redis(self, name):
         """Get a Redis provider. The returned object can be used to register additional resources.
@@ -3707,34 +3270,6 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineK8sProvider(self, provider)
 
-    def register_local(self):
-        """Register a Local provider.
-        The local provider is automatically registered when Featureform is imported. This method is not needed in most
-        cases.
-
-        **Examples**:
-        ```
-        local = ff.register_local()
-        ```
-
-        Returns:
-            local (LocalProvider): Provider
-        """
-        config = LocalConfig()
-        provider = Provider(
-            name="local-mode",
-            function="LOCAL_ONLINE",
-            description="This is local mode",
-            team="team",
-            config=config,
-            tags=["local-mode"],
-            properties={"resource_type": "Provider"},
-        )
-        self.__resources.append(provider)
-        local_provider = LocalProvider(self, provider)
-        local_provider.insert_provider()
-        return local_provider
-
     def register_primary_data(
         self,
         name: str,
@@ -4511,8 +4046,7 @@ class ResourceClient:
     (entities, providers, features, labels, training sets, models, users).
 
     Args:
-        host (str): The hostname of the Featureform instance. Exclude if using Localmode.
-        local (bool): True if using Localmode.
+        host (str): The hostname of the Featureform instance.
         insecure (bool): True if connecting to an insecure Featureform endpoint. False if using a self-signed or public TLS certificate
         cert_path (str): The path to a public certificate if using a self-signed certificate.
 
@@ -4531,6 +4065,11 @@ class ResourceClient:
     def __init__(
         self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
     ):
+        if local:
+            raise Exception(
+                "Local mode is not supported in this version. Use featureform <= 1.12.0 for localmode"
+            )
+
         # This line ensures that the warning is only raised if ResourceClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
         is_instantiated_directed = inspect.stack()[1].function != "__init__"
@@ -4546,21 +4085,18 @@ class ResourceClient:
         if dry_run:
             return
 
-        if local and host:
-            raise ValueError("Cannot be local and have a host")
-        elif not local:
-            host = host or os.getenv("FEATUREFORM_HOST")
-            if host is None:
-                raise RuntimeError(
-                    "If not in local mode then `host` must be passed or the environment"
-                    " variable FEATUREFORM_HOST must be set."
-                )
-            if insecure:
-                channel = insecure_channel(host)
-            else:
-                channel = secure_channel(host, cert_path)
-            self._stub = ff_grpc.ApiStub(channel)
-            self._host = host
+        host = host or os.getenv("FEATUREFORM_HOST")
+        if host is None:
+            raise RuntimeError(
+                "If not in local mode then `host` must be passed or the environment"
+                " variable FEATUREFORM_HOST must be set."
+            )
+        if insecure:
+            channel = insecure_channel(host)
+        else:
+            channel = secure_channel(host, cert_path)
+        self._stub = ff_grpc.ApiStub(channel)
+        self._host = host
 
     def apply(self, asynchronous=False, verbose=False):
         """
@@ -4595,12 +4131,9 @@ class ResourceClient:
                 print(resource_state.sorted_list())
                 return
 
-            if self.local:
-                resource_state.create_all_local()
-            else:
-                resource_state.create_all(
-                    self._stub, global_registrar.get_client_objects_for_resource()
-                )
+            resource_state.create_all(
+                self._stub, global_registrar.get_client_objects_for_resource()
+            )
 
             if not asynchronous and self._stub:
                 resources = resource_state.sorted_list()
@@ -4609,7 +4142,6 @@ class ResourceClient:
             if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
                 set_run("")
             clear_state()
-            register_local()
 
     def get_user(self, name, local=False):
         """Get a user. Prints out name of user, and all resources associated with the user.
@@ -4670,8 +4202,6 @@ class ResourceClient:
         Returns:
             user (User): User
         """
-        if local:
-            return get_user_info_local(name)
         return get_user_info(self._stub, name)
 
     def get_entity(self, name, local=False):
@@ -4719,8 +4249,6 @@ class ResourceClient:
         }
         ```
         """
-        if local:
-            return get_entity_info_local(name)
         return get_entity_info(self._stub, name)
 
     def get_model(self, name, local=False) -> Model:
@@ -4732,15 +4260,10 @@ class ResourceClient:
         Returns:
             model (Model): Model
         """
-        if local:
-            model = get_model_info_local(name)
-        else:
-            model_proto = get_resource_info(self._stub, "model", name)
-            if model_proto is None:
-                model = None
-            else:
-                # TODO: apply values from proto
-                model = Model(model_proto.name, description="", tags=[], properties={})
+        model = None
+        model_proto = get_resource_info(self._stub, "model", name)
+        if model_proto is not None:
+            model = Model(model_proto.name, description="", tags=[], properties={})
 
         return model
 
@@ -4820,8 +4343,6 @@ class ResourceClient:
         Returns:
             provider (Provider): Provider
         """
-        if local:
-            return get_provider_info_local(name)
         return get_provider_info(self._stub, name)
 
     def get_feature(self, name, variant):
@@ -4940,10 +4461,6 @@ class ResourceClient:
         Returns:
             feature (Union[Feature, FeatureVariant]): Feature or FeatureVariant
         """
-        if local:
-            if not variant:
-                return get_resource_info_local("feature", name)
-            return get_feature_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "feature", name)
         return get_feature_variant_info(self._stub, name, variant)
@@ -5063,10 +4580,6 @@ class ResourceClient:
         Returns:
             label (Union[label, LabelVariant]): Label or LabelVariant
         """
-        if local:
-            if not variant:
-                return get_resource_info_local("label", name)
-            return get_label_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "label", name)
         return get_label_variant_info(self._stub, name, variant)
@@ -5181,10 +4694,6 @@ class ResourceClient:
         Returns:
             training_set (Union[TrainingSet, TrainingSetVariant]): TrainingSet or TrainingSetVariant
         """
-        if local:
-            if not variant:
-                return get_resource_info_local("training-set", name)
-            return get_training_set_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "training-set", name)
         return get_training_set_variant_info(self._stub, name, variant)
@@ -5341,10 +4850,6 @@ class ResourceClient:
         Returns:
             source (Union[Source, SourceVariant]): Source or SourceVariant
         """
-        if local:
-            if not variant:
-                return get_resource_info_local("source", name)
-            return get_source_variant_info_local(name, variant)
         if not variant:
             return get_resource_info(self._stub, "source", name)
         return get_source_variant_info(self._stub, name, variant)
@@ -5386,10 +4891,6 @@ class ResourceClient:
         Returns:
             features (List[Feature]): List of Feature Objects
         """
-        if local:
-            return list_local(
-                "feature", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS]
-            )
         return list_name_variant_status(self._stub, "feature")
 
     def list_labels(self, local=False):
@@ -5429,10 +4930,6 @@ class ResourceClient:
         Returns:
             labels (List[Label]): List of Label Objects
         """
-        if local:
-            return list_local(
-                "label", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS]
-            )
         return list_name_variant_status(self._stub, "label")
 
     def list_users(self, local=False):
@@ -5494,8 +4991,6 @@ class ResourceClient:
         Returns:
             users (List[User]): List of User Objects
         """
-        if local:
-            return list_local("user", [ColumnName.NAME, ColumnName.STATUS])
         return list_name_status(self._stub, "user")
 
     def list_entities(self, local=False):
@@ -5554,8 +5049,6 @@ class ResourceClient:
         Returns:
             entities (List[Entity]): List of Entity Objects
         """
-        if local:
-            return list_local("entity", [ColumnName.NAME, ColumnName.STATUS])
         return list_name_status(self._stub, "entity")
 
     def list_sources(self, local=False):
@@ -5593,16 +5086,6 @@ class ResourceClient:
         Returns:
             sources (List[Source]): List of Source Objects
         """
-        if local:
-            return list_local(
-                "source",
-                [
-                    ColumnName.NAME,
-                    ColumnName.VARIANT,
-                    ColumnName.STATUS,
-                    ColumnName.DESCRIPTION,
-                ],
-            )
         return list_name_variant_status_desc(self._stub, "source")
 
     def list_training_sets(self, local=False):
@@ -5641,10 +5124,6 @@ class ResourceClient:
         Returns:
             training_sets (List[TrainingSet]): List of TrainingSet Objects
         """
-        if local:
-            return list_local(
-                "training-set", [ColumnName.NAME, ColumnName.VARIANT, ColumnName.STATUS]
-            )
         return list_name_variant_status_desc(self._stub, "training-set")
 
     def list_models(self, local=False) -> List[Model]:
@@ -5653,16 +5132,9 @@ class ResourceClient:
         Returns:
             models (List[Model]): List of Model Objects
         """
-        models = []
-        if local:
-            rows = list_local("model", [ColumnName.NAME])
-            models = [Model(row["name"], tags=[], properties={}) for row in rows]
-        else:
-            model_protos = list_name(self._stub, "model")
-            # TODO: apply values from proto
-            models = [
-                Model(proto.name, tags=[], properties={}) for proto in model_protos
-            ]
+        model_protos = list_name(self._stub, "model")
+        # TODO: apply values from proto
+        models = [Model(proto.name, tags=[], properties={}) for proto in model_protos]
 
         return models
 
@@ -5733,10 +5205,6 @@ class ResourceClient:
         Returns:
             providers (List[Provider]): List of Provider Objects
         """
-        if local:
-            return list_local(
-                "provider", [ColumnName.NAME, ColumnName.STATUS, ColumnName.DESCRIPTION]
-            )
         return list_name_status_desc(self._stub, "provider")
 
     def search(self, raw_query, local=False):
@@ -5757,10 +5225,7 @@ class ResourceClient:
         if type(raw_query) != str or len(raw_query) == 0:
             raise Exception("query must be string and cannot be empty")
         processed_query = raw_query.translate({ord(i): None for i in ".,-@!*#"})
-        if local:
-            return search_local(processed_query)
-        else:
-            return search(processed_query, self._host)
+        return search(processed_query, self._host)
 
 
 class ColumnResource:
@@ -5991,7 +5456,6 @@ register_k8s = global_registrar.register_k8s
 register_s3 = global_registrar.register_s3
 register_hdfs = global_registrar.register_hdfs
 register_gcs = global_registrar.register_gcs
-register_local = global_registrar.register_local
 register_entity = global_registrar.register_entity
 register_column_resources = global_registrar.register_column_resources
 register_training_set = global_registrar.register_training_set
@@ -6000,7 +5464,6 @@ sql_transformation = global_registrar.sql_transformation
 register_sql_transformation = global_registrar.register_sql_transformation
 get_entity = global_registrar.get_entity
 get_source = global_registrar.get_source
-get_local_provider = global_registrar.get_local_provider
 get_redis = global_registrar.get_redis
 get_postgres = global_registrar.get_postgres
 get_mongodb = global_registrar.get_mongodb

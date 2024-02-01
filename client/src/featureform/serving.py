@@ -15,16 +15,12 @@ from typing import List, Union, Dict
 import dill
 import numpy as np
 import pandas as pd
-from featureform import metadata
 from featureform.proto import serving_pb2
 from featureform.proto import serving_pb2_grpc
 
-from . import progress_bar
 from .register import FeatureColumnResource
 
-from .constants import NO_RECORD_LIMIT
-from .enums import FileFormat, ScalarType, ResourceType
-from .file_utils import absolute_file_paths
+from .enums import FileFormat, ResourceType
 
 from .resources import Model, SourceType, ComputationMode
 from .tls import insecure_channel, secure_channel

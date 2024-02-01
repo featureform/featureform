@@ -1655,19 +1655,24 @@ class Registrar:
         Returns:
             source (ColumnSourceRegistrar): Source
         """
-        mock_definition = PrimaryData(location=SQLTable(name=""))
-        mock_source = SourceVariant(
-            created=None,
-            name=name,
-            variant=variant,
-            definition=mock_definition,
-            owner="",
-            provider="",
-            description="",
-            tags=[],
-            properties={},
-        )
-        return ColumnSourceRegistrar(self, mock_source)
+        if local:
+            raise Exception(
+                "Localmode is not supported; please try featureform <= 1.12.0"
+            )
+        else:
+            mock_definition = PrimaryData(location=SQLTable(name=""))
+            mock_source = SourceVariant(
+                created=None,
+                name=name,
+                variant=variant,
+                definition=mock_definition,
+                owner="",
+                provider="",
+                description="",
+                tags=[],
+                properties={},
+            )
+            return ColumnSourceRegistrar(self, mock_source)
 
     def get_redis(self, name):
         """Get a Redis provider. The returned object can be used to register additional resources.

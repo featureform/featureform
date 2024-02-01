@@ -23,8 +23,6 @@
 
 [//]: # (| [Kubernetes Pandas Runner]&#40;#kubernetes-pandas-runner&#41; |    x    |        |    x    |         |        |                        |)
 
-[//]: # (|           [Local Provider]&#40;#local-provider&#41;           |    x    |        |    x    |    x    |        | x                      |)
-
 [//]: # (|                  [MongoDB]&#40;#mongodb&#41;                  |         |   x    |         |    x    |        |                        |)
 
 [//]: # (|                 [Pinecone]&#40;#pinecone&#41;                 |         |   x    |         |    x    |   x    | x                      |)
@@ -153,14 +151,6 @@ This page provides reference and examples for how to register the various provid
 
 ### Kubernetes Pandas Runner
 ::: featureform.register.Registrar.register_k8s
-    handler: python
-    options:
-        show_root_heading: false
-        show_source: false
-        show_root_toc_entry: false
-
-### Local Provider
-::: featureform.register.Registrar.register_local
     handler: python
     options:
         show_root_heading: false

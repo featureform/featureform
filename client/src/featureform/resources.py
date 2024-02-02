@@ -1831,7 +1831,8 @@ class ResourceRedefinedError(Exception):
         )
         resourceId = f"{resource.name}{variantStr}"
         super().__init__(
-            f"{resource.type()} resource {resourceId} defined in multiple places"
+            f"{resource.type()} resource {resourceId} defined in multiple places OR found different {resource.type()} with duplicate ID {resourceId} OR 
+            {resource.type()} {resourceId} with different values already defined."
         )
 
 

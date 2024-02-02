@@ -60,6 +60,16 @@ class Schedule:
         )
         stub.RequestScheduleChange(serialized)
 
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Schedule):
+            return False
+        return (
+            self.name == other.name
+            and self.variant == other.variant
+            and self.resource_type == other.resource_type
+            and self.schedule_string == other.schedule_string
+        )
+
 
 @typechecked
 @dataclass
@@ -953,11 +963,21 @@ class User:
 class SQLTable:
     name: str
 
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, SQLTable):
+            return False
+        return self.name == other.name
+
 
 @typechecked
 @dataclass
 class Directory:
     path: str
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Directory):
+            return False
+        return self.path == other.path
 
 
 Location = Union[SQLTable, Directory]
@@ -995,9 +1015,15 @@ class PrimaryData:
     def path(self):
         return self.location.path
 
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, PrimaryData):
+            return False
+        return self.location == other.location
+
 
 class Transformation:
-    pass
+    def __eq__(self, other) -> bool:
+        return isinstance(other, Transformation)
 
 
 @typechecked
@@ -1289,6 +1315,31 @@ class SourceVariant(ResourceVariant):
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
 
+    def __eq__(self, other):
+        if not isinstance(other, SourceVariant):
+            return False
+
+        # self.inputs type check is not comprehensive
+        return self.name == other.name \
+            and self.definition == other.definition \
+            and self.owner == other.owner \
+            and self.provider == other.provider \
+            and self.description == other.description \
+            and sorted(self.tags) == sorted(other.tags) \
+            and self.properties == other.properties \
+            and self.variant == other.variant \
+            and self.created == other.created \
+            and self.status == other.status \
+            and self.schedule == other.schedule \
+            and self.schedule_obj == other.schedule_obj \
+            and self.is_transformation == other.is_transformation \
+            and self.source_text == other.source_text \
+            and self.source_type == other.source_type \
+            and self.transformation == other.transformation \
+            and type(self.inputs) == type(other.inputs) \
+            and self.error == other.error
+
+
 
 @typechecked
 @dataclass
@@ -1349,6 +1400,13 @@ class ResourceColumnMapping:
             ts=self.timestamp,
         )
 
+    def __eq__(self, other):
+        if not isinstance(other, ResourceColumnMapping):
+            return False
+        return self.entity == other.entity \
+            and self.value == other.value \
+            and self.timestamp == other.timestamp
+
 
 ResourceLocation = ResourceColumnMapping
 
@@ -1369,7 +1427,8 @@ class Feature:
 
 
 class PrecomputedFeatureParameters:
-    pass
+    def __eq__(self, other) -> bool:
+        return isinstance(other, PrecomputedFeatureParameters)
 
 
 @typechecked
@@ -1385,6 +1444,11 @@ class OndemandFeatureParameters:
         feature_parameters.ondemand.CopyFrom(ondemand_feature_parameters)
         return feature_parameters
 
+    def __eq__(self, other):
+        if not isinstance(other, OndemandFeatureParameters):
+            return False
+        return self.definition == other.definition
+    
 
 Additional_Parameters = Union[
     PrecomputedFeatureParameters, OndemandFeatureParameters, None
@@ -1557,6 +1621,30 @@ class FeatureVariant(ResourceVariant):
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
 
+    def __eq__(self, other):
+        if not isinstance(other, FeatureVariant):
+            return False
+        return self.name == other.name \
+            and self.source == other.source \
+            and self.value_type == other.value_type \
+            and self.entity == other.entity \
+            and self.owner == other.owner \
+            and self.location == other.location \
+            and self.description == other.description \
+            and self.variant == other.variant \
+            and self.provider == other.provider \
+            and self.created == other.created \
+            and self.is_embedding == other.is_embedding \
+            and self.dims == other.dims \
+            and set(self.tags) == set(other.tags) \
+            and self.properties == other.properties \
+            and self.schedule == other.schedule \
+            and self.schedule_obj == other.schedule_obj \
+            and self.status == other.status \
+            and self.error == other.error \
+            and self.additional_parameters == other.additional_parameters
+
+
 
 @typechecked
 @dataclass
@@ -1688,6 +1776,19 @@ class OnDemandFeatureVariant:
 
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
+
+    def __eq__(self, other):
+        if not isinstance(other, OnDemandFeatureVariant):
+            return False
+        return self.owner == other.owner \
+            and self.variant == other.variant \
+            and set(self.tags) == set(other.tags) \
+            and self.properties == other.properties \
+            and self.name == other.name \
+            and self.description == other.description \
+            and self.status == other.status \
+            and self.error == other.error \
+            and self.additional_parameters == other.additional_parameters
 
 
 @typechecked
@@ -1823,6 +1924,24 @@ class LabelVariant(ResourceVariant):
 
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
+
+    def __eq__(self, other):
+        if not isinstance(other, LabelVariant):
+            return False
+        return self.name == other.name \
+            and self.source == other.source \
+            and self.value_type == other.value_type \
+            and self.entity == other.entity \
+            and self.owner == other.owner \
+            and self.description == other.description \
+            and set(self.tags) == set(other.tags) \
+            and self.properties == other.properties \
+            and self.location == other.location \
+            and self.variant == other.variant \
+            and self.provider == other.provider \
+            and self.created == other.created \
+            and self.status == other.status \
+            and self.error == other.error
 
 
 @typechecked
@@ -2141,6 +2260,25 @@ class TrainingSetVariant(ResourceVariant):
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
 
+    def __eq__(self, other):
+        if not isinstance(other, TrainingSetVariant):
+            return False
+        # self.features and self.feature_lags check is not comprehensive
+        return self.name == other.name \
+            and self.owner == other.owner \
+            and self.label == other.label \
+            and len(self.features) == len(other.features) \
+            and self.description == other.description \
+            and self.variant == other.variant \
+            and len(self.feature_lags) == len(other.feature_lags) \
+            and set(self.tags) == set(other.tags) \
+            and self.properties == other.properties \
+            and self.created == other.created \
+            and self.schedule == other.schedule \
+            and self.schedule_obj == other.schedule_obj \
+            and self.provider == other.provider \
+            and self.status == other.status \
+            and self.error == other.error
 
 @typechecked
 @dataclass

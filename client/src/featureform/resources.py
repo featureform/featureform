@@ -1855,7 +1855,7 @@ class ResourceState:
             key = (resource.operation_type().name, resource.type(), resource.name)
         if key in self.__state:
             if resource == self.__state[key]:
-                print(f"Resource {resource.type()} already registered.")
+                print(f"Resource {resource.type()} {resource.name} already staged for registration. Ignoring duplicate.")
                 return
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource

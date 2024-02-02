@@ -33,8 +33,8 @@ export default function SourceDialog({
       } else if (type === 'Feature') {
         response = await api.fetchFeatureFileStats(sourceName, sourceVariant);
       }
-      if (response?.columns && response?.rows) {
-        if (type === 'Feature') {
+      if (response?.columns) {
+        if (type === 'Feature' && 'rows' in response) {
           let skipList = [];
           response.columns?.map((col, index) => {
             if (
@@ -49,9 +49,9 @@ export default function SourceDialog({
           });
           setSkipIndexList(skipList);
         }
-        setColumns(response.columns);
-        setRowList(response.rows);
-        setStats(response.stats);
+        setColumns(response.columns ?? []);
+        setRowList(response.rows ?? []);
+        setStats(response.stats ?? []);
       } else {
         setError(response);
       }

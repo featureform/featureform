@@ -65,6 +65,7 @@ type JSONStackTrace map[string]interface{}
 type GRPCError interface {
 	GetCode() codes.Code
 	GetType() string
+	GRPCStatus() *status.Status
 	ToErr() error
 	AddDetail(key, value string)
 	Error() string
@@ -147,7 +148,14 @@ func (e *baseGRPCError) GetCode() codes.Code {
 }
 
 func (e *baseGRPCError) GetType() string {
-	return string(e.errorType)
+	return e.errorType
+}
+
+func (e *baseGRPCError) GRPCStatus() *status.Status {
+	// Assumes ToErr() returns an error compatible with gRPC status errors.
+	// If not, you might need to adjust this to directly create and return
+	// a new status.Status from the baseGRPCError fields.
+	return status.Convert(e.ToErr())
 }
 
 func (e *baseGRPCError) ToErr() error {

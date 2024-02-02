@@ -16,6 +16,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	grpc_status "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
@@ -102,6 +103,25 @@ func (client *Client) RequestScheduleChange(ctx context.Context, resID ResourceI
 	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
 	scheduleChangeRequest := pb.ScheduleChangeRequest{ResourceId: &resourceID, Schedule: schedule}
 	_, err := client.GrpcConn.RequestScheduleChange(ctx, &scheduleChangeRequest)
+	return err
+}
+
+func (client *Client) SetStatusError(ctx context.Context, resID ResourceID, status ResourceStatus, jobErr error) error {
+	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
+	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
+	errorStatus, ok := grpc_status.FromError(jobErr) // convert to a grpc status
+	if !ok {
+		return fferr.NewInvalidArgument(fmt.Errorf("Error is not a gRPC status"))
+	}
+	errorProto := errorStatus.Proto()
+	jsonErrorProto, err := protojson.Marshal(errorProto)
+	if err != nil {
+		client.Logger.Errorw("Failed to marshal error proto", "Err", err)
+		return err
+	}
+	resourceStatus := pb.ResourceStatus{Status: pb.ResourceStatus_Status(status), ErrorMessage: jobErr.Error(), ErrorMessageJson: string(jsonErrorProto)}
+	statusRequest := pb.SetStatusRequest{ResourceId: &resourceID, Status: &resourceStatus}
+	_, err = client.GrpcConn.SetResourceStatus(ctx, &statusRequest)
 	return err
 }
 

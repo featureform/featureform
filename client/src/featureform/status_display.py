@@ -1,3 +1,4 @@
+import json
 import sys
 import time
 from typing import Type, Tuple, List
@@ -104,10 +105,42 @@ class StatusDisplayer:
                 continue
             if not display_status.is_finished():
                 r = resource.get(self.grpc_client)
+                error = self.get_json(r.error)
                 display_status.status = r.status
-                display_status.error = r.error
+                error_message = self._format(error) if error else r.error
+                print(error_message)
+                display_status.error = error_message
                 if r.status == "FAILED":
                     self.did_error = True
+
+    @staticmethod
+    def _format(json_error):
+        message = json_error["message"]
+        details = json_error["details"][0]
+        reason = details["reason"]
+        metadata = details["metadata"]
+
+        metadata_info = ""
+        for k, v in metadata.items():
+            metadata_info += f"{k}: {v}" + "\n"
+
+        result = f"{reason}: {message}" + "\n" + metadata_info
+        print("hi")
+        print(result)
+
+        return result
+
+    @staticmethod
+    def get_json(myjson):
+        try:
+            json_object = json.loads(myjson)
+        except ValueError as e:
+            return None
+        except (
+            json.JSONDecodeError
+        ) as e:  # More specific exception for Python 3.5 and later
+            return None
+        return json_object
 
     def all_statuses_finished(self) -> bool:
         return all(status.is_finished() for _, status in self.resource_to_status_list)

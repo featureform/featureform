@@ -107,6 +107,7 @@ message ResourceStatus {
       }
     Status status = 1;
     string error_message = 2;
+    string error_message_json = 3;
 }
 
 enum ResourceType {

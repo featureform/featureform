@@ -54,6 +54,7 @@ class GrpcClient:
         return wrapper
 
     def handle_grpc_error(self, e):
+        sys.tracebacklimit = 0
         initial_ex = None
 
         if self.debug:
@@ -62,7 +63,6 @@ class GrpcClient:
 
         # get details from the error
         if e.code() in self.expected_codes:
-            print("GETTING DETAILS FROM GRPC ERROR")
             status_proto = status_pb2.Status()
             status_proto.MergeFromString(e.trailing_metadata()[0].value)
 

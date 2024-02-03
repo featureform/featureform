@@ -154,7 +154,7 @@ def dynamodb_config():
 def redshift_config():
     return RedshiftConfig(
         host="",
-        port=5432,
+        port="5432",
         database="dev",
         user="user",
         password="p4ssw0rd",

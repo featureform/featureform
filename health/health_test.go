@@ -417,7 +417,10 @@ func testUnsuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *
 		def.SerializedConfig = failureConfig.Serialize()
 		def.Name = "postgres-failure"
 	case pt.RedshiftOffline:
-		failureConfig := pc.RedshiftConfig{}
+		failureConfig := pc.RedshiftConfig{
+			Host: "invalid",
+			Port: "-1",
+		}
 		if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {
 			t.Fatalf("Failed to deserialize config: %s", err)
 		}

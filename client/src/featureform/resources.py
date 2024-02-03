@@ -627,10 +627,11 @@ class ClickHouseConfig:
 @dataclass
 class RedshiftConfig:
     host: str
-    port: int
+    port: str
     database: str
     user: str
     password: str
+    sslmode: str
 
     def software(self) -> str:
         return "redshift"
@@ -641,10 +642,11 @@ class RedshiftConfig:
     def serialize(self) -> bytes:
         config = {
             "Host": self.host,
-            "Port": str(self.port),
+            "Port": self.port,
             "Username": self.user,
             "Password": self.password,
             "Database": self.database,
+            "SSLMode": self.sslmode,
         }
         return bytes(json.dumps(config), "utf-8")
 
@@ -818,6 +820,7 @@ class Provider:
             "DYNAMODB_ONLINE",
             "POSTGRES_OFFLINE",
             "SPARK_OFFLINE",
+            "REDSHIFT_OFFLINE",
         ]:
             self.has_health_check = True
 

@@ -143,7 +143,7 @@ func TestOfflineStores(t *testing.T) {
 		username := checkEnv("REDSHIFT_USERNAME")
 		password := checkEnv("REDSHIFT_PASSWORD")
 		var redshiftConfig = pc.RedshiftConfig{
-			Host:     Host,
+			Host:     host,
 			Port:     port,
 			Database: redshiftDatabase,
 			Username: username,

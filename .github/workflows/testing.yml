@@ -324,7 +324,7 @@ jobs:
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           REDSHIFT_USERNAME: ${{ secrets.REDSHIFT_USERNAME }}
           REDSHIFT_PASSWORD: ${{ secrets.REDSHIFT_PASSWORD }}
-          REDSHIFT_ENDPOINT: ${{ secrets.REDSHIFT_ENDPOINT }}
+          REDSHIFT_HOST: ${{ secrets.REDSHIFT_HOST }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
           AWS_EMR_CLUSTER_REGION: ${{ secrets.AWS_EMR_CLUSTER_REGION }}
@@ -1165,6 +1165,9 @@ jobs:
           DYNAMO_ACCESS_KEY: ${{ secrets.DYNAMO_ACCESS_KEY }}
           DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
           DYNAMODB_REGION: ${{ secrets.DYNAMODB_REGION }}
+          REDSHIFT_HOST: ${{ secrets.REDSHIFT_HOST }}
+          REDSHIFT_USERNAME: ${{ secrets.REDSHIFT_USERNAME }}
+          REDSHIFT_PASSWORD: ${{ secrets.REDSHIFT_PASSWORD }}
           SPARK_LOCAL_SCRIPT_PATH: home/runner/work/featureform/featureform/provider/scripts/spark/offline_store_spark_runner.py
           PYTHON_LOCAL_INIT_PATH: home/runner/work/featureform/featureform/provider/scripts/spark/python_packages.sh
         working-directory: ./

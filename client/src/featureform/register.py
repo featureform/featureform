@@ -145,7 +145,7 @@ class OfflineSQLProvider(OfflineProvider):
         **Example**
 
         ```
-        postgres = ff.get_provider("my_postgres")
+        postgres = client.get_provider("my_postgres")
         table =  postgres.register_table(
             name="transactions",
             variant="july_2023",
@@ -196,7 +196,7 @@ class OfflineSQLProvider(OfflineProvider):
         **Examples**:
 
         ``` py
-        postgres = get_provider("my_postgres")
+        postgres = client.get_provider("my_postgres")
         @postgres.sql_transformation(variant="quickstart")
         def average_user_transaction():
             return "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.v1}} GROUP BY user_id"
@@ -248,7 +248,7 @@ class OfflineSparkProvider(OfflineProvider):
         **Examples**
 
         ```
-        spark = ff.get_provider("my_spark")
+        spark = client.get_provider("my_spark")
         transactions = spark.register_file(
             name="transactions",
             variant="quickstart",
@@ -411,7 +411,7 @@ class OfflineK8sProvider(OfflineProvider):
         **Examples**
 
         ```
-        k8s = ff.get_provider("my_k8s")
+        k8s = client.get_provider("my_k8s")
         transactions = k8s.register_file(
             name="transactions",
             variant="quickstart",
@@ -1922,7 +1922,7 @@ class Registrar:
             redshift (OfflineSQLProvider): Provider
         """
         mock_config = RedshiftConfig(
-            host="", port=5432, database="", user="", password=""
+            host="", port="5439", database="", user="", password="", sslmode=""
         )
         mock_provider = Provider(
             name=name, function="OFFLINE", description="", team="", config=mock_config
@@ -3051,12 +3051,13 @@ class Registrar:
         self,
         name: str,
         host: str,
-        port: int,
+        port: str,
         user: str,
         password: str,
         database: str,
         description: str = "",
         team: str = "",
+        sslmode: str = "disable",
         tags: List[str] = [],
         properties: dict = {},
     ):
@@ -3067,7 +3068,7 @@ class Registrar:
         redshift = ff.register_redshift(
             name="redshift-quickstart",
             description="A Redshift deployment we created for the Featureform quickstart",
-            host="quickstart-redshift",  # The internal dns name for postgres
+            host="quickstart-redshift",  # The internal dns name for redshift
             port="5432",
             user="redshift",
             password="password", #pragma: allowlist secret
@@ -3082,6 +3083,7 @@ class Registrar:
             port (str): (Mutable) Port
             user (str): (Mutable) User
             password (str): (Mutable) Redshift password
+            sslmode (str): (Mutable) SSL mode
             description (str): (Mutable) Description of Redshift provider to be registered
             team (str): (Mutable) Name of team
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
@@ -3092,7 +3094,12 @@ class Registrar:
         """
         tags, properties = set_tags_properties(tags, properties)
         config = RedshiftConfig(
-            host=host, port=port, database=database, user=user, password=password
+            host=host,
+            port=port,
+            database=database,
+            user=user,
+            password=password,
+            sslmode=sslmode,
         )
         provider = Provider(
             name=name,
@@ -3106,7 +3113,7 @@ class Registrar:
         self.__resources.append(provider)
         return OfflineSQLProvider(self, provider)
 
-    # TODO: Add deprected warning for credentials_path
+    # TODO: Add deprecated warning for credentials_path
     def register_bigquery(
         self,
         name: str,
@@ -4058,7 +4065,7 @@ class ResourceClient:
     rc = ResourceClient("localhost:8000")
 
     # example query:
-    redis = rc.get_provider("redis-quickstart")
+    redis = client.get_provider("redis-quickstart")
     ```
     """
 
@@ -4273,7 +4280,7 @@ class ResourceClient:
         **Examples:**
 
         ``` py title="Input"
-        postgres = rc.get_provider("postgres-quickstart")
+        postgres = client.get_provider("postgres-quickstart")
         ```
 
         ``` json title="Output"

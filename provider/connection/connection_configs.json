@@ -123,7 +123,8 @@
     "Port": "0",
     "Username": "username",
     "Password": "password",
-    "Database": "database"
+    "Database": "database",
+    "SSLMode": "disable"
   },
   "BigQueryConfig": {
     "ProjectID": "some-project-id",

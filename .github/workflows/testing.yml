@@ -1166,6 +1166,8 @@ jobs:
           DYNAMO_SECRET_KEY: ${{ secrets.DYNAMO_SECRET_KEY }}
           DYNAMODB_REGION: ${{ secrets.DYNAMODB_REGION }}
           REDSHIFT_HOST: ${{ secrets.REDSHIFT_HOST }}
+          REDSHIFT_USERNAME: ${{ secrets.REDSHIFT_USERNAME }}
+          REDSHIFT_PASSWORD: ${{ secrets.REDSHIFT_PASSWORD }}
           SPARK_LOCAL_SCRIPT_PATH: home/runner/work/featureform/featureform/provider/scripts/spark/offline_store_spark_runner.py
           PYTHON_LOCAL_INIT_PATH: home/runner/work/featureform/featureform/provider/scripts/spark/python_packages.sh
         working-directory: ./

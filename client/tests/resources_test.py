@@ -158,6 +158,7 @@ def redshift_config():
         database="dev",
         user="user",
         password="p4ssw0rd",
+        sslmode="disable",
     )
 
 

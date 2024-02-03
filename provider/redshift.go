@@ -28,11 +28,20 @@ func redshiftOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	if err := sc.Deserialize(config); err != nil {
 		return nil, errors.New("invalid redshift config")
 	}
+
+	// We are doing this to support older versions of
+	// featureform that did not have the sslmode field
+	// on the client side.
+	sslMode := sc.SSLMode
+	if sslMode == "" {
+		sslMode = "disable"
+	}
+
 	queries := redshiftSQLQueries{}
 	queries.setVariableBinding(PostgresBindingStyle)
 	sgConfig := SQLOfflineStoreConfig{
 		Config:        config,
-		ConnectionURL: fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", sc.Username, sc.Password, sc.Endpoint, sc.Port, sc.Database),
+		ConnectionURL: fmt.Sprintf("sslmode=%s user=%v password=%s host=%v port=%v dbname=%v", sslMode, sc.Username, sc.Password, sc.Host, sc.Port, sc.Database),
 		Driver:        "postgres",
 		ProviderType:  pt.RedshiftOffline,
 		QueryImpl:     &queries,

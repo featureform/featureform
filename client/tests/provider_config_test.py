@@ -255,7 +255,7 @@ def test_redshift():
     expected_config = connection_configs["RedshiftConfig"]
     conf = RedshiftConfig(
         host="host",
-        port=0,
+        port="0",
         database="database",
         user="username",
         password="password",

@@ -1310,7 +1310,7 @@ type variableBindingStyle string
 
 const (
 	PostgresBindingStyle variableBindingStyle = "POSTGRESBIND"
-	MySQLBindingStyle                         = "SQLBIND"
+	MySQLBindingStyle    variableBindingStyle = "SQLBIND"
 )
 
 type VariableBindingIterator struct {

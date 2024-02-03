@@ -12,14 +12,16 @@ func TestRedshiftConfigMutableFields(t *testing.T) {
 		"Username": true,
 		"Password": true,
 		"Port":     true,
+		"SSLMode":  true,
 	}
 
 	config := RedshiftConfig{
-		Endpoint: "0.0.0.0",
+		Host:     "0.0.0.0",
 		Port:     "5439",
 		Username: "root",
 		Password: "password",
 		Database: "default",
+		SSLMode:  "disable",
 	}
 	actual := config.MutableFields()
 
@@ -41,38 +43,43 @@ func TestRedshiftConfigDifferingFields(t *testing.T) {
 	}{
 		{"No Differing Fields", args{
 			a: RedshiftConfig{
-				Endpoint: "0.0.0.0",
+				Host:     "0.0.0.0",
 				Port:     "5439",
 				Username: "root",
 				Password: "password",
 				Database: "default",
+				SSLMode:  "disable",
 			},
 			b: RedshiftConfig{
-				Endpoint: "0.0.0.0",
+				Host:     "0.0.0.0",
 				Port:     "5439",
 				Username: "root",
 				Password: "password",
 				Database: "default",
+				SSLMode:  "disable",
 			},
 		}, ss.StringSet{}},
 		{"Differing Fields", args{
 			a: RedshiftConfig{
-				Endpoint: "0.0.0.0",
+				Host:     "0.0.0.0",
 				Port:     "5439",
 				Username: "root",
 				Password: "password",
 				Database: "default",
+				SSLMode:  "disable",
 			},
 			b: RedshiftConfig{
-				Endpoint: "0.0.0.0",
+				Host:     "0.0.0.0",
 				Port:     "5439",
 				Username: "featureformer",
 				Password: "pass123word",
 				Database: "default",
+				SSLMode:  "require",
 			},
 		}, ss.StringSet{
 			"Username": true,
 			"Password": true,
+			"SSLMode":  true,
 		}},
 	}
 

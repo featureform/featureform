@@ -570,14 +570,14 @@ func testSnowflakeConfigUpdates(t *testing.T, providerType pt.Type, valid bool) 
 }
 
 func testRedshiftConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
-	endpoint := "0.0.0.0"
+	host := "0.0.0.0"
 	port := "5439"
 	username := "root"
 	password := "password"
 	database := "default"
 
 	configA := pc.RedshiftConfig{
-		Endpoint: endpoint,
+		Host:     host,
 		Port:     port,
 		Username: username,
 		Password: password,
@@ -590,12 +590,12 @@ func testRedshiftConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 		password += updateSuffix
 		port = "5440"
 	} else {
-		endpoint = "127.0.0.1"
+		host = "127.0.0.1"
 		database += updateSuffix
 	}
 
 	configB := pc.RedshiftConfig{
-		Endpoint: endpoint,
+		Host:     host,
 		Port:     port,
 		Username: username,
 		Password: password,

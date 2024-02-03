@@ -255,10 +255,11 @@ def test_redshift():
     expected_config = connection_configs["RedshiftConfig"]
     conf = RedshiftConfig(
         host="host",
-        port=0,
+        port="0",
         database="database",
         user="username",
         password="password",
+        sslmode="disable",
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config

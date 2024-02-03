@@ -259,7 +259,7 @@ def test_redshift():
         database="database",
         user="username",
         password="password",
-        sslmode="disabled"
+        sslmode="disable"
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config

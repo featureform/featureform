@@ -56,6 +56,16 @@ function SideNav({ sections, children }) {
               </ListItem>
             );
           })}
+          <ListItem key={20}>
+            <ListItemButton
+              onClick={(event) => handleMenuClick(event, '/jobs')}
+            >
+              <ListItemIcon style={{ padding: '0 0 0 1.5em !important' }}>
+                <Icon>{'all_inbox'}</Icon>
+              </ListItemIcon>
+              <ListItemText primary={'Jobs'} />
+            </ListItemButton>
+          </ListItem>
         </List>
       </Drawer>
       <Box

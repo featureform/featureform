@@ -17,30 +17,24 @@ COPY ./metadata/proto/metadata.proto ./metadata/proto/
 ENV PATH /go/bin:$PATH
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
 
-# Copying source files
-COPY ./lib/ ./lib/
-COPY ./filestore/ ./filestore/
-COPY ./coordinator/*.go ./coordinator/
-COPY ./provider/ ./provider/
-COPY ./config/ ./config/
-COPY ./helpers/ ./helpers/
-COPY ./logging/ ./logging/
-COPY ./metadata/ ./metadata/
-COPY ./runner/ ./runner/
-COPY ./kubernetes ./kubernetes
-COPY ./types ./types
-COPY ./coordinator/main/main.go ./coordinator/main/main.go
+## Install Python versions
+ARG TESTING
+RUN if [ "$TESTING" = "True" ]; then \
+  pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
+  else \
+  pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+  pyenv install 3.8.16 && pyenv global 3.8.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+  pyenv install 3.9.16 && pyenv global 3.9.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+  pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+  pyenv install 3.11.2 && pyenv global 3.11.2 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
+  fi
 
-# Building Go app
-# CGD_ENABLED=0 is used to avoid the libc differences in alpine and ubuntu
-ENV CGO_ENABLED=0
-RUN go build ./coordinator/main/main.go
+RUN curl https://pyenv.run | bash
 
-FROM ubuntu:22.04
-
-COPY --from=builder ./app/main /app/main
-COPY ./provider/scripts/spark/ /app/provider/scripts/spark/
-COPY ./provider/queries/ /app/provider/queries/
+ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
+ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
+ENV MATERIALIZE_NO_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_no_ts.sql"
+ENV MATERIALIZE_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_ts.sql"
 
 # Installing pyenv
 RUN apt-get update && apt-get install -y \
@@ -66,24 +60,30 @@ ENV PYENV_ROOT="/.pyenv"
 ENV PATH="$PYENV_ROOT/bin:$PATH"
 RUN echo "PATH=${PATH}" > "${ENV}"
 
-RUN curl https://pyenv.run | bash
+# Building Go app
+# CGD_ENABLED=0 is used to avoid the libc differences in alpine and ubuntu
+ENV CGO_ENABLED=0
+RUN go build ./coordinator/main/main.go
 
-## Install Python versions
-ARG TESTING
-RUN if [ "$TESTING" = "True" ]; then \
-  pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
-  else \
-  pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-  pyenv install 3.8.16 && pyenv global 3.8.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-  pyenv install 3.9.16 && pyenv global 3.9.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-  pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-  pyenv install 3.11.2 && pyenv global 3.11.2 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
-  fi
+FROM ubuntu:22.04
 
-ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
-ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
-ENV MATERIALIZE_NO_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_no_ts.sql"
-ENV MATERIALIZE_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_ts.sql"
+COPY --from=builder ./app/main /app/main
+COPY ./provider/scripts/spark/ /app/provider/scripts/spark/
+COPY ./provider/queries/ /app/provider/queries/
+
+# Copying source files
+COPY ./lib/ ./lib/
+COPY ./filestore/ ./filestore/
+COPY ./coordinator/*.go ./coordinator/
+COPY ./provider/ ./provider/
+COPY ./config/ ./config/
+COPY ./helpers/ ./helpers/
+COPY ./logging/ ./logging/
+COPY ./metadata/ ./metadata/
+COPY ./runner/ ./runner/
+COPY ./kubernetes ./kubernetes
+COPY ./types ./types
+COPY ./coordinator/main/main.go ./coordinator/main/main.go
 
 # Take the MD5 hash of the Spark runner script and store it in a file for use by the config package
 # when determining the remove filepath in cloud object storage (e.g. S3). By adding the hash as a suffix

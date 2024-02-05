@@ -1335,8 +1335,7 @@ func (resource *providerResource) Update(lookup ResourceLookup, resourceUpdate R
 		return err
 	}
 	if !isValid {
-		wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
-		wrapped.AddDetail("resource_type", resource.ID().Type.String())
+		wrapped := fferr.ResourceInternalError(resource.ID().Name, resource.ID().Variant, resource.ID().Type.String(), fmt.Errorf("invalid config update"))
 		return wrapped
 	}
 	resource.serialized.SerializedConfig = providerUpdate.SerializedConfig

@@ -6,6 +6,20 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
+func ResourceInternalError(resourceName, resourceVariant, resourceType string, err error) *InternalError {
+	if err == nil {
+		err = fmt.Errorf("internal error")
+	}
+	baseError := newBaseGRPCError(err, INTERNAL_ERROR, codes.Internal)
+	baseError.AddDetail("resource_name", resourceName)
+	baseError.AddDetail("resource_variant", resourceVariant)
+	baseError.AddDetail("resource_type", resourceType)
+
+	return &InternalError{
+		baseError,
+	}
+}
+
 func NewDatasetNotFoundError(resourceName, resourceVariant string, err error) *DatasetNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("dataset not found")

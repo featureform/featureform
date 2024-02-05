@@ -109,7 +109,7 @@ func (client *Client) RequestScheduleChange(ctx context.Context, resID ResourceI
 func (client *Client) SetStatusError(ctx context.Context, resID ResourceID, status ResourceStatus, jobErr error) error {
 	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
 	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
-	errorStatus, ok := grpc_status.FromError(jobErr) // convert to a grpc status
+	errorStatus, ok := grpc_status.FromError(jobErr)
 	if !ok {
 		return fferr.NewInvalidArgument(fmt.Errorf("Error is not a gRPC status"))
 	}

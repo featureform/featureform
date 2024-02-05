@@ -303,7 +303,7 @@ func TestRedshift(t *testing.T) {
 
 	config := jsonDict["RedshiftConfig"].(map[string]interface{})
 	instance := RedshiftConfig{
-		Endpoint: config["Host"].(string),
+		Host:     config["Host"].(string),
 		Port:     config["Port"].(string),
 		Username: config["Username"].(string),
 		Password: config["Password"].(string),

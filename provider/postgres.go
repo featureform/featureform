@@ -15,11 +15,11 @@ type postgresColumnType string
 
 const (
 	pgInt       postgresColumnType = "integer"
-	pgBigInt                       = "bigint"
-	pgFloat                        = "float8"
-	pgString                       = "varchar"
-	pgBool                         = "boolean"
-	pgTimestamp                    = "timestamp with time zone"
+	pgBigInt    postgresColumnType = "bigint"
+	pgFloat     postgresColumnType = "float8"
+	pgString    postgresColumnType = "varchar"
+	pgBool      postgresColumnType = "boolean"
+	pgTimestamp postgresColumnType = "timestamp with time zone"
 )
 
 func postgresOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {

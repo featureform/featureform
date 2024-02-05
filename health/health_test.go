@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/featureform/helpers"
-	"io/ioutil"
 	"net"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/featureform/helpers"
 
 	fs "github.com/featureform/filestore"
 	"github.com/featureform/metadata"
@@ -58,6 +58,20 @@ func TestHealth_Check(t *testing.T) {
 				Type:             string(pt.PostgresOffline),
 				SerializedConfig: config,
 				Software:         "postgres",
+				Tags:             metadata.Tags{},
+				Properties:       metadata.Properties{},
+			},
+		)
+	}
+
+	if *providerType == "redshift" || *providerType == "" {
+		config := initProvider(t, pt.RedshiftOffline, "", "")
+		providers = append(providers,
+			metadata.ProviderDef{
+				Name:             "redshift",
+				Type:             string(pt.RedshiftOffline),
+				SerializedConfig: config,
+				Software:         "redshift",
 				Tags:             metadata.Tags{},
 				Properties:       metadata.Properties{},
 			},
@@ -233,7 +247,7 @@ func initSpark(t *testing.T, executorType pc.SparkExecutorType, storeType fs.Fil
 		}
 	case fs.GCS:
 		credsFile := os.Getenv("GCP_CREDENTIALS_FILE")
-		content, err := ioutil.ReadFile(credsFile)
+		content, err := os.ReadFile(credsFile)
 		if err != nil {
 			t.Errorf("Error when opening file: %v", err)
 		}
@@ -299,6 +313,23 @@ func initProvider(t *testing.T, providerType pt.Type, executorType pc.SparkExecu
 			SSLMode:  "disable",
 		}
 		return postgresConfig.Serialize()
+	case pt.RedshiftOffline:
+		host := checkEnv("REDSHIFT_HOST")
+		port := checkEnv("REDSHIFT_PORT")
+		db := checkEnv("REDSHIFT_DATABASE")
+		user := checkEnv("REDSHIFT_USERNAME")
+		password := checkEnv("REDSHIFT_PASSWORD")
+
+		redshiftConfig := pc.RedshiftConfig{
+			Host:     host,
+			Port:     port,
+			Database: db,
+			Username: user,
+			Password: password,
+			SSLMode:  "disable",
+		}
+
+		return redshiftConfig.Serialize()
 	case pt.ClickHouseOffline:
 		db := checkEnv("CLICKHOUSE_DB")
 		user := checkEnv("CLICKHOUSE_USER")
@@ -385,6 +416,17 @@ func testUnsuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *
 		failureConfig.SSLMode = "require"
 		def.SerializedConfig = failureConfig.Serialize()
 		def.Name = "postgres-failure"
+	case pt.RedshiftOffline:
+		failureConfig := pc.RedshiftConfig{
+			Host: "invalid",
+			Port: "-1",
+		}
+		if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {
+			t.Fatalf("Failed to deserialize config: %s", err)
+		}
+		failureConfig.SSLMode = "verify-full"
+		def.SerializedConfig = failureConfig.Serialize()
+		def.Name = "redshift-failure"
 	case pt.ClickHouseOffline:
 		failureConfig := pc.ClickHouseConfig{}
 		if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {

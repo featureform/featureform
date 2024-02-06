@@ -1173,14 +1173,13 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 		return
 	}
 
-	filepath, err := FindFileWithPrefix(statsFiles, "part-00003")
-	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "Could not find the stats file"}
-		m.logger.Errorw(fetchError.Error(), "error", err.Error())
+	if len(statsFiles) != 1 {
+		fetchError := &FetchError{StatusCode: 500, Type: "Could not find the correct stats file"}
+		m.logger.Errorw(fetchError.Error())
 		c.JSON(fetchError.StatusCode, fetchError.Error())
-		return
 	}
 
+	filepath := statsFiles[0]
 	file, err := sparkOfflineStore.Store.Read(filepath)
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "Reading from the file store path failed."}

@@ -69,3 +69,7 @@ func (s *HDFSFileStoreConfig) Serialize() ([]byte, error) {
 func (s *HDFSFileStoreConfig) IsFileStoreConfig() bool {
 	return true
 }
+
+func (s HDFSFileStoreConfig) DifferingFields(b HDFSFileStoreConfig) (ss.StringSet, error) {
+	return differingFields(s, b)
+}

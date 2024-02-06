@@ -19,12 +19,6 @@ ENV NEXT_TELEMETRY_DISABLED 1
 WORKDIR /app/dashboard
 RUN npm run build
 
-# Install MeiliSearch
-RUN curl -L https://install.meilisearch.com | sh
-
-# Setup Nginx
-COPY nginx.conf /etc/nginx/nginx.conf
-
 #Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app/dashboard
@@ -45,12 +39,6 @@ RUN apt update && \
     apt install -y protobuf-compiler
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-
-# Install and configure Supervisor
-RUN apt-get update && apt-get install -y supervisor
-RUN mkdir -p /var/lock/apache2 /var/run/apache2 /var/run/sshd /var/log/supervisor
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-RUN apt-get install -y nginx --option=Dpkg::Options::=--force-confdef
 
 WORKDIR /app
 COPY go.mod ./
@@ -90,10 +78,18 @@ FROM golang:1.21
 
 WORKDIR /app
 
+# Install and configure Supervisor
+RUN apt-get update && apt-get install -y supervisor
+RUN mkdir -p /var/lock/apache2 /var/run/apache2 /var/run/sshd /var/log/supervisor
+RUN apt-get install -y nginx --option=Dpkg::Options::=--force-confdef
+
 # Install Node 16 for internal dashboard server
 RUN curl -sL https://deb.nodesource.com/setup_16.x | sh
 RUN apt-get update
 RUN apt-get install -y nodejs
+
+# Install MeiliSearch
+RUN curl -L https://install.meilisearch.com | sh
 
 # Setup Etcd
 RUN git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
@@ -126,6 +122,9 @@ RUN cat /app/provider/scripts/spark/offline_store_spark_runner.py | md5sum \
 
 ENV PYTHON_LOCAL_INIT_PATH=$SPARK_PYTHON_PACKAGES
 
+# Setup Nginx
+COPY nginx.conf /etc/nginx/nginx.conf
+
 # Copy built Go services
 COPY --from=go-builder /app/execs /app/execs
 
@@ -139,6 +138,8 @@ ENV MEILI_LOG_LEVEL="WARN"
 ENV FF_GET_EQUIVALENT_VARIANTS="false"
 EXPOSE 7878
 EXPOSE 80
+
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 HEALTHCHECK --interval=5m --timeout=10s --start-period=10s --retries=3 CMD curl --fail http://localhost/ || exit 1
 

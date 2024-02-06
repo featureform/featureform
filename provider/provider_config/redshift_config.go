@@ -7,11 +7,12 @@ import (
 )
 
 type RedshiftConfig struct {
-	Endpoint string
+	Host     string
 	Port     string
 	Database string
 	Username string
 	Password string
+	SSLMode  string
 }
 
 func (rs *RedshiftConfig) Deserialize(config SerializedConfig) error {
@@ -35,6 +36,7 @@ func (rs RedshiftConfig) MutableFields() ss.StringSet {
 		"Username": true,
 		"Password": true,
 		"Port":     true,
+		"SSLMode":  true,
 	}
 }
 

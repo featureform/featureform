@@ -3,7 +3,6 @@ import pytest
 
 from featureform.register import (
     EntityRegistrar,
-    LocalProvider,
     OnlineProvider,
     FileStoreProvider,
     OfflineSQLProvider,
@@ -22,13 +21,6 @@ def test_registrar_get_source():
     reg = Registrar()
     result = reg.get_source(name="name", variant="variant")
     assert isinstance(result, ColumnSourceRegistrar)
-
-
-@pytest.mark.local
-def test_registrar_get_local_provider():
-    reg = Registrar()
-    result = reg.get_local_provider(name="unit-test")
-    assert isinstance(result, LocalProvider)
 
 
 @pytest.mark.local
@@ -85,6 +77,15 @@ def test_registrar_get_snowflake_legacy():
 def test_registrar_get_redshift():
     reg = Registrar()
     result = reg.get_redshift(
+        name="unit-test",
+    )
+    assert isinstance(result, OfflineSQLProvider)
+
+
+@pytest.mark.local
+def test_registrar_get_clickhouse():
+    reg = Registrar()
+    result = reg.get_clickhouse(
         name="unit-test",
     )
     assert isinstance(result, OfflineSQLProvider)

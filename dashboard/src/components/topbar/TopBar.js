@@ -91,7 +91,11 @@ export default function TopBar({ api }) {
 
   return (
     <div className={classes.root}>
-      <AppBar position='absolute' className={classes.appbar}>
+      <AppBar
+        position='absolute'
+        className={classes.appbar}
+        style={{ backgroundColor: '#FC195C' }}
+      >
         <Toolbar className={classes.toolbar}>
           <div className={classes.title}>
             <Box

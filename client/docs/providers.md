@@ -23,8 +23,6 @@
 
 [//]: # (| [Kubernetes Pandas Runner]&#40;#kubernetes-pandas-runner&#41; |    x    |        |    x    |         |        |                        |)
 
-[//]: # (|           [Local Provider]&#40;#local-provider&#41;           |    x    |        |    x    |    x    |        | x                      |)
-
 [//]: # (|                  [MongoDB]&#40;#mongodb&#41;                  |         |   x    |         |    x    |        |                        |)
 
 [//]: # (|                 [Pinecone]&#40;#pinecone&#41;                 |         |   x    |         |    x    |   x    | x                      |)
@@ -38,6 +36,8 @@
 [//]: # (|                       [S3]&#40;#s3&#41;                       |    x    |        |         |    x    |        |                        |)
 
 [//]: # (|                [Snowflake]&#40;#snowflake&#41;                |    x    |        |    x    |    x    |        |                        |)
+
+[//]: # (|                [ClickHouse]&#40;#clickhouse&#41;               |    x    |        |    x    |    x    |        |                        |)
 
 [//]: # (|                    [Spark]&#40;#spark&#41;                    |    x    |        |    x    |         |        |                        |)
 
@@ -157,14 +157,6 @@ This page provides reference and examples for how to register the various provid
         show_source: false
         show_root_toc_entry: false
 
-### Local Provider
-::: featureform.register.Registrar.register_local
-    handler: python
-    options:
-        show_root_heading: false
-        show_source: false
-        show_root_toc_entry: false
-
 ### MongoDB
 ::: featureform.register.Registrar.register_mongodb
     handler: python
@@ -183,6 +175,14 @@ This page provides reference and examples for how to register the various provid
 
 ### Postgres
 ::: featureform.register.Registrar.register_postgres
+    handler: python
+    options:
+        show_root_heading: false
+        show_source: false
+        show_root_toc_entry: false
+
+### ClickHouse
+::: featureform.register.Registrar.register_clickhouse
     handler: python
     options:
         show_root_heading: false

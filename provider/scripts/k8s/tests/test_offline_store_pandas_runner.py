@@ -24,6 +24,7 @@ real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="should not run on windows")
 @pytest.mark.parametrize(
     "variables",
     [
@@ -41,6 +42,7 @@ def test_main(variables, df_transformation, request):
     set_environment_variables(environment_variables, delete=True)
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="should not run on windows")
 @pytest.mark.parametrize(
     "variables,expected_output",
     [
@@ -83,6 +85,7 @@ def test_execute_sql_job(variables, expected_output, request):
     set_environment_variables(env, delete=True)
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="should not run on windows")
 @pytest.mark.parametrize(
     "variables,expected_output",
     [
@@ -121,6 +124,7 @@ def test_execute_df_job(df_transformation, variables, expected_output, request):
     assert len(expected_df) == len(output_df)
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="should not run on windows")
 @pytest.mark.parametrize(
     "variables",
     [
@@ -141,6 +145,7 @@ def test_get_args(variables, request):
     set_environment_variables(environment_variables, delete=True)
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="should not run on windows")
 @pytest.mark.parametrize(
     "variables,type",
     [
@@ -179,12 +184,13 @@ def test_get_blob_credentials(variables, type, request):
     assert credentials == expected_output
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="should not run on windows")
 @pytest.mark.parametrize(
     "variables,",
     [
-        "local_variables_success",
-        "k8s_df_variables_success",
-        "k8s_s3_df_variables_success",
+        pytest.param("local_variables_success", marks=pytest.mark.local),
+        pytest.param("k8s_df_variables_success", marks=pytest.mark.hosted),
+        pytest.param("k8s_s3_df_variables_success", marks=pytest.mark.hosted),
         pytest.param("not_supported_blob_store", marks=pytest.mark.xfail),
     ],
 )
@@ -238,6 +244,7 @@ def load_env_file():
     load_dotenv(env_file)
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="should not run on windows")
 @pytest.mark.parametrize(
     "exception_message, error",
     [

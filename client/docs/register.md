@@ -93,6 +93,13 @@
         show_root_heading: false
         show_root_toc_entry: false
 
+### ClickHouse
+::: featureform.register.Registrar.register_clickhouse
+    handler: python
+    options:
+        show_root_heading: false
+        show_root_toc_entry: false
+
 ### S3
 ::: featureform.register.Registrar.register_s3
     handler: python

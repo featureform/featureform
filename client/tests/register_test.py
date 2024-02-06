@@ -9,10 +9,8 @@ from featureform import ResourceRedefinedError, InvalidSQLQuery
 sys.path.insert(0, "client/src/")
 import pytest
 from featureform.register import (
-    LocalProvider,
     Provider,
     Registrar,
-    LocalConfig,
     SQLTransformationDecorator,
     DFTransformationDecorator,
     SnowflakeConfig,
@@ -56,21 +54,6 @@ def test_snowflake_config_credentials(
 
 
 @pytest.fixture
-def local():
-    config = LocalConfig()
-    provider = Provider(
-        name="local-mode",
-        function="LOCAL_ONLINE",
-        description="This is local mode",
-        team="team",
-        config=config,
-        tags=[],
-        properties={},
-    )
-    return LocalProvider(Registrar(), provider)
-
-
-@pytest.fixture
 def registrar():
     return Registrar()
 
@@ -88,11 +71,93 @@ def return_5():
     return 5
 
 
-@pytest.mark.parametrize("fn", [empty_string, return_5])
-def test_sql_transformation_decorator_invalid_fn(local, fn):
-    decorator = local.sql_transformation(variant="var", owner="owner")
-    with pytest.raises((TypeError, ValueError)):
-        decorator(fn)
+@pytest.mark.parametrize(
+    "sql_query, expected_query, inputs",
+    [
+        (
+            "SELECT * FROM {{ arg1 }} JOIN {{ arg2 }}",
+            "SELECT * FROM {{ df.var }} JOIN {{ df2.var2 }}",
+            [("df", "var"), ("df2", "var2")],
+        ),
+        (
+            "SELECT * FROM {{ arg1 }} JOIN {{ arg1 }} JOIN {{ arg2 }} JOIN {{ arg2 }}",
+            "SELECT * FROM {{ df.var }} JOIN {{ df.var }} JOIN {{ df2.var2 }} JOIN {{ df2.var2 }}",
+            [("df", "var"), ("df2", "var2")],
+        ),
+        (
+            "SELECT * FROM {{arg1}} JOIN {{         arg1  }} JOIN {{     arg2 }} JOIN {{ arg2       }}",
+            "SELECT * FROM {{ df.var }} JOIN {{ df.var }} JOIN {{ df2.var2 }} JOIN {{ df2.var2 }}",
+            [("df", "var"), ("df2", "var2")],
+        ),
+        (
+            "SELECT * FROM {{arg1}} JOIN {{         arg1  }} JOIN {{     arg2 }} JOIN {{ some_transformation.variant       }}",
+            "SELECT * FROM {{ df.var }} JOIN {{ df.var }} JOIN {{ df2.var2 }} JOIN {{ some_transformation.variant       }}",
+            [("df", "var"), ("df2", "var2")],
+        ),
+    ],
+)
+def test_sql_transformation_inputs_valid(registrar, sql_query, expected_query, inputs):
+    def my_function(arg1, arg2):
+        return sql_query
+
+    dec = SQLTransformationDecorator(
+        registrar=registrar,
+        owner="",
+        provider="",
+        variant="sql",
+        tags=[],
+        properties={},
+        inputs=inputs,
+    )
+    dec.__call__(my_function)
+
+    # Check that Transformation definition does not error when converting to source
+    source = dec.to_source()
+    assert (
+        source.definition.kwargs()["transformation"].SQLTransformation.query
+        == expected_query
+    )
+
+
+@pytest.mark.parametrize(
+    "fn, inputs, error_message",
+    [
+        (
+            lambda arg1, arg2, arg3: "SELECT * FROM {{ arg1 }} JOIN {{ arg2 }}",
+            [("df", "var"), ("df2", "var2")],
+            "Transformation function has more parameters than inputs.",
+        ),
+        (
+            lambda arg1, arg2: "SELECT * FROM {{ arg1 }} JOIN {{ arg2 }} JOIN {{ arg3 }}",
+            [("df", "var"), ("df2", "var2")],
+            "SQL placeholder '{{ arg3 }}' not found in input arguments",
+        ),
+        (
+            lambda arg1, arg2: "SELECT * FROM {{ arg1 }} JOIN {{ arg2 }}",
+            [],
+            "Transformation function has more parameters than inputs.",
+        ),
+        (
+            lambda arg1: "SELECT * FROM {{ arg1 }} JOIN {{ arg2 }}",
+            [("df", "var"), ("df2", "var2")],
+            "Too many inputs for transformation function.",
+        ),
+    ],
+)
+def test_sql_transformation_inputs_error(registrar, fn, inputs, error_message):
+    with pytest.raises(ValueError) as e:
+        dec = SQLTransformationDecorator(
+            registrar=registrar,
+            owner="",
+            provider="",
+            variant="sql",
+            tags=[],
+            properties={},
+            inputs=inputs,
+        )
+        dec.__call__(fn)
+        dec.to_source().definition.kwargs()
+    assert error_message in str(e.value)
 
 
 def test_sql_transformation_empty_description(registrar):
@@ -281,10 +346,10 @@ def run_before_and_after_tests(tmpdir):
         ("SELECT * FROM     \n {{name . variant}}", False),
         (
             """
-            SELECT *
-            FROM {{ name.variant2 }}
-            WHERE x >= 5.
-            """,
+                                            SELECT *
+                                            FROM {{ name.variant2 }}
+                                            WHERE x >= 5.
+                                            """,
             True,
         ),
         (
@@ -319,21 +384,6 @@ def test_assert_query_contains_at_least_one_source(sql_query, expected_valid_sql
         )
     else:
         dec._assert_query_contains_at_least_one_source(sql_query)
-
-
-def test_state_not_clearing_after_resource_not_defined():
-    ff.local.register_file(name="a", path="a.csv")
-
-    ff.local.register_file(name="a", path="b.csv")
-
-    client = ff.Client(local=True)
-
-    with pytest.raises(ResourceRedefinedError):
-        client.apply()  # should clear state after
-
-    ff.local.register_file(name="a", path="a.csv")
-
-    client.apply()  # should throw no error, previously this was a bug
 
 
 @pytest.mark.parametrize(

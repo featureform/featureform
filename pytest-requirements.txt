@@ -1,0 +1,15 @@
+azure-core
+azure-storage-blob
+boto3
+botocore
+google-api-core
+google-auth
+google-cloud-core
+google-cloud-storage
+pyspark
+pytest
+pytest-mock
+python-dotenv
+s3transfer
+urllib3
+psutil

@@ -229,9 +229,26 @@ func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
 	if err := wrapper.ResourceLookup.Set(id, res); err != nil {
 		return err
 	}
+
+	var allTags []string
+	switch res.(type) {
+	case *sourceVariantResource:
+		allTags = res.(*sourceVariantResource).serialized.Tags.Tag
+
+	case *featureVariantResource:
+		allTags = res.(*featureVariantResource).serialized.Tags.Tag
+		
+	case *labelVariantResource:
+		allTags = res.(*labelVariantResource).serialized.Tags.Tag
+
+	case *trainingSetVariantResource:
+		allTags = res.(*trainingSetVariantResource).serialized.Tags.Tag
+	}
+	
 	doc := search.ResourceDoc{
 		Name:    id.Name,
 		Type:    id.Type.String(),
+		Tags:	allTags,
 		Variant: id.Variant,
 	}
 	return wrapper.Searcher.Upsert(doc)
@@ -698,8 +715,12 @@ func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) (boo
 	thisProto := resource.serialized
 	otherProto := otherVariant.serialized
 
-	isEquivalentLocation := proto.Equal(thisProto.GetFunction(), otherProto.GetFunction()) ||
-		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns())
+	isEquivalentLocation := false
+	if thisProto.GetFunction() != nil {
+		isEquivalentLocation = proto.Equal(thisProto.GetFunction(), otherProto.GetFunction())
+	} else {
+		isEquivalentLocation = proto.Equal(thisProto.GetColumns(), otherProto.GetColumns())
+	}
 
 	if thisProto.GetName() == otherProto.GetName() &&
 		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
@@ -1318,6 +1339,8 @@ func (resource *providerResource) isValidConfigUpdate(configUpdate pc.Serialized
 		return isValidMongoConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.PostgresOffline:
 		return isValidPostgresConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
+	case pt.ClickHouseOffline:
+		return isValidClickHouseConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.RedisOnline:
 		return isValidRedisConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.SnowflakeOffline:

@@ -33,154 +33,6 @@ func (test *OfflineStoreTest) Run() {
 	t := test.t
 	store := test.store
 
-	//
-	//_ = func(t *testing.T, executorType pc.SparkExecutorType, storeType fs.FileStoreType) (pc.SerializedConfig, pc.SparkConfig) {
-	//	var executorConfig pc.SparkExecutorConfig
-	//
-	//	switch executorType {
-	//	case pc.SparkGeneric:
-	//		executorConfig = &pc.SparkGenericConfig{
-	//			Master:        os.Getenv("GENERIC_SPARK_MASTER"),
-	//			DeployMode:    os.Getenv("GENERIC_SPARK_DEPLOY_MODE"),
-	//			PythonVersion: os.Getenv("GENERIC_SPARK_PYTHON_VERSION"),
-	//		}
-	//	case pc.Databricks:
-	//		executorConfig = &pc.DatabricksConfig{
-	//			Host:    os.Getenv("DATABRICKS_HOST"),
-	//			Token:   os.Getenv("DATABRICKS_TOKEN"),
-	//			Cluster: os.Getenv("DATABRICKS_CLUSTER"),
-	//		}
-	//	case pc.EMR:
-	//		executorConfig = &pc.EMRConfig{
-	//			Credentials: pc.AWSCredentials{
-	//				AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-	//				AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-	//			},
-	//			ClusterRegion: os.Getenv("AWS_EMR_CLUSTER_REGION"),
-	//			ClusterName:   os.Getenv("AWS_EMR_CLUSTER_ID"),
-	//		}
-	//	default:
-	//		t.Fatalf("Invalid executor type: %v", executorType)
-	//	}
-	//
-	//	var fileStoreConfig pc.SparkFileStoreConfig
-	//	switch storeType {
-	//	case fs.S3:
-	//		fileStoreConfig = &pc.S3FileStoreConfig{
-	//			Credentials: pc.AWSCredentials{
-	//				AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-	//				AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-	//			},
-	//			BucketRegion: os.Getenv("S3_BUCKET_REGION"),
-	//			BucketPath:   os.Getenv("S3_BUCKET_PATH"),
-	//			Path:         os.Getenv(""),
-	//		}
-	//	case fs.GCS:
-	//		credsFile := os.Getenv("GCP_CREDENTIALS_FILE")
-	//		content, err := ioutil.ReadFile(credsFile)
-	//		if err != nil {
-	//			t.Errorf("Error when opening file: %v", err)
-	//		}
-	//		var creds map[string]interface{}
-	//		err = json.Unmarshal(content, &creds)
-	//		if err != nil {
-	//			t.Errorf("Error during Unmarshal() creds: %v", err)
-	//		}
-	//
-	//		fileStoreConfig = &pc.GCSFileStoreConfig{
-	//			BucketName: os.Getenv("GCS_BUCKET_NAME"),
-	//			BucketPath: "",
-	//			Credentials: pc.GCPCredentials{
-	//				ProjectId: os.Getenv("GCP_PROJECT_ID"),
-	//				JSON:      creds,
-	//			},
-	//		}
-	//	case fs.Azure:
-	//		fileStoreConfig = &pc.AzureFileStoreConfig{
-	//			AccountName:   os.Getenv("AZURE_ACCOUNT_NAME"),
-	//			AccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
-	//			ContainerName: os.Getenv("AZURE_CONTAINER_NAME"),
-	//			Path:          os.Getenv("AZURE_CONTAINER_PATH"),
-	//		}
-	//	default:
-	//		t.Fatalf("Invalid store type: %v", storeType)
-	//	}
-	//
-	//	var sparkConfig = pc.SparkConfig{
-	//		ExecutorType:   executorType,
-	//		ExecutorConfig: executorConfig,
-	//		StoreType:      storeType,
-	//		StoreConfig:    fileStoreConfig,
-	//	}
-	//
-	//	serializedConfig, err := sparkConfig.Serialize()
-	//	if err != nil {
-	//		t.Fatalf("Cannot serialize Spark config with %s executor and %s files tore: %v", executorType, storeType, err)
-	//	}
-	//	return serializedConfig, sparkConfig
-	//}
-	//
-	//testList := []testMember{}
-	//
-	//if *offlineProvider == "memory" || *offlineProvider == "" {
-	//	testList = append(testList, testMember{pt.MemoryOffline, []byte{}, false})
-	//}
-	//if *offlineProvider == "bigquery" || *offlineProvider == "" {
-	//	serialBQConfig, bigQueryConfig := bqInit()
-	//	testList = append(testList, testMember{pt.BigQueryOffline, serialBQConfig, true})
-	//	t.Cleanup(func() {
-	//		destroyBigQueryDataset(bigQueryConfig)
-	//	})
-	//}
-	//if *offlineProvider == "postgres" || *offlineProvider == "" {
-	//	testList = append(testList, testMember{pt.PostgresOffline, postgresInit(), true})
-	//}
-	////if *provider == "mysql" || *provider == "" {
-	////	testList = append(testList, testMember{pt.MySqlOffline, mySqlInit(), true})
-	////}
-	//if *offlineProvider == "snowflake" || *offlineProvider == "" {
-	//	serialSFConfig, snowflakeConfig := snowflakeInit()
-	//	testList = append(testList, testMember{pt.SnowflakeOffline, serialSFConfig, true})
-	//	t.Cleanup(func() {
-	//		destroySnowflakeDatabase(snowflakeConfig)
-	//	})
-	//}
-	//if *offlineProvider == "redshift" || *offlineProvider == "" {
-	//	serialRSConfig, redshiftConfig := redshiftInit()
-	//	testList = append(testList, testMember{pt.RedshiftOffline, serialRSConfig, true})
-	//	t.Cleanup(func() {
-	//		destroyRedshiftDatabase(redshiftConfig)
-	//	})
-	//}
-	// TODO: update testing.yaml to include local PySpark instance generic Spark tests
-	// if *provider == "spark-generic-s3" || *provider == "" {
-	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.S3)
-	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	// }
-	// if *provider == "spark-generic-abs" || *provider == "" {
-	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.Azure)
-	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	// }
-	// if *provider == "spark-generic-gcs" || *provider == "" {
-	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.GCS)
-	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	// }
-	// TODO: Uncomments when databricks test is fixed
-	//if *provider == "spark-databricks-s3" || *provider == "" {
-	//	serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.S3)
-	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	//}
-	// TODO: Uncomments when abs test is fixed
-	//if *provider == "spark-databricks-abs" || *provider == "" {
-	//	serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.Azure)
-	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	//}
-	// TODO: Uncomment when EMR can be configured to run these tests quicker. Currently taking > 60 minutes.
-	//if *provider == "spark-emr-s3" || *provider == "" {
-	//	serialSparkConfig, _ := sparkInit(t, pc.EMR, fs.S3)
-	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	//}
-
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
 		"TableAlreadyExists":      testOfflineTableAlreadyExists,
@@ -202,6 +54,7 @@ func (test *OfflineStoreTest) Run() {
 		"LabelTableNotFound":     testLabelTableNotFound,
 		"FeatureTableNotFound":   testFeatureTableNotFound,
 		"TrainingDefShorthand":   testTrainingSetDefShorthand,
+		"ResourceLocation":       testResourceLocation,
 	}
 
 	for name, fn := range testFns {
@@ -299,6 +152,54 @@ func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
 	}
 	if tab, err := store.GetResourceTable(id); tab == nil || err != nil {
 		t.Fatalf("Failed to get table: %v", err)
+	}
+}
+
+func testResourceLocation(t *testing.T, store OfflineStore) {
+	if store.Type() == pt.MemoryOffline {
+		t.Skip("Skipping test for memory store")
+	}
+
+	id := ResourceID{
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Primary,
+	}
+
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "int", ValueType: Int},
+			{Name: "bool", ValueType: Bool},
+			{Name: "string", ValueType: String},
+			{Name: "float", ValueType: Float32},
+		},
+	}
+
+	_, err := store.CreatePrimaryTable(id, schema)
+	if err != nil {
+		t.Fatalf("could not create primary table: %v", err)
+	}
+
+	if tab, err := store.GetResourceTable(id); tab == nil || err != nil {
+		t.Fatalf("Failed to get table: %v", err)
+	}
+
+	location, err := store.ResourceLocation(id)
+	if location == "" || err != nil {
+		t.Fatalf("Failed to get location: %v", err)
+	}
+
+	if store.Type() == pt.SparkOffline || store.Type() == pt.K8sOffline {
+		expectedLocation := fmt.Sprintf("featureform/transformation/%s/%s", id.Name, id.Variant)
+		if !strings.Contains(location, expectedLocation) {
+			t.Fatalf("Location is incorrect: %s needs to have %s", location, expectedLocation)
+		}
+	} else {
+		expectedLocation := fmt.Sprintf("featureform_primary__%s__%s", id.Name, id.Variant)
+		if location != expectedLocation {
+			t.Fatalf("Location is incorrect: %s != expected location (%s)", location, expectedLocation)
+		}
 	}
 }
 
@@ -3273,10 +3174,14 @@ func testCreatePrimaryFromNonExistentSource(t *testing.T, store OfflineStore) {
 	}
 }
 
+func createUUID() string {
+	return strings.Replace(uuid.NewString(), "-", "_", -1)
+}
+
 func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 	primaryID := ResourceID{
-		Name:    uuid.NewString(),
-		Variant: uuid.NewString(),
+		Name:    createUUID(),
+		Variant: createUUID(),
 		Type:    Primary,
 	}
 	schema := TableSchema{
@@ -3302,15 +3207,16 @@ func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not write batch: %v", err)
 	}
 	primaryCopyID := ResourceID{
-		Name:    uuid.NewString(),
-		Variant: uuid.NewString(),
+		Name:    createUUID(),
+		Variant: createUUID(),
 		Type:    Primary,
 	}
 
 	t.Log("Primary Name: ", primaryCopyID.Name)
 	// Need to sanitize name here b/c the the xxx-xxx format of the uuid. Cannot do it within
 	// register function because precreated tables do not necessarily use double quotes
-	tableName := sanitizeTableName(string(store.Type()), table.GetName())
+	tableName := table.GetName()
+	t.Log("Table Name: ", tableName)
 	// Currently, the assumption is that a primary table will always have an absolute path
 	// to the source data file in its schema; to keep with this assumption until we determine
 	// a better approach (e.g. handling directories of primary sources), we will use the
@@ -3469,6 +3375,8 @@ func getTableName(testName string, tableName string) string {
 	if strings.Contains(testName, "BIGQUERY") {
 		prefix := fmt.Sprintf("%s.%s", os.Getenv("BIGQUERY_PROJECT_ID"), os.Getenv("BIGQUERY_DATASET_ID"))
 		tableName = fmt.Sprintf("`%s.%s`", prefix, tableName)
+	} else if strings.Contains(testName, "CLICKHOUSE") {
+		tableName = sanitizeCH(tableName)
 	} else {
 		tableName = sanitize(tableName)
 	}
@@ -3478,6 +3386,8 @@ func getTableName(testName string, tableName string) string {
 func sanitizeTableName(testName string, tableName string) string {
 	if !strings.Contains(testName, "BIGQUERY") {
 		tableName = sanitize(tableName)
+	} else if strings.Contains(testName, "CLICKHOUSE") {
+		tableName = sanitizeCH(tableName)
 	}
 	return tableName
 }
@@ -3488,7 +3398,7 @@ func modifyTransformationConfig(t *testing.T, testName, tableName string, provid
 		// In contrast to the SQL provider, that only needed change is the table name to perform the required transformation configuration,
 		// The Spark implementation needs to update the source mappings to ensure the source file is used in the transformation query.
 		config.SourceMapping[0].Source = tableName
-	case pt.MemoryOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.MySqlOffline, pt.SnowflakeOffline, pt.RedshiftOffline:
+	case pt.MemoryOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.MySqlOffline, pt.SnowflakeOffline, pt.ClickHouseOffline, pt.RedshiftOffline:
 		tableName := getTableName(testName, tableName)
 		config.Query = strings.Replace(config.Query, "tb", tableName, 1)
 	default:
@@ -3853,8 +3763,8 @@ func TestTableSchemaValue(t *testing.T) {
 }
 
 func testBatchFeature(t *testing.T, store OfflineStore) {
-	if store.Type() != pt.SnowflakeOffline && store.Type() != pt.SparkOffline {
-		t.Skip("Skipping test for non-SnowflakeOffline and non-SparkOffline providers")
+	if store.Type() != pt.SnowflakeOffline && store.Type() != pt.SparkOffline && store.Type() != pt.ClickHouseOffline {
+		t.Skip("Skipping test for non-SnowflakeOffline, SparkOffline or ClickHouseOffline providers")
 	}
 	type expectedBatchRow struct {
 		Entity   interface{}

@@ -1,7 +1,7 @@
 import React from 'react';
 import JobsTable from './jobsTable';
 
-export default function JobPage({ props }) {
+export default function JobPage() {
   /*
     todox:
     

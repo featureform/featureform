@@ -1,13 +1,21 @@
+import SearchIcon from '@mui/icons-material/Search';
 import {
   Button,
   Chip,
+  FormControl,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  MenuItem,
   Paper,
+  Select,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Typography,
 } from '@mui/material';
 import React, { useState } from 'react';
@@ -28,14 +36,29 @@ export default function JobsTable({ jobsList = [] }) {
   const STATUS_ALL = 'ALL';
   const STATUS_ACTIVE = 'ACTIVE';
   const STATUS_COMPLETE = 'COMPLETE';
+  const SORT_FAILED = 'FAILED';
+  const SORT_PENDING = 'PENDING';
+  const SORT_SUCCESSFUL = 'SUCCESSFUL';
+  const ENTER_KEY = 'Enter';
   const [statusFilter, setStatusFilter] = useState(STATUS_ALL);
+  const [statusSort, setStatusSort] = useState('');
+  const [searchText, setSearchText] = useState('');
 
   const handleStatusBtnSelect = (statusType = STATUS_ALL) => {
     setStatusFilter(statusType);
   };
 
+  const handleSortBy = (event) => {
+    setStatusSort(event.target.value);
+  };
+
   const handleRowSelect = (jobName) => {
     console.log('clicked on jobs row', jobName);
+  };
+
+  const handleSearch = (event) => {
+    event.preventDefault();
+    console.log('searching with:', event.target.value);
   };
 
   return (
@@ -89,7 +112,6 @@ export default function JobsTable({ jobsList = [] }) {
             }
           />
         </Button>
-
         <Button
           variant='outlined'
           style={
@@ -114,7 +136,60 @@ export default function JobsTable({ jobsList = [] }) {
             }
           />
         </Button>
+
+        <span style={{ float: 'right' }}>
+          <FormControl style={{ paddingRight: '15px' }}>
+            <InputLabel id='sortId'>Sort By</InputLabel>
+            <Select
+              value={statusSort}
+              onChange={handleSortBy}
+              label='Sort By'
+              style={{ minWidth: '200px' }}
+            >
+              <MenuItem value={SORT_SUCCESSFUL}>Successful</MenuItem>
+              <MenuItem value={SORT_PENDING}>Pending</MenuItem>
+              <MenuItem value={SORT_FAILED}>Failed</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl>
+            <TextField
+              placeholder='Search Jobs...'
+              onChange={(event) => {
+                const rawText = event.target.value;
+                if (rawText === '') {
+                  // user is deleting the text field. allow this and clear out state
+                  setSearchText(rawText);
+                  return;
+                }
+                const searchText = event.target.value ?? '';
+                if (searchText.trim()) {
+                  setSearchText(searchText);
+                }
+              }}
+              value={searchText}
+              onKeyDown={(event) => {
+                if (event.key === ENTER_KEY && searchText) {
+                  handleSearch(event);
+                }
+              }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position='end'>
+                    <IconButton>
+                      <SearchIcon />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              inputProps={{
+                'aria-label': 'search',
+                'data-testid': 'searchInputId',
+              }}
+            />
+          </FormControl>
+        </span>
       </div>
+
       <TableContainer component={Paper}>
         <Table sx={{ minWidth: 300 }} aria-label='Job Runs'>
           <TableHead>

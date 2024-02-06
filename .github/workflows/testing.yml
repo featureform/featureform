@@ -207,20 +207,59 @@ jobs:
         if: always()
         run: go tool cover -func=coverage.out
 
+  client-deps:
+    name: Test Client
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Check directory
+        run: |
+          ls -la
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.21
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools build
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - name: Build Python Package
+        run: ./pip_update.sh --no-dash
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: client
+          path: ./client
+          retention-days: 1
 
   client:
     name: Test Client
+    needs: client-deps
     runs-on: ${{ matrix.os }}
     if: github.ref != 'refs/heads/main'
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest] #osx-arm64 currently not working. Ticket made with github
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
         exclude:
           - os: windows-latest
             python-version: "3.11"
     steps:
       - uses: actions/checkout@v2
+
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: client
 
       #
       # https://github.com/actions/setup-python/issues/682
@@ -243,30 +282,10 @@ jobs:
         with:
           python-version: "3.7.16"
 
-      - name: Install grpc_tools
-        run: pip install grpcio-tools build
-
       - name: Install pyspark packages
         run: |
           pip install -r provider/scripts/k8s/requirements.txt
           pip install -r provider/scripts/spark/requirements.txt
-
-      - name: Install Protobuf
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo snap install protobuf --classic
-
-      - name: Install Protobuf
-        if: matrix.os == 'macos-latest'
-        run: |
-          brew install protoc-gen-go
-          brew install protoc-gen-go-grpc
-
-
-      - name: Setup Proto
-        run: ./gen_grpc.sh
-
-      - name: Install Package
-        run: ./pip_update.sh --no-dash
 
       - name: Install pytest
         run: pip install -r pytest-requirements.txt

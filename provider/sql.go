@@ -596,7 +596,7 @@ func (it *sqlBatchFeatureIterator) Close() error {
 }
 
 // Takes a list of feature resource IDs and creates a table view joining all the feature values based on the entity
-// Note: This table view doesnt store timestamps
+// Note: This table view doesn't store timestamps
 func (store *sqlOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIterator, error) {
 
 	// if tables is empty, return an empty iterator
@@ -610,9 +610,9 @@ func (store *sqlOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIt
 	featureColumns := ""
 	var matIDs []string
 
-	tableName0 := sanitize(store.getMaterializationTableName(MaterializationID(ids[0].Name)))
+	tableName0 := sanitize(store.getMaterializationTableName(MaterializationID(fmt.Sprintf("%s__%s", ids[0].Name, ids[0].Variant))))
 	for i, tableID := range ids {
-		matID := MaterializationID(tableID.Name)
+		matID := MaterializationID(fmt.Sprintf("%s__%s", tableID.Name, tableID.Variant))
 		matIDs = append(matIDs, string(matID))
 		matTableName := sanitize(store.getMaterializationTableName(matID))
 
@@ -678,7 +678,7 @@ func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, options ...Ma
 		return nil, err
 	}
 
-	matID := MaterializationID(id.Name)
+	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
 	matTableName := store.getMaterializationTableName(matID)
 	materializeQueries := store.query.materializationCreate(matTableName, resTable.name)
 	for _, materializeQry := range materializeQueries {
@@ -723,7 +723,7 @@ func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Material
 }
 
 func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
-	matID := MaterializationID(id.Name)
+	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
 	tableName := store.getMaterializationTableName(matID)
 	getMatQry := store.query.materializationExists()
 	resTable, err := store.getsqlResourceTable(id)

@@ -31,7 +31,6 @@ client/src/featureform/proto/
 .ipynb_checkpoints
 iris.csv
 provider/scripts/spark/tests/test_files/output
-**/grpc_debug.log
 
 # End to End Tests ouput
 tests/end_to_end/feature.txt 

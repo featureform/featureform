@@ -236,6 +236,8 @@ jobs:
         if: matrix.os != 'macos-latest' || ( matrix.os == 'macos-latest' && matrix.python-version != '3.7' )
         with:
           python-version: ${{ matrix.python-version }}
+
+
       - uses: actions/setup-python@v4
         if: matrix.os == 'macos-latest' && matrix.python-version == '3.7'
         with:
@@ -263,14 +265,14 @@ jobs:
       - name: Setup Proto
         run: ./gen_grpc.sh
 
-      - name: Setup Proto
+      - name: Install Package
         run: ./pip_update.sh --no-dash
 
       - name: Install pytest
         run: pip install -r pytest-requirements.txt
 
-      - name: Install featureform
-        run: pip install client/dist/featureform-0.0.0-py3-none-any.whl pytest-cov
+      - name: Install pytest cov
+        run: pip install pytest-cov
 
       - name: Run Tests
         run: pytest -vv -s

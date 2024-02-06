@@ -208,7 +208,7 @@ jobs:
         run: go tool cover -func=coverage.out
 
   client-deps:
-    name: Test Client
+    name: Client Dependencies
     runs-on: ubuntu-latest
 
     steps:
@@ -292,6 +292,9 @@ jobs:
 
       - name: Install pytest cov
         run: pip install pytest-cov
+
+      - name: Install featureform
+        run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
 
       - name: Run Tests
         run: pytest -vv -s

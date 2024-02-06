@@ -199,13 +199,13 @@ export default function JobsTable({ jobsList = [] }) {
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Provider</TableCell>
-              <TableCell>Resource</TableCell>
-              <TableCell>Variant</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Last Runtime</TableCell>
-              <TableCell>Triggered By</TableCell>
+              <TableCell align='right'>Type</TableCell>
+              <TableCell align='right'>Provider</TableCell>
+              <TableCell align='right'>Resource</TableCell>
+              <TableCell align='right'>Variant</TableCell>
+              <TableCell align='right'>Status</TableCell>
+              <TableCell align='right'>Last Runtime</TableCell>
+              <TableCell align='right'>Triggered By</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -218,13 +218,13 @@ export default function JobsTable({ jobsList = [] }) {
                   hover
                 >
                   <TableCell>{job.name}</TableCell>
-                  <TableCell>{job.type}</TableCell>
-                  <TableCell>{job.provider}</TableCell>
-                  <TableCell>{job.resource}</TableCell>
-                  <TableCell>{job.variant}</TableCell>
-                  <TableCell>{job.status}</TableCell>
-                  <TableCell>{job.lastRuntime}</TableCell>
-                  <TableCell>{job.triggeredBy}</TableCell>
+                  <TableCell align='right'>{job.type}</TableCell>
+                  <TableCell align='right'>{job.provider}</TableCell>
+                  <TableCell align='right'>{job.resource}</TableCell>
+                  <TableCell align='right'>{job.variant}</TableCell>
+                  <TableCell align='right'>{job.status}</TableCell>
+                  <TableCell align='right'>{job.lastRuntime}</TableCell>
+                  <TableCell align='right'>{job.triggeredBy}</TableCell>
                 </TableRow>
               );
             })}

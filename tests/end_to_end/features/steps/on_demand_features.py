@@ -8,10 +8,15 @@ def step_impl(context):
     def test_feature(client, params, entity):
         return 1
 
+    @ff.ondemand_feature
+    def test_feature2(client, params, entity):
+        return 1
+
+    context.ondemand_feature = test_feature2
     context.client.apply()
 
 
 @then("I can pull the ondemand feature")
 def step_impl(context):
-    value = context.client.features([("test_feature", ff.get_run())], {})
+    value = context.client.features([("test_feature", ff.get_run()), context.ondemand_feature], {})
     assert value[0] == 1

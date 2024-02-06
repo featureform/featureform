@@ -1,3 +1,4 @@
+import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
 import {
   Button,
@@ -187,6 +188,9 @@ export default function JobsTable({ jobsList = [] }) {
               }}
             />
           </FormControl>
+          <IconButton variant='' size='large'>
+            <RefreshIcon />
+          </IconButton>
         </span>
       </div>
 

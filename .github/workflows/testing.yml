@@ -77,9 +77,12 @@ jobs:
           ls -la
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.21
+          go-version: '1.21'
+          check-latest: true
+          cache-dependency-path: |
+            go.sum
 
       - name: Install grpc_tools
         run: pip install grpcio-tools build
@@ -243,7 +246,17 @@ jobs:
           pip install -r provider/scripts/spark/requirements.txt
 
       - name: Install Protobuf
+        if: matrix.os == 'ubuntu-latest'
         run: sudo snap install protobuf --classic
+
+      - name: Install Protobuf
+        if: matrix.os == 'macos-latest'
+        run: |
+          PROTOC_ZIP=protoc-3.14.0-osx-x86_64.zip
+          curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v3.14.0/$PROTOC_ZIP
+          sudo unzip -o $PROTOC_ZIP -d /usr/local bin/protoc
+          sudo unzip -o $PROTOC_ZIP -d /usr/local 'include/*'
+          rm -f $PROTOC_ZIP
 
       - name: Setup Proto
         run: ./gen_grpc.sh

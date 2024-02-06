@@ -43,7 +43,7 @@ func TestOfflineStoreRedshift(t *testing.T) {
 	redshiftDatabase := fmt.Sprintf("ff%s", strings.ToLower(uuid.NewString()))
 
 	redshiftConfig := pc.RedshiftConfig{
-		Endpoint: endpoint,
+		Host:     endpoint,
 		Port:     port,
 		Database: redshiftDatabase,
 		Username: username,
@@ -75,7 +75,7 @@ func TestOfflineStoreRedshift(t *testing.T) {
 }
 
 func createRedshiftDatabase(c pc.RedshiftConfig) error {
-	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Endpoint, c.Port, "dev")
+	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Host, c.Port, "dev")
 	db, err := sql.Open("postgres", url)
 	if err != nil {
 		return err
@@ -89,7 +89,7 @@ func createRedshiftDatabase(c pc.RedshiftConfig) error {
 }
 
 func destroyRedshiftDatabase(c pc.RedshiftConfig) error {
-	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Endpoint, c.Port, "dev")
+	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Host, c.Port, "dev")
 	db, err := sql.Open("postgres", url)
 	if err != nil {
 		fmt.Errorf(err.Error())

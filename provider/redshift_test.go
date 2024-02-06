@@ -23,9 +23,9 @@ func TestOfflineStoreRedshift(t *testing.T) {
 		t.Logf("could not open .env file... Checking environment: %s", err)
 	}
 
-	endpoint, ok := os.LookupEnv("REDSHIFT_ENDPOINT")
+	endpoint, ok := os.LookupEnv("REDSHIFT_HOST")
 	if !ok {
-		t.Fatalf("missing REDSHIFT_ENDPOINT variable")
+		t.Fatalf("missing REDSHIFT_HOST variable")
 	}
 	port, ok := os.LookupEnv("REDSHIFT_PORT")
 	if !ok {

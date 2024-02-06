@@ -69,6 +69,15 @@ jobs:
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_DB: ${{ env.POSTGRES_DB }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+
+      clickhouse:
+        image: clickhouse/clickhouse-server
+        ports:
+          - 9000:9000
+        env:
+          CLICKHOUSE_USER: ${{ env.CLICKHOUSE_USER }}
+          CLICKHOUSE_DB: ${{ env.CLICKHOUSE_DB }}
+          CLICKHOUSE_PASSWORD: ${{ env.CLICKHOUSE_PASSWORD }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v5
@@ -156,7 +165,7 @@ jobs:
           docker run -d -p 9864:9864 -p 9870:9870 -p 8088:8088 -p 9000:9000 -p 9866:9866 --hostname localhost hadoop
 
       - name: Integration Tests
-        run: go test -timeout 20m -parallel 1000 -coverprofile=coverage.out ./...
+        run: go test -timeout 20m -parallel 1000 -coverpkg=./... -coverprofile=./cover.out.tmp ./...
         env:
           DYNAMO_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
           DYNAMO_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
@@ -203,9 +212,26 @@ jobs:
           SPARK_LOCAL_SCRIPT_PATH: home/runner/work/featureform/featureform/provider/scripts/spark/offline_store_spark_runner.py
           PYTHON_LOCAL_INIT_PATH: home/runner/work/featureform/featureform/provider/scripts/spark/python_packages.sh
 
-      - name: Print Coverage
+      - name: Print Clean Coverage
         if: always()
-        run: go tool cover -func=coverage.out
+        run: |
+          cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
+          go tool cover -html=cover.out -o cover.html
+
+      - uses: codecov/codecov-action@v2
+        if: always()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./cover.out
+          name: go-coverage
+          verbose: true
+
+      - name: Archive code coverage results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: search-coverage-reports
+          path: ./cover.html
 
   client-deps:
     name: Client Dependencies

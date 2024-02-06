@@ -51,7 +51,6 @@ from .resources import (
     SourceVariant,
     PrimaryData,
     SQLTable,
-    Directory,
     SQLTransformation,
     DFTransformation,
     Entity,
@@ -1698,6 +1697,36 @@ class Registrar:
             redis (OnlineProvider): Provider
         """
         mock_config = RedisConfig(host="", port=123, password="", db=123)
+        mock_provider = Provider(
+            name=name, function="ONLINE", description="", team="", config=mock_config
+        )
+        return OnlineProvider(self, mock_provider)
+
+    def get_dynamodb(self, name: str):
+        """Get a DynamoDB provider. The returned object can be used as an inference store in feature registration.
+
+        **Examples**:
+        ``` py
+        dynamodb = ff.get_dynamodb("dynamodb-quickstart")
+
+        @ff.entity
+        class User:
+            avg_transactions = ff.Feature(
+                average_user_transaction[["user_id", "avg_transaction_amt"]],
+                type=ff.Float32,
+                inference_store=dynamodb,
+            )
+        ```
+
+        Args:
+            name (str): Name of DynamoDB provider to be retrieved
+
+        Returns:
+            dynamodb (OnlineProvider): Provider
+        """
+        mock_config = DynamodbConfig(
+            region="", access_key="", secret_key="", should_import_from_s3=False
+        )
         mock_provider = Provider(
             name=name, function="ONLINE", description="", team="", config=mock_config
         )
@@ -5473,6 +5502,7 @@ get_entity = global_registrar.get_entity
 get_source = global_registrar.get_source
 get_redis = global_registrar.get_redis
 get_postgres = global_registrar.get_postgres
+get_dynamodb = global_registrar.get_dynamodb
 get_mongodb = global_registrar.get_mongodb
 get_snowflake = global_registrar.get_snowflake
 get_snowflake_legacy = global_registrar.get_snowflake_legacy

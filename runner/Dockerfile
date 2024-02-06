@@ -13,23 +13,10 @@ COPY go.sum ./
 #RUN go mod download
 
 COPY ./metadata/proto/metadata.proto ./metadata/proto/metadata.proto
+RUN apk update && apk add protobuf-dev && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest && go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 ENV PATH /go/bin:$PATH
-RUN apk update && apk add protobuf-dev && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest && go install google.golang.org/protobuf/cmd/protoc-gen-go@latest && \
-    protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
+RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
 
-
-# Install Python versions
-ARG TESTING
-RUN if [ "$TESTING" = "True" ]; then \
-  pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
-  else \
-  pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-  pyenv install 3.8.16 && pyenv global 3.8.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-  pyenv install 3.9.16 && pyenv global 3.9.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-  pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-  pyenv install 3.11.2 && pyenv global 3.11.2 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
-  fi
-  
 COPY ./lib/ ./lib/
 COPY ./filestore/ ./filestore/
 COPY runner/*.go ./runner/
@@ -71,12 +58,29 @@ RUN apt-get update && apt-get install -y \
   openjdk-8-jdk \
   && rm -rf /var/lib/apt/lists/*
 
+# Download Shaded Jar
+RUN wget https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop2-2.2.11/gcs-connector-hadoop2-2.2.11-shaded.jar -P /app/provider/scripts/spark/jars/
+
 ENV ENV="/root/.bashrc"
 ENV PYENV_ROOT="/.pyenv"
 ENV PATH="$PYENV_ROOT/bin:$PATH"
 RUN echo "PATH=${PATH}" > "${ENV}"
 
 RUN curl https://pyenv.run | bash
+
+COPY ./provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
+# Install Python versions
+
+ARG TESTING
+RUN if [ "$TESTING" = "True" ]; then \
+  pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
+  else \
+  pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+  pyenv install 3.8.16 && pyenv global 3.8.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+  pyenv install 3.9.16 && pyenv global 3.9.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+  pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+  pyenv install 3.11.2 && pyenv global 3.11.2 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
+  fi
 
 ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
 ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
@@ -86,9 +90,9 @@ ENV MATERIALIZE_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_ts.sql"
 COPY --from=0 ./app/worker ./worker
 COPY ./provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
 COPY ./provider/scripts/spark/python_packages.sh /app/provider/scripts/spark/python_packages.sh
-COPY ./provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
 COPY ./provider/queries/materialize_no_ts.sql /app/provider/queries/materialize_no_ts.sql
 COPY ./provider/queries/materialize_ts.sql /app/provider/queries/materialize_ts.sql
+
 
 # Take the MD5 hash of the Spark runner script and store it in a file for use by the config package
 # when determining the remove filepath in cloud object storage (e.g. S3). By adding the hash as a suffix
@@ -98,7 +102,5 @@ RUN cat $SPARK_SCRIPT_PATH | md5sum \
   | awk '{print $1}' \
   | xargs echo -n > /app/provider/scripts/spark/offline_store_spark_runner_md5.txt
 
-# Download Shaded Jar
-RUN wget https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop2-2.2.11/gcs-connector-hadoop2-2.2.11-shaded.jar -P /app/provider/scripts/spark/jars/
 
 CMD [ "./worker" ]

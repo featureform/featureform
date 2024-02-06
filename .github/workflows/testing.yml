@@ -260,6 +260,9 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: client
+          path: ./client
+
+      - run: ls
 
       #
       # https://github.com/actions/setup-python/issues/682

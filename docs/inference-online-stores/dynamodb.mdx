@@ -23,7 +23,8 @@ ff.register_dynamodb(
     name = "dynamodb",
     description = "Example inference store",
     team = "Featureform",
-    credentials = aws_creds
+    credentials = aws_creds,
+    region="us-east-1",
 )
 ```
 
@@ -52,6 +53,7 @@ ff.register_dynamodb(
     description = "Example inference store",
     team = "Featureform",
     credentials = aws_creds,
+    region="us-east-1",
     should_import_from_s3 = True # Feature tables in DynamoDB will be created via S3 import
 )
 ```

@@ -1,6 +1,6 @@
 import { makeStyles } from '@mui/styles';
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   intputRow: {
     paddingBottom: 30,
     '& button': {
@@ -32,6 +32,10 @@ const useStyles = makeStyles((theme) => ({
   },
   filterInput: {
     minWidth: 250,
+  },
+  taskCardBox: {
+    height: 650,
+    width: 650,
   },
 }));
 

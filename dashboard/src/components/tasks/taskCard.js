@@ -5,6 +5,7 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import {
+  Box,
   Grid,
   IconButton,
   Paper,
@@ -18,17 +19,14 @@ import {
   Typography,
 } from '@mui/material';
 import React from 'react';
+import { useStyles } from './styles';
 
 export default function TaskCard({ taskRecord }) {
+  const classes = useStyles();
   return (
-    <div
-      style={{
-        height: 700,
-        width: 600,
-      }}
-    >
-      <div>
-        <span style={{ float: 'left' }}>
+    <Box className={classes.taskCardBox}>
+      <Box>
+        <Box style={{ float: 'left' }}>
           <IconButton variant='' size='small'>
             <DoubleArrowIcon />
           </IconButton>
@@ -41,16 +39,16 @@ export default function TaskCard({ taskRecord }) {
           <IconButton variant='' size='small'>
             <KeyboardArrowDownIcon />
           </IconButton>
-        </span>
-        <span style={{ float: 'right' }}>
+        </Box>
+        <Box style={{ float: 'right' }}>
           <IconButton variant='' size='small'>
             <RefreshIcon />
           </IconButton>
           <IconButton variant='' size='small'>
             <MoreHorizIcon />
           </IconButton>
-        </span>
-      </div>
+        </Box>
+      </Box>
       <Grid style={{ padding: 12 }} container>
         <Grid item xs={6} justifyContent='flex-start'>
           <Typography variant='h5'>{taskRecord.name}</Typography>
@@ -58,7 +56,6 @@ export default function TaskCard({ taskRecord }) {
         <Grid item xs={6} justifyContent='center'>
           <Typography variant='h5'>Status: {taskRecord.status}</Typography>
         </Grid>
-        {/*  */}
         <Grid
           item
           xs={6}
@@ -70,7 +67,6 @@ export default function TaskCard({ taskRecord }) {
         <Grid item xs={6} justifyContent='center' style={{ paddingTop: 50 }}>
           <Typography variant='h5'>Task Run Details</Typography>
         </Grid>
-        {/*  */}
         <Grid item xs={6} justifyContent='flex-start'>
           <Typography>
             <TextField
@@ -129,6 +125,6 @@ export default function TaskCard({ taskRecord }) {
           </TableContainer>
         </Grid>
       </Grid>
-    </div>
+    </Box>
   );
 }

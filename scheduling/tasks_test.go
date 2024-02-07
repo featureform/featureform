@@ -15,28 +15,28 @@ func TestSerializeTaskMetadata(t *testing.T) {
 		{
 			name: "WithProviderTarget",
 			task: TaskMetadata{
-				ID:   1,
-				Name: "provider_task",
-				Type: HealthCheck,
-				Target: Provider{
-					Name:       "postgres",
-					TargetType: ProviderTarget,
+				id:       1,
+				name:     "provider_task",
+				taskType: HealthCheck,
+				target: Provider{
+					name:       "postgres",
+					targetType: ProviderTarget,
 				},
-				Date: time.Now().Truncate(0),
+				date: time.Now().Truncate(0),
 			},
 			targettype: "provider",
 		},
 		{
 			name: "WithNameVariantTarget",
 			task: TaskMetadata{
-				ID:   1,
-				Name: "nv_task",
-				Type: ResourceCreation,
-				Target: NameVariant{
-					Name:       "transaction",
-					TargetType: NameVariantTarget,
+				id:       1,
+				name:     "nv_task",
+				taskType: ResourceCreation,
+				target: NameVariant{
+					name:       "transaction",
+					targetType: NameVariantTarget,
 				},
-				Date: time.Now().Truncate(0),
+				date: time.Now().Truncate(0),
 			},
 			targettype: "name_variant",
 		},
@@ -57,8 +57,8 @@ func TestSerializeTaskMetadata(t *testing.T) {
 			if !reflect.DeepEqual(deserializedTask, currTest.task) {
 				t.Fatalf("Wrong struct values: %v\nExpected: %v", deserializedTask, currTest.task)
 			}
-			if deserializedTask.getTarget().Type() != currTest.targettype {
-				t.Fatalf("Got target type: %v\n Expected:%v", deserializedTask.getTarget().Type(), currTest.targettype)
+			if deserializedTask.Target().Type() != currTest.targettype {
+				t.Fatalf("Got target type: %v\n Expected:%v", deserializedTask.Target().Type(), currTest.targettype)
 			}
 		})
 	}
@@ -72,25 +72,25 @@ func TestIncorrectTaskMetadata(t *testing.T) {
 		{
 			name: "NameVariantProviderTarget",
 			task: TaskMetadata{
-				ID:   1,
-				Name: "nv_task",
-				Type: ResourceCreation,
-				Target: NameVariant{
-					Name:       "transaction",
-					TargetType: ProviderTarget,
+				id:       1,
+				name:     "nv_task",
+				taskType: ResourceCreation,
+				target: NameVariant{
+					name:       "transaction",
+					targetType: ProviderTarget,
 				},
-				Date: time.Now(),
+				date: time.Now(),
 			},
 		},
 
 		{
 			name: "NoTarget",
 			task: TaskMetadata{
-				ID:     1,
-				Name:   "nv_task",
-				Type:   ResourceCreation,
-				Target: nil,
-				Date:   time.Now(),
+				id:       1,
+				name:     "nv_task",
+				taskType: ResourceCreation,
+				target:   nil,
+				date:     time.Now(),
 			},
 		},
 	}
@@ -123,33 +123,33 @@ func TestTaskMetadataGetMethods(t *testing.T) {
 		{
 			name: "TestGetMethods",
 			task: TaskMetadata{
-				ID:   1,
-				Name: "provider_task",
-				Type: Monitoring,
-				Target: Provider{
-					Name:       "postgres",
-					TargetType: ProviderTarget,
+				id:       1,
+				name:     "provider_task",
+				taskType: Monitoring,
+				target: Provider{
+					name:       "postgres",
+					targetType: ProviderTarget,
 				},
-				Date: time.Now(),
+				date: time.Now(),
 			},
 		},
 	}
 
 	for _, currTest := range testCases {
 		t.Run(currTest.name, func(t *testing.T) {
-			if currTest.task.getID() != currTest.task.ID {
+			if currTest.task.ID() != currTest.task.id {
 				t.Fatalf("Expected ID should be equal to output ID")
 			}
 
-			if currTest.task.getName() != currTest.task.Name {
+			if currTest.task.Name() != currTest.task.name {
 				t.Fatalf("Expected Name should be equal to output Name")
 			}
 
-			if currTest.task.getTarget() != currTest.task.Target {
+			if currTest.task.Target() != currTest.task.target {
 				t.Fatalf("Expected Target should be equal to output Target")
 			}
 
-			if currTest.task.DateCreated() != currTest.task.Date {
+			if currTest.task.DateCreated() != currTest.task.date {
 				t.Fatalf("Expected Date should be equal to output Date")
 			}
 		})

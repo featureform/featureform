@@ -104,13 +104,13 @@ func (t *TaskMetadata) FromJSON(data []byte) error {
 		return fmt.Errorf("failed to deserialize target data due to: %w", err)
 	}
 
-	if targetMap["target_type"] == ProviderTarget {
+	if targetMap["target_type"] == "provider" {
 		var provider Provider
 		if err := json.Unmarshal(temp.Target, &provider); err != nil {
 			return fmt.Errorf("failed to deserialize Provider data due to: %w", err)
 		}
 		t.Target = provider
-	} else if targetMap["target_type"] == NameVariantTarget {
+	} else if targetMap["target_type"] == "name_variant" {
 		var namevariant NameVariant
 		if err := json.Unmarshal(temp.Target, &namevariant); err != nil {
 			return fmt.Errorf("failed to deserialize NameVariant data due to: %w", err)

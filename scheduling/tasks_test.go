@@ -172,7 +172,7 @@ func TestCorruptJsonData(t *testing.T) {
 		{
 			name: "InvalidJson",
 			inputfile: []byte(`{"id"1, "name": "provider_task", "type": "Monitoring", "target": {"name": "
-postgres", "target_type": "provider"}, "date": "2021-08-26T15:04:05Z"}`),
+		postgres", "target_type": "provider"}, "date": "2021-08-26T15:04:05Z"}`),
 			errMsg: "invalid character '1' after object key:value pair",
 		},
 		{
@@ -193,6 +193,11 @@ postgres", "target_type": "provider"}, "date": "2021-08-26T15:04:05Z"}`),
 		{
 			name:      "InvalidTargetType",
 			inputfile: []byte(`{"id": 1, "name": "no_target", "type": "HealthCheck", "target": {"name": "postgres", "target_type": "NoTarget"}, "date": "2021-08-26T15:04:05Z"}`),
+			errMsg:    "No such target type: 'NoTarget'",
+		},
+		{
+			name:      "InvalidTarget",
+			inputfile: []byte(`{"id": 1, "name": "no_target", "type": "HealthCheck", "target": ["name": "postgres", "target_type": "provider"], "date": "2021-08-26T15:04:05Z"}`),
 			errMsg:    "No such target type: 'NoTarget'",
 		},
 	}

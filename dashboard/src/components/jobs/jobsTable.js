@@ -1,5 +1,6 @@
 import {
   Paper,
+  Popover,
   Table,
   TableBody,
   TableCell,
@@ -7,14 +8,44 @@ import {
   TableHead,
   TableRow,
 } from '@mui/material';
-import React from 'react';
+import React, { useRef, useState } from 'react';
+import JobCard from './jobCard';
 
 export default function JobsTable({ jobsList = [] }) {
-  const handleRowSelect = () => {
-    console.log('row has been selected');
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [content, setContent] = useState({});
+  const headerRef = useRef();
+
+  const handleRowSelect = (jobName, event) => {
+    setAnchorEl(headerRef.currentTarget);
+    let foundJob = jobsList.find((q) => q.name === jobName);
+    setContent(foundJob ?? {});
+    setOpen((prev) => content !== jobName || !prev);
   };
+
+  const handleClose = () => {
+    setOpen(false);
+  };
+
   return (
     <>
+      <Popover
+        open={open}
+        anchorReference='anchorPosition'
+        anchorPosition={{ top: 250, left: Number.MAX_SAFE_INTEGER }}
+        onClose={handleClose}
+        anchorOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        <JobCard jobRecord={content} />
+      </Popover>
       <TableContainer component={Paper}>
         <Table sx={{ minWidth: 300 }} aria-label='Job Runs'>
           <TableHead>
@@ -26,7 +57,9 @@ export default function JobsTable({ jobsList = [] }) {
               <TableCell align='right'>Variant</TableCell>
               <TableCell align='right'>Status</TableCell>
               <TableCell align='right'>Last Runtime</TableCell>
-              <TableCell align='right'>Triggered By</TableCell>
+              <TableCell align='right' ref={headerRef}>
+                Triggered By
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -34,7 +67,7 @@ export default function JobsTable({ jobsList = [] }) {
               return (
                 <TableRow
                   key={index}
-                  onClick={() => handleRowSelect(job.name)}
+                  onClick={(event) => handleRowSelect(job.name, event)}
                   style={{ cursor: 'pointer' }}
                   hover
                 >

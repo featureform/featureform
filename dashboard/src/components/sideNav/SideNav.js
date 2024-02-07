@@ -63,7 +63,7 @@ function SideNav({ sections, children }) {
               <ListItemIcon style={{ padding: '0 0 0 1.5em !important' }}>
                 <Icon>{'all_inbox'}</Icon>
               </ListItemIcon>
-              <ListItemText primary={'Jobs'} />
+              <ListItemText primary={'Tasks'} />
             </ListItemButton>
           </ListItem>
         </List>

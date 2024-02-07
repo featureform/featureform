@@ -20,7 +20,7 @@ export default function JobPage() {
     */
   return (
     <>
-      <h1>Job Runs</h1>
+      <h1>Task Runs</h1>
       <TableDataWrapper />
     </>
   );

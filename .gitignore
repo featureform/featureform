@@ -61,3 +61,4 @@ transactions.csv
 featureform_quickstart
 quickstart
 .coverage*
+*.out

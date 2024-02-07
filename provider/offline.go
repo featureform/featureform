@@ -124,6 +124,18 @@ func (id *ResourceID) check(expectedType OfflineResourceType, otherTypes ...Offl
 	return fmt.Errorf("unexpected ResourceID Type: %v", id.Type)
 }
 
+func GetOfflineStore(t pt.Type, c pc.SerializedConfig) (OfflineStore, error) {
+	provider, err := Get(t, c)
+	if err != nil {
+		return nil, err
+	}
+	store, err := provider.AsOfflineStore()
+	if err != nil {
+		return nil, err
+	}
+	return store, nil
+}
+
 type LagFeatureDef struct {
 	FeatureName    string
 	FeatureVariant string

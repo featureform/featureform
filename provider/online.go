@@ -21,6 +21,18 @@ var cassandraTypeMap = map[string]string{
 	"bool":    "boolean",
 }
 
+func GetOnlineStore(t pt.Type, c pc.SerializedConfig) (OnlineStore, error) {
+	provider, err := Get(t, c)
+	if err != nil {
+		return nil, err
+	}
+	store, err := provider.AsOnlineStore()
+	if err != nil {
+		return nil, err
+	}
+	return store, nil
+}
+
 type OnlineStore interface {
 	GetTable(feature, variant string) (OnlineStoreTable, error)
 	CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error)

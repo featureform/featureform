@@ -1031,7 +1031,7 @@ func (store *bqOfflineStore) CreateMaterialization(id ResourceID, options ...Mat
 		return nil, fmt.Errorf("get resource table: %v", err)
 	}
 
-	matID := MaterializationID(id.Name)
+	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
 	matTableName := store.getMaterializationTableName(matID)
 	materializeQry := store.query.materializationCreate(matTableName, resTable.name)
 
@@ -1098,7 +1098,7 @@ func (store *bqOfflineStore) GetMaterialization(id MaterializationID) (Materiali
 }
 
 func (store *bqOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
-	matID := MaterializationID(id.Name)
+	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
 	tableName := store.getMaterializationTableName(matID)
 	getMatQry := store.query.materializationExists(tableName)
 	resTable, err := store.getbqResourceTable(id)

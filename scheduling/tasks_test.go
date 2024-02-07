@@ -7,8 +7,9 @@ import (
 
 func TestSerializeTaskMetadata(t *testing.T) {
 	testCases := []struct {
-		name string
-		task TaskMetadata
+		name       string
+		task       TaskMetadata
+		targettype TargetType
 	}{
 		{
 			name: "WithProviderTarget",
@@ -22,6 +23,7 @@ func TestSerializeTaskMetadata(t *testing.T) {
 				},
 				Date: time.Now(),
 			},
+			targettype: "provider",
 		},
 		{
 			name: "WithNameVariantTarget",
@@ -35,6 +37,7 @@ func TestSerializeTaskMetadata(t *testing.T) {
 				},
 				Date: time.Now(),
 			},
+			targettype: "name_variant",
 		},
 	}
 
@@ -52,6 +55,9 @@ func TestSerializeTaskMetadata(t *testing.T) {
 
 			if !TaskMetadataIsEqual(deserializeTask, currTest.task) {
 				t.Fatalf("Wrong struct values: %v\nExpected: %v", deserializeTask, currTest.task)
+			}
+			if deserializeTask.getTarget().Type() != currTest.targettype {
+				t.Fatalf("Got target type: %v\n Expected:%v", deserializeTask.getTarget().Type(), currTest.targettype)
 			}
 		})
 	}
@@ -116,8 +122,6 @@ func TestIncorrectTaskMetadata(t *testing.T) {
 	}
 }
 
-// Write a test to verify getID, getName, getTarget, and DateCreated methods
-// of TaskMetadata struct.
 func TestTaskMetadataGetMethods(t *testing.T) {
 	testCases := []struct {
 		name string
@@ -160,24 +164,46 @@ func TestTaskMetadataGetMethods(t *testing.T) {
 }
 
 func TestCorruptJsonData(t *testing.T) {
-	invalid_json := []byte(`{"id"1, "name": "provider_task", "type": "Monitoring", "target": {"name": "postgres", "target_type": "provider"}, "date": "2021-08-26T15:04:05Z"}`)
-	response1 := TaskMetadata{}
-	err := response1.FromJSON(invalid_json)
-	if err == nil {
-		t.Fatalf("Invalid JSON file should have thrown an error")
+	testCases := []struct {
+		name      string
+		inputfile []byte
+		errMsg    string
+	}{
+		{
+			name: "InvalidJson",
+			inputfile: []byte(`{"id"1, "name": "provider_task", "type": "Monitoring", "target": {"name": "
+postgres", "target_type": "provider"}, "date": "2021-08-26T15:04:05Z"}`),
+			errMsg: "invalid character '1' after object key:value pair",
+		},
+		{
+			name:      "MissingName",
+			inputfile: []byte(`{"id": 1, "type": "Monitoring", "target": {"name": "postgres", "target_type": "provider"}, "date": "2021-08-26T15:04:05Z"}`),
+			errMsg:    "Missing field 'name'",
+		},
+		{
+			name:      "MissingTarget",
+			inputfile: []byte(`{"id": 1, "name": "no_target", "type": "Monitoring", "date": "2021-08-26T15:04:05Z"}`),
+			errMsg:    "Missing field 'target'",
+		},
+		{
+			name:      "InvalidTaskType",
+			inputfile: []byte(`{"id": 1, "name": "no_target", "type": "DoesntExist", "target": {"name": "postgres", "target_type": "provider"}, "date": "2021-08-26T15:04:05Z"}`),
+			errMsg:    "No such task type: 'DoesntExist'",
+		},
+		{
+			name:      "InvalidTargetType",
+			inputfile: []byte(`{"id": 1, "name": "no_target", "type": "HealthCheck", "target": {"name": "postgres", "target_type": "NoTarget"}, "date": "2021-08-26T15:04:05Z"}`),
+			errMsg:    "No such target type: 'NoTarget'",
+		},
 	}
 
-	missing_name := []byte(`{"id": 1, "type": "Monitoring", "target": {"name": "postgres", "target_type": "provider"}, "date": "2021-08-26T15:04:05Z"}`)
-	response2 := TaskMetadata{}
-	err = response2.FromJSON(missing_name)
-	if err == nil {
-		t.Fatalf("Missing name should have thrown an error")
-	}
-
-	missing_target := []byte(`{"id": 1, "name": "no_target", "type": "Monitoring", "date": "2021-08-26T15:04:05Z"}`)
-	response3 := TaskMetadata{}
-	err = response3.FromJSON(missing_target)
-	if err == nil {
-		t.Fatalf("Missing target should have thrown an error")
+	for _, currTest := range testCases {
+		t.Run(currTest.name, func(t *testing.T) {
+			response := TaskMetadata{}
+			err := response.FromJSON(currTest.inputfile)
+			if err == nil {
+				t.Fatalf(currTest.errMsg)
+			}
+		})
 	}
 }

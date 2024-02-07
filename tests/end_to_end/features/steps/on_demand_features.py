@@ -18,7 +18,8 @@ def step_impl(context):
 
 @then("I can pull the ondemand feature")
 def step_impl(context):
-    value = context.client.features(
+    values = context.client.features(
         [("test_feature", ff.get_run()), context.ondemand_feature], {}
     )
-    assert value[0] == 1
+    assert values[0] == [1]
+    assert values[1] == [1]

@@ -167,7 +167,7 @@ jobs:
           docker run -d -p 9864:9864 -p 9870:9870 -p 8088:8088 -p 9000:9000 -p 9866:9866 --hostname localhost hadoop
 
       - name: Integration Tests
-        run: go test -timeout 20m -parallel 1000 -coverpkg=./... -coverprofile=./cover.out.tmp ./...
+        run: go test -short -timeout 20m -parallel 1000 -coverpkg=./... -coverprofile=./cover.out.tmp ./...
         env:
           DYNAMO_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
           DYNAMO_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
@@ -228,12 +228,19 @@ jobs:
           name: go-coverage
           verbose: true
 
-      - name: Archive code coverage results
+      - name: Archive code coverage results (HTML)
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: search-coverage-reports
+          name: go-coverage-html
           path: ./cover.html
+
+      - name: Archive code coverage results (cover.out)
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: go-coverage-out
+          path: ./cover.out
 
   client-deps:
     name: Client Dependencies
@@ -339,3 +346,33 @@ jobs:
           files: ./coverage.xml
           name: client-coverage
           verbose: true
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: client-coverage
+          path: ./coverage.xml
+          retention-days: 1
+
+  codecov-upload:
+    name: Codecov Upload
+    needs: [client, go-tests]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download Client Coverage
+        uses: actions/download-artifact@v3
+        with:
+          name: client-coverage
+
+      - name: Download Go Coverage
+        uses: actions/download-artifact@v3
+        with:
+          name: go-coverage-out
+
+      - uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage1.xml,./cover.out
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

@@ -6,32 +6,55 @@ import (
 )
 
 func TestSerializeTaskMetadata(t *testing.T) {
-	taskTime := time.Now()
-	task1 := TaskMetadata{
-		ID:   1,
-		Name: "test",
-		Type: ResourceCreation,
-		Target: Provider{
-			Name:       "test",
-			TargetType: ProviderTarget,
+	testCases := []struct {
+		name string
+		task TaskMetadata
+	}{
+		{
+			name: "WithProviderTarget",
+			task: TaskMetadata{
+				ID:   1,
+				Name: "provider_task",
+				Type: HealthCheck,
+				Target: Provider{
+					Name:       "postgres",
+					TargetType: ProviderTarget,
+				},
+				Date: time.Now(),
+			},
 		},
-		Date: taskTime,
+		{
+			name: "WithNameVariantTarget",
+			task: TaskMetadata{
+				ID:   1,
+				Name: "nv_task",
+				Type: ResourceCreation,
+				Target: NameVariant{
+					Name:       "transaction",
+					TargetType: NameVariantTarget,
+				},
+				Date: time.Now(),
+			},
+		},
 	}
 
-	serializeTask1, err := task1.ToJSON()
-	if err != nil {
-		t.Errorf("failed to serialize task metadata: %v", err)
-	}
+	for _, currTest := range testCases {
+		t.Run(currTest.name, func(t *testing.T) {
+			serializeTask, err := currTest.task.ToJSON()
+			if err != nil {
+				t.Errorf("failed to serialize task metadata: %v", err)
+			}
 
-	deserializeTask1 := TaskMetadata{}
-	if err := deserializeTask1.FromJSON(serializeTask1); err != nil {
-		t.Errorf("failed to deserialize task metadata: %v", err)
-	}
+			deserializeTask := TaskMetadata{}
+			if err := deserializeTask.FromJSON(serializeTask); err != nil {
+				t.Errorf("failed to deserialize task metadata: %v", err)
+			}
 
-	if !TaskMetadataIsEqual(deserializeTask1, task1) {
-		t.Fatalf("Wrong struct values: %v\nExpected: %v", deserializeTask1, task1)
+			if !TaskMetadataIsEqual(deserializeTask, currTest.task) {
+				t.Fatalf("Wrong struct values: %v\nExpected: %v", deserializeTask, currTest.task)
+			}
+		})
 	}
-
 }
 
 func TaskMetadataIsEqual(output, expected TaskMetadata) bool {
@@ -39,5 +62,87 @@ func TaskMetadataIsEqual(output, expected TaskMetadata) bool {
 		output.Name == expected.Name &&
 		output.Type == expected.Type &&
 		output.Target == expected.Target &&
-		output.Date == expected.Date.Truncate(0)
+		output.Date.Truncate(0) == expected.Date.Truncate(0)
+}
+
+func TestIncorrectTaskMetadata(t *testing.T) {
+	testCases := []struct {
+		name string
+		task TaskMetadata
+	}{
+		{
+			name: "NameVariantProviderTarget",
+			task: TaskMetadata{
+				ID:   1,
+				Name: "nv_task",
+				Type: ResourceCreation,
+				Target: NameVariant{
+					Name:       "transaction",
+					TargetType: ProviderTarget,
+				},
+				Date: time.Now(),
+			},
+		},
+	}
+
+	for _, currTest := range testCases {
+		t.Run(currTest.name, func(t *testing.T) {
+			serializeTask, err := currTest.task.ToJSON()
+			if err != nil {
+				t.Errorf("failed to serialize task metadata: %v", err)
+			}
+
+			deserializeTask := TaskMetadata{}
+			if err := deserializeTask.FromJSON(serializeTask); err != nil {
+				t.Errorf("failed to deserialize task metadata: %v", err)
+			}
+
+			if TaskMetadataIsEqual(deserializeTask, currTest.task) {
+				t.Fatalf("Expected target should be different from output target")
+			}
+		})
+	}
+}
+
+// Write a test to verify getID, getName, getTarget, and DateCreated methods
+// of TaskMetadata struct.
+func TestTaskMetadataGetMethods(t *testing.T) {
+	testCases := []struct {
+		name string
+		task TaskMetadata
+	}{
+		{
+			name: "TestGetMethods",
+			task: TaskMetadata{
+				ID:   1,
+				Name: "provider_task",
+				Type: Monitoring,
+				Target: Provider{
+					Name:       "postgres",
+					TargetType: ProviderTarget,
+				},
+				Date: time.Now(),
+			},
+		},
+	}
+
+	for _, currTest := range testCases {
+		t.Run(currTest.name, func(t *testing.T) {
+			if currTest.task.getID() != currTest.task.ID {
+				t.Fatalf("Expected ID should be equal to output ID")
+			}
+
+			if currTest.task.getName() != currTest.task.Name {
+				t.Fatalf("Expected Name should be equal to output Name")
+			}
+
+			if currTest.task.getTarget() != currTest.task.Target {
+				t.Fatalf("Expected Target should be equal to output Target")
+			}
+
+			if currTest.task.DateCreated() != currTest.task.Date {
+				t.Fatalf("Expected Date should be equal to output Date")
+			}
+		})
+	}
 }

@@ -9,15 +9,15 @@ import {
   TableRow,
 } from '@mui/material';
 import React, { useRef, useState } from 'react';
-import JobCard from './jobCard';
+import TaskCard from './taskCard';
 
-export default function JobsTable({ jobsList = [] }) {
+export default function TasksTable({ taskList = [] }) {
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState({});
   const headerRef = useRef();
 
   const handleRowSelect = (jobName) => {
-    let foundJob = jobsList.find((q) => q.name === jobName);
+    let foundJob = taskList.find((q) => q.name === jobName);
     setContent(foundJob ?? {});
     setOpen((prev) => content !== jobName || !prev);
   };
@@ -42,7 +42,7 @@ export default function JobsTable({ jobsList = [] }) {
           horizontal: 'right',
         }}
       >
-        <JobCard jobRecord={content} />
+        <TaskCard taskRecord={content} />
       </Popover>
       <TableContainer component={Paper}>
         <Table sx={{ minWidth: 300 }} aria-label='Job Runs'>
@@ -61,7 +61,7 @@ export default function JobsTable({ jobsList = [] }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {jobsList?.map((job, index) => {
+            {taskList?.map((job, index) => {
               return (
                 <TableRow
                   key={index}

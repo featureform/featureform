@@ -10,7 +10,7 @@
     "triggeredBy": "On Apply"
   },
   {
-    "name": "test_job",
+    "name": "test_task",
     "type": "Source",
     "provider": "Postgres",
     "resource": "perc_balance",
@@ -20,7 +20,7 @@
     "triggeredBy": "On Apply"
   },
   {
-    "name": "test_job_1988",
+    "name": "test_task_1988",
     "type": "Source",
     "provider": "Spark",
     "resource": "perc_balance",
@@ -30,7 +30,7 @@
     "triggeredBy": "On Update"
   },
   {
-    "name": "aggregate job",
+    "name": "aggregate task",
     "type": "Source",
     "provider": "Spark",
     "resource": "perc_balance",
@@ -40,7 +40,7 @@
     "triggeredBy": "On Apply"
   },
   {
-    "name": "Shab_Test_Job",
+    "name": "Shab_Test_task",
     "type": "Source",
     "provider": "Spark",
     "resource": "perc_balance",

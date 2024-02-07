@@ -58,7 +58,7 @@ function SideNav({ sections, children }) {
           })}
           <ListItem key={20}>
             <ListItemButton
-              onClick={(event) => handleMenuClick(event, '/jobs')}
+              onClick={(event) => handleMenuClick(event, '/tasks')}
             >
               <ListItemIcon style={{ padding: '0 0 0 1.5em !important' }}>
                 <Icon>{'all_inbox'}</Icon>

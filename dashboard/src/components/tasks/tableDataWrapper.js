@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useDataAPI } from '../../hooks/dataAPI';
-import JobsTable from './jobsTable';
+import TasksTable from './tasksTable';
 
 export default function TableDataWrapper() {
   const dataAPI = useDataAPI();
@@ -32,7 +32,7 @@ export default function TableDataWrapper() {
     searchText: '',
   });
   const [searchQuery, setSearchQuery] = useState('');
-  const [jobsList, setJobsList] = useState([]);
+  const [taskList, setTaskList] = useState([]);
 
   const handleStatusBtnSelect = (statusType = STATUS_ALL) => {
     setSearchParams({ ...searchParams, status: statusType });
@@ -58,7 +58,7 @@ export default function TableDataWrapper() {
 
   useEffect(async () => {
     let data = await dataAPI.getJobs(searchParams);
-    setJobsList(data);
+    setTaskList(data);
   }, [searchParams]);
 
   return (
@@ -152,7 +152,7 @@ export default function TableDataWrapper() {
           </FormControl>
           <FormControl>
             <TextField
-              placeholder='Search Jobs...'
+              placeholder='Search Tasks...'
               onChange={(event) => {
                 const rawText = event.target.value;
                 if (rawText === '') {
@@ -199,7 +199,7 @@ export default function TableDataWrapper() {
           </IconButton>
         </span>
       </div>
-      <JobsTable jobsList={jobsList} />
+      <TasksTable taskList={taskList} />
     </>
   );
 }

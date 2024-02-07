@@ -19,7 +19,7 @@ import {
 } from '@mui/material';
 import React from 'react';
 
-export default function JobCard({ jobRecord }) {
+export default function TaskCard({ taskRecord }) {
   return (
     <div
       style={{
@@ -53,10 +53,10 @@ export default function JobCard({ jobRecord }) {
       </div>
       <Grid style={{ padding: 12 }} container>
         <Grid item xs={6} justifyContent='flex-start'>
-          <Typography variant='h5'>{jobRecord.name}</Typography>
+          <Typography variant='h5'>{taskRecord.name}</Typography>
         </Grid>
         <Grid item xs={6} justifyContent='center'>
-          <Typography variant='h5'>Status: {jobRecord.status}</Typography>
+          <Typography variant='h5'>Status: {taskRecord.status}</Typography>
         </Grid>
         {/*  */}
         <Grid

@@ -21,12 +21,7 @@ func NewHealth(client *metadata.Client) *Health {
 	}
 }
 
-func NothingFunction() {
-	fmt.Println("This function does nothing")
-}
-
 func (h *Health) CheckProvider(name string) (bool, error) {
-	NothingFunction()
 	rec, err := h.metadata.GetProvider(context.Background(), name)
 	if err != nil {
 		return false, err

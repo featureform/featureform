@@ -12,13 +12,11 @@ import React, { useRef, useState } from 'react';
 import JobCard from './jobCard';
 
 export default function JobsTable({ jobsList = [] }) {
-  const [anchorEl, setAnchorEl] = useState(null);
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState({});
   const headerRef = useRef();
 
-  const handleRowSelect = (jobName, event) => {
-    setAnchorEl(headerRef.currentTarget);
+  const handleRowSelect = (jobName) => {
     let foundJob = jobsList.find((q) => q.name === jobName);
     setContent(foundJob ?? {});
     setOpen((prev) => content !== jobName || !prev);
@@ -67,7 +65,7 @@ export default function JobsTable({ jobsList = [] }) {
               return (
                 <TableRow
                   key={index}
-                  onClick={(event) => handleRowSelect(job.name, event)}
+                  onClick={() => handleRowSelect(job.name)}
                   style={{ cursor: 'pointer' }}
                   hover
                 >

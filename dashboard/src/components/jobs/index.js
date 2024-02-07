@@ -1,5 +1,5 @@
 import React from 'react';
-import JobsTable from './jobsTable';
+import TableDataWrapper from './tableDataWrapper';
 
 export default function JobPage() {
   /*
@@ -21,7 +21,7 @@ export default function JobPage() {
   return (
     <>
       <h1>Job Runs</h1>
-      <JobsTable />
+      <TableDataWrapper />
     </>
   );
 }

@@ -166,6 +166,8 @@ func (a SparkConfig) DifferingFields(b SparkConfig) (ss.StringSet, error) {
 		storeFields, err = a.StoreConfig.(*S3FileStoreConfig).DifferingFields(*b.StoreConfig.(*S3FileStoreConfig))
 	case fs.GCS:
 		storeFields, err = a.StoreConfig.(*GCSFileStoreConfig).DifferingFields(*b.StoreConfig.(*GCSFileStoreConfig))
+	case fs.HDFS:
+		storeFields, err = a.StoreConfig.(*HDFSFileStoreConfig).DifferingFields(*b.StoreConfig.(*HDFSFileStoreConfig))
 	default:
 		return nil, fmt.Errorf("unknown store type: %v", a.StoreType)
 	}

@@ -1,4 +1,4 @@
-github_checks: false
+github_checks: true
 coverage:
   status:
     project:

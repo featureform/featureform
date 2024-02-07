@@ -83,18 +83,30 @@ func TestIncorrectTaskMetadata(t *testing.T) {
 				Date: time.Now(),
 			},
 		},
+
+		{
+			name: "NoTarget",
+			task: TaskMetadata{
+				ID:     1,
+				Name:   "nv_task",
+				Type:   ResourceCreation,
+				Target: nil,
+				Date:   time.Now(),
+			},
+		},
 	}
 
 	for _, currTest := range testCases {
 		t.Run(currTest.name, func(t *testing.T) {
 			serializeTask, err := currTest.task.ToJSON()
 			if err != nil {
-				t.Errorf("failed to serialize task metadata: %v", err)
+				return
 			}
 
 			deserializeTask := TaskMetadata{}
-			if err := deserializeTask.FromJSON(serializeTask); err != nil {
-				t.Errorf("failed to deserialize task metadata: %v", err)
+			err = deserializeTask.FromJSON(serializeTask)
+			if err != nil {
+				return
 			}
 
 			if TaskMetadataIsEqual(deserializeTask, currTest.task) {
@@ -144,5 +156,28 @@ func TestTaskMetadataGetMethods(t *testing.T) {
 				t.Fatalf("Expected Date should be equal to output Date")
 			}
 		})
+	}
+}
+
+func TestCorruptJsonData(t *testing.T) {
+	invalid_json := []byte(`{"id"1, "name": "provider_task", "type": "Monitoring", "target": {"name": "postgres", "target_type": "provider"}, "date": "2021-08-26T15:04:05Z"}`)
+	response1 := TaskMetadata{}
+	err := response1.FromJSON(invalid_json)
+	if err == nil {
+		t.Fatalf("Invalid JSON file should have thrown an error")
+	}
+
+	missing_name := []byte(`{"id": 1, "type": "Monitoring", "target": {"name": "postgres", "target_type": "provider"}, "date": "2021-08-26T15:04:05Z"}`)
+	response2 := TaskMetadata{}
+	err = response2.FromJSON(missing_name)
+	if err == nil {
+		t.Fatalf("Missing name should have thrown an error")
+	}
+
+	missing_target := []byte(`{"id": 1, "name": "no_target", "type": "Monitoring", "date": "2021-08-26T15:04:05Z"}`)
+	response3 := TaskMetadata{}
+	err = response3.FromJSON(missing_target)
+	if err == nil {
+		t.Fatalf("Missing target should have thrown an error")
 	}
 }

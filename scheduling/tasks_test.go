@@ -1,6 +1,7 @@
 package scheduling
 
 import (
+	"reflect"
 	"testing"
 	"time"
 )
@@ -21,7 +22,7 @@ func TestSerializeTaskMetadata(t *testing.T) {
 					Name:       "postgres",
 					TargetType: ProviderTarget,
 				},
-				Date: time.Now(),
+				Date: time.Now().Truncate(0),
 			},
 			targettype: "provider",
 		},
@@ -35,7 +36,7 @@ func TestSerializeTaskMetadata(t *testing.T) {
 					Name:       "transaction",
 					TargetType: NameVariantTarget,
 				},
-				Date: time.Now(),
+				Date: time.Now().Truncate(0),
 			},
 			targettype: "name_variant",
 		},
@@ -43,32 +44,24 @@ func TestSerializeTaskMetadata(t *testing.T) {
 
 	for _, currTest := range testCases {
 		t.Run(currTest.name, func(t *testing.T) {
-			serializeTask, err := currTest.task.ToJSON()
+			serializedTask, err := currTest.task.ToJSON()
 			if err != nil {
-				t.Errorf("failed to serialize task metadata: %v", err)
+				t.Fatalf("failed to serialize task metadata: %v", err)
 			}
 
-			deserializeTask := TaskMetadata{}
-			if err := deserializeTask.FromJSON(serializeTask); err != nil {
-				t.Errorf("failed to deserialize task metadata: %v", err)
+			deserializedTask := TaskMetadata{}
+			if err := deserializedTask.FromJSON(serializedTask); err != nil {
+				t.Fatalf("failed to deserialize task metadata: %v", err)
 			}
 
-			if !TaskMetadataIsEqual(deserializeTask, currTest.task) {
-				t.Fatalf("Wrong struct values: %v\nExpected: %v", deserializeTask, currTest.task)
+			if !reflect.DeepEqual(deserializedTask, currTest.task) {
+				t.Fatalf("Wrong struct values: %v\nExpected: %v", deserializedTask, currTest.task)
 			}
-			if deserializeTask.getTarget().Type() != currTest.targettype {
-				t.Fatalf("Got target type: %v\n Expected:%v", deserializeTask.getTarget().Type(), currTest.targettype)
+			if deserializedTask.getTarget().Type() != currTest.targettype {
+				t.Fatalf("Got target type: %v\n Expected:%v", deserializedTask.getTarget().Type(), currTest.targettype)
 			}
 		})
 	}
-}
-
-func TaskMetadataIsEqual(output, expected TaskMetadata) bool {
-	return output.ID == expected.ID &&
-		output.Name == expected.Name &&
-		output.Type == expected.Type &&
-		output.Target == expected.Target &&
-		output.Date.Truncate(0) == expected.Date.Truncate(0)
 }
 
 func TestIncorrectTaskMetadata(t *testing.T) {
@@ -104,18 +97,18 @@ func TestIncorrectTaskMetadata(t *testing.T) {
 
 	for _, currTest := range testCases {
 		t.Run(currTest.name, func(t *testing.T) {
-			serializeTask, err := currTest.task.ToJSON()
+			serializedTask, err := currTest.task.ToJSON()
 			if err != nil {
 				return
 			}
 
-			deserializeTask := TaskMetadata{}
-			err = deserializeTask.FromJSON(serializeTask)
+			deserializedTask := TaskMetadata{}
+			err = deserializedTask.FromJSON(serializedTask)
 			if err != nil {
 				return
 			}
 
-			if TaskMetadataIsEqual(deserializeTask, currTest.task) {
+			if reflect.DeepEqual(deserializedTask, currTest.task) {
 				t.Fatalf("Expected target should be different from output target")
 			}
 		})
@@ -199,6 +192,45 @@ func TestCorruptJsonData(t *testing.T) {
 			name:      "InvalidTarget",
 			inputfile: []byte(`{"id": 1, "name": "no_target", "type": "HealthCheck", "target": ["name": "postgres", "target_type": "provider"], "date": "2021-08-26T15:04:05Z"}`),
 			errMsg:    "No such target type: 'NoTarget'",
+		},
+	}
+
+	for _, currTest := range testCases {
+		t.Run(currTest.name, func(t *testing.T) {
+			response := TaskMetadata{}
+			err := response.FromJSON(currTest.inputfile)
+			if err == nil {
+				t.Fatalf(currTest.errMsg)
+			}
+		})
+	}
+}
+
+func TestTarget(t *testing.T) {
+	testCases := []struct {
+		name      string
+		inputfile []byte
+		errMsg    string
+	}{
+		{
+			name:      "MissingTarget",
+			inputfile: []byte(`{"id": 1, "name": "no_target", "type": "Monitoring", "date": "2021-08-26T15:04:05Z"}`),
+			errMsg:    "Missing field 'target'",
+		},
+		{
+			name:      "InvalidTargetType",
+			inputfile: []byte(`{"id": 1, "name": "wrong_target_type", "type": "HealthCheck", "target": {"name": "postgres", "target_type": "NoTarget"}, "date": "2021-08-26T15:04:05Z"}`),
+			errMsg:    "No such target type: 'NoTarget'",
+		},
+		{
+			name:      "InvalidTarget",
+			inputfile: []byte(`{"id": 1, "name": "wrong_target", "type": "HealthCheck", "target": ["name": "postgres", "target_type": "provider"], "date": "2021-08-26T15:04:05Z"}`),
+			errMsg:    "Target must be an interface",
+		},
+		{
+			name:      "MissingTaskTarget",
+			inputfile: []byte(`{"id": 1, "name": "no_target_type", "type": "HealthCheck", "target": {"name": "postgres"}, "date": "2021-08-26T15:04:05Z"}`),
+			errMsg:    "target_type is missing",
 		},
 	}
 

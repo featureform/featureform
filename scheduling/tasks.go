@@ -96,19 +96,22 @@ func (t *TaskMetadata) FromJSON(data []byte) error {
 	if temp.ID == 0 || temp.Name == "" || temp.Type == "" || len(temp.Target) == 0 || temp.Date.IsZero() {
 		return fmt.Errorf("task metadata is missing required fields")
 	}
-
 	t.ID = temp.ID
 	t.Name = temp.Name
+
 	if temp.Type != ResourceCreation && temp.Type != HealthCheck && temp.Type != Monitoring {
 		return fmt.Errorf("unknown task type: %s", temp.Type)
 	}
-
 	t.Type = temp.Type
 	t.Date = temp.Date
 
 	targetMap := make(map[string]interface{})
 	if err := json.Unmarshal(temp.Target, &targetMap); err != nil {
 		return fmt.Errorf("failed to deserialize target data due to: %w", err)
+	}
+
+	if _, ok := targetMap["target_type"]; !ok {
+		return fmt.Errorf("target type is missing")
 	}
 
 	if targetMap["target_type"] == "provider" {

@@ -12,22 +12,12 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useDataAPI } from '../../hooks/dataAPI';
 import JobsTable from './jobsTable';
 
 export default function TableDataWrapper() {
-  let jobsList = [];
-  let dummyJob = {
-    name: 'agg1',
-    type: 'Source',
-    provider: 'Spark',
-    resource: 'perc_balance',
-    variant: 'v1',
-    status: 'Pending',
-    lastRuntime: '2024-06-15',
-    triggeredBy: 'On Apply',
-  };
-  jobsList.push(dummyJob, dummyJob, dummyJob, dummyJob, dummyJob);
+  const dataAPI = useDataAPI();
 
   const STATUS_ALL = 'ALL';
   const STATUS_ACTIVE = 'ACTIVE';
@@ -41,18 +31,26 @@ export default function TableDataWrapper() {
     sortBy: '',
     searchText: '',
   });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [jobsList, setJobsList] = useState([]);
 
   const handleStatusBtnSelect = (statusType = STATUS_ALL) => {
     setSearchParams({ ...searchParams, status: statusType });
   };
 
   const handleSortBy = (event) => {
-    setSearchParams({ ...searchParams, status: statusType });
+    setSearchParams({ ...searchParams, sortBy: event?.target?.value });
   };
 
-  const handleSearch = (event) => {
-    setSearchParams({ ...searchParams, searchText: event?.target?.value });
+  const handleSearch = (searchArg = '') => {
+    setSearchParams({ ...searchParams, searchText: searchArg });
   };
+
+  useEffect(async () => {
+    let data = await dataAPI.getJobs(searchParams);
+    console.log(data);
+    setJobsList(data);
+  }, [searchParams]);
 
   return (
     <>
@@ -108,7 +106,7 @@ export default function TableDataWrapper() {
         <Button
           variant='outlined'
           style={
-            searchParams.sortBy === STATUS_COMPLETE
+            searchParams.status === STATUS_COMPLETE
               ? { color: 'white', background: '#FC195C' }
               : { color: 'black' }
           }
@@ -123,7 +121,7 @@ export default function TableDataWrapper() {
           <Chip
             label={24}
             style={
-              searchParams.sortBy === STATUS_COMPLETE
+              searchParams.status === STATUS_COMPLETE
                 ? { color: 'black', background: 'white' }
                 : { color: 'white', background: '#FC195C' }
             }
@@ -151,18 +149,22 @@ export default function TableDataWrapper() {
                 const rawText = event.target.value;
                 if (rawText === '') {
                   // user is deleting the text field. allow this and clear out state
-                  setSearchText(rawText);
+                  setSearchQuery(rawText);
                   return;
                 }
                 const searchText = event.target.value ?? '';
                 if (searchText.trim()) {
-                  setSearchText(searchText);
+                  setSearchQuery(searchText);
                 }
               }}
-              value={searchParams.searchText}
+              value={searchQuery}
               onKeyDown={(event) => {
-                if (event.key === ENTER_KEY && searchText) {
-                  handleSearch(event);
+                if (event.key === ENTER_KEY && searchQuery) {
+                  // todox: odd case since i'm tracking 2 search props.
+                  // the one in the searchparams, and also the input's itself.
+                  // the searchParams, won't update unless you hit ENTER.
+                  // so you can ultimately search with a stale searchParam.searchText value
+                  handleSearch(searchQuery);
                 }
               }}
               InputProps={{

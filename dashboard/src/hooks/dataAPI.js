@@ -1,3 +1,5 @@
+import dummyJobs from './dummyJobs.json';
+
 let hostname = 'localhost';
 let port = 3000;
 if (typeof window !== 'undefined') {
@@ -55,8 +57,32 @@ export function useDataAPI() {
     return result;
   };
 
+  const getJobs = async (searchParms = {}) => {
+    // const result = await fetch(`${API_URL}/data/jobs`, {
+    //   cache: 'no-store',
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //   },
+    //   body: JSON.stringify(searchParms),
+    // })
+    //   .then((res) => res.json())
+    //   .catch((error) => {
+    //     console.error('Error fetching jobs from server: ', error);
+
+    //     return [];
+    //   });
+
+    // return result;
+
+    console.log('searching with');
+    console.log(searchParms);
+    return Promise.resolve(dummyJobs);
+  };
+
   return {
     getTags,
     postTags,
+    getJobs,
   };
 }

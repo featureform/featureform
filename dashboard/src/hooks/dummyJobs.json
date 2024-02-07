@@ -1,0 +1,62 @@
+[
+  {
+    "name": "agg1",
+    "type": "Source",
+    "provider": "Spark",
+    "resource": "perc_balance",
+    "variant": "v1",
+    "status": "SUCCESS",
+    "lastRuntime": "2024-06-15",
+    "triggeredBy": "On Apply"
+  },
+  {
+    "name": "test_job",
+    "type": "Source",
+    "provider": "Postgres",
+    "resource": "perc_balance",
+    "variant": "v1",
+    "status": "FAILED",
+    "lastRuntime": "2024-06-15",
+    "triggeredBy": "On Apply"
+  },
+  {
+    "name": "test_job_1988",
+    "type": "Source",
+    "provider": "Spark",
+    "resource": "perc_balance",
+    "variant": "v15",
+    "status": "PENDING",
+    "lastRuntime": "2024-06-15",
+    "triggeredBy": "On Update"
+  },
+  {
+    "name": "aggregate job",
+    "type": "Source",
+    "provider": "Spark",
+    "resource": "perc_balance",
+    "variant": "v50",
+    "status": "PENDING",
+    "lastRuntime": "2024-06-15",
+    "triggeredBy": "On Apply"
+  },
+  {
+    "name": "Shab_Test_Job",
+    "type": "Source",
+    "provider": "Spark",
+    "resource": "perc_balance",
+    "variant": "v1",
+    "status": "FAILED",
+    "lastRuntime": "2024-06-15",
+    "triggeredBy": "On Update"
+  },
+  {
+    "name": "Nicole_Puppers",
+    "type": "Source",
+    "provider": "Spark",
+    "resource": "perc_balance",
+    "variant": "v1",
+    "status": "SUCCESS",
+    "lastRuntime": "2024-06-15",
+    "triggeredBy": "On Apply"
+  }
+]

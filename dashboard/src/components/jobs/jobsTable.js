@@ -10,6 +10,9 @@ import {
 import React from 'react';
 
 export default function JobsTable({ jobsList = [] }) {
+  const handleRowSelect = () => {
+    console.log('row has been selected');
+  };
   return (
     <>
       <TableContainer component={Paper}>

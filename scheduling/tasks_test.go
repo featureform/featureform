@@ -6,7 +6,7 @@ import (
 )
 
 func TestSerializeTaskMetadata(t *testing.T) {
-	taskTime := time.Now().Format("2006-01-02 15:04:05")
+	taskTime := time.Now()
 	task1 := TaskMetadata{
 		ID:   1,
 		Name: "test",
@@ -28,16 +28,16 @@ func TestSerializeTaskMetadata(t *testing.T) {
 		t.Errorf("failed to deserialize task metadata: %v", err)
 	}
 
-	if !TaskMetadataIsEqual(task1, deserializeTask1) {
+	if !TaskMetadataIsEqual(deserializeTask1, task1) {
 		t.Fatalf("Wrong struct values: %v\nExpected: %v", deserializeTask1, task1)
 	}
 
 }
 
-func TaskMetadataIsEqual(a, b TaskMetadata) bool {
-	return a.ID == b.ID &&
-		a.Name == b.Name &&
-		a.Type == b.Type &&
-		a.Target == b.Target &&
-		a.Date == b.Date
+func TaskMetadataIsEqual(output, expected TaskMetadata) bool {
+	return output.ID == expected.ID &&
+		output.Name == expected.Name &&
+		output.Type == expected.Type &&
+		output.Target == expected.Target &&
+		output.Date == expected.Date.Truncate(0)
 }

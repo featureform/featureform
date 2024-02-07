@@ -36,21 +36,22 @@ export default function TableDataWrapper() {
   const SORT_PENDING = 'PENDING';
   const SORT_SUCCESSFUL = 'SUCCESSFUL';
   const ENTER_KEY = 'Enter';
-  const [statusFilter, setStatusFilter] = useState(STATUS_ALL);
-  const [statusSort, setStatusSort] = useState('');
-  const [searchText, setSearchText] = useState('');
+  const [searchParams, setSearchParams] = useState({
+    status: STATUS_ALL,
+    sortBy: '',
+    searchText: '',
+  });
 
   const handleStatusBtnSelect = (statusType = STATUS_ALL) => {
-    setStatusFilter(statusType);
+    setSearchParams({ ...searchParams, status: statusType });
   };
 
   const handleSortBy = (event) => {
-    setStatusSort(event.target.value);
+    setSearchParams({ ...searchParams, status: statusType });
   };
 
   const handleSearch = (event) => {
-    event.preventDefault();
-    console.log('searching with:', event.target.value);
+    setSearchParams({ ...searchParams, searchText: event?.target?.value });
   };
 
   return (
@@ -59,7 +60,7 @@ export default function TableDataWrapper() {
         <Button
           variant='outlined'
           style={
-            statusFilter === STATUS_ALL
+            searchParams.status === STATUS_ALL
               ? { color: 'white', background: '#FC195C' }
               : { color: 'black' }
           }
@@ -74,7 +75,7 @@ export default function TableDataWrapper() {
           <Chip
             label={56}
             style={
-              statusFilter === STATUS_ALL
+              searchParams.status === STATUS_ALL
                 ? { color: 'black', background: 'white' }
                 : { color: 'white', background: '#FC195C' }
             }
@@ -83,7 +84,7 @@ export default function TableDataWrapper() {
         <Button
           variant='outlined'
           style={
-            statusFilter === STATUS_ACTIVE
+            searchParams.status === STATUS_ACTIVE
               ? { color: 'white', background: '#FC195C' }
               : { color: 'black' }
           }
@@ -98,7 +99,7 @@ export default function TableDataWrapper() {
           <Chip
             label={32}
             style={
-              statusFilter === STATUS_ACTIVE
+              searchParams.status === STATUS_ACTIVE
                 ? { color: 'black', background: 'white' }
                 : { color: 'white', background: '#FC195C' }
             }
@@ -107,7 +108,7 @@ export default function TableDataWrapper() {
         <Button
           variant='outlined'
           style={
-            statusFilter === STATUS_COMPLETE
+            searchParams.sortBy === STATUS_COMPLETE
               ? { color: 'white', background: '#FC195C' }
               : { color: 'black' }
           }
@@ -122,7 +123,7 @@ export default function TableDataWrapper() {
           <Chip
             label={24}
             style={
-              statusFilter === STATUS_COMPLETE
+              searchParams.sortBy === STATUS_COMPLETE
                 ? { color: 'black', background: 'white' }
                 : { color: 'white', background: '#FC195C' }
             }
@@ -133,7 +134,7 @@ export default function TableDataWrapper() {
           <FormControl style={{ paddingRight: '15px' }}>
             <InputLabel id='sortId'>Sort By</InputLabel>
             <Select
-              value={statusSort}
+              value={searchParams.sortBy}
               onChange={handleSortBy}
               label='Sort By'
               style={{ minWidth: '200px' }}
@@ -158,7 +159,7 @@ export default function TableDataWrapper() {
                   setSearchText(searchText);
                 }
               }}
-              value={searchText}
+              value={searchParams.searchText}
               onKeyDown={(event) => {
                 if (event.key === ENTER_KEY && searchText) {
                   handleSearch(event);

@@ -389,7 +389,7 @@ jobs:
 
       - uses: codecov/codecov-action@v4
         with:
-          files: ./coverage1.xml,./cover.out,./clover.xml
+          files: ./coverage.xml,./cover.out,./clover.xml
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
           verbose: true

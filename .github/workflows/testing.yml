@@ -353,8 +353,17 @@ jobs:
         with:
           node-version: '20'
 
-      - run: npm install
+      - name: Install Packages
+        run: npm install
 
-      - run: npm install jest
+      - name: Install Jest
+        run: npm install jest
 
-      - run: ./node_modules/.bin/jest --coverage
+      - name: Run Tests
+        run: ./node_modules/.bin/jest --coverage
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: dashboard-coverage
+          path: ./coverage/clover.xml
+          retention-days: 1

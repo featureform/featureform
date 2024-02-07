@@ -88,6 +88,18 @@ export function useDataAPI() {
       );
     }
 
+    if (searchParams.sortBy) {
+      filteredSet = filteredSet.sort(function (a, b) {
+        if (searchParams.sortBy === 'STATUS') {
+          return a['status'].localeCompare(b['status']);
+        } else if (searchParams.sortBy === 'STATUS_DATE') {
+          let date1 = new Date(a['lastRuntime']);
+          let date2 = new Date(b['lastRuntime']);
+          return date1 < date2;
+        }
+      });
+    }
+
     console.log('searching with');
     console.log(searchParams);
     return Promise.resolve(filteredSet);

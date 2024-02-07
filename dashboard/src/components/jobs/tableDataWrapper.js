@@ -23,9 +23,8 @@ export default function TableDataWrapper() {
   const STATUS_ALL = 'ALL';
   const STATUS_ACTIVE = 'ACTIVE';
   const STATUS_COMPLETE = 'COMPLETE';
-  const SORT_FAILED = 'FAILED';
-  const SORT_PENDING = 'PENDING';
-  const SORT_SUCCESSFUL = 'SUCCESSFUL';
+  const SORT_STATUS = 'STATUS';
+  const SORT_DATE = 'STATUS_DATE';
   const ENTER_KEY = 'Enter';
   const [searchParams, setSearchParams] = useState({
     status: STATUS_ALL,
@@ -59,7 +58,6 @@ export default function TableDataWrapper() {
 
   useEffect(async () => {
     let data = await dataAPI.getJobs(searchParams);
-    console.log(data);
     setJobsList(data);
   }, [searchParams]);
 
@@ -148,9 +146,8 @@ export default function TableDataWrapper() {
               label='Sort By'
               style={{ minWidth: '200px' }}
             >
-              <MenuItem value={SORT_SUCCESSFUL}>Successful</MenuItem>
-              <MenuItem value={SORT_PENDING}>Pending</MenuItem>
-              <MenuItem value={SORT_FAILED}>Failed</MenuItem>
+              <MenuItem value={SORT_STATUS}>Status</MenuItem>
+              <MenuItem value={SORT_DATE}>Date</MenuItem>
             </Select>
           </FormControl>
           <FormControl>

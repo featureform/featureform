@@ -6,7 +6,7 @@
     "resource": "perc_balance",
     "variant": "v1",
     "status": "SUCCESS",
-    "lastRuntime": "2024-06-15",
+    "lastRuntime": "2025-01-15",
     "triggeredBy": "On Apply"
   },
   {
@@ -16,7 +16,7 @@
     "resource": "perc_balance",
     "variant": "v1",
     "status": "FAILED",
-    "lastRuntime": "2024-06-15",
+    "lastRuntime": "2028-06-15",
     "triggeredBy": "On Apply"
   },
   {
@@ -26,7 +26,7 @@
     "resource": "perc_balance",
     "variant": "v15",
     "status": "PENDING",
-    "lastRuntime": "2024-06-15",
+    "lastRuntime": "2023-12-15",
     "triggeredBy": "On Update"
   },
   {
@@ -36,7 +36,7 @@
     "resource": "perc_balance",
     "variant": "v50",
     "status": "PENDING",
-    "lastRuntime": "2024-06-15",
+    "lastRuntime": "2022-04-15",
     "triggeredBy": "On Apply"
   },
   {
@@ -46,7 +46,7 @@
     "resource": "perc_balance",
     "variant": "v1",
     "status": "FAILED",
-    "lastRuntime": "2024-06-15",
+    "lastRuntime": "2021-01-15",
     "triggeredBy": "On Update"
   },
   {
@@ -56,7 +56,7 @@
     "resource": "perc_balance",
     "variant": "v1",
     "status": "SUCCESS",
-    "lastRuntime": "2024-06-15",
+    "lastRuntime": "1988-12-16",
     "triggeredBy": "On Apply"
   }
 ]

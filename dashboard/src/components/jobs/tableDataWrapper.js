@@ -1,3 +1,4 @@
+import NotInterestedIcon from '@mui/icons-material/NotInterested';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
 import {
@@ -39,11 +40,20 @@ export default function TableDataWrapper() {
   };
 
   const handleSortBy = (event) => {
-    setSearchParams({ ...searchParams, sortBy: event?.target?.value });
+    let value = event?.target?.value ?? '';
+    setSearchParams({ ...searchParams, sortBy: value });
   };
 
   const handleSearch = (searchArg = '') => {
     setSearchParams({ ...searchParams, searchText: searchArg });
+  };
+
+  const clearInputs = () => {
+    setSearchParams({
+      status: STATUS_ALL,
+      sortBy: '',
+      searchText: '',
+    });
   };
 
   useEffect(async () => {
@@ -150,6 +160,7 @@ export default function TableDataWrapper() {
                 if (rawText === '') {
                   // user is deleting the text field. allow this and clear out state
                   setSearchQuery(rawText);
+                  handleSearch('');
                   return;
                 }
                 const searchText = event.target.value ?? '';
@@ -184,6 +195,9 @@ export default function TableDataWrapper() {
           </FormControl>
           <IconButton variant='' size='large'>
             <RefreshIcon />
+          </IconButton>
+          <IconButton variant='' size='large' onClick={clearInputs}>
+            <NotInterestedIcon />
           </IconButton>
         </span>
       </div>

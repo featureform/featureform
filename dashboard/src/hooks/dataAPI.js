@@ -57,7 +57,7 @@ export function useDataAPI() {
     return result;
   };
 
-  const getJobs = async (searchParms = {}) => {
+  const getJobs = async (searchParams = {}) => {
     // const result = await fetch(`${API_URL}/data/jobs`, {
     //   cache: 'no-store',
     //   method: 'POST',
@@ -74,10 +74,23 @@ export function useDataAPI() {
     //   });
 
     // return result;
+    let filteredSet = dummyJobs;
+    if (searchParams.status != 'ALL') {
+      let states = { ACTIVE: ['PENDING'], COMPLETE: ['SUCCESS', 'FAILED'] };
+      filteredSet = filteredSet.filter((j) =>
+        states[searchParams.status].includes(j.status)
+      );
+    }
+
+    if (searchParams.searchText) {
+      filteredSet = filteredSet.filter((q) =>
+        q.name.toLowerCase().includes(searchParams.searchText.toLowerCase())
+      );
+    }
 
     console.log('searching with');
-    console.log(searchParms);
-    return Promise.resolve(dummyJobs);
+    console.log(searchParams);
+    return Promise.resolve(filteredSet);
   };
 
   return {

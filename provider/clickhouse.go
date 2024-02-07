@@ -1199,7 +1199,11 @@ func (q clickhouseSQLQueries) castTableItemType(v interface{}, t interface{}) in
 		}
 		return v.(uint64)
 	case chDateTime:
-		return checkZeroTime(v.(time.Time))
+		if t, ok := v.(time.Time); !ok {
+			return time.UnixMilli(0).UTC()
+		} else {
+			return checkZeroTime(t)
+		}
 	default:
 		// other types don't need checking as will be correct type by ClickHouse client
 		return v

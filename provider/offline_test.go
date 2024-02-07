@@ -1,6 +1,3 @@
-//go:build offline
-// +build offline
-
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -9,11 +6,9 @@ package provider
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -23,319 +18,20 @@ import (
 	"testing"
 	"time"
 
-	bigquery "cloud.google.com/go/bigquery"
-	fs "github.com/featureform/filestore"
-	"github.com/featureform/helpers"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
-	"github.com/joho/godotenv"
 	"github.com/parquet-go/parquet-go"
-	"google.golang.org/api/option"
 )
 
-var provider = flag.String("provider", "", "provider to perform test on")
-
-type testMember struct {
-	t               pt.Type
-	c               pc.SerializedConfig
-	integrationTest bool
+type OfflineStoreTest struct {
+	t     *testing.T
+	store OfflineStore
 }
 
-func TestOfflineStores(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-	err := godotenv.Load("../.env")
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	os.Setenv("TZ", "UTC")
-
-	checkEnv := func(envVar string) string {
-		value, has := os.LookupEnv(envVar)
-		if !has {
-			panic(fmt.Sprintf("Environment variable not found: %s", envVar))
-		}
-		return value
-	}
-
-	postgresInit := func() pc.SerializedConfig {
-		db := checkEnv("POSTGRES_DB")
-		user := checkEnv("POSTGRES_USER")
-		password := checkEnv("POSTGRES_PASSWORD")
-		var postgresConfig = pc.PostgresConfig{
-			Host:     "localhost",
-			Port:     "5432",
-			Database: db,
-			Username: user,
-			Password: password,
-			SSLMode:  "disable",
-		}
-		return postgresConfig.Serialize()
-	}
-
-	//mySqlInit := func() pc.SerializedConfig {
-	//	db := checkEnv("MYSQL_DB")
-	//	user := checkEnv("MYSQL_USER")
-	//	password := checkEnv("MYSQL_PASSWORD")
-	//	var mySqlConfig = pc.MySqlConfig{
-	//		Host:     "localhost",
-	//		Port:     "3306",
-	//		Username: user,
-	//		Password: password,
-	//		Database: db,
-	//	}
-	//	return mySqlConfig.Serialize()
-	//}
-
-	snowflakeInit := func() (pc.SerializedConfig, pc.SnowflakeConfig) {
-		snowFlakeDatabase := strings.ToUpper(uuid.NewString())
-		t.Log("Snowflake Database: ", snowFlakeDatabase)
-		username := checkEnv("SNOWFLAKE_USERNAME")
-		password := checkEnv("SNOWFLAKE_PASSWORD")
-		org := checkEnv("SNOWFLAKE_ORG")
-		account := checkEnv("SNOWFLAKE_ACCOUNT")
-		var snowflakeConfig = pc.SnowflakeConfig{
-			Username:     username,
-			Password:     password,
-			Organization: org,
-			Account:      account,
-			Database:     snowFlakeDatabase,
-		}
-		if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
-			t.Fatalf("%v", err)
-		}
-		return snowflakeConfig.Serialize(), snowflakeConfig
-	}
-
-	clickHouseInit := func() (pc.SerializedConfig, pc.ClickHouseConfig) {
-		clickHouseDb := ""
-		ok := true
-		if clickHouseDb, ok = os.LookupEnv("CLICKHOUSE_DB"); !ok {
-			clickHouseDb = fmt.Sprintf("feature_form_%d", time.Now().UnixMilli())
-		}
-		t.Log("ClickHouse Database: ", clickHouseDb)
-		username := checkEnv("CLICKHOUSE_USER")
-		password := checkEnv("CLICKHOUSE_PASSWORD")
-		host := helpers.GetEnv("CLICKHOUSE_HOST", "localhost")
-		port := helpers.GetEnvUInt16("CLICKHOUSE_PORT", uint16(9000))
-		ssl := helpers.GetEnvBool("CLICKHOUSE_SSL", false)
-		var clickHouseConfig = pc.ClickHouseConfig{
-			Host:     host,
-			Port:     port,
-			Username: username,
-			Password: password,
-			Database: clickHouseDb,
-			SSL:      ssl,
-		}
-		if err := createClickHouseDatabase(clickHouseConfig); err != nil {
-			t.Fatalf("%v", err)
-		}
-		return clickHouseConfig.Serialize(), clickHouseConfig
-	}
-
-	redshiftInit := func() (pc.SerializedConfig, pc.RedshiftConfig) {
-		redshiftDatabase := fmt.Sprintf("ff%s", strings.ToLower(uuid.NewString()))
-		host := checkEnv("REDSHIFT_HOST")
-		port := checkEnv("REDSHIFT_PORT")
-		username := checkEnv("REDSHIFT_USERNAME")
-		password := checkEnv("REDSHIFT_PASSWORD")
-		var redshiftConfig = pc.RedshiftConfig{
-			Host:     host,
-			Port:     port,
-			Database: redshiftDatabase,
-			Username: username,
-			Password: password,
-		}
-		serialRSConfig := redshiftConfig.Serialize()
-		if err := createRedshiftDatabase(redshiftConfig); err != nil {
-			t.Fatalf("%v", err)
-		}
-		return serialRSConfig, redshiftConfig
-	}
-
-	bqInit := func() (pc.SerializedConfig, pc.BigQueryConfig) {
-		bigqueryCredentials := os.Getenv("BIGQUERY_CREDENTIALS")
-		JSONCredentials, err := ioutil.ReadFile(bigqueryCredentials)
-		if err != nil {
-			panic(fmt.Errorf("cannot find big query credentials: %v", err))
-		}
-
-		var credentialsDict map[string]interface{}
-		err = json.Unmarshal(JSONCredentials, &credentialsDict)
-		if err != nil {
-			panic(fmt.Errorf("cannot unmarshal big query credentials: %v", err))
-		}
-
-		bigQueryDatasetId := strings.Replace(strings.ToUpper(uuid.NewString()), "-", "_", -1)
-		os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
-		t.Log("BigQuery Dataset: ", bigQueryDatasetId)
-
-		var bigQueryConfig = pc.BigQueryConfig{
-			ProjectId:   os.Getenv("BIGQUERY_PROJECT_ID"),
-			DatasetId:   os.Getenv("BIGQUERY_DATASET_ID"),
-			Credentials: credentialsDict,
-		}
-		serialBQConfig := bigQueryConfig.Serialize()
-
-		if err := createBigQueryDataset(bigQueryConfig); err != nil {
-			t.Fatalf("Cannot create BigQuery Dataset: %v", err)
-		}
-		return serialBQConfig, bigQueryConfig
-	}
-
-	_ = func(t *testing.T, executorType pc.SparkExecutorType, storeType fs.FileStoreType) (pc.SerializedConfig, pc.SparkConfig) {
-		var executorConfig pc.SparkExecutorConfig
-
-		switch executorType {
-		case pc.SparkGeneric:
-			executorConfig = &pc.SparkGenericConfig{
-				Master:        os.Getenv("GENERIC_SPARK_MASTER"),
-				DeployMode:    os.Getenv("GENERIC_SPARK_DEPLOY_MODE"),
-				PythonVersion: os.Getenv("GENERIC_SPARK_PYTHON_VERSION"),
-			}
-		case pc.Databricks:
-			executorConfig = &pc.DatabricksConfig{
-				Host:    os.Getenv("DATABRICKS_HOST"),
-				Token:   os.Getenv("DATABRICKS_TOKEN"),
-				Cluster: os.Getenv("DATABRICKS_CLUSTER"),
-			}
-		case pc.EMR:
-			executorConfig = &pc.EMRConfig{
-				Credentials: pc.AWSCredentials{
-					AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-					AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-				},
-				ClusterRegion: os.Getenv("AWS_EMR_CLUSTER_REGION"),
-				ClusterName:   os.Getenv("AWS_EMR_CLUSTER_ID"),
-			}
-		default:
-			t.Fatalf("Invalid executor type: %v", executorType)
-		}
-
-		var fileStoreConfig pc.SparkFileStoreConfig
-		switch storeType {
-		case fs.S3:
-			fileStoreConfig = &pc.S3FileStoreConfig{
-				Credentials: pc.AWSCredentials{
-					AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-					AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-				},
-				BucketRegion: os.Getenv("S3_BUCKET_REGION"),
-				BucketPath:   os.Getenv("S3_BUCKET_PATH"),
-				Path:         os.Getenv(""),
-			}
-		case fs.GCS:
-			credsFile := os.Getenv("GCP_CREDENTIALS_FILE")
-			content, err := ioutil.ReadFile(credsFile)
-			if err != nil {
-				t.Errorf("Error when opening file: %v", err)
-			}
-			var creds map[string]interface{}
-			err = json.Unmarshal(content, &creds)
-			if err != nil {
-				t.Errorf("Error during Unmarshal() creds: %v", err)
-			}
-
-			fileStoreConfig = &pc.GCSFileStoreConfig{
-				BucketName: os.Getenv("GCS_BUCKET_NAME"),
-				BucketPath: "",
-				Credentials: pc.GCPCredentials{
-					ProjectId: os.Getenv("GCP_PROJECT_ID"),
-					JSON:      creds,
-				},
-			}
-		case fs.Azure:
-			fileStoreConfig = &pc.AzureFileStoreConfig{
-				AccountName:   os.Getenv("AZURE_ACCOUNT_NAME"),
-				AccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
-				ContainerName: os.Getenv("AZURE_CONTAINER_NAME"),
-				Path:          os.Getenv("AZURE_CONTAINER_PATH"),
-			}
-		default:
-			t.Fatalf("Invalid store type: %v", storeType)
-		}
-
-		var sparkConfig = pc.SparkConfig{
-			ExecutorType:   executorType,
-			ExecutorConfig: executorConfig,
-			StoreType:      storeType,
-			StoreConfig:    fileStoreConfig,
-		}
-
-		serializedConfig, err := sparkConfig.Serialize()
-		if err != nil {
-			t.Fatalf("Cannot serialize Spark config with %s executor and %s files tore: %v", executorType, storeType, err)
-		}
-		return serializedConfig, sparkConfig
-	}
-
-	testList := []testMember{}
-
-	if *provider == "memory" || *provider == "" {
-		testList = append(testList, testMember{pt.MemoryOffline, []byte{}, false})
-	}
-	if *provider == "bigquery" || *provider == "" {
-		serialBQConfig, bigQueryConfig := bqInit()
-		testList = append(testList, testMember{pt.BigQueryOffline, serialBQConfig, true})
-		t.Cleanup(func() {
-			destroyBigQueryDataset(bigQueryConfig)
-		})
-	}
-	if *provider == "postgres" || *provider == "" {
-		testList = append(testList, testMember{pt.PostgresOffline, postgresInit(), true})
-	}
-	if *provider == "clickhouse" || *provider == "" {
-		serialCHConfig, _ := clickHouseInit()
-		testList = append(testList, testMember{pt.ClickHouseOffline, serialCHConfig, true})
-	}
-	//if *provider == "mysql" || *provider == "" {
-	//	testList = append(testList, testMember{pt.MySqlOffline, mySqlInit(), true})
-	//}
-	if *provider == "snowflake" || *provider == "" {
-		serialSFConfig, snowflakeConfig := snowflakeInit()
-		testList = append(testList, testMember{pt.SnowflakeOffline, serialSFConfig, true})
-		t.Cleanup(func() {
-			destroySnowflakeDatabase(snowflakeConfig)
-		})
-	}
-	if *provider == "redshift" || *provider == "" {
-		serialRSConfig, redshiftConfig := redshiftInit()
-		testList = append(testList, testMember{pt.RedshiftOffline, serialRSConfig, true})
-		t.Cleanup(func() {
-			destroyRedshiftDatabase(redshiftConfig)
-		})
-	}
-	// TODO: update testing.yaml to include local PySpark instance generic Spark tests
-	// if *provider == "spark-generic-s3" || *provider == "" {
-	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.S3)
-	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	// }
-	// if *provider == "spark-generic-abs" || *provider == "" {
-	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.Azure)
-	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	// }
-	// if *provider == "spark-generic-gcs" || *provider == "" {
-	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.GCS)
-	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	// }
-	// TODO: Uncomments when databricks test is fixed
-	//if *provider == "spark-databricks-s3" || *provider == "" {
-	//	serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.S3)
-	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	//}
-	// TODO: Uncomments when abs test is fixed
-	//if *provider == "spark-databricks-abs" || *provider == "" {
-	//	serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.Azure)
-	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	//}
-	// TODO: Uncomment when EMR can be configured to run these tests quicker. Currently taking > 60 minutes.
-	//if *provider == "spark-emr-s3" || *provider == "" {
-	//	serialSparkConfig, _ := sparkInit(t, pc.EMR, fs.S3)
-	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	//}
+func (test *OfflineStoreTest) Run() {
+	t := test.t
+	store := test.store
 
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
@@ -360,7 +56,27 @@ func TestOfflineStores(t *testing.T) {
 		"TrainingDefShorthand":   testTrainingSetDefShorthand,
 		"ResourceLocation":       testResourceLocation,
 	}
-	testSQLFns := map[string]func(*testing.T, OfflineStore){
+
+	for name, fn := range testFns {
+		nameConst := name
+		fnConst := fn
+		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
+			fnConst(t, store)
+		})
+	}
+
+	t.Cleanup(func() {
+		if err := store.Close(); err != nil {
+			t.Errorf("%v - %v\n", store.Type(), err)
+		}
+	})
+}
+
+func (test *OfflineStoreTest) RunSQL() {
+	t := test.t
+	store := test.store
+	testFns := map[string]func(*testing.T, OfflineStore){
 		"PrimaryTableCreate":                 testPrimaryCreateTable,
 		"PrimaryTableWrite":                  testPrimaryTableWrite,
 		"Transformation":                     testTransform,
@@ -374,50 +90,7 @@ func TestOfflineStores(t *testing.T) {
 		"CreatePrimaryFromNonExistentSource": testCreatePrimaryFromNonExistentSource,
 	}
 
-	psqlInfo := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), "localhost", "5432", os.Getenv("POSTGRES_DB"))
-	db, err := sql.Open("postgres", psqlInfo)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, testItem := range testList {
-		// for running go routines inside for loops in go, the iterated value needs to be redeclared
-		// this prevents the earlier go routines from referencing values in a later iteration of the for loop
-		testItemConst := testItem
-		t.Run(string(testItemConst.t), func(t *testing.T) {
-			t.Parallel()
-			testWithProvider(t, testItemConst, testFns, testSQLFns, db)
-		})
-	}
-}
-
-func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func(*testing.T, OfflineStore), testSQLFns map[string]func(*testing.T, OfflineStore), db *sql.DB) {
-	var err error
-	if testing.Short() && testItem.integrationTest {
-		t.Logf("Skipping %s, because it is an integration test", testItem.t)
-		return
-	}
-
-	provider, err := Get(testItem.t, testItem.c)
-	if err != nil {
-		t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
-	}
-	store, err := provider.AsOfflineStore()
-	if err != nil {
-		t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
-	}
 	for name, fn := range testFns {
-		nameConst := name
-		fnConst := fn
-		t.Run(nameConst, func(t *testing.T) {
-			t.Parallel()
-			fnConst(t, store)
-		})
-	}
-	for name, fn := range testSQLFns {
-		if testItem.t == pt.MemoryOffline {
-			continue
-		}
 		nameConst := name
 		fnConst := fn
 		t.Run(nameConst, func(t *testing.T) {
@@ -428,135 +101,9 @@ func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func
 
 	t.Cleanup(func() {
 		if err := store.Close(); err != nil {
-			t.Errorf("%v - %v\n", testItem.t, err)
+			t.Errorf("%v - %v\n", store.Type(), err)
 		}
 	})
-}
-
-func createRedshiftDatabase(c pc.RedshiftConfig) error {
-	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Host, c.Port, "dev")
-	db, err := sql.Open("postgres", url)
-	if err != nil {
-		return err
-	}
-	databaseQuery := fmt.Sprintf("CREATE DATABASE %s", sanitize(c.Database))
-	if _, err := db.Exec(databaseQuery); err != nil {
-		return err
-	}
-	fmt.Printf("Created Redshift Database %s\n", c.Database)
-	return nil
-}
-
-func destroyRedshiftDatabase(c pc.RedshiftConfig) error {
-	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Host, c.Port, "dev")
-	db, err := sql.Open("postgres", url)
-	if err != nil {
-		fmt.Errorf(err.Error())
-		return err
-	}
-	disconnectQuery := fmt.Sprintf("SELECT pg_terminate_backend(pg_stat_activity.procpid) FROM pg_stat_activity WHERE datid=(SELECT oid from pg_database where datname = '%s');", c.Database)
-	if _, err := db.Exec(disconnectQuery); err != nil {
-		fmt.Errorf(err.Error())
-		return err
-	}
-	var deleteErr error
-	retries := 5
-	databaseQuery := fmt.Sprintf("DROP DATABASE %s", sanitize(c.Database))
-	for {
-		if _, err := db.Exec(databaseQuery); err != nil {
-			deleteErr = err
-			time.Sleep(time.Second)
-			retries--
-			if retries == 0 {
-				fmt.Errorf(err.Error())
-				return deleteErr
-			}
-		} else {
-			continue
-		}
-	}
-}
-
-func createSnowflakeDatabase(c pc.SnowflakeConfig) error {
-	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
-	db, err := sql.Open("snowflake", url)
-	if err != nil {
-		return err
-	}
-	databaseQuery := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", sanitize(c.Database))
-	if _, err := db.Exec(databaseQuery); err != nil {
-		return err
-	}
-	return nil
-}
-
-func createClickHouseDatabase(c pc.ClickHouseConfig) error {
-	conn, err := sql.Open("clickhouse", fmt.Sprintf("clickhouse://%s:%d?username=%s&password=%s&secure=%t", c.Host, c.Port, c.Username, c.Password, c.SSL))
-	if err != nil {
-		return err
-	}
-	if _, err := conn.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", sanitizeCH(c.Database))); err != nil {
-		return err
-	}
-	if _, err := conn.Exec(fmt.Sprintf("CREATE DATABASE %s", sanitizeCH(c.Database))); err != nil {
-		return err
-	}
-	return nil
-}
-
-func destroySnowflakeDatabase(c pc.SnowflakeConfig) error {
-	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
-	db, err := sql.Open("snowflake", url)
-	if err != nil {
-		fmt.Errorf(err.Error())
-		return err
-	}
-	databaseQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", sanitize(c.Database))
-	if _, err := db.Exec(databaseQuery); err != nil {
-		fmt.Errorf(err.Error())
-		return err
-	}
-	return nil
-}
-
-func createBigQueryDataset(c pc.BigQueryConfig) error {
-	sCreds, err := json.Marshal(c.Credentials)
-	if err != nil {
-		return err
-	}
-
-	client, err := bigquery.NewClient(context.TODO(), c.ProjectId, option.WithCredentialsJSON(sCreds))
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
-	meta := &bigquery.DatasetMetadata{
-		Location:               "US",
-		DefaultTableExpiration: 24 * time.Hour,
-	}
-	err = client.Dataset(c.DatasetId).Create(context.TODO(), meta)
-
-	return err
-}
-
-func destroyBigQueryDataset(c pc.BigQueryConfig) error {
-	sCreds, err := json.Marshal(c.Credentials)
-	if err != nil {
-		return err
-	}
-
-	time.Sleep(10 * time.Second)
-
-	client, err := bigquery.NewClient(context.TODO(), c.ProjectId, option.WithCredentialsJSON(sCreds))
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
-	err = client.Dataset(c.DatasetId).DeleteWithContents(context.TODO())
-
-	return err
 }
 
 func randomID(types ...OfflineResourceType) ResourceID {
@@ -3007,7 +2554,7 @@ func testTransformCreateFeature(t *testing.T, store OfflineStore) {
 			t.Fatalf("Could not write records: %v", err)
 		}
 
-		tableName := getTableName(t.Name(), table.GetName())
+		tableName := getTableName(string(store.Type()), table.GetName())
 		test.Config.Query = strings.Replace(test.Config.Query, "tb", tableName, 1)
 		if err := store.CreateTransformation(test.Config); err != nil {
 			t.Fatalf("Could not create transformation: %v", err)
@@ -3324,7 +2871,7 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not write batch: %v", err)
 	}
 
-	tableName := getTableName(t.Name(), table.GetName())
+	tableName := getTableName(string(store.Type()), table.GetName())
 	config := TransformationConfig{
 		Type: SQLTransformation,
 		TargetTableID: ResourceID{
@@ -3852,7 +3399,7 @@ func modifyTransformationConfig(t *testing.T, testName, tableName string, provid
 		// The Spark implementation needs to update the source mappings to ensure the source file is used in the transformation query.
 		config.SourceMapping[0].Source = tableName
 	case pt.MemoryOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.MySqlOffline, pt.SnowflakeOffline, pt.ClickHouseOffline, pt.RedshiftOffline:
-		tableName := getTableName(testName, tableName)
+		tableName := getTableName(string(providerType), tableName)
 		config.Query = strings.Replace(config.Query, "tb", tableName, 1)
 	default:
 		t.Fatalf("Unrecognized provider type %s", providerType)

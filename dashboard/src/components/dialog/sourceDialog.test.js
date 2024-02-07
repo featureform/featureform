@@ -54,6 +54,14 @@ describe('Source Table Dialog Tests', () => {
     }),
   };
 
+  const apiNullMock = {
+    fetchFeatureFileStats: jest.fn().mockResolvedValue({
+      columns: ['Column 1', 'Column 2'],
+      rows: null,
+      stats: null,
+    }),
+  };
+
   const apiErrorMock = {
     fetchSourceModalData: jest.fn().mockResolvedValue(ERROR_MSG),
   };
@@ -94,6 +102,36 @@ describe('Source Table Dialog Tests', () => {
       `${DEFAULT_NAME.toUpperCase()} - ${DEFAULT_VARIANT}`
     );
     expect(foundName.nodeName).toBe(H2_NODE);
+  });
+
+  test('Dialog renders OK with null row responses', async () => {
+    //given:
+    const { testBody, apiParam, name } = getTestBody(
+      apiNullMock,
+      DEFAULT_NAME,
+      DEFAULT_VARIANT,
+      'Feature'
+    );
+    const helper = render(testBody);
+
+    //when: the user clicks open
+    fireEvent.click(helper.getByTestId(OPEN_BTN_ID));
+    const foundName = await helper.findByTestId(TITLE_ID);
+    const foundColumn1 = helper.getByText('Column 1');
+    const foundColumn2 = helper.getByText('Column 2');
+
+    //then:
+    expect(apiParam.fetchFeatureFileStats).toHaveBeenCalledTimes(1);
+    expect(apiParam.fetchFeatureFileStats).toHaveBeenCalledWith(
+      name,
+      DEFAULT_VARIANT
+    );
+    expect(foundName.textContent).toBe(
+      `${DEFAULT_NAME.toUpperCase()} - ${DEFAULT_VARIANT}`
+    );
+    expect(foundName.nodeName).toBe(H2_NODE);
+    expect(foundColumn1.nodeName).toBe(TH_NODE);
+    expect(foundColumn2.nodeName).toBe(TH_NODE);
   });
 
   test('The dialog table renders all available columns', async () => {

@@ -365,5 +365,5 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: dashboard-coverage
-          path: ./coverage/clover.xml
+          path: ./dashboard/coverage/clover.xml
           retention-days: 1

@@ -357,4 +357,4 @@ jobs:
 
       - run: npm install jest
 
-      - run: jest --coverage
+      - run: ./node_modules/.bin/jest --coverage

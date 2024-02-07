@@ -54,6 +54,7 @@ export default function TableDataWrapper() {
       sortBy: '',
       searchText: '',
     });
+    setSearchQuery('');
   };
 
   useEffect(async () => {

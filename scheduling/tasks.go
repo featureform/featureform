@@ -93,6 +93,9 @@ func (t *TaskMetadata) FromJSON(data []byte) error {
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return fmt.Errorf("failed to deserialize task metadata due to: %w", err)
 	}
+	if temp.ID == 0 || temp.Name == "" || temp.Type == "" || len(temp.Target) == 0 || temp.Date.IsZero() {
+		return fmt.Errorf("task metadata is missing required fields")
+	}
 
 	t.ID = temp.ID
 	t.Name = temp.Name

@@ -99,6 +99,10 @@ func (t *TaskMetadata) FromJSON(data []byte) error {
 
 	t.ID = temp.ID
 	t.Name = temp.Name
+	if temp.Type != ResourceCreation && temp.Type != HealthCheck && temp.Type != Monitoring {
+		return fmt.Errorf("unknown task type: %s", temp.Type)
+	}
+
 	t.Type = temp.Type
 	t.Date = temp.Date
 

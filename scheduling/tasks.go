@@ -24,21 +24,21 @@ const (
 )
 
 type Provider struct {
-	name       string     `json:"name"`
-	targetType TargetType `json:"target_type"`
+	Name       string     `json:"name"`
+	TargetType TargetType `json:"target_type"`
 }
 
 type NameVariant struct {
-	name       string     `json:"name"`
-	targetType TargetType `json:"target_type"`
+	Name       string     `json:"name"`
+	TargetType TargetType `json:"target_type"`
 }
 
 func (p Provider) Type() TargetType {
-	return p.targetType
+	return p.TargetType
 }
 
 func (nv NameVariant) Type() TargetType {
-	return nv.targetType
+	return nv.TargetType
 }
 
 type TaskTarget interface {
@@ -46,27 +46,11 @@ type TaskTarget interface {
 }
 
 type TaskMetadata struct {
-	id       TaskId     `json:"id"`
-	name     string     `json:"name"`
-	taskType TaskType   `json:"type"`
-	target   TaskTarget `json:"target"`
-	date     time.Time  `json:"date"`
-}
-
-func (t *TaskMetadata) ID() TaskId {
-	return t.id
-}
-
-func (t *TaskMetadata) Name() string {
-	return t.name
-}
-
-func (t *TaskMetadata) Target() TaskTarget {
-	return t.target
-}
-
-func (t *TaskMetadata) DateCreated() time.Time {
-	return t.date
+	ID       TaskId     `json:"id"`
+	Name     string     `json:"name"`
+	TaskType TaskType   `json:"type"`
+	Target   TaskTarget `json:"target"`
+	Date     time.Time  `json:"date"`
 }
 
 func (t *TaskMetadata) ToJSON() ([]byte, error) {
@@ -82,31 +66,31 @@ func (t *TaskMetadata) ToJSON() ([]byte, error) {
 func (t *TaskMetadata) FromJSON(data []byte) error {
 
 	type tempConfig struct {
-		id       TaskId          `json:"id"`
-		name     string          `json:"name"`
-		taskType TaskType        `json:"type"`
-		target   json.RawMessage `json:"target"`
-		date     time.Time       `json:"date"`
+		ID       TaskId          `json:"id"`
+		Name     string          `json:"name"`
+		TaskType TaskType        `json:"type"`
+		Target   json.RawMessage `json:"target"`
+		Date     time.Time       `json:"date"`
 	}
 
 	var temp tempConfig
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return fmt.Errorf("failed to deserialize task metadata due to: %w", err)
 	}
-	if temp.id == 0 || temp.name == "" || temp.taskType == "" || len(temp.target) == 0 || temp.date.IsZero() {
+	if temp.ID == 0 || temp.Name == "" || temp.TaskType == "" || len(temp.Target) == 0 || temp.Date.IsZero() {
 		return fmt.Errorf("task metadata is missing required fields")
 	}
-	t.id = temp.id
-	t.name = temp.name
+	t.ID = temp.ID
+	t.Name = temp.Name
 
-	if temp.taskType != ResourceCreation && temp.taskType != HealthCheck && temp.taskType != Monitoring {
-		return fmt.Errorf("unknown task type: %s", temp.taskType)
+	if temp.TaskType != ResourceCreation && temp.TaskType != HealthCheck && temp.TaskType != Monitoring {
+		return fmt.Errorf("unknown task type: %s", temp.TaskType)
 	}
-	t.taskType = temp.taskType
-	t.date = temp.date
+	t.TaskType = temp.TaskType
+	t.Date = temp.Date
 
 	targetMap := make(map[string]interface{})
-	if err := json.Unmarshal(temp.target, &targetMap); err != nil {
+	if err := json.Unmarshal(temp.Target, &targetMap); err != nil {
 		return fmt.Errorf("failed to deserialize target data due to: %w", err)
 	}
 
@@ -116,16 +100,16 @@ func (t *TaskMetadata) FromJSON(data []byte) error {
 
 	if targetMap["target_type"] == "provider" {
 		var provider Provider
-		if err := json.Unmarshal(temp.target, &provider); err != nil {
+		if err := json.Unmarshal(temp.Target, &provider); err != nil {
 			return fmt.Errorf("failed to deserialize Provider data due to: %w", err)
 		}
-		t.target = provider
+		t.Target = provider
 	} else if targetMap["target_type"] == "name_variant" {
 		var namevariant NameVariant
-		if err := json.Unmarshal(temp.target, &namevariant); err != nil {
+		if err := json.Unmarshal(temp.Target, &namevariant); err != nil {
 			return fmt.Errorf("failed to deserialize NameVariant data due to: %w", err)
 		}
-		t.target = namevariant
+		t.Target = namevariant
 	} else {
 		return fmt.Errorf("unknown target type: %s", targetMap["target_type"])
 	}

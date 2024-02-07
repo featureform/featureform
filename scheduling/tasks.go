@@ -9,10 +9,6 @@ import (
 type TaskId int32 // need to determine how we want to create IDs
 type RunId int32  // need to determine how we want to create IDs
 type TaskType string
-type TargetType string
-
-const NameVariant TargetType = "NameVariant"
-const Provider TargetType = "Provider"
 
 const (
 	ResourceCreation TaskType = "ResourceCreation"
@@ -20,16 +16,41 @@ const (
 	Monitoring       TaskType = "Monitoring"
 )
 
+type TargetType string
+
+const (
+	ProviderTarget    TargetType = "provider"
+	NameVariantTarget TargetType = "name_variant"
+)
+
+type Provider struct {
+	Name       string     `json:"name"`
+	TargetType TargetType `json:"target_type"`
+}
+
+type NameVariant struct {
+	Name       string     `json:"name"`
+	TargetType TargetType `json:"target_type"`
+}
+
+func (p Provider) Type() TargetType {
+	return p.TargetType
+}
+
+func (nv NameVariant) Type() TargetType {
+	return nv.TargetType
+}
+
 type TaskTarget interface {
 	Type() TargetType
 }
 
 type TaskMetadata struct {
-	ID     TaskId
-	Name   string
-	Type   TaskType
-	Target TaskTarget
-	Date   time.Time
+	ID     TaskId     `json:"id"`
+	Name   string     `json:"name"`
+	Type   TaskType   `json:"type"`
+	Target TaskTarget `json:"target"`
+	Date   time.Time  `json:"date"`
 }
 
 func (t *TaskMetadata) getID() TaskId {
@@ -49,28 +70,55 @@ func (t *TaskMetadata) DateCreated() time.Time {
 }
 
 func (t *TaskMetadata) ToJSON() ([]byte, error) {
-	switch vt.ValueType.(type) {
-	case VectorType:
-		return json.Marshal(map[string]VectorType{"ValueType": vt.ValueType.(VectorType)})
-	case ScalarType:
-		return json.Marshal(map[string]ScalarType{"ValueType": vt.ValueType.(ScalarType)})
-	default:
-		return nil, fmt.Errorf("could not marshal value type: %v", vt.ValueType)
+	type config TaskMetadata
+	c := config(*t)
+	marshal, err := json.Marshal(&c)
+	if err != nil {
+		return nil, err
 	}
+	return marshal, nil
 }
 
 func (t *TaskMetadata) FromJSON(data []byte) error {
-	v := map[string]VectorType{"ValueType": {}}
-	if err := json.Unmarshal(data, &v); err == nil {
-		vt.ValueType = v["ValueType"]
-		return nil
+
+	type tempConfig struct {
+		ID     TaskId          `json:"id"`
+		Name   string          `json:"name"`
+		Type   TaskType        `json:"type"`
+		Target json.RawMessage `json:"target"`
+		Date   time.Time       `json:"date"`
 	}
 
-	s := map[string]ScalarType{"ValueType": ScalarType("")}
-	if err := json.Unmarshal(data, &s); err == nil {
-		vt.ValueType = s["ValueType"]
-		return nil
+	var temp tempConfig
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return fmt.Errorf("failed to deserialize task metadata due to: %w", err)
 	}
 
-	return fmt.Errorf("could not unmarshal value type: %v", data)
+	t.ID = temp.ID
+	t.Name = temp.Name
+	t.Type = temp.Type
+	t.Date = temp.Date
+
+	targetMap := make(map[string]interface{})
+	if err := json.Unmarshal(temp.Target, &targetMap); err != nil {
+		return fmt.Errorf("failed to deserialize target data due to: %w", err)
+	}
+
+	if targetMap["target_type"] == ProviderTarget {
+		var provider Provider
+		if err := json.Unmarshal(temp.Target, &provider); err != nil {
+			return fmt.Errorf("failed to deserialize Provider data due to: %w", err)
+		}
+		t.Target = provider
+	} else if targetMap["target_type"] == NameVariantTarget {
+		var namevariant NameVariant
+		if err := json.Unmarshal(temp.Target, &namevariant); err != nil {
+			return fmt.Errorf("failed to deserialize NameVariant data due to: %w", err)
+		}
+		t.Target = namevariant
+	} else {
+		return fmt.Errorf("unknown target type: %s", targetMap["target_type"])
+	}
+	return nil
+
 }

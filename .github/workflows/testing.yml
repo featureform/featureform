@@ -343,7 +343,7 @@ jobs:
   dashboard:
     name: Test Dashboard
     needs: dashboard
-    runs_on: ubuntu-latest
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./dashboard

@@ -35,6 +35,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -50,6 +53,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: featureformcom/featureform:${{ env.TAG }}
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and export
         if: ${{ inputs.type == 'release' }}
@@ -60,6 +65,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: featureformcom/featureform:latest
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   api-server:
     name: Build API Server
@@ -76,6 +83,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -90,6 +100,8 @@ jobs:
           file: ./api/Dockerfile
           tags: featureformcom/api-server:${{ env.TAG }}
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   backup:
     name: Build Backup Image
@@ -106,6 +118,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -121,6 +136,8 @@ jobs:
           file: ./backup/Dockerfile
           tags: featureformcom/backup:${{ env.TAG }}
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and export release
         if: ${{ inputs.type == 'release' }}
@@ -130,6 +147,8 @@ jobs:
           file: ./backup/Dockerfile
           tags: featureformcom/backup:${{ env.TAG }},featureformcom/backup:latest
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   coordinator:
     name: Build Coordinator
@@ -146,6 +165,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -178,6 +200,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -192,6 +217,8 @@ jobs:
           file: ./dashboard/Dockerfile
           tags: featureformcom/dashboard:${{ env.TAG }}
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   metadata:
     name: Build Metadata
@@ -208,6 +235,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -222,6 +252,8 @@ jobs:
           file: ./metadata/Dockerfile
           tags: featureformcom/metadata:${{ env.TAG }}
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   dashboard-metadata:
     name: Build Dashboard Metadata
@@ -238,6 +270,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -252,6 +287,8 @@ jobs:
           file: ./metadata/dashboard/Dockerfile
           tags: featureformcom/metadata-dashboard:${{ env.TAG }}
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   serving:
     name: Build Serving
@@ -268,6 +305,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -282,6 +322,8 @@ jobs:
           file: ./serving/Dockerfile
           tags: featureformcom/serving:${{ env.TAG }}
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   worker:
     name: Build Worker
@@ -298,6 +340,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -312,6 +357,8 @@ jobs:
           file: ./runner/Dockerfile
           tags: featureformcom/worker:${{ env.TAG }}
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   k8s_runner:
     name: Build k8s Runner
@@ -328,6 +375,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -342,6 +392,8 @@ jobs:
           file: ./provider/scripts/k8s/Dockerfile
           tags: featureformcom/k8s_runner:${{ env.TAG }}
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   helm:
     name: Package Helm

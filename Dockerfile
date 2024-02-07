@@ -81,7 +81,6 @@ WORKDIR /app
 # Install and configure Supervisor
 RUN apt-get update && apt-get install -y supervisor
 RUN mkdir -p /var/lock/apache2 /var/run/apache2 /var/run/sshd /var/log/supervisor
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 RUN apt-get install -y nginx --option=Dpkg::Options::=--force-confdef
 
 # Install Node 16 for internal dashboard server
@@ -139,6 +138,8 @@ ENV MEILI_LOG_LEVEL="WARN"
 ENV FF_GET_EQUIVALENT_VARIANTS="false"
 EXPOSE 7878
 EXPOSE 80
+
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 HEALTHCHECK --interval=5m --timeout=10s --start-period=10s --retries=3 CMD curl --fail http://localhost/ || exit 1
 

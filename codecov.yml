@@ -8,9 +8,7 @@ coverage:
       default:
         target: 75%
         base: auto
-        only_pulls: false
 codecov:
-  branch: main
   require_ci_to_pass: true
   notify:
     wait_for_ci: true

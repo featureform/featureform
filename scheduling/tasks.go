@@ -24,21 +24,21 @@ const (
 )
 
 type Provider struct {
-	Name       string     `json:"name"`
-	TargetType TargetType `json:"target_type"`
+	name       string     `json:"name"`
+	targetType TargetType `json:"target_type"`
 }
 
 type NameVariant struct {
-	Name       string     `json:"name"`
-	TargetType TargetType `json:"target_type"`
+	name       string     `json:"name"`
+	targetType TargetType `json:"target_type"`
 }
 
 func (p Provider) Type() TargetType {
-	return p.TargetType
+	return p.targetType
 }
 
 func (nv NameVariant) Type() TargetType {
-	return nv.TargetType
+	return nv.targetType
 }
 
 type TaskTarget interface {
@@ -46,27 +46,27 @@ type TaskTarget interface {
 }
 
 type TaskMetadata struct {
-	ID     TaskId     `json:"id"`
-	Name   string     `json:"name"`
-	Type   TaskType   `json:"type"`
-	Target TaskTarget `json:"target"`
-	Date   time.Time  `json:"date"`
+	id       TaskId     `json:"id"`
+	name     string     `json:"name"`
+	taskType TaskType   `json:"type"`
+	target   TaskTarget `json:"target"`
+	date     time.Time  `json:"date"`
 }
 
-func (t *TaskMetadata) getID() TaskId {
-	return t.ID
+func (t *TaskMetadata) ID() TaskId {
+	return t.id
 }
 
-func (t *TaskMetadata) getName() string {
-	return t.Name
+func (t *TaskMetadata) Name() string {
+	return t.name
 }
 
-func (t *TaskMetadata) getTarget() TaskTarget {
-	return t.Target
+func (t *TaskMetadata) Target() TaskTarget {
+	return t.target
 }
 
 func (t *TaskMetadata) DateCreated() time.Time {
-	return t.Date
+	return t.date
 }
 
 func (t *TaskMetadata) ToJSON() ([]byte, error) {
@@ -82,31 +82,31 @@ func (t *TaskMetadata) ToJSON() ([]byte, error) {
 func (t *TaskMetadata) FromJSON(data []byte) error {
 
 	type tempConfig struct {
-		ID     TaskId          `json:"id"`
-		Name   string          `json:"name"`
-		Type   TaskType        `json:"type"`
-		Target json.RawMessage `json:"target"`
-		Date   time.Time       `json:"date"`
+		id       TaskId          `json:"id"`
+		name     string          `json:"name"`
+		taskType TaskType        `json:"type"`
+		target   json.RawMessage `json:"target"`
+		date     time.Time       `json:"date"`
 	}
 
 	var temp tempConfig
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return fmt.Errorf("failed to deserialize task metadata due to: %w", err)
 	}
-	if temp.ID == 0 || temp.Name == "" || temp.Type == "" || len(temp.Target) == 0 || temp.Date.IsZero() {
+	if temp.id == 0 || temp.name == "" || temp.taskType == "" || len(temp.target) == 0 || temp.date.IsZero() {
 		return fmt.Errorf("task metadata is missing required fields")
 	}
-	t.ID = temp.ID
-	t.Name = temp.Name
+	t.id = temp.id
+	t.name = temp.name
 
-	if temp.Type != ResourceCreation && temp.Type != HealthCheck && temp.Type != Monitoring {
-		return fmt.Errorf("unknown task type: %s", temp.Type)
+	if temp.taskType != ResourceCreation && temp.taskType != HealthCheck && temp.taskType != Monitoring {
+		return fmt.Errorf("unknown task type: %s", temp.taskType)
 	}
-	t.Type = temp.Type
-	t.Date = temp.Date
+	t.taskType = temp.taskType
+	t.date = temp.date
 
 	targetMap := make(map[string]interface{})
-	if err := json.Unmarshal(temp.Target, &targetMap); err != nil {
+	if err := json.Unmarshal(temp.target, &targetMap); err != nil {
 		return fmt.Errorf("failed to deserialize target data due to: %w", err)
 	}
 
@@ -116,16 +116,16 @@ func (t *TaskMetadata) FromJSON(data []byte) error {
 
 	if targetMap["target_type"] == "provider" {
 		var provider Provider
-		if err := json.Unmarshal(temp.Target, &provider); err != nil {
+		if err := json.Unmarshal(temp.target, &provider); err != nil {
 			return fmt.Errorf("failed to deserialize Provider data due to: %w", err)
 		}
-		t.Target = provider
+		t.target = provider
 	} else if targetMap["target_type"] == "name_variant" {
 		var namevariant NameVariant
-		if err := json.Unmarshal(temp.Target, &namevariant); err != nil {
+		if err := json.Unmarshal(temp.target, &namevariant); err != nil {
 			return fmt.Errorf("failed to deserialize NameVariant data due to: %w", err)
 		}
-		t.Target = namevariant
+		t.target = namevariant
 	} else {
 		return fmt.Errorf("unknown target type: %s", targetMap["target_type"])
 	}

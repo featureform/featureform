@@ -19,6 +19,7 @@ env:
   POSTGRES_DB: "default"
   POSTGRES_PASSWORD: "password"
   CLICKHOUSE_USER: "default"
+  CLICKHOUSE_HOST: "localhost"
   CLICKHOUSE_PASSWORD: "password"
   CLICKHOUSE_DB: "default"
   CLICKHOUSE_PORT: "9001"

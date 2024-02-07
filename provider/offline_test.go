@@ -2554,7 +2554,7 @@ func testTransformCreateFeature(t *testing.T, store OfflineStore) {
 			t.Fatalf("Could not write records: %v", err)
 		}
 
-		tableName := getTableName(t.Name(), table.GetName())
+		tableName := getTableName(string(store.Type()), table.GetName())
 		test.Config.Query = strings.Replace(test.Config.Query, "tb", tableName, 1)
 		if err := store.CreateTransformation(test.Config); err != nil {
 			t.Fatalf("Could not create transformation: %v", err)
@@ -2871,7 +2871,7 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not write batch: %v", err)
 	}
 
-	tableName := getTableName(t.Name(), table.GetName())
+	tableName := getTableName(string(store.Type()), table.GetName())
 	config := TransformationConfig{
 		Type: SQLTransformation,
 		TargetTableID: ResourceID{
@@ -3399,7 +3399,7 @@ func modifyTransformationConfig(t *testing.T, testName, tableName string, provid
 		// The Spark implementation needs to update the source mappings to ensure the source file is used in the transformation query.
 		config.SourceMapping[0].Source = tableName
 	case pt.MemoryOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.MySqlOffline, pt.SnowflakeOffline, pt.ClickHouseOffline, pt.RedshiftOffline:
-		tableName := getTableName(testName, tableName)
+		tableName := getTableName(string(providerType), tableName)
 		config.Query = strings.Replace(config.Query, "tb", tableName, 1)
 	default:
 		t.Fatalf("Unrecognized provider type %s", providerType)

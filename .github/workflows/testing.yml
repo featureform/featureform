@@ -342,7 +342,6 @@ jobs:
 
   dashboard:
     name: Test Dashboard
-    needs: dashboard
     runs-on: ubuntu-latest
     defaults:
       run:

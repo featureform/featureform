@@ -2,6 +2,7 @@ import NotInterestedIcon from '@mui/icons-material/NotInterested';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
 import {
+  Box,
   Button,
   Chip,
   FormControl,
@@ -15,11 +16,12 @@ import {
 } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useDataAPI } from '../../hooks/dataAPI';
+import { useStyles } from './styles';
 import TasksTable from './tasksTable';
 
 export default function TableDataWrapper() {
+  const classes = useStyles();
   const dataAPI = useDataAPI();
-
   const STATUS_ALL = 'ALL';
   const STATUS_ACTIVE = 'ACTIVE';
   const STATUS_COMPLETE = 'COMPLETE';
@@ -63,88 +65,82 @@ export default function TableDataWrapper() {
 
   return (
     <>
-      <div style={{ paddingBottom: '25px' }}>
+      <Box className={classes.intputRow}>
         <Button
           variant='outlined'
-          style={
+          className={
             searchParams.status === STATUS_ALL
-              ? { color: 'white', background: '#FC195C' }
-              : { color: 'black' }
+              ? classes.activeButton
+              : classes.inactiveButton
           }
           onClick={() => handleStatusBtnSelect(STATUS_ALL)}
         >
-          <Typography
-            variant='button'
-            style={{ textTransform: 'none', paddingRight: '10px' }}
-          >
+          <Typography variant='button' className={classes.buttonText}>
             All
           </Typography>
           <Chip
             label={56}
-            style={
+            className={
               searchParams.status === STATUS_ALL
-                ? { color: 'black', background: 'white' }
-                : { color: 'white', background: '#FC195C' }
+                ? classes.activeChip
+                : classes.inactiveChip
             }
           />
         </Button>
         <Button
           variant='outlined'
-          style={
+          className={
             searchParams.status === STATUS_ACTIVE
-              ? { color: 'white', background: '#FC195C' }
-              : { color: 'black' }
+              ? classes.activeButton
+              : classes.inactiveButton
           }
           onClick={() => handleStatusBtnSelect(STATUS_ACTIVE)}
         >
-          <Typography
-            variant='button'
-            style={{ textTransform: 'none', paddingRight: '10px' }}
-          >
+          <Typography variant='button' className={classes.buttonText}>
             Active
           </Typography>
           <Chip
             label={32}
-            style={
+            className={
               searchParams.status === STATUS_ACTIVE
-                ? { color: 'black', background: 'white' }
-                : { color: 'white', background: '#FC195C' }
+                ? classes.activeChip
+                : classes.inactiveChip
             }
           />
         </Button>
         <Button
           variant='outlined'
-          style={
+          className={
             searchParams.status === STATUS_COMPLETE
-              ? { color: 'white', background: '#FC195C' }
-              : { color: 'black' }
+              ? classes.activeButton
+              : classes.inactiveButton
           }
           onClick={() => handleStatusBtnSelect(STATUS_COMPLETE)}
         >
-          <Typography
-            variant='button'
-            style={{ textTransform: 'none', paddingRight: '10px' }}
-          >
+          <Typography variant='button' className={classes.buttonText}>
             Complete
           </Typography>
           <Chip
             label={24}
-            style={
+            className={
               searchParams.status === STATUS_COMPLETE
-                ? { color: 'black', background: 'white' }
-                : { color: 'white', background: '#FC195C' }
+                ? classes.activeChip
+                : classes.inactiveChip
             }
           />
         </Button>
 
-        <span style={{ float: 'right' }}>
-          <FormControl style={{ paddingRight: '15px' }}>
+        <Box style={{ float: 'right' }}>
+          <FormControl
+            className={classes.filterInput}
+            style={{ paddingRight: '15px' }}
+          >
             <InputLabel id='sortId'>Sort By</InputLabel>
             <Select
               value={searchParams.sortBy}
               onChange={handleSortBy}
               label='Sort By'
-              style={{ minWidth: '200px' }}
+              className={classes.filterInput}
             >
               <MenuItem value={SORT_STATUS}>Status</MenuItem>
               <MenuItem value={SORT_DATE}>Date</MenuItem>
@@ -185,20 +181,21 @@ export default function TableDataWrapper() {
                   </InputAdornment>
                 ),
               }}
+              className={classes.filterInput}
               inputProps={{
                 'aria-label': 'search',
                 'data-testid': 'searchInputId',
               }}
             />
           </FormControl>
-          <IconButton variant='' size='large'>
+          <IconButton size='large'>
             <RefreshIcon />
           </IconButton>
-          <IconButton variant='' size='large' onClick={clearInputs}>
+          <IconButton size='large' onClick={clearInputs}>
             <NotInterestedIcon />
           </IconButton>
-        </span>
-      </div>
+        </Box>
+      </Box>
       <TasksTable taskList={taskList} />
     </>
   );

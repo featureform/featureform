@@ -336,9 +336,37 @@ jobs:
           path: ./coverage.xml
           retention-days: 1
 
+  dashboard:
+    name: Test Dashboard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./dashboard
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      - name: Install Packages
+        run: npm install
+
+      - name: Install Jest
+        run: npm install jest
+
+      - name: Run Tests
+        run: ./node_modules/.bin/jest --coverage
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: dashboard-coverage
+          path: ./dashboard/coverage/clover.xml
+          retention-days: 1
+
   codecov-upload:
     name: Codecov Upload
-    needs: [client, go-tests]
+    needs: [client, go-tests, dashboard]
     runs-on: ubuntu-latest
 
     steps:
@@ -354,8 +382,16 @@ jobs:
         with:
           name: go-coverage-out
 
+      - name: Download Go Coverage
+        uses: actions/download-artifact@v3
+        with:
+          name: dashboard-coverage
+
       - uses: codecov/codecov-action@v4
         with:
-          files: ./coverage1.xml,./cover.out
+          files: ./coverage1.xml,./cover.out,./clover.xml
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+
+

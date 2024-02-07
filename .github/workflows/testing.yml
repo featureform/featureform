@@ -339,3 +339,31 @@ jobs:
           files: ./coverage.xml
           name: client-coverage
           verbose: true
+
+  dashboard:
+    name: Test Dashboard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./dashboard
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      - name: Install Packages
+        run: npm install
+
+      - name: Install Jest
+        run: npm install jest
+
+      - name: Run Tests
+        run: ./node_modules/.bin/jest --coverage
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: dashboard-coverage
+          path: ./dashboard/coverage/clover.xml
+          retention-days: 1

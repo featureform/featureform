@@ -25,29 +25,27 @@ export default function TaskCard({ taskRecord }) {
   const classes = useStyles();
   return (
     <Box className={classes.taskCardBox}>
-      <Box>
-        <Box style={{ float: 'left' }}>
-          <IconButton variant='' size='small'>
-            <DoubleArrowIcon />
-          </IconButton>
-          <IconButton variant='' size='small'>
-            <CloseFullscreenIcon />
-          </IconButton>
-          <IconButton variant='' size='small'>
-            <KeyboardArrowUpIcon />
-          </IconButton>
-          <IconButton variant='' size='small'>
-            <KeyboardArrowDownIcon />
-          </IconButton>
-        </Box>
-        <Box style={{ float: 'right' }}>
-          <IconButton variant='' size='small'>
-            <RefreshIcon />
-          </IconButton>
-          <IconButton variant='' size='small'>
-            <MoreHorizIcon />
-          </IconButton>
-        </Box>
+      <Box style={{ float: 'left' }}>
+        <IconButton variant='' size='small'>
+          <DoubleArrowIcon />
+        </IconButton>
+        <IconButton variant='' size='small'>
+          <CloseFullscreenIcon />
+        </IconButton>
+        <IconButton variant='' size='small'>
+          <KeyboardArrowUpIcon />
+        </IconButton>
+        <IconButton variant='' size='small'>
+          <KeyboardArrowDownIcon />
+        </IconButton>
+      </Box>
+      <Box style={{ float: 'right' }}>
+        <IconButton variant='' size='small'>
+          <RefreshIcon />
+        </IconButton>
+        <IconButton variant='' size='small'>
+          <MoreHorizIcon />
+        </IconButton>
       </Box>
       <Grid style={{ padding: 12 }} container>
         <Grid item xs={6} justifyContent='flex-start'>

@@ -59,7 +59,7 @@ export default function TableDataWrapper() {
   };
 
   useEffect(async () => {
-    let data = await dataAPI.getJobs(searchParams);
+    let data = await dataAPI.getTasks(searchParams);
     setTaskList(data);
   }, [searchParams]);
 

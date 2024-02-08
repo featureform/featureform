@@ -1,5 +1,3 @@
-import dummyJobs from './dummyJobs.json';
-
 let hostname = 'localhost';
 let port = 3000;
 if (typeof window !== 'undefined') {
@@ -57,57 +55,28 @@ export function useDataAPI() {
     return result;
   };
 
-  const getJobs = async (searchParams = {}) => {
-    // const result = await fetch(`${API_URL}/data/jobs`, {
-    //   cache: 'no-store',
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify(searchParms),
-    // })
-    //   .then((res) => res.json())
-    //   .catch((error) => {
-    //     console.error('Error fetching jobs from server: ', error);
+  const getTasks = async (searchParams = {}) => {
+    const result = await fetch(`${API_URL}/data/tasks`, {
+      cache: 'no-store',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(searchParams),
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error fetching tasks from server: ', error);
 
-    //     return [];
-    //   });
-
-    // return result;
-    let filteredSet = dummyJobs;
-    if (searchParams.status != 'ALL') {
-      let states = { ACTIVE: ['PENDING'], COMPLETE: ['SUCCESS', 'FAILED'] };
-      filteredSet = filteredSet.filter((j) =>
-        states[searchParams.status].includes(j.status)
-      );
-    }
-
-    if (searchParams.searchText) {
-      filteredSet = filteredSet.filter((q) =>
-        q.name.toLowerCase().includes(searchParams.searchText.toLowerCase())
-      );
-    }
-
-    if (searchParams.sortBy) {
-      filteredSet = filteredSet.sort(function (a, b) {
-        if (searchParams.sortBy === 'STATUS') {
-          return a['status'].localeCompare(b['status']);
-        } else if (searchParams.sortBy === 'STATUS_DATE') {
-          let date1 = new Date(a['lastRuntime']);
-          let date2 = new Date(b['lastRuntime']);
-          return date1 < date2;
-        }
+        return [];
       });
-    }
 
-    console.log('searching with');
-    console.log(searchParams);
-    return Promise.resolve(filteredSet);
+    return result;
   };
 
   return {
     getTags,
     postTags,
-    getJobs,
+    getTasks,
   };
 }

@@ -16,10 +16,10 @@ export default function TasksTable({ taskList = [] }) {
   const [content, setContent] = useState({});
   const headerRef = useRef();
 
-  const handleRowSelect = (jobName) => {
-    let foundJob = taskList.find((q) => q.name === jobName);
-    setContent(foundJob ?? {});
-    setOpen((prev) => content !== jobName || !prev);
+  const handleRowSelect = (taskName) => {
+    let foundTask = taskList.find((q) => q.name === taskName);
+    setContent(foundTask ?? {});
+    setOpen((prev) => content !== taskName || !prev);
   };
 
   const handleClose = () => {
@@ -45,7 +45,7 @@ export default function TasksTable({ taskList = [] }) {
         <TaskCard taskRecord={content} />
       </Popover>
       <TableContainer component={Paper}>
-        <Table sx={{ minWidth: 300 }} aria-label='Job Runs'>
+        <Table sx={{ minWidth: 300 }} aria-label='Task Runs'>
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
@@ -61,22 +61,22 @@ export default function TasksTable({ taskList = [] }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {taskList?.map((job, index) => {
+            {taskList?.map((task, index) => {
               return (
                 <TableRow
                   key={index}
-                  onClick={() => handleRowSelect(job.name)}
+                  onClick={() => handleRowSelect(task.name)}
                   style={{ cursor: 'pointer' }}
                   hover
                 >
-                  <TableCell>{job.name}</TableCell>
-                  <TableCell align='right'>{job.type}</TableCell>
-                  <TableCell align='right'>{job.provider}</TableCell>
-                  <TableCell align='right'>{job.resource}</TableCell>
-                  <TableCell align='right'>{job.variant}</TableCell>
-                  <TableCell align='right'>{job.status}</TableCell>
-                  <TableCell align='right'>{job.lastRuntime}</TableCell>
-                  <TableCell align='right'>{job.triggeredBy}</TableCell>
+                  <TableCell>{task.name}</TableCell>
+                  <TableCell align='right'>{task.type}</TableCell>
+                  <TableCell align='right'>{task.provider}</TableCell>
+                  <TableCell align='right'>{task.resource}</TableCell>
+                  <TableCell align='right'>{task.variant}</TableCell>
+                  <TableCell align='right'>{task.status}</TableCell>
+                  <TableCell align='right'>{task.lastRuntime}</TableCell>
+                  <TableCell align='right'>{task.triggeredBy}</TableCell>
                 </TableRow>
               );
             })}

@@ -54,9 +54,7 @@ type TaskMetadata struct {
 }
 
 func (t *TaskMetadata) ToJSON() ([]byte, error) {
-	type config TaskMetadata
-	c := config(*t)
-	marshal, err := json.Marshal(&c)
+	marshal, err := json.Marshal(t)
 	if err != nil {
 		return nil, err
 	}

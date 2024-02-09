@@ -10,7 +10,10 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"slices"
+	"sort"
 	"strings"
+	"time"
 
 	filestore "github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
@@ -1523,6 +1526,122 @@ func replaceTags(resourceTypeParam string, currentResource metadata.Resource, ne
 	return nil
 }
 
+type TaskGetBody struct {
+	Status     string `json:"status"`
+	SearchText string `json:"searchtext"`
+	SortBy     string `json:"sortBy"`
+	ThrowError string `json:"throwErro"`
+}
+
+type TaskResponse struct {
+	Name        string    `json:"name"`
+	Type        string    `json:"type"`
+	Provider    string    `json:"provider"`
+	Resource    string    `json:"resource"`
+	Variant     string    `json:"variant"`
+	Status      string    `json:"status"`
+	LastRunTime time.Time `json:"lastRunTime"`
+	TriggeredBy string    `json:"triggeredBy"`
+}
+
+func (m *MetadataServer) GetTasks(c *gin.Context) {
+	var requestBody TaskGetBody
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetTagError(500, err, c, "GetTasks - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	println("Requesting With:")
+	println("status:\t\t", requestBody.Status)
+	println("search text:\t", requestBody.SearchText)
+	println("sorty by:\t", requestBody.SortBy)
+	println("throw error:\t\t", requestBody.ThrowError)
+	println("************************************************************************************************\n")
+
+	//mock it for now
+	taskListResponse := []TaskResponse{}
+	for i := 0; i < 13; i++ {
+		status := "SUCCESS"
+
+		if i%5 == 0 {
+			status = "FAILED"
+		} else if i%3 == 0 {
+			status = "PENDING"
+		}
+		runTime := time.Now()
+		taskListResponse = append(taskListResponse, (createTask(fmt.Sprintf("task-%d", i), status, runTime)))
+	}
+
+	// status filter, break out
+	taskListResponse = filter(taskListResponse, func(t TaskResponse) bool {
+		result := false
+		if requestBody.Status == "ALL" {
+			result = true
+		} else if requestBody.Status == "ACTIVE" {
+			activeStates := []string{"PENDING"}
+			result = slices.Contains(activeStates, t.Status)
+		} else if requestBody.Status == "COMPLETE" {
+			activeStates := []string{"FAILED", "SUCCESS"}
+			result = slices.Contains(activeStates, t.Status)
+		}
+		return result
+	})
+
+	// name filter
+	taskListResponse = filter(taskListResponse, func(t TaskResponse) bool {
+		result := false
+		if requestBody.SearchText == "" {
+			result = true
+		} else if strings.Contains(t.Name, requestBody.SearchText) {
+			result = true
+		}
+		return result
+	})
+
+	// date sort
+	if requestBody.SortBy == "STATUS_DATE" {
+		sort.Slice(taskListResponse, func(i, j int) bool {
+			return taskListResponse[i].LastRunTime.UnixMilli() > taskListResponse[j].LastRunTime.UnixMilli()
+		})
+	}
+
+	// status sort
+	if requestBody.SortBy == "STATUS" {
+		sort.Slice(taskListResponse, func(i, j int) bool {
+			l1, l2 := len(taskListResponse[i].Status), len(taskListResponse[j].Status)
+			if l1 != l2 {
+				return l1 < l2
+			}
+			return taskListResponse[i].Status < taskListResponse[j].Status
+		})
+	}
+
+	c.JSON(http.StatusOK, taskListResponse)
+}
+
+func createTask(name, status string, lastRunTime time.Time) TaskResponse {
+	return TaskResponse{
+		Name:        name,
+		Type:        "Source",
+		Provider:    "Spark",
+		Resource:    "perc_balance",
+		Variant:     "a_variant",
+		Status:      status,
+		LastRunTime: lastRunTime,
+		TriggeredBy: "On Apply",
+	}
+}
+
+func filter[T any](ss []T, test func(T) bool) (ret []T) {
+	for _, s := range ss {
+		if test(s) {
+			ret = append(ret, s)
+		}
+	}
+	return
+}
+
 func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
@@ -1534,6 +1653,7 @@ func (m *MetadataServer) Start(port string) {
 	router.GET("/data/filestatdata", m.GetFeatureFileStats)
 	router.POST("/data/:type/:resource/gettags", m.GetTags)
 	router.POST("/data/:type/:resource/tags", m.PostTags)
+	router.POST("/data/tasks", m.GetTasks)
 	router.Run(port)
 }
 

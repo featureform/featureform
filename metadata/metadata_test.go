@@ -2115,8 +2115,10 @@ func Test_GetEquivalent(t *testing.T) {
 	featureDef2 := FeatureDef{
 		Name:        "feature2",
 		Variant:     "variant",
-		Description: "Feature3 on-demand",
+		Description: "Feature3",
 		Owner:       "Featureform",
+		Source:      NameVariant{Name: "mockSource", Variant: "var"},
+		Entity:      "user",
 		Location: ResourceVariantColumns{
 			Entity: "col1",
 			Value:  "col2",
@@ -2124,8 +2126,8 @@ func Test_GetEquivalent(t *testing.T) {
 		},
 		Tags:       Tags{},
 		Properties: Properties{},
-		Mode:       CLIENT_COMPUTED,
-		IsOnDemand: true,
+		Mode:       PRECOMPUTED,
+		IsOnDemand: false,
 	}
 	labelDef := LabelDef{
 		Name:        "label",
@@ -2223,6 +2225,7 @@ func Test_GetEquivalent(t *testing.T) {
 	}
 
 	// featureDef
+	// on demand
 	featureDef.Description = "Some other description"
 	fvProto, err := featureDef.Serialize()
 	if err != nil {
@@ -2235,6 +2238,18 @@ func Test_GetEquivalent(t *testing.T) {
 	}
 	if proto.Equal(equivalent, defaultResourceVariant) {
 		t.Fatalf("There was an equivalent but we didn't get one")
+	}
+	featureDef.Location = PythonFunction{
+		Query: []byte("SELECT * FROM dummy"),
+	}
+	fvProto, err = featureDef.Serialize()
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto}}
+	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	if err != nil {
+		t.Fatalf("Failed to get equivalent: %s", err)
+	}
+	if !proto.Equal(equivalent, defaultResourceVariant) {
+		t.Fatalf("there was no equivalent but we got one")
 	}
 
 	fvProto2, err := featureDef2.Serialize()

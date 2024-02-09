@@ -24,7 +24,7 @@ func TestSerializeTaskMetadata(t *testing.T) {
 				},
 				Date: time.Now().Truncate(0),
 			},
-			targettype: "provider",
+			targettype: "Provider",
 		},
 		{
 			name: "WithNameVariantTarget",
@@ -38,7 +38,7 @@ func TestSerializeTaskMetadata(t *testing.T) {
 				},
 				Date: time.Now().Truncate(0),
 			},
-			targettype: "name_variant",
+			targettype: "nameVariant",
 		},
 	}
 
@@ -124,12 +124,12 @@ func TestCorruptJsonData(t *testing.T) {
 		{
 			name: "InvalidJson",
 			inputfile: []byte(`{"id"1, "name": "provider_task", "type": "Monitoring", "target": {"name": "
-		postgres", "target_type": "provider"}, "date": "2021-08-26T15:04:05Z"}`),
+		postgres", "targetType": "Provider"}, "date": "2021-08-26T15:04:05Z"}`),
 			errMsg: "invalid character '1' after object key:value pair",
 		},
 		{
 			name:      "MissingName",
-			inputfile: []byte(`{"id": 1, "type": "Monitoring", "target": {"name": "postgres", "target_type": "provider"}, "date": "2021-08-26T15:04:05Z"}`),
+			inputfile: []byte(`{"id": 1, "type": "Monitoring", "target": {"name": "postgres", "targetType": "Provider"}, "date": "2021-08-26T15:04:05Z"}`),
 			errMsg:    "Missing field 'name'",
 		},
 		{
@@ -139,17 +139,17 @@ func TestCorruptJsonData(t *testing.T) {
 		},
 		{
 			name:      "InvalidTaskType",
-			inputfile: []byte(`{"id": 1, "name": "no_target", "type": "DoesntExist", "target": {"name": "postgres", "target_type": "provider"}, "date": "2021-08-26T15:04:05Z"}`),
+			inputfile: []byte(`{"id": 1, "name": "no_target", "type": "DoesntExist", "target": {"name": "postgres", "targetType": "Provider"}, "date": "2021-08-26T15:04:05Z"}`),
 			errMsg:    "No such task type: 'DoesntExist'",
 		},
 		{
 			name:      "InvalidTargetType",
-			inputfile: []byte(`{"id": 1, "name": "no_target", "type": "HealthCheck", "target": {"name": "postgres", "target_type": "NoTarget"}, "date": "2021-08-26T15:04:05Z"}`),
+			inputfile: []byte(`{"id": 1, "name": "no_target", "type": "HealthCheck", "target": {"name": "postgres", "targetType": "NoTarget"}, "date": "2021-08-26T15:04:05Z"}`),
 			errMsg:    "No such target type: 'NoTarget'",
 		},
 		{
 			name:      "InvalidTarget",
-			inputfile: []byte(`{"id": 1, "name": "no_target", "type": "HealthCheck", "target": ["name": "postgres", "target_type": "provider"], "date": "2021-08-26T15:04:05Z"}`),
+			inputfile: []byte(`{"id": 1, "name": "no_target", "type": "HealthCheck", "target": ["name": "postgres", "targetType": "Provider"], "date": "2021-08-26T15:04:05Z"}`),
 			errMsg:    "No such target type: 'NoTarget'",
 		},
 	}
@@ -178,18 +178,18 @@ func TestTarget(t *testing.T) {
 		},
 		{
 			name:      "InvalidTargetType",
-			inputfile: []byte(`{"id": 1, "name": "wrong_target_type", "type": "HealthCheck", "target": {"name": "postgres", "target_type": "NoTarget"}, "date": "2021-08-26T15:04:05Z"}`),
+			inputfile: []byte(`{"id": 1, "name": "wrong_target_type", "type": "HealthCheck", "target": {"name": "postgres", "targetType": "NoTarget"}, "date": "2021-08-26T15:04:05Z"}`),
 			errMsg:    "No such target type: 'NoTarget'",
 		},
 		{
 			name:      "InvalidTarget",
-			inputfile: []byte(`{"id": 1, "name": "wrong_target", "type": "HealthCheck", "target": ["name": "postgres", "target_type": "provider"], "date": "2021-08-26T15:04:05Z"}`),
+			inputfile: []byte(`{"id": 1, "name": "wrong_target", "type": "HealthCheck", "target": ["name": "postgres", "targetType": "Provider"], "date": "2021-08-26T15:04:05Z"}`),
 			errMsg:    "Target must be an interface",
 		},
 		{
 			name:      "MissingTaskTarget",
 			inputfile: []byte(`{"id": 1, "name": "no_target_type", "type": "HealthCheck", "target": {"name": "postgres"}, "date": "2021-08-26T15:04:05Z"}`),
-			errMsg:    "target_type is missing",
+			errMsg:    "targetType is missing",
 		},
 	}
 

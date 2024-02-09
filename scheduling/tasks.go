@@ -19,18 +19,18 @@ const (
 type TargetType string
 
 const (
-	ProviderTarget    TargetType = "provider"
-	NameVariantTarget TargetType = "name_variant"
+	ProviderTarget    TargetType = "Provider"
+	NameVariantTarget TargetType = "nameVariant"
 )
 
 type Provider struct {
 	Name       string     `json:"name"`
-	TargetType TargetType `json:"target_type"`
+	TargetType TargetType `json:"targetType"`
 }
 
 type NameVariant struct {
 	Name       string     `json:"name"`
-	TargetType TargetType `json:"target_type"`
+	TargetType TargetType `json:"targetType"`
 }
 
 func (p Provider) Type() TargetType {
@@ -54,11 +54,7 @@ type TaskMetadata struct {
 }
 
 func (t *TaskMetadata) ToJSON() ([]byte, error) {
-	marshal, err := json.Marshal(t)
-	if err != nil {
-		return nil, err
-	}
-	return marshal, nil
+	return json.Marshal(t)
 }
 
 func (t *TaskMetadata) FromJSON(data []byte) error {
@@ -73,43 +69,51 @@ func (t *TaskMetadata) FromJSON(data []byte) error {
 
 	var temp tempConfig
 	if err := json.Unmarshal(data, &temp); err != nil {
-		return fmt.Errorf("failed to deserialize task metadata due to: %w", err)
+		return fmt.Errorf("failed to deserialize task metadata: %w", err)
 	}
-	if temp.ID == 0 || temp.Name == "" || temp.TaskType == "" || len(temp.Target) == 0 || temp.Date.IsZero() {
-		return fmt.Errorf("task metadata is missing required fields")
+	if temp.ID == 0 {
+		return fmt.Errorf("task metadata is missing ID")
 	}
 	t.ID = temp.ID
+
+	if temp.Name == "" {
+		return fmt.Errorf("task metadata is missing Name")
+	}
 	t.Name = temp.Name
 
-	if temp.TaskType != ResourceCreation && temp.TaskType != HealthCheck && temp.TaskType != Monitoring {
+	if temp.TaskType == "" || (temp.TaskType != ResourceCreation && temp.TaskType != HealthCheck && temp.TaskType != Monitoring) {
 		return fmt.Errorf("unknown task type: %s", temp.TaskType)
 	}
 	t.TaskType = temp.TaskType
+
+	if temp.Date.IsZero() {
+		return fmt.Errorf("task metadata is missing Date value")
+	}
 	t.Date = temp.Date
 
 	targetMap := make(map[string]interface{})
 	if err := json.Unmarshal(temp.Target, &targetMap); err != nil {
-		return fmt.Errorf("failed to deserialize target data due to: %w", err)
+		return fmt.Errorf("failed to deserialize target data: %w", err)
 	}
 
-	if _, ok := targetMap["target_type"]; !ok {
+	if _, ok := targetMap["targetType"]; !ok {
 		return fmt.Errorf("target type is missing")
 	}
 
-	if targetMap["target_type"] == "provider" {
+	if targetMap["targetType"] == "Provider" {
 		var provider Provider
 		if err := json.Unmarshal(temp.Target, &provider); err != nil {
-			return fmt.Errorf("failed to deserialize Provider data due to: %w", err)
+			return fmt.Errorf("failed to deserialize Provider data: %w", err)
 		}
 		t.Target = provider
-	} else if targetMap["target_type"] == "name_variant" {
+	} else if targetMap["targetType"] == "nameVariant" {
 		var namevariant NameVariant
 		if err := json.Unmarshal(temp.Target, &namevariant); err != nil {
-			return fmt.Errorf("failed to deserialize NameVariant data due to: %w", err)
+			return fmt.Errorf("failed to deserialize NameVariant data: %w", err)
 		}
 		t.Target = namevariant
 	} else {
-		return fmt.Errorf("unknown target type: %s", targetMap["target_type"])
+		return fmt.Errorf("unknown target type: %s", targetMap["targetType"])
 	}
 	return nil
 

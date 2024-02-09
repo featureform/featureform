@@ -17,7 +17,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { useDataAPI } from '../../hooks/dataAPI';
 import { useStyles } from './styles';
-import TasksTable from './tasksTable';
+import TasksDataGrid from './tasksDataGrid';
 
 export default function TableDataWrapper() {
   const classes = useStyles();
@@ -196,7 +196,7 @@ export default function TableDataWrapper() {
           </IconButton>
         </Box>
       </Box>
-      <TasksTable taskList={taskList} />
+      <TasksDataGrid taskList={taskList} />
     </>
   );
 }

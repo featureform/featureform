@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1534,6 +1535,7 @@ type TaskGetBody struct {
 }
 
 type TaskResponse struct {
+	ID          string    `json:"id"`
 	Name        string    `json:"name"`
 	Type        string    `json:"type"`
 	Provider    string    `json:"provider"`
@@ -1570,7 +1572,7 @@ func (m *MetadataServer) GetTasks(c *gin.Context) {
 			status = "PENDING"
 		}
 		runTime := time.Now()
-		taskListResponse = append(taskListResponse, (createTask(fmt.Sprintf("task-%d", i), status, runTime)))
+		taskListResponse = append(taskListResponse, (createTask(strconv.Itoa(i), fmt.Sprintf("task-%d", i), status, runTime)))
 	}
 
 	// status filter, break out
@@ -1620,8 +1622,9 @@ func (m *MetadataServer) GetTasks(c *gin.Context) {
 	c.JSON(http.StatusOK, taskListResponse)
 }
 
-func createTask(name, status string, lastRunTime time.Time) TaskResponse {
+func createTask(id, name, status string, lastRunTime time.Time) TaskResponse {
 	return TaskResponse{
+		ID:          id,
 		Name:        name,
 		Type:        "Source",
 		Provider:    "Spark",

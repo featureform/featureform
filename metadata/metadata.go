@@ -715,9 +715,6 @@ func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) (boo
 	thisProto := resource.serialized
 	otherProto := otherVariant.serialized
 
-	fmt.Printf("thisProto: %v\n", thisProto)
-	fmt.Printf("otherProto: %v\n", otherProto)
-
 	isEquivalentLocation := false
 	if thisProto.GetFunction() != nil {
 		isEquivalentLocation = proto.Equal(thisProto.GetFunction(), otherProto.GetFunction())
@@ -725,16 +722,8 @@ func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) (boo
 		isEquivalentLocation = proto.Equal(thisProto.GetColumns(), otherProto.GetColumns())
 	}
 
-	fmt.Printf("thisProto.GetFunction(): %v\n", thisProto.GetFunction())
-	fmt.Printf("otherProto.GetFunction(): %v\n", otherProto.GetFunction())
-	fmt.Printf("isEquivalentLocation: %v\n", isEquivalentLocation)
-
-	fmt.Printf("thisProto.GetAdditionalParameters(): %v\n", thisProto.GetAdditionalParameters())
-	fmt.Printf("otherProto.GetAdditionalParameters(): %v\n", otherProto.GetAdditionalParameters())
-
 	if thisProto.GetName() == otherProto.GetName() &&
 		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
-		//proto.Equal(thisProto.GetAdditionalParameters(), otherProto.GetAdditionalParameters()) &&
 		thisProto.GetProvider() == otherProto.GetProvider() &&
 		thisProto.GetEntity() == otherProto.GetEntity() &&
 		thisProto.Type == otherProto.Type &&

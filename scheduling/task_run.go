@@ -99,18 +99,35 @@ func (t *TaskRunMetadata) FromJSON(data []byte) error {
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return fmt.Errorf("failed to deserialize task run metadata: %w", err)
 	}
-	if temp.ID == 0 || temp.RunId == 0 || temp.Name == "" || len(temp.Trigger) == 0 || temp.Status == "" || temp.StartTime.IsZero() || temp.EndTime.IsZero() {
+
+	if temp.ID == 0 {
+		return fmt.Errorf("task run metadata is missing ID")
+	}
+	t.ID = temp.ID
+
+	if temp.RunId == 0 {
+		return fmt.Errorf("task run metadata is missing RunID")
+	}
+	t.RunId = temp.RunId
+
+	if temp.Name == "" {
 		return fmt.Errorf("task run metadata is missing required fields")
 	}
-
-	t.ID = temp.ID
-	t.RunId = temp.RunId
 	t.Name = temp.Name
-	if temp.Status != Success && temp.Status != Failed && temp.Status != Pending {
+
+	if temp.Status == "" || (temp.Status != Success && temp.Status != Failed && temp.Status != Pending) {
 		return fmt.Errorf("unknown status: %s", temp.Status)
 	}
 	t.Status = temp.Status
+
+	if temp.StartTime.IsZero() {
+		return fmt.Errorf("task run metadata is missing Start Time")
+	}
 	t.StartTime = temp.StartTime
+
+	if temp.EndTime.IsZero() {
+		return fmt.Errorf("task run metadata is missing End Time")
+	}
 	t.EndTime = temp.EndTime
 	t.Logs = temp.Logs
 	t.Error = temp.Error

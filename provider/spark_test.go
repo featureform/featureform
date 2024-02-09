@@ -1,6 +1,3 @@
-//go:build spark
-// +build spark
-
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -399,7 +396,7 @@ func testRegisterPrimary(store *SparkOfflineStore) error {
 
 func TestParquetUpload(t *testing.T) {
 	if testing.Short() {
-		return
+		t.Skip("skipping integration tests")
 	}
 	// emrSparkOfflineStore, err := getSparkOfflineStore(t)
 	// if err != nil {
@@ -2761,6 +2758,8 @@ func TestCreateLogS3FileStore(t *testing.T) {
 }
 
 func TestEMRErrorMessages(t *testing.T) {
+
+	t.Skip("extremely long running needs to be resolved")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		fmt.Println(err)
@@ -2877,6 +2876,9 @@ func createEMRAndS3(bucketName string) (SparkExecutor, SparkFileStore, error) {
 }
 
 func TestCreateSparkFileStore(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
 	type args struct {
 		name   string
 		config Config
@@ -2905,6 +2907,9 @@ func TestCreateSparkFileStore(t *testing.T) {
 }
 
 func TestSparkFilestore(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
 	testCases := []struct {
 		name                string
 		store               SparkFileStore

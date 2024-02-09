@@ -1,6 +1,3 @@
-//go:build importable_online
-// +build importable_online
-
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -23,9 +20,9 @@ import (
 	"github.com/joho/godotenv"
 )
 
-var provider = flag.String("provider", "", "provider to perform test on")
+var importProvider = flag.String("provider", "", "provider to perform test on")
 
-type testMember struct {
+type importTestMember struct {
 	onlineType      pt.Type
 	onlineConfig    pc.SerializedConfig
 	offlineType     pt.Type
@@ -109,15 +106,15 @@ func TestImportableOnlineStore(t *testing.T) {
 		}
 	}
 
-	testList := []testMember{}
+	testList := []importTestMember{}
 
-	if *provider == "dynamo" || *provider == "" {
+	if *importProvider == "dynamo" || *importProvider == "" {
 		offlineConfig, err := awsDatabricksS3Init().Serialize()
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		testList = append(testList, testMember{
+		testList = append(testList, importTestMember{
 			offlineType:     pt.SparkOffline,
 			offlineConfig:   offlineConfig,
 			onlineType:      pt.DynamoDBOnline,

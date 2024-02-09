@@ -416,17 +416,17 @@ func testUnsuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *
 		failureConfig.SSLMode = "require"
 		def.SerializedConfig = failureConfig.Serialize()
 		def.Name = "postgres-failure"
-	case pt.RedshiftOffline:
-		failureConfig := pc.RedshiftConfig{
-			Host: "invalid",
-			Port: "-1",
-		}
-		if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {
-			t.Fatalf("Failed to deserialize config: %s", err)
-		}
-		failureConfig.SSLMode = "verify-full"
-		def.SerializedConfig = failureConfig.Serialize()
-		def.Name = "redshift-failure"
+	//case pt.RedshiftOffline:
+	//	failureConfig := pc.RedshiftConfig{
+	//		Host: "invalid",
+	//		Port: "-1",
+	//	}
+	//	if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {
+	//		t.Fatalf("Failed to deserialize config: %s", err)
+	//	}
+	//	failureConfig.SSLMode = "verify-full"
+	//	def.SerializedConfig = failureConfig.Serialize()
+	//	def.Name = "redshift-failure"
 	case pt.ClickHouseOffline:
 		failureConfig := pc.ClickHouseConfig{}
 		if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {

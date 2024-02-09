@@ -37,6 +37,8 @@ def check_feature_type(features):
             checked_features.append((feature, "default"))
         elif isinstance(feature, FeatureColumnResource):
             checked_features.append(feature.name_variant())
+        elif hasattr(feature, "name_variant"):
+            checked_features.append(feature.name_variant())
         else:
             raise ValueError(
                 f"Invalid feature type {type(feature)}; must be a tuple, string, or FeatureColumnResource"

@@ -19,8 +19,8 @@ const (
 type TriggerType string
 
 const (
-	oneOffTrigger TriggerType = "oneOffTrigger"
-	dummyTrigger  TriggerType = "dummyTrigger"
+	oneOffTrigger TriggerType = "OneOffTrigger"
+	dummyTrigger  TriggerType = "DummyTrigger"
 )
 
 type Trigger interface {
@@ -124,13 +124,13 @@ func (t *TaskRunMetadata) FromJSON(data []byte) error {
 		return fmt.Errorf("target type is missing")
 	}
 
-	if triggerMap["triggerType"] == "oneOffTrigger" {
+	if triggerMap["triggerType"] == "OneOffTrigger" {
 		var oneOffTrigger OneOffTrigger
 		if err := json.Unmarshal(temp.Trigger, &oneOffTrigger); err != nil {
 			return fmt.Errorf("failed to deserialize One Off Trigger data: %w", err)
 		}
 		t.Trigger = oneOffTrigger
-	} else if triggerMap["triggerType"] == "dummyTrigger" {
+	} else if triggerMap["triggerType"] == "DummyTrigger" {
 		var dummyTrigger DummyTrigger
 		if err := json.Unmarshal(temp.Trigger, &dummyTrigger); err != nil {
 			return fmt.Errorf("failed to deserialize Dummy Trigger data: %w", err)

@@ -55,8 +55,28 @@ export function useDataAPI() {
     return result;
   };
 
+  const getTasks = async (searchParams = {}) => {
+    const result = await fetch(`${API_URL}/data/tasks`, {
+      cache: 'no-store',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(searchParams),
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error fetching tasks from server: ', error);
+
+        return [];
+      });
+
+    return result;
+  };
+
   return {
     getTags,
     postTags,
+    getTasks,
   };
 }

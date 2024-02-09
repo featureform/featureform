@@ -117,8 +117,10 @@ func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant)
 	for sourceStatus != metadata.READY {
 		source, err := c.Metadata.GetSourceVariant(context.Background(), sourceNameVariant)
 		if err != nil {
+			c.Logger.Infow("ERROR READ STATUS", "id", sourceNameVariant, "type", "SOURCE_VARIANT", "error", err)
 			return nil, err
 		}
+		c.Logger.Infow("READ STATUS", "id", sourceNameVariant, "type", "SOURCE_VARIANT", "status", source.Status())
 		sourceStatus := source.Status()
 		if sourceStatus == metadata.FAILED {
 			return nil, fmt.Errorf("source registration failed: name: %s, variant: %s", sourceNameVariant.Name, sourceNameVariant.Variant)
@@ -128,7 +130,13 @@ func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant)
 		}
 		time.Sleep(1 * time.Second)
 	}
-	return c.Metadata.GetSourceVariant(context.Background(), sourceNameVariant)
+	s, err := c.Metadata.GetSourceVariant(context.Background(), sourceNameVariant)
+	if err != nil {
+		c.Logger.Infow("READ STATUS", "id", sourceNameVariant, "type", "SOURCE_VARIANT", "status", s.Status())
+		return nil, err
+	}
+	c.Logger.Infow("READ STATUS", "id", sourceNameVariant, "type", "SOURCE_VARIANT", "status", s.Status())
+	return s, nil
 }
 
 func (c *Coordinator) AwaitPendingFeature(featureNameVariant metadata.NameVariant) (*metadata.FeatureVariant, error) {
@@ -136,8 +144,10 @@ func (c *Coordinator) AwaitPendingFeature(featureNameVariant metadata.NameVarian
 	for featureStatus != metadata.READY {
 		feature, err := c.Metadata.GetFeatureVariant(context.Background(), featureNameVariant)
 		if err != nil {
+			c.Logger.Infow("ERROR READ STATUS", "id", featureNameVariant, "type", "FEATURE_VARIANT", "error", err)
 			return nil, err
 		}
+		c.Logger.Infow("READ STATUS", "id", featureNameVariant, "type", "FEATURE_VARIANT", "status", feature.Status())
 		featureStatus := feature.Status()
 		if featureStatus == metadata.FAILED {
 			return nil, fmt.Errorf("feature registration failed: name: %s, variant: %s", featureNameVariant.Name, featureNameVariant.Variant)
@@ -147,7 +157,13 @@ func (c *Coordinator) AwaitPendingFeature(featureNameVariant metadata.NameVarian
 		}
 		time.Sleep(1 * time.Second)
 	}
-	return c.Metadata.GetFeatureVariant(context.Background(), featureNameVariant)
+	f, err := c.Metadata.GetFeatureVariant(context.Background(), featureNameVariant)
+	if err != nil {
+		c.Logger.Infow("READ STATUS", "id", featureNameVariant, "type", "FEATURE_VARIANT", "status", f.Status())
+		return nil, err
+	}
+	c.Logger.Infow("READ STATUS", "id", featureNameVariant, "type", "FEATURE_VARIANT", "status", f.Status())
+	return f, nil
 }
 
 func (c *Coordinator) AwaitPendingLabel(labelNameVariant metadata.NameVariant) (*metadata.LabelVariant, error) {
@@ -155,8 +171,10 @@ func (c *Coordinator) AwaitPendingLabel(labelNameVariant metadata.NameVariant) (
 	for labelStatus != metadata.READY {
 		label, err := c.Metadata.GetLabelVariant(context.Background(), labelNameVariant)
 		if err != nil {
+			c.Logger.Infow("ERROR READ STATUS", "id", labelNameVariant, "type", "LABEL_VARIANT", "error", err)
 			return nil, err
 		}
+		c.Logger.Infow("READ STATUS", "id", labelNameVariant, "type", "LABEL_VARIANT", "status", label.Status())
 		labelStatus := label.Status()
 		if labelStatus == metadata.FAILED {
 			return nil, fmt.Errorf("label registration failed: name: %s, variant: %s", labelNameVariant.Name, labelNameVariant.Variant)
@@ -166,10 +184,17 @@ func (c *Coordinator) AwaitPendingLabel(labelNameVariant metadata.NameVariant) (
 		}
 		time.Sleep(1 * time.Second)
 	}
-	return c.Metadata.GetLabelVariant(context.Background(), labelNameVariant)
+	l, err := c.Metadata.GetLabelVariant(context.Background(), labelNameVariant)
+	if err != nil {
+		c.Logger.Infow("READ STATUS", "id", labelNameVariant, "type", "LABEL_VARIANT", "status", l.Status())
+		return nil, err
+	}
+	c.Logger.Infow("READ STATUS", "id", labelNameVariant, "type", "LABEL_VARIANT", "status", l.Status())
+	return l, nil
 }
 
 func (c *Coordinator) setPending(resID metadata.ResourceID, currentStatus metadata.ResourceStatus) error {
+	c.Logger.Infow("READ STATUS", "id", resID, "type", "SOURCE_VARIANT", "status", currentStatus)
 	if currentStatus == metadata.READY {
 		return ResourceAlreadyCompleteError{
 			resourceID: resID,
@@ -180,7 +205,12 @@ func (c *Coordinator) setPending(resID metadata.ResourceID, currentStatus metada
 			resourceID: resID,
 		}
 	}
-	return c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, "")
+	c.Logger.Infow("WRITE STATUS", "id", resID, "status", metadata.PENDING)
+	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.PENDING, ""); err != nil {
+		c.Logger.Errorw("ERROR WRITE STATUS", "id", resID, "status", metadata.PENDING, "error", err)
+		return err
+	}
+	return nil
 }
 
 type JobSpawner interface {
@@ -446,7 +476,11 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 		return fmt.Errorf("transformation failed to complete: %v", err)
 	}
 	c.Logger.Debugw("Transformation Setting Status")
-	if err := retryWithDelays("set status to ready", 5, time.Millisecond*10, func() error { return c.Metadata.SetStatus(context.Background(), resID, metadata.READY, "") }); err != nil {
+	if err := retryWithDelays("set status to ready", 5, time.Millisecond*10, func() error {
+		c.Logger.Infow("WRITE STATUS", "id", resID, "status", metadata.READY)
+		return c.Metadata.SetStatus(context.Background(), resID, metadata.READY, "")
+	}); err != nil {
+		c.Logger.Errorw("ERROR WRITE STATUS", "id", resID, "status", metadata.READY, "error", err)
 		return fmt.Errorf("failed to set transformation status: %v", err)
 	}
 	c.Logger.Debugw("Transformation Complete")
@@ -472,7 +506,9 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 		if err := cronRunner.ScheduleJob(kubernetes.CronSchedule(schedule)); err != nil {
 			return fmt.Errorf("schedule transformation job in kubernetes: %v", err)
 		}
+		c.Logger.Infow("WRITE STATUS", "id", resID, "status", metadata.READY)
 		if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
+			c.Logger.Errorw("ERROR WRITE STATUS", "id", resID, "status", metadata.READY, "error", err)
 			return fmt.Errorf("set transformation succesful schedule status: %v", err)
 		}
 	}
@@ -586,7 +622,9 @@ func (c *Coordinator) runPrimaryTableJob(source *metadata.SourceVariant, resID m
 	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, sourceName); err != nil {
 		return fmt.Errorf("unable to register primary table from %s in %s: %v", sourceName, offlineStore.Type().String(), err)
 	}
+	c.Logger.Infow("WRITE STATUS", "id", resID, "status", metadata.READY)
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
+		c.Logger.Errorw("ERROR WRITE STATUS", "id", resID, "status", metadata.READY, "error", err)
 		return fmt.Errorf("set done status for registering primary table: %v", err)
 	}
 	return nil
@@ -699,8 +737,9 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 		return fmt.Errorf("register from source: %v", err)
 	}
 	c.Logger.Debugw("Resource Table Created", "id", labelID, "schema", schema)
-
+	c.Logger.Infow("WRITE STATUS", "id", resID, "status", metadata.READY)
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
+		c.Logger.Errorw("ERROR WRITE STATUS", "id", resID, "status", metadata.READY, "error", err)
 		return fmt.Errorf("set ready status for label variant: %v", err)
 	}
 	return nil
@@ -831,7 +870,9 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 	}
 
 	c.Logger.Debugw("Setting status to ready", "id", featID)
+	c.Logger.Infow("WRITE STATUS", "id", resID, "status", metadata.READY)
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
+		c.Logger.Errorw("ERROR WRITE STATUS", "id", resID, "status", metadata.READY, "error", err)
 		return fmt.Errorf("could not update status for materialize job: %v", err)
 	}
 	return nil
@@ -1020,7 +1061,9 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	if err := completionWatcher.Wait(); err != nil {
 		return fmt.Errorf("training set job failed to complete: %v", err)
 	}
+	c.Logger.Infow("WRITE STATUS", "id", resID, "status", metadata.READY)
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
+		c.Logger.Errorw("ERROR WRITE STATUS", "id", resID, "status", metadata.READY, "error", err)
 		return fmt.Errorf("failed to set training set status: %v", err)
 	}
 	if schedule != "" {
@@ -1183,7 +1226,11 @@ func (c *Coordinator) ExecuteJob(jobKey string) error {
 		case ResourceAlreadyFailedError:
 			return err
 		default:
+			c.Logger.Infow("WRITE STATUS", "id", job.Resource, "status", metadata.FAILED)
 			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, err.Error())
+			if statusErr != nil {
+				c.Logger.Errorw("ERROR WRITE STATUS", "id", job.Resource, "status", metadata.FAILED, "error", err)
+			}
 			return fmt.Errorf("%s job failed: %w: %v", job.Resource.Type, err, statusErr)
 		}
 	}
@@ -1236,7 +1283,9 @@ func (c *Coordinator) signalResourceUpdate(key string, value string) error {
 	if err := resUpdatedEvent.Deserialize(Config(value)); err != nil {
 		return fmt.Errorf("deserialize resource update event: %v", err)
 	}
+	c.Logger.Infow("WRITE STATUS", "id", resUpdatedEvent.ResourceID, "status", metadata.READY)
 	if err := c.Metadata.SetStatus(context.Background(), resUpdatedEvent.ResourceID, metadata.READY, ""); err != nil {
+		c.Logger.Errorw("ERROR WRITE STATUS", "id", resUpdatedEvent.ResourceID, "status", metadata.READY, "error", err)
 		return fmt.Errorf("set resource update status: %v", err)
 	}
 	c.Logger.Info("Succesfully set update status for update job with key: ", key)

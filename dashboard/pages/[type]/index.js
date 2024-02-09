@@ -7,7 +7,6 @@ const DataPageRoute = () => {
   const router = useRouter();
   const { type } = router.query;
   const apiHandle = new ResourcesAPI();
-
   return <DataPage api={apiHandle} type={type} />;
 };
 

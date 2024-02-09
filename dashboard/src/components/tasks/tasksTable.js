@@ -75,7 +75,9 @@ export default function TasksTable({ taskList = [] }) {
                   <TableCell align='right'>{task.resource}</TableCell>
                   <TableCell align='right'>{task.variant}</TableCell>
                   <TableCell align='right'>{task.status}</TableCell>
-                  <TableCell align='right'>{task.lastRuntime}</TableCell>
+                  <TableCell align='right'>
+                    {new Date(task.lastRunTime)?.toLocaleString()}
+                  </TableCell>
                   <TableCell align='right'>{task.triggeredBy}</TableCell>
                 </TableRow>
               );

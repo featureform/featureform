@@ -12,8 +12,7 @@ import ResourceList, {
 jest.mock('next/dynamic', () => () => {
   const ResourceListView =
     // eslint-disable-next-line global-require
-    require('../src/components/resource-list/ResourceListView')
-      .ResourceListView;
+    require('../src/components/resource-list/ResourceListView').ResourceListView;
 
   return (props) => <ResourceListView {...props} />;
 });
@@ -96,7 +95,7 @@ describe('ResourceList', () => {
       ];
       const state = {
         resourceList: { [dataType]: { resources: resList } },
-        selectedTags: { [dataType]: { '1': true } },
+        selectedTags: { [dataType]: { 1: true } },
         selectedVariant: { [dataType]: { a: 'a1', b: 'b1', c: 'c1', d: 'd1' } },
       };
       const selector = selectFilteredResources(dataType);
@@ -113,7 +112,7 @@ describe('ResourceList', () => {
       ];
       const state = {
         resourceList: { [dataType]: { resources: resList } },
-        selectedTags: { [dataType]: { '1': true, '2': true } },
+        selectedTags: { [dataType]: { 1: true, 2: true } },
         selectedVariant: { [dataType]: { a: 'a1', b: 'b1', c: 'c1', d: 'd1' } },
       };
       const selector = selectFilteredResources(dataType);

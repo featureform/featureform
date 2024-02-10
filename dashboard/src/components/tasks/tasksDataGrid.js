@@ -8,7 +8,7 @@ export default function TasksDataGrid({ taskList = [] }) {
   const [content, setContent] = useState({});
 
   const handleRowSelect = (selectedRow) => {
-    let foundTask = taskList.find((q) => q.name === selectedRow.row.name);
+    let foundTask = taskList?.find((q) => q.name === selectedRow.row.name);
     setContent(foundTask ?? {});
     setOpen((prev) => content !== selectedRow.row.name || !prev);
   };
@@ -95,7 +95,7 @@ export default function TasksDataGrid({ taskList = [] }) {
         onRowClick={handleRowSelect}
         density='compact'
         aria-label='Task Runs'
-        rows={taskList}
+        rows={taskList ?? []}
         columns={columns}
         initialState={{
           pagination: { paginationModel: { page: 0, pageSize: 5 } },

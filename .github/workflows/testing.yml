@@ -1,6 +1,9 @@
 name: Testing
 on:
   push:
+    branches:
+      - main
+  pull_request:
 
 concurrency:
   group: ${{ github.head_ref }}-testing

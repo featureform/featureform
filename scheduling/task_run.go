@@ -14,6 +14,7 @@ const (
 	Success Status = "SUCCESS"
 	Failed  Status = "FAILED"
 	Pending Status = "PENDING"
+	Running Status = "RUNNING"
 )
 
 type TriggerType string
@@ -56,8 +57,8 @@ func (t DummyTrigger) Name() string {
 }
 
 type TaskRunMetadata struct {
-	ID        TaskRunId `json:"id"`
-	RunId     TaskId    `json:"runId"`
+	ID        TaskRunId `json:"runId"`
+	TaskId    TaskId    `json:"taskId"`
 	Name      string    `json:"name"`
 	Trigger   Trigger   `json:"trigger"`
 	Status    Status    `json:"status"`
@@ -66,17 +67,6 @@ type TaskRunMetadata struct {
 	Logs      []string  `json:"logs"`
 	Error     string    `json:"error"`
 }
-
-// Read Methods
-// func (t *TaskRunMetadata) ID() TaskRunId
-// func (t *TaskRunMetadata) RunID() TaskId
-// func (t *TaskRunMetadata) Name() string
-// func (t *TaskRunMetadata) Trigger() Trigger
-// func (t *TaskRunMetadata) Status() Status // Enum
-// func (t *TaskRunMetadata) StartTime() Time
-// func (t *TaskRunMetadata) EndTime() Time
-// func (t *TaskRunMetadata) Logs() []string
-// func (t *TaskRunMetadata) Error() string
 
 // Formatting
 func (t *TaskRunMetadata) ToJSON() ([]byte, error) {

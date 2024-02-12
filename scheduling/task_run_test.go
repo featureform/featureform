@@ -15,16 +15,16 @@ func TestSerializeTaskRunMetadata(t *testing.T) {
 		{
 			name: "WithOneOffTrigger",
 			task: TaskRunMetadata{
-				ID:    1,
-				RunId: 12,
-				Name:  "oneoff_taskrun",
+				ID:     1,
+				TaskId: 12,
+				Name:   "oneoff_taskrun",
 				Trigger: OneOffTrigger{
 					TriggerName: "name1",
 					TriggerType: oneOffTrigger,
 				},
 				Status:    Pending,
-				StartTime: time.Now().Truncate(0),
-				EndTime:   time.Now().Truncate(0),
+				StartTime: time.Now().Truncate(0).UTC(),
+				EndTime:   time.Now().Truncate(0).UTC(),
 				Logs:      nil,
 				Error:     "",
 			},
@@ -33,17 +33,17 @@ func TestSerializeTaskRunMetadata(t *testing.T) {
 		{
 			name: "WithDummyTrigger",
 			task: TaskRunMetadata{
-				ID:    1,
-				RunId: 12,
-				Name:  "dummy_taskrun",
+				ID:     1,
+				TaskId: 12,
+				Name:   "dummy_taskrun",
 				Trigger: DummyTrigger{
 					TriggerName: "name2",
 					TriggerType: dummyTrigger,
 					DummyField:  true,
 				},
 				Status:    Failed,
-				StartTime: time.Now().Truncate(0),
-				EndTime:   time.Now().Truncate(0),
+				StartTime: time.Now().Truncate(0).UTC(),
+				EndTime:   time.Now().Truncate(0).UTC(),
 				Logs:      nil,
 				Error:     "",
 			},
@@ -81,17 +81,17 @@ func TestIncorrectTaskRunMetadata(t *testing.T) {
 		{
 			name: "OneOffDummyTrigger",
 			task: TaskRunMetadata{
-				ID:    1,
-				RunId: 12,
-				Name:  "dummy_and_oneoff",
+				ID:     1,
+				TaskId: 12,
+				Name:   "dummy_and_oneoff",
 				Trigger: DummyTrigger{
 					TriggerName: "name3",
 					TriggerType: oneOffTrigger,
 					DummyField:  false,
 				},
 				Status:    Failed,
-				StartTime: time.Now().Truncate(0),
-				EndTime:   time.Now().Truncate(0),
+				StartTime: time.Now().Truncate(0).UTC(),
+				EndTime:   time.Now().Truncate(0).UTC(),
 				Logs:      nil,
 				Error:     "Mixed trigger present",
 			},
@@ -101,12 +101,12 @@ func TestIncorrectTaskRunMetadata(t *testing.T) {
 			name: "NoTrigger",
 			task: TaskRunMetadata{
 				ID:        1,
-				RunId:     12,
+				TaskId:    12,
 				Name:      "no_trigger",
 				Trigger:   nil,
 				Status:    Pending,
-				StartTime: time.Now().Truncate(0),
-				EndTime:   time.Now().Truncate(0),
+				StartTime: time.Now().Truncate(0).UTC(),
+				EndTime:   time.Now().Truncate(0).UTC(),
 				Logs:      nil,
 				Error:     "No trigger present",
 			},
@@ -141,7 +141,7 @@ func TestCorruptJsonData(t *testing.T) {
 	}{
 		{
 			name: "InvalidJson",
-			inputfile: []byte(`{"id"1, "RunId": 12, "name":"invalid_json_file",
+			inputfile: []byte(`{"id"1, "TaskId": 12, "name":"invalid_json_file",
 			 "trigger": {"triggerName": "name4", "triggerType": "OneOffTrigger", "dummyField":  false,},
 			  "status": "FAILED", "startTime": "2021-08-26T15:04:05Z", "endTime": "2021-08-26T15:04:05Z",
 			   "logs": nil, "error": "invalid json",
@@ -150,7 +150,7 @@ func TestCorruptJsonData(t *testing.T) {
 		},
 		{
 			name: "MissingName",
-			inputfile: []byte(`{"id":1, "RunId": 12,
+			inputfile: []byte(`{"id":1, "TaskId": 12,
 			"trigger": {"triggerName": "name5", "triggerType": "OneOffTrigger", "dummyField":  false,},
 			 "status": "FAILED", "startTime": "2021-08-26T15:04:05Z", "endTime": "2021-08-26T15:04:05Z",
 			  "logs": nil, "error": "invalid json",
@@ -159,7 +159,7 @@ func TestCorruptJsonData(t *testing.T) {
 		},
 		{
 			name: "MissingTrigger",
-			inputfile: []byte(`{"id":1, "RunId": 12, "name":"invalid_json_file",
+			inputfile: []byte(`{"id":1, "TaskId": 12, "name":"invalid_json_file",
 			 "status": "FAILED", "startTime": "2021-08-26T15:04:05Z", "endTime": "2021-08-26T15:04:05Z",
 			  "logs": nil, "error": "invalid json",
 		   }`),
@@ -167,7 +167,7 @@ func TestCorruptJsonData(t *testing.T) {
 		},
 		{
 			name: "InvalidStatusType",
-			inputfile: []byte(`{"id":1, "RunId": 12, "name":"invalid_json_file",
+			inputfile: []byte(`{"id":1, "TaskId": 12, "name":"invalid_json_file",
 			"trigger": {"triggerName": "name6", "triggerType": "OneOffTrigger", "dummyField":  false,},
 			 "status": "NOSTATUS", "startTime": "2021-08-26T15:04:05Z", "endTime": "2021-08-26T15:04:05Z",
 			  "logs": nil, "error": "invalid json",
@@ -176,7 +176,7 @@ func TestCorruptJsonData(t *testing.T) {
 		},
 		{
 			name: "InvalidTriggerType",
-			inputfile: []byte(`{"id":1, "RunId": 12, "name":"invalid_json_file",
+			inputfile: []byte(`{"id":1, "TaskId": 12, "name":"invalid_json_file",
 			"trigger": {"triggerName": "name7", "triggerType": "wrongTrigger", "dummyField":  false,},
 			 "status": "PENDING", "startTime": "2021-08-26T15:04:05Z", "endTime": "2021-08-26T15:04:05Z",
 			  "logs": nil, "error": "invalid json",
@@ -185,7 +185,7 @@ func TestCorruptJsonData(t *testing.T) {
 		},
 		{
 			name: "InvalidTrigger",
-			inputfile: []byte(`{"id":1, "RunId": 12, "name":"invalid_json_file",
+			inputfile: []byte(`{"id":1, "TaskId": 12, "name":"invalid_json_file",
 			"trigger": ["triggerName": "name8", "triggerType": "DummyTrigger", "dummyField":  false],
 			 "status": "PENDING", "startTime": "2021-08-26T15:04:05Z", "endTime": "2021-08-26T15:04:05Z",
 			  "logs": nil, "error": "invalid json",

@@ -220,20 +220,19 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./cover.out
-          name: go-coverage
-          verbose: true
-
-      - name: Archive code coverage results
+      - name: Archive code coverage results (HTML)
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: search-coverage-reports
+          name: go-coverage-html
           path: ./cover.html
+
+      - name: Archive code coverage results (cover.out)
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: go-coverage-out
+          path: ./cover.out
 
   client-deps:
     name: Client Dependencies
@@ -330,15 +329,12 @@ jobs:
       - name: Run Tests
         run: pytest -vv -s
 
-      - name: Upload Coverage Report
-        uses: codecov/codecov-action@v2
+      - uses: actions/upload-artifact@v3
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          root_dir: ./
-          files: ./coverage.xml
           name: client-coverage
-          verbose: true
+          path: ./coverage.xml
+          retention-days: 1
 
   dashboard:
     name: Test Dashboard
@@ -367,3 +363,35 @@ jobs:
           name: dashboard-coverage
           path: ./dashboard/coverage/clover.xml
           retention-days: 1
+
+  codecov-upload:
+    name: Codecov Upload
+    needs: [client, go-tests, dashboard]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download Client Coverage
+        uses: actions/download-artifact@v3
+        with:
+          name: client-coverage
+
+      - name: Download Go Coverage
+        uses: actions/download-artifact@v3
+        with:
+          name: go-coverage-out
+
+      - name: Download Go Coverage
+        uses: actions/download-artifact@v3
+        with:
+          name: dashboard-coverage
+
+      - uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml,./cover.out,./clover.xml
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+
+

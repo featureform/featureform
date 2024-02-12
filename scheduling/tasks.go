@@ -20,7 +20,7 @@ type TargetType string
 
 const (
 	ProviderTarget    TargetType = "Provider"
-	NameVariantTarget TargetType = "nameVariant"
+	NameVariantTarget TargetType = "NameVariant"
 )
 
 type Provider struct {
@@ -46,11 +46,11 @@ type TaskTarget interface {
 }
 
 type TaskMetadata struct {
-	ID       TaskId     `json:"id"`
-	Name     string     `json:"name"`
-	TaskType TaskType   `json:"type"`
-	Target   TaskTarget `json:"target"`
-	Date     time.Time  `json:"date"`
+	ID          TaskId     `json:"id"`
+	Name        string     `json:"name"`
+	TaskType    TaskType   `json:"type"`
+	Target      TaskTarget `json:"target"`
+	DateCreated time.Time  `json:"dateCreated"`
 }
 
 func (t *TaskMetadata) ToJSON() ([]byte, error) {
@@ -60,11 +60,11 @@ func (t *TaskMetadata) ToJSON() ([]byte, error) {
 func (t *TaskMetadata) FromJSON(data []byte) error {
 
 	type tempConfig struct {
-		ID       TaskId          `json:"id"`
-		Name     string          `json:"name"`
-		TaskType TaskType        `json:"type"`
-		Target   json.RawMessage `json:"target"`
-		Date     time.Time       `json:"date"`
+		ID          TaskId          `json:"id"`
+		Name        string          `json:"name"`
+		TaskType    TaskType        `json:"type"`
+		Target      json.RawMessage `json:"target"`
+		DateCreated time.Time       `json:"dateCreated"`
 	}
 
 	var temp tempConfig
@@ -86,10 +86,10 @@ func (t *TaskMetadata) FromJSON(data []byte) error {
 	}
 	t.TaskType = temp.TaskType
 
-	if temp.Date.IsZero() {
+	if temp.DateCreated.IsZero() {
 		return fmt.Errorf("task metadata is missing Date value")
 	}
-	t.Date = temp.Date
+	t.DateCreated = temp.DateCreated
 
 	targetMap := make(map[string]interface{})
 	if err := json.Unmarshal(temp.Target, &targetMap); err != nil {
@@ -106,7 +106,7 @@ func (t *TaskMetadata) FromJSON(data []byte) error {
 			return fmt.Errorf("failed to deserialize Provider data: %w", err)
 		}
 		t.Target = provider
-	} else if targetMap["targetType"] == "nameVariant" {
+	} else if targetMap["targetType"] == "NameVariant" {
 		var namevariant NameVariant
 		if err := json.Unmarshal(temp.Target, &namevariant); err != nil {
 			return fmt.Errorf("failed to deserialize NameVariant data: %w", err)

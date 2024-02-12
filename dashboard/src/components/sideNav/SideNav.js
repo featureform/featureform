@@ -56,7 +56,7 @@ function SideNav({ sections, children }) {
               </ListItem>
             );
           })}
-          <ListItem key={20}>
+          {/* <ListItem key={20}>
             <ListItemButton
               onClick={(event) => handleMenuClick(event, '/tasks')}
             >
@@ -65,7 +65,7 @@ function SideNav({ sections, children }) {
               </ListItemIcon>
               <ListItemText primary={'Tasks'} />
             </ListItemButton>
-          </ListItem>
+          </ListItem> */}
         </List>
       </Drawer>
       <Box

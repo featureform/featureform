@@ -1,8 +1,8 @@
 import React from 'react';
-import TaskPage from '../../src/components/tasks';
+import TaskRunsPage from '../../src/components/tasks';
 
-const TaskPageRoute = () => {
-  return <TaskPage />;
+const TaskRunsPageRoute = () => {
+  return <TaskRunsPage />;
 };
 
-export default TaskPageRoute;
+export default TaskRunsPageRoute;

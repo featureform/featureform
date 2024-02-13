@@ -69,13 +69,13 @@ type TaskRunMetadata struct {
 }
 
 // Formatting
-func (t *TaskRunMetadata) ToJSON() ([]byte, error) {
+func (t *TaskRunMetadata) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t)
 }
-func (t *TaskRunMetadata) FromJSON(data []byte) error {
+func (t *TaskRunMetadata) UnmarshalJSON(data []byte) error {
 	type tempConfig struct {
-		ID        TaskRunId       `json:"id"`
-		RunId     TaskId          `json:"runId"`
+		ID        TaskRunId       `json:"runId"`
+		TaskId    TaskId          `json:"taskId"`
 		Name      string          `json:"name"`
 		Trigger   json.RawMessage `json:"trigger"`
 		Status    Status          `json:"status"`
@@ -95,10 +95,10 @@ func (t *TaskRunMetadata) FromJSON(data []byte) error {
 	}
 	t.ID = temp.ID
 
-	if temp.RunId == 0 {
+	if temp.TaskId == 0 {
 		return fmt.Errorf("task run metadata is missing RunID")
 	}
-	t.RunId = temp.RunId
+	t.TaskId = temp.TaskId
 
 	if temp.Name == "" {
 		return fmt.Errorf("task run metadata is missing required fields")

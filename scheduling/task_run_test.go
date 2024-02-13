@@ -53,13 +53,13 @@ func TestSerializeTaskRunMetadata(t *testing.T) {
 
 	for _, currTest := range testCases {
 		t.Run(currTest.name, func(t *testing.T) {
-			serializedTask, err := currTest.task.ToJSON()
+			serializedTask, err := currTest.task.MarshalJSON()
 			if err != nil {
 				t.Fatalf("failed to serialize task run metadata: %v", err)
 			}
 
 			deserializedTask := TaskRunMetadata{}
-			if err := deserializedTask.FromJSON(serializedTask); err != nil {
+			if err := deserializedTask.UnmarshalJSON(serializedTask); err != nil {
 				t.Fatalf("failed to deserialize task run metadata: %v", err)
 			}
 
@@ -115,13 +115,13 @@ func TestIncorrectTaskRunMetadata(t *testing.T) {
 
 	for _, currTest := range testCases {
 		t.Run(currTest.name, func(t *testing.T) {
-			serializedTask, err := currTest.task.ToJSON()
+			serializedTask, err := currTest.task.MarshalJSON()
 			if err != nil {
 				return
 			}
 
 			deserializedTask := TaskRunMetadata{}
-			err = deserializedTask.FromJSON(serializedTask)
+			err = deserializedTask.UnmarshalJSON(serializedTask)
 			if err != nil {
 				return
 			}
@@ -197,7 +197,7 @@ func TestCorruptJsonData(t *testing.T) {
 	for _, currTest := range testCases {
 		t.Run(currTest.name, func(t *testing.T) {
 			response := TaskRunMetadata{}
-			err := response.FromJSON(currTest.inputfile)
+			err := response.UnmarshalJSON(currTest.inputfile)
 			if err == nil {
 				t.Fatalf(currTest.errMsg)
 			}

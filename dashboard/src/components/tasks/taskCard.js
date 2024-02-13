@@ -1,11 +1,8 @@
-import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
 import DoubleArrowIcon from '@mui/icons-material/DoubleArrow';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import {
   Box,
+  CircularProgress,
   Grid,
   IconButton,
   Paper,
@@ -26,34 +23,34 @@ export default function TaskCard({ searchId }) {
   const classes = useStyles();
   const dataAPI = useDataAPI();
   const [taskRecord, setTaskRecord] = useState({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(async () => {
-    let data = await dataAPI.getTaskDetails(searchId);
-    setTaskRecord(data);
-  }, [searchId]);
+    if (searchId && loading) {
+      let data = await dataAPI.getTaskDetails(searchId);
+      setTaskRecord(data);
+      setTimeout(() => {
+        setLoading(false);
+      }, 750);
+    }
+  }, [searchId, loading]);
+
+  const handleReloadRequest = () => {
+    if (!loading) {
+      setLoading(true);
+    }
+  };
 
   return (
     <Box className={classes.taskCardBox}>
       <Box style={{ float: 'left' }}>
-        <IconButton variant='' size='small'>
+        <IconButton variant='' size='large'>
           <DoubleArrowIcon />
-        </IconButton>
-        <IconButton variant='' size='small'>
-          <CloseFullscreenIcon />
-        </IconButton>
-        <IconButton variant='' size='small'>
-          <KeyboardArrowUpIcon />
-        </IconButton>
-        <IconButton variant='' size='small'>
-          <KeyboardArrowDownIcon />
         </IconButton>
       </Box>
       <Box style={{ float: 'right' }}>
-        <IconButton variant='' size='small'>
-          <RefreshIcon />
-        </IconButton>
-        <IconButton variant='' size='small'>
-          <MoreHorizIcon />
+        <IconButton variant='' size='large' onClick={handleReloadRequest}>
+          {loading ? <CircularProgress size={'.75em'} /> : <RefreshIcon />}
         </IconButton>
       </Box>
       <Grid style={{ padding: 12 }} container>

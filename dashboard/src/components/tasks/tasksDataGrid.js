@@ -71,7 +71,6 @@ export default function TasksDataGrid({ taskList = [] }) {
       headerName: 'Last Run',
       description: 'This column has a value getter and is not sortable.',
       sortable: false,
-      sortable: false,
       filterable: false,
       width: 200,
       valueGetter: (params) => {

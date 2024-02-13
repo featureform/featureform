@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   FormControl,
   IconButton,
   InputAdornment,
@@ -35,6 +36,7 @@ export default function TableDataWrapper() {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [taskList, setTaskList] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const handleStatusBtnSelect = (statusType = STATUS_ALL) => {
     setSearchParams({ ...searchParams, status: statusType });
@@ -49,6 +51,12 @@ export default function TableDataWrapper() {
     setSearchParams({ ...searchParams, searchText: searchArg });
   };
 
+  const handleReloadRequest = () => {
+    if (!loading) {
+      setLoading(true);
+    }
+  };
+
   const clearInputs = () => {
     setSearchParams({
       status: STATUS_ALL,
@@ -59,9 +67,14 @@ export default function TableDataWrapper() {
   };
 
   useEffect(async () => {
-    let data = await dataAPI.getTasks(searchParams);
-    setTaskList(data);
-  }, [searchParams]);
+    if (loading) {
+      let data = await dataAPI.getTasks(searchParams);
+      setTaskList(data);
+      setTimeout(() => {
+        setLoading(false);
+      }, 750);
+    }
+  }, [searchParams, loading]);
 
   return (
     <>
@@ -188,8 +201,8 @@ export default function TableDataWrapper() {
               }}
             />
           </FormControl>
-          <IconButton size='large'>
-            <RefreshIcon />
+          <IconButton size='large' onClick={handleReloadRequest}>
+            {loading ? <CircularProgress size={'.75em'} /> : <RefreshIcon />}
           </IconButton>
           <IconButton size='large' onClick={clearInputs}>
             <NotInterestedIcon />

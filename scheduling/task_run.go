@@ -127,7 +127,7 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 	}
 
 	if _, ok := triggerMap["triggerType"]; !ok {
-		return fmt.Errorf("target type is missing")
+		return fmt.Errorf("trigger type is missing")
 	}
 
 	switch triggerMap["triggerType"] {

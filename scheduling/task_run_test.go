@@ -6,6 +6,34 @@ import (
 	"time"
 )
 
+func TestTriggerName(t *testing.T) {
+	testCases := []struct {
+		name     string
+		trigger  Trigger
+		expected string
+	}{
+		{
+			name:     "OneOffTriggerName",
+			trigger:  OneOffTrigger{TriggerName: "name1", TriggerType: oneOffTrigger},
+			expected: "name1",
+		},
+		{
+			name:     "DummyTriggerName",
+			trigger:  DummyTrigger{TriggerName: "name2", TriggerType: dummyTrigger, DummyField: true},
+			expected: "name2",
+		},
+	}
+
+	for _, currTest := range testCases {
+		t.Run(currTest.name, func(t *testing.T) {
+			if currTest.trigger.Name() != currTest.expected {
+				t.Fatalf("Got trigger name: %v\n Expected:%v", currTest.trigger.Name(), currTest.expected)
+			}
+		})
+	}
+
+}
+
 func TestSerializeTaskRunMetadata(t *testing.T) {
 	testCases := []struct {
 		name        string

@@ -69,10 +69,10 @@ type TaskRunMetadata struct {
 }
 
 // Formatting
-func (t *TaskRunMetadata) MarshalJSON() ([]byte, error) {
+func (t *TaskRunMetadata) Marshal() ([]byte, error) {
 	return json.Marshal(t)
 }
-func (t *TaskRunMetadata) UnmarshalJSON(data []byte) error {
+func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 	type tempConfig struct {
 		ID        TaskRunId       `json:"runId"`
 		TaskId    TaskId          `json:"taskId"`

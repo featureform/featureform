@@ -101,13 +101,13 @@ func (t *TaskMetadata) Unmarshal(data []byte) error {
 	}
 
 	switch targetMap["targetType"] {
-	case ProviderTarget:
+	case string(ProviderTarget):
 		var provider Provider
 		if err := json.Unmarshal(temp.Target, &provider); err != nil {
 			return fmt.Errorf("failed to deserialize Provider data: %w", err)
 		}
 		t.Target = provider
-	case NameVariantTarget:
+	case string(NameVariantTarget):
 		var namevariant NameVariant
 		if err := json.Unmarshal(temp.Target, &namevariant); err != nil {
 			return fmt.Errorf("failed to deserialize NameVariant data: %w", err)

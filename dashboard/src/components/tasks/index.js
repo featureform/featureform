@@ -4,7 +4,7 @@ import TableDataWrapper from './tableDataWrapper';
 export default function TaskPage() {
   return (
     <>
-      <h1>Task Runs</h1>
+      <h2>Task Runs</h2>
       <TableDataWrapper />
     </>
   );

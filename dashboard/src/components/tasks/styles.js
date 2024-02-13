@@ -34,8 +34,8 @@ const useStyles = makeStyles(() => ({
     minWidth: 250,
   },
   taskCardBox: {
-    height: 650,
-    width: 650,
+    height: 750,
+    width: 700,
   },
 }));
 

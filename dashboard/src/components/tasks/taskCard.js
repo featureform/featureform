@@ -62,19 +62,16 @@ export default function TaskCard({ handleClose, searchId }) {
         </Grid>
         <Grid
           item
-          xs={6}
+          xs={12}
           justifyContent='flex-start'
-          style={{ paddingTop: 50 }}
+          style={{ paddingTop: 20 }}
         >
           <Typography variant='h5'>Logs/Errors</Typography>
         </Grid>
-        <Grid item xs={6} justifyContent='center' style={{ paddingTop: 50 }}>
-          <Typography variant='h5'>Task Run Details</Typography>
-        </Grid>
-        <Grid item xs={6} justifyContent='flex-start'>
+        <Grid item xs={12} justifyContent='flex-start'>
           <Typography>
             <TextField
-              style={{ width: '90%' }}
+              style={{ width: '100%' }}
               variant='filled'
               disabled
               value={taskRecord.logs}
@@ -83,10 +80,13 @@ export default function TaskCard({ handleClose, searchId }) {
             ></TextField>
           </Typography>
         </Grid>
-        <Grid item xs={6} justifyContent='center'>
+        <Grid item xs={12} justifyContent='center' style={{ paddingTop: 20 }}>
+          <Typography variant='h5'>Task Run Details</Typography>
+        </Grid>
+        <Grid item xs={12} justifyContent='center'>
           <Typography>
             <TextField
-              style={{ width: '90%' }}
+              style={{ width: '100%' }}
               variant='filled'
               disabled
               value={taskRecord.details}
@@ -99,7 +99,7 @@ export default function TaskCard({ handleClose, searchId }) {
           item
           xs={12}
           justifyContent='flex-start'
-          style={{ paddingTop: 50 }}
+          style={{ paddingTop: 20 }}
         >
           <Typography variant='h5'>Previous Task Runs</Typography>
         </Grid>

@@ -1679,7 +1679,7 @@ func (m *MetadataServer) Start(port string) {
 	router.POST("/data/:type/:resource/gettags", m.GetTags)
 	router.POST("/data/:type/:resource/tags", m.PostTags)
 	router.POST("/data/tasks", m.GetTasks)
-	router.POST("/data/tasks/taskDetail/:taskId", m.GetTaskDetails)
+	router.GET("/data/tasks/taskDetail/:taskId", m.GetTaskDetails)
 	router.Run(port)
 }
 

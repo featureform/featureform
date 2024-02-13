@@ -100,7 +100,7 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 	t.TaskId = temp.TaskId
 
 	if temp.Name == "" {
-		return fmt.Errorf("task run metadata is missing required fields")
+		return fmt.Errorf("task run metadata is missing name")
 	}
 	t.Name = temp.Name
 

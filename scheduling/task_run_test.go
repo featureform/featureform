@@ -1,6 +1,7 @@
 package scheduling
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -28,6 +29,69 @@ func TestTriggerName(t *testing.T) {
 		t.Run(currTest.name, func(t *testing.T) {
 			if currTest.trigger.Name() != currTest.expected {
 				t.Fatalf("Got trigger name: %v\n Expected:%v", currTest.trigger.Name(), currTest.expected)
+			}
+		})
+	}
+
+}
+
+func TestEmptyVariables(t *testing.T) {
+	testCases := []struct {
+		name   string
+		task   TaskRunMetadata
+		errMsg error
+	}{
+		{
+			name: "NoName",
+			task: TaskRunMetadata{
+				ID:     1,
+				TaskId: 12,
+				Name:   "",
+				Trigger: OneOffTrigger{
+					TriggerName: "name1",
+					TriggerType: oneOffTrigger,
+				},
+				Status:    Pending,
+				StartTime: time.Now().Truncate(0).UTC(),
+				EndTime:   time.Now().Truncate(0).UTC(),
+				Logs:      nil,
+				Error:     "No name present",
+			},
+			errMsg: fmt.Errorf("task run metadata is missing name"),
+		},
+		{
+			name: "NoStartTime",
+			task: TaskRunMetadata{
+				ID:     1,
+				TaskId: 12,
+				Name:   "name2",
+				Trigger: OneOffTrigger{
+					TriggerName: "name3",
+					TriggerType: oneOffTrigger,
+				},
+				Status:  Pending,
+				EndTime: time.Now().Truncate(0).UTC(),
+				Logs:    nil,
+				Error:   "No start time present",
+			},
+			errMsg: fmt.Errorf("task run metadata is missing Start Time"),
+		},
+	}
+
+	for _, currTest := range testCases {
+		t.Run(currTest.name, func(t *testing.T) {
+			serializedTask, err := currTest.task.Marshal()
+			if err != nil {
+				return
+			}
+
+			deserializedTask := TaskRunMetadata{}
+			err = deserializedTask.Unmarshal(serializedTask)
+			if err == nil {
+				t.Fatalf("Expected error for empty fields")
+			}
+			if err.Error() != currTest.errMsg.Error() {
+				t.Fatalf("Expected error: %v\n Got: %v", currTest.errMsg, err)
 			}
 		})
 	}
@@ -209,7 +273,7 @@ func TestCorruptData(t *testing.T) {
 			 "status": "PENDING", "startTime": "2021-08-26T15:04:05Z", "endTime": "2021-08-26T15:04:05Z",
 			  "logs": nil, "error": "invalid json",
 		   }`),
-			errMsg: "No such target type: 'wrongTrigger'",
+			errMsg: "No such trigger type: 'wrongTrigger'",
 		},
 		{
 			name: "InvalidTrigger",

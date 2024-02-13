@@ -53,11 +53,11 @@ type TaskMetadata struct {
 	DateCreated time.Time  `json:"dateCreated"`
 }
 
-func (t *TaskMetadata) MarshalJSON() ([]byte, error) {
+func (t *TaskMetadata) Marshal() ([]byte, error) {
 	return json.Marshal(t)
 }
 
-func (t *TaskMetadata) UnmarshalJSON(data []byte) error {
+func (t *TaskMetadata) Unmarshal(data []byte) error {
 
 	type tempConfig struct {
 		ID          TaskId          `json:"id"`

@@ -276,7 +276,6 @@ jobs:
     name: Test Client
     needs: client-deps
     runs-on: ${{ matrix.os }}
-    if: github.ref != 'refs/heads/main'
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]

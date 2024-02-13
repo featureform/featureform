@@ -20,7 +20,7 @@ export default function TaskRunDataGrid({ taskList = [] }) {
   const columns = [
     {
       field: 'id',
-      headerName: 'TaskID',
+      headerName: 'runId',
       width: 100,
       editable: false,
       sortable: false,

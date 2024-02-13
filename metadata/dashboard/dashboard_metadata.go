@@ -34,6 +34,8 @@ import (
 
 var SearchClient search.Searcher
 
+var taskListResponse []TaskResponse
+
 type StorageProvider interface {
 	GetResourceLookup() (metadata.ResourceLookup, error)
 }
@@ -1527,6 +1529,38 @@ func replaceTags(resourceTypeParam string, currentResource metadata.Resource, ne
 	return nil
 }
 
+func createTask(id, name, status string, lastRunTime time.Time) TaskResponse {
+	return TaskResponse{
+		ID:          id,
+		Name:        name,
+		Type:        "Source",
+		Provider:    "Spark",
+		Resource:    "perc_balance",
+		Variant:     "a_variant",
+		Status:      status,
+		LastRunTime: lastRunTime,
+		TriggeredBy: "On Apply",
+	}
+}
+
+func filter[T any](ss []T, test func(T) bool) (ret []T) {
+	for _, s := range ss {
+		if test(s) {
+			ret = append(ret, s)
+		}
+	}
+	return ret
+}
+
+func mockFind(taskId string) TaskResponse {
+	for _, n := range taskListResponse {
+		if n.ID == taskId {
+			return n
+		}
+	}
+	return TaskResponse{}
+}
+
 type TaskGetBody struct {
 	Status     string `json:"status"`
 	SearchText string `json:"searchtext"`
@@ -1552,27 +1586,6 @@ func (m *MetadataServer) GetTasks(c *gin.Context) {
 		fetchError := m.GetTagError(500, err, c, "GetTasks - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
-	}
-
-	println("Requesting With:")
-	println("status:\t\t", requestBody.Status)
-	println("search text:\t", requestBody.SearchText)
-	println("sorty by:\t", requestBody.SortBy)
-	println("throw error:\t\t", requestBody.ThrowError)
-	println("************************************************************************************************\n")
-
-	//mock it for now
-	taskListResponse := []TaskResponse{}
-	for i := 0; i < 13; i++ {
-		status := "SUCCESS"
-
-		if i%5 == 0 {
-			status = "FAILED"
-		} else if i%3 == 0 {
-			status = "PENDING"
-		}
-		runTime := time.Now()
-		taskListResponse = append(taskListResponse, (createTask(strconv.Itoa(i), fmt.Sprintf("task-%d", i), status, runTime)))
 	}
 
 	// status filter, break out
@@ -1622,27 +1635,36 @@ func (m *MetadataServer) GetTasks(c *gin.Context) {
 	c.JSON(http.StatusOK, taskListResponse)
 }
 
-func createTask(id, name, status string, lastRunTime time.Time) TaskResponse {
-	return TaskResponse{
-		ID:          id,
-		Name:        name,
-		Type:        "Source",
-		Provider:    "Spark",
-		Resource:    "perc_balance",
-		Variant:     "a_variant",
-		Status:      status,
-		LastRunTime: lastRunTime,
-		TriggeredBy: "On Apply",
-	}
+type TaskDetailRunResponse struct {
+	LastRunTime time.Time `json:"lastRunTime"`
+	Status      string    `json:"status"`
+	Link        string    `json:"link"`
 }
 
-func filter[T any](ss []T, test func(T) bool) (ret []T) {
-	for _, s := range ss {
-		if test(s) {
-			ret = append(ret, s)
-		}
+type TaskDetailResponse struct {
+	ID       string                  `json:"id"`
+	Name     string                  `json:"name"`
+	Status   string                  `json:"status"`
+	Logs     string                  `json:"logs"`
+	Details  string                  `json:"details"`
+	PrevRuns []TaskDetailRunResponse `json:"prevRuns"`
+}
+
+func (m *MetadataServer) GetTaskDetails(c *gin.Context) {
+	taskId := c.Param("taskId")
+
+	//todox: replace mock find with lib call
+	taskResult := mockFind(taskId)
+	resp := TaskDetailResponse{
+		ID:       taskId,
+		Name:     taskResult.Name,
+		Status:   taskResult.Status,
+		Logs:     "some log values",
+		Details:  "some task details",
+		PrevRuns: []TaskDetailRunResponse{{LastRunTime: time.Now(), Status: taskResult.Status, Link: "some link"}},
 	}
-	return
+
+	c.JSON(http.StatusOK, resp)
 }
 
 func (m *MetadataServer) Start(port string) {
@@ -1657,6 +1679,7 @@ func (m *MetadataServer) Start(port string) {
 	router.POST("/data/:type/:resource/gettags", m.GetTags)
 	router.POST("/data/:type/:resource/tags", m.PostTags)
 	router.POST("/data/tasks", m.GetTasks)
+	router.POST("/data/tasks/taskDetail/:taskId", m.GetTaskDetails)
 	router.Run(port)
 }
 
@@ -1676,6 +1699,20 @@ func main() {
 	})
 	if err != nil {
 		logger.Panicw("Failed to create new meil search", err)
+	}
+
+	// todox: mock the data for now
+	taskListResponse = []TaskResponse{}
+	for i := 0; i < 13; i++ {
+		status := "SUCCESS"
+
+		if i%5 == 0 {
+			status = "FAILED"
+		} else if i%3 == 0 {
+			status = "PENDING"
+		}
+		runTime := time.Now()
+		taskListResponse = append(taskListResponse, (createTask(strconv.Itoa(i), fmt.Sprintf("task-%d", i), status, runTime)))
 	}
 
 	SearchClient = sc

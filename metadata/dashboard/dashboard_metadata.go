@@ -34,7 +34,7 @@ import (
 
 var SearchClient search.Searcher
 
-var taskListResponse []TaskResponse
+var taskListResponseStatic []TaskResponse
 
 type StorageProvider interface {
 	GetResourceLookup() (metadata.ResourceLookup, error)
@@ -1553,7 +1553,7 @@ func filter[T any](ss []T, test func(T) bool) (ret []T) {
 }
 
 func mockFind(taskId string) TaskResponse {
-	for _, n := range taskListResponse {
+	for _, n := range taskListResponseStatic {
 		if n.ID == taskId {
 			return n
 		}
@@ -1587,6 +1587,10 @@ func (m *MetadataServer) GetTasks(c *gin.Context) {
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
+
+	taskListResponse := make([]TaskResponse, len(taskListResponseStatic))
+
+	_ = copy(taskListResponse, taskListResponseStatic)
 
 	// status filter, break out
 	taskListResponse = filter(taskListResponse, func(t TaskResponse) bool {
@@ -1702,7 +1706,7 @@ func main() {
 	}
 
 	// todox: mock the data for now
-	taskListResponse = []TaskResponse{}
+	taskListResponseStatic = []TaskResponse{}
 	for i := 0; i < 13; i++ {
 		status := "SUCCESS"
 
@@ -1712,7 +1716,7 @@ func main() {
 			status = "PENDING"
 		}
 		runTime := time.Now()
-		taskListResponse = append(taskListResponse, (createTask(strconv.Itoa(i), fmt.Sprintf("task-%d", i), status, runTime)))
+		taskListResponseStatic = append(taskListResponseStatic, (createTask(strconv.Itoa(i), fmt.Sprintf("task-%d", i), status, runTime)))
 	}
 
 	SearchClient = sc

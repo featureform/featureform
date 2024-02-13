@@ -111,6 +111,7 @@ export default function TaskRunDataGrid({ taskList = [] }) {
         density='compact'
         aria-label='Task Runs'
         rows={taskList ?? []}
+        rowsPerPageOptions={[10]}
         columns={columns}
         initialState={{
           pagination: { paginationModel: { page: 0, pageSize: 5 } },

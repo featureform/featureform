@@ -1,4 +1,4 @@
-import NotInterestedIcon from '@mui/icons-material/NotInterested';
+import ClearAllIcon from '@mui/icons-material/ClearAll';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
 import {
@@ -200,10 +200,10 @@ export default function TableDataWrapper() {
             />
           </FormControl>
           <IconButton size='large' onClick={handleReloadRequest}>
-            {loading ? <CircularProgress size={'.75em'} /> : <RefreshIcon />}
+            {loading ? <CircularProgress size={'.85em'} /> : <RefreshIcon />}
           </IconButton>
           <IconButton size='large' onClick={clearInputs}>
-            <NotInterestedIcon />
+            <ClearAllIcon />
           </IconButton>
         </Box>
       </Box>

@@ -5,31 +5,13 @@ import (
 	"testing"
 )
 
-type StorageProviderTest struct {
-	t        *testing.T
-	provider StorageProvider
+func TestMemoryStorageProvider(t *testing.T) {
+	storage := &MemoryStorageProvider{}
+	StorageProviderSet(t, storage)
+	StorageProviderGet(t, storage)
 }
 
-func (test *StorageProviderTest) Run() {
-	t := test.t
-	provider := test.provider
-
-	testFns := map[string]func(*testing.T, StorageProvider){
-		"StorageProviderGet": TestStorageProviderGet,
-		"StorageProviderSet": TestStorageProviderSet,
-	}
-
-	for name, fn := range testFns {
-		nameConst := name
-		fnConst := fn
-		t.Run(nameConst, func(t *testing.T) {
-			t.Parallel()
-			fnConst(t, provider)
-		})
-	}
-}
-
-func TestStorageProviderSet(t *testing.T, provider StorageProvider) {
+func StorageProviderSet(t *testing.T, provider StorageProvider) {
 	type TestCase struct {
 		key   string
 		value string
@@ -51,7 +33,7 @@ func TestStorageProviderSet(t *testing.T, provider StorageProvider) {
 	}
 }
 
-func TestStorageProviderGet(t *testing.T, provider StorageProvider) {
+func StorageProviderGet(t *testing.T, provider StorageProvider) {
 	type TestCase struct {
 		key     string
 		prefix  bool
@@ -62,6 +44,8 @@ func TestStorageProviderGet(t *testing.T, provider StorageProvider) {
 	tests := map[string]TestCase{
 		"Simple":            {"key1", false, []string{"value1"}, nil},
 		"KeyNotFound":       {"key3", false, nil, &KeyNotFoundError{Key: "key3"}},
+		"EmptyKey":          {"", false, nil, fmt.Errorf("key cannot be empty")},
+		"PrefixNotCalled":   {"prefix/key", false, nil, &KeyNotFoundError{Key: "prefix/key"}},
 		"Prefix":            {"prefix/key", true, []string{"value3", "value4"}, nil},
 		"PrefixKeyNotFound": {"prefix/key5", true, nil, &KeyNotFoundError{Key: "prefix/key5"}},
 	}

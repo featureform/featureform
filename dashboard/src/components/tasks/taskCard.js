@@ -19,7 +19,7 @@ import { useDataAPI } from 'hooks/dataAPI';
 import React, { useEffect, useState } from 'react';
 import { useStyles } from './styles';
 
-export default function TaskCard({ searchId }) {
+export default function TaskCard({ handleClose, searchId }) {
   const classes = useStyles();
   const dataAPI = useDataAPI();
   const [taskRecord, setTaskRecord] = useState({});
@@ -44,7 +44,7 @@ export default function TaskCard({ searchId }) {
   return (
     <Box className={classes.taskCardBox}>
       <Box style={{ float: 'left' }}>
-        <IconButton variant='' size='large'>
+        <IconButton variant='' size='large' onClick={() => handleClose()}>
           <DoubleArrowIcon />
         </IconButton>
       </Box>

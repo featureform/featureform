@@ -13,9 +13,9 @@ export default function TasksDataGrid({ taskList = [] }) {
     setOpen((prev) => content !== selectedRow.row.name || !prev);
   };
 
-  const handleClose = () => {
+  function handleClose() {
     setOpen(false);
-  };
+  }
 
   const columns = [
     {
@@ -101,7 +101,7 @@ export default function TasksDataGrid({ taskList = [] }) {
           horizontal: 'right',
         }}
       >
-        <TaskCard searchId={content?.id ?? ''} />
+        <TaskCard handleClose={handleClose} searchId={content?.id ?? ''} />
       </Popover>
       <DataGrid
         sx={{ minWidth: 300, height: 475 }}

@@ -130,20 +130,21 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 		return fmt.Errorf("target type is missing")
 	}
 
-	if triggerMap["triggerType"] == "OneOffTrigger" {
+	switch triggerMap["triggerType"] {
+	case string(oneOffTrigger):
 		var oneOffTrigger OneOffTrigger
 		if err := json.Unmarshal(temp.Trigger, &oneOffTrigger); err != nil {
 			return fmt.Errorf("failed to deserialize One Off Trigger data: %w", err)
 		}
 		t.Trigger = oneOffTrigger
-	} else if triggerMap["triggerType"] == "DummyTrigger" {
+	case string(dummyTrigger):
 		var dummyTrigger DummyTrigger
 		if err := json.Unmarshal(temp.Trigger, &dummyTrigger); err != nil {
 			return fmt.Errorf("failed to deserialize Dummy Trigger data: %w", err)
 		}
 		t.Trigger = dummyTrigger
-	} else {
-		return fmt.Errorf("unknown target type: %s", triggerMap["triggerType"])
+	default:
+		return fmt.Errorf("unknown trigger type: %s", triggerMap["triggerType"])
 	}
 	return nil
 }

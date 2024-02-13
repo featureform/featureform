@@ -67,13 +67,11 @@ export default function TableDataWrapper() {
   };
 
   useEffect(async () => {
-    if (loading) {
-      let data = await dataAPI.getTasks(searchParams);
-      setTaskList(data);
-      setTimeout(() => {
-        setLoading(false);
-      }, 750);
-    }
+    let data = await dataAPI.getTasks(searchParams);
+    setTaskList(data);
+    setTimeout(() => {
+      setLoading(false);
+    }, 750);
   }, [searchParams, loading]);
 
   return (

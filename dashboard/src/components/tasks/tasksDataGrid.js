@@ -25,6 +25,7 @@ export default function TasksDataGrid({ taskList = [] }) {
       editable: false,
       sortable: false,
       filterable: false,
+      hide: true,
     },
     {
       field: 'name',

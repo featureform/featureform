@@ -2100,7 +2100,7 @@ class Registrar:
         with open(filename, "w") as f:
             json.dumps(json_data, f)
 
-    def get_entity(self, name, is_local=False):
+    def get_entity(self, name: str):
         """Get an entity. The returned object can be used to register additional resources.
 
         **Examples**:
@@ -2118,8 +2118,6 @@ class Registrar:
 
         Args:
             name (str): Name of entity to be retrieved
-            local (bool): If localmode is being used
-
         Returns:
             entity (EntityRegistrar): Entity
         """
@@ -2450,7 +2448,7 @@ class Registrar:
             name="gcs-quickstart",
             credentials=ff.GCPCredentials(...),
             bucket_name="bucket_name",
-            bucket_path="featureform/path/",
+            root_path="featureform/path/",
             description="An gcs store provider to store offline"
         )
         ```
@@ -2458,7 +2456,7 @@ class Registrar:
         Args:
             name (str): (Immutable) Name of GCS store to be registered
             bucket_name (str): (Immutable) The bucket name
-            bucket_path (str): (Immutable) Custom path to be used by featureform
+            root_path (str): (Immutable) Custom path to be used by featureform
             credentials (GCPCredentials): (Mutable) GCP credentials to access the bucket
             description (str): (Mutable) Description of GCS provider to be registered
             team (str): (Mutable) The name of the team registering the filestore

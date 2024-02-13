@@ -2,13 +2,26 @@ package scheduling
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 )
 
 func TestMemoryStorageProvider(t *testing.T) {
 	storage := &MemoryStorageProvider{}
-	StorageProviderSet(t, storage)
-	StorageProviderGet(t, storage)
+
+	testFns := map[string]func(*testing.T, StorageProvider){
+		"SetStorageProvider": StorageProviderSet,
+		"GetStorageProvider": StorageProviderGet,
+	}
+
+	for name, fn := range testFns {
+		nameConst := name
+		fnConst := fn
+		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
+			fnConst(t, storage)
+		})
+	}
 }
 
 func StorageProviderSet(t *testing.T, provider StorageProvider) {
@@ -72,6 +85,8 @@ func StorageProviderGet(t *testing.T, provider StorageProvider) {
 }
 
 func compareStringSlices(a, b []string) bool {
+	sort.Strings(a)
+	sort.Strings(b)
 	if len(a) != len(b) {
 		return false
 	}

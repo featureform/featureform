@@ -74,9 +74,28 @@ export function useDataAPI() {
     return result;
   };
 
+  const getTaskDetails = async (taskId = '') => {
+    const result = await fetch(`${API_URL}/data/tasks/taskDetail/${taskId}`, {
+      cache: 'no-store',
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error fetching tasks from server: ', error);
+
+        return [];
+      });
+
+    return result;
+  };
+
   return {
     getTags,
     postTags,
     getTasks,
+    getTaskDetails,
   };
 }

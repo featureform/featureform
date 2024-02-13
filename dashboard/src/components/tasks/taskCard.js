@@ -18,11 +18,20 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import React from 'react';
+import { useDataAPI } from 'hooks/dataAPI';
+import React, { useEffect, useState } from 'react';
 import { useStyles } from './styles';
 
-export default function TaskCard({ taskRecord }) {
+export default function TaskCard({ searchId }) {
   const classes = useStyles();
+  const dataAPI = useDataAPI();
+  const [taskRecord, setTaskRecord] = useState({});
+
+  useEffect(async () => {
+    let data = await dataAPI.getTaskDetails(searchId);
+    setTaskRecord(data);
+  }, [searchId]);
+
   return (
     <Box className={classes.taskCardBox}>
       <Box style={{ float: 'left' }}>
@@ -71,7 +80,7 @@ export default function TaskCard({ taskRecord }) {
               style={{ width: '90%' }}
               variant='filled'
               disabled
-              value='Some form of error, etc.'
+              value={taskRecord.logs}
               multiline
               minRows={3}
             ></TextField>
@@ -83,7 +92,7 @@ export default function TaskCard({ taskRecord }) {
               style={{ width: '90%' }}
               variant='filled'
               disabled
-              value='Run Detail field with some extra data'
+              value={taskRecord.details}
               multiline
               minRows={3}
             ></TextField>

@@ -88,7 +88,7 @@ export default function TasksDataGrid({ taskList = [] }) {
           horizontal: 'right',
         }}
       >
-        <TaskCard taskRecord={content} />
+        <TaskCard searchId={content?.id ?? ''} />
       </Popover>
       <DataGrid
         sx={{ minWidth: 300, height: 475 }}

@@ -1,9 +1,9 @@
 import { Popover } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import React, { useState } from 'react';
-import TaskCard from './taskCard';
+import TaskCard from './taskRunCard';
 
-export default function TasksDataGrid({ taskList = [] }) {
+export default function TaskRunDataGrid({ taskList = [] }) {
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState({});
 

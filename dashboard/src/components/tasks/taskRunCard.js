@@ -19,7 +19,7 @@ import { useDataAPI } from 'hooks/dataAPI';
 import React, { useEffect, useState } from 'react';
 import { useStyles } from './styles';
 
-export default function TaskCard({ handleClose, searchId }) {
+export default function TaskRunCard({ handleClose, searchId }) {
   const classes = useStyles();
   const dataAPI = useDataAPI();
   const [taskRecord, setTaskRecord] = useState({});

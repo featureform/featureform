@@ -7,7 +7,7 @@ import (
 )
 
 func TestMemoryStorageProvider(t *testing.T) {
-	storage := &MemoryStorageProvider{}
+	storage := NewMemoryStorageProvider()
 
 	testFns := map[string]func(*testing.T, StorageProvider){
 		"SetStorageProvider": StorageProviderSet,

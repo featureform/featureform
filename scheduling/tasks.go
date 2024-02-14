@@ -100,19 +100,20 @@ func (t *TaskMetadata) Unmarshal(data []byte) error {
 		return fmt.Errorf("target type is missing")
 	}
 
-	if targetMap["targetType"] == "Provider" {
+	switch targetMap["targetType"] {
+	case string(ProviderTarget):
 		var provider Provider
 		if err := json.Unmarshal(temp.Target, &provider); err != nil {
 			return fmt.Errorf("failed to deserialize Provider data: %w", err)
 		}
 		t.Target = provider
-	} else if targetMap["targetType"] == "NameVariant" {
+	case string(NameVariantTarget):
 		var namevariant NameVariant
 		if err := json.Unmarshal(temp.Target, &namevariant); err != nil {
 			return fmt.Errorf("failed to deserialize NameVariant data: %w", err)
 		}
 		t.Target = namevariant
-	} else {
+	default:
 		return fmt.Errorf("unknown target type: %s", targetMap["targetType"])
 	}
 	return nil

@@ -1,6 +1,7 @@
-import { Chip, Popover } from '@mui/material';
+import { Popover } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import React, { useState } from 'react';
+import StatusChip from './statusChip';
 import TaskCard from './taskRunCard';
 
 export default function TaskRunDataGrid({ taskList = [] }) {
@@ -68,19 +69,7 @@ export default function TaskRunDataGrid({ taskList = [] }) {
       sortable: false,
       filterable: false,
       renderCell: function (params) {
-        const chipMap = {
-          SUCCESS: 'success',
-          PENDING: 'primary',
-          FAILED: 'error',
-          RUNNING: 'secondary',
-        };
-        return (
-          <Chip
-            color={chipMap[params?.row?.status] || 'primary'}
-            size='small'
-            label={params?.row?.status}
-          />
-        );
+        return <StatusChip status={params?.row?.status} />;
       },
     },
     {
@@ -121,17 +110,18 @@ export default function TaskRunDataGrid({ taskList = [] }) {
         <TaskCard handleClose={handleClose} searchId={content?.id ?? ''} />
       </Popover>
       <DataGrid
-        sx={{ minWidth: 300, height: 475 }}
+        sx={{ minWidth: 300 }}
+        autoHeight
         onRowClick={handleRowSelect}
         density='compact'
         aria-label='Task Runs'
         rows={taskList ?? []}
-        rowsPerPageOptions={[10]}
+        rowsPerPageOptions={[15]}
         columns={columns}
         initialState={{
           pagination: { paginationModel: { page: 0, pageSize: 5 } },
         }}
-        pageSize={10}
+        pageSize={15}
       />
     </>
   );

@@ -11,12 +11,13 @@ import {
 import { DataGrid } from '@mui/x-data-grid';
 import { useDataAPI } from 'hooks/dataAPI';
 import React, { useEffect, useState } from 'react';
+import StatusChip from './statusChip';
 import { useStyles } from './styles';
 
 export default function TaskRunCard({ handleClose, searchId }) {
   const classes = useStyles();
   const dataAPI = useDataAPI();
-  const [taskRecord, setTaskRecord] = useState({});
+  const [taskRunRecord, setTaskRecord] = useState({});
   const [loading, setLoading] = useState(true);
 
   const columns = [
@@ -33,7 +34,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
     },
     {
       field: 'lastRunTime',
-      headerName: 'Last Run',
+      headerName: 'Date/Time',
       sortable: false,
       filterable: false,
       width: 200,
@@ -89,10 +90,12 @@ export default function TaskRunCard({ handleClose, searchId }) {
       </Box>
       <Grid style={{ padding: 12 }} container>
         <Grid item xs={6} justifyContent='flex-start'>
-          <Typography variant='h5'>{taskRecord.name}</Typography>
+          <Typography variant='h5'>{taskRunRecord.name}</Typography>
         </Grid>
         <Grid item xs={6} justifyContent='center'>
-          <Typography variant='h6'>Status: {taskRecord.status}</Typography>
+          <Typography variant='h6'>
+            Status: <StatusChip status={taskRunRecord.status} />
+          </Typography>
         </Grid>
         <Grid
           item
@@ -108,7 +111,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
               style={{ width: '100%' }}
               variant='filled'
               disabled
-              value={taskRecord.logs}
+              value={taskRunRecord.logs}
               multiline
               minRows={3}
             ></TextField>
@@ -123,7 +126,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
               style={{ width: '100%' }}
               variant='filled'
               disabled
-              value={taskRecord.details}
+              value={taskRunRecord.details}
               multiline
               minRows={3}
             ></TextField>
@@ -143,7 +146,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
             density='compact'
             autoHeight
             aria-label='Other Runs'
-            rows={taskRecord?.otherRuns ?? []}
+            rows={taskRunRecord?.otherRuns ?? []}
             rowsPerPageOptions={[5]}
             columns={columns}
             initialState={{

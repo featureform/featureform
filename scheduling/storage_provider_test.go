@@ -18,7 +18,6 @@ func TestMemoryStorageProvider(t *testing.T) {
 		nameConst := name
 		fnConst := fn
 		t.Run(nameConst, func(t *testing.T) {
-			t.Parallel()
 			fnConst(t, storage)
 		})
 	}

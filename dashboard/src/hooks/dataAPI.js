@@ -56,7 +56,7 @@ export function useDataAPI() {
   };
 
   const getTasks = async (searchParams = {}) => {
-    const result = await fetch(`${API_URL}/data/tasks`, {
+    const result = await fetch(`${API_URL}/data/taskruns`, {
       cache: 'no-store',
       method: 'POST',
       headers: {
@@ -74,14 +74,17 @@ export function useDataAPI() {
     return result;
   };
 
-  const getTaskDetails = async (taskId = '') => {
-    const result = await fetch(`${API_URL}/data/tasks/taskDetail/${taskId}`, {
-      cache: 'no-store',
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+  const getTaskRunDetails = async (taskId = '') => {
+    const result = await fetch(
+      `${API_URL}/data/taskruns/taskrundetail/${taskId}`,
+      {
+        cache: 'no-store',
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    )
       .then((res) => res.json())
       .catch((error) => {
         console.error('Error fetching tasks from server: ', error);
@@ -96,6 +99,6 @@ export function useDataAPI() {
     getTags,
     postTags,
     getTasks,
-    getTaskDetails,
+    getTaskRunDetails,
   };
 }

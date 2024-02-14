@@ -23,22 +23,61 @@ import TaskRunDataGrid from './taskRunDataGrid';
 export default function TableDataWrapper() {
   const classes = useStyles();
   const dataAPI = useDataAPI();
-  const STATUS_ALL = 'ALL';
-  const STATUS_ACTIVE = 'ACTIVE';
-  const STATUS_COMPLETE = 'COMPLETE';
+  const FILTER_STATUS_ALL = 'ALL';
+  const FILTER_STATUS_ACTIVE = 'ACTIVE';
+  const FILTER_STATUS_COMPLETE = 'COMPLETE';
+  const JOB_STATUS_RUNNING = 'RUNNING';
+  const JOB_STATUS_PENDING = 'PENDING';
+  const JOB_STATUS_SUCCESS = 'PENDING';
+  const JOB_STATUS_FAILED = 'PENDING';
   const SORT_STATUS = 'STATUS';
   const SORT_DATE = 'STATUS_DATE';
   const ENTER_KEY = 'Enter';
   const [searchParams, setSearchParams] = useState({
-    status: STATUS_ALL,
+    status: FILTER_STATUS_ALL,
     sortBy: '',
     searchText: '',
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [taskList, setTaskList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [allCount, setAllCount] = useState(0);
+  const [activeCount, setActiveCount] = useState(0);
+  const [completeCount, setCompleteCount] = useState(0);
 
-  const handleStatusBtnSelect = (statusType = STATUS_ALL) => {
+  useEffect(async () => {
+    let data = await dataAPI.getTasks(searchParams);
+    //if the search are in all state. run the counts again
+    if (
+      !searchParams.searchText &&
+      !searchParams.sortBy &&
+      searchParams.status == FILTER_STATUS_ALL
+    ) {
+      if (data?.length) {
+        setAllCount(data.length);
+        setActiveCount(
+          data.filter((q) =>
+            [JOB_STATUS_PENDING, JOB_STATUS_RUNNING].includes(q?.status)
+          )?.length ?? 0
+        );
+        setCompleteCount(
+          data.filter((q) =>
+            [JOB_STATUS_FAILED, JOB_STATUS_SUCCESS].includes(q?.status)
+          )?.length ?? 0
+        );
+      } else {
+        setAllCount(0);
+        setActiveCount(0);
+        setCompleteCount(0);
+      }
+    }
+    setTaskList(data);
+    setTimeout(() => {
+      setLoading(false);
+    }, 750);
+  }, [searchParams, loading]);
+
+  const handleStatusBtnSelect = (statusType = FILTER_STATUS_ALL) => {
     setSearchParams({ ...searchParams, status: statusType });
   };
 
@@ -59,20 +98,12 @@ export default function TableDataWrapper() {
 
   const clearInputs = () => {
     setSearchParams({
-      status: STATUS_ALL,
+      status: FILTER_STATUS_ALL,
       sortBy: '',
       searchText: '',
     });
     setSearchQuery('');
   };
-
-  useEffect(async () => {
-    let data = await dataAPI.getTasks(searchParams);
-    setTaskList(data);
-    setTimeout(() => {
-      setLoading(false);
-    }, 750);
-  }, [searchParams, loading]);
 
   return (
     <>
@@ -80,19 +111,19 @@ export default function TableDataWrapper() {
         <Button
           variant='outlined'
           className={
-            searchParams.status === STATUS_ALL
+            searchParams.status === FILTER_STATUS_ALL
               ? classes.activeButton
               : classes.inactiveButton
           }
-          onClick={() => handleStatusBtnSelect(STATUS_ALL)}
+          onClick={() => handleStatusBtnSelect(FILTER_STATUS_ALL)}
         >
           <Typography variant='button' className={classes.buttonText}>
             All
           </Typography>
           <Chip
-            label={56}
+            label={allCount}
             className={
-              searchParams.status === STATUS_ALL
+              searchParams.status === FILTER_STATUS_ALL
                 ? classes.activeChip
                 : classes.inactiveChip
             }
@@ -101,19 +132,19 @@ export default function TableDataWrapper() {
         <Button
           variant='outlined'
           className={
-            searchParams.status === STATUS_ACTIVE
+            searchParams.status === FILTER_STATUS_ACTIVE
               ? classes.activeButton
               : classes.inactiveButton
           }
-          onClick={() => handleStatusBtnSelect(STATUS_ACTIVE)}
+          onClick={() => handleStatusBtnSelect(FILTER_STATUS_ACTIVE)}
         >
           <Typography variant='button' className={classes.buttonText}>
             Active
           </Typography>
           <Chip
-            label={32}
+            label={activeCount}
             className={
-              searchParams.status === STATUS_ACTIVE
+              searchParams.status === FILTER_STATUS_ACTIVE
                 ? classes.activeChip
                 : classes.inactiveChip
             }
@@ -122,19 +153,19 @@ export default function TableDataWrapper() {
         <Button
           variant='outlined'
           className={
-            searchParams.status === STATUS_COMPLETE
+            searchParams.status === FILTER_STATUS_COMPLETE
               ? classes.activeButton
               : classes.inactiveButton
           }
-          onClick={() => handleStatusBtnSelect(STATUS_COMPLETE)}
+          onClick={() => handleStatusBtnSelect(FILTER_STATUS_COMPLETE)}
         >
           <Typography variant='button' className={classes.buttonText}>
             Complete
           </Typography>
           <Chip
-            label={24}
+            label={completeCount}
             className={
-              searchParams.status === STATUS_COMPLETE
+              searchParams.status === FILTER_STATUS_COMPLETE
                 ? classes.activeChip
                 : classes.inactiveChip
             }

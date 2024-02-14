@@ -27,7 +27,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
 
   useEffect(async () => {
     if (searchId && loading) {
-      let data = await dataAPI.getTaskDetails(searchId);
+      let data = await dataAPI.getTaskRunDetails(searchId);
       setTaskRecord(data);
       setTimeout(() => {
         setLoading(false);

@@ -2,15 +2,15 @@ import { Popover } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import React, { useState } from 'react';
 import StatusChip from './statusChip';
-import TaskCard from './taskRunCard';
+import TaskRunCard from './taskRunCard';
 
-export default function TaskRunDataGrid({ taskList = [] }) {
+export default function TaskRunDataGrid({ taskRunList = [] }) {
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState({});
 
   const handleRowSelect = (selectedRow) => {
-    let foundTask = taskList?.find((q) => q.name === selectedRow.row.name);
-    setContent(foundTask ?? {});
+    let foundTaskRun = taskRunList?.find((q) => q.id === selectedRow.row.id);
+    setContent(foundTaskRun ?? {});
     setOpen((prev) => content !== selectedRow.row.name || !prev);
   };
 
@@ -21,13 +21,12 @@ export default function TaskRunDataGrid({ taskList = [] }) {
   const columns = [
     {
       field: 'id',
-      headerName: 'runId',
+      headerName: 'Run Id',
       width: 100,
       editable: false,
       sortable: false,
       filterable: false,
       hide: true,
-      hideable: false,
     },
     {
       field: 'name',
@@ -107,19 +106,18 @@ export default function TaskRunDataGrid({ taskList = [] }) {
           horizontal: 'right',
         }}
       >
-        <TaskCard handleClose={handleClose} searchId={content?.id ?? ''} />
+        <TaskRunCard handleClose={handleClose} searchId={content?.id ?? ''} />
       </Popover>
       <DataGrid
-        sx={{ minWidth: 300 }}
-        autoHeight
+        sx={{ minWidth: 300, height: 650 }}
         onRowClick={handleRowSelect}
         density='compact'
         aria-label='Task Runs'
-        rows={taskList ?? []}
+        rows={taskRunList ?? []}
         rowsPerPageOptions={[15]}
         columns={columns}
         initialState={{
-          pagination: { paginationModel: { page: 0, pageSize: 5 } },
+          pagination: { paginationModel: { page: 1, pageSize: 15 } },
         }}
         pageSize={15}
       />

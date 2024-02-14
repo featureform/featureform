@@ -39,7 +39,7 @@ export default function TableDataWrapper() {
     searchText: '',
   });
   const [searchQuery, setSearchQuery] = useState('');
-  const [taskList, setTaskList] = useState([]);
+  const [taskRunList, setTaskRunList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [allCount, setAllCount] = useState(0);
   const [activeCount, setActiveCount] = useState(0);
@@ -71,7 +71,7 @@ export default function TableDataWrapper() {
         setCompleteCount(0);
       }
     }
-    setTaskList(data);
+    setTaskRunList(data);
     setTimeout(() => {
       setLoading(false);
     }, 750);
@@ -238,7 +238,7 @@ export default function TableDataWrapper() {
           </IconButton>
         </Box>
       </Box>
-      <TaskRunDataGrid taskList={taskList} />
+      <TaskRunDataGrid taskRunList={taskRunList} />
     </>
   );
 }

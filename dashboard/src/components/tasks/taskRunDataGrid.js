@@ -117,7 +117,7 @@ export default function TaskRunDataGrid({ taskList = [] }) {
           pagination: { paginationModel: { page: 0, pageSize: 5 } },
         }}
         pageSize={10}
-      ></DataGrid>
+      />
     </>
   );
 }

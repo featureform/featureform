@@ -5,16 +5,10 @@ import {
   CircularProgress,
   Grid,
   IconButton,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 import { useDataAPI } from 'hooks/dataAPI';
 import React, { useEffect, useState } from 'react';
 import { useStyles } from './styles';
@@ -24,6 +18,46 @@ export default function TaskRunCard({ handleClose, searchId }) {
   const dataAPI = useDataAPI();
   const [taskRecord, setTaskRecord] = useState({});
   const [loading, setLoading] = useState(true);
+
+  const columns = [
+    {
+      field: 'id',
+      headerName: 'runId',
+      width: 1,
+      editable: false,
+      sortable: false,
+      filterable: false,
+      hide: true,
+      hideable: false,
+      display: false,
+    },
+    {
+      field: 'lastRunTime',
+      headerName: 'Last Run',
+      sortable: false,
+      filterable: false,
+      width: 200,
+      valueGetter: (params) => {
+        return new Date(params?.row?.lastRunTime)?.toLocaleString();
+      },
+    },
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 200,
+      editable: false,
+      sortable: false,
+      filterable: false,
+    },
+    {
+      field: 'link',
+      headerName: 'Link',
+      width: 250,
+      editable: false,
+      sortable: false,
+      filterable: false,
+    },
+  ];
 
   useEffect(async () => {
     if (searchId && loading) {
@@ -105,28 +139,18 @@ export default function TaskRunCard({ handleClose, searchId }) {
         </Grid>
         <Grid item xs={12} justifyContent='flex-start'></Grid>
         <Grid item xs={12} justifyContent='center'>
-          <TableContainer component={Paper}>
-            <Table sx={{ maxWidth: 500 }} aria-label='simple table'>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Date/Time</TableCell>
-                  <TableCell align='right'>Status</TableCell>
-                  <TableCell align='right'>Link to Run Task</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                <TableRow>
-                  <TableCell component='th' scope='row'>
-                    2024-06-15T
-                  </TableCell>
-                  <TableCell align='right'>Pending</TableCell>
-                  <TableCell align='right'>
-                    <a href='#'>future-link</a>
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <DataGrid
+            density='compact'
+            autoHeight
+            aria-label='Other Runs'
+            rows={taskRecord?.otherRuns ?? []}
+            rowsPerPageOptions={[5]}
+            columns={columns}
+            initialState={{
+              pagination: { paginationModel: { page: 0, pageSize: 5 } },
+            }}
+            pageSize={5}
+          />
         </Grid>
       </Grid>
     </Box>

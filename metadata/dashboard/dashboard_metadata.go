@@ -1656,6 +1656,7 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 }
 
 type TaskDetailRunResponse struct {
+	ID          string    `json:"id"`
 	LastRunTime time.Time `json:"lastRunTime"`
 	Status      string    `json:"status"`
 	Link        string    `json:"link"`
@@ -1681,6 +1682,7 @@ func (m *MetadataServer) GetTaskDetails(c *gin.Context) {
 	for _, loopRunItem := range taskRunStaticList {
 		if loopRunItem.TaskID == taskRunResult.TaskID && loopRunItem.ID != taskRunResult.ID {
 			otherRuns = append(otherRuns, TaskDetailRunResponse{
+				ID:          loopRunItem.ID,
 				LastRunTime: loopRunItem.LastRunTime,
 				Status:      loopRunItem.Status,
 				Link:        "Future Link"})

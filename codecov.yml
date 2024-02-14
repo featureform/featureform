@@ -7,8 +7,8 @@ coverage:
     patch:
       default:
         target: 75%
+        base: auto
 codecov:
-  branch: main
   require_ci_to_pass: true
   notify:
     wait_for_ci: true

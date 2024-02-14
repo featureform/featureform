@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	rand "math/rand"
+
 	filestore "github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
@@ -1534,7 +1536,7 @@ func replaceTags(resourceTypeParam string, currentResource metadata.Resource, ne
 func createTaskRun(id int, status string, lastRunTime time.Time) TaskRunResponse {
 
 	//todox: check against existing task definitions list
-	foundTaskDef := taskDefinitionStaticList[id%5]
+	foundTaskDef := taskDefinitionStaticList[rand.Intn(len(taskDefinitionStaticList))]
 
 	return TaskRunResponse{
 		ID:          strconv.Itoa(id),
@@ -1746,7 +1748,7 @@ func main() {
 	taskRunStaticList = []TaskRunResponse{}
 	dummyStates := []string{"SUCCESS", "FAILED", "PENDING", "RUNNING"}
 	for i := 0; i < 360; i++ {
-		status := dummyStates[i%len(dummyStates)]
+		status := dummyStates[rand.Intn(len(dummyStates))]
 		runTime := time.Now()
 		taskRunStaticList = append(taskRunStaticList, (createTaskRun(i, status, runTime)))
 	}

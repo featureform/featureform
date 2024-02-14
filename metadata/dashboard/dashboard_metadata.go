@@ -34,7 +34,9 @@ import (
 
 var SearchClient search.Searcher
 
-var taskListResponseStatic []TaskResponse
+// todox: remove later
+var taskRunStaticList []TaskRunResponse
+var taskDefinitionStaticList []TaskDefinition
 
 type StorageProvider interface {
 	GetResourceLookup() (metadata.ResourceLookup, error)
@@ -1529,14 +1531,18 @@ func replaceTags(resourceTypeParam string, currentResource metadata.Resource, ne
 	return nil
 }
 
-func createTask(id, name, status string, lastRunTime time.Time) TaskResponse {
-	return TaskResponse{
-		ID:          id,
-		Name:        name,
-		Type:        "Source",
-		Provider:    "Spark",
-		Resource:    "perc_balance",
-		Variant:     "a_variant",
+func createTaskRun(id int, status string, lastRunTime time.Time) TaskRunResponse {
+
+	//todox: check against existing task definitions list
+	foundTaskDef := taskDefinitionStaticList[id%5]
+
+	return TaskRunResponse{
+		ID:          strconv.Itoa(id),
+		Name:        foundTaskDef.Name,
+		Type:        foundTaskDef.Type,
+		Provider:    foundTaskDef.Provider,
+		Resource:    foundTaskDef.Resource,
+		Variant:     foundTaskDef.Variant,
 		Status:      status,
 		LastRunTime: lastRunTime,
 		TriggeredBy: "On Apply",
@@ -1552,23 +1558,32 @@ func filter[T any](ss []T, test func(T) bool) (ret []T) {
 	return ret
 }
 
-func mockFind(taskId string) TaskResponse {
-	for _, n := range taskListResponseStatic {
+func mockFind(taskId string) TaskRunResponse {
+	for _, n := range taskRunStaticList {
 		if n.ID == taskId {
 			return n
 		}
 	}
-	return TaskResponse{}
+	return TaskRunResponse{}
 }
 
-type TaskGetBody struct {
+type TaskDefinition struct {
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Provider string `json:"provider"`
+	Resource string `json:"resource"`
+	Variant  string `json:"variant"`
+}
+
+type TaskRunsGetBody struct {
 	Status     string `json:"status"`
 	SearchText string `json:"searchtext"`
 	SortBy     string `json:"sortBy"`
 	ThrowError string `json:"throwErro"`
 }
 
-type TaskResponse struct {
+type TaskRunResponse struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
 	Type        string    `json:"type"`
@@ -1580,20 +1595,19 @@ type TaskResponse struct {
 	TriggeredBy string    `json:"triggeredBy"`
 }
 
-func (m *MetadataServer) GetTasks(c *gin.Context) {
-	var requestBody TaskGetBody
+func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
+	var requestBody TaskRunsGetBody
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "GetTasks - Error binding the request body")
+		fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 
-	taskListResponse := make([]TaskResponse, len(taskListResponseStatic))
-
-	_ = copy(taskListResponse, taskListResponseStatic)
+	taskListResponse := make([]TaskRunResponse, len(taskRunStaticList))
+	_ = copy(taskListResponse, taskRunStaticList)
 
 	// status filter, break out
-	taskListResponse = filter(taskListResponse, func(t TaskResponse) bool {
+	taskListResponse = filter(taskListResponse, func(t TaskRunResponse) bool {
 		result := false
 		if requestBody.Status == "ALL" {
 			result = true
@@ -1608,11 +1622,11 @@ func (m *MetadataServer) GetTasks(c *gin.Context) {
 	})
 
 	// name filter
-	taskListResponse = filter(taskListResponse, func(t TaskResponse) bool {
+	taskListResponse = filter(taskListResponse, func(t TaskRunResponse) bool {
 		result := false
 		if requestBody.SearchText == "" {
 			result = true
-		} else if strings.Contains(t.Name, requestBody.SearchText) {
+		} else if strings.Contains(strings.ToLower(t.Name), strings.ToLower(requestBody.SearchText)) {
 			result = true
 		}
 		return result
@@ -1655,7 +1669,7 @@ type TaskDetailResponse struct {
 }
 
 func (m *MetadataServer) GetTaskDetails(c *gin.Context) {
-	taskId := c.Param("taskId")
+	taskId := c.Param("taskRunId")
 
 	//todox: replace mock find with lib call
 	taskResult := mockFind(taskId)
@@ -1682,8 +1696,8 @@ func (m *MetadataServer) Start(port string) {
 	router.GET("/data/filestatdata", m.GetFeatureFileStats)
 	router.POST("/data/:type/:resource/gettags", m.GetTags)
 	router.POST("/data/:type/:resource/tags", m.PostTags)
-	router.POST("/data/tasks", m.GetTasks)
-	router.GET("/data/tasks/taskDetail/:taskId", m.GetTaskDetails)
+	router.POST("/data/taskruns", m.GetTaskRuns)
+	router.GET("/data/taskruns/taskrundetail/:taskRunId", m.GetTaskDetails)
 	router.Run(port)
 }
 
@@ -1705,18 +1719,20 @@ func main() {
 		logger.Panicw("Failed to create new meil search", err)
 	}
 
-	// todox: mock the data for now
-	taskListResponseStatic = []TaskResponse{}
-	for i := 0; i < 13; i++ {
-		status := "SUCCESS"
-
-		if i%5 == 0 {
-			status = "FAILED"
-		} else if i%3 == 0 {
-			status = "PENDING"
-		}
+	// todox: mock the task definitions for now
+	taskDefinitionStaticList = []TaskDefinition{
+		{ID: 0, Name: "Test_job", Type: "Source", Provider: "Spark", Resource: "per_balance"},
+		{ID: 1, Name: "Nicole_Puppers", Type: "Source", Provider: "Postgres", Resource: "per_balance2"},
+		{ID: 2, Name: "Sandbox_Test", Type: "Source", Provider: "Spark", Resource: "avg_transactions"},
+		{ID: 3, Name: "Production_flow", Type: "Source", Provider: "Databricks", Resource: "speed_dating"},
+		{ID: 4, Name: "MySQL Task", Type: "Source", Provider: "MySql", Resource: "mysql_test_resource"},
+	}
+	taskRunStaticList = []TaskRunResponse{}
+	dummyStates := []string{"SUCCESS", "FAILED", "PENDING", "RUNNING"}
+	for i := 0; i < 360; i++ {
+		status := dummyStates[i%len(dummyStates)]
 		runTime := time.Now()
-		taskListResponseStatic = append(taskListResponseStatic, (createTask(strconv.Itoa(i), fmt.Sprintf("task-%d", i), status, runTime)))
+		taskRunStaticList = append(taskRunStaticList, (createTaskRun(i, status, runTime)))
 	}
 
 	SearchClient = sc

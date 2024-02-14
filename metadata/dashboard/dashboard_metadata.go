@@ -1585,6 +1585,7 @@ type TaskRunsGetBody struct {
 
 type TaskRunResponse struct {
 	ID          string    `json:"id"`
+	TaskID      string    `jsond:taskId"`
 	Name        string    `json:"name"`
 	Type        string    `json:"type"`
 	Provider    string    `json:"provider"`
@@ -1612,7 +1613,7 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 		if requestBody.Status == "ALL" {
 			result = true
 		} else if requestBody.Status == "ACTIVE" {
-			activeStates := []string{"PENDING"}
+			activeStates := []string{"PENDING", "RUNNING"}
 			result = slices.Contains(activeStates, t.Status)
 		} else if requestBody.Status == "COMPLETE" {
 			activeStates := []string{"FAILED", "SUCCESS"}

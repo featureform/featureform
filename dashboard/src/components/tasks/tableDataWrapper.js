@@ -28,7 +28,7 @@ export default function TableDataWrapper() {
   const FILTER_STATUS_COMPLETE = 'COMPLETE';
   const JOB_STATUS_RUNNING = 'RUNNING';
   const JOB_STATUS_PENDING = 'PENDING';
-  const JOB_STATUS_SUCCESS = 'PENDING';
+  const JOB_STATUS_SUCCESS = 'SUCCESS';
   const JOB_STATUS_FAILED = 'PENDING';
   const SORT_STATUS = 'STATUS';
   const SORT_DATE = 'STATUS_DATE';

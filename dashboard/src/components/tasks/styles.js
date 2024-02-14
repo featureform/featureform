@@ -9,9 +9,9 @@ const useStyles = makeStyles(() => ({
   },
   activeButton: {
     color: 'white',
-    backgroundColor: '#FC195C',
+    backgroundColor: '#7A14E5',
     '&:hover': {
-      backgroundColor: '#FC195C',
+      backgroundColor: '#7A14E5',
     },
   },
   activeChip: {
@@ -20,7 +20,7 @@ const useStyles = makeStyles(() => ({
   },
   inactiveChip: {
     color: 'white',
-    background: '#FC195C',
+    background: '#7A14E5',
   },
   inactiveButton: {
     color: 'black',

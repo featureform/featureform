@@ -30,7 +30,7 @@ export default function TaskRunDataGrid({ taskList = [] }) {
     },
     {
       field: 'name',
-      headerName: 'Name',
+      headerName: 'Job Name',
       width: 200,
       editable: false,
       sortable: false,
@@ -38,7 +38,7 @@ export default function TaskRunDataGrid({ taskList = [] }) {
     },
     {
       field: 'type',
-      headerName: 'Type',
+      headerName: 'Job Type',
       width: 150,
       editable: false,
       sortable: false,

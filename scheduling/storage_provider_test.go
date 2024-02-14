@@ -15,10 +15,8 @@ func TestMemoryStorageProvider(t *testing.T) {
 	}
 
 	for name, fn := range testFns {
-		nameConst := name
-		fnConst := fn
-		t.Run(nameConst, func(t *testing.T) {
-			fnConst(t, storage)
+		t.Run(name, func(t *testing.T) {
+			fn(t, storage)
 		})
 	}
 }

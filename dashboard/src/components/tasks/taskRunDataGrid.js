@@ -1,4 +1,4 @@
-import { Popover } from '@mui/material';
+import { Chip, Popover } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import React, { useState } from 'react';
 import TaskCard from './taskRunCard';
@@ -67,6 +67,21 @@ export default function TaskRunDataGrid({ taskList = [] }) {
       editable: false,
       sortable: false,
       filterable: false,
+      renderCell: function (params) {
+        const chipMap = {
+          SUCCESS: 'success',
+          PENDING: 'primary',
+          FAILED: 'error',
+          RUNNING: 'secondary',
+        };
+        return (
+          <Chip
+            color={chipMap[params?.row?.status] || 'primary'}
+            size='small'
+            label={params?.row?.status}
+          />
+        );
+      },
     },
     {
       field: 'lastRunTime',

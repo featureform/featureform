@@ -29,7 +29,7 @@ export default function TableDataWrapper() {
   const JOB_STATUS_RUNNING = 'RUNNING';
   const JOB_STATUS_PENDING = 'PENDING';
   const JOB_STATUS_SUCCESS = 'SUCCESS';
-  const JOB_STATUS_FAILED = 'PENDING';
+  const JOB_STATUS_FAILED = 'FAILED';
   const SORT_STATUS = 'STATUS';
   const SORT_DATE = 'STATUS_DATE';
   const ENTER_KEY = 'Enter';

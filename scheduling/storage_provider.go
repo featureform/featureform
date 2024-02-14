@@ -2,12 +2,14 @@ package scheduling
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
 type StorageProvider interface {
 	Set(key string, value string) error
 	Get(key string, prefix bool) ([]string, error)
+	ListKeys(prefix string) ([]string, error)
 }
 
 type MemoryStorageProvider struct {
@@ -41,14 +43,35 @@ func (m *MemoryStorageProvider) Get(key string, prefix bool) ([]string, error) {
 	}
 
 	var result []string
-	for k, v := range m.storage {
+	var keys []string
+	for k, _ := range m.storage {
 		if strings.HasPrefix(k, key) {
-			result = append(result, v)
+			keys = append(keys, k)
+		}
+	}
+
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		if strings.HasPrefix(k, key) {
+			result = append(result, m.storage[k])
 		}
 	}
 	if len(result) == 0 {
 		return nil, &KeyNotFoundError{Key: key}
 	}
+	return result, nil
+}
+
+func (m *MemoryStorageProvider) ListKeys(prefix string) ([]string, error) {
+	var result []string
+	for k, _ := range m.storage {
+		if strings.HasPrefix(k, prefix) {
+			result = append(result, k)
+		}
+	}
+	sort.Strings(result)
+
 	return result, nil
 }
 

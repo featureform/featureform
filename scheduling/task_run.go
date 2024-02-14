@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type TaskRunId int32
+type TaskRunID int32
 type Status string
 
 const (
@@ -29,12 +29,11 @@ type Trigger interface {
 }
 
 type OneOffTrigger struct {
-	TriggerName string      `json:"triggerName"`
-	TriggerType TriggerType `json:"triggerType"`
+	TriggerName string `json:"triggerName"`
 }
 
 func (t OneOffTrigger) Type() TriggerType {
-	return t.TriggerType
+	return oneOffTrigger
 }
 
 func (t OneOffTrigger) Name() string {
@@ -42,13 +41,12 @@ func (t OneOffTrigger) Name() string {
 }
 
 type DummyTrigger struct {
-	TriggerName string      `json:"triggerName"`
-	TriggerType TriggerType `json:"triggerType"`
-	DummyField  bool        `json:"dummyField"`
+	TriggerName string `json:"triggerName"`
+	DummyField  bool   `json:"dummyField"`
 }
 
 func (t DummyTrigger) Type() TriggerType {
-	return t.TriggerType
+	return dummyTrigger
 }
 
 func (t DummyTrigger) Name() string {
@@ -56,15 +54,16 @@ func (t DummyTrigger) Name() string {
 }
 
 type TaskRunMetadata struct {
-	ID        TaskRunId `json:"runId"`
-	TaskId    TaskId    `json:"taskId"`
-	Name      string    `json:"name"`
-	Trigger   Trigger   `json:"trigger"`
-	Status    Status    `json:"status"`
-	StartTime time.Time `json:"startTime"`
-	EndTime   time.Time `json:"endTime"`
-	Logs      []string  `json:"logs"`
-	Error     string    `json:"error"`
+	ID          TaskRunID   `json:"runId"`
+	TaskId      TaskID      `json:"taskId"`
+	Name        string      `json:"name"`
+	Trigger     Trigger     `json:"trigger"`
+	TriggerType TriggerType `json:"triggerType"`
+	Status      Status      `json:"status"`
+	StartTime   time.Time   `json:"startTime"`
+	EndTime     time.Time   `json:"endTime"`
+	Logs        []string    `json:"logs"`
+	Error       string      `json:"error"`
 }
 
 // Formatting
@@ -73,15 +72,16 @@ func (t *TaskRunMetadata) Marshal() ([]byte, error) {
 }
 func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 	type tempConfig struct {
-		ID        TaskRunId       `json:"runId"`
-		TaskId    TaskId          `json:"taskId"`
-		Name      string          `json:"name"`
-		Trigger   json.RawMessage `json:"trigger"`
-		Status    Status          `json:"status"`
-		StartTime time.Time       `json:"startTime"`
-		EndTime   time.Time       `json:"endTime"`
-		Logs      []string        `json:"logs"`
-		Error     string          `json:"error"`
+		ID          TaskRunID       `json:"runId"`
+		TaskId      TaskID          `json:"taskId"`
+		Name        string          `json:"name"`
+		Trigger     json.RawMessage `json:"trigger"`
+		TriggerType TriggerType     `json:"triggerType"`
+		Status      Status          `json:"status"`
+		StartTime   time.Time       `json:"startTime"`
+		EndTime     time.Time       `json:"endTime"`
+		Logs        []string        `json:"logs"`
+		Error       string          `json:"error"`
 	}
 
 	var temp tempConfig
@@ -114,9 +114,8 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 	}
 	t.StartTime = temp.StartTime
 
-	if temp.EndTime.IsZero() {
-		return fmt.Errorf("task run metadata is missing End Time")
-	}
+	t.TriggerType = temp.TriggerType
+
 	t.EndTime = temp.EndTime
 	t.Logs = temp.Logs
 	t.Error = temp.Error
@@ -126,25 +125,21 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 		return fmt.Errorf("failed to deserialize trigger data: %w", err)
 	}
 
-	if _, ok := triggerMap["triggerType"]; !ok {
-		return fmt.Errorf("trigger type is missing")
-	}
-
-	switch triggerMap["triggerType"] {
-	case string(oneOffTrigger):
+	switch temp.TriggerType {
+	case oneOffTrigger:
 		var oneOffTrigger OneOffTrigger
 		if err := json.Unmarshal(temp.Trigger, &oneOffTrigger); err != nil {
 			return fmt.Errorf("failed to deserialize One Off Trigger data: %w", err)
 		}
 		t.Trigger = oneOffTrigger
-	case string(dummyTrigger):
+	case dummyTrigger:
 		var dummyTrigger DummyTrigger
 		if err := json.Unmarshal(temp.Trigger, &dummyTrigger); err != nil {
 			return fmt.Errorf("failed to deserialize Dummy Trigger data: %w", err)
 		}
 		t.Trigger = dummyTrigger
 	default:
-		return fmt.Errorf("unknown trigger type: %s", triggerMap["triggerType"])
+		return fmt.Errorf("unknown trigger type: %s", temp.TriggerType)
 	}
 	return nil
 }

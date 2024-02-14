@@ -1,0 +1,315 @@
+package scheduling
+
+import (
+	"reflect"
+	"testing"
+)
+
+func TestInitialization(t *testing.T) {
+	storage := MemoryStorageProvider{}
+	NewTaskManager(&storage)
+}
+
+func TestCreateTask(t *testing.T) {
+	type taskInfo struct {
+		Name       string
+		Type       TaskType
+		Target     TaskTarget
+		ExpectedID TaskID
+	}
+	tests := []struct {
+		Name        string
+		Tasks       []taskInfo
+		shouldError bool
+	}{
+		{
+			"Single",
+			[]taskInfo{
+				{"name", ResourceCreation, NameVariant{"name", "variant"}, 1},
+			},
+			false,
+		},
+		{
+			"Multiple",
+			[]taskInfo{
+				{"name", ResourceCreation, NameVariant{"name", "variant"}, 1},
+				{"name2", ResourceCreation, NameVariant{"name", "variant"}, 2},
+				{"name3", ResourceCreation, NameVariant{"name", "variant"}, 3},
+			},
+			false,
+		},
+	}
+
+	fn := func(t *testing.T, tasks []taskInfo, shouldError bool) {
+		storage := MemoryStorageProvider{}
+		manager := NewTaskManager(&storage)
+		for _, task := range tasks {
+			taskDef, err := manager.CreateTask(task.Name, task.Type, task.Target)
+			if err != nil && shouldError {
+				continue
+			} else if err != nil && !shouldError {
+				t.Fatalf("failed to create task: %v", err)
+			} else if err == nil && shouldError {
+				t.Fatalf("expected error but did not receive one")
+			}
+			if task.ExpectedID != taskDef.ID {
+				t.Fatalf("Expected id: %d, got: %d", task.ExpectedID, taskDef.ID)
+			}
+		}
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			fn(t, tt.Tasks, tt.shouldError)
+		})
+	}
+}
+
+func TestTaskGetByID(t *testing.T) {
+	type taskInfo struct {
+		Name       string
+		Type       TaskType
+		Target     TaskTarget
+		ExpectedID TaskID
+	}
+	type TestCase struct {
+		Name        string
+		Tasks       []taskInfo
+		ID          TaskID
+		shouldError bool
+	}
+	tests := []TestCase{
+		{
+			"Empty",
+			[]taskInfo{},
+			TaskID(1),
+			true,
+		},
+		{
+			"Single",
+			[]taskInfo{
+				{"name", ResourceCreation, NameVariant{"name", "variant"}, 1},
+			},
+			TaskID(1),
+			false,
+		},
+		{
+			"Multiple",
+			[]taskInfo{
+				{"name", ResourceCreation, NameVariant{"name", "variant"}, 1},
+				{"name2", ResourceCreation, NameVariant{"name", "variant"}, 2},
+				{"name3", ResourceCreation, NameVariant{"name", "variant"}, 3},
+			},
+			TaskID(2),
+			false,
+		},
+		{
+			"MultipleInsertInvalidLookup",
+			[]taskInfo{
+				{"name", ResourceCreation, NameVariant{"name", "variant"}, 1},
+				{"name2", ResourceCreation, NameVariant{"name", "variant"}, 2},
+				{"name3", ResourceCreation, NameVariant{"name", "variant"}, 3},
+			},
+			TaskID(4),
+			true,
+		},
+	}
+
+	fn := func(t *testing.T, test TestCase) {
+		storage := MemoryStorageProvider{}
+		manager := NewTaskManager(&storage)
+		var definitions []TaskMetadata
+		for _, task := range test.Tasks {
+			taskDef, err := manager.CreateTask(task.Name, task.Type, task.Target)
+			if err != nil {
+				t.Fatalf("failed to create task: %v", err)
+			}
+			definitions = append(definitions, taskDef)
+		}
+		recievedDef, err := manager.GetTaskByID(test.ID)
+		if err != nil && !test.shouldError {
+			t.Fatalf("failed to fetch definiton: %v", err)
+		} else if err == nil && test.shouldError {
+			t.Fatalf("expected error and did not get one")
+		} else if err != nil && test.shouldError {
+			return
+		}
+
+		if reflect.DeepEqual(recievedDef, test.Tasks[test.ID-1]) {
+			t.Fatalf("Expected: %v got: %v", test.Tasks[test.ID], recievedDef)
+		}
+
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			fn(t, tt)
+		})
+	}
+}
+
+func TestTaskGetAll(t *testing.T) {
+	type taskInfo struct {
+		Name       string
+		Type       TaskType
+		Target     TaskTarget
+		ExpectedID TaskID
+	}
+	type TestCase struct {
+		Name        string
+		Tasks       []taskInfo
+		ID          TaskID
+		shouldError bool
+	}
+	tests := []TestCase{
+		{
+			"Empty",
+			[]taskInfo{},
+			TaskID(1),
+			true,
+		},
+		{
+			"Single",
+			[]taskInfo{
+				{"name", ResourceCreation, NameVariant{"name", "variant"}, 1},
+			},
+			TaskID(1),
+			false,
+		},
+		{
+			"Multiple",
+			[]taskInfo{
+				{"name", ResourceCreation, NameVariant{"name", "variant"}, 1},
+				{"name2", ResourceCreation, NameVariant{"name", "variant"}, 2},
+				{"name3", ResourceCreation, NameVariant{"name", "variant"}, 3},
+			},
+			TaskID(2),
+			false,
+		},
+	}
+
+	fn := func(t *testing.T, test TestCase) {
+		storage := MemoryStorageProvider{}
+		manager := NewTaskManager(&storage)
+		var definitions []TaskMetadata
+		for _, task := range test.Tasks {
+			taskDef, err := manager.CreateTask(task.Name, task.Type, task.Target)
+			if err != nil {
+				t.Fatalf("failed to create task: %v", err)
+			}
+			definitions = append(definitions, taskDef)
+		}
+		recvTasks, err := manager.GetAllTasks()
+		if err != nil && !test.shouldError {
+			t.Fatalf("failed to fetch definiton: %v", err)
+		} else if err == nil && test.shouldError {
+			t.Fatalf("expected error and did not get one")
+		} else if err != nil && test.shouldError {
+			return
+		}
+
+		if len(recvTasks) != len(test.Tasks) {
+			t.Fatalf("Expected %d tasks, got %d tasks", len(test.Tasks), len(recvTasks))
+		}
+		for i, def := range definitions {
+			if !reflect.DeepEqual(def, recvTasks[i]) {
+				t.Fatalf("Expected: \n%v \ngot: \n%v", definitions, recvTasks)
+			}
+		}
+
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			fn(t, tt)
+		})
+	}
+}
+
+func TestCreateTaskRun(t *testing.T) {
+	type taskInfo struct {
+		Name   string
+		Type   TaskType
+		Target TaskTarget
+	}
+	type runInfo struct {
+		Name       string
+		TaskID     TaskID
+		Trigger    Trigger
+		ExpectedID TaskRunID
+	}
+	type TestCase struct {
+		Name        string
+		Tasks       []taskInfo
+		Runs        []runInfo
+		shouldError bool
+	}
+	tests := []TestCase{
+		{
+			"Single",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{{"name", 1, OneOffTrigger{"name"}, 1}},
+			false,
+		},
+		{
+			"Multiple",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}, 1},
+				{"name", 1, OneOffTrigger{"name"}, 2},
+				{"name", 1, OneOffTrigger{"name"}, 3},
+			},
+			false,
+		},
+		{
+			"InvalidTask",
+			[]taskInfo{},
+			[]runInfo{{"name", 1, OneOffTrigger{"name"}, 1}},
+			true,
+		},
+		{
+			"MultipleTasks",
+			[]taskInfo{
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+			},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}, 1},
+				{"name", 1, OneOffTrigger{"name"}, 2},
+				{"name", 2, OneOffTrigger{"name"}, 1},
+				{"name", 2, OneOffTrigger{"name"}, 2},
+			},
+			false,
+		},
+	}
+
+	fn := func(t *testing.T, test TestCase) {
+		storage := MemoryStorageProvider{}
+		manager := NewTaskManager(&storage)
+		for _, task := range test.Tasks {
+			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
+			if err != nil && !test.shouldError {
+				t.Fatalf("failed to create task: %v", err)
+			}
+		}
+		for _, run := range test.Runs {
+			recvRun, err := manager.CreateTaskRun(run.Name, run.TaskID, run.Trigger)
+			if err != nil && test.shouldError {
+				continue
+			} else if err != nil && !test.shouldError {
+				t.Fatalf("failed to create task: %v", err)
+			} else if err == nil && test.shouldError {
+				t.Fatalf("expected error but did not receive one")
+			}
+			if run.ExpectedID != recvRun.ID {
+				t.Fatalf("Expected id: %d, got: %d", run.ExpectedID, recvRun.ID)
+			}
+		}
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			fn(t, tt)
+		})
+	}
+}

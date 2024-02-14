@@ -7,21 +7,21 @@ import (
 )
 
 func TestMemoryStorageProvider(t *testing.T) {
-	storage := &MemoryStorageProvider{}
-
-	testFns := map[string]func(*testing.T, StorageProvider){
-		"SetStorageProvider": StorageProviderSet,
-		"GetStorageProvider": StorageProviderGet,
+	testFns := map[string]func(*testing.T){
+		"SetStorageProvider":  StorageProviderSet,
+		"GetStorageProvider":  StorageProviderGet,
+		"ListStorageProvider": StorageProviderList,
 	}
 
 	for name, fn := range testFns {
 		t.Run(name, func(t *testing.T) {
-			fn(t, storage)
+			fn(t)
 		})
 	}
 }
 
-func StorageProviderSet(t *testing.T, provider StorageProvider) {
+func StorageProviderSet(t *testing.T) {
+	provider := &MemoryStorageProvider{}
 	type TestCase struct {
 		key   string
 		value string
@@ -43,7 +43,8 @@ func StorageProviderSet(t *testing.T, provider StorageProvider) {
 	}
 }
 
-func StorageProviderGet(t *testing.T, provider StorageProvider) {
+func StorageProviderGet(t *testing.T) {
+	provider := &MemoryStorageProvider{}
 	type TestCase struct {
 		key     string
 		prefix  bool
@@ -81,12 +82,56 @@ func StorageProviderGet(t *testing.T, provider StorageProvider) {
 	}
 }
 
+func StorageProviderList(t *testing.T) {
+	type TestCase struct {
+		keys        []string
+		prefix      string
+		results     []string
+		shouldError bool
+	}
+
+	tests := map[string]TestCase{
+		"Single":      {[]string{"list/key1"}, "list", []string{"list/key1"}, false},
+		"Multiple":    {[]string{"list/key1", "list/key2", "list/key3"}, "list", []string{"list/key1", "list/key2", "list/key3"}, false},
+		"MixedPrefix": {[]string{"list/key1", "lost/key2", "list/key3"}, "list", []string{"list/key1", "list/key3"}, false},
+		"EmptyPrefix": {[]string{"list/key1", "list/key2", "list/key3"}, "", []string{"list/key1", "list/key2", "list/key3"}, false},
+	}
+
+	runTestCase := func(t *testing.T, test TestCase) {
+		provider := &MemoryStorageProvider{}
+		for _, key := range test.keys {
+			err := provider.Set(key, "value")
+			if err != nil {
+				t.Fatalf("could not set key: %v", err)
+			}
+		}
+
+		results, err := provider.ListKeys(test.prefix)
+		if err != nil {
+			t.Fatalf("unable to list keys with prefix (%s): %v", test.prefix, err)
+		}
+		if len(results) != len(test.results) {
+			t.Fatalf("Expected %d results, got %d results\nExpected List: %v, Got List: %v", len(test.results), len(results), test.results, results)
+		}
+		for !compareStringSlices(results, test.results) {
+			t.Fatalf("Expected List: %v, Got List: %v", test.results, results)
+		}
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			runTestCase(t, test)
+		})
+	}
+}
+
 func compareStringSlices(a, b []string) bool {
 	sort.Strings(a)
 	sort.Strings(b)
 	if len(a) != len(b) {
 		return false
 	}
+
 	for i := range a {
 		if a[i] != b[i] {
 			return false

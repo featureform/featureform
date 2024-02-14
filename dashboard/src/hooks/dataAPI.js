@@ -74,9 +74,9 @@ export function useDataAPI() {
     return result;
   };
 
-  const getTaskRunDetails = async (taskId = '') => {
+  const getTaskRunDetails = async (taskRunId = '') => {
     const result = await fetch(
-      `${API_URL}/data/taskruns/taskrundetail/${taskId}`,
+      `${API_URL}/data/taskruns/taskrundetail/${taskRunId}`,
       {
         cache: 'no-store',
         method: 'GET',

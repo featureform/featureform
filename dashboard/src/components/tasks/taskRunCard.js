@@ -58,7 +58,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
           <Typography variant='h5'>{taskRecord.name}</Typography>
         </Grid>
         <Grid item xs={6} justifyContent='center'>
-          <Typography variant='h5'>Status: {taskRecord.status}</Typography>
+          <Typography variant='h6'>Status: {taskRecord.status}</Typography>
         </Grid>
         <Grid
           item
@@ -66,7 +66,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
           justifyContent='flex-start'
           style={{ paddingTop: 20 }}
         >
-          <Typography variant='h5'>Logs/Errors</Typography>
+          <Typography variant='h6'>Logs/Errors</Typography>
         </Grid>
         <Grid item xs={12} justifyContent='flex-start'>
           <Typography>
@@ -81,7 +81,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
           </Typography>
         </Grid>
         <Grid item xs={12} justifyContent='center' style={{ paddingTop: 20 }}>
-          <Typography variant='h5'>Task Run Details</Typography>
+          <Typography variant='h6'>Task Run Details</Typography>
         </Grid>
         <Grid item xs={12} justifyContent='center'>
           <Typography>
@@ -101,7 +101,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
           justifyContent='flex-start'
           style={{ paddingTop: 20 }}
         >
-          <Typography variant='h5'>Previous Task Runs</Typography>
+          <Typography variant='h6'>Other Runs</Typography>
         </Grid>
         <Grid item xs={12} justifyContent='flex-start'></Grid>
         <Grid item xs={12} justifyContent='center'>

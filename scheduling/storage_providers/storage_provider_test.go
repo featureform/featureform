@@ -6,8 +6,14 @@ import (
 	"testing"
 )
 
-func TestMemoryStorageProvider(t *testing.T) {
-	storage := NewMemoryStorageProvider()
+type StorageProviderTest struct {
+	t       *testing.T
+	storage StorageProvider
+}
+
+func (test *StorageProviderTest) Run() {
+	t := test.t
+	storage := test.storage
 
 	testFns := map[string]func(*testing.T, StorageProvider){
 		"SetStorageProvider": StorageProviderSet,

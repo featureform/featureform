@@ -9,8 +9,8 @@ import {
   Typography,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
-import { useDataAPI } from 'hooks/dataAPI';
 import React, { useEffect, useState } from 'react';
+import { useDataAPI } from '../../hooks/dataAPI';
 import StatusChip from './statusChip';
 import { useStyles } from './styles';
 

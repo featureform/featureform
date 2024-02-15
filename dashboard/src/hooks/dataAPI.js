@@ -55,7 +55,7 @@ export function useDataAPI() {
     return result;
   };
 
-  const getTasks = async (searchParams = {}) => {
+  const getTaskRuns = async (searchParams = {}) => {
     const result = await fetch(`${API_URL}/data/taskruns`, {
       cache: 'no-store',
       method: 'POST',
@@ -98,7 +98,7 @@ export function useDataAPI() {
   return {
     getTags,
     postTags,
-    getTasks,
+    getTaskRuns,
     getTaskRunDetails,
   };
 }

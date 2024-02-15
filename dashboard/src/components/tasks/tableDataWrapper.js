@@ -46,7 +46,7 @@ export default function TableDataWrapper() {
   const [completeCount, setCompleteCount] = useState(0);
 
   useEffect(async () => {
-    let data = await dataAPI.getTasks(searchParams);
+    let data = await dataAPI.getTaskRuns(searchParams);
     //if the search are in all state. run the counts again
     if (
       !searchParams.searchText &&
@@ -127,6 +127,7 @@ export default function TableDataWrapper() {
           </Typography>
           <Chip
             label={allCount}
+            data-testid='allId'
             className={
               searchParams.status === FILTER_STATUS_ALL
                 ? classes.activeChip
@@ -148,6 +149,7 @@ export default function TableDataWrapper() {
           </Typography>
           <Chip
             label={activeCount}
+            data-testid='activeId'
             className={
               searchParams.status === FILTER_STATUS_ACTIVE
                 ? classes.activeChip
@@ -169,6 +171,7 @@ export default function TableDataWrapper() {
           </Typography>
           <Chip
             label={completeCount}
+            data-testid='completeId'
             className={
               searchParams.status === FILTER_STATUS_COMPLETE
                 ? classes.activeChip
@@ -231,7 +234,7 @@ export default function TableDataWrapper() {
               className={classes.filterInput}
               inputProps={{
                 'aria-label': 'search',
-                'data-testid': 'searchInputId',
+                'data-testid': 'searcInputId',
               }}
             />
           </FormControl>

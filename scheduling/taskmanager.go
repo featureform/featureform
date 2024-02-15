@@ -325,9 +325,22 @@ func (tm *TaskManager) GetRunByID(taskID TaskID, runID TaskRunID) (TaskRunMetada
 }
 
 func (tm *TaskManager) GetRunsByDate(start time.Time, end time.Time) (TaskRunList, error) {
-	// TODO: loop through the entire date range from start to end and get all the runs
-	startKey := TaskRunMetadataKey{date: start}
-	recs, err := tm.storage.Get(startKey.String(), true)
+	// the date range is inclusive
+	var runs []TaskRunMetadata
+	for date := start; date.Before(end) || date.Equal(end); date = date.AddDate(0, 0, 1) {
+		dayRuns, err := tm.getRunsForDay(date, start, end)
+		if err != nil {
+			return []TaskRunMetadata{}, err
+		}
+		runs = append(runs, dayRuns...)
+	}
+
+	return runs, nil
+}
+
+func (tm *TaskManager) getRunsForDay(date time.Time, start time.Time, end time.Time) ([]TaskRunMetadata, error) {
+	key := TaskRunMetadataKey{date: date}
+	recs, err := tm.storage.Get(key.String(), true)
 	if err != nil {
 		return []TaskRunMetadata{}, err
 	}
@@ -339,7 +352,9 @@ func (tm *TaskManager) GetRunsByDate(start time.Time, end time.Time) (TaskRunLis
 		if err != nil {
 			return []TaskRunMetadata{}, fmt.Errorf("failed to unmarshal run record: %v", err)
 		}
-		if taskRun.StartTime.After(start) {
+
+		// if the task run started before the start time or after the end time, skip it
+		if taskRun.StartTime.Before(start) || taskRun.StartTime.After(end) {
 			continue
 		}
 		runs = append(runs, taskRun)
@@ -387,12 +402,12 @@ func (t *TaskManager) AppendRunLog(id TaskRunID, log string) error {
 }
 
 // Locking
-func (t *TaskManager) LockTaskRun(ctx context.Context, runId TaskRunID) error {
+func (t *TaskManager) LockTaskRun(ctx context.Context, taskID TaskID, runId TaskRunID) error {
 	// we will need task id as well
 	return fmt.Errorf("Not implemented")
 }
 
-func (t *TaskManager) UnlockTaskRun(ctx context.Context, runId TaskRunID) error {
+func (t *TaskManager) UnlockTaskRun(ctx context.Context, taskID TaskID, runId TaskRunID) error {
 	// we will need task id as well
 	return fmt.Errorf("Not implemented")
 }

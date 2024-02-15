@@ -881,7 +881,6 @@ func TestKeyPaths(t *testing.T) {
 		if test.Key.String() != test.ExpectedKey {
 			t.Fatalf("Expected: %s, got: %s", test.ExpectedKey, test.Key.String())
 		}
-
 	}
 
 	for _, tt := range tests {

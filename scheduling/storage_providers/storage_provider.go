@@ -9,12 +9,10 @@ type StorageProvider interface {
 	Get(key string, prefix bool) ([]string, error)
 }
 
-// KeyNotFoundError represents an error when a key is not found.
 type KeyNotFoundError struct {
 	Key string
 }
 
-// Error returns the error message for KeyNotFoundError.
 func (e *KeyNotFoundError) Error() string {
 	return fmt.Sprintf("Key not found: %s", e.Key)
 }

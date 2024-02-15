@@ -15,10 +15,10 @@ func NewMemoryStorageProvider() *MemoryStorageProvider {
 
 func (m *MemoryStorageProvider) Set(key string, value string) error {
 	if key == "" {
-		return fmt.Errorf("key cannot be empty")
+		return fmt.Errorf("key is empty")
 	}
 	if value == "" {
-		return fmt.Errorf("value cannot be empty")
+		return fmt.Errorf("value is empty for key %s", key)
 	}
 	m.storage[key] = value
 	return nil
@@ -26,7 +26,7 @@ func (m *MemoryStorageProvider) Set(key string, value string) error {
 
 func (m *MemoryStorageProvider) Get(key string, prefix bool) ([]string, error) {
 	if key == "" {
-		return nil, fmt.Errorf("key cannot be empty")
+		return nil, fmt.Errorf("key is empty")
 	}
 	if !prefix {
 		value, ok := m.storage[key]

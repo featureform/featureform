@@ -18,10 +18,10 @@ func NewETCDStorageProvider(client *clientv3.Client, ctx context.Context) *ETCDS
 
 func (etcd *ETCDStorageProvider) Set(key string, value string) error {
 	if key == "" {
-		return fmt.Errorf("key cannot be empty")
+		return fmt.Errorf("key is empty")
 	}
 	if value == "" {
-		return fmt.Errorf("value cannot be empty")
+		return fmt.Errorf("value is empty for key %s", key)
 	}
 	_, err := etcd.client.Put(etcd.ctx, key, value)
 	return err
@@ -29,7 +29,7 @@ func (etcd *ETCDStorageProvider) Set(key string, value string) error {
 
 func (etcd *ETCDStorageProvider) Get(key string, prefix bool) ([]string, error) {
 	if key == "" {
-		return nil, fmt.Errorf("key cannot be empty")
+		return nil, fmt.Errorf("key is empty")
 	}
 	if !prefix {
 		resp, err := etcd.client.Get(etcd.ctx, key)

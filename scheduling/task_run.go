@@ -104,7 +104,7 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 	}
 	t.Name = temp.Name
 
-	if temp.Status == "" || (temp.Status != Success && temp.Status != Failed && temp.Status != Pending) {
+	if temp.Status == "" || (temp.Status != Success && temp.Status != Failed && temp.Status != Pending && temp.Status != Running) {
 		return fmt.Errorf("unknown status: %s", temp.Status)
 	}
 	t.Status = temp.Status

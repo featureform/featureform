@@ -61,13 +61,19 @@ export default function TaskRunCard({ handleClose, searchId }) {
   ];
 
   useEffect(async () => {
+    let timeout = null;
     if (searchId && loading) {
       let data = await dataAPI.getTaskRunDetails(searchId);
       setTaskRecord(data);
-      setTimeout(() => {
+      timeout = setTimeout(() => {
         setLoading(false);
       }, 750);
     }
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
   }, [searchId, loading]);
 
   const handleReloadRequest = () => {

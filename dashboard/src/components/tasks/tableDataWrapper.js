@@ -72,9 +72,14 @@ export default function TableDataWrapper() {
       }
     }
     setTaskRunList(data);
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       setLoading(false);
     }, 750);
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
   }, [searchParams, loading]);
 
   const handleStatusBtnSelect = (statusType = FILTER_STATUS_ALL) => {

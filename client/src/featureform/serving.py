@@ -26,7 +26,7 @@ from .register import FeatureColumnResource
 from .enums import FileFormat, ResourceType
 
 from .resources import Model, SourceType, ComputationMode
-from .tls import insecure_channel, secure_channel, async_insecure_channel
+from .tls import insecure_channel, secure_channel
 from .version import check_up_to_date
 
 
@@ -641,16 +641,24 @@ class TestTrainIterator:
         self,
         req_queue: queue.Queue,
         resp_queue: queue.Queue,
+        resp_stream,
         request_type,
         name,
         version,
+        test_size,
+        train_size,
+        shuffle,
+        random_state,
         model: Union[str, Model] = None,
     ):
         self.name = name
         self.version = version
         self.model = model
-        self.test_size = 0.25
-        self.shuffle = True
+        self.test_size = test_size
+        self.train_size = train_size
+        self.shuffle = shuffle
+        self.random_state = random_state
+        self.resp_stream = resp_stream
 
         self.req_queue = req_queue
         self.resp_queue = resp_queue
@@ -664,19 +672,21 @@ class TestTrainIterator:
         req.id.name = self.name
         req.id.version = self.version
 
+
         if self.model is not None:
             req.model.name = (
                 self.model if isinstance(self.model, str) else self.model.name
             )
         req.test_size = self.test_size
+        req.train_size = self.train_size
         req.shuffle = self.shuffle
+        req.random_state = self.random_state
         req.request_type = self._request_type
 
         self.req_queue.put(req)
 
-        response = self.resp_queue.get()
-        print("First response:", response)
-        return response
+
+        return Row(next(self.resp_stream).row)
 
 
 class TSSplitIterator:
@@ -684,10 +694,14 @@ class TSSplitIterator:
     Returns two datasets one for each iterator
     """
 
-    def __init__(self, stub, name, version, model: Union[str, Model] = None):
+    def __init__(self, stub, name, version, test_size, train_size, shuffle, random_state, model: Union[str, Model] = None):
         self.name = name
         self.version = version
+        self.shuffle = shuffle
+        self.random_state = random_state
         self.model = model
+        self.test_size = test_size
+        self.train_size = train_size
         self.train_iter = None
         self.test_iter = None
         self._stream = None
@@ -698,36 +712,38 @@ class TSSplitIterator:
 
     def request_generator(self):
         while True:
-            if not self.request_queue.empty():
-                request = self.request_queue.get()
-                print("yielding request", request)
+            if not self.req_queue.empty():
+                request = self.req_queue.get()
                 yield request
-            else:
-                time.sleep(0.1)
 
     def split(self):
         response_stream = self.stub.GetTrainingTestSplit(self.request_generator())
         self.test_iter = TestTrainIterator(
             req_queue=self.req_queue,
             resp_queue=self.resp_queue,
-            response_stream=response_stream,
+            resp_stream=response_stream,
             request_type=serving_pb2.RequestType.TEST,
             name=self.name,
             version=self.version,
             model=self.model,
+            test_size=self.test_size,
+            train_size=self.train_size,
+            shuffle=self.shuffle,
+            random_state=self.random_state
         )
         self.train_iter = TestTrainIterator(
             req_queue=self.req_queue,
             resp_queue=self.resp_queue,
-            response_stream=response_stream,
+            resp_stream=response_stream,
             request_type=serving_pb2.RequestType.TRAINING,
             name=self.name,
             version=self.version,
             model=self.model,
+            test_size=self.test_size,
+            train_size=self.train_size,
+            shuffle=self.shuffle,
+            random_state = self.random_state
         )
-
-        for response in response_stream:
-            self.resp_queue.put(response)
 
         return self.test_iter, self.train_iter
 
@@ -752,6 +768,43 @@ class Dataset:
             self._stub, training_set_name, version, model
         )
         return Dataset(training_set_stream)
+
+    def train_test_split(self, test_size: float = 0, train_size: float = 0, random_state: Union[int, None] = None, shuffle: bool = True):
+        if test_size > 1 or test_size < 0:
+            raise ValueError("test_size must be between 0 and 1")
+
+        if train_size > 1 or train_size < 0:
+            raise ValueError("train_size must be between 0 and 1")
+
+        if test_size != 0 and train_size != 0:
+            if test_size + train_size != 1:
+                raise ValueError("test_size + train_size must equal 1")
+
+        if test_size == 0 and train_size != 0:
+            test_size = 1 - train_size
+
+        if test_size != 0 and train_size == 0:
+            train_size = 1 - test_size
+
+        name = self._stream.name
+        variant = self._stream.version
+        stub = self._stream._stub
+        model = self._stream.model
+        if random_state is None:
+            random_state = 0
+
+        test, train = TSSplitIterator(
+            stub=stub,
+            name=name,
+            version=variant,
+            model=model,
+            test_size=test_size,
+            train_size=train_size,
+            shuffle=shuffle,
+            random_state=random_state
+        ).split()
+
+        return test, train
 
     def _for_training_test_split(
         self,
@@ -788,7 +841,7 @@ class Dataset:
         # ).split()
 
         test, train = TSSplitIterator(
-            self._stream, training_set_name, version, model
+            self._stream, training_set_name, version, model, shuffle, random_state
         ).split()
 
         return test, train
@@ -1003,10 +1056,10 @@ class Row:
         self._row = np.append(self._features, self._label)
 
     def features(self):
-        return [self._row[:-1]]
+        return self._row[:-1]
 
     def label(self):
-        return [self._label]
+        return self._label
 
     def to_numpy(self):
         return self._row

@@ -154,9 +154,10 @@ message GetTrainingTestSplitRequest {
   TrainingDataID id = 1;
   Model model = 2;
   float test_size = 3;
-  bool shuffle = 4;
-  int32 random_state = 5;  // Seed for shuffling, if shuffle is true
-  RequestType request_type = 6;  // NEW: Specify the type of data being requested
+  float train_size = 4;
+  bool shuffle = 5;
+  int32 random_state = 6;  // Seed for shuffling, if shuffle is true
+  RequestType request_type = 7;  // NEW: Specify the type of data being requested
 }
 
 enum RequestType {

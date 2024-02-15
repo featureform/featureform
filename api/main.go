@@ -809,6 +809,86 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 	}
 }
 
+func (serv *OnlineServer) GetTrainingTestSplit(stream srv.Feature_GetTrainingTestSplitServer) error {
+	serv.Logger.Infow("Starting Training Test Split Stream")
+	clientStream, err := serv.client.GetTrainingTestSplit(context.Background())
+	if err != nil {
+		return fmt.Errorf("could not serve training test split: %w", err)
+	}
+
+	// Use a channel to communicate errors from goroutines
+	//errChan := make(chan error, 2) // Buffer to hold at most two errors (send and receive)
+
+	// Goroutine for forwarding requests to the downstream service
+	//go func() {
+	//	defer close(errChan)
+	for {
+		req, err := stream.Recv()
+		fmt.Println("this is the request", req.String())
+		if err == io.EOF {
+			// Client has closed the stream, close the downstream stream
+			serv.Logger.Infow("Client has closed the stream")
+			if err := clientStream.CloseSend(); err != nil {
+				return fmt.Errorf("failed to close send direction to downstream service: %w", err)
+			}
+		}
+		if err != nil {
+			serv.Logger.Errorw("Error receiving from client stream", "error", err)
+			return err
+		}
+
+		// Forward the request to the downstream service
+		if err := clientStream.Send(req); err != nil {
+			serv.Logger.Errorw("Failed to send request to downstream service", "error", err)
+			return err
+		}
+
+		resp, err := clientStream.Recv()
+		fmt.Println("this is the response", resp.String(), err)
+		if err == io.EOF {
+			// End of stream from downstream service
+			serv.Logger.Infow("Downstream service has closed the stream")
+			return nil
+		}
+		if err != nil {
+			serv.Logger.Errorw("Error receiving from downstream service", "error", err)
+			return err
+		}
+
+		// Send the response back to the client
+		if err := stream.Send(resp); err != nil {
+			serv.Logger.Errorw("Failed to send response to client", "error", err)
+			return err
+		}
+	}
+	//}()
+
+	//// Goroutine for receiving responses from the downstream service and forwarding them to the client
+	//go func() {
+	//	for {
+	//		resp, err := clientStream.Recv()
+	//		fmt.Println("this is the response", resp.String(), err)
+	//		if err == io.EOF {
+	//			// End of stream from downstream service
+	//			serv.Logger.Infow("Downstream service has closed the stream")
+	//			return
+	//		}
+	//		if err != nil {
+	//			serv.Logger.Errorw("Error receiving from downstream service", "error", err)
+	//			errChan <- err
+	//			return
+	//		}
+	//
+	//		// Send the response back to the client
+	//		if err := stream.Send(resp); err != nil {
+	//			serv.Logger.Errorw("Failed to send response to client", "error", err)
+	//			errChan <- err
+	//			return
+	//		}
+	//	}
+	//}()
+}
+
 func (serv *OnlineServer) TrainingDataColumns(ctx context.Context, req *srv.TrainingDataColumnsRequest) (*srv.TrainingColumns, error) {
 	serv.Logger.Infow("Serving Training Set Columns", "id", req.Id.String())
 	return serv.client.TrainingDataColumns(ctx, req)

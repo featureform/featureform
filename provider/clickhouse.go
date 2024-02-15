@@ -40,11 +40,11 @@ func sanitizeCH(ident string) string {
 	return "`" + s + "`"
 }
 
-type clickHouseOfflineStore struct {
+type ClickHouseOfflineStore struct {
 	sqlOfflineStore
 }
 
-func (store *clickHouseOfflineStore) getResourceTableName(id ResourceID) (string, error) {
+func (store *ClickHouseOfflineStore) getResourceTableName(id ResourceID) (string, error) {
 	if err := checkName(id); err != nil {
 		return "", err
 	}
@@ -57,14 +57,14 @@ func (store *clickHouseOfflineStore) getResourceTableName(id ResourceID) (string
 	return fmt.Sprintf("featureform_resource_%s__%s__%s", idType, id.Name, id.Variant), nil
 }
 
-func (store *clickHouseOfflineStore) getTrainingSetName(id ResourceID) (string, error) {
+func (store *ClickHouseOfflineStore) getTrainingSetName(id ResourceID) (string, error) {
 	if err := checkName(id); err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("featureform_trainingset__%s__%s", id.Name, id.Variant), nil
 }
 
-func (store *clickHouseOfflineStore) tableExists(id ResourceID) (bool, error) {
+func (store *ClickHouseOfflineStore) tableExists(id ResourceID) (bool, error) {
 	n := -1
 	var tableName string
 	var err error
@@ -95,7 +95,7 @@ func (store *clickHouseOfflineStore) tableExists(id ResourceID) (bool, error) {
 	return false, nil
 }
 
-func (store *clickHouseOfflineStore) createTransformationName(id ResourceID) (string, error) {
+func (store *ClickHouseOfflineStore) createTransformationName(id ResourceID) (string, error) {
 	switch id.Type {
 	case Transformation:
 		return GetPrimaryTableName(id)
@@ -112,7 +112,7 @@ func (store *clickHouseOfflineStore) createTransformationName(id ResourceID) (st
 	}
 }
 
-func (store *clickHouseOfflineStore) createsqlPrimaryTableQuery(name string, schema TableSchema) (string, error) {
+func (store *ClickHouseOfflineStore) createsqlPrimaryTableQuery(name string, schema TableSchema) (string, error) {
 	columns := make([]string, 0)
 	for _, column := range schema.Columns {
 		columnType, err := store.query.determineColumnType(column.ValueType)
@@ -126,7 +126,7 @@ func (store *clickHouseOfflineStore) createsqlPrimaryTableQuery(name string, sch
 	return store.query.primaryTableCreate(name, columnString), nil
 }
 
-func (store *clickHouseOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema TableSchema) (*clickhousePrimaryTable, error) {
+func (store *ClickHouseOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema TableSchema) (*clickhousePrimaryTable, error) {
 	query, err := store.createsqlPrimaryTableQuery(name, schema)
 	if err != nil {
 		return nil, err
@@ -143,7 +143,7 @@ func (store *clickHouseOfflineStore) newsqlPrimaryTable(db *sql.DB, name string,
 	}, nil
 }
 
-func (store *clickHouseOfflineStore) getValueIndex(columns []TableColumn) int {
+func (store *ClickHouseOfflineStore) getValueIndex(columns []TableColumn) int {
 	for i, column := range columns {
 		if column.Name == "value" {
 			return i
@@ -152,7 +152,7 @@ func (store *clickHouseOfflineStore) getValueIndex(columns []TableColumn) int {
 	return -1
 }
 
-func (store *clickHouseOfflineStore) newsqlOfflineTable(db *sql.DB, name string, valueType ValueType) (*clickhouseOfflineTable, error) {
+func (store *ClickHouseOfflineStore) newsqlOfflineTable(db *sql.DB, name string, valueType ValueType) (*clickhouseOfflineTable, error) {
 	columnType, err := determineColumnType(valueType)
 	if err != nil {
 		return nil, fmt.Errorf("could not determine column type: %v", err)
@@ -169,7 +169,7 @@ func (store *clickHouseOfflineStore) newsqlOfflineTable(db *sql.DB, name string,
 	}, nil
 }
 
-func (store *clickHouseOfflineStore) getsqlResourceTable(id ResourceID) (*clickhouseOfflineTable, error) {
+func (store *ClickHouseOfflineStore) getsqlResourceTable(id ResourceID) (*clickhouseOfflineTable, error) {
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if !exists {
@@ -186,7 +186,7 @@ func (store *clickHouseOfflineStore) getsqlResourceTable(id ResourceID) (*clickh
 	}, nil
 }
 
-func (store *clickHouseOfflineStore) materializationExists(id MaterializationID) (bool, error) {
+func (store *ClickHouseOfflineStore) materializationExists(id MaterializationID) (bool, error) {
 	tableName := store.getMaterializationTableName(id)
 	getMatQry := store.query.materializationExists()
 	n := -1
@@ -200,7 +200,7 @@ func (store *clickHouseOfflineStore) materializationExists(id MaterializationID)
 	return true, nil
 }
 
-func (store *clickHouseOfflineStore) getMaterializationTableName(id MaterializationID) string {
+func (store *ClickHouseOfflineStore) getMaterializationTableName(id MaterializationID) string {
 	return fmt.Sprintf("featureform_materialization_%s", id)
 }
 
@@ -212,7 +212,7 @@ func clickhouseOfflineStoreFactory(config pc.SerializedConfig) (Provider, error)
 	return store, nil
 }
 
-func NewClickHouseOfflineStore(config pc.SerializedConfig) (*clickHouseOfflineStore, error) {
+func NewClickHouseOfflineStore(config pc.SerializedConfig) (*ClickHouseOfflineStore, error) {
 	cc := pc.ClickHouseConfig{}
 	if err := cc.Deserialize(config); err != nil {
 		return nil, NewProviderError(Runtime, pt.ClickHouseOffline, ConfigDeserialize, err.Error())
@@ -243,7 +243,7 @@ func NewClickHouseOfflineStore(config pc.SerializedConfig) (*clickHouseOfflineSt
 		QueryImpl:    &queries,
 	}
 	//we bypass NewSQLOfflineStore as we want to estalish our connection using non dsn syntax
-	return &clickHouseOfflineStore{sqlOfflineStore{
+	return &ClickHouseOfflineStore{sqlOfflineStore{
 		db:     db,
 		parent: sgConfig,
 		query:  &queries,
@@ -504,7 +504,7 @@ func (it *clickHouseTableIterator) Close() error {
 	return it.rows.Close()
 }
 
-func (store *clickHouseOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
+func (store *ClickHouseOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
 		return nil, fmt.Errorf("type check: %w", err)
 	}
@@ -537,11 +537,11 @@ func (store *clickHouseOfflineStore) RegisterResourceFromSourceTable(id Resource
 	}, nil
 }
 
-func (store *clickHouseOfflineStore) AsOfflineStore() (OfflineStore, error) {
+func (store *ClickHouseOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
-func (store *clickHouseOfflineStore) CheckHealth() (bool, error) {
+func (store *ClickHouseOfflineStore) CheckHealth() (bool, error) {
 	err := store.db.Ping()
 	if err != nil {
 		return false, NewProviderError(Connection, store.Type(), Ping, err.Error())
@@ -549,7 +549,7 @@ func (store *clickHouseOfflineStore) CheckHealth() (bool, error) {
 	return true, nil
 }
 
-func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+func (store *ClickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
 	if err := id.check(Primary); err != nil {
 		return nil, fmt.Errorf("check fail: %w", err)
 	}
@@ -577,7 +577,7 @@ func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceI
 	}, nil
 }
 
-func (store *clickHouseOfflineStore) CreateTransformation(config TransformationConfig) error {
+func (store *ClickHouseOfflineStore) CreateTransformation(config TransformationConfig) error {
 	name, err := store.createTransformationName(config.TargetTableID)
 	if err != nil {
 		return err
@@ -591,7 +591,7 @@ func (store *clickHouseOfflineStore) CreateTransformation(config TransformationC
 	return nil
 }
 
-func (store *clickHouseOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+func (store *ClickHouseOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	n := -1
 	name, err := GetPrimaryTableName(id)
 	if err != nil {
@@ -615,7 +615,7 @@ func (store *clickHouseOfflineStore) GetTransformationTable(id ResourceID) (Tran
 	}, nil
 }
 
-func (store *clickHouseOfflineStore) UpdateTransformation(config TransformationConfig) error {
+func (store *ClickHouseOfflineStore) UpdateTransformation(config TransformationConfig) error {
 	name, err := store.createTransformationName(config.TargetTableID)
 	if err != nil {
 		return err
@@ -627,7 +627,7 @@ func (store *clickHouseOfflineStore) UpdateTransformation(config TransformationC
 	return nil
 }
 
-func (store *clickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+func (store *ClickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
@@ -650,7 +650,7 @@ func (store *clickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema Ta
 	return table, nil
 }
 
-func (store *clickHouseOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
+func (store *ClickHouseOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
 	name, err := GetPrimaryTableName(id)
 	if err != nil {
 		return nil, err
@@ -670,7 +670,7 @@ func (store *clickHouseOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTabl
 	}, nil
 }
 
-func (store *clickHouseOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
+func (store *ClickHouseOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
 		return nil, fmt.Errorf("ID check failed: %v", err)
 	}
@@ -698,11 +698,11 @@ func (store *clickHouseOfflineStore) CreateResourceTable(id ResourceID, schema T
 	return table, nil
 }
 
-func (store *clickHouseOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
+func (store *ClickHouseOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
 	return store.getsqlResourceTable(id)
 }
 
-func (store *clickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIterator, error) {
+func (store *ClickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIterator, error) {
 
 	// if tables is empty, return an empty iterator
 	if len(ids) == 0 {
@@ -773,7 +773,7 @@ func (store *clickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFe
 	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query), nil
 }
 
-func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
+func (store *ClickHouseOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
 		return nil, errors.New("only features can be materialized")
 	}
@@ -799,7 +799,7 @@ func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, option
 	}, nil
 }
 
-func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+func (store *ClickHouseOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
 
 	tableName := store.getMaterializationTableName(id)
 
@@ -820,7 +820,7 @@ func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (M
 	}, err
 }
 
-func (store *clickHouseOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
+func (store *ClickHouseOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
 	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
 	tableName := store.getMaterializationTableName(matID)
 	getMatQry := store.query.materializationExists()
@@ -849,7 +849,7 @@ func (store *clickHouseOfflineStore) UpdateMaterialization(id ResourceID) (Mater
 	}, err
 }
 
-func (store *clickHouseOfflineStore) DeleteMaterialization(id MaterializationID) error {
+func (store *ClickHouseOfflineStore) DeleteMaterialization(id MaterializationID) error {
 	tableName := store.getMaterializationTableName(id)
 	if exists, err := store.materializationExists(id); err != nil {
 		return err
@@ -863,7 +863,7 @@ func (store *clickHouseOfflineStore) DeleteMaterialization(id MaterializationID)
 	return nil
 }
 
-func (store *clickHouseOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
+func (store *ClickHouseOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	if err := def.check(); err != nil {
 		return err
 	}
@@ -882,7 +882,57 @@ func (store *clickHouseOfflineStore) CreateTrainingSet(def TrainingSetDef) error
 	return nil
 }
 
-func (store *clickHouseOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
+func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(trainingSetTable string, testSize float64) (string, error) {
+	// Create view name
+	trainingSetSplitView := sanitizeCH(fmt.Sprintf("%s_split", trainingSetTable))
+
+	// Query to create a view that includes an 'is_test' column
+	// This column is dynamically calculated for each row based on the provided testSize
+	createViewQuery := fmt.Sprintf(`
+					CREATE VIEW IF NOT EXISTS %s AS
+					SELECT *, (rand(42) %% 100 < %f) as is_test
+					FROM %s
+					`,
+		trainingSetSplitView,
+		testSize*100,
+		trainingSetTable,
+	)
+
+	// Execute the query to create the view
+	if _, err := store.db.Exec(createViewQuery); err != nil {
+		return "", fmt.Errorf("failed to create view: %v", err)
+	}
+
+	return trainingSetSplitView, nil
+}
+
+//func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(trainingSetTable string, testSize float64) (string, error) {
+//
+//	// create split table
+//	trainingSetSplitTable := sanitizeCH(fmt.Sprintf("%s_split", trainingSetTable))
+//
+//	// Step 1: Create the split table based on the structure of the original table.
+//	createTableQuery := fmt.Sprintf("CREATE TEMPORARY TABLE IF NOT EXISTS %s AS %s ENGINE = MergeTree() ORDER BY _row", trainingSetSplitTable, trainingSetTable)
+//	if _, err := store.db.Exec(createTableQuery); err != nil {
+//		return "", fmt.Errorf("failed to create split: %v", err)
+//	}
+//
+//	// Step 2: Alter the table to add the is_test column.
+//	alterTableQuery := fmt.Sprintf("ALTER TABLE %s ADD COLUMN is_test UInt8", trainingSetSplitTable)
+//	if _, err := store.db.Exec(alterTableQuery); err != nil {
+//		return "", fmt.Errorf("failed to alter table to add is_test column: %v", err)
+//	}
+//
+//	// Step 3: Insert data into the new table with is_test calculated.
+//	insertDataQuery := fmt.Sprintf("INSERT INTO %s SELECT *, multiIf(rand() %% 100 < %f, 1, 0) AS is_test FROM %s", trainingSetSplitTable, testSize*100, trainingSetTable)
+//	if _, err := store.db.Exec(insertDataQuery); err != nil {
+//		return "", fmt.Errorf("failed to insert data: %v", err)
+//	}
+//
+//	return trainingSetSplitTable, nil
+//}
+
+func (store *ClickHouseOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 	if err := def.check(); err != nil {
 		return err
 	}
@@ -901,7 +951,7 @@ func (store *clickHouseOfflineStore) UpdateTrainingSet(def TrainingSetDef) error
 	return nil
 }
 
-func (store *clickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+func (store *ClickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
 	fmt.Printf("Getting Training Set: %v\n", id)
 	if err := id.check(TrainingSet); err != nil {
 		return nil, err
@@ -938,7 +988,65 @@ func (store *clickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetI
 	return store.newsqlTrainingSetIterator(rows, colTypes), nil
 }
 
-func (store *clickHouseOfflineStore) Close() error {
+func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(id ResourceID, testSize float64) (TrainingSetIterator, TrainingSetIterator, error) {
+	fmt.Printf("Getting Training Set: %v\n", id)
+	if err := id.check(TrainingSet); err != nil {
+		return nil, nil, err
+	}
+	fmt.Printf("Checking if Training Set exists: %v\n", id)
+	if exists, err := store.tableExists(id); err != nil {
+		return nil, nil, err
+	} else if !exists {
+		return nil, nil, &TrainingSetNotFound{id}
+	}
+	trainingSetName, err := store.getTrainingSetName(id)
+	if err != nil {
+		return nil, nil, err
+	}
+	trainingTestSplitName, err := store.CreateTrainingTestSplit(trainingSetName, testSize)
+	if err != nil {
+		return nil, nil, err
+
+	}
+	columnNames, err := store.query.getColumns(store.db, trainingSetName)
+	if err != nil {
+		return nil, nil, err
+	}
+	features := make([]string, 0)
+	for _, name := range columnNames {
+		features = append(features, sanitizeCH(name.Name))
+	}
+	columns := strings.Join(features[:], ", ")
+	// assume clickhousequery
+	clickHouseQuery, ok := store.query.(*clickhouseSQLQueries)
+	if !ok {
+		return nil, nil, fmt.Errorf("could not cast to clickhouse query")
+	}
+	// add is_test column to columns
+	//columns += ", is_test"
+	fmt.Println("this is the training set split name", trainingTestSplitName)
+	test, train := clickHouseQuery.trainingRowSplitSelect(columns, trainingTestSplitName)
+	fmt.Printf("Training Set Query: %s\n", train)
+	fmt.Printf("Test Set Query: %s\n", test)
+	testRows, err := store.db.Query(test)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not query test set: %v", err)
+
+	}
+	trainRows, err := store.db.Query(train)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not query train set: %v", err)
+	}
+	colTypes, err := store.getValueColumnTypes(trainingSetName)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not get column types: %v", err)
+	}
+	fmt.Printf("THERE IS NO ERROR")
+	return store.newsqlTrainingSetIterator(trainRows, colTypes), store.newsqlTrainingSetIterator(testRows, colTypes), nil
+
+}
+
+func (store *ClickHouseOfflineStore) Close() error {
 	return store.db.Close()
 }
 
@@ -962,6 +1070,17 @@ func (q clickhouseSQLQueries) trainingRowSelect(columns string, trainingSetName 
 	// ensures random order - table is ordered by _row which is inserted at insert time
 	return fmt.Sprintf("SELECT * EXCEPT _row FROM (SELECT %s FROM %s ORDER BY _row ASC)", columns, sanitizeCH(trainingSetName))
 }
+
+func (q clickhouseSQLQueries) trainingRowSplitSelect(columns string, trainingSetSplitName string) (string, string) {
+	fmt.Println("these are the columns", columns)
+	// Assume `columns` is a comma-separated list of the columns you want to select, excluding `_row`.
+	testSplitQuery := fmt.Sprintf("SELECT %s FROM %s WHERE `is_test` = 1 ORDER BY _row ASC", columns, trainingSetSplitName)
+	trainSplitQuery := fmt.Sprintf("SELECT %s FROM %s WHERE `is_test` = 0 ORDER BY _row ASC", columns, trainingSetSplitName)
+
+	return trainSplitQuery, testSplitQuery
+}
+
+// ensures random order - table is ordered by _row which is inserted at insert time
 
 func (q clickhouseSQLQueries) registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error {
 	var query string
@@ -1081,6 +1200,33 @@ func (q clickhouseSQLQueries) trainingSetCreate(store *sqlOfflineStore, def Trai
 
 func (q clickhouseSQLQueries) trainingSetUpdate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
 	return q.trainingSetQuery(store, def, tableName, labelName, true)
+}
+
+func (q clickhouseSQLQueries) trainingSetSplitCreate(store *sqlOfflineStore, trainingSetTable string, testSize float64) (string, error) {
+
+	// create split table
+	splitTableName := sanitizeCH(fmt.Sprintf("%s_split", trainingSetTable))
+	trainingSetSplitTable := sanitizeCH(splitTableName)
+
+	// Step 1: Create the split table based on the structure of the original table.
+	createTableQuery := fmt.Sprintf("CREATE TABLE %s AS %s ENGINE = MergeTree() ORDER BY _row", trainingSetSplitTable, trainingSetTable)
+	if _, err := store.db.Exec(createTableQuery); err != nil {
+		return "", fmt.Errorf("failed to create table: %v", err)
+	}
+
+	// Step 2: Alter the table to add the is_test column.
+	alterTableQuery := fmt.Sprintf("ALTER TABLE %s ADD COLUMN is_test UInt8", trainingSetSplitTable)
+	if _, err := store.db.Exec(alterTableQuery); err != nil {
+		return "", fmt.Errorf("failed to alter table to add is_test column: %v", err)
+	}
+
+	// Step 3: Insert data into the new table with is_test calculated.
+	insertDataQuery := fmt.Sprintf("INSERT INTO %s SELECT *, multiIf(rand() %% 100 < %f, 1, 0) AS is_test FROM %s", trainingSetSplitTable, testSize*100, trainingSetTable)
+	if _, err := store.db.Exec(insertDataQuery); err != nil {
+		return "", fmt.Errorf("failed to insert data: %v", err)
+	}
+
+	return trainingSetSplitTable, nil
 }
 
 func buildTrainingSelect(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) (string, error) {

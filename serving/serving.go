@@ -82,6 +82,95 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 	return nil
 }
 
+func (serv *FeatureServer) GetTrainingTestSplit(stream pb.Feature_GetTrainingTestSplitServer) error {
+
+	for {
+		req, err := stream.Recv()
+
+		serv.Logger.Infow("Getting training test split", "Request", req.String())
+		serv.Logger.Infow("request type", "RequestType", req.RequestType.String())
+		if err != nil {
+			return err
+		}
+
+		id := req.GetId()
+		reqType := req.GetRequestType()
+		name, variant := id.GetName(), id.GetVersion()
+		featureObserver := serv.Metrics.BeginObservingTrainingServe(name, variant)
+		defer featureObserver.Finish()
+		logger := serv.Logger.With("Name", name, "Variant", variant)
+
+		// Handle initialization request
+		if req.RequestType == pb.RequestType_INITIALIZE {
+			// Perform initialization based on the request
+			// For example, load the dataset, shuffle it, split into training and test sets, etc.
+			serv.Logger.Infow("Initializing dataset", "id", req.Id, "shuffle", req.Shuffle, "testSize", req.TestSize)
+
+			//Initialization done, you might want to send a confirmation message back to the client
+			//However, if your protocol doesn't require sending a response for initialization, you can skip this
+			//Assuming you send some sort of acknowledgment back
+			initResponse := &pb.GetTrainingTestSplitResponse{
+				RequestType: pb.RequestType_INITIALIZE,
+				TrainingTestSplit: &pb.GetTrainingTestSplitResponse_Initialized{
+					Initialized: true,
+				},
+			}
+			if err := stream.Send(initResponse); err != nil {
+				serv.Logger.Errorw("Failed to send init response", "error", err)
+				featureObserver.SetError()
+				return err
+			}
+		} else {
+			logger.Info("Serving training split data")
+			if model := req.GetModel(); model != nil {
+				trainingSets := []metadata.NameVariant{{Name: name, Variant: variant}}
+				err := serv.Metadata.CreateModel(stream.Context(), metadata.ModelDef{Name: model.GetName(), Trainingsets: trainingSets})
+				if err != nil {
+					return err
+				}
+			}
+			train, test, err := serv.getTrainingSetTestSplitIterator(name, variant)
+			if err != nil {
+				logger.Errorw("Failed to get training set iterator", "Error", err)
+				featureObserver.SetError()
+				return err
+			}
+			var iter provider.TrainingSetIterator
+			if reqType == pb.RequestType_TEST {
+				iter = test
+			} else if reqType == pb.RequestType_TRAINING {
+				iter = train
+			} else {
+				return fmt.Errorf("invalid request type")
+			}
+
+			for iter.Next() {
+				sRow, err := serializedRow(iter.Features(), iter.Label())
+				if err != nil {
+					return err
+				}
+				response := &pb.GetTrainingTestSplitResponse{
+					RequestType:       reqType,
+					TrainingTestSplit: &pb.GetTrainingTestSplitResponse_Row{Row: sRow},
+				}
+
+				if err := stream.Send(response); err != nil {
+					logger.Errorw("Failed to write to stream", "Error", err)
+					featureObserver.SetError()
+					return err
+				}
+				featureObserver.ServeRow()
+			}
+			if err := iter.Err(); err != nil {
+				logger.Errorw("Dataset error", "Error", err)
+				featureObserver.SetError()
+				return err
+			}
+		}
+		return nil
+	}
+}
+
 func (serv *FeatureServer) TrainingDataColumns(ctx context.Context, req *pb.TrainingDataColumnsRequest) (*pb.TrainingColumns, error) {
 	id := req.GetId()
 	name, variant := id.GetName(), id.GetVersion()
@@ -155,6 +244,36 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	}
 	serv.Logger.Debugw("Get Training Set From Store", "name", name, "variant", variant)
 	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
+}
+
+func (serv *FeatureServer) getTrainingSetTestSplitIterator(name, variant string) (provider.TrainingSetIterator, provider.TrainingSetIterator, error) {
+	ctx := context.TODO()
+	serv.Logger.Infow("Getting Training Set Iterator", "name", name, "variant", variant)
+	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{name, variant})
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "could not get training set variant")
+	}
+	serv.Logger.Debugw("Fetching Training Set Provider", "name", name, "variant", variant)
+	providerEntry, err := ts.FetchProvider(serv.Metadata, ctx)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "could not get fetch provider")
+	}
+	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "could not get provider")
+	}
+	store, err := p.AsOfflineStore()
+	if err != nil {
+		// This means that the provider of the training set isn't an offline store.
+		// That shouldn't be possible.
+		return nil, nil, errors.Wrap(err, "could not open as offline store")
+	}
+	// assume clickhouse store
+	clickhouseStore, ok := store.(*provider.ClickHouseOfflineStore)
+	if !ok {
+		return nil, nil, errors.New("store is not a clickhouse store")
+	}
+	return clickhouseStore.GetTrainingSetTestSplit(provider.ResourceID{Name: name, Variant: variant}, .2)
 }
 
 func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (provider.BatchFeatureIterator, error) {

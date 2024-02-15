@@ -10,6 +10,7 @@ package featureform.serving.proto;
 
 service Feature {
   rpc TrainingData(TrainingDataRequest) returns (stream TrainingDataRow) {}
+  rpc GetTrainingTestSplit(stream GetTrainingTestSplitRequest) returns (stream GetTrainingTestSplitResponse) {}
   rpc TrainingDataColumns(TrainingDataColumnsRequest) returns (TrainingColumns) {}
   rpc FeatureServe(FeatureServeRequest) returns (FeatureRow) {}
   rpc SourceData(SourceDataRequest) returns (stream SourceDataRow) {}
@@ -147,4 +148,27 @@ message ResourceIdRequest {
 
 message ResourceLocation {
   string location = 1;
+}
+
+message GetTrainingTestSplitRequest {
+  TrainingDataID id = 1;
+  Model model = 2;
+  float test_size = 3;
+  bool shuffle = 4;
+  int32 random_state = 5;  // Seed for shuffling, if shuffle is true
+  RequestType request_type = 6;  // NEW: Specify the type of data being requested
+}
+
+enum RequestType {
+  INITIALIZE = 0;
+  TRAINING = 1;  // Client is requesting training data
+  TEST = 2;      // Client is requesting test data
+}
+
+message GetTrainingTestSplitResponse {
+  RequestType request_type = 1;
+  oneof training_test_split {
+    bool initialized = 2;
+    TrainingDataRow row = 3;
+  }
 }

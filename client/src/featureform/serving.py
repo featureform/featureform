@@ -1,15 +1,18 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
+import asyncio
 import base64
 import inspect
 import json
 import math
 import os
+import queue
 import random
+import time
 import types
 import warnings
+from collections.abc import Iterator
 from typing import List, Union, Dict
 
 import dill
@@ -23,7 +26,7 @@ from .register import FeatureColumnResource
 from .enums import FileFormat, ResourceType
 
 from .resources import Model, SourceType, ComputationMode
-from .tls import insecure_channel, secure_channel
+from .tls import insecure_channel, secure_channel, async_insecure_channel
 from .version import check_up_to_date
 
 
@@ -109,6 +112,24 @@ class ServingClient:
         """
         return self.impl.training_set(name, variant, include_label_timestamp, model)
 
+    def training_set_test_split(
+        self, name, variant="", model: Union[str, Model] = None
+    ):
+        """Split the dataset into a training set and a test set.
+
+        Args:
+            name (str): The name of the training set
+            variation (str): The variation of the training set
+            model (Union[str, Model]): The model to use for the training set
+
+        Returns:
+            train_set (Dataset): The training set
+            test_set (Dataset): The test set
+            :param variant:
+        """
+        train, test = self.impl.training_set_test_split(name, variant, model)
+        return train, test
+
     def features(
         self, features, entities, model: Union[str, Model] = None, params: list = None
     ):
@@ -167,18 +188,30 @@ class HostedClientImpl:
             )
         check_up_to_date(False, "serving")
         self._channel = self._create_channel(host, insecure, cert_path)
+        # self._async_channel = self._create_async_channel(host, insecure, cert_path)
         self._stub = serving_pb2_grpc.FeatureStub(self._channel)
+        # self._async_stub = serving_pb2_grpc.FeatureStub(self._async_channel)
 
-    def _create_channel(self, host, insecure, cert_path):
+    @staticmethod
+    def _create_channel(host, insecure, cert_path):
         if insecure:
             return insecure_channel(host)
         else:
             return secure_channel(host, cert_path)
 
+    # def _create_async_channel(self, host, insecure, cert_path):
+    #     if insecure:
+    #         return async_insecure_channel(host)
+    #     else:
+    #         return secure_channel(host, cert_path)
+
     def training_set(
         self, name, variation, include_label_timestamp, model: Union[str, Model] = None
     ):
-        return Dataset(self._stub).from_stub(name, variation, model)
+        return Dataset(self._stub)._for_training_set(name, variation, model)
+
+    def training_set_test_split(self, name, variation, model: Union[str, Model] = None):
+        return Dataset(self._stub)._for_training_test_split(name, variation, model)
 
     def features(
         self, features, entities, model: Union[str, Model] = None, params: list = None
@@ -289,7 +322,7 @@ class HostedClientImpl:
         self._channel.close()
 
 
-class Stream:
+class TrainingSetStream(Iterator):
     def __init__(self, stub, name, version, model: Union[str, Model] = None):
         req = serving_pb2.TrainingDataRequest()
         req.id.name = name
@@ -310,6 +343,100 @@ class Stream:
 
     def restart(self):
         self._iter = self._stub.TrainingData(self._req)
+
+
+class TestSplitIterator(Iterator):
+    def __init__(self, stub, name, version, model: Union[str, Model] = None):
+        self.name = name
+        self.version = version
+        if model is not None:
+            self.model.name = model if isinstance(model, str) else model.name
+        self.test_size = 0.25
+        self.shuffle = True
+        self.request_type = serving_pb2.RequestType.INITIALIZE
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        req = serving_pb2.GetTrainingTestSplitRequest()
+        req.id.name = self.name
+        req.id.version = self.version
+        req.model = self.model
+        req.test_size = self.test_size
+        req.shuffle = self.shuffle
+        req.request_type = serving_pb2.RequestType.INITIALIZE
+
+        return req
+
+
+class TrainingTestSplitStream(Iterator):
+    def __init__(self, train_iter, test_iter):
+        try:
+            response = next(self._iter)
+            print("First response:", response)
+
+            # Check if the response indicates initialization success
+            if hasattr(response, "initialized") and response.initialized:
+                print("Initialization successful")
+            else:
+                print("Initialization failed or response lacks 'initialized' field")
+        except StopIteration:
+            print("No response received from the server.")
+        except Exception as e:
+            print(f"Error receiving the response: {e}")
+            raise
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return Row(next(self._iter))
+
+    def restart(self):
+        self._iter = self._stub.GetTrainingTestSplit(iter([self._req]))
+
+
+class TrainingTestSplitStream(Iterator):
+    def __init__(self, stub, name, version, model: Union[str, Model] = None):
+        req = serving_pb2.GetTrainingTestSplitRequest()
+        req.id.name = name
+        req.id.version = version
+        if model is not None:
+            req.model.name = model if isinstance(model, str) else model.name
+        req.test_size = 0.25
+        req.shuffle = True
+        req.request_type = serving_pb2.RequestType.INITIALIZE
+        self.name = name
+        self.version = version
+        self._stub = stub
+        self._req = req
+
+        # self._iter = stub.GetTrainingTestSplit(self._req)
+
+        try:
+            response = next(self._iter)
+            print("First response:", response)
+
+            # Check if the response indicates initialization success
+            if hasattr(response, "initialized") and response.initialized:
+                print("Initialization successful")
+            else:
+                print("Initialization failed or response lacks 'initialized' field")
+        except StopIteration:
+            print("No response received from the server.")
+        except Exception as e:
+            print(f"Error receiving the response: {e}")
+            raise
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return Row(next(self._iter))
+
+    def restart(self):
+        self._iter = self._stub.GetTrainingTestSplit(iter([self._req]))
 
 
 class LocalStream:
@@ -409,6 +536,202 @@ class Batch:
         return rows
 
 
+# class AsyncTestTrainIterator:
+#     def __init__(
+#         self, request_queue, response_queue, request_type, name, version, model
+#     ):
+#         self.name = name
+#         self.version = version
+#         self.model = model
+#         self.test_size = 0.25
+#         self.shuffle = True
+#         self._request_type = request_type
+#
+#         self.request_queue = request_queue
+#         self.response_queue = response_queue
+#
+#     def __aiter__(self):
+#         return self
+#
+#     async def __anext__(self):
+#         req = serving_pb2.GetTrainingTestSplitRequest()
+#         req.id.name = self.name
+#         req.id.version = self.version
+#
+#         if self.model is not None:
+#             req.model.name = (
+#                 self.model if isinstance(self.model, str) else self.model.name
+#             )
+#         req.model = self.model
+#         req.test_size = self.test_size
+#         req.shuffle = self.shuffle
+#         req.request_type = self._request_type
+#
+#         self.request_queue.put(req)
+#
+#         if self.response_queue.empty():
+#             await asyncio.sleep(
+#                 0.1
+#             )  # Briefly yield control to allow queue to be filled
+#         if not self.response_queue.empty():
+#             return await Row(self.response_queue.get())
+#         else:
+#             raise StopAsyncIteration
+#
+#
+# class AsyncTestTrainSplit:
+#     def __init__(
+#         self,
+#         stub,
+#         name,
+#         version,
+#         model: Union[str, Model] = None,
+#     ):
+#         self.name = name
+#         self.version = version
+#         self.model = model
+#         self.train_iter = None
+#         self.test_iter = None
+#         self._stream = None
+#
+#         self.stub = stub
+#         self.request_queue = asyncio.Queue()
+#         self.response_queue = asyncio.Queue()
+#
+#     async def request_generator(self):
+#         while True:
+#             if not self.request_queue.empty():
+#                 request = await self.request_queue.get()
+#                 yield request
+#             else:
+#                 await asyncio.sleep(0.1)  # Avoid tight loop if no requests are queued
+#
+#     async def __call__(self):
+#         stream = self.stub.GetTrainingTestSplit(self.request_generator())
+#
+#         train_iterator = AsyncTestTrainIterator(
+#             request_queue=self.request_queue,
+#             response_queue=self.response_queue,
+#             request_type=serving_pb2.RequestType.TEST,
+#             name=self.name,
+#             version=self.version,
+#             model=self.model,
+#         )
+#         test_iterator = AsyncTestTrainIterator(
+#             request_queue=self.request_queue,
+#             response_queue=self.response_queue,
+#             request_type=serving_pb2.RequestType.TRAINING,
+#             name=self.name,
+#             version=self.version,
+#             model=self.model,
+#         )
+#
+#         # Start a task to listen for responses
+#         asyncio.create_task(self.fetch_responses(stream))
+#
+#         return train_iterator, test_iterator
+#
+#     async def fetch_responses(self, stream):
+#         async for response in stream:
+#             await self.response_queue.put(response)
+
+
+class TestTrainIterator:
+    def __init__(
+        self,
+        req_queue: queue.Queue,
+        resp_queue: queue.Queue,
+        request_type,
+        name,
+        version,
+        model: Union[str, Model] = None,
+    ):
+        self.name = name
+        self.version = version
+        self.model = model
+        self.test_size = 0.25
+        self.shuffle = True
+
+        self.req_queue = req_queue
+        self.resp_queue = resp_queue
+        self._request_type = request_type
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        req = serving_pb2.GetTrainingTestSplitRequest()
+        req.id.name = self.name
+        req.id.version = self.version
+
+        if self.model is not None:
+            req.model.name = (
+                self.model if isinstance(self.model, str) else self.model.name
+            )
+        req.test_size = self.test_size
+        req.shuffle = self.shuffle
+        req.request_type = self._request_type
+
+        self.req_queue.put(req)
+
+        response = self.resp_queue.get()
+        print("First response:", response)
+        return response
+
+
+class TSSplitIterator:
+    """
+    Returns two datasets one for each iterator
+    """
+
+    def __init__(self, stub, name, version, model: Union[str, Model] = None):
+        self.name = name
+        self.version = version
+        self.model = model
+        self.train_iter = None
+        self.test_iter = None
+        self._stream = None
+        self.stub = stub
+
+        self.req_queue = queue.Queue()
+        self.resp_queue = queue.Queue()
+
+    def request_generator(self):
+        while True:
+            if not self.request_queue.empty():
+                request = self.request_queue.get()
+                print("yielding request", request)
+                yield request
+            else:
+                time.sleep(0.1)
+
+    def split(self):
+        response_stream = self.stub.GetTrainingTestSplit(self.request_generator())
+        self.test_iter = TestTrainIterator(
+            req_queue=self.req_queue,
+            resp_queue=self.resp_queue,
+            response_stream=response_stream,
+            request_type=serving_pb2.RequestType.TEST,
+            name=self.name,
+            version=self.version,
+            model=self.model,
+        )
+        self.train_iter = TestTrainIterator(
+            req_queue=self.req_queue,
+            resp_queue=self.resp_queue,
+            response_stream=response_stream,
+            request_type=serving_pb2.RequestType.TRAINING,
+            name=self.name,
+            version=self.version,
+            model=self.model,
+        )
+
+        for response in response_stream:
+            self.resp_queue.put(response)
+
+        return self.test_iter, self.train_iter
+
+
 class Dataset:
     def __init__(self, stream, dataframe=None):
         """Repeats the Dataset for the specified number of times
@@ -422,9 +745,53 @@ class Dataset:
         self._stream = stream
         self._dataframe = dataframe
 
-    def from_stub(self, name, version, model: Union[str, Model] = None):
-        stream = Stream(self._stream, name, version, model)
-        return Dataset(stream)
+    def _for_training_set(
+        self, training_set_name, version, model: Union[str, Model] = None
+    ):
+        training_set_stream = TrainingSetStream(
+            self._stub, training_set_name, version, model
+        )
+        return Dataset(training_set_stream)
+
+    def _for_training_test_split(
+        self,
+        training_set_name,
+        version,
+        model: Union[str, Model] = None,
+        test_size=0.25,
+        train_size=0.75,
+        shuffle=True,
+        random_state=None,
+    ):
+        """Split the dataset into a training set and a test set.
+
+        Args:
+            test_size (float): The proportion of the dataset to include in the test split.
+            train_size (float): The proportion of the dataset to include in the train split.
+            shuffle (bool): Whether or not to shuffle the data before splitting.
+            random_state (int): The seed used by the random number generator.
+
+        Returns:
+            train_set (Dataset): The training set.
+            test_set (Dataset): The test set.
+        """
+        if test_size + train_size != 1:
+            raise ValueError("test_size + train_size must equal 1")
+
+        # print("HELLO")
+        # training_test_split_stream = TrainingTestSplitStream(
+        #     self._stream, training_set_name, version, model
+        # )
+
+        # test, train = TSSplitIterator(
+        #     self._stream, training_set_name, version, model
+        # ).split()
+
+        test, train = TSSplitIterator(
+            self._stream, training_set_name, version, model
+        ).split()
+
+        return test, train
 
     def dataframe(self, spark_session=None):
         """Returns the training set as a Pandas DataFrame or Spark DataFrame.

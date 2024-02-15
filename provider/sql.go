@@ -59,6 +59,7 @@ type OfflineTableQueries interface {
 	trainingSetCreate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error
 	trainingSetUpdate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error
 	trainingRowSelect(columns string, trainingSetName string) string
+	//trainingRowSplitSelect(columns string, trainingSetName string) (string, string)
 	castTableItemType(v interface{}, t interface{}) interface{}
 	getValueColumnType(t *sql.ColumnType) interface{}
 	numRows(n interface{}) (int64, error)
@@ -1434,6 +1435,10 @@ func (q defaultOfflineSQLQueries) trainingRowSelect(columns string, trainingSetN
 	return fmt.Sprintf("SELECT %s FROM %s", columns, sanitize(trainingSetName))
 }
 
+func (q defaultOfflineSQLQueries) trainingRowSplitSelect(columns string, trainingSetName string) string {
+	// throw unimiplemented error
+	return ""
+}
 func (q defaultOfflineSQLQueries) getValueColumnTypes(tableName string) string {
 	return fmt.Sprintf("SELECT * FROM %s", sanitize(tableName))
 }

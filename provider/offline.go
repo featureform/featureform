@@ -287,6 +287,7 @@ type OfflineStore interface {
 	CreateTrainingSet(TrainingSetDef) error
 	UpdateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
+	//GetTrainingSetTestSplit(id ResourceID, testSize float64) (TrainingSetIterator, TrainingSetIterator, error)
 	Close() error
 	ResourceLocation(id ResourceID) (string, error)
 	Provider

@@ -313,3 +313,224 @@ func TestCreateTaskRun(t *testing.T) {
 		})
 	}
 }
+
+func TestGetRunByID(t *testing.T) {
+	type taskInfo struct {
+		Name   string
+		Type   TaskType
+		Target TaskTarget
+	}
+	type runInfo struct {
+		Name    string
+		TaskID  TaskID
+		Trigger Trigger
+	}
+	type TestCase struct {
+		Name        string
+		Tasks       []taskInfo
+		Runs        []runInfo
+		FetchTask   TaskID
+		FetchRun    TaskRunID
+		shouldError bool
+	}
+	tests := []TestCase{
+		{
+			"Single",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{{"name", 1, OneOffTrigger{"name"}}},
+			1,
+			1,
+			false,
+		},
+		{
+			"Multiple",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+			},
+			1,
+			2,
+			false,
+		},
+		{
+			"MultipleTasks",
+			[]taskInfo{
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+			},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 2, OneOffTrigger{"name"}},
+				{"name", 2, OneOffTrigger{"name"}},
+			},
+			2,
+			1,
+			false,
+		},
+		{
+			"Fetch NonExistent",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{{"name", 1, OneOffTrigger{"name"}}},
+			1,
+			2,
+			true,
+		},
+	}
+
+	fn := func(t *testing.T, test TestCase) {
+		storage := MemoryStorageProvider{}
+		manager := NewTaskManager(&storage)
+		for _, task := range test.Tasks {
+			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
+			if err != nil && !test.shouldError {
+				t.Fatalf("failed to create task: %v", err)
+			}
+		}
+
+		var runDefs []TaskRunMetadata
+		for _, run := range test.Runs {
+			runDef, err := manager.CreateTaskRun(run.Name, run.TaskID, run.Trigger)
+			if err != nil && !test.shouldError {
+				t.Fatalf("failed to create task run: %v", err)
+			}
+			runDefs = append(runDefs, runDef)
+		}
+		recvRun, err := manager.GetRunByID(test.FetchTask, test.FetchRun)
+		if err != nil && test.shouldError {
+			return
+		} else if err != nil && !test.shouldError {
+			t.Fatalf("failed to get task by ID: %v", err)
+		} else if err == nil && test.shouldError {
+			t.Fatalf("expected error but did not receive one")
+		}
+		for _, runDef := range runDefs {
+			if runDef.TaskId == test.FetchTask && runDef.ID == test.FetchRun {
+				if !reflect.DeepEqual(runDef, recvRun) {
+					t.Fatalf("Expcted %v, got: %v", runDef, recvRun)
+				}
+			}
+		}
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			fn(t, tt)
+		})
+	}
+}
+
+func TestGetRunAll(t *testing.T) {
+	type taskInfo struct {
+		Name   string
+		Type   TaskType
+		Target TaskTarget
+	}
+	type runInfo struct {
+		Name    string
+		TaskID  TaskID
+		Trigger Trigger
+	}
+	type TestCase struct {
+		Name        string
+		Tasks       []taskInfo
+		Runs        []runInfo
+		shouldError bool
+	}
+	tests := []TestCase{
+		{
+			"Single",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{{"name", 1, OneOffTrigger{"name"}}},
+			false,
+		},
+		{
+			"Multiple",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+			},
+			false,
+		},
+		{
+			"MultipleTasks",
+			[]taskInfo{
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+			},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 2, OneOffTrigger{"name"}},
+				{"name", 2, OneOffTrigger{"name"}},
+			},
+			false,
+		},
+		{
+			"Empty",
+			[]taskInfo{},
+			[]runInfo{},
+			true,
+		},
+	}
+
+	fn := func(t *testing.T, test TestCase) {
+		storage := MemoryStorageProvider{}
+		manager := NewTaskManager(&storage)
+		for _, task := range test.Tasks {
+			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
+			if err != nil && !test.shouldError {
+				t.Fatalf("failed to create task: %v", err)
+			}
+		}
+
+		var runDefs TaskRunList
+		for _, run := range test.Runs {
+			runDef, err := manager.CreateTaskRun(run.Name, run.TaskID, run.Trigger)
+			if err != nil && !test.shouldError {
+				t.Fatalf("failed to create task run: %v", err)
+			}
+			runDefs = append(runDefs, runDef)
+		}
+		recvRuns, err := manager.GetAllTaskRuns()
+		if err != nil && test.shouldError {
+			return
+		} else if err != nil && !test.shouldError {
+			t.Fatalf("failed to get task by ID: %v", err)
+		} else if err == nil && test.shouldError {
+			t.Fatalf("expected error but did not receive one")
+		}
+		if !reflect.DeepEqual(recvRuns, runDefs) {
+			t.Fatalf("Expected \n%v, \ngot: \n%v", recvRuns, runDefs)
+		}
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			fn(t, tt)
+		})
+	}
+}
+
+//func TestTaskRunList_FilterByStatus(t *testing.T) {
+//	type args struct {
+//		status Status
+//	}
+//	tests := []struct {
+//		name string
+//		given  TaskRunList
+//		expected TaskRunList
+//		args args
+//	}{
+//		{"Single", []TaskRunMetadata{{Name: }}},
+//	}
+//	for _, tt := range tests {
+//		t.Run(tt.name, func(t *testing.T) {
+//			tt.given.FilterByStatus(tt.args.status)
+//		})
+//	}
+//}

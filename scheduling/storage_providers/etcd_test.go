@@ -3,7 +3,6 @@ package scheduling
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -21,22 +20,27 @@ func TestStorageProviderETCD(t *testing.T) {
 		t.Logf("could not open .env file... Checking environment: %s", err)
 	}
 
-	etcdHost, ok := os.LookupEnv("ETCD_HOST")
-	if !ok {
-		t.Fatalf("missing ETCD_HOST variable")
-	}
-	etcdPort, ok := os.LookupEnv("ETCD_PORT")
-	if !ok {
-		t.Fatalf("missing ETCD_PORT variable")
-	}
-	etcdUsername, ok := os.LookupEnv("ETCD_USERNAME")
-	if !ok {
-		t.Fatalf("missing ETCD_USERNAME variable")
-	}
-	etcdPassword, ok := os.LookupEnv("ETCD_PASSWORD")
-	if !ok {
-		t.Fatalf("missing ETCD_PASSWORD variable")
-	}
+	// etcdHost, ok := os.LookupEnv("ETCD_HOST")
+	// if !ok {
+	// 	t.Fatalf("missing ETCD_HOST variable")
+	// }
+	// etcdPort, ok := os.LookupEnv("ETCD_PORT")
+	// if !ok {
+	// 	t.Fatalf("missing ETCD_PORT variable")
+	// }
+	// etcdUsername, ok := os.LookupEnv("ETCD_USERNAME")
+	// if !ok {
+	// 	t.Fatalf("missing ETCD_USERNAME variable")
+	// }
+	// etcdPassword, ok := os.LookupEnv("ETCD_PASSWORD")
+	// if !ok {
+	// 	t.Fatalf("missing ETCD_PASSWORD variable")
+	// }
+
+	etcdHost := "localhost"
+	etcdPort := "2379"
+	etcdUsername := ""
+	etcdPassword := ""
 
 	address := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
 

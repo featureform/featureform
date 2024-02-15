@@ -337,14 +337,30 @@ func (tm *TaskManager) GetAllTaskRuns() (TaskRunList, error) {
 }
 
 // Write Methods
-func (t *TaskManager) SetRunStatus(id TaskRunID, status Status, err error) error {
-	// we will need task id as well
-	return fmt.Errorf("Not implemented")
-}
+func (t *TaskManager) SetRunStatus(runID TaskRunID, id TaskID, status Status, err error) error {
+	if id == 0 {
+		return fmt.Errorf("invalid run id")
+	}
+	if status == "" {
+		return fmt.Errorf("invalid status")
+	}
+	metadata, e := t.GetRunByID(id, runID)
+	if e != nil {
+		return fmt.Errorf("failed to fetch run: %v", e)
+	}
+	if status == Failed && err == nil {
+		return fmt.Errorf("error is required for failed status")
+	}
+	metadata.Status = status
+	metadata.Error = err.Error()
 
-func (t *TaskManager) SetRunStartTime(id TaskRunID, time time.Time) error {
-	// we will need task id as well
-	return fmt.Errorf("Not implemented")
+	serializedMetadata, e := metadata.Marshal()
+	if e != nil {
+		return fmt.Errorf("failed to marshal metadata: %v", e)
+	}
+
+	e = t.storage.Set(fmt.Sprintf("tasks/runs/metadata/%d/%s/%d/task_id=%d/run_id=%d", metadata.StartTime.Year(), metadata.StartTime.Month(), metadata.StartTime.Day(), id, metadata.ID), string(serializedMetadata))
+	return e
 }
 
 func (t *TaskManager) SetRunEndTime(id TaskRunID, time time.Time) error {

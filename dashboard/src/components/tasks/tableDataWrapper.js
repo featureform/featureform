@@ -46,53 +46,58 @@ export default function TableDataWrapper() {
   const [completeCount, setCompleteCount] = useState(0);
 
   useEffect(async () => {
-    let data = await dataAPI.getTaskRuns(searchParams);
-    //if the search are in all state. run the counts again
-    if (
-      !searchParams.searchText &&
-      !searchParams.sortBy &&
-      searchParams.status == FILTER_STATUS_ALL
-    ) {
-      if (data?.length) {
-        setAllCount(data.length);
-        setActiveCount(
-          data.filter((q) =>
-            [JOB_STATUS_PENDING, JOB_STATUS_RUNNING].includes(q?.status)
-          )?.length ?? 0
-        );
-        setCompleteCount(
-          data.filter((q) =>
-            [JOB_STATUS_FAILED, JOB_STATUS_SUCCESS].includes(q?.status)
-          )?.length ?? 0
-        );
-      } else {
-        setAllCount(0);
-        setActiveCount(0);
-        setCompleteCount(0);
+    if (loading) {
+      let data = await dataAPI.getTaskRuns(searchParams);
+      //if the search are in all state. run the counts again
+      if (
+        !searchParams.searchText &&
+        !searchParams.sortBy &&
+        searchParams.status == FILTER_STATUS_ALL
+      ) {
+        if (data?.length) {
+          setAllCount(data.length);
+          setActiveCount(
+            data.filter((q) =>
+              [JOB_STATUS_PENDING, JOB_STATUS_RUNNING].includes(q?.status)
+            )?.length ?? 0
+          );
+          setCompleteCount(
+            data.filter((q) =>
+              [JOB_STATUS_FAILED, JOB_STATUS_SUCCESS].includes(q?.status)
+            )?.length ?? 0
+          );
+        } else {
+          setAllCount(0);
+          setActiveCount(0);
+          setCompleteCount(0);
+        }
       }
+      setTaskRunList(data);
+      const timeout = setTimeout(() => {
+        setLoading(false);
+      }, 750);
+      return () => {
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+      };
     }
-    setTaskRunList(data);
-    const timeout = setTimeout(() => {
-      setLoading(false);
-    }, 750);
-    return () => {
-      if (timeout) {
-        clearTimeout(timeout);
-      }
-    };
   }, [searchParams, loading]);
 
   const handleStatusBtnSelect = (statusType = FILTER_STATUS_ALL) => {
     setSearchParams({ ...searchParams, status: statusType });
+    setLoading(true);
   };
 
   const handleSortBy = (event) => {
     let value = event?.target?.value ?? '';
     setSearchParams({ ...searchParams, sortBy: value });
+    setLoading(true);
   };
 
   const handleSearch = (searchArg = '') => {
     setSearchParams({ ...searchParams, searchText: searchArg });
+    setLoading(true);
   };
 
   const handleReloadRequest = () => {
@@ -108,6 +113,7 @@ export default function TableDataWrapper() {
       searchText: '',
     });
     setSearchQuery('');
+    setLoading(true);
   };
 
   return (
@@ -239,7 +245,14 @@ export default function TableDataWrapper() {
             />
           </FormControl>
           <IconButton size='large' onClick={handleReloadRequest}>
-            {loading ? <CircularProgress size={'.85em'} /> : <RefreshIcon />}
+            {loading ? (
+              <CircularProgress
+                size={'.85em'}
+                data-testid='circularProgressId'
+              />
+            ) : (
+              <RefreshIcon data-testid='refreshIcon' />
+            )}
           </IconButton>
           <IconButton size='large' onClick={clearInputs}>
             <ClearAllIcon />

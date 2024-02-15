@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestInitialization(t *testing.T) {
@@ -614,14 +615,6 @@ func TestSetStatusByRunID(t *testing.T) {
 			fmt.Errorf("Failed to create task"),
 			false,
 		},
-		// {
-		// 	"Fetch NonExistent",
-		// 	[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
-		// 	[]runInfo{{"name", 1, OneOffTrigger{"name"}}},
-		// 	1,
-		// 	2,
-		// 	true,
-		// },
 	}
 
 	fn := func(t *testing.T, test TestCase) {
@@ -634,13 +627,13 @@ func TestSetStatusByRunID(t *testing.T) {
 			}
 		}
 
-		var runDefs []TaskRunMetadata
+		// var runDefs []TaskRunMetadata
 		for _, run := range test.Runs {
-			runDef, err := manager.CreateTaskRun(run.Name, run.TaskID, run.Trigger)
+			_, err := manager.CreateTaskRun(run.Name, run.TaskID, run.Trigger)
 			if err != nil && !test.shouldError {
 				t.Fatalf("failed to create task run: %v", err)
 			}
-			runDefs = append(runDefs, runDef)
+			// runDefs = append(runDefs, runDef)
 		}
 
 		err := manager.SetRunStatus(test.ForRun, test.ForTask, test.SetStatus, test.SetError)
@@ -661,6 +654,130 @@ func TestSetStatusByRunID(t *testing.T) {
 		if recvStatus != test.SetStatus {
 
 			t.Fatalf("Expcted %v, got: %v", test.SetStatus, recvStatus)
+
+		}
+
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			fn(t, tt)
+		})
+	}
+}
+
+func TestSetEndTimeByRunID(t *testing.T) {
+	type taskInfo struct {
+		Name   string
+		Type   TaskType
+		Target TaskTarget
+	}
+	type runInfo struct {
+		Name    string
+		TaskID  TaskID
+		Trigger Trigger
+	}
+	type TestCase struct {
+		Name        string
+		Tasks       []taskInfo
+		Runs        []runInfo
+		ForTask     TaskID
+		ForRun      TaskRunID
+		SetTime     time.Time
+		shouldError bool
+	}
+	tests := []TestCase{
+		{
+			"Single",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{{"name", 1, OneOffTrigger{"name"}}},
+			1,
+			1,
+			time.Now().Truncate(0).UTC(),
+			false,
+		},
+		{
+			"Multiple",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+			},
+			1,
+			2,
+			time.Now().Truncate(0).UTC(),
+			false,
+		},
+		{
+			"WrongStatus",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+			},
+			1,
+			2,
+			time.Time{},
+			true,
+		},
+		{
+			"MultipleTasks",
+			[]taskInfo{
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+			},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 2, OneOffTrigger{"name"}},
+				{"name", 2, OneOffTrigger{"name"}},
+			},
+			2,
+			1,
+			time.Now().Truncate(0).UTC(),
+			false,
+		},
+	}
+
+	fn := func(t *testing.T, test TestCase) {
+		storage := MemoryStorageProvider{}
+		manager := NewTaskManager(&storage)
+		for _, task := range test.Tasks {
+			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
+			if err != nil && !test.shouldError {
+				t.Fatalf("failed to create task: %v", err)
+			}
+		}
+
+		// var runDefs []TaskRunMetadata
+		for _, run := range test.Runs {
+			_, err := manager.CreateTaskRun(run.Name, run.TaskID, run.Trigger)
+			if err != nil && !test.shouldError {
+				t.Fatalf("failed to create task run: %v", err)
+			}
+			// runDefs = append(runDefs, runDef)
+		}
+
+		err := manager.SetRunEndTime(test.ForRun, test.ForTask, test.SetTime)
+		if err != nil && test.shouldError {
+			return
+		} else if err != nil && !test.shouldError {
+			t.Fatalf("failed to set status correctly: %v", err)
+		} else if err == nil && test.shouldError {
+			t.Fatalf("expected error but did not receive one")
+		}
+
+		recvRun, err := manager.GetRunByID(test.ForTask, test.ForRun)
+		if err != nil {
+			t.Fatalf("failed to get run by ID %d: %v", test.ForTask, err)
+		}
+		recvEndTime := recvRun.EndTime
+
+		if recvEndTime != test.SetTime {
+
+			t.Fatalf("Expcted %v, got: %v", test.SetTime, recvEndTime)
 
 		}
 

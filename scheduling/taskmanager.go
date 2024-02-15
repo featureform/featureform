@@ -341,8 +341,8 @@ func (t *TaskManager) SetRunStatus(runID TaskRunID, id TaskID, status Status, er
 	if id == 0 {
 		return fmt.Errorf("invalid run id: %d", id)
 	}
-	if status == "" {
-		return fmt.Errorf("empty status")
+	if status == "" || (status != Success && status != Failed && status != Pending && status != Running) {
+		return fmt.Errorf("unknown status: %s", status)
 	}
 	metadata, e := t.GetRunByID(id, runID)
 	if e != nil {
@@ -352,7 +352,11 @@ func (t *TaskManager) SetRunStatus(runID TaskRunID, id TaskID, status Status, er
 		return fmt.Errorf("error is required for failed status")
 	}
 	metadata.Status = status
-	metadata.Error = err.Error()
+	if err == nil {
+		metadata.Error = ""
+	} else {
+		metadata.Error = err.Error()
+	}
 
 	serializedMetadata, e := metadata.Marshal()
 	if e != nil {

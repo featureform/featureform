@@ -1533,6 +1533,24 @@ func replaceTags(resourceTypeParam string, currentResource metadata.Resource, ne
 	return nil
 }
 
+// todox: eventually remove
+func CreateDummyTaskRuns(count int) {
+	taskDefinitionStaticList = []TaskDefinition{
+		{ID: 0, Name: "Test_job", Type: "Source", Provider: "Spark", Resource: "per_balance"},
+		{ID: 1, Name: "Nicole_Puppers", Type: "Source", Provider: "Postgres", Resource: "per_balance2"},
+		{ID: 2, Name: "Sandbox_Test", Type: "Source", Provider: "Spark", Resource: "avg_transactions"},
+		{ID: 3, Name: "Production_flow", Type: "Source", Provider: "Databricks", Resource: "speed_dating"},
+		{ID: 4, Name: "MySQL Task", Type: "Source", Provider: "MySql", Resource: "mysql_test_resource"},
+	}
+	taskRunStaticList = []TaskRunResponse{}
+	dummyStates := []string{"SUCCESS", "FAILED", "PENDING", "RUNNING"}
+	for i := 0; i < count; i++ {
+		status := dummyStates[rand.Intn(len(dummyStates))]
+		runTime := time.Now()
+		taskRunStaticList = append(taskRunStaticList, (createTaskRun(i, status, runTime)))
+	}
+}
+
 func createTaskRun(id int, status string, lastRunTime time.Time) TaskRunResponse {
 
 	//todox: check against existing task definitions list
@@ -1579,13 +1597,6 @@ type TaskDefinition struct {
 	Variant  string `json:"variant"`
 }
 
-type TaskRunsGetBody struct {
-	Status     string `json:"status"`
-	SearchText string `json:"searchtext"`
-	SortBy     string `json:"sortBy"`
-	ThrowError string `json:"throwErro"`
-}
-
 type TaskRunResponse struct {
 	ID          string    `json:"id"`
 	TaskID      int       `json:"taskId"`
@@ -1599,8 +1610,14 @@ type TaskRunResponse struct {
 	TriggeredBy string    `json:"triggeredBy"`
 }
 
+type TaskRunsPostBody struct {
+	Status     string `json:"status"`
+	SearchText string `json:"searchtext"`
+	SortBy     string `json:"sortBy"`
+}
+
 func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
-	var requestBody TaskRunsGetBody
+	var requestBody TaskRunsPostBody
 	if err := c.BindJSON(&requestBody); err != nil {
 		fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -1736,23 +1753,7 @@ func main() {
 	if err != nil {
 		logger.Panicw("Failed to create new meil search", err)
 	}
-
-	// todox: mock the task definitions for now
-	taskDefinitionStaticList = []TaskDefinition{
-		{ID: 0, Name: "Test_job", Type: "Source", Provider: "Spark", Resource: "per_balance"},
-		{ID: 1, Name: "Nicole_Puppers", Type: "Source", Provider: "Postgres", Resource: "per_balance2"},
-		{ID: 2, Name: "Sandbox_Test", Type: "Source", Provider: "Spark", Resource: "avg_transactions"},
-		{ID: 3, Name: "Production_flow", Type: "Source", Provider: "Databricks", Resource: "speed_dating"},
-		{ID: 4, Name: "MySQL Task", Type: "Source", Provider: "MySql", Resource: "mysql_test_resource"},
-	}
-	taskRunStaticList = []TaskRunResponse{}
-	dummyStates := []string{"SUCCESS", "FAILED", "PENDING", "RUNNING"}
-	for i := 0; i < 360; i++ {
-		status := dummyStates[rand.Intn(len(dummyStates))]
-		runTime := time.Now()
-		taskRunStaticList = append(taskRunStaticList, (createTaskRun(i, status, runTime)))
-	}
-
+	CreateDummyTaskRuns(360)
 	SearchClient = sc
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	logger.Infof("Looking for metadata at: %s\n", metadataAddress)

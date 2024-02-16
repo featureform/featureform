@@ -40,7 +40,7 @@ func MockJsonGet(c *gin.Context, params gin.Params) {
 	c.Request.Body = io.NopCloser(bytes.NewBuffer(jsonValue))
 }
 
-func MockJsonPost(c *gin.Context, params gin.Params, tagList []string) {
+func MockJsonTagPost(c *gin.Context, params gin.Params, tagList []string) {
 	c.Request.Method = "POST"
 	c.Request.Header.Set("Content-Type", "application/json")
 	postBody := TagPostBody{
@@ -48,6 +48,14 @@ func MockJsonPost(c *gin.Context, params gin.Params, tagList []string) {
 		Variant: "default",
 	}
 	jsonValue, _ := json.Marshal(postBody)
+	c.Request.Body = io.NopCloser(bytes.NewBuffer(jsonValue))
+	c.Params = params
+}
+
+func MockJsonTaskPost(c *gin.Context, params gin.Params, body TaskRunsPostBody) {
+	c.Request.Method = "POST"
+	c.Request.Header.Set("Content-Type", "application/json")
+	jsonValue, _ := json.Marshal(body)
 	c.Request.Body = io.NopCloser(bytes.NewBuffer(jsonValue))
 	c.Params = params
 }
@@ -88,7 +96,7 @@ func TestPostTags(t *testing.T) {
 		},
 	}
 
-	MockJsonPost(ctx, params, tagList)
+	MockJsonTagPost(ctx, params, tagList)
 
 	res := metadata.ResourceID{
 		Name:    name,
@@ -271,4 +279,30 @@ func TestGetSourceFaultyOrNilGrpcClientPanic(t *testing.T) {
 	}
 
 	assert.Panics(t, didPanic)
+}
+
+func TestGetTaskRuns(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	body := TaskRunsPostBody{
+		Status:     "ALL",
+		SearchText: "",
+		SortBy:     "",
+	}
+	MockJsonTaskPost(ctx, nil, body)
+
+	logger := zap.NewExample().Sugar()
+	client := &metadata.Client{}
+	serv := MetadataServer{
+		client: client,
+		logger: logger,
+	}
+	CreateDummyTaskRuns(50)
+	serv.GetTaskRuns(ctx)
+
+	var data []TaskRunResponse
+	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
+
+	assert.Equal(t, http.StatusOK, mockRecorder.Code)
+	assert.Greater(t, len(data), 2)
 }

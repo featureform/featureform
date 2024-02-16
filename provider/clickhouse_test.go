@@ -83,6 +83,10 @@ func createClickHouseDatabase(c pc.ClickHouseConfig) error {
 	if err != nil {
 		return err
 	}
+	return createDatabases(c, conn)
+}
+
+func createDatabases(c pc.ClickHouseConfig, conn *sql.DB) error {
 	if _, err := conn.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", sanitizeCH(c.Database))); err != nil {
 		return err
 	}
@@ -90,4 +94,62 @@ func createClickHouseDatabase(c pc.ClickHouseConfig) error {
 		return err
 	}
 	return nil
+}
+
+func TestSplit(t *testing.T) {
+	var clickHouseConfig = pc.ClickHouseConfig{
+		Host:     "127.0.0.1",
+		Port:     uint16(9000),
+		Username: "default",
+		Password: "",
+		Database: "ff",
+		SSL:      false,
+	}
+
+	store, err := NewClickHouseOfflineStore(clickHouseConfig.Serialize())
+	if err != nil {
+		fmt.Printf("could not initialize store: %s\n", err)
+	}
+
+	store.CreateTrainingSet()
+	split, err := store.CreateTrainingTestSplit("featureform_trainingset__fraussdstss1ss12233__hi", .5)
+	if err != nil {
+		t.Fatalf("could not create split: %s\n", err)
+	}
+	fmt.Printf("split: %v\n", split)
+
+	resourceId := ResourceID{
+		Name:    "fraussdstss1ss12233",
+		Variant: "hi",
+		Type:    TrainingSet,
+	}
+	train, test, err := store.GetTrainingSetTestSplit(resourceId, .5)
+	if err != nil {
+		t.Fatalf("could not get split: %s\n", err)
+	}
+	// loop through train
+	var trainCount int
+	for train.Next() {
+		// print features and labels
+		t.Logf("features %v and labels %v\n", train.Features(), train.Label())
+		trainCount++
+	}
+	t.Logf("train count: %d", trainCount)
+
+	// loop through test
+	var testCount int
+	for test.Next() {
+		// print features and labels
+		t.Logf("features %v and labels %v\n", test.Features(), test.Label())
+		testCount++
+	}
+	t.Logf("test count: %d", testCount)
+
+	health, err := store.CheckHealth()
+	if err != nil {
+		t.Fatalf("health check failed: %s", err)
+	}
+	if !health {
+		t.Fatalf("health check failed")
+	}
 }

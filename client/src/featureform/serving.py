@@ -27,6 +27,8 @@ from .enums import FileFormat, ResourceType
 
 from .resources import Model, SourceType, ComputationMode
 from .tls import insecure_channel, secure_channel
+
+# from .training_test_split import TrainingSetTestSplit
 from .version import check_up_to_date
 
 
@@ -346,100 +348,6 @@ class TrainingSetStream(Iterator):
         self._iter = self._stub.TrainingData(self._req)
 
 
-class TestSplitIterator(Iterator):
-    def __init__(self, stub, name, version, model: Union[str, Model] = None):
-        self.name = name
-        self.version = version
-        if model is not None:
-            self.model.name = model if isinstance(model, str) else model.name
-        self.test_size = 0.25
-        self.shuffle = True
-        self.request_type = serving_pb2.RequestType.INITIALIZE
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        req = serving_pb2.GetTrainingTestSplitRequest()
-        req.id.name = self.name
-        req.id.version = self.version
-        req.model = self.model
-        req.test_size = self.test_size
-        req.shuffle = self.shuffle
-        req.request_type = serving_pb2.RequestType.INITIALIZE
-
-        return req
-
-
-class TrainingTestSplitStream(Iterator):
-    def __init__(self, train_iter, test_iter):
-        try:
-            response = next(self._iter)
-            print("First response:", response)
-
-            # Check if the response indicates initialization success
-            if hasattr(response, "initialized") and response.initialized:
-                print("Initialization successful")
-            else:
-                print("Initialization failed or response lacks 'initialized' field")
-        except StopIteration:
-            print("No response received from the server.")
-        except Exception as e:
-            print(f"Error receiving the response: {e}")
-            raise
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        return Row(next(self._iter))
-
-    def restart(self):
-        self._iter = self._stub.GetTrainingTestSplit(iter([self._req]))
-
-
-class TrainingTestSplitStream(Iterator):
-    def __init__(self, stub, name, version, model: Union[str, Model] = None):
-        req = serving_pb2.GetTrainingTestSplitRequest()
-        req.id.name = name
-        req.id.version = version
-        if model is not None:
-            req.model.name = model if isinstance(model, str) else model.name
-        req.test_size = 0.25
-        req.shuffle = True
-        req.request_type = serving_pb2.RequestType.INITIALIZE
-        self.name = name
-        self.version = version
-        self._stub = stub
-        self._req = req
-
-        # self._iter = stub.GetTrainingTestSplit(self._req)
-
-        try:
-            response = next(self._iter)
-            print("First response:", response)
-
-            # Check if the response indicates initialization success
-            if hasattr(response, "initialized") and response.initialized:
-                print("Initialization successful")
-            else:
-                print("Initialization failed or response lacks 'initialized' field")
-        except StopIteration:
-            print("No response received from the server.")
-        except Exception as e:
-            print(f"Error receiving the response: {e}")
-            raise
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        return Row(next(self._iter))
-
-    def restart(self):
-        self._iter = self._stub.GetTrainingTestSplit(iter([self._req]))
-
-
 class LocalStream:
     def __init__(self, datalist, include_label_timestamp):
         self._datalist = datalist
@@ -637,7 +545,7 @@ class Batch:
 #             await self.response_queue.put(response)
 
 
-class TestTrainIterator:
+class TrainingSetSplitIterator:
     def __init__(
         self,
         req_queue: queue.Queue,
@@ -686,23 +594,25 @@ class TestTrainIterator:
         self.req_queue.put(req)
 
         next1 = next(self.resp_stream)
+        if next1.iterator_done:
+            raise StopIteration
         return Row(next1.row)
 
 
-class TSSplitIterator:
+class TrainingSetTestSplit:
     """
-    Returns two datasets one for each iterator
+    Returns two iterators, one for the training set and one for the test set, in that order
     """
 
     def __init__(
         self,
         stub,
-        name,
-        version,
-        test_size,
-        train_size,
-        shuffle,
-        random_state,
+        name: str,
+        version: str,
+        test_size: float,
+        train_size: float,
+        shuffle: bool,
+        random_state: int,
         model: Union[str, Model] = None,
     ):
         self.name = name
@@ -737,11 +647,12 @@ class TSSplitIterator:
 
     def split(self):
         response_stream = self.stub.GetTrainingTestSplit(self.request_generator())
-        # verify initialization response
+        # verify initialization response # TODO: don't think we need this
         init_response = next(response_stream)
         if not init_response.initialized:
             raise ValueError("Failed to initialize training test split")
-        self.test_iter = TestTrainIterator(
+
+        self.test_iter = TrainingSetSplitIterator(
             req_queue=self.req_queue,
             resp_queue=self.resp_queue,
             resp_stream=response_stream,
@@ -754,7 +665,7 @@ class TSSplitIterator:
             shuffle=self.shuffle,
             random_state=self.random_state,
         )
-        self.train_iter = TestTrainIterator(
+        self.train_iter = TrainingSetSplitIterator(
             req_queue=self.req_queue,
             resp_queue=self.resp_queue,
             resp_stream=response_stream,
@@ -768,7 +679,7 @@ class TSSplitIterator:
             random_state=self.random_state,
         )
 
-        return self.test_iter, self.train_iter
+        return self.train_iter, self.test_iter
 
 
 class Dataset:
@@ -791,21 +702,7 @@ class Dataset:
         random_state: Union[int, None] = None,
         shuffle: bool = True,
     ):
-        if test_size > 1 or test_size < 0:
-            raise ValueError("test_size must be between 0 and 1")
-
-        if train_size > 1 or train_size < 0:
-            raise ValueError("train_size must be between 0 and 1")
-
-        if test_size != 0 and train_size != 0:
-            if test_size + train_size != 1:
-                raise ValueError("test_size + train_size must equal 1")
-
-        if test_size == 0 and train_size != 0:
-            test_size = 1 - train_size
-
-        if test_size != 0 and train_size == 0:
-            train_size = 1 - test_size
+        test_size, train_size = self.validate_test_size(test_size, train_size)
 
         name = self._stream.name
         variant = self._stream.version
@@ -814,7 +711,7 @@ class Dataset:
         if random_state is None:
             random_state = 0
 
-        test, train = TSSplitIterator(
+        train, test = TrainingSetTestSplit(
             stub=stub,
             name=name,
             version=variant,
@@ -825,47 +722,22 @@ class Dataset:
             random_state=random_state,
         ).split()
 
-        return test, train
+        return train, test
 
-    def _for_training_test_split(
-        self,
-        training_set_name,
-        version,
-        model: Union[str, Model] = None,
-        test_size=0.25,
-        train_size=0.75,
-        shuffle=True,
-        random_state=None,
-    ):
-        """Split the dataset into a training set and a test set.
-
-        Args:
-            test_size (float): The proportion of the dataset to include in the test split.
-            train_size (float): The proportion of the dataset to include in the train split.
-            shuffle (bool): Whether or not to shuffle the data before splitting.
-            random_state (int): The seed used by the random number generator.
-
-        Returns:
-            train_set (Dataset): The training set.
-            test_set (Dataset): The test set.
-        """
-        if test_size + train_size != 1:
-            raise ValueError("test_size + train_size must equal 1")
-
-        # print("HELLO")
-        # training_test_split_stream = TrainingTestSplitStream(
-        #     self._stream, training_set_name, version, model
-        # )
-
-        # test, train = TSSplitIterator(
-        #     self._stream, training_set_name, version, model
-        # ).split()
-
-        test, train = TSSplitIterator(
-            self._stream, training_set_name, version, model, shuffle, random_state
-        ).split()
-
-        return test, train
+    @staticmethod
+    def validate_test_size(test_size, train_size):
+        if test_size > 1 or test_size < 0:
+            raise ValueError("test_size must be between 0 and 1")
+        if train_size > 1 or train_size < 0:
+            raise ValueError("train_size must be between 0 and 1")
+        if test_size != 0 and train_size != 0:
+            if test_size + train_size != 1:
+                raise ValueError("test_size + train_size must equal 1")
+        if test_size == 0 and train_size != 0:
+            test_size = 1 - train_size
+        if test_size != 0 and train_size == 0:
+            train_size = 1 - test_size
+        return test_size, train_size
 
     def dataframe(self, spark_session=None):
         """Returns the training set as a Pandas DataFrame or Spark DataFrame.
@@ -1197,7 +1069,3 @@ class FeatureSetRow:
 
     def __repr__(self):
         return "Features: {} , Entity: {}".format(self.features(), self.entity())
-
-
-# Create a featureset row class
-# modify restart

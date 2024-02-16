@@ -4478,7 +4478,8 @@ func testTrainTestSplit(t *testing.T, store OfflineStore) {
 
 	testSplit := func(t *testing.T, store OfflineStore, params TestParameters) {
 		id := setupTable(t, store)
-		trainIter, testIter, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState)
+		trainIter, testIter, closeFunc, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState)
+		defer closeFunc()
 		if err != nil {
 			t.Fatalf("failed to fetch train test split iterators: %v", err)
 		}

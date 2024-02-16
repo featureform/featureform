@@ -287,7 +287,7 @@ type OfflineStore interface {
 	CreateTrainingSet(TrainingSetDef) error
 	UpdateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
-	GetTrainingSetTestSplit(id ResourceID, testSize float64, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, error)
+	GetTrainingSetTestSplit(id ResourceID, testSize float64, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, func() error, error)
 	Close() error
 	ResourceLocation(id ResourceID) (string, error)
 	Provider

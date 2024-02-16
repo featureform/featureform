@@ -4501,13 +4501,13 @@ func testTrainTestSplit(t *testing.T, store OfflineStore) {
 
 	testShuffle := func(t *testing.T, store OfflineStore, params TestParameters) {
 		id := setupTable(t, store)
-		trainIter, testIter, closeFunc, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState)
-		defer closeFunc()
+		trainIter, testIter, _, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState)
+		//defer closeFunc()
 		if err != nil {
 			t.Fatalf("failed to fetch train test split iterators: %v", err)
 		}
-		trainIter2, testIter2, closeFunc, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState2)
-		defer closeFunc()
+		trainIter2, testIter2, _, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState2)
+		//defer closeFunc()
 		if err != nil {
 			t.Fatalf("failed to fetch second train test split iterators: %v", err)
 		}

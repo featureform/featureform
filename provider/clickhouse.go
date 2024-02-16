@@ -1059,7 +1059,7 @@ func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
 		return nil, nil, nil, fmt.Errorf("could not query train set: %v", err)
 	}
 	colTypes, err := store.getValueColumnTypes(trainingTestSplitName)
-	fmt.Printf("these are the column types: %v", colTypes)
+	fmt.Printf("these are the column types: %v\n", colTypes)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("could not get column types: %v", err)
 	}
@@ -1130,7 +1130,7 @@ func (q clickhouseSQLQueries) registerResources(db *sql.DB, tableName string, sc
 		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, toDateTime64(0, 9) AS ts FROM %s", sanitizeCH(tableName),
 			sanitizeCH(schema.Entity), sanitizeCH(schema.Value), sanitizeCH(schema.SourceTable))
 	}
-	fmt.Printf("Resource creation query: %s", query)
+	fmt.Printf("Resource creation query: %s\n", query)
 	if _, err := db.Exec(query); err != nil {
 		return err
 	}

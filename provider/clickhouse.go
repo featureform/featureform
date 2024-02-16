@@ -891,25 +891,25 @@ func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
 	// Create view name
 	trainingSetSplitView := fmt.Sprintf("%s_split", trainingSetTable)
 
-	//// Determine ordering for the row_number based on shuffle parameter
-	//orderByClause := ""
-	//if shuffle {
-	//	// Use a fixed seed in combination with rand() to ensure reproducibility when shuffle is true
-	//	orderByClause = fmt.Sprintf("ORDER BY rand(%d)", randomState)
-	//} else {
-	//	// No specific order; could default to primary key or any other column for deterministic output
-	//	orderByClause = ""
-	//}
+	// Determine ordering for the row_number based on shuffle parameter
+	orderByClause := ""
+	if shuffle {
+		// Use a fixed seed in combination with rand() to ensure reproducibility when shuffle is true
+		orderByClause = fmt.Sprintf("ORDER BY rand(%d)", randomState)
+	} else {
+		// No specific order; could default to primary key or any other column for deterministic output
+		orderByClause = ""
+	}
 
 	// Query to create an intermediary view that includes a row number
 	intermediaryView := fmt.Sprintf("%s_with_row_number", trainingSetTable)
 	createIntermediaryViewQuery := fmt.Sprintf(`
         CREATE VIEW IF NOT EXISTS %s AS
-        SELECT *, row_number() OVER () AS rn
+        SELECT *, row_number() OVER (%s) AS rn
         FROM %s
     `,
 		sanitizeCH(intermediaryView),
-		//orderByClause,
+		orderByClause,
 		sanitizeCH(trainingSetTable),
 	)
 

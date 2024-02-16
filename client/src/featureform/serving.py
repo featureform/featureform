@@ -213,9 +213,6 @@ class HostedClientImpl:
         training_set_stream = TrainingSetStream(self._stub, name, variation, model)
         return Dataset(training_set_stream)
 
-    def training_set_test_split(self, name, variation, model: Union[str, Model] = None):
-        return Dataset(self._stub)._for_training_test_split(name, variation, model)
-
     def features(
         self, features, entities, model: Union[str, Model] = None, params: list = None
     ):
@@ -444,105 +441,6 @@ class Batch:
                 return rows
         return rows
 
-
-# class AsyncTestTrainIterator:
-#     def __init__(
-#         self, request_queue, response_queue, request_type, name, version, model
-#     ):
-#         self.name = name
-#         self.version = version
-#         self.model = model
-#         self.test_size = 0.25
-#         self.shuffle = True
-#         self._request_type = request_type
-#
-#         self.request_queue = request_queue
-#         self.response_queue = response_queue
-#
-#     def __aiter__(self):
-#         return self
-#
-#     async def __anext__(self):
-#         req = serving_pb2.GetTrainingTestSplitRequest()
-#         req.id.name = self.name
-#         req.id.version = self.version
-#
-#         if self.model is not None:
-#             req.model.name = (
-#                 self.model if isinstance(self.model, str) else self.model.name
-#             )
-#         req.model = self.model
-#         req.test_size = self.test_size
-#         req.shuffle = self.shuffle
-#         req.request_type = self._request_type
-#
-#         self.request_queue.put(req)
-#
-#         if self.response_queue.empty():
-#             await asyncio.sleep(
-#                 0.1
-#             )  # Briefly yield control to allow queue to be filled
-#         if not self.response_queue.empty():
-#             return await Row(self.response_queue.get())
-#         else:
-#             raise StopAsyncIteration
-#
-#
-# class AsyncTestTrainSplit:
-#     def __init__(
-#         self,
-#         stub,
-#         name,
-#         version,
-#         model: Union[str, Model] = None,
-#     ):
-#         self.name = name
-#         self.version = version
-#         self.model = model
-#         self.train_iter = None
-#         self.test_iter = None
-#         self._stream = None
-#
-#         self.stub = stub
-#         self.request_queue = asyncio.Queue()
-#         self.response_queue = asyncio.Queue()
-#
-#     async def request_generator(self):
-#         while True:
-#             if not self.request_queue.empty():
-#                 request = await self.request_queue.get()
-#                 yield request
-#             else:
-#                 await asyncio.sleep(0.1)  # Avoid tight loop if no requests are queued
-#
-#     async def __call__(self):
-#         stream = self.stub.GetTrainingTestSplit(self.request_generator())
-#
-#         train_iterator = AsyncTestTrainIterator(
-#             request_queue=self.request_queue,
-#             response_queue=self.response_queue,
-#             request_type=serving_pb2.RequestType.TEST,
-#             name=self.name,
-#             version=self.version,
-#             model=self.model,
-#         )
-#         test_iterator = AsyncTestTrainIterator(
-#             request_queue=self.request_queue,
-#             response_queue=self.response_queue,
-#             request_type=serving_pb2.RequestType.TRAINING,
-#             name=self.name,
-#             version=self.version,
-#             model=self.model,
-#         )
-#
-#         # Start a task to listen for responses
-#         asyncio.create_task(self.fetch_responses(stream))
-#
-#         return train_iterator, test_iterator
-#
-#     async def fetch_responses(self, stream):
-#         async for response in stream:
-#             await self.response_queue.put(response)
 
 
 class TrainingSetSplitIterator:

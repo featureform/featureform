@@ -891,19 +891,27 @@ func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
 	// Create view name
 	trainingSetSplitView := fmt.Sprintf("%s_split", trainingSetTable)
 
+	// Determine ordering for the row_number based on shuffle parameter
+	orderByClause := ""
+	if shuffle {
+		// Use a fixed seed in combination with rand() to ensure reproducibility when shuffle is true
+		orderByClause = fmt.Sprintf("ORDER BY rand(%d)", randomState)
+	} else {
+		// No specific order; could default to primary key or any other column for deterministic output
+		orderByClause = "ORDER BY (SELECT NULL)"
+	}
+
 	// Query to create an intermediary view that includes a row number
 	intermediaryView := fmt.Sprintf("%s_with_row_number", trainingSetTable)
 	createIntermediaryViewQuery := fmt.Sprintf(`
         CREATE VIEW IF NOT EXISTS %s AS
-        SELECT *, row_number() OVER () AS rn
+        SELECT *, row_number() OVER (%s) AS rn
         FROM %s
     `,
 		sanitizeCH(intermediaryView),
+		orderByClause,
 		trainingSetTable,
 	)
-
-	// Print the intermediary view creation query for debugging
-	fmt.Println("Create Intermediary View Query: ", createIntermediaryViewQuery)
 
 	// Execute the query to create the intermediary view
 	if _, err := store.db.Exec(createIntermediaryViewQuery); err != nil {
@@ -1026,15 +1034,14 @@ func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
 		features = append(features, sanitizeCH(name.Name))
 	}
 	columns := strings.Join(features[:], ", ")
-	// assume clickhousequery
-	clickHouseQuery, ok := store.query.(*clickhouseSQLQueries)
-	if !ok {
-		return nil, nil, nil, fmt.Errorf("could not cast to clickhouse query")
-	}
+	//clickHouseQuery, ok := store.query.(*clickhouseSQLQueries)
+	//if !ok {
+	//	return nil, nil, nil, fmt.Errorf("could not cast to clickhouse query")
+	//}
 	// add is_test column to columns
 	// columns += ", is_test"
 	fmt.Println("this is the training set split name", sanitizeCH(trainingTestSplitName))
-	train, test := clickHouseQuery.trainingRowSplitSelect(columns, sanitizeCH(trainingTestSplitName))
+	train, test := store.query.trainingRowSplitSelect(columns, sanitizeCH(trainingTestSplitName))
 	fmt.Printf("Training Set Query: %s\n", train)
 	fmt.Printf("Test Set Query: %s\n", test)
 	testRows, err := store.db.Query(test)
@@ -1056,7 +1063,6 @@ func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("could not get column types: %v", err)
 	}
-	fmt.Printf("THERE IS NO ERROR")
 	// return func to drop views
 	dropFunc := func() error {
 		// two queries to drop split and row number table

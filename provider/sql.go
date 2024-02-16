@@ -59,7 +59,7 @@ type OfflineTableQueries interface {
 	trainingSetCreate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error
 	trainingSetUpdate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error
 	trainingRowSelect(columns string, trainingSetName string) string
-	//trainingRowSplitSelect(columns string, trainingSetName string) (string, string)
+	trainingRowSplitSelect(columns string, trainingSetName string) (string, string)
 	castTableItemType(v interface{}, t interface{}) interface{}
 	getValueColumnType(t *sql.ColumnType) interface{}
 	numRows(n interface{}) (int64, error)

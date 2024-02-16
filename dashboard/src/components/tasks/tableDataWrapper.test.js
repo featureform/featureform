@@ -5,7 +5,6 @@ import 'jest-canvas-mock';
 import React from 'react';
 import TEST_THEME from '../../styles/theme';
 import TableDataWrapper from './tableDataWrapper';
-import TaskRunCard from './taskRunCard';
 import { taskCardDetailsResponse, taskRunsResponse } from './test_data';
 
 const dataAPIMock = {
@@ -91,27 +90,10 @@ describe('Task table data wrapper tests', () => {
     // when:
     const foundRefreshBtn = await helper.findByTestId(REFRESH_ICON_ID);
     fireEvent.click(foundRefreshBtn);
-    jest.advanceTimersByTime(2000);
+    jest.advanceTimersByTime(1500);
     await helper.findByTestId(REFRESH_ICON_ID);
 
     //then: the api is invoked twice. on initial load and refresh
     expect(dataAPIMock.getTaskRuns).toHaveBeenCalledTimes(2);
-  });
-
-  test.only('Basic task card detail render', async () => {
-    //given:
-    const taskRunId = taskCardDetailsResponse.id;
-    const helper = render(
-      <TaskRunCard handleClose={jest.fn()} searchId={taskRunId} />
-    );
-
-    //when:
-    const foundName = await helper.findByText(taskCardDetailsResponse.name);
-
-    //expect:
-    expect(dataAPIMock.getTaskRunDetails).toHaveBeenCalledTimes(1);
-    expect(dataAPIMock.getTaskRunDetails).toHaveBeenCalledWith(
-      taskCardDetailsResponse.id
-    );
   });
 });

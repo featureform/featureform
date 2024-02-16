@@ -91,7 +91,11 @@ export default function TaskRunCard({ handleClose, searchId }) {
       </Box>
       <Box style={{ float: 'right' }}>
         <IconButton variant='' size='large' onClick={handleReloadRequest}>
-          {loading ? <CircularProgress size={'.75em'} /> : <RefreshIcon />}
+          {loading ? (
+            <CircularProgress size={'.75em'} />
+          ) : (
+            <RefreshIcon data-testid='taskRunRrefreshIcon' />
+          )}
         </IconButton>
       </Box>
       <Grid style={{ padding: 12 }} container>

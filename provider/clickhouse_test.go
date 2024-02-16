@@ -96,6 +96,54 @@ func createDatabases(c pc.ClickHouseConfig, conn *sql.DB) error {
 	return nil
 }
 
+func TestTrainingSet(t *testing.T) {
+	var clickHouseConfig = pc.ClickHouseConfig{
+		Host:     "127.0.0.1",
+		Port:     uint16(9000),
+		Username: "default",
+		Password: "",
+		Database: "ff",
+		SSL:      false,
+	}
+
+	store, err := NewClickHouseOfflineStore(clickHouseConfig.Serialize())
+	if err != nil {
+		t.Fatalf("could not initialize store: %s\n", err)
+	}
+
+	tsDef := TrainingSetDef{
+		ID: ResourceID{
+			Name:    "ts_alice",
+			Variant: "v4",
+			Type:    TrainingSet,
+		},
+		Label: ResourceID{
+			Name:    "fraudulent",
+			Variant: "2024-02-16t11-11-50",
+			Type:    Label,
+		},
+		Features: []ResourceID{
+			{
+				Name:    "avg_transactions",
+				Variant: "2024-02-16t11-11-50",
+				Type:    Feature,
+			},
+		},
+		LagFeatures: nil,
+	}
+	err = store.CreateTrainingSet(tsDef)
+	if err != nil {
+		t.Fatalf("could not create training set: %s\n", err)
+	}
+	set, err := store.GetTrainingSet(tsDef.ID)
+	if err != nil {
+		return
+	}
+	for set.Next() {
+		t.Logf("features %v and labels %v\n", set.Features(), set.Label())
+	}
+}
+
 func TestSplit(t *testing.T) {
 	var clickHouseConfig = pc.ClickHouseConfig{
 		Host:     "127.0.0.1",
@@ -111,19 +159,21 @@ func TestSplit(t *testing.T) {
 		fmt.Printf("could not initialize store: %s\n", err)
 	}
 
-	store.CreateTrainingSet()
-	split, err := store.CreateTrainingTestSplit("featureform_trainingset__fraussdstss1ss12233__hi", .5)
-	if err != nil {
-		t.Fatalf("could not create split: %s\n", err)
-	}
-	fmt.Printf("split: %v\n", split)
+	//store.CreateTrainingSet()
+	//split, err := store.CreateTrainingTestSplit("featureform_trainingset__ts_alice__v4", .5, false, 0)
+	//if err != nil {
+	//	t.Fatalf("could not create split: %s\n", err)
+	//}
+	//fmt.Printf("split: %v\n", split)
 
 	resourceId := ResourceID{
-		Name:    "fraussdstss1ss12233",
-		Variant: "hi",
+		Name:    "ts_alice",
+		Variant: "v4",
 		Type:    TrainingSet,
 	}
-	train, test, err := store.GetTrainingSetTestSplit(resourceId, .5)
+	train, test, _, err := store.GetTrainingSetTestSplit(resourceId, .5)
+	//defer closeFunc()
+
 	if err != nil {
 		t.Fatalf("could not get split: %s\n", err)
 	}

@@ -121,7 +121,8 @@ func (serv *FeatureServer) GetTrainingTestSplit(stream pb.Feature_GetTrainingTes
 				},
 			}
 
-			train, test, err := serv.getTrainingSetTestSplitIterator(name, variant, req.TestSize)
+			train, test, dropFunc, err := serv.getTrainingSetTestSplitIterator(name, variant, req.TestSize)
+			defer dropFunc()
 			fmt.Println("making sure train is not nil: ", train)
 			finalTest = test
 			finalTrain = train
@@ -285,32 +286,32 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
 }
 
-func (serv *FeatureServer) getTrainingSetTestSplitIterator(name, variant string, testSize float32) (provider.TrainingSetIterator, provider.TrainingSetIterator, error) {
+func (serv *FeatureServer) getTrainingSetTestSplitIterator(name, variant string, testSize float32) (provider.TrainingSetIterator, provider.TrainingSetIterator, func() error, error) {
 	ctx := context.TODO()
 	serv.Logger.Infow("Getting Training Set Iterator", "name", name, "variant", variant)
 	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{name, variant})
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "could not get training set variant")
+		return nil, nil, nil, errors.Wrap(err, "could not get training set variant")
 	}
 	serv.Logger.Debugw("Fetching Training Set Provider", "name", name, "variant", variant)
 	providerEntry, err := ts.FetchProvider(serv.Metadata, ctx)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "could not get fetch provider")
+		return nil, nil, nil, errors.Wrap(err, "could not get fetch provider")
 	}
 	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "could not get provider")
+		return nil, nil, nil, errors.Wrap(err, "could not get provider")
 	}
 	store, err := p.AsOfflineStore()
 	if err != nil {
 		// This means that the provider of the training set isn't an offline store.
 		// That shouldn't be possible.
-		return nil, nil, errors.Wrap(err, "could not open as offline store")
+		return nil, nil, nil, errors.Wrap(err, "could not open as offline store")
 	}
 	// assume clickhouse store
 	clickhouseStore, ok := store.(*provider.ClickHouseOfflineStore)
 	if !ok {
-		return nil, nil, errors.New("store is not a clickhouse store")
+		return nil, nil, nil, errors.New("store is not a clickhouse store")
 	}
 	return clickhouseStore.GetTrainingSetTestSplit(provider.ResourceID{Name: name, Variant: variant}, testSize)
 }

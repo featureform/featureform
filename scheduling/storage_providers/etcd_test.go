@@ -6,18 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/joho/godotenv"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 func TestStorageProviderETCD(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
-	}
-
-	err := godotenv.Load("../../.env")
-	if err != nil {
-		t.Logf("could not open .env file... Checking environment: %s", err)
 	}
 
 	etcdHost := "localhost"
@@ -36,7 +30,7 @@ func TestStorageProviderETCD(t *testing.T) {
 
 	client, err := clientv3.New(etcdConfig)
 	if err != nil {
-		panic(err)
+		t.Fatalf("Error creating etcd client: %v", err)
 	}
 
 	storage := NewETCDStorageProvider(client, context.Background())

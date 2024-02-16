@@ -1235,7 +1235,7 @@ func (store *bqOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator,
 }
 
 func (store *bqOfflineStore) GetTrainingSetTestSplit(id ResourceID, testSize float64, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
-	return nil, nil, nil, nil
+	return nil, nil, nil, fmt.Errorf("not Implemented")
 }
 
 func (store *bqOfflineStore) CheckHealth() (bool, error) {

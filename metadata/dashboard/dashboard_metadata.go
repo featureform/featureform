@@ -1709,7 +1709,7 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	}
 
 	resp := TaskRunDetailResponse{
-		ID:        taskRunId,
+		ID:        taskRunResult.ID,
 		Name:      taskRunResult.Name,
 		Status:    taskRunResult.Status,
 		Logs:      "some log values",

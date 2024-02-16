@@ -307,6 +307,32 @@ func TestGetTaskRuns(t *testing.T) {
 	assert.Greater(t, len(data), 2)
 }
 
+func TestGetTaskRunsZeroResults(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	body := TaskRunsPostBody{
+		Status:     "DOES NOT EXIST",
+		SearchText: "hahaha",
+		SortBy:     "Nope",
+	}
+	MockJsonTaskPost(ctx, nil, body)
+
+	logger := zap.NewExample().Sugar()
+	client := &metadata.Client{}
+	serv := MetadataServer{
+		client: client,
+		logger: logger,
+	}
+	CreateDummyTaskRuns(50)
+	serv.GetTaskRuns(ctx)
+
+	var data []TaskRunResponse
+	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
+
+	assert.Equal(t, http.StatusOK, mockRecorder.Code)
+	assert.Equal(t, len(data), 0)
+}
+
 func TestGetTaskRunDetails(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
@@ -338,4 +364,34 @@ func TestGetTaskRunDetails(t *testing.T) {
 	assert.NotEmpty(t, data.Logs)
 	assert.NotEmpty(t, data.Details)
 	assert.NotEmpty(t, data.OtherRuns)
+}
+
+func TestGetTaskRunDetailZeroResults(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	taskRunId := "0"
+	params := []gin.Param{
+		{
+			Key:   "taskRunId",
+			Value: taskRunId,
+		},
+	}
+	MockJsonGet(ctx, params)
+
+	logger := zap.NewExample().Sugar()
+	client := &metadata.Client{}
+	serv := MetadataServer{
+		client: client,
+		logger: logger,
+	}
+	serv.GetTaskRunDetails(ctx)
+
+	var data TaskRunDetailResponse
+	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
+
+	assert.Equal(t, http.StatusOK, mockRecorder.Code)
+	assert.Empty(t, data.ID)
+	assert.Empty(t, data.Name)
+	assert.Empty(t, data.Status)
+	assert.Empty(t, data.OtherRuns)
 }

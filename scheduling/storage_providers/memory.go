@@ -5,34 +5,30 @@ import (
 	"strings"
 )
 
-type StorageProvider interface {
-	Set(key string, value string) error
-	Get(key string, prefix bool) ([]string, error)
-}
-
 type MemoryStorageProvider struct {
 	storage map[string]string
 }
 
+func NewMemoryStorageProvider() *MemoryStorageProvider {
+	return &MemoryStorageProvider{storage: make(map[string]string)}
+}
+
 func (m *MemoryStorageProvider) Set(key string, value string) error {
-	if m.storage == nil || len(m.storage) == 0 {
-		m.storage = make(map[string]string)
-	}
 	if key == "" {
-		return fmt.Errorf("key cannot be empty")
+		return fmt.Errorf("key is empty")
 	}
 	if value == "" {
-		return fmt.Errorf("value cannot be empty")
+		return fmt.Errorf("value is empty for key %s", key)
 	}
 	m.storage[key] = value
 	return nil
 }
 
 func (m *MemoryStorageProvider) Get(key string, prefix bool) ([]string, error) {
+	if key == "" {
+		return nil, fmt.Errorf("key is empty")
+	}
 	if !prefix {
-		if key == "" {
-			return nil, fmt.Errorf("key cannot be empty")
-		}
 		value, ok := m.storage[key]
 		if !ok {
 			return nil, &KeyNotFoundError{Key: key}
@@ -50,14 +46,4 @@ func (m *MemoryStorageProvider) Get(key string, prefix bool) ([]string, error) {
 		return nil, &KeyNotFoundError{Key: key}
 	}
 	return result, nil
-}
-
-// KeyNotFoundError represents an error when a key is not found.
-type KeyNotFoundError struct {
-	Key string
-}
-
-// Error returns the error message for KeyNotFoundError.
-func (e *KeyNotFoundError) Error() string {
-	return fmt.Sprintf("Key not found: %s", e.Key)
 }

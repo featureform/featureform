@@ -819,6 +819,69 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			t.Fatalf("Expcted %v, got: %v", test.SetTime, recvEndTime)
 
 		}
+    }
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			fn(t, tt)
+		})
+	}
+
+
+func TestKeyPaths(t *testing.T) {
+	type testCase struct {
+		Name        string
+		Key         Key
+		ExpectedKey string
+	}
+
+	tests := []testCase{
+		testCase{
+			Name:        "TaskMetadataKeyAll",
+			Key:         TaskMetadataKey{},
+			ExpectedKey: "/tasks/metadata/task_id=",
+		},
+		testCase{
+			Name:        "TaskMetadataKeyIndividual",
+			Key:         TaskMetadataKey{taskID: TaskID(1)},
+			ExpectedKey: "/tasks/metadata/task_id=1",
+		},
+		testCase{
+			Name:        "TaskRunKeyAll",
+			Key:         TaskRunKey{},
+			ExpectedKey: "/tasks/runs/task_id=",
+		},
+		testCase{
+			Name:        "TaskRunKeyIndividual",
+			Key:         TaskRunKey{taskID: TaskID(1)},
+			ExpectedKey: "/tasks/runs/task_id=1"},
+		testCase{
+			Name:        "TaskRunMetadataKeyAll",
+			Key:         TaskRunMetadataKey{},
+			ExpectedKey: "/tasks/runs/metadata",
+		},
+		testCase{
+			Name: "TaskRunMetadataKeyIndividual",
+			Key: TaskRunMetadataKey{
+				taskID: TaskID(1),
+				runID:  TaskRunID(1),
+				date:   time.Date(2023, time.January, 20, 23, 0, 0, 0, time.UTC),
+			},
+			ExpectedKey: "/tasks/runs/metadata/2023/01/20/task_id=1/run_id=1",
+		},
+		testCase{
+			Name: "TaskRunMetadataKeyYearOnly",
+			Key: TaskRunMetadataKey{
+				date: time.Date(2023, time.January, 20, 23, 0, 0, 0, time.UTC),
+			},
+			ExpectedKey: "/tasks/runs/metadata/2023/01/20/",
+		},
+	}
+
+	fn := func(t *testing.T, test testCase) {
+		if test.Key.String() != test.ExpectedKey {
+			t.Fatalf("Expected: %s, got: %s", test.ExpectedKey, test.Key.String())
+		}
 
 	}
 

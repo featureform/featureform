@@ -775,7 +775,7 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			},
 			2,
 			1,
-			time.Now().Add(15 * time.Second).Truncate(0).UTC(),
+			time.Now().UTC().Add(15 * time.Second).Truncate(0),
 			false,
 		},
 	}
@@ -812,21 +812,20 @@ func TestSetEndTimeByRunID(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get run by ID %d: %v", test.ForTask, err)
 		}
-		recvEndTime := recvRun.EndTime
 
-		if recvEndTime != test.SetTime {
+		if recvRun.EndTime != test.SetTime {
 
-			t.Fatalf("Expcted %v, got: %v", test.SetTime, recvEndTime)
+			t.Fatalf("expected %v, got: %v", test.SetTime, recvRun.EndTime)
 
 		}
-    }
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			fn(t, tt)
 		})
 	}
-
+}
 
 func TestKeyPaths(t *testing.T) {
 	type testCase struct {

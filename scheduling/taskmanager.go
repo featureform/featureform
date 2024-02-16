@@ -255,7 +255,7 @@ func (tm *TaskManager) CreateTaskRun(name string, taskID TaskID, trigger Trigger
 
 	TaskRunMetadataKey := TaskRunMetadataKey{taskID: taskID, runID: metadata.ID, date: startTime}
 	// TODO: should move this logic to format the date
-	dateFormatted := startTime.Format("2006/01/02")
+	_ = startTime.Format("2006/01/02")
 	err = tm.storage.Set(TaskRunMetadataKey.String(), string(serializedMetadata))
 	if err != nil {
 		return TaskRunMetadata{}, err
@@ -309,7 +309,7 @@ func (tm *TaskManager) GetRunByID(taskID TaskID, runID TaskRunID) (TaskRunMetada
 	}
 
 	date := runRecord.DateCreated
-	taskRunMetadataKey := TaskRunMetadataKey{taskID: taskID, runID: runRecord.runID, date: date}
+	taskRunMetadataKey := TaskRunMetadataKey{taskID: taskID, runID: runRecord.RunID, date: date}
 	rec, err := tm.storage.Get(taskRunMetadataKey.String(), false)
 	if err != nil {
 		return TaskRunMetadata{}, err

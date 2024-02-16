@@ -168,8 +168,9 @@ enum RequestType {
 
 message GetTrainingTestSplitResponse {
   RequestType request_type = 1;
+  bool iterator_done = 2;
   oneof training_test_split {
-    bool initialized = 2;
-    TrainingDataRow row = 3;
+    bool initialized = 3;
+    TrainingDataRow row = 4;
   }
 }

@@ -831,6 +831,7 @@ func (serv *OnlineServer) GetTrainingTestSplit(stream srv.Feature_GetTrainingTes
 			if err := clientStream.CloseSend(); err != nil {
 				return fmt.Errorf("failed to close send direction to downstream service: %w", err)
 			}
+			return nil
 		}
 		if err != nil {
 			serv.Logger.Errorw("Error receiving from client stream", "error", err)

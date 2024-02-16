@@ -84,6 +84,10 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 
 func (serv *FeatureServer) GetTrainingTestSplit(stream pb.Feature_GetTrainingTestSplitServer) error {
 
+	var finalTest, finalTrain provider.TrainingSetIterator
+	var isTestFinished = false
+	var isTrainFinished = false
+
 	for {
 		req, err := stream.Recv()
 
@@ -102,6 +106,7 @@ func (serv *FeatureServer) GetTrainingTestSplit(stream pb.Feature_GetTrainingTes
 
 		// Handle initialization request
 		if req.RequestType == pb.RequestType_INITIALIZE {
+			fmt.Println("----------------ATHIS SHOULD HAPPEN FIRST_________________________")
 			// Perform initialization based on the request
 			// For example, load the dataset, shuffle it, split into training and test sets, etc.
 			serv.Logger.Infow("Initializing dataset", "id", req.Id, "shuffle", req.Shuffle, "testSize", req.TestSize)
@@ -115,37 +120,49 @@ func (serv *FeatureServer) GetTrainingTestSplit(stream pb.Feature_GetTrainingTes
 					Initialized: true,
 				},
 			}
+
+			train, test, err := serv.getTrainingSetTestSplitIterator(name, variant, req.TestSize)
+			fmt.Println("making sure train is not nil: ", train)
+			finalTest = test
+			finalTrain = train
+			if err != nil {
+				logger.Errorw("Failed to get training set iterator", "Error", err)
+				featureObserver.SetError()
+				return err
+			}
+
 			if err := stream.Send(initResponse); err != nil {
 				serv.Logger.Errorw("Failed to send init response", "error", err)
 				featureObserver.SetError()
 				return err
 			}
 		} else {
+			fmt.Println("----------------ATHIS SHOULD HAPPEN Second_________________________")
 			logger.Info("Serving training split data")
-			if model := req.GetModel(); model != nil {
-				trainingSets := []metadata.NameVariant{{Name: name, Variant: variant}}
-				err := serv.Metadata.CreateModel(stream.Context(), metadata.ModelDef{Name: model.GetName(), Trainingsets: trainingSets})
-				if err != nil {
-					return err
-				}
-			}
-			train, test, err := serv.getTrainingSetTestSplitIterator(name, variant)
-			if err != nil {
-				logger.Errorw("Failed to get training set iterator", "Error", err)
-				featureObserver.SetError()
-				return err
-			}
-			var iter provider.TrainingSetIterator
+			//if model := req.GetModel(); model != nil {
+			//	trainingSets := []metadata.NameVariant{{Name: name, Variant: variant}}
+			//	err := serv.Metadata.CreateModel(stream.Context(), metadata.ModelDef{Name: model.GetName(), Trainingsets: trainingSets})
+			//	if err != nil {
+			//		return err
+			//	}
+			//}
+			fmt.Println("this is the test iterator", finalTest)
+			fmt.Println("this is the train iterator", finalTrain)
+
+			var thisIter provider.TrainingSetIterator
 			if reqType == pb.RequestType_TEST {
-				iter = test
+				fmt.Println("this is a test request")
+				thisIter = finalTest
 			} else if reqType == pb.RequestType_TRAINING {
-				iter = train
+				fmt.Println("this is a training request")
+				thisIter = finalTrain
 			} else {
 				return fmt.Errorf("invalid request type")
 			}
 
-			for iter.Next() {
-				sRow, err := serializedRow(iter.Features(), iter.Label())
+			if thisIter.Next() {
+				sRow, err := serializedRow(thisIter.Features(), thisIter.Label())
+				logger.Infof("sRow: %v", sRow)
 				if err != nil {
 					return err
 				}
@@ -160,14 +177,36 @@ func (serv *FeatureServer) GetTrainingTestSplit(stream pb.Feature_GetTrainingTes
 					return err
 				}
 				featureObserver.ServeRow()
+			} else {
+
+				logger.Infof("Done with iterator of request type: %v", reqType)
+
+				if reqType == pb.RequestType_TEST {
+					isTestFinished = true
+				} else if reqType == pb.RequestType_TRAINING {
+					isTrainFinished = true
+				}
+
+				if isTestFinished && isTrainFinished {
+					logger.Infof("Both iterators are finished")
+					return nil
+				} else {
+					logger.Infof("Finished with one iterator, waiting for the other")
+					if err := stream.Send(&pb.GetTrainingTestSplitResponse{
+						IteratorDone: true,
+					}); err != nil {
+						logger.Errorw("Failed to write to stream", "Error", err)
+					}
+				}
 			}
-			if err := iter.Err(); err != nil {
+
+			logger.Infof("Done with iterator of request type: %v", reqType)
+			if err := thisIter.Err(); err != nil {
 				logger.Errorw("Dataset error", "Error", err)
 				featureObserver.SetError()
 				return err
 			}
 		}
-		return nil
 	}
 }
 
@@ -246,7 +285,7 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
 }
 
-func (serv *FeatureServer) getTrainingSetTestSplitIterator(name, variant string) (provider.TrainingSetIterator, provider.TrainingSetIterator, error) {
+func (serv *FeatureServer) getTrainingSetTestSplitIterator(name, variant string, testSize float32) (provider.TrainingSetIterator, provider.TrainingSetIterator, error) {
 	ctx := context.TODO()
 	serv.Logger.Infow("Getting Training Set Iterator", "name", name, "variant", variant)
 	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{name, variant})
@@ -273,7 +312,7 @@ func (serv *FeatureServer) getTrainingSetTestSplitIterator(name, variant string)
 	if !ok {
 		return nil, nil, errors.New("store is not a clickhouse store")
 	}
-	return clickhouseStore.GetTrainingSetTestSplit(provider.ResourceID{Name: name, Variant: variant}, .2)
+	return clickhouseStore.GetTrainingSetTestSplit(provider.ResourceID{Name: name, Variant: variant}, testSize)
 }
 
 func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (provider.BatchFeatureIterator, error) {

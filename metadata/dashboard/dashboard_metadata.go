@@ -1657,7 +1657,7 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 	c.JSON(http.StatusOK, taskListResponse)
 }
 
-type TaskDetailRunResponse struct {
+type OtherRunResponse struct {
 	ID          string    `json:"id"`
 	LastRunTime time.Time `json:"lastRunTime"`
 	Status      string    `json:"status"`
@@ -1665,12 +1665,12 @@ type TaskDetailRunResponse struct {
 }
 
 type TaskDetailResponse struct {
-	ID        string                  `json:"id"`
-	Name      string                  `json:"name"`
-	Status    string                  `json:"status"`
-	Logs      string                  `json:"logs"`
-	Details   string                  `json:"details"`
-	OtherRuns []TaskDetailRunResponse `json:"otherRuns"`
+	ID        string             `json:"id"`
+	Name      string             `json:"name"`
+	Status    string             `json:"status"`
+	Logs      string             `json:"logs"`
+	Details   string             `json:"details"`
+	OtherRuns []OtherRunResponse `json:"otherRuns"`
 }
 
 func (m *MetadataServer) GetTaskDetails(c *gin.Context) {
@@ -1680,10 +1680,10 @@ func (m *MetadataServer) GetTaskDetails(c *gin.Context) {
 	taskRunResult := mockTaskRunFind(taskRunId)
 
 	//todox: create mock collect
-	otherRuns := []TaskDetailRunResponse{}
+	otherRuns := []OtherRunResponse{}
 	for _, loopRunItem := range taskRunStaticList {
 		if loopRunItem.TaskID == taskRunResult.TaskID && loopRunItem.ID != taskRunResult.ID {
-			otherRuns = append(otherRuns, TaskDetailRunResponse{
+			otherRuns = append(otherRuns, OtherRunResponse{
 				ID:          loopRunItem.ID,
 				LastRunTime: loopRunItem.LastRunTime,
 				Status:      loopRunItem.Status,

@@ -112,31 +112,27 @@ export default function TaskRunCard({ handleClose, searchId }) {
           <Typography variant='h6'>Logs/Errors</Typography>
         </Grid>
         <Grid item xs={12} justifyContent='flex-start'>
-          <Typography>
-            <TextField
-              style={{ width: '100%' }}
-              variant='filled'
-              disabled
-              value={taskRunRecord.logs}
-              multiline
-              minRows={3}
-            ></TextField>
-          </Typography>
+          <TextField
+            style={{ width: '100%' }}
+            variant='filled'
+            disabled
+            value={taskRunRecord.logs}
+            multiline
+            minRows={3}
+          ></TextField>
         </Grid>
         <Grid item xs={12} justifyContent='center' style={{ paddingTop: 20 }}>
           <Typography variant='h6'>Task Run Details</Typography>
         </Grid>
         <Grid item xs={12} justifyContent='center'>
-          <Typography>
-            <TextField
-              style={{ width: '100%' }}
-              variant='filled'
-              disabled
-              value={taskRunRecord.details}
-              multiline
-              minRows={3}
-            ></TextField>
-          </Typography>
+          <TextField
+            style={{ width: '100%' }}
+            variant='filled'
+            disabled
+            value={taskRunRecord.details}
+            multiline
+            minRows={3}
+          ></TextField>
         </Grid>
         <Grid
           item

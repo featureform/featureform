@@ -884,7 +884,7 @@ func (store *ClickHouseOfflineStore) CreateTrainingSet(def TrainingSetDef) error
 
 func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
 	trainingSetTable string,
-	testSize float32,
+	testSize float64,
 	shuffle bool,
 	randomState int,
 ) (string, error) {
@@ -1019,7 +1019,7 @@ func (store *ClickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetI
 
 func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
 	id ResourceID,
-	testSize float32,
+	testSize float64,
 	shuffle bool,
 	randomState int,
 ) (TrainingSetIterator, TrainingSetIterator, func() error, error) {

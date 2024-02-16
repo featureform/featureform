@@ -1580,12 +1580,13 @@ func filter[T any](ss []T, test func(T) bool) (ret []T) {
 }
 
 func mockTaskRunFind(taskId string) TaskRunResponse {
+	result := TaskRunResponse{ID: "-1"}
 	for _, n := range taskRunStaticList {
 		if n.ID == taskId {
-			return n
+			result = n
 		}
 	}
-	return TaskRunResponse{}
+	return result
 }
 
 type TaskDefinition struct {
@@ -1698,13 +1699,15 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 
 	//todox: create mock collect
 	otherRuns := []OtherRunResponse{}
-	for _, loopRunItem := range taskRunStaticList {
-		if loopRunItem.TaskID == taskRunResult.TaskID && loopRunItem.ID != taskRunResult.ID {
-			otherRuns = append(otherRuns, OtherRunResponse{
-				ID:          loopRunItem.ID,
-				LastRunTime: loopRunItem.LastRunTime,
-				Status:      loopRunItem.Status,
-				Link:        "Future Link"})
+	if taskRunResult.ID != "-1" {
+		for _, loopRunItem := range taskRunStaticList {
+			if loopRunItem.TaskID == taskRunResult.TaskID && loopRunItem.ID != taskRunResult.ID {
+				otherRuns = append(otherRuns, OtherRunResponse{
+					ID:          loopRunItem.ID,
+					LastRunTime: loopRunItem.LastRunTime,
+					Status:      loopRunItem.Status,
+					Link:        "Future Link"})
+			}
 		}
 	}
 

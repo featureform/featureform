@@ -884,26 +884,34 @@ func (store *ClickHouseOfflineStore) CreateTrainingSet(def TrainingSetDef) error
 
 func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
 	trainingSetTable string,
-	testSize float32,
+	testSize float64,
 	shuffle bool,
 	randomState int,
 ) (string, error) {
 	// Create view name
 	trainingSetSplitView := fmt.Sprintf("%s_split", trainingSetTable)
 
+	// Determine ordering for the row_number based on shuffle parameter
+	orderByClause := ""
+	if shuffle {
+		// Use a fixed seed in combination with rand() to ensure reproducibility when shuffle is true
+		orderByClause = fmt.Sprintf("ORDER BY rand(%d)", randomState)
+	} else {
+		// No specific order; could default to primary key or any other column for deterministic output
+		orderByClause = "ORDER BY (SELECT NULL)"
+	}
+
 	// Query to create an intermediary view that includes a row number
 	intermediaryView := fmt.Sprintf("%s_with_row_number", trainingSetTable)
 	createIntermediaryViewQuery := fmt.Sprintf(`
         CREATE VIEW IF NOT EXISTS %s AS
-        SELECT *, row_number() OVER () AS rn
+        SELECT *, row_number() OVER (%s) AS rn
         FROM %s
     `,
 		sanitizeCH(intermediaryView),
+		orderByClause,
 		trainingSetTable,
 	)
-
-	// Print the intermediary view creation query for debugging
-	fmt.Println("Create Intermediary View Query: ", createIntermediaryViewQuery)
 
 	// Execute the query to create the intermediary view
 	if _, err := store.db.Exec(createIntermediaryViewQuery); err != nil {
@@ -934,32 +942,6 @@ func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
 	// Return the name of the final view
 	return trainingSetSplitView, nil
 }
-
-//func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(trainingSetTable string, testSize float64) (string, error) {
-//
-//	// create split table
-//	trainingSetSplitTable := sanitizeCH(fmt.Sprintf("%s_split", trainingSetTable))
-//
-//	// Step 1: Create the split table based on the structure of the original table.
-//	createTableQuery := fmt.Sprintf("CREATE TEMPORARY TABLE IF NOT EXISTS %s AS %s ENGINE = MergeTree() ORDER BY _row", trainingSetSplitTable, trainingSetTable)
-//	if _, err := store.db.Exec(createTableQuery); err != nil {
-//		return "", fmt.Errorf("failed to create split: %v", err)
-//	}
-//
-//	// Step 2: Alter the table to add the is_test column.
-//	alterTableQuery := fmt.Sprintf("ALTER TABLE %s ADD COLUMN is_test UInt8", trainingSetSplitTable)
-//	if _, err := store.db.Exec(alterTableQuery); err != nil {
-//		return "", fmt.Errorf("failed to alter table to add is_test column: %v", err)
-//	}
-//
-//	// Step 3: Insert data into the new table with is_test calculated.
-//	insertDataQuery := fmt.Sprintf("INSERT INTO %s SELECT *, multiIf(rand() %% 100 < %f, 1, 0) AS is_test FROM %s", trainingSetSplitTable, testSize*100, trainingSetTable)
-//	if _, err := store.db.Exec(insertDataQuery); err != nil {
-//		return "", fmt.Errorf("failed to insert data: %v", err)
-//	}
-//
-//	return trainingSetSplitTable, nil
-//}
 
 func (store *ClickHouseOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 	if err := def.check(); err != nil {
@@ -1019,7 +1001,7 @@ func (store *ClickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetI
 
 func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
 	id ResourceID,
-	testSize float32,
+	testSize float64,
 	shuffle bool,
 	randomState int,
 ) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
@@ -1052,15 +1034,14 @@ func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
 		features = append(features, sanitizeCH(name.Name))
 	}
 	columns := strings.Join(features[:], ", ")
-	// assume clickhousequery
-	clickHouseQuery, ok := store.query.(*clickhouseSQLQueries)
-	if !ok {
-		return nil, nil, nil, fmt.Errorf("could not cast to clickhouse query")
-	}
+	//clickHouseQuery, ok := store.query.(*clickhouseSQLQueries)
+	//if !ok {
+	//	return nil, nil, nil, fmt.Errorf("could not cast to clickhouse query")
+	//}
 	// add is_test column to columns
 	// columns += ", is_test"
 	fmt.Println("this is the training set split name", sanitizeCH(trainingTestSplitName))
-	train, test := clickHouseQuery.trainingRowSplitSelect(columns, sanitizeCH(trainingTestSplitName))
+	train, test := store.query.trainingRowSplitSelect(columns, sanitizeCH(trainingTestSplitName))
 	fmt.Printf("Training Set Query: %s\n", train)
 	fmt.Printf("Test Set Query: %s\n", test)
 	testRows, err := store.db.Query(test)
@@ -1082,7 +1063,6 @@ func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("could not get column types: %v", err)
 	}
-	fmt.Printf("THERE IS NO ERROR")
 	// return func to drop views
 	dropFunc := func() error {
 		// two queries to drop split and row number table
@@ -1288,25 +1268,6 @@ func (q clickhouseSQLQueries) trainingSetSplitCreate(store *sqlOfflineStore, tra
 	return trainingSetSplitTable, nil
 }
 
-//	func buildTrainingSelect(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) (string, error) {
-//		columns := make([]string, 0)
-//		query := ""
-//		for i, feature := range def.Features {
-//			tableName, err := store.getResourceTableName(feature)
-//			if err != nil {
-//				return "", err
-//			}
-//			santizedName := sanitizeCH(tableName)
-//			tableJoinAlias := fmt.Sprintf("t%d", i)
-//			columns = append(columns, fmt.Sprintf("%s.value AS %s", tableJoinAlias, santizedName))
-//			query = fmt.Sprintf("%s ASOF LEFT JOIN (SELECT entity, value, ts FROM %s) AS %s ON (%s.entity = l.entity) AND (%s.ts <= l.ts)",
-//				query, santizedName, tableJoinAlias, tableJoinAlias, tableJoinAlias)
-//		}
-//		columnStr := strings.Join(columns, ", ")
-//		// rand gives us a UInt32 to ensure random order
-//		query = fmt.Sprintf("SELECT %s, l.value as label, rand() as _row FROM %s AS l %s", columnStr, sanitizeCH(labelName), query)
-//		return query, nil
-//	}
 func buildTrainingSelect(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) (string, error) {
 	columns := make([]string, 0)
 	query := ""

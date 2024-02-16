@@ -37,7 +37,7 @@ describe('Task run card detail tests', () => {
     cleanup();
   });
 
-  test('Basic task card detail render', async () => {
+  test('Basic task card detail render with refresh', async () => {
     //given:
     jest.useFakeTimers();
     const taskRunId = taskCardDetailsResponse.id;

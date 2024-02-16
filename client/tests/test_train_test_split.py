@@ -11,6 +11,10 @@ dir_path = os.path.dirname(real_path)
 
 
 def response(req_type):
+    if req_type == 0:
+        res = serving_pb2.GetTrainingTestSplitResponse()
+        response.initialized = True
+        return res
     if req_type == 1:
         request_type = serving_pb2.RequestType.TEST
         label_value = "test"

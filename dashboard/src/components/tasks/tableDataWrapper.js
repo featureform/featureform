@@ -255,7 +255,7 @@ export default function TableDataWrapper() {
             )}
           </IconButton>
           <IconButton size='large' onClick={clearInputs}>
-            <ClearAllIcon />
+            <ClearAllIcon data-testid='clearIcon' />
           </IconButton>
         </Box>
       </Box>

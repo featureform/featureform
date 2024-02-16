@@ -27,6 +27,7 @@ describe('Task table data wrapper tests', () => {
   const SEARCH_INPUT_ID = 'searcInputId';
   const USER_EVENT_ENTER = '{enter}';
   const REFRESH_ICON_ID = 'refreshIcon';
+  const CLEAR_ICON_ID = 'clearIcon';
   const DEFAULT_PARAMS = { searchText: '', sortBy: '', status: 'ALL' };
 
   const getTestBody = () => {
@@ -77,9 +78,26 @@ describe('Task table data wrapper tests', () => {
 
     //then: the api is invoked
     expect(dataAPIMock.getTaskRuns).toHaveBeenCalledTimes(2);
-    expect(dataAPIMock.getTaskRuns).toHaveBeenCalledWith(
-      expect.objectContaining({ ...DEFAULT_PARAMS, searchText: searchTerm })
-    );
+    expect(dataAPIMock.getTaskRuns).toHaveBeenNthCalledWith(2, {
+      ...DEFAULT_PARAMS,
+      searchText: searchTerm,
+    });
+  });
+
+  test('Clearing the filter inputs fires off a request', async () => {
+    //given:
+    const helper = render(getTestBody());
+
+    // when:
+    const foundClearBtn = await helper.findByTestId(CLEAR_ICON_ID);
+    fireEvent.click(foundClearBtn);
+    await helper.findByTestId(CLEAR_ICON_ID);
+
+    //then: the api is invoked twice. on initial load and refresh
+    expect(dataAPIMock.getTaskRuns).toHaveBeenCalledTimes(2);
+    expect(dataAPIMock.getTaskRuns).toHaveBeenNthCalledWith(2, {
+      ...DEFAULT_PARAMS,
+    });
   });
 
   test('Clicking table refresh fires off a search', async () => {
@@ -90,8 +108,8 @@ describe('Task table data wrapper tests', () => {
     // when:
     const foundRefreshBtn = await helper.findByTestId(REFRESH_ICON_ID);
     fireEvent.click(foundRefreshBtn);
-    jest.advanceTimersByTime(1500);
     await helper.findByTestId(REFRESH_ICON_ID);
+    jest.advanceTimersByTime(1500);
 
     //then: the api is invoked twice. on initial load and refresh
     expect(dataAPIMock.getTaskRuns).toHaveBeenCalledTimes(2);

@@ -388,6 +388,10 @@ func (b BrokenNumRowsOfflineStore) GetTrainingSet(id provider.ResourceID) (provi
 	return nil, nil
 }
 
+func (b BrokenNumRowsOfflineStore) GetTrainingSetTestSplit(id provider.ResourceID, testSize float64, shuffle bool, randomState int) (provider.TrainingSetIterator, provider.TrainingSetIterator, func() error, error) {
+	return nil, nil, nil, nil
+}
+
 func (b BrokenNumRowsOfflineStore) GetBatchFeatures(tables []provider.ResourceID) (provider.BatchFeatureIterator, error) {
 	return nil, nil
 }

@@ -287,7 +287,7 @@ type OfflineStore interface {
 	CreateTrainingSet(TrainingSetDef) error
 	UpdateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
-	//GetTrainingSetTestSplit(id ResourceID, testSize float64) (TrainingSetIterator, TrainingSetIterator, error)
+	GetTrainingSetTestSplit(id ResourceID, testSize float64, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, func() error, error)
 	Close() error
 	ResourceLocation(id ResourceID) (string, error)
 	Provider
@@ -788,6 +788,11 @@ func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetItera
 	}
 	return data.(trainingRows).Iterator(), nil
 }
+
+func (store *memoryOfflineStore) GetTrainingSetTestSplit(id ResourceID, testSize float64, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
+	return nil, nil, nil, nil
+}
+
 func (store *memoryOfflineStore) Close() error {
 	return nil
 }

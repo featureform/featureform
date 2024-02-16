@@ -859,6 +859,10 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 	return store.newsqlTrainingSetIterator(rows, colTypes), nil
 }
 
+func (store *sqlOfflineStore) GetTrainingSetTestSplit(id ResourceID, testSize float64, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
+	return nil, nil, nil, nil
+}
+
 // getValueColumnTypes returns a list of column types. Columns consist of feature and label values
 // within a training set.
 func (store *sqlOfflineStore) getValueColumnTypes(table string) ([]interface{}, error) {

@@ -286,3 +286,7 @@ func (m MockUnitTestOfflineStore) CreateTrainingSet(TrainingSetDef) error {
 func (m MockUnitTestOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
 	return nil, nil
 }
+
+func (m MockUnitTestOfflineStore) GetTrainingSetTestSplit(id ResourceID, testSize float64, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
+	return nil, nil, nil, nil
+}

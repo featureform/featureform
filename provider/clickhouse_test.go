@@ -171,7 +171,7 @@ func TestSplit(t *testing.T) {
 		Variant: "v4",
 		Type:    TrainingSet,
 	}
-	train, test, _, err := store.GetTrainingSetTestSplit(resourceId, .5)
+	train, test, _, err := store.GetTrainingSetTestSplit(resourceId, .5, false, 0)
 	//defer closeFunc()
 
 	if err != nil {

@@ -121,7 +121,7 @@ func (serv *FeatureServer) GetTrainingTestSplit(stream pb.Feature_GetTrainingTes
 				},
 			}
 
-			train, test, dropFunc, err := serv.getTrainingSetTestSplitIterator(name, variant, req.TestSize)
+			train, test, dropFunc, err := serv.getTrainingSetTestSplitIterator(name, variant, float64(req.TestSize), req.Shuffle, int(req.RandomState))
 			defer dropFunc()
 			fmt.Println("making sure train is not nil: ", train)
 			finalTest = test
@@ -286,7 +286,7 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
 }
 
-func (serv *FeatureServer) getTrainingSetTestSplitIterator(name, variant string, testSize float32) (provider.TrainingSetIterator, provider.TrainingSetIterator, func() error, error) {
+func (serv *FeatureServer) getTrainingSetTestSplitIterator(name, variant string, testSize float64, shuffle bool, randomState int) (provider.TrainingSetIterator, provider.TrainingSetIterator, func() error, error) {
 	ctx := context.TODO()
 	serv.Logger.Infow("Getting Training Set Iterator", "name", name, "variant", variant)
 	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{name, variant})
@@ -313,7 +313,7 @@ func (serv *FeatureServer) getTrainingSetTestSplitIterator(name, variant string,
 	if !ok {
 		return nil, nil, nil, errors.New("store is not a clickhouse store")
 	}
-	return clickhouseStore.GetTrainingSetTestSplit(provider.ResourceID{Name: name, Variant: variant}, testSize)
+	return clickhouseStore.GetTrainingSetTestSplit(provider.ResourceID{Name: name, Variant: variant}, testSize, shuffle, randomState)
 }
 
 func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (provider.BatchFeatureIterator, error) {

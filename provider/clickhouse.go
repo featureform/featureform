@@ -891,26 +891,26 @@ func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
 	// Create view name
 	trainingSetSplitView := fmt.Sprintf("%s_split", trainingSetTable)
 
-	// Determine ordering for the row_number based on shuffle parameter
-	orderByClause := ""
-	if shuffle {
-		// Use a fixed seed in combination with rand() to ensure reproducibility when shuffle is true
-		orderByClause = fmt.Sprintf("ORDER BY rand(%d)", randomState)
-	} else {
-		// No specific order; could default to primary key or any other column for deterministic output
-		orderByClause = "ORDER BY (SELECT NULL)"
-	}
+	//// Determine ordering for the row_number based on shuffle parameter
+	//orderByClause := ""
+	//if shuffle {
+	//	// Use a fixed seed in combination with rand() to ensure reproducibility when shuffle is true
+	//	orderByClause = fmt.Sprintf("ORDER BY rand(%d)", randomState)
+	//} else {
+	//	// No specific order; could default to primary key or any other column for deterministic output
+	//	orderByClause = ""
+	//}
 
 	// Query to create an intermediary view that includes a row number
 	intermediaryView := fmt.Sprintf("%s_with_row_number", trainingSetTable)
 	createIntermediaryViewQuery := fmt.Sprintf(`
         CREATE VIEW IF NOT EXISTS %s AS
-        SELECT *, row_number() OVER (%s) AS rn
+        SELECT *, row_number() OVER () AS rn
         FROM %s
     `,
 		sanitizeCH(intermediaryView),
-		orderByClause,
-		trainingSetTable,
+		//orderByClause,
+		sanitizeCH(trainingSetTable),
 	)
 
 	// Execute the query to create the intermediary view
@@ -1107,7 +1107,7 @@ func (q clickhouseSQLQueries) primaryTableCreate(name string, columnString strin
 
 func (q clickhouseSQLQueries) trainingRowSelect(columns string, trainingSetName string) string {
 	// ensures random order - table is ordered by _row which is inserted at insert time
-	return fmt.Sprintf("SELECT * EXCEPT _row, rn FROM (SELECT %s FROM %s ORDER BY _row ASC)", columns, sanitizeCH(trainingSetName))
+	return fmt.Sprintf("SELECT * EXCEPT _row FROM (SELECT %s FROM %s ORDER BY _row ASC)", columns, sanitizeCH(trainingSetName))
 }
 
 func (q clickhouseSQLQueries) trainingRowSplitSelect(columns string, trainingSetSplitName string) (string, string) {

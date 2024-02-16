@@ -9,6 +9,7 @@ import time
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
 
+
 def response(req_type):
     if req_type == 1:
         request_type = serving_pb2.RequestType.TEST
@@ -20,29 +21,20 @@ def response(req_type):
         request_type=request_type,
         row=serving_pb2.TrainingDataRow(
             features=[
-                serving_pb2.Value(
-                    str_value="f1"
-                ),
-                serving_pb2.Value(
-                    str_value="f2"
-                ),
-                serving_pb2.Value(
-                    str_value="f3"
-                )
+                serving_pb2.Value(str_value="f1"),
+                serving_pb2.Value(str_value="f2"),
+                serving_pb2.Value(str_value="f3"),
             ],
-            label=serving_pb2.Value(
-                str_value=label_value
-            )
-        )
+            label=serving_pb2.Value(str_value=label_value),
+        ),
     )
-
 
     # training_data = serving_pb2.TrainingDataRow()
     # req.row = training_data
     return req
 
 
-class MockStub:
+class MockGrpcStub:
     def __init__(self):
         pass
 
@@ -55,7 +47,7 @@ class MockStream:
     name = None
     version = None
     model = None
-    _stub = MockStub()
+    _stub = MockGrpcStub()
 
     def __init__(self, name, version):
         self.name = name
@@ -65,17 +57,48 @@ class MockStream:
 @pytest.mark.parametrize(
     "kwargs,should_fail",
     [
-        ({"test_size": 0.5, "train_size": 0.5, "shuffle": True, "random_state": None}, False),
-        ({"test_size": -0.5, "train_size": 0.5, "shuffle": True, "random_state": None}, True),
-        ({"test_size": 0.5, "train_size": -0.5, "shuffle": True, "random_state": None}, True),
+        (
+            {
+                "test_size": 0.5,
+                "train_size": 0.5,
+                "shuffle": True,
+                "random_state": None,
+            },
+            False,
+        ),
+        (
+            {
+                "test_size": -0.5,
+                "train_size": 0.5,
+                "shuffle": True,
+                "random_state": None,
+            },
+            True,
+        ),
+        (
+            {
+                "test_size": 0.5,
+                "train_size": -0.5,
+                "shuffle": True,
+                "random_state": None,
+            },
+            True,
+        ),
         ({"test_size": 0.5, "shuffle": True, "random_state": None}, False),
         ({"test_size": 0.5, "random_state": None}, False),
         ({"test_size": 0.5}, False),
         ({"test_size": 0.5, "random_state": 3}, False),
         ({"train_size": 0.5, "shuffle": True, "random_state": None}, False),
-        ({"test_size": 0.5, "train_size": 0.1, "shuffle": True, "random_state": None}, True)
-     ]
-
+        (
+            {
+                "test_size": 0.5,
+                "train_size": 0.1,
+                "shuffle": True,
+                "random_state": None,
+            },
+            True,
+        ),
+    ],
 )
 def test_initialization(kwargs, should_fail):
     train_test_stream = MockStream("name", "variant")
@@ -86,10 +109,13 @@ def test_initialization(kwargs, should_fail):
     else:
         dataset.train_test_split(**kwargs)
 
+
 def test_train_test_split():
     train_test_stream = MockStream("name", "variant")
     dataset = Dataset(train_test_stream)
-    train, test = dataset.train_test_split(test_size=0.5, train_size=.5, shuffle=True, random_state=None)
+    train, test = dataset.train_test_split(
+        test_size=0.5, train_size=0.5, shuffle=True, random_state=None
+    )
 
     for i, row in enumerate(train):
         if i > 1:

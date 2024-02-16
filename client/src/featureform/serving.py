@@ -91,7 +91,7 @@ class ServingClient:
         variant="",
         include_label_timestamp=False,
         model: Union[str, Model] = None,
-    ):
+    ) -> "Dataset":
         """Return an iterator that iterates through the specified training set.
 
         **Examples**:
@@ -208,7 +208,8 @@ class HostedClientImpl:
     def training_set(
         self, name, variation, include_label_timestamp, model: Union[str, Model] = None
     ):
-        return Dataset(self._stub)._for_training_set(name, variation, model)
+        training_set_stream = TrainingSetStream(self._stub, name, variation, model)
+        return Dataset(training_set_stream)
 
     def training_set_test_split(self, name, variation, model: Union[str, Model] = None):
         return Dataset(self._stub)._for_training_test_split(name, variation, model)
@@ -672,7 +673,6 @@ class TestTrainIterator:
         req.id.name = self.name
         req.id.version = self.version
 
-
         if self.model is not None:
             req.model.name = (
                 self.model if isinstance(self.model, str) else self.model.name
@@ -685,8 +685,8 @@ class TestTrainIterator:
 
         self.req_queue.put(req)
 
-
-        return Row(next(self.resp_stream).row)
+        next1 = next(self.resp_stream)
+        return Row(next1.row)
 
 
 class TSSplitIterator:
@@ -694,7 +694,17 @@ class TSSplitIterator:
     Returns two datasets one for each iterator
     """
 
-    def __init__(self, stub, name, version, test_size, train_size, shuffle, random_state, model: Union[str, Model] = None):
+    def __init__(
+        self,
+        stub,
+        name,
+        version,
+        test_size,
+        train_size,
+        shuffle,
+        random_state,
+        model: Union[str, Model] = None,
+    ):
         self.name = name
         self.version = version
         self.shuffle = shuffle
@@ -708,6 +718,15 @@ class TSSplitIterator:
         self.stub = stub
 
         self.req_queue = queue.Queue()
+
+        # initialize the request queue
+        req = serving_pb2.GetTrainingTestSplitRequest()
+        req.id.name = self.name
+        req.id.version = self.version
+        req.request_type = serving_pb2.RequestType.INITIALIZE
+
+        self.req_queue.put(req)
+
         self.resp_queue = queue.Queue()
 
     def request_generator(self):
@@ -718,6 +737,10 @@ class TSSplitIterator:
 
     def split(self):
         response_stream = self.stub.GetTrainingTestSplit(self.request_generator())
+        # verify initialization response
+        init_response = next(response_stream)
+        if not init_response.initialized:
+            raise ValueError("Failed to initialize training test split")
         self.test_iter = TestTrainIterator(
             req_queue=self.req_queue,
             resp_queue=self.resp_queue,
@@ -729,7 +752,7 @@ class TSSplitIterator:
             test_size=self.test_size,
             train_size=self.train_size,
             shuffle=self.shuffle,
-            random_state=self.random_state
+            random_state=self.random_state,
         )
         self.train_iter = TestTrainIterator(
             req_queue=self.req_queue,
@@ -742,7 +765,7 @@ class TSSplitIterator:
             test_size=self.test_size,
             train_size=self.train_size,
             shuffle=self.shuffle,
-            random_state = self.random_state
+            random_state=self.random_state,
         )
 
         return self.test_iter, self.train_iter
@@ -761,15 +784,13 @@ class Dataset:
         self._stream = stream
         self._dataframe = dataframe
 
-    def _for_training_set(
-        self, training_set_name, version, model: Union[str, Model] = None
+    def train_test_split(
+        self,
+        test_size: float = 0,
+        train_size: float = 0,
+        random_state: Union[int, None] = None,
+        shuffle: bool = True,
     ):
-        training_set_stream = TrainingSetStream(
-            self._stub, training_set_name, version, model
-        )
-        return Dataset(training_set_stream)
-
-    def train_test_split(self, test_size: float = 0, train_size: float = 0, random_state: Union[int, None] = None, shuffle: bool = True):
         if test_size > 1 or test_size < 0:
             raise ValueError("test_size must be between 0 and 1")
 
@@ -789,7 +810,7 @@ class Dataset:
         name = self._stream.name
         variant = self._stream.version
         stub = self._stream._stub
-        model = self._stream.model
+        model = self._stream.model if hasattr(self._stream, "model") else None
         if random_state is None:
             random_state = 0
 
@@ -801,7 +822,7 @@ class Dataset:
             test_size=test_size,
             train_size=train_size,
             shuffle=shuffle,
-            random_state=random_state
+            random_state=random_state,
         ).split()
 
         return test, train

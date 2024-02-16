@@ -935,32 +935,6 @@ func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
 	return trainingSetSplitView, nil
 }
 
-//func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(trainingSetTable string, testSize float64) (string, error) {
-//
-//	// create split table
-//	trainingSetSplitTable := sanitizeCH(fmt.Sprintf("%s_split", trainingSetTable))
-//
-//	// Step 1: Create the split table based on the structure of the original table.
-//	createTableQuery := fmt.Sprintf("CREATE TEMPORARY TABLE IF NOT EXISTS %s AS %s ENGINE = MergeTree() ORDER BY _row", trainingSetSplitTable, trainingSetTable)
-//	if _, err := store.db.Exec(createTableQuery); err != nil {
-//		return "", fmt.Errorf("failed to create split: %v", err)
-//	}
-//
-//	// Step 2: Alter the table to add the is_test column.
-//	alterTableQuery := fmt.Sprintf("ALTER TABLE %s ADD COLUMN is_test UInt8", trainingSetSplitTable)
-//	if _, err := store.db.Exec(alterTableQuery); err != nil {
-//		return "", fmt.Errorf("failed to alter table to add is_test column: %v", err)
-//	}
-//
-//	// Step 3: Insert data into the new table with is_test calculated.
-//	insertDataQuery := fmt.Sprintf("INSERT INTO %s SELECT *, multiIf(rand() %% 100 < %f, 1, 0) AS is_test FROM %s", trainingSetSplitTable, testSize*100, trainingSetTable)
-//	if _, err := store.db.Exec(insertDataQuery); err != nil {
-//		return "", fmt.Errorf("failed to insert data: %v", err)
-//	}
-//
-//	return trainingSetSplitTable, nil
-//}
-
 func (store *ClickHouseOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 	if err := def.check(); err != nil {
 		return err
@@ -1288,25 +1262,6 @@ func (q clickhouseSQLQueries) trainingSetSplitCreate(store *sqlOfflineStore, tra
 	return trainingSetSplitTable, nil
 }
 
-//	func buildTrainingSelect(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) (string, error) {
-//		columns := make([]string, 0)
-//		query := ""
-//		for i, feature := range def.Features {
-//			tableName, err := store.getResourceTableName(feature)
-//			if err != nil {
-//				return "", err
-//			}
-//			santizedName := sanitizeCH(tableName)
-//			tableJoinAlias := fmt.Sprintf("t%d", i)
-//			columns = append(columns, fmt.Sprintf("%s.value AS %s", tableJoinAlias, santizedName))
-//			query = fmt.Sprintf("%s ASOF LEFT JOIN (SELECT entity, value, ts FROM %s) AS %s ON (%s.entity = l.entity) AND (%s.ts <= l.ts)",
-//				query, santizedName, tableJoinAlias, tableJoinAlias, tableJoinAlias)
-//		}
-//		columnStr := strings.Join(columns, ", ")
-//		// rand gives us a UInt32 to ensure random order
-//		query = fmt.Sprintf("SELECT %s, l.value as label, rand() as _row FROM %s AS l %s", columnStr, sanitizeCH(labelName), query)
-//		return query, nil
-//	}
 func buildTrainingSelect(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) (string, error) {
 	columns := make([]string, 0)
 	query := ""

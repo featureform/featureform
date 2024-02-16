@@ -1694,6 +1694,13 @@ type TaskRunDetailResponse struct {
 func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	taskRunId := c.Param("taskRunId")
 
+	if taskRunId == "" {
+		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
 	//todox: replace mock find with lib call
 	taskRunResult := mockTaskRunFind(taskRunId)
 

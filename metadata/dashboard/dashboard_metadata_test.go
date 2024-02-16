@@ -395,3 +395,31 @@ func TestGetTaskRunDetailZeroResults(t *testing.T) {
 	assert.Empty(t, data.Status)
 	assert.Empty(t, data.OtherRuns)
 }
+
+func TestGetTaskRunDetailParamPanic(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	taskRunId := "1"
+	params := []gin.Param{
+		{
+			Key:   "bad_key!",
+			Value: taskRunId,
+		},
+	}
+	MockJsonGet(ctx, params)
+
+	logger := zap.NewExample().Sugar()
+	client := &metadata.Client{}
+	serv := MetadataServer{
+		client: client,
+		logger: logger,
+	}
+	serv.GetTaskRunDetails(ctx)
+
+	var actualErrorMsg string
+	expectedMsg := "Error 400: Failed to fetch GetTaskRunDetails - Could not find the taskRunId parameter"
+	_ = json.Unmarshal(mockRecorder.Body.Bytes(), &actualErrorMsg)
+
+	assert.Equal(t, http.StatusBadRequest, mockRecorder.Code)
+	assert.Equal(t, expectedMsg, actualErrorMsg)
+}

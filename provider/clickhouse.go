@@ -1017,7 +1017,13 @@ func (store *ClickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetI
 	return store.newsqlTrainingSetIterator(rows, colTypes), nil
 }
 
-func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(id ResourceID, testSize float32) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
+func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
+	id ResourceID,
+	testSize float32,
+	shuffle bool,
+	randomState int,
+) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
+
 	fmt.Printf("Getting Training Set: %v\n", id)
 	if err := id.check(TrainingSet); err != nil {
 		return nil, nil, nil, err
@@ -1032,7 +1038,7 @@ func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(id ResourceID, test
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	trainingTestSplitName, err := store.CreateTrainingTestSplit(trainingSetName, testSize, false, 0)
+	trainingTestSplitName, err := store.CreateTrainingTestSplit(trainingSetName, testSize, shuffle, randomState)
 	if err != nil {
 		return nil, nil, nil, err
 
@@ -1052,7 +1058,7 @@ func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(id ResourceID, test
 		return nil, nil, nil, fmt.Errorf("could not cast to clickhouse query")
 	}
 	// add is_test column to columns
-	//columns += ", is_test"
+	// columns += ", is_test"
 	fmt.Println("this is the training set split name", sanitizeCH(trainingTestSplitName))
 	train, test := clickHouseQuery.trainingRowSplitSelect(columns, sanitizeCH(trainingTestSplitName))
 	fmt.Printf("Training Set Query: %s\n", train)

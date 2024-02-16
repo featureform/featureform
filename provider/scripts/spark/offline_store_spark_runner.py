@@ -15,7 +15,7 @@ import dill
 from azure.storage.blob import BlobServiceClient
 from google.cloud import storage
 from google.oauth2 import service_account
-from pyspark.sql import DataFrame
+from pyspark.sql.dataframe import DataFrame
 from pyspark.sql import SparkSession
 from pyspark.sql.types import (
     StructType,

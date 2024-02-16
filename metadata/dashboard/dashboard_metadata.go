@@ -1681,7 +1681,7 @@ type OtherRunResponse struct {
 	Link        string    `json:"link"`
 }
 
-type TaskDetailResponse struct {
+type TaskRunDetailResponse struct {
 	ID        string             `json:"id"`
 	Name      string             `json:"name"`
 	Status    string             `json:"status"`
@@ -1690,7 +1690,7 @@ type TaskDetailResponse struct {
 	OtherRuns []OtherRunResponse `json:"otherRuns"`
 }
 
-func (m *MetadataServer) GetTaskDetails(c *gin.Context) {
+func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	taskRunId := c.Param("taskRunId")
 
 	//todox: replace mock find with lib call
@@ -1708,7 +1708,7 @@ func (m *MetadataServer) GetTaskDetails(c *gin.Context) {
 		}
 	}
 
-	resp := TaskDetailResponse{
+	resp := TaskRunDetailResponse{
 		ID:        taskRunId,
 		Name:      taskRunResult.Name,
 		Status:    taskRunResult.Status,
@@ -1732,7 +1732,7 @@ func (m *MetadataServer) Start(port string) {
 	router.POST("/data/:type/:resource/gettags", m.GetTags)
 	router.POST("/data/:type/:resource/tags", m.PostTags)
 	router.POST("/data/taskruns", m.GetTaskRuns)
-	router.GET("/data/taskruns/taskrundetail/:taskRunId", m.GetTaskDetails)
+	router.GET("/data/taskruns/taskrundetail/:taskRunId", m.GetTaskRunDetails)
 	router.Run(port)
 }
 

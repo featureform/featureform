@@ -584,16 +584,26 @@ func TestSetStatusByRunID(t *testing.T) {
 			false,
 		},
 		{
-			"WrongStatus",
+			"WrongID",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
 			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}},
-				{"name", 1, OneOffTrigger{"name"}},
+			},
+			3,
+			2,
+			Pending,
+			nil,
+			true,
+		},
+		{
+			"WrongRunID",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}},
 			},
 			1,
 			2,
-			"Random",
+			Running,
 			nil,
 			true,
 		},
@@ -614,6 +624,22 @@ func TestSetStatusByRunID(t *testing.T) {
 			Failed,
 			fmt.Errorf("Failed to create task"),
 			false,
+		},
+		{
+			"FailedStatusWithoutError",
+			[]taskInfo{
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+			},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 2, OneOffTrigger{"name"}},
+			},
+			2,
+			1,
+			Failed,
+			nil,
+			true,
 		},
 	}
 
@@ -693,7 +719,7 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			[]runInfo{{"name", 1, OneOffTrigger{"name"}}},
 			1,
 			1,
-			time.Now().Truncate(0).UTC(),
+			time.Now().Add(15 * time.Second).Truncate(0).UTC(),
 			false,
 		},
 		{
@@ -706,11 +732,11 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			},
 			1,
 			2,
-			time.Now().Truncate(0).UTC(),
+			time.Now().Add(15 * time.Second).Truncate(0).UTC(),
 			false,
 		},
 		{
-			"WrongStatus",
+			"EmptyTime",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
 			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}},
@@ -720,6 +746,19 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			1,
 			2,
 			time.Time{},
+			true,
+		},
+		{
+			"WrongEndTime",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+			},
+			1,
+			2,
+			time.Unix(1, 0).Truncate(0).UTC(),
 			true,
 		},
 		{
@@ -736,7 +775,7 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			},
 			2,
 			1,
-			time.Now().Truncate(0).UTC(),
+			time.Now().Add(15 * time.Second).Truncate(0).UTC(),
 			false,
 		},
 	}

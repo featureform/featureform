@@ -338,11 +338,8 @@ func (tm *TaskManager) GetAllTaskRuns() (TaskRunList, error) {
 
 // Write Methods
 func (t *TaskManager) SetRunStatus(runID TaskRunID, id TaskID, status Status, err error) error {
-	if id == 0 {
+	if id <= 0 {
 		return fmt.Errorf("invalid run id: %d", id)
-	}
-	if status == "" || (status != Success && status != Failed && status != Pending && status != Running) {
-		return fmt.Errorf("unknown status: %s", status)
 	}
 	metadata, e := t.GetRunByID(id, runID)
 	if e != nil {
@@ -368,7 +365,7 @@ func (t *TaskManager) SetRunStatus(runID TaskRunID, id TaskID, status Status, er
 }
 
 func (t *TaskManager) SetRunEndTime(runID TaskRunID, id TaskID, time time.Time) error {
-	if id == 0 {
+	if id <= 0 {
 		return fmt.Errorf("invalid run id: %d", id)
 	}
 	if time.IsZero() {
@@ -377,6 +374,9 @@ func (t *TaskManager) SetRunEndTime(runID TaskRunID, id TaskID, time time.Time) 
 	metadata, e := t.GetRunByID(id, runID)
 	if e != nil {
 		return fmt.Errorf("failed to fetch run: %v", e)
+	}
+	if metadata.StartTime.After(time) {
+		return fmt.Errorf("end time cannot be before start time")
 	}
 	metadata.EndTime = time
 	serializedMetadata, e := metadata.Marshal()

@@ -501,6 +501,7 @@ class TrainingSetSplitIterator:
 
 
             next1 = next(self.resp_stream)
+
             if batch_features is None:
                 row = Row(next1.row)
                 batch_features = np.array(row.features())

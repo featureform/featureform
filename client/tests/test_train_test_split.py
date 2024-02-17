@@ -39,6 +39,7 @@ def response(req_type, iterator_done):
 
     # training_data = serving_pb2.TrainingDataRow()
     # req.row = training_data
+
     return req
 
 

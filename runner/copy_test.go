@@ -388,7 +388,7 @@ func (b BrokenNumRowsOfflineStore) GetTrainingSet(id provider.ResourceID) (provi
 	return nil, nil
 }
 
-func (b BrokenNumRowsOfflineStore) GetTrainingSetTestSplit(id provider.ResourceID, testSize float64, shuffle bool, randomState int) (provider.TrainingSetIterator, provider.TrainingSetIterator, func() error, error) {
+func (b BrokenNumRowsOfflineStore) GetTrainingSetTestSplit(id provider.ResourceID, testSize float32, shuffle bool, randomState int) (provider.TrainingSetIterator, provider.TrainingSetIterator, func() error, error) {
 	return nil, nil, nil, nil
 }
 

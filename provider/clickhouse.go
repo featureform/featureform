@@ -885,7 +885,7 @@ func (store *ClickHouseOfflineStore) CreateTrainingSet(def TrainingSetDef) error
 
 func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
 	trainingSetTable string,
-	testSize float64,
+	testSize float32,
 	shuffle bool,
 	randomState int,
 ) (string, error) {
@@ -909,7 +909,8 @@ func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
 	if err != nil {
 		return "", fmt.Errorf("failed to get table size: %v", err)
 	}
-	testRows := int(float64(totalRows) * testSize)
+	testRows := int(float32(totalRows) * testSize)
+	fmt.Println("number of test rows", testRows)
 
 	// Create the final view with an 'is_test' column
 	createViewQuery := fmt.Sprintf(`
@@ -984,7 +985,7 @@ func (store *ClickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetI
 
 func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
 	id ResourceID,
-	testSize float64,
+	testSize float32,
 	shuffle bool,
 	randomState int,
 ) (TrainingSetIterator, TrainingSetIterator, func() error, error) {

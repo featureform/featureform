@@ -555,7 +555,14 @@ class TrainingSetTestSplit:
         req = serving_pb2.GetTrainingTestSplitRequest()
         req.id.name = self.name
         req.id.version = self.version
+        if self.model is not None:
+            req.model.name = (
+                self.model if isinstance(self.model, str) else self.model.name
+            )
         req.request_type = serving_pb2.RequestType.INITIALIZE
+        req.test_size = self.test_size
+        req.shuffle = self.shuffle
+        req.random_state = self.random_state
 
         self.req_queue.put(req)
 
@@ -574,11 +581,11 @@ class TrainingSetTestSplit:
         if not init_response.initialized:
             raise ValueError("Failed to initialize training test split")
 
-        self.test_iter = TrainingSetSplitIterator(
+        self.train_iter = TrainingSetSplitIterator(
             req_queue=self.req_queue,
             resp_queue=self.resp_queue,
             resp_stream=response_stream,
-            request_type=serving_pb2.RequestType.TEST,
+            request_type=serving_pb2.RequestType.TRAINING,
             name=self.name,
             version=self.version,
             model=self.model,
@@ -588,11 +595,11 @@ class TrainingSetTestSplit:
             random_state=self.random_state,
             batch_size=self.batch_size,
         )
-        self.train_iter = TrainingSetSplitIterator(
+        self.test_iter = TrainingSetSplitIterator(
             req_queue=self.req_queue,
             resp_queue=self.resp_queue,
             resp_stream=response_stream,
-            request_type=serving_pb2.RequestType.TRAINING,
+            request_type=serving_pb2.RequestType.TEST,
             name=self.name,
             version=self.version,
             model=self.model,

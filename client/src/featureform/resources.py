@@ -932,6 +932,9 @@ class ResourceVariant(ABC):
     def type():
         raise NotImplementedError
 
+    def name_variant(self):
+        return self.name, self.variant
+
     def to_key(self) -> Tuple[str, str, str]:
         return self.type(), self.name, self.variant
 
@@ -1390,7 +1393,7 @@ class FeatureVariant(ResourceVariant):
 
 @typechecked
 @dataclass
-class OnDemandFeatureVariant:
+class OnDemandFeatureVariant(ResourceVariant):
     owner: str
     variant: str
     tags: List[str] = field(default_factory=list)

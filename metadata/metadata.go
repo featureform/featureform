@@ -237,18 +237,18 @@ func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
 
 	case *featureVariantResource:
 		allTags = res.(*featureVariantResource).serialized.Tags.Tag
-		
+
 	case *labelVariantResource:
 		allTags = res.(*labelVariantResource).serialized.Tags.Tag
 
 	case *trainingSetVariantResource:
 		allTags = res.(*trainingSetVariantResource).serialized.Tags.Tag
 	}
-	
+
 	doc := search.ResourceDoc{
 		Name:    id.Name,
 		Type:    id.Type.String(),
-		Tags:	allTags,
+		Tags:    allTags,
 		Variant: id.Variant,
 	}
 	return wrapper.Searcher.Upsert(doc)
@@ -532,7 +532,9 @@ func isSourceProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transforma
 				inputsEqual
 		}
 	case *pb.Transformation_SQLTransformation:
-		isDefinitionEqual = thisDef.Transformation.GetSQLTransformation().Query == otherDef.Transformation.GetSQLTransformation().Query
+		if _, ok := otherDef.Transformation.Type.(*pb.Transformation_SQLTransformation); ok {
+			isDefinitionEqual = thisDef.Transformation.GetSQLTransformation().Query == otherDef.Transformation.GetSQLTransformation().Query
+		}
 	}
 
 	kubernetesArgsEqual := proto.Equal(thisDef.Transformation.GetKubernetesArgs(), otherDef.Transformation.GetKubernetesArgs())

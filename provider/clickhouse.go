@@ -952,12 +952,15 @@ func (store *ClickHouseOfflineStore) UpdateTrainingSet(def TrainingSetDef) error
 	return nil
 }
 
-func (store *ClickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
-	fmt.Printf("Getting Training Set: %v\n", id)
+type TrainingSetPreparation struct {
+	TrainingSetName string
+	Columns         string
+}
+
+func (store *ClickHouseOfflineStore) prepareTrainingSetQuery(id ResourceID) (*TrainingSetPreparation, error) {
 	if err := id.check(TrainingSet); err != nil {
 		return nil, err
 	}
-	fmt.Printf("Checking if Training Set exists: %v\n", id)
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if !exists {
@@ -975,14 +978,27 @@ func (store *ClickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetI
 	for _, name := range columnNames {
 		features = append(features, sanitizeCH(name.Name))
 	}
-	columns := strings.Join(features[:], ", ")
-	trainingSetQry := store.query.trainingRowSelect(columns, trainingSetName)
+	columns := strings.Join(features, ", ")
+
+	return &TrainingSetPreparation{
+		TrainingSetName: trainingSetName,
+		Columns:         columns,
+	}, nil
+}
+
+func (store *ClickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+	fmt.Printf("Getting Training Set: %v\n", id)
+	prep, err := store.prepareTrainingSetQuery(id)
+	if err != nil {
+		return nil, err
+	}
+	trainingSetQry := store.query.trainingRowSelect(prep.Columns, prep.TrainingSetName)
 	fmt.Printf("Training Set Query: %s\n", trainingSetQry)
 	rows, err := store.db.Query(trainingSetQry)
 	if err != nil {
 		return nil, err
 	}
-	colTypes, err := store.getValueColumnTypes(trainingSetName)
+	colTypes, err := store.getValueColumnTypes(prep.TrainingSetName)
 	if err != nil {
 		return nil, err
 	}
@@ -995,33 +1011,20 @@ func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
 	shuffle bool,
 	randomState int,
 ) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
-	if err := id.check(TrainingSet); err != nil {
-		return nil, nil, nil, err
-	}
-	if exists, err := store.tableExists(id); err != nil {
-		return nil, nil, nil, err
-	} else if !exists {
-		return nil, nil, nil, &TrainingSetNotFound{id}
-	}
-	trainingSetName, err := store.getTrainingSetName(id)
+	prep, err := store.prepareTrainingSetQuery(id)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	trainingTestSplitName, err := store.CreateTrainingTestSplit(trainingSetName, testSize, shuffle, randomState)
+	trainingTestSplitName, err := store.CreateTrainingTestSplit(
+		prep.TrainingSetName,
+		testSize,
+		shuffle,
+		randomState,
+	)
 	if err != nil {
 		return nil, nil, nil, err
-
 	}
-	columnNames, err := store.query.getColumns(store.db, trainingSetName)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	features := make([]string, 0)
-	for _, name := range columnNames {
-		features = append(features, sanitizeCH(name.Name))
-	}
-	columns := strings.Join(features[:], ", ")
-	train, test := store.query.trainingRowSplitSelect(columns, sanitizeCH(trainingTestSplitName))
+	train, test := store.query.trainingRowSplitSelect(prep.Columns, sanitizeCH(trainingTestSplitName))
 	fmt.Printf("Training Set Query: %s\n", train)
 	fmt.Printf("Test Set Query: %s\n", test)
 	testRows, err := store.db.Query(test)

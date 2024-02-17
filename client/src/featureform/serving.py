@@ -496,6 +496,10 @@ class TrainingSetSplitIterator:
 
             next_row = next(self.resp_stream)
 
+            if next_row.iterator_done:
+                self.complete = True
+                break
+
             if batch_features is None:
                 row = Row(next_row.row)
                 batch_features = np.array(row.features())
@@ -505,11 +509,10 @@ class TrainingSetSplitIterator:
                     batch_features, Row(next_row.row).features(), axis=0
                 )
                 batch_label = np.append(batch_label, Row(next_row.row).label(), axis=0)
-
-            if next_row.iterator_done:
-                self.complete = True
-                break
             i += 1
+
+        if self.complete:
+            raise StopIteration
 
         return batch_features, batch_label
 

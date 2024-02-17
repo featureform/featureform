@@ -71,6 +71,7 @@ func StorageProviderGet(t *testing.T, provider StorageProvider) {
 		provider.Set("key2", "value2")
 		provider.Set("prefix/key3", "value3")
 		provider.Set("prefix/key4", "value4")
+		provider.Set("key5", "prefix/value5")
 		results, err := provider.Get(test.key, test.prefix)
 		if err != nil && err.Error() != test.err.Error() {
 			t.Errorf("Get(%s, %v): expected error %v, got %v", test.key, test.prefix, test.err, err)

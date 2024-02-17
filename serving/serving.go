@@ -82,6 +82,157 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 	return nil
 }
 
+func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainingTestSplitServer) error {
+
+	var (
+		trainIter, testIter provider.TrainingSetIterator
+		isTrainFinished     bool
+		isTestFinished      bool
+	)
+
+	for {
+		req, err := stream.Recv()
+		if err != nil {
+			return err
+		}
+
+		id := req.GetId()
+		name, variant := id.GetName(), id.GetVersion()
+		logger := serv.Logger.With("Name", name, "Variant", variant, "RequestType", req.GetRequestType().String())
+
+		logger.Infow("Getting training test split", "Request", req.String())
+
+		featureObserver := serv.Metrics.BeginObservingTrainingServe(name, variant)
+		defer featureObserver.Finish()
+
+		switch req.GetRequestType() {
+		case pb.RequestType_INITIALIZE:
+			if err := serv.handleSplitInitializeRequest(stream, req, &trainIter, &testIter, logger); err != nil {
+				featureObserver.SetError()
+				return err
+			}
+		default:
+			if err := serv.handleSplitDataRequest(stream, req, &trainIter, &testIter, &isTestFinished, &isTrainFinished, logger); err != nil {
+				featureObserver.SetError()
+				return err
+			}
+			if isTestFinished && isTrainFinished {
+				return nil
+			}
+		}
+	}
+}
+
+func (serv *FeatureServer) handleSplitInitializeRequest(
+	stream pb.Feature_TrainingTestSplitServer,
+	req *pb.TrainingTestSplitRequest,
+	trainIterator *provider.TrainingSetIterator,
+	testIterator *provider.TrainingSetIterator,
+	logger *zap.SugaredLogger,
+) error {
+	logger.Infow("Initializing dataset", "id", req.Id, "shuffle", req.Shuffle, "testSize", req.TestSize)
+
+	train, test, dropViews, err := serv.getTrainingSetTestSplitIterator(
+		req.Id.GetName(),
+		req.Id.GetVersion(),
+		req.TestSize,
+		req.Shuffle,
+		int(req.RandomState),
+	)
+
+	if err != nil {
+		logger.Errorw("Failed to get training set iterator", "Error", err)
+		return err
+	}
+	defer dropViews()
+
+	*trainIterator = train
+	*testIterator = test
+
+	initResponse := &pb.TrainingTestSplitResponse{
+		RequestType: pb.RequestType_INITIALIZE,
+		TrainingTestSplit: &pb.TrainingTestSplitResponse_Initialized{
+			Initialized: true,
+		},
+	}
+
+	if err := stream.Send(initResponse); err != nil {
+		logger.Errorw("Failed to send init response", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (serv *FeatureServer) handleSplitDataRequest(
+	stream pb.Feature_TrainingTestSplitServer,
+	req *pb.TrainingTestSplitRequest,
+	trainIterator *provider.TrainingSetIterator,
+	testIterator *provider.TrainingSetIterator,
+	isTestFinished *bool,
+	isTrainFinished *bool,
+	logger *zap.SugaredLogger,
+) error {
+
+	var thisIter provider.TrainingSetIterator
+	switch req.GetRequestType() {
+	case pb.RequestType_TRAINING:
+		thisIter = *trainIterator
+	case pb.RequestType_TEST:
+		thisIter = *testIterator
+	default:
+		return fmt.Errorf("invalid request type")
+	}
+
+	if thisIter.Next() {
+		sRow, err := serializedRow(thisIter.Features(), thisIter.Label())
+		if err != nil {
+			return err
+		}
+
+		response := &pb.TrainingTestSplitResponse{
+			RequestType:       req.GetRequestType(),
+			TrainingTestSplit: &pb.TrainingTestSplitResponse_Row{Row: sRow},
+		}
+
+		if err := stream.Send(response); err != nil {
+			logger.Errorw("Failed to write to stream", "Error", err)
+			return err
+		}
+	} else {
+		// Once an iterator is finished we need to let the client know to stop iteration
+		// We do this so that the stream stays open so the client can still operate on the other iterator
+		serv.handleFinishedIterator(stream, req.GetRequestType(), isTestFinished, isTrainFinished, logger)
+	}
+
+	if err := thisIter.Err(); err != nil {
+		logger.Errorw("Dataset error", "Error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (serv *FeatureServer) handleFinishedIterator(
+	stream pb.Feature_TrainingTestSplitServer,
+	reqType pb.RequestType,
+	isTestFinished *bool,
+	isTrainFinished *bool,
+	logger *zap.SugaredLogger,
+) {
+	if reqType == pb.RequestType_TEST {
+		*isTestFinished = true
+	} else {
+		*isTrainFinished = true
+	}
+
+	if !*isTestFinished || !*isTrainFinished {
+		if err := stream.Send(&pb.TrainingTestSplitResponse{IteratorDone: true}); err != nil {
+			logger.Errorw("Failed to write to stream", "Error", err)
+		}
+	}
+}
+
 func (serv *FeatureServer) TrainingDataColumns(ctx context.Context, req *pb.TrainingDataColumnsRequest) (*pb.TrainingColumns, error) {
 	id := req.GetId()
 	name, variant := id.GetName(), id.GetVersion()
@@ -155,6 +306,31 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	}
 	serv.Logger.Debugw("Get Training Set From Store", "name", name, "variant", variant)
 	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
+}
+
+func (serv *FeatureServer) getTrainingSetTestSplitIterator(name, variant string, testSize float32, shuffle bool, randomState int) (provider.TrainingSetIterator, provider.TrainingSetIterator, func() error, error) {
+	ctx := context.TODO()
+	serv.Logger.Infow("Getting Training Set Iterator", "name", name, "variant", variant)
+	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{name, variant})
+	if err != nil {
+		return nil, nil, nil, errors.Wrap(err, "could not get training set variant")
+	}
+	serv.Logger.Debugw("Fetching Training Set Provider", "name", name, "variant", variant)
+	providerEntry, err := ts.FetchProvider(serv.Metadata, ctx)
+	if err != nil {
+		return nil, nil, nil, errors.Wrap(err, "could not get fetch provider")
+	}
+	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
+	if err != nil {
+		return nil, nil, nil, errors.Wrap(err, "could not get provider")
+	}
+	store, err := p.AsOfflineStore()
+	if err != nil {
+		// This means that the provider of the training set isn't an offline store.
+		// That shouldn't be possible.
+		return nil, nil, nil, errors.Wrap(err, "could not open as offline store")
+	}
+	return store.GetTrainingSetTestSplit(provider.ResourceID{Name: name, Variant: variant}, testSize, shuffle, randomState)
 }
 
 func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (provider.BatchFeatureIterator, error) {

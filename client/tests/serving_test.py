@@ -6,7 +6,7 @@ import sys
 import time
 from tempfile import NamedTemporaryFile
 from unittest import TestCase
-from unittest.mock import MagicMock
+from unittest import mock
 
 import numpy as np
 import pandas as pd
@@ -32,12 +32,16 @@ def test_check_feature_type(test_input, expected):
     assert expected == check_feature_type(test_input)
 
 
-@pytest.fixture
+proto_features = [1, 2, 3]
+proto_label = 4
+
+
+@pytest.fixture()
 def proto_row():
     class ProtoRow:
         def __init__(self):
-            self.features = [1, 2, 3]
-            self.label = 4
+            self.features = proto_features
+            self.label = proto_label
 
         def to_numpy(self):
             row = np.array(self.features)
@@ -47,15 +51,24 @@ def proto_row():
     return ProtoRow()
 
 
+def side_effect(value):
+    if value in proto_features:
+        return value
+    else:
+        return proto_label
+
+
+def mock_type(value):
+    return "int"
+
+
+@mock.patch(
+    "featureform.serving.parse_proto_value", mock.MagicMock(side_effect=side_effect)
+)
+@mock.patch(
+    "featureform.serving.parse_proto_type", mock.MagicMock(side_effect=mock_type)
+)
 def test_row_to_numpy(proto_row):
-    def side_effect(value):
-        if value in proto_row.features:
-            return value
-        else:
-            return proto_row.label
-
-    ff.serving.parse_proto_value = MagicMock(side_effect=side_effect)
-
     row = Row(proto_row)
     row_np = row.to_numpy()
     proto_row_np = proto_row.to_numpy()

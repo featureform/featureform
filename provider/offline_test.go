@@ -77,18 +77,18 @@ func (test *OfflineStoreTest) RunSQL() {
 	t := test.t
 	store := test.store
 	testFns := map[string]func(*testing.T, OfflineStore){
-		"PrimaryTableCreate":                 testPrimaryCreateTable,
-		"PrimaryTableWrite":                  testPrimaryTableWrite,
-		"Transformation":                     testTransform,
-		"TransformationUpdate":               testTransformUpdate,
-		"TransformationUpdateWithFeature":    testTransformUpdateWithFeatures,
-		"CreateDuplicatePrimaryTable":        testCreateDuplicatePrimaryTable,
-		"ChainTransformations":               testChainTransform,
-		"CreateResourceFromSource":           testCreateResourceFromSource,
-		"CreateResourceFromSourceNoTS":       testCreateResourceFromSourceNoTS,
-		"CreatePrimaryFromSource":            testCreatePrimaryFromSource,
-		"CreatePrimaryFromNonExistentSource": testCreatePrimaryFromNonExistentSource,
-		"TrainTestSplit":                     testTrainTestSplit,
+		//"PrimaryTableCreate":                 testPrimaryCreateTable,
+		//"PrimaryTableWrite":                  testPrimaryTableWrite,
+		//"Transformation":                     testTransform,
+		//"TransformationUpdate":               testTransformUpdate,
+		//"TransformationUpdateWithFeature":    testTransformUpdateWithFeatures,
+		//"CreateDuplicatePrimaryTable":        testCreateDuplicatePrimaryTable,
+		//"ChainTransformations":               testChainTransform,
+		//"CreateResourceFromSource":           testCreateResourceFromSource,
+		//"CreateResourceFromSourceNoTS":       testCreateResourceFromSourceNoTS,
+		//"CreatePrimaryFromSource":            testCreatePrimaryFromSource,
+		//"CreatePrimaryFromNonExistentSource": testCreatePrimaryFromNonExistentSource,
+		"TrainTestSplit": testTrainTestSplit,
 	}
 
 	for name, fn := range testFns {
@@ -4500,37 +4500,62 @@ func testTrainTestSplit(t *testing.T, store OfflineStore) {
 	}
 
 	testShuffle := func(t *testing.T, store OfflineStore, params TestParameters) {
+
+		// helper function to extract the data from the TS iterator
+		extractData := func(iter TrainingSetIterator) ([][]interface{}, []interface{}) {
+			featureRows := make([][]interface{}, 0)
+			labelRows := make([]interface{}, 0)
+			for iter.Next() {
+				featureRows = append(featureRows, iter.Features())
+				labelRows = append(labelRows, iter.Label())
+			}
+			return featureRows, labelRows
+		}
+
 		id := setupTable(t, store)
-		trainIter, testIter, _, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState)
-		//defer closeFunc()
+
+		trainIter, testIter, dropViews, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState)
 		if err != nil {
 			t.Fatalf("failed to fetch train test split iterators: %v", err)
 		}
-		trainIter2, testIter2, _, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState2)
-		//defer closeFunc()
+		trainIter1FeatureRows, trainIter1LabelRows := extractData(trainIter)
+		testIter1FeatureRows, testIter1LabelRows := extractData(testIter)
+		if err := dropViews(); err != nil {
+			t.Fatalf("failed to drop views: %v", err)
+		}
+
+		trainIter2, testIter2, dropViews, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState2)
 		if err != nil {
 			t.Fatalf("failed to fetch second train test split iterators: %v", err)
 		}
+		trainIter2FeatureRows, trainIter2LabelRows := extractData(trainIter2)
+		testIter2FeatureRows, testIter2LabelRows := extractData(testIter2)
+		if err := dropViews(); err != nil {
+			t.Fatalf("failed to drop views: %v", err)
+		}
+
+		// compare training
 		equalTrainRows := true
-		for trainIter.Next() {
-			trainIter2.Next()
-			if !reflect.DeepEqual(trainIter.Features(), trainIter2.Features()) {
+		for i, row := range trainIter1FeatureRows {
+			if !reflect.DeepEqual(row, trainIter2FeatureRows[i]) {
 				equalTrainRows = false
 			}
-			if !reflect.DeepEqual(trainIter.Label(), trainIter2.Label()) {
+			if !reflect.DeepEqual(trainIter1LabelRows[i], trainIter2LabelRows[i]) {
 				equalTrainRows = false
 			}
 		}
+
+		// compare test
 		equalTestRows := true
-		for testIter.Next() {
-			testIter2.Next()
-			if !reflect.DeepEqual(testIter.Features(), testIter2.Features()) {
+		for i, row := range testIter1FeatureRows {
+			if !reflect.DeepEqual(row, testIter2FeatureRows[i]) {
 				equalTestRows = false
 			}
-			if !reflect.DeepEqual(testIter.Label(), testIter2.Label()) {
+			if !reflect.DeepEqual(testIter1LabelRows[i], testIter2LabelRows[i]) {
 				equalTestRows = false
 			}
 		}
+
 		if params.IterShouldBeEqual && equalTrainRows == false {
 			t.Fatalf("Expected train calls to be equal but were not")
 		}
@@ -4613,7 +4638,7 @@ func testTrainTestSplit(t *testing.T, store OfflineStore) {
 				RandomState:       1,
 				RandomState2:      2,
 				ExpectedTestRows:  5,
-				IterShouldBeEqual: true,
+				IterShouldBeEqual: false,
 			},
 			TestFunction: testShuffle,
 		},

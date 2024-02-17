@@ -126,7 +126,8 @@ func (serv *FeatureServer) GetTrainingTestSplit(stream pb.Feature_GetTrainingTes
 func (serv *FeatureServer) handleSplitInitializeRequest(
 	stream pb.Feature_GetTrainingTestSplitServer,
 	req *pb.GetTrainingTestSplitRequest,
-	trainIterator, testIterator *provider.TrainingSetIterator,
+	trainIterator *provider.TrainingSetIterator,
+	testIterator *provider.TrainingSetIterator,
 	logger *zap.SugaredLogger,
 ) error {
 	logger.Infow("Initializing dataset", "id", req.Id, "shuffle", req.Shuffle, "testSize", req.TestSize)
@@ -166,8 +167,10 @@ func (serv *FeatureServer) handleSplitInitializeRequest(
 func (serv *FeatureServer) handleSplitDataRequest(
 	stream pb.Feature_GetTrainingTestSplitServer,
 	req *pb.GetTrainingTestSplitRequest,
-	trainIterator, testIterator *provider.TrainingSetIterator,
-	isTestFinished, isTrainFinished *bool,
+	trainIterator *provider.TrainingSetIterator,
+	testIterator *provider.TrainingSetIterator,
+	isTestFinished *bool,
+	isTrainFinished *bool,
 	logger *zap.SugaredLogger,
 ) error {
 
@@ -213,7 +216,8 @@ func (serv *FeatureServer) handleSplitDataRequest(
 func (serv *FeatureServer) handleFinishedIterator(
 	stream pb.Feature_GetTrainingTestSplitServer,
 	reqType pb.RequestType,
-	isTestFinished, isTrainFinished *bool,
+	isTestFinished *bool,
+	isTrainFinished *bool,
 	logger *zap.SugaredLogger,
 ) {
 	if reqType == pb.RequestType_TEST {
@@ -326,12 +330,7 @@ func (serv *FeatureServer) getTrainingSetTestSplitIterator(name, variant string,
 		// That shouldn't be possible.
 		return nil, nil, nil, errors.Wrap(err, "could not open as offline store")
 	}
-	// assume clickhouse store
-	clickhouseStore, ok := store.(*provider.ClickHouseOfflineStore)
-	if !ok {
-		return nil, nil, nil, errors.New("store is not a clickhouse store")
-	}
-	return clickhouseStore.GetTrainingSetTestSplit(provider.ResourceID{Name: name, Variant: variant}, testSize, shuffle, randomState)
+	return store.GetTrainingSetTestSplit(provider.ResourceID{Name: name, Variant: variant}, testSize, shuffle, randomState)
 }
 
 func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (provider.BatchFeatureIterator, error) {

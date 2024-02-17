@@ -910,16 +910,22 @@ func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
 		return "", fmt.Errorf("failed to get table size: %v", err)
 	}
 	testRows := int(float32(totalRows) * testSize)
-	fmt.Println("number of test rows", testRows)
+	fmt.Println("Number of test rows: ", testRows)
 
 	// Create the final view with an 'is_test' column
 	createViewQuery := fmt.Sprintf(`
-        CREATE VIEW IF NOT EXISTS %s AS
-        SELECT *, IF(row_number() OVER (%s) <= %d, 1, 0) AS is_test
-        FROM %s
-    `, sanitizeCH(finalViewName), orderByClause, testRows, sanitizeCH(trainingSetTable))
+			CREATE VIEW IF NOT EXISTS %s AS
+			SELECT *, IF(row_number() OVER (%s) <= %d, 1, 0) AS is_test
+			FROM %s
+    	`,
+		sanitizeCH(finalViewName),
+		orderByClause,
+		testRows,
+		sanitizeCH(trainingSetTable),
+	)
 
-	// Execute the query to create the final view
+	fmt.Println("This is the create view query:", createViewQuery)
+
 	if _, err := store.db.Exec(createViewQuery); err != nil {
 		return "", fmt.Errorf("failed to create final view: %v", err)
 	}
@@ -989,12 +995,9 @@ func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
 	shuffle bool,
 	randomState int,
 ) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
-
-	fmt.Printf("Getting Training Set: %v\n", id)
 	if err := id.check(TrainingSet); err != nil {
 		return nil, nil, nil, err
 	}
-	fmt.Printf("Checking if Training Set exists: %v\n", id)
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, nil, nil, err
 	} else if !exists {

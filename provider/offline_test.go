@@ -4500,44 +4500,39 @@ func testTrainTestSplit(t *testing.T, store OfflineStore) {
 	}
 
 	testShuffle := func(t *testing.T, store OfflineStore, params TestParameters) {
+
+		// helper function to extract the data from the TS iterator
+		extractData := func(iter TrainingSetIterator) ([][]interface{}, []interface{}) {
+			featureRows := make([][]interface{}, 0)
+			labelRows := make([]interface{}, 0)
+			for iter.Next() {
+				featureRows = append(featureRows, iter.Features())
+				labelRows = append(labelRows, iter.Label())
+			}
+			return featureRows, labelRows
+		}
+
 		id := setupTable(t, store)
-		trainIter, testIter, closeFunc1, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState)
+
+		trainIter, testIter, dropViews, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState)
 		if err != nil {
 			t.Fatalf("failed to fetch train test split iterators: %v", err)
 		}
-		// store everything from the first iterators
-		trainIter1FeatureRows := make([][]interface{}, 0)
-		trainIter1LabelRows := make([]interface{}, 0)
-		for trainIter.Next() {
-			trainIter1FeatureRows = append(trainIter1FeatureRows, trainIter.Features())
-			trainIter1LabelRows = append(trainIter1LabelRows, trainIter.Label())
-		}
-		testIter1FeatureRows := make([][]interface{}, 0)
-		testIter1LabelRows := make([]interface{}, 0)
-		for testIter.Next() {
-			testIter1FeatureRows = append(testIter1FeatureRows, testIter.Features())
-			testIter1LabelRows = append(testIter1LabelRows, testIter.Label())
+		trainIter1FeatureRows, trainIter1LabelRows := extractData(trainIter)
+		testIter1FeatureRows, testIter1LabelRows := extractData(testIter)
+		if err := dropViews(); err != nil {
+			t.Fatalf("failed to drop views: %v", err)
 		}
 
-		closeFunc1()
-
-		trainIter2, testIter2, closeFunc2, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState2)
+		trainIter2, testIter2, dropViews, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState2)
 		if err != nil {
 			t.Fatalf("failed to fetch second train test split iterators: %v", err)
 		}
-		trainIter2FeatureRows := make([][]interface{}, 0)
-		trainIter2LabelRows := make([]interface{}, 0)
-		for trainIter2.Next() {
-			trainIter2FeatureRows = append(trainIter2FeatureRows, trainIter2.Features())
-			trainIter2LabelRows = append(trainIter2LabelRows, trainIter2.Label())
+		trainIter2FeatureRows, trainIter2LabelRows := extractData(trainIter2)
+		testIter2FeatureRows, testIter2LabelRows := extractData(testIter2)
+		if err := dropViews(); err != nil {
+			t.Fatalf("failed to drop views: %v", err)
 		}
-		testIter2FeatureRows := make([][]interface{}, 0)
-		testIter2LabelRows := make([]interface{}, 0)
-		for testIter2.Next() {
-			testIter2FeatureRows = append(testIter2FeatureRows, testIter2.Features())
-			testIter2LabelRows = append(testIter2LabelRows, testIter2.Label())
-		}
-		closeFunc2()
 
 		// compare training
 		equalTrainRows := true

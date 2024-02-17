@@ -684,13 +684,11 @@ class Dataset:
         # np.array([6, 7])
 
         # TEST OUTPUT
-        # Feature:
         # np.array([
         #   [5, 1, 3],
         #   [4, 3, 1],
         #   [6, 6, 7],
         # ])
-        # Label:
         # np.array([4, 6, 7])
 
         ```

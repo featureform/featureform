@@ -4426,7 +4426,7 @@ func testTrainTestSplit(t *testing.T, store OfflineStore) {
 	}
 
 	type TestParameters struct {
-		TestSize          float64
+		TestSize          float32
 		Shuffle           bool
 		RandomState       int
 		RandomState2      int

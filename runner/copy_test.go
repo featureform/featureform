@@ -731,6 +731,10 @@ func (m MockOfflineStore) ResourceLocation(id provider.ResourceID) (string, erro
 	return "", nil
 }
 
+func (m MockOfflineStore) GetTrainingSetTestSplit(id provider.ResourceID, testSize float32, shuffle bool, randomState int) (provider.TrainingSetIterator, provider.TrainingSetIterator, func() error, error) {
+	return nil, nil, nil, nil
+}
+
 type MockOnlineStoreTable struct{}
 
 func NewMockOnlineStore() *MockOnlineStore {

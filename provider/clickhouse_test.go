@@ -103,6 +103,9 @@ func createDatabases(c pc.ClickHouseConfig, conn *sql.DB) error {
 }
 
 func TestTrainingSet(t *testing.T) {
+	if !testing.Short() {
+		t.Skip()
+	}
 	var clickHouseConfig = pc.ClickHouseConfig{
 		Host:     "127.0.0.1",
 		Port:     uint16(9000),
@@ -151,6 +154,9 @@ func TestTrainingSet(t *testing.T) {
 }
 
 func TestSplit(t *testing.T) {
+	if !testing.Short() {
+		t.Skip()
+	}
 	var clickHouseConfig = pc.ClickHouseConfig{
 		Host:     "127.0.0.1",
 		Port:     uint16(9000),

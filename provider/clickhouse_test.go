@@ -3,10 +3,14 @@ package provider
 import (
 	"database/sql"
 	"fmt"
+	"github.com/featureform/helpers"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/joho/godotenv"
+	"os"
+	"strconv"
 	"testing"
+	"time"
 )
 
 func TestOfflineStoreClickhouse(t *testing.T) {
@@ -19,59 +23,50 @@ func TestOfflineStoreClickhouse(t *testing.T) {
 		t.Logf("could not open .env file... Checking environment: %s", err)
 	}
 
-	//clickHouseDb := ""
-	//ok := true
-	//if clickHouseDb, ok = os.LookupEnv("CLICKHOUSE_DB"); !ok {
-	//	clickHouseDb = fmt.Sprintf("feature_form_%d", time.Now().UnixMilli())
-	//}
-	//
-	//username, ok := os.LookupEnv("CLICKHOUSE_USER")
-	//if !ok {
-	//	t.Fatalf("missing CLICKHOUSE_USER variable")
-	//}
-	//password, ok := os.LookupEnv("CLICKHOUSE_PASSWORD")
-	//if !ok {
-	//	t.Fatalf("missing CLICKHOUSE_PASSWORD variable")
-	//}
-	//host, ok := os.LookupEnv("CLICKHOUSE_HOST")
-	//if !ok {
-	//	t.Fatalf("missing CLICKHOUSE_HOST variable")
-	//}
-	//portStr, ok := os.LookupEnv("CLICKHOUSE_PORT")
-	//if !ok {
-	//	t.Fatalf("missing CLICKHOUSE_PORT variable")
-	//}
-	//ssl := helpers.GetEnvBool("CLICKHOUSE_SSL", false)
-	//
-	//port, err := strconv.Atoi(portStr)
-	//if err != nil {
-	//	t.Fatalf("Failed to parse port to numeric: %v", portStr)
-	//}
-	//
-	//var clickHouseConfig = pc.ClickHouseConfig{
-	//	Host:     host,
-	//	Port:     uint16(port),
-	//	Username: username,
-	//	Password: password,
-	//	Database: clickHouseDb,
-	//	SSL:      ssl,
-	//}
-	//t.Logf("clickHouseConfig: %v", clickHouseConfig)
-
-	var clickHouseConfig2 = pc.ClickHouseConfig{
-		Host:     "127.0.0.1",
-		Port:     uint16(9000),
-		Username: "default",
-		Password: "",
-		Database: "ff_test",
-		SSL:      false,
+	clickHouseDb := ""
+	ok := true
+	if clickHouseDb, ok = os.LookupEnv("CLICKHOUSE_DB"); !ok {
+		clickHouseDb = fmt.Sprintf("feature_form_%d", time.Now().UnixMilli())
 	}
 
-	if err := createClickHouseDatabase(clickHouseConfig2); err != nil {
+	username, ok := os.LookupEnv("CLICKHOUSE_USER")
+	if !ok {
+		t.Fatalf("missing CLICKHOUSE_USER variable")
+	}
+	password, ok := os.LookupEnv("CLICKHOUSE_PASSWORD")
+	if !ok {
+		t.Fatalf("missing CLICKHOUSE_PASSWORD variable")
+	}
+	host, ok := os.LookupEnv("CLICKHOUSE_HOST")
+	if !ok {
+		t.Fatalf("missing CLICKHOUSE_HOST variable")
+	}
+	portStr, ok := os.LookupEnv("CLICKHOUSE_PORT")
+	if !ok {
+		t.Fatalf("missing CLICKHOUSE_PORT variable")
+	}
+	ssl := helpers.GetEnvBool("CLICKHOUSE_SSL", false)
+
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		t.Fatalf("Failed to parse port to numeric: %v", portStr)
+	}
+
+	var clickHouseConfig = pc.ClickHouseConfig{
+		Host:     host,
+		Port:     uint16(port),
+		Username: username,
+		Password: password,
+		Database: clickHouseDb,
+		SSL:      ssl,
+	}
+	t.Logf("clickHouseConfig: %v", clickHouseConfig)
+
+	if err := createClickHouseDatabase(clickHouseConfig); err != nil {
 		t.Fatalf("%v", err)
 	}
 
-	store, err := GetOfflineStore(pt.ClickHouseOffline, clickHouseConfig2.Serialize())
+	store, err := GetOfflineStore(pt.ClickHouseOffline, clickHouseConfig.Serialize())
 	if err != nil {
 		t.Fatalf("could not initialize store: %s\n", err)
 	}

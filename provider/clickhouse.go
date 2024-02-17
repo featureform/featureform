@@ -891,7 +891,7 @@ func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
 ) (string, error) {
 	// Generate unique suffix for the view names
 	tableNameSuffix := fmt.Sprintf("%s_%d_%t_%d", trainingSetTable, int(testSize*100), shuffle, randomState)
-	finalViewName := fmt.Sprintf("%s_split", tableNameSuffix)
+	trainingSetSplitViewName := fmt.Sprintf("%s_split", tableNameSuffix)
 
 	// Generate ORDER BY clause for shuffling if needed
 	orderByClause := ""
@@ -918,7 +918,7 @@ func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
 			SELECT *, IF(row_number() OVER (%s) <= %d, 1, 0) AS is_test
 			FROM %s
     	`,
-		sanitizeCH(finalViewName),
+		sanitizeCH(trainingSetSplitViewName),
 		orderByClause,
 		testRows,
 		sanitizeCH(trainingSetTable),
@@ -930,7 +930,7 @@ func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
 		return "", fmt.Errorf("failed to create final view: %v", err)
 	}
 
-	return finalViewName, nil
+	return trainingSetSplitViewName, nil
 }
 
 func (store *ClickHouseOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
@@ -1021,13 +1021,6 @@ func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
 		features = append(features, sanitizeCH(name.Name))
 	}
 	columns := strings.Join(features[:], ", ")
-	//clickHouseQuery, ok := store.query.(*clickhouseSQLQueries)
-	//if !ok {
-	//	return nil, nil, nil, fmt.Errorf("could not cast to clickhouse query")
-	//}
-	// add is_test column to columns
-	// columns += ", is_test"
-	fmt.Println("this is the training set split name", sanitizeCH(trainingTestSplitName))
 	train, test := store.query.trainingRowSplitSelect(columns, sanitizeCH(trainingTestSplitName))
 	fmt.Printf("Training Set Query: %s\n", train)
 	fmt.Printf("Test Set Query: %s\n", test)
@@ -1042,33 +1035,20 @@ func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
 
 	}
 
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("could not query train set: %v", err)
-	}
 	colTypes, err := store.getValueColumnTypes(trainingTestSplitName)
 	fmt.Printf("these are the column types: %v\n", colTypes)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("could not get column types: %v", err)
 	}
-	// return func to drop views
+
+	// return callback to drop view
 	dropFunc := func() error {
 		// two queries to drop split and row number table
-		baseQuery := strings.TrimSuffix(trainingTestSplitName, "_split")
 		dropQuery := fmt.Sprintf("DROP VIEW if exists %s", sanitizeCH(trainingTestSplitName))
 		_, err := store.db.Exec(dropQuery)
 		if err != nil {
 			return fmt.Errorf("could not drop test split: %v", err)
 
-		}
-		rowNumberTable := fmt.Sprintf("%s_with_row_number", baseQuery)
-		shuffledView := fmt.Sprintf("%s_shuffled", baseQuery)
-		dropQuery = fmt.Sprintf("DROP VIEW if exists %s", sanitizeCH(rowNumberTable))
-		if _, err := store.db.Exec(dropQuery); err != nil {
-			return fmt.Errorf("could not drop row number table: %v", err)
-		}
-		dropQuery = fmt.Sprintf("DROP VIEW if exists %s", sanitizeCH(shuffledView))
-		if _, err := store.db.Exec(dropQuery); err != nil {
-			return fmt.Errorf("could not drop shuffled view: %v", err)
 		}
 		return nil
 	}
@@ -1103,8 +1083,6 @@ func (q clickhouseSQLQueries) trainingRowSelect(columns string, trainingSetName 
 }
 
 func (q clickhouseSQLQueries) trainingRowSplitSelect(columns string, trainingSetSplitName string) (string, string) {
-	fmt.Println("these are the columns", columns)
-	// Assume `columns` is a comma-separated list of the columns you want to select, excluding `_row`.
 	testSplitQuery := fmt.Sprintf("SELECT * EXCEPT _row FROM (SELECT %s FROM %s WHERE `is_test` = 1 ORDER BY _row ASC)", columns, trainingSetSplitName)
 	trainSplitQuery := fmt.Sprintf("SELECT * EXCEPT _row FROM (SELECT %s FROM %s WHERE `is_test` = 0 ORDER BY _row ASC)", columns, trainingSetSplitName)
 

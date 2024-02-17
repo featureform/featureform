@@ -103,7 +103,7 @@ func createDatabases(c pc.ClickHouseConfig, conn *sql.DB) error {
 }
 
 func TestTrainingSet(t *testing.T) {
-	if !testing.Short() {
+	if testing.Short() {
 		t.Skip()
 	}
 	var clickHouseConfig = pc.ClickHouseConfig{
@@ -154,7 +154,7 @@ func TestTrainingSet(t *testing.T) {
 }
 
 func TestSplit(t *testing.T) {
-	if !testing.Short() {
+	if testing.Short() {
 		t.Skip()
 	}
 	var clickHouseConfig = pc.ClickHouseConfig{

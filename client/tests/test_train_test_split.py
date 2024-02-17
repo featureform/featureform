@@ -23,7 +23,7 @@ def response(req_type, iterator_done):
         request_type = serving_pb2.RequestType.TEST
         label_value = "test"
 
-    req = serving_pb2.GetTrainingTestSplitResponse(
+    req = serving_pb2.TrainingTestSplitResponse(
         request_type=request_type,
         row=serving_pb2.TrainingDataRow(
             features=[
@@ -48,7 +48,7 @@ class MockGrpcStub:
         self.train_rows = 0
         self.test_rows = 0
 
-    def GetTrainingTestSplit(self, iterator):
+    def TrainingTestSplit(self, iterator):
         for value in iterator:
             iterator_done = False
             if value.request_type == 1:

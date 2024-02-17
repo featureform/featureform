@@ -1,33 +1,26 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
-import asyncio
-import base64
 import inspect
-import json
-import math
 import os
 import queue
 import random
-import time
 import types
 import warnings
 from collections.abc import Iterator
-from typing import List, Union, Dict
+from typing import List, Union
 
 import dill
+import math
 import numpy as np
 import pandas as pd
+
 from featureform.proto import serving_pb2
 from featureform.proto import serving_pb2_grpc
-
-from .register import FeatureColumnResource
-
 from .enums import FileFormat, ResourceType
-
-from .resources import Model, SourceType, ComputationMode
+from .register import FeatureColumnResource
+from .resources import Model
 from .tls import insecure_channel, secure_channel
-
 # from .training_test_split import TrainingSetTestSplit
 from .version import check_up_to_date
 
@@ -90,11 +83,11 @@ class ServingClient:
         self.impl = HostedClientImpl(host, insecure, cert_path)
 
     def training_set(
-            self,
-            name,
-            variant="",
-            include_label_timestamp=False,
-            model: Union[str, Model] = None,
+        self,
+        name,
+        variant="",
+        include_label_timestamp=False,
+        model: Union[str, Model] = None,
     ) -> "Dataset":
         """Return an iterator that iterates through the specified training set.
 
@@ -117,7 +110,7 @@ class ServingClient:
         return self.impl.training_set(name, variant, include_label_timestamp, model)
 
     def training_set_test_split(
-            self, name, variant="", model: Union[str, Model] = None
+        self, name, variant="", model: Union[str, Model] = None
     ):
         """Split the dataset into a training set and a test set.
 
@@ -135,7 +128,7 @@ class ServingClient:
         return train, test
 
     def features(
-            self, features, entities, model: Union[str, Model] = None, params: list = None
+        self, features, entities, model: Union[str, Model] = None, params: list = None
     ):
         """Returns the feature values for the specified entities.
 
@@ -210,13 +203,13 @@ class HostedClientImpl:
     #         return secure_channel(host, cert_path)
 
     def training_set(
-            self, name, variation, include_label_timestamp, model: Union[str, Model] = None
+        self, name, variation, include_label_timestamp, model: Union[str, Model] = None
     ):
         training_set_stream = TrainingSetStream(self._stub, name, variation, model)
         return Dataset(training_set_stream)
 
     def features(
-            self, features, entities, model: Union[str, Model] = None, params: list = None
+        self, features, entities, model: Union[str, Model] = None, params: list = None
     ):
         req = serving_pb2.FeatureServeRequest()
         for name, values in entities.items():
@@ -446,19 +439,19 @@ class Batch:
 
 class TrainingSetSplitIterator:
     def __init__(
-            self,
-            req_queue: queue.Queue,
-            resp_queue: queue.Queue,
-            resp_stream,
-            request_type,
-            name,
-            version,
-            test_size,
-            train_size,
-            shuffle,
-            random_state,
-            batch_size,
-            model: Union[str, Model] = None,
+        self,
+        req_queue: queue.Queue,
+        resp_queue: queue.Queue,
+        resp_stream,
+        request_type,
+        name,
+        version,
+        test_size,
+        train_size,
+        shuffle,
+        random_state,
+        batch_size,
+        model: Union[str, Model] = None,
     ):
         self.name = name
         self.version = version
@@ -501,19 +494,19 @@ class TrainingSetSplitIterator:
 
             self.req_queue.put(req)
 
-
-            next1 = next(self.resp_stream)
+            next_row = next(self.resp_stream)
 
             if batch_features is None:
-                row = Row(next1.row)
+                row = Row(next_row.row)
                 batch_features = np.array(row.features())
                 batch_label = np.array(row.label())
             else:
-                batch_features = np.append(batch_features, Row(next1.row).features(), axis=0)
-                batch_label = np.append(batch_label, Row(next1.row).label(), axis=0)
+                batch_features = np.append(
+                    batch_features, Row(next_row.row).features(), axis=0
+                )
+                batch_label = np.append(batch_label, Row(next_row.row).label(), axis=0)
 
-            if next1.iterator_done:
-
+            if next_row.iterator_done:
                 self.complete = True
                 break
             i += 1
@@ -527,16 +520,16 @@ class TrainingSetTestSplit:
     """
 
     def __init__(
-            self,
-            stub,
-            name: str,
-            version: str,
-            test_size: float,
-            train_size: float,
-            shuffle: bool,
-            random_state: int,
-            batch_size: int,
-            model: Union[str, Model] = None,
+        self,
+        stub,
+        name: str,
+        version: str,
+        test_size: float,
+        train_size: float,
+        shuffle: bool,
+        random_state: int,
+        batch_size: int,
+        model: Union[str, Model] = None,
     ):
         self.name = name
         self.version = version
@@ -629,12 +622,12 @@ class Dataset:
         self._dataframe = dataframe
 
     def train_test_split(
-            self,
-            test_size: float = 0,
-            train_size: float = 0,
-            shuffle: bool = True,
-            random_state: Union[int, None] = None,
-            batch_size: int = 1,
+        self,
+        test_size: float = 0,
+        train_size: float = 0,
+        shuffle: bool = True,
+        random_state: Union[int, None] = None,
+        batch_size: int = 1,
     ):
         """
         (This functionality is currently only available for Clickhouse).
@@ -832,9 +825,9 @@ class Dataset:
         try:
             df = (
                 spark.read.option("header", "true")
-                    .option("recursiveFileLookup", "true")
-                    .format(file_format)
-                    .load(location)
+                .option("recursiveFileLookup", "true")
+                .format(file_format)
+                .load(location)
             )
 
             label_column_name = ""
@@ -958,11 +951,10 @@ class Row:
         self._types = [parse_proto_type(feature) for feature in proto_row.features]
         self._features = np.array(
             [parse_proto_value(feature) for feature in proto_row.features],
-            dtype=get_numpy_array_type(self._types)
+            dtype=get_numpy_array_type(self._types),
         )
         self._label = parse_proto_value(proto_row.label)
         self._row = np.append(self._features, self._label)
-
 
     def features(self):
         return np.array([self._row[:-1]])
@@ -1044,18 +1036,20 @@ def parse_proto_type(value):
         "str_value": str,
         "int_value": np.int32,
         "int32_value": np.int32,
-        "int64_value":np.int64,
+        "int64_value": np.int64,
         "float_value": np.float32,
         "double_value": np.float64,
         "bool_value": bool,
     }
     return type_mapping[value.WhichOneof("value")]
 
+
 def get_numpy_array_type(types):
     if all(i == types[0] for i in types):
         return types[0]
     else:
-        return 'O'
+        return "O"
+
 
 class FeatureSetIterator:
     def __init__(self, stub, features):

@@ -84,129 +84,147 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 
 func (serv *FeatureServer) GetTrainingTestSplit(stream pb.Feature_GetTrainingTestSplitServer) error {
 
-	var finalTest, finalTrain provider.TrainingSetIterator
-	var isTestFinished = false
-	var isTrainFinished = false
+	var (
+		trainIter, testIter provider.TrainingSetIterator
+		isTrainFinished     bool
+		isTestFinished      bool
+	)
 
 	for {
 		req, err := stream.Recv()
-
-		serv.Logger.Infow("Getting training test split", "Request", req.String())
-		serv.Logger.Infow("request type", "RequestType", req.RequestType.String())
 		if err != nil {
 			return err
 		}
 
 		id := req.GetId()
-		reqType := req.GetRequestType()
 		name, variant := id.GetName(), id.GetVersion()
+		logger := serv.Logger.With("Name", name, "Variant", variant, "RequestType", req.GetRequestType().String())
+
+		logger.Infow("Getting training test split", "Request", req.String())
+
 		featureObserver := serv.Metrics.BeginObservingTrainingServe(name, variant)
 		defer featureObserver.Finish()
-		logger := serv.Logger.With("Name", name, "Variant", variant)
 
-		// Handle initialization request
-		if req.RequestType == pb.RequestType_INITIALIZE {
-			fmt.Println("----------------ATHIS SHOULD HAPPEN FIRST_________________________")
-			// Perform initialization based on the request
-			// For example, load the dataset, shuffle it, split into training and test sets, etc.
-			serv.Logger.Infow("Initializing dataset", "id", req.Id, "shuffle", req.Shuffle, "testSize", req.TestSize)
-
-			//Initialization done, you might want to send a confirmation message back to the client
-			//However, if your protocol doesn't require sending a response for initialization, you can skip this
-			//Assuming you send some sort of acknowledgment back
-			initResponse := &pb.GetTrainingTestSplitResponse{
-				RequestType: pb.RequestType_INITIALIZE,
-				TrainingTestSplit: &pb.GetTrainingTestSplitResponse_Initialized{
-					Initialized: true,
-				},
-			}
-
-			train, test, dropFunc, err := serv.getTrainingSetTestSplitIterator(name, variant, req.TestSize, req.Shuffle, int(req.RandomState))
-			defer dropFunc()
-			fmt.Println("making sure train is not nil: ", train)
-			finalTest = test
-			finalTrain = train
-			if err != nil {
-				logger.Errorw("Failed to get training set iterator", "Error", err)
+		switch req.GetRequestType() {
+		case pb.RequestType_INITIALIZE:
+			if err := serv.handleSplitInitializeRequest(stream, req, &trainIter, &testIter, logger); err != nil {
 				featureObserver.SetError()
 				return err
 			}
-
-			if err := stream.Send(initResponse); err != nil {
-				serv.Logger.Errorw("Failed to send init response", "error", err)
+		default:
+			if err := serv.handleSplitDataRequest(stream, req, &trainIter, &testIter, &isTestFinished, &isTrainFinished, logger); err != nil {
 				featureObserver.SetError()
 				return err
 			}
-		} else {
-			fmt.Println("----------------ATHIS SHOULD HAPPEN Second_________________________")
-			logger.Info("Serving training split data")
-			//if model := req.GetModel(); model != nil {
-			//	trainingSets := []metadata.NameVariant{{Name: name, Variant: variant}}
-			//	err := serv.Metadata.CreateModel(stream.Context(), metadata.ModelDef{Name: model.GetName(), Trainingsets: trainingSets})
-			//	if err != nil {
-			//		return err
-			//	}
-			//}
-			fmt.Println("this is the test iterator", finalTest)
-			fmt.Println("this is the train iterator", finalTrain)
-
-			var thisIter provider.TrainingSetIterator
-			if reqType == pb.RequestType_TEST {
-				fmt.Println("this is a test request")
-				thisIter = finalTest
-			} else if reqType == pb.RequestType_TRAINING {
-				fmt.Println("this is a training request")
-				thisIter = finalTrain
-			} else {
-				return fmt.Errorf("invalid request type")
+			if isTestFinished && isTrainFinished {
+				return nil
 			}
+		}
+	}
+}
 
-			if thisIter.Next() {
-				sRow, err := serializedRow(thisIter.Features(), thisIter.Label())
-				logger.Infof("sRow: %v", sRow)
-				if err != nil {
-					return err
-				}
-				response := &pb.GetTrainingTestSplitResponse{
-					RequestType:       reqType,
-					TrainingTestSplit: &pb.GetTrainingTestSplitResponse_Row{Row: sRow},
-				}
+func (serv *FeatureServer) handleSplitInitializeRequest(
+	stream pb.Feature_GetTrainingTestSplitServer,
+	req *pb.GetTrainingTestSplitRequest,
+	trainIterator, testIterator *provider.TrainingSetIterator,
+	logger *zap.SugaredLogger,
+) error {
+	logger.Infow("Initializing dataset", "id", req.Id, "shuffle", req.Shuffle, "testSize", req.TestSize)
 
-				if err := stream.Send(response); err != nil {
-					logger.Errorw("Failed to write to stream", "Error", err)
-					featureObserver.SetError()
-					return err
-				}
-				featureObserver.ServeRow()
-			} else {
+	train, test, dropViews, err := serv.getTrainingSetTestSplitIterator(
+		req.Id.GetName(),
+		req.Id.GetVersion(),
+		req.TestSize,
+		req.Shuffle,
+		int(req.RandomState),
+	)
 
-				logger.Infof("Done with iterator of request type: %v", reqType)
+	if err != nil {
+		logger.Errorw("Failed to get training set iterator", "Error", err)
+		return err
+	}
+	defer dropViews()
 
-				if reqType == pb.RequestType_TEST {
-					isTestFinished = true
-				} else if reqType == pb.RequestType_TRAINING {
-					isTrainFinished = true
-				}
+	*trainIterator = train
+	*testIterator = test
 
-				if isTestFinished && isTrainFinished {
-					logger.Infof("Both iterators are finished")
-					return nil
-				} else {
-					logger.Infof("Finished with one iterator, waiting for the other")
-					if err := stream.Send(&pb.GetTrainingTestSplitResponse{
-						IteratorDone: true,
-					}); err != nil {
-						logger.Errorw("Failed to write to stream", "Error", err)
-					}
-				}
-			}
+	initResponse := &pb.GetTrainingTestSplitResponse{
+		RequestType: pb.RequestType_INITIALIZE,
+		TrainingTestSplit: &pb.GetTrainingTestSplitResponse_Initialized{
+			Initialized: true,
+		},
+	}
 
-			logger.Infof("Done with iterator of request type: %v", reqType)
-			if err := thisIter.Err(); err != nil {
-				logger.Errorw("Dataset error", "Error", err)
-				featureObserver.SetError()
-				return err
-			}
+	if err := stream.Send(initResponse); err != nil {
+		logger.Errorw("Failed to send init response", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (serv *FeatureServer) handleSplitDataRequest(
+	stream pb.Feature_GetTrainingTestSplitServer,
+	req *pb.GetTrainingTestSplitRequest,
+	trainIterator, testIterator *provider.TrainingSetIterator,
+	isTestFinished, isTrainFinished *bool,
+	logger *zap.SugaredLogger,
+) error {
+
+	var thisIter provider.TrainingSetIterator
+	switch req.GetRequestType() {
+	case pb.RequestType_TRAINING:
+		thisIter = *trainIterator
+	case pb.RequestType_TEST:
+		thisIter = *testIterator
+	default:
+		return fmt.Errorf("invalid request type")
+	}
+
+	if thisIter.Next() {
+		sRow, err := serializedRow(thisIter.Features(), thisIter.Label())
+		if err != nil {
+			return err
+		}
+
+		response := &pb.GetTrainingTestSplitResponse{
+			RequestType:       req.GetRequestType(),
+			TrainingTestSplit: &pb.GetTrainingTestSplitResponse_Row{Row: sRow},
+		}
+
+		if err := stream.Send(response); err != nil {
+			logger.Errorw("Failed to write to stream", "Error", err)
+			return err
+		}
+	} else {
+		// Once an iterator is finished we need to let the client know to stop iteration
+		// We do this so that the stream stays open so the client can still operate on the other iterator
+		serv.handleFinishedIterator(stream, req.GetRequestType(), isTestFinished, isTrainFinished, logger)
+	}
+
+	if err := thisIter.Err(); err != nil {
+		logger.Errorw("Dataset error", "Error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (serv *FeatureServer) handleFinishedIterator(
+	stream pb.Feature_GetTrainingTestSplitServer,
+	reqType pb.RequestType,
+	isTestFinished, isTrainFinished *bool,
+	logger *zap.SugaredLogger,
+) {
+	if reqType == pb.RequestType_TEST {
+		*isTestFinished = true
+	} else {
+		*isTrainFinished = true
+	}
+
+	if !*isTestFinished || !*isTrainFinished {
+		if err := stream.Send(&pb.GetTrainingTestSplitResponse{IteratorDone: true}); err != nil {
+			logger.Errorw("Failed to write to stream", "Error", err)
 		}
 	}
 }

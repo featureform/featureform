@@ -14,8 +14,7 @@ def response(req_type, iterator_done):
     if req_type == 0:
         request_type = serving_pb2.RequestType.INITIALIZE
         return serving_pb2.GetTrainingTestSplitResponse(
-            request_type=request_type,
-            initialized=True
+            request_type=request_type, initialized=True
         )
     elif req_type == 1:
         request_type = serving_pb2.RequestType.TRAINING
@@ -34,7 +33,7 @@ def response(req_type, iterator_done):
             ],
             label=serving_pb2.Value(str_value=label_value),
         ),
-        iterator_done=iterator_done
+        iterator_done=iterator_done,
     )
 
     # training_data = serving_pb2.TrainingDataRow()
@@ -82,31 +81,31 @@ class MockStream:
     "kwargs,should_fail",
     [
         (
-                {
-                    "test_size": 0.5,
-                    "train_size": 0.5,
-                    "shuffle": True,
-                    "random_state": None,
-                },
-                False,
+            {
+                "test_size": 0.5,
+                "train_size": 0.5,
+                "shuffle": True,
+                "random_state": None,
+            },
+            False,
         ),
         (
-                {
-                    "test_size": -0.5,
-                    "train_size": 0.5,
-                    "shuffle": True,
-                    "random_state": None,
-                },
-                True,
+            {
+                "test_size": -0.5,
+                "train_size": 0.5,
+                "shuffle": True,
+                "random_state": None,
+            },
+            True,
         ),
         (
-                {
-                    "test_size": 0.5,
-                    "train_size": -0.5,
-                    "shuffle": True,
-                    "random_state": None,
-                },
-                True,
+            {
+                "test_size": 0.5,
+                "train_size": -0.5,
+                "shuffle": True,
+                "random_state": None,
+            },
+            True,
         ),
         ({"test_size": 0.5, "shuffle": True, "random_state": None}, False),
         ({"test_size": 0.5, "random_state": None}, False),
@@ -114,18 +113,16 @@ class MockStream:
         ({"test_size": 0.5, "random_state": 3}, False),
         ({"train_size": 0.5, "shuffle": True, "random_state": None}, False),
         (
-                {
-                    "test_size": 0.5,
-                    "train_size": 0.1,
-                    "shuffle": True,
-                    "random_state": None,
-                },
-                True,
+            {
+                "test_size": 0.5,
+                "train_size": 0.1,
+                "shuffle": True,
+                "random_state": None,
+            },
+            True,
         ),
     ],
 )
-
-
 def test_initialization(kwargs, should_fail):
     train_test_stream = MockStream("name", "variant", 1)
     dataset = Dataset(train_test_stream)
@@ -135,6 +132,7 @@ def test_initialization(kwargs, should_fail):
     else:
         dataset.train_test_split(**kwargs)
 
+
 def test_train_test_split():
     train_test_stream = MockStream("name", "variant", 1)
     dataset = Dataset(train_test_stream)
@@ -143,11 +141,11 @@ def test_train_test_split():
     )
 
     for features, label in train:
-        assert np.array_equal(features, np.array([["f1", 1, False]], dtype='O'))
+        assert np.array_equal(features, np.array([["f1", 1, False]], dtype="O"))
         assert np.array_equal(label, np.array(["train"]))
 
     for features, label in test:
-        assert np.array_equal(features, np.array([["f1", 1, False]], dtype='O'))
+        assert np.array_equal(features, np.array([["f1", 1, False]], dtype="O"))
         assert np.array_equal(label, np.array(["test"]))
 
 
@@ -162,29 +160,44 @@ def test_train_test_batch():
         if i > 1:
             break
 
-        assert np.array_equal(features, np.array([
-            ["f1", 1, False],
-            ["f1", 1, False],
-            ["f1", 1, False],
-            ["f1", 1, False],
-            ["f1", 1, False],
-        ], dtype='O'))
-        assert np.array_equal(label, np.array(["train", "train", "train", "train", "train"]))
+        assert np.array_equal(
+            features,
+            np.array(
+                [
+                    ["f1", 1, False],
+                    ["f1", 1, False],
+                    ["f1", 1, False],
+                    ["f1", 1, False],
+                    ["f1", 1, False],
+                ],
+                dtype="O",
+            ),
+        )
+        assert np.array_equal(
+            label, np.array(["train", "train", "train", "train", "train"])
+        )
         i += 1
 
     i = 0
     for features, label in test:
         if i > 1:
             break
-        assert np.array_equal(features, np.array([
-            ["f1", 1, False],
-            ["f1", 1, False],
-            ["f1", 1, False],
-            ["f1", 1, False],
-            ["f1", 1, False],
-        ], dtype='O'))
+        assert np.array_equal(
+            features,
+            np.array(
+                [
+                    ["f1", 1, False],
+                    ["f1", 1, False],
+                    ["f1", 1, False],
+                    ["f1", 1, False],
+                    ["f1", 1, False],
+                ],
+                dtype="O",
+            ),
+        )
         assert np.array_equal(label, np.array(["test", "test", "test", "test", "test"]))
         i += 1
+
 
 def test_train_test_partial_batch():
     train_test_stream = MockStream("name", "variant", 3)
@@ -197,11 +210,17 @@ def test_train_test_partial_batch():
         if i > 1:
             break
 
-        assert np.array_equal(features, np.array([
-            ["f1", 1, False],
-            ["f1", 1, False],
-            ["f1", 1, False],
-        ], dtype='O'))
+        assert np.array_equal(
+            features,
+            np.array(
+                [
+                    ["f1", 1, False],
+                    ["f1", 1, False],
+                    ["f1", 1, False],
+                ],
+                dtype="O",
+            ),
+        )
         assert np.array_equal(label, np.array(["train", "train", "train"]))
         i += 1
 
@@ -209,10 +228,16 @@ def test_train_test_partial_batch():
     for features, label in test:
         if i > 1:
             break
-        assert np.array_equal(features, np.array([
-            ["f1", 1, False],
-            ["f1", 1, False],
-            ["f1", 1, False],
-        ], dtype='O'))
+        assert np.array_equal(
+            features,
+            np.array(
+                [
+                    ["f1", 1, False],
+                    ["f1", 1, False],
+                    ["f1", 1, False],
+                ],
+                dtype="O",
+            ),
+        )
         assert np.array_equal(label, np.array(["test", "test", "test"]))
         i += 1

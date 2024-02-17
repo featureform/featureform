@@ -85,11 +85,11 @@ class ServingClient:
         self.impl = HostedClientImpl(host, insecure, cert_path)
 
     def training_set(
-            self,
-            name,
-            variant="",
-            include_label_timestamp=False,
-            model: Union[str, Model] = None,
+        self,
+        name,
+        variant="",
+        include_label_timestamp=False,
+        model: Union[str, Model] = None,
     ) -> "Dataset":
         """Return an iterator that iterates through the specified training set.
 
@@ -115,9 +115,7 @@ class ServingClient:
             name = name.name
         return self.impl.training_set(name, variant, include_label_timestamp, model)
 
-    def train_test_split(
-            self, name, variant="", model: Union[str, Model] = None
-    ):
+    def train_test_split(self, name, variant="", model: Union[str, Model] = None):
         """Split the dataset into a training set and a test set.
 
         Args:
@@ -134,7 +132,7 @@ class ServingClient:
         return train, test
 
     def features(
-            self, features, entities, model: Union[str, Model] = None, params: list = None
+        self, features, entities, model: Union[str, Model] = None, params: list = None
     ):
         """Returns the feature values for the specified entities.
 
@@ -209,14 +207,14 @@ class HostedClientImpl:
     #         return secure_channel(host, cert_path)
 
     def training_set(
-            self, name, variation, include_label_timestamp, model: Union[str, Model] = None
+        self, name, variation, include_label_timestamp, model: Union[str, Model] = None
     ):
 
         training_set_stream = TrainingSetStream(self._stub, name, variation, model)
         return Dataset(training_set_stream)
 
     def features(
-            self, features, entities, model: Union[str, Model] = None, params: list = None
+        self, features, entities, model: Union[str, Model] = None, params: list = None
     ):
         req = serving_pb2.FeatureServeRequest()
         for name, values in entities.items():
@@ -446,19 +444,19 @@ class Batch:
 
 class TrainingSetSplitIterator:
     def __init__(
-            self,
-            req_queue: queue.Queue,
-            resp_queue: queue.Queue,
-            resp_stream,
-            request_type,
-            name,
-            version,
-            test_size,
-            train_size,
-            shuffle,
-            random_state,
-            batch_size,
-            model: Union[str, Model] = None,
+        self,
+        req_queue: queue.Queue,
+        resp_queue: queue.Queue,
+        resp_stream,
+        request_type,
+        name,
+        version,
+        test_size,
+        train_size,
+        shuffle,
+        random_state,
+        batch_size,
+        model: Union[str, Model] = None,
     ):
         self.name = name
         self.version = version
@@ -530,16 +528,16 @@ class TrainingSetTestSplit:
     """
 
     def __init__(
-            self,
-            stub,
-            name: str,
-            version: str,
-            test_size: float,
-            train_size: float,
-            shuffle: bool,
-            random_state: int,
-            batch_size: int,
-            model: Union[str, Model] = None,
+        self,
+        stub,
+        name: str,
+        version: str,
+        test_size: float,
+        train_size: float,
+        shuffle: bool,
+        random_state: int,
+        batch_size: int,
+        model: Union[str, Model] = None,
     ):
         self.name = name
         self.version = version
@@ -632,12 +630,12 @@ class Dataset:
         self._dataframe = dataframe
 
     def train_test_split(
-            self,
-            test_size: float = 0,
-            train_size: float = 0,
-            shuffle: bool = True,
-            random_state: Union[int, None] = None,
-            batch_size: int = 1,
+        self,
+        test_size: float = 0,
+        train_size: float = 0,
+        shuffle: bool = True,
+        random_state: Union[int, None] = None,
+        batch_size: int = 1,
     ):
         """
         (This functionality is currently only available for Clickhouse).
@@ -835,9 +833,9 @@ class Dataset:
         try:
             df = (
                 spark.read.option("header", "true")
-                    .option("recursiveFileLookup", "true")
-                    .format(file_format)
-                    .load(location)
+                .option("recursiveFileLookup", "true")
+                .format(file_format)
+                .load(location)
             )
 
             label_column_name = ""

@@ -35,6 +35,7 @@ def test_check_feature_type(test_input, expected):
 proto_features = [1, 2, 3]
 proto_label = 4
 
+
 @pytest.fixture()
 def proto_row():
     class ProtoRow:
@@ -61,8 +62,12 @@ def mock_type(value):
     return "int"
 
 
-@mock.patch('featureform.serving.parse_proto_value', mock.MagicMock(side_effect=side_effect))
-@mock.patch('featureform.serving.parse_proto_type', mock.MagicMock(side_effect=mock_type))
+@mock.patch(
+    "featureform.serving.parse_proto_value", mock.MagicMock(side_effect=side_effect)
+)
+@mock.patch(
+    "featureform.serving.parse_proto_type", mock.MagicMock(side_effect=mock_type)
+)
 def test_row_to_numpy(proto_row):
     row = Row(proto_row)
     row_np = row.to_numpy()
@@ -124,8 +129,8 @@ def retry_delete():
         ("s3://bucket/path/to/file.csv", "s3a://bucket/path/to/file.csv"),
         ("s3a://bucket/path/to/file.csv", "s3a://bucket/path/to/file.csv"),
         (
-                "s3://bucket/path/to/directory/part-0000.parquet",
-                "s3a://bucket/path/to/directory",
+            "s3://bucket/path/to/directory/part-0000.parquet",
+            "s3a://bucket/path/to/directory",
         ),
         ("s3://bucket/path/to/directory", "s3a://bucket/path/to/directory"),
     ],

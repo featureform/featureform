@@ -889,62 +889,21 @@ func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
 	shuffle bool,
 	randomState int,
 ) (string, error) {
-	// Create view name
-	tableNameSuffix := fmt.Sprintf("_%s_%d_%t_%d", trainingSetTable, int(testSize*100), shuffle, randomState)
-	trainingSetSplitView := fmt.Sprintf("%s_split", tableNameSuffix)
+	// Generate unique suffix for the view names
+	tableNameSuffix := fmt.Sprintf("%s_%d_%t_%d", trainingSetTable, int(testSize*100), shuffle, randomState)
+	finalViewName := fmt.Sprintf("%s_split", tableNameSuffix)
 
-	//// Determine ordering for the row_number based on shuffle parameter
-	//orderByClause := ""
-	//if shuffle {
-	//	// Use a fixed seed in combination with rand() to ensure reproducibility when shuffle is true
-	//	orderByClause = fmt.Sprintf("ORDER BY rand(%d)", randomState)
-	//} else {
-	//	// No specific order; could default to primary key or any other column for deterministic output
-	//	orderByClause = ""
-	//}
-
-	// Query to create an intermediary view that includes a row number
-	intermediaryView := fmt.Sprintf("%s_with_row_number", tableNameSuffix)
-	createIntermediaryViewQuery := fmt.Sprintf(`
-        CREATE VIEW IF NOT EXISTS %s AS
-        SELECT *, row_number() OVER () AS rn
-        FROM %s
-    `,
-		sanitizeCH(intermediaryView),
-		//orderByClause,
-		sanitizeCH(trainingSetTable),
-	)
-
-	// Execute the query to create the intermediary view
-	if _, err := store.db.Exec(createIntermediaryViewQuery); err != nil {
-		return "", fmt.Errorf("failed to create intermediary view: %v", err)
-	}
-
-	// only order by if shuffle is true
-	shuffledView := fmt.Sprintf("%s_shuffled", tableNameSuffix)
-	var orderByClause string
+	// Generate ORDER BY clause for shuffling if needed
+	orderByClause := ""
 	if shuffle {
 		if randomState == 0 {
-			randomState = rand.Int()
+			randomState = rand.Int() // Ensure a random state if 0 is provided
 		}
-		orderByClause = fmt.Sprintf("ORDER BY (cityHash64(concat(toString(_row), toString(%d))))", randomState)
-	} else {
-		orderByClause = ""
-	}
-	createShuffledViewQuery := fmt.Sprintf(`
-		CREATE VIEW IF NOT EXISTS %s AS
-		SELECT * FROM %s 
-		%s
-	`,
-		sanitizeCH(shuffledView),
-		sanitizeCH(intermediaryView),
-		orderByClause,
-	)
-
-	if _, err := store.db.Exec(createShuffledViewQuery); err != nil {
-		return "", fmt.Errorf("failed to create shuffled view: %v", err)
+		// Use ClickHouse's cityHash64 for deterministic shuffling, rowNumberInAllBlocks is a unique identifier for each row
+		orderByClause = fmt.Sprintf("ORDER BY cityHash64(concat(toString(rowNumberInAllBlocks()), toString(%d)))", randomState)
 	}
 
+	// Calculate the number of test rows based on the testSize parameter
 	var totalRows int
 	err := store.db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitizeCH(trainingSetTable))).Scan(&totalRows)
 	if err != nil {
@@ -952,28 +911,19 @@ func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
 	}
 	testRows := int(float64(totalRows) * testSize)
 
-	// Query to create the final view that includes an 'is_test' column
-	// This column is dynamically calculated for each row based on the provided testSize and randomState
+	// Create the final view with an 'is_test' column
 	createViewQuery := fmt.Sprintf(`
         CREATE VIEW IF NOT EXISTS %s AS
-        SELECT *, IF(rowNumberInAllBlocks() < %d, 1, 0) AS is_test
+        SELECT *, IF(row_number() OVER (%s) <= %d, 1, 0) AS is_test
         FROM %s
-    `,
-		sanitizeCH(trainingSetSplitView),
-		testRows,
-		sanitizeCH(shuffledView),
-	)
-
-	// Print the final view creation query for debugging
-	fmt.Println("Create View Query: ", createViewQuery)
+    `, sanitizeCH(finalViewName), orderByClause, testRows, sanitizeCH(trainingSetTable))
 
 	// Execute the query to create the final view
 	if _, err := store.db.Exec(createViewQuery); err != nil {
 		return "", fmt.Errorf("failed to create final view: %v", err)
 	}
 
-	// Return the name of the final view
-	return trainingSetSplitView, nil
+	return finalViewName, nil
 }
 
 func (store *ClickHouseOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
@@ -1100,7 +1050,7 @@ func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
 	dropFunc := func() error {
 		// two queries to drop split and row number table
 		baseQuery := strings.TrimSuffix(trainingTestSplitName, "_split")
-		dropQuery := fmt.Sprintf("DROP VIEW %s", sanitizeCH(trainingTestSplitName))
+		dropQuery := fmt.Sprintf("DROP VIEW if exists %s", sanitizeCH(trainingTestSplitName))
 		_, err := store.db.Exec(dropQuery)
 		if err != nil {
 			return fmt.Errorf("could not drop test split: %v", err)
@@ -1108,11 +1058,11 @@ func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
 		}
 		rowNumberTable := fmt.Sprintf("%s_with_row_number", baseQuery)
 		shuffledView := fmt.Sprintf("%s_shuffled", baseQuery)
-		dropQuery = fmt.Sprintf("DROP VIEW %s", sanitizeCH(rowNumberTable))
+		dropQuery = fmt.Sprintf("DROP VIEW if exists %s", sanitizeCH(rowNumberTable))
 		if _, err := store.db.Exec(dropQuery); err != nil {
 			return fmt.Errorf("could not drop row number table: %v", err)
 		}
-		dropQuery = fmt.Sprintf("DROP VIEW %s", sanitizeCH(shuffledView))
+		dropQuery = fmt.Sprintf("DROP VIEW if exists %s", sanitizeCH(shuffledView))
 		if _, err := store.db.Exec(dropQuery); err != nil {
 			return fmt.Errorf("could not drop shuffled view: %v", err)
 		}

@@ -632,12 +632,90 @@ class Dataset:
             self,
             test_size: float = 0,
             train_size: float = 0,
-            random_state: Union[int, None] = None,
             shuffle: bool = True,
+            random_state: Union[int, None] = None,
             batch_size: int = 1,
     ):
+        """
+        (This functionality is currently only available for Clickhouse).
+
+        Splits an existing training set into training and testing iterators. The split is processed on the underlying
+        provider and calculated and serving time.
+
+        **Examples**:
+
+        ``` py
+        import featureform as ff
+        client = ff.Client()
+        train, test = client
+            .training_set("fraud_training", "v1")
+            .train_test_split(
+                test_size=0.7,
+                train_size=0.3,
+                shuffle=True,
+                random_state=None,
+                batch_size=5
+            )
+
+        for features, label in train:
+            print(features)
+            print(label)
+            clf.partial_fit(features, label)
+
+        for features, label in test:
+            print(features)
+            print(label)
+            clf.score(features, label)
+
+
+        # TRAIN OUTPUT
+        # np.array([
+        #   [1, 1, 3],
+        #   [5, 1, 2],
+        #   [7, 6, 5],
+        #   [8, 3, 3],
+        #   [5, 2, 2],
+        # ])
+        # np.array([2, 4, 2, 3, 4])
+        # np.array([
+        #   [3, 1, 2],
+        #   [5, 4, 5],
+        # ])
+        # np.array([6, 7])
+
+        # TEST OUTPUT
+        # Feature:
+        # np.array([
+        #   [5, 1, 3],
+        #   [4, 3, 1],
+        #   [6, 6, 7],
+        # ])
+        # Label:
+        # np.array([4, 6, 7])
+
+        ```
+
+        Args:
+            test_size (float): The ratio of test set size to train set size. Must be a value between 0 and 1. If excluded
+                it will be the complement to the train_size. One of test_size or train_size must be specified.
+            train_size (float): The ratio of train set size to train set size. Must be a value between 0 and 1. If excluded
+                it will be the complement to the test_size. One of test_size or train_size must be specified.
+            shuffle (bool): Whether to shuffle the dataset before splitting.
+            random_state (Union[int, None]): A random state to shuffle the dataset. If None, the dataset will be shuffled
+                randomly on every call. If >0, the value will be used a seed to create random shuffle that can be repeated
+                if subsequent calls use the same seed.
+            batch_size (int): The size of the batch to return from the iterator. Must be greater than 0.
+
+        Returns:
+            train (Iterator): An iterator for training values.
+            test (Iterator): An iterator for testing values.
+        """
         if batch_size < 1:
-            raise ValueError("Batch size must be 1 or greater")
+            raise ValueError("batch_size must be 1 or greater")
+
+        if random_state == 0:
+            raise ValueError("random_state must be greater than zero or None")
+
         test_size, train_size = self.validate_test_size(test_size, train_size)
 
         name = self._stream.name

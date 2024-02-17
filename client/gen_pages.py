@@ -47,6 +47,9 @@ for filename in os.listdir("./src/featureform"):
     file = filename.split(".")[0]
     mdFile = f"{file}.md"
 
+
+    if mdFile == "metadata.md":
+        continue
     with mkdocs_gen_files.open(mdFile, "w") as f:
         print(f"::: featureform.{file}", file=f)
 

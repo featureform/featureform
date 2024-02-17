@@ -16,6 +16,14 @@
         show_source: false
         show_root_toc_entry: false
 
+## Train/Test Split (Beta)
+::: featureform.serving.Dataset.train_test_split
+    handler: python
+    options:
+        show_root_heading: false
+        show_source: false
+        show_root_toc_entry: false
+
 ## Sources
 ::: featureform.client.Client.dataframe
     handler: python

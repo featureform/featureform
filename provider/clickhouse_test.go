@@ -75,7 +75,7 @@ func TestOfflineStoreClickhouse(t *testing.T) {
 		t:     t,
 		store: store,
 	}
-	//test.Run()
+	test.Run()
 	test.RunSQL()
 }
 

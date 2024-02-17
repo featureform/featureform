@@ -10,7 +10,7 @@ package featureform.serving.proto;
 
 service Feature {
   rpc TrainingData(TrainingDataRequest) returns (stream TrainingDataRow) {}
-  rpc GetTrainingTestSplit(stream GetTrainingTestSplitRequest) returns (stream GetTrainingTestSplitResponse) {}
+  rpc TrainingTestSplit(stream TrainingTestSplitRequest) returns (stream TrainingTestSplitResponse) {}
   rpc TrainingDataColumns(TrainingDataColumnsRequest) returns (TrainingColumns) {}
   rpc FeatureServe(FeatureServeRequest) returns (FeatureRow) {}
   rpc SourceData(SourceDataRequest) returns (stream SourceDataRow) {}
@@ -150,7 +150,7 @@ message ResourceLocation {
   string location = 1;
 }
 
-message GetTrainingTestSplitRequest {
+message TrainingTestSplitRequest {
   TrainingDataID id = 1;
   Model model = 2;
   float test_size = 3;
@@ -166,7 +166,7 @@ enum RequestType {
   TEST = 2;      // Client is requesting test data
 }
 
-message GetTrainingTestSplitResponse {
+message TrainingTestSplitResponse {
   RequestType request_type = 1;
   bool iterator_done = 2;
   oneof training_test_split {

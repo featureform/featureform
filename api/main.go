@@ -809,9 +809,9 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 	}
 }
 
-func (serv *OnlineServer) GetTrainingTestSplit(stream srv.Feature_GetTrainingTestSplitServer) error {
+func (serv *OnlineServer) TrainingTestSplit(stream srv.Feature_TrainingTestSplitServer) error {
 	serv.Logger.Infow("Starting Training Test Split Stream")
-	clientStream, err := serv.client.GetTrainingTestSplit(context.Background())
+	clientStream, err := serv.client.TrainingTestSplit(context.Background())
 	if err != nil {
 		return fmt.Errorf("could not serve training test split: %w", err)
 	}

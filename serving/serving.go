@@ -82,7 +82,7 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 	return nil
 }
 
-func (serv *FeatureServer) GetTrainingTestSplit(stream pb.Feature_GetTrainingTestSplitServer) error {
+func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainingTestSplitServer) error {
 
 	var (
 		trainIter, testIter provider.TrainingSetIterator
@@ -124,8 +124,8 @@ func (serv *FeatureServer) GetTrainingTestSplit(stream pb.Feature_GetTrainingTes
 }
 
 func (serv *FeatureServer) handleSplitInitializeRequest(
-	stream pb.Feature_GetTrainingTestSplitServer,
-	req *pb.GetTrainingTestSplitRequest,
+	stream pb.Feature_TrainingTestSplitServer,
+	req *pb.TrainingTestSplitRequest,
 	trainIterator *provider.TrainingSetIterator,
 	testIterator *provider.TrainingSetIterator,
 	logger *zap.SugaredLogger,
@@ -149,9 +149,9 @@ func (serv *FeatureServer) handleSplitInitializeRequest(
 	*trainIterator = train
 	*testIterator = test
 
-	initResponse := &pb.GetTrainingTestSplitResponse{
+	initResponse := &pb.TrainingTestSplitResponse{
 		RequestType: pb.RequestType_INITIALIZE,
-		TrainingTestSplit: &pb.GetTrainingTestSplitResponse_Initialized{
+		TrainingTestSplit: &pb.TrainingTestSplitResponse_Initialized{
 			Initialized: true,
 		},
 	}
@@ -165,8 +165,8 @@ func (serv *FeatureServer) handleSplitInitializeRequest(
 }
 
 func (serv *FeatureServer) handleSplitDataRequest(
-	stream pb.Feature_GetTrainingTestSplitServer,
-	req *pb.GetTrainingTestSplitRequest,
+	stream pb.Feature_TrainingTestSplitServer,
+	req *pb.TrainingTestSplitRequest,
 	trainIterator *provider.TrainingSetIterator,
 	testIterator *provider.TrainingSetIterator,
 	isTestFinished *bool,
@@ -190,9 +190,9 @@ func (serv *FeatureServer) handleSplitDataRequest(
 			return err
 		}
 
-		response := &pb.GetTrainingTestSplitResponse{
+		response := &pb.TrainingTestSplitResponse{
 			RequestType:       req.GetRequestType(),
-			TrainingTestSplit: &pb.GetTrainingTestSplitResponse_Row{Row: sRow},
+			TrainingTestSplit: &pb.TrainingTestSplitResponse_Row{Row: sRow},
 		}
 
 		if err := stream.Send(response); err != nil {
@@ -214,7 +214,7 @@ func (serv *FeatureServer) handleSplitDataRequest(
 }
 
 func (serv *FeatureServer) handleFinishedIterator(
-	stream pb.Feature_GetTrainingTestSplitServer,
+	stream pb.Feature_TrainingTestSplitServer,
 	reqType pb.RequestType,
 	isTestFinished *bool,
 	isTrainFinished *bool,
@@ -227,7 +227,7 @@ func (serv *FeatureServer) handleFinishedIterator(
 	}
 
 	if !*isTestFinished || !*isTrainFinished {
-		if err := stream.Send(&pb.GetTrainingTestSplitResponse{IteratorDone: true}); err != nil {
+		if err := stream.Send(&pb.TrainingTestSplitResponse{IteratorDone: true}); err != nil {
 			logger.Errorw("Failed to write to stream", "Error", err)
 		}
 	}

@@ -13,7 +13,7 @@ dir_path = os.path.dirname(real_path)
 def response(req_type, iterator_done):
     if req_type == 0:
         request_type = serving_pb2.RequestType.INITIALIZE
-        return serving_pb2.GetTrainingTestSplitResponse(
+        return serving_pb2.TrainingTestSplitResponse(
             request_type=request_type, initialized=True
         )
     elif req_type == 1:

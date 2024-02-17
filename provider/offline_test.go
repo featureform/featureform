@@ -77,18 +77,18 @@ func (test *OfflineStoreTest) RunSQL() {
 	t := test.t
 	store := test.store
 	testFns := map[string]func(*testing.T, OfflineStore){
-		//"PrimaryTableCreate":                 testPrimaryCreateTable,
-		//"PrimaryTableWrite":                  testPrimaryTableWrite,
-		//"Transformation":                     testTransform,
-		//"TransformationUpdate":               testTransformUpdate,
-		//"TransformationUpdateWithFeature":    testTransformUpdateWithFeatures,
-		//"CreateDuplicatePrimaryTable":        testCreateDuplicatePrimaryTable,
-		//"ChainTransformations":               testChainTransform,
-		//"CreateResourceFromSource":           testCreateResourceFromSource,
-		//"CreateResourceFromSourceNoTS":       testCreateResourceFromSourceNoTS,
-		//"CreatePrimaryFromSource":            testCreatePrimaryFromSource,
-		//"CreatePrimaryFromNonExistentSource": testCreatePrimaryFromNonExistentSource,
-		"TrainTestSplit": testTrainTestSplit,
+		"PrimaryTableCreate":                 testPrimaryCreateTable,
+		"PrimaryTableWrite":                  testPrimaryTableWrite,
+		"Transformation":                     testTransform,
+		"TransformationUpdate":               testTransformUpdate,
+		"TransformationUpdateWithFeature":    testTransformUpdateWithFeatures,
+		"CreateDuplicatePrimaryTable":        testCreateDuplicatePrimaryTable,
+		"ChainTransformations":               testChainTransform,
+		"CreateResourceFromSource":           testCreateResourceFromSource,
+		"CreateResourceFromSourceNoTS":       testCreateResourceFromSourceNoTS,
+		"CreatePrimaryFromSource":            testCreatePrimaryFromSource,
+		"CreatePrimaryFromNonExistentSource": testCreatePrimaryFromNonExistentSource,
+		"TrainTestSplit":                     testTrainTestSplit,
 	}
 
 	for name, fn := range testFns {

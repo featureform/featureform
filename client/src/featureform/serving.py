@@ -88,11 +88,11 @@ class ServingClient:
         self.impl = HostedClientImpl(host, insecure, cert_path)
 
     def training_set(
-        self,
-        name,
-        variant="",
-        include_label_timestamp=False,
-        model: Union[str, Model] = None,
+            self,
+            name,
+            variant="",
+            include_label_timestamp=False,
+            model: Union[str, Model] = None,
     ) -> "Dataset":
         """Return an iterator that iterates through the specified training set.
 
@@ -115,7 +115,7 @@ class ServingClient:
         return self.impl.training_set(name, variant, include_label_timestamp, model)
 
     def training_set_test_split(
-        self, name, variant="", model: Union[str, Model] = None
+            self, name, variant="", model: Union[str, Model] = None
     ):
         """Split the dataset into a training set and a test set.
 
@@ -133,7 +133,7 @@ class ServingClient:
         return train, test
 
     def features(
-        self, features, entities, model: Union[str, Model] = None, params: list = None
+            self, features, entities, model: Union[str, Model] = None, params: list = None
     ):
         """Returns the feature values for the specified entities.
 
@@ -208,13 +208,13 @@ class HostedClientImpl:
     #         return secure_channel(host, cert_path)
 
     def training_set(
-        self, name, variation, include_label_timestamp, model: Union[str, Model] = None
+            self, name, variation, include_label_timestamp, model: Union[str, Model] = None
     ):
         training_set_stream = TrainingSetStream(self._stub, name, variation, model)
         return Dataset(training_set_stream)
 
     def features(
-        self, features, entities, model: Union[str, Model] = None, params: list = None
+            self, features, entities, model: Union[str, Model] = None, params: list = None
     ):
         req = serving_pb2.FeatureServeRequest()
         for name, values in entities.items():
@@ -442,21 +442,21 @@ class Batch:
         return rows
 
 
-
 class TrainingSetSplitIterator:
     def __init__(
-        self,
-        req_queue: queue.Queue,
-        resp_queue: queue.Queue,
-        resp_stream,
-        request_type,
-        name,
-        version,
-        test_size,
-        train_size,
-        shuffle,
-        random_state,
-        model: Union[str, Model] = None,
+            self,
+            req_queue: queue.Queue,
+            resp_queue: queue.Queue,
+            resp_stream,
+            request_type,
+            name,
+            version,
+            test_size,
+            train_size,
+            shuffle,
+            random_state,
+            batch_size,
+            model: Union[str, Model] = None,
     ):
         self.name = name
         self.version = version
@@ -464,8 +464,10 @@ class TrainingSetSplitIterator:
         self.test_size = test_size
         self.train_size = train_size
         self.shuffle = shuffle
+        self.batch_size = batch_size
         self.random_state = random_state
         self.resp_stream = resp_stream
+        self.complete = False
 
         self.req_queue = req_queue
         self.resp_queue = resp_queue
@@ -475,26 +477,45 @@ class TrainingSetSplitIterator:
         return self
 
     def __next__(self):
-        req = serving_pb2.GetTrainingTestSplitRequest()
-        req.id.name = self.name
-        req.id.version = self.version
-
-        if self.model is not None:
-            req.model.name = (
-                self.model if isinstance(self.model, str) else self.model.name
-            )
-        req.test_size = self.test_size
-        req.train_size = self.train_size
-        req.shuffle = self.shuffle
-        req.random_state = self.random_state
-        req.request_type = self._request_type
-
-        self.req_queue.put(req)
-
-        next1 = next(self.resp_stream)
-        if next1.iterator_done:
+        if self.complete:
             raise StopIteration
-        return Row(next1.row)
+        i = 0
+        batch_features = None
+        batch_label = None
+        while i < self.batch_size:
+            req = serving_pb2.GetTrainingTestSplitRequest()
+            req.id.name = self.name
+            req.id.version = self.version
+
+            if self.model is not None:
+                req.model.name = (
+                    self.model if isinstance(self.model, str) else self.model.name
+                )
+            req.test_size = self.test_size
+            req.train_size = self.train_size
+            req.shuffle = self.shuffle
+            req.random_state = self.random_state
+            req.request_type = self._request_type
+
+            self.req_queue.put(req)
+
+
+            next1 = next(self.resp_stream)
+            if batch_features is None:
+                row = Row(next1.row)
+                batch_features = np.array(row.features())
+                batch_label = np.array(row.label())
+            else:
+                batch_features = np.append(batch_features, Row(next1.row).features(), axis=0)
+                batch_label = np.append(batch_label, Row(next1.row).label(), axis=0)
+
+            if next1.iterator_done:
+
+                self.complete = True
+                break
+            i += 1
+
+        return batch_features, batch_label
 
 
 class TrainingSetTestSplit:
@@ -503,15 +524,16 @@ class TrainingSetTestSplit:
     """
 
     def __init__(
-        self,
-        stub,
-        name: str,
-        version: str,
-        test_size: float,
-        train_size: float,
-        shuffle: bool,
-        random_state: int,
-        model: Union[str, Model] = None,
+            self,
+            stub,
+            name: str,
+            version: str,
+            test_size: float,
+            train_size: float,
+            shuffle: bool,
+            random_state: int,
+            batch_size: int,
+            model: Union[str, Model] = None,
     ):
         self.name = name
         self.version = version
@@ -520,6 +542,7 @@ class TrainingSetTestSplit:
         self.model = model
         self.test_size = test_size
         self.train_size = train_size
+        self.batch_size = batch_size
         self.train_iter = None
         self.test_iter = None
         self._stream = None
@@ -562,6 +585,7 @@ class TrainingSetTestSplit:
             train_size=self.train_size,
             shuffle=self.shuffle,
             random_state=self.random_state,
+            batch_size=self.batch_size,
         )
         self.train_iter = TrainingSetSplitIterator(
             req_queue=self.req_queue,
@@ -575,6 +599,7 @@ class TrainingSetTestSplit:
             train_size=self.train_size,
             shuffle=self.shuffle,
             random_state=self.random_state,
+            batch_size=self.batch_size,
         )
 
         return self.train_iter, self.test_iter
@@ -594,12 +619,15 @@ class Dataset:
         self._dataframe = dataframe
 
     def train_test_split(
-        self,
-        test_size: float = 0,
-        train_size: float = 0,
-        random_state: Union[int, None] = None,
-        shuffle: bool = True,
+            self,
+            test_size: float = 0,
+            train_size: float = 0,
+            random_state: Union[int, None] = None,
+            shuffle: bool = True,
+            batch_size: int = 1,
     ):
+        if batch_size < 1:
+            raise ValueError("Batch size must be 1 or greater")
         test_size, train_size = self.validate_test_size(test_size, train_size)
 
         name = self._stream.name
@@ -618,6 +646,7 @@ class Dataset:
             train_size=train_size,
             shuffle=shuffle,
             random_state=random_state,
+            batch_size=batch_size,
         ).split()
 
         return train, test
@@ -717,9 +746,9 @@ class Dataset:
         try:
             df = (
                 spark.read.option("header", "true")
-                .option("recursiveFileLookup", "true")
-                .format(file_format)
-                .load(location)
+                    .option("recursiveFileLookup", "true")
+                    .format(file_format)
+                    .load(location)
             )
 
             label_column_name = ""
@@ -840,17 +869,20 @@ class Dataset:
 
 class Row:
     def __init__(self, proto_row):
+        self._types = [parse_proto_type(feature) for feature in proto_row.features]
         self._features = np.array(
-            [parse_proto_value(feature) for feature in proto_row.features]
+            [parse_proto_value(feature) for feature in proto_row.features],
+            dtype=get_numpy_array_type(self._types)
         )
         self._label = parse_proto_value(proto_row.label)
         self._row = np.append(self._features, self._label)
 
+
     def features(self):
-        return self._row[:-1]
+        return np.array([self._row[:-1]])
 
     def label(self):
-        return self._label
+        return np.array([self._label])
 
     def to_numpy(self):
         return self._row
@@ -920,6 +952,24 @@ def parse_proto_value(value):
     """parse_proto_value is used to parse the one of Value message"""
     return getattr(value, value.WhichOneof("value"))
 
+
+def parse_proto_type(value):
+    type_mapping = {
+        "str_value": str,
+        "int_value": np.int32,
+        "int32_value": np.int32,
+        "int64_value":np.int64,
+        "float_value": np.float32,
+        "double_value": np.float64,
+        "bool_value": bool,
+    }
+    return type_mapping[value.WhichOneof("value")]
+
+def get_numpy_array_type(types):
+    if all(i == types[0] for i in types):
+        return types[0]
+    else:
+        return 'O'
 
 class FeatureSetIterator:
     def __init__(self, stub, features):

@@ -9,6 +9,7 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"math"
+	"math/rand"
 	"reflect"
 	"regexp"
 	"sort"
@@ -889,27 +890,28 @@ func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
 	randomState int,
 ) (string, error) {
 	// Create view name
-	trainingSetSplitView := fmt.Sprintf("%s_split", trainingSetTable)
+	tableNameSuffix := fmt.Sprintf("_%s_%d_%t_%d", trainingSetTable, int(testSize*100), shuffle, randomState)
+	trainingSetSplitView := fmt.Sprintf("%s_split", tableNameSuffix)
 
-	// Determine ordering for the row_number based on shuffle parameter
-	orderByClause := ""
-	if shuffle {
-		// Use a fixed seed in combination with rand() to ensure reproducibility when shuffle is true
-		orderByClause = fmt.Sprintf("ORDER BY rand(%d)", randomState)
-	} else {
-		// No specific order; could default to primary key or any other column for deterministic output
-		orderByClause = ""
-	}
+	//// Determine ordering for the row_number based on shuffle parameter
+	//orderByClause := ""
+	//if shuffle {
+	//	// Use a fixed seed in combination with rand() to ensure reproducibility when shuffle is true
+	//	orderByClause = fmt.Sprintf("ORDER BY rand(%d)", randomState)
+	//} else {
+	//	// No specific order; could default to primary key or any other column for deterministic output
+	//	orderByClause = ""
+	//}
 
 	// Query to create an intermediary view that includes a row number
-	intermediaryView := fmt.Sprintf("%s_with_row_number", trainingSetTable)
+	intermediaryView := fmt.Sprintf("%s_with_row_number", tableNameSuffix)
 	createIntermediaryViewQuery := fmt.Sprintf(`
         CREATE VIEW IF NOT EXISTS %s AS
-        SELECT *, row_number() OVER (%s) AS rn
+        SELECT *, row_number() OVER () AS rn
         FROM %s
     `,
 		sanitizeCH(intermediaryView),
-		orderByClause,
+		//orderByClause,
 		sanitizeCH(trainingSetTable),
 	)
 
@@ -918,17 +920,48 @@ func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
 		return "", fmt.Errorf("failed to create intermediary view: %v", err)
 	}
 
+	// only order by if shuffle is true
+	shuffledView := fmt.Sprintf("%s_shuffled", tableNameSuffix)
+	var orderByClause string
+	if shuffle {
+		if randomState == 0 {
+			randomState = rand.Int()
+		}
+		orderByClause = fmt.Sprintf("ORDER BY (cityHash64(concat(toString(_row), toString(%d))))", randomState)
+	} else {
+		orderByClause = ""
+	}
+	createShuffledViewQuery := fmt.Sprintf(`
+		CREATE VIEW IF NOT EXISTS %s AS
+		SELECT * FROM %s 
+		%s
+	`,
+		sanitizeCH(shuffledView),
+		sanitizeCH(intermediaryView),
+		orderByClause,
+	)
+
+	if _, err := store.db.Exec(createShuffledViewQuery); err != nil {
+		return "", fmt.Errorf("failed to create shuffled view: %v", err)
+	}
+
+	var totalRows int
+	err := store.db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitizeCH(trainingSetTable))).Scan(&totalRows)
+	if err != nil {
+		return "", fmt.Errorf("failed to get table size: %v", err)
+	}
+	testRows := int(float64(totalRows) * testSize)
+
 	// Query to create the final view that includes an 'is_test' column
 	// This column is dynamically calculated for each row based on the provided testSize and randomState
 	createViewQuery := fmt.Sprintf(`
         CREATE VIEW IF NOT EXISTS %s AS
-        SELECT *, (cityHash64(concat(toString(_row), toString(%d))) %% 100 < %f) as is_test
+        SELECT *, IF(rowNumberInAllBlocks() < %d, 1, 0) AS is_test
         FROM %s
     `,
 		sanitizeCH(trainingSetSplitView),
-		randomState, // Use randomState in the hash calculation for reproducibility
-		testSize*100,
-		sanitizeCH(intermediaryView),
+		testRows,
+		sanitizeCH(shuffledView),
 	)
 
 	// Print the final view creation query for debugging
@@ -1066,17 +1099,22 @@ func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
 	// return func to drop views
 	dropFunc := func() error {
 		// two queries to drop split and row number table
+		baseQuery := strings.TrimSuffix(trainingTestSplitName, "_split")
 		dropQuery := fmt.Sprintf("DROP VIEW %s", sanitizeCH(trainingTestSplitName))
 		_, err := store.db.Exec(dropQuery)
 		if err != nil {
 			return fmt.Errorf("could not drop test split: %v", err)
 
 		}
-		rowNumberTable := fmt.Sprintf("%s_with_row_number", trainingSetName)
+		rowNumberTable := fmt.Sprintf("%s_with_row_number", baseQuery)
+		shuffledView := fmt.Sprintf("%s_shuffled", baseQuery)
 		dropQuery = fmt.Sprintf("DROP VIEW %s", sanitizeCH(rowNumberTable))
-		_, err = store.db.Exec(dropQuery)
-		if err != nil {
+		if _, err := store.db.Exec(dropQuery); err != nil {
 			return fmt.Errorf("could not drop row number table: %v", err)
+		}
+		dropQuery = fmt.Sprintf("DROP VIEW %s", sanitizeCH(shuffledView))
+		if _, err := store.db.Exec(dropQuery); err != nil {
+			return fmt.Errorf("could not drop shuffled view: %v", err)
 		}
 		return nil
 	}

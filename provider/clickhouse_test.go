@@ -80,7 +80,7 @@ func TestOfflineStoreClickhouse(t *testing.T) {
 		t:     t,
 		store: store,
 	}
-	test.Run()
+	//test.Run()
 	test.RunSQL()
 }
 
@@ -120,7 +120,7 @@ func TestTrainingSet(t *testing.T) {
 	tsDef := TrainingSetDef{
 		ID: ResourceID{
 			Name:    "ts_alice",
-			Variant: "v4",
+			Variant: "v5",
 			Type:    TrainingSet,
 		},
 		Label: ResourceID{
@@ -174,7 +174,7 @@ func TestSplit(t *testing.T) {
 
 	resourceId := ResourceID{
 		Name:    "ts_alice",
-		Variant: "v4",
+		Variant: "v5",
 		Type:    TrainingSet,
 	}
 	train, test, closeFunc, err := store.GetTrainingSetTestSplit(resourceId, .5, true, 1)

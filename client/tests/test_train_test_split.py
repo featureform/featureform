@@ -54,12 +54,12 @@ class MockGrpcStub:
             if value.request_type == 1:
                 self.train_rows += 1
 
-                if self.train_rows >= self.num_rows:
+                if self.train_rows > self.num_rows:
                     iterator_done = True
             elif value.request_type == 2:
                 self.test_rows += 1
 
-                if self.test_rows >= self.num_rows:
+                if self.test_rows > self.num_rows:
                     iterator_done = True
             yield response(value.request_type, iterator_done)
 

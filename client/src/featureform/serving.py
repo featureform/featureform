@@ -518,7 +518,6 @@ class TrainingSetSplitIterator:
                 batch_label = np.append(batch_label, Row(next_row.row).label(), axis=0)
             i += 1
 
-
         return batch_features, batch_label
 
 

@@ -491,54 +491,70 @@ func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) (bool
 	thisProto := resource.serialized
 	otherProto := otherVariant.serialized
 
-	isDefinitionEqual := false
-	var err error
-	switch thisDef := thisProto.Definition.(type) {
-	case *pb.SourceVariant_Transformation:
-		if otherDef, ok := otherProto.Definition.(*pb.SourceVariant_Transformation); ok {
-			isDefinitionEqual, err = isSourceProtoDefinitionEqual(thisDef, otherDef)
-			if err != nil {
-				return false, fmt.Errorf("error comparing source definitions: %v", err)
-			}
-
-		}
-	case *pb.SourceVariant_PrimaryData:
-		if otherDef, ok := otherProto.Definition.(*pb.SourceVariant_PrimaryData); ok {
-			isDefinitionEqual = proto.Equal(thisDef.PrimaryData, otherDef.PrimaryData)
-		}
+	// Directly compare the simple fields first for quick elimination.
+	if thisProto.GetName() != otherProto.GetName() ||
+		thisProto.GetOwner() != otherProto.GetOwner() ||
+		thisProto.GetProvider() != otherProto.GetProvider() {
+		return false, nil
 	}
 
-	if thisProto.GetName() == otherProto.GetName() &&
-		thisProto.GetOwner() == otherProto.GetOwner() &&
-		thisProto.GetProvider() == otherProto.GetProvider() &&
-		isDefinitionEqual {
-
-		return true, nil
-	}
-	return false, nil
+	return areDefinitionsEquivalent(thisProto, otherProto)
 }
 
-func isSourceProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transformation) (bool, error) {
-	isDefinitionEqual := false
-	switch thisDef.Transformation.Type.(type) {
-	case *pb.Transformation_DFTransformation:
-		if otherDef, ok := otherDef.Transformation.Type.(*pb.Transformation_DFTransformation); ok {
-			sourceTextEqual := thisDef.Transformation.GetDFTransformation().SourceText == otherDef.DFTransformation.SourceText
-			inputsEqual, err := lib.EqualProtoContents(thisDef.Transformation.GetDFTransformation().Inputs, otherDef.DFTransformation.Inputs)
-			if err != nil {
-				return false, fmt.Errorf("error comparing transformation inputs: %v", err)
-			}
-			isDefinitionEqual = sourceTextEqual &&
-				inputsEqual
+func areDefinitionsEquivalent(thisSourceVariant, otherSourceVariant *pb.SourceVariant) (bool, error) {
+	thisDef := thisSourceVariant.GetDefinition()
+	otherDef := otherSourceVariant.GetDefinition()
+
+	switch thisTypedDef := thisDef.(type) {
+	case *pb.SourceVariant_Transformation:
+		otherTypedDef, ok := otherDef.(*pb.SourceVariant_Transformation)
+		if !ok {
+			return false, nil // Different types can't be equivalent.
 		}
-	case *pb.Transformation_SQLTransformation:
-		if _, ok := otherDef.Transformation.Type.(*pb.Transformation_SQLTransformation); ok {
-			isDefinitionEqual = thisDef.Transformation.GetSQLTransformation().Query == otherDef.Transformation.GetSQLTransformation().Query
+		return isTransformationEqual(thisTypedDef, otherTypedDef)
+
+	case *pb.SourceVariant_PrimaryData:
+		otherTypedDef, ok := otherDef.(*pb.SourceVariant_PrimaryData)
+		if !ok {
+			return false, nil // Different types can't be equivalent.
 		}
+		return proto.Equal(thisTypedDef.PrimaryData, otherTypedDef.PrimaryData), nil
+
+	default:
+		return false, fmt.Errorf("unknown definition type: %T", thisDef)
+	}
+}
+
+func isTransformationEqual(thisDef, otherDef *pb.SourceVariant_Transformation) (bool, error) {
+	// Direct comparison for KubernetesArgs, as it's common for all transformations.
+	if !proto.Equal(thisDef.Transformation.GetKubernetesArgs(), otherDef.Transformation.GetKubernetesArgs()) {
+		return false, nil
 	}
 
-	kubernetesArgsEqual := proto.Equal(thisDef.Transformation.GetKubernetesArgs(), otherDef.Transformation.GetKubernetesArgs())
-	return isDefinitionEqual && kubernetesArgsEqual, nil
+	// Now, compare based on the transformation type.
+	switch thisTypedTrans := thisDef.Transformation.Type.(type) {
+	case *pb.Transformation_DFTransformation:
+		otherTypedTrans, ok := otherDef.Transformation.Type.(*pb.Transformation_DFTransformation)
+		if !ok {
+			return false, nil // Different types can't be equivalent.
+		}
+		equalInputs, err := lib.EqualProtoContents(thisTypedTrans.DFTransformation.GetInputs(), otherTypedTrans.DFTransformation.GetInputs())
+		if err != nil {
+			return false, err
+		}
+		return thisTypedTrans.DFTransformation.SourceText == otherTypedTrans.DFTransformation.SourceText &&
+			equalInputs, nil
+
+	case *pb.Transformation_SQLTransformation:
+		otherTypedTrans, ok := otherDef.Transformation.Type.(*pb.Transformation_SQLTransformation)
+		if !ok {
+			return false, nil // Different types can't be equivalent.
+		}
+		return thisTypedTrans.SQLTransformation.Query == otherTypedTrans.SQLTransformation.Query, nil
+
+	default:
+		return false, fmt.Errorf("unknown transformation type: %T", thisDef.Transformation.Type)
+	}
 }
 
 func (resource *sourceVariantResource) ToResourceVariantProto() *pb.ResourceVariant {

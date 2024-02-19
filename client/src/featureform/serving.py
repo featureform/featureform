@@ -11,7 +11,7 @@ from collections.abc import Iterator
 from datetime import datetime
 
 import featureform.resources
-from typing import List, Union
+from typing import List, Union, Optional
 
 import dill
 import math
@@ -115,22 +115,6 @@ class ServingClient:
             variant = name.variant
             name = name.name
         return self.impl.training_set(name, variant, include_label_timestamp, model)
-
-    def train_test_split(self, name, variant="", model: Union[str, Model] = None):
-        """Split the dataset into a training set and a test set.
-
-        Args:
-            name (str): The name of the training set
-            variation (str): The variation of the training set
-            model (Union[str, Model]): The model to use for the training set
-
-        Returns:
-            train_set (Dataset): The training set
-            test_set (Dataset): The test set
-            :param variant:
-        """
-        train, test = self.impl.training_set_test_split(name, variant, model)
-        return train, test
 
     def features(
         self, features, entities, model: Union[str, Model] = None, params: list = None
@@ -452,14 +436,14 @@ class Dataset:
         test_size: float = 0,
         train_size: float = 0,
         shuffle: bool = True,
-        random_state: Union[int, None] = None,
+        random_state: Optional[int] = None,
         batch_size: int = 1,
     ):
         """
         (This functionality is currently only available for Clickhouse).
 
         Splits an existing training set into training and testing iterators. The split is processed on the underlying
-        provider and calculated and serving time.
+        provider and calculated at serving time.
 
         **Examples**:
 
@@ -518,7 +502,7 @@ class Dataset:
             train_size (float): The ratio of train set size to train set size. Must be a value between 0 and 1. If excluded
                 it will be the complement to the test_size. One of test_size or train_size must be specified.
             shuffle (bool): Whether to shuffle the dataset before splitting.
-            random_state (Union[int, None]): A random state to shuffle the dataset. If None, the dataset will be shuffled
+            random_state (Optional[int]): A random state to shuffle the dataset. If None, the dataset will be shuffled
                 randomly on every call. If >0, the value will be used a seed to create random shuffle that can be repeated
                 if subsequent calls use the same seed.
             batch_size (int): The size of the batch to return from the iterator. Must be greater than 0.
@@ -530,8 +514,8 @@ class Dataset:
         if batch_size < 1:
             raise ValueError("batch_size must be 1 or greater")
 
-        if random_state == 0:
-            raise ValueError("random_state must be greater than zero or None")
+        if random_state is not None and random_state < 0:
+            raise ValueError("random_state must be 0 or greater")
 
         test_size, train_size = self.validate_test_size(test_size, train_size)
 
@@ -539,8 +523,6 @@ class Dataset:
         variant = self._stream.version
         stub = self._stream._stub
         model = self._stream.model if hasattr(self._stream, "model") else None
-        if random_state is None:
-            random_state = 0
 
         train, test = TrainingSetTestSplit(
             stub=stub,
@@ -550,7 +532,7 @@ class Dataset:
             test_size=test_size,
             train_size=train_size,
             shuffle=shuffle,
-            random_state=random_state,
+            random_state=(0 if random_state is None else random_state),
             batch_size=batch_size,
         ).split()
 
@@ -558,17 +540,22 @@ class Dataset:
 
     @staticmethod
     def validate_test_size(test_size, train_size):
-        if test_size > 1 or test_size < 0:
+        # Validate ranges
+        if not 0 <= test_size <= 1:
             raise ValueError("test_size must be between 0 and 1")
-        if train_size > 1 or train_size < 0:
+        if not 0 <= train_size <= 1:
             raise ValueError("train_size must be between 0 and 1")
-        if test_size != 0 and train_size != 0:
-            if test_size + train_size != 1:
-                raise ValueError("test_size + train_size must equal 1")
-        if test_size == 0 and train_size != 0:
+
+        # If both are specified but don't sum to 1, it's an error
+        if test_size != 0 and train_size != 0 and test_size + train_size != 1:
+            raise ValueError("test_size + train_size must equal 1 if both are non-zero")
+
+        # Auto-adjust if one is 0
+        if test_size == 0 and train_size > 0:
             test_size = 1 - train_size
-        if test_size != 0 and train_size == 0:
+        elif train_size == 0 and test_size > 0:
             train_size = 1 - test_size
+
         return test_size, train_size
 
     def dataframe(self, spark_session=None):

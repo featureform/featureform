@@ -831,7 +831,6 @@ func (serv *OnlineServer) TrainTestSplit(stream srv.Feature_TrainTestSplitServer
 	for {
 		req, err := stream.Recv()
 		if err == io.EOF {
-			// Client has closed the stream, close the downstream stream
 			serv.Logger.Infow("Client has closed the stream")
 			if err := clientStream.CloseSend(); err != nil {
 				return fmt.Errorf("failed to close send direction to downstream service: %w", err)
@@ -843,7 +842,6 @@ func (serv *OnlineServer) TrainTestSplit(stream srv.Feature_TrainTestSplitServer
 			return err
 		}
 
-		// Forward the request to the downstream service
 		if err := clientStream.Send(req); err != nil {
 			serv.Logger.Errorw("Failed to send request to downstream service", "error", err)
 			return err
@@ -851,7 +849,6 @@ func (serv *OnlineServer) TrainTestSplit(stream srv.Feature_TrainTestSplitServer
 
 		resp, err := clientStream.Recv()
 		if err == io.EOF {
-			// End of stream from downstream service
 			serv.Logger.Infow("Downstream service has closed the stream")
 			return nil
 		}
@@ -860,7 +857,6 @@ func (serv *OnlineServer) TrainTestSplit(stream srv.Feature_TrainTestSplitServer
 			return err
 		}
 
-		// Send the response back to the client
 		if err := stream.Send(resp); err != nil {
 			serv.Logger.Errorw("Failed to send response to client", "error", err)
 			return err

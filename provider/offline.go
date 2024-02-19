@@ -263,6 +263,14 @@ func (m *TransformationConfig) decodeArgs(t metadata.TransformationArgType, argM
 	return nil
 }
 
+type TrainTestSplitDef struct {
+	TrainingSetName    string
+	TrainingSetVariant string
+	TestSize           float32
+	Shuffle            bool
+	RandomState        int
+}
+
 type MaterializationOptions interface {
 	Output() filestore.FileType
 	ShouldIncludeHeaders() bool
@@ -287,6 +295,8 @@ type OfflineStore interface {
 	CreateTrainingSet(TrainingSetDef) error
 	UpdateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
+	CreateTrainTestSplit(TrainTestSplitDef) (func() error, error)
+	GetTrainTestSplit(TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error)
 	Close() error
 	ResourceLocation(id ResourceID) (string, error)
 	Provider
@@ -780,6 +790,16 @@ func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetItera
 	}
 	return data.(trainingRows).Iterator(), nil
 }
+
+func (store *memoryOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
+	return nil, fmt.Errorf("not Implemented")
+}
+
+func (store *memoryOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+	return nil, nil, fmt.Errorf("not Implemented")
+
+}
+
 func (store *memoryOfflineStore) Close() error {
 	return nil
 }

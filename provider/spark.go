@@ -2264,6 +2264,14 @@ func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterat
 	return fileStoreGetTrainingSet(id, spark.Store, spark.Logger)
 }
 
+func (spark *SparkOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
+	return nil, fmt.Errorf("not Implemented")
+}
+
+func (spark *SparkOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+	return nil, nil, fmt.Errorf("not Implemented")
+}
+
 func sanitizeSparkSQL(name string) string {
 	return name
 }

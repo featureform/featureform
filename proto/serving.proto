@@ -156,9 +156,9 @@ message TrainTestSplitRequest {
   float test_size = 3;
   float train_size = 4;
   bool shuffle = 5;
-  int32 random_state = 6;  // Seed for shuffling, if shuffle is true
-  RequestType request_type = 7;  // Specify the type of data being requested
-  int32 batch_size = 8;  // batch size for the response
+  int32 random_state = 6;
+  RequestType request_type = 7;
+  int32 batch_size = 8;
 }
 
 enum RequestType {

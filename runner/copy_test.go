@@ -388,6 +388,14 @@ func (b BrokenNumRowsOfflineStore) GetTrainingSet(id provider.ResourceID) (provi
 	return nil, nil
 }
 
+func (b BrokenNumRowsOfflineStore) CreateTrainTestSplit(def provider.TrainTestSplitDef) (func() error, error) {
+	return nil, fmt.Errorf("not Implemented")
+}
+
+func (b BrokenNumRowsOfflineStore) GetTrainTestSplit(def provider.TrainTestSplitDef) (provider.TrainingSetIterator, provider.TrainingSetIterator, error) {
+	return nil, nil, fmt.Errorf("not Implemented")
+}
+
 func (b BrokenNumRowsOfflineStore) GetBatchFeatures(tables []provider.ResourceID) (provider.BatchFeatureIterator, error) {
 	return nil, nil
 }
@@ -725,6 +733,15 @@ func (m MockOfflineStore) Close() error {
 
 func (m MockOfflineStore) ResourceLocation(id provider.ResourceID) (string, error) {
 	return "", nil
+}
+
+func (m MockOfflineStore) CreateTrainTestSplit(def provider.TrainTestSplitDef) (func() error, error) {
+	return nil, fmt.Errorf("not Implemented")
+}
+
+func (m MockOfflineStore) GetTrainTestSplit(def provider.TrainTestSplitDef) (provider.TrainingSetIterator, provider.TrainingSetIterator, error) {
+	return nil, nil, fmt.Errorf("not Implemented")
+
 }
 
 type MockOnlineStoreTable struct{}

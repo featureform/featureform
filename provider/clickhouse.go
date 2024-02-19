@@ -728,7 +728,7 @@ func (store *clickHouseOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTabl
 	if err != nil {
 		return nil, err
 	}
-	return &sqlPrimaryTable{
+	return &clickhousePrimaryTable{
 		db:     store.db,
 		name:   name,
 		schema: TableSchema{Columns: columnNames},
@@ -955,53 +955,6 @@ func (store *clickHouseOfflineStore) CreateTrainingSet(def TrainingSetDef) error
 	return nil
 }
 
-func (store *clickHouseOfflineStore) CreateTrainTestSplit(
-	trainingSetTable string,
-	testSize float32,
-	shuffle bool,
-	randomState int,
-) (string, error) {
-	// Generate unique suffix for the view names
-	tableNameSuffix := fmt.Sprintf("%s_%d_%t_%d", trainingSetTable, int(testSize*100), shuffle, randomState)
-	trainingSetSplitViewName := fmt.Sprintf("%s_split", tableNameSuffix)
-
-	// Generate ORDER BY clause for shuffling if needed
-	orderByClause := ""
-	if shuffle {
-		if randomState == 0 {
-			randomState = rand.Int() // Ensure a random state if 0 is provided
-		}
-		// Use ClickHouse's cityHash64 for deterministic shuffling, rowNumberInAllBlocks is a unique identifier for each row
-		orderByClause = fmt.Sprintf("ORDER BY cityHash64(concat(toString(_row), toString(%d)))", randomState)
-	}
-
-	// Calculate the number of test rows based on the testSize parameter
-	var totalRows int
-	err := store.db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitizeCH(trainingSetTable))).Scan(&totalRows)
-	if err != nil {
-		return "", fmt.Errorf("failed to get table size: %v", err)
-	}
-	testRows := int(float32(totalRows) * testSize)
-
-	// Create the final view with an 'is_test' column
-	createViewQuery := fmt.Sprintf(`
-			CREATE VIEW IF NOT EXISTS %s AS
-			SELECT *, IF(row_number() OVER (%s) <= %d, 1, 0) AS is_test
-			FROM %s
-    	`,
-		sanitizeCH(trainingSetSplitViewName),
-		orderByClause,
-		testRows,
-		sanitizeCH(trainingSetTable),
-	)
-
-	if _, err := store.db.Exec(createViewQuery); err != nil {
-		return "", fmt.Errorf("failed to create final view: %v", err)
-	}
-
-	return trainingSetSplitViewName, nil
-}
-
 func (store *clickHouseOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 	if err := def.check(); err != nil {
 		return err
@@ -1074,49 +1027,51 @@ func (store *clickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetI
 	return store.newsqlTrainingSetIterator(rows, colTypes), nil
 }
 
-func (store *clickHouseOfflineStore) GetTrainingSetTestSplit(
-	id ResourceID,
-	testSize float32,
-	shuffle bool,
-	randomState int,
-) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
-	prep, err := store.prepareTrainingSetQuery(id)
+func (store *clickHouseOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
+	prep, err := store.prepareTrainingSetQuery(ResourceID{Name: def.TrainingSetName, Variant: def.TrainingSetVariant})
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
-	trainingTestSplitName, err := store.CreateTrainTestSplit(
-		prep.TrainingSetName,
-		testSize,
-		shuffle,
-		randomState,
+	trainTestSplitTableName := store.getTrainTestSplitTableName(prep.TrainingSetName, def)
+
+	// Generate ORDER BY clause for shuffling if needed
+	orderByClause := ""
+	randomState := def.RandomState
+	if def.Shuffle {
+		if def.RandomState == 0 {
+			randomState = rand.Int() // Ensure a random state if 0 is provided
+		}
+		// Use ClickHouse's cityHash64 for deterministic shuffling, rowNumberInAllBlocks is a unique identifier for each row
+		orderByClause = fmt.Sprintf("ORDER BY cityHash64(concat(toString(_row), toString(%d)))", randomState)
+	}
+
+	// Calculate the number of test rows based on the testSize parameter
+	var totalRows int
+	err = store.db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitizeCH(prep.TrainingSetName))).Scan(&totalRows)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get table size: %v", err)
+	}
+	testRows := int(float32(totalRows) * def.TestSize)
+
+	// Create the final view with an 'is_test' column
+	createViewQuery := fmt.Sprintf(`
+			CREATE VIEW IF NOT EXISTS %s AS
+			SELECT *, IF(row_number() OVER (%s) <= %d, 1, 0) AS is_test
+			FROM %s
+    	`,
+		sanitizeCH(trainTestSplitTableName),
+		orderByClause,
+		testRows,
+		sanitizeCH(prep.TrainingSetName),
 	)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	train, test := store.query.trainingRowSplitSelect(prep.Columns, sanitizeCH(trainingTestSplitName))
-	fmt.Printf("Training Set Query: %s\n", train)
-	fmt.Printf("Test Set Query: %s\n", test)
-	testRows, err := store.db.Query(test)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("could not query test set: %v", err)
 
-	}
-	trainRows, err := store.db.Query(train)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("could not query train set: %v", err)
-
-	}
-
-	colTypes, err := store.getValueColumnTypes(trainingTestSplitName)
-	fmt.Printf("these are the column types: %v\n", colTypes)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("could not get column types: %v", err)
+	if _, err := store.db.Exec(createViewQuery); err != nil {
+		return nil, fmt.Errorf("failed to create final view: %v", err)
 	}
 
 	// return callback to drop view
 	dropFunc := func() error {
-		// two queries to drop split and row number table
-		dropQuery := fmt.Sprintf("DROP VIEW if exists %s", sanitizeCH(trainingTestSplitName))
+		dropQuery := fmt.Sprintf("DROP VIEW if exists %s", sanitizeCH(trainTestSplitTableName))
 		_, err := store.db.Exec(dropQuery)
 		if err != nil {
 			return fmt.Errorf("could not drop test split: %v", err)
@@ -1125,7 +1080,42 @@ func (store *clickHouseOfflineStore) GetTrainingSetTestSplit(
 		return nil
 	}
 
-	return store.newsqlTrainingSetIterator(trainRows, colTypes), store.newsqlTrainingSetIterator(testRows, colTypes), dropFunc, nil
+	return dropFunc, nil
+}
+
+func (store *clickHouseOfflineStore) getTrainTestSplitTableName(trainingSetTable string, def TrainTestSplitDef) string {
+	// Generate unique suffix for the view names
+	tableNameSuffix := fmt.Sprintf("%s_%d_%t_%d", trainingSetTable, int(def.TestSize*100), def.Shuffle, def.RandomState)
+	trainTestSplitViewName := fmt.Sprintf("%s_split", tableNameSuffix)
+	return trainTestSplitViewName
+}
+
+func (store *clickHouseOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+	prep, err := store.prepareTrainingSetQuery(ResourceID{Name: def.TrainingSetName, Variant: def.TrainingSetVariant})
+	if err != nil {
+		return nil, nil, err
+	}
+	trainTestSplitTableName := store.getTrainTestSplitTableName(prep.TrainingSetName, def)
+	train, test := store.query.trainingRowSplitSelect(prep.Columns, sanitizeCH(trainTestSplitTableName))
+	fmt.Printf("Training Set Query: %s\n", train)
+	fmt.Printf("Test Set Query: %s\n", test)
+	testRows, err := store.db.Query(test)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not query test set: %v", err)
+	}
+	trainRows, err := store.db.Query(train)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not query train set: %v", err)
+
+	}
+
+	colTypes, err := store.getValueColumnTypes(trainTestSplitTableName)
+	fmt.Printf("these are the column types: %v\n", colTypes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not get column types: %v", err)
+	}
+
+	return store.newsqlTrainingSetIterator(trainRows, colTypes), store.newsqlTrainingSetIterator(testRows, colTypes), nil
 
 }
 

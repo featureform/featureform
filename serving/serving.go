@@ -143,18 +143,24 @@ func (serv *FeatureServer) TrainTestSplit(stream pb.Feature_TrainTestSplitServer
 func (serv *FeatureServer) handleSplitInitializeRequest(ctx *splitContext) error {
 	ctx.logger.Infow("Initializing dataset", "id", ctx.req.Id, "shuffle", ctx.req.Shuffle, "testSize", ctx.req.TestSize)
 
-	train, test, dropViews, err := serv.getTrainingSetTestSplitIterator(
-		ctx.req.Id.GetName(),
-		ctx.req.Id.GetVersion(),
-		ctx.req.TestSize,
-		ctx.req.Shuffle,
-		int(ctx.req.RandomState),
-	)
+	trainTestSplitDef := provider.TrainTestSplitDef{
+		TrainingSetName:    ctx.req.Id.GetName(),
+		TrainingSetVariant: ctx.req.Id.GetVersion(),
+		TestSize:           ctx.req.TestSize,
+		Shuffle:            ctx.req.Shuffle,
+		RandomState:        int(ctx.req.RandomState),
+	}
+
+	cleanupFunc, err := serv.createTrainTestSplit(trainTestSplitDef)
+	defer cleanupFunc()
+	if err != nil {
+		return fferr.NewInternalError(err)
+	}
+	train, test, err := serv.getTrainTestSplitIterators(trainTestSplitDef)
 	if err != nil {
 		ctx.logger.Errorw("Failed to get training set iterator", "Error", err)
 		return err
 	}
-	defer dropViews()
 
 	*ctx.trainIterator = train
 	*ctx.testIterator = test
@@ -317,29 +323,52 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
 }
 
-func (serv *FeatureServer) getTrainingSetTestSplitIterator(name, variant string, testSize float32, shuffle bool, randomState int) (provider.TrainingSetIterator, provider.TrainingSetIterator, func() error, error) {
+func (serv *FeatureServer) createTrainTestSplit(def provider.TrainTestSplitDef) (func() error, error) {
 	ctx := context.TODO()
-	serv.Logger.Infow("Getting Training Set Iterator", "name", name, "variant", variant)
-	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{name, variant})
+	serv.Logger.Infow("Creating Train Test Split", "TrainTestSplitDef", fmt.Sprintf("%+v", def))
+	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: def.TrainingSetName, Variant: def.TrainingSetVariant})
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
-	serv.Logger.Debugw("Fetching Training Set Provider", "name", name, "variant", variant)
 	providerEntry, err := ts.FetchProvider(serv.Metadata, ctx)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
+	}
+	store, err := p.AsOfflineStore()
+	if err != nil {
+		return nil, err
+	}
+
+	return store.CreateTrainTestSplit(def)
+}
+
+func (serv *FeatureServer) getTrainTestSplitIterators(def provider.TrainTestSplitDef) (provider.TrainingSetIterator, provider.TrainingSetIterator, error) {
+	ctx := context.TODO()
+	serv.Logger.Infow("Getting Training Set Iterator", "name", def.TrainingSetName, "variant", def.TrainingSetVariant)
+	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{def.TrainingSetName, def.TrainingSetVariant})
+	if err != nil {
+		return nil, nil, err
+	}
+	serv.Logger.Debugw("Fetching Training Set Provider", "name", def.TrainingSetName, "variant", def.TrainingSetVariant)
+	providerEntry, err := ts.FetchProvider(serv.Metadata, ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
+	if err != nil {
+		return nil, nil, err
 	}
 	store, err := p.AsOfflineStore()
 	if err != nil {
 		// This means that the provider of the training set isn't an offline store.
 		// That shouldn't be possible.
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
-	return store.GetTrainingSetTestSplit(provider.ResourceID{Name: name, Variant: variant}, testSize, shuffle, randomState)
+	return store.GetTrainTestSplit(def)
 }
 
 func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (provider.BatchFeatureIterator, error) {
@@ -473,9 +502,9 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	}
 	if providerErr != nil {
 		serv.Logger.Errorw("Could not get primary table", "name", name, "variant", variant, "Error", providerErr)
-		return nil, err
+		return nil, providerErr
 	}
-	serv.Logger.Debugw("Getting source data iterator", "name", name, "variant", variant)
+	serv.Logger.Debugw("Getting source data iterator", "name", name, "variant", variant, "limit", limit)
 	return primary.IterateSegment(limit)
 }
 
@@ -560,7 +589,7 @@ func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceColu
 		return nil, err
 	}
 	if it == nil {
-		serv.Logger.Errorf("source data iterator is nil", "Name", name, "Variant", variant)
+		serv.Logger.Errorw("source data iterator is nil", "Name", name, "Variant", variant)
 		return nil, fferr.NewDatasetNotFoundError(name, variant, fmt.Errorf("source data iterator is nil"))
 	}
 	defer it.Close()

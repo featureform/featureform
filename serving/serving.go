@@ -90,6 +90,12 @@ func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainingTestSplit
 	)
 
 	for {
+		if isTestFinished && isTrainFinished {
+			// If both iterators are finished, we can close the stream
+			serv.Logger.Infow("Both iterators are finished, closing stream")
+			return nil
+		}
+
 		req, err := stream.Recv()
 		if err != nil {
 			return err
@@ -222,7 +228,10 @@ func (serv *FeatureServer) handleFinishedIterator(
 		*isTrainFinished = true
 	}
 
-	if *isTestFinished || *isTrainFinished {
+	if *isTestFinished && *isTrainFinished {
+		// return so that we can close the stream
+		return
+	} else {
 		if err := stream.Send(&pb.TrainingTestSplitResponse{IteratorDone: true}); err != nil {
 			logger.Errorw("Failed to write to stream", "Error", err)
 		}

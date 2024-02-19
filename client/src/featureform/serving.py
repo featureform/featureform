@@ -23,6 +23,7 @@ from .enums import FileFormat, ResourceType
 from .register import FeatureColumnResource
 from .resources import Model
 from .tls import insecure_channel, secure_channel
+from .training_test_split import TrainingSetTestSplit
 
 from .version import check_up_to_date
 
@@ -209,7 +210,6 @@ class HostedClientImpl:
     def training_set(
         self, name, variation, include_label_timestamp, model: Union[str, Model] = None
     ):
-
         training_set_stream = TrainingSetStream(self._stub, name, variation, model)
         return Dataset(training_set_stream)
 
@@ -440,179 +440,6 @@ class Batch:
                     raise
                 return rows
         return rows
-
-
-class TrainingSetSplitIterator:
-    def __init__(
-        self,
-        req_queue: queue.Queue,
-        resp_queue: queue.Queue,
-        resp_stream,
-        request_type,
-        name,
-        version,
-        test_size,
-        train_size,
-        shuffle,
-        random_state,
-        batch_size,
-        model: Union[str, Model] = None,
-    ):
-        self.name = name
-        self.version = version
-        self.model = model
-        self.test_size = test_size
-        self.train_size = train_size
-        self.shuffle = shuffle
-        self.batch_size = batch_size
-        self.random_state = random_state
-        self.resp_stream = resp_stream
-        self.complete = False
-
-        self.req_queue = req_queue
-        self.resp_queue = resp_queue
-        self._request_type = request_type
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self.complete:
-            raise StopIteration
-        i = 0
-        batch_features = None
-        batch_label = None
-        while i < self.batch_size:
-            req = serving_pb2.TrainingTestSplitRequest()
-            req.id.name = self.name
-            req.id.version = self.version
-
-            if self.model is not None:
-                req.model.name = (
-                    self.model if isinstance(self.model, str) else self.model.name
-                )
-            req.test_size = self.test_size
-            req.train_size = self.train_size
-            req.shuffle = self.shuffle
-            req.random_state = self.random_state
-            req.request_type = self._request_type
-
-            self.req_queue.put(req)
-
-            next_row = next(self.resp_stream)
-
-            if next_row.iterator_done:
-                self.complete = True
-                if batch_features is None:
-                    raise StopIteration
-                return batch_features, batch_label
-
-            if batch_features is None:
-                row = Row(next_row.row)
-                batch_features = np.array(row.features())
-                batch_label = np.array(row.label())
-            else:
-                batch_features = np.append(
-                    batch_features, Row(next_row.row).features(), axis=0
-                )
-                batch_label = np.append(batch_label, Row(next_row.row).label(), axis=0)
-            i += 1
-
-        return batch_features, batch_label
-
-
-class TrainingSetTestSplit:
-    """
-    Returns two iterators, one for the training set and one for the test set, in that order
-    """
-
-    def __init__(
-        self,
-        stub,
-        name: str,
-        version: str,
-        test_size: float,
-        train_size: float,
-        shuffle: bool,
-        random_state: int,
-        batch_size: int,
-        model: Union[str, Model] = None,
-    ):
-        self.name = name
-        self.version = version
-        self.shuffle = shuffle
-        self.random_state = random_state
-        self.model = model
-        self.test_size = test_size
-        self.train_size = train_size
-        self.batch_size = batch_size
-        self.train_iter = None
-        self.test_iter = None
-        self._stream = None
-        self.stub = stub
-
-        self.req_queue = queue.Queue()
-
-        # initialize the request queue
-        req = serving_pb2.TrainingTestSplitRequest()
-        req.id.name = self.name
-        req.id.version = self.version
-        if self.model is not None:
-            req.model.name = (
-                self.model if isinstance(self.model, str) else self.model.name
-            )
-        req.request_type = serving_pb2.RequestType.INITIALIZE
-        req.test_size = self.test_size
-        req.shuffle = self.shuffle
-        req.random_state = self.random_state
-
-        self.req_queue.put(req)
-
-        self.resp_queue = queue.Queue()
-
-    def request_generator(self):
-        while True:
-            if not self.req_queue.empty():
-                request = self.req_queue.get()
-                yield request
-
-    def split(self):
-        response_stream = self.stub.TrainingTestSplit(self.request_generator())
-        # verify initialization response # TODO: don't think we need this
-        init_response = next(response_stream)
-        if not init_response.initialized:
-            raise ValueError("Failed to initialize training test split")
-
-        self.train_iter = TrainingSetSplitIterator(
-            req_queue=self.req_queue,
-            resp_queue=self.resp_queue,
-            resp_stream=response_stream,
-            request_type=serving_pb2.RequestType.TRAINING,
-            name=self.name,
-            version=self.version,
-            model=self.model,
-            test_size=self.test_size,
-            train_size=self.train_size,
-            shuffle=self.shuffle,
-            random_state=self.random_state,
-            batch_size=self.batch_size,
-        )
-        self.test_iter = TrainingSetSplitIterator(
-            req_queue=self.req_queue,
-            resp_queue=self.resp_queue,
-            resp_stream=response_stream,
-            request_type=serving_pb2.RequestType.TEST,
-            name=self.name,
-            version=self.version,
-            model=self.model,
-            test_size=self.test_size,
-            train_size=self.train_size,
-            shuffle=self.shuffle,
-            random_state=self.random_state,
-            batch_size=self.batch_size,
-        )
-
-        return self.train_iter, self.test_iter
 
 
 class Dataset:

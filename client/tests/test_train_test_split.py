@@ -1,10 +1,8 @@
-import featureform as ff
 from featureform.serving import Dataset
 import os
 from featureform.proto import serving_pb2
 import numpy as np
 import pytest
-import time
 
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
@@ -35,10 +33,6 @@ def response(req_type, iterator_done):
         ),
         iterator_done=iterator_done,
     )
-
-    # training_data = serving_pb2.TrainingDataRow()
-    # req.row = training_data
-
     return req
 
 

@@ -116,9 +116,6 @@ func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainingTestSplit
 				featureObserver.SetError()
 				return err
 			}
-			if isTestFinished && isTrainFinished {
-				return nil
-			}
 		}
 	}
 }
@@ -226,7 +223,7 @@ func (serv *FeatureServer) handleFinishedIterator(
 		*isTrainFinished = true
 	}
 
-	if !*isTestFinished || !*isTrainFinished {
+	if *isTestFinished || *isTrainFinished {
 		if err := stream.Send(&pb.TrainingTestSplitResponse{IteratorDone: true}); err != nil {
 			logger.Errorw("Failed to write to stream", "Error", err)
 		}

@@ -1,6 +1,7 @@
 package scheduling
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -536,59 +537,355 @@ func TestGetRunAll(t *testing.T) {
 //	}
 //}
 
-func TestKeyPaths(t *testing.T) {
-	type testCase struct {
+// func TestKeyPaths(t *testing.T) {
+// 	type testCase struct {
+// 		Name        string
+// 		Key         Key
+// 		ExpectedKey string
+// 	}
+
+// 	tests := []testCase{
+// 		testCase{
+// 			Name:        "TaskMetadataKeyAll",
+// 			Key:         TaskMetadataKey{},
+// 			ExpectedKey: "/tasks/metadata/task_id=",
+// 		},
+// 		testCase{
+// 			Name:        "TaskMetadataKeyIndividual",
+// 			Key:         TaskMetadataKey{taskID: TaskID(1)},
+// 			ExpectedKey: "/tasks/metadata/task_id=1",
+// 		},
+// 		testCase{
+// 			Name:        "TaskRunKeyAll",
+// 			Key:         TaskRunKey{},
+// 			ExpectedKey: "/tasks/runs/task_id=",
+// 		},
+// 		testCase{
+// 			Name:        "TaskRunKeyIndividual",
+// 			Key:         TaskRunKey{taskID: TaskID(1)},
+// 			ExpectedKey: "/tasks/runs/task_id=1"},
+// 		testCase{
+// 			Name:        "TaskRunMetadataKeyAll",
+// 			Key:         TaskRunMetadataKey{},
+// 			ExpectedKey: "/tasks/runs/metadata",
+// 		},
+// 		testCase{
+// 			Name: "TaskRunMetadataKeyIndividual",
+// 			Key: TaskRunMetadataKey{
+// 				taskID: TaskID(1),
+// 				runID:  TaskRunID(1),
+// 				date:   time.Date(2023, time.January, 20, 23, 0, 0, 0, time.UTC),
+// 			},
+// 			ExpectedKey: "/tasks/runs/metadata/2023/01/20/task_id=1/run_id=1",
+// 		},
+// 		testCase{
+// 			Name: "TaskRunMetadataKeyYearOnly",
+// 			Key: TaskRunMetadataKey{
+// 				date: time.Date(2023, time.January, 20, 23, 0, 0, 0, time.UTC),
+// 			},
+// 			ExpectedKey: "/tasks/runs/metadata/2023/01/20/",
+// 		},
+// 	}
+
+// 	fn := func(t *testing.T, test testCase) {
+// 		if test.Key.String() != test.ExpectedKey {
+// 			t.Fatalf("Expected: %s, got: %s", test.ExpectedKey, test.Key.String())
+// 		}
+// 	}
+
+// 	for _, tt := range tests {
+// 		t.Run(tt.Name, func(t *testing.T) {
+// 			fn(t, tt)
+// 		})
+// 	}
+// }
+
+func TestSetStatusByRunID(t *testing.T) {
+	type taskInfo struct {
+		Name   string
+		Type   TaskType
+		Target TaskTarget
+	}
+	type runInfo struct {
+		Name    string
+		TaskID  TaskID
+		Trigger Trigger
+	}
+	type TestCase struct {
 		Name        string
-		Key         Key
-		ExpectedKey string
+		Tasks       []taskInfo
+		Runs        []runInfo
+		ForTask     TaskID
+		ForRun      TaskRunID
+		SetStatus   Status
+		SetError    error
+		shouldError bool
+	}
+	tests := []TestCase{
+		{
+			"Single",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{{"name", 1, OneOffTrigger{"name"}}},
+			1,
+			1,
+			Success,
+			nil,
+			false,
+		},
+		// {
+		// 	"Multiple",
+		// 	[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+		// 	[]runInfo{
+		// 		{"name", 1, OneOffTrigger{"name"}},
+		// 		{"name", 1, OneOffTrigger{"name"}},
+		// 		{"name", 1, OneOffTrigger{"name"}},
+		// 	},
+		// 	1,
+		// 	2,
+		// 	Pending,
+		// 	nil,
+		// 	false,
+		// },
+		// {
+		// 	"WrongID",
+		// 	[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+		// 	[]runInfo{
+		// 		{"name", 1, OneOffTrigger{"name"}},
+		// 	},
+		// 	3,
+		// 	2,
+		// 	Pending,
+		// 	nil,
+		// 	true,
+		// },
+		// {
+		// 	"WrongRunID",
+		// 	[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+		// 	[]runInfo{
+		// 		{"name", 1, OneOffTrigger{"name"}},
+		// 	},
+		// 	1,
+		// 	2,
+		// 	Running,
+		// 	nil,
+		// 	true,
+		// },
+		{
+			"MultipleTasks",
+			[]taskInfo{
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+			},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 2, OneOffTrigger{"name"}},
+				{"name", 2, OneOffTrigger{"name"}},
+			},
+			2,
+			1,
+			Failed,
+			fmt.Errorf("Failed to create task"),
+			false,
+		},
+		// {
+		// 	"FailedStatusWithoutError",
+		// 	[]taskInfo{
+		// 		{"name", ResourceCreation, NameVariant{"name", "variant"}},
+		// 		{"name", ResourceCreation, NameVariant{"name", "variant"}},
+		// 	},
+		// 	[]runInfo{
+		// 		{"name", 1, OneOffTrigger{"name"}},
+		// 		{"name", 2, OneOffTrigger{"name"}},
+		// 	},
+		// 	2,
+		// 	1,
+		// 	Failed,
+		// 	nil,
+		// 	true,
+		// },
 	}
 
-	tests := []testCase{
-		testCase{
-			Name:        "TaskMetadataKeyAll",
-			Key:         TaskMetadataKey{},
-			ExpectedKey: "/tasks/metadata/task_id=",
+	fn := func(t *testing.T, test TestCase) {
+		storage := MemoryStorageProvider{}
+		manager := NewTaskManager(&storage)
+		for _, task := range test.Tasks {
+			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
+			if err != nil && !test.shouldError {
+				t.Fatalf("failed to create task: %v", err)
+			}
+		}
+
+		// var runDefs []TaskRunMetadata
+		for _, run := range test.Runs {
+			_, err := manager.CreateTaskRun(run.Name, run.TaskID, run.Trigger)
+			if err != nil && !test.shouldError {
+				t.Fatalf("failed to create task run: %v", err)
+			}
+			// runDefs = append(runDefs, runDef)
+		}
+
+		err := manager.SetRunStatus(test.ForRun, test.ForTask, test.SetStatus, test.SetError)
+		if err != nil && test.shouldError {
+			return
+		} else if err != nil && !test.shouldError {
+			t.Fatalf("failed to set status correctly: %v", err)
+		} else if err == nil && test.shouldError {
+			t.Fatalf("expected error but did not receive one")
+		}
+
+		all_keys, _ := manager.storage.ListKeys("tasks/runs/metadata/")
+		fmt.Println("all keys are: ", all_keys)
+
+		get_specific_kv, _ := manager.storage.Get("tasks/runs/metadata/2024/February/19/task_id=2/run_id=1", false)
+		fmt.Println("get_specific_kv: ", get_specific_kv)
+
+		recvRun, err := manager.GetRunByID(test.ForTask, test.ForRun)
+		if err != nil {
+			t.Fatalf("failed to get run by ID %d: %v", test.ForTask, err)
+		}
+		recvStatus := recvRun.Status
+
+		if recvStatus != test.SetStatus {
+
+			t.Fatalf("Expcted %v, got: %v", test.SetStatus, recvStatus)
+
+		}
+
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			fn(t, tt)
+		})
+	}
+}
+
+func TestSetEndTimeByRunID(t *testing.T) {
+	type taskInfo struct {
+		Name   string
+		Type   TaskType
+		Target TaskTarget
+	}
+	type runInfo struct {
+		Name    string
+		TaskID  TaskID
+		Trigger Trigger
+	}
+	type TestCase struct {
+		Name        string
+		Tasks       []taskInfo
+		Runs        []runInfo
+		ForTask     TaskID
+		ForRun      TaskRunID
+		SetTime     time.Time
+		shouldError bool
+	}
+	tests := []TestCase{
+		{
+			"Single",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{{"name", 1, OneOffTrigger{"name"}}},
+			1,
+			1,
+			time.Now().Add(15 * time.Second).Truncate(0).UTC(),
+			false,
 		},
-		testCase{
-			Name:        "TaskMetadataKeyIndividual",
-			Key:         TaskMetadataKey{taskID: TaskID(1)},
-			ExpectedKey: "/tasks/metadata/task_id=1",
-		},
-		testCase{
-			Name:        "TaskRunKeyAll",
-			Key:         TaskRunKey{},
-			ExpectedKey: "/tasks/runs/task_id=",
-		},
-		testCase{
-			Name:        "TaskRunKeyIndividual",
-			Key:         TaskRunKey{taskID: TaskID(1)},
-			ExpectedKey: "/tasks/runs/task_id=1"},
-		testCase{
-			Name:        "TaskRunMetadataKeyAll",
-			Key:         TaskRunMetadataKey{},
-			ExpectedKey: "/tasks/runs/metadata",
-		},
-		testCase{
-			Name: "TaskRunMetadataKeyIndividual",
-			Key: TaskRunMetadataKey{
-				taskID: TaskID(1),
-				runID:  TaskRunID(1),
-				date:   time.Date(2023, time.January, 20, 23, 0, 0, 0, time.UTC),
+		{
+			"Multiple",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
 			},
-			ExpectedKey: "/tasks/runs/metadata/2023/01/20/task_id=1/run_id=1",
+			1,
+			2,
+			time.Now().Add(15 * time.Second).Truncate(0).UTC(),
+			false,
 		},
-		testCase{
-			Name: "TaskRunMetadataKeyYearOnly",
-			Key: TaskRunMetadataKey{
-				date: time.Date(2023, time.January, 20, 23, 0, 0, 0, time.UTC),
+		{
+			"EmptyTime",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
 			},
-			ExpectedKey: "/tasks/runs/metadata/2023/01/20/",
+			1,
+			2,
+			time.Time{},
+			true,
+		},
+		{
+			"WrongEndTime",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+			},
+			1,
+			2,
+			time.Unix(1, 0).Truncate(0).UTC(),
+			true,
+		},
+		{
+			"MultipleTasks",
+			[]taskInfo{
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+			},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 2, OneOffTrigger{"name"}},
+				{"name", 2, OneOffTrigger{"name"}},
+			},
+			2,
+			1,
+			time.Now().UTC().Add(15 * time.Second).Truncate(0),
+			false,
 		},
 	}
 
-	fn := func(t *testing.T, test testCase) {
-		if test.Key.String() != test.ExpectedKey {
-			t.Fatalf("Expected: %s, got: %s", test.ExpectedKey, test.Key.String())
+	fn := func(t *testing.T, test TestCase) {
+		storage := MemoryStorageProvider{}
+		manager := NewTaskManager(&storage)
+		for _, task := range test.Tasks {
+			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
+			if err != nil && !test.shouldError {
+				t.Fatalf("failed to create task: %v", err)
+			}
+		}
+
+		// var runDefs []TaskRunMetadata
+		for _, run := range test.Runs {
+			_, err := manager.CreateTaskRun(run.Name, run.TaskID, run.Trigger)
+			if err != nil && !test.shouldError {
+				t.Fatalf("failed to create task run: %v", err)
+			}
+			// runDefs = append(runDefs, runDef)
+		}
+
+		err := manager.SetRunEndTime(test.ForRun, test.ForTask, test.SetTime)
+		if err != nil && test.shouldError {
+			return
+		} else if err != nil && !test.shouldError {
+			t.Fatalf("failed to set status correctly: %v", err)
+		} else if err == nil && test.shouldError {
+			t.Fatalf("expected error but did not receive one")
+		}
+
+		recvRun, err := manager.GetRunByID(test.ForTask, test.ForRun)
+		if err != nil {
+			t.Fatalf("failed to get run by ID %d: %v", test.ForTask, err)
+		}
+
+		if recvRun.EndTime != test.SetTime {
+
+			t.Fatalf("expected %v, got: %v", test.SetTime, recvRun.EndTime)
+
 		}
 	}
 

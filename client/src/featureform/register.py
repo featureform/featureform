@@ -1349,7 +1349,7 @@ class MultiFeatureColumnResource(ColumnResource):
 
         if not exclude_columns_set.issubset(all_columns_set):
             raise ValueError(
-                f"{all_columns_set - exclude_columns_set} columns are not in the dataframe"
+                f"Exclude columns: {exclude_columns_set - all_columns_set} columns are not in the dataframe"
             )
 
         if not include_columns_set.isdisjoint(exclude_columns_set):

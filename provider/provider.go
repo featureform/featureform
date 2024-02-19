@@ -19,6 +19,7 @@ func init() {
 		pt.FirestoreOnline:   firestoreOnlineStoreFactory,
 		pt.DynamoDBOnline:    dynamodbOnlineStoreFactory,
 		pt.PineconeOnline:    pineconeOnlineStoreFactory,
+		pt.InlinedKVOnline:   inlinedOnlineStoreFactory,
 		pt.MemoryOffline:     memoryOfflineStoreFactory,
 		pt.MySqlOffline:      mySqlOfflineStoreFactory,
 		pt.PostgresOffline:   postgresOfflineStoreFactory,

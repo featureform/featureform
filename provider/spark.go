@@ -368,42 +368,42 @@ func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath
 	if fileExists {
 		return nil
 	}
-
-	dir, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	fmt.Println(dir)
-
-	fmt.Println("CHECKING ./scripts/")
-	entries, err := os.ReadDir("./scripts/")
-	if err != nil {
-		return err
-	}
-
-	for _, e := range entries {
-		fmt.Println(e.Name())
-	}
-
-	fmt.Println("CHECKING ./scripts/spark/")
-	entries, err = os.ReadDir("./scripts/spark/")
-	if err != nil {
-		return err
-	}
-
-	for _, e := range entries {
-		fmt.Println(e.Name())
-	}
-
-	fmt.Println("CHECKING home/runner/work/featureform/featureform/provider/scripts/")
-	entries, err = os.ReadDir("home/runner/work/featureform/featureform/provider/scripts/")
-	if err != nil {
-		return err
-	}
-
-	for _, e := range entries {
-		fmt.Println(e.Name())
-	}
+	//
+	//dir, err := os.Getwd()
+	//if err != nil {
+	//	return err
+	//}
+	//fmt.Println(dir)
+	//
+	//fmt.Println("CHECKING ./scripts/")
+	//entries, err := os.ReadDir("./scripts/")
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//for _, e := range entries {
+	//	fmt.Println(e.Name())
+	//}
+	//
+	//fmt.Println("CHECKING ./scripts/spark/")
+	//entries, err = os.ReadDir("./scripts/spark/")
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//for _, e := range entries {
+	//	fmt.Println(e.Name())
+	//}
+	//
+	//fmt.Println("CHECKING home/runner/work/featureform/featureform/provider/scripts/")
+	//entries, err = os.ReadDir("home/runner/work/featureform/featureform/provider/scripts/")
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//for _, e := range entries {
+	//	fmt.Println(e.Name())
+	//}
 
 	f, err := os.Open(filePath.Key())
 	if err != nil {

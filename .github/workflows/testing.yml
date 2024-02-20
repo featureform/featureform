@@ -176,7 +176,7 @@ jobs:
         run: pwd
 
       - name: Integration Tests
-        run: go test -run TestImportableOnlineStore  -timeout 20m -coverpkg=./... -coverprofile=./cover.out.tmp ./...
+        run: go test -v -run TestImportableOnlineStore  -timeout 20m -coverpkg=./... -coverprofile=./cover.out.tmp ./...
         env:
           DYNAMO_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
           DYNAMO_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}

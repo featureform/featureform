@@ -172,6 +172,9 @@ jobs:
       - name: List
         run: ls provider/scripts/spark/
 
+      - name: pwd
+        run: pwd
+
       - name: Integration Tests
         run: go test -run TestImportableOnlineStore  -timeout 20m -coverpkg=./... -coverprofile=./cover.out.tmp ./...
         env:

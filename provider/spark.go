@@ -375,7 +375,7 @@ func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath
 	}
 	fmt.Println(dir)
 
-	entries, err := os.ReadDir("./provider/")
+	entries, err := os.ReadDir("./scripts/")
 	if err != nil {
 		return err
 	}
@@ -384,16 +384,7 @@ func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath
 		fmt.Println(e.Name())
 	}
 
-	entries, err = os.ReadDir("./provider/scripts/")
-	if err != nil {
-		return err
-	}
-
-	for _, e := range entries {
-		fmt.Println(e.Name())
-	}
-
-	entries, err = os.ReadDir("./provider/scripts/spark/")
+	entries, err = os.ReadDir("./scripts/spark/")
 	if err != nil {
 		return err
 	}

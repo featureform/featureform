@@ -19,8 +19,8 @@ const (
 type TriggerType string
 
 const (
-	oneOffTrigger TriggerType = "OneOffTrigger"
-	dummyTrigger  TriggerType = "DummyTrigger"
+	OneOffTriggerType TriggerType = "OneOffTrigger"
+	DummyTriggerType  TriggerType = "DummyTrigger"
 )
 
 type Trigger interface {
@@ -33,7 +33,7 @@ type OneOffTrigger struct {
 }
 
 func (t OneOffTrigger) Type() TriggerType {
-	return oneOffTrigger
+	return OneOffTriggerType
 }
 
 func (t OneOffTrigger) Name() string {
@@ -46,7 +46,7 @@ type DummyTrigger struct {
 }
 
 func (t DummyTrigger) Type() TriggerType {
-	return dummyTrigger
+	return DummyTriggerType
 }
 
 func (t DummyTrigger) Name() string {
@@ -104,9 +104,6 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 	}
 	t.Name = temp.Name
 
-	if temp.Status == "" || (temp.Status != Success && temp.Status != Failed && temp.Status != Pending) {
-		return fmt.Errorf("unknown status: %s", temp.Status)
-	}
 	t.Status = temp.Status
 
 	if temp.StartTime.IsZero() {
@@ -126,13 +123,13 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 	}
 
 	switch temp.TriggerType {
-	case oneOffTrigger:
+	case OneOffTriggerType:
 		var oneOffTrigger OneOffTrigger
 		if err := json.Unmarshal(temp.Trigger, &oneOffTrigger); err != nil {
 			return fmt.Errorf("failed to deserialize One Off Trigger data: %w", err)
 		}
 		t.Trigger = oneOffTrigger
-	case dummyTrigger:
+	case DummyTriggerType:
 		var dummyTrigger DummyTrigger
 		if err := json.Unmarshal(temp.Trigger, &dummyTrigger); err != nil {
 			return fmt.Errorf("failed to deserialize Dummy Trigger data: %w", err)

@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
+	"log"
 	"net/http"
 	"path/filepath"
 
@@ -367,6 +368,15 @@ func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath
 	fileExists, _ := store.Exists(storePath)
 	if fileExists {
 		return nil
+	}
+
+	entries, err := os.ReadDir("home/runner/work/featureform/featureform/provider/scripts/spark/")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, e := range entries {
+		fmt.Println(e.Name())
 	}
 
 	f, err := os.Open(filePath.Key())

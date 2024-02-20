@@ -139,3 +139,7 @@ func compareStringSlices(a, b []string) bool {
 	}
 	return true
 }
+
+func testStorageProviderLockAndUnLock(t *testing.T) {
+	provider := &MemoryStorageProvider{}
+}

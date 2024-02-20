@@ -10,10 +10,13 @@ type StorageProvider interface {
 	Set(key string, value string) error
 	Get(key string, prefix bool) ([]string, error)
 	ListKeys(prefix string) ([]string, error)
+	Lock(key string) error
+	Unlock(key string) error
 }
 
 type MemoryStorageProvider struct {
-	storage map[string]string
+	storage     map[string]string
+	lockedItems map[string]bool
 }
 
 func (m *MemoryStorageProvider) Set(key string, value string) error {
@@ -73,6 +76,25 @@ func (m *MemoryStorageProvider) ListKeys(prefix string) ([]string, error) {
 	sort.Strings(result)
 
 	return result, nil
+}
+
+func (m *MemoryStorageProvider) Lock(key string) error {
+	if m.lockedItems == nil {
+		m.lockedItems = make(map[string]bool)
+	}
+	if _, ok := m.lockedItems[key]; ok {
+		return fmt.Errorf("key is already locked")
+	}
+	m.lockedItems[key] = true
+	return nil
+}
+
+func (m *MemoryStorageProvider) Unlock(key string) error {
+	if _, ok := m.lockedItems[key]; !ok {
+		return fmt.Errorf("key is not locked")
+	}
+	delete(m.lockedItems, key)
+	return nil
 }
 
 // KeyNotFoundError represents an error when a key is not found.

@@ -172,6 +172,12 @@ jobs:
       - name: List
         run: ls -la provider/scripts/spark/
 
+      - name: List
+        run: ls -la provider/scripts/
+
+      - name: List
+        run: ls -la provider/
+
       - name: pwd
         run: pwd
 

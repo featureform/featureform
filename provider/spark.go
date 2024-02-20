@@ -375,6 +375,7 @@ func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath
 	}
 	fmt.Println(dir)
 
+	fmt.Println("CHECKING ./scripts/")
 	entries, err := os.ReadDir("./scripts/")
 	if err != nil {
 		return err
@@ -384,6 +385,7 @@ func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath
 		fmt.Println(e.Name())
 	}
 
+	fmt.Println("CHECKING ./scripts/spark/")
 	entries, err = os.ReadDir("./scripts/spark/")
 	if err != nil {
 		return err
@@ -393,6 +395,7 @@ func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath
 		fmt.Println(e.Name())
 	}
 
+	fmt.Println("CHECKING home/runner/work/featureform/featureform/provider/scripts/")
 	entries, err = os.ReadDir("home/runner/work/featureform/featureform/provider/scripts/")
 	if err != nil {
 		return err

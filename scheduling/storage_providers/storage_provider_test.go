@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 func TestMemoryStorageProvider(t *testing.T) {
@@ -140,6 +142,95 @@ func compareStringSlices(a, b []string) bool {
 	return true
 }
 
-func testStorageProviderLockAndUnLock(t *testing.T) {
+func TestLockAndUnlock(t *testing.T) {
 	provider := &MemoryStorageProvider{}
+
+	id := uuid.New().String()
+	key := "/tasks/metadata/task_id=1"
+
+	// Test Lock
+	err := provider.Lock(id, key)
+	if err != nil {
+		t.Fatalf("Lock failed: %v", err)
+	}
+
+	// Test Lock on already locked item with same UUID
+	err = provider.Lock(id, key)
+	if err != nil {
+		t.Fatalf("Locking using the same id failed: %v", err)
+	}
+
+	// Test Lock on already locked item with different UUID
+	diffId := uuid.New().String()
+	err = provider.Lock(diffId, key)
+	if err == nil {
+		t.Fatalf("Locking using different id should have failed")
+	}
+
+	// Test UnLock with different UUID
+	err = provider.Unlock(diffId, key)
+	if err == nil {
+		t.Fatalf("Unlocking using different id should have failed")
+	}
+
+	// Test UnLock with same UUID
+	err = provider.Unlock(id, key)
+	if err != nil {
+		t.Fatalf("Unlock failed: %v", err)
+	}
+}
+
+func TestLockAndUnlockWithGoRoutines(t *testing.T) {
+	provider := &MemoryStorageProvider{}
+
+	id := uuid.New().String()
+	key := "/tasks/metadata/task_id=2"
+
+	errChan := make(chan error)
+
+	// Test Lock
+	go lockGoRoutine(provider, id, key, errChan)
+	err := <-errChan
+	if err != nil {
+		t.Fatalf("Lock failed: %v", err)
+	}
+
+	// Test Lock on already locked item with same UUID
+	go lockGoRoutine(provider, id, key, errChan)
+	err = <-errChan
+	if err != nil {
+		t.Fatalf("Locking using the same id failed: %v", err)
+	}
+
+	// Test Lock on already locked item with different UUID
+	diffId := uuid.New().String()
+	go lockGoRoutine(provider, diffId, key, errChan)
+	err = <-errChan
+	if err == nil {
+		t.Fatalf("Locking using different id should have failed")
+	}
+
+	// Test UnLock with different UUID
+	go unlockGoRoutine(provider, diffId, key, errChan)
+	err = <-errChan
+	if err == nil {
+		t.Fatalf("Unlocking using different id should have failed")
+	}
+
+	// Test UnLock with same UUID
+	go unlockGoRoutine(provider, id, key, errChan)
+	err = <-errChan
+	if err != nil {
+		t.Fatalf("Unlock failed: %v", err)
+	}
+}
+
+func lockGoRoutine(provider *MemoryStorageProvider, id string, key string, errChan chan error) {
+	err := provider.Lock(id, key)
+	errChan <- err
+}
+
+func unlockGoRoutine(provider *MemoryStorageProvider, id string, key string, errChan chan error) {
+	err := provider.Unlock(id, key)
+	errChan <- err
 }

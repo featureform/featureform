@@ -4,19 +4,18 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 )
 
-type StorageProvider interface {
-	Set(key string, value string) error
-	Get(key string, prefix bool) ([]string, error)
-	ListKeys(prefix string) ([]string, error)
-	Lock(key string) error
-	Unlock(key string) error
+type LockInformation struct {
+	ID   string
+	Key  string
+	Date time.Time
 }
 
 type MemoryStorageProvider struct {
 	storage     map[string]string
-	lockedItems map[string]bool
+	lockedItems map[string]LockInformation
 }
 
 func NewMemoryStorageProvider() *MemoryStorageProvider {
@@ -79,31 +78,32 @@ func (m *MemoryStorageProvider) ListKeys(prefix string) ([]string, error) {
 	return result, nil
 }
 
-func (m *MemoryStorageProvider) Lock(key string) error {
+func (m *MemoryStorageProvider) Lock(id, key string) error {
 	if m.lockedItems == nil {
-		m.lockedItems = make(map[string]bool)
+		m.lockedItems = make(map[string]LockInformation)
 	}
-	if _, ok := m.lockedItems[key]; ok {
-		return fmt.Errorf("key is already locked")
+	keyLockInfo, ok := m.lockedItems[key]
+	if ok && keyLockInfo.ID == id {
+		return nil
+	} else if ok {
+		return fmt.Errorf("key is already locked by %s", keyLockInfo.ID)
 	}
-	m.lockedItems[key] = true
+	m.lockedItems[key] = LockInformation{
+		ID:   id,
+		Key:  key,
+		Date: time.Now(),
+	}
 	return nil
 }
 
-func (m *MemoryStorageProvider) Unlock(key string) error {
-	if _, ok := m.lockedItems[key]; !ok {
+func (m *MemoryStorageProvider) Unlock(id, key string) error {
+	keyLockInfo, ok := m.lockedItems[key]
+	if !ok {
 		return fmt.Errorf("key is not locked")
+	}
+	if keyLockInfo.ID != id {
+		return fmt.Errorf("key is locked by another id")
 	}
 	delete(m.lockedItems, key)
 	return nil
-}
-
-// KeyNotFoundError represents an error when a key is not found.
-type KeyNotFoundError struct {
-	Key string
-}
-
-// Error returns the error message for KeyNotFoundError.
-func (e *KeyNotFoundError) Error() string {
-	return fmt.Sprintf("Key not found: %s", e.Key)
 }

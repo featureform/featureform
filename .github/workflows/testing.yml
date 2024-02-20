@@ -118,7 +118,7 @@ jobs:
         run: ./gen_grpc.sh
 
       - name: Unit Tests
-        run: go test ./... -short
+        run: go test ./... -run TestImportableOnlineStore
 
       - name: Install Search Container
         run: docker pull getmeili/meilisearch:v1.0

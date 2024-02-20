@@ -171,7 +171,7 @@ jobs:
           docker run -d -p 9864:9864 -p 9870:9870 -p 8088:8088 -p 9000:9000 -p 9866:9866 --hostname localhost hadoop
 
       - name: Integration Tests
-        run: go test -run TestImportableOnlineStore -timeout 20m -parallel 1000 -coverpkg=./... -coverprofile=./cover.out.tmp ./...
+        run: go test  -timeout 20m -coverpkg=./... -coverprofile=./cover.out.tmp ./...
         env:
           DYNAMO_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
           DYNAMO_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}

@@ -48,9 +48,9 @@ func (o materializationTestOption) ShouldIncludeHeaders() bool {
 }
 
 func TestImportableOnlineStore(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
+	//if testing.Short() {
+	t.Skip()
+	//}
 	err := godotenv.Load("../.env")
 	if err != nil {
 		fmt.Println(err)

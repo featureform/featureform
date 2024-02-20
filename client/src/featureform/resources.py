@@ -696,6 +696,42 @@ class SparkConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+@typechecked
+@dataclass
+class IKVConfig:
+    store_name: str = ""
+    account_id: str = ""
+    account_passkey: str = ""
+    mount_directory: str = ""
+    log_level: str = "info"
+    log_file_path: str = ""
+
+    def software(self) -> str:
+        return "ikv"
+
+    def type(self) -> str:
+        return "IKV_ONLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "StoreName": self.store_name,
+            "AccountId": self.account_id,
+            "AccountPasskey": self.account_passkey,
+            "MountDirectory": self.mount_directory,
+            "LogLevel": self.log_level,
+            "LogFilePath": self.log_file_path
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+    def deserialize(self, config):
+        config = json.loads(config)
+        self.store_name = config["StoreName"]
+        self.account_id = config["AccountId"]
+        self.account_passkey = config["AccountPasskey"]
+        self.mount_directory = config["MountDirectory"]
+        self.log_level = config["LogLevel"]
+        self.log_file_path = config["LogFilePath"]
+        return self
 
 @typechecked
 @dataclass
@@ -785,6 +821,7 @@ Config = Union[
     WeaviateConfig,
     DynamodbConfig,
     CassandraConfig,
+    IKVConfig
 ]
 
 

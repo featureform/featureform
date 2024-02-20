@@ -11,9 +11,10 @@ import (
 	"github.com/redis/rueidis"
 )
 
-// wrapper over a single inlined store
-// inner tables is OnlineStoreTable are simply wrappers
-// over a particular document field
+var pkey_field_name string = "entity_primary_key"
+
+// Controls a single IKV store instance.
+// Inner document fields act as individual OnlineTableStore instances.
 type inlinedOnlineStore struct {
 	tables map[string]*inlinedOnlineStoreTable
 	reader ikv.IKVReader
@@ -21,21 +22,23 @@ type inlinedOnlineStore struct {
 	BaseProvider
 }
 
+// Create a Provider instance backed by IKV.
 func inlinedOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
-	inlinedConfig := &pc.InlinedConfig{}
+	inlinedConfig := &pc.IKVConfig{}
 	if err := inlinedConfig.Deserialize(serialized); err != nil {
 		return nil, NewProviderError(Runtime, pt.InlinedKVOnline, ConfigDeserialize, err.Error())
 	}
 	return NewInlinedOnlineStore(inlinedConfig)
 }
 
-func NewInlinedOnlineStore(config *pc.InlinedConfig) (*inlinedOnlineStore, error) {
-	// create client options
+func NewInlinedOnlineStore(config *pc.IKVConfig) (*inlinedOnlineStore, error) {
+	// convert to ikv client options
 	options, err := config.ToClientOptions()
 	if err != nil {
 		return nil, err
 	}
 
+	// instantiate reader and writer clients
 	factory := &ikv.IKVClientFactory{}
 
 	writer, err := factory.CreateNewWriter(options)
@@ -48,8 +51,7 @@ func NewInlinedOnlineStore(config *pc.InlinedConfig) (*inlinedOnlineStore, error
 		return nil, err
 	}
 
-	// Startup writer and reader
-	// Blocking operation.
+	// Startup writer and reader. Blocks.
 	err = writer.Startup()
 	if err != nil {
 		return nil, err
@@ -63,6 +65,10 @@ func NewInlinedOnlineStore(config *pc.InlinedConfig) (*inlinedOnlineStore, error
 		tables: make(map[string]*inlinedOnlineStoreTable),
 		reader: reader,
 		writer: writer,
+		BaseProvider: BaseProvider{
+			ProviderType:   pt.InlinedKVOnline,
+			ProviderConfig: config.Serialized(),
+		},
 	}, nil
 }
 
@@ -71,6 +77,16 @@ func (i *inlinedOnlineStore) AsOnlineStore() (OnlineStore, error) {
 }
 
 func (i *inlinedOnlineStore) CheckHealth() (bool, error) {
+	status, err := i.writer.HealthCheck()
+	if !status || err != nil {
+		return false, err
+	}
+
+	status, err = i.reader.HealthCheck()
+	if !status || err != nil {
+		return false, err
+	}
+
 	return true, nil
 }
 
@@ -104,13 +120,15 @@ func (i *inlinedOnlineStore) CreateTable(feature string, variant string, valueTy
 	return &table, nil
 }
 
-// NO OP. Field deletion is not supported.
 func (*inlinedOnlineStore) DeleteTable(feature string, variant string) error {
+	// Not supported. Field cannot be deleted from all entities.
+	// Deletes keyed on particular entity are ok.
 	return nil
 }
 
-// Shutdown clients.
 func (i *inlinedOnlineStore) Close() error {
+	// Shutdown clients.
+
 	if err := i.reader.Shutdown(); err != nil {
 		return err
 	}
@@ -173,7 +191,7 @@ func (i *inlinedOnlineStoreTable) Set(entity string, value interface{}) error {
 	}
 
 	// create IKVDocument
-	document, err := ikv.NewIKVDocumentBuilder().PutStringField("pkey", entity).PutStringField(i.fieldName, valueAsString).Build()
+	document, err := ikv.NewIKVDocumentBuilder().PutStringField(pkey_field_name, entity).PutStringField(i.fieldName, valueAsString).Build()
 	if err != nil {
 		return err
 	}

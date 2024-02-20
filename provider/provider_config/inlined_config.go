@@ -7,7 +7,7 @@ import (
 	ikv "github.com/inlinedio/ikv-store/ikv-go-client"
 )
 
-type InlinedConfig struct {
+type IKVConfig struct {
 	StoreName string `json:"StoreName"`
 
 	// Account credentials
@@ -26,7 +26,7 @@ type InlinedConfig struct {
 	LogFilePath string `json:"LogFilePath"`
 }
 
-func (ic InlinedConfig) Serialized() SerializedConfig {
+func (ic IKVConfig) Serialized() SerializedConfig {
 	config, err := json.Marshal(ic)
 	if err != nil {
 		panic(err)
@@ -34,7 +34,7 @@ func (ic InlinedConfig) Serialized() SerializedConfig {
 	return config
 }
 
-func (ic *InlinedConfig) Deserialize(config SerializedConfig) error {
+func (ic *IKVConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, ic)
 	if err != nil {
 		return err
@@ -47,11 +47,11 @@ func (ic *InlinedConfig) Deserialize(config SerializedConfig) error {
 	return nil
 }
 
-func (a InlinedConfig) DifferingFields(b RedisConfig) (ss.StringSet, error) {
+func (a IKVConfig) DifferingFields(b RedisConfig) (ss.StringSet, error) {
 	return differingFields(a, b)
 }
 
-func (ic *InlinedConfig) ToClientOptions() (*ikv.ClientOptions, error) {
+func (ic *IKVConfig) ToClientOptions() (*ikv.ClientOptions, error) {
 	builder := ikv.NewClientOptionsBuilder().WithStoreName(ic.StoreName).WithAccountId(ic.AccountId).WithAccountPasskey(ic.AccountPasskey).WithMountDirectory(ic.MountDirectory)
 
 	// logging options

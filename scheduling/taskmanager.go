@@ -294,7 +294,10 @@ func (tm *TaskManager) GetRunByID(taskID TaskID, runID TaskRunID) (TaskRunMetada
 		return TaskRunMetadata{}, err
 	}
 
+<<<<<<< HEAD
 	// Want to move this logic out
+=======
+>>>>>>> 1f861aee (Get functions working)
 	found := false
 	var runRecord TaskRunSimple
 	for _, run := range runs.Runs {
@@ -309,8 +312,13 @@ func (tm *TaskManager) GetRunByID(taskID TaskID, runID TaskRunID) (TaskRunMetada
 	}
 
 	date := runRecord.DateCreated
+<<<<<<< HEAD
 	taskRunMetadataKey := TaskRunMetadataKey{taskID: taskID, runID: runRecord.RunID, date: date}
 	rec, err := tm.storage.Get(taskRunMetadataKey.String(), false)
+=======
+
+	rec, err := tm.storage.Get(fmt.Sprintf("tasks/runs/metadata/%d/%s/%d/task_id=%d/run_id=%d", date.Year(), date.Month(), date.Day(), taskID, runRecord.RunID), false)
+>>>>>>> 1f861aee (Get functions working)
 	if err != nil {
 		return TaskRunMetadata{}, err
 	}
@@ -325,6 +333,7 @@ func (tm *TaskManager) GetRunByID(taskID TaskID, runID TaskRunID) (TaskRunMetada
 }
 
 func (tm *TaskManager) GetRunsByDate(start time.Time, end time.Time) (TaskRunList, error) {
+<<<<<<< HEAD
 	// the date range is inclusive
 	var runs []TaskRunMetadata
 
@@ -343,6 +352,8 @@ func (tm *TaskManager) GetRunsByDate(start time.Time, end time.Time) (TaskRunLis
 func (tm *TaskManager) getRunsForDay(date time.Time, start time.Time, end time.Time) ([]TaskRunMetadata, error) {
 	key := TaskRunMetadataKey{date: date}
 	recs, err := tm.storage.Get(key.String(), true)
+=======
+	recs, err := tm.storage.Get(fmt.Sprintf("tasks/runs/metadata/%d/%s/%d", start.Year(), start.Month(), start.Day()), true)
 	if err != nil {
 		return []TaskRunMetadata{}, err
 	}
@@ -354,6 +365,29 @@ func (tm *TaskManager) getRunsForDay(date time.Time, start time.Time, end time.T
 		if err != nil {
 			return []TaskRunMetadata{}, fmt.Errorf("failed to unmarshal run record: %v", err)
 		}
+		if taskRun.StartTime.After(start) {
+			continue
+		}
+		runs = append(runs, taskRun)
+	}
+	return runs, nil
+}
+
+func (tm *TaskManager) GetAllTaskRuns() (TaskRunList, error) {
+	recs, err := tm.storage.Get("tasks/runs/metadata", true)
+>>>>>>> 1f861aee (Get functions working)
+	if err != nil {
+		return []TaskRunMetadata{}, err
+	}
+
+	var runs []TaskRunMetadata
+	for _, record := range recs {
+		taskRun := TaskRunMetadata{}
+		err = taskRun.Unmarshal([]byte(record))
+		if err != nil {
+			return []TaskRunMetadata{}, fmt.Errorf("failed to unmarshal run record: %v", err)
+		}
+<<<<<<< HEAD
 
 		// if the task run started before the start time or after the end time, skip it
 		if taskRun.StartTime.Before(start) || taskRun.StartTime.After(end) {
@@ -377,6 +411,8 @@ func (tm *TaskManager) GetAllTaskRuns() (TaskRunList, error) {
 		if err != nil {
 			return []TaskRunMetadata{}, fmt.Errorf("failed to unmarshal run record: %v", err)
 		}
+=======
+>>>>>>> 1f861aee (Get functions working)
 		runs = append(runs, taskRun)
 	}
 	return runs, nil

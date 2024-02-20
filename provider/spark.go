@@ -375,7 +375,7 @@ func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath
 	}
 	fmt.Println(dir)
 
-	entries, err := os.ReadDir("./")
+	entries, err := os.ReadDir("./provider/")
 	if err != nil {
 		return err
 	}

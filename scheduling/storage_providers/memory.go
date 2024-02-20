@@ -19,25 +19,26 @@ type MemoryStorageProvider struct {
 	lockedItems map[string]bool
 }
 
+func NewMemoryStorageProvider() *MemoryStorageProvider {
+	return &MemoryStorageProvider{storage: make(map[string]string)}
+}
+
 func (m *MemoryStorageProvider) Set(key string, value string) error {
-	if m.storage == nil || len(m.storage) == 0 {
-		m.storage = make(map[string]string)
-	}
 	if key == "" {
-		return fmt.Errorf("key cannot be empty")
+		return fmt.Errorf("key is empty")
 	}
 	if value == "" {
-		return fmt.Errorf("value cannot be empty")
+		return fmt.Errorf("value is empty for key %s", key)
 	}
 	m.storage[key] = value
 	return nil
 }
 
 func (m *MemoryStorageProvider) Get(key string, prefix bool) ([]string, error) {
+	if key == "" {
+		return nil, fmt.Errorf("key is empty")
+	}
 	if !prefix {
-		if key == "" {
-			return nil, fmt.Errorf("key cannot be empty")
-		}
 		value, ok := m.storage[key]
 		if !ok {
 			return nil, &KeyNotFoundError{Key: key}

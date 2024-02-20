@@ -383,11 +383,11 @@ func (tm *TaskManager) GetAllTaskRuns() (TaskRunList, error) {
 }
 
 // Write Methods
-func (t *TaskManager) SetRunStatus(runID TaskRunID, id TaskID, status Status, err error) error {
-	if id <= 0 {
-		return fmt.Errorf("invalid run id: %d", id)
+func (t *TaskManager) SetRunStatus(runID TaskRunID, taskID TaskID, status Status, err error) error {
+	if taskID <= 0 {
+		return fmt.Errorf("invalid run id: %d", taskID)
 	}
-	metadata, e := t.GetRunByID(id, runID)
+	metadata, e := t.GetRunByID(taskID, runID)
 	if e != nil {
 		return fmt.Errorf("failed to fetch run: %v", e)
 	}
@@ -406,18 +406,19 @@ func (t *TaskManager) SetRunStatus(runID TaskRunID, id TaskID, status Status, er
 		return fmt.Errorf("failed to marshal metadata: %v", e)
 	}
 
-	e = t.storage.Set(fmt.Sprintf("tasks/runs/metadata/%d/%s/%d/task_id=%d/run_id=%d", metadata.StartTime.Year(), metadata.StartTime.Month(), metadata.StartTime.Day(), id, metadata.ID), string(serializedMetadata))
+	taskRunMetadataKey := TaskRunMetadataKey{taskID: taskID, runID: metadata.ID, date: metadata.StartTime}
+	e = t.storage.Set(taskRunMetadataKey.String(), string(serializedMetadata))
 	return e
 }
 
-func (t *TaskManager) SetRunEndTime(runID TaskRunID, id TaskID, time time.Time) error {
-	if id <= 0 {
-		return fmt.Errorf("invalid run id: %d", id)
+func (t *TaskManager) SetRunEndTime(runID TaskRunID, taskID TaskID, time time.Time) error {
+	if taskID <= 0 {
+		return fmt.Errorf("invalid run id: %d", taskID)
 	}
 	if time.IsZero() {
 		return fmt.Errorf("invalid run end time: %v", time)
 	}
-	metadata, e := t.GetRunByID(id, runID)
+	metadata, e := t.GetRunByID(taskID, runID)
 	if e != nil {
 		return fmt.Errorf("failed to fetch run: %v", e)
 	}
@@ -430,7 +431,8 @@ func (t *TaskManager) SetRunEndTime(runID TaskRunID, id TaskID, time time.Time) 
 		return fmt.Errorf("failed to marshal metadata: %v", e)
 	}
 
-	e = t.storage.Set(fmt.Sprintf("tasks/runs/metadata/%d/%s/%d/task_id=%d/run_id=%d", metadata.StartTime.Year(), metadata.StartTime.Month(), metadata.StartTime.Day(), id, metadata.ID), string(serializedMetadata))
+	taskRunMetadataKey := TaskRunMetadataKey{taskID: taskID, runID: metadata.ID, date: metadata.StartTime}
+	e = t.storage.Set(taskRunMetadataKey.String(), string(serializedMetadata))
 	return e
 }
 

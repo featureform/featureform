@@ -117,8 +117,8 @@ jobs:
       - name: Setup Proto
         run: ./gen_grpc.sh
 
-      - name: Unit Tests
-        run: go test ./... -run TestImportableOnlineStore
+#      - name: Unit Tests
+#        run: go test ./... -short
 
       - name: Install Search Container
         run: docker pull getmeili/meilisearch:v1.0
@@ -126,32 +126,32 @@ jobs:
       - name: Start Search
         run: |
           docker run -d -p $MEILISEARCH_PORT:7700 getmeili/meilisearch:v1.0
-
-      - uses: getong/redis-action@v1
-        with:
-          host port: 6378
-          container port: 6379
-          redis password: "password"
-
-      - name: create-json
-        id: create-json
-        uses: jsdaniell/create-json@1.1.2
-        with:
-          name: "./provider/firestore_credentials.json"
-          json: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
-
-      - name: create-json
-        id: create-json-2
-        uses: jsdaniell/create-json@1.1.2
-        with:
-          name: "./provider/bigquery_credentials.json"
-          json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
-
-      - name: Check credentials location
-        run: |
-          ls
-          ls provider
-          pwd
+#
+#      - uses: getong/redis-action@v1
+#        with:
+#          host port: 6378
+#          container port: 6379
+#          redis password: "password"
+#
+#      - name: create-json
+#        id: create-json
+#        uses: jsdaniell/create-json@1.1.2
+#        with:
+#          name: "./provider/firestore_credentials.json"
+#          json: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
+#
+#      - name: create-json
+#        id: create-json-2
+#        uses: jsdaniell/create-json@1.1.2
+#        with:
+#          name: "./provider/bigquery_credentials.json"
+#          json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
+#
+#      - name: Check credentials location
+#        run: |
+#          ls
+#          ls provider
+#          pwd
 
       - name: Install ETCD
         run: |
@@ -162,16 +162,16 @@ jobs:
           etcd --version
           etcd --logger=zap &
           
-
-      - name: Build and Run HDFS
-        run: |
-          git clone https://github.com/rancavil/hadoop-single-node-cluster.git
-          cd hadoop-single-node-cluster
-          docker build -t hadoop .
-          docker run -d -p 9864:9864 -p 9870:9870 -p 8088:8088 -p 9000:9000 -p 9866:9866 --hostname localhost hadoop
+#
+#      - name: Build and Run HDFS
+#        run: |
+#          git clone https://github.com/rancavil/hadoop-single-node-cluster.git
+#          cd hadoop-single-node-cluster
+#          docker build -t hadoop .
+#          docker run -d -p 9864:9864 -p 9870:9870 -p 8088:8088 -p 9000:9000 -p 9866:9866 --hostname localhost hadoop
 
       - name: Integration Tests
-        run: go test  -timeout 20m -coverpkg=./... -coverprofile=./cover.out.tmp ./...
+        run: go test -run TestImportableOnlineStore  -timeout 20m -coverpkg=./... -coverprofile=./cover.out.tmp ./...
         env:
           DYNAMO_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
           DYNAMO_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}

@@ -293,7 +293,7 @@ func (s3 *S3FileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 	// **NOTE:** It's possible we'll need to change this default based on whether the
 	// user employs EMR as their Spark executor
 	// See here for details: https://stackoverflow.com/questions/69984233/spark-s3-write-s3-vs-s3a-connectors
-	if err := fp.SetScheme(filestore.S3Prefix); err != nil {
+	if err := fp.SetScheme(filestore.S3APrefix); err != nil {
 		return nil, err
 	}
 	if err := fp.SetBucket(s3.Bucket); err != nil {

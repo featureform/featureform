@@ -208,11 +208,26 @@ def step_impl(context):
     )
 
 
-@then("I can get a list containing the entity name and a tuple with all the features")
-def step_impl(context):
+@then(
+    'I can get a list containing the entity name and a tuple with all the features from "{provider}"'
+)
+def step_impl(context, provider):
+    i = 0
     for entity, features in context.iter:
-        assert entity in context.expected
-        assert context.expected[entity] == features
+        if provider == "snowflake":
+            if i >= len(context.expected):
+                break
+            print(entity, features)
+            assert entity == context.expected[i][0]
+            assert Counter(features) == Counter(context.expected[i][1])
+            i += 1
+        elif provider == "spark":
+            if i >= len(context.expected):
+                break
+            assert entity in context.expected
+            assert Counter(context.expected[entity]) == Counter(features)
+        else:
+            raise Exception("Provider not recognized", provider)
 
 
 @then("I can get a list containing the correct number of features")

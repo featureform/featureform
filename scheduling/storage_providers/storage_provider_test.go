@@ -24,7 +24,8 @@ func TestMemoryStorageProvider(t *testing.T) {
 }
 
 func StorageProviderSet(t *testing.T) {
-	provider := &MemoryStorageProvider{}
+	provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation)}
+	id := uuid.New().String()
 	type TestCase struct {
 		id    string
 		key   string
@@ -32,14 +33,23 @@ func StorageProviderSet(t *testing.T) {
 		err   error
 	}
 	tests := map[string]TestCase{
-		"Simple":     {uuid.New().String(), "key1", "value1", nil},
-		"EmptyKey":   {uuid.New().String(), "", "value1", fmt.Errorf("key is empty")},
-		"EmptyValue": {uuid.New().String(), "key1", "", fmt.Errorf("value is empty for key key1")},
+		"Simple":     {id, "setTest/key1", "value1", nil},
+		"EmptyKey":   {id, "", "value1", fmt.Errorf("key is empty")},
+		"EmptyValue": {id, "setTest/key1", "", fmt.Errorf("value is empty for key setTest/key1")},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			err := provider.Set(test.id, test.key, test.value)
+			lockChannel := make(chan error)
+			_, err := provider.Lock(test.id, test.key, lockChannel)
+			if test.err != nil && err != nil && err.Error() == test.err.Error() {
+				// continue to next test case
+				return
+			}
+			if err != nil {
+				t.Errorf("could not lock key: %v", err)
+			}
+			err = provider.Set(test.id, test.key, test.value)
 			if err != nil && err.Error() != test.err.Error() {
 				t.Errorf("Set(%s, %s): expected error %v, got %v", test.key, test.value, test.err, err)
 			}
@@ -48,7 +58,7 @@ func StorageProviderSet(t *testing.T) {
 }
 
 func StorageProviderGet(t *testing.T) {
-	provider := &MemoryStorageProvider{}
+	provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation)}
 	type TestCase struct {
 		key     string
 		prefix  bool
@@ -67,10 +77,19 @@ func StorageProviderGet(t *testing.T) {
 
 	runTestCase := func(t *testing.T, test TestCase) {
 		id := uuid.New().String()
+		lockChannel := make(chan error)
+		provider.Lock(id, "key1", lockChannel)
 		provider.Set(id, "key1", "value1")
+
+		provider.Lock(id, "key2", lockChannel)
 		provider.Set(id, "key2", "value2")
+
+		provider.Lock(id, "prefix/key3", lockChannel)
 		provider.Set(id, "prefix/key3", "value3")
+
+		provider.Lock(id, "prefix/key4", lockChannel)
 		provider.Set(id, "prefix/key4", "value4")
+
 		results, err := provider.Get(test.key, test.prefix)
 		if err != nil && err.Error() != test.err.Error() {
 			t.Errorf("Get(%s, %v): expected error %v, got %v", test.key, test.prefix, test.err, err)
@@ -104,9 +123,14 @@ func StorageProviderList(t *testing.T) {
 
 	id := uuid.New().String()
 	runTestCase := func(t *testing.T, test TestCase) {
-		provider := &MemoryStorageProvider{}
+		provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation)}
 		for _, key := range test.keys {
-			err := provider.Set(id, key, "value")
+			lockChannel := make(chan error)
+			_, err := provider.Lock(id, key, lockChannel)
+			if err != nil {
+				t.Fatalf("could not lock key: %v", err)
+			}
+			err = provider.Set(id, key, "value")
 			if err != nil {
 				t.Fatalf("could not set key: %v", err)
 			}

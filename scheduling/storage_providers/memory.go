@@ -107,7 +107,11 @@ type LockObject struct {
 	Channel chan error
 }
 
-func (m *MemoryStorageProvider) Lock(id, key string, lockChannel chan error) (LockObject, error) {
+func (m *MemoryStorageProvider) Lock(id string, key string, lockChannel chan error) (LockObject, error) {
+	if key == "" {
+		return LockObject{}, fmt.Errorf("key is empty")
+	}
+
 	keyLockInfo, ok := m.lockedItems[key]
 	if ok && keyLockInfo.ID == id && time.Since(keyLockInfo.Date) < ValidTimePeriod {
 		return LockObject{ID: id, Channel: lockChannel}, nil
@@ -154,7 +158,6 @@ func (m *MemoryStorageProvider) updateLockTime(id string, key string, lockChanne
 	keyFound := true
 	for keyFound {
 		time.Sleep(UpdateSleepTime)
-		fmt.Println("Updating lock time for key", key, time.Now())
 		if _, ok := m.lockedItems[key]; ok {
 			m.lockedItems[key] = LockInformation{
 				ID:   id,

@@ -359,8 +359,17 @@ func (e *EMRExecutor) PythonFileURI(store SparkFileStore) (filestore.Filepath, e
 
 // Need the bucket from here
 func (db *DatabricksExecutor) PythonFileURI(store SparkFileStore) (filestore.Filepath, error) {
-	filePath := config.GetSparkRemoteScriptPath()
-	return store.CreateFilePath(filePath)
+	relativePath := config.GetSparkRemoteScriptPath()
+	filePath, err := store.CreateFilePath(relativePath)
+	if err != nil {
+		return nil, fmt.Errorf("could not create file path: %v", err)
+	}
+	if store.FilestoreType() == filestore.S3 {
+		if err := filePath.SetScheme(filestore.S3Prefix); err != nil {
+			return nil, fmt.Errorf("could not set scheme: %v", err)
+		}
+	}
+	return filePath, nil
 }
 
 func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath, store SparkFileStore) error {

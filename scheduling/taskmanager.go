@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	sp "github.com/featureform/scheduling/storage_providers"
 )
 
 type Key interface {
@@ -55,12 +57,12 @@ func (trmk TaskRunMetadataKey) String() string {
 	return key
 }
 
-func NewTaskManager(storage StorageProvider) TaskManager {
+func NewTaskManager(storage sp.StorageProvider) TaskManager {
 	return TaskManager{storage: storage}
 }
 
 type TaskManager struct {
-	storage StorageProvider
+	storage sp.StorageProvider
 }
 
 type TaskMetadataList []TaskMetadata
@@ -70,7 +72,7 @@ func (tml *TaskMetadataList) ToJSON() string {
 }
 
 // Task Methods
-func (tm *TaskManager) CreateTask(name string, tType TaskType, target TaskTarget) (TaskMetadata, error) {
+func (tm *TaskManager) CreateTask(name string, tType TaskType, target TaskTarget, lock sp.LockObject) (TaskMetadata, error) {
 	keys, err := tm.storage.ListKeys(TaskMetadataKey{}.String())
 	if err != nil {
 		return TaskMetadata{}, fmt.Errorf("failed to fetch keys: %v", err)

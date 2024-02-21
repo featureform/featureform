@@ -5,11 +5,13 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	sp "github.com/featureform/scheduling/storage_providers"
 )
 
 func TestInitialization(t *testing.T) {
-	storage := MemoryStorageProvider{}
-	NewTaskManager(&storage)
+	storage := sp.NewMemoryStorageProvider()
+	NewTaskManager(storage.(sp.StorageProvider))
 }
 
 func TestCreateTask(t *testing.T) {
@@ -43,7 +45,7 @@ func TestCreateTask(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, tasks []taskInfo, shouldError bool) {
-		storage := MemoryStorageProvider{}
+		storage := sp.NewMemoryStorageProvider()
 		manager := NewTaskManager(&storage)
 		for _, task := range tasks {
 			taskDef, err := manager.CreateTask(task.Name, task.Type, task.Target)
@@ -118,7 +120,7 @@ func TestTaskGetByID(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := MemoryStorageProvider{}
+		storage := sp.NewMemoryStorageProvider()
 		manager := NewTaskManager(&storage)
 		var definitions []TaskMetadata
 		for _, task := range test.Tasks {
@@ -191,7 +193,7 @@ func TestTaskGetAll(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := MemoryStorageProvider{}
+		storage := sp.NewMemoryStorageProvider()
 		manager := NewTaskManager(&storage)
 		var definitions []TaskMetadata
 		for _, task := range test.Tasks {
@@ -286,7 +288,7 @@ func TestCreateTaskRun(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := MemoryStorageProvider{}
+		storage := sp.NewMemoryStorageProvider()
 		manager := NewTaskManager(&storage)
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
@@ -383,7 +385,7 @@ func TestGetRunByID(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := MemoryStorageProvider{}
+		storage := sp.NewMemoryStorageProvider()
 		manager := NewTaskManager(&storage)
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
@@ -481,7 +483,7 @@ func TestGetRunAll(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := MemoryStorageProvider{}
+		storage := sp.NewMemoryStorageProvider()
 		manager := NewTaskManager(&storage)
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
@@ -644,7 +646,7 @@ func TestSetStatusByRunID(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := MemoryStorageProvider{}
+		storage := sp.NewMemoryStorageProvider()
 		manager := NewTaskManager(&storage)
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
@@ -781,7 +783,7 @@ func TestSetEndTimeByRunID(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := MemoryStorageProvider{}
+		storage := sp.NewMemoryStorageProvider()
 		manager := NewTaskManager(&storage)
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)

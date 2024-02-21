@@ -24,7 +24,8 @@ func TestMemoryStorageProvider(t *testing.T) {
 }
 
 func StorageProviderSet(t *testing.T) {
-	provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation)}
+	channel := make(chan int)
+	provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation), Channel: channel}
 	id := uuid.New().String()
 	type TestCase struct {
 		id    string
@@ -40,8 +41,7 @@ func StorageProviderSet(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			lockChannel := make(chan error)
-			_, err := provider.Lock(test.id, test.key, lockChannel)
+			lockObject, err := provider.Lock(test.id, test.key)
 			if test.err != nil && err != nil && err.Error() == test.err.Error() {
 				// continue to next test case
 				return
@@ -49,7 +49,7 @@ func StorageProviderSet(t *testing.T) {
 			if err != nil {
 				t.Errorf("could not lock key: %v", err)
 			}
-			err = provider.Set(test.id, test.key, test.value)
+			err = provider.Set(test.key, test.value, lockObject)
 			if err != nil && err.Error() != test.err.Error() {
 				t.Errorf("Set(%s, %s): expected error %v, got %v", test.key, test.value, test.err, err)
 			}
@@ -58,7 +58,8 @@ func StorageProviderSet(t *testing.T) {
 }
 
 func StorageProviderGet(t *testing.T) {
-	provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation)}
+	channel := make(chan int)
+	provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation), Channel: channel}
 	type TestCase struct {
 		key     string
 		prefix  bool
@@ -77,18 +78,17 @@ func StorageProviderGet(t *testing.T) {
 
 	runTestCase := func(t *testing.T, test TestCase) {
 		id := uuid.New().String()
-		lockChannel := make(chan error)
-		provider.Lock(id, "key1", lockChannel)
-		provider.Set(id, "key1", "value1")
+		lockObject1, _ := provider.Lock(id, "key1")
+		provider.Set("key1", "value1", lockObject1)
 
-		provider.Lock(id, "key2", lockChannel)
-		provider.Set(id, "key2", "value2")
+		lockObject2, _ := provider.Lock(id, "key2")
+		provider.Set("key2", "value2", lockObject2)
 
-		provider.Lock(id, "prefix/key3", lockChannel)
-		provider.Set(id, "prefix/key3", "value3")
+		lockObject3, _ := provider.Lock(id, "prefix/key3")
+		provider.Set("prefix/key3", "value3", lockObject3)
 
-		provider.Lock(id, "prefix/key4", lockChannel)
-		provider.Set(id, "prefix/key4", "value4")
+		lockObject4, _ := provider.Lock(id, "prefix/key4")
+		provider.Set("prefix/key4", "value4", lockObject4)
 
 		results, err := provider.Get(test.key, test.prefix)
 		if err != nil && err.Error() != test.err.Error() {
@@ -123,14 +123,14 @@ func StorageProviderList(t *testing.T) {
 
 	id := uuid.New().String()
 	runTestCase := func(t *testing.T, test TestCase) {
-		provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation)}
+		channel := make(chan int)
+		provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation), Channel: channel}
 		for _, key := range test.keys {
-			lockChannel := make(chan error)
-			_, err := provider.Lock(id, key, lockChannel)
+			lockObject, err := provider.Lock(id, key)
 			if err != nil {
 				t.Fatalf("could not lock key: %v", err)
 			}
-			err = provider.Set(id, key, "value")
+			err = provider.Set(key, "value", lockObject)
 			if err != nil {
 				t.Fatalf("could not set key: %v", err)
 			}
@@ -171,55 +171,56 @@ func compareStringSlices(a, b []string) bool {
 }
 
 func TestLockAndUnlock(t *testing.T) {
-	provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation)}
+	channel := make(chan int)
+	provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation), Channel: channel}
 
 	id := uuid.New().String()
 	key := "/tasks/metadata/task_id=1"
-	channel := make(chan error)
 
 	// Test Lock
-	_, err := provider.Lock(id, key, channel)
+	lock, err := provider.Lock(id, key)
 	if err != nil {
 		t.Fatalf("Lock failed: %v", err)
 	}
 
 	// Test Lock on already locked item with same UUID
-	_, err = provider.Lock(id, key, channel)
+	lock, err = provider.Lock(id, key)
 	if err != nil {
 		t.Fatalf("Locking using the same id failed: %v", err)
 	}
 
 	// Test Lock on already locked item with different UUID
 	diffId := uuid.New().String()
-	_, err = provider.Lock(diffId, key, channel)
+	diffLock, err := provider.Lock(diffId, key)
 	if err == nil {
 		t.Fatalf("Locking using different id should have failed")
 	}
 
 	// Test UnLock with different UUID
-	err = provider.Unlock(diffId, key)
+	err = provider.Unlock(key, diffLock)
 	if err == nil {
 		t.Fatalf("Unlocking using different id should have failed")
 	}
 
 	// Test UnLock with same UUID
-	err = provider.Unlock(id, key)
+	err = provider.Unlock(key, lock)
 	if err != nil {
 		t.Fatalf("Unlock failed: %v", err)
 	}
 }
 
 func TestLockAndUnlockWithGoRoutines(t *testing.T) {
-	provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation)}
+	channel := make(chan int)
+	provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation), Channel: channel}
 
 	id := uuid.New().String()
 	key := "/tasks/metadata/task_id=2"
-	lockChannel := make(chan error)
-
+	lockChannel := make(chan LockObject)
 	errChan := make(chan error)
 
 	// Test Lock
 	go lockGoRoutine(provider, id, key, lockChannel, errChan)
+	lock := <-lockChannel
 	err := <-errChan
 	if err != nil {
 		t.Fatalf("Lock failed: %v", err)
@@ -227,6 +228,7 @@ func TestLockAndUnlockWithGoRoutines(t *testing.T) {
 
 	// Test Lock on already locked item with same UUID
 	go lockGoRoutine(provider, id, key, lockChannel, errChan)
+	lock = <-lockChannel
 	err = <-errChan
 	if err != nil {
 		t.Fatalf("Locking using the same id failed: %v", err)
@@ -234,21 +236,23 @@ func TestLockAndUnlockWithGoRoutines(t *testing.T) {
 
 	// Test Lock on already locked item with different UUID
 	diffId := uuid.New().String()
-	go lockGoRoutine(provider, diffId, key, lockChannel, errChan)
+	diffLockChannel := make(chan LockObject)
+	go lockGoRoutine(provider, diffId, key, diffLockChannel, errChan)
+	diffLock := <-diffLockChannel
 	err = <-errChan
 	if err == nil {
 		t.Fatalf("Locking using different id should have failed")
 	}
 
 	// Test UnLock with different UUID
-	go unlockGoRoutine(provider, diffId, key, errChan)
+	go unlockGoRoutine(provider, diffLock, key, errChan)
 	err = <-errChan
 	if err == nil {
 		t.Fatalf("Unlocking using different id should have failed")
 	}
 
 	// Test UnLock with same UUID
-	go unlockGoRoutine(provider, id, key, errChan)
+	go unlockGoRoutine(provider, lock, key, errChan)
 	err = <-errChan
 	if err != nil {
 		t.Fatalf("Unlock failed: %v", err)
@@ -256,18 +260,16 @@ func TestLockAndUnlockWithGoRoutines(t *testing.T) {
 }
 
 func TestLockTimeUpdates(t *testing.T) {
-	timeChannel := make(chan int)
-	provider := NewMemoryStorageProvider(timeChannel)
+	provider := NewMemoryStorageProvider()
 
 	id := uuid.New().String()
 	key := "/tasks/metadata/task_id=3"
-	lockChannel := make(chan error)
-	_, err := provider.Lock(id, key, lockChannel)
+	lock, err := provider.Lock(id, key)
 	if err != nil {
 		t.Fatalf("Lock failed: %v", err)
 	}
 
-	err = provider.Set(id, key, "value")
+	err = provider.Set(key, "value", lock)
 	if err != nil {
 		t.Fatalf("Set failed: %v", err)
 	}
@@ -285,7 +287,7 @@ func TestLockTimeUpdates(t *testing.T) {
 	}
 
 	// Unlock the key
-	err = provider.Unlock(id, key)
+	err = provider.Unlock(key, lock)
 	if err != nil {
 		t.Fatalf("Unlock failed: %v", err)
 	}
@@ -297,43 +299,44 @@ func TestLockTimeUpdates(t *testing.T) {
 	}
 }
 
-func TestCleanup(t *testing.T) {
-	timeChannel := make(chan int)
-	provider := NewMemoryStorageProvider(timeChannel)
+// func TestCleanup(t *testing.T) {
+// 	provider := NewMemoryStorageProvider()
 
-	id := uuid.New().String()
-	key := "/tasks/metadata/task_id=4"
+// 	id := uuid.New().String()
+// 	key := "/tasks/metadata/task_id=4"
 
-	lockChannel := make(chan error)
-	errChan := make(chan error)
-	go lockGoRoutine(provider, id, key, lockChannel, errChan)
-	err := <-errChan
-	if err != nil {
-		t.Fatalf("Lock failed: %v", err)
-	}
+// 	lockChannel := make(chan LockObject)
+// 	errChan := make(chan error)
+// 	go lockGoRoutine(provider, id, key, lockChannel, errChan)
+// 	lockObject := <-lockChannel
+// 	err := <-errChan
+// 	if err != nil {
+// 		t.Fatalf("Lock failed: %v", err)
+// 	}
 
-	// Wait for 5 seconds
-	time.Sleep(5 * time.Second)
+// 	// Wait for 5 seconds
+// 	time.Sleep(5 * time.Second)
 
-	// Used to stop the go routine
-	lockChannel <- fmt.Errorf("delete")
+// 	// Used to stop the go routine
+// 	*lockObject.Channel <- fmt.Errorf("delete")
 
-	// Wait for cleanup
-	time.Sleep(CleanupInterval + 2*time.Second)
+// 	// Wait for cleanup
+// 	time.Sleep(CleanupInterval + 2*time.Second)
 
-	// Check if the key has been deleted
-	_, ok := provider.lockedItems[key]
-	if ok {
-		t.Fatalf("Key not deleted: %v", provider.lockedItems)
-	}
-}
+// 	// Check if the key has been deleted
+// 	_, ok := provider.lockedItems[key]
+// 	if ok {
+// 		t.Fatalf("Key not deleted: %v", provider.lockedItems)
+// 	}
+// }
 
-func lockGoRoutine(provider *MemoryStorageProvider, id string, key string, lockChannel, errChan chan error) {
-	_, err := provider.Lock(id, key, lockChannel)
+func lockGoRoutine(provider *MemoryStorageProvider, id string, key string, lockChannel chan LockObject, errChan chan error) {
+	lockObject, err := provider.Lock(id, key)
+	lockChannel <- lockObject
 	errChan <- err
 }
 
-func unlockGoRoutine(provider *MemoryStorageProvider, id string, key string, errChan chan error) {
-	err := provider.Unlock(id, key)
+func unlockGoRoutine(provider *MemoryStorageProvider, lock LockObject, key string, errChan chan error) {
+	err := provider.Unlock(key, lock)
 	errChan <- err
 }

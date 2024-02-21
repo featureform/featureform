@@ -16,34 +16,35 @@ type LockInformation struct {
 const (
 	UpdateSleepTime = 2 * time.Second
 	ValidTimePeriod = 5 * time.Second
-	CleanupInterval = 15 * time.Second
+	CleanupInterval = 10 * time.Second
 )
 
 type MemoryStorageProvider struct {
 	storage     map[string]string
 	lockedItems map[string]LockInformation
+	Channel     chan int
 }
 
-func NewMemoryStorageProvider(channel chan int) *MemoryStorageProvider {
+func NewMemoryStorageProvider() *MemoryStorageProvider {
 	// Start a goroutine to cleanup locked items every minute
 	// and send the number of deleted items to the channel
-	m := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation)}
+	m := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation), Channel: make(chan int)}
 	go func(channel chan int) {
 		for {
 			time.Sleep(CleanupInterval)
 			deleteCount := m.Cleanup()
 			channel <- deleteCount
 		}
-	}(channel)
+	}(m.Channel)
 
 	return m
 }
 
-func (m *MemoryStorageProvider) Set(id string, key string, value string) error {
+func (m *MemoryStorageProvider) Set(key string, value string, lock LockObject) error {
 	lockInfo, ok := m.lockedItems[key]
 	if !ok {
 		return fmt.Errorf("key is not locked")
-	} else if lockInfo.ID != id {
+	} else if lockInfo.ID != lock.ID {
 		return fmt.Errorf("key is locked by another id")
 	}
 
@@ -104,17 +105,18 @@ func (m *MemoryStorageProvider) ListKeys(prefix string) ([]string, error) {
 
 type LockObject struct {
 	ID      string
-	Channel chan error
+	Channel *chan error
 }
 
-func (m *MemoryStorageProvider) Lock(id string, key string, lockChannel chan error) (LockObject, error) {
+func (m *MemoryStorageProvider) Lock(id string, key string) (LockObject, error) {
 	if key == "" {
 		return LockObject{}, fmt.Errorf("key is empty")
 	}
 
+	lockChannel := make(chan error)
 	keyLockInfo, ok := m.lockedItems[key]
 	if ok && keyLockInfo.ID == id && time.Since(keyLockInfo.Date) < ValidTimePeriod {
-		return LockObject{ID: id, Channel: lockChannel}, nil
+		return LockObject{ID: id, Channel: &lockChannel}, nil
 	} else if ok {
 		return LockObject{}, fmt.Errorf("key is already locked by %s", keyLockInfo.ID)
 	}
@@ -124,18 +126,19 @@ func (m *MemoryStorageProvider) Lock(id string, key string, lockChannel chan err
 		Date: time.Now(),
 	}
 
-	go m.updateLockTime(id, key, lockChannel)
-	lockChannel <- nil
+	lockObj := LockObject{ID: id, Channel: &lockChannel}
+	go m.updateLockTime(id, key, *lockObj.Channel)
+	*lockObj.Channel <- nil
 
-	return LockObject{ID: id, Channel: lockChannel}, nil
+	return lockObj, nil
 }
 
-func (m *MemoryStorageProvider) Unlock(id, key string) error {
+func (m *MemoryStorageProvider) Unlock(key string, lock LockObject) error {
 	keyLockInfo, ok := m.lockedItems[key]
 	if !ok {
 		return fmt.Errorf("key is not locked")
 	}
-	if keyLockInfo.ID != id {
+	if keyLockInfo.ID != lock.ID {
 		return fmt.Errorf("key is locked by another id")
 	}
 	delete(m.lockedItems, key)
@@ -146,7 +149,6 @@ func (m *MemoryStorageProvider) Cleanup() int {
 	deleteCount := 0
 	for key, lockInfo := range m.lockedItems {
 		if time.Since(lockInfo.Date) > ValidTimePeriod {
-			fmt.Println("Deleting key", key, "from locked items", lockInfo.Date, time.Now())
 			delete(m.lockedItems, key)
 			deleteCount++
 		}
@@ -158,6 +160,7 @@ func (m *MemoryStorageProvider) updateLockTime(id string, key string, lockChanne
 	keyFound := true
 	for keyFound {
 		time.Sleep(UpdateSleepTime)
+		fmt.Println("Updating lock time", time.Now().String())
 		if _, ok := m.lockedItems[key]; ok {
 			m.lockedItems[key] = LockInformation{
 				ID:   id,
@@ -172,6 +175,7 @@ func (m *MemoryStorageProvider) updateLockTime(id string, key string, lockChanne
 			if channelValue != nil {
 				return
 			}
+			fmt.Println("Received none from channel")
 		default:
 		}
 	}

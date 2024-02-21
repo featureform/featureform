@@ -1527,6 +1527,10 @@ func (k8s *K8sOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, 
 	return fileStoreGetTrainingSet(id, k8s.store, k8s.logger)
 }
 
+func (k8s *K8sOfflineStore) GetTrainingSetTestSplit(id ResourceID, testSize float32, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
+	return nil, nil, nil, fmt.Errorf("not Implemented")
+}
+
 func (k8s *K8sOfflineStore) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }

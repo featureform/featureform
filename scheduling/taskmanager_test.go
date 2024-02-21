@@ -11,7 +11,7 @@ import (
 
 func TestInitialization(t *testing.T) {
 	storage := sp.NewMemoryStorageProvider()
-	NewTaskManager(storage.(sp.StorageProvider))
+	NewTaskManager(storage)
 }
 
 func TestCreateTask(t *testing.T) {
@@ -46,7 +46,7 @@ func TestCreateTask(t *testing.T) {
 
 	fn := func(t *testing.T, tasks []taskInfo, shouldError bool) {
 		storage := sp.NewMemoryStorageProvider()
-		manager := NewTaskManager(&storage)
+		manager := NewTaskManager(storage)
 		for _, task := range tasks {
 			taskDef, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && shouldError {
@@ -121,7 +121,7 @@ func TestTaskGetByID(t *testing.T) {
 
 	fn := func(t *testing.T, test TestCase) {
 		storage := sp.NewMemoryStorageProvider()
-		manager := NewTaskManager(&storage)
+		manager := NewTaskManager(storage)
 		var definitions []TaskMetadata
 		for _, task := range test.Tasks {
 			taskDef, err := manager.CreateTask(task.Name, task.Type, task.Target)
@@ -194,7 +194,7 @@ func TestTaskGetAll(t *testing.T) {
 
 	fn := func(t *testing.T, test TestCase) {
 		storage := sp.NewMemoryStorageProvider()
-		manager := NewTaskManager(&storage)
+		manager := NewTaskManager(storage)
 		var definitions []TaskMetadata
 		for _, task := range test.Tasks {
 			taskDef, err := manager.CreateTask(task.Name, task.Type, task.Target)
@@ -289,7 +289,7 @@ func TestCreateTaskRun(t *testing.T) {
 
 	fn := func(t *testing.T, test TestCase) {
 		storage := sp.NewMemoryStorageProvider()
-		manager := NewTaskManager(&storage)
+		manager := NewTaskManager(storage)
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -386,7 +386,7 @@ func TestGetRunByID(t *testing.T) {
 
 	fn := func(t *testing.T, test TestCase) {
 		storage := sp.NewMemoryStorageProvider()
-		manager := NewTaskManager(&storage)
+		manager := NewTaskManager(storage)
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -484,7 +484,7 @@ func TestGetRunAll(t *testing.T) {
 
 	fn := func(t *testing.T, test TestCase) {
 		storage := sp.NewMemoryStorageProvider()
-		manager := NewTaskManager(&storage)
+		manager := NewTaskManager(storage)
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -647,7 +647,7 @@ func TestSetStatusByRunID(t *testing.T) {
 
 	fn := func(t *testing.T, test TestCase) {
 		storage := sp.NewMemoryStorageProvider()
-		manager := NewTaskManager(&storage)
+		manager := NewTaskManager(storage)
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -664,13 +664,22 @@ func TestSetStatusByRunID(t *testing.T) {
 			// runDefs = append(runDefs, runDef)
 		}
 
-		err := manager.SetRunStatus(test.ForRun, test.ForTask, test.SetStatus, test.SetError)
+		lock, err := manager.LockTaskRun(test.ForTask, test.ForRun)
+		if err != nil {
+			t.Fatalf("failed to lock task run: %v", err)
+		}
+		err = manager.SetRunStatus(test.ForRun, test.ForTask, test.SetStatus, test.SetError, lock)
 		if err != nil && test.shouldError {
 			return
 		} else if err != nil && !test.shouldError {
 			t.Fatalf("failed to set status correctly: %v", err)
 		} else if err == nil && test.shouldError {
 			t.Fatalf("expected error but did not receive one")
+		}
+
+		err = manager.UnlockTaskRun(test.ForTask, test.ForRun, lock)
+		if err != nil {
+			t.Fatalf("failed to unlock task run: %v", err)
 		}
 
 		recvRun, err := manager.GetRunByID(test.ForTask, test.ForRun)
@@ -784,7 +793,7 @@ func TestSetEndTimeByRunID(t *testing.T) {
 
 	fn := func(t *testing.T, test TestCase) {
 		storage := sp.NewMemoryStorageProvider()
-		manager := NewTaskManager(&storage)
+		manager := NewTaskManager(storage)
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -801,13 +810,23 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			// runDefs = append(runDefs, runDef)
 		}
 
-		err := manager.SetRunEndTime(test.ForRun, test.ForTask, test.SetTime)
+		lock, err := manager.LockTaskRun(test.ForTask, test.ForRun)
+		if err != nil {
+			t.Fatalf("failed to lock task run: %v", err)
+		}
+
+		err = manager.SetRunEndTime(test.ForRun, test.ForTask, test.SetTime, lock)
 		if err != nil && test.shouldError {
 			return
 		} else if err != nil && !test.shouldError {
 			t.Fatalf("failed to set status correctly: %v", err)
 		} else if err == nil && test.shouldError {
 			t.Fatalf("expected error but did not receive one")
+		}
+
+		err = manager.UnlockTaskRun(test.ForTask, test.ForRun, lock)
+		if err != nil {
+			t.Fatalf("failed to unlock task run: %v", err)
 		}
 
 		recvRun, err := manager.GetRunByID(test.ForTask, test.ForRun)
@@ -875,7 +894,7 @@ func TestKeyPaths(t *testing.T) {
 			Key: TaskRunMetadataKey{
 				date: time.Date(2023, time.January, 20, 23, 0, 0, 0, time.UTC),
 			},
-			ExpectedKey: "/tasks/runs/metadata/2023/01/20/",
+			ExpectedKey: "/tasks/runs/metadata/2023/01/20",
 		},
 	}
 

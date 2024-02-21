@@ -217,7 +217,6 @@ def step_impl(context, provider):
         if provider == "snowflake":
             if i >= len(context.expected):
                 break
-            print(entity, features)
             assert entity == context.expected[i][0]
             assert Counter(features) == Counter(context.expected[i][1])
             i += 1

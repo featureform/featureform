@@ -15,7 +15,7 @@ import dill
 from azure.storage.blob import BlobServiceClient
 from google.cloud import storage
 from google.oauth2 import service_account
-from pyspark.sql import DataFrame
+from pyspark.sql.dataframe import DataFrame
 from pyspark.sql import SparkSession
 from pyspark.sql.types import (
     StructType,
@@ -458,9 +458,9 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
 def _validate_output_df(output_df):
     if output_df is None:
         raise Exception("the transformation code returned None.")
-    if not isinstance(output_df, DataFrame):
+    if type(output_df).__name__ != "DataFrame":
         raise TypeError(
-            f"Expected output to be of type 'pyspark.sql.dataframe.DataFrame', "
+            f"Expected output to be of type 'DataFrame', "
             f"got '{type(output_df).__name__}' instead.\n"
             f"Please make sure that the transformation code returns a dataframe."
         )

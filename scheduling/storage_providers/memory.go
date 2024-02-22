@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,20 +23,25 @@ const (
 )
 
 type MemoryStorageProvider struct {
-	storage     map[string]string
-	lockedItems map[string]LockInformation
+	storage     sync.Map
+	lockedItems sync.Map
 }
 
 func NewMemoryStorageProvider() *MemoryStorageProvider {
-	return &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation)}
+	storage := sync.Map{}
+	lockedItems := sync.Map{}
+	return &MemoryStorageProvider{storage: storage, lockedItems: lockedItems}
 }
 
 func (m *MemoryStorageProvider) Set(key string, value string, lock LockObject) error {
-	lockInfo, ok := m.lockedItems[key]
+	lockInfo, ok := m.lockedItems.Load(key)
 	if !ok {
 		return fmt.Errorf("key is not locked")
-	} else if lockInfo.ID != lock.ID {
-		return fmt.Errorf("key is locked by another id")
+	}
+
+	currentLock := lockInfo.(LockInformation)
+	if currentLock.ID != lock.ID {
+		return fmt.Errorf("key is locked by another id: locked by: %s, unlock by: %s", currentLock.ID, lock.ID)
 	}
 
 	if key == "" {
@@ -44,37 +50,36 @@ func (m *MemoryStorageProvider) Set(key string, value string, lock LockObject) e
 	if value == "" {
 		return fmt.Errorf("value is empty for key %s", key)
 	}
-	m.storage[key] = value
+	m.storage.Store(key, value)
 	return nil
 }
 
-func (m *MemoryStorageProvider) Get(key string, prefix bool) ([]string, error) {
+func (m *MemoryStorageProvider) Get(key string, prefix bool) (map[string]string, error) {
 	if key == "" {
 		return nil, fmt.Errorf("key is empty")
 	}
+
+	result := make(map[string]string)
+
 	if !prefix {
-		value, ok := m.storage[key]
+		value, ok := m.storage.Load(key)
 		if !ok {
 			return nil, &KeyNotFoundError{Key: key}
 		}
-		return []string{value}, nil
+		result[key] = value.(string)
+		return result, nil
 	}
 
-	var result []string
-	var keys []string
-	for k, _ := range m.storage {
-		if strings.HasPrefix(k, key) {
-			keys = append(keys, k)
+	// loops through the keys in sync map
+	// and finds the keys that have the prefix
+	m.storage.Range(func(k, v interface{}) bool {
+		mapKey := k.(string)
+		if strings.HasPrefix(mapKey, key) {
+			result[mapKey] = v.(string)
 		}
-	}
+		return true
+	})
 
-	sort.Strings(keys)
-
-	for _, k := range keys {
-		if strings.HasPrefix(k, key) {
-			result = append(result, m.storage[k])
-		}
-	}
 	if len(result) == 0 {
 		return nil, &KeyNotFoundError{Key: key}
 	}
@@ -83,11 +88,15 @@ func (m *MemoryStorageProvider) Get(key string, prefix bool) ([]string, error) {
 
 func (m *MemoryStorageProvider) ListKeys(prefix string) ([]string, error) {
 	var result []string
-	for k, _ := range m.storage {
-		if strings.HasPrefix(k, prefix) {
-			result = append(result, k)
+	// loops through the keys in sync map
+	// and finds the keys that have the prefix
+	m.storage.Range(func(k, v interface{}) bool {
+		mapKey := k.(string)
+		if strings.HasPrefix(mapKey, prefix) {
+			result = append(result, mapKey)
 		}
-	}
+		return true
+	})
 	sort.Strings(result)
 
 	return result, nil
@@ -100,22 +109,27 @@ type LockObject struct {
 
 func (m *MemoryStorageProvider) Lock(key string) (LockObject, error) {
 	id := uuid.New().String()
+	fmt.Println("\t Locking key", key, "with id", id)
 	if key == "" {
 		return LockObject{}, fmt.Errorf("key is empty")
 	}
 
 	lockChannel := make(chan error)
-	keyLockInfo, ok := m.lockedItems[key]
-	if ok && time.Since(keyLockInfo.Date) > ValidTimePeriod {
-		delete(m.lockedItems, key)
-	} else if ok && time.Since(keyLockInfo.Date) < ValidTimePeriod {
-		return LockObject{}, fmt.Errorf("key is already locked by %s", keyLockInfo.ID)
+	keyLockInfo, ok := m.lockedItems.Load(key)
+	if ok {
+		keyLock := keyLockInfo.(LockInformation)
+		if time.Since(keyLock.Date) > ValidTimePeriod {
+			m.lockedItems.Delete(key)
+		} else if time.Since(keyLock.Date) < ValidTimePeriod {
+			return LockObject{}, fmt.Errorf("key is already locked by %s", keyLock.ID)
+		}
 	}
-	m.lockedItems[key] = LockInformation{
+	lock := LockInformation{
 		ID:   id,
 		Key:  key,
 		Date: time.Now(),
 	}
+	m.lockedItems.Store(key, lock)
 
 	lockObj := LockObject{ID: id, Channel: &lockChannel}
 	go m.updateLockTime(id, key, *lockObj.Channel)
@@ -125,14 +139,17 @@ func (m *MemoryStorageProvider) Lock(key string) (LockObject, error) {
 }
 
 func (m *MemoryStorageProvider) Unlock(key string, lock LockObject) error {
-	keyLockInfo, ok := m.lockedItems[key]
+	keyLockInfo, ok := m.lockedItems.Load(key)
 	if !ok {
 		return fmt.Errorf("key is not locked")
 	}
-	if keyLockInfo.ID != lock.ID {
-		return fmt.Errorf("key is locked by another id")
+	keyLock := keyLockInfo.(LockInformation)
+
+	if keyLock.ID != lock.ID {
+		return fmt.Errorf("key is locked by another id: locked by: %s, unlock  by: %s", keyLock.ID, lock.ID)
 	}
-	delete(m.lockedItems, key)
+	fmt.Println("\t Unlocking key", key, "with id", lock.ID)
+	m.lockedItems.Delete(key)
 	return nil
 }
 
@@ -140,12 +157,12 @@ func (m *MemoryStorageProvider) updateLockTime(id string, key string, lockChanne
 	keyFound := true
 	for keyFound {
 		time.Sleep(UpdateSleepTime)
-		if _, ok := m.lockedItems[key]; ok {
-			m.lockedItems[key] = LockInformation{
+		if _, ok := m.lockedItems.Load(key); ok {
+			m.lockedItems.Store(key, LockInformation{
 				ID:   id,
 				Key:  key,
 				Date: time.Now(),
-			}
+			})
 		} else {
 			keyFound = false
 		}

@@ -1,12 +1,11 @@
 package scheduling
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
-
-	sp "github.com/featureform/scheduling/storage_providers"
 )
 
 type Key interface {
@@ -47,21 +46,21 @@ func (trmk TaskRunMetadataKey) String() string {
 	// adds the date to the key if it's not the default value
 	if trmk.date != (time.Time{}) {
 		key += fmt.Sprintf("/%s", trmk.date.Format("2006/01/02"))
+	}
 
-		// adds the task_id and run_id to the key if they're not the default value
-		if trmk.taskID != 0 && trmk.runID != 0 {
-			key += fmt.Sprintf("/task_id=%d/run_id=%d", trmk.taskID, trmk.runID)
-		}
+	// adds the task_id and run_id to the key if they're not the default value
+	if trmk.taskID != 0 && trmk.runID != 0 {
+		key += fmt.Sprintf("/task_id=%d/run_id=%d", trmk.taskID, trmk.runID)
 	}
 	return key
 }
 
-func NewTaskManager(storage sp.StorageProvider) TaskManager {
+func NewTaskManager(storage StorageProvider) TaskManager {
 	return TaskManager{storage: storage}
 }
 
 type TaskManager struct {
-	storage sp.StorageProvider
+	storage StorageProvider
 }
 
 type TaskMetadataList []TaskMetadata
@@ -103,19 +102,9 @@ func (tm *TaskManager) CreateTask(name string, tType TaskType, target TaskTarget
 	if err != nil {
 		return TaskMetadata{}, fmt.Errorf("failed to marshal metadata: %v", err)
 	}
-
-	key := TaskMetadataKey{taskID: metadata.ID}
-	lock, err := tm.storage.Lock(key.String())
-	if err != nil {
-		return TaskMetadata{}, fmt.Errorf("failed to lock task key: %v", err)
-	}
-	err = tm.storage.Set(key.String(), string(serializedMetadata), lock)
+	err = tm.storage.Set(TaskMetadataKey{taskID: metadata.ID}.String(), string(serializedMetadata))
 	if err != nil {
 		return TaskMetadata{}, err
-	}
-	err = tm.storage.Unlock(key.String(), lock)
-	if err != nil {
-		return TaskMetadata{}, fmt.Errorf("failed to unlock task key: %v", err)
 	}
 
 	runs := TaskRuns{
@@ -128,17 +117,9 @@ func (tm *TaskManager) CreateTask(name string, tType TaskType, target TaskTarget
 	}
 
 	taskRunKey := TaskRunKey{taskID: metadata.ID}
-	lock, err = tm.storage.Lock(taskRunKey.String())
-	if err != nil {
-		return TaskMetadata{}, fmt.Errorf("failed to lock task run key: %v", err)
-	}
-	err = tm.storage.Set(taskRunKey.String(), string(serializedRuns), lock)
+	err = tm.storage.Set(taskRunKey.String(), string(serializedRuns))
 	if err != nil {
 		return TaskMetadata{}, err
-	}
-	err = tm.storage.Unlock(taskRunKey.String(), lock)
-	if err != nil {
-		return TaskMetadata{}, fmt.Errorf("failed to unlock task run key: %v", err)
 	}
 
 	return metadata, nil
@@ -267,32 +248,17 @@ func (tm *TaskManager) CreateTaskRun(name string, taskID TaskID, trigger Trigger
 	if err != nil {
 		return TaskRunMetadata{}, fmt.Errorf("failed to marshal metadata: %v", err)
 	}
-
-	lock, err := tm.storage.Lock(taskRunKey.String())
-	if err != nil {
-		return TaskRunMetadata{}, fmt.Errorf("failed to lock task run key: %v", err)
-	}
-	err = tm.storage.Set(taskRunKey.String(), string(serializedRuns), lock)
+	err = tm.storage.Set(taskRunKey.String(), string(serializedRuns))
 	if err != nil {
 		return TaskRunMetadata{}, err
-	}
-	err = tm.storage.Unlock(taskRunKey.String(), lock)
-	if err != nil {
-		return TaskRunMetadata{}, fmt.Errorf("failed to unlock task run key: %v", err)
 	}
 
 	TaskRunMetadataKey := TaskRunMetadataKey{taskID: taskID, runID: metadata.ID, date: startTime}
-	lock, err = tm.storage.Lock(TaskRunMetadataKey.String())
-	if err != nil {
-		return TaskRunMetadata{}, fmt.Errorf("failed to lock task run metadata key: %v", err)
-	}
-	err = tm.storage.Set(TaskRunMetadataKey.String(), string(serializedMetadata), lock)
+	// TODO: should move this logic to format the date
+	_ = startTime.Format("2006/01/02")
+	err = tm.storage.Set(TaskRunMetadataKey.String(), string(serializedMetadata))
 	if err != nil {
 		return TaskRunMetadata{}, err
-	}
-	err = tm.storage.Unlock(TaskRunMetadataKey.String(), lock)
-	if err != nil {
-		return TaskRunMetadata{}, fmt.Errorf("failed to unlock task run metadata key: %v", err)
 	}
 
 	return metadata, nil
@@ -417,7 +383,7 @@ func (tm *TaskManager) GetAllTaskRuns() (TaskRunList, error) {
 }
 
 // Write Methods
-func (t *TaskManager) SetRunStatus(runID TaskRunID, taskID TaskID, status Status, err error, lock sp.LockObject) error {
+func (t *TaskManager) SetRunStatus(runID TaskRunID, taskID TaskID, status Status, err error) error {
 	if taskID <= 0 {
 		return fmt.Errorf("invalid run id: %d", taskID)
 	}
@@ -441,11 +407,11 @@ func (t *TaskManager) SetRunStatus(runID TaskRunID, taskID TaskID, status Status
 	}
 
 	taskRunMetadataKey := TaskRunMetadataKey{taskID: taskID, runID: metadata.ID, date: metadata.StartTime}
-	e = t.storage.Set(taskRunMetadataKey.String(), string(serializedMetadata), lock)
+	e = t.storage.Set(taskRunMetadataKey.String(), string(serializedMetadata))
 	return e
 }
 
-func (t *TaskManager) SetRunEndTime(runID TaskRunID, taskID TaskID, time time.Time, lock sp.LockObject) error {
+func (t *TaskManager) SetRunEndTime(runID TaskRunID, taskID TaskID, time time.Time) error {
 	if taskID <= 0 {
 		return fmt.Errorf("invalid run id: %d", taskID)
 	}
@@ -466,7 +432,7 @@ func (t *TaskManager) SetRunEndTime(runID TaskRunID, taskID TaskID, time time.Ti
 	}
 
 	taskRunMetadataKey := TaskRunMetadataKey{taskID: taskID, runID: metadata.ID, date: metadata.StartTime}
-	e = t.storage.Set(taskRunMetadataKey.String(), string(serializedMetadata), lock)
+	e = t.storage.Set(taskRunMetadataKey.String(), string(serializedMetadata))
 	return e
 }
 
@@ -476,14 +442,12 @@ func (t *TaskManager) AppendRunLog(id TaskRunID, log string) error {
 }
 
 // Locking
-func (tm *TaskManager) LockTaskRun(taskID TaskID, runId TaskRunID) (sp.LockObject, error) {
-	date := time.Now().UTC()
-	key := TaskRunMetadataKey{taskID: taskID, runID: runId, date: date}.String()
-	return tm.storage.Lock(key)
+func (tm *TaskManager) LockTaskRun(ctx context.Context, taskID TaskID, runId TaskRunID) error {
+	// TODO: need to find the date of the run then lock the TaskRunMetadataKey for it
+	return fmt.Errorf("Not implemented")
 }
 
-func (tm *TaskManager) UnlockTaskRun(taskID TaskID, runId TaskRunID, lock sp.LockObject) error {
-	runDate := time.Now().UTC()
-	key := TaskRunMetadataKey{taskID: taskID, runID: runId, date: runDate}.String()
-	return tm.storage.Unlock(key, lock)
+func (tm *TaskManager) UnlockTaskRun(ctx context.Context, taskID TaskID, runId TaskRunID) error {
+	// TODO: need to find the date of the run then unlock the TaskRunMetadataKey for it
+	return fmt.Errorf("Not implemented")
 }

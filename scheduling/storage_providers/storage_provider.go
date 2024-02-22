@@ -6,7 +6,7 @@ import (
 
 type StorageProvider interface {
 	Set(key string, value string, lock LockObject) error
-	Get(key string, prefix bool) ([]string, error)
+	Get(key string, prefix bool) (map[string]string, error)
 	ListKeys(prefix string) ([]string, error)
 	Lock(key string) (LockObject, error)
 	Unlock(key string, lock LockObject) error

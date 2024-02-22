@@ -3,6 +3,7 @@ package scheduling
 import (
 	"fmt"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 )
@@ -22,7 +23,7 @@ func TestMemoryStorageProvider(t *testing.T) {
 }
 
 func StorageProviderSet(t *testing.T) {
-	provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation)}
+	provider := &MemoryStorageProvider{storage: sync.Map{}, lockedItems: sync.Map{}}
 	type TestCase struct {
 		key   string
 		value string
@@ -54,20 +55,20 @@ func StorageProviderSet(t *testing.T) {
 }
 
 func StorageProviderGet(t *testing.T) {
-	provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation)}
+	provider := &MemoryStorageProvider{storage: sync.Map{}, lockedItems: sync.Map{}}
 	type TestCase struct {
 		key     string
 		prefix  bool
-		results []string
+		results map[string]string
 		err     error
 	}
 
 	tests := map[string]TestCase{
-		"Simple":            {"key1", false, []string{"value1"}, nil},
+		"Simple":            {"key1", false, map[string]string{"key1": "value1"}, nil},
 		"KeyNotFound":       {"key3", false, nil, &KeyNotFoundError{Key: "key3"}},
 		"EmptyKey":          {"", false, nil, fmt.Errorf("key is empty")},
 		"PrefixNotCalled":   {"prefix/key", false, nil, &KeyNotFoundError{Key: "prefix/key"}},
-		"Prefix":            {"prefix/key", true, []string{"value3", "value4"}, nil},
+		"Prefix":            {"prefix/key", true, map[string]string{"prefix/key3": "value3", "prefix/key4": "value4"}, nil},
 		"PrefixKeyNotFound": {"prefix/key5", true, nil, &KeyNotFoundError{Key: "prefix/key5"}},
 	}
 
@@ -88,7 +89,7 @@ func StorageProviderGet(t *testing.T) {
 		if err != nil && err.Error() != test.err.Error() {
 			t.Errorf("Get(%s, %v): expected error %v, got %v", test.key, test.prefix, test.err, err)
 		}
-		if !compareStringSlices(results, test.results) {
+		if !compareMaps(results, test.results) {
 			t.Errorf("Get(%s, %v): expected results %v, got %v", test.key, test.prefix, test.results, results)
 		}
 	}
@@ -116,7 +117,7 @@ func StorageProviderList(t *testing.T) {
 	}
 
 	runTestCase := func(t *testing.T, test TestCase) {
-		provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation)}
+		provider := &MemoryStorageProvider{storage: sync.Map{}, lockedItems: sync.Map{}}
 		for _, key := range test.keys {
 			lockObject, err := provider.Lock(key)
 			if err != nil {
@@ -162,8 +163,21 @@ func compareStringSlices(a, b []string) bool {
 	return true
 }
 
+func compareMaps(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
 func TestLockAndUnlock(t *testing.T) {
-	provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation)}
+	provider := &MemoryStorageProvider{storage: sync.Map{}, lockedItems: sync.Map{}}
 
 	key := "/tasks/metadata/task_id=1"
 
@@ -193,7 +207,7 @@ func TestLockAndUnlock(t *testing.T) {
 }
 
 func TestLockAndUnlockWithGoRoutines(t *testing.T) {
-	provider := &MemoryStorageProvider{storage: make(map[string]string), lockedItems: make(map[string]LockInformation)}
+	provider := &MemoryStorageProvider{storage: sync.Map{}, lockedItems: sync.Map{}}
 
 	key := "/tasks/metadata/task_id=2"
 	lockChannel := make(chan LockObject)
@@ -249,12 +263,13 @@ func TestLockTimeUpdates(t *testing.T) {
 	time.Sleep(2 * ValidTimePeriod)
 
 	// Check if date has been updated
-	lockInfo, ok := provider.lockedItems[key]
+	lockInfo, ok := provider.lockedItems.Load(key)
 	if !ok {
 		t.Fatalf("Key not found")
 	}
-	if time.Since(lockInfo.Date) > ValidTimePeriod {
-		t.Fatalf("Lock time not updated: current time: %s, lock time: %s", time.Now().String(), lockInfo.Date.String())
+	lockDetail := lockInfo.(LockInformation)
+	if time.Since(lockDetail.Date) > ValidTimePeriod {
+		t.Fatalf("Lock time not updated: current time: %s, lock time: %s", time.Now().String(), lockDetail.Date.String())
 	}
 
 	// Unlock the key
@@ -263,8 +278,8 @@ func TestLockTimeUpdates(t *testing.T) {
 		t.Fatalf("Unlock failed: %v", err)
 	}
 
-	// Check if date has been updated
-	_, ok = provider.lockedItems[key]
+	// Check if key has been deleted
+	_, ok = provider.lockedItems.Load(key)
 	if ok {
 		t.Fatalf("Key not deleted")
 	}

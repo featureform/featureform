@@ -8,11 +8,13 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/featureform/metadata"
 	"github.com/featureform/metadata/search"
 	"github.com/featureform/provider"
+	sc "github.com/featureform/scheduling"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -300,7 +302,7 @@ func TestGetTaskRuns(t *testing.T) {
 	CreateDummyTaskRuns(10)
 	serv.GetTaskRuns(ctx)
 
-	var data []TaskRunResponse
+	var data []sc.TaskRunMetadata
 	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
 
 	assert.Equal(t, http.StatusOK, mockRecorder.Code)
@@ -325,7 +327,7 @@ func TestGetTaskRunsZeroResults(t *testing.T) {
 	}
 	serv.GetTaskRuns(ctx)
 
-	var data []TaskRunResponse
+	var data []sc.TaskRunMetadata
 	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
 
 	assert.Equal(t, http.StatusOK, mockRecorder.Code)
@@ -335,11 +337,12 @@ func TestGetTaskRunsZeroResults(t *testing.T) {
 func TestGetTaskRunDetails(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
-	taskRunId := "0"
+	taskRunIdParam := 0
+	taskRunId := sc.TaskRunID(taskRunIdParam)
 	params := []gin.Param{
 		{
 			Key:   "taskRunId",
-			Value: taskRunId,
+			Value: strconv.Itoa(taskRunIdParam),
 		},
 	}
 	MockJsonGet(ctx, params)
@@ -357,22 +360,22 @@ func TestGetTaskRunDetails(t *testing.T) {
 	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
 
 	assert.Equal(t, http.StatusOK, mockRecorder.Code)
-	assert.Equal(t, taskRunId, data.ID)
-	assert.NotEmpty(t, data.Name)
-	assert.NotEmpty(t, data.Status)
-	assert.NotEmpty(t, data.Logs)
-	assert.NotEmpty(t, data.Details)
+	assert.Equal(t, taskRunId, data.TaskRun.ID)
+	assert.NotEmpty(t, data.TaskRun.Name)
+	assert.NotEmpty(t, data.TaskRun.Status)
+	assert.NotEmpty(t, data.TaskRun.Logs)
 	assert.NotEmpty(t, data.OtherRuns)
 }
 
 func TestGetTaskRunDetailZeroResults(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
-	taskRunId := "12345"
+	taskRunIdParam := -1
+	taskRunId := sc.TaskRunID(taskRunIdParam)
 	params := []gin.Param{
 		{
 			Key:   "taskRunId",
-			Value: taskRunId,
+			Value: strconv.Itoa(taskRunIdParam),
 		},
 	}
 	MockJsonGet(ctx, params)
@@ -390,9 +393,9 @@ func TestGetTaskRunDetailZeroResults(t *testing.T) {
 	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
 
 	assert.Equal(t, http.StatusOK, mockRecorder.Code)
-	assert.Equal(t, "-1", data.ID)
-	assert.Empty(t, data.Name)
-	assert.Empty(t, data.Status)
+	assert.Equal(t, taskRunId, data.TaskRun.ID)
+	assert.Empty(t, data.TaskRun.Name)
+	assert.Empty(t, data.TaskRun.Status)
 	assert.Empty(t, data.OtherRuns)
 }
 
@@ -418,6 +421,34 @@ func TestGetTaskRunDetailParamPanic(t *testing.T) {
 
 	var actualErrorMsg string
 	expectedMsg := "Error 400: Failed to fetch GetTaskRunDetails - Could not find the taskRunId parameter"
+	_ = json.Unmarshal(mockRecorder.Body.Bytes(), &actualErrorMsg)
+
+	assert.Equal(t, http.StatusBadRequest, mockRecorder.Code)
+	assert.Equal(t, expectedMsg, actualErrorMsg)
+}
+
+func TestGetTaskRunDetailBadParamTypePanic(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	taskRunId := "not_a_int"
+	params := []gin.Param{
+		{
+			Key:   "taskRunId",
+			Value: taskRunId,
+		},
+	}
+	MockJsonGet(ctx, params)
+
+	logger := zap.NewExample().Sugar()
+	client := &metadata.Client{}
+	serv := MetadataServer{
+		client: client,
+		logger: logger,
+	}
+	serv.GetTaskRunDetails(ctx)
+
+	var actualErrorMsg string
+	expectedMsg := "Error 400: Failed to fetch GetTaskRunDetails - taskRunId is not a number!"
 	_ = json.Unmarshal(mockRecorder.Body.Bytes(), &actualErrorMsg)
 
 	assert.Equal(t, http.StatusBadRequest, mockRecorder.Code)

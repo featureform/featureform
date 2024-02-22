@@ -26,6 +26,7 @@ import (
 	"github.com/featureform/proto"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
+	sc "github.com/featureform/scheduling"
 	"github.com/featureform/serving"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -37,8 +38,8 @@ import (
 var SearchClient search.Searcher
 
 // todox: remove later
-var taskRunStaticList []TaskRunResponse
-var taskDefinitionStaticList []TaskDefinition
+var taskRunStaticList []sc.TaskRunMetadata
+var taskMetadataStaticList []sc.TaskMetadata
 
 type StorageProvider interface {
 	GetResourceLookup() (metadata.ResourceLookup, error)
@@ -1535,15 +1536,30 @@ func replaceTags(resourceTypeParam string, currentResource metadata.Resource, ne
 
 // todox: eventually remove
 func CreateDummyTaskRuns(count int) {
-	taskDefinitionStaticList = []TaskDefinition{
-		{ID: 0, Name: "Test_job", Type: "Source", Provider: "Spark", Resource: "per_balance"},
-		{ID: 1, Name: "Nicole_Puppers", Type: "Source", Provider: "Postgres", Resource: "per_balance2"},
-		{ID: 2, Name: "Sandbox_Test", Type: "Source", Provider: "Spark", Resource: "avg_transactions"},
-		{ID: 3, Name: "Production_flow", Type: "Source", Provider: "Databricks", Resource: "speed_dating"},
-		{ID: 4, Name: "MySQL Task", Type: "Source", Provider: "MySql", Resource: "mysql_test_resource"},
+	taskMetadataStaticList = []sc.TaskMetadata{
+		{ID: 0, Name: "Test_job", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
+			Name:    "transaction",
+			Variant: "default",
+		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
+		{ID: 1, Name: "Nicole_Puppers", TaskType: sc.Monitoring, Target: sc.NameVariant{
+			Name:    "avg_transactions",
+			Variant: "v1",
+		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
+		{ID: 1, Name: "Sandbox_Test", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
+			Name:    "transaction",
+			Variant: "default",
+		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
+		{ID: 1, Name: "Production_Data_Set", TaskType: sc.HealthCheck, Target: sc.NameVariant{
+			Name:    "speed_dating",
+			Variant: "left_overs",
+		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
+		{ID: 1, Name: "MySQL Task", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
+			Name:    "testing_name",
+			Variant: "testing_variant",
+		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
 	}
-	taskRunStaticList = []TaskRunResponse{}
-	dummyStates := []string{"SUCCESS", "FAILED", "PENDING", "RUNNING"}
+	taskRunStaticList = []sc.TaskRunMetadata{}
+	dummyStates := []sc.Status{sc.Failed, sc.Pending, sc.Running, sc.Success}
 	for i := 0; i < count; i++ {
 		status := dummyStates[rand.Intn(len(dummyStates))]
 		runTime := time.Now()
@@ -1551,22 +1567,22 @@ func CreateDummyTaskRuns(count int) {
 	}
 }
 
-func createTaskRun(id int, status string, lastRunTime time.Time) TaskRunResponse {
+func createTaskRun(id int, status sc.Status, timeParam time.Time) sc.TaskRunMetadata {
 
-	//todox: check against existing task definitions list
-	foundTaskDef := taskDefinitionStaticList[rand.Intn(len(taskDefinitionStaticList))]
+	//todox: check against existing task metadata list
+	foundTaskMetadata := taskMetadataStaticList[rand.Intn(len(taskMetadataStaticList))]
 
-	return TaskRunResponse{
-		ID:          strconv.Itoa(id),
-		TaskID:      foundTaskDef.ID,
-		Name:        foundTaskDef.Name,
-		Type:        foundTaskDef.Type,
-		Provider:    foundTaskDef.Provider,
-		Resource:    foundTaskDef.Resource,
-		Variant:     foundTaskDef.Variant,
+	return sc.TaskRunMetadata{
+		ID:          sc.TaskRunID(id),
+		TaskId:      foundTaskMetadata.ID,
+		Name:        foundTaskMetadata.Name,
+		Trigger:     sc.OneOffTrigger{TriggerName: "Apply"},
+		TriggerType: sc.OneOffTriggerType,
 		Status:      status,
-		LastRunTime: lastRunTime,
-		TriggeredBy: "On Apply",
+		StartTime:   timeParam.Add(-5 * time.Minute),
+		EndTime:     timeParam.Add(10 * time.Minute),
+		Logs:        []string{"log 1", "log 2"},
+		Error:       "No errors for now.",
 	}
 }
 
@@ -1579,36 +1595,16 @@ func filter[T any](ss []T, test func(T) bool) (ret []T) {
 	return ret
 }
 
-func mockTaskRunFind(taskId string) TaskRunResponse {
-	result := TaskRunResponse{ID: "-1"}
+func mockTaskRunFind(searchId int) sc.TaskRunMetadata {
+	result := sc.TaskRunMetadata{ID: sc.TaskRunID(-1)} //sentinel result
+	searchTaskId := sc.TaskRunID(searchId)
 	for _, n := range taskRunStaticList {
-		if n.ID == taskId {
+		if n.ID == searchTaskId {
 			result = n
+			break
 		}
 	}
 	return result
-}
-
-type TaskDefinition struct {
-	ID       int    `json:"id"`
-	Name     string `json:"name"`
-	Type     string `json:"type"`
-	Provider string `json:"provider"`
-	Resource string `json:"resource"`
-	Variant  string `json:"variant"`
-}
-
-type TaskRunResponse struct {
-	ID          string    `json:"id"`
-	TaskID      int       `json:"taskId"`
-	Name        string    `json:"name"`
-	Type        string    `json:"type"`
-	Provider    string    `json:"provider"`
-	Resource    string    `json:"resource"`
-	Variant     string    `json:"variant"`
-	Status      string    `json:"status"`
-	LastRunTime time.Time `json:"lastRunTime"`
-	TriggeredBy string    `json:"triggeredBy"`
 }
 
 type TaskRunsPostBody struct {
@@ -1625,26 +1621,26 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 		return
 	}
 
-	taskListResponse := make([]TaskRunResponse, len(taskRunStaticList))
+	taskListResponse := make([]sc.TaskRunMetadata, len(taskRunStaticList))
 	_ = copy(taskListResponse, taskRunStaticList)
 
 	// status filter, break out
-	taskListResponse = filter(taskListResponse, func(t TaskRunResponse) bool {
+	taskListResponse = filter(taskListResponse, func(t sc.TaskRunMetadata) bool {
 		result := false
 		if requestBody.Status == "ALL" {
 			result = true
 		} else if requestBody.Status == "ACTIVE" {
-			activeStates := []string{"PENDING", "RUNNING"}
+			activeStates := []sc.Status{sc.Pending, sc.Running}
 			result = slices.Contains(activeStates, t.Status)
 		} else if requestBody.Status == "COMPLETE" {
-			activeStates := []string{"FAILED", "SUCCESS"}
-			result = slices.Contains(activeStates, t.Status)
+			completeStates := []sc.Status{sc.Failed, sc.Success}
+			result = slices.Contains(completeStates, t.Status)
 		}
 		return result
 	})
 
 	// name filter
-	taskListResponse = filter(taskListResponse, func(t TaskRunResponse) bool {
+	taskListResponse = filter(taskListResponse, func(t sc.TaskRunMetadata) bool {
 		result := false
 		if requestBody.SearchText == "" {
 			result = true
@@ -1657,7 +1653,7 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 	// date sort
 	if requestBody.SortBy == "STATUS_DATE" {
 		sort.Slice(taskListResponse, func(i, j int) bool {
-			return taskListResponse[i].LastRunTime.UnixMilli() > taskListResponse[j].LastRunTime.UnixMilli()
+			return taskListResponse[i].StartTime.UnixMilli() > taskListResponse[j].StartTime.UnixMilli()
 		})
 	}
 
@@ -1675,20 +1671,9 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 	c.JSON(http.StatusOK, taskListResponse)
 }
 
-type OtherRunResponse struct {
-	ID          string    `json:"id"`
-	LastRunTime time.Time `json:"lastRunTime"`
-	Status      string    `json:"status"`
-	Link        string    `json:"link"`
-}
-
 type TaskRunDetailResponse struct {
-	ID        string             `json:"id"`
-	Name      string             `json:"name"`
-	Status    string             `json:"status"`
-	Logs      string             `json:"logs"`
-	Details   string             `json:"details"`
-	OtherRuns []OtherRunResponse `json:"otherRuns"`
+	TaskRun   sc.TaskRunMetadata   `json:"taskRun"`
+	OtherRuns []sc.TaskRunMetadata `json:"otherRuns"`
 }
 
 func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
@@ -1701,29 +1686,31 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 		return
 	}
 
+	searchId, err := strconv.Atoi(taskRunId)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - taskRunId is not a number!"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	noResultTaskId := sc.TaskRunID(-1)
+
 	//todox: replace mock find with lib call
-	taskRunResult := mockTaskRunFind(taskRunId)
+	taskRunResult := mockTaskRunFind(searchId)
 
 	//todox: create mock collect
-	otherRuns := []OtherRunResponse{}
-	if taskRunResult.ID != "-1" {
+	otherRuns := []sc.TaskRunMetadata{}
+	if taskRunResult.ID != noResultTaskId {
 		for _, loopRunItem := range taskRunStaticList {
-			if loopRunItem.TaskID == taskRunResult.TaskID && loopRunItem.ID != taskRunResult.ID {
-				otherRuns = append(otherRuns, OtherRunResponse{
-					ID:          loopRunItem.ID,
-					LastRunTime: loopRunItem.LastRunTime,
-					Status:      loopRunItem.Status,
-					Link:        "Future Link"})
+			if loopRunItem.TaskId == taskRunResult.TaskId && loopRunItem.ID != taskRunResult.ID {
+				otherRuns = append(otherRuns, loopRunItem)
 			}
 		}
 	}
 
 	resp := TaskRunDetailResponse{
-		ID:        taskRunResult.ID,
-		Name:      taskRunResult.Name,
-		Status:    taskRunResult.Status,
-		Logs:      "some log values",
-		Details:   "some task details",
+		TaskRun:   taskRunResult,
 		OtherRuns: otherRuns,
 	}
 

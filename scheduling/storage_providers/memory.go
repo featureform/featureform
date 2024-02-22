@@ -109,7 +109,6 @@ type LockObject struct {
 
 func (m *MemoryStorageProvider) Lock(key string) (LockObject, error) {
 	id := uuid.New().String()
-	fmt.Println("\t Locking key", key, "with id", id)
 	if key == "" {
 		return LockObject{}, fmt.Errorf("key is empty")
 	}
@@ -148,11 +147,8 @@ func (m *MemoryStorageProvider) Unlock(key string, lock LockObject) error {
 	if keyLock.ID != lock.ID {
 		return fmt.Errorf("key is locked by another id: locked by: %s, unlock  by: %s", keyLock.ID, lock.ID)
 	}
-	fmt.Println("\t Unlocking key", key, "with id", lock.ID)
-	m.lockedItems.Store(key, nil)
-	m.lockedItems.Delete(key)
 
-	time.Sleep(2 * time.Second)
+	m.lockedItems.Delete(key)
 
 	return nil
 }

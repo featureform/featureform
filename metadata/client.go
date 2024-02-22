@@ -7,6 +7,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"google.golang.org/genproto/googleapis/rpc/status"
 	"io"
 	"reflect"
 	"time"
@@ -110,19 +111,22 @@ func (client *Client) SetStatusError(ctx context.Context, resID ResourceID, stat
 	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
 	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
 	errorStatus, ok := grpc_status.FromError(jobErr)
-	if !ok {
-		return fferr.NewInvalidArgument(fmt.Errorf("Error is not a gRPC status"))
-	}
 	errorProto := errorStatus.Proto()
-	jsonErrorProto, err := protojson.Marshal(errorProto)
-	if err != nil {
-		client.Logger.Errorw("Failed to marshal error proto", "Err", err)
-		return err
+	var errorStatusProto *pb.ErrorStatus
+	if ok {
+		errorStatusProto = &pb.ErrorStatus{Code: errorProto.Code, Message: errorProto.Message, Details: errorProto.Details}
+	} else {
+		errorStatusProto = nil
 	}
-	resourceStatus := pb.ResourceStatus{Status: pb.ResourceStatus_Status(status), ErrorMessage: jobErr.Error(), ErrorMessageJson: string(jsonErrorProto)}
+
+	resourceStatus := pb.ResourceStatus{Status: pb.ResourceStatus_Status(status), ErrorMessage: jobErr.Error(), ErrorStatus: errorStatusProto}
 	statusRequest := pb.SetStatusRequest{ResourceId: &resourceID, Status: &resourceStatus}
-	_, err = client.GrpcConn.SetResourceStatus(ctx, &statusRequest)
+	_, err := client.GrpcConn.SetResourceStatus(ctx, &statusRequest)
 	return err
+}
+
+func toErrorStatus(errorProto *status.Status) *pb.ErrorStatus {
+	return &pb.ErrorStatus{Code: errorProto.Code, Message: errorProto.Message, Details: errorProto.Details}
 }
 
 func (client *Client) SetStatus(ctx context.Context, resID ResourceID, status ResourceStatus, errorMessage string) error {
@@ -878,18 +882,24 @@ type sourceVariantStream interface {
 }
 
 func (client *Client) parseSourceVariantStream(stream sourceVariantStream) ([]*SourceVariant, error) {
-	features := make([]*SourceVariant, 0)
+	sourceVariants := make([]*SourceVariant, 0)
 	for {
 		serial, err := stream.Recv()
 		if err == io.EOF {
 			break
 		} else if err != nil {
 			client.Logger.Errorw("Error receiving parsed stream", "error", err)
+			// print if this is a grpc status error
+			if grpcStatus, ok := grpc_status.FromError(err); ok {
+				client.Logger.Errorw("GRPC status error", "code", grpcStatus.Code(), "message", grpcStatus.Message(), "details", grpcStatus.Details())
+			} else {
+				client.Logger.Errorw("Error is not a grpc status error", "error", err)
+			}
 			return nil, err
 		}
-		features = append(features, wrapProtoSourceVariant(serial))
+		sourceVariants = append(sourceVariants, wrapProtoSourceVariant(serial))
 	}
-	return features, nil
+	return sourceVariants, nil
 }
 
 func (client *Client) ListUsers(ctx context.Context) ([]*User, error) {

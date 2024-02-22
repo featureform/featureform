@@ -142,22 +142,10 @@ func GetPrimaryTableName(id ResourceID) (string, error) {
 	return fmt.Sprintf("featureform_primary__%s__%s", id.Name, id.Variant), nil
 }
 
-func (store *sqlOfflineStore) tableExists(id ResourceID) (bool, error) {
+func (store *sqlOfflineStore) tableExists(tableName string) (bool, error) {
 	n := -1
-	var tableName string
-	var err error
-	if id.check(Feature, Label) == nil {
-		tableName, err = store.getResourceTableName(id)
-	} else if id.check(TrainingSet) == nil {
-		tableName, err = store.getTrainingSetName(id)
-	} else if id.check(Primary) == nil || id.check(Transformation) == nil {
-		tableName, err = GetPrimaryTableName(id)
-	}
-	if err != nil {
-		return false, err
-	}
 	query := store.query.tableExists()
-	err = store.db.QueryRow(query, tableName).Scan(&n)
+	err := store.db.QueryRow(query, tableName).Scan(&n)
 	if n > 0 && err == nil {
 		return true, nil
 	} else if err != nil {
@@ -171,6 +159,22 @@ func (store *sqlOfflineStore) tableExists(id ResourceID) (bool, error) {
 		return false, fferr.NewExecutionError(store.Type().String(), err)
 	}
 	return false, nil
+}
+
+func (store *sqlOfflineStore) tableExistsForResourceId(id ResourceID) (bool, error) {
+	var tableName string
+	var err error
+	if id.check(Feature, Label) == nil {
+		tableName, err = store.getResourceTableName(id)
+	} else if id.check(TrainingSet) == nil {
+		tableName, err = store.getTrainingSetName(id)
+	} else if id.check(Primary) == nil || id.check(Transformation) == nil {
+		tableName, err = GetPrimaryTableName(id)
+	}
+	if err != nil {
+		return false, err
+	}
+	return store.tableExists(tableName)
 }
 
 func (store *sqlOfflineStore) AsOfflineStore() (OfflineStore, error) {
@@ -198,7 +202,7 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}
-	if exists, err := store.tableExists(id); err != nil {
+	if exists, err := store.tableExistsForResourceId(id); err != nil {
 		return nil, err
 	} else if exists {
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
@@ -232,7 +236,7 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sour
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
-	if exists, err := store.tableExists(id); err != nil {
+	if exists, err := store.tableExistsForResourceId(id); err != nil {
 		return nil, err
 	} else if exists {
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
@@ -240,6 +244,13 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sour
 	tableName, err := GetPrimaryTableName(id)
 	if err != nil {
 		return nil, err
+	}
+	sourceExists, err := store.tableExists(sourceName)
+	if err != nil {
+		return nil, err
+	}
+	if !sourceExists {
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("source table %s does not exist", sourceName))
 	}
 	query := store.query.primaryTableRegister(tableName, sourceName)
 	if _, err := store.db.Exec(query); err != nil {
@@ -263,7 +274,7 @@ func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSche
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
-	if exists, err := store.tableExists(id); err != nil {
+	if exists, err := store.tableExistsForResourceId(id); err != nil {
 		return nil, err
 	} else if exists {
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
@@ -321,7 +332,7 @@ func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, erro
 	if err != nil {
 		return nil, err
 	}
-	if exists, err := store.tableExists(id); err != nil {
+	if exists, err := store.tableExistsForResourceId(id); err != nil {
 		return nil, err
 	} else if !exists {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
@@ -373,7 +384,7 @@ func (store *sqlOfflineStore) CreateResourceTable(id ResourceID, schema TableSch
 		return nil, err
 	}
 
-	if exists, err := store.tableExists(id); err != nil {
+	if exists, err := store.tableExistsForResourceId(id); err != nil {
 		return nil, err
 	} else if exists {
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
@@ -412,7 +423,7 @@ func (store *sqlOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, err
 }
 
 func (store *sqlOfflineStore) ResourceLocation(id ResourceID) (string, error) {
-	if exists, err := store.tableExists(id); err != nil {
+	if exists, err := store.tableExistsForResourceId(id); err != nil {
 		return "", fmt.Errorf("could not check if table exists: %v", err)
 	} else if !exists {
 		return "", fmt.Errorf("table does not exist: %v", id)
@@ -863,7 +874,7 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 		return nil, err
 	}
 	fmt.Printf("Checking if Training Set exists: %v\n", id)
-	if exists, err := store.tableExists(id); err != nil {
+	if exists, err := store.tableExistsForResourceId(id); err != nil {
 		return nil, err
 	} else if !exists {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
@@ -1003,7 +1014,7 @@ func (it *sqlTrainingRowsIterator) Label() interface{} {
 }
 
 func (store *sqlOfflineStore) getsqlResourceTable(id ResourceID) (*sqlOfflineTable, error) {
-	if exists, err := store.tableExists(id); err != nil {
+	if exists, err := store.tableExistsForResourceId(id); err != nil {
 		return nil, err
 	} else if !exists {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)

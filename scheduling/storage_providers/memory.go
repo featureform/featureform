@@ -14,6 +14,7 @@ type LockInformation struct {
 	ID   string
 	Key  string
 	Date time.Time
+	Lock LockObject
 }
 
 const (
@@ -113,65 +114,74 @@ func (m *MemoryStorageProvider) Lock(key string) (LockObject, error) {
 		return LockObject{}, fmt.Errorf("key is empty")
 	}
 
-	lockChannel := make(chan error)
-	keyLockInfo, ok := m.lockedItems.Load(key)
-	if ok && keyLockInfo != nil {
-		keyLock := keyLockInfo.(LockInformation)
-		if time.Since(keyLock.Date) > ValidTimePeriod {
-			m.lockedItems.Delete(key)
-		} else if time.Since(keyLock.Date) < ValidTimePeriod {
-			return LockObject{}, fmt.Errorf("key is already locked by %s", keyLock.ID)
+	lockMutex := &sync.Mutex{}
+	lockMutex.Lock()
+	defer lockMutex.Unlock()
+
+	if lockInfo, ok := m.lockedItems.Load(key); ok {
+		keyLock := lockInfo.(LockInformation)
+		if time.Since(keyLock.Date) < ValidTimePeriod {
+			return LockObject{}, fmt.Errorf("key is already locked by: %s", keyLock.ID)
 		}
 	}
+
+	lockChannel := make(chan error)
+	go m.updateLockTime(id, key, lockChannel)
+	lockObject := LockObject{ID: id, Channel: &lockChannel}
+
 	lock := LockInformation{
 		ID:   id,
 		Key:  key,
 		Date: time.Now(),
+		Lock: lockObject,
 	}
 	m.lockedItems.Store(key, lock)
 
-	lockObj := LockObject{ID: id, Channel: &lockChannel}
-	go m.updateLockTime(id, key, *lockObj.Channel)
-	*lockObj.Channel <- nil
-
-	return lockObj, nil
+	return lockObject, nil
 }
 
 func (m *MemoryStorageProvider) Unlock(key string, lock LockObject) error {
-	keyLockInfo, ok := m.lockedItems.Load(key)
-	if !ok {
-		return fmt.Errorf("key is not locked")
+	lockMutex := &sync.Mutex{}
+	lockMutex.Lock()
+	defer lockMutex.Unlock()
+
+	if lockInfo, ok := m.lockedItems.Load(key); ok {
+		keyLock := lockInfo.(LockInformation)
+		if keyLock.ID != lock.ID {
+			return fmt.Errorf("key is locked by another id: locked by: %s, unlock  by: %s", keyLock.ID, lock.ID)
+		}
+		m.lockedItems.Delete(key)
+		return nil
 	}
-	keyLock := keyLockInfo.(LockInformation)
-
-	if keyLock.ID != lock.ID {
-		return fmt.Errorf("key is locked by another id: locked by: %s, unlock  by: %s", keyLock.ID, lock.ID)
-	}
-
-	m.lockedItems.Delete(key)
-
-	return nil
+	return fmt.Errorf("key is not locked")
 }
 
 func (m *MemoryStorageProvider) updateLockTime(id string, key string, lockChannel chan error) {
-	keyFound := true
-	for keyFound {
+	for {
 		time.Sleep(UpdateSleepTime)
-		if _, ok := m.lockedItems.Load(key); ok {
-			m.lockedItems.Store(key, LockInformation{
-				ID:   id,
-				Key:  key,
-				Date: time.Now(),
-			})
-		} else {
-			keyFound = false
-		}
+
 		select {
-		case channelValue := <-lockChannel:
-			if channelValue != nil {
+		case <-lockChannel:
+			// Received signal to stop
+			if lockChannel != nil {
 				return
 			}
 		default:
+			// Continue updating lock time
+			lockInfo, ok := m.lockedItems.Load(key)
+			if !ok {
+				// Key no longer exists, stop updating
+				return
+			}
+			lock := lockInfo.(LockInformation)
+			if lock.ID == id {
+				// Update lock time
+				m.lockedItems.Store(key, LockInformation{
+					ID:   id,
+					Key:  key,
+					Date: time.Now(),
+				})
+			}
 		}
 	}
 }

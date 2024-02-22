@@ -10,6 +10,11 @@ import (
 	"github.com/google/uuid"
 )
 
+type LockObject struct {
+	ID      string
+	Channel *chan error
+}
+
 type LockInformation struct {
 	ID   string
 	Key  string
@@ -20,7 +25,6 @@ type LockInformation struct {
 const (
 	UpdateSleepTime = 2 * time.Second
 	ValidTimePeriod = 5 * time.Second
-	CleanupInterval = 10 * time.Second
 )
 
 type MemoryStorageProvider struct {
@@ -35,6 +39,13 @@ func NewMemoryStorageProvider() *MemoryStorageProvider {
 }
 
 func (m *MemoryStorageProvider) Set(key string, value string, lock LockObject) error {
+	if key == "" {
+		return fmt.Errorf("key is empty")
+	}
+	if value == "" {
+		return fmt.Errorf("value is empty for key %s", key)
+	}
+
 	lockInfo, ok := m.lockedItems.Load(key)
 	if !ok {
 		return fmt.Errorf("key is not locked")
@@ -42,15 +53,9 @@ func (m *MemoryStorageProvider) Set(key string, value string, lock LockObject) e
 
 	currentLock := lockInfo.(LockInformation)
 	if currentLock.ID != lock.ID {
-		return fmt.Errorf("key is locked by another id: locked by: %s, unlock by: %s", currentLock.ID, lock.ID)
+		return fmt.Errorf("key %s is locked by another id: locked by: %s, unlock by: %s", key, currentLock.ID, lock.ID)
 	}
 
-	if key == "" {
-		return fmt.Errorf("key is empty")
-	}
-	if value == "" {
-		return fmt.Errorf("value is empty for key %s", key)
-	}
 	m.storage.Store(key, value)
 	return nil
 }
@@ -103,16 +108,12 @@ func (m *MemoryStorageProvider) ListKeys(prefix string) ([]string, error) {
 	return result, nil
 }
 
-type LockObject struct {
-	ID      string
-	Channel *chan error
-}
-
 func (m *MemoryStorageProvider) Lock(key string) (LockObject, error) {
-	id := uuid.New().String()
 	if key == "" {
 		return LockObject{}, fmt.Errorf("key is empty")
 	}
+
+	id := uuid.New().String()
 
 	lockMutex := &sync.Mutex{}
 	lockMutex.Lock()

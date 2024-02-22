@@ -205,7 +205,6 @@ func (tm *TaskManager) GetAllTasks() (TaskMetadataList, error) {
 	return tml, nil
 }
 
-// Need to implement this
 type TaskRunList []TaskRunMetadata
 
 func (trl *TaskRunList) ToJSON() string {

@@ -5,9 +5,6 @@ from behave import then
 def step_impl(context, provider):
     context.client.apply()
     context.cols = context.client.columns(context.transactions)
-    print("\n\n")
-    print("ACTUAL COLUMNS: ", context.cols)
-    print("\n\n")
     if provider == "postgres":
         expected_source_cols = [
             '"transactionid"',

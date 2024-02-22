@@ -736,15 +736,15 @@ func TestSetEndTimeByRunID(t *testing.T) {
 	}
 	// TODO: fix the test cases
 	tests := []TestCase{
-		// {
-		// 	"Single",
-		// 	[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
-		// 	[]runInfo{{"name", 1, OneOffTrigger{"name"}}},
-		// 	1,
-		// 	1,
-		// 	time.Now().Add(3 * time.Minute).Truncate(0).UTC(),
-		// 	false,
-		// },
+		{
+			"Single",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{{"name", 1, OneOffTrigger{"name"}}},
+			1,
+			1,
+			time.Now().Add(3 * time.Minute).Truncate(0).UTC(),
+			false,
+		},
 		// {
 		// 	"Multiple",
 		// 	[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},

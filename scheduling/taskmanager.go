@@ -470,9 +470,32 @@ func (t *TaskManager) SetRunEndTime(runID TaskRunID, taskID TaskID, time time.Ti
 	return e
 }
 
-func (t *TaskManager) AppendRunLog(id TaskRunID, log string) error {
-	// we will need task id as well
-	return fmt.Errorf("Not implemented")
+func (t *TaskManager) AppendRunLog(runID TaskRunID, taskID TaskID, log string, lock sp.LockObject) error {
+	if runID <= 0 {
+		return fmt.Errorf("invalid run id: %d", taskID)
+	}
+	if taskID <= 0 {
+		return fmt.Errorf("invalid task id: %d", taskID)
+	}
+	if log == "" {
+		return fmt.Errorf("log cannot be empty")
+	}
+
+	metadata, e := t.GetRunByID(taskID, runID)
+	if e != nil {
+		return fmt.Errorf("failed to fetch run: %v", e)
+	}
+
+	metadata.Logs = append(metadata.Logs, log)
+
+	serializedMetadata, e := metadata.Marshal()
+	if e != nil {
+		return fmt.Errorf("failed to marshal metadata: %v", e)
+	}
+
+	taskRunMetadataKey := TaskRunMetadataKey{taskID: taskID, runID: metadata.ID, date: metadata.StartTime}
+	e = t.storage.Set(taskRunMetadataKey.String(), string(serializedMetadata), lock)
+	return e
 }
 
 // Locking

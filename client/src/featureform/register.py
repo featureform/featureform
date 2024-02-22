@@ -3681,6 +3681,7 @@ class Registrar:
             raise ValueError("Trigger name must be a string")
         if trigger_name == "":
             raise ValueError("Trigger name cannot be empty")
+        # Check trigger type
         trigger = TriggerResource(trigger_name, trigger_type)
         self.__resources.append(trigger)
         return trigger

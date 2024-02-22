@@ -1,6 +1,7 @@
 package scheduling
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -214,10 +215,17 @@ func TestTaskGetAll(t *testing.T) {
 		if len(recvTasks) != len(test.Tasks) {
 			t.Fatalf("Expected %d tasks, got %d tasks", len(test.Tasks), len(recvTasks))
 		}
-		// TODO: ignore the order of the tasks
+
 		for i, def := range definitions {
-			if !reflect.DeepEqual(def, recvTasks[i]) {
-				t.Fatalf("Expected: \n%v \ngot: \n%v", definitions, recvTasks)
+			foundDef := false
+			for _, recvTask := range recvTasks {
+				if reflect.DeepEqual(def, recvTask) {
+					foundDef = true
+					break
+				}
+			}
+			if !foundDef {
+				t.Fatalf("Expected %v, got: %v", def, recvTasks[i])
 			}
 		}
 
@@ -230,7 +238,6 @@ func TestTaskGetAll(t *testing.T) {
 	}
 }
 
-// TODO: fails with "fatal error: concurrent map read and map write"
 func TestCreateTaskRun(t *testing.T) {
 	type taskInfo struct {
 		Name   string
@@ -576,78 +583,78 @@ func TestSetStatusByRunID(t *testing.T) {
 			nil,
 			false,
 		},
-		// {
-		// 	"Multiple",
-		// 	[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
-		// 	[]runInfo{
-		// 		{"name", 1, OneOffTrigger{"name"}},
-		// 		{"name", 1, OneOffTrigger{"name"}},
-		// 		{"name", 1, OneOffTrigger{"name"}},
-		// 	},
-		// 	1,
-		// 	2,
-		// 	Pending,
-		// 	nil,
-		// 	false,
-		// },
-		// {
-		// 	"WrongID",
-		// 	[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
-		// 	[]runInfo{
-		// 		{"name", 1, OneOffTrigger{"name"}},
-		// 	},
-		// 	3,
-		// 	2,
-		// 	Pending,
-		// 	nil,
-		// 	true,
-		// },
-		// {
-		// 	"WrongRunID",
-		// 	[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
-		// 	[]runInfo{
-		// 		{"name", 1, OneOffTrigger{"name"}},
-		// 	},
-		// 	1,
-		// 	2,
-		// 	Running,
-		// 	nil,
-		// 	true,
-		// },
-		// {
-		// 	"MultipleTasks",
-		// 	[]taskInfo{
-		// 		{"name", ResourceCreation, NameVariant{"name", "variant"}},
-		// 		{"name", ResourceCreation, NameVariant{"name", "variant"}},
-		// 	},
-		// 	[]runInfo{
-		// 		{"name", 1, OneOffTrigger{"name"}},
-		// 		{"name", 1, OneOffTrigger{"name"}},
-		// 		{"name", 2, OneOffTrigger{"name"}},
-		// 		{"name", 2, OneOffTrigger{"name"}},
-		// 	},
-		// 	2,
-		// 	1,
-		// 	Failed,
-		// 	fmt.Errorf("Failed to create task"),
-		// 	false,
-		// },
-		// {
-		// 	"FailedStatusWithoutError",
-		// 	[]taskInfo{
-		// 		{"name", ResourceCreation, NameVariant{"name", "variant"}},
-		// 		{"name", ResourceCreation, NameVariant{"name", "variant"}},
-		// 	},
-		// 	[]runInfo{
-		// 		{"name", 1, OneOffTrigger{"name"}},
-		// 		{"name", 2, OneOffTrigger{"name"}},
-		// 	},
-		// 	2,
-		// 	1,
-		// 	Failed,
-		// 	nil,
-		// 	true,
-		// },
+		{
+			"Multiple",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+			},
+			1,
+			2,
+			Pending,
+			nil,
+			false,
+		},
+		{
+			"WrongID",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+			},
+			3,
+			2,
+			Pending,
+			nil,
+			true,
+		},
+		{
+			"WrongRunID",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+			},
+			1,
+			2,
+			Running,
+			nil,
+			true,
+		},
+		{
+			"MultipleTasks",
+			[]taskInfo{
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+			},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 2, OneOffTrigger{"name"}},
+				{"name", 2, OneOffTrigger{"name"}},
+			},
+			2,
+			1,
+			Failed,
+			fmt.Errorf("Failed to create task"),
+			false,
+		},
+		{
+			"FailedStatusWithoutError",
+			[]taskInfo{
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+			},
+			[]runInfo{
+				{"name", 1, OneOffTrigger{"name"}},
+				{"name", 2, OneOffTrigger{"name"}},
+			},
+			2,
+			1,
+			Failed,
+			nil,
+			true,
+		},
 	}
 
 	fn := func(t *testing.T, test TestCase) {
@@ -736,7 +743,7 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			[]runInfo{{"name", 1, OneOffTrigger{"name"}}},
 			1,
 			1,
-			time.Now().Add(15 * time.Second).Truncate(0).UTC(),
+			time.Now().Add(3 * time.Minute).Truncate(0).UTC(),
 			false,
 		},
 		{
@@ -749,7 +756,7 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			},
 			1,
 			2,
-			time.Now().Add(15 * time.Second).Truncate(0).UTC(),
+			time.Now().Add(3 * time.Minute).Truncate(0).UTC(),
 			false,
 		},
 		{
@@ -792,7 +799,7 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			},
 			2,
 			1,
-			time.Now().UTC().Add(15 * time.Second).Truncate(0),
+			time.Now().UTC().Add(3 * time.Minute).Truncate(0),
 			false,
 		},
 	}

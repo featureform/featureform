@@ -188,6 +188,56 @@ class Client(ResourceClient, ServingClient):
         """
         self.impl.close()
 
+    def add_trigger(self, trigger_name, resource_name, resource_variant):
+        """
+        Add a trigger to a resource after creation
+
+        **Example:**
+        ```py title="definitions.py"
+        client.add_trigger("my_trigger", "my_resource", "my_variant")
+        ```
+
+        Args:
+            trigger_name (str): The name of the trigger
+            resource_name (str): The name of the resource
+            resource_variant (str): The variant of the resource
+        """
+        self.impl.add_trigger(trigger_name, resource_name, resource_variant)
+        # raise NotImplementedError("This method is not yet implemented")
+    
+    def remove_trigger(self, trigger_name, resource_name, resource_variant):
+        """
+        Remove a trigger from a resource
+
+        **Example:**
+        ```py title="definitions.py"
+        client.remove_trigger("my_trigger", "my_resource", "my_variant")
+        ```
+
+        Args:
+            trigger_name (str): The name of the trigger
+            resource_name (str): The name of the resource
+            resource_variant (str): The variant of the resource
+        """
+        # self.impl.remove_trigger(trigger_name, resource_name, resource_variant)
+        raise NotImplementedError("This method is not yet implemented")
+    
+    def update_trigger(self, trigger_name, schedule):
+        """
+        Update a trigger
+        """
+        # self.impl.update_trigger(trigger_name, schedule)
+        raise NotImplementedError("This method is not yet implemented")
+    
+    def delete_trigger(self, trigger_name):
+        """
+        Delete a trigger
+        """
+        # self.impl.delete_trigger(trigger_name)
+        raise NotImplementedError("This method is not yet implemented")
+
+
+
     @staticmethod
     def _validate_host(host):
         if host.startswith("http://") or host.startswith("https://"):

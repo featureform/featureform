@@ -1934,6 +1934,26 @@ class ResourceState:
                     continue
 
                 raise e
+            
+
+class TriggerResource:
+    def __init__(
+        self,
+        name: str,
+        type: str,
+    ):
+        self.trigger_name = name
+        self.type = type
+        self.job_ids = []
+        self.task_ids = []
+        # Return an object
+
+    def register(self):
+        # TODO: Implement this
+        return self
+        
+    def name(self):
+        return self.trigger_name
 
 
 ## Executor Providers

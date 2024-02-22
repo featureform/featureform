@@ -3662,6 +3662,27 @@ class Registrar:
             return decorator
         else:
             return decorator(fn)
+        
+
+    def register_trigger(self, trigger_name, trigger_type):
+        """Register a trigger.
+
+        Args:
+            trigger_name (str): Name of trigger
+            trigger_type (str): Type of trigger
+
+        Returns:
+            trigger (TriggerResource): Trigger
+        """
+        if not isinstance(trigger_name, str):
+            raise ValueError("Trigger name must be a string")
+        if trigger_name == "":
+            raise ValueError("Trigger name cannot be empty")
+        # Check trigger type
+        trigger = TriggerResource(trigger_name, trigger_type)
+        self.__resources.append(trigger)
+        return trigger
+
 
     def state(self):
         for resource in self.__resources:
@@ -5515,6 +5536,7 @@ get_s3 = global_registrar.get_s3
 get_gcs = global_registrar.get_gcs
 ondemand_feature = global_registrar.ondemand_feature
 ResourceStatus = ResourceStatus
+ScheduleTrigger = global_registrar.register_trigger
 
 Nil = ScalarType.NIL
 String = ScalarType.STRING

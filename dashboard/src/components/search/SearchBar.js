@@ -91,7 +91,7 @@ const SearchBar = ({ homePage }) => {
       <Grid container item justifyContent='center' direction='row'>
         <Container className={classes.border}>
           <InputBase
-            placeholder='Search...'
+            placeholder='Search'
             endAdornment={<SettingsOutlinedIcon />}
             onChange={(event) => {
               const rawText = event.target.value;

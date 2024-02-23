@@ -190,6 +190,41 @@ from featureform.client.src.featureform import metadata_pb2
         """
         self.impl.close()
 
+    def columns(
+        self,
+        source: Union[SourceRegistrar, SubscriptableTransformation, str],
+        variant: Optional[str] = None,
+    ):
+        """
+        Returns the columns of a registered source or transformation
+
+        **Example:**
+        ```py title="definitions.py"
+        columns = client.columns("transactions", "quickstart")
+        ```
+
+        Args:
+            source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to get the columns from
+            variant (str): The source variant; can't be None if source is a string
+
+        Returns:
+            columns (List[str]): The columns of the source or transformation
+        """
+        if isinstance(source, (SourceRegistrar, SubscriptableTransformation)):
+            name, variant = source.name_variant()
+        elif isinstance(source, str):
+            name = source
+            if variant is None:
+                raise ValueError("variant must be specified if source is a string")
+            if variant == "":
+                raise ValueError("variant cannot be an empty string")
+        else:
+            raise ValueError(
+                f"source must be of type SourceRegistrar, SubscriptableTransformation or str, not {type(source)}\n"
+                "use client.columns(name, variant) or client.columns(source) or client.columns(transformation)"
+            )
+        return self.impl._get_source_columns(name, variant)
+
 # for now resource is a resource object
     def add_trigger(self, trigger, resource):
         """

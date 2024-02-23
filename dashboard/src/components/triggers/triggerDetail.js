@@ -3,7 +3,11 @@ import { Box, Button, Typography } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import React from 'react';
 
-export default function TriggerDetail({ details = {}, handleClose }) {
+export default function TriggerDetail({
+  details = {},
+  handleClose,
+  handleDelete,
+}) {
   const columns = [
     {
       field: 'id',
@@ -87,7 +91,7 @@ export default function TriggerDetail({ details = {}, handleClose }) {
         </Button>
         <Button
           variant='contained'
-          onClick={() => null}
+          onClick={() => handleDelete?.(details?.trigger?.id)}
           sx={{ margin: '0.5em', background: '#7A14E5' }}
         >
           Delete Trigger

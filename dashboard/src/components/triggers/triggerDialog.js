@@ -8,7 +8,12 @@ import React, { useEffect, useState } from 'react';
 import { useDataAPI } from '../../hooks/dataAPI';
 import TriggerDetail from './triggerDetail';
 
-export default function TriggerDialog({ open, triggerId, handleClose }) {
+export default function TriggerDialog({
+  open,
+  triggerId,
+  handleClose,
+  handleDelete,
+}) {
   const [error] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [details, setDetails] = useState({});
@@ -46,7 +51,11 @@ export default function TriggerDialog({ open, triggerId, handleClose }) {
               <CircularProgress />
             </Box>
           ) : error === '' ? (
-            <TriggerDetail handleClose={handleClose} details={details} />
+            <TriggerDetail
+              handleClose={handleClose}
+              handleDelete={handleDelete}
+              details={details}
+            />
           ) : (
             <div data-testid='errorMessageId'>{error}</div>
           )}

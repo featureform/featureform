@@ -4,9 +4,11 @@ import { Button, Popover } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import React, { useState } from 'react';
 import NewTrigger from './newTrigger';
+import TriggerDialog from './triggerDialog';
 
 export default function TriggerDataGrid({ triggerList = [] }) {
   const [openNew, setOpenNew] = useState(false);
+  const [openDialog, setOpenDialog] = useState(false);
   const columns = [
     {
       field: 'id',
@@ -62,11 +64,18 @@ export default function TriggerDataGrid({ triggerList = [] }) {
       editable: false,
       sortable: false,
       filterable: false,
-      renderCell: function (params) {
+      renderCell: function () {
         return <RemoveCircleOutlineIcon />;
       },
     },
   ];
+
+  const handleRowSelect = (selectedRow) => {
+    // todox: fetch the latest data
+    // or set modal ID?
+    console.log(selectedRow.row);
+    setOpenDialog(true);
+  };
 
   const handleNewTrigger = () => {
     if (!openNew) {
@@ -78,10 +87,15 @@ export default function TriggerDataGrid({ triggerList = [] }) {
     setOpenNew(false);
   }
 
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+  };
+
   return (
     <>
       <DataGrid
         sx={{ minWidth: 300, height: 650 }}
+        onRowClick={handleRowSelect}
         density='compact'
         aria-label='Triggers'
         rows={triggerList ?? []}
@@ -108,6 +122,7 @@ export default function TriggerDataGrid({ triggerList = [] }) {
       >
         <NewTrigger handleClose={handleClose} />
       </Popover>
+      <TriggerDialog open={openDialog} handleClose={handleCloseDialog} />
       <Button
         variant='contained'
         style={{ background: '#7A14E5', marginTop: '1em' }}

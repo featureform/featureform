@@ -1,13 +1,13 @@
 import SearchIcon from '@mui/icons-material/Search';
 import { Box, IconButton, InputAdornment, TextField } from '@mui/material';
 import React, { useEffect, useState } from 'react';
-import { useDataAPI } from '../../hooks/dataAPI';
+// import { useDataAPI } from '../../hooks/dataAPI';
 import { useStyles } from './styles';
 import TriggerDataGrid from './triggerDataGrid';
 
 export default function TableDataWrapper() {
   const classes = useStyles();
-  const dataAPI = useDataAPI();
+  // const dataAPI = useDataAPI();
   const ENTER_KEY = 'Enter';
   const [searchQuery, setSearchQuery] = useState('');
   const [triggerList, setTriggerList] = useState([]);

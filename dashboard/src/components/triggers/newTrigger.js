@@ -1,6 +1,7 @@
 import CloseIcon from '@mui/icons-material/Close';
 import { Box, Button, IconButton, TextField } from '@mui/material';
 import React, { useState } from 'react';
+import { useDataAPI } from '../../hooks/dataAPI';
 
 export default function NewTrigger({ handleClose }) {
   const initialState = Object.freeze({
@@ -9,6 +10,7 @@ export default function NewTrigger({ handleClose }) {
   });
   const [errorBag, setErrorBag] = useState({});
   const [formValues, setFormValues] = useState(initialState);
+  const dataAPI = useDataAPI();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -48,6 +50,7 @@ export default function NewTrigger({ handleClose }) {
     e.preventDefault();
     const isValid = validateForm();
     if (isValid) {
+      dataAPI.postTrigger(formValues);
       handleClose?.();
     }
   };

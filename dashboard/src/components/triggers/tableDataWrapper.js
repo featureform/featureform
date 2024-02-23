@@ -1,37 +1,34 @@
 import SearchIcon from '@mui/icons-material/Search';
 import { Box, IconButton, InputAdornment, TextField } from '@mui/material';
 import React, { useEffect, useState } from 'react';
-// import { useDataAPI } from '../../hooks/dataAPI';
+import { useDataAPI } from '../../hooks/dataAPI';
 import { useStyles } from './styles';
 import TriggerDataGrid from './triggerDataGrid';
 
 export default function TableDataWrapper() {
   const classes = useStyles();
-  // const dataAPI = useDataAPI();
+  const dataAPI = useDataAPI();
   const ENTER_KEY = 'Enter';
   const [searchQuery, setSearchQuery] = useState('');
   const [triggerList, setTriggerList] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(async () => {
-    // let data = await dataAPI.getTriggers(searchQuery);
     if (loading) {
-      let data = [
-        {
-          id: 1,
-          name: 'Monday at Noon',
-          type: 'Schedule Trigger',
-          schedule: '0 12**MON',
-          detail: 'Pending Details',
-        },
-      ];
-      setTriggerList(data);
+      let data = await dataAPI.getTriggers(searchQuery);
+      if (Array.isArray(data)) {
+        setTriggerList(data);
+      }
     }
     setLoading(false);
   }, [loading]);
 
   const handleSearch = (searchArg = '') => {
     setSearchQuery(searchArg);
+    setLoading(true);
+  };
+
+  const refresh = () => {
     setLoading(true);
   };
   return (
@@ -60,10 +57,6 @@ export default function TableDataWrapper() {
             value={searchQuery}
             onKeyDown={(event) => {
               if (event.key === ENTER_KEY && searchQuery) {
-                // todox: odd case since i'm tracking 2 search props.
-                // the one in the searchparams, and also the input's itself.
-                // the searchParams, won't update unless you hit ENTER.
-                // so you can ultimately search with a stale searchParam.searchText value
                 handleSearch(searchQuery);
               }
             }}
@@ -84,7 +77,7 @@ export default function TableDataWrapper() {
           />
         </Box>
       </Box>
-      <TriggerDataGrid triggerList={triggerList} />
+      <TriggerDataGrid triggerList={triggerList} refresh={refresh} />
     </>
   );
 }

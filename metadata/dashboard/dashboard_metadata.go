@@ -30,6 +30,7 @@ import (
 	"github.com/featureform/serving"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -40,6 +41,7 @@ var SearchClient search.Searcher
 // todox: remove later
 var taskRunStaticList []sc.TaskRunMetadata
 var taskMetadataStaticList []sc.TaskMetadata
+var taskTriggerList []TriggerResponse
 
 type StorageProvider interface {
 	GetResourceLookup() (metadata.ResourceLookup, error)
@@ -1741,6 +1743,78 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+type TriggerResponse struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Schedule string `json:"schedule"`
+	Detail   string `json:"detail"`
+}
+
+func (m *MetadataServer) GetTriggers(c *gin.Context) {
+	c.JSON(http.StatusOK, taskTriggerList)
+}
+
+type TriggerPostBody struct {
+	TriggerName string `json:"triggerName"`
+	Schedule    string `json:"schedule"`
+}
+
+func (m *MetadataServer) PostTrigger(c *gin.Context) {
+	var requestBody TriggerPostBody
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetTagError(500, err, c, "PostTrigger - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	taskTriggerList = append(taskTriggerList,
+		TriggerResponse{
+			ID:       uuid.New().String(),
+			Name:     requestBody.TriggerName,
+			Type:     "Schedule Trigger",
+			Schedule: requestBody.Schedule,
+			Detail:   "Some Details"})
+
+	c.JSON(http.StatusCreated, true)
+}
+
+type TriggerDetailResponse struct {
+	Trigger   TriggerResponse   `json:"trigger"`
+	Owner     string            `json:"owner"`
+	Resources []TriggerResource `json:"resources"`
+}
+
+type TriggerResource struct {
+	ID       string    `json:"resourceId"`
+	Resource string    `json:"resource"`
+	Variant  string    `json:"variant"`
+	LastRun  time.Time `json:"lastRun"`
+}
+
+func (m *MetadataServer) GetTriggerDetails(c *gin.Context) {
+	triggerId := c.Param("triggerId")
+
+	if triggerId == "" {
+		fetchError := &FetchError{StatusCode: 400, Type: "GetTriggerDetails - Could not find the triggerId parameter"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	result := TriggerDetailResponse{}
+
+	for _, loopItem := range taskTriggerList {
+		if loopItem.ID == triggerId {
+			result.Owner = "Current User"
+			result.Trigger = loopItem
+			result.Resources = []TriggerResource{}
+		}
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
 func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
@@ -1754,6 +1828,10 @@ func (m *MetadataServer) Start(port string) {
 	router.POST("/data/:type/:resource/tags", m.PostTags)
 	router.POST("/data/taskruns", m.GetTaskRuns)
 	router.GET("/data/taskruns/taskrundetail/:taskRunId", m.GetTaskRunDetails)
+
+	router.GET("/data/triggers", m.GetTriggers)
+	router.POST("/data/posttrigger", m.PostTrigger)
+	router.GET("/data/triggerdetail/:triggerId", m.GetTriggerDetails)
 	router.Run(port)
 }
 
@@ -1775,6 +1853,14 @@ func main() {
 		logger.Panicw("Failed to create new meil search", err)
 	}
 	CreateDummyTaskRuns(360)
+	taskTriggerList = append(taskTriggerList,
+		TriggerResponse{
+			ID:       uuid.New().String(),
+			Name:     "Monday at Noon",
+			Type:     "Schedule Trigger",
+			Schedule: "0 12**MON",
+			Detail:   "Some details"})
+
 	SearchClient = sc
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	logger.Infof("Looking for metadata at: %s\n", metadataAddress)

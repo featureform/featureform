@@ -6,9 +6,10 @@ import React, { useState } from 'react';
 import NewTrigger from './newTrigger';
 import TriggerDialog from './triggerDialog';
 
-export default function TriggerDataGrid({ triggerList = [] }) {
+export default function TriggerDataGrid({ triggerList = [], refresh }) {
   const [openNew, setOpenNew] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
+  const [dialogTriggerId, setDialogTriggerId] = useState();
   const columns = [
     {
       field: 'id',
@@ -73,8 +74,8 @@ export default function TriggerDataGrid({ triggerList = [] }) {
   const handleRowSelect = (selectedRow) => {
     // todox: fetch the latest data
     // or set modal ID?
-    console.log(selectedRow.row);
     setOpenDialog(true);
+    setDialogTriggerId(selectedRow?.row?.id);
   };
 
   const handleNewTrigger = () => {
@@ -85,6 +86,7 @@ export default function TriggerDataGrid({ triggerList = [] }) {
 
   function handleClose() {
     setOpenNew(false);
+    refresh?.();
   }
 
   const handleCloseDialog = () => {
@@ -122,7 +124,11 @@ export default function TriggerDataGrid({ triggerList = [] }) {
       >
         <NewTrigger handleClose={handleClose} />
       </Popover>
-      <TriggerDialog open={openDialog} handleClose={handleCloseDialog} />
+      <TriggerDialog
+        triggerId={dialogTriggerId}
+        open={openDialog}
+        handleClose={handleCloseDialog}
+      />
       <Button
         variant='contained'
         style={{ background: '#7A14E5', marginTop: '1em' }}

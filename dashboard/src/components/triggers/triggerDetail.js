@@ -3,9 +3,7 @@ import { Box, Button, Typography } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import React from 'react';
 
-export default function TriggerDetail({ handleClose }) {
-  console.log('TRIGGER DETAL');
-
+export default function TriggerDetail({ details = {}, handleClose }) {
   const columns = [
     {
       field: 'id',
@@ -63,15 +61,15 @@ export default function TriggerDetail({ handleClose }) {
   return (
     <>
       <Box sx={{ marginBottom: '2em' }}>
-        <Typography>Trigger Type:</Typography>
-        <Typography>Schedule:</Typography>
-        <Typography>Owner:</Typography>
+        <Typography>Trigger Type: {details?.trigger?.type}</Typography>
+        <Typography>Schedule: {details?.trigger?.schedule}</Typography>
+        <Typography>Owner: {details?.owner}</Typography>
       </Box>
       <DataGrid
         density='compact'
         autoHeight
         aria-label='Other Runs'
-        rows={[]}
+        rows={details?.resources ?? []}
         rowsPerPageOptions={[5]}
         columns={columns}
         initialState={{

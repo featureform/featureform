@@ -302,7 +302,7 @@ func TestGetTaskRuns(t *testing.T) {
 	CreateDummyTaskRuns(10)
 	serv.GetTaskRuns(ctx)
 
-	var data []sc.TaskRunMetadata
+	var data []TaskRunResponse
 	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
 
 	assert.Equal(t, http.StatusOK, mockRecorder.Code)
@@ -327,17 +327,17 @@ func TestGetTaskRunsZeroResults(t *testing.T) {
 	}
 	serv.GetTaskRuns(ctx)
 
-	var data []sc.TaskRunMetadata
+	var data []TaskRunResponse
 	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
 
 	assert.Equal(t, http.StatusOK, mockRecorder.Code)
-	assert.Equal(t, len(data), 0)
+	assert.Equal(t, 0, len(data))
 }
 
 func TestGetTaskRunDetails(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
-	taskRunIdParam := 0
+	taskRunIdParam := 1
 	taskRunId := sc.TaskRunID(taskRunIdParam)
 	params := []gin.Param{
 		{

@@ -1545,22 +1545,22 @@ func CreateDummyTaskRuns(count int) {
 			Name:    "avg_transactions",
 			Variant: "v1",
 		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
-		{ID: 1, Name: "Sandbox_Test", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
+		{ID: 2, Name: "Sandbox_Test", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
 			Name:    "transaction",
 			Variant: "default",
 		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
-		{ID: 1, Name: "Production_Data_Set", TaskType: sc.HealthCheck, Target: sc.NameVariant{
+		{ID: 3, Name: "Production_Data_Set", TaskType: sc.HealthCheck, Target: sc.NameVariant{
 			Name:    "speed_dating",
 			Variant: "left_overs",
 		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
-		{ID: 1, Name: "MySQL Task", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
+		{ID: 4, Name: "MySQL Task", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
 			Name:    "testing_name",
 			Variant: "testing_variant",
 		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
 	}
 	taskRunStaticList = []sc.TaskRunMetadata{}
 	dummyStates := []sc.Status{sc.Failed, sc.Pending, sc.Running, sc.Success}
-	for i := 0; i < count; i++ {
+	for i := 1; i <= count; i++ {
 		status := dummyStates[rand.Intn(len(dummyStates))]
 		runTime := time.Now()
 		taskRunStaticList = append(taskRunStaticList, (createTaskRun(i, status, runTime)))
@@ -1607,6 +1607,23 @@ func mockTaskRunFind(searchId int) sc.TaskRunMetadata {
 	return result
 }
 
+func mockTaskFind(searchId int) sc.TaskMetadata {
+	result := sc.TaskMetadata{ID: sc.TaskID(-1)} //sentinel result
+	searchTaskId := sc.TaskID(searchId)
+	for _, n := range taskMetadataStaticList {
+		if n.ID == searchTaskId {
+			result = n
+			break
+		}
+	}
+	return result
+}
+
+type TaskRunResponse struct {
+	Task    sc.TaskMetadata    `json:"task"`
+	TaskRun sc.TaskRunMetadata `json:"taskRun"`
+}
+
 type TaskRunsPostBody struct {
 	Status     string `json:"status"`
 	SearchText string `json:"searchtext"`
@@ -1621,11 +1638,12 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 		return
 	}
 
-	taskListResponse := make([]sc.TaskRunMetadata, len(taskRunStaticList))
-	_ = copy(taskListResponse, taskRunStaticList)
+	// todox: swap for api call
+	taskListCopy := make([]sc.TaskRunMetadata, len(taskRunStaticList))
+	_ = copy(taskListCopy, taskRunStaticList)
 
 	// status filter, break out
-	taskListResponse = filter(taskListResponse, func(t sc.TaskRunMetadata) bool {
+	taskListCopy = filter(taskListCopy, func(t sc.TaskRunMetadata) bool {
 		result := false
 		if requestBody.Status == "ALL" {
 			result = true
@@ -1640,7 +1658,7 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 	})
 
 	// name filter
-	taskListResponse = filter(taskListResponse, func(t sc.TaskRunMetadata) bool {
+	taskListCopy = filter(taskListCopy, func(t sc.TaskRunMetadata) bool {
 		result := false
 		if requestBody.SearchText == "" {
 			result = true
@@ -1652,23 +1670,29 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 
 	// date sort
 	if requestBody.SortBy == "STATUS_DATE" {
-		sort.Slice(taskListResponse, func(i, j int) bool {
-			return taskListResponse[i].StartTime.UnixMilli() > taskListResponse[j].StartTime.UnixMilli()
+		sort.Slice(taskListCopy, func(i, j int) bool {
+			return taskListCopy[i].StartTime.UnixMilli() > taskListCopy[j].StartTime.UnixMilli()
 		})
 	}
 
 	// status sort
 	if requestBody.SortBy == "STATUS" {
-		sort.Slice(taskListResponse, func(i, j int) bool {
-			l1, l2 := len(taskListResponse[i].Status), len(taskListResponse[j].Status)
+		sort.Slice(taskListCopy, func(i, j int) bool {
+			l1, l2 := len(taskListCopy[i].Status), len(taskListCopy[j].Status)
 			if l1 != l2 {
 				return l1 < l2
 			}
-			return taskListResponse[i].Status < taskListResponse[j].Status
+			return taskListCopy[i].Status < taskListCopy[j].Status
 		})
 	}
 
-	c.JSON(http.StatusOK, taskListResponse)
+	taskRunResponse := []TaskRunResponse{}
+	for _, loopRunItem := range taskListCopy {
+		taskRunResult := mockTaskFind(int(loopRunItem.TaskId))
+		taskRunResponse = append(taskRunResponse, TaskRunResponse{Task: taskRunResult, TaskRun: loopRunItem})
+	}
+
+	c.JSON(http.StatusOK, taskRunResponse)
 }
 
 type TaskRunDetailResponse struct {

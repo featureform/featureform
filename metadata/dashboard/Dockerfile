@@ -27,6 +27,8 @@ COPY ./metadata/dashboard/ ./metadata/dashboard/
 COPY ./metadata/search/ ./metadata/search/
 COPY ./provider/provider_config/ ./provider/provider_config/
 COPY ./provider/provider_type/ ./provider/provider_type/
+COPY ./scheduling/*.go ./scheduling/
+COPY ./scheduling/storage_providers/ ./scheduling/storage_providers
 COPY ./config/ ./config/
 
 RUN go build ./metadata/dashboard/dashboard_metadata.go

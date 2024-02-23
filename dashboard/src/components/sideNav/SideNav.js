@@ -48,7 +48,7 @@ function SideNav({ sections, children }) {
                     handleMenuClick(event, resourceType.urlPath)
                   }
                 >
-                  <ListItemIcon style={{ padding: '0 0 0 1.5em !important' }}>
+                  <ListItemIcon>
                     <Icon>{resourceType.materialIcon}</Icon>
                   </ListItemIcon>
                   <ListItemText primary={resourceType.typePlural} />
@@ -60,7 +60,7 @@ function SideNav({ sections, children }) {
             <ListItemButton
               onClick={(event) => handleMenuClick(event, '/tasks')}
             >
-              <ListItemIcon style={{ padding: '0 0 0 1.5em !important' }}>
+              <ListItemIcon>
                 <Icon>{'all_inbox'}</Icon>
               </ListItemIcon>
               <ListItemText primary={'Tasks'} />
@@ -71,11 +71,9 @@ function SideNav({ sections, children }) {
       <Box
         component='main'
         sx={{
-          top: '100px',
-          left: '500px',
           flexGrow: 1,
           bgcolor: 'background.default',
-          p: 3,
+          p: 2,
         }}
       >
         {children}

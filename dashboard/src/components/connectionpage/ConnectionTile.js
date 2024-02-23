@@ -21,7 +21,7 @@ const useStyles = makeStyles((theme) => ({
 
   title: {
     fontSize: '2em',
-    color: 'black',
+    color: '#000000',
   },
 }));
 

@@ -1,4 +1,4 @@
-import SearchIcon from '@mui/icons-material/Search';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
 import InputBase from '@mui/material/InputBase';
@@ -24,10 +24,10 @@ const useStyles = makeStyles((theme) =>
       borderRadius: `28px`,
     },
     border: {
-      border: `2px solid grey`,
+      border: `2px solid #D3D3D3`,
       borderRadius: 16,
       '&:hover': {
-        border: `2px solid grey `,
+        border: `2px solid #D3D3D3`,
       },
       color: '#000000',
     },
@@ -41,7 +41,7 @@ const useStyles = makeStyles((theme) =>
       color: '#grey',
     },
     inputColor: {
-      color: '000000',
+      color: '#000000',
     },
     inputInputHome: {
       paddingLeft: theme.spacing(4),
@@ -92,7 +92,7 @@ const SearchBar = ({ homePage }) => {
         <Container className={classes.border}>
           <InputBase
             placeholder='Search...'
-            endAdornment={<SearchIcon />}
+            endAdornment={<SettingsOutlinedIcon />}
             onChange={(event) => {
               const rawText = event.target.value;
               if (rawText === '') {

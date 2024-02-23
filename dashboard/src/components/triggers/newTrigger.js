@@ -48,6 +48,7 @@ export default function NewTrigger({ handleClose }) {
     e.preventDefault();
     const isValid = validateForm();
     if (isValid) {
+      handleClose?.();
     }
   };
 

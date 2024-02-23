@@ -95,13 +95,14 @@ export function useDataAPI() {
     return result;
   };
 
-  const getTriggers = async (searchParams = {}) => {
+  const getTriggers = async (searchText = '') => {
     const result = await fetch(`${API_URL}/data/triggers`, {
       cache: 'no-store',
-      method: 'GET',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ searchText }),
     })
       .then((res) => res.json())
       .catch((error) => {
@@ -146,6 +147,23 @@ export function useDataAPI() {
     return result;
   };
 
+  const deleteTrigger = async (triggerId = '') => {
+    const result = await fetch(`${API_URL}/data/triggerdelete/${triggerId}`, {
+      cache: 'no-store',
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error fetching trigger details from server: ', error);
+        return [];
+      });
+
+    return result;
+  };
+
   return {
     getTags,
     postTags,
@@ -154,5 +172,6 @@ export function useDataAPI() {
     getTriggers,
     postTrigger,
     getTriggerDetails,
+    deleteTrigger,
   };
 }

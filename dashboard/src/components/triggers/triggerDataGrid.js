@@ -1,8 +1,9 @@
 import AddIcon from '@mui/icons-material/Add';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
-import { Button, Popover } from '@mui/material';
+import { Button, IconButton, Popover } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import React, { useState } from 'react';
+import { useDataAPI } from '../../hooks/dataAPI';
 import NewTrigger from './newTrigger';
 import TriggerDialog from './triggerDialog';
 
@@ -10,6 +11,7 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
   const [openNew, setOpenNew] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogTriggerId, setDialogTriggerId] = useState();
+  const dataAPI = useDataAPI();
   const columns = [
     {
       field: 'id',
@@ -59,21 +61,31 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
     },
     {
       field: 'remove',
-      headerName: 'Remove Trigger',
-      flex: 1,
-      width: 125,
+      flex: 0,
+      headerName: 'Remove',
+      width: 100,
+      align: 'center',
       editable: false,
       sortable: false,
       filterable: false,
-      renderCell: function () {
-        return <RemoveCircleOutlineIcon />;
+      renderCell: function (params) {
+        return (
+          <IconButton onClick={(e) => deleteRow(e, params)}>
+            <RemoveCircleOutlineIcon fontSize='large' />
+          </IconButton>
+        );
       },
     },
   ];
 
+  async function deleteRow(e, row) {
+    e.stopPropagation();
+    e.preventDefault();
+    await dataAPI.deleteTrigger(row.id);
+    refresh?.();
+  }
+
   const handleRowSelect = (selectedRow) => {
-    // todox: fetch the latest data
-    // or set modal ID?
     setOpenDialog(true);
     setDialogTriggerId(selectedRow?.row?.id);
   };

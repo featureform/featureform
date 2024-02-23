@@ -18,6 +18,8 @@ export default function TableDataWrapper() {
       let data = await dataAPI.getTriggers(searchQuery);
       if (Array.isArray(data)) {
         setTriggerList(data);
+      } else {
+        setTriggerList([]);
       }
     }
     setLoading(false);

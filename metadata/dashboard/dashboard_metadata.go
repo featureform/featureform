@@ -1751,8 +1751,32 @@ type TriggerResponse struct {
 	Detail   string `json:"detail"`
 }
 
+type TriggerGetPostBody struct {
+	SearchText string `json:"searchtext"`
+}
+
 func (m *MetadataServer) GetTriggers(c *gin.Context) {
-	c.JSON(http.StatusOK, taskTriggerList)
+	var requestBody TriggerGetPostBody
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetTagError(500, err, c, "GetTriggers - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	taskListCopy := make([]TriggerResponse, len(taskTriggerList))
+	_ = copy(taskListCopy, taskTriggerList)
+
+	taskListCopy = filter(taskListCopy, func(t TriggerResponse) bool {
+		result := false
+		if requestBody.SearchText == "" {
+			result = true
+		} else if strings.Contains(strings.ToLower(t.Name), strings.ToLower(requestBody.SearchText)) {
+			result = true
+		}
+		return result
+	})
+
+	c.JSON(http.StatusOK, taskListCopy)
 }
 
 type TriggerPostBody struct {
@@ -1815,6 +1839,28 @@ func (m *MetadataServer) GetTriggerDetails(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+func (m *MetadataServer) DeleteTrigger(c *gin.Context) {
+	deleteId := c.Param("triggerId")
+
+	if deleteId == "" {
+		fetchError := &FetchError{StatusCode: 400, Type: "DeleteTrigger - Could not find the triggerId parameter"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	result := []TriggerResponse{}
+	for _, loopItem := range taskTriggerList {
+		if loopItem.ID == deleteId {
+			continue
+		}
+		result = append(result, loopItem)
+	}
+
+	taskTriggerList = result //reset the list
+	c.JSON(http.StatusOK, true)
+}
+
 func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
@@ -1829,9 +1875,10 @@ func (m *MetadataServer) Start(port string) {
 	router.POST("/data/taskruns", m.GetTaskRuns)
 	router.GET("/data/taskruns/taskrundetail/:taskRunId", m.GetTaskRunDetails)
 
-	router.GET("/data/triggers", m.GetTriggers)
+	router.POST("/data/triggers", m.GetTriggers)
 	router.POST("/data/posttrigger", m.PostTrigger)
 	router.GET("/data/triggerdetail/:triggerId", m.GetTriggerDetails)
+	router.DELETE("/data/triggerdelete/:triggerId", m.DeleteTrigger)
 	router.Run(port)
 }
 

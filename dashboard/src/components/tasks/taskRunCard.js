@@ -22,7 +22,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
 
   const columns = [
     {
-      field: 'id',
+      field: 'runId',
       headerName: 'runId',
       width: 1,
       editable: false,
@@ -33,13 +33,13 @@ export default function TaskRunCard({ handleClose, searchId }) {
       display: false,
     },
     {
-      field: 'lastRunTime',
-      headerName: 'Date/Time',
+      field: 'startTime',
+      headerName: 'Start Time',
       sortable: false,
       filterable: false,
       width: 200,
       valueGetter: (params) => {
-        return new Date(params?.row?.lastRunTime)?.toLocaleString();
+        return new Date(params?.row?.startTime)?.toLocaleString();
       },
     },
     {
@@ -57,6 +57,9 @@ export default function TaskRunCard({ handleClose, searchId }) {
       editable: false,
       sortable: false,
       filterable: false,
+      valueGetter: () => {
+        return 'Future Link';
+      },
     },
   ];
 
@@ -94,17 +97,17 @@ export default function TaskRunCard({ handleClose, searchId }) {
           {loading ? (
             <CircularProgress size={'.75em'} />
           ) : (
-            <RefreshIcon data-testid='taskRunRrefreshIcon' />
+            <RefreshIcon data-testid='taskRunRefreshIcon' />
           )}
         </IconButton>
       </Box>
       <Grid style={{ padding: 12 }} container>
         <Grid item xs={6} justifyContent='flex-start'>
-          <Typography variant='h5'>{taskRunRecord.name}</Typography>
+          <Typography variant='h5'>{taskRunRecord?.taskRun?.name}</Typography>
         </Grid>
         <Grid item xs={6} justifyContent='center'>
           <Typography variant='h6'>
-            Status: <StatusChip status={taskRunRecord.status} />
+            Status: <StatusChip status={taskRunRecord?.taskRun?.status} />
           </Typography>
         </Grid>
         <Grid
@@ -120,7 +123,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
             style={{ width: '100%' }}
             variant='filled'
             disabled
-            value={taskRunRecord.logs}
+            value={taskRunRecord?.taskRun?.logs}
             multiline
             minRows={3}
           ></TextField>
@@ -133,7 +136,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
             style={{ width: '100%' }}
             variant='filled'
             disabled
-            value={taskRunRecord.details}
+            value={'Todox: Need to fill'}
             multiline
             minRows={3}
           ></TextField>
@@ -159,6 +162,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
               pagination: { paginationModel: { page: 0, pageSize: 5 } },
             }}
             pageSize={5}
+            getRowId={(row) => row.runId}
           />
         </Grid>
       </Grid>

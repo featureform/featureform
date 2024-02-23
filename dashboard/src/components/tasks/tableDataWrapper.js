@@ -58,12 +58,16 @@ export default function TableDataWrapper() {
           setAllCount(data.length);
           setActiveCount(
             data.filter((q) =>
-              [JOB_STATUS_PENDING, JOB_STATUS_RUNNING].includes(q?.status)
+              [JOB_STATUS_PENDING, JOB_STATUS_RUNNING].includes(
+                q?.taskRun?.status
+              )
             )?.length ?? 0
           );
           setCompleteCount(
             data.filter((q) =>
-              [JOB_STATUS_FAILED, JOB_STATUS_SUCCESS].includes(q?.status)
+              [JOB_STATUS_FAILED, JOB_STATUS_SUCCESS].includes(
+                q?.taskRun?.status
+              )
             )?.length ?? 0
           );
         } else {

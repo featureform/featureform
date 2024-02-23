@@ -70,19 +70,22 @@ function SideNav({ sections, children }) {
         </List>
         <Collapse in={open} timeout='auto' unmountOnExit>
           <List component='div' disablePadding>
-            <ListItemButton sx={{ padding: '0 0 0 3em' }}>
-              <ListItemIcon></ListItemIcon>
+            <ListItemButton
+              onClick={(event) => handleMenuClick(event, '/jobs')}
+              sx={{ padding: '0 0 0 6em' }}
+            >
               <ListItemText primary='Jobs' />
             </ListItemButton>
             <ListItemButton
               onClick={(event) => handleMenuClick(event, '/tasks')}
-              sx={{ padding: '0 0 0 3em' }}
+              sx={{ padding: '0 0 0 6em' }}
             >
-              <ListItemIcon></ListItemIcon>
               <ListItemText primary='Tasks' />
             </ListItemButton>
-            <ListItemButton sx={{ padding: '0 0 0 3em' }}>
-              <ListItemIcon></ListItemIcon>
+            <ListItemButton
+              onClick={(event) => handleMenuClick(event, '/triggers')}
+              sx={{ padding: '0 0 0 6em' }}
+            >
               <ListItemText primary='Triggers' />
             </ListItemButton>
           </List>

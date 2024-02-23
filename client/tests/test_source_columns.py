@@ -8,7 +8,7 @@ from featureform.register import (
 
 
 def test_client_has_columns_method():
-    client = ff.Client()
+    client = ff.Client(host="localhost:7878", insecure=True)
     assert hasattr(client, "columns")
 
 
@@ -17,14 +17,9 @@ def test_columns_method_signature():
 
     params = sig.parameters
 
-    for name, param in params.items():
-        if name == "self":
-            continue
-        if name == "source":
-            assert (
-                param.annotation
-                == Union[SourceRegistrar, SubscriptableTransformation, str]
-            )
-        if name == "variant":
-            assert param.annotation == Optional[str]
-            assert param.default == None
+    assert (
+        params["source"].annotation
+        == Union[SourceRegistrar, SubscriptableTransformation, str]
+    )
+    assert params["variant"].annotation == Optional[str]
+    assert params["variant"].default == None

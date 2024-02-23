@@ -122,7 +122,7 @@ export default function TableDataWrapper() {
 
   return (
     <>
-      <Box className={classes.intputRow}>
+      <Box className={classes.inputRow}>
         <Button
           variant='outlined'
           className={

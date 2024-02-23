@@ -1,8 +1,8 @@
 import { makeStyles } from '@mui/styles';
 
 const useStyles = makeStyles(() => ({
-  intputRow: {
-    paddingBottom: 30,
+  inputRow: {
+    paddingBottom: 20,
     '& button': {
       height: 56,
     },

@@ -60,7 +60,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
       sortable: false,
       filterable: false,
       valueGetter: (params) => {
-        return params?.row?.task?.target?.name;
+        return params?.row?.task?.target?.variant;
       },
     },
     {

@@ -41,22 +41,43 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
         return params?.row?.taskRun?.name;
       },
     },
-
     {
-      field: 'triggerType',
+      field: 'resource',
+      headerName: 'Resource',
+      width: 175,
+      editable: false,
+      sortable: false,
+      filterable: false,
+      valueGetter: (params) => {
+        return params?.row?.task?.target?.name;
+      },
+    },
+    {
+      field: 'variant',
+      headerName: 'Variant',
+      width: 175,
+      editable: false,
+      sortable: false,
+      filterable: false,
+      valueGetter: (params) => {
+        return params?.row?.task?.target?.name;
+      },
+    },
+    {
+      field: 'jobType',
       headerName: 'Job Type',
       width: 175,
       editable: false,
       sortable: false,
       filterable: false,
       valueGetter: (params) => {
-        return params?.row?.taskRun?.triggerType;
+        return params?.row?.task?.type;
       },
     },
     {
       field: 'status',
       headerName: 'Status',
-      width: 150,
+      width: 125,
       editable: false,
       sortable: false,
       filterable: false,
@@ -90,7 +111,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
     {
       field: 'triggeredBy',
       headerName: 'Triggered By',
-      width: 150,
+      width: 125,
       editable: false,
       valueGetter: (params) => {
         return params?.row?.taskRun?.trigger?.triggerName;

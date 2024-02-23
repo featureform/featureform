@@ -1,8 +1,12 @@
+import AddIcon from '@mui/icons-material/Add';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
+import { Button, Popover } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
-import React from 'react';
+import React, { useState } from 'react';
+import NewTrigger from './newTrigger';
 
 export default function TriggerDataGrid({ triggerList = [] }) {
+  const [openNew, setOpenNew] = useState(false);
   const columns = [
     {
       field: 'id',
@@ -64,6 +68,16 @@ export default function TriggerDataGrid({ triggerList = [] }) {
     },
   ];
 
+  const handleNewTrigger = () => {
+    if (!openNew) {
+      setOpenNew(true);
+    }
+  };
+
+  function handleClose() {
+    setOpenNew(false);
+  }
+
   return (
     <>
       <DataGrid
@@ -78,6 +92,29 @@ export default function TriggerDataGrid({ triggerList = [] }) {
         }}
         pageSize={15}
       />
+      <Popover
+        open={openNew}
+        anchorReference='anchorPosition'
+        anchorPosition={{ top: 500, left: 275 }}
+        onClose={handleClose}
+        anchorOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+      >
+        <NewTrigger handleClose={handleClose} />
+      </Popover>
+      <Button
+        variant='contained'
+        style={{ background: '#7A14E5', marginTop: '1em' }}
+        onClick={handleNewTrigger}
+      >
+        <AddIcon /> New Trigger
+      </Button>
     </>
   );
 }

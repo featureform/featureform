@@ -7,7 +7,6 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"google.golang.org/genproto/googleapis/rpc/status"
 	"io"
 	"reflect"
 	"time"
@@ -123,10 +122,6 @@ func (client *Client) SetStatusError(ctx context.Context, resID ResourceID, stat
 	statusRequest := pb.SetStatusRequest{ResourceId: &resourceID, Status: &resourceStatus}
 	_, err := client.GrpcConn.SetResourceStatus(ctx, &statusRequest)
 	return err
-}
-
-func toErrorStatus(errorProto *status.Status) *pb.ErrorStatus {
-	return &pb.ErrorStatus{Code: errorProto.Code, Message: errorProto.Message, Details: errorProto.Details}
 }
 
 func (client *Client) SetStatus(ctx context.Context, resID ResourceID, status ResourceStatus, errorMessage string) error {

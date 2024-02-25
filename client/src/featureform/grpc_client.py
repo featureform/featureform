@@ -21,7 +21,6 @@ class GrpcClient:
             grpc.StatusCode.ALREADY_EXISTS,
             grpc.StatusCode.INVALID_ARGUMENT,
         ]
-        # Store metadata as an instance variable
 
     def streaming_wrapper(self, multi_threaded_rendezvous):
         try:

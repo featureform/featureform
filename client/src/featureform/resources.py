@@ -2,12 +2,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import base64
 import json
 import os
 import re
 import sys
-import time
 from abc import ABC
 from typing import Any, Dict
 from typing import List, Tuple, Union, Optional
@@ -16,6 +14,7 @@ import dill
 import grpc
 from dataclasses import field
 from google.protobuf.duration_pb2 import Duration
+from google.rpc import error_details_pb2
 
 from . import feature_flag
 from .enums import *
@@ -1104,6 +1103,7 @@ class SourceVariant(ResourceVariant):
     transformation: str = ""
     inputs: list = ([],)
     error: Optional[str] = None
+    error_status: Optional[pb.ErrorStatus] = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1139,6 +1139,9 @@ class SourceVariant(ResourceVariant):
             properties={k: v for k, v in source.properties.property.items()},
             status=source.status.Status._enum_type.values[source.status.status].name,
             error=source.status.error_message,
+            error_status=source.status.error_status
+            if source.status.HasField("error_status")
+            else None,
         )
 
     def _get_source_definition(self, source):

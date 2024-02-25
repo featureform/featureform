@@ -1,22 +1,25 @@
 import json
 import sys
 import time
-from typing import Type, Tuple, List
+from typing import List, Optional, Tuple, Type
 
 from dataclasses import dataclass
+from google.rpc import error_details_pb2
 from rich.console import Console
 from rich.live import Live
 from rich.table import Table
 from rich.text import Text
+
 from featureform.grpc_client import GrpcClient
+from featureform.proto import metadata_pb2 as pb
 from featureform.resources import (
-    Resource,
-    Provider,
     FeatureVariant,
-    OnDemandFeatureVariant,
-    TrainingSetVariant,
     LabelVariant,
+    OnDemandFeatureVariant,
+    Provider,
+    Resource,
     SourceVariant,
+    TrainingSetVariant,
 )
 
 # maximum number of dots printing when featureform apply for Running...
@@ -105,30 +108,30 @@ class StatusDisplayer:
                 continue
             if not display_status.is_finished():
                 r = resource.get(self.grpc_client)
-                error = self.get_json(r.error)
-                display_status.status = r.status
-                error_message = self._format(error) if error else r.error
-                print(error_message)
-                display_status.error = error_message
-                if r.status == "FAILED":
-                    self.did_error = True
+                error = r.error
+                if hasattr(r, "error_status"):
+                    error_status = r.error_status
+                    display_status.status = r.status
+                    error_message = self._format(error_status)
+                    display_status.error = error_message
+                    if r.status == "FAILED":
+                        self.did_error = True
+                else:
+                    display_status.status = r.status
+                    display_status.error = error
 
     @staticmethod
-    def _format(json_error):
-        message = json_error["message"]
-        details = json_error["details"][0]
-        reason = details["reason"]
-        metadata = details["metadata"]
-
-        metadata_info = ""
-        for k, v in metadata.items():
-            metadata_info += f"{k}: {v}" + "\n"
-
-        result = f"{reason}: {message}" + "\n" + metadata_info
-        print("hi")
-        print(result)
-
-        return result
+    def _format(error_status: Optional[pb.ErrorStatus]):
+        if error_status is None:
+            return ""
+        error = error_status.details[0]
+        error_info = error_details_pb2.ErrorInfo()
+        if error.Is(error_details_pb2.ErrorInfo.DESCRIPTOR):
+            error.Unpack(error_info)
+            print("ErrorInfo:", error_info)
+            return f"{error_info.reason} - {error_info.metadata}"
+        else:
+            print("The Any field does not contain an ErrorInfo")
 
     @staticmethod
     def get_json(myjson):

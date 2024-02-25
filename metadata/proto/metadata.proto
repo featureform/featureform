@@ -6,6 +6,7 @@ syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
+import "google/protobuf/any.proto";
 
 option go_package = "github.com/featureform/metadata/proto";
 
@@ -97,6 +98,20 @@ message Name {
 }
 
 
+message ErrorStatus {
+    // The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code].
+    int32 code = 1;
+
+    // A developer-facing error message, which should be in English. Any
+    // user-facing error message should be localized and sent in the
+    // [google.rpc.Status.details][google.rpc.Status.details] field, or localized by the client.
+    string message = 2;
+
+    // A list of messages that carry the error details.  There will be a
+    // common set of message types for APIs to use.
+    repeated google.protobuf.Any details = 3;
+}
+
 message ResourceStatus {
     enum Status {
         NO_STATUS = 0;
@@ -104,10 +119,10 @@ message ResourceStatus {
         PENDING = 2;
         READY = 3;
         FAILED = 4;
-      }
+    }
     Status status = 1;
     string error_message = 2;
-    string error_message_json = 3;
+    ErrorStatus error_status = 3;
 }
 
 enum ResourceType {
@@ -381,7 +396,7 @@ message SQLTransformation {
 
 message DFTransformation {
     bytes query = 1;
-    repeated NameVariant inputs = 2; 
+    repeated NameVariant inputs = 2;
     string source_text = 3;
 }
 

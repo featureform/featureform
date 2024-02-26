@@ -811,6 +811,7 @@ class Provider:
     properties: dict = field(default_factory=dict)
     error: Optional[str] = None
     has_health_check: bool = False
+    server_status: Optional["ServerStatus"] = None
 
     def __post_init__(self):
         self.software = self.config.software() if self.config is not None else None
@@ -848,6 +849,7 @@ class Provider:
                 provider.status.status
             ].name,
             error=provider.status.error_message,
+            server_status=ServerStatus.from_proto(provider.status),
         )
 
     def _create(self, stub) -> None:

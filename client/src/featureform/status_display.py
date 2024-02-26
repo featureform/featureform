@@ -13,7 +13,7 @@ from rich.text import Text
 from featureform.grpc_client import GrpcClient
 from featureform.proto import metadata_pb2 as pb
 from featureform.resources import (
-    FeatureVariant,
+    ErrorInfo, FeatureVariant,
     LabelVariant,
     OnDemandFeatureVariant,
     Provider,
@@ -63,7 +63,6 @@ class DisplayStatus:
             has_health_check=bool(getattr(resource, "has_health_check", False)),
         )
 
-
 class StatusDisplayer:
     did_error: bool = False
     RESOURCE_TYPES_TO_CHECK = {
@@ -111,21 +110,17 @@ class StatusDisplayer:
                 server_status = r.server_status
                 display_status.status = server_status.status
                 if server_status.error_info:
-                    display_status.error = server_status.error_info
+                    display_status.error = self._format_error_info(server_status.error_info)
                 else:
                     display_status.error = r.error
 
     @staticmethod
-    def get_json(myjson):
-        try:
-            json_object = json.loads(myjson)
-        except ValueError as e:
-            return None
-        except (
-            json.JSONDecodeError
-        ) as e:  # More specific exception for Python 3.5 and later
-            return None
-        return json_object
+    def _format_error_info(error_info: ErrorInfo):
+        message = error_info.message
+        reason = error_info.reason
+        metadata = error_info.metadata
+
+        return f"{reason}: {message}\n{metadata}"
 
     def all_statuses_finished(self) -> bool:
         return all(status.is_finished() for _, status in self.resource_to_status_list)

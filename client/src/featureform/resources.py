@@ -924,9 +924,44 @@ class Directory:
 Location = Union[SQLTable, Directory]
 
 
+@dataclass
+class ErrorInfo:
+    code: int
+    message: str
+    reason: str
+    metadata: map[str, str]
+
+
+@dataclass
+class ServerStatus:
+    status: ResourceStatus
+    error_info: ErrorInfo
+
+    def from_proto(self, error_status: pb.ResourceStatus):
+        self.status = ResourceStatus(error_status.status)
+
+        code = error_status.error_status.code
+        message = error_status.error_status.message
+
+        error = error_status.details[0]
+        error_info = error_details_pb2.ErrorInfo()
+        if error.Is(error_details_pb2.ErrorInfo.DESCRIPTOR):
+            error.Unpack(error_info)
+            self.error_info = ErrorInfo(
+                code=code,
+                message=message,
+                reason=error_info.reason,
+                metadata=error_info.metadata,
+            )
+        else:
+            print("The Any field does not contain an ErrorInfo")
+
+
 class ResourceVariant(ABC):
     name: str
     variant: str
+
+    server_status: ServerStatus
 
     @staticmethod
     def type():
@@ -1103,7 +1138,6 @@ class SourceVariant(ResourceVariant):
     transformation: str = ""
     inputs: list = ([],)
     error: Optional[str] = None
-    error_status: Optional[pb.ErrorStatus] = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1139,9 +1173,7 @@ class SourceVariant(ResourceVariant):
             properties={k: v for k, v in source.properties.property.items()},
             status=source.status.Status._enum_type.values[source.status.status].name,
             error=source.status.error_message,
-            error_status=source.status.error_status
-            if source.status.HasField("error_status")
-            else None,
+            server_status=ServerStatus.from_proto(source.status),
         )
 
     def _get_source_definition(self, source):
@@ -1355,6 +1387,7 @@ class FeatureVariant(ResourceVariant):
             properties={k: v for k, v in feature.properties.property.items()},
             status=feature.status.Status._enum_type.values[feature.status.status].name,
             error=feature.status.error_message,
+            server_status=ServerStatus.from_proto(feature.status),
             additional_parameters=None,
         )
 
@@ -1543,6 +1576,7 @@ class LabelVariant(ResourceVariant):
             tags=list(label.tags.tag),
             properties={k: v for k, v in label.properties.property.items()},
             status=label.status.Status._enum_type.values[label.status.status].name,
+            server_status=ServerStatus.from_proto(label.status),
             error=label.status.error_message,
         )
 
@@ -1735,6 +1769,7 @@ class TrainingSetVariant(ResourceVariant):
             tags=list(ts.tags.tag),
             properties={k: v for k, v in ts.properties.property.items()},
             error=ts.status.error_message,
+            server_status=ServerStatus.from_proto(ts.status),
         )
 
     def _create(self, stub) -> Optional[str]:

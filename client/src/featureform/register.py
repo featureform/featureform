@@ -1,78 +1,73 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
-import os
 import ast
 import inspect
+import os
 import warnings
 from abc import ABC
 from datetime import timedelta
-from pathlib import Path
-from typing import Dict, Tuple, Callable, List, Union, Optional
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import dill
 import pandas as pd
 from dataclasses import dataclass, field
 from typeguard import typechecked
-import numpy
 
 from . import feature_flag
-from .enums import FileFormat
 from .exceptions import InvalidSQLQuery
-from .file_utils import absolute_file_paths
 from .get import *
-from .get_local import *
 from .grpc_client import GrpcClient
 from .list import *
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
 from .resources import (
-    PineconeConfig,
-    ScalarType,
+    AWSCredentials,
+    AzureFileStoreConfig,
+    BigQueryConfig,
+    CassandraConfig,
+    ClickHouseConfig,
+    DFTransformation,
+    DynamodbConfig,
+    Entity,
+    ExecutorCredentials,
+    FeatureVariant,
+    FilePrefix,
+    FirestoreConfig,
+    GCPCredentials,
+    GCSFileStoreConfig,
+    HDFSConfig,
+    K8sArgs,
+    K8sConfig,
+    K8sResourceSpecs,
+    LabelVariant,
+    Location,
     Model,
-    ResourceState,
+    MongoDBConfig,
+    OnDemandFeatureVariant,
+    OndemandFeatureParameters,
+    OnlineBlobConfig,
+    PineconeConfig,
+    PostgresConfig,
+    PrimaryData,
     Provider,
     RedisConfig,
-    FirestoreConfig,
-    CassandraConfig,
-    DynamodbConfig,
-    MongoDBConfig,
-    PostgresConfig,
-    SnowflakeConfig,
     RedshiftConfig,
-    BigQueryConfig,
-    ClickHouseConfig,
-    SparkConfig,
-    AzureFileStoreConfig,
-    OnlineBlobConfig,
-    K8sConfig,
+    ResourceColumnMapping,
+    ResourceRedefinedError,
+    ResourceState,
+    ResourceStatus,
+    ResourceVariant,
     S3StoreConfig,
-    GCSFileStoreConfig,
-    User,
-    Location,
-    SourceVariant,
-    PrimaryData,
     SQLTable,
     SQLTransformation,
-    DFTransformation,
-    Entity,
-    FeatureVariant,
-    LabelVariant,
-    ResourceColumnMapping,
+    ScalarType,
+    SnowflakeConfig,
+    SourceVariant,
+    SparkConfig,
     TrainingSetVariant,
-    ExecutorCredentials,
-    ResourceRedefinedError,
-    ResourceStatus,
-    K8sArgs,
-    AWSCredentials,
-    OndemandFeatureParameters,
-    GCPCredentials,
-    HDFSConfig,
-    K8sResourceSpecs,
-    FilePrefix,
-    OnDemandFeatureVariant,
+    User,
     WeaviateConfig,
-    ResourceVariant,
 )
 from .search import search
 from .status_display import display_statuses

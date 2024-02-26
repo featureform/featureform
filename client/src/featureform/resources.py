@@ -929,38 +929,43 @@ class ErrorInfo:
     code: int
     message: str
     reason: str
-    metadata: map[str, str]
+    metadata: Dict[str, str]
 
 
 @dataclass
 class ServerStatus:
     status: ResourceStatus
-    error_info: ErrorInfo
+    error_info: Optional[ErrorInfo]
 
-    def from_proto(self, error_status: pb.ResourceStatus):
-        self.status = ResourceStatus(error_status.status)
+    @staticmethod
+    def from_proto(resource_status_proto: pb.ResourceStatus):
+        error_info = None
+        if resource_status_proto.HasField("error_status"):
+            code = resource_status_proto.error_status.code
+            message = resource_status_proto.error_status.message
 
-        code = error_status.error_status.code
-        message = error_status.error_status.message
+            error = resource_status_proto.error_status.details[0]
+            error_info = error_details_pb2.ErrorInfo()
+            if error.Is(error_details_pb2.ErrorInfo.DESCRIPTOR):
+                error.Unpack(error_info)
+                error_info = ErrorInfo(
+                    code=code,
+                    message=message,
+                    reason=error_info.reason,
+                    metadata=error_info.metadata,
+                )
+            else:
+                print("The Any field does not contain an ErrorInfo")
 
-        error = error_status.details[0]
-        error_info = error_details_pb2.ErrorInfo()
-        if error.Is(error_details_pb2.ErrorInfo.DESCRIPTOR):
-            error.Unpack(error_info)
-            self.error_info = ErrorInfo(
-                code=code,
-                message=message,
-                reason=error_info.reason,
-                metadata=error_info.metadata,
-            )
-        else:
-            print("The Any field does not contain an ErrorInfo")
+        return ServerStatus(
+            status=ResourceStatus.from_proto(resource_status_proto),
+            error_info=error_info,
+        )
 
 
 class ResourceVariant(ABC):
     name: str
     variant: str
-
     server_status: ServerStatus
 
     @staticmethod
@@ -1138,6 +1143,7 @@ class SourceVariant(ResourceVariant):
     transformation: str = ""
     inputs: list = ([],)
     error: Optional[str] = None
+    server_status: Optional[ServerStatus] = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1341,6 +1347,7 @@ class FeatureVariant(ResourceVariant):
     status: str = "NO_STATUS"
     error: Optional[str] = None
     additional_parameters: Optional[Additional_Parameters] = None
+    server_status: Optional[ServerStatus] = None
 
     def __post_init__(self):
         col_types = [member.value for member in ScalarType]
@@ -1440,6 +1447,7 @@ class OnDemandFeatureVariant(ResourceVariant):
     status: str = "READY"
     error: Optional[str] = None
     additional_parameters: Optional[Additional_Parameters] = None
+    server_status: Optional[ServerStatus] = None
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:
@@ -1543,6 +1551,7 @@ class LabelVariant(ResourceVariant):
     created: str = None
     status: str = "NO_STATUS"
     error: Optional[str] = None
+    server_status: Optional[ServerStatus] = None
 
     def __post_init__(self):
         col_types = [member.value for member in ScalarType]
@@ -1718,6 +1727,7 @@ class TrainingSetVariant(ResourceVariant):
     provider: str = ""
     status: str = "NO_STATUS"
     error: Optional[str] = None
+    server_status: Optional[ServerStatus] = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(

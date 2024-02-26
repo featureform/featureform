@@ -902,7 +902,7 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 	if err != nil {
 		return nil, err
 	}
-	return store.newsqlTrainingSetIterator(rows, colTypes, store.Type()), nil
+	return store.newsqlTrainingSetIterator(rows, colTypes), nil
 }
 
 func (store *sqlOfflineStore) GetTrainingSetTestSplit(id ResourceID, testSize float32, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
@@ -945,10 +945,10 @@ type sqlTrainingRowsIterator struct {
 	columnTypes     []interface{}
 	isHeaderRow     bool
 	query           OfflineTableQueries
-	providerType    pt.Type
+	store           *sqlOfflineStore
 }
 
-func (store *sqlOfflineStore) newsqlTrainingSetIterator(rows *sql.Rows, columnTypes []interface{}, providerType pt.Type) TrainingSetIterator {
+func (store *sqlOfflineStore) newsqlTrainingSetIterator(rows *sql.Rows, columnTypes []interface{}) TrainingSetIterator {
 	return &sqlTrainingRowsIterator{
 		rows:            rows,
 		currentFeatures: nil,
@@ -957,7 +957,7 @@ func (store *sqlOfflineStore) newsqlTrainingSetIterator(rows *sql.Rows, columnTy
 		columnTypes:     columnTypes,
 		isHeaderRow:     true,
 		query:           store.query,
-		providerType:    providerType,
+		store:           store,
 	}
 }
 
@@ -968,7 +968,7 @@ func (it *sqlTrainingRowsIterator) Next() bool {
 	}
 	columnNames, err := it.rows.Columns()
 	if err != nil {
-		it.err = fferr.NewExecutionError(it.providerType.String(), err)
+		it.err = fferr.NewExecutionError(it.store.ProviderType.String(), err)
 		it.rows.Close()
 		return false
 	}
@@ -978,7 +978,7 @@ func (it *sqlTrainingRowsIterator) Next() bool {
 		pointers[i] = &values[i]
 	}
 	if err := it.rows.Scan(pointers...); err != nil {
-		it.err = fferr.NewExecutionError(it.providerType.String(), err)
+		it.err = fferr.NewExecutionError(it.store.ProviderType.String(), err)
 		it.rows.Close()
 		return false
 	}

@@ -1074,7 +1074,7 @@ func (store *ClickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetI
 	if err != nil {
 		return nil, err
 	}
-	return store.newsqlTrainingSetIterator(rows, colTypes, store.Type()), nil
+	return store.newsqlTrainingSetIterator(rows, colTypes), nil
 }
 
 func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(

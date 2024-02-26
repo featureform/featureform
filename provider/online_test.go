@@ -11,9 +11,6 @@ import (
 	"testing"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/helpers"
-
-	"github.com/alicebob/miniredis"
 	pc "github.com/featureform/provider/provider_config"
 	"github.com/google/uuid"
 )

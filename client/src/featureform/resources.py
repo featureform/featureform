@@ -849,7 +849,7 @@ class Provider:
     properties: dict = field(default_factory=dict)
     error: Optional[str] = None
     has_health_check: bool = False
-    server_status: Optional[ServerStatus] = None
+    server_status: Optional["ServerStatus"] = None
 
     def __post_init__(self):
         self.software = self.config.software() if self.config is not None else None

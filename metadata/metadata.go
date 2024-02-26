@@ -18,6 +18,7 @@ import (
 
 	"golang.org/x/exp/slices"
 
+	cm "github.com/featureform/helpers/resource"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/metadata/search"
 	pc "github.com/featureform/provider/provider_config"
@@ -28,132 +29,138 @@ import (
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const TIME_FORMAT = time.RFC1123
+//type operation int
 
-type operation int
-
-const (
-	create_op operation = iota
-)
-
-type ResourceType int32
-
-const (
-	FEATURE              ResourceType = ResourceType(pb.ResourceType_FEATURE)
-	FEATURE_VARIANT                   = ResourceType(pb.ResourceType_FEATURE_VARIANT)
-	LABEL                             = ResourceType(pb.ResourceType_LABEL)
-	LABEL_VARIANT                     = ResourceType(pb.ResourceType_LABEL_VARIANT)
-	USER                              = ResourceType(pb.ResourceType_USER)
-	ENTITY                            = ResourceType(pb.ResourceType_ENTITY)
-	PROVIDER                          = ResourceType(pb.ResourceType_PROVIDER)
-	SOURCE                            = ResourceType(pb.ResourceType_SOURCE)
-	SOURCE_VARIANT                    = ResourceType(pb.ResourceType_SOURCE_VARIANT)
-	TRAINING_SET                      = ResourceType(pb.ResourceType_TRAINING_SET)
-	TRAINING_SET_VARIANT              = ResourceType(pb.ResourceType_TRAINING_SET_VARIANT)
-	MODEL                             = ResourceType(pb.ResourceType_MODEL)
-)
-
-func (r ResourceType) String() string {
-	return pb.ResourceType_name[int32(r)]
-}
-
-func (r ResourceType) Serialized() pb.ResourceType {
-	return pb.ResourceType(r)
-}
-
-type ResourceStatus int32
-
-const (
-	NO_STATUS ResourceStatus = ResourceStatus(pb.ResourceStatus_NO_STATUS)
-	CREATED                  = ResourceStatus(pb.ResourceStatus_CREATED)
-	PENDING                  = ResourceStatus(pb.ResourceStatus_PENDING)
-	READY                    = ResourceStatus(pb.ResourceStatus_READY)
-	FAILED                   = ResourceStatus(pb.ResourceStatus_FAILED)
-)
-
-func (r ResourceStatus) String() string {
-	return pb.ResourceStatus_Status_name[int32(r)]
-}
-
-func (r ResourceStatus) Serialized() pb.ResourceStatus_Status {
-	return pb.ResourceStatus_Status(r)
-}
-
-type ComputationMode int32
-
-const (
-	PRECOMPUTED     ComputationMode = ComputationMode(pb.ComputationMode_PRECOMPUTED)
-	CLIENT_COMPUTED                 = ComputationMode(pb.ComputationMode_CLIENT_COMPUTED)
-)
-
-func (cm ComputationMode) Equals(mode pb.ComputationMode) bool {
-	return cm == ComputationMode(mode)
-}
-
-func (cm ComputationMode) String() string {
-	return pb.ComputationMode_name[int32(cm)]
-}
-
-var parentMapping = map[ResourceType]ResourceType{
-	FEATURE_VARIANT:      FEATURE,
-	LABEL_VARIANT:        LABEL,
-	SOURCE_VARIANT:       SOURCE,
-	TRAINING_SET_VARIANT: TRAINING_SET,
-}
-
+// const (
+//
+//	create_op operation = iota
+//
+// )
+//
+// type ResourceType int32
+//
+// const (
+//
+//	FEATURE              ResourceType = ResourceType(pb.ResourceType_FEATURE)
+//	FEATURE_VARIANT                   = ResourceType(pb.ResourceType_FEATURE_VARIANT)
+//	LABEL                             = ResourceType(pb.ResourceType_LABEL)
+//	LABEL_VARIANT                     = ResourceType(pb.ResourceType_LABEL_VARIANT)
+//	USER                              = ResourceType(pb.ResourceType_USER)
+//	ENTITY                            = ResourceType(pb.ResourceType_ENTITY)
+//	PROVIDER                          = ResourceType(pb.ResourceType_PROVIDER)
+//	SOURCE                            = ResourceType(pb.ResourceType_SOURCE)
+//	SOURCE_VARIANT                    = ResourceType(pb.ResourceType_SOURCE_VARIANT)
+//	TRAINING_SET                      = ResourceType(pb.ResourceType_TRAINING_SET)
+//	TRAINING_SET_VARIANT              = ResourceType(pb.ResourceType_TRAINING_SET_VARIANT)
+//	MODEL                             = ResourceType(pb.ResourceType_MODEL)
+//
+// )
+//
+//	func (r ResourceType) String() string {
+//		return pb.ResourceType_name[int32(r)]
+//	}
+//
+//	func (r ResourceType) Serialized() pb.ResourceType {
+//		return pb.ResourceType(r)
+//	}
+//
+// type ResourceStatus int32
+//
+// const (
+//
+//	NO_STATUS ResourceStatus = ResourceStatus(pb.ResourceStatus_NO_STATUS)
+//	CREATED                  = ResourceStatus(pb.ResourceStatus_CREATED)
+//	PENDING                  = ResourceStatus(pb.ResourceStatus_PENDING)
+//	READY                    = ResourceStatus(pb.ResourceStatus_READY)
+//	FAILED                   = ResourceStatus(pb.ResourceStatus_FAILED)
+//
+// )
+//
+//	func (r ResourceStatus) String() string {
+//		return pb.ResourceStatus_Status_name[int32(r)]
+//	}
+//
+//	func (r ResourceStatus) Serialized() pb.ResourceStatus_Status {
+//		return pb.ResourceStatus_Status(r)
+//	}
+//
+// type ComputationMode int32
+//
+// const (
+//
+//	PRECOMPUTED     ComputationMode = ComputationMode(pb.ComputationMode_PRECOMPUTED)
+//	CLIENT_COMPUTED                 = ComputationMode(pb.ComputationMode_CLIENT_COMPUTED)
+//
+// )
+//
+//	func (cm ComputationMode) Equals(mode pb.ComputationMode) bool {
+//		return cm == ComputationMode(mode)
+//	}
+//
+//	func (cm ComputationMode) String() string {
+//		return pb.ComputationMode_name[int32(cm)]
+//	}
+//
+//	var parentMapping = map[ResourceType]ResourceType{
+//		FEATURE_VARIANT:      FEATURE,
+//		LABEL_VARIANT:        LABEL,
+//		SOURCE_VARIANT:       SOURCE,
+//		TRAINING_SET_VARIANT: TRAINING_SET,
+//	}
 func (serv *MetadataServer) needsJob(res Resource) bool {
-	if res.ID().Type == TRAINING_SET_VARIANT ||
-		res.ID().Type == SOURCE_VARIANT ||
-		res.ID().Type == LABEL_VARIANT {
+	if res.ID().Type == cm.TRAINING_SET_VARIANT ||
+		res.ID().Type == cm.SOURCE_VARIANT ||
+		res.ID().Type == cm.LABEL_VARIANT {
 		return true
 	}
-	if res.ID().Type == FEATURE_VARIANT {
+	if res.ID().Type == cm.FEATURE_VARIANT {
 		if fv, ok := res.(*featureVariantResource); !ok {
 			serv.Logger.Errorf("resource has type FEATURE VARIANT but failed to cast %s", res.ID())
 			return false
 		} else {
-			return PRECOMPUTED.Equals(fv.serialized.Mode)
+			return cm.PRECOMPUTED.Equals(fv.serialized.Mode)
 		}
 	}
 	return false
 }
 
-type ResourceID struct {
-	Name    string
-	Variant string
-	Type    ResourceType
-}
-
-func (id ResourceID) Proto() *pb.NameVariant {
-	return &pb.NameVariant{
-		Name:    id.Name,
-		Variant: id.Variant,
-	}
-}
-
-func (id ResourceID) Parent() (ResourceID, bool) {
-	parentType, has := parentMapping[id.Type]
-	if !has {
-		return ResourceID{}, false
-	}
-	return ResourceID{
-		Name: id.Name,
-		Type: parentType,
-	}, true
-}
-
-func (id ResourceID) String() string {
-	if id.Variant == "" {
-		return fmt.Sprintf("%s %s", id.Type, id.Name)
-	}
-	return fmt.Sprintf("%s %s (%s)", id.Type, id.Name, id.Variant)
-}
+//
+//type ResourceID struct {
+//	Name    string
+//	Variant string
+//	Type    ResourceType
+//}
+//
+//func (id ResourceID) Proto() *pb.NameVariant {
+//	return &pb.NameVariant{
+//		Name:    id.Name,
+//		Variant: id.Variant,
+//	}
+//}
+//
+//func (id ResourceID) Parent() (ResourceID, bool) {
+//	parentType, has := parentMapping[id.Type]
+//	if !has {
+//		return ResourceID{}, false
+//	}
+//	return ResourceID{
+//		Name: id.Name,
+//		Type: parentType,
+//	}, true
+//}
+//
+//func (id ResourceID) String() string {
+//	if id.Variant == "" {
+//		return fmt.Sprintf("%s %s", id.Type, id.Name)
+//	}
+//	return fmt.Sprintf("%s %s (%s)", id.Type, id.Name, id.Variant)
+//}
 
 var bannedStrings = [...]string{"__"}
 var bannedPrefixes = [...]string{"_"}
 var bannedSuffixes = [...]string{"_"}
 
-func resourceNamedSafely(id ResourceID) error {
+func resourceNamedSafely(id cm.ResourceID) error {
 	for _, substr := range bannedStrings {
 		if strings.Contains(id.Name, substr) {
 			return fmt.Errorf("resource name %s contains banned string %s", id.Name, substr)
@@ -187,8 +194,8 @@ type ResourceVariant interface {
 }
 
 type Resource interface {
-	Notify(ResourceLookup, operation, Resource) error
-	ID() ResourceID
+	Notify(ResourceLookup, cm.Operation, Resource) error
+	ID() cm.ResourceID
 	Schedule() string
 	Dependencies(ResourceLookup) (ResourceLookup, error)
 	Proto() proto.Message
@@ -208,16 +215,16 @@ func isDirectDependency(lookup ResourceLookup, dependency, parent Resource) (boo
 }
 
 type ResourceLookup interface {
-	Lookup(ResourceID) (Resource, error)
-	Has(ResourceID) (bool, error)
-	Set(ResourceID, Resource) error
-	Submap([]ResourceID) (ResourceLookup, error)
-	ListForType(ResourceType) ([]Resource, error)
+	Lookup(cm.ResourceID) (Resource, error)
+	Has(cm.ResourceID) (bool, error)
+	Set(cm.ResourceID, Resource) error
+	Submap([]cm.ResourceID) (ResourceLookup, error)
+	ListForType(cm.ResourceType) ([]Resource, error)
 	List() ([]Resource, error)
-	HasJob(ResourceID) (bool, error)
-	SetJob(ResourceID, string) error
-	SetStatus(ResourceID, pb.ResourceStatus) error
-	SetSchedule(ResourceID, string) error
+	HasJob(cm.ResourceID) (bool, error)
+	SetJob(cm.ResourceID, string) error
+	SetStatus(cm.ResourceID, pb.ResourceStatus) error
+	SetSchedule(cm.ResourceID, string) error
 }
 
 type SearchWrapper struct {
@@ -225,7 +232,7 @@ type SearchWrapper struct {
 	ResourceLookup
 }
 
-func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
+func (wrapper SearchWrapper) Set(id cm.ResourceID, res Resource) error {
 	if err := wrapper.ResourceLookup.Set(id, res); err != nil {
 		return err
 	}
@@ -254,9 +261,9 @@ func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
 	return wrapper.Searcher.Upsert(doc)
 }
 
-type LocalResourceLookup map[ResourceID]Resource
+type LocalResourceLookup map[cm.ResourceID]Resource
 
-func (lookup LocalResourceLookup) Lookup(id ResourceID) (Resource, error) {
+func (lookup LocalResourceLookup) Lookup(id cm.ResourceID) (Resource, error) {
 	res, has := lookup[id]
 	if !has {
 		return nil, &ResourceNotFoundError{id, nil}
@@ -264,17 +271,17 @@ func (lookup LocalResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	return res, nil
 }
 
-func (lookup LocalResourceLookup) Has(id ResourceID) (bool, error) {
+func (lookup LocalResourceLookup) Has(id cm.ResourceID) (bool, error) {
 	_, has := lookup[id]
 	return has, nil
 }
 
-func (lookup LocalResourceLookup) Set(id ResourceID, res Resource) error {
+func (lookup LocalResourceLookup) Set(id cm.ResourceID, res Resource) error {
 	lookup[id] = res
 	return nil
 }
 
-func (lookup LocalResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error) {
+func (lookup LocalResourceLookup) Submap(ids []cm.ResourceID) (ResourceLookup, error) {
 	resources := make(LocalResourceLookup, len(ids))
 	for _, id := range ids {
 		resource, has := lookup[id]
@@ -286,7 +293,7 @@ func (lookup LocalResourceLookup) Submap(ids []ResourceID) (ResourceLookup, erro
 	return resources, nil
 }
 
-func (lookup LocalResourceLookup) ListForType(t ResourceType) ([]Resource, error) {
+func (lookup LocalResourceLookup) ListForType(t cm.ResourceType) ([]Resource, error) {
 	resources := make([]Resource, 0)
 	for id, res := range lookup {
 		if id.Type == t {
@@ -304,7 +311,7 @@ func (lookup LocalResourceLookup) List() ([]Resource, error) {
 	return resources, nil
 }
 
-func (lookup LocalResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
+func (lookup LocalResourceLookup) SetStatus(id cm.ResourceID, status pb.ResourceStatus) error {
 	res, has := lookup[id]
 	if !has {
 		return &ResourceNotFoundError{id, nil}
@@ -316,11 +323,11 @@ func (lookup LocalResourceLookup) SetStatus(id ResourceID, status pb.ResourceSta
 	return nil
 }
 
-func (lookup LocalResourceLookup) SetJob(id ResourceID, schedule string) error {
+func (lookup LocalResourceLookup) SetJob(id cm.ResourceID, schedule string) error {
 	return nil
 }
 
-func (lookup LocalResourceLookup) SetSchedule(id ResourceID, schedule string) error {
+func (lookup LocalResourceLookup) SetSchedule(id cm.ResourceID, schedule string) error {
 	res, has := lookup[id]
 	if !has {
 		return &ResourceNotFoundError{id, nil}
@@ -332,7 +339,7 @@ func (lookup LocalResourceLookup) SetSchedule(id ResourceID, schedule string) er
 	return nil
 }
 
-func (lookup LocalResourceLookup) HasJob(id ResourceID) (bool, error) {
+func (lookup LocalResourceLookup) HasJob(id cm.ResourceID) (bool, error) {
 	return false, nil
 }
 
@@ -340,10 +347,10 @@ type SourceResource struct {
 	serialized *pb.Source
 }
 
-func (resource *SourceResource) ID() ResourceID {
-	return ResourceID{
+func (resource *SourceResource) ID() cm.ResourceID {
+	return cm.ResourceID{
 		Name: resource.serialized.Name,
-		Type: SOURCE,
+		Type: cm.SOURCE,
 	}
 }
 
@@ -359,9 +366,9 @@ func (resource *SourceResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *SourceResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *SourceResource) Notify(lookup ResourceLookup, op cm.Operation, that Resource) error {
 	otherId := that.ID()
-	isVariant := otherId.Type == SOURCE_VARIANT && otherId.Name == this.serialized.Name
+	isVariant := otherId.Type == cm.SOURCE_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
 		return nil
 	}
@@ -394,11 +401,11 @@ type sourceVariantResource struct {
 	serialized *pb.SourceVariant
 }
 
-func (resource *sourceVariantResource) ID() ResourceID {
-	return ResourceID{
+func (resource *sourceVariantResource) ID() cm.ResourceID {
+	return cm.ResourceID{
 		Name:    resource.serialized.Name,
 		Variant: resource.serialized.Variant,
-		Type:    SOURCE_VARIANT,
+		Type:    cm.SOURCE_VARIANT,
 	}
 }
 
@@ -408,18 +415,18 @@ func (resource *sourceVariantResource) Schedule() string {
 
 func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
-	depIds := []ResourceID{
+	depIds := []cm.ResourceID{
 		{
 			Name: serialized.Owner,
-			Type: USER,
+			Type: cm.USER,
 		},
 		{
 			Name: serialized.Provider,
-			Type: PROVIDER,
+			Type: cm.PROVIDER,
 		},
 		{
 			Name: serialized.Name,
-			Type: SOURCE,
+			Type: cm.SOURCE,
 		},
 	}
 	deps, err := lookup.Submap(depIds)
@@ -433,17 +440,17 @@ func (resource *sourceVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *sourceVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *sourceVariantResource) Notify(lookup ResourceLookup, op cm.Operation, that Resource) error {
 	id := that.ID()
 	t := id.Type
 	key := id.Proto()
 	serialized := this.serialized
 	switch t {
-	case TRAINING_SET_VARIANT:
+	case cm.TRAINING_SET_VARIANT:
 		serialized.Trainingsets = append(serialized.Trainingsets, key)
-	case FEATURE_VARIANT:
+	case cm.FEATURE_VARIANT:
 		serialized.Features = append(serialized.Features, key)
-	case LABEL_VARIANT:
+	case cm.LABEL_VARIANT:
 		serialized.Labels = append(serialized.Labels, key)
 	}
 	return nil
@@ -549,10 +556,10 @@ type featureResource struct {
 	serialized *pb.Feature
 }
 
-func (resource *featureResource) ID() ResourceID {
-	return ResourceID{
+func (resource *featureResource) ID() cm.ResourceID {
+	return cm.ResourceID{
 		Name: resource.serialized.Name,
-		Type: FEATURE,
+		Type: cm.FEATURE,
 	}
 }
 
@@ -568,9 +575,9 @@ func (resource *featureResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *featureResource) Notify(lookup ResourceLookup, op cm.Operation, that Resource) error {
 	otherId := that.ID()
-	isVariant := otherId.Type == FEATURE_VARIANT && otherId.Name == this.serialized.Name
+	isVariant := otherId.Type == cm.FEATURE_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
 		return nil
 	}
@@ -603,11 +610,11 @@ type featureVariantResource struct {
 	serialized *pb.FeatureVariant
 }
 
-func (resource *featureVariantResource) ID() ResourceID {
-	return ResourceID{
+func (resource *featureVariantResource) ID() cm.ResourceID {
+	return cm.ResourceID{
 		Name:    resource.serialized.Name,
 		Variant: resource.serialized.Variant,
-		Type:    FEATURE_VARIANT,
+		Type:    cm.FEATURE_VARIANT,
 	}
 }
 
@@ -617,32 +624,32 @@ func (resource *featureVariantResource) Schedule() string {
 
 func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
-	depIds := []ResourceID{
+	depIds := []cm.ResourceID{
 		{
 			Name: serialized.Owner,
-			Type: USER,
+			Type: cm.USER,
 		},
 		{
 			Name: serialized.Name,
-			Type: FEATURE,
+			Type: cm.FEATURE,
 		},
 	}
-	if PRECOMPUTED.Equals(serialized.Mode) {
-		depIds = append(depIds, ResourceID{
+	if cm.PRECOMPUTED.Equals(serialized.Mode) {
+		depIds = append(depIds, cm.ResourceID{
 			Name:    serialized.Source.Name,
 			Variant: serialized.Source.Variant,
-			Type:    SOURCE_VARIANT,
+			Type:    cm.SOURCE_VARIANT,
 		},
-			ResourceID{
+			cm.ResourceID{
 				Name: serialized.Entity,
-				Type: ENTITY,
+				Type: cm.ENTITY,
 			})
 
 		// Only add the Provider if it is non-empty
 		if serialized.Provider != "" {
-			depIds = append(depIds, ResourceID{
+			depIds = append(depIds, cm.ResourceID{
 				Name: serialized.Provider,
-				Type: PROVIDER,
+				Type: cm.PROVIDER,
 			})
 		}
 	}
@@ -657,12 +664,12 @@ func (resource *featureVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	if !PRECOMPUTED.Equals(this.serialized.Mode) {
+func (this *featureVariantResource) Notify(lookup ResourceLookup, op cm.Operation, that Resource) error {
+	if !cm.PRECOMPUTED.Equals(this.serialized.Mode) {
 		return nil
 	}
 	id := that.ID()
-	relevantOp := op == create_op && id.Type == TRAINING_SET_VARIANT
+	relevantOp := op == cm.CREATE_OP && id.Type == cm.TRAINING_SET_VARIANT
 	if !relevantOp {
 		return nil
 	}
@@ -753,10 +760,10 @@ type labelResource struct {
 	serialized *pb.Label
 }
 
-func (resource *labelResource) ID() ResourceID {
-	return ResourceID{
+func (resource *labelResource) ID() cm.ResourceID {
+	return cm.ResourceID{
 		Name: resource.serialized.Name,
-		Type: LABEL,
+		Type: cm.LABEL,
 	}
 }
 
@@ -772,9 +779,9 @@ func (resource *labelResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *labelResource) Notify(lookup ResourceLookup, op cm.Operation, that Resource) error {
 	otherId := that.ID()
-	isVariant := otherId.Type == LABEL_VARIANT && otherId.Name == this.serialized.Name
+	isVariant := otherId.Type == cm.LABEL_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
 		return nil
 	}
@@ -807,11 +814,11 @@ type labelVariantResource struct {
 	serialized *pb.LabelVariant
 }
 
-func (resource *labelVariantResource) ID() ResourceID {
-	return ResourceID{
+func (resource *labelVariantResource) ID() cm.ResourceID {
+	return cm.ResourceID{
 		Name:    resource.serialized.Name,
 		Variant: resource.serialized.Variant,
-		Type:    LABEL_VARIANT,
+		Type:    cm.LABEL_VARIANT,
 	}
 }
 
@@ -821,27 +828,27 @@ func (resource *labelVariantResource) Schedule() string {
 
 func (resource *labelVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
-	depIds := []ResourceID{
+	depIds := []cm.ResourceID{
 		{
 			Name:    serialized.Source.Name,
 			Variant: serialized.Source.Variant,
-			Type:    SOURCE_VARIANT,
+			Type:    cm.SOURCE_VARIANT,
 		},
 		{
 			Name: serialized.Entity,
-			Type: ENTITY,
+			Type: cm.ENTITY,
 		},
 		{
 			Name: serialized.Owner,
-			Type: USER,
+			Type: cm.USER,
 		},
 		{
 			Name: serialized.Provider,
-			Type: PROVIDER,
+			Type: cm.PROVIDER,
 		},
 		{
 			Name: serialized.Name,
-			Type: LABEL,
+			Type: cm.LABEL,
 		},
 	}
 	deps, err := lookup.Submap(depIds)
@@ -855,9 +862,9 @@ func (resource *labelVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *labelVariantResource) Notify(lookup ResourceLookup, op cm.Operation, that Resource) error {
 	id := that.ID()
-	releventOp := op == create_op && id.Type == TRAINING_SET_VARIANT
+	releventOp := op == cm.CREATE_OP && id.Type == cm.TRAINING_SET_VARIANT
 	if !releventOp {
 		return nil
 	}
@@ -929,10 +936,10 @@ type trainingSetResource struct {
 	serialized *pb.TrainingSet
 }
 
-func (resource *trainingSetResource) ID() ResourceID {
-	return ResourceID{
+func (resource *trainingSetResource) ID() cm.ResourceID {
+	return cm.ResourceID{
 		Name: resource.serialized.Name,
-		Type: TRAINING_SET,
+		Type: cm.TRAINING_SET,
 	}
 }
 
@@ -948,9 +955,9 @@ func (resource *trainingSetResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *trainingSetResource) Notify(lookup ResourceLookup, op cm.Operation, that Resource) error {
 	otherId := that.ID()
-	isVariant := otherId.Type == TRAINING_SET_VARIANT && otherId.Name == this.serialized.Name
+	isVariant := otherId.Type == cm.TRAINING_SET_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
 		return nil
 	}
@@ -983,11 +990,11 @@ type trainingSetVariantResource struct {
 	serialized *pb.TrainingSetVariant
 }
 
-func (resource *trainingSetVariantResource) ID() ResourceID {
-	return ResourceID{
+func (resource *trainingSetVariantResource) ID() cm.ResourceID {
+	return cm.ResourceID{
 		Name:    resource.serialized.Name,
 		Variant: resource.serialized.Variant,
-		Type:    TRAINING_SET_VARIANT,
+		Type:    cm.TRAINING_SET_VARIANT,
 	}
 }
 
@@ -997,30 +1004,30 @@ func (resource *trainingSetVariantResource) Schedule() string {
 
 func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
-	depIds := []ResourceID{
+	depIds := []cm.ResourceID{
 		{
 			Name: serialized.Owner,
-			Type: USER,
+			Type: cm.USER,
 		},
 		{
 			Name: serialized.Provider,
-			Type: PROVIDER,
+			Type: cm.PROVIDER,
 		},
 		{
 			Name:    serialized.Label.Name,
 			Variant: serialized.Label.Variant,
-			Type:    LABEL_VARIANT,
+			Type:    cm.LABEL_VARIANT,
 		},
 		{
 			Name: serialized.Name,
-			Type: TRAINING_SET,
+			Type: cm.TRAINING_SET,
 		},
 	}
 	for _, feature := range serialized.Features {
-		depIds = append(depIds, ResourceID{
+		depIds = append(depIds, cm.ResourceID{
 			Name:    feature.Name,
 			Variant: feature.Variant,
-			Type:    FEATURE_VARIANT,
+			Type:    cm.FEATURE_VARIANT,
 		})
 	}
 	deps, err := lookup.Submap(depIds)
@@ -1034,7 +1041,7 @@ func (resource *trainingSetVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op cm.Operation, that Resource) error {
 	return nil
 }
 
@@ -1104,10 +1111,10 @@ type modelResource struct {
 	serialized *pb.Model
 }
 
-func (resource *modelResource) ID() ResourceID {
-	return ResourceID{
+func (resource *modelResource) ID() cm.ResourceID {
+	return cm.ResourceID{
 		Name: resource.serialized.Name,
-		Type: MODEL,
+		Type: cm.MODEL,
 	}
 }
 
@@ -1117,26 +1124,26 @@ func (resource *modelResource) Schedule() string {
 
 func (resource *modelResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
-	depIds := make([]ResourceID, 0)
+	depIds := make([]cm.ResourceID, 0)
 	for _, feature := range serialized.Features {
-		depIds = append(depIds, ResourceID{
+		depIds = append(depIds, cm.ResourceID{
 			Name:    feature.Name,
 			Variant: feature.Variant,
-			Type:    FEATURE_VARIANT,
+			Type:    cm.FEATURE_VARIANT,
 		})
 	}
 	for _, label := range serialized.Labels {
-		depIds = append(depIds, ResourceID{
+		depIds = append(depIds, cm.ResourceID{
 			Name:    label.Name,
 			Variant: label.Variant,
-			Type:    LABEL_VARIANT,
+			Type:    cm.LABEL_VARIANT,
 		})
 	}
 	for _, ts := range serialized.Trainingsets {
-		depIds = append(depIds, ResourceID{
+		depIds = append(depIds, cm.ResourceID{
 			Name:    ts.Name,
 			Variant: ts.Variant,
-			Type:    TRAINING_SET_VARIANT,
+			Type:    cm.TRAINING_SET_VARIANT,
 		})
 	}
 	deps, err := lookup.Submap(depIds)
@@ -1150,7 +1157,7 @@ func (resource *modelResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *modelResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *modelResource) Notify(lookup ResourceLookup, op cm.Operation, that Resource) error {
 	return nil
 }
 
@@ -1183,10 +1190,10 @@ type userResource struct {
 	serialized *pb.User
 }
 
-func (resource *userResource) ID() ResourceID {
-	return ResourceID{
+func (resource *userResource) ID() cm.ResourceID {
+	return cm.ResourceID{
 		Name: resource.serialized.Name,
-		Type: USER,
+		Type: cm.USER,
 	}
 }
 
@@ -1202,7 +1209,7 @@ func (resource *userResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *userResource) Notify(lookup ResourceLookup, op cm.Operation, that Resource) error {
 	if isDep, err := isDirectDependency(lookup, this, that); err != nil {
 		return err
 	} else if !isDep {
@@ -1213,13 +1220,13 @@ func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resou
 	t := id.Type
 	serialized := this.serialized
 	switch t {
-	case TRAINING_SET_VARIANT:
+	case cm.TRAINING_SET_VARIANT:
 		serialized.Trainingsets = append(serialized.Trainingsets, key)
-	case FEATURE_VARIANT:
+	case cm.FEATURE_VARIANT:
 		serialized.Features = append(serialized.Features, key)
-	case LABEL_VARIANT:
+	case cm.LABEL_VARIANT:
 		serialized.Labels = append(serialized.Labels, key)
-	case SOURCE_VARIANT:
+	case cm.SOURCE_VARIANT:
 		serialized.Sources = append(serialized.Sources, key)
 	}
 	return nil
@@ -1253,10 +1260,10 @@ type providerResource struct {
 	serialized *pb.Provider
 }
 
-func (resource *providerResource) ID() ResourceID {
-	return ResourceID{
+func (resource *providerResource) ID() cm.ResourceID {
+	return cm.ResourceID{
 		Name: resource.serialized.Name,
-		Type: PROVIDER,
+		Type: cm.PROVIDER,
 	}
 }
 
@@ -1272,7 +1279,7 @@ func (resource *providerResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *providerResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *providerResource) Notify(lookup ResourceLookup, op cm.Operation, that Resource) error {
 	if isDep, err := isDirectDependency(lookup, this, that); err != nil {
 		return err
 	} else if !isDep {
@@ -1283,13 +1290,13 @@ func (this *providerResource) Notify(lookup ResourceLookup, op operation, that R
 	t := id.Type
 	serialized := this.serialized
 	switch t {
-	case SOURCE_VARIANT:
+	case cm.SOURCE_VARIANT:
 		serialized.Sources = append(serialized.Sources, key)
-	case FEATURE_VARIANT:
+	case cm.FEATURE_VARIANT:
 		serialized.Features = append(serialized.Features, key)
-	case TRAINING_SET_VARIANT:
+	case cm.TRAINING_SET_VARIANT:
 		serialized.Trainingsets = append(serialized.Trainingsets, key)
-	case LABEL_VARIANT:
+	case cm.LABEL_VARIANT:
 		serialized.Labels = append(serialized.Labels, key)
 	}
 	return nil
@@ -1364,10 +1371,10 @@ type entityResource struct {
 	serialized *pb.Entity
 }
 
-func (resource *entityResource) ID() ResourceID {
-	return ResourceID{
+func (resource *entityResource) ID() cm.ResourceID {
+	return cm.ResourceID{
 		Name: resource.serialized.Name,
-		Type: ENTITY,
+		Type: cm.ENTITY,
 	}
 }
 
@@ -1383,17 +1390,17 @@ func (resource *entityResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *entityResource) Notify(lookup ResourceLookup, op cm.Operation, that Resource) error {
 	id := that.ID()
 	key := id.Proto()
 	t := id.Type
 	serialized := this.serialized
 	switch t {
-	case TRAINING_SET_VARIANT:
+	case cm.TRAINING_SET_VARIANT:
 		serialized.Trainingsets = append(serialized.Trainingsets, key)
-	case FEATURE_VARIANT:
+	case cm.FEATURE_VARIANT:
 		serialized.Features = append(serialized.Features, key)
-	case LABEL_VARIANT:
+	case cm.LABEL_VARIANT:
 		serialized.Labels = append(serialized.Labels, key)
 	}
 	return nil
@@ -1534,14 +1541,14 @@ type Config struct {
 }
 
 func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.ScheduleChangeRequest) (*pb.Empty, error) {
-	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
+	resID := cm.ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: cm.ResourceType(req.ResourceId.ResourceType)}
 	err := serv.lookup.SetSchedule(resID, req.Schedule)
 	return &pb.Empty{}, err
 }
 
 func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetStatusRequest) (*pb.Empty, error) {
 	serv.Logger.Infow("Setting resource status", "request", req.String())
-	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
+	resID := cm.ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: cm.ResourceType(req.ResourceId.ResourceType)}
 	err := serv.lookup.SetStatus(resID, *req.Status)
 	if err != nil {
 		serv.Logger.Errorw("Could not set resource status", "error", err.Error())
@@ -1551,7 +1558,7 @@ func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetSt
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {
-	return serv.genericList(FEATURE, func(msg proto.Message) error {
+	return serv.genericList(cm.FEATURE, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Feature))
 	})
 }
@@ -1571,19 +1578,19 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *p
 }
 
 func (serv *MetadataServer) GetFeatures(stream pb.Metadata_GetFeaturesServer) error {
-	return serv.genericGet(stream, FEATURE, func(msg proto.Message) error {
+	return serv.genericGet(stream, cm.FEATURE, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Feature))
 	})
 }
 
 func (serv *MetadataServer) GetFeatureVariants(stream pb.Metadata_GetFeatureVariantsServer) error {
-	return serv.genericGet(stream, FEATURE_VARIANT, func(msg proto.Message) error {
+	return serv.genericGet(stream, cm.FEATURE_VARIANT, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.FeatureVariant))
 	})
 }
 
 func (serv *MetadataServer) ListLabels(_ *pb.Empty, stream pb.Metadata_ListLabelsServer) error {
-	return serv.genericList(LABEL, func(msg proto.Message) error {
+	return serv.genericList(cm.LABEL, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Label))
 	})
 }
@@ -1603,19 +1610,19 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variant *pb.
 }
 
 func (serv *MetadataServer) GetLabels(stream pb.Metadata_GetLabelsServer) error {
-	return serv.genericGet(stream, LABEL, func(msg proto.Message) error {
+	return serv.genericGet(stream, cm.LABEL, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Label))
 	})
 }
 
 func (serv *MetadataServer) GetLabelVariants(stream pb.Metadata_GetLabelVariantsServer) error {
-	return serv.genericGet(stream, LABEL_VARIANT, func(msg proto.Message) error {
+	return serv.genericGet(stream, cm.LABEL_VARIANT, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.LabelVariant))
 	})
 }
 
 func (serv *MetadataServer) ListTrainingSets(_ *pb.Empty, stream pb.Metadata_ListTrainingSetsServer) error {
-	return serv.genericList(TRAINING_SET, func(msg proto.Message) error {
+	return serv.genericList(cm.TRAINING_SET, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.TrainingSet))
 	})
 }
@@ -1635,19 +1642,19 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, varian
 }
 
 func (serv *MetadataServer) GetTrainingSets(stream pb.Metadata_GetTrainingSetsServer) error {
-	return serv.genericGet(stream, TRAINING_SET, func(msg proto.Message) error {
+	return serv.genericGet(stream, cm.TRAINING_SET, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.TrainingSet))
 	})
 }
 
 func (serv *MetadataServer) GetTrainingSetVariants(stream pb.Metadata_GetTrainingSetVariantsServer) error {
-	return serv.genericGet(stream, TRAINING_SET_VARIANT, func(msg proto.Message) error {
+	return serv.genericGet(stream, cm.TRAINING_SET_VARIANT, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.TrainingSetVariant))
 	})
 }
 
 func (serv *MetadataServer) ListSources(_ *pb.Empty, stream pb.Metadata_ListSourcesServer) error {
-	return serv.genericList(SOURCE, func(msg proto.Message) error {
+	return serv.genericList(cm.SOURCE, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Source))
 	})
 }
@@ -1667,20 +1674,20 @@ func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variant *pb
 }
 
 func (serv *MetadataServer) GetSources(stream pb.Metadata_GetSourcesServer) error {
-	return serv.genericGet(stream, SOURCE, func(msg proto.Message) error {
+	return serv.genericGet(stream, cm.SOURCE, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Source))
 	})
 }
 
 func (serv *MetadataServer) GetSourceVariants(stream pb.Metadata_GetSourceVariantsServer) error {
 	serv.Logger.Infow("Getting Source Variant In Metadata")
-	return serv.genericGet(stream, SOURCE_VARIANT, func(msg proto.Message) error {
+	return serv.genericGet(stream, cm.SOURCE_VARIANT, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.SourceVariant))
 	})
 }
 
 func (serv *MetadataServer) ListUsers(_ *pb.Empty, stream pb.Metadata_ListUsersServer) error {
-	return serv.genericList(USER, func(msg proto.Message) error {
+	return serv.genericList(cm.USER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.User))
 	})
 }
@@ -1690,13 +1697,13 @@ func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.
 }
 
 func (serv *MetadataServer) GetUsers(stream pb.Metadata_GetUsersServer) error {
-	return serv.genericGet(stream, USER, func(msg proto.Message) error {
+	return serv.genericGet(stream, cm.USER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.User))
 	})
 }
 
 func (serv *MetadataServer) ListProviders(_ *pb.Empty, stream pb.Metadata_ListProvidersServer) error {
-	return serv.genericList(PROVIDER, func(msg proto.Message) error {
+	return serv.genericList(cm.PROVIDER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Provider))
 	})
 }
@@ -1706,13 +1713,13 @@ func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Pro
 }
 
 func (serv *MetadataServer) GetProviders(stream pb.Metadata_GetProvidersServer) error {
-	return serv.genericGet(stream, PROVIDER, func(msg proto.Message) error {
+	return serv.genericGet(stream, cm.PROVIDER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Provider))
 	})
 }
 
 func (serv *MetadataServer) ListEntities(_ *pb.Empty, stream pb.Metadata_ListEntitiesServer) error {
-	return serv.genericList(ENTITY, func(msg proto.Message) error {
+	return serv.genericList(cm.ENTITY, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Entity))
 	})
 }
@@ -1722,13 +1729,13 @@ func (serv *MetadataServer) CreateEntity(ctx context.Context, entity *pb.Entity)
 }
 
 func (serv *MetadataServer) GetEntities(stream pb.Metadata_GetEntitiesServer) error {
-	return serv.genericGet(stream, ENTITY, func(msg proto.Message) error {
+	return serv.genericGet(stream, cm.ENTITY, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Entity))
 	})
 }
 
 func (serv *MetadataServer) ListModels(_ *pb.Empty, stream pb.Metadata_ListModelsServer) error {
-	return serv.genericList(MODEL, func(msg proto.Message) error {
+	return serv.genericList(cm.MODEL, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Model))
 	})
 }
@@ -1738,7 +1745,7 @@ func (serv *MetadataServer) CreateModel(ctx context.Context, model *pb.Model) (*
 }
 
 func (serv *MetadataServer) GetModels(stream pb.Metadata_GetModelsServer) error {
-	return serv.genericGet(stream, MODEL, func(msg proto.Message) error {
+	return serv.genericGet(stream, cm.MODEL, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Model))
 	})
 }
@@ -1803,16 +1810,16 @@ func findEquivalent(resources []Resource, resource ResourceVariant, filterReadyS
 }
 
 // extractResourceVariant takes a ResourceVariant request and extracts the concrete type and corresponding ResourceType.
-func (serv *MetadataServer) extractResourceVariant(req *pb.ResourceVariant) (ResourceVariant, ResourceType, error) {
+func (serv *MetadataServer) extractResourceVariant(req *pb.ResourceVariant) (ResourceVariant, cm.ResourceType, error) {
 	switch res := req.Resource.(type) {
 	case *pb.ResourceVariant_SourceVariant:
-		return &sourceVariantResource{res.SourceVariant}, SOURCE_VARIANT, nil
+		return &sourceVariantResource{res.SourceVariant}, cm.SOURCE_VARIANT, nil
 	case *pb.ResourceVariant_FeatureVariant:
-		return &featureVariantResource{res.FeatureVariant}, FEATURE_VARIANT, nil
+		return &featureVariantResource{res.FeatureVariant}, cm.FEATURE_VARIANT, nil
 	case *pb.ResourceVariant_LabelVariant:
-		return &labelVariantResource{res.LabelVariant}, LABEL_VARIANT, nil
+		return &labelVariantResource{res.LabelVariant}, cm.LABEL_VARIANT, nil
 	case *pb.ResourceVariant_TrainingSetVariant:
-		return &trainingSetVariantResource{res.TrainingSetVariant}, TRAINING_SET_VARIANT, nil
+		return &trainingSetVariantResource{res.TrainingSetVariant}, cm.TRAINING_SET_VARIANT, nil
 	default:
 		return nil, 0, fmt.Errorf("unknown resource variant type: %T", req.Resource)
 	}
@@ -1895,7 +1902,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	return &pb.Empty{}, nil
 }
 
-func (serv *MetadataServer) setDefaultVariant(id ResourceID, defaultVariant string) error {
+func (serv *MetadataServer) setDefaultVariant(id cm.ResourceID, defaultVariant string) error {
 	parent, err := serv.lookup.Lookup(id)
 	if err != nil {
 		return err
@@ -1962,7 +1969,7 @@ func (serv *MetadataServer) isEquivalent(newRes Resource, existing Resource) (bo
 }
 
 func (serv *MetadataServer) propagateChange(newRes Resource) error {
-	visited := make(map[ResourceID]struct{})
+	visited := make(map[cm.ResourceID]struct{})
 	// We have to make it a var so that the anonymous function can call itself.
 	var propagateChange func(parent Resource) error
 	propagateChange = func(parent Resource) error {
@@ -1980,7 +1987,7 @@ func (serv *MetadataServer) propagateChange(newRes Resource) error {
 				continue
 			}
 			visited[id] = struct{}{}
-			if err := res.Notify(serv.lookup, create_op, newRes); err != nil {
+			if err := res.Notify(serv.lookup, cm.CREATE_OP, newRes); err != nil {
 				return err
 			}
 			if err := serv.lookup.Set(res.ID(), res); err != nil {
@@ -1995,22 +2002,22 @@ func (serv *MetadataServer) propagateChange(newRes Resource) error {
 	return propagateChange(newRes)
 }
 
-func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send sendFn) error {
+func (serv *MetadataServer) genericGet(stream interface{}, t cm.ResourceType, send sendFn) error {
 	for {
 		var recvErr error
-		var id ResourceID
+		var id cm.ResourceID
 		switch casted := stream.(type) {
 		case nameStream:
 			req, err := casted.Recv()
 			recvErr = err
-			id = ResourceID{
+			id = cm.ResourceID{
 				Name: req.GetName(),
 				Type: t,
 			}
 		case variantStream:
 			req, err := casted.Recv()
 			recvErr = err
-			id = ResourceID{
+			id = cm.ResourceID{
 				Name:    req.GetName(),
 				Variant: req.GetVariant(),
 				Type:    t,
@@ -2041,7 +2048,7 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 	}
 }
 
-func (serv *MetadataServer) genericList(t ResourceType, send sendFn) error {
+func (serv *MetadataServer) genericList(t cm.ResourceType, send sendFn) error {
 	resources, err := serv.lookup.ListForType(t)
 	if err != nil {
 		return err
@@ -2063,12 +2070,12 @@ type TrainingSetVariantResource struct {
 	Owner       string                              `json:"owner"`
 	Provider    string                              `json:"provider"`
 	Variant     string                              `json:"variant"`
-	Label       NameVariant                         `json:"label"`
+	Label       cm.NameVariant                      `json:"label"`
 	Features    map[string][]FeatureVariantResource `json:"features"`
 	Status      string                              `json:"status"`
 	Error       string                              `json:"error"`
-	Tags        Tags                                `json:"tags"`
-	Properties  Properties                          `json:"properties"`
+	Tags        cm.Tags                             `json:"tags"`
+	Properties  cm.Properties                       `json:"properties"`
 }
 
 type FeatureVariantResource struct {
@@ -2083,10 +2090,10 @@ type FeatureVariantResource struct {
 	Status       string                                  `json:"status"`
 	Error        string                                  `json:"error"`
 	Location     map[string]string                       `json:"location"`
-	Source       NameVariant                             `json:"source"`
+	Source       cm.NameVariant                          `json:"source"`
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
-	Tags         Tags                                    `json:"tags"`
-	Properties   Properties                              `json:"properties"`
+	Tags         cm.Tags                                 `json:"tags"`
+	Properties   cm.Properties                           `json:"properties"`
 	Mode         string                                  `json:"mode"`
 	IsOnDemand   bool                                    `json:"is-on-demand"`
 	Definition   string                                  `json:"definition"`
@@ -2102,12 +2109,12 @@ type LabelVariantResource struct {
 	DataType     string                                  `json:"data-type"`
 	Variant      string                                  `json:"variant"`
 	Location     map[string]string                       `json:"location"`
-	Source       NameVariant                             `json:"source"`
+	Source       cm.NameVariant                          `json:"source"`
 	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
 	Status       string                                  `json:"status"`
 	Error        string                                  `json:"error"`
-	Tags         Tags                                    `json:"tags"`
-	Properties   Properties                              `json:"properties"`
+	Tags         cm.Tags                                 `json:"tags"`
+	Properties   cm.Properties                           `json:"properties"`
 }
 
 type SourceVariantResource struct {
@@ -2125,12 +2132,12 @@ type SourceVariantResource struct {
 	Labels         map[string][]LabelVariantResource       `json:"labels"`
 	LastUpdated    time.Time                               `json:"lastUpdated"`
 	Schedule       string                                  `json:"schedule"`
-	Tags           Tags                                    `json:"tags"`
-	Properties     Properties                              `json:"properties"`
+	Tags           cm.Tags                                 `json:"tags"`
+	Properties     cm.Properties                           `json:"properties"`
 	SourceType     string                                  `json:"source-type"`
 	Error          string                                  `json:"error"`
 	Specifications map[string]string                       `json:"specifications"`
-	Inputs         []NameVariant                           `json:"inputs"`
+	Inputs         []cm.NameVariant                        `json:"inputs"`
 }
 
 func getSourceString(variant *SourceVariant) string {

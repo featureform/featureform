@@ -3,6 +3,7 @@ package serving
 import (
 	"context"
 	"fmt"
+	cm "github.com/featureform/helpers/resource"
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
@@ -100,7 +101,7 @@ func (serv *FeatureServer) getFeatureValues(ctx context.Context, name, variant s
 
 	var values []interface{}
 	switch meta.Mode() {
-	case metadata.PRECOMPUTED:
+	case cm.PRECOMPUTED:
 		if meta.Provider() == "" {
 			return nil, fmt.Errorf("feature %s:%s has no inference store", name, variant)
 		}
@@ -112,7 +113,7 @@ func (serv *FeatureServer) getFeatureValues(ctx context.Context, name, variant s
 		for _, val := range precomputedValues {
 			values = append(values, val.value)
 		}
-	case metadata.CLIENT_COMPUTED:
+	case cm.CLIENT_COMPUTED:
 		values = append(values, meta.LocationFunction())
 	default:
 		return nil, fmt.Errorf("unknown computation mode %v", meta.Mode())
@@ -129,7 +130,7 @@ func (serv *FeatureServer) getOrCacheFeatureMetadata(ctx context.Context, name, 
 	if feature, has := serv.Features.Load(serv.getNVCacheKey(name, variant)); has {
 		return feature.(*metadata.FeatureVariant), nil
 	} else {
-		metaFeature, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{name, variant})
+		metaFeature, err := serv.Metadata.GetFeatureVariant(ctx, cm.NameVariant{name, variant})
 		if err != nil {
 			logger.Errorw("metadata lookup failed", "Err", err)
 			obs.SetError()

@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/featureform/helpers"
+	cm "github.com/featureform/helpers/resource"
 	"github.com/featureform/metadata"
 	"github.com/featureform/types"
 	"github.com/google/uuid"
@@ -32,7 +33,7 @@ type CronSchedule string
 const MaxJobNameLength = 52
 
 // CreateJobName Only the first value in prefixes will be used.
-func CreateJobName(id metadata.ResourceID, prefixes ...string) string {
+func CreateJobName(id cm.ResourceID, prefixes ...string) string {
 	jobNameBase := fmt.Sprintf("%s-%s-%s", id.Type, id.Name, id.Variant)
 
 	// if jobPrefix is provided, prepend it to jobNameBase
@@ -190,7 +191,7 @@ func newJobSpec(config KubernetesRunnerConfig, rsrcReqs v1.ResourceRequirements)
 type KubernetesRunnerConfig struct {
 	JobPrefix string
 	EnvVars   map[string]string
-	Resource  metadata.ResourceID
+	Resource  cm.ResourceID
 	Image     string
 	NumTasks  int32
 	Specs     metadata.KubernetesResourceSpecs
@@ -312,8 +313,8 @@ func (k KubernetesCompletionWatcher) Err() error {
 	return nil
 }
 
-func (k KubernetesRunner) Resource() metadata.ResourceID {
-	return metadata.ResourceID{}
+func (k KubernetesRunner) Resource() cm.ResourceID {
+	return cm.ResourceID{}
 }
 
 func (k KubernetesRunner) IsUpdateJob() bool {

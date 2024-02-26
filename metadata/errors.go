@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"fmt"
+	cm "github.com/featureform/helpers/resource"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -15,7 +16,7 @@ func (e KeyNotFoundError) Error() string {
 }
 
 type ResourceExistsError struct {
-	ID ResourceID
+	ID cm.ResourceID
 }
 
 func (err *ResourceExistsError) Error() string {
@@ -33,7 +34,7 @@ func (err *ResourceExistsError) GRPCStatus() *status.Status {
 }
 
 type ResourceNotFoundError struct {
-	ID ResourceID
+	ID cm.ResourceID
 	E  error
 }
 
@@ -53,7 +54,7 @@ func (err *ResourceNotFoundError) GRPCStatus() *status.Status {
 }
 
 type ResourceChangedError struct {
-	ResourceID
+	cm.ResourceID
 }
 
 func (err *ResourceChangedError) Error() string {

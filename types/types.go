@@ -1,12 +1,12 @@
 package types
 
 import (
-	"github.com/featureform/metadata"
+	cm "github.com/featureform/helpers/resource"
 )
 
 type Runner interface {
 	Run() (CompletionWatcher, error)
-	Resource() metadata.ResourceID
+	Resource() cm.ResourceID
 	IsUpdateJob() bool
 }
 

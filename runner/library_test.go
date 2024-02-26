@@ -6,7 +6,7 @@ package runner
 
 import (
 	"errors"
-	"github.com/featureform/metadata"
+	cm "github.com/featureform/helpers/resource"
 	"github.com/featureform/types"
 	"testing"
 )
@@ -19,8 +19,8 @@ func (m *MockRunner) Run() (types.CompletionWatcher, error) {
 	return &MockCompletionWatcher{}, nil
 }
 
-func (m *MockRunner) Resource() metadata.ResourceID {
-	return metadata.ResourceID{}
+func (m *MockRunner) Resource() cm.ResourceID {
+	return cm.ResourceID{}
 }
 
 func (m *MockRunner) IsUpdateJob() bool {

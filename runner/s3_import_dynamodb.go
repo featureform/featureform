@@ -6,12 +6,12 @@ package runner
 
 import (
 	"fmt"
+	cm "github.com/featureform/helpers/resource"
 
 	"time"
 
 	"github.com/featureform/filestore"
 	"github.com/featureform/logging"
-	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/types"
@@ -45,8 +45,8 @@ type S3ImportDynamoDBRunner struct {
 	Logger      *zap.SugaredLogger
 }
 
-func (r S3ImportDynamoDBRunner) Resource() metadata.ResourceID {
-	return metadata.ResourceID{
+func (r S3ImportDynamoDBRunner) Resource() cm.ResourceID {
+	return cm.ResourceID{
 		Name:    r.ID.Name,
 		Variant: r.ID.Variant,
 		Type:    provider.ProviderToMetadataResourceType[r.ID.Type],

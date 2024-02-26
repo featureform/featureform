@@ -90,7 +90,7 @@ func TestPostTags(t *testing.T) {
 
 	MockJsonPost(ctx, params, tagList)
 
-	res := metadata.ResourceID{
+	res := cm.ResourceID{
 		Name:    name,
 		Variant: variant,
 		Type:    metadata.SOURCE_VARIANT,

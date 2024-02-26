@@ -2,7 +2,7 @@ package coordinator
 
 import (
 	"fmt"
-	"github.com/featureform/metadata"
+	cm "github.com/featureform/helpers/resource"
 )
 
 type JobDoesNotExistError struct {
@@ -14,7 +14,7 @@ func (m JobDoesNotExistError) Error() string {
 }
 
 type ResourceAlreadyCompleteError struct {
-	resourceID metadata.ResourceID
+	resourceID cm.ResourceID
 }
 
 func (m ResourceAlreadyCompleteError) Error() string {
@@ -22,7 +22,7 @@ func (m ResourceAlreadyCompleteError) Error() string {
 }
 
 type ResourceAlreadyFailedError struct {
-	resourceID metadata.ResourceID
+	resourceID cm.ResourceID
 }
 
 func (m ResourceAlreadyFailedError) Error() string {

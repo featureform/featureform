@@ -70,7 +70,7 @@ func main() {
 			Definition: metadata.TransformationSource{
 				TransformationType: metadata.SQLTransformationType{
 					Query: "SELECT * FROM {{Transactions.default}}",
-					Sources: []metadata.NameVariant{{
+					Sources: []cm.NameVariant{{
 						Name:    "Transactions",
 						Variant: "default"},
 					},
@@ -84,7 +84,7 @@ func main() {
 			Variant:     "default",
 			Description: "if a transaction is fraud",
 			Type:        "boolean",
-			Source:      metadata.NameVariant{"Transactions", "default"},
+			Source:      cm.NameVariant{"Transactions", "default"},
 			Entity:      "user",
 			Owner:       "Simba Khadder",
 			Location: metadata.ResourceVariantColumns{
@@ -97,7 +97,7 @@ func main() {
 		metadata.FeatureDef{
 			Name:        "number_of_fraud",
 			Variant:     "90d",
-			Source:      metadata.NameVariant{"Transactions", "default"},
+			Source:      cm.NameVariant{"Transactions", "default"},
 			Type:        "int",
 			Entity:      "user",
 			Owner:       "Simba Khadder",
@@ -112,7 +112,7 @@ func main() {
 		metadata.FeatureDef{
 			Name:        "user_2fa",
 			Variant:     "default",
-			Source:      metadata.NameVariant{"Transactions", "default"},
+			Source:      cm.NameVariant{"Transactions", "default"},
 			Type:        "boolean",
 			Entity:      "user",
 			Owner:       "Simba Khadder",
@@ -127,7 +127,7 @@ func main() {
 		metadata.FeatureDef{
 			Name:        "user_account_age",
 			Variant:     "default",
-			Source:      metadata.NameVariant{"Transactions", "default"},
+			Source:      cm.NameVariant{"Transactions", "default"},
 			Type:        "int",
 			Entity:      "user",
 			Owner:       "Simba Khadder",
@@ -142,7 +142,7 @@ func main() {
 		metadata.FeatureDef{
 			Name:        "user_credit_score",
 			Variant:     "default",
-			Source:      metadata.NameVariant{"Transactions", "default"},
+			Source:      cm.NameVariant{"Transactions", "default"},
 			Type:        "int",
 			Entity:      "user",
 			Owner:       "Simba Khadder",
@@ -157,7 +157,7 @@ func main() {
 		metadata.FeatureDef{
 			Name:        "user_transaction_count",
 			Variant:     "30d",
-			Source:      metadata.NameVariant{"Transactions", "default"},
+			Source:      cm.NameVariant{"Transactions", "default"},
 			Type:        "int",
 			Entity:      "user",
 			Owner:       "Simba Khadder",
@@ -172,7 +172,7 @@ func main() {
 		metadata.FeatureDef{
 			Name:        "avg_transaction_amt",
 			Variant:     "default",
-			Source:      metadata.NameVariant{"Transactions", "default"},
+			Source:      cm.NameVariant{"Transactions", "default"},
 			Type:        "int",
 			Entity:      "user",
 			Owner:       "Simba Khadder",
@@ -187,7 +187,7 @@ func main() {
 		metadata.FeatureDef{
 			Name:        "amt_spent",
 			Variant:     "30d",
-			Source:      metadata.NameVariant{"Transactions", "default"},
+			Source:      cm.NameVariant{"Transactions", "default"},
 			Type:        "int",
 			Entity:      "user",
 			Owner:       "Simba Khadder",
@@ -202,7 +202,7 @@ func main() {
 		metadata.FeatureDef{
 			Name:        "user_transaction_count",
 			Variant:     "7d",
-			Source:      metadata.NameVariant{"Transactions", "default"},
+			Source:      cm.NameVariant{"Transactions", "default"},
 			Type:        "int",
 			Entity:      "user",
 			Owner:       "Simba Khadder",
@@ -219,8 +219,8 @@ func main() {
 			Variant:     "default",
 			Description: "if a transaction is fraud",
 			Owner:       "Simba Khadder",
-			Label:       metadata.NameVariant{"is_fraud", "default"},
-			Features:    []metadata.NameVariant{{"user_transaction_count", "7d"}, {"number_of_fraud", "90d"}, {"amt_spent", "30d"}, {"avg_transaction_amt", "default"}, {"user_account_age", "default"}, {"user_credit_score", "default"}, {"user_2fa", "default"}},
+			Label:       cm.NameVariant{"is_fraud", "default"},
+			Features:    []cm.NameVariant{{"user_transaction_count", "7d"}, {"number_of_fraud", "90d"}, {"amt_spent", "30d"}, {"avg_transaction_amt", "default"}, {"user_account_age", "default"}, {"user_credit_score", "default"}, {"user_2fa", "default"}},
 			Provider:    "demo-postgres",
 		},
 		metadata.ModelDef{

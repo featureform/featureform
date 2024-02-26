@@ -7,6 +7,7 @@ package serving
 import (
 	"context"
 	"fmt"
+	cm "github.com/featureform/helpers/resource"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -50,7 +51,7 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 	logger := serv.Logger.With("Name", name, "Variant", variant)
 	logger.Info("Serving training data")
 	if model := req.GetModel(); model != nil {
-		trainingSets := []metadata.NameVariant{{Name: name, Variant: variant}}
+		trainingSets := []cm.NameVariant{{Name: name, Variant: variant}}
 		err := serv.Metadata.CreateModel(stream.Context(), metadata.ModelDef{Name: model.GetName(), Trainingsets: trainingSets})
 		if err != nil {
 			return err
@@ -234,7 +235,7 @@ func (serv *FeatureServer) TrainingDataColumns(ctx context.Context, req *pb.Trai
 	id := req.GetId()
 	name, variant := id.GetName(), id.GetVersion()
 	serv.Logger.Infow("Getting training set columns", "Name", name, "Variant", variant)
-	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
+	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, cm.NameVariant{Name: name, Variant: variant})
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get training set variant")
 	}
@@ -282,7 +283,7 @@ func (serv *FeatureServer) SourceData(req *pb.SourceDataRequest, stream pb.Featu
 func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provider.TrainingSetIterator, error) {
 	ctx := context.TODO()
 	serv.Logger.Infow("Getting Training Set Iterator", "name", name, "variant", variant)
-	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{name, variant})
+	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, cm.NameVariant{name, variant})
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get training set variant")
 	}
@@ -308,7 +309,7 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 func (serv *FeatureServer) getTrainingSetTestSplitIterator(name, variant string, testSize float32, shuffle bool, randomState int) (provider.TrainingSetIterator, provider.TrainingSetIterator, func() error, error) {
 	ctx := context.TODO()
 	serv.Logger.Infow("Getting Training Set Iterator", "name", name, "variant", variant)
-	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{name, variant})
+	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, cm.NameVariant{name, variant})
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "could not get training set variant")
 	}
@@ -338,7 +339,7 @@ func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (p
 	}
 
 	// Assuming that all the features have the same offline provider
-	feat, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{ids[0].Name, ids[0].Variant})
+	feat, err := serv.Metadata.GetFeatureVariant(ctx, cm.NameVariant{ids[0].Name, ids[0].Variant})
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get Feature Variant")
 	}
@@ -373,7 +374,7 @@ func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (p
 
 func (serv *FeatureServer) checkFeatureSources(firstProvider string, ids []provider.ResourceID, ctx context.Context) error {
 	for id := range ids {
-		id_feature, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{ids[id].Name, ids[id].Variant})
+		id_feature, err := serv.Metadata.GetFeatureVariant(ctx, cm.NameVariant{ids[id].Name, ids[id].Variant})
 		if err != nil {
 			return errors.Wrap(err, "could not get Feature Variant")
 		}
@@ -401,7 +402,7 @@ func (serv *FeatureServer) checkEntityOfFeature(ids []provider.ResourceID) (bool
 	// }
 	for _, resourceID := range ids {
 		serv.Logger.Infow("Getting Feature Variant Iterator", "name", resourceID.Name, "variant", resourceID.Variant)
-		feature, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{Name: resourceID.Name, Variant: resourceID.Variant})
+		feature, err := serv.Metadata.GetFeatureVariant(ctx, cm.NameVariant{Name: resourceID.Name, Variant: resourceID.Variant})
 		if err != nil {
 			return false, errors.Wrap(err, "could not get feature variant")
 		}
@@ -418,12 +419,12 @@ func (serv *FeatureServer) checkEntityOfFeature(ids []provider.ResourceID) (bool
 func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int64) (provider.GenericTableIterator, error) {
 	ctx := context.TODO()
 	serv.Logger.Infow("Getting Source Variant Iterator", "name", name, "variant", variant)
-	sv, err := serv.Metadata.GetSourceVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
+	sv, err := serv.Metadata.GetSourceVariant(ctx, cm.NameVariant{Name: name, Variant: variant})
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get source variant")
 	}
 	// TODO: Determine if we want to add a backoff here to wait for the source
-	if sv.Status() != metadata.READY {
+	if sv.Status() != cm.READY {
 		return nil, fmt.Errorf("source variant is not ready; current status is %v", sv.Status())
 	}
 	providerEntry, err := sv.FetchProvider(serv.Metadata, ctx)
@@ -471,9 +472,9 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 }
 
 func (serv *FeatureServer) addModel(ctx context.Context, model *pb.Model, features []*pb.FeatureID) error {
-	modelFeatures := make([]metadata.NameVariant, len(features))
+	modelFeatures := make([]cm.NameVariant, len(features))
 	for i, feature := range features {
-		modelFeatures[i] = metadata.NameVariant{Name: feature.Name, Variant: feature.Version}
+		modelFeatures[i] = cm.NameVariant{Name: feature.Name, Variant: feature.Version}
 	}
 	serv.Logger.Infow("Creating model", "Name", model.GetName())
 	err := serv.Metadata.CreateModel(ctx, metadata.ModelDef{Name: model.GetName(), Features: modelFeatures})
@@ -565,7 +566,7 @@ func (serv *FeatureServer) Nearest(ctx context.Context, req *pb.NearestRequest) 
 	id := req.GetId()
 	name, variant := id.GetName(), id.GetVersion()
 	serv.Logger.Infow("Searching nearest", "Name", name, "Variant", variant)
-	fv, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
+	fv, err := serv.Metadata.GetFeatureVariant(ctx, cm.NameVariant{Name: name, Variant: variant})
 	if err != nil {
 		serv.Logger.Errorw("metadata lookup failed", "Err", err)
 		return nil, err
@@ -647,7 +648,7 @@ func (serv *FeatureServer) getOfflineResourceLocation(ctx context.Context, name,
 	switch provider.OfflineResourceType(resourceType) {
 	case provider.Primary, provider.Transformation:
 		serv.Logger.Infow("Getting Source Variant Provider", "name", name, "variant", variant)
-		sv, err := serv.Metadata.GetSourceVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
+		sv, err := serv.Metadata.GetSourceVariant(ctx, cm.NameVariant{Name: name, Variant: variant})
 		if err != nil {
 			return "", errors.Wrap(err, "could not get source variant")
 		}
@@ -657,7 +658,7 @@ func (serv *FeatureServer) getOfflineResourceLocation(ctx context.Context, name,
 		}
 	case provider.TrainingSet:
 		serv.Logger.Infow("Getting Training Set Provider", "name", name, "variant", variant)
-		ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
+		ts, err := serv.Metadata.GetTrainingSetVariant(ctx, cm.NameVariant{Name: name, Variant: variant})
 		if err != nil {
 			return "", errors.Wrap(err, "could not get training set variant")
 		}

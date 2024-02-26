@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	cm "github.com/featureform/helpers/resource"
 	"io"
 	"net"
 	"net/http"
@@ -725,7 +726,7 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, label *pb.La
 	serv.Logger.Infow("Creating Label Variant", "name", label.Name, "variant", label.Variant)
 	protoSource := label.Source
 	serv.Logger.Debugw("Finding label source", "name", protoSource.Name, "variant", protoSource.Variant)
-	source, err := serv.client.GetSourceVariant(ctx, metadata.NameVariant{protoSource.Name, protoSource.Variant})
+	source, err := serv.client.GetSourceVariant(ctx, cm.NameVariant{protoSource.Name, protoSource.Variant})
 	if err != nil {
 		serv.Logger.Errorw("Could not create label source variant", "error", err)
 		return nil, err
@@ -742,12 +743,12 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, label *pb.La
 func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, train *pb.TrainingSetVariant) (*pb.Empty, error) {
 	serv.Logger.Infow("Creating Training Set Variant", "name", train.Name, "variant", train.Variant)
 	protoLabel := train.Label
-	label, err := serv.client.GetLabelVariant(ctx, metadata.NameVariant{protoLabel.Name, protoLabel.Variant})
+	label, err := serv.client.GetLabelVariant(ctx, cm.NameVariant{protoLabel.Name, protoLabel.Variant})
 	if err != nil {
 		return nil, err
 	}
 	for _, protoFeature := range train.Features {
-		_, err := serv.client.GetFeatureVariant(ctx, metadata.NameVariant{protoFeature.Name, protoFeature.Variant})
+		_, err := serv.client.GetFeatureVariant(ctx, cm.NameVariant{protoFeature.Name, protoFeature.Variant})
 		if err != nil {
 			return nil, err
 		}

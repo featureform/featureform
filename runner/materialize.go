@@ -7,6 +7,7 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+	cm "github.com/featureform/helpers/resource"
 
 	"go.uber.org/zap"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/logging"
-	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -42,8 +42,8 @@ type MaterializeRunner struct {
 	Logger   *zap.SugaredLogger
 }
 
-func (m MaterializeRunner) Resource() metadata.ResourceID {
-	return metadata.ResourceID{
+func (m MaterializeRunner) Resource() cm.ResourceID {
+	return cm.ResourceID{
 		Name:    m.ID.Name,
 		Variant: m.ID.Variant,
 		Type:    provider.ProviderToMetadataResourceType[m.ID.Type],
@@ -185,7 +185,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 			EnvVars:   envVars,
 			Image:     WORKER_IMAGE,
 			NumTasks:  int32(numChunks),
-			Resource:  metadata.ResourceID{Name: m.ID.Name, Variant: m.ID.Variant, Type: provider.ProviderToMetadataResourceType[m.ID.Type]},
+			Resource:  cm.ResourceID{Name: m.ID.Name, Variant: m.ID.Variant, Type: provider.ProviderToMetadataResourceType[m.ID.Type]},
 		}
 		kubernetesRunner, err := kubernetes.NewKubernetesRunner(kubernetesConfig)
 		if err != nil {

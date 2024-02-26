@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	cm "github.com/featureform/helpers/resource"
 	"os"
 	"os/exec"
 	"strconv"
@@ -334,7 +335,7 @@ func (kube *KubernetesExecutor) ExecuteScript(envVars map[string]string, args *m
 		EnvVars:   envVars,
 		Image:     kube.image,
 		NumTasks:  1,
-		Resource: metadata.ResourceID{
+		Resource: cm.ResourceID{
 			Name:    envVars["RESOURCE_NAME"],
 			Variant: envVars["RESOURCE_VARIANT"],
 			Type:    ProviderToMetadataResourceType[OfflineResourceType(resourceType)],

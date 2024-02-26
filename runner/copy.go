@@ -7,9 +7,9 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+	cm "github.com/featureform/helpers/resource"
 	"sync"
 
-	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -46,8 +46,8 @@ type ResultSync struct {
 	mu   sync.RWMutex
 }
 
-func (m *MaterializedChunkRunner) Resource() metadata.ResourceID {
-	return metadata.ResourceID{}
+func (m *MaterializedChunkRunner) Resource() cm.ResourceID {
+	return cm.ResourceID{}
 }
 
 func (m *MaterializedChunkRunner) IsUpdateJob() bool {

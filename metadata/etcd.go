@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	cm "github.com/featureform/helpers/resource"
 	"time"
 
 	help "github.com/featureform/helpers"
@@ -37,13 +38,13 @@ type EtcdConfig struct {
 
 type CoordinatorJob struct {
 	Attempts int
-	Resource ResourceID
+	Resource cm.ResourceID
 	Schedule string
 }
 
 type CoordinatorScheduleJob struct {
 	Attempts int
-	Resource ResourceID
+	Resource cm.ResourceID
 	Schedule string
 }
 
@@ -96,7 +97,7 @@ func (c *CoordinatorJob) Deserialize(serialized []byte) error {
 	c.Attempts = job.Attempts
 	c.Resource.Name = job.Name
 	c.Resource.Variant = job.Variant
-	c.Resource.Type = ResourceType(pb.ResourceType_value[job.Type])
+	c.Resource.Type = cm.ResourceType(pb.ResourceType_value[job.Type])
 	c.Schedule = job.Schedule
 	return nil
 }
@@ -129,7 +130,7 @@ type EtcdResourceLookup struct {
 
 // Wrapper around Resource/Job messages. Allows top level storage for info about saved value
 type EtcdRow struct {
-	ResourceType ResourceType //Resource Type. For use when getting stored keys
+	ResourceType cm.ResourceType //Resource Type. For use when getting stored keys
 	//ResourceType string
 	StorageType StorageType //Type of storage. Resource or Job
 	Message     []byte      //Contents to be stored
@@ -137,7 +138,7 @@ type EtcdRow struct {
 
 type EtcdRowTemp struct {
 	//ResourceType ResourceType //Resource Type. For use when getting stored keys
-	ResourceType ResourceType
+	ResourceType cm.ResourceType
 	StorageType  StorageType //Type of storage. Resource or Job
 	Message      []byte      //Contents to be stored
 }
@@ -151,7 +152,7 @@ func (config EtcdConfig) MakeAddresses() []string {
 }
 
 // Uses Storage Type as prefix so Resources and Jobs can be queried more easily
-func createKey(id ResourceID) string {
+func createKey(id cm.ResourceID) string {
 	return fmt.Sprintf("%s__%s__%s", id.Type, id.Name, id.Variant)
 }
 
@@ -245,43 +246,43 @@ func (s EtcdStorage) ParseResource(res EtcdRow, resType Resource) (Resource, err
 }
 
 // Returns an empty Resource Object of the given type to unmarshal etcd value into
-func (lookup EtcdResourceLookup) createEmptyResource(t ResourceType) (Resource, error) {
+func (lookup EtcdResourceLookup) createEmptyResource(t cm.ResourceType) (Resource, error) {
 	var resource Resource
 	switch t {
-	case FEATURE:
+	case cm.FEATURE:
 		resource = &featureResource{&pb.Feature{}}
 		break
-	case FEATURE_VARIANT:
+	case cm.FEATURE_VARIANT:
 		resource = &featureVariantResource{&pb.FeatureVariant{}}
 		break
-	case LABEL:
+	case cm.LABEL:
 		resource = &labelResource{&pb.Label{}}
 		break
-	case LABEL_VARIANT:
+	case cm.LABEL_VARIANT:
 		resource = &labelVariantResource{&pb.LabelVariant{}}
 		break
-	case USER:
+	case cm.USER:
 		resource = &userResource{&pb.User{}}
 		break
-	case ENTITY:
+	case cm.ENTITY:
 		resource = &entityResource{&pb.Entity{}}
 		break
-	case PROVIDER:
+	case cm.PROVIDER:
 		resource = &providerResource{&pb.Provider{}}
 		break
-	case SOURCE:
+	case cm.SOURCE:
 		resource = &SourceResource{&pb.Source{}}
 		break
-	case SOURCE_VARIANT:
+	case cm.SOURCE_VARIANT:
 		resource = &sourceVariantResource{&pb.SourceVariant{}}
 		break
-	case TRAINING_SET:
+	case cm.TRAINING_SET:
 		resource = &trainingSetResource{&pb.TrainingSet{}}
 		break
-	case TRAINING_SET_VARIANT:
+	case cm.TRAINING_SET_VARIANT:
 		resource = &trainingSetVariantResource{&pb.TrainingSetVariant{}}
 		break
-	case MODEL:
+	case cm.MODEL:
 		resource = &modelResource{&pb.Model{}}
 		break
 	default:
@@ -315,14 +316,14 @@ func (lookup EtcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 		return EtcdRow{}, errors.Wrap(err, fmt.Sprintf("failed to parse resource: %s", value))
 	}
 	msg := EtcdRow{
-		ResourceType: ResourceType(tmp.ResourceType),
+		ResourceType: cm.ResourceType(tmp.ResourceType),
 		StorageType:  tmp.StorageType,
 		Message:      tmp.Message,
 	}
 	return msg, nil
 }
 
-func (lookup EtcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
+func (lookup EtcdResourceLookup) Lookup(id cm.ResourceID) (Resource, error) {
 	logger := logging.NewLogger("lookup")
 	key := createKey(id)
 	logger.Infow("Get", "key", key)
@@ -349,7 +350,7 @@ func (lookup EtcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	return resource, nil
 }
 
-func (lookup EtcdResourceLookup) Has(id ResourceID) (bool, error) {
+func (lookup EtcdResourceLookup) Has(id cm.ResourceID) (bool, error) {
 	key := createKey(id)
 	count, err := lookup.Connection.GetCountWithPrefix(key)
 	if err != nil {
@@ -361,15 +362,15 @@ func (lookup EtcdResourceLookup) Has(id ResourceID) (bool, error) {
 	return true, nil
 }
 
-func GetJobKey(id ResourceID) string {
+func GetJobKey(id cm.ResourceID) string {
 	return fmt.Sprintf("JOB__%s__%s__%s", id.Type, id.Name, id.Variant)
 }
 
-func GetScheduleJobKey(id ResourceID) string {
+func GetScheduleJobKey(id cm.ResourceID) string {
 	return fmt.Sprintf("SCHEDULEJOB__%s__%s__%s", id.Type, id.Name, id.Variant)
 }
 
-func (lookup EtcdResourceLookup) HasJob(id ResourceID) (bool, error) {
+func (lookup EtcdResourceLookup) HasJob(id cm.ResourceID) (bool, error) {
 	job_key := GetJobKey(id)
 	count, err := lookup.Connection.GetCountWithPrefix(job_key)
 	if err != nil {
@@ -381,7 +382,7 @@ func (lookup EtcdResourceLookup) HasJob(id ResourceID) (bool, error) {
 	return true, nil
 }
 
-func (lookup EtcdResourceLookup) SetJob(id ResourceID, schedule string) error {
+func (lookup EtcdResourceLookup) SetJob(id cm.ResourceID, schedule string) error {
 	if jobAlreadySet, _ := lookup.HasJob(id); jobAlreadySet {
 		return fmt.Errorf("Job already set")
 	}
@@ -401,7 +402,7 @@ func (lookup EtcdResourceLookup) SetJob(id ResourceID, schedule string) error {
 	return nil
 }
 
-func (lookup EtcdResourceLookup) SetSchedule(id ResourceID, schedule string) error {
+func (lookup EtcdResourceLookup) SetSchedule(id cm.ResourceID, schedule string) error {
 	coordinatorScheduleJob := CoordinatorScheduleJob{
 		Attempts: 0,
 		Resource: id,
@@ -418,7 +419,7 @@ func (lookup EtcdResourceLookup) SetSchedule(id ResourceID, schedule string) err
 	return nil
 }
 
-func (lookup EtcdResourceLookup) Set(id ResourceID, res Resource) error {
+func (lookup EtcdResourceLookup) Set(id cm.ResourceID, res Resource) error {
 
 	serRes, err := lookup.serializeResource(res)
 	if err != nil {
@@ -432,7 +433,7 @@ func (lookup EtcdResourceLookup) Set(id ResourceID, res Resource) error {
 	return nil
 }
 
-func (lookup EtcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error) {
+func (lookup EtcdResourceLookup) Submap(ids []cm.ResourceID) (ResourceLookup, error) {
 	resources := make(LocalResourceLookup, len(ids))
 
 	for _, id := range ids {
@@ -460,7 +461,7 @@ func (lookup EtcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error
 	return resources, nil
 }
 
-func (lookup EtcdResourceLookup) ListForType(t ResourceType) ([]Resource, error) {
+func (lookup EtcdResourceLookup) ListForType(t cm.ResourceType) ([]Resource, error) {
 	resources := make([]Resource, 0)
 	resp, err := lookup.Connection.GetWithPrefix(t.String())
 	if err != nil {
@@ -504,7 +505,7 @@ func (lookup EtcdResourceLookup) List() ([]Resource, error) {
 	return resources, nil
 }
 
-func (lookup EtcdResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
+func (lookup EtcdResourceLookup) SetStatus(id cm.ResourceID, status pb.ResourceStatus) error {
 	res, err := lookup.Lookup(id)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("could not lookup ID: %v", id))

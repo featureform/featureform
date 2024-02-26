@@ -7,6 +7,7 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+	cm "github.com/featureform/helpers/resource"
 
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
@@ -68,8 +69,8 @@ type CreateTransformationRunner struct {
 	IsUpdate             bool
 }
 
-func (c CreateTransformationRunner) Resource() metadata.ResourceID {
-	return metadata.ResourceID{
+func (c CreateTransformationRunner) Resource() cm.ResourceID {
+	return cm.ResourceID{
 		Name:    c.TransformationConfig.TargetTableID.Name,
 		Variant: c.TransformationConfig.TargetTableID.Variant,
 		Type:    provider.ProviderToMetadataResourceType[c.TransformationConfig.TargetTableID.Type],

@@ -108,30 +108,12 @@ class StatusDisplayer:
                 continue
             if not display_status.is_finished():
                 r = resource.get(self.grpc_client)
-                error = r.error
-                if hasattr(r, "error_status"):
-                    error_status = r.error_status
-                    display_status.status = r.status
-                    error_message = self._format(error_status)
-                    display_status.error = error_message
-                    if r.status == "FAILED":
-                        self.did_error = True
+                server_status = r.server_status
+                display_status.status = server_status.status
+                if server_status.error_info:
+                    display_status.error = server_status.error_info
                 else:
-                    display_status.status = r.status
-                    display_status.error = error
-
-    @staticmethod
-    def _format(error_status: Optional[pb.ErrorStatus]):
-        if error_status is None:
-            return ""
-        error = error_status.details[0]
-        error_info = error_details_pb2.ErrorInfo()
-        if error.Is(error_details_pb2.ErrorInfo.DESCRIPTOR):
-            error.Unpack(error_info)
-            print("ErrorInfo:", error_info)
-            return f"{error_info.reason} - {error_info.metadata}"
-        else:
-            print("The Any field does not contain an ErrorInfo")
+                    display_status.error = r.error
 
     @staticmethod
     def get_json(myjson):

@@ -798,6 +798,44 @@ class Properties:
             self.serialized.property[key].string_value = val
 
 
+@dataclass
+class ErrorInfo:
+    code: int
+    message: str
+    reason: str
+    metadata: Dict[str, str]
+
+
+@dataclass
+class ServerStatus:
+    status: ResourceStatus
+    error_info: Optional[ErrorInfo]
+
+    @staticmethod
+    def from_proto(resource_status_proto: pb.ResourceStatus):
+        error_info = None
+        if resource_status_proto.HasField("error_status"):
+            code = resource_status_proto.error_status.code
+            message = resource_status_proto.error_status.message
+
+            error = resource_status_proto.error_status.details[0]
+            error_info = error_details_pb2.ErrorInfo()
+            if error.Is(error_details_pb2.ErrorInfo.DESCRIPTOR):
+                error.Unpack(error_info)
+                error_info = ErrorInfo(
+                    code=code,
+                    message=message,
+                    reason=error_info.reason,
+                    metadata=error_info.metadata,
+                )
+            else:
+                print("The Any field does not contain an ErrorInfo")
+
+        return ServerStatus(
+            status=ResourceStatus.from_proto(resource_status_proto),
+            error_info=error_info,
+        )
+
 @typechecked
 @dataclass
 class Provider:
@@ -811,6 +849,7 @@ class Provider:
     properties: dict = field(default_factory=dict)
     error: Optional[str] = None
     has_health_check: bool = False
+    server_status: Optional[ServerStatus] = None
 
     def __post_init__(self):
         self.software = self.config.software() if self.config is not None else None
@@ -848,6 +887,7 @@ class Provider:
                 provider.status.status
             ].name,
             error=provider.status.error_message,
+            server_status=ServerStatus.from_proto(provider.status),
         )
 
     def _create(self, stub) -> None:
@@ -924,43 +964,7 @@ class Directory:
 Location = Union[SQLTable, Directory]
 
 
-@dataclass
-class ErrorInfo:
-    code: int
-    message: str
-    reason: str
-    metadata: Dict[str, str]
 
-
-@dataclass
-class ServerStatus:
-    status: ResourceStatus
-    error_info: Optional[ErrorInfo]
-
-    @staticmethod
-    def from_proto(resource_status_proto: pb.ResourceStatus):
-        error_info = None
-        if resource_status_proto.HasField("error_status"):
-            code = resource_status_proto.error_status.code
-            message = resource_status_proto.error_status.message
-
-            error = resource_status_proto.error_status.details[0]
-            error_info = error_details_pb2.ErrorInfo()
-            if error.Is(error_details_pb2.ErrorInfo.DESCRIPTOR):
-                error.Unpack(error_info)
-                error_info = ErrorInfo(
-                    code=code,
-                    message=message,
-                    reason=error_info.reason,
-                    metadata=error_info.metadata,
-                )
-            else:
-                print("The Any field does not contain an ErrorInfo")
-
-        return ServerStatus(
-            status=ResourceStatus.from_proto(resource_status_proto),
-            error_info=error_info,
-        )
 
 
 class ResourceVariant(ABC):

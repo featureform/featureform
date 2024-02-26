@@ -14,11 +14,13 @@ import (
 	"github.com/featureform/fferr"
 	pb "github.com/featureform/metadata/proto"
 	"go.uber.org/zap"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	grpc_status "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -1513,7 +1515,7 @@ func (variant *FeatureVariant) Status() ResourceStatus {
 
 func (variant *FeatureVariant) Error() string {
 	if variant.serialized.GetStatus() != nil {
-		return variant.serialized.GetStatus().ErrorMessage
+		return getErrorMessage(variant.serialized.GetStatus().ErrorStatus)
 	}
 	return ""
 }
@@ -1631,7 +1633,7 @@ func (user *User) Status() ResourceStatus {
 
 func (user *User) Error() string {
 	if user.serialized.GetStatus() != nil {
-		return user.serialized.GetStatus().ErrorMessage
+		return getErrorMessage(user.serialized.GetStatus().ErrorStatus)
 	}
 	return ""
 }
@@ -1843,7 +1845,7 @@ func (variant *LabelVariant) Status() ResourceStatus {
 
 func (variant *LabelVariant) Error() string {
 	if variant.serialized.GetStatus() != nil {
-		return variant.serialized.GetStatus().ErrorMessage
+		return getErrorMessage(variant.serialized.GetStatus().ErrorStatus)
 	}
 	return ""
 }
@@ -1943,7 +1945,7 @@ func (variant *TrainingSetVariant) Error() string {
 	if variant.serialized.GetStatus() == nil {
 		return ""
 	}
-	return variant.serialized.GetStatus().ErrorMessage
+	return getErrorMessage(variant.serialized.GetStatus().ErrorStatus)
 }
 
 func (variant *TrainingSetVariant) Label() NameVariant {
@@ -2106,11 +2108,28 @@ func (variant *SourceVariant) Status() ResourceStatus {
 	return ResourceStatus(0)
 }
 
+func getErrorMessage(status *pb.ErrorStatus) string {
+	reason := ""
+	if status.GetDetails() != nil {
+		for _, detail := range status.GetDetails() {
+			// Attempt to unmarshal the Any message into an ErrorInfo
+			errorInfo := &errdetails.ErrorInfo{}
+			if err := anypb.UnmarshalTo(detail, errorInfo, proto.UnmarshalOptions{}); err == nil {
+				// Successfully unmarshaled into ErrorInfo, can now access its fields
+				reason = errorInfo.Reason
+				// Break or return if you only need the first occurrence
+				break
+			}
+		}
+	}
+	return fmt.Sprintf("%s: %s", reason, status.GetMessage())
+}
+
 func (variant *SourceVariant) Error() string {
 	if variant.serialized.GetStatus() == nil {
 		return ""
 	}
-	return variant.serialized.GetStatus().ErrorMessage
+	return getErrorMessage(variant.serialized.GetStatus().ErrorStatus)
 }
 
 func (variant *SourceVariant) IsTransformation() bool {
@@ -2256,7 +2275,7 @@ func (entity *Entity) Error() string {
 	if entity.serialized.GetStatus() == nil {
 		return ""
 	}
-	return entity.serialized.GetStatus().ErrorMessage
+	return getErrorMessage(entity.serialized.GetStatus().ErrorStatus)
 }
 
 func (entity *Entity) Tags() Tags {

@@ -16,6 +16,7 @@ const (
 	BlobOnline      Type = "BLOB_ONLINE"
 	MongoDBOnline   Type = "MONGODB_ONLINE"
 	PineconeOnline  Type = "PINECONE_ONLINE"
+	InlinedKVOnline Type = "IKV_ONLINE"
 
 	// Offline
 	MemoryOffline     Type = "MEMORY_OFFLINE"
@@ -44,6 +45,7 @@ var AllProviderTypes = []Type{
 	DynamoDBOnline,
 	BlobOnline,
 	MongoDBOnline,
+	InlinedKVOnline,
 	MemoryOffline,
 	MySqlOffline,
 	PineconeOnline,

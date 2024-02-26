@@ -148,6 +148,13 @@
     "StoreType": "store_type",
     "StoreConfig": {}
   },
+  "IKVConfig": {
+    "StoreName": "testing-store",
+    "AccountId": "ikv-account-id",
+    "AccountPasskey": "ikv-account-passkey",
+    "MountDirectory": "/path/to/mountdirectory",
+    "LogLevel": "info"
+  },
   "EmptyConfig": {},
   "LocalConfig": {},
   "MemoryConfig": {},

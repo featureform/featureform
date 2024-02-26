@@ -46,6 +46,7 @@ from .resources import (
     K8sConfig,
     S3StoreConfig,
     GCSFileStoreConfig,
+    IKVConfig,
     User,
     Location,
     SourceVariant,

@@ -20,6 +20,7 @@ var providerMap = map[string]string{
 	"BLOB_ONLINE":        "OnlineBlobConfig",
 	"MONGODB_ONLINE":     "MongoDbConfig",
 	"PINECONE_ONLINE":    "PineconeConfig",
+	"IKV_ONLINE":         "IKVConfig",
 	"POSTGRES_OFFLINE":   "PostgresConfig",
 	"CLICKHOUSE_OFFLINE": "ClickHouseConfig",
 	"MYSQL_OFFLINE":      "MySqlConfig",

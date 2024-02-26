@@ -26,7 +26,7 @@ type MockIndexRunner struct {
 }
 
 type MockUpdateRunner struct {
-	ResourceID metadata.ResourceID
+	ResourceID cm.ResourceID
 }
 
 type MockCompletionWatcher struct{}
@@ -35,8 +35,8 @@ func (m *MockRunner) Run() (types.CompletionWatcher, error) {
 	return &MockCompletionWatcher{}, nil
 }
 
-func (m *MockRunner) Resource() metadata.ResourceID {
-	return metadata.ResourceID{}
+func (m *MockRunner) Resource() cm.ResourceID {
+	return cm.ResourceID{}
 }
 
 func (m *MockRunner) IsUpdateJob() bool {
@@ -47,8 +47,8 @@ func (m *MockIndexRunner) Run() (types.CompletionWatcher, error) {
 	return &MockCompletionWatcher{}, nil
 }
 
-func (m *MockIndexRunner) Resource() metadata.ResourceID {
-	return metadata.ResourceID{}
+func (m *MockIndexRunner) Resource() cm.ResourceID {
+	return cm.ResourceID{}
 }
 
 func (m *MockIndexRunner) IsUpdateJob() bool {
@@ -64,7 +64,7 @@ func (m *MockUpdateRunner) Run() (types.CompletionWatcher, error) {
 	return &MockCompletionWatcher{}, nil
 }
 
-func (m *MockUpdateRunner) Resource() metadata.ResourceID {
+func (m *MockUpdateRunner) Resource() cm.ResourceID {
 	return m.ResourceID
 }
 
@@ -94,8 +94,8 @@ func (r *RunnerWithFailingWatcher) Run() (types.CompletionWatcher, error) {
 	return &FailingWatcher{}, nil
 }
 
-func (r *RunnerWithFailingWatcher) Resource() metadata.ResourceID {
-	return metadata.ResourceID{}
+func (r *RunnerWithFailingWatcher) Resource() cm.ResourceID {
+	return cm.ResourceID{}
 }
 
 func (r *RunnerWithFailingWatcher) IsUpdateJob() bool {
@@ -123,8 +123,8 @@ func (f *FailingRunner) Run() (types.CompletionWatcher, error) {
 	return nil, errors.New("Failed to run runner")
 }
 
-func (f *FailingRunner) Resource() metadata.ResourceID {
-	return metadata.ResourceID{}
+func (f *FailingRunner) Resource() cm.ResourceID {
+	return cm.ResourceID{}
 }
 
 func (f *FailingRunner) IsUpdateJob() bool {
@@ -137,8 +137,8 @@ func (f *FailingIndexRunner) Run() (types.CompletionWatcher, error) {
 	return &MockCompletionWatcher{}, nil
 }
 
-func (f *FailingIndexRunner) Resource() metadata.ResourceID {
-	return metadata.ResourceID{}
+func (f *FailingIndexRunner) Resource() cm.ResourceID {
+	return cm.ResourceID{}
 }
 
 func (f *FailingIndexRunner) IsUpdateJob() bool {
@@ -344,7 +344,7 @@ func TestRunnerRunFail(t *testing.T) {
 	}
 }
 
-func registerUpdateMockRunnerFactory(resID metadata.ResourceID) error {
+func registerUpdateMockRunnerFactory(resID cm.ResourceID) error {
 	mockRunner := &MockUpdateRunner{ResourceID: resID}
 	mockFactory := func(config runner.Config) (types.Runner, error) {
 		return mockRunner, nil
@@ -363,7 +363,7 @@ func TestBasicUpdateRunner(t *testing.T) {
 	resourceName := uuid.New().String()
 	resourceVariant := ""
 	resourceType := metadata.FEATURE_VARIANT
-	resourceID := metadata.ResourceID{resourceName, resourceVariant, resourceType}
+	resourceID := cm.ResourceID{resourceName, resourceVariant, resourceType}
 	if err := registerUpdateMockRunnerFactory(resourceID); err != nil {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}

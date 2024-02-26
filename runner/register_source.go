@@ -7,8 +7,8 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+	cm "github.com/featureform/helpers/resource"
 
-	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -44,8 +44,8 @@ type RegisterSourceRunner struct {
 	SourceTableName string
 }
 
-func (r RegisterSourceRunner) Resource() metadata.ResourceID {
-	return metadata.ResourceID{
+func (r RegisterSourceRunner) Resource() cm.ResourceID {
+	return cm.ResourceID{
 		Name:    r.ResourceID.Name,
 		Variant: r.ResourceID.Variant,
 		Type:    provider.ProviderToMetadataResourceType[r.ResourceID.Type],

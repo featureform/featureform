@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	cm "github.com/featureform/helpers/resource"
 	"reflect"
 	"sort"
 	"strings"
@@ -38,11 +39,11 @@ const (
 	FeatureMaterialization
 )
 
-var ProviderToMetadataResourceType = map[OfflineResourceType]metadata.ResourceType{
-	Feature:        metadata.FEATURE_VARIANT,
-	TrainingSet:    metadata.TRAINING_SET_VARIANT,
-	Primary:        metadata.SOURCE_VARIANT,
-	Transformation: metadata.SOURCE_VARIANT,
+var ProviderToMetadataResourceType = map[OfflineResourceType]cm.ResourceType{
+	Feature:        cm.FEATURE_VARIANT,
+	TrainingSet:    cm.TRAINING_SET_VARIANT,
+	Primary:        cm.SOURCE_VARIANT,
+	Transformation: cm.SOURCE_VARIANT,
 }
 
 func (offlineType OfflineResourceType) String() string {

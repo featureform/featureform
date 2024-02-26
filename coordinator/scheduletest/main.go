@@ -168,8 +168,8 @@ func testScheduleTrainingSet() error {
 	tsName := createSafeUUID()
 	originalTableName := createSafeUUID()
 	sourceName := createSafeUUID()
-	tsID := metadata.ResourceID{Name: tsName, Variant: "", Type: metadata.TRAINING_SET_VARIANT}
-	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
+	tsID := cm.ResourceID{Name: tsName, Variant: "", Type: metadata.TRAINING_SET_VARIANT}
+	sourceID := cm.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
 	if err := CreateOriginalPostgresTable(originalTableName); err != nil {
 		return fmt.Errorf("Could not create table in postgres: %v", err)
 	}
@@ -180,11 +180,11 @@ func testScheduleTrainingSet() error {
 	if err := coord.ExecuteJob(metadata.GetJobKey(sourceID)); err != nil {
 		return err
 	}
-	featureID := metadata.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
+	featureID := cm.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
 	if err := coord.ExecuteJob(metadata.GetJobKey(featureID)); err != nil {
 		return err
 	}
-	labelID := metadata.ResourceID{Name: labelName, Variant: "", Type: metadata.LABEL_VARIANT}
+	labelID := cm.ResourceID{Name: labelName, Variant: "", Type: metadata.LABEL_VARIANT}
 	if err := coord.ExecuteJob(metadata.GetJobKey(labelID)); err != nil {
 		return err
 	}
@@ -202,7 +202,7 @@ func testScheduleTrainingSet() error {
 		return fmt.Errorf("Original training set values not set properly: %v", err)
 	}
 	// get original metadata timestamp for training set, before update
-	tsBeforeUpdate, err := metadataClient.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: tsName, Variant: ""})
+	tsBeforeUpdate, err := metadataClient.GetTrainingSetVariant(ctx, cm.NameVariant{Name: tsName, Variant: ""})
 	if err != nil {
 		return fmt.Errorf("could not get training set: %v", err)
 	}
@@ -221,7 +221,7 @@ func testScheduleTrainingSet() error {
 		return fmt.Errorf("Updated training set values not set properly: %v", err)
 	}
 	// get metadata timestamp after update completed and check that it is more recent than original
-	tsAfterUpdate, err := metadataClient.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: tsName, Variant: ""})
+	tsAfterUpdate, err := metadataClient.GetTrainingSetVariant(ctx, cm.NameVariant{Name: tsName, Variant: ""})
 	if err != nil {
 		return fmt.Errorf("could not get training set: %v", err)
 	}
@@ -272,7 +272,7 @@ func updateResourceTableValues(featureTable provider.OfflineTable, labelTable pr
 	return nil
 }
 
-func checkValuesCorrectlySet(tsID metadata.ResourceID, correctTable []provider.ResourceRecord) error {
+func checkValuesCorrectlySet(tsID cm.ResourceID, correctTable []provider.ResourceRecord) error {
 	providerTsID := provider.ResourceID{Name: tsID.Name, Variant: tsID.Variant, Type: provider.TrainingSet}
 	tsIterator, err := offlinePostgresStore.GetTrainingSet(providerTsID)
 	if err != nil {
@@ -291,7 +291,7 @@ func checkValuesCorrectlySet(tsID metadata.ResourceID, correctTable []provider.R
 	return nil
 }
 
-func kubernetesRanScheduledJob(resID metadata.ResourceID) error {
+func kubernetesRanScheduledJob(resID cm.ResourceID) error {
 	currentNameSpace, err := kubernetes.GetCurrentNamespace()
 	if err != nil {
 		return err
@@ -318,8 +318,8 @@ func testScheduleFeatureMaterialization() error {
 	featureName := createSafeUUID()
 	sourceName := createSafeUUID()
 	originalTableName := createSafeUUID()
-	featureID := metadata.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
-	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
+	featureID := cm.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
+	sourceID := cm.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
 	// create postgres table with original data
 	if err := CreateOriginalPostgresTable(originalTableName); err != nil {
 		return fmt.Errorf("Could not create table in postgres: %v", err)
@@ -342,7 +342,7 @@ func testScheduleFeatureMaterialization() error {
 		return fmt.Errorf("tables not set correctly before update: %v", err)
 	}
 	// get last_updated timestamp of feature before update job runs
-	featureBeforeUpdate, err := metadataClient.GetFeatureVariant(ctx, metadata.NameVariant{Name: featureName, Variant: ""})
+	featureBeforeUpdate, err := metadataClient.GetFeatureVariant(ctx, cm.NameVariant{Name: featureName, Variant: ""})
 	if err != nil {
 		return fmt.Errorf("could not get training set: %v", err)
 	}
@@ -361,7 +361,7 @@ func testScheduleFeatureMaterialization() error {
 		return fmt.Errorf("Online table did not update to new values: %v", err)
 	}
 	// get timestamp of feature after update and compare to original timestamp
-	featureSecondTimestamp, err := metadataClient.GetFeatureVariant(ctx, metadata.NameVariant{Name: featureName, Variant: ""})
+	featureSecondTimestamp, err := metadataClient.GetFeatureVariant(ctx, cm.NameVariant{Name: featureName, Variant: ""})
 	if err != nil {
 		return fmt.Errorf("could not get online data: %v", err)
 	}
@@ -398,9 +398,9 @@ func testScheduleTransformation() error {
 	sourceName := strings.Replace(createSafeUUID(), "-", "", -1)
 	transformationName := strings.Replace(createSafeUUID(), "-", "", -1)
 	transformationQuery := fmt.Sprintf("SELECT * FROM {{%s.}}", sourceName)
-	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
-	sourceNameVariants := []metadata.NameVariant{{Name: sourceName, Variant: ""}}
-	transformationID := metadata.ResourceID{Name: transformationName, Variant: "", Type: metadata.SOURCE_VARIANT}
+	sourceID := cm.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
+	sourceNameVariants := []cm.NameVariant{{Name: sourceName, Variant: ""}}
+	transformationID := cm.ResourceID{Name: transformationName, Variant: "", Type: metadata.SOURCE_VARIANT}
 	// initialize source data table
 	if err := CreateOriginalPostgresTable(tableName); err != nil {
 		return fmt.Errorf("Could not create non-featureform source table: %v", err)
@@ -422,7 +422,7 @@ func testScheduleTransformation() error {
 		return fmt.Errorf("Could not execute transformation job in coordinator: %v", err)
 	}
 	// get original timestamp for metadata transformation
-	originalTransformationMetadataRecord, err := metadataClient.GetSourceVariant(ctx, metadata.NameVariant{Name: transformationName, Variant: ""})
+	originalTransformationMetadataRecord, err := metadataClient.GetSourceVariant(ctx, cm.NameVariant{Name: transformationName, Variant: ""})
 	if err != nil {
 		return fmt.Errorf("could not get training set")
 	}
@@ -441,7 +441,7 @@ func testScheduleTransformation() error {
 		return fmt.Errorf("transformation table values did not update: %v", err)
 	}
 	// get timestamp of updated transformation table in metadata and check that timestamp is more recent than original
-	updatedTransformationMetadataRecord, err := metadataClient.GetSourceVariant(ctx, metadata.NameVariant{Name: transformationName, Variant: ""})
+	updatedTransformationMetadataRecord, err := metadataClient.GetSourceVariant(ctx, cm.NameVariant{Name: transformationName, Variant: ""})
 	if err != nil {
 		return fmt.Errorf("could not get training set: %v", err)
 	}
@@ -500,8 +500,8 @@ func testUpdateExistingSchedule() error {
 	featureName := createSafeUUID()
 	sourceName := createSafeUUID()
 	originalTableName := createSafeUUID()
-	featureID := metadata.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
-	sourceID := metadata.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
+	featureID := cm.ResourceID{Name: featureName, Variant: "", Type: metadata.FEATURE_VARIANT}
+	sourceID := cm.ResourceID{Name: sourceName, Variant: "", Type: metadata.SOURCE_VARIANT}
 	if err := CreateOriginalPostgresTable(originalTableName); err != nil {
 		return fmt.Errorf("Could not create table in postgres: %v", err)
 	}
@@ -626,7 +626,7 @@ func createTrainingSetWithProvider(sourceName string, featureName string, labelN
 			Variant:     "",
 			Description: "",
 			Type:        string(provider.Int),
-			Source:      metadata.NameVariant{sourceName, ""},
+			Source:      cm.NameVariant{sourceName, ""},
 			Entity:      entityName,
 			Owner:       userName,
 			Provider:    providerName,
@@ -639,7 +639,7 @@ func createTrainingSetWithProvider(sourceName string, featureName string, labelN
 		metadata.FeatureDef{
 			Name:        featureName,
 			Variant:     "",
-			Source:      metadata.NameVariant{sourceName, ""},
+			Source:      cm.NameVariant{sourceName, ""},
 			Type:        string(provider.Int),
 			Entity:      entityName,
 			Owner:       userName,
@@ -657,8 +657,8 @@ func createTrainingSetWithProvider(sourceName string, featureName string, labelN
 			Description: "",
 			Owner:       userName,
 			Provider:    providerName,
-			Label:       metadata.NameVariant{labelName, ""},
-			Features:    []metadata.NameVariant{{featureName, ""}},
+			Label:       cm.NameVariant{labelName, ""},
+			Features:    []cm.NameVariant{{featureName, ""}},
 			Schedule:    schedule,
 		},
 	}
@@ -713,7 +713,7 @@ func materializeFeatureWithProvider(featureName string, sourceName string, origi
 		metadata.FeatureDef{
 			Name:        featureName,
 			Variant:     "",
-			Source:      metadata.NameVariant{sourceName, ""},
+			Source:      cm.NameVariant{sourceName, ""},
 			Type:        string(provider.Int),
 			Entity:      entityName,
 			Owner:       userName,
@@ -767,7 +767,7 @@ func createSourceWithProvider(sourceName string, tableName string) error {
 	return nil
 }
 
-func createTransformationWithProvider(sourceName string, transformationQuery string, sources []metadata.NameVariant, schedule string) error {
+func createTransformationWithProvider(sourceName string, transformationQuery string, sources []cm.NameVariant, schedule string) error {
 	userName := createSafeUUID()
 	providerName := createSafeUUID()
 	defs := []metadata.ResourceDef{

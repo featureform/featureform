@@ -5,9 +5,9 @@
 package runner
 
 import (
+	cm "github.com/featureform/helpers/resource"
 	"testing"
 
-	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/types"
 	"go.uber.org/zap/zaptest"
@@ -19,8 +19,8 @@ func (m mockChunkRunner) Run() (types.CompletionWatcher, error) {
 	return mockCompletionWatcher{}, nil
 }
 
-func (m mockChunkRunner) Resource() metadata.ResourceID {
-	return metadata.ResourceID{}
+func (m mockChunkRunner) Resource() cm.ResourceID {
+	return cm.ResourceID{}
 }
 
 func (m mockChunkRunner) IsUpdateJob() bool {

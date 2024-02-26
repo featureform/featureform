@@ -7,8 +7,8 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+	cm "github.com/featureform/helpers/resource"
 
-	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -51,8 +51,8 @@ type TrainingSetRunnerConfig struct {
 	IsUpdate      bool
 }
 
-func (t TrainingSetRunner) Resource() metadata.ResourceID {
-	return metadata.ResourceID{
+func (t TrainingSetRunner) Resource() cm.ResourceID {
+	return cm.ResourceID{
 		Name:    t.Def.ID.Name,
 		Variant: t.Def.ID.Variant,
 		Type:    provider.ProviderToMetadataResourceType[t.Def.ID.Type],

@@ -1,5 +1,5 @@
 import CloseIcon from '@mui/icons-material/Close';
-import { Box, CircularProgress, Divider } from '@mui/material';
+import { Box, Divider } from '@mui/material';
 import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -16,18 +16,19 @@ export default function TriggerDialog({
   handleDeleteResource,
 }) {
   const [error] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [details, setDetails] = useState({});
   const dataAPI = useDataAPI();
 
+  const refresh = async function () {
+    const data = await dataAPI.getTriggerDetails(triggerId);
+    if (typeof data == 'object' && data.owner) {
+      setDetails(data);
+    }
+  };
+
   useEffect(async () => {
     if (open && triggerId) {
-      setIsLoading(true);
-      const data = await dataAPI.getTriggerDetails(triggerId);
-      if (typeof data == 'object' && data.owner) {
-        setDetails(data);
-      }
-      setIsLoading(false);
+      refresh();
     }
   }, [open]);
 
@@ -47,15 +48,16 @@ export default function TriggerDialog({
         </DialogTitle>
         <Divider />
         <DialogContent>
-          {isLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-              <CircularProgress />
-            </Box>
-          ) : error === '' ? (
+          {error === '' ? (
             <TriggerDetail
               handleClose={handleClose}
               handleDelete={handleDelete}
-              handleDeleteResource={handleDeleteResource}
+              handleDeleteResource={async (e, triggerId, resourceId) => {
+                if (handleDeleteResource) {
+                  await handleDeleteResource?.(e, triggerId, resourceId);
+                  await refresh();
+                }
+              }}
               details={details}
             />
           ) : (

@@ -80,9 +80,11 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
 
   const handleDelete = async (id = '') => {
     if (id) {
-      await dataAPI.deleteTrigger(id);
-      refresh?.();
-      setOpenDialog(false);
+      const data = await dataAPI.deleteTrigger(id);
+      if (data === true) {
+        refresh?.();
+        setOpenDialog(false);
+      }
     }
   };
 
@@ -92,7 +94,6 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
     if (resourceId && triggerId) {
       await dataAPI.deleteTriggerResource(triggerId, resourceId);
       refresh?.();
-      setOpenDialog(false);
     }
   };
 

@@ -1881,6 +1881,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		fmt.Println("need to update protos to have the task ids")
 	} else {
 		// TODO: create a method to get the task id from the name and variant and type
+		taskId = res.Proto().GetTaskId()
 	}
 
 	if existing != nil {

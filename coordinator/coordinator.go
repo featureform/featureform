@@ -273,6 +273,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 	if err != nil {
 		return fmt.Errorf("fetch existing etcd jobs: %v", err)
 	}
+	runs.FilterByStatus(scheduling.PENDING)
 
 	for _, run := range runs {
 		go func(run *scheduling.TaskRunMetadata) {
@@ -298,6 +299,8 @@ func (c *Coordinator) WatchForNewJobs() error {
 		if err != nil {
 			return fmt.Errorf("fetch existing etcd jobs: %v", err)
 		}
+
+		runs.FilterByStatus(scheduling.PENDING)
 
 		for _, run := range runs {
 			go func(run *scheduling.TaskRunMetadata) {

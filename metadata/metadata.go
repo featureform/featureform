@@ -2,6 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+// TODO: need to figure out entry point for GetStatus
+// modify if status is not in proto then check the task manager
+
 package metadata
 
 import (
@@ -11,6 +14,8 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	scheduling "command-line-arguments/Users/kempytoor/Documents/Featureform/repos/featureform/scheduling/taskmanager.go"
 
 	"github.com/featureform/lib"
 
@@ -22,6 +27,8 @@ import (
 	"github.com/featureform/metadata/search"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	sp "github.com/featureform/scheduling/storage_providers"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -1424,11 +1431,12 @@ func (resource *entityResource) Update(lookup ResourceLookup, updateRes Resource
 }
 
 type MetadataServer struct {
-	Logger     *zap.SugaredLogger
-	lookup     ResourceLookup
-	address    string
-	grpcServer *grpc.Server
-	listener   net.Listener
+	Logger      *zap.SugaredLogger
+	lookup      ResourceLookup
+	address     string
+	grpcServer  *grpc.Server
+	listener    net.Listener
+	taskManager *scheduling.taskManager
 	pb.UnimplementedMetadataServer
 }
 
@@ -1449,10 +1457,17 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 			ResourceLookup: lookup,
 		}
 	}
+
+	// Create the task manager for the server
+	// TODO: need to modify it so it can be any provider
+	storage := sp.NewMemoryStorageProvider()
+	taskManager := &scheduling.NewTaskManager(storage)
+
 	return &MetadataServer{
-		lookup:  lookup,
-		address: config.Address,
-		Logger:  config.Logger,
+		lookup:      lookup,
+		address:     config.Address,
+		Logger:      config.Logger,
+		taskManager: &taskManager,
 	}, nil
 }
 
@@ -1837,6 +1852,7 @@ type sendFn func(proto.Message) error
 type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
+	// TODO: Create a task and task run and sets the status to pending
 	serv.Logger.Info("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
 
 	id := res.ID()
@@ -1846,6 +1862,25 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	existing, err := serv.lookup.Lookup(id)
 	if _, isResourceError := err.(*ResourceNotFoundError); err != nil && !isResourceError {
 		return nil, err
+	}
+
+	var taskId scheduling.TaskID
+	if existing == nil {
+		// TODO: create task with ID
+		// update res with task id
+		// name string, tType TaskType, target TaskTarget
+		name := fmt.Sprintf("%s__%s__%s", res.ID().Type, res.ID().Name, res.ID().Variant)
+		taskTarget := scheduling.NameVariant{Name: res.ID().Name, Variant: res.ID().Variant, Type: res.ID().Type}
+		taskMetadata, err := serv.taskManager.CreateTask(name, scheduling.ResourceCreation, taskTarget)
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO: update with task id
+		taskId = taskMetadata.ID
+		fmt.Println("need to update protos to have the task ids")
+	} else {
+		// TODO: create a method to get the task id from the name and variant and type
 	}
 
 	if existing != nil {
@@ -1861,8 +1896,19 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if err := serv.lookup.Set(id, res); err != nil {
 		return nil, err
 	}
+
 	if serv.needsJob(res) && existing == nil {
 		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
+		// TODO: add task run id name string, taskID TaskID, trigger Trigger
+		name := fmt.Sprintf("%s__%s__%s", res.ID().Type, res.ID().Name, res.ID().Variant)
+		triggerName := fmt.Sprintf("%s__%s", name, uuid.New().String())
+		trigger := scheduling.OneOffTrigger{Name: triggerName}
+		taskRun, err := serv.taskManager.CreateTaskRun(name, taskId, trigger)
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO: remove this once we have a proper job system
 		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
 			return nil, fmt.Errorf("set job: %w", err)
 		}

@@ -8,6 +8,9 @@ import (
 	"strings"
 	"time"
 
+	scheduling "github.com/featureform//scheduling"
+	sp "github.com/featureform/scheduling/storage_providers"
+
 	db "github.com/jackc/pgx/v4"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -82,12 +85,13 @@ func getSourceMapping(template string, replacements map[string]string) ([]provid
 }
 
 type Coordinator struct {
-	Metadata   *metadata.Client
-	Logger     *zap.SugaredLogger
-	EtcdClient *clientv3.Client
-	KVClient   *clientv3.KV
-	Spawner    JobSpawner
-	Timeout    int
+	Metadata    *metadata.Client
+	Logger      *zap.SugaredLogger
+	EtcdClient  *clientv3.Client
+	KVClient    *clientv3.KV
+	Spawner     JobSpawner
+	Timeout     int
+	taskManager scheduling.TaskManager
 }
 
 type ETCDConfig struct {
@@ -263,32 +267,54 @@ func (c *Coordinator) checkError(err error, jobName string) {
 
 func (c *Coordinator) WatchForNewJobs() error {
 	c.Logger.Info("Watching for new jobs")
-	getResp, err := (*c.KVClient).Get(context.Background(), "JOB_", clientv3.WithPrefix())
+	// TODO: change it so we can watch for new jobs using task manager; searching for PENDING status tasks
+	// JOB__TYPE__NAME__VARIANT
+	runs, err := c.taskManager.GetAllTaskRuns()
 	if err != nil {
-		return fmt.Errorf("get existing etcd jobs: %v", err)
+		return fmt.Errorf("fetch existing etcd jobs: %v", err)
 	}
-	for _, kv := range getResp.Kvs {
-		go func(kv *mvccpb.KeyValue) {
-			err := c.ExecuteJob(string(kv.Key))
-			if err != nil {
-				c.checkError(err, string(kv.Key))
-			}
-		}(kv)
-	}
-	for {
-		rch := c.EtcdClient.Watch(context.Background(), "JOB_", clientv3.WithPrefix())
-		for wresp := range rch {
-			for _, ev := range wresp.Events {
-				if ev.Type == mvccpb.PUT {
-					go func(ev *clientv3.Event) {
-						err := c.ExecuteJob(string(ev.Kv.Key))
-						if err != nil {
-							c.checkError(err, string(ev.Kv.Key))
-						}
-					}(ev)
-				}
 
+	for _, run := range runs {
+		go func(run *scheduling.TaskRunMetadata) {
+			// LOCK and pass the key to the worker; if lock fails then skip
+			// UNLOCK after the worker is done
+			// LockTaskRun(taskID TaskID, runId TaskRunID) (sp.LockObject, error)
+			lock, err := c.taskManager.LockTaskRun(run.TaskId, run.ID)
+			if err != nil {
+				c.Logger.Errorw("Error locking task run", "error", err)
+				return err
 			}
+			defer c.taskManager.UnlockTaskRun(run.TaskID, run.ID, lock)
+			err = c.ExecuteJob(run, lock)
+			if err != nil {
+				c.checkError(err, run.Name)
+			}
+		}(run)
+	}
+
+	for {
+		// TODO: change it so we can watch for new jobs using task manager
+		runs, err := c.taskManager.GetAllTaskRuns()
+		if err != nil {
+			return fmt.Errorf("fetch existing etcd jobs: %v", err)
+		}
+
+		for _, run := range runs {
+			go func(run *scheduling.TaskRunMetadata) {
+				// LOCK and pass the key to the worker; if lock fails then skip
+				// UNLOCK after the worker is done
+				// LockTaskRun(taskID TaskID, runId TaskRunID) (sp.LockObject, error)
+				lock, err := c.taskManager.LockTaskRun(run.TaskId, run.ID)
+				if err != nil {
+					c.Logger.Errorw("Error locking task run", "error", err)
+					return err
+				}
+				defer c.taskManager.UnlockTaskRun(run.TaskID, run.ID, lock)
+				err = c.ExecuteJob(run, lock)
+				if err != nil {
+					c.checkError(err, run.Name)
+				}
+			}(run)
 		}
 	}
 }
@@ -1052,27 +1078,32 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	return nil
 }
 
-func (c *Coordinator) getJob(mtx *concurrency.Mutex, key string) (*metadata.CoordinatorJob, error) {
-	c.Logger.Debugf("Checking existence of job with key %s\n", key)
-	txn := (*c.KVClient).Txn(context.Background())
-	response, err := txn.If(mtx.IsOwner()).Then(clientv3.OpGet(key)).Commit()
+func (c *Coordinator) getJob(taskRun scheduling.TaskRunMetadata) (*metadata.CoordinatorJob, error) {
+	// JOB__TYPE__NAME__VARIANT
+	// Pull the information for CoordinatorJob from task run
+	// change parameter to accept task id and run id
+	c.Logger.Debugf("Checking existence of task with id %s and run id\n", taskRun.TaskID, taskRun.ID)
+	taskMetadata, err := c.taskManager.GetTaskByID(taskRun.TaskID)
 	if err != nil {
-		return nil, fmt.Errorf("transaction did not succeed: %v", err)
+		return nil, fmt.Errorf("could not get task metadata: %v", err)
 	}
-	isOwner := response.Succeeded //response.Succeeded sets true if transaction "if" statement true
-	if !isOwner {
-		return nil, fmt.Errorf("was not owner of lock")
+
+	if taskMetadata.Target == nil {
+		return nil, fmt.Errorf("no task target found for task %s", taskRun.TaskID)
 	}
-	responseData := response.Responses[0]
-	responseKVs := responseData.GetResponseRange().GetKvs()
-	if len(responseKVs) == 0 {
-		return nil, JobDoesNotExistError{key: key}
+	if taskMetadata.TargetType != scheduling.NameVariantTarget {
+		return nil, fmt.Errorf("task target type is not name variant for task %s", taskRun.TaskID)
 	}
-	responseValue := responseKVs[0].Value //Only single response for single key
-	job := &metadata.CoordinatorJob{}
-	if err := job.Deserialize(responseValue); err != nil {
-		return nil, fmt.Errorf("could not deserialize coordinator job: %v", err)
+
+	job := &metadata.CoordinatorJob{
+		Resource: metadata.ResourceID{
+			Name:    taskMetadata.Target.Name,
+			Variant: taskMetadata.Target.Variant,
+			Type:    taskMetadata.Target.ResourceType,
+		},
+		Attempt: 0,
 	}
+
 	return job, nil
 }
 
@@ -1135,37 +1166,23 @@ func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*con
 	return mtx, nil
 }
 
-func (c *Coordinator) ExecuteJob(jobKey string) error {
-	c.Logger.Info("Executing new job with key ", jobKey)
-	s, err := concurrency.NewSession(c.EtcdClient, concurrency.WithTTL(10_000_000))
-	if err != nil {
-		return fmt.Errorf("new session: %v", err)
-	}
-	defer s.Close()
-	mtx, err := c.createJobLock(jobKey, s)
-	if err != nil {
-		return fmt.Errorf("job lock: %v", err)
-	}
-	defer func() {
-		if err := mtx.Unlock(context.Background()); err != nil {
-			c.Logger.Debugw("Error unlocking mutex:", "error", err)
-		}
-	}()
-	job, err := c.getJob(mtx, jobKey)
+func (c *Coordinator) ExecuteJob(taskRun scheduling.TaskRunMetadata, lock sp.LockObject) error {
+	// TODO: will need to modify to get the task id and task run id?
+	// Lock the run and set status to running in the task manager
+	// then
+	c.Logger.Info("Executing new task with id ", taskRun.TaskID, " and run id ", taskRun.ID)
+
+	// TODO: do we need to modify getJob to use task manager to get the task run information?
+	// OR is the key related to the resource
+	job, err := c.getJob(taskRun)
 	if err != nil {
 		return err
 	}
-	c.Logger.Debugf("Job %s is on attempt %d", jobKey, job.Attempts)
+	c.Logger.Debugf("Task %s with Run %s is on attempt %d", taskRun.TaskID, taskRun.ID, job.Attempts)
 	if job.Attempts > MAX_ATTEMPTS {
-		if err := c.deleteJob(mtx, jobKey); err != nil {
-			c.Logger.Debugw("Error deleting job", "error", err)
-			return fmt.Errorf("job delete: %v", err)
-		}
 		return fmt.Errorf("job failed after %d attempts. Cancelling coordinator flow", MAX_ATTEMPTS)
 	}
-	if err := c.incrementJobAttempts(mtx, job, jobKey); err != nil {
-		return fmt.Errorf("increment attempt: %v", err)
-	}
+	job.Attempts += 1
 	type jobFunction func(metadata.ResourceID, string) error
 	fns := map[metadata.ResourceType]jobFunction{
 		metadata.TRAINING_SET_VARIANT: c.runTrainingSetJob,
@@ -1183,15 +1200,29 @@ func (c *Coordinator) ExecuteJob(jobKey string) error {
 		case ResourceAlreadyFailedError:
 			return err
 		default:
-			statusErr := c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, err.Error())
+			// TODO: set up status and error message in task manager
+			//runID TaskRunID, taskID TaskID, status Status, err error, lock sp.LockObject
+			err := c.taskManager.SetRunStatus(taskRun.ID, taskRun.TaskID, scheduling.FAILED, err.Error(), lock)
+			if err != nil {
+				return fmt.Errorf("set run status in task manager: %v", err)
+			}
+
+			// TODO: update the end time too
+			endTime := time.Now().UTC()
+			err = c.taskManager.SetRunEndTime(taskRun.ID, taskRun.TaskID, endTime, lock)
+			if err != nil {
+				return fmt.Errorf("set run end time in task manager: %v", err)
+			}
+
 			return fmt.Errorf("%s job failed: %w: %v", job.Resource.Type, err, statusErr)
 		}
 	}
-	c.Logger.Info("Successfully executed job with key: ", jobKey)
-	if err := c.deleteJob(mtx, jobKey); err != nil {
-		c.Logger.Debugw("Error deleting job", "error", err)
-		return fmt.Errorf("job delete: %v", err)
+	endTime := time.Now().UTC()
+	err = c.taskManager.SetRunEndTime(taskRun.ID, taskRun.TaskID, endTime, lock)
+	if err != nil {
+		return fmt.Errorf("set run end time in task manager: %v", err)
 	}
+
 	return nil
 }
 

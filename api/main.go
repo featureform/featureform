@@ -21,7 +21,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
-	"google.golang.org/grpc/status"
+	grpc_status "google.golang.org/grpc/status"
 
 	"github.com/joho/godotenv"
 
@@ -603,7 +603,7 @@ func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Pro
 	}
 	serv.Logger.Infow("Creating Provider", "name", provider.Name)
 	_, err = serv.meta.CreateProvider(ctx, provider)
-	if err != nil && status.Code(err) != codes.AlreadyExists {
+	if err != nil && grpc_status.Code(err) != codes.AlreadyExists {
 		serv.Logger.Errorw("Failed to create provider", "error", err)
 		return nil, err
 	}
@@ -633,7 +633,7 @@ func (serv *MetadataServer) shouldCheckProviderHealth(ctx context.Context, provi
 			return false, err
 		}
 		res, err := stream.Recv()
-		if status.Code(err) == codes.NotFound {
+		if grpc_status.Code(err) == codes.NotFound {
 			break
 		}
 		if err != nil {
@@ -659,9 +659,20 @@ func (serv *MetadataServer) checkProviderHealth(ctx context.Context, providerNam
 	isHealthy, err := serv.health.CheckProvider(providerName)
 	if err != nil || !isHealthy {
 		serv.Logger.Errorw("Provider health check failed", "error", err)
+
+		errorStatus, ok := grpc_status.FromError(err)
+		errorProto := errorStatus.Proto()
+		var errorStatusProto *pb.ErrorStatus
+		if ok {
+			errorStatusProto = &pb.ErrorStatus{Code: errorProto.Code, Message: errorProto.Message, Details: errorProto.Details}
+		} else {
+			errorStatusProto = nil
+		}
+
 		status = &pb.ResourceStatus{
 			Status:       pb.ResourceStatus_FAILED,
 			ErrorMessage: err.Error(),
+			ErrorStatus:  errorStatusProto,
 		}
 	} else {
 		serv.Logger.Infow("Provider health check passed", "name", providerName)

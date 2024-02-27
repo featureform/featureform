@@ -122,7 +122,7 @@ func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant)
 		}
 		sourceStatus := source.Status()
 		if sourceStatus == metadata.FAILED {
-			err := fferr.NewInternalError(fmt.Errorf("source registration failed"))
+			err := fferr.NewInternalError(fmt.Errorf("required dependent source failed"))
 			err.AddDetail("Name", sourceNameVariant.Name)
 			err.AddDetail("Variant", sourceNameVariant.Variant)
 			return nil, err

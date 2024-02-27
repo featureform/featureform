@@ -836,6 +836,7 @@ class ServerStatus:
             error_info=error_info,
         )
 
+
 @typechecked
 @dataclass
 class Provider:
@@ -962,9 +963,6 @@ class Directory:
 
 
 Location = Union[SQLTable, Directory]
-
-
-
 
 
 class ResourceVariant(ABC):

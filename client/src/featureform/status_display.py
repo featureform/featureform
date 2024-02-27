@@ -13,7 +13,8 @@ from rich.text import Text
 from featureform.grpc_client import GrpcClient
 from featureform.proto import metadata_pb2 as pb
 from featureform.resources import (
-    ErrorInfo, FeatureVariant,
+    ErrorInfo,
+    FeatureVariant,
     LabelVariant,
     OnDemandFeatureVariant,
     Provider,
@@ -63,6 +64,7 @@ class DisplayStatus:
             has_health_check=bool(getattr(resource, "has_health_check", False)),
         )
 
+
 class StatusDisplayer:
     did_error: bool = False
     RESOURCE_TYPES_TO_CHECK = {
@@ -110,7 +112,9 @@ class StatusDisplayer:
                 server_status = r.server_status
                 display_status.status = server_status.status
                 if server_status.error_info:
-                    display_status.error = self._format_error_info(server_status.error_info)
+                    display_status.error = self._format_error_info(
+                        server_status.error_info
+                    )
                 else:
                     display_status.error = r.error
 

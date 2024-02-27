@@ -1011,7 +1011,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 
 	default:
 		m.logger.Errorw("Not a valid data type", "Error", c.Param("type"))
-		fetchError := &FetchError{StatusCode: 400, Type: c.Param("type")}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: c.Param("type")}
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1062,7 +1062,7 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	var limit int64 = 150
 	response := SourceDataResponse{}
 	if name == "" || variant == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetSourceData - Could not find the name or variant query parameters"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetSourceData - Could not find the name or variant query parameters"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1120,7 +1120,7 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 	name := c.Query("name")
 	variant := c.Query("variant")
 	if name == "" || variant == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetFeatureFileStats - Could not find the name or variant query parameters"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetFeatureFileStats - Could not find the name or variant query parameters"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1706,7 +1706,7 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	taskRunId := c.Param("taskRunId")
 
 	if taskRunId == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1714,7 +1714,7 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 
 	searchId, err := strconv.Atoi(taskRunId)
 	if err != nil {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - taskRunId is not a number!"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetTaskRunDetails - taskRunId is not a number!"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1744,11 +1744,12 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 }
 
 type TriggerResponse struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Type     string `json:"type"`
-	Schedule string `json:"schedule"`
-	Detail   string `json:"detail"`
+	ID        string            `json:"id"`
+	Name      string            `json:"name"`
+	Type      string            `json:"type"`
+	Schedule  string            `json:"schedule"`
+	Detail    string            `json:"detail"`
+	Resources []TriggerResource `json:"resources"`
 }
 
 type TriggerGetPostBody struct {
@@ -1798,7 +1799,7 @@ func (m *MetadataServer) PostTrigger(c *gin.Context) {
 			Name:     requestBody.TriggerName,
 			Type:     "Schedule Trigger",
 			Schedule: requestBody.Schedule,
-			Detail:   "Some Details"})
+			Detail:   "Some Details", Resources: []TriggerResource{{ID: uuid.New().String(), Resource: "avg", Variant: "v1", LastRun: time.Now()}, {ID: uuid.New().String(), Resource: "avg", Variant: "v2", LastRun: time.Now()}}})
 
 	c.JSON(http.StatusCreated, true)
 }
@@ -1820,7 +1821,7 @@ func (m *MetadataServer) GetTriggerDetails(c *gin.Context) {
 	triggerId := c.Param("triggerId")
 
 	if triggerId == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetTriggerDetails - Could not find the triggerId parameter"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetTriggerDetails - Could not find the triggerId parameter"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1832,7 +1833,7 @@ func (m *MetadataServer) GetTriggerDetails(c *gin.Context) {
 		if loopItem.ID == triggerId {
 			result.Owner = "Current User"
 			result.Trigger = loopItem
-			result.Resources = []TriggerResource{}
+			result.Resources = loopItem.Resources
 		}
 	}
 
@@ -1843,21 +1844,60 @@ func (m *MetadataServer) DeleteTrigger(c *gin.Context) {
 	deleteId := c.Param("triggerId")
 
 	if deleteId == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "DeleteTrigger - Could not find the triggerId parameter"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "DeleteTrigger - Could not find the triggerId parameter"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 
 	result := []TriggerResponse{}
+
 	for _, loopItem := range taskTriggerList {
 		if loopItem.ID == deleteId {
+			if len(loopItem.Resources) >= 1 {
+				fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "DeleteTrigger - Cannot delete trigger with resource items"}
+				m.logger.Errorw(fetchError.Error(), "Metadata error")
+				c.JSON(fetchError.StatusCode, fetchError.Error())
+				return
+			}
 			continue
 		}
 		result = append(result, loopItem)
 	}
 
 	taskTriggerList = result //reset the list
+	c.JSON(http.StatusOK, true)
+}
+
+type TriggerResourceDelete struct {
+	TriggerId  string `json:"triggerId"`
+	ResourceId string `json:"resourceID"`
+}
+
+func (m *MetadataServer) DeleteTriggerResource(c *gin.Context) {
+	var requestBody TriggerResourceDelete
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetTagError(500, err, c, "DeleteTriggerResource - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	//find the trigger and delete the resource, this eventually gets replaced with a live api calls
+	for outerIndex, triggerItem := range taskTriggerList {
+		if triggerItem.ID == requestBody.TriggerId {
+			newList := []TriggerResource{}
+			for _, resourceItem := range triggerItem.Resources {
+				if resourceItem.ID == requestBody.ResourceId {
+					continue
+				}
+				newList = append(newList, resourceItem)
+			}
+			//updated item
+			triggerItem.Resources = newList
+			taskTriggerList[outerIndex] = triggerItem
+			break
+		}
+	}
 	c.JSON(http.StatusOK, true)
 }
 
@@ -1879,6 +1919,7 @@ func (m *MetadataServer) Start(port string) {
 	router.POST("/data/posttrigger", m.PostTrigger)
 	router.GET("/data/triggerdetail/:triggerId", m.GetTriggerDetails)
 	router.DELETE("/data/triggerdelete/:triggerId", m.DeleteTrigger)
+	router.POST("/data/triggerdeleteresource", m.DeleteTriggerResource)
 	router.Run(port)
 }
 

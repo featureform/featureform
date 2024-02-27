@@ -79,8 +79,6 @@ class GrpcClient:
                         logging.debug(
                             f"Error: {status_proto.message}: {reason}\n{_format_metadata(metadata)}"
                         )
-
-                        # log reason and metadata
                 raise Exception(
                     f"{reason}: {status_proto.message}\n{_format_metadata(metadata)}"
                 ) from None

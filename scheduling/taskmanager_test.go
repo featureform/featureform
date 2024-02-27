@@ -29,16 +29,16 @@ func TestCreateTask(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant"}, 1},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, 1},
 			},
 			false,
 		},
 		{
 			"Multiple",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant"}, 1},
-				{"name2", ResourceCreation, NameVariant{"name", "variant"}, 2},
-				{"name3", ResourceCreation, NameVariant{"name", "variant"}, 3},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, 1},
+				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, 2},
+				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, 3},
 			},
 			false,
 		},
@@ -92,7 +92,7 @@ func TestTaskGetByID(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant"}, 1},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, 1},
 			},
 			TaskID(1),
 			false,
@@ -100,9 +100,9 @@ func TestTaskGetByID(t *testing.T) {
 		{
 			"Multiple",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant"}, 1},
-				{"name2", ResourceCreation, NameVariant{"name", "variant"}, 2},
-				{"name3", ResourceCreation, NameVariant{"name", "variant"}, 3},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, 1},
+				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, 2},
+				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, 3},
 			},
 			TaskID(2),
 			false,
@@ -110,9 +110,9 @@ func TestTaskGetByID(t *testing.T) {
 		{
 			"MultipleInsertInvalidLookup",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant"}, 1},
-				{"name2", ResourceCreation, NameVariant{"name", "variant"}, 2},
-				{"name3", ResourceCreation, NameVariant{"name", "variant"}, 3},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, 1},
+				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, 2},
+				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, 3},
 			},
 			TaskID(4),
 			true,
@@ -175,7 +175,7 @@ func TestTaskGetAll(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant"}, 1},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, 1},
 			},
 			TaskID(1),
 			false,
@@ -183,9 +183,9 @@ func TestTaskGetAll(t *testing.T) {
 		{
 			"Multiple",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant"}, 1},
-				{"name2", ResourceCreation, NameVariant{"name", "variant"}, 2},
-				{"name3", ResourceCreation, NameVariant{"name", "variant"}, 3},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, 1},
+				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, 2},
+				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, 3},
 			},
 			TaskID(2),
 			false,
@@ -260,13 +260,13 @@ func TestCreateTaskRun(t *testing.T) {
 	tests := []TestCase{
 		{
 			"Single",
-			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{{"name", 1, OneOffTrigger{"name"}, 1}},
 			false,
 		},
 		{
 			"Multiple",
-			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}, 1},
 				{"name", 1, OneOffTrigger{"name"}, 2},
@@ -283,8 +283,8 @@ func TestCreateTaskRun(t *testing.T) {
 		{
 			"MultipleTasks",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant"}},
-				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}, 1},
@@ -349,7 +349,7 @@ func TestGetRunByID(t *testing.T) {
 	tests := []TestCase{
 		{
 			"Single",
-			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{{"name", 1, OneOffTrigger{"name"}}},
 			1,
 			1,
@@ -357,7 +357,7 @@ func TestGetRunByID(t *testing.T) {
 		},
 		{
 			"Multiple",
-			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}},
 				{"name", 1, OneOffTrigger{"name"}},
@@ -370,8 +370,8 @@ func TestGetRunByID(t *testing.T) {
 		{
 			"MultipleTasks",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant"}},
-				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}},
@@ -385,7 +385,7 @@ func TestGetRunByID(t *testing.T) {
 		},
 		{
 			"Fetch NonExistent",
-			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{{"name", 1, OneOffTrigger{"name"}}},
 			1,
 			2,
@@ -455,13 +455,13 @@ func TestGetRunAll(t *testing.T) {
 	tests := []TestCase{
 		{
 			"Single",
-			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{{"name", 1, OneOffTrigger{"name"}}},
 			false,
 		},
 		{
 			"Multiple",
-			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}},
 				{"name", 1, OneOffTrigger{"name"}},
@@ -472,8 +472,8 @@ func TestGetRunAll(t *testing.T) {
 		{
 			"MultipleTasks",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant"}},
-				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}},
@@ -584,7 +584,7 @@ func TestSetStatusByRunID(t *testing.T) {
 	tests := []TestCase{
 		{
 			"Single",
-			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{{"name", 1, OneOffTrigger{"name"}}},
 			1,
 			1,
@@ -594,7 +594,7 @@ func TestSetStatusByRunID(t *testing.T) {
 		},
 		{
 			"Multiple",
-			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}},
 				{"name", 1, OneOffTrigger{"name"}},
@@ -608,7 +608,7 @@ func TestSetStatusByRunID(t *testing.T) {
 		},
 		{
 			"WrongID",
-			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}},
 			},
@@ -620,7 +620,7 @@ func TestSetStatusByRunID(t *testing.T) {
 		},
 		{
 			"WrongRunID",
-			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}},
 			},
@@ -633,8 +633,8 @@ func TestSetStatusByRunID(t *testing.T) {
 		{
 			"MultipleTasks",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant"}},
-				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}},
@@ -651,8 +651,8 @@ func TestSetStatusByRunID(t *testing.T) {
 		{
 			"FailedStatusWithoutError",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant"}},
-				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}},
@@ -749,7 +749,7 @@ func TestSetEndTimeByRunID(t *testing.T) {
 	tests := []TestCase{
 		{
 			"Single",
-			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{{"name", 1, OneOffTrigger{"name"}}},
 			1,
 			1,
@@ -758,7 +758,7 @@ func TestSetEndTimeByRunID(t *testing.T) {
 		},
 		{
 			"Multiple",
-			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}},
 				{"name", 1, OneOffTrigger{"name"}},
@@ -771,7 +771,7 @@ func TestSetEndTimeByRunID(t *testing.T) {
 		},
 		{
 			"EmptyTime",
-			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}},
 				{"name", 1, OneOffTrigger{"name"}},
@@ -784,7 +784,7 @@ func TestSetEndTimeByRunID(t *testing.T) {
 		},
 		{
 			"WrongEndTime",
-			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant"}}},
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}},
 				{"name", 1, OneOffTrigger{"name"}},
@@ -798,8 +798,8 @@ func TestSetEndTimeByRunID(t *testing.T) {
 		{
 			"MultipleTasks",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant"}},
-				{"name", ResourceCreation, NameVariant{"name", "variant"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
 				{"name", 1, OneOffTrigger{"name"}},

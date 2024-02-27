@@ -1435,7 +1435,7 @@ type MetadataServer struct {
 	address     string
 	grpcServer  *grpc.Server
 	listener    net.Listener
-	taskManager *scheduling.taskManager
+	taskManager *scheduling.TaskManager
 	pb.UnimplementedMetadataServer
 }
 
@@ -1460,7 +1460,7 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	// Create the task manager for the server
 	// TODO: need to modify it so it can be any provider
 	storage := sp.NewMemoryStorageProvider()
-	taskManager := &scheduling.NewTaskManager(storage)
+	taskManager := scheduling.NewTaskManager(storage)
 
 	return &MetadataServer{
 		lookup:      lookup,
@@ -1869,7 +1869,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		// update res with task id
 		// name string, tType TaskType, target TaskTarget
 		name := fmt.Sprintf("%s__%s__%s", res.ID().Type, res.ID().Name, res.ID().Variant)
-		taskTarget := scheduling.NameVariant{Name: res.ID().Name, Variant: res.ID().Variant, Type: res.ID().Type}
+		taskTarget := scheduling.NameVariant{Name: res.ID().Name, Variant: res.ID().Variant, ResourceType: res.ID().Type.String()}
 		taskMetadata, err := serv.taskManager.CreateTask(name, scheduling.ResourceCreation, taskTarget)
 		if err != nil {
 			return nil, err
@@ -1880,7 +1880,8 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		fmt.Println("need to update protos to have the task ids")
 	} else {
 		// TODO: create a method to get the task id from the name and variant and type
-		taskId = res.Proto().GetTaskId()
+		// taskId = res.Proto().GetTaskId()
+		taskId = 1
 	}
 
 	if existing != nil {
@@ -1902,17 +1903,13 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		// TODO: add task run id name string, taskID TaskID, trigger Trigger
 		name := fmt.Sprintf("%s__%s__%s", res.ID().Type, res.ID().Name, res.ID().Variant)
 		triggerName := fmt.Sprintf("%s__%s", name, uuid.New().String())
-		trigger := scheduling.OneOffTrigger{Name: triggerName}
+		trigger := scheduling.OneOffTrigger{TriggerName: triggerName}
 		taskRun, err := serv.taskManager.CreateTaskRun(name, taskId, trigger)
 		if err != nil {
 			return nil, err
 		}
 
-		// TODO: remove this once we have a proper job system
-		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
-			return nil, fmt.Errorf("set job: %w", err)
-		}
-		serv.Logger.Info("Successfully Created Job: ", res.ID().Name, res.ID().Variant)
+		serv.Logger.Infof("Successfully Created Task %s with Run %s for Resource: ", taskRun.TaskId, taskRun.ID, res.ID().Name, res.ID().Variant)
 	}
 	parentId, hasParent := id.Parent()
 	if hasParent {

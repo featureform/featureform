@@ -21,6 +21,7 @@ import (
 	"github.com/featureform/filestore"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/metadata"
+	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -273,19 +274,19 @@ func (c *Coordinator) WatchForNewJobs() error {
 	if err != nil {
 		return fmt.Errorf("fetch existing etcd jobs: %v", err)
 	}
-	runs.FilterByStatus(scheduling.PENDING)
+	runs.FilterByStatus(scheduling.Pending)
 
 	for _, run := range runs {
-		go func(run *scheduling.TaskRunMetadata) {
+		go func(run scheduling.TaskRunMetadata) {
 			// LOCK and pass the key to the worker; if lock fails then skip
 			// UNLOCK after the worker is done
 			// LockTaskRun(taskID TaskID, runId TaskRunID) (sp.LockObject, error)
 			lock, err := c.taskManager.LockTaskRun(run.TaskId, run.ID)
 			if err != nil {
 				c.Logger.Errorw("Error locking task run", "error", err)
-				return err
+				return
 			}
-			defer c.taskManager.UnlockTaskRun(run.TaskID, run.ID, lock)
+			defer c.taskManager.UnlockTaskRun(run.TaskId, run.ID, lock)
 			err = c.ExecuteJob(run, lock)
 			if err != nil {
 				c.checkError(err, run.Name)
@@ -300,19 +301,19 @@ func (c *Coordinator) WatchForNewJobs() error {
 			return fmt.Errorf("fetch existing etcd jobs: %v", err)
 		}
 
-		runs.FilterByStatus(scheduling.PENDING)
+		runs.FilterByStatus(scheduling.Pending)
 
 		for _, run := range runs {
-			go func(run *scheduling.TaskRunMetadata) {
+			go func(run scheduling.TaskRunMetadata) {
 				// LOCK and pass the key to the worker; if lock fails then skip
 				// UNLOCK after the worker is done
 				// LockTaskRun(taskID TaskID, runId TaskRunID) (sp.LockObject, error)
 				lock, err := c.taskManager.LockTaskRun(run.TaskId, run.ID)
 				if err != nil {
 					c.Logger.Errorw("Error locking task run", "error", err)
-					return err
+					return
 				}
-				defer c.taskManager.UnlockTaskRun(run.TaskID, run.ID, lock)
+				defer c.taskManager.UnlockTaskRun(run.TaskId, run.ID, lock)
 				err = c.ExecuteJob(run, lock)
 				if err != nil {
 					c.checkError(err, run.Name)
@@ -1085,26 +1086,29 @@ func (c *Coordinator) getJob(taskRun scheduling.TaskRunMetadata) (*metadata.Coor
 	// JOB__TYPE__NAME__VARIANT
 	// Pull the information for CoordinatorJob from task run
 	// change parameter to accept task id and run id
-	c.Logger.Debugf("Checking existence of task with id %s and run id\n", taskRun.TaskID, taskRun.ID)
-	taskMetadata, err := c.taskManager.GetTaskByID(taskRun.TaskID)
+	c.Logger.Debugf("Checking existence of task with id %s and run id\n", taskRun.TaskId, taskRun.ID)
+	taskMetadata, err := c.taskManager.GetTaskByID(taskRun.TaskId)
 	if err != nil {
 		return nil, fmt.Errorf("could not get task metadata: %v", err)
 	}
 
 	if taskMetadata.Target == nil {
-		return nil, fmt.Errorf("no task target found for task %s", taskRun.TaskID)
+		return nil, fmt.Errorf("no task target found for task %s", taskRun.TaskId)
 	}
 	if taskMetadata.TargetType != scheduling.NameVariantTarget {
-		return nil, fmt.Errorf("task target type is not name variant for task %s", taskRun.TaskID)
+		return nil, fmt.Errorf("task target type is not name variant for task %s", taskRun.TaskId)
 	}
+
+	targetResource := taskMetadata.Target.(*scheduling.NameVariant)
+	resourceType := pb.ResourceType_value[targetResource.ResourceType]
 
 	job := &metadata.CoordinatorJob{
 		Resource: metadata.ResourceID{
-			Name:    taskMetadata.Target.Name,
-			Variant: taskMetadata.Target.Variant,
-			Type:    taskMetadata.Target.ResourceType,
+			Name:    targetResource.Name,
+			Variant: targetResource.Variant,
+			Type:    metadata.ResourceType(resourceType),
 		},
-		Attempt: 0,
+		Attempts: 0,
 	}
 
 	return job, nil
@@ -1173,7 +1177,7 @@ func (c *Coordinator) ExecuteJob(taskRun scheduling.TaskRunMetadata, lock sp.Loc
 	// TODO: will need to modify to get the task id and task run id?
 	// Lock the run and set status to running in the task manager
 	// then
-	c.Logger.Info("Executing new task with id ", taskRun.TaskID, " and run id ", taskRun.ID)
+	c.Logger.Info("Executing new task with id ", taskRun.TaskId, " and run id ", taskRun.ID)
 
 	// TODO: do we need to modify getJob to use task manager to get the task run information?
 	// OR is the key related to the resource
@@ -1181,7 +1185,7 @@ func (c *Coordinator) ExecuteJob(taskRun scheduling.TaskRunMetadata, lock sp.Loc
 	if err != nil {
 		return err
 	}
-	c.Logger.Debugf("Task %s with Run %s is on attempt %d", taskRun.TaskID, taskRun.ID, job.Attempts)
+	c.Logger.Debugf("Task %s with Run %s is on attempt %d", taskRun.TaskId, taskRun.ID, job.Attempts)
 	if job.Attempts > MAX_ATTEMPTS {
 		return fmt.Errorf("job failed after %d attempts. Cancelling coordinator flow", MAX_ATTEMPTS)
 	}
@@ -1205,23 +1209,23 @@ func (c *Coordinator) ExecuteJob(taskRun scheduling.TaskRunMetadata, lock sp.Loc
 		default:
 			// TODO: set up status and error message in task manager
 			//runID TaskRunID, taskID TaskID, status Status, err error, lock sp.LockObject
-			err := c.taskManager.SetRunStatus(taskRun.ID, taskRun.TaskID, scheduling.FAILED, err.Error(), lock)
+			err := c.taskManager.SetRunStatus(taskRun.ID, taskRun.TaskId, scheduling.Failed, err, lock)
 			if err != nil {
 				return fmt.Errorf("set run status in task manager: %v", err)
 			}
 
 			// TODO: update the end time too
 			endTime := time.Now().UTC()
-			err = c.taskManager.SetRunEndTime(taskRun.ID, taskRun.TaskID, endTime, lock)
+			err = c.taskManager.SetRunEndTime(taskRun.ID, taskRun.TaskId, endTime, lock)
 			if err != nil {
 				return fmt.Errorf("set run end time in task manager: %v", err)
 			}
 
-			return fmt.Errorf("%s job failed: %w: %v", job.Resource.Type, err, statusErr)
+			return fmt.Errorf("%s job failed: %w", job.Resource.Type, err)
 		}
 	}
 	endTime := time.Now().UTC()
-	err = c.taskManager.SetRunEndTime(taskRun.ID, taskRun.TaskID, endTime, lock)
+	err = c.taskManager.SetRunEndTime(taskRun.ID, taskRun.TaskId, endTime, lock)
 	if err != nil {
 		return fmt.Errorf("set run end time in task manager: %v", err)
 	}

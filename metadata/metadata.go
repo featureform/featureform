@@ -7,6 +7,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"github.com/featureform/helpers"
 	"io"
 	"net"
 	"strings"
@@ -1335,7 +1336,7 @@ func (resource *providerResource) Update(lookup ResourceLookup, resourceUpdate R
 		return err
 	}
 	if !isValid {
-		wrapped := fferr.NewResourceInternalError(resource.ID().Name, resource.ID().Variant, resource.ID().Type.String(), fmt.Errorf("invalid config update"))
+		wrapped := fferr.NewResourceInternalError(resource.ID().Name, resource.ID().Variant, fferr.ResourceType(resource.ID().Type.String()), fmt.Errorf("invalid config update"))
 		return wrapped
 	}
 	resource.serialized.SerializedConfig = providerUpdate.SerializedConfig
@@ -1487,7 +1488,7 @@ func (serv *MetadataServer) Serve() error {
 
 func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
 	serv.listener = lis
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(fferr.UnaryServerInterceptor), grpc.StreamInterceptor(fferr.StreamServerInterceptor))
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(helpers.UnaryServerErrorInterceptor), grpc.StreamInterceptor(helpers.StreamServerErrorInterceptor))
 	pb.RegisterMetadataServer(grpcServer, serv)
 	serv.grpcServer = grpcServer
 	serv.Logger.Infow("Server starting", "Address", serv.listener.Addr().String())

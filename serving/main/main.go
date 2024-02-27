@@ -9,7 +9,6 @@ import (
 	"net"
 	_ "net/http/pprof"
 
-	"github.com/featureform/fferr"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -46,7 +45,7 @@ func main() {
 	if err != nil {
 		logger.Panicw("Failed to create training server", "Err", err)
 	}
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(fferr.UnaryServerInterceptor), grpc.StreamInterceptor(fferr.StreamServerInterceptor))
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(help.UnaryServerErrorInterceptor), grpc.StreamInterceptor(help.StreamServerErrorInterceptor))
 
 	pb.RegisterFeatureServer(grpcServer, serv)
 	logger.Infow("Serving metrics", "Port", metricsPort)

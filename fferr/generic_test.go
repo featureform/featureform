@@ -3,6 +3,7 @@ package fferr
 import (
 	"errors"
 	"fmt"
+	"github.com/featureform/helpers"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/rotisserie/eris"
 	"golang.org/x/net/context"
@@ -465,13 +466,13 @@ func TestUnaryServerInterceptor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := UnaryServerInterceptor(tt.args.ctx, tt.args.req, tt.args.info, tt.args.handler)
+			got, err := helpers.UnaryServerErrorInterceptor(tt.args.ctx, tt.args.req, tt.args.info, tt.args.handler)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("UnaryServerInterceptor() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("UnaryServerErrorInterceptor() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("UnaryServerInterceptor() got = %v, want %v", got, tt.want)
+				t.Errorf("UnaryServerErrorInterceptor() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

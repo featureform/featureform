@@ -1,9 +1,9 @@
-package fferr
+package helpers
 
 import (
 	"errors"
+	"github.com/featureform/fferr"
 
-	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
@@ -13,7 +13,7 @@ import (
 var logger *zap.SugaredLogger
 
 func init() {
-	if shouldUseStackTraceLogger := helpers.GetEnvBool("FEATUREFORM_DEBUG", false); shouldUseStackTraceLogger {
+	if shouldUseStackTraceLogger := GetEnvBool("FEATUREFORM_DEBUG", false); shouldUseStackTraceLogger {
 		logger = logging.NewStackTraceLogger("fferr")
 	} else {
 		logger = logging.NewLogger("fferr")
@@ -21,12 +21,12 @@ func init() {
 }
 
 // ErrorHandlingInterceptor is a server interceptor for handling errors
-func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+func UnaryServerErrorInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	// Call the handler to process the request
 	h, err := handler(ctx, req)
 	// Check for GRPCError and convert it
 	if err != nil {
-		var grpcErr GRPCError
+		var grpcErr fferr.GRPCError
 		if errors.As(err, &grpcErr) {
 			logger.Errorw("GRPCError", "error", grpcErr, "method", info.FullMethod, "request", req, "response", h, "stack_trace", grpcErr.Stack())
 			return h, grpcErr.ToErr()
@@ -36,12 +36,12 @@ func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.Una
 	return h, err
 }
 
-func StreamServerInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+func StreamServerErrorInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	// Call the handler to process the request
 	err := handler(srv, ss)
 	// Check for GRPCError and convert it
 	if err != nil {
-		var grpcErr GRPCError
+		var grpcErr fferr.GRPCError
 		if errors.As(err, &grpcErr) {
 			logger.Errorw("GRPCError", "error", grpcErr, "method", info.FullMethod, "stackTrace", grpcErr.Stack())
 			return grpcErr.ToErr()

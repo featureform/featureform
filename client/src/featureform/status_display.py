@@ -1,17 +1,14 @@
-import json
 import sys
 import time
-from typing import List, Optional, Tuple, Type
+from typing import List, Tuple, Type
 
 from dataclasses import dataclass
-from google.rpc import error_details_pb2
 from rich.console import Console
 from rich.live import Live
 from rich.table import Table
 from rich.text import Text
 
 from featureform.grpc_client import GrpcClient
-from featureform.proto import metadata_pb2 as pb
 from featureform.resources import (
     ErrorInfo,
     FeatureVariant,

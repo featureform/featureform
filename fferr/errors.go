@@ -1,6 +1,7 @@
 package fferr
 
 import (
+	"errors"
 	"fmt"
 	pb "github.com/featureform/metadata/proto"
 	"google.golang.org/protobuf/proto"
@@ -80,17 +81,12 @@ type GRPCError interface {
 }
 
 func ToDashboardError(status *pb.ErrorStatus) string {
-	reason := ""
-	if status.GetDetails() != nil {
-		for _, detail := range status.GetDetails() {
-			// Attempt to unmarshal the Any message into an ErrorInfo
-			errorInfo := &errdetails.ErrorInfo{}
-			if err := anypb.UnmarshalTo(detail, errorInfo, proto.UnmarshalOptions{}); err == nil {
-				// Successfully unmarshaled into ErrorInfo, can now access its fields
-				reason = errorInfo.Reason
-				// Break or return if you only need the first occurrence
-				break
-			}
+	var reason string
+	for _, detail := range status.GetDetails() {
+		errorInfo := &errdetails.ErrorInfo{}
+		if err := anypb.UnmarshalTo(detail, errorInfo, proto.UnmarshalOptions{}); err == nil {
+			reason = errorInfo.Reason
+			break // Assuming we only care about the first error detail.
 		}
 	}
 	return fmt.Sprintf("%s: %s", reason, status.GetMessage())
@@ -102,7 +98,8 @@ func FromErr(err error) GRPCError {
 	if err == nil {
 		return nil
 	}
-	if grpcError, ok := err.(GRPCError); ok {
+	var grpcError GRPCError
+	if errors.As(err, &grpcError) {
 		return grpcError
 	}
 	st, ok := status.FromError(err)
@@ -116,7 +113,6 @@ func FromErr(err error) GRPCError {
 		fmt.Println("No Details")
 		return NewInternalError(fmt.Errorf(st.Message()))
 	}
-	var grpcError GRPCError
 	// All fferr errors should have an ErrorInfo detail, so we'll iterate through the details
 	// and cast them to ErrorInfo. If we find one, we'll create the appropriate error type
 	// and return it
@@ -131,7 +127,7 @@ func FromErr(err error) GRPCError {
 				errorMsg = ""
 			}
 			var detailKeys []string
-			for k, _ := range errorInfo.Metadata {
+			for k := range errorInfo.Metadata {
 				detailKeys = append(detailKeys, k)
 			}
 			grpcError = &baseGRPCError{
@@ -205,7 +201,7 @@ func (e *baseGRPCError) AddDetail(key, value string) {
 	e.GenericError.AddDetail(key, value)
 }
 
-func (e baseGRPCError) Error() string {
+func (e *baseGRPCError) Error() string {
 	msg := fmt.Sprintf("%s: %s\n", e.errorType, e.msg)
 	if len(e.details) == 0 {
 		return msg

@@ -3,12 +3,9 @@ package fferr
 import (
 	"errors"
 	"fmt"
-	"github.com/featureform/helpers"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/rotisserie/eris"
-	"golang.org/x/net/context"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -444,35 +441,6 @@ func TestToDashboardError(t *testing.T) {
 			result := ToDashboardError(tt.status)
 			if result != tt.expected {
 				t.Errorf("ToDashboardError() = %v, want %v", result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestUnaryServerInterceptor(t *testing.T) {
-	type args struct {
-		ctx     context.Context
-		req     interface{}
-		info    *grpc.UnaryServerInfo
-		handler grpc.UnaryHandler
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    interface{}
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := helpers.UnaryServerErrorInterceptor(tt.args.ctx, tt.args.req, tt.args.info, tt.args.handler)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("UnaryServerErrorInterceptor() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("UnaryServerErrorInterceptor() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

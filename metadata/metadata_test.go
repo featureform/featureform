@@ -3,6 +3,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"github.com/featureform/fferr"
 	"net"
 	"reflect"
 	"testing"
@@ -2014,6 +2015,53 @@ func getSourceVariant() *SourceVariant {
 		protoStringer:        protoStringer{},
 	}
 	return sv
+}
+
+func Test_MetadataErrorInterceptors(t *testing.T) {
+	_, addr := startServNoPanic(t)
+	client := client(t, addr)
+	context := context.Background()
+
+	userDef := UserDef{
+		Name:       "Featureform",
+		Tags:       Tags{},
+		Properties: Properties{},
+	}
+
+	sourceDef := SourceDef{
+		Name:        "mockSource",
+		Variant:     "var",
+		Description: "A CSV source",
+		Definition: TransformationSource{
+			TransformationType: SQLTransformationType{
+				Query: "SELECT * FROM dummy",
+				Sources: []NameVariant{{
+					Name:    "mockName",
+					Variant: "mockVariant"},
+				},
+			},
+		},
+		Owner:      "Featureform",
+		Provider:   "mockOffline",
+		Tags:       Tags{},
+		Properties: Properties{},
+	}
+
+	resourceDefs := []ResourceDef{userDef, sourceDef}
+
+	err := client.CreateAll(context, resourceDefs)
+	grpcErr := fferr.FromErr(err)
+	if grpcErr == nil {
+		t.Fatalf("Expected error to be non-nil")
+	}
+
+	// Test Streaming
+	_, err = client.GetTrainingSet(context, "DNE")
+	grpcErr = fferr.FromErr(err)
+	if grpcErr == nil {
+		t.Fatalf("Expected error to be non-nil")
+	}
+
 }
 
 func TestSourceShallowMapOK(t *testing.T) {

@@ -3,7 +3,6 @@ package helpers
 import (
 	"errors"
 	"github.com/featureform/fferr"
-
 	"github.com/featureform/logging"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"

@@ -157,7 +157,25 @@ export function useDataAPI() {
     })
       .then((res) => res.json())
       .catch((error) => {
-        console.error('Error fetching trigger details from server: ', error);
+        console.error('Error deleting trigger from server: ', error);
+        return [];
+      });
+
+    return result;
+  };
+
+  const deleteTriggerResource = async (triggerId = '', resourceId = '') => {
+    const result = await fetch(`${API_URL}/data/triggerdeleteresource`, {
+      cache: 'no-store',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ triggerId, resourceId }),
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error deleting trigger resource in server: ', error);
         return [];
       });
 
@@ -173,5 +191,6 @@ export function useDataAPI() {
     postTrigger,
     getTriggerDetails,
     deleteTrigger,
+    deleteTriggerResource,
   };
 }

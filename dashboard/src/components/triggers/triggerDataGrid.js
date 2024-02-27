@@ -86,6 +86,16 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
     }
   };
 
+  const handleDeleteResource = async (e, triggerId, resourceId) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (resourceId && triggerId) {
+      await dataAPI.deleteTriggerResource(triggerId, resourceId);
+      refresh?.();
+      setOpenDialog(false);
+    }
+  };
+
   async function deleteRow(e, row) {
     e.stopPropagation();
     e.preventDefault();
@@ -148,6 +158,7 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
         open={openDialog}
         handleClose={handleCloseDialog}
         handleDelete={handleDelete}
+        handleDeleteResource={handleDeleteResource}
       />
       <Button
         variant='contained'

@@ -13,6 +13,7 @@ export default function TriggerDialog({
   triggerId,
   handleClose,
   handleDelete,
+  handleDeleteResource,
 }) {
   const [error] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -54,6 +55,7 @@ export default function TriggerDialog({
             <TriggerDetail
               handleClose={handleClose}
               handleDelete={handleDelete}
+              handleDeleteResource={handleDeleteResource}
               details={details}
             />
           ) : (

@@ -721,7 +721,7 @@ func TestEtcdConfig_Get(t *testing.T) {
 		key   string
 		error error
 	}{
-		{"Test Get Empty Key", "", &fferr.InvalidArgument{}},
+		{"Test Get Empty Key", "", &fferr.InvalidArgumentError{}},
 		{"Test Get Non Existent Key", "non_existent", &fferr.KeyNotFoundError{}},
 		{"Test Get Valid Key", "key", nil},
 	}

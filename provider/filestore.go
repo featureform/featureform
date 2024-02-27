@@ -98,7 +98,7 @@ func (fs *LocalFileStore) FilestoreType() filestore.FileStoreType {
 func (fs *LocalFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 	fp := filestore.LocalFilepath{}
 	if fs.FilestoreType() != filestore.FileSystem {
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("filestore type: %v; use store-specific implementation instead", fs.FilestoreType()))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("filestore type: %v; use store-specific implementation instead", fs.FilestoreType()))
 	}
 	if err := fp.SetScheme(filestore.FileSystemPrefix); err != nil {
 		return nil, err
@@ -199,13 +199,13 @@ func NewAzureFileStore(config Config) (FileStore, error) {
 		return nil, err
 	}
 	if azureStoreConfig.AccountName == "" {
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("account name cannot be empty"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("account name cannot be empty"))
 	}
 	if err := os.Setenv("AZURE_STORAGE_ACCOUNT", azureStoreConfig.AccountName); err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("could not set storage account env: %w", err))
 	}
 	if azureStoreConfig.AccountKey == "" {
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("account key cannot be empty"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("account key cannot be empty"))
 	}
 	if err := os.Setenv("AZURE_STORAGE_KEY", azureStoreConfig.AccountKey); err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("could not set storage key env: %w", err))
@@ -213,7 +213,7 @@ func NewAzureFileStore(config Config) (FileStore, error) {
 
 	azureStoreConfig.ContainerName = strings.TrimPrefix(azureStoreConfig.ContainerName, "abfss://")
 	if strings.Contains(azureStoreConfig.ContainerName, "/") {
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("container_name cannot contain '/'. container_name should be the name of the Azure Blobstore container only"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("container_name cannot contain '/'. container_name should be the name of the Azure Blobstore container only"))
 	}
 
 	serviceURL := azureblob.ServiceURL(fmt.Sprintf("https://%s.blob.core.windows.net", azureStoreConfig.AccountName))
@@ -265,7 +265,7 @@ func NewS3FileStore(config Config) (FileStore, error) {
 	trimmedBucket = strings.TrimPrefix(trimmedBucket, "s3a://")
 
 	if strings.Contains(trimmedBucket, "/") {
-		wrapped := fferr.NewInvalidArgument(fmt.Errorf("bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only"))
+		wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only"))
 		wrapped.AddDetail("bucket_name", trimmedBucket)
 		return nil, wrapped
 	}
@@ -446,7 +446,7 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 	GCSConfig.BucketName = strings.TrimPrefix(GCSConfig.BucketName, "gs://")
 
 	if strings.Contains(GCSConfig.BucketName, "/") {
-		wrapped := fferr.NewInvalidArgument(fmt.Errorf("bucket_name cannot contain '/'. bucket_name should be the name of the GCS bucket only"))
+		wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("bucket_name cannot contain '/'. bucket_name should be the name of the GCS bucket only"))
 		wrapped.AddDetail("bucket_name", GCSConfig.BucketName)
 		return nil, wrapped
 	}
@@ -626,7 +626,7 @@ func (fs *HDFSFileStore) ServeDirectory(files []filestore.Filepath) (Iterator, e
 
 func (fs *HDFSFileStore) Serve(files []filestore.Filepath) (Iterator, error) {
 	if len(files) == 0 {
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("no files to serve"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("no files to serve"))
 	}
 	if len(files) > 1 {
 		return fs.ServeDirectory(files)
@@ -644,7 +644,7 @@ func (fs *HDFSFileStore) Serve(files []filestore.Filepath) (Iterator, error) {
 	case filestore.CSV:
 		return nil, fferr.NewInternalError(fmt.Errorf("CSV reader not implemented"))
 	default:
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("unsupported file type: %s", file.Ext()))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("unsupported file type: %s", file.Ext()))
 	}
 }
 
@@ -1128,7 +1128,7 @@ func (store *genericFileStore) ServeFile(path filestore.Filepath) (Iterator, err
 	case filestore.CSV:
 		return nil, fferr.NewInternalError(fmt.Errorf("csv iterator not implemented"))
 	default:
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("unsupported file type"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("unsupported file type"))
 	}
 }
 
@@ -1151,7 +1151,7 @@ func (store *genericFileStore) NumRows(path filestore.Filepath) (int64, error) {
 	case filestore.Parquet:
 		return getParquetNumRows(b)
 	default:
-		wrapped := fferr.NewInvalidArgument(fmt.Errorf("unsupported file type"))
+		wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("unsupported file type"))
 		wrapped.AddDetail("uri", path.ToURI())
 		wrapped.AddDetail("file_type", string(path.Ext()))
 		return 0, wrapped
@@ -1170,7 +1170,7 @@ func (store *genericFileStore) CreateDirPath(key string) (filestore.Filepath, er
 func (store *genericFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 	fp := filestore.FilePath{}
 	if store.FilestoreType() != filestore.FileSystem {
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("filestore type: %v; use store-specific implementation instead", store.FilestoreType()))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("filestore type: %v; use store-specific implementation instead", store.FilestoreType()))
 	}
 	if err := fp.SetScheme(filestore.FileSystemPrefix); err != nil {
 		return nil, err

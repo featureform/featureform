@@ -100,7 +100,7 @@ func NewSQLOfflineStore(config SQLOfflineStoreConfig) (*sqlOfflineStore, error) 
 
 func checkName(id ResourceID) error {
 	if strings.Contains(id.Name, "__") || strings.Contains(id.Variant, "__") {
-		return fferr.NewInvalidArgument(fmt.Errorf("names cannot contain double underscores '__': %s", id.Name))
+		return fferr.NewInvalidArgumentError(fmt.Errorf("names cannot contain double underscores '__': %s", id.Name))
 	}
 	return nil
 }
@@ -208,7 +208,7 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	if schema.Entity == "" || schema.Value == "" {
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("non-empty entity and value columns required"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("non-empty entity and value columns required"))
 	}
 	tableName, err := store.getResourceTableName(id)
 	if err != nil {
@@ -280,7 +280,7 @@ func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSche
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	if len(schema.Columns) == 0 {
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("cannot create primary table without columns"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("cannot create primary table without columns"))
 	}
 	tableName, err := GetPrimaryTableName(id)
 	if err != nil {
@@ -643,7 +643,7 @@ func (store *sqlOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIt
 
 	// if tables is empty, return an empty iterator
 	if len(ids) == 0 {
-		return newsqlBatchFeatureIterator(nil, nil, nil, store.query, store.Type()), fferr.NewInvalidArgument(fmt.Errorf("no features provided"))
+		return newsqlBatchFeatureIterator(nil, nil, nil, store.query, store.Type()), fferr.NewInvalidArgumentError(fmt.Errorf("no features provided"))
 	}
 
 	asEntity := ""
@@ -713,7 +713,7 @@ func (store *sqlOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIt
 }
 func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("received %s; only features can be materialized", id.Type))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("received %s; only features can be materialized", id.Type))
 	}
 	resTable, err := store.getsqlResourceTable(id)
 	if err != nil {

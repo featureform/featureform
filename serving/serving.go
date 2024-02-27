@@ -573,7 +573,7 @@ func (serv *FeatureServer) Nearest(ctx context.Context, req *pb.NearestRequest) 
 	searchVector := req.GetVector()
 	k := req.GetK()
 	if searchVector == nil {
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("no embedding provided"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("no embedding provided"))
 	}
 	entities, err := vectorTable.Nearest(name, variant, searchVector.Value, k)
 	if err != nil {

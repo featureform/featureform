@@ -109,7 +109,7 @@ func (id *ResourceID) FromFilestorePath(path string) error {
 
 func (id *ResourceID) check(expectedType OfflineResourceType, otherTypes ...OfflineResourceType) error {
 	if id.Name == "" {
-		return fferr.NewInvalidArgument(errors.New("ResourceID must have Name set"))
+		return fferr.NewInvalidArgumentError(errors.New("ResourceID must have Name set"))
 	}
 	// If there is one expected type, we will default to it.
 	if id.Type == NoType && len(otherTypes) == 0 {
@@ -122,7 +122,7 @@ func (id *ResourceID) check(expectedType OfflineResourceType, otherTypes ...Offl
 			return nil
 		}
 	}
-	return fferr.NewInvalidArgument(fmt.Errorf("unexpected ResourceID Type: %v", id.Type))
+	return fferr.NewInvalidArgumentError(fmt.Errorf("unexpected ResourceID Type: %v", id.Type))
 }
 
 func GetOfflineStore(t pt.Type, c pc.SerializedConfig) (OfflineStore, error) {
@@ -159,7 +159,7 @@ func (def *TrainingSetDef) check() error {
 		return err
 	}
 	if len(def.Features) == 0 {
-		return fferr.NewInvalidArgument(errors.New("training set must have at least one feature"))
+		return fferr.NewInvalidArgumentError(errors.New("training set must have at least one feature"))
 	}
 	for i := range def.Features {
 		// We use features[i] to make sure that the Type value is updated to
@@ -253,7 +253,7 @@ func (m *TransformationConfig) decodeArgs(t metadata.TransformationArgType, argM
 		m.Args = nil
 		return nil
 	default:
-		return fferr.NewInvalidArgument(fmt.Errorf("invalid transformation arg type: %v", t))
+		return fferr.NewInvalidArgumentError(fmt.Errorf("invalid transformation arg type: %v", t))
 	}
 	err := mapstructure.Decode(argMap, &args)
 	if err != nil {
@@ -376,7 +376,7 @@ type GenericRecord []interface{}
 
 func (rec ResourceRecord) check() error {
 	if rec.Entity == "" {
-		return fferr.NewInvalidArgument(fmt.Errorf("ResourceRecord must have Entity set"))
+		return fferr.NewInvalidArgumentError(fmt.Errorf("ResourceRecord must have Entity set"))
 	}
 	return nil
 }
@@ -386,7 +386,7 @@ func (rec *ResourceRecord) SetEntity(entity interface{}) error {
 	case string:
 		rec.Entity = typedEntity
 	default:
-		return fferr.NewInvalidArgument(fmt.Errorf("entity must be a string; received %T", entity))
+		return fferr.NewInvalidArgumentError(fmt.Errorf("entity must be a string; received %T", entity))
 
 	}
 	return nil
@@ -680,7 +680,7 @@ func (store *memoryOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFea
 
 func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("only features can be materialized"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("only features can be materialized"))
 	}
 	table, err := store.getMemoryResourceTable(id)
 	if err != nil {

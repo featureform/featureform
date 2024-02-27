@@ -75,7 +75,7 @@ func (r S3ImportDynamoDBRunner) Run() (types.CompletionWatcher, error) {
 	sparkOffline, ok := r.Offline.(*provider.SparkOfflineStore)
 	if !ok {
 		r.Logger.Errorf("offline store is not a SparkOfflineStore")
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("offline store is not a SparkOfflineStore"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("offline store is not a SparkOfflineStore"))
 	}
 
 	// **NOTE:** Unlike ResourceID, which has methods to convert the name, variant and type of resource to and from a path,
@@ -96,7 +96,7 @@ func (r S3ImportDynamoDBRunner) Run() (types.CompletionWatcher, error) {
 
 	if len(files) == 0 {
 		r.Logger.Errorf("no files found in source dir path %s", sourceDirPath)
-		wrapped := fferr.NewInvalidArgument(fmt.Errorf("failed to find files in specified directory"))
+		wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("failed to find files in specified directory"))
 		wrapped.AddDetail("source_dir_path", sourceDirPath.ToURI())
 		return nil, wrapped
 	}

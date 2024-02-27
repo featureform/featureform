@@ -58,7 +58,7 @@ func CreateJobName(id metadata.ResourceID, prefixes ...string) string {
 
 func makeCronSchedule(schedule string) (*CronSchedule, error) {
 	if _, err := cronexpr.Parse(schedule); err != nil {
-		err := fferr.NewInvalidArgument(fmt.Errorf("invalid cron expression: %v", err))
+		err := fferr.NewInvalidArgumentError(fmt.Errorf("invalid cron expression: %v", err))
 		err.AddDetail("schedule", schedule)
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func validateJobLimits(specs metadata.KubernetesResourceSpecs) (v1.ResourceRequi
 		rsrcReq.Requests[v1.ResourceCPU] = qty
 		parseErr = err
 		if err != nil {
-			wrapped := fferr.NewInvalidArgument(fmt.Errorf("invalid cpu request: %v", err))
+			wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("invalid cpu request: %v", err))
 			wrapped.AddDetail("cpu_request", specs.CPURequest)
 			parseErr = wrapped
 		}
@@ -135,7 +135,7 @@ func validateJobLimits(specs metadata.KubernetesResourceSpecs) (v1.ResourceRequi
 		rsrcReq.Limits[v1.ResourceCPU] = qty
 		parseErr = err
 		if err != nil {
-			wrapped := fferr.NewInvalidArgument(fmt.Errorf("invalid cpu limit: %v", err))
+			wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("invalid cpu limit: %v", err))
 			wrapped.AddDetail("cpu_limit", specs.CPULimit)
 			parseErr = wrapped
 		}
@@ -145,7 +145,7 @@ func validateJobLimits(specs metadata.KubernetesResourceSpecs) (v1.ResourceRequi
 		rsrcReq.Requests[v1.ResourceMemory] = qty
 		parseErr = err
 		if err != nil {
-			wrapped := fferr.NewInvalidArgument(fmt.Errorf("invalid memory request: %v", err))
+			wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("invalid memory request: %v", err))
 			wrapped.AddDetail("memory_request", specs.MemoryRequest)
 			parseErr = wrapped
 		}
@@ -155,7 +155,7 @@ func validateJobLimits(specs metadata.KubernetesResourceSpecs) (v1.ResourceRequi
 		rsrcReq.Limits[v1.ResourceMemory] = qty
 		parseErr = err
 		if err != nil {
-			wrapped := fferr.NewInvalidArgument(fmt.Errorf("invalid memory limit: %v", err))
+			wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("invalid memory limit: %v", err))
 			wrapped.AddDetail("memory_limit", specs.MemoryLimit)
 			parseErr = wrapped
 		}

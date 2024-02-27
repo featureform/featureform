@@ -104,7 +104,7 @@ func (serv *FeatureServer) getFeatureValues(ctx context.Context, name, variant s
 	switch meta.Mode() {
 	case metadata.PRECOMPUTED:
 		if meta.Provider() == "" {
-			return nil, fferr.NewInvalidArgument(fmt.Errorf("feature %s:%s is not saved in an inference store", name, variant))
+			return nil, fferr.NewInvalidArgumentError(fmt.Errorf("feature %s:%s is not saved in an inference store", name, variant))
 		}
 
 		precomputedValues, err := serv.getPrecomputedValues(ctx, entityMap, meta)

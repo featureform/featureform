@@ -899,7 +899,7 @@ func (serv *OnlineServer) TrainingDataColumns(ctx context.Context, req *srv.Trai
 func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feature_SourceDataServer) error {
 	serv.Logger.Infow("Serving Source Data", "id", req.Id.String())
 	if req.Limit == 0 {
-		return fferr.NewInvalidArgument(fmt.Errorf("limit must be greater than 0"))
+		return fferr.NewInvalidArgumentError(fmt.Errorf("limit must be greater than 0"))
 	}
 	client, err := serv.client.SourceData(context.Background(), req)
 	if err != nil {

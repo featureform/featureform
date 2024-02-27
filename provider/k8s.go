@@ -302,7 +302,7 @@ type KubernetesExecutor struct {
 func (kube *KubernetesExecutor) isDefaultImage() (bool, error) {
 	parse, err := dp.Parse(kube.image)
 	if err != nil {
-		return false, fferr.NewInvalidArgument(fmt.Errorf("invalid Docker image name (%s): %w", kube.image, err))
+		return false, fferr.NewInvalidArgumentError(fmt.Errorf("invalid Docker image name (%s): %w", kube.image, err))
 	}
 	return parse.ShortName() == cfg.PandasBaseImage, nil
 }

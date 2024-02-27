@@ -19,9 +19,10 @@ func NewGenericError(err error) GenericError {
 }
 
 type GenericError struct {
-	msg     string
-	err     error
-	details map[string]string
+	msg        string
+	err        error
+	details    map[string]string
+	detailKeys []string
 }
 
 func (e *GenericError) Error() string {
@@ -40,6 +41,7 @@ func (e *GenericError) AddDetail(key, value string) {
 	key = strings.ReplaceAll(key, " ", "_")
 	key = strings.ToLower(key)
 	e.details[key] = value
+	e.detailKeys = append(e.detailKeys, key)
 }
 
 func (e *GenericError) SetMessage(msg string) {

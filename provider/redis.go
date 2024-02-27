@@ -132,7 +132,7 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 			valueType: valueTypeJSON.ValueType,
 		}
 	default:
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("unknown value type: %T", valueTypeJSON.ValueType))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("unknown value type: %T", valueTypeJSON.ValueType))
 	}
 	return table, nil
 }
@@ -185,7 +185,7 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 			valueType: valueType,
 		}
 	default:
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("unknown value type: %T", valueType))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("unknown value type: %T", valueType))
 	}
 	return table, nil
 }

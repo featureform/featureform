@@ -14,13 +14,11 @@ import (
 	"github.com/featureform/fferr"
 	pb "github.com/featureform/metadata/proto"
 	"go.uber.org/zap"
-	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	grpc_status "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -163,7 +161,7 @@ func (client *Client) Create(ctx context.Context, def ResourceDef) error {
 	case ModelDef:
 		return client.CreateModel(ctx, casted)
 	default:
-		return fferr.NewInvalidArgument(fmt.Errorf("%T not implemented in Create", casted))
+		return fferr.NewInvalidArgumentError(fmt.Errorf("%T not implemented in Create", casted))
 	}
 }
 
@@ -315,9 +313,9 @@ func (def FeatureDef) Serialize() (*pb.FeatureVariant, error) {
 	case PythonFunction:
 		serialized.Location = def.Location.(PythonFunction).SerializePythonFunction()
 	case nil:
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("FeatureDef Columns not set"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("FeatureDef Columns not set"))
 	default:
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("FeatureDef Columns has unexpected type %T", x))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("FeatureDef Columns has unexpected type %T", x))
 	}
 	return serialized, nil
 }
@@ -436,9 +434,9 @@ func (def LabelDef) Serialize() (*pb.LabelVariant, error) {
 	case ResourceVariantColumns:
 		serialized.Location = def.Location.(ResourceVariantColumns).SerializeLabelColumns()
 	case nil:
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("LabelDef Primary not set"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("LabelDef Primary not set"))
 	default:
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("LabelDef Primary has unexpected type %T", x))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("LabelDef Primary has unexpected type %T", x))
 	}
 	return serialized, nil
 }
@@ -751,9 +749,9 @@ func (s TransformationSource) Serialize() (*pb.SourceVariant_Transformation, err
 			},
 		}
 	case nil:
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("TransformationSource Type not set"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("TransformationSource Type not set"))
 	default:
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("TransformationSource Type has unexpected type %T", x))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("TransformationSource Type has unexpected type %T", x))
 	}
 	return &pb.SourceVariant_Transformation{
 		Transformation: transformation,
@@ -772,9 +770,9 @@ func (s PrimaryDataSource) Serialize() (*pb.SourceVariant_PrimaryData, error) {
 			},
 		}
 	case nil:
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("PrimaryDataSource Type not set"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("PrimaryDataSource Type not set"))
 	default:
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("PrimaryDataSource Type has unexpected type %T", x))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("PrimaryDataSource Type has unexpected type %T", x))
 	}
 	return &pb.SourceVariant_PrimaryData{
 		PrimaryData: primaryData,
@@ -804,9 +802,9 @@ func (def SourceDef) Serialize() (*pb.SourceVariant, error) {
 	case PrimaryDataSource:
 		serialized.Definition, err = def.Definition.(PrimaryDataSource).Serialize()
 	case nil:
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("SourceDef Definition not set"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("SourceDef Definition not set"))
 	default:
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("SourceDef Definition has unexpected type %T", x))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("SourceDef Definition has unexpected type %T", x))
 	}
 	if err != nil {
 		return nil, err
@@ -1515,7 +1513,7 @@ func (variant *FeatureVariant) Status() ResourceStatus {
 
 func (variant *FeatureVariant) Error() string {
 	if variant.serialized.GetStatus() != nil {
-		return getErrorMessage(variant.serialized.GetStatus().ErrorStatus)
+		return fferr.ToDashboardError(variant.serialized.GetStatus().ErrorStatus)
 	}
 	return ""
 }
@@ -1633,7 +1631,7 @@ func (user *User) Status() ResourceStatus {
 
 func (user *User) Error() string {
 	if user.serialized.GetStatus() != nil {
-		return getErrorMessage(user.serialized.GetStatus().ErrorStatus)
+		return fferr.ToDashboardError(user.serialized.GetStatus().ErrorStatus)
 	}
 	return ""
 }
@@ -1845,7 +1843,7 @@ func (variant *LabelVariant) Status() ResourceStatus {
 
 func (variant *LabelVariant) Error() string {
 	if variant.serialized.GetStatus() != nil {
-		return getErrorMessage(variant.serialized.GetStatus().ErrorStatus)
+		return fferr.ToDashboardError(variant.serialized.GetStatus().ErrorStatus)
 	}
 	return ""
 }
@@ -1945,7 +1943,7 @@ func (variant *TrainingSetVariant) Error() string {
 	if variant.serialized.GetStatus() == nil {
 		return ""
 	}
-	return getErrorMessage(variant.serialized.GetStatus().ErrorStatus)
+	return fferr.ToDashboardError(variant.serialized.GetStatus().ErrorStatus)
 }
 
 func (variant *TrainingSetVariant) Label() NameVariant {
@@ -2108,28 +2106,11 @@ func (variant *SourceVariant) Status() ResourceStatus {
 	return ResourceStatus(0)
 }
 
-func getErrorMessage(status *pb.ErrorStatus) string {
-	reason := ""
-	if status.GetDetails() != nil {
-		for _, detail := range status.GetDetails() {
-			// Attempt to unmarshal the Any message into an ErrorInfo
-			errorInfo := &errdetails.ErrorInfo{}
-			if err := anypb.UnmarshalTo(detail, errorInfo, proto.UnmarshalOptions{}); err == nil {
-				// Successfully unmarshaled into ErrorInfo, can now access its fields
-				reason = errorInfo.Reason
-				// Break or return if you only need the first occurrence
-				break
-			}
-		}
-	}
-	return fmt.Sprintf("%s: %s", reason, status.GetMessage())
-}
-
 func (variant *SourceVariant) Error() string {
 	if variant.serialized.GetStatus() == nil {
 		return ""
 	}
-	return getErrorMessage(variant.serialized.GetStatus().ErrorStatus)
+	return fferr.ToDashboardError(variant.serialized.GetStatus().ErrorStatus)
 }
 
 func (variant *SourceVariant) IsTransformation() bool {
@@ -2275,7 +2256,7 @@ func (entity *Entity) Error() string {
 	if entity.serialized.GetStatus() == nil {
 		return ""
 	}
-	return getErrorMessage(entity.serialized.GetStatus().ErrorStatus)
+	return fferr.ToDashboardError(entity.serialized.GetStatus().ErrorStatus)
 }
 
 func (entity *Entity) Tags() Tags {

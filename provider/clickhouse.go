@@ -302,7 +302,7 @@ func (table *clickhouseOfflineTable) WriteBatch(recs []ResourceRecord) error {
 	b := 0
 	for i, _ := range recs {
 		if recs[i].Entity == "" && recs[i].Value == nil && recs[i].TS.IsZero() {
-			wrapped := fferr.NewInvalidArgument(fmt.Errorf("invalid record at offset %d", i))
+			wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("invalid record at offset %d", i))
 			wrapped.AddDetail("table_name", table.name)
 			return wrapped
 		}
@@ -566,7 +566,7 @@ func (store *ClickHouseOfflineStore) RegisterResourceFromSourceTable(id Resource
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	if schema.Entity == "" || schema.Value == "" {
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("non-empty entity and value columns required"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("non-empty entity and value columns required"))
 	}
 	tableName, err := store.getResourceTableName(id)
 	if err != nil {
@@ -701,7 +701,7 @@ func (store *ClickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema Ta
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	if len(schema.Columns) == 0 {
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("cannot create primary table without columns"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("cannot create primary table without columns"))
 	}
 	tableName, err := GetPrimaryTableName(id)
 	if err != nil {
@@ -772,7 +772,7 @@ func (store *ClickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFe
 
 	// if tables is empty, return an empty iterator
 	if len(ids) == 0 {
-		return newsqlBatchFeatureIterator(nil, nil, nil, store.query, store.Type()), fferr.NewInvalidArgument(fmt.Errorf("no features provided"))
+		return newsqlBatchFeatureIterator(nil, nil, nil, store.query, store.Type()), fferr.NewInvalidArgumentError(fmt.Errorf("no features provided"))
 	}
 
 	asEntity := ""

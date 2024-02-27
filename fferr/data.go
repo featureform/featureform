@@ -6,14 +6,14 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func ResourceInternalError(resourceName, resourceVariant, resourceType string, err error) *InternalError {
+func NewResourceInternalError(resourceName string, resourceVariant string, resourceType ResourceType, err error) *InternalError {
 	if err == nil {
 		err = fmt.Errorf("internal error")
 	}
 	baseError := newBaseGRPCError(err, INTERNAL_ERROR, codes.Internal)
 	baseError.AddDetail("resource_name", resourceName)
 	baseError.AddDetail("resource_variant", resourceVariant)
-	baseError.AddDetail("resource_type", resourceType)
+	baseError.AddDetail("resource_type", resourceType.String())
 
 	return &InternalError{
 		baseError,

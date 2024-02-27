@@ -2,6 +2,9 @@ package fferr
 
 import (
 	"fmt"
+	pb "github.com/featureform/metadata/proto"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	"strings"
 
 	"github.com/rotisserie/eris"
@@ -11,6 +14,10 @@ import (
 )
 
 type ResourceType string
+
+func (rt ResourceType) String() string {
+	return string(rt)
+}
 
 const (
 	// PROVIDERS:
@@ -72,6 +79,23 @@ type GRPCError interface {
 	Stack() JSONStackTrace
 }
 
+func ToDashboardError(status *pb.ErrorStatus) string {
+	reason := ""
+	if status.GetDetails() != nil {
+		for _, detail := range status.GetDetails() {
+			// Attempt to unmarshal the Any message into an ErrorInfo
+			errorInfo := &errdetails.ErrorInfo{}
+			if err := anypb.UnmarshalTo(detail, errorInfo, proto.UnmarshalOptions{}); err == nil {
+				// Successfully unmarshaled into ErrorInfo, can now access its fields
+				reason = errorInfo.Reason
+				// Break or return if you only need the first occurrence
+				break
+			}
+		}
+	}
+	return fmt.Sprintf("%s: %s", reason, status.GetMessage())
+}
+
 func FromErr(err error) GRPCError {
 	// If the error is nil, then simply pass it through to
 	// avoid having to check for nil errors at the call site
@@ -89,7 +113,8 @@ func FromErr(err error) GRPCError {
 	// location in the codebase we haven't covered yet. In this case, we'll just return an
 	// InternalError
 	if len(st.Details()) == 0 {
-		return NewInternalError(err)
+		fmt.Println("No Details")
+		return NewInternalError(fmt.Errorf(st.Message()))
 	}
 	var grpcError GRPCError
 	// All fferr errors should have an ErrorInfo detail, so we'll iterate through the details
@@ -105,18 +130,23 @@ func FromErr(err error) GRPCError {
 			if strings.Contains(err.Error(), "rpc error:") {
 				errorMsg = ""
 			}
+			var detailKeys []string
+			for k, _ := range errorInfo.Metadata {
+				detailKeys = append(detailKeys, k)
+			}
 			grpcError = &baseGRPCError{
 				code:      st.Code(),
 				errorType: errorInfo.Reason,
 				GenericError: GenericError{
-					msg:     errorMsg,
-					err:     eris.New(err.Error()),
-					details: errorInfo.Metadata,
+					msg:        errorMsg,
+					err:        eris.New(err.Error()),
+					details:    errorInfo.Metadata,
+					detailKeys: detailKeys,
 				},
 			}
-			// If there's a need to return a public implementation of GRPCError (e.g. InvalidArgument)
+			// If there's a need to return a public implementation of GRPCError (e.g. InvalidArgumentError)
 			// we can add a switch statement that checks the error type and returns the appropriate
-			// error type, which will simply wrap the baseGRPCError (e.g. &InvalidArgument{baseGRPCError})
+			// error type, which will simply wrap the baseGRPCError (e.g. &InvalidArgumentError{baseGRPCError})
 		} else {
 			grpcError = NewInternalError(err)
 		}
@@ -175,14 +205,14 @@ func (e *baseGRPCError) AddDetail(key, value string) {
 	e.GenericError.AddDetail(key, value)
 }
 
-func (e *baseGRPCError) Error() string {
+func (e baseGRPCError) Error() string {
 	msg := fmt.Sprintf("%s: %s\n", e.errorType, e.msg)
 	if len(e.details) == 0 {
 		return msg
 	}
 	msg = fmt.Sprintf("%sDetails:\n", msg)
-	for k, v := range e.details {
-		msg = fmt.Sprintf("%s*%s: %s\n", msg, k, v)
+	for _, k := range e.detailKeys {
+		msg = fmt.Sprintf("%s*%s: %s\n", msg, k, e.details[k])
 	}
 	return msg
 }

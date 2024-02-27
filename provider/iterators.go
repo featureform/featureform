@@ -187,11 +187,11 @@ func (p *multipleFileParquetIterator) Close() error {
 
 func newMultipleFileParquetIterator(files []filestore.Filepath, store FileStore, limit int64) (GenericTableIterator, error) {
 	if len(files) == 0 {
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("no files to read"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("no files to read"))
 	}
 	for _, file := range files {
 		if file.Ext() != filestore.Parquet {
-			return nil, fferr.NewInvalidArgument(fmt.Errorf("one or more files have an extension that is not .parquet: %s", file.Ext()))
+			return nil, fferr.NewInvalidArgumentError(fmt.Errorf("one or more files have an extension that is not .parquet: %s", file.Ext()))
 		}
 	}
 	if limit == -1 {

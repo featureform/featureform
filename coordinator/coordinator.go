@@ -48,7 +48,7 @@ func templateReplace(template string, replacements map[string]string, offlineSto
 		key := strings.TrimSpace(afterSplit[0])
 		replacement, has := replacements[key]
 		if !has {
-			return "", fferr.NewInvalidArgument(fmt.Errorf("value %s not found in replacements: %v", key, replacements))
+			return "", fferr.NewInvalidArgumentError(fmt.Errorf("value %s not found in replacements: %v", key, replacements))
 		}
 
 		if offlineStore.Type() == pt.BigQueryOffline {
@@ -74,7 +74,7 @@ func getSourceMapping(template string, replacements map[string]string) ([]provid
 		key := strings.TrimSpace(afterSplit[0])
 		replacement, has := replacements[key]
 		if !has {
-			return nil, fferr.NewInvalidArgument(fmt.Errorf("value %s not found in replacements: %v", key, replacements))
+			return nil, fferr.NewInvalidArgumentError(fmt.Errorf("value %s not found in replacements: %v", key, replacements))
 		}
 		sourceMap = append(sourceMap, provider.SourceMapping{Template: sanitize(replacement), Source: replacement})
 		template = afterSplit[1]
@@ -585,11 +585,11 @@ func (c *Coordinator) runPrimaryTableJob(source *metadata.SourceVariant, resID m
 	c.Logger.Info("Running primary table job on resource: ", resID)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Primary}
 	if !source.IsPrimaryDataSQLTable() {
-		return fferr.NewInvalidArgument(fmt.Errorf("%s is not a primary table", source.Name()))
+		return fferr.NewInvalidArgumentError(fmt.Errorf("%s is not a primary table", source.Name()))
 	}
 	sourceName := source.PrimaryDataSQLTableName()
 	if sourceName == "" {
-		return fferr.NewInvalidArgument(fmt.Errorf("source name is not set"))
+		return fferr.NewInvalidArgumentError(fmt.Errorf("source name is not set"))
 	}
 	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, sourceName); err != nil {
 		return err
@@ -890,10 +890,10 @@ func (c *Coordinator) materializeFeatureViaS3Import(id metadata.ResourceID, conf
 	c.Logger.Infow("Materializing Feature Via S3 Import", "id", id)
 	sparkOfflineStore, isSparkOfflineStore := sourceStore.(*provider.SparkOfflineStore)
 	if !isSparkOfflineStore {
-		return fferr.NewInvalidArgument(fmt.Errorf("offline store is not spark offline store"))
+		return fferr.NewInvalidArgumentError(fmt.Errorf("offline store is not spark offline store"))
 	}
 	if sparkOfflineStore.Store.FilestoreType() != filestore.S3 {
-		return fferr.NewInvalidArgument(fmt.Errorf("offline file store must be S3; %s is not supported", sparkOfflineStore.Store.FilestoreType()))
+		return fferr.NewInvalidArgumentError(fmt.Errorf("offline file store must be S3; %s is not supported", sparkOfflineStore.Store.FilestoreType()))
 	}
 	serialized, err := config.Serialize()
 	if err != nil {

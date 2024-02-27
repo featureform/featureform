@@ -1189,7 +1189,7 @@ func NewSparkExecutor(execType pc.SparkExecutorType, config pc.SparkExecutorConf
 		}
 		return NewSparkGenericExecutor(*sparkGenericConfig, logger)
 	default:
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("the executor type ('%s') is not supported", execType))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("the executor type ('%s') is not supported", execType))
 	}
 }
 
@@ -1544,7 +1544,7 @@ func (spark *SparkOfflineStore) transformation(config TransformationConfig, isUp
 		return spark.dfTransformation(config, isUpdate)
 	} else {
 		spark.Logger.Errorw("Unsupported transformation type", config.Type)
-		return fferr.NewInvalidArgument(fmt.Errorf("the transformation type '%v' is not supported", config.Type))
+		return fferr.NewInvalidArgumentError(fmt.Errorf("the transformation type '%v' is not supported", config.Type))
 	}
 }
 

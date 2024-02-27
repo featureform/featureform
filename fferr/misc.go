@@ -21,18 +21,18 @@ type InternalError struct {
 	baseGRPCError
 }
 
-func NewInvalidArgument(err error) *InvalidArgument {
+func NewInvalidArgumentError(err error) *InvalidArgumentError {
 	if err == nil {
 		err = fmt.Errorf("invalid argument")
 	}
 	baseError := newBaseGRPCError(err, INVALID_ARGUMENT, codes.InvalidArgument)
 
-	return &InvalidArgument{
+	return &InvalidArgumentError{
 		baseError,
 	}
 }
 
-type InvalidArgument struct {
+type InvalidArgumentError struct {
 	baseGRPCError
 }
 

@@ -807,7 +807,7 @@ func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sche
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	if schema.Entity == "" || schema.Value == "" {
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("non-empty entity and value columns required"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("non-empty entity and value columns required"))
 	}
 	tableName, err := store.getResourceTableName(id)
 	if err != nil {
@@ -1065,7 +1065,7 @@ func (store *bqOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeature
 
 func (store *bqOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("received %s; only features can be materialized", id.Type.String()))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("received %s; only features can be materialized", id.Type.String()))
 	}
 	resTable, err := store.getbqResourceTable(id)
 	if err != nil {

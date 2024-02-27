@@ -169,7 +169,7 @@ func (s EtcdStorage) Put(key string, value string) error {
 
 func (s EtcdStorage) genericGet(key string, withPrefix bool) (*clientv3.GetResponse, error) {
 	if key == "" && !withPrefix {
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("key cannot be empty"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("key cannot be empty"))
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	defer cancel()
@@ -291,7 +291,7 @@ func (lookup EtcdResourceLookup) createEmptyResource(t ResourceType) (Resource, 
 		resource = &modelResource{&pb.Model{}}
 		break
 	default:
-		return nil, fferr.NewInvalidArgument(fmt.Errorf("invalid resource type: %s", t))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("invalid resource type: %s", t))
 	}
 	return resource, nil
 }

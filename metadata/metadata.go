@@ -1335,7 +1335,7 @@ func (resource *providerResource) Update(lookup ResourceLookup, resourceUpdate R
 		return err
 	}
 	if !isValid {
-		wrapped := fferr.ResourceInternalError(resource.ID().Name, resource.ID().Variant, resource.ID().Type.String(), fmt.Errorf("invalid config update"))
+		wrapped := fferr.NewResourceInternalError(resource.ID().Name, resource.ID().Variant, resource.ID().Type.String(), fmt.Errorf("invalid config update"))
 		return wrapped
 	}
 	resource.serialized.SerializedConfig = providerUpdate.SerializedConfig
@@ -1831,7 +1831,7 @@ func (serv *MetadataServer) extractResourceVariant(req *pb.ResourceVariant) (Res
 	case *pb.ResourceVariant_TrainingSetVariant:
 		return &trainingSetVariantResource{res.TrainingSetVariant}, TRAINING_SET_VARIANT, nil
 	default:
-		return nil, 0, fferr.NewInvalidArgument(fmt.Errorf("unknown resource variant type: %T", req.Resource))
+		return nil, 0, fferr.NewInvalidArgumentError(fmt.Errorf("unknown resource variant type: %T", req.Resource))
 	}
 }
 

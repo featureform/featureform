@@ -186,7 +186,7 @@ type pineconeOnlineTable struct {
 func (table pineconeOnlineTable) Set(entity string, value interface{}) error {
 	vector, isVector := value.([]float32)
 	if !isVector {
-		wrapped := fferr.NewInvalidArgument(fmt.Errorf("expected value to be of type []float32, got %T", value))
+		wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("expected value to be of type []float32, got %T", value))
 		wrapped.AddDetail("provider", pt.PineconeOnline.String())
 		wrapped.AddDetail("entity", entity)
 		wrapped.AddDetail("index_name", table.indexName)

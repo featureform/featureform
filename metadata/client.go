@@ -1513,7 +1513,7 @@ func (variant *FeatureVariant) Status() ResourceStatus {
 
 func (variant *FeatureVariant) Error() string {
 	if variant.serialized.GetStatus() != nil {
-		return fferr.ToDashboardError(variant.serialized.GetStatus().ErrorStatus)
+		return fferr.ToDashboardError(variant.serialized.GetStatus())
 	}
 	return ""
 }
@@ -1631,7 +1631,7 @@ func (user *User) Status() ResourceStatus {
 
 func (user *User) Error() string {
 	if user.serialized.GetStatus() != nil {
-		return fferr.ToDashboardError(user.serialized.GetStatus().ErrorStatus)
+		return fferr.ToDashboardError(user.serialized.GetStatus())
 	}
 	return ""
 }
@@ -1843,7 +1843,7 @@ func (variant *LabelVariant) Status() ResourceStatus {
 
 func (variant *LabelVariant) Error() string {
 	if variant.serialized.GetStatus() != nil {
-		return fferr.ToDashboardError(variant.serialized.GetStatus().ErrorStatus)
+		return fferr.ToDashboardError(variant.serialized.GetStatus())
 	}
 	return ""
 }
@@ -1943,7 +1943,7 @@ func (variant *TrainingSetVariant) Error() string {
 	if variant.serialized.GetStatus() == nil {
 		return ""
 	}
-	return fferr.ToDashboardError(variant.serialized.GetStatus().ErrorStatus)
+	return fferr.ToDashboardError(variant.serialized.GetStatus())
 }
 
 func (variant *TrainingSetVariant) Label() NameVariant {
@@ -2110,7 +2110,7 @@ func (variant *SourceVariant) Error() string {
 	if variant.serialized.GetStatus() == nil {
 		return ""
 	}
-	return fferr.ToDashboardError(variant.serialized.GetStatus().ErrorStatus)
+	return fferr.ToDashboardError(variant.serialized.GetStatus())
 }
 
 func (variant *SourceVariant) IsTransformation() bool {
@@ -2256,7 +2256,7 @@ func (entity *Entity) Error() string {
 	if entity.serialized.GetStatus() == nil {
 		return ""
 	}
-	return fferr.ToDashboardError(entity.serialized.GetStatus().ErrorStatus)
+	return fferr.ToDashboardError(entity.serialized.GetStatus())
 }
 
 func (entity *Entity) Tags() Tags {

@@ -80,16 +80,23 @@ type GRPCError interface {
 	Stack() JSONStackTrace
 }
 
-func ToDashboardError(status *pb.ErrorStatus) string {
+func ToDashboardError(status *pb.ResourceStatus) string {
+	errorStatus := status.ErrorStatus
 	var reason string
-	for _, detail := range status.GetDetails() {
+	for _, detail := range errorStatus.GetDetails() {
 		errorInfo := &errdetails.ErrorInfo{}
 		if err := anypb.UnmarshalTo(detail, errorInfo, proto.UnmarshalOptions{}); err == nil {
 			reason = errorInfo.Reason
 			break // Assuming we only care about the first error detail.
 		}
 	}
-	return fmt.Sprintf("%s: %s", reason, status.GetMessage())
+	if reason == "" {
+		if status.ErrorMessage != "" {
+			return status.ErrorMessage
+		}
+		return ""
+	}
+	return fmt.Sprintf("%s: %s", reason, errorStatus.GetMessage())
 }
 
 func FromErr(err error) GRPCError {

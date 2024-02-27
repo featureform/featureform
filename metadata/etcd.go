@@ -193,7 +193,7 @@ func (s EtcdStorage) Get(key string) ([]byte, error) {
 		return nil, err
 	}
 	if len(resp.Kvs) == 0 {
-		return nil, fferr.NewKeyNotFoundError(key, nil)
+		return nil, fferr.NewKeyNotFoundError(key, fmt.Errorf("key not found in etcd"))
 	}
 	return resp.Kvs[0].Value, nil
 }

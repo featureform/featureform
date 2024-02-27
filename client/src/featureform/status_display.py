@@ -121,7 +121,11 @@ class StatusDisplayer:
         reason = error_info.reason
         metadata = error_info.metadata
 
-        return f"{reason}: {message}\n{metadata}"
+        formatted_metadata = "\n".join(
+            [f"{key}: {value}" for key, value in metadata.items()]
+        )
+
+        return f"{reason}: {message}\n{formatted_metadata}"
 
     def all_statuses_finished(self) -> bool:
         return all(status.is_finished() for _, status in self.resource_to_status_list)

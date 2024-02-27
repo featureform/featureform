@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import sys
 
@@ -53,41 +54,60 @@ class GrpcClient:
         return wrapper
 
     def handle_grpc_error(self, e):
-        sys.tracebacklimit = 0
+        traceback_limit = 0
         initial_ex = None
 
         if self.debug:
             initial_ex = e
-            sys.tracebacklimit = None
+            traceback_limit = None
 
-        # get details from the error
-        if e.code() in self.expected_codes:
-            status_proto = status_pb2.Status()
-            status_proto.MergeFromString(e.trailing_metadata()[0].value)
+        with limited_traceback(traceback_limit):
+            # get details from the error
+            if e.code() in self.expected_codes:
+                status_proto = status_pb2.Status()
+                status_proto.MergeFromString(e.trailing_metadata()[0].value)
 
-            for detail in status_proto.details:
-                any_msg = any_pb2.Any()
-                any_msg.CopyFrom(detail)
-                if any_msg.Is(error_details_pb2.ErrorInfo.DESCRIPTOR):
-                    error_info = error_details_pb2.ErrorInfo()
-                    any_msg.Unpack(error_info)
-                    reason = error_info.reason
-                    metadata = error_info.metadata
+                for detail in status_proto.details:
+                    any_msg = any_pb2.Any()
+                    any_msg.CopyFrom(detail)
+                    if any_msg.Is(error_details_pb2.ErrorInfo.DESCRIPTOR):
+                        error_info = error_details_pb2.ErrorInfo()
+                        any_msg.Unpack(error_info)
+                        reason = error_info.reason
+                        metadata = error_info.metadata
 
-                    logging.debug(f"Error: {e.details} {reason} {metadata}")
+                        logging.debug(
+                            f"Error: {status_proto.message}: {reason}\n{_format_metadata(metadata)}"
+                        )
 
-                    # log reason and metadata
-            raise Exception(f"{e.details()}\n")
-        elif e.code() == grpc.StatusCode.UNAVAILABLE:
-            print("\n")
-            raise Exception(
-                f"Could not connect to Featureform.\n"
-                "Please check if your FEATUREFORM_HOST and FEATUREFORM_CERT environment variables are set "
-                "correctly or are explicitly set in the client or command line.\n"
-                f"Details: {e.details()}"
-            ) from initial_ex
-        elif e.code() == grpc.StatusCode.UNKNOWN:
-            raise Exception(f"Error: {e.details()}") from initial_ex
-        else:
-            print("RAISING ERROR")
+                        # log reason and metadata
+                raise Exception(
+                    f"{reason}: {status_proto.message}\n{_format_metadata(metadata)}"
+                ) from None
+            elif e.code() == grpc.StatusCode.UNAVAILABLE:
+                print("\n")
+                raise Exception(
+                    f"Could not connect to Featureform.\n"
+                    "Please check if your FEATUREFORM_HOST and FEATUREFORM_CERT environment variables are set "
+                    "correctly or are explicitly set in the client or command line.\n"
+                    f"Details: {e.details()}"
+                ) from initial_ex
+            elif e.code() == grpc.StatusCode.UNKNOWN:
+                raise Exception(f"Error: {e.details()}") from initial_ex
+            else:
+                print("RAISING ERROR")
             raise e
+
+
+@contextlib.contextmanager
+def limited_traceback(limit):
+    original_limit = getattr(sys, "tracebacklimit", None)
+    sys.tracebacklimit = limit
+    try:
+        yield
+    finally:
+        sys.tracebacklimit = original_limit
+
+
+def _format_metadata(metadata):
+    return "\n".join([f"{k}: {v}" for k, v in metadata.items()])

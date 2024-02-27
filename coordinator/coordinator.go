@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	scheduling "github.com/featureform//scheduling"
+	scheduling "github.com/featureform/scheduling"
 	sp "github.com/featureform/scheduling/storage_providers"
 
 	db "github.com/jackc/pgx/v4"

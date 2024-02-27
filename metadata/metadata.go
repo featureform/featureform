@@ -15,8 +15,6 @@ import (
 	"strings"
 	"time"
 
-	scheduling "command-line-arguments/Users/kempytoor/Documents/Featureform/repos/featureform/scheduling/taskmanager.go"
-
 	"github.com/featureform/lib"
 
 	"github.com/pkg/errors"
@@ -27,6 +25,7 @@ import (
 	"github.com/featureform/metadata/search"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/scheduling"
 	sp "github.com/featureform/scheduling/storage_providers"
 	"github.com/google/uuid"
 	"go.uber.org/zap"

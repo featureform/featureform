@@ -108,7 +108,7 @@ class StatusDisplayer:
                 r = resource.get(self.grpc_client)
                 server_status = r.server_status
                 display_status.status = server_status.status
-                if server_status.error_info:
+                if server_status.error_info is not None:
                     display_status.error = self._format_error_info(
                         server_status.error_info
                     )

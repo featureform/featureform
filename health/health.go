@@ -50,7 +50,7 @@ func (h *Health) IsSupportedProvider(t pt.Type) bool {
 func (h *Health) handleError(err error) {
 	switch errType := err.(type) {
 	case *fferr.ConnectionError:
-		errType.SetMessage("Featureform cannot connect to the provider during health check")
+		errType.SetMessage("Featureform could not connect to the provider during health check")
 	case *fferr.ExecutionError:
 		errType.SetMessage("Featureform encountered a runtime error during health check")
 	case *fferr.InternalError:

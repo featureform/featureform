@@ -6,8 +6,8 @@ package runner
 
 import (
 	"encoding/json"
-	"fmt"
 
+	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
@@ -66,8 +66,7 @@ func (t TrainingSetRunner) IsUpdateJob() bool {
 func (c *TrainingSetRunnerConfig) Serialize() (Config, error) {
 	config, err := json.Marshal(c)
 	if err != nil {
-
-		panic(fmt.Errorf("serialize: %w", err))
+		return nil, fferr.NewInternalError(err)
 	}
 	return config, nil
 }
@@ -75,7 +74,7 @@ func (c *TrainingSetRunnerConfig) Serialize() (Config, error) {
 func (c *TrainingSetRunnerConfig) Deserialize(config Config) error {
 	err := json.Unmarshal(config, c)
 	if err != nil {
-		return fmt.Errorf("deserialize: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -83,15 +82,15 @@ func (c *TrainingSetRunnerConfig) Deserialize(config Config) error {
 func TrainingSetRunnerFactory(config Config) (types.Runner, error) {
 	runnerConfig := &TrainingSetRunnerConfig{}
 	if err := runnerConfig.Deserialize(config); err != nil {
-		return nil, fmt.Errorf("failed to deserialize materialize chunk runner config: %v", err)
+		return nil, err
 	}
 	offlineProvider, err := provider.Get(runnerConfig.OfflineType, runnerConfig.OfflineConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure offline provider: %v", err)
+		return nil, err
 	}
 	offlineStore, err := offlineProvider.AsOfflineStore()
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
+		return nil, err
 	}
 	return &TrainingSetRunner{
 		Offline:  offlineStore,

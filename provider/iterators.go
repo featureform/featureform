@@ -16,6 +16,7 @@ import (
 	_ "gocloud.dev/blob/fileblob"
 	_ "gocloud.dev/blob/memblob"
 
+	"github.com/featureform/fferr"
 	filestore "github.com/featureform/filestore"
 )
 
@@ -92,7 +93,11 @@ func (p *parquetIterator) Err() error {
 }
 
 func (p *parquetIterator) Close() error {
-	return p.reader.Close()
+	err := p.reader.Close()
+	if err != nil {
+		return fferr.NewInternalError(err)
+	}
+	return nil
 }
 
 func newParquetIterator(b []byte, limit int64) (GenericTableIterator, error) {
@@ -152,7 +157,7 @@ func (p *multipleFileParquetIterator) Next() bool {
 	}
 	parquetIterator, isParquetIterator := iterator.(*parquetIterator)
 	if !isParquetIterator {
-		p.err = fmt.Errorf("iterator is not a parquet iterator")
+		p.err = fferr.NewInternalError(fmt.Errorf("iterator is not a parquet iterator"))
 		return false
 	}
 	p.iterator = parquetIterator
@@ -173,16 +178,20 @@ func (p *multipleFileParquetIterator) Err() error {
 }
 
 func (p *multipleFileParquetIterator) Close() error {
-	return p.iterator.reader.Close()
+	err := p.iterator.reader.Close()
+	if err != nil {
+		return fferr.NewInternalError(err)
+	}
+	return nil
 }
 
 func newMultipleFileParquetIterator(files []filestore.Filepath, store FileStore, limit int64) (GenericTableIterator, error) {
 	if len(files) == 0 {
-		return nil, fmt.Errorf("no files to read")
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("no files to read"))
 	}
 	for _, file := range files {
 		if file.Ext() != filestore.Parquet {
-			return nil, fmt.Errorf("one or more files have an extension that is not .parquet: %s", file.Ext())
+			return nil, fferr.NewInvalidArgumentError(fmt.Errorf("one or more files have an extension that is not .parquet: %s", file.Ext()))
 		}
 	}
 	if limit == -1 {
@@ -190,15 +199,15 @@ func newMultipleFileParquetIterator(files []filestore.Filepath, store FileStore,
 	}
 	b, err := store.Read(files[0])
 	if err != nil {
-		return nil, fmt.Errorf("could not read bucket: %w", err)
+		return nil, err
 	}
 	iterator, err := newParquetIterator(b, limit)
 	if err != nil {
-		return nil, fmt.Errorf("could not open first parquet file: %w", err)
+		return nil, err
 	}
 	parquetIterator, isParquetIterator := iterator.(*parquetIterator)
 	if !isParquetIterator {
-		return nil, fmt.Errorf("iterator is not a parquet iterator")
+		return nil, fferr.NewInternalError(fmt.Errorf("iterator is not a parquet iterator"))
 	}
 	return &multipleFileParquetIterator{
 		iterator:      parquetIterator,
@@ -224,11 +233,11 @@ type ParquetIteratorMultipleFiles struct {
 func parquetIteratorOverMultipleFiles(fileParts []filestore.Filepath, store FileStore) (Iterator, error) {
 	b, err := store.Read(fileParts[0])
 	if err != nil {
-		return nil, fmt.Errorf("could not read bucket: %w", err)
+		return nil, err
 	}
 	iterator, err := parquetIteratorFromBytes(b)
 	if err != nil {
-		return nil, fmt.Errorf("could not open first parquet file: %w", err)
+		return nil, err
 	}
 	return &ParquetIteratorMultipleFiles{
 		fileList:       fileParts,
@@ -287,7 +296,7 @@ func (p *ParquetIterator) Next() (map[string]interface{}, error) {
 		if err == io.EOF {
 			return nil, nil
 		} else {
-			return nil, err
+			return nil, fferr.NewInternalError(err)
 		}
 	}
 	for _, f := range p.fields {
@@ -351,6 +360,7 @@ func (s *parquetSchema) parseParquetColumnName(r *parquet.Reader) {
 		s.setColumn(colType, columnName)
 	}
 }
+
 func (s *parquetSchema) getColumnType(name string) columnType {
 	columnSections := strings.Split(name, "__")
 	return columnType(columnSections[0])
@@ -378,7 +388,7 @@ func parquetIteratorFromBytes(b []byte) (Iterator, error) {
 	}, nil
 }
 
-/// CSV
+// / CSV
 type csvIterator struct {
 	reader        *csv.Reader
 	currentValues GenericRecord
@@ -442,7 +452,7 @@ func newCSVIterator(b []byte, limit int64) (GenericTableIterator, error) {
 	reader := csv.NewReader(bytes.NewReader(b))
 	headers, err := reader.Read()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create CSV reader: %w", err)
+		return nil, fferr.NewInternalError(err)
 	}
 	if limit == -1 {
 		limit = math.MaxInt64

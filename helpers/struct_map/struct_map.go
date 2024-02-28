@@ -3,6 +3,8 @@ package struct_map
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/featureform/fferr"
 )
 
 type StructMap struct {
@@ -46,7 +48,7 @@ func (sm StructMap) indexOf(key string) int {
 func NewStructMap(s interface{}) (*StructMap, error) {
 	t := reflect.TypeOf(s).Kind()
 	if t != reflect.Struct {
-		return nil, fmt.Errorf("cannot create map from type %T", s)
+		return nil, fferr.NewInternalError(fmt.Errorf("cannot create map from type %T", s))
 	}
 
 	v := reflect.ValueOf(s)

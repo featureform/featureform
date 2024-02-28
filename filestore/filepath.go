@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"strings"
+
+	"github.com/featureform/fferr"
 )
 
 type FileType string
@@ -116,7 +118,7 @@ func NewEmptyFilepath(storeType FileStoreType) (Filepath, error) {
 	case GCS:
 		return &GCSFilepath{FilePath{isDir: false}}, nil
 	case Memory:
-		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
+		return nil, fferr.NewInternalError(fmt.Errorf("currently unsupported file store type '%s'", storeType))
 	case FileSystem:
 		return &LocalFilepath{FilePath{isDir: false}}, nil
 	//case DB:
@@ -124,7 +126,9 @@ func NewEmptyFilepath(storeType FileStoreType) (Filepath, error) {
 	case HDFS:
 		return &HDFSFilepath{FilePath{isDir: false}}, nil
 	default:
-		return nil, fmt.Errorf("unknown store type '%s'", storeType)
+		err := fferr.NewInternalError(fmt.Errorf("unknown store type"))
+		err.AddDetail("store_type", string(storeType))
+		return nil, err
 	}
 }
 
@@ -137,15 +141,17 @@ func NewEmptyDirpath(storeType FileStoreType) (Filepath, error) {
 	case GCS:
 		return &GCSFilepath{FilePath{isDir: true}}, nil
 	case Memory:
-		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
+		return nil, fferr.NewInternalError(fmt.Errorf("currently unsupported file store type '%s'", storeType))
 	case FileSystem:
-		return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
+		return nil, fferr.NewInternalError(fmt.Errorf("currently unsupported file store type '%s'", storeType))
 	//case DB:
 	//	return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
 	case HDFS:
 		return &HDFSFilepath{FilePath{isDir: true}}, nil
 	default:
-		return nil, fmt.Errorf("unknown store type '%s'", storeType)
+		err := fferr.NewInternalError(fmt.Errorf("unknown store type"))
+		err.AddDetail("store_type", string(storeType))
+		return nil, err
 	}
 }
 
@@ -171,7 +177,7 @@ func (fp *FilePath) Scheme() string {
 
 func (fp *FilePath) SetBucket(bucket string) error {
 	if bucket == "" {
-		return fmt.Errorf("bucket cannot be empty")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("bucket cannot be empty"))
 	}
 	fp.bucket = bucket
 	return nil
@@ -184,7 +190,7 @@ func (fp *FilePath) Bucket() string {
 func (fp *FilePath) SetKey(key string) error {
 	fp.key = strings.TrimSuffix(key, "/")
 	if key == "" {
-		return fmt.Errorf("key cannot be empty")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("key cannot be empty"))
 	}
 	return nil
 }
@@ -219,7 +225,7 @@ func (fp *FilePath) IsDir() bool {
 func (fp *FilePath) ParseFilePath(fullPath string) error {
 	err := fp.parsePath(fullPath)
 	if err != nil {
-		return fmt.Errorf("file: %v", err)
+		return err
 	}
 	return nil
 }
@@ -245,14 +251,14 @@ func (fp *FilePath) checkSchemes(scheme string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("invalid scheme '%s', must be one of %v", scheme, ValidSchemes)
+	return fferr.NewDataTypeNotFoundError(scheme, fmt.Errorf("scheme must be one of %v", ValidSchemes))
 }
 
 func (fp *FilePath) parsePath(fullPath string) error {
 	// Parse the URI into a url.URL object.
 	u, err := url.Parse(fullPath)
 	if err != nil {
-		return fmt.Errorf("could not parse full path '%s': %v", fullPath, err)
+		return fferr.NewInvalidArgumentError(err)
 	}
 	// Extract the bucket and path components from the URI.
 	bucket := u.Host
@@ -284,15 +290,15 @@ func (fp *FilePath) IsValid() bool {
 
 func (fp *FilePath) Validate() error {
 	if fp.scheme == "" {
-		return fmt.Errorf("scheme cannot be empty")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("scheme cannot be empty"))
 	}
 	if fp.bucket == "" {
-		return fmt.Errorf("bucket cannot be empty")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("bucket cannot be empty"))
 	} else {
 		fp.bucket = strings.Trim(fp.bucket, "/")
 	}
 	if fp.key == "" {
-		return fmt.Errorf("key cannot be empty")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("key cannot be empty"))
 	} else {
 		fp.key = strings.Trim(fp.key, "/")
 	}
@@ -306,15 +312,15 @@ type S3Filepath struct {
 
 func (s3 *S3Filepath) Validate() error {
 	if s3.scheme != "s3://" && s3.scheme != "s3a://" && s3.scheme != "s3n://" {
-		return fmt.Errorf("invalid scheme '%s', must be 's3:// or 's3a://' or 's3n://'", s3.scheme)
+		return fferr.NewInvalidArgumentError(fmt.Errorf("invalid scheme '%s', must be 's3:// or 's3a://' or 's3n://'", s3.scheme))
 	}
 	if s3.bucket == "" {
-		return fmt.Errorf("bucket cannot be empty")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("bucket cannot be empty"))
 	} else {
 		s3.bucket = strings.Trim(s3.bucket, "/")
 	}
 	if s3.key == "" || s3.key == "/" {
-		return fmt.Errorf("key cannot be empty")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("key cannot be empty"))
 	} else {
 		s3.key = strings.Trim(s3.key, "/")
 	}
@@ -341,7 +347,7 @@ func (azure *AzureFilepath) ToURI() string {
 func (azure *AzureFilepath) ParseFilePath(fullPath string) error {
 	u, err := url.Parse(fullPath)
 	if err != nil {
-		return fmt.Errorf("could not parse full path '%s': %v", fullPath, err)
+		return fferr.NewInvalidArgumentError(err)
 	}
 	// Our scheme is the protocol + "://", so we need to suffix the scheme with "://"
 	// to ensure the comparison works.
@@ -377,18 +383,18 @@ func (azure *AzureFilepath) ParseDirPath(fullPath string) error {
 
 func (azure *AzureFilepath) Validate() error {
 	if azure.scheme != "abfss://" {
-		return fmt.Errorf("invalid scheme '%s', must be 'abfss://'", azure.scheme)
+		return fferr.NewInvalidArgumentError(fmt.Errorf("invalid scheme '%s', must be 'abfss://'", azure.scheme))
 	}
 	if azure.StorageAccount == "" {
-		return fmt.Errorf("storage account cannot be empty")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("storage account cannot be empty"))
 	}
 	if azure.bucket == "" {
-		return fmt.Errorf("bucket cannot be empty")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("bucket cannot be empty"))
 	} else {
 		azure.bucket = strings.Trim(azure.bucket, "/")
 	}
 	if azure.key == "" {
-		return fmt.Errorf("key cannot be empty")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("key cannot be empty"))
 	} else {
 		azure.key = strings.Trim(azure.key, "/")
 	}
@@ -406,15 +412,15 @@ func (gcs *GCSFilepath) ToURI() string {
 
 func (gcs *GCSFilepath) Validate() error {
 	if gcs.scheme != "gs://" {
-		return fmt.Errorf("invalid scheme '%s', must be 'gs://'", gcs.scheme)
+		return fferr.NewInvalidArgumentError(fmt.Errorf("invalid scheme '%s', must be 'gs://'", gcs.scheme))
 	}
 	if gcs.bucket == "" {
-		return fmt.Errorf("bucket cannot be empty")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("bucket cannot be empty"))
 	} else {
 		gcs.bucket = strings.Trim(gcs.bucket, "/")
 	}
 	if gcs.key == "" {
-		return fmt.Errorf("key cannot be empty")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("key cannot be empty"))
 	} else {
 		gcs.key = strings.Trim(gcs.key, "/")
 	}
@@ -428,13 +434,13 @@ type HDFSFilepath struct {
 
 func (hdfs *HDFSFilepath) Validate() error {
 	if hdfs.scheme != HDFSPrefix {
-		return fmt.Errorf("invalid scheme '%s', must be '%s'", hdfs.scheme, HDFSPrefix)
+		return fferr.NewInvalidArgumentError(fmt.Errorf("invalid scheme '%s', must be '%s'", hdfs.scheme, HDFSPrefix))
 	}
 	if len(hdfs.key) == 0 {
-		return fmt.Errorf("key cannot be empty")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("key cannot be empty"))
 	}
 	if !strings.HasPrefix(hdfs.key, "/") {
-		return fmt.Errorf("key must be an absolute path")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("key must be an absolute path"))
 	}
 
 	return nil
@@ -453,13 +459,13 @@ func (local *LocalFilepath) SetBucket(bucket string) error {
 
 func (local *LocalFilepath) Validate() error {
 	if local.scheme == "" {
-		return fmt.Errorf("scheme cannot be empty")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("scheme cannot be empty"))
 	}
 	if local.bucket != "" {
-		return fmt.Errorf("bucket must be empty")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("bucket must be empty"))
 	}
 	if local.key == "" {
-		return fmt.Errorf("key cannot be empty")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("key cannot be empty"))
 	} else {
 		local.key = strings.Trim(local.key, "/")
 	}
@@ -480,14 +486,14 @@ type FilePathGroup struct {
 
 func (fg FilePathGroup) GetFirst() ([]Filepath, error) {
 	if len(fg.SortedKeys) == 0 {
-		return nil, fmt.Errorf("no groups found")
+		return nil, fferr.NewInternalError(fmt.Errorf("no groups found"))
 	}
 	return fg.Groups[fg.SortedKeys[0]], nil
 }
 
 func (fg FilePathGroup) GetLast() ([]Filepath, error) {
 	if len(fg.SortedKeys) == 0 {
-		return nil, fmt.Errorf("no groups found")
+		return nil, fferr.NewInternalError(fmt.Errorf("no groups found"))
 	}
 	return fg.Groups[fg.SortedKeys[len(fg.SortedKeys)-1]], nil
 }
@@ -504,7 +510,7 @@ func NewFilePathGroup(files []Filepath, grouping FilePathGroupingType) (FilePath
 		}
 		return group, nil
 	default:
-		return FilePathGroup{}, fmt.Errorf("unknown grouping '%s'", grouping)
+		return FilePathGroup{}, fferr.NewInvalidArgumentError(fmt.Errorf("unknown grouping '%s'", grouping))
 	}
 }
 
@@ -518,7 +524,7 @@ func groupByDateTimeDirectory(files []Filepath) (FilePathGroup, error) {
 		// <OPTIONAL PATH>/featureform/BatchFeatures/<UUID 5>/<DATETIME DIR>/<FILENAME>
 		// so there should be at least 5 path components.
 		if len(pathParts) < 5 {
-			return FilePathGroup{}, fmt.Errorf("expected at least 5 path components, but found: %s", file.Key())
+			return FilePathGroup{}, fferr.NewInternalError(fmt.Errorf("expected at least 5 path components, but found: %s", file.Key()))
 		}
 		// The datetime directory is the second to last path component and follows the format:
 		// <YEAR>-<MONTH>-<DAY>-<HOUR>-<MINUTE>-<SECOND>-<FRACTIONAL SECONDS>
@@ -529,7 +535,7 @@ func groupByDateTimeDirectory(files []Filepath) (FilePathGroup, error) {
 		// valid datetime, we'll remove the fractional seconds component.
 		_, err := time.Parse("2006-01-02-15-04-05", datetime[:fractionalSecondsIdx])
 		if err != nil {
-			return FilePathGroup{}, fmt.Errorf("expected path component %s to be a valid datetime: %v", datetime, err)
+			return FilePathGroup{}, fferr.NewInvalidArgumentError(fmt.Errorf("expected path component %s to be a valid datetime: %v", datetime, err))
 		}
 		if _, exists := groups[datetime]; !exists {
 			groups[datetime] = []Filepath{file}

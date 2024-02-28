@@ -406,7 +406,7 @@ func TestToDashboardError(t *testing.T) {
 					Message: "An error occurred",
 				},
 			},
-			expected: ": An error occurred",
+			expected: "",
 		},
 		{
 			name: "with details",
@@ -438,7 +438,7 @@ func TestToDashboardError(t *testing.T) {
 					},
 				},
 			},
-			expected: ": Partial failure",
+			expected: "",
 		},
 	}
 

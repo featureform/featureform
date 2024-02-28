@@ -102,7 +102,7 @@ func ToDashboardError(status *pb.ResourceStatus) string {
 	}
 	err := fmt.Sprintf("%s: %s", reason, errorStatus.GetMessage())
 	for k, v := range details {
-		err = fmt.Sprintf("%s\n-> %s: %s", err, k, v)
+		err = fmt.Sprintf("%s\n>>> %s: %s", err, k, v)
 	}
 	return err
 }

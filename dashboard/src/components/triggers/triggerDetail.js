@@ -81,6 +81,11 @@ export default function TriggerDetail({
       <DataGrid
         density='compact'
         autoHeight
+        sx={{
+          '& .MuiDataGrid-cell:focus': {
+            outline: 'none',
+          },
+        }}
         aria-label='Other Runs'
         rows={details?.resources ?? []}
         rowsPerPageOptions={[5]}

@@ -150,7 +150,16 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
         />
       </Popover>
       <DataGrid
-        sx={{ minWidth: 300, height: 650 }}
+        sx={{
+          minWidth: 300,
+          height: 650,
+          '& .MuiDataGrid-cell:focus': {
+            outline: 'none',
+          },
+          '& .MuiDataGrid-row:hover': {
+            cursor: 'pointer',
+          },
+        }}
         onRowClick={handleRowSelect}
         density='compact'
         aria-label='Task Runs'

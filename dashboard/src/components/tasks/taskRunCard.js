@@ -154,6 +154,11 @@ export default function TaskRunCard({ handleClose, searchId }) {
             density='compact'
             autoHeight
             aria-label='Other Runs'
+            sx={{
+              '& .MuiDataGrid-cell:focus': {
+                outline: 'none',
+              },
+            }}
             rows={taskRunRecord?.otherRuns ?? []}
             rowsPerPageOptions={[5]}
             columns={columns}

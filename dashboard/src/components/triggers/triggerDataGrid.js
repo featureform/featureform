@@ -126,9 +126,18 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
   return (
     <>
       <DataGrid
-        sx={{ minWidth: 300, height: 650 }}
         onRowClick={handleRowSelect}
         density='compact'
+        sx={{
+          minWidth: 300,
+          height: 650,
+          '& .MuiDataGrid-cell:focus': {
+            outline: 'none',
+          },
+          '& .MuiDataGrid-row:hover': {
+            cursor: 'pointer',
+          },
+        }}
         aria-label='Triggers'
         rows={triggerList ?? []}
         rowsPerPageOptions={[15]}

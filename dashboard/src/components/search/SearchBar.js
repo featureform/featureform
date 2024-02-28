@@ -1,4 +1,3 @@
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
 import InputBase from '@mui/material/InputBase';
@@ -92,7 +91,6 @@ const SearchBar = ({ homePage }) => {
         <Container className={classes.border}>
           <InputBase
             placeholder='Search'
-            endAdornment={<SettingsOutlinedIcon />}
             onChange={(event) => {
               const rawText = event.target.value;
               if (rawText === '') {

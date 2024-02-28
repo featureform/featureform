@@ -107,7 +107,7 @@ export default function TriggerDetail({
         <Button
           variant='contained'
           onClick={() => handleDelete?.(details?.trigger?.id)}
-          sx={{ margin: '0.5em', background: '#7A14E5' }}
+          sx={{ margin: '0.5em', background: '#DA1E28' }}
         >
           Delete Trigger
         </Button>

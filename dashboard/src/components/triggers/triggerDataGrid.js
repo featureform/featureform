@@ -60,9 +60,9 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
       filterable: false,
     },
     {
-      field: 'remove',
+      field: 'delete',
       flex: 0,
-      headerName: 'Remove',
+      headerName: 'Delete',
       width: 100,
       align: 'center',
       editable: false,

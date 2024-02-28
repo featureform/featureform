@@ -42,7 +42,7 @@ export default function TableDataWrapper() {
       >
         <Box>
           <TextField
-            placeholder='Search'
+            placeholder='Search Triggers'
             onChange={(event) => {
               const rawText = event.target.value;
               if (rawText === '') {
@@ -73,7 +73,7 @@ export default function TableDataWrapper() {
             }}
             className={classes.filterInput}
             inputProps={{
-              'aria-label': 'search',
+              'aria-label': 'search triggers',
               'data-testid': 'searcInputId',
             }}
           />

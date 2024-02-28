@@ -1,7 +1,16 @@
+import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
-import { Box, IconButton, InputAdornment, TextField } from '@mui/material';
+import {
+  Box,
+  Button,
+  IconButton,
+  InputAdornment,
+  Popover,
+  TextField,
+} from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useDataAPI } from '../../hooks/dataAPI';
+import NewTrigger from './newTrigger';
 import { useStyles } from './styles';
 import TriggerDataGrid from './triggerDataGrid';
 
@@ -11,6 +20,7 @@ export default function TableDataWrapper() {
   const ENTER_KEY = 'Enter';
   const [searchQuery, setSearchQuery] = useState('');
   const [triggerList, setTriggerList] = useState([]);
+  const [openNew, setOpenNew] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(async () => {
@@ -30,6 +40,17 @@ export default function TableDataWrapper() {
     setLoading(true);
   };
 
+  const handleNewTrigger = () => {
+    if (!openNew) {
+      setOpenNew(true);
+    }
+  };
+
+  function handleClose() {
+    setOpenNew(false);
+    refresh?.();
+  }
+
   const refresh = () => {
     setLoading(true);
   };
@@ -41,6 +62,13 @@ export default function TableDataWrapper() {
         justifyContent={'flex-end'}
       >
         <Box>
+          <Button
+            variant='contained'
+            style={{ background: '#7A14E5', marginTop: '1em' }}
+            onClick={handleNewTrigger}
+          >
+            <AddIcon /> New Trigger
+          </Button>
           <TextField
             placeholder='Search Triggers'
             onChange={(event) => {
@@ -80,6 +108,22 @@ export default function TableDataWrapper() {
         </Box>
       </Box>
       <TriggerDataGrid triggerList={triggerList} refresh={refresh} />
+      <Popover
+        open={openNew}
+        anchorReference='anchorPosition'
+        anchorPosition={{ top: 500, left: 275 }}
+        onClose={handleClose}
+        anchorOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+      >
+        <NewTrigger handleClose={handleClose} />
+      </Popover>
     </>
   );
 }

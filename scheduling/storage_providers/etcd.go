@@ -179,10 +179,9 @@ func (etcd *ETCDStorageProvider) Lock(key string) (LockObject, error) {
 
 	// unmarshal the lock information
 	newLock := LockInformation{}
-	if err := newLock.Unmarshal([]byte(data)); err != nil {
+	if err := newLock.Unmarshal(data); err != nil {
 		return LockObject{}, fmt.Errorf("failed to unmarshal lock information: %w", err)
 	}
-	fmt.Println("Old Lock: ", lock.Date, "unmarshal lock: ", newLock.Date, lock, newLock)
 
 	_, err = etcd.client.Put(etcd.ctx, lockKeyPath, string(data))
 	if err != nil {
@@ -248,7 +247,7 @@ func (etcd *ETCDStorageProvider) updateLockTime(id string, key string, lockChann
 		case <-ticker.C:
 			// Continue updating lock time
 			lockInfo, err := etcd.client.Get(etcd.ctx, key)
-			if err != nil {
+			if err != nil || len(lockInfo.Kvs) == 0 {
 				// Key no longer exists, stop updating
 				return
 			}

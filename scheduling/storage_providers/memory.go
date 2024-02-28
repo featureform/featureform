@@ -22,7 +22,7 @@ type LockInformation struct {
 	Date time.Time
 }
 
-func (l LockInformation) Unmarshal(data []byte) error {
+func (l *LockInformation) Unmarshal(data []byte) error {
 	var tmp struct {
 		ID   string
 		Key  string
@@ -52,7 +52,7 @@ func (l LockInformation) Unmarshal(data []byte) error {
 	return nil
 }
 
-func (l LockInformation) Marshal() ([]byte, error) {
+func (l *LockInformation) Marshal() ([]byte, error) {
 	return json.Marshal(l)
 }
 

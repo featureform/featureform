@@ -9,6 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	clientv3 "go.etcd.io/etcd/client/v3"
+
+	"github.com/featureform/helpers"
 )
 
 const (
@@ -20,8 +22,27 @@ type ETCDStorageProvider struct {
 	ctx    context.Context
 }
 
-func NewETCDStorageProvider(client *clientv3.Client, ctx context.Context) *ETCDStorageProvider {
-	return &ETCDStorageProvider{client: client, ctx: ctx}
+func NewETCDStorageProvider() (*ETCDStorageProvider, error) {
+	etcdHost := helpers.GetEnv("ETCD_HOST", "localhost")
+	etcdPort := helpers.GetEnv("ETCD_PORT", "2379")
+	etcdUsername := helpers.GetEnv("ETCD_USERNAME", "")
+	etcdPassword := helpers.GetEnv("ETCD_PASSWORD", "")
+
+	address := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
+
+	etcdConfig := clientv3.Config{
+		Endpoints:   []string{address},
+		DialTimeout: time.Second * 10,
+		Username:    etcdUsername,
+		Password:    etcdPassword,
+	}
+
+	client, err := clientv3.New(etcdConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create etcd client: %w", err)
+	}
+
+	return &ETCDStorageProvider{client: client, ctx: context.Background()}, nil
 }
 
 func (etcd *ETCDStorageProvider) Set(key string, value string, lock LockObject) error {
@@ -33,7 +54,7 @@ func (etcd *ETCDStorageProvider) Set(key string, value string, lock LockObject) 
 	}
 
 	// get lock and check if it is valid
-	lockKeyPath := fmt.Sprintf("/%s/%s", LOCKPREFIX, strings.TrimLeft(key, "/"))
+	lockKeyPath := etcd.getLockKey(key)
 	resp, err := etcd.client.Get(etcd.ctx, lockKeyPath)
 	if err != nil {
 		return fmt.Errorf("failed to get key %s: %w", lockKeyPath, err)
@@ -94,7 +115,7 @@ func (etcd *ETCDStorageProvider) Delete(key string, lock LockObject) error {
 	}
 
 	// get lock and check if it is valid
-	lockKeyPath := fmt.Sprintf("/%s/%s", LOCKPREFIX, strings.TrimLeft(key, "/"))
+	lockKeyPath := etcd.getLockKey(key)
 	resp, err := etcd.client.Get(etcd.ctx, lockKeyPath)
 	if err != nil {
 		return fmt.Errorf("failed to get key %s: %w", lockKeyPath, err)
@@ -148,7 +169,7 @@ func (etcd *ETCDStorageProvider) Lock(key string) (LockObject, error) {
 	if key == "" {
 		return LockObject{}, fmt.Errorf("key is empty")
 	}
-	lockKeyPath := fmt.Sprintf("/%s/%s", LOCKPREFIX, strings.TrimLeft(key, "/"))
+	lockKeyPath := etcd.getLockKey(key)
 
 	// check if the key is already locked
 	resp, err := etcd.client.Get(etcd.ctx, lockKeyPath)
@@ -177,12 +198,6 @@ func (etcd *ETCDStorageProvider) Lock(key string) (LockObject, error) {
 		return LockObject{}, fmt.Errorf("failed to marshal lock information: %w", err)
 	}
 
-	// unmarshal the lock information
-	newLock := LockInformation{}
-	if err := newLock.Unmarshal(data); err != nil {
-		return LockObject{}, fmt.Errorf("failed to unmarshal lock information: %w", err)
-	}
-
 	_, err = etcd.client.Put(etcd.ctx, lockKeyPath, string(data))
 	if err != nil {
 		return LockObject{}, fmt.Errorf("failed to put lock information: %w", err)
@@ -200,7 +215,7 @@ func (etcd *ETCDStorageProvider) Unlock(key string, lock LockObject) error {
 		return fmt.Errorf("key is empty")
 	}
 
-	lockKeyPath := fmt.Sprintf("/%s/%s", LOCKPREFIX, strings.TrimLeft(key, "/"))
+	lockKeyPath := etcd.getLockKey(key)
 
 	resp, err := etcd.client.Get(etcd.ctx, lockKeyPath)
 	if err != nil {
@@ -271,4 +286,8 @@ func (etcd *ETCDStorageProvider) updateLockTime(id string, key string, lockChann
 			}
 		}
 	}
+}
+
+func (etcd *ETCDStorageProvider) getLockKey(key string) string {
+	return fmt.Sprintf("/%s/%s", LOCKPREFIX, strings.TrimLeft(key, "/"))
 }

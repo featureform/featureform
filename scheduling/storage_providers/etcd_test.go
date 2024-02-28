@@ -1,12 +1,7 @@
 package scheduling
 
 import (
-	"context"
-	"fmt"
 	"testing"
-	"time"
-
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 func TestStorageProviderETCD(t *testing.T) {
@@ -14,26 +9,10 @@ func TestStorageProviderETCD(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
-	etcdHost := "localhost"
-	etcdPort := "2379"
-	etcdUsername := ""
-	etcdPassword := ""
-
-	address := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
-
-	etcdConfig := clientv3.Config{
-		Endpoints:   []string{address},
-		DialTimeout: time.Second * 10,
-		Username:    etcdUsername,
-		Password:    etcdPassword,
-	}
-
-	client, err := clientv3.New(etcdConfig)
+	storage, err := NewStorageProvider("etcd")
 	if err != nil {
-		t.Fatalf("Error creating etcd client: %v", err)
+		t.Fatalf("failed to create etcd storage provider: %v", err)
 	}
-
-	storage := NewETCDStorageProvider(client, context.Background())
 
 	test := StorageProviderTest{
 		t:       t,

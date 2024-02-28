@@ -1,14 +1,11 @@
-import AddIcon from '@mui/icons-material/Add';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
-import { Button, IconButton, Popover } from '@mui/material';
+import { IconButton } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import React, { useState } from 'react';
 import { useDataAPI } from '../../hooks/dataAPI';
-import NewTrigger from './newTrigger';
 import TriggerDialog from './triggerDialog';
 
 export default function TriggerDataGrid({ triggerList = [], refresh }) {
-  const [openNew, setOpenNew] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogTriggerId, setDialogTriggerId] = useState();
   const dataAPI = useDataAPI();
@@ -108,17 +105,6 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
     setDialogTriggerId(selectedRow?.row?.id);
   };
 
-  const handleNewTrigger = () => {
-    if (!openNew) {
-      setOpenNew(true);
-    }
-  };
-
-  function handleClose() {
-    setOpenNew(false);
-    refresh?.();
-  }
-
   const handleCloseDialog = () => {
     setOpenDialog(false);
   };
@@ -147,22 +133,6 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
         }}
         pageSize={15}
       />
-      <Popover
-        open={openNew}
-        anchorReference='anchorPosition'
-        anchorPosition={{ top: 500, left: 275 }}
-        onClose={handleClose}
-        anchorOrigin={{
-          vertical: 'top',
-          horizontal: 'left',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'left',
-        }}
-      >
-        <NewTrigger handleClose={handleClose} />
-      </Popover>
       <TriggerDialog
         triggerId={dialogTriggerId}
         open={openDialog}
@@ -170,13 +140,6 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
         handleDelete={handleDelete}
         handleDeleteResource={handleDeleteResource}
       />
-      <Button
-        variant='contained'
-        style={{ background: '#7A14E5', marginTop: '1em' }}
-        onClick={handleNewTrigger}
-      >
-        <AddIcon /> New Trigger
-      </Button>
     </>
   );
 }

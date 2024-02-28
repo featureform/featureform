@@ -7,6 +7,7 @@ import {
   InputAdornment,
   Popover,
   TextField,
+  Typography,
 } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useDataAPI } from '../../hooks/dataAPI';
@@ -56,19 +57,18 @@ export default function TableDataWrapper() {
   };
   return (
     <>
-      <Box
-        className={classes.inputRow}
-        display={'flex'}
-        justifyContent={'flex-end'}
-      >
-        <Box>
-          <Button
-            variant='contained'
-            style={{ background: '#7A14E5', marginTop: '1em' }}
-            onClick={handleNewTrigger}
-          >
-            <AddIcon /> New Trigger
-          </Button>
+      <Box className={classes.inputRow}>
+        <Button
+          variant='contained'
+          style={{ background: '#7A14E5' }}
+          onClick={handleNewTrigger}
+        >
+          <>
+            <AddIcon />
+            <Typography variant='button'>New Trigger</Typography>
+          </>
+        </Button>
+        <Box style={{ float: 'right' }}>
           <TextField
             placeholder='Search Triggers'
             onChange={(event) => {
@@ -111,7 +111,7 @@ export default function TableDataWrapper() {
       <Popover
         open={openNew}
         anchorReference='anchorPosition'
-        anchorPosition={{ top: 500, left: 275 }}
+        anchorPosition={{ top: 220, left: 275 }}
         onClose={handleClose}
         anchorOrigin={{
           vertical: 'top',

@@ -250,7 +250,7 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sour
 		return nil, err
 	}
 	if !sourceExists {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("source table %s does not exist", sourceName))
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("source table '%s' does not exist", sourceName))
 	}
 	query := store.query.primaryTableRegister(tableName, sourceName)
 	if _, err := store.db.Exec(query); err != nil {

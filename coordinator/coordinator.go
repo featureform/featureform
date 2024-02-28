@@ -120,11 +120,15 @@ func (c *Coordinator) AwaitPendingSource(sourceNameVariant metadata.NameVariant)
 		if err != nil {
 			return nil, err
 		}
+		var sourceType fferr.ResourceType
+		if source.IsTransformation() {
+			sourceType = fferr.TRANSFORMATION
+		} else {
+			sourceType = fferr.PRIMARY_DATASET
+		}
 		sourceStatus := source.Status()
 		if sourceStatus == metadata.FAILED {
-			err := fferr.NewInternalError(fmt.Errorf("required dependent source failed"))
-			err.AddDetail("Name", sourceNameVariant.Name)
-			err.AddDetail("Variant", sourceNameVariant.Variant)
+			err := fferr.NewResourceFailedError(sourceNameVariant.Name, sourceNameVariant.Variant, sourceType, fmt.Errorf("required dataset is in a failed state"))
 			return nil, err
 		}
 		if sourceStatus == metadata.READY {
@@ -144,9 +148,7 @@ func (c *Coordinator) AwaitPendingFeature(featureNameVariant metadata.NameVarian
 		}
 		featureStatus := feature.Status()
 		if featureStatus == metadata.FAILED {
-			err := fferr.NewInternalError(fmt.Errorf("feature registration failed"))
-			err.AddDetail("Name", featureNameVariant.Name)
-			err.AddDetail("Variant", featureNameVariant.Variant)
+			err := fferr.NewResourceFailedError(featureNameVariant.Name, featureNameVariant.Variant, fferr.FEATURE_VARIANT, fmt.Errorf("required feature is in a failed state"))
 			return nil, err
 		}
 		if featureStatus == metadata.READY {
@@ -166,9 +168,7 @@ func (c *Coordinator) AwaitPendingLabel(labelNameVariant metadata.NameVariant) (
 		}
 		labelStatus := label.Status()
 		if labelStatus == metadata.FAILED {
-			err := fferr.NewInternalError(fmt.Errorf("label registration failed"))
-			err.AddDetail("Name", labelNameVariant.Name)
-			err.AddDetail("Variant", labelNameVariant.Variant)
+			err := fferr.NewResourceFailedError(labelNameVariant.Name, labelNameVariant.Variant, fferr.LABEL_VARIANT, fmt.Errorf("required label is in a failed state"))
 			return nil, err
 		}
 		if labelStatus == metadata.READY {

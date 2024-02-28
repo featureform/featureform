@@ -54,6 +54,8 @@ const (
 	KEY_NOT_FOUND = "Key Not Found"
 
 	// RESOURCE TYPES:
+	PRIMARY_DATASET      ResourceType = "PRIMARY_DATASET"
+	TRANSFORMATION       ResourceType = "TRANSFORMATION"
 	FEATURE              ResourceType = "FEATURE"
 	LABEL                ResourceType = "LABEL"
 	TRAINING_SET         ResourceType = "TRAINING_SET"
@@ -83,10 +85,12 @@ type GRPCError interface {
 func ToDashboardError(status *pb.ResourceStatus) string {
 	errorStatus := status.ErrorStatus
 	var reason string
+	details := make(map[string]string)
 	for _, detail := range errorStatus.GetDetails() {
 		errorInfo := &errdetails.ErrorInfo{}
 		if err := anypb.UnmarshalTo(detail, errorInfo, proto.UnmarshalOptions{}); err == nil {
 			reason = errorInfo.Reason
+			details = errorInfo.Metadata
 			break // Assuming we only care about the first error detail.
 		}
 	}
@@ -96,7 +100,11 @@ func ToDashboardError(status *pb.ResourceStatus) string {
 		}
 		return ""
 	}
-	return fmt.Sprintf("%s: %s", reason, errorStatus.GetMessage())
+	err := fmt.Sprintf("%s: %s", reason, errorStatus.GetMessage())
+	for k, v := range details {
+		err = fmt.Sprintf("%s\n-> %s: %s", err, k, v)
+	}
+	return err
 }
 
 func FromErr(err error) GRPCError {

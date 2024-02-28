@@ -396,40 +396,46 @@ func TestNewGenericError(t *testing.T) {
 func TestToDashboardError(t *testing.T) {
 	tests := []struct {
 		name     string
-		status   *pb.ErrorStatus
+		status   *pb.ResourceStatus
 		expected string
 	}{
 		{
 			name: "no details",
-			status: &pb.ErrorStatus{
-				Message: "An error occurred",
+			status: &pb.ResourceStatus{
+				ErrorStatus: &pb.ErrorStatus{
+					Message: "An error occurred",
+				},
 			},
 			expected: ": An error occurred",
 		},
 		{
 			name: "with details",
-			status: &pb.ErrorStatus{
-				Message: "An error occurred",
-				Details: []*anypb.Any{
-					func() *anypb.Any {
-						detail, _ := anypb.New(&errdetails.ErrorInfo{
-							Reason: "INVALID_ARGUMENT",
-						})
-						return detail
-					}(),
+			status: &pb.ResourceStatus{
+				ErrorStatus: &pb.ErrorStatus{
+					Message: "An error occurred",
+					Details: []*anypb.Any{
+						func() *anypb.Any {
+							detail, _ := anypb.New(&errdetails.ErrorInfo{
+								Reason: "INVALID_ARGUMENT",
+							})
+							return detail
+						}(),
+					},
 				},
 			},
 			expected: "INVALID_ARGUMENT: An error occurred",
 		},
 		{
 			name: "with non-errorinfo details",
-			status: &pb.ErrorStatus{
-				Message: "Partial failure",
-				Details: []*anypb.Any{
-					func() *anypb.Any {
-						detail, _ := anypb.New(&pb.Feature{})
-						return detail
-					}(), // Assuming SomeOtherMessage is a message that cannot be unmarshaled into ErrorInfo
+			status: &pb.ResourceStatus{
+				ErrorStatus: &pb.ErrorStatus{
+					Message: "Partial failure",
+					Details: []*anypb.Any{
+						func() *anypb.Any {
+							detail, _ := anypb.New(&pb.Feature{})
+							return detail
+						}(), // Assuming SomeOtherMessage is a message that cannot be unmarshaled into ErrorInfo
+					},
 				},
 			},
 			expected: ": Partial failure",

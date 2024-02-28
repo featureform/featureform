@@ -4,7 +4,7 @@ import TableDataWrapper from './tableDataWrapper';
 export default function TriggerPage() {
   return (
     <>
-      <h2>Triggers</h2>
+      <h3>Triggers</h3>
       <TableDataWrapper />
     </>
   );

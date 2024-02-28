@@ -114,8 +114,7 @@ class GrpcClient:
             elif e.code() == grpc.StatusCode.UNKNOWN:
                 raise Exception(f"Error: {e.details()}") from ex
             else:
-                print("RAISING ERROR")
-            raise e
+                raise e
 
     def _handle_expected_error(self, e: Optional[grpc.RpcError]) -> None:
         if self.debug:

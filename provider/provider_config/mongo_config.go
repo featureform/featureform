@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"github.com/featureform/fferr"
 
 	ss "github.com/featureform/helpers/string_set"
 )
@@ -26,7 +27,7 @@ func (m MongoDBConfig) Serialized() SerializedConfig {
 func (m *MongoDBConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, m)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }

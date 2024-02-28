@@ -458,7 +458,7 @@ func (ctx *onlineTestContext) Create(t *testing.T) *FeatureServer {
 	if ctx.ResourceDefsFn != nil {
 		defs := ctx.ResourceDefsFn(providerType)
 		if err := meta.CreateAll(context.Background(), defs); err != nil {
-			t.Fatalf("Failed to create metdata entries: %s", err)
+			t.Fatalf("Failed to create metadata entries: %s", err)
 		}
 	}
 	logger := zaptest.NewLogger(t).Sugar()

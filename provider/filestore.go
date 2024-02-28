@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
 	hdfs "github.com/colinmarc/hdfs/v2"
+	"github.com/featureform/fferr"
 	filestore "github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 
@@ -65,11 +65,13 @@ type LocalFileStore struct {
 func NewLocalFileStore(config Config) (FileStore, error) {
 	fileStoreConfig := pc.LocalFileStoreConfig{}
 	if err := fileStoreConfig.Deserialize(config); err != nil {
-		return nil, fmt.Errorf("could not deserialize file store config: %v", err)
+		return nil, err
 	}
 	bucket, err := blob.OpenBucket(context.TODO(), fileStoreConfig.DirPath)
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewExecutionError(string(filestore.FileSystem), err)
+		wrapped.AddDetail("dir_path", fileStoreConfig.DirPath)
+		return nil, wrapped
 	}
 	filepath, err := filestore.NewEmptyFilepath(filestore.FileSystem)
 	if err != nil {
@@ -96,7 +98,7 @@ func (fs *LocalFileStore) FilestoreType() filestore.FileStoreType {
 func (fs *LocalFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 	fp := filestore.LocalFilepath{}
 	if fs.FilestoreType() != filestore.FileSystem {
-		return nil, fmt.Errorf("filestore type: %v; use store-specific implementation instead", fs.FilestoreType())
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("filestore type: %v; use store-specific implementation instead", fs.FilestoreType()))
 	}
 	if err := fp.SetScheme(filestore.FileSystemPrefix); err != nil {
 		return nil, err
@@ -168,6 +170,7 @@ func (store *AzureFileStore) CreateDirPath(key string) (filestore.Filepath, erro
 func (store *AzureFileStore) configString() string {
 	return fmt.Sprintf("fs.azure.account.key.%s.dfs.core.windows.net=%s", store.AccountName, store.AccountKey)
 }
+
 func (store *AzureFileStore) connectionString() string {
 	return store.ConnectionString
 }
@@ -193,34 +196,38 @@ func (store *AzureFileStore) FilestoreType() filestore.FileStoreType {
 func NewAzureFileStore(config Config) (FileStore, error) {
 	azureStoreConfig := &pc.AzureFileStoreConfig{}
 	if err := azureStoreConfig.Deserialize(pc.SerializedConfig(config)); err != nil {
-		return nil, fmt.Errorf("could not deserialize store config: %v", err)
+		return nil, err
 	}
 	if azureStoreConfig.AccountName == "" {
-		return nil, fmt.Errorf("account name cannot be empty")
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("account name cannot be empty"))
 	}
 	if err := os.Setenv("AZURE_STORAGE_ACCOUNT", azureStoreConfig.AccountName); err != nil {
-		return nil, fmt.Errorf("could not set storage account env: %w", err)
+		return nil, fferr.NewInternalError(fmt.Errorf("could not set storage account env: %w", err))
 	}
 	if azureStoreConfig.AccountKey == "" {
-		return nil, fmt.Errorf("account key cannot be empty")
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("account key cannot be empty"))
 	}
 	if err := os.Setenv("AZURE_STORAGE_KEY", azureStoreConfig.AccountKey); err != nil {
-		return nil, fmt.Errorf("could not set storage key env: %w", err)
+		return nil, fferr.NewInternalError(fmt.Errorf("could not set storage key env: %w", err))
 	}
 
 	azureStoreConfig.ContainerName = strings.TrimPrefix(azureStoreConfig.ContainerName, "abfss://")
 	if strings.Contains(azureStoreConfig.ContainerName, "/") {
-		return nil, fmt.Errorf("container_name cannot contain '/'. container_name should be the name of the Azure Blobstore container only")
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("container_name cannot contain '/'. container_name should be the name of the Azure Blobstore container only"))
 	}
 
 	serviceURL := azureblob.ServiceURL(fmt.Sprintf("https://%s.blob.core.windows.net", azureStoreConfig.AccountName))
 	client, err := azureblob.NewDefaultServiceClient(serviceURL)
 	if err != nil {
-		return nil, fmt.Errorf("could not create client: %v", err)
+		wrapped := fferr.NewExecutionError(string(filestore.Azure), err)
+		wrapped.AddDetail("service_url", string(serviceURL))
+		return nil, wrapped
 	}
 	bucket, err := azureblob.OpenBucket(context.TODO(), client, azureStoreConfig.ContainerName, nil)
 	if err != nil {
-		return nil, fmt.Errorf("could not open bucket: %v", err)
+		wrapped := fferr.NewExecutionError(string(filestore.Azure), err)
+		wrapped.AddDetail("container_name", azureStoreConfig.ContainerName)
+		return nil, wrapped
 	}
 	connectionString := fmt.Sprintf("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s", azureStoreConfig.AccountName, azureStoreConfig.AccountKey)
 	return &AzureFileStore{
@@ -251,14 +258,16 @@ func (s *S3FileStore) BlobPath(sourceKey string) string {
 func NewS3FileStore(config Config) (FileStore, error) {
 	s3StoreConfig := pc.S3FileStoreConfig{}
 	if err := s3StoreConfig.Deserialize(pc.SerializedConfig(config)); err != nil {
-		return nil, fmt.Errorf("could not deserialize s3 store config: %v", err)
+		return nil, err
 	}
 
 	trimmedBucket := strings.TrimPrefix(s3StoreConfig.BucketPath, "s3://")
 	trimmedBucket = strings.TrimPrefix(trimmedBucket, "s3a://")
 
 	if strings.Contains(trimmedBucket, "/") {
-		return nil, fmt.Errorf("bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only")
+		wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only"))
+		wrapped.AddDetail("bucket_name", trimmedBucket)
+		return nil, wrapped
 	}
 
 	cfg, err := awsv2cfg.LoadDefaultConfig(context.TODO(),
@@ -268,13 +277,17 @@ func NewS3FileStore(config Config) (FileStore, error) {
 			},
 		}))
 	if err != nil {
-		return nil, fmt.Errorf("could not load aws config: %v", err)
+		wrapped := fferr.NewExecutionError(string(filestore.S3), err)
+		wrapped.AddDetail("bucket_name", trimmedBucket)
+		return nil, wrapped
 	}
 	cfg.Region = s3StoreConfig.BucketRegion
 	clientV2 := s3v2.NewFromConfig(cfg)
 	bucket, err := s3blob.OpenBucketV2(context.TODO(), clientV2, trimmedBucket, nil)
 	if err != nil {
-		return nil, fmt.Errorf("could not create connection to s3 bucket: config: %v, name: %s, %v", s3StoreConfig, s3StoreConfig.BucketPath, err)
+		wrapped := fferr.NewExecutionError(string(filestore.S3), err)
+		wrapped.AddDetail("bucket_name", trimmedBucket)
+		return nil, wrapped
 	}
 	return &S3FileStore{
 		Bucket:       trimmedBucket,
@@ -300,7 +313,6 @@ func (s3 *S3FileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 		return nil, err
 	}
 	var err error
-
 	if s3.Path != "" && !strings.HasPrefix(key, s3.Path) {
 		err = fp.SetKey(fmt.Sprintf("%s/%s", s3.Path, strings.Trim(key, "/")))
 	} else {
@@ -341,7 +353,9 @@ func (s3 *S3FileStore) AddEnvVars(envVars map[string]string) map[string]string {
 func (s3 *S3FileStore) Read(path filestore.Filepath) ([]byte, error) {
 	data, err := s3.bucket.ReadAll(context.TODO(), path.Key())
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewExecutionError(string(filestore.S3), err)
+		wrapped.AddDetail("uri", path.ToURI())
+		return nil, wrapped
 	}
 	return data, nil
 }
@@ -404,7 +418,7 @@ type GCSFileStoreConfig struct {
 func (s *GCSFileStoreConfig) Deserialize(config pc.SerializedConfig) error {
 	err := json.Unmarshal(config, s)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -412,7 +426,7 @@ func (s *GCSFileStoreConfig) Deserialize(config pc.SerializedConfig) error {
 func (s *GCSFileStoreConfig) Serialize() ([]byte, error) {
 	conf, err := json.Marshal(s)
 	if err != nil {
-		return nil, fmt.Errorf("could not serialize GCS config: %v", err)
+		return nil, fferr.NewInternalError(err)
 	}
 	return conf, nil
 }
@@ -426,35 +440,43 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 
 	err := GCSConfig.Deserialize(pc.SerializedConfig(config))
 	if err != nil {
-		return nil, fmt.Errorf("could not deserialize config: %v", err)
+		return nil, err
 	}
 
 	GCSConfig.BucketName = strings.TrimPrefix(GCSConfig.BucketName, "gs://")
 
 	if strings.Contains(GCSConfig.BucketName, "/") {
-		return nil, fmt.Errorf("bucket_name cannot contain '/'. bucket_name should be the name of the GCS bucket only")
+		wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("bucket_name cannot contain '/'. bucket_name should be the name of the GCS bucket only"))
+		wrapped.AddDetail("bucket_name", GCSConfig.BucketName)
+		return nil, wrapped
 	}
 
 	serializedFile, err := json.Marshal(GCSConfig.Credentials.JSON)
 	if err != nil {
-		return nil, fmt.Errorf("could not serialize GCS config: %v", err)
+		return nil, fferr.NewInternalError(err)
 	}
 
 	creds, err := google.CredentialsFromJSON(context.TODO(), serializedFile, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
-		return nil, fmt.Errorf("could not get credentials from JSON: %v", err)
+		wrapped := fferr.NewExecutionError(string(filestore.GCS), err)
+		wrapped.AddDetail("bucket_name", GCSConfig.BucketName)
+		return nil, wrapped
 	}
 
 	client, err := gcp.NewHTTPClient(
 		gcp.DefaultTransport(),
 		gcp.CredentialsTokenSource(creds))
 	if err != nil {
-		return nil, fmt.Errorf("could not create client: %v", err)
+		wrapped := fferr.NewExecutionError(string(filestore.GCS), err)
+		wrapped.AddDetail("bucket_name", GCSConfig.BucketName)
+		return nil, wrapped
 	}
 
 	bucket, err := gcsblob.OpenBucket(context.TODO(), client, GCSConfig.BucketName, nil)
 	if err != nil {
-		return nil, fmt.Errorf("could not open bucket: %v", err)
+		wrapped := fferr.NewExecutionError(string(filestore.GCS), err)
+		wrapped.AddDetail("bucket_name", GCSConfig.BucketName)
+		return nil, wrapped
 	}
 	return &GCSFileStore{
 		Bucket:      GCSConfig.BucketName,
@@ -472,7 +494,7 @@ func NewHDFSFileStore(config Config) (FileStore, error) {
 
 	err := HDFSConfig.Deserialize(pc.SerializedConfig(config))
 	if err != nil {
-		return nil, fmt.Errorf("could not deserialize config: %v", err)
+		return nil, err
 	}
 
 	address := fmt.Sprintf("%s:%s", HDFSConfig.Host, HDFSConfig.Port)
@@ -490,7 +512,10 @@ func NewHDFSFileStore(config Config) (FileStore, error) {
 	}
 	client, err := hdfs.NewClient(ops)
 	if err != nil {
-		return nil, fmt.Errorf("could not create hdfs client: %v", err)
+		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
+		wrapped.AddDetail("host", HDFSConfig.Host)
+		wrapped.AddDetail("port", HDFSConfig.Port)
+		return nil, wrapped
 	}
 
 	return &HDFSFileStore{
@@ -518,7 +543,9 @@ func (fs *HDFSFileStore) removeFile(path filestore.Filepath) (*hdfs.FileWriter, 
 	if err := fs.Client.Remove(path.Key()); err != nil && fs.doesNotExistsError(err) {
 		return fs.getFile(path)
 	} else if err != nil {
-		return nil, fmt.Errorf("could not remove file %s: %v", path.Key(), err)
+		wrapped := fferr.NewExecutionError(string(filestore.HDFS), fmt.Errorf("could not remove file: %v", err))
+		wrapped.AddDetail("uri", path.ToURI())
+		return nil, wrapped
 	}
 	return fs.getFile(path)
 }
@@ -527,7 +554,9 @@ func (fs *HDFSFileStore) getFile(path filestore.Filepath) (*hdfs.FileWriter, err
 	if w, err := fs.Client.Create(path.Key()); err != nil && fs.alreadyExistsError(err) {
 		return fs.removeFile(path)
 	} else if err != nil {
-		return nil, fmt.Errorf("could not get file: %v", err)
+		wrapped := fferr.NewExecutionError(string(filestore.HDFS), fmt.Errorf("could not get file: %v", err))
+		wrapped.AddDetail("uri", path.ToURI())
+		return nil, wrapped
 	} else {
 		return w, nil
 	}
@@ -540,7 +569,7 @@ func (fs *HDFSFileStore) isFile(key string) bool {
 
 func (fs *HDFSFileStore) getFileWriter(path filestore.Filepath) (*hdfs.FileWriter, error) {
 	if w, err := fs.getFile(path); err != nil {
-		return nil, fmt.Errorf("could get writer: %v", err)
+		return nil, err
 	} else {
 		return w, nil
 	}
@@ -549,7 +578,9 @@ func (fs *HDFSFileStore) getFileWriter(path filestore.Filepath) (*hdfs.FileWrite
 func (fs *HDFSFileStore) createFile(path filestore.Filepath) (*hdfs.FileWriter, error) {
 	err := fs.Client.MkdirAll(path.KeyPrefix(), os.ModeDir)
 	if err != nil {
-		return nil, fmt.Errorf("could not create all: %v", err)
+		wrapped := fferr.NewInternalError(err)
+		wrapped.AddDetail("uri", path.ToURI())
+		return nil, wrapped
 	}
 	return fs.getFileWriter(path)
 }
@@ -557,21 +588,35 @@ func (fs *HDFSFileStore) createFile(path filestore.Filepath) (*hdfs.FileWriter, 
 func (fs *HDFSFileStore) Write(path filestore.Filepath, data []byte) error {
 	file, err := fs.createFile(path)
 	if err != nil {
-		return fmt.Errorf("could not create file: %v", err)
+		return err
 	}
 	_, err = file.Write(data)
 	if err != nil {
-		return fmt.Errorf("could not write: %v", err)
+		wrapped := fferr.NewInternalError(err)
+		wrapped.AddDetail("uri", path.ToURI())
+		return wrapped
 	}
 	if err := file.Flush(); err != nil {
-		return fmt.Errorf("flush: %v", err)
+		wrapped := fferr.NewInternalError(err)
+		wrapped.AddDetail("uri", path.ToURI())
+		return wrapped
 	}
-	file.Close()
+	if err := file.Close(); err != nil {
+		wrapped := fferr.NewInternalError(err)
+		wrapped.AddDetail("uri", path.ToURI())
+		return wrapped
+	}
 	return nil
 }
 
 func (fs *HDFSFileStore) Read(path filestore.Filepath) ([]byte, error) {
-	return fs.Client.ReadFile(path.Key())
+	file, err := fs.Client.ReadFile(path.Key())
+	if err != nil {
+		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
+		wrapped.AddDetail("uri", path.ToURI())
+		return nil, wrapped
+	}
+	return file, nil
 }
 
 func (fs *HDFSFileStore) ServeDirectory(files []filestore.Filepath) (Iterator, error) {
@@ -581,7 +626,7 @@ func (fs *HDFSFileStore) ServeDirectory(files []filestore.Filepath) (Iterator, e
 
 func (fs *HDFSFileStore) Serve(files []filestore.Filepath) (Iterator, error) {
 	if len(files) == 0 {
-		return nil, fmt.Errorf("no files to serve")
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("no files to serve"))
 	}
 	if len(files) > 1 {
 		return fs.ServeDirectory(files)
@@ -589,15 +634,17 @@ func (fs *HDFSFileStore) Serve(files []filestore.Filepath) (Iterator, error) {
 	file := files[0]
 	b, err := fs.Client.ReadFile(file.Key())
 	if err != nil {
-		return nil, fmt.Errorf("could not read file: %w", err)
+		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
+		wrapped.AddDetail("uri", file.ToURI())
+		return nil, wrapped
 	}
 	switch file.Ext() {
 	case filestore.Parquet:
 		return parquetIteratorFromBytes(b)
 	case filestore.CSV:
-		return nil, fmt.Errorf("could not find CSV reader")
+		return nil, fferr.NewInternalError(fmt.Errorf("CSV reader not implemented"))
 	default:
-		return nil, fmt.Errorf("unsupported file type")
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("unsupported file type: %s", file.Ext()))
 	}
 }
 
@@ -606,25 +653,32 @@ func (fs *HDFSFileStore) Exists(path filestore.Filepath) (bool, error) {
 	if err != nil && strings.Contains(err.Error(), "file does not exist") {
 		return false, nil
 	} else if err != nil {
-		return false, err
+		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
+		wrapped.AddDetail("uri", path.ToURI())
+		return false, wrapped
 	}
 	return true, nil
 }
 
 func (fs *HDFSFileStore) Delete(path filestore.Filepath) error {
-	return fs.Client.Remove(path.Key())
+	if err := fs.Client.Remove(path.Key()); err != nil {
+		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
+		wrapped.AddDetail("uri", path.ToURI())
+		return wrapped
+	}
+	return nil
 }
 
 func (fs *HDFSFileStore) deleteFile(file os.FileInfo, dir filestore.Filepath) error {
 	if file.IsDir() {
 		err := fs.DeleteAll(dir)
 		if err != nil {
-			return fmt.Errorf("could not delete directory: %v", err)
+			return err
 		}
 	} else {
 		err := fs.Delete(dir)
 		if err != nil {
-			return fmt.Errorf("could not delete file: %v", err)
+			return err
 		}
 	}
 	return nil
@@ -633,18 +687,25 @@ func (fs *HDFSFileStore) deleteFile(file os.FileInfo, dir filestore.Filepath) er
 func (fs *HDFSFileStore) DeleteAll(dir filestore.Filepath) error {
 	files, err := fs.Client.ReadDir(dir.Key())
 	if err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
+		wrapped.AddDetail("uri", dir.ToURI())
+		return wrapped
 	}
 	for _, file := range files {
 		filePath, err := fs.CreateFilePath(fmt.Sprintf("%s/%s", dir.Key(), file.Name()))
 		if err != nil {
-			return fmt.Errorf("could not create file path: %v", err)
+			return err
 		}
 		if err := fs.deleteFile(file, filePath); err != nil {
-			return fmt.Errorf("could not delete: %v", err)
+			return err
 		}
 	}
-	return fs.Client.Remove(dir.Key())
+	if err := fs.Client.Remove(dir.Key()); err != nil {
+		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
+		wrapped.AddDetail("uri", dir.ToURI())
+		return wrapped
+	}
+	return nil
 }
 
 func (fs *HDFSFileStore) isPartialPath(prefix, path string) bool {
@@ -673,10 +734,13 @@ func (hdfs *HDFSFileStore) NewestFileOfType(rootpath filestore.Filepath, fileTyp
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
+		wrapped.AddDetail("uri", rootpath.ToURI())
+		wrapped.AddDetail("file_type", string(fileType))
+		return nil, wrapped
 	}
 	if lastModName == "" {
-		return nil, fmt.Errorf("could not find file")
+		return nil, fferr.NewDatasetNotFoundError("", "", fmt.Errorf("no files of type %s found in %s", string(fileType), rootpath.Key()))
 	}
 
 	filepath, err := hdfs.CreateFilePath(lastModName)
@@ -688,7 +752,7 @@ func (hdfs *HDFSFileStore) NewestFileOfType(rootpath filestore.Filepath, fileTyp
 }
 
 func (fs *HDFSFileStore) List(dirPath filestore.Filepath, fileType filestore.FileType) ([]filestore.Filepath, error) {
-	return nil, fmt.Errorf("not implemented")
+	return nil, fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (fs *HDFSFileStore) NumRows(path filestore.Filepath) (int64, error) {
@@ -702,15 +766,34 @@ func (fs *HDFSFileStore) NumRows(path filestore.Filepath) (int64, error) {
 	}
 	return rows, nil
 }
+
 func (fs *HDFSFileStore) Close() error {
-	return fs.Client.Close()
+	if err := fs.Client.Close(); err != nil {
+		return fferr.NewExecutionError(string(filestore.HDFS), err)
+	}
+	return nil
 }
+
 func (fs *HDFSFileStore) Upload(sourcePath filestore.Filepath, destPath filestore.Filepath) error {
-	return fs.Client.CopyToRemote(sourcePath.Key(), destPath.Key())
+	if err := fs.Client.CopyToRemote(sourcePath.Key(), destPath.Key()); err != nil {
+		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
+		wrapped.AddDetail("source_uri", sourcePath.ToURI())
+		wrapped.AddDetail("dest_uri", destPath.ToURI())
+		return wrapped
+	}
+	return nil
 }
+
 func (fs *HDFSFileStore) Download(sourcePath filestore.Filepath, destPath filestore.Filepath) error {
-	return fs.Client.CopyToLocal(sourcePath.Key(), destPath.Key())
+	if err := fs.Client.CopyToLocal(sourcePath.Key(), destPath.Key()); err != nil {
+		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
+		wrapped.AddDetail("source_uri", sourcePath.ToURI())
+		wrapped.AddDetail("dest_uri", destPath.ToURI())
+		return wrapped
+	}
+	return nil
 }
+
 func (fs *HDFSFileStore) AsAzureStore() *AzureFileStore {
 	return nil
 }
@@ -796,7 +879,10 @@ func (store *genericFileStore) NewestFileOfType(searchPath filestore.Filepath, f
 			path.SetIsDir(false)
 			return path, nil
 		} else {
-			return nil, err
+			wrapped := fferr.NewInternalError(err)
+			wrapped.AddDetail("uri", searchPath.ToURI())
+			wrapped.AddDetail("file_type", string(fileType))
+			return nil, wrapped
 		}
 	}
 }
@@ -872,7 +958,10 @@ func (store *genericFileStore) DeleteAll(path filestore.Filepath) error {
 	for listObj, err := listIterator.Next(context.TODO()); err == nil; listObj, err = listIterator.Next(context.TODO()) {
 		if !listObj.IsDir {
 			if err := store.bucket.Delete(context.TODO(), listObj.Key); err != nil {
-				return fmt.Errorf("failed to delete object %s in directory %s: %v", listObj.Key, path.Key(), err)
+				wrapped := fferr.NewExecutionError(string(store.FilestoreType()), fmt.Errorf("failed to delete object in directory: %v", err))
+				wrapped.AddDetail("object", listObj.Key)
+				wrapped.AddDetail("directory", path.Key())
+				return wrapped
 			}
 		}
 	}
@@ -883,7 +972,9 @@ func (store *genericFileStore) Write(path filestore.Filepath, data []byte) error
 	ctx := context.TODO()
 	err := store.bucket.WriteAll(ctx, path.Key(), data, nil)
 	if err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
+		wrapped.AddDetail("uri", path.ToURI())
+		return wrapped
 	}
 	err = re.Do(
 		func() error {
@@ -901,13 +992,20 @@ func (store *genericFileStore) Write(path filestore.Filepath, data []byte) error
 		}),
 		re.Attempts(10),
 	)
-	return err
+	if err != nil {
+		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
+		wrapped.AddDetail("uri", path.ToURI())
+		return wrapped
+	}
+	return nil
 }
 
 func (store *genericFileStore) Read(path filestore.Filepath) ([]byte, error) {
 	data, err := store.bucket.ReadAll(context.TODO(), path.Key())
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
+		wrapped.AddDetail("uri", path.ToURI())
+		return nil, wrapped
 	}
 	fmt.Printf("Read (%d) bytes of object with key (%s)\n", len(data), path.Key())
 	return data, nil
@@ -919,14 +1017,20 @@ func (store *genericFileStore) ServeDirectory(files []filestore.Filepath) (Itera
 }
 
 func (store *genericFileStore) Upload(sourcePath filestore.Filepath, destPath filestore.Filepath) error {
-	content, err := ioutil.ReadFile(sourcePath.Key())
+	content, err := os.ReadFile(sourcePath.Key())
 	if err != nil {
-		return fmt.Errorf("cannot read %s file: %v", sourcePath, err)
+		wrapped := fferr.NewInternalError(fmt.Errorf("cannot read file: %v", err))
+		wrapped.AddDetail("source_uri", sourcePath.ToURI())
+		wrapped.AddDetail("dest_uri", destPath.ToURI())
+		return wrapped
 	}
 
 	err = store.Write(destPath, content)
 	if err != nil {
-		return fmt.Errorf("cannot upload %s file to %s destination: %v", sourcePath, destPath, err)
+		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), fmt.Errorf("cannot upload file to destination: %v", err))
+		wrapped.AddDetail("source_uri", sourcePath.ToURI())
+		wrapped.AddDetail("dest_uri", destPath.ToURI())
+		return wrapped
 	}
 
 	return nil
@@ -935,16 +1039,24 @@ func (store *genericFileStore) Upload(sourcePath filestore.Filepath, destPath fi
 func (store *genericFileStore) Download(sourcePath filestore.Filepath, destPath filestore.Filepath) error {
 	content, err := store.Read(sourcePath)
 	if err != nil {
-		return fmt.Errorf("cannot read %s file: %v", sourcePath, err)
+		return err
 	}
 
 	f, err := os.Create(destPath.Key())
 	if err != nil {
-		return fmt.Errorf("cannot create %s file: %v", destPath, err)
+		wrapped := fferr.NewInternalError(fmt.Errorf("cannot create file: %v", err))
+		wrapped.AddDetail("source_uri", sourcePath.ToURI())
+		wrapped.AddDetail("dest_uri", destPath.ToURI())
+		return wrapped
 	}
 	defer f.Close()
 
-	f.Write(content)
+	if _, err := f.Write(content); err != nil {
+		wrapped := fferr.NewInternalError(fmt.Errorf("cannot write %s file: %v", destPath, err))
+		wrapped.AddDetail("source_uri", sourcePath.ToURI())
+		wrapped.AddDetail("dest_uri", destPath.ToURI())
+		return wrapped
+	}
 
 	return nil
 }
@@ -977,7 +1089,9 @@ func (store *genericFileStore) Exists(path filestore.Filepath) (bool, error) {
 		if err == io.EOF && i == 0 {
 			return false, nil
 		} else if err != nil {
-			return false, err
+			wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
+			wrapped.AddDetail("uri", path.ToURI())
+			return false, wrapped
 		} else {
 			i++
 			return true, nil
@@ -986,25 +1100,35 @@ func (store *genericFileStore) Exists(path filestore.Filepath) (bool, error) {
 }
 
 func (store *genericFileStore) Delete(path filestore.Filepath) error {
-	return store.bucket.Delete(context.TODO(), path.Key())
+	if err := store.bucket.Delete(context.TODO(), path.Key()); err != nil {
+		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
+		wrapped.AddDetail("uri", path.ToURI())
+		return wrapped
+	}
+	return nil
 }
 
 func (store *genericFileStore) Close() error {
-	return store.bucket.Close()
+	if err := store.bucket.Close(); err != nil {
+		return fferr.NewExecutionError(string(store.FilestoreType()), err)
+	}
+	return nil
 }
 
 func (store *genericFileStore) ServeFile(path filestore.Filepath) (Iterator, error) {
 	b, err := store.bucket.ReadAll(context.TODO(), path.Key())
 	if err != nil {
-		return nil, fmt.Errorf("could not read file: %w", err)
+		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
+		wrapped.AddDetail("uri", path.ToURI())
+		return nil, wrapped
 	}
 	switch path.Ext() {
 	case filestore.Parquet:
 		return parquetIteratorFromBytes(b)
 	case filestore.CSV:
-		return nil, fmt.Errorf("csv iterator not implemented")
+		return nil, fferr.NewInternalError(fmt.Errorf("csv iterator not implemented"))
 	default:
-		return nil, fmt.Errorf("unsupported file type")
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("unsupported file type"))
 	}
 }
 
@@ -1019,13 +1143,18 @@ func (store *genericFileStore) Serve(files []filestore.Filepath) (Iterator, erro
 func (store *genericFileStore) NumRows(path filestore.Filepath) (int64, error) {
 	b, err := store.bucket.ReadAll(context.TODO(), path.Key())
 	if err != nil {
-		return 0, err
+		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
+		wrapped.AddDetail("uri", path.ToURI())
+		return 0, wrapped
 	}
 	switch path.Ext() {
 	case filestore.Parquet:
 		return getParquetNumRows(b)
 	default:
-		return 0, fmt.Errorf("unsupported file type")
+		wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("unsupported file type"))
+		wrapped.AddDetail("uri", path.ToURI())
+		wrapped.AddDetail("file_type", string(path.Ext()))
+		return 0, wrapped
 	}
 }
 
@@ -1041,7 +1170,7 @@ func (store *genericFileStore) CreateDirPath(key string) (filestore.Filepath, er
 func (store *genericFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 	fp := filestore.FilePath{}
 	if store.FilestoreType() != filestore.FileSystem {
-		return nil, fmt.Errorf("filestore type: %v; use store-specific implementation instead", store.FilestoreType())
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("filestore type: %v; use store-specific implementation instead", store.FilestoreType()))
 	}
 	if err := fp.SetScheme(filestore.FileSystemPrefix); err != nil {
 		return nil, err

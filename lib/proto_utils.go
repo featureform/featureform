@@ -1,7 +1,6 @@
 package lib
 
 import (
-	"github.com/featureform/fferr"
 	"github.com/repeale/fp-go"
 	"google.golang.org/protobuf/proto"
 )
@@ -14,7 +13,7 @@ func EqualProtoContents[T proto.Message](a, b []T) (bool, error) {
 	marshaledA := fp.Map[T, string](func(x T) string {
 		marshal, err := proto.Marshal(x)
 		if err != nil {
-			errors = fferr.NewInternalError(err)
+			errors = err
 		}
 		return string(marshal)
 	})(a)
@@ -22,7 +21,7 @@ func EqualProtoContents[T proto.Message](a, b []T) (bool, error) {
 	marshaledB := fp.Map[T, string](func(x T) string {
 		marshal, err := proto.Marshal(x)
 		if err != nil {
-			errors = fferr.NewInternalError(err)
+			errors = err
 		}
 		return string(marshal)
 	})(b)

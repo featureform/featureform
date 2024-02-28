@@ -8,8 +8,6 @@ import random
 import types
 import warnings
 from collections.abc import Iterator
-
-import featureform.resources
 from typing import List, Union
 
 import dill
@@ -17,13 +15,14 @@ import math
 import numpy as np
 import pandas as pd
 
+import featureform.resources
 from featureform.proto import serving_pb2
 from featureform.proto import serving_pb2_grpc
+from . import GrpcClient
 from .enums import FileFormat, ResourceType
 from .register import FeatureColumnResource
 from .resources import Model
 from .tls import insecure_channel, secure_channel
-
 from .version import check_up_to_date
 
 
@@ -189,9 +188,7 @@ class HostedClientImpl:
             )
         check_up_to_date(False, "serving")
         self._channel = self._create_channel(host, insecure, cert_path)
-        # self._async_channel = self._create_async_channel(host, insecure, cert_path)
-        self._stub = serving_pb2_grpc.FeatureStub(self._channel)
-        # self._async_stub = serving_pb2_grpc.FeatureStub(self._async_channel)
+        self._stub = GrpcClient(serving_pb2_grpc.FeatureStub(self._channel))
 
     @staticmethod
     def _create_channel(host, insecure, cert_path):
@@ -209,7 +206,6 @@ class HostedClientImpl:
     def training_set(
         self, name, variation, include_label_timestamp, model: Union[str, Model] = None
     ):
-
         training_set_stream = TrainingSetStream(self._stub, name, variation, model)
         return Dataset(training_set_stream)
 

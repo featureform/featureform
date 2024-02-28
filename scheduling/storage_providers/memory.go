@@ -128,6 +128,26 @@ func (m *MemoryStorageProvider) ListKeys(prefix string) ([]string, error) {
 	return result, nil
 }
 
+func (m *MemoryStorageProvider) Delete(key string, lock LockObject) error {
+	if key == "" {
+		return fmt.Errorf("key is empty")
+	}
+
+	lockInfo, ok := m.lockedItems.Load(key)
+	if !ok {
+		return fmt.Errorf("key is not locked")
+	}
+
+	currentLock := lockInfo.(LockInformation)
+	if currentLock.ID != lock.ID {
+		return fmt.Errorf("key %s is locked by another id: locked by: %s, unlock by: %s", key, currentLock.ID, lock.ID)
+	}
+
+	m.storage.Delete(key)
+	m.lockedItems.Delete(key)
+	return nil
+}
+
 func (m *MemoryStorageProvider) Lock(key string) (LockObject, error) {
 	if key == "" {
 		return LockObject{}, fmt.Errorf("key is empty")
@@ -154,7 +174,6 @@ func (m *MemoryStorageProvider) Lock(key string) (LockObject, error) {
 		ID:   id,
 		Key:  key,
 		Date: time.Now(),
-		Lock: lockObject,
 	}
 	m.lockedItems.Store(key, lock)
 

@@ -9,11 +9,11 @@ func TestStorageProviderMemory(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
-	// storage := NewMemoryStorageProvider()
+	storage := NewMemoryStorageProvider()
 
-	// test := StorageProviderTest{
-	// 	t:       t,
-	// 	storage: storage,
-	// }
-	// test.Run()
+	test := StorageProviderTest{
+		t:       t,
+		storage: storage,
+	}
+	test.Run()
 }

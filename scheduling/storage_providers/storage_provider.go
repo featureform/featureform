@@ -10,6 +10,7 @@ type StorageProvider interface {
 	ListKeys(prefix string) ([]string, error)
 	Lock(key string) (LockObject, error)
 	Unlock(key string, lock LockObject) error
+	Delete(key string, lock LockObject) error // deletes key and releases lock
 }
 
 type KeyNotFoundError struct {

@@ -8,8 +8,16 @@ import (
 	"time"
 )
 
-func TestMemoryStorageProvider(t *testing.T) {
-	testFns := map[string]func(*testing.T){
+type StorageProviderTest struct {
+	t       *testing.T
+	storage StorageProvider
+}
+
+func (test *StorageProviderTest) Run() {
+	t := test.t
+	storage := test.storage
+
+	testFns := map[string]func(*testing.T, StorageProvider){
 		"SetStorageProvider":  StorageProviderSet,
 		"GetStorageProvider":  StorageProviderGet,
 		"ListStorageProvider": StorageProviderList,
@@ -17,13 +25,12 @@ func TestMemoryStorageProvider(t *testing.T) {
 
 	for name, fn := range testFns {
 		t.Run(name, func(t *testing.T) {
-			fn(t)
+			fn(t, storage)
 		})
 	}
 }
 
-func StorageProviderSet(t *testing.T) {
-	provider := &MemoryStorageProvider{storage: sync.Map{}, lockedItems: sync.Map{}}
+func StorageProviderSet(t *testing.T, provider StorageProvider) {
 	type TestCase struct {
 		key   string
 		value string
@@ -54,8 +61,7 @@ func StorageProviderSet(t *testing.T) {
 	}
 }
 
-func StorageProviderGet(t *testing.T) {
-	provider := &MemoryStorageProvider{storage: sync.Map{}, lockedItems: sync.Map{}}
+func StorageProviderGet(t *testing.T, provider StorageProvider) {
 	type TestCase struct {
 		key     string
 		prefix  bool
@@ -101,7 +107,7 @@ func StorageProviderGet(t *testing.T) {
 	}
 }
 
-func StorageProviderList(t *testing.T) {
+func StorageProviderList(t *testing.T, provider StorageProvider) {
 	type TestCase struct {
 		keys        []string
 		prefix      string
@@ -117,7 +123,6 @@ func StorageProviderList(t *testing.T) {
 	}
 
 	runTestCase := func(t *testing.T, test TestCase) {
-		provider := &MemoryStorageProvider{storage: sync.Map{}, lockedItems: sync.Map{}}
 		for _, key := range test.keys {
 			lockObject, err := provider.Lock(key)
 			if err != nil {
@@ -126,6 +131,9 @@ func StorageProviderList(t *testing.T) {
 			err = provider.Set(key, "value", lockObject)
 			if err != nil {
 				t.Fatalf("could not set key: %v", err)
+			}
+			if err = provider.Unlock(key, lockObject); err != nil {
+				t.Fatalf("could not unlock key: %v", err)
 			}
 		}
 
@@ -138,6 +146,17 @@ func StorageProviderList(t *testing.T) {
 		}
 		for !compareStringSlices(results, test.results) {
 			t.Fatalf("Expected List: %v, Got List: %v", test.results, results)
+		}
+
+		for _, key := range test.keys {
+			lockObject, err := provider.Lock(key)
+			if err != nil {
+				t.Fatalf("could not lock key: %v", err)
+			}
+			err = provider.Delete(key, lockObject)
+			if err != nil {
+				t.Fatalf("could not set key: %v", err)
+			}
 		}
 	}
 

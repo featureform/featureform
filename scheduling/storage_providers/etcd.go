@@ -4,10 +4,15 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	clientv3 "go.etcd.io/etcd/client/v3"
+)
+
+const (
+	LOCKPREFIX = "/ff_lock" // Lock prefix, don't end with / as it will be added in the code
 )
 
 type ETCDStorageProvider struct {
@@ -79,13 +84,14 @@ func (etcd *ETCDStorageProvider) Lock(key string) (LockObject, error) {
 	if key == "" {
 		return LockObject{}, fmt.Errorf("key is empty")
 	}
+	lockKeyPath := fmt.Sprintf("/%s/%s", LOCKPREFIX, strings.TrimLeft(key, "/"))
 
 	id := uuid.New().String()
 
 	// check if the key is already locked
-	resp, err := etcd.client.Get(etcd.ctx, key)
+	resp, err := etcd.client.Get(etcd.ctx, lockKeyPath)
 	if err != nil {
-		return LockObject{}, fmt.Errorf("failed to get key %s: %w", key, err)
+		return LockObject{}, fmt.Errorf("failed to get key %s: %w", lockKeyPath, err)
 	}
 
 	if len(resp.Kvs) != 0 {
@@ -107,13 +113,13 @@ func (etcd *ETCDStorageProvider) Lock(key string) (LockObject, error) {
 	if err != nil {
 		return LockObject{}, fmt.Errorf("failed to marshal lock information: %w", err)
 	}
-	_, err = etcd.client.Put(etcd.ctx, key, string(data))
+	_, err = etcd.client.Put(etcd.ctx, lockKeyPath, string(data))
 	if err != nil {
 		return LockObject{}, fmt.Errorf("failed to put lock information: %w", err)
 	}
 
 	lockChannel := make(chan error)
-	go etcd.updateLockTime(id, key, lockChannel)
+	go etcd.updateLockTime(id, lockKeyPath, lockChannel)
 	lockObject := LockObject{ID: id, Channel: &lockChannel}
 
 	return lockObject, nil
@@ -124,9 +130,11 @@ func (etcd *ETCDStorageProvider) Unlock(key string, lock LockObject) error {
 		return fmt.Errorf("key is empty")
 	}
 
-	resp, err := etcd.client.Get(etcd.ctx, key)
+	lockKeyPath := fmt.Sprintf("/%s/%s", LOCKPREFIX, strings.TrimLeft(key, "/"))
+
+	resp, err := etcd.client.Get(etcd.ctx, lockKeyPath)
 	if err != nil {
-		return fmt.Errorf("failed to get key %s: %w", key, err)
+		return fmt.Errorf("failed to get key %s: %w", lockKeyPath, err)
 	}
 
 	if len(resp.Kvs) == 0 {
@@ -141,9 +149,9 @@ func (etcd *ETCDStorageProvider) Unlock(key string, lock LockObject) error {
 		return fmt.Errorf("key is locked by another id: locked by: %s, unlock  by: %s", lockInfo.ID, lock.ID)
 	}
 
-	_, err = etcd.client.Delete(etcd.ctx, key)
+	_, err = etcd.client.Delete(etcd.ctx, lockKeyPath)
 	if err != nil {
-		return fmt.Errorf("failed to delete key %s: %w", key, err)
+		return fmt.Errorf("failed to delete key %s: %w", lockKeyPath, err)
 	}
 
 	// close the lock channel

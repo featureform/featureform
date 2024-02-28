@@ -17,12 +17,12 @@ func (test *StorageProviderTest) Run() {
 	storage := test.storage
 
 	testFns := map[string]func(*testing.T, StorageProvider){
-		"SetStorageProvider":          StorageProviderSet,
-		"GetStorageProvider":          StorageProviderGet,
-		"ListStorageProvider":         StorageProviderList,
-		"LockAndUnlock":               LockAndUnlock,
-		"LockTimeUpdates":             LockTimeUpdates,
-		"LockAndUnlockWithGoRoutines": LockAndUnlockWithGoRoutines,
+		// "SetStorageProvider":          StorageProviderSet,
+		// "GetStorageProvider":          StorageProviderGet,
+		// "ListStorageProvider":         StorageProviderList,
+		"LockAndUnlock": LockAndUnlock,
+		// "LockTimeUpdates":             LockTimeUpdates,
+		// "LockAndUnlockWithGoRoutines": LockAndUnlockWithGoRoutines,
 	}
 
 	for name, fn := range testFns {

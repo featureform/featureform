@@ -23,18 +23,32 @@ type LockInformation struct {
 }
 
 func (l LockInformation) Unmarshal(data []byte) error {
-	type tempConfig struct {
-		ID   string    `json:"id"`
-		Key  string    `json:"key"`
-		Date time.Time `json:"date"`
+	var tmp struct {
+		ID   string
+		Key  string
+		Date string
 	}
-	var temp tempConfig
-	if err := json.Unmarshal(data, &temp); err != nil {
-		return fmt.Errorf("failed to deserialize lock information: %w", err)
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
 	}
-	l.ID = temp.ID
-	l.Key = temp.Key
-	l.Date = temp.Date
+
+	if tmp.ID == "" {
+		return fmt.Errorf("lock information is missing ID")
+	}
+	if tmp.Key == "" {
+		return fmt.Errorf("lock information is missing Key")
+	}
+
+	l.ID = tmp.ID
+	l.Key = tmp.Key
+
+	// Parse the date string with UTC time zone
+	parsedTime, err := time.Parse(time.RFC3339, tmp.Date)
+	if err != nil {
+		return err
+	}
+	l.Date = parsedTime.UTC()
+
 	return nil
 }
 
@@ -173,7 +187,7 @@ func (m *MemoryStorageProvider) Lock(key string) (LockObject, error) {
 	lock := LockInformation{
 		ID:   id,
 		Key:  key,
-		Date: time.Now(),
+		Date: time.Now().UTC(),
 	}
 	m.lockedItems.Store(key, lock)
 

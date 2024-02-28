@@ -1,6 +1,7 @@
 package scheduling
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -19,7 +20,26 @@ type LockInformation struct {
 	ID   string
 	Key  string
 	Date time.Time
-	Lock LockObject
+}
+
+func (l LockInformation) Unmarshal(data []byte) error {
+	type tempConfig struct {
+		ID   string    `json:"id"`
+		Key  string    `json:"key"`
+		Date time.Time `json:"date"`
+	}
+	var temp tempConfig
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return fmt.Errorf("failed to deserialize lock information: %w", err)
+	}
+	l.ID = temp.ID
+	l.Key = temp.Key
+	l.Date = temp.Date
+	return nil
+}
+
+func (l LockInformation) Marshal() ([]byte, error) {
+	return json.Marshal(l)
 }
 
 const (

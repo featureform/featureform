@@ -3,7 +3,6 @@ package scheduling
 import (
 	"fmt"
 	"sort"
-	"sync"
 	"testing"
 	"time"
 )
@@ -18,9 +17,12 @@ func (test *StorageProviderTest) Run() {
 	storage := test.storage
 
 	testFns := map[string]func(*testing.T, StorageProvider){
-		"SetStorageProvider":  StorageProviderSet,
-		"GetStorageProvider":  StorageProviderGet,
-		"ListStorageProvider": StorageProviderList,
+		"SetStorageProvider":          StorageProviderSet,
+		"GetStorageProvider":          StorageProviderGet,
+		"ListStorageProvider":         StorageProviderList,
+		"LockAndUnlock":               LockAndUnlock,
+		"LockTimeUpdates":             LockTimeUpdates,
+		"LockAndUnlockWithGoRoutines": LockAndUnlockWithGoRoutines,
 	}
 
 	for name, fn := range testFns {
@@ -56,7 +58,11 @@ func StorageProviderSet(t *testing.T, provider StorageProvider) {
 			if err != nil && err.Error() != test.err.Error() {
 				t.Errorf("Set(%s, %s): expected error %v, got %v", test.key, test.value, test.err, err)
 			}
-			provider.Unlock(test.key, lockObject)
+
+			err = provider.Delete(test.key, lockObject)
+			if err != nil {
+				t.Errorf("could not delete key: %v", err)
+			}
 		})
 	}
 }
@@ -97,6 +103,26 @@ func StorageProviderGet(t *testing.T, provider StorageProvider) {
 		}
 		if !compareMaps(results, test.results) {
 			t.Errorf("Get(%s, %v): expected results %v, got %v", test.key, test.prefix, test.results, results)
+		}
+
+		err = provider.Delete("key1", lockObject1)
+		if err != nil {
+			t.Fatalf("could not delete key1: %v", err)
+		}
+
+		err = provider.Delete("key2", lockObject2)
+		if err != nil {
+			t.Fatalf("could not delete key2: %v", err)
+		}
+
+		err = provider.Delete("prefix/key3", lockObject3)
+		if err != nil {
+			t.Fatalf("could not delete prefix/key3: %v", err)
+		}
+
+		err = provider.Delete("prefix/key4", lockObject4)
+		if err != nil {
+			t.Fatalf("could not delete prefix/key4: %v", err)
 		}
 	}
 
@@ -195,9 +221,7 @@ func compareMaps(a, b map[string]string) bool {
 	return true
 }
 
-func TestLockAndUnlock(t *testing.T) {
-	provider := &MemoryStorageProvider{storage: sync.Map{}, lockedItems: sync.Map{}}
-
+func LockAndUnlock(t *testing.T, provider StorageProvider) {
 	key := "/tasks/metadata/task_id=1"
 
 	// Test Lock
@@ -223,11 +247,19 @@ func TestLockAndUnlock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unlock failed: %v", err)
 	}
+
+	// Lock & Delete key
+	lock, err = provider.Lock(key)
+	if err != nil {
+		t.Fatalf("Lock failed: %v", err)
+	}
+	err = provider.Delete(key, lock)
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
 }
 
-func TestLockAndUnlockWithGoRoutines(t *testing.T) {
-	provider := &MemoryStorageProvider{storage: sync.Map{}, lockedItems: sync.Map{}}
-
+func LockAndUnlockWithGoRoutines(t *testing.T, provider StorageProvider) {
 	key := "/tasks/metadata/task_id=2"
 	lockChannel := make(chan LockObject)
 	errChan := make(chan error)
@@ -262,11 +294,19 @@ func TestLockAndUnlockWithGoRoutines(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unlock failed: %v", err)
 	}
+
+	// Lock & Delete key
+	lock, err = provider.Lock(key)
+	if err != nil {
+		t.Fatalf("Lock failed: %v", err)
+	}
+	err = provider.Delete(key, lock)
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
 }
 
-func TestLockTimeUpdates(t *testing.T) {
-	provider := NewMemoryStorageProvider()
-
+func LockTimeUpdates(t *testing.T, provider StorageProvider) {
 	key := "/tasks/metadata/task_id=3"
 	lock, err := provider.Lock(key)
 	if err != nil {
@@ -281,36 +321,37 @@ func TestLockTimeUpdates(t *testing.T) {
 	// Wait for 2 x ValidTimePeriod
 	time.Sleep(2 * ValidTimePeriod)
 
-	// Check if date has been updated
-	lockInfo, ok := provider.lockedItems.Load(key)
-	if !ok {
-		t.Fatalf("Key not found")
-	}
-	lockDetail := lockInfo.(LockInformation)
-	if time.Since(lockDetail.Date) > ValidTimePeriod {
-		t.Fatalf("Lock time not updated: current time: %s, lock time: %s", time.Now().String(), lockDetail.Date.String())
-	}
+	// Set the value to something else
+	err = provider.Set(key, "value2", lock)
 
-	// Unlock the key
-	err = provider.Unlock(key, lock)
+	// Check if the value has been updated
+	results, err := provider.Get(key, false)
 	if err != nil {
-		t.Fatalf("Unlock failed: %v", err)
+		t.Fatalf("Get failed: %v", err)
+	}
+	if results[key] != "value2" {
+		t.Fatalf("Value not updated")
 	}
 
-	// Check if key has been deleted
-	_, ok = provider.lockedItems.Load(key)
-	if ok {
-		t.Fatalf("Key not deleted")
+	err = provider.Delete(key, lock)
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+
+	// Test the lock has been released
+	err = provider.Set(key, "value3", lock)
+	if err == nil {
+		t.Fatalf("Set should have failed")
 	}
 }
 
-func lockGoRoutine(provider *MemoryStorageProvider, key string, lockChannel chan LockObject, errChan chan error) {
+func lockGoRoutine(provider StorageProvider, key string, lockChannel chan LockObject, errChan chan error) {
 	lockObject, err := provider.Lock(key)
 	lockChannel <- lockObject
 	errChan <- err
 }
 
-func unlockGoRoutine(provider *MemoryStorageProvider, lock LockObject, key string, errChan chan error) {
+func unlockGoRoutine(provider StorageProvider, lock LockObject, key string, errChan chan error) {
 	err := provider.Unlock(key, lock)
 	errChan <- err
 }

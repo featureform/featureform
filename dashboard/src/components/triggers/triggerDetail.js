@@ -98,8 +98,6 @@ export default function TriggerDetail({
   };
 
   let alertBody = null;
-  console.log('warn:', userConfirm && isDeleteDisabled());
-  console.log('error:', userConfirm && !isDeleteDisabled());
   if (userConfirm && isDeleteDisabled()) {
     alertBody = (
       <Alert severity='warning'>

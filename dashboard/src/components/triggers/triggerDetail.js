@@ -58,8 +58,8 @@ export default function TriggerDetail({
       },
     },
     {
-      field: 'remove',
-      headerName: 'Remove',
+      field: 'delete',
+      headerName: 'Delete',
       flex: 0,
       width: 100,
       editable: false,
@@ -83,7 +83,7 @@ export default function TriggerDetail({
   const CONFIRM_DELETE = 'Confirm, Delete!';
   const [userConfirm, setUserConfirm] = useState(rowDelete);
 
-  // todox: track this in state?
+  // todox: 100% needs to be state. hard to deal with otherwise.
   const isDeleteDisabled = () => {
     let result = true;
     if (
@@ -96,6 +96,23 @@ export default function TriggerDetail({
     }
     return result;
   };
+
+  let alertBody = null;
+  console.log('warn:', userConfirm && isDeleteDisabled());
+  console.log('error:', userConfirm && !isDeleteDisabled());
+  if (userConfirm && isDeleteDisabled()) {
+    alertBody = (
+      <Alert severity='warning'>
+        To remove the Trigger, please delete all associated Resources first.
+      </Alert>
+    );
+  } else if (userConfirm && !isDeleteDisabled()) {
+    alertBody = (
+      <Alert severity='error'>
+        You are about to delete this trigger. Are you sure you want to proceed?
+      </Alert>
+    );
+  }
 
   return (
     <>
@@ -122,15 +139,7 @@ export default function TriggerDetail({
         pageSize={5}
         getRowId={(row) => row.resourceId}
       />
-      <Box sx={{ marginTop: '1em' }}>
-        {rowDelete && isDeleteDisabled() ? (
-          <Alert severity='warning'>
-            To delete the trigger, first remove all its resources.
-          </Alert>
-        ) : (
-          <></>
-        )}
-      </Box>
+      <Box sx={{ marginTop: '1em' }}>{alertBody}</Box>
       <Box sx={{ marginTop: '1em' }} display={'flex'} justifyContent={'end'}>
         <Button
           variant='contained'

@@ -9,6 +9,7 @@ import TriggerDialog from './triggerDialog';
 export default function TriggerDataGrid({ triggerList = [], refresh }) {
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogTriggerId, setDialogTriggerId] = useState();
+  const [rowDelete, setRowDelete] = useState(false);
   const dataAPI = useDataAPI();
   const columns = [
     {
@@ -68,7 +69,12 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
       filterable: false,
       renderCell: function (params) {
         return (
-          <IconButton onClick={(e) => deleteRow(e, params)}>
+          <IconButton
+            onClick={() => {
+              setRowDelete(true);
+              handleRowSelect(params);
+            }}
+          >
             <RemoveCircleOutlineIcon fontSize='large' />
           </IconButton>
         );
@@ -95,18 +101,13 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
     }
   };
 
-  async function deleteRow(e, row) {
-    e.stopPropagation();
-    e.preventDefault();
-    await handleDelete(row.id);
-  }
-
   const handleRowSelect = (selectedRow) => {
     setOpenDialog(true);
     setDialogTriggerId(selectedRow?.row?.id);
   };
 
   const handleCloseDialog = () => {
+    setRowDelete(false);
     setOpenDialog(false);
   };
 
@@ -141,6 +142,7 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
         handleClose={handleCloseDialog}
         handleDelete={handleDelete}
         handleDeleteResource={handleDeleteResource}
+        rowDelete={rowDelete}
       />
     </>
   );

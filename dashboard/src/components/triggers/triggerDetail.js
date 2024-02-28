@@ -1,13 +1,21 @@
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
-import { Box, Button, IconButton, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  IconButton,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
-import React from 'react';
+import React, { useState } from 'react';
 
 export default function TriggerDetail({
   details = {},
   handleClose,
   handleDelete,
   handleDeleteResource,
+  rowDelete = false,
 }) {
   const columns = [
     {
@@ -71,6 +79,24 @@ export default function TriggerDetail({
     },
   ];
 
+  const PRE_DELETE = 'Delete Trigger';
+  const CONFIRM_DELETE = 'Confirm, Delete!';
+  const [userConfirm, setUserConfirm] = useState(rowDelete);
+
+  // todox: track this in state?
+  const isDeleteDisabled = () => {
+    let result = true;
+    if (
+      details?.resources?.length === undefined ||
+      details?.resources?.length === 0
+    ) {
+      result = false;
+    } else {
+      result = true;
+    }
+    return result;
+  };
+
   return (
     <>
       <Box sx={{ marginBottom: '2em' }}>
@@ -96,6 +122,15 @@ export default function TriggerDetail({
         pageSize={5}
         getRowId={(row) => row.resourceId}
       />
+      <Box sx={{ marginTop: '1em' }}>
+        {rowDelete && isDeleteDisabled() ? (
+          <Alert severity='warning'>
+            To delete the trigger, first remove all its resources.
+          </Alert>
+        ) : (
+          <></>
+        )}
+      </Box>
       <Box sx={{ marginTop: '1em' }} display={'flex'} justifyContent={'end'}>
         <Button
           variant='contained'
@@ -104,13 +139,37 @@ export default function TriggerDetail({
         >
           Cancel
         </Button>
-        <Button
-          variant='contained'
-          onClick={() => handleDelete?.(details?.trigger?.id)}
-          sx={{ margin: '0.5em', background: '#DA1E28' }}
+        <Tooltip
+          placement='top'
+          title={
+            isDeleteDisabled()
+              ? 'To delete the trigger, remove all resources first.'
+              : ''
+          }
+          disabled
         >
-          Delete Trigger
-        </Button>
+          <span>
+            <Button
+              variant='contained'
+              disabled={isDeleteDisabled()}
+              onClick={() => {
+                if (!isDeleteDisabled()) {
+                  if (userConfirm) {
+                    handleDelete?.(details?.trigger?.id);
+                  } else {
+                    setUserConfirm(true);
+                  }
+                }
+              }}
+              sx={{
+                margin: '0.5em',
+                background: '#DA1E28',
+              }}
+            >
+              {userConfirm ? CONFIRM_DELETE : PRE_DELETE}
+            </Button>
+          </span>
+        </Tooltip>
       </Box>
     </>
   );

@@ -14,6 +14,7 @@ export default function TriggerDialog({
   handleClose,
   handleDelete,
   handleDeleteResource,
+  rowDelete = false,
 }) {
   const [error] = useState('');
   const [details, setDetails] = useState({});
@@ -59,6 +60,7 @@ export default function TriggerDialog({
                 }
               }}
               details={details}
+              rowDelete={rowDelete}
             />
           ) : (
             <div data-testid='errorMessageId'>{error}</div>

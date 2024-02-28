@@ -11,6 +11,13 @@ const (
 	ValidTimePeriod = 5 * time.Second
 )
 
+type StorageProviderType string
+
+const (
+	ETCDStorageProviderType   StorageProviderType = "etcd"
+	MemoryStorageProviderType StorageProviderType = "memory"
+)
+
 type StorageProvider interface {
 	Set(key string, value string, lock LockObject) error
 	Get(key string, prefix bool) (map[string]string, error)
@@ -20,11 +27,11 @@ type StorageProvider interface {
 	Delete(key string, lock LockObject) error // deletes key and releases lock
 }
 
-func NewStorageProvider(provider string) (StorageProvider, error) {
+func NewStorageProvider(provider StorageProviderType) (StorageProvider, error) {
 	switch provider {
-	case "etcd":
+	case ETCDStorageProviderType:
 		return NewETCDStorageProvider()
-	case "memory":
+	case MemoryStorageProviderType:
 		return NewMemoryStorageProvider()
 	default:
 		return nil, fmt.Errorf("unknown storage provider: %s", provider)

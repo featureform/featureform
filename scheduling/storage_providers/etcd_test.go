@@ -9,7 +9,7 @@ func TestStorageProviderETCD(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
-	storage, err := NewStorageProvider("etcd")
+	storage, err := NewStorageProvider(ETCDStorageProviderType)
 	if err != nil {
 		t.Fatalf("failed to create etcd storage provider: %v", err)
 	}

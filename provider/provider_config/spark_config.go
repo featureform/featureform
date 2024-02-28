@@ -3,6 +3,7 @@ package provider_config
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/featureform/fferr"
 
 	fs "github.com/featureform/filestore"
 	ss "github.com/featureform/helpers/string_set"
@@ -57,7 +58,7 @@ func (s *SparkConfig) Deserialize(config SerializedConfig) error {
 func (s *SparkConfig) Serialize() ([]byte, error) {
 	conf, err := json.Marshal(s)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	return conf, nil
 }
@@ -73,7 +74,7 @@ func (s *SparkConfig) UnmarshalJSON(data []byte) error {
 	var temp tempConfig
 	err := json.Unmarshal(data, &temp)
 	if err != nil {
-		return fmt.Errorf("unmarshal: %w", err)
+		return fferr.NewInternalError(err)
 	}
 
 	s.ExecutorType = temp.ExecutorType
@@ -81,12 +82,12 @@ func (s *SparkConfig) UnmarshalJSON(data []byte) error {
 
 	err = s.decodeExecutor(temp.ExecutorType, temp.ExecutorConfig)
 	if err != nil {
-		return fmt.Errorf("could not decode executor: %w", err)
+		return err
 	}
 
 	err = s.decodeFileStore(temp.StoreType, temp.StoreConfig)
 	if err != nil {
-		return fmt.Errorf("could not decode filestore: %w", err)
+		return err
 	}
 
 	return nil
@@ -137,11 +138,11 @@ func (a SparkConfig) DifferingFields(b SparkConfig) (ss.StringSet, error) {
 	var err error
 
 	if a.ExecutorType != b.ExecutorType {
-		return result, fmt.Errorf("executor config mismatch: a = %v; b = %v", a.ExecutorType, b.ExecutorType)
+		return result, fferr.NewInternalError(fmt.Errorf("executor config mismatch: a = %v; b = %v", a.ExecutorType, b.ExecutorType))
 	}
 
 	if a.StoreType != b.StoreType {
-		return result, fmt.Errorf("store config mismatch: a = %v; b = %v", a.StoreType, b.StoreType)
+		return result, fferr.NewInternalError(fmt.Errorf("store config mismatch: a = %v; b = %v", a.StoreType, b.StoreType))
 	}
 
 	switch a.ExecutorType {
@@ -152,7 +153,7 @@ func (a SparkConfig) DifferingFields(b SparkConfig) (ss.StringSet, error) {
 	case SparkGeneric:
 		executorFields, err = a.ExecutorConfig.(*SparkGenericConfig).DifferingFields(*b.ExecutorConfig.(*SparkGenericConfig))
 	default:
-		return nil, fmt.Errorf("unknown executor type: %v", a.ExecutorType)
+		return nil, fferr.NewProviderConfigError("Spark", fmt.Errorf("unknown executor type: %v", a.ExecutorType))
 	}
 
 	if err != nil {
@@ -169,7 +170,7 @@ func (a SparkConfig) DifferingFields(b SparkConfig) (ss.StringSet, error) {
 	case fs.HDFS:
 		storeFields, err = a.StoreConfig.(*HDFSFileStoreConfig).DifferingFields(*b.StoreConfig.(*HDFSFileStoreConfig))
 	default:
-		return nil, fmt.Errorf("unknown store type: %v", a.StoreType)
+		return nil, fferr.NewProviderConfigError("Spark", fmt.Errorf("unknown store type: %v", a.StoreType))
 	}
 
 	if err != nil {
@@ -197,12 +198,12 @@ func (s *SparkConfig) decodeExecutor(executorType SparkExecutorType, configMap m
 	case SparkGeneric:
 		executorConfig = &SparkGenericConfig{}
 	default:
-		return fmt.Errorf("the executor type '%s' is not supported ", executorType)
+		return fferr.NewProviderConfigError("Spark", fmt.Errorf("the executor type '%s' is not supported ", executorType))
 	}
 
 	err := mapstructure.Decode(configMap, executorConfig)
 	if err != nil {
-		return fmt.Errorf("could not decode executor map: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	s.ExecutorConfig = executorConfig
 	return nil
@@ -220,12 +221,12 @@ func (s *SparkConfig) decodeFileStore(fileStoreType fs.FileStoreType, configMap 
 	case fs.GCS:
 		fileStoreConfig = &GCSFileStoreConfig{}
 	default:
-		return fmt.Errorf("the file store type '%s' is not supported ", fileStoreType)
+		return fferr.NewProviderConfigError("Spark", fmt.Errorf("the file store type '%s' is not supported ", fileStoreType))
 	}
 
 	err := mapstructure.Decode(configMap, fileStoreConfig)
 	if err != nil {
-		return fmt.Errorf("could not decode file store map: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	s.StoreConfig = fileStoreConfig
 	return nil

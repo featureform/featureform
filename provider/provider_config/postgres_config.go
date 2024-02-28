@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"github.com/featureform/fferr"
 
 	ss "github.com/featureform/helpers/string_set"
 )
@@ -18,7 +19,7 @@ type PostgresConfig struct {
 func (pg *PostgresConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, pg)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }

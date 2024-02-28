@@ -2,12 +2,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import base64
 import json
 import os
 import re
 import sys
-import time
 from abc import ABC
 from typing import Any, Dict
 from typing import List, Tuple, Union, Optional
@@ -16,6 +14,7 @@ import dill
 import grpc
 from dataclasses import field
 from google.protobuf.duration_pb2 import Duration
+from google.rpc import error_details_pb2
 
 from . import feature_flag
 from .enums import *
@@ -799,6 +798,45 @@ class Properties:
             self.serialized.property[key].string_value = val
 
 
+@dataclass
+class ErrorInfo:
+    code: int
+    message: str
+    reason: str
+    metadata: Dict[str, str]
+
+
+@dataclass
+class ServerStatus:
+    status: ResourceStatus
+    error_info: Optional[ErrorInfo]
+
+    @staticmethod
+    def from_proto(resource_status_proto: pb.ResourceStatus):
+        error_info = None
+        if resource_status_proto.HasField("error_status"):
+            code = resource_status_proto.error_status.code
+            message = resource_status_proto.error_status.message
+
+            error = resource_status_proto.error_status.details[0]
+            error_info = error_details_pb2.ErrorInfo()
+            if error.Is(error_details_pb2.ErrorInfo.DESCRIPTOR):
+                error.Unpack(error_info)
+                error_info = ErrorInfo(
+                    code=code,
+                    message=message,
+                    reason=error_info.reason,
+                    metadata=error_info.metadata,
+                )
+            else:
+                print("The Any field does not contain an ErrorInfo")
+
+        return ServerStatus(
+            status=ResourceStatus.from_proto(resource_status_proto),
+            error_info=error_info,
+        )
+
+
 @typechecked
 @dataclass
 class Provider:
@@ -812,6 +850,7 @@ class Provider:
     properties: dict = field(default_factory=dict)
     error: Optional[str] = None
     has_health_check: bool = False
+    server_status: Optional["ServerStatus"] = None
 
     def __post_init__(self):
         self.software = self.config.software() if self.config is not None else None
@@ -821,6 +860,7 @@ class Provider:
             "POSTGRES_OFFLINE",
             "SPARK_OFFLINE",
             "REDSHIFT_OFFLINE",
+            "CLICKHOUSE_OFFLINE",
         ]:
             self.has_health_check = True
 
@@ -848,6 +888,7 @@ class Provider:
                 provider.status.status
             ].name,
             error=provider.status.error_message,
+            server_status=ServerStatus.from_proto(provider.status),
         )
 
     def _create(self, stub) -> None:
@@ -927,6 +968,7 @@ Location = Union[SQLTable, Directory]
 class ResourceVariant(ABC):
     name: str
     variant: str
+    server_status: ServerStatus
 
     @staticmethod
     def type():
@@ -1103,6 +1145,7 @@ class SourceVariant(ResourceVariant):
     transformation: str = ""
     inputs: list = ([],)
     error: Optional[str] = None
+    server_status: Optional[ServerStatus] = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1138,6 +1181,7 @@ class SourceVariant(ResourceVariant):
             properties={k: v for k, v in source.properties.property.items()},
             status=source.status.Status._enum_type.values[source.status.status].name,
             error=source.status.error_message,
+            server_status=ServerStatus.from_proto(source.status),
         )
 
     def _get_source_definition(self, source):
@@ -1337,6 +1381,7 @@ class FeatureVariant(ResourceVariant):
     error: Optional[str] = None
     additional_parameters: Optional[Additional_Parameters] = None
     trigger: TriggerResource = None
+    server_status: Optional[ServerStatus] = None
 
     def __post_init__(self):
         col_types = [member.value for member in ScalarType]
@@ -1382,6 +1427,7 @@ class FeatureVariant(ResourceVariant):
             properties={k: v for k, v in feature.properties.property.items()},
             status=feature.status.Status._enum_type.values[feature.status.status].name,
             error=feature.status.error_message,
+            server_status=ServerStatus.from_proto(feature.status),
             additional_parameters=None,
             trigger=TriggerResource(name=feature.trigger.name,trigger_type=str(feature.trigger.schedule_trigger),job_ids=list(feature.trigger.job_ids),task_ids=list(feature.trigger.task_ids)))
 
@@ -1442,6 +1488,7 @@ class OnDemandFeatureVariant(ResourceVariant):
     status: str = "READY"
     error: Optional[str] = None
     additional_parameters: Optional[Additional_Parameters] = None
+    server_status: Optional[ServerStatus] = None
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:
@@ -1546,6 +1593,7 @@ class LabelVariant(ResourceVariant):
     created: str = None
     status: str = "NO_STATUS"
     error: Optional[str] = None
+    server_status: Optional[ServerStatus] = None
 
     def __post_init__(self):
         col_types = [member.value for member in ScalarType]
@@ -1579,6 +1627,7 @@ class LabelVariant(ResourceVariant):
             tags=list(label.tags.tag),
             properties={k: v for k, v in label.properties.property.items()},
             status=label.status.Status._enum_type.values[label.status.status].name,
+            server_status=ServerStatus.from_proto(label.status),
             error=label.status.error_message,
         )
 
@@ -1720,6 +1769,7 @@ class TrainingSetVariant(ResourceVariant):
     provider: str = ""
     status: str = "NO_STATUS"
     error: Optional[str] = None
+    server_status: Optional[ServerStatus] = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1771,6 +1821,7 @@ class TrainingSetVariant(ResourceVariant):
             tags=list(ts.tags.tag),
             properties={k: v for k, v in ts.properties.property.items()},
             error=ts.status.error_message,
+            server_status=ServerStatus.from_proto(ts.status),
         )
 
     def _create(self, stub) -> Optional[str]:

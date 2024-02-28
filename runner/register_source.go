@@ -6,8 +6,8 @@ package runner
 
 import (
 	"encoding/json"
-	"fmt"
 
+	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
@@ -59,7 +59,7 @@ func (r RegisterSourceRunner) IsUpdateJob() bool {
 func (c *RegisterSourceConfig) Serialize() (Config, error) {
 	config, err := json.Marshal(c)
 	if err != nil {
-		panic(err)
+		return nil, fferr.NewInternalError(err)
 	}
 	return config, nil
 }
@@ -67,7 +67,7 @@ func (c *RegisterSourceConfig) Serialize() (Config, error) {
 func (c *RegisterSourceConfig) Deserialize(config Config) error {
 	err := json.Unmarshal(config, c)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -75,15 +75,15 @@ func (c *RegisterSourceConfig) Deserialize(config Config) error {
 func RegisterSourceRunnerFactory(config Config) (types.Runner, error) {
 	registerConfig := &RegisterSourceConfig{}
 	if err := registerConfig.Deserialize(config); err != nil {
-		return nil, fmt.Errorf("failed to deserialize register file config")
+		return nil, err
 	}
 	offlineProvider, err := provider.Get(registerConfig.OfflineType, registerConfig.OfflineConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure offline provider: %v", err)
+		return nil, err
 	}
 	offlineStore, err := offlineProvider.AsOfflineStore()
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
+		return nil, err
 	}
 	return &RegisterSourceRunner{
 		Offline:         offlineStore,

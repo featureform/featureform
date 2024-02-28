@@ -12,6 +12,7 @@ RUN apk update && apk add protobuf-dev && go install google.golang.org/grpc/cmd/
 ENV PATH /go/bin:$PATH
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto && protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./proto/serving.proto
 
+COPY ./fferr ./fferr
 COPY ./lib/ ./lib/
 COPY ./filestore/ ./filestore/
 COPY ./logging/ ./logging/

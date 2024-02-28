@@ -7,6 +7,7 @@ package runner
 import (
 	"fmt"
 
+	"github.com/featureform/fferr"
 	"github.com/featureform/types"
 )
 
@@ -42,7 +43,7 @@ func ResetFactoryMap() {
 
 func RegisterFactory(name RunnerName, runnerFactory RunnerFactory) error {
 	if _, exists := factoryMap[name]; exists {
-		return fmt.Errorf("factory already registered: %s", name)
+		return fferr.NewInternalError(fmt.Errorf("factory already registered: %s", name))
 	}
 	factoryMap[name] = runnerFactory
 	return nil
@@ -50,7 +51,7 @@ func RegisterFactory(name RunnerName, runnerFactory RunnerFactory) error {
 
 func UnregisterFactory(name RunnerName) error {
 	if _, exists := factoryMap[name]; !exists {
-		return fmt.Errorf("factory %s not registered", name)
+		return fferr.NewInternalError(fmt.Errorf("factory %s not registered", name))
 	}
 	delete(factoryMap, name)
 	return nil
@@ -59,7 +60,7 @@ func UnregisterFactory(name RunnerName) error {
 func Create(name RunnerName, config Config) (types.Runner, error) {
 	factory, exists := factoryMap[name]
 	if !exists {
-		return nil, fmt.Errorf("factory does not exist: %s", name)
+		return nil, fferr.NewInternalError(fmt.Errorf("factory does not exist: %s", name))
 	}
 	runner, err := factory(config)
 	if err != nil {

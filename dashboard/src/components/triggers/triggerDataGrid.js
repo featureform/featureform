@@ -2,6 +2,7 @@ import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import { IconButton } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import React, { useState } from 'react';
+import { getPageSizeProp } from '../../components/tasks/taskRunDataGrid';
 import { useDataAPI } from '../../hooks/dataAPI';
 import TriggerDialog from './triggerDialog';
 
@@ -109,14 +110,16 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
     setOpenDialog(false);
   };
 
+  const mainPageSize = getPageSizeProp(triggerList?.length);
+
   return (
     <>
       <DataGrid
         onRowClick={handleRowSelect}
+        autoHeight
         density='compact'
         sx={{
           minWidth: 300,
-          height: 650,
           '& .MuiDataGrid-cell:focus': {
             outline: 'none',
           },
@@ -126,12 +129,11 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
         }}
         aria-label='Triggers'
         rows={triggerList ?? []}
-        rowsPerPageOptions={[15]}
         columns={columns}
         initialState={{
-          pagination: { paginationModel: { page: 1, pageSize: 15 } },
+          pagination: { paginationModel: { page: 1, pageSize: mainPageSize } },
         }}
-        pageSize={15}
+        pageSize={mainPageSize}
       />
       <TriggerDialog
         triggerId={dialogTriggerId}

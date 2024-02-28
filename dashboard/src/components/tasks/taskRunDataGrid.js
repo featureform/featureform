@@ -128,6 +128,8 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
     },
   ];
 
+  const mainPageSize = getPageSizeProp(taskRunList?.length);
+
   return (
     <>
       <Popover
@@ -150,9 +152,9 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
         />
       </Popover>
       <DataGrid
+        autoHeight
         sx={{
           minWidth: 300,
-          height: 650,
           '& .MuiDataGrid-cell:focus': {
             outline: 'none',
           },
@@ -164,16 +166,27 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
         density='compact'
         aria-label='Task Runs'
         rows={taskRunList ?? []}
-        rowsPerPageOptions={[15]}
         columns={columns}
         initialState={{
-          pagination: { paginationModel: { page: 1, pageSize: 15 } },
+          pagination: { paginationModel: { page: 1, pageSize: mainPageSize } },
         }}
-        pageSize={15}
+        pageSize={mainPageSize}
         getRowId={(row) => {
           return row.taskRun.runId;
         }}
       />
     </>
   );
+}
+
+export function getPageSizeProp(listLength = 0) {
+  let pageSize = 5;
+  if (listLength > 10) {
+    pageSize = 15;
+  } else if (listLength > 5) {
+    pageSize = 10;
+  } else {
+    pageSize = 5;
+  }
+  return pageSize;
 }

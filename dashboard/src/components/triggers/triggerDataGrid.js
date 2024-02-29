@@ -130,6 +130,7 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
         }}
         aria-label='Triggers'
         rows={triggerList ?? []}
+        rowsPerPageOptions={[5, 10, 15]}
         columns={columns}
         initialState={{
           pagination: { paginationModel: { page: 1, pageSize: mainPageSize } },

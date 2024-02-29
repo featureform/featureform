@@ -62,6 +62,7 @@ export default function TableDataWrapper() {
           variant='contained'
           style={{ background: '#7A14E5' }}
           onClick={handleNewTrigger}
+          data-testid='newTriggerId'
         >
           <>
             <AddIcon />

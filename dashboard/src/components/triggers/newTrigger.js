@@ -110,6 +110,7 @@ export default function NewTrigger({ handleClose }) {
             variant='contained'
             onClick={submitForm}
             sx={{ margin: '0.5em', background: '#7A14E5' }}
+            data-testid='saveNewTriggerId'
           >
             Save
           </Button>

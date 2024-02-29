@@ -71,16 +71,10 @@ function SideNav({ sections, children }) {
         <Collapse in={open} timeout='auto' unmountOnExit>
           <List component='div' disablePadding>
             <ListItemButton
-              onClick={(event) => handleMenuClick(event, '/jobs')}
-              sx={{ padding: '0 0 0 6em' }}
-            >
-              <ListItemText primary='Jobs' />
-            </ListItemButton>
-            <ListItemButton
               onClick={(event) => handleMenuClick(event, '/tasks')}
               sx={{ padding: '0 0 0 6em' }}
             >
-              <ListItemText primary='Tasks' />
+              <ListItemText primary='Jobs' />
             </ListItemButton>
             <ListItemButton
               onClick={(event) => handleMenuClick(event, '/triggers')}

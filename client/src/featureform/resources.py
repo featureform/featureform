@@ -1319,6 +1319,37 @@ class TriggerResource:
             "job_ids": self.job_ids,
             "task_ids": self.task_ids,
         }
+@typechecked
+@dataclass
+class TriggerResource:
+    name: str
+    trigger_type: str
+    job_ids: list = field(default_factory=list)
+    task_ids: list = field(default_factory=list)
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    def type(self) -> str:
+        return "trigger"
+
+    def _create(self, stub) -> None:
+        serialized = pb.Trigger(
+            name=self.name,
+            schedule_trigger=pb.ScheduleTrigger(schedule = self.trigger_type),
+                job_ids=self.job_ids,
+                task_ids=self.task_ids
+            )
+        stub.CreateTrigger(serialized)
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "trigger": self.trigger_type,
+            "job_ids": self.job_ids,
+            "task_ids": self.task_ids,
+        }
 
 @typechecked
 @dataclass
@@ -1382,6 +1413,7 @@ class FeatureVariant(ResourceVariant):
     additional_parameters: Optional[Additional_Parameters] = None
     trigger: TriggerResource = None
     server_status: Optional[ServerStatus] = None
+    trigger: TriggerResource = None
 
     def __post_init__(self):
         col_types = [member.value for member in ScalarType]

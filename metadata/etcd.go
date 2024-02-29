@@ -250,40 +250,30 @@ func (lookup EtcdResourceLookup) createEmptyResource(t ResourceType) (Resource, 
 	switch t {
 	case FEATURE:
 		resource = &featureResource{&pb.Feature{}}
-		break
 	case FEATURE_VARIANT:
 		resource = &featureVariantResource{&pb.FeatureVariant{}}
-		break
 	case LABEL:
 		resource = &labelResource{&pb.Label{}}
-		break
 	case LABEL_VARIANT:
 		resource = &labelVariantResource{&pb.LabelVariant{}}
-		break
 	case USER:
 		resource = &userResource{&pb.User{}}
-		break
 	case ENTITY:
 		resource = &entityResource{&pb.Entity{}}
-		break
 	case PROVIDER:
 		resource = &providerResource{&pb.Provider{}}
-		break
 	case SOURCE:
 		resource = &SourceResource{&pb.Source{}}
-		break
 	case SOURCE_VARIANT:
 		resource = &sourceVariantResource{&pb.SourceVariant{}}
-		break
 	case TRAINING_SET:
 		resource = &trainingSetResource{&pb.TrainingSet{}}
-		break
 	case TRAINING_SET_VARIANT:
 		resource = &trainingSetVariantResource{&pb.TrainingSetVariant{}}
-		break
 	case MODEL:
 		resource = &modelResource{&pb.Model{}}
-		break
+	case TRIGGER:
+		resource = &triggerResource{&pb.Trigger{}}
 	default:
 		return nil, fmt.Errorf("Invalid Type\n")
 	}

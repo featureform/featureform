@@ -115,9 +115,15 @@ export default function TriggerDetail({
   return (
     <>
       <Box sx={{ marginBottom: '2em' }}>
-        <Typography>Trigger Type: {details?.trigger?.type}</Typography>
-        <Typography>Schedule: {details?.trigger?.schedule}</Typography>
-        <Typography>Owner: {details?.owner}</Typography>
+        <Typography data-testid='detailTypeId'>
+          Trigger Type: {details?.trigger?.type}
+        </Typography>
+        <Typography data-testid='detailScheduleId'>
+          Schedule: {details?.trigger?.schedule}
+        </Typography>
+        <Typography data-testid='detailOwnerId'>
+          Owner: {details?.owner}
+        </Typography>
       </Box>
       <DataGrid
         density='compact'
@@ -158,6 +164,7 @@ export default function TriggerDetail({
           <span>
             <Button
               variant='contained'
+              data-testid='deleteTriggerBtnId'
               disabled={isDeleteDisabled()}
               onClick={() => {
                 if (!isDeleteDisabled()) {

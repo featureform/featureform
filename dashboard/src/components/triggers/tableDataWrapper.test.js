@@ -5,11 +5,12 @@ import 'jest-canvas-mock';
 import React from 'react';
 import TEST_THEME from '../../styles/theme';
 import TableDataWrapper from './tableDataWrapper';
-import { triggerResponse } from './test_data';
+import { triggerDetail, triggerResponse } from './test_data';
 
 const dataAPIMock = {
   getTriggers: jest.fn().mockResolvedValue(triggerResponse),
   postTrigger: jest.fn(),
+  getTriggerDetails: jest.fn().mockResolvedValue(triggerDetail),
 };
 
 jest.mock('../../hooks/dataAPI', () => ({
@@ -20,6 +21,7 @@ jest.mock('../../hooks/dataAPI', () => ({
 
 describe('Trigger table data wrapper tests', () => {
   const DIV_NODE = 'DIV';
+  const P_NODE = 'P';
   const SEARCH_INPUT_ID = 'searcInputId';
   const NEW_TRIGGER_BTN_ID = 'newTriggerId';
   const NEW_TRIGGER_SAVE_ID = 'saveNewTriggerId';
@@ -29,6 +31,10 @@ describe('Trigger table data wrapper tests', () => {
   const VALIDATION_ERROR = 'Enter a value.';
   const TRIGGER_NAME_INPUT_ID = 'triggerNameInputId';
   const TRIGGER_SCHEDULE_INPUT_ID = 'triggerScheduleInputId';
+  const DETAIL_TYPE_ID = 'detailTypeId';
+  const DETAIL_SCHEDULE_ID = 'detailScheduleId';
+  const DETAIL_OWNER_ID = 'detailOwnerId';
+  const DELETE_TRIGGER_BTN_ID = 'deleteTriggerBtnId';
 
   const getTestBody = () => {
     return (
@@ -155,5 +161,32 @@ describe('Trigger table data wrapper tests', () => {
       triggerName: inputValue,
       schedule: inputValue,
     });
+  });
+
+  test('The trigger detail renders OK', async () => {
+    //given:
+    const helper = render(getTestBody());
+    const test_data = { ...triggerResponse };
+
+    //and: details is invoked
+    const foundRecord1 = await helper.findByText(test_data[0].name);
+    fireEvent.click(foundRecord1);
+
+    //when: the details load, and delete is disabled
+    const foundType = await helper.findByTestId(DETAIL_TYPE_ID);
+    const foundSchedule = await helper.findByTestId(DETAIL_SCHEDULE_ID);
+    const foundOwner = await helper.findByTestId(DETAIL_OWNER_ID);
+    const disabledDelete = helper.getByTestId(DELETE_TRIGGER_BTN_ID);
+
+    //expect:
+    expect(dataAPIMock.getTriggers).toHaveBeenCalledTimes(1);
+    expect(dataAPIMock.getTriggers).toHaveBeenCalledWith('');
+    expect(dataAPIMock.getTriggerDetails).toHaveBeenCalledTimes(1);
+    expect(dataAPIMock.getTriggerDetails).toHaveBeenCalledWith(test_data[0].id);
+    expect(foundType.nodeName).toBe(P_NODE);
+    expect(foundSchedule.nodeName).toBe(P_NODE);
+    expect(foundOwner.nodeName).toBe(P_NODE);
+    expect(disabledDelete.textContent).toBe('Delete Trigger');
+    expect(disabledDelete).toBeDisabled();
   });
 });

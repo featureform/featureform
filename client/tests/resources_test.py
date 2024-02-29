@@ -1002,3 +1002,26 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             name="primary", variant="abc", resource_type=7, schedule_string="* * * * *"
         ),
     ]
+
+def test_register_trigger_resource():
+    state = ResourceState()
+    state.add(TriggerResource(name="trigger", variant="v1", schedule="* * * * *"))
+    assert state.sorted_list() == [
+        ScheduleTrigger(
+            name="trigger",
+            variant="v1",
+            schedule="* * * * *",
+            schedule_obj=Schedule(
+                name="trigger",
+                variant="v1",
+                resource_type=8,
+                schedule_string="* * * * *",
+            ),
+        ),
+        Schedule(
+            name="trigger",
+            variant="v1",
+            resource_type=8,
+            schedule_string="* * * * *",
+        ),
+    ]

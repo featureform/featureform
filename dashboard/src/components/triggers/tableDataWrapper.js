@@ -112,7 +112,7 @@ export default function TableDataWrapper() {
       <Popover
         open={openNew}
         anchorReference='anchorPosition'
-        anchorPosition={{ top: 220, left: 275 }}
+        anchorPosition={{ top: 210, left: 275 }}
         onClose={handleClose}
         anchorOrigin={{
           vertical: 'top',

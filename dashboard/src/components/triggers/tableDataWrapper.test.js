@@ -9,6 +9,7 @@ import { triggerResponse } from './test_data';
 
 const dataAPIMock = {
   getTriggers: jest.fn().mockResolvedValue(triggerResponse),
+  postTrigger: jest.fn(),
 };
 
 jest.mock('../../hooks/dataAPI', () => ({
@@ -26,6 +27,8 @@ describe('Trigger table data wrapper tests', () => {
   const USER_EVENT_ENTER = '{enter}';
   const USER_EVENT_DELETE = '{backspace}';
   const VALIDATION_ERROR = 'Enter a value.';
+  const TRIGGER_NAME_INPUT_ID = 'triggerNameInputId';
+  const TRIGGER_SCHEDULE_INPUT_ID = 'triggerScheduleInputId';
 
   const getTestBody = () => {
     return (
@@ -68,7 +71,7 @@ describe('Trigger table data wrapper tests', () => {
     await userEvent.type(foundSearchInput, `${searchTerm}${USER_EVENT_ENTER}`);
     await helper.findByTestId(SEARCH_INPUT_ID);
 
-    helper.getByTestId(SEARCH_INPUT_ID);
+    await helper.findByTestId(NEW_TRIGGER_BTN_ID);
 
     //then: the api is invoked
     expect(dataAPIMock.getTriggers).toHaveBeenCalledTimes(2);
@@ -91,6 +94,8 @@ describe('Trigger table data wrapper tests', () => {
       USER_EVENT_DELETE.repeat(searchTerm.length)
     );
 
+    await helper.findByTestId(NEW_TRIGGER_BTN_ID);
+
     //then:
     expect(dataAPIMock.getTriggers).toHaveBeenCalledTimes(2);
     expect(dataAPIMock.getTriggers).toHaveBeenNthCalledWith(2, '');
@@ -110,10 +115,45 @@ describe('Trigger table data wrapper tests', () => {
     fireEvent.click(newTriggerSaveBtn);
     const foundErrors = helper.getAllByText(VALIDATION_ERROR);
 
+    await helper.findByTestId(NEW_TRIGGER_BTN_ID);
+
     //expect: validation kicks in
     expect(foundTitle).toBeDefined();
     expect(foundErrors.length).toBe(2); //2 input fields
     expect(dataAPIMock.getTriggers).toHaveBeenCalledTimes(1);
     expect(dataAPIMock.getTriggers).toHaveBeenCalledWith('');
+  });
+
+  test('New trigger with valid inputs will post values', async () => {
+    //given:
+    const helper = render(getTestBody());
+    const inputValue = 'text input';
+
+    //and: the user opens the new trigger modal and enters values
+    const newTriggerBtn = await helper.findByTestId(NEW_TRIGGER_BTN_ID);
+    fireEvent.click(newTriggerBtn);
+
+    const foundNameInput = helper.getByTestId(TRIGGER_NAME_INPUT_ID);
+    await userEvent.type(foundNameInput, inputValue);
+    expect(foundNameInput.value).toBe(inputValue);
+
+    const foundScheduleInput = helper.getByTestId(TRIGGER_SCHEDULE_INPUT_ID);
+    await userEvent.type(foundScheduleInput, inputValue);
+    expect(foundScheduleInput.value).toBe(inputValue);
+
+    // when: they click save
+    const newTriggerSaveBtn = helper.getByTestId(NEW_TRIGGER_SAVE_ID);
+    fireEvent.click(newTriggerSaveBtn);
+
+    await helper.findByTestId(NEW_TRIGGER_BTN_ID);
+
+    //expect: the request is fired off
+    expect(dataAPIMock.getTriggers).toHaveBeenCalledTimes(2);
+    expect(dataAPIMock.getTriggers).toHaveBeenCalledWith('');
+    expect(dataAPIMock.postTrigger).toHaveBeenCalledTimes(1);
+    expect(dataAPIMock.postTrigger).toHaveBeenCalledWith({
+      triggerName: inputValue,
+      schedule: inputValue,
+    });
   });
 });

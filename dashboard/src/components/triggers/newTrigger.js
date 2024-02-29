@@ -80,6 +80,10 @@ export default function NewTrigger({ handleClose }) {
           name='triggerName'
           value={formValues.triggerName}
           onChange={handleChange}
+          inputProps={{
+            'aria-label': 'trigger name input',
+            'data-testid': 'triggerNameInputId',
+          }}
         />
 
         <TextField
@@ -96,6 +100,10 @@ export default function NewTrigger({ handleClose }) {
           multiline
           rows={2}
           onChange={handleChange}
+          inputProps={{
+            'aria-label': 'trigger schedule input',
+            'data-testid': 'triggerScheduleInputId',
+          }}
         />
 
         <Box sx={{ marginTop: '1em' }} display={'flex'} justifyContent={'end'}>

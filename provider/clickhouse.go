@@ -1297,33 +1297,6 @@ func (q clickhouseSQLQueries) trainingSetUpdate(store *sqlOfflineStore, def Trai
 	return q.trainingSetQuery(store, def, tableName, labelName, true)
 }
 
-func (q clickhouseSQLQueries) trainingSetSplitCreate(store *sqlOfflineStore, trainingSetTable string, testSize float64) (string, error) {
-
-	// create split table
-	splitTableName := sanitizeCH(fmt.Sprintf("%s_split", trainingSetTable))
-	trainingSetSplitTable := sanitizeCH(splitTableName)
-
-	// Step 1: Create the split table based on the structure of the original table.
-	createTableQuery := fmt.Sprintf("CREATE TABLE %s AS %s ENGINE = MergeTree() ORDER BY _row", trainingSetSplitTable, trainingSetTable)
-	if _, err := store.db.Exec(createTableQuery); err != nil {
-		return "", fmt.Errorf("failed to create table: %v", err)
-	}
-
-	// Step 2: Alter the table to add the is_test column.
-	alterTableQuery := fmt.Sprintf("ALTER TABLE %s ADD COLUMN is_test UInt8", trainingSetSplitTable)
-	if _, err := store.db.Exec(alterTableQuery); err != nil {
-		return "", fmt.Errorf("failed to alter table to add is_test column: %v", err)
-	}
-
-	// Step 3: Insert data into the new table with is_test calculated.
-	insertDataQuery := fmt.Sprintf("INSERT INTO %s SELECT *, multiIf(rand() %% 100 < %f, 1, 0) AS is_test FROM %s", trainingSetSplitTable, testSize*100, trainingSetTable)
-	if _, err := store.db.Exec(insertDataQuery); err != nil {
-		return "", fmt.Errorf("failed to insert data: %v", err)
-	}
-
-	return trainingSetSplitTable, nil
-}
-
 func buildTrainingSelect(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) (string, error) {
 	columns := make([]string, 0)
 	query := ""

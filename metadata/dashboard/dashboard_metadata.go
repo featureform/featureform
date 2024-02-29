@@ -1344,7 +1344,7 @@ func GetTagResult(param VariantResult) TagResult {
 	}
 }
 
-func (m *MetadataServer) GetTagError(code int, err error, c *gin.Context, resourceType string) *FetchError {
+func (m *MetadataServer) GetRequestError(code int, err error, c *gin.Context, resourceType string) *FetchError {
 	fetchError := &FetchError{StatusCode: code, Type: resourceType}
 	m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 	return fetchError
@@ -1352,7 +1352,7 @@ func (m *MetadataServer) GetTagError(code int, err error, c *gin.Context, resour
 
 func (m *MetadataServer) SetFoundVariantJSON(foundVariant VariantResult, err error, c *gin.Context, resourceType string) {
 	if err != nil {
-		fetchError := m.GetTagError(500, err, c, resourceType)
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, resourceType)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 	}
 	c.JSON(http.StatusOK, GetTagResult(foundVariant))
@@ -1367,7 +1367,7 @@ func (m *MetadataServer) GetTags(c *gin.Context) {
 	resourceType := c.Param("type")
 	var requestBody TagGetBody
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "GetTags - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "GetTags - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1432,7 +1432,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	var requestBody TagPostBody
 	resourceTypeParam := c.Param("type")
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "PostTags - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "PostTags - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1448,7 +1448,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	foundResource, err := m.lookup.Lookup(objID)
 
 	if err != nil {
-		fetchError := m.GetTagError(400, err, c, "PostTags - Error finding the resource with resourceID")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "PostTags - Error finding the resource with resourceID")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1569,6 +1569,17 @@ func CreateDummyTaskRuns(count int) {
 	}
 }
 
+// todox: eventually remove
+func CreateDummyTestTrigger(id, name, schedule string) {
+	taskTriggerList = append(taskTriggerList,
+		TriggerResponse{
+			ID:       id,
+			Name:     name,
+			Type:     "test",
+			Schedule: schedule,
+			Detail:   "test", Resources: []TriggerResource{{ID: uuid.New().String(), Resource: "test", Variant: "v1", LastRun: time.Now()}}})
+}
+
 func createTaskRun(id int, status sc.Status, timeParam time.Time) sc.TaskRunMetadata {
 
 	//todox: check against existing task metadata list
@@ -1635,7 +1646,7 @@ type TaskRunsPostBody struct {
 func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 	var requestBody TaskRunsPostBody
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "GetTaskRuns - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1759,15 +1770,15 @@ type TriggerGetPostBody struct {
 func (m *MetadataServer) GetTriggers(c *gin.Context) {
 	var requestBody TriggerGetPostBody
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "GetTriggers - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "GetTriggers - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 
-	taskListCopy := make([]TriggerResponse, len(taskTriggerList))
-	_ = copy(taskListCopy, taskTriggerList)
+	triggerListCopy := make([]TriggerResponse, len(taskTriggerList))
+	_ = copy(triggerListCopy, taskTriggerList)
 
-	taskListCopy = filter(taskListCopy, func(t TriggerResponse) bool {
+	triggerListCopy = filter(triggerListCopy, func(t TriggerResponse) bool {
 		result := false
 		if requestBody.SearchText == "" {
 			result = true
@@ -1777,7 +1788,7 @@ func (m *MetadataServer) GetTriggers(c *gin.Context) {
 		return result
 	})
 
-	c.JSON(http.StatusOK, taskListCopy)
+	c.JSON(http.StatusOK, triggerListCopy)
 }
 
 type TriggerPostBody struct {
@@ -1788,7 +1799,7 @@ type TriggerPostBody struct {
 func (m *MetadataServer) PostTrigger(c *gin.Context) {
 	var requestBody TriggerPostBody
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "PostTrigger - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "PostTrigger - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1877,7 +1888,7 @@ type TriggerResourceDelete struct {
 func (m *MetadataServer) DeleteTriggerResource(c *gin.Context) {
 	var requestBody TriggerResourceDelete
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "DeleteTriggerResource - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "DeleteTriggerResource - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}

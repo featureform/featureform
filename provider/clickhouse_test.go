@@ -162,13 +162,6 @@ func TestSplit(t *testing.T) {
 		fmt.Printf("could not initialize store: %s\n", err)
 	}
 
-	//store.CreateTrainingSet()
-	//split, err := store.CreateTrainingTestSplit("featureform_trainingset__ts_alice__v4", .5, false, 0)
-	//if err != nil {
-	//	t.Fatalf("could not create split: %s\n", err)
-	//}
-	//fmt.Printf("split: %v\n", split)
-
 	resourceId := ResourceID{
 		Name:    "ts_alice",
 		Variant: "v5",

@@ -828,15 +828,8 @@ func (serv *OnlineServer) TrainingTestSplit(stream srv.Feature_TrainingTestSplit
 		return fmt.Errorf("could not serve training test split: %w", err)
 	}
 
-	// Use a channel to communicate errors from goroutines
-	//errChan := make(chan error, 2) // Buffer to hold at most two errors (send and receive)
-
-	// Goroutine for forwarding requests to the downstream service
-	//go func() {
-	//	defer close(errChan)
 	for {
 		req, err := stream.Recv()
-		fmt.Println("this is the request", req.String())
 		if err == io.EOF {
 			// Client has closed the stream, close the downstream stream
 			serv.Logger.Infow("Client has closed the stream")
@@ -857,7 +850,6 @@ func (serv *OnlineServer) TrainingTestSplit(stream srv.Feature_TrainingTestSplit
 		}
 
 		resp, err := clientStream.Recv()
-		fmt.Println("this is the response", resp.String(), err)
 		if err == io.EOF {
 			// End of stream from downstream service
 			serv.Logger.Infow("Downstream service has closed the stream")
@@ -874,32 +866,6 @@ func (serv *OnlineServer) TrainingTestSplit(stream srv.Feature_TrainingTestSplit
 			return err
 		}
 	}
-	//}()
-
-	//// Goroutine for receiving responses from the downstream service and forwarding them to the client
-	//go func() {
-	//	for {
-	//		resp, err := clientStream.Recv()
-	//		fmt.Println("this is the response", resp.String(), err)
-	//		if err == io.EOF {
-	//			// End of stream from downstream service
-	//			serv.Logger.Infow("Downstream service has closed the stream")
-	//			return
-	//		}
-	//		if err != nil {
-	//			serv.Logger.Errorw("Error receiving from downstream service", "error", err)
-	//			errChan <- err
-	//			return
-	//		}
-	//
-	//		// Send the response back to the client
-	//		if err := stream.Send(resp); err != nil {
-	//			serv.Logger.Errorw("Failed to send response to client", "error", err)
-	//			errChan <- err
-	//			return
-	//		}
-	//	}
-	//}()
 }
 
 func (serv *OnlineServer) TrainingDataColumns(ctx context.Context, req *srv.TrainingDataColumnsRequest) (*srv.TrainingColumns, error) {

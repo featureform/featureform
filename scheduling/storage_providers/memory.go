@@ -33,12 +33,12 @@ func (m *MemoryStorageProvider) Set(key string, value string, lock LockObject) e
 
 	lockInfo, ok := m.lockedItems.Load(key)
 	if !ok {
-		return fmt.Errorf("key is not locked")
+		return fmt.Errorf("key '%s' is not locked", key)
 	}
 
 	currentLock := lockInfo.(LockInformation)
 	if currentLock.ID != lock.ID {
-		return fmt.Errorf("key %s is locked by another id: locked by: %s, unlock by: %s", key, currentLock.ID, lock.ID)
+		return fmt.Errorf("key '%s' is locked by another id: locked by: %s, unlock by: %s", key, currentLock.ID, lock.ID)
 	}
 
 	m.storage.Store(key, value)
@@ -100,12 +100,12 @@ func (m *MemoryStorageProvider) Delete(key string, lock LockObject) error {
 
 	lockInfo, ok := m.lockedItems.Load(key)
 	if !ok {
-		return fmt.Errorf("key is not locked")
+		return fmt.Errorf("key '%s' is not locked", key)
 	}
 
 	currentLock := lockInfo.(LockInformation)
 	if currentLock.ID != lock.ID {
-		return fmt.Errorf("key %s is locked by another id: locked by: %s, unlock by: %s", key, currentLock.ID, lock.ID)
+		return fmt.Errorf("key '%s' is locked by another id: locked by: %s, unlock by: %s", key, currentLock.ID, lock.ID)
 	}
 
 	m.storage.Delete(key)
@@ -127,7 +127,7 @@ func (m *MemoryStorageProvider) Lock(key string) (LockObject, error) {
 	if lockInfo, ok := m.lockedItems.Load(key); ok {
 		keyLock := lockInfo.(LockInformation)
 		if time.Since(keyLock.Date) < ValidTimePeriod {
-			return LockObject{}, fmt.Errorf("key is already locked by: %s", keyLock.ID)
+			return LockObject{}, fmt.Errorf("key '%s' is already locked by: %s", key, keyLock.ID)
 		}
 	}
 
@@ -156,24 +156,17 @@ func (m *MemoryStorageProvider) Unlock(key string, lock LockObject) error {
 
 	lockInfo, ok := m.lockedItems.Load(key)
 	if !ok {
-		return fmt.Errorf("key is not locked")
+		return fmt.Errorf("key '%s' is not locked", key)
 	}
 
 	keyLock := lockInfo.(LockInformation)
 	if keyLock.ID != lock.ID {
-		return fmt.Errorf("key is locked by another id: locked by: %s, unlock  by: %s", keyLock.ID, lock.ID)
+		return fmt.Errorf("key '%s' is locked by another id: locked by: %s, unlock  by: %s", key, keyLock.ID, lock.ID)
 	}
 	m.lockedItems.Delete(key)
 	closeOnce(*lock.Channel)
 
 	return nil
-}
-
-func closeOnce(ch chan error) {
-	var once sync.Once
-	once.Do(func() {
-		close(ch)
-	})
 }
 
 func (m *MemoryStorageProvider) updateLockTime(id string, key string, lockChannel chan error) {

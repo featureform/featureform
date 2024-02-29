@@ -3,6 +3,7 @@ package scheduling
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -89,4 +90,12 @@ func (l *LockInformation) Unmarshal(data []byte) error {
 
 func (l *LockInformation) Marshal() ([]byte, error) {
 	return json.Marshal(l)
+}
+
+// A method used to close a channel only once
+func closeOnce(ch chan error) {
+	var once sync.Once
+	once.Do(func() {
+		close(ch)
+	})
 }

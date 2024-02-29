@@ -30,12 +30,13 @@ func NewETCDStorageProvider() (*ETCDStorageProvider, error) {
 	etcdPort := helpers.GetEnv("ETCD_PORT", "2379")
 	etcdUsername := helpers.GetEnv("ETCD_USERNAME", "")
 	etcdPassword := helpers.GetEnv("ETCD_PASSWORD", "")
+	dialTimeout := time.Duration(helpers.GetEnvInt("ETCD_DIAL_TIMEOUT", 10))
 
 	address := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
 
 	etcdConfig := clientv3.Config{
 		Endpoints:   []string{address},
-		DialTimeout: time.Second * 10,
+		DialTimeout: time.Second * dialTimeout,
 		Username:    etcdUsername,
 		Password:    etcdPassword,
 	}
@@ -70,7 +71,7 @@ func (etcd *ETCDStorageProvider) Set(key string, value string, lock LockObject) 
 	}
 
 	if len(resp.Kvs) == 0 {
-		return fmt.Errorf("key is not locked")
+		return fmt.Errorf("key '%s' is not locked", key)
 	}
 
 	lockInfo := LockInformation{}
@@ -78,7 +79,7 @@ func (etcd *ETCDStorageProvider) Set(key string, value string, lock LockObject) 
 		return fmt.Errorf("failed to unmarshal lock information: %w", err)
 	}
 	if lockInfo.ID != lock.ID {
-		return fmt.Errorf("key is locked by another id: locked by: %s, unlock  by: %s", lockInfo.ID, lock.ID)
+		return fmt.Errorf("key '%s' is locked by another id: locked by: %s, unlock  by: %s", key, lockInfo.ID, lock.ID)
 	}
 
 	_, err = etcd.client.Put(etcd.ctx, key, value)
@@ -131,7 +132,7 @@ func (etcd *ETCDStorageProvider) Delete(key string, lock LockObject) error {
 	}
 
 	if len(resp.Kvs) == 0 {
-		return fmt.Errorf("key is not locked")
+		return fmt.Errorf("key '%s' is not locked", key)
 	}
 
 	lockInfo := LockInformation{}
@@ -139,7 +140,7 @@ func (etcd *ETCDStorageProvider) Delete(key string, lock LockObject) error {
 		return fmt.Errorf("failed to unmarshal lock information: %w", err)
 	}
 	if lockInfo.ID != lock.ID {
-		return fmt.Errorf("key is locked by another id: locked by: %s, unlock  by: %s", lockInfo.ID, lock.ID)
+		return fmt.Errorf("key '%s' is locked by another id: locked by: %s, unlock  by: %s", key, lockInfo.ID, lock.ID)
 	}
 
 	_, err = etcd.client.Delete(etcd.ctx, key)
@@ -183,7 +184,7 @@ func (etcd *ETCDStorageProvider) Lock(key string) (LockObject, error) {
 	defer etcd.lockMutex.Unlock()
 
 	if _, err := etcd.getLockedItem(lockKeyPath); err == nil {
-		return LockObject{}, fmt.Errorf("key is already locked")
+		return LockObject{}, fmt.Errorf("key '%s' is already locked", key)
 	}
 
 	id := uuid.New().String()
@@ -223,7 +224,7 @@ func (etcd *ETCDStorageProvider) Unlock(key string, lock LockObject) error {
 	}
 
 	if lockInfo.ID != lock.ID {
-		return fmt.Errorf("key is locked by another id: locked by: %s, unlock by: %s", lockInfo.ID, lock.ID)
+		return fmt.Errorf("key '%s' is locked by another id: locked by: %s, unlock by: %s", key, lockInfo.ID, lock.ID)
 	}
 
 	if _, err := etcd.client.Delete(etcd.ctx, lockKeyPath); err != nil {
@@ -243,7 +244,7 @@ func (etcd *ETCDStorageProvider) getLockedItem(key string) (LockInformation, err
 	}
 
 	if len(resp.Kvs) == 0 {
-		return LockInformation{}, fmt.Errorf("key is not locked")
+		return LockInformation{}, fmt.Errorf("key '%s' is not locked", key)
 	}
 
 	lock := LockInformation{}

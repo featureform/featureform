@@ -189,9 +189,7 @@ class HostedClientImpl:
             )
         check_up_to_date(False, "serving")
         self._channel = self._create_channel(host, insecure, cert_path)
-        # self._async_channel = self._create_async_channel(host, insecure, cert_path)
         self._stub = serving_pb2_grpc.FeatureStub(self._channel)
-        # self._async_stub = serving_pb2_grpc.FeatureStub(self._async_channel)
 
     @staticmethod
     def _create_channel(host, insecure, cert_path):
@@ -199,12 +197,6 @@ class HostedClientImpl:
             return insecure_channel(host)
         else:
             return secure_channel(host, cert_path)
-
-    # def _create_async_channel(self, host, insecure, cert_path):
-    #     if insecure:
-    #         return async_insecure_channel(host)
-    #     else:
-    #         return secure_channel(host, cert_path)
 
     def training_set(
         self, name, variation, include_label_timestamp, model: Union[str, Model] = None

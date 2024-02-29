@@ -51,6 +51,7 @@ const (
 	TRAINING_SET                      = ResourceType(pb.ResourceType_TRAINING_SET)
 	TRAINING_SET_VARIANT              = ResourceType(pb.ResourceType_TRAINING_SET_VARIANT)
 	MODEL                             = ResourceType(pb.ResourceType_MODEL)
+	TRIGGER                           = ResourceType(pb.ResourceType_TRIGGER)
 )
 
 func (r ResourceType) String() string {
@@ -1423,6 +1424,53 @@ func (resource *entityResource) Update(lookup ResourceLookup, updateRes Resource
 	return nil
 }
 
+type triggerResource struct {
+	serialized *pb.Trigger
+}
+
+func (resource *triggerResource) ID() ResourceID {
+	return ResourceID{
+		Name: resource.serialized.Name,
+		Type: TRIGGER,
+	}
+}
+
+func (resource *triggerResource) Schedule() string {
+	// TODO: Make sure it's returning the correct thing
+	return resource.serialized.GetScheduleTrigger().Schedule
+}
+
+func (resource *triggerResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+	// TODO: Change later, do we need to return all the resources that use this trigger?
+	return make(LocalResourceLookup), nil
+}
+
+func (resource *triggerResource) Proto() proto.Message {
+	return resource.serialized
+}
+
+func (resource *triggerResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+	// update/list jobs and tasks associated
+	return nil
+}
+
+func (resource *triggerResource) GetStatus() *pb.ResourceStatus {
+	// TODO: return resourcestatus struct with no status
+	return nil
+}
+
+func (resource *triggerResource) UpdateStatus(status pb.ResourceStatus) error {
+	return nil
+}
+
+func (resource *triggerResource) UpdateSchedule(schedule string) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (resource *triggerResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	return lookup.Set(updateRes.ID(), updateRes)
+}
+
 type MetadataServer struct {
 	Logger     *zap.SugaredLogger
 	lookup     ResourceLookup
@@ -1558,6 +1606,7 @@ func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFea
 
 func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *pb.FeatureVariant) (*pb.Empty, error) {
 	variant.Created = tspb.New(time.Now())
+
 	return serv.genericCreate(ctx, &featureVariantResource{variant}, func(name, variant string) Resource {
 		return &featureResource{
 			&pb.Feature{
@@ -1725,6 +1774,97 @@ func (serv *MetadataServer) GetEntities(stream pb.Metadata_GetEntitiesServer) er
 	return serv.genericGet(stream, ENTITY, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Entity))
 	})
+}
+
+func (serv *MetadataServer) CreateTrigger(ctx context.Context, trigger *pb.Trigger) (*pb.Empty, error) {
+	return serv.genericCreate(ctx, &triggerResource{trigger}, nil)
+}
+
+func (serv *MetadataServer) AddTrigger(ctx context.Context, tr *pb.TriggerRequest) (*pb.Empty, error) {
+	fmt.Println("Adding Trigger", tr)
+
+	resourceID := ResourceID{Name: tr.Resource.Resource.Name, Variant: tr.Resource.Resource.Variant, Type: ResourceType(tr.Resource.ResourceType)}
+	resourceRecord, err := serv.lookup.Lookup(resourceID)
+	if err != nil {
+		return nil, err
+	}
+
+	switch r := resourceRecord.(type) {
+	case *featureVariantResource:
+		r.serialized.Trigger = tr.Trigger
+		fmt.Println("Found Feature Variant", resourceRecord)
+	default:
+		return nil, fmt.Errorf("could not assert resource")
+	}
+
+	err = serv.lookup.Set(resourceID, resourceRecord)
+	if err != nil {
+		return nil, err
+	}
+
+	asserted_test_resource, ok := resourceRecord.(*featureVariantResource)
+	if !ok {
+		return nil, fmt.Errorf("could not assert trigger resource")
+	}
+	fmt.Println("Checking if trigger got added", asserted_test_resource.serialized.Trigger)
+
+	return &pb.Empty{}, nil
+}
+
+func (serv *MetadataServer) RemoveTrigger(ctx context.Context, trigger *pb.TriggerRequest) (*pb.Empty, error) {
+	fmt.Println("Removing Trigger", trigger)
+
+	resourceID := ResourceID{Name: trigger.Resource.Resource.Name, Variant: trigger.Resource.Resource.Variant, Type: ResourceType(trigger.Resource.ResourceType)}
+	resourceRecord, err := serv.lookup.Lookup(resourceID)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("Found Resource", resourceRecord)
+
+	switch r := resourceRecord.(type) {
+	case *featureVariantResource:
+		r.serialized.Trigger = nil
+	default:
+		return nil, fmt.Errorf("could not assert resource")
+	}
+
+	err = serv.lookup.Set(resourceID, resourceRecord)
+	if err != nil {
+		return nil, err
+	}
+
+	asserted_test_resource, ok := resourceRecord.(*featureVariantResource)
+	if !ok {
+		return nil, fmt.Errorf("could not assert trigger resource")
+	}
+	fmt.Println("Checking if trigger got removed", asserted_test_resource.serialized.Trigger)
+
+	return &pb.Empty{}, nil
+}
+
+func (serv *MetadataServer) UpdateTrigger(ctx context.Context, t *pb.Trigger) (*pb.Empty, error) {
+	fmt.Println("Updating Trigger", t)
+	triggerResID := ResourceID{Name: t.Name, Type: TRIGGER}
+	triggerRes, err := serv.lookup.Lookup(triggerResID)
+	if err != nil {
+		return nil, err
+	}
+
+	err = triggerRes.Update(serv.lookup, &triggerResource{t})
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.Empty{}, nil
+}
+
+func (serv *MetadataServer) DeleteTrigger(ctx context.Context, trigger *pb.Trigger) (*pb.Empty, error) {
+	// triggerResID := ResourceID{Name: trigger.Name, Type: TRIGGER}
+	// err := serv.lookup.Delete(triggerResID)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	return &pb.Empty{}, nil
 }
 
 func (serv *MetadataServer) ListModels(_ *pb.Empty, stream pb.Metadata_ListModelsServer) error {

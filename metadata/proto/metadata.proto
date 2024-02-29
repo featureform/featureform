@@ -425,7 +425,7 @@ message Properties {
 
 message Trigger {
 	string name = 1;
-	oneof trigger {
+	oneof trigger_type {
 		ScheduleTrigger schedule_trigger = 2;
 	}
 	repeated string job_ids = 3;
@@ -433,10 +433,10 @@ message Trigger {
 }
 
 message ScheduleTrigger {
-	string schedule = 2;
+	string schedule = 1;
 }
 
 message TriggerRequest {
 	Trigger trigger = 1;
-	NameVariant resource = 2;
+	ResourceID resource = 2;
 }

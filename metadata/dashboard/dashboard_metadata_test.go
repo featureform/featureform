@@ -16,6 +16,7 @@ import (
 	"github.com/featureform/provider"
 	sc "github.com/featureform/scheduling"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
@@ -591,7 +592,7 @@ func TestGetTriggerDetailBadBind(t *testing.T) {
 func TestDeleteTrigger(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
-	var id, name, schedule string = "1", "testName", "testSchedule"
+	var id, name, schedule string = uuid.New().String(), "testName", "testSchedule"
 	params := []gin.Param{
 		{
 			Key:   "triggerId",
@@ -620,7 +621,7 @@ func TestDeleteTrigger(t *testing.T) {
 func TestDeleteTriggerResourceValidation(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
-	var id, name, schedule string = "1", "testName", "testSchedule"
+	var id, name, schedule string = uuid.New().String(), "testName", "testSchedule"
 	params := []gin.Param{
 		{
 			Key:   "triggerId",

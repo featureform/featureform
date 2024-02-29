@@ -13,12 +13,14 @@ import (
 type MemoryStorageProvider struct {
 	storage     sync.Map
 	lockedItems sync.Map
+	mutex       sync.RWMutex
 }
 
 func NewMemoryStorageProvider() (*MemoryStorageProvider, error) {
 	storage := sync.Map{}
 	lockedItems := sync.Map{}
-	return &MemoryStorageProvider{storage: storage, lockedItems: lockedItems}, nil
+	mutex := sync.RWMutex{}
+	return &MemoryStorageProvider{storage: storage, lockedItems: lockedItems, mutex: mutex}, nil
 }
 
 func (m *MemoryStorageProvider) Set(key string, value string, lock LockObject) error {
@@ -118,9 +120,8 @@ func (m *MemoryStorageProvider) Lock(key string) (LockObject, error) {
 
 	id := uuid.New().String()
 
-	lockMutex := &sync.Mutex{}
-	lockMutex.Lock()
-	defer lockMutex.Unlock()
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 
 	if lockInfo, ok := m.lockedItems.Load(key); ok {
 		keyLock := lockInfo.(LockInformation)
@@ -144,9 +145,12 @@ func (m *MemoryStorageProvider) Lock(key string) (LockObject, error) {
 }
 
 func (m *MemoryStorageProvider) Unlock(key string, lock LockObject) error {
-	lockMutex := &sync.Mutex{}
-	lockMutex.Lock()
-	defer lockMutex.Unlock()
+	if key == "" {
+		return fmt.Errorf("key is empty")
+	}
+
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 
 	if lockInfo, ok := m.lockedItems.Load(key); ok {
 		keyLock := lockInfo.(LockInformation)
@@ -160,16 +164,18 @@ func (m *MemoryStorageProvider) Unlock(key string, lock LockObject) error {
 }
 
 func (m *MemoryStorageProvider) updateLockTime(id string, key string, lockChannel chan error) {
-	for {
-		time.Sleep(UpdateSleepTime)
+	ticker := time.NewTicker(UpdateSleepTime)
+	defer ticker.Stop()
 
+	for {
 		select {
 		case <-lockChannel:
 			// Received signal to stop
 			if lockChannel != nil {
 				return
 			}
-		default:
+		case <-ticker.C:
+			m.mutex.Lock()
 			// Continue updating lock time
 			lockInfo, ok := m.lockedItems.Load(key)
 			if !ok {
@@ -182,9 +188,10 @@ func (m *MemoryStorageProvider) updateLockTime(id string, key string, lockChanne
 				m.lockedItems.Store(key, LockInformation{
 					ID:   id,
 					Key:  key,
-					Date: time.Now(),
+					Date: time.Now().UTC(),
 				})
 			}
+			m.mutex.Unlock()
 		}
 	}
 }

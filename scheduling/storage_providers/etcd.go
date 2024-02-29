@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,8 +19,10 @@ const (
 )
 
 type ETCDStorageProvider struct {
-	client *clientv3.Client
-	ctx    context.Context
+	client       *clientv3.Client
+	ctx          context.Context
+	lockMutex    sync.Mutex
+	updateTicker *time.Ticker
 }
 
 func NewETCDStorageProvider() (*ETCDStorageProvider, error) {
@@ -42,7 +45,13 @@ func NewETCDStorageProvider() (*ETCDStorageProvider, error) {
 		return nil, fmt.Errorf("failed to create etcd client: %w", err)
 	}
 
-	return &ETCDStorageProvider{client: client, ctx: context.Background()}, nil
+	etcd := ETCDStorageProvider{
+		client:       client,
+		ctx:          context.Background(),
+		updateTicker: time.NewTicker(UpdateSleepTime),
+		lockMutex:    sync.Mutex{},
+	}
+	return &etcd, nil
 }
 
 func (etcd *ETCDStorageProvider) Set(key string, value string, lock LockObject) error {
@@ -54,7 +63,7 @@ func (etcd *ETCDStorageProvider) Set(key string, value string, lock LockObject) 
 	}
 
 	// get lock and check if it is valid
-	lockKeyPath := etcd.getLockKey(key)
+	lockKeyPath := etcd.getLockPathForKey(key)
 	resp, err := etcd.client.Get(etcd.ctx, lockKeyPath)
 	if err != nil {
 		return fmt.Errorf("failed to get key %s: %w", lockKeyPath, err)
@@ -115,7 +124,7 @@ func (etcd *ETCDStorageProvider) Delete(key string, lock LockObject) error {
 	}
 
 	// get lock and check if it is valid
-	lockKeyPath := etcd.getLockKey(key)
+	lockKeyPath := etcd.getLockPathForKey(key)
 	resp, err := etcd.client.Get(etcd.ctx, lockKeyPath)
 	if err != nil {
 		return fmt.Errorf("failed to get key %s: %w", lockKeyPath, err)
@@ -169,22 +178,14 @@ func (etcd *ETCDStorageProvider) Lock(key string) (LockObject, error) {
 	if key == "" {
 		return LockObject{}, fmt.Errorf("key is empty")
 	}
-	lockKeyPath := etcd.getLockKey(key)
 
-	// check if the key is already locked
-	resp, err := etcd.client.Get(etcd.ctx, lockKeyPath)
-	if err != nil {
-		return LockObject{}, fmt.Errorf("failed to get key %s: %w", lockKeyPath, err)
-	}
+	lockKeyPath := etcd.getLockPathForKey(key)
 
-	if len(resp.Kvs) != 0 {
-		lock := LockInformation{}
-		if err := lock.Unmarshal(resp.Kvs[0].Value); err != nil {
-			return LockObject{}, fmt.Errorf("failed to unmarshal lock information: %w", err)
-		}
-		if time.Since(lock.Date) < ValidTimePeriod {
-			return LockObject{}, fmt.Errorf("key is already locked by: %s", lock.ID)
-		}
+	etcd.lockMutex.Lock()
+	defer etcd.lockMutex.Unlock()
+
+	if _, err := etcd.getLockedItem(lockKeyPath); err == nil {
+		return LockObject{}, fmt.Errorf("key is already locked")
 	}
 
 	id := uuid.New().String()
@@ -193,21 +194,19 @@ func (etcd *ETCDStorageProvider) Lock(key string) (LockObject, error) {
 		Key:  key,
 		Date: time.Now().UTC(),
 	}
+
 	data, err := lock.Marshal()
 	if err != nil {
 		return LockObject{}, fmt.Errorf("failed to marshal lock information: %w", err)
 	}
 
-	_, err = etcd.client.Put(etcd.ctx, lockKeyPath, string(data))
-	if err != nil {
+	if _, err := etcd.client.Put(etcd.ctx, lockKeyPath, string(data)); err != nil {
 		return LockObject{}, fmt.Errorf("failed to put lock information: %w", err)
 	}
 
 	lockChannel := make(chan error)
 	go etcd.updateLockTime(id, lockKeyPath, lockChannel)
-	lockObject := LockObject{ID: id, Channel: &lockChannel}
-
-	return lockObject, nil
+	return LockObject{ID: id, Channel: &lockChannel}, nil
 }
 
 func (etcd *ETCDStorageProvider) Unlock(key string, lock LockObject) error {
@@ -215,72 +214,76 @@ func (etcd *ETCDStorageProvider) Unlock(key string, lock LockObject) error {
 		return fmt.Errorf("key is empty")
 	}
 
-	lockKeyPath := etcd.getLockKey(key)
+	lockKeyPath := etcd.getLockPathForKey(key)
 
-	resp, err := etcd.client.Get(etcd.ctx, lockKeyPath)
+	etcd.lockMutex.Lock()
+	defer etcd.lockMutex.Unlock()
+
+	lockInfo, err := etcd.getLockedItem(lockKeyPath)
 	if err != nil {
-		return fmt.Errorf("failed to get key %s: %w", lockKeyPath, err)
+		return fmt.Errorf("failed to get locked item: %w", err)
 	}
 
-	if len(resp.Kvs) == 0 {
-		return fmt.Errorf("key is not locked")
-	}
-
-	lockInfo := LockInformation{}
-	if err := lockInfo.Unmarshal(resp.Kvs[0].Value); err != nil {
-		return fmt.Errorf("failed to unmarshal lock information: %w", err)
-	}
 	if lockInfo.ID != lock.ID {
-		return fmt.Errorf("key is locked by another id: locked by: %s, unlock  by: %s", lockInfo.ID, lock.ID)
+		return fmt.Errorf("key is locked by another id: locked by: %s, unlock by: %s", lockInfo.ID, lock.ID)
 	}
 
-	_, err = etcd.client.Delete(etcd.ctx, lockKeyPath)
-	if err != nil {
+	if _, err := etcd.client.Delete(etcd.ctx, lockKeyPath); err != nil {
 		return fmt.Errorf("failed to delete key %s: %w", lockKeyPath, err)
 	}
 
-	// close the lock channel
+	// Close the lock channel
 	if lock.Channel != nil {
 		close(*lock.Channel)
 	}
+
 	return nil
 }
 
+func (etcd *ETCDStorageProvider) getLockedItem(key string) (LockInformation, error) {
+	resp, err := etcd.client.Get(etcd.ctx, key)
+	if err != nil {
+		return LockInformation{}, fmt.Errorf("failed to get key %s: %w", key, err)
+	}
+
+	if len(resp.Kvs) == 0 {
+		return LockInformation{}, fmt.Errorf("key is not locked")
+	}
+
+	lock := LockInformation{}
+	if err := lock.Unmarshal(resp.Kvs[0].Value); err != nil {
+		return LockInformation{}, fmt.Errorf("failed to unmarshal lock information: %w", err)
+	}
+
+	return lock, nil
+}
+
 func (etcd *ETCDStorageProvider) updateLockTime(id string, key string, lockChannel chan error) {
-	ticker := time.NewTicker(UpdateSleepTime)
-	defer ticker.Stop()
-
 	for {
-		time.Sleep(UpdateSleepTime)
-
 		select {
 		case <-lockChannel:
 			// Received signal to stop
-			if lockChannel != nil {
-				return
-			}
-		case <-ticker.C:
+			return
+		case <-etcd.updateTicker.C:
 			// Continue updating lock time
-			lockInfo, err := etcd.client.Get(etcd.ctx, key)
-			if err != nil || len(lockInfo.Kvs) == 0 {
+			lockInfo, err := etcd.getLockedItem(key)
+			if err != nil {
 				// Key no longer exists, stop updating
+				close(lockChannel)
 				return
 			}
 
-			lock := LockInformation{}
-			if err := lock.Unmarshal(lockInfo.Kvs[0].Value); err != nil {
-				return
-			}
-			if lock.ID == id {
+			if lockInfo.ID == id {
 				// Update lock time
-				lock.Date = time.Now()
-				data, err := lock.Marshal()
+				lockInfo.Date = time.Now().UTC()
+				data, err := lockInfo.Marshal()
 				if err != nil {
+					close(lockChannel)
 					return
 				}
 
-				_, err = etcd.client.Put(etcd.ctx, key, string(data))
-				if err != nil {
+				if _, err := etcd.client.Put(etcd.ctx, key, string(data)); err != nil {
+					close(lockChannel)
 					return
 				}
 			}
@@ -288,6 +291,6 @@ func (etcd *ETCDStorageProvider) updateLockTime(id string, key string, lockChann
 	}
 }
 
-func (etcd *ETCDStorageProvider) getLockKey(key string) string {
+func (etcd *ETCDStorageProvider) getLockPathForKey(key string) string {
 	return fmt.Sprintf("/%s/%s", LOCKPREFIX, strings.TrimLeft(key, "/"))
 }

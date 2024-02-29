@@ -3,6 +3,7 @@ package scheduling
 import (
 	"fmt"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 )
@@ -23,6 +24,7 @@ func (test *StorageProviderTest) Run() {
 		"LockAndUnlock":               LockAndUnlock,
 		"LockTimeUpdates":             LockTimeUpdates,
 		"LockAndUnlockWithGoRoutines": LockAndUnlockWithGoRoutines,
+		"StressTestLockAndUnlock":     StressTestLockAndUnlock,
 	}
 
 	for name, fn := range testFns {
@@ -342,6 +344,44 @@ func LockTimeUpdates(t *testing.T, provider StorageProvider) {
 	err = provider.Set(key, "value3", lock)
 	if err == nil {
 		t.Fatalf("Set should have failed")
+	}
+}
+
+func StressTestLockAndUnlock(t *testing.T, provider StorageProvider) {
+	key := "/tasks/metadata/task_id=5"
+
+	var wg sync.WaitGroup
+	// Use a counter to track the number of errors
+	errorCount := 0
+
+	// In 1000 threads, lock and unlock the same key
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+		go func(t *testing.T, id int) {
+			defer wg.Done()
+			// So only one thread will be able to lock and unlock the key
+			// if multiple threads are able to lock the key, it means
+			// there is a race condition. And we are able to detect it because
+			// we will fail to unlock the key
+
+			lock, err := provider.Lock(key)
+			if err != nil {
+				return
+			}
+
+			time.Sleep(100 * time.Millisecond)
+
+			err = provider.Unlock(key, lock)
+			if err != nil {
+				errorCount++
+				return
+			}
+		}(t, i)
+	}
+	wg.Wait()
+
+	if errorCount > 0 {
+		t.Fatalf("race condition detected! %d threads failed to unlock the key", errorCount)
 	}
 }
 

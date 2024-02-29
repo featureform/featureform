@@ -110,7 +110,6 @@ class ServingClient:
         Returns:
             training_set (Dataset): A training set iterator
         """
-        print(type(name))
         if isinstance(name, featureform.resources.TrainingSetVariant):
             variant = name.variant
             name = name.name

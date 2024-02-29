@@ -1570,14 +1570,17 @@ func CreateDummyTaskRuns(count int) {
 }
 
 // todox: eventually remove
-func CreateDummyTestTrigger(id, name, schedule string) {
-	taskTriggerList = append(taskTriggerList,
-		TriggerResponse{
-			ID:       id,
-			Name:     name,
-			Type:     "test",
-			Schedule: schedule,
-			Detail:   "test", Resources: []TriggerResource{{ID: uuid.New().String(), Resource: "test", Variant: "v1", LastRun: time.Now()}}})
+func CreateDummyTestTrigger(id, name, schedule string, addResource bool) {
+	newTrigger := TriggerResponse{
+		ID:       id,
+		Name:     name,
+		Type:     "test",
+		Schedule: schedule,
+		Detail:   "test"}
+	if addResource {
+		newTrigger.Resources = []TriggerResource{{ID: uuid.New().String(), Resource: "test", Variant: "v1", LastRun: time.Now()}}
+	}
+	taskTriggerList = append(taskTriggerList, newTrigger)
 }
 
 func createTaskRun(id int, status sc.Status, timeParam time.Time) sc.TaskRunMetadata {

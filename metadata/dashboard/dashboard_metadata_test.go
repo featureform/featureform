@@ -547,7 +547,7 @@ func TestGetTriggerDetail(t *testing.T) {
 		logger: logger,
 	}
 
-	CreateDummyTestTrigger(id, name, schedule)
+	CreateDummyTestTrigger(id, name, schedule, true)
 	serv.GetTriggerDetails(ctx)
 
 	var data TriggerDetailResponse
@@ -586,4 +586,62 @@ func TestGetTriggerDetailBadBind(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, mockRecorder.Code)
 	assert.Equal(t, "Error 400: Failed to fetch GetTriggerDetails - Could not find the triggerId parameter", data)
 
+}
+
+func TestDeleteTrigger(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	var id, name, schedule string = "1", "testName", "testSchedule"
+	params := []gin.Param{
+		{
+			Key:   "triggerId",
+			Value: id,
+		},
+	}
+	MockJsonGet(ctx, params)
+
+	logger := zap.NewExample().Sugar()
+	client := &metadata.Client{}
+	serv := MetadataServer{
+		client: client,
+		logger: logger,
+	}
+
+	CreateDummyTestTrigger(id, name, schedule, false)
+	serv.DeleteTrigger(ctx)
+
+	var data bool
+	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
+
+	assert.Equal(t, http.StatusOK, mockRecorder.Code)
+	assert.Equal(t, true, data)
+}
+
+func TestDeleteTriggerResourceValidation(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	var id, name, schedule string = "1", "testName", "testSchedule"
+	params := []gin.Param{
+		{
+			Key:   "triggerId",
+			Value: id,
+		},
+	}
+	MockJsonGet(ctx, params)
+
+	logger := zap.NewExample().Sugar()
+	client := &metadata.Client{}
+	serv := MetadataServer{
+		client: client,
+		logger: logger,
+	}
+
+	CreateDummyTestTrigger(id, name, schedule, true)
+	serv.DeleteTrigger(ctx)
+
+	var data string
+	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
+
+	assert.Equal(t, http.StatusBadRequest, mockRecorder.Code)
+	assert.Equal(t, "Error 400: Failed to fetch DeleteTrigger - Cannot delete trigger with resource items", data)
 }

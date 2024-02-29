@@ -110,6 +110,7 @@ func (m *MemoryStorageProvider) Delete(key string, lock LockObject) error {
 
 	m.storage.Delete(key)
 	m.lockedItems.Delete(key)
+	closeOnce(*lock.Channel)
 	return nil
 }
 
@@ -131,7 +132,6 @@ func (m *MemoryStorageProvider) Lock(key string) (LockObject, error) {
 	}
 
 	lockChannel := make(chan error)
-	go m.updateLockTime(id, key, lockChannel)
 	lockObject := LockObject{ID: id, Channel: &lockChannel}
 
 	lock := LockInformation{
@@ -140,6 +140,8 @@ func (m *MemoryStorageProvider) Lock(key string) (LockObject, error) {
 		Date: time.Now().UTC(),
 	}
 	m.lockedItems.Store(key, lock)
+
+	go m.updateLockTime(id, key, lockChannel)
 
 	return lockObject, nil
 }
@@ -152,15 +154,26 @@ func (m *MemoryStorageProvider) Unlock(key string, lock LockObject) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	if lockInfo, ok := m.lockedItems.Load(key); ok {
-		keyLock := lockInfo.(LockInformation)
-		if keyLock.ID != lock.ID {
-			return fmt.Errorf("key is locked by another id: locked by: %s, unlock  by: %s", keyLock.ID, lock.ID)
-		}
-		m.lockedItems.Delete(key)
-		return nil
+	lockInfo, ok := m.lockedItems.Load(key)
+	if !ok {
+		return fmt.Errorf("key is not locked")
 	}
-	return fmt.Errorf("key is not locked")
+
+	keyLock := lockInfo.(LockInformation)
+	if keyLock.ID != lock.ID {
+		return fmt.Errorf("key is locked by another id: locked by: %s, unlock  by: %s", keyLock.ID, lock.ID)
+	}
+	m.lockedItems.Delete(key)
+	closeOnce(*lock.Channel)
+
+	return nil
+}
+
+func closeOnce(ch chan error) {
+	var once sync.Once
+	once.Do(func() {
+		close(ch)
+	})
 }
 
 func (m *MemoryStorageProvider) updateLockTime(id string, key string, lockChannel chan error) {
@@ -171,9 +184,7 @@ func (m *MemoryStorageProvider) updateLockTime(id string, key string, lockChanne
 		select {
 		case <-lockChannel:
 			// Received signal to stop
-			if lockChannel != nil {
-				return
-			}
+			return
 		case <-ticker.C:
 			m.mutex.Lock()
 			// Continue updating lock time

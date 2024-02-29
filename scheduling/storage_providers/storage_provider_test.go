@@ -380,6 +380,15 @@ func StressTestLockAndUnlock(t *testing.T, provider StorageProvider) {
 	}
 	wg.Wait()
 
+	lock, err := provider.Lock(key)
+	if err != nil {
+		t.Fatalf("Lock for deletion failed: %v", err)
+	}
+	err = provider.Delete(key, lock)
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+
 	if errorCount > 0 {
 		t.Fatalf("race condition detected! %d threads failed to unlock the key", errorCount)
 	}

@@ -153,9 +153,7 @@ func (etcd *ETCDStorageProvider) Delete(key string, lock LockObject) error {
 	}
 
 	// close the lock channel
-	if lock.Channel != nil {
-		close(*lock.Channel)
-	}
+	closeOnce(*lock.Channel)
 	return nil
 }
 
@@ -233,9 +231,7 @@ func (etcd *ETCDStorageProvider) Unlock(key string, lock LockObject) error {
 	}
 
 	// Close the lock channel
-	if lock.Channel != nil {
-		close(*lock.Channel)
-	}
+	closeOnce(*lock.Channel)
 
 	return nil
 }
@@ -269,7 +265,6 @@ func (etcd *ETCDStorageProvider) updateLockTime(id string, key string, lockChann
 			lockInfo, err := etcd.getLockedItem(key)
 			if err != nil {
 				// Key no longer exists, stop updating
-				close(lockChannel)
 				return
 			}
 
@@ -278,12 +273,10 @@ func (etcd *ETCDStorageProvider) updateLockTime(id string, key string, lockChann
 				lockInfo.Date = time.Now().UTC()
 				data, err := lockInfo.Marshal()
 				if err != nil {
-					close(lockChannel)
 					return
 				}
 
 				if _, err := etcd.client.Put(etcd.ctx, key, string(data)); err != nil {
-					close(lockChannel)
 					return
 				}
 			}

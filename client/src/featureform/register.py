@@ -71,6 +71,7 @@ from .resources import (
     OnDemandFeatureVariant,
     WeaviateConfig,
     ResourceVariant,
+    TriggerResource,
 )
 from .search import search
 from .status_display import display_statuses
@@ -1083,6 +1084,7 @@ class ColumnResource(ABC):
         properties: Dict[str, str],
         inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
         variant: str = "",
+        trigger: TriggerResource = None,
     ):
         registrar, source_name_variant, columns = transformation_args
         self.type = type if isinstance(type, str) else type.value
@@ -1107,6 +1109,7 @@ class ColumnResource(ABC):
         self.tags = tags
         self.properties = properties
         self.variant = variant
+        self.trigger = trigger
 
     def register(self):
         features, labels = self.features_and_labels()
@@ -1137,6 +1140,7 @@ class ColumnResource(ABC):
             }
         ]
         if self.resource_type == "feature":
+            resources[0]["trigger"] = self.trigger
             features = resources
             labels = []
         elif self.resource_type == "label":
@@ -1187,6 +1191,7 @@ class FeatureColumnResource(ColumnResource):
         schedule: str = "",
         tags: Optional[List[str]] = None,
         properties: Optional[Dict[str, str]] = None,
+        trigger: TriggerResource = None,
     ):
         """
         Feature registration object.
@@ -1223,6 +1228,7 @@ class FeatureColumnResource(ColumnResource):
             schedule=schedule,
             tags=tags,
             properties=properties,
+            trigger=trigger,
         )
 
 
@@ -3678,7 +3684,6 @@ class Registrar:
             raise ValueError("Trigger name must be a string")
         if trigger_name == "":
             raise ValueError("Trigger name cannot be empty")
-        # Check trigger type
         trigger = TriggerResource(trigger_name, trigger_type)
         self.__resources.append(trigger)
         return trigger
@@ -3883,6 +3888,7 @@ class Registrar:
                 tags=feature_tags,
                 properties=feature_properties,
                 additional_parameters=additional_Parameters,
+                trigger=feature.get("trigger", None),
             )
             self.__resources.append(resource)
             self.map_client_object_to_resource(client_object, resource)

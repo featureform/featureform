@@ -10,6 +10,7 @@ from .register import (
 )
 from .serving import ServingClient
 from .enums import ResourceType
+from featureform.proto import metadata_pb2
 
 
 class Client(ResourceClient, ServingClient):
@@ -20,6 +21,7 @@ class Client(ResourceClient, ServingClient):
     ```py title="definitions.py"
     import featureform as ff
     from featureform import Client
+from featureform.client.src.featureform import metadata_pb2
 
     client = Client()
 
@@ -188,7 +190,8 @@ class Client(ResourceClient, ServingClient):
         """
         self.impl.close()
 
-    def add_trigger(self, trigger_name, resource_name, resource_variant):
+# for now resource is a resource object
+    def add_trigger(self, trigger, resource):
         """
         Add a trigger to a resource after creation
 
@@ -202,10 +205,19 @@ class Client(ResourceClient, ServingClient):
             resource_name (str): The name of the resource
             resource_variant (str): The variant of the resource
         """
-        self.impl.add_trigger(trigger_name, resource_name, resource_variant)
-        # raise NotImplementedError("This method is not yet implemented")
+        req = metadata_pb2.TriggerRequest()
+        trigger_req = metadata_pb2.Trigger()
+        trigger_req.name = trigger.name
+        req.trigger.CopyFrom(trigger_req)
+        resource_req = metadata_pb2.ResourceID()
+        resource_req.resource.name = resource.name
+        resource_req.resource.variant = resource.variant
+        resource_req.resource_type = metadata_pb2.ResourceType.FEATURE_VARIANT
+        req.resource.CopyFrom(resource_req)
+
+        self._stub.AddTrigger(req)
     
-    def remove_trigger(self, trigger_name, resource_name, resource_variant):
+    def remove_trigger(self, trigger, resource_object):
         """
         Remove a trigger from a resource
 
@@ -219,23 +231,40 @@ class Client(ResourceClient, ServingClient):
             resource_name (str): The name of the resource
             resource_variant (str): The variant of the resource
         """
-        # self.impl.remove_trigger(trigger_name, resource_name, resource_variant)
-        raise NotImplementedError("This method is not yet implemented")
+        req = metadata_pb2.TriggerRequest()
+        trigger_req = metadata_pb2.Trigger()
+        trigger_req.name = trigger.name
+        req.trigger.CopyFrom(trigger_req)
+        resource_req = metadata_pb2.ResourceID()
+        resource_req.resource.name = resource_object.name
+        resource_req.resource.variant = resource_object.variant
+        resource_req.resource_type = metadata_pb2.ResourceType.FEATURE_VARIANT
+        req.resource.CopyFrom(resource_req)
+        
+        self._stub.RemoveTrigger(req)
     
-    def update_trigger(self, trigger_name, schedule):
+    def update_trigger(self, trigger, schedule):
         """
         Update a trigger
         """
-        # self.impl.update_trigger(trigger_name, schedule)
-        raise NotImplementedError("This method is not yet implemented")
+        req = metadata_pb2.Trigger()
+        req.name = trigger.name
+        schedule_req = metadata_pb2.ScheduleTrigger()
+        schedule_req.schedule = schedule
+        req.schedule_trigger.CopyFrom(schedule_req)
+
+        self._stub.UpdateTrigger(req)
     
     def delete_trigger(self, trigger_name):
         """
         Delete a trigger
         """
-        # self.impl.delete_trigger(trigger_name)
-        raise NotImplementedError("This method is not yet implemented")
+        # TODO: Make sure that if there is a resource which uses this trigger, you call delete trigger first
+        req = metadata_pb2.Trigger()
+        req.name = trigger_name
 
+        self._stub.DeleteTrigger(req)
+        # self.impl.delete_trigger(trigger_name)
 
 
     @staticmethod

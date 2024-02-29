@@ -1,4 +1,3 @@
-import featureform.resources
 from typing import Union, Optional
 
 from .constants import NO_RECORD_LIMIT
@@ -157,10 +156,6 @@ class Client(ResourceClient, ServingClient):
         if isinstance(source, (SourceRegistrar, SubscriptableTransformation)):
             name, variant = source.name_variant()
             resource_type = ResourceType.SOURCE
-        elif isinstance(source, featureform.resources.TrainingSetVariant):
-            name = source.name
-            variant = source.variant
-            resource_type = ResourceType.TRAINING_SET
         elif isinstance(source, str):
             name = source
             if variant is None:

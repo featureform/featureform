@@ -7,6 +7,8 @@ from .register import (
     SourceRegistrar,
     SubscriptableTransformation,
     FeatureColumnResource,
+    TriggerResource,
+    TrainingSetVariant,
 )
 from .serving import ServingClient
 from .enums import ResourceType
@@ -190,81 +192,133 @@ from featureform.client.src.featureform import metadata_pb2
         """
         self.impl.close()
 
-# for now resource is a resource object
     def add_trigger(self, trigger, resource):
         """
-        Add a trigger to a resource after creation
+        Add a trigger to a resource
 
         **Example:**
         ```py title="definitions.py"
-        client.add_trigger("my_trigger", "my_resource", "my_variant")
+        client.add_trigger("trigger_name", ("resource_name", "resource_variant, resource_type"))
         ```
 
         Args:
-            trigger_name (str): The name of the trigger
-            resource_name (str): The name of the resource
-            resource_variant (str): The variant of the resource
+            trigger(Union[str, TriggerResource]): The name of the trigger
+            resource(Union[tuple, FeatureColumnResource, TrainingSetVariant]): The name, variant and type of the resource
         """
         req = metadata_pb2.TriggerRequest()
+
         trigger_req = metadata_pb2.Trigger()
-        trigger_req.name = trigger.name
+        if isinstance(trigger, str):
+            trigger_req.name = trigger
+        elif isinstance(trigger, TriggerResource):
+            trigger_req.name = trigger.name
+        else:
+            raise ValueError("Invalid trigger type")
         req.trigger.CopyFrom(trigger_req)
+
         resource_req = metadata_pb2.ResourceID()
-        resource_req.resource.name = resource.name
-        resource_req.resource.variant = resource.variant
-        resource_req.resource_type = metadata_pb2.ResourceType.FEATURE_VARIANT
+        if isinstance(resource, tuple):
+            resource_req.resource.name = resource[0]
+            resource_req.resource.variant = resource[1]
+            # TODO: Need to convert this to a real resource type
+            resource_req.resource_type = resource[2]
+        elif isinstance(resource, Union[FeatureColumnResource, TrainingSetVariant]):
+            resource_req.resource.name = resource.name
+            resource_req.resource.variant = resource.variant
+            resource_req.resource_type = resource.resource_type
+        else:
+            raise ValueError("Invalid resource type")
         req.resource.CopyFrom(resource_req)
 
         self._stub.AddTrigger(req)
     
-    def remove_trigger(self, trigger, resource_object):
+    def remove_trigger(self, trigger, resource):
         """
         Remove a trigger from a resource
 
         **Example:**
         ```py title="definitions.py"
-        client.remove_trigger("my_trigger", "my_resource", "my_variant")
+        client.remove_trigger("trigger_name", ("resource_name", "resource_variant, resource_type"))
         ```
 
         Args:
-            trigger_name (str): The name of the trigger
-            resource_name (str): The name of the resource
-            resource_variant (str): The variant of the resource
+            trigger(Union[str, TriggerResource]): The name of the trigger
+            resource(Union[tuple, FeatureColumnResource, TrainingSetVariant]): The name, variant and type of the resource
         """
         req = metadata_pb2.TriggerRequest()
+
         trigger_req = metadata_pb2.Trigger()
-        trigger_req.name = trigger.name
+        if isinstance(trigger, str):
+            trigger_req.name = trigger
+        elif isinstance(trigger, TriggerResource):
+            trigger_req.name = trigger.name
+        else:
+            raise ValueError("Invalid trigger type")
         req.trigger.CopyFrom(trigger_req)
+
         resource_req = metadata_pb2.ResourceID()
-        resource_req.resource.name = resource_object.name
-        resource_req.resource.variant = resource_object.variant
-        resource_req.resource_type = metadata_pb2.ResourceType.FEATURE_VARIANT
+        if isinstance(resource, tuple):
+            resource_req.resource.name = resource[0]
+            resource_req.resource.variant = resource[1]
+            # TODO: Need to convert this to a real resource type
+            resource_req.resource_type = resource[2]
+        elif isinstance(resource, Union[FeatureColumnResource, TrainingSetVariant]):
+            resource_req.resource.name = resource.name
+            resource_req.resource.variant = resource.variant
+            resource_req.resource_type = resource.resource_type
+        else:
+            raise ValueError("Invalid resource type")
         req.resource.CopyFrom(resource_req)
         
         self._stub.RemoveTrigger(req)
     
     def update_trigger(self, trigger, schedule):
         """
-        Update a trigger
+        Update the schedule of the trigger
+
+        **Example:**
+        ```py title="definitions.py"
+        client.update_trigger("trigger_name", schedule)
+        ```
+
+        Args:
+            trigger_name (Union[str, TriggerResource]): The name of the trigger
+            TODO: schedule (str): The new schedule for the trigger
         """
         req = metadata_pb2.Trigger()
-        req.name = trigger.name
+        if isinstance(trigger, str):
+            req.name = trigger
+        elif isinstance(trigger, TriggerResource):
+            req.name = trigger.name
+        else:
+            raise ValueError("Invalid trigger type")
         schedule_req = metadata_pb2.ScheduleTrigger()
         schedule_req.schedule = schedule
         req.schedule_trigger.CopyFrom(schedule_req)
 
         self._stub.UpdateTrigger(req)
     
-    def delete_trigger(self, trigger_name):
+    def delete_trigger(self, trigger):
         """
-        Delete a trigger
-        """
-        # TODO: Make sure that if there is a resource which uses this trigger, you call delete trigger first
-        req = metadata_pb2.Trigger()
-        req.name = trigger_name
+        Delete a trigger from the storage provider
 
+        **Example:**
+        ```py title="definitions.py"
+        client.delete_trigger("trigger_name")
+        ```
+
+        Args:
+            trigger_name (Union[str, TriggerResource]): The name of the trigger
+        """
+        req = metadata_pb2.Trigger()
+        if isinstance(trigger, str):
+            req.name = trigger
+        elif isinstance(trigger, TriggerResource):
+            req.name = trigger.name
+        else:
+            raise ValueError("Invalid trigger type")
+        # TODO: Make sure that if there is a resource which uses this trigger, you call delete trigger first
         self._stub.DeleteTrigger(req)
-        # self.impl.delete_trigger(trigger_name)
 
 
     @staticmethod

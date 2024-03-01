@@ -36,6 +36,22 @@ describe('Trigger table data wrapper tests', () => {
   const DETAIL_OWNER_ID = 'detailOwnerId';
   const DELETE_TRIGGER_BTN_ID = 'deleteTriggerBtnId';
 
+  // this is just a little hack to silence a warning that we'll get until we
+  // upgrade to 16.9. See also: https://github.com/facebook/react/pull/14853
+  const originalError = console.error;
+  beforeAll(() => {
+    console.error = (...args) => {
+      if (/Warning.*not wrapped in act/.test(args[0])) {
+        return;
+      }
+      originalError.call(console, ...args);
+    };
+  });
+
+  afterAll(() => {
+    console.error = originalError;
+  });
+
   const getTestBody = () => {
     return (
       <>
@@ -47,7 +63,7 @@ describe('Trigger table data wrapper tests', () => {
   };
 
   afterEach(() => {
-    jest.resetAllMocks();
+    jest.clearAllMocks();
     cleanup();
   });
 
@@ -71,13 +87,12 @@ describe('Trigger table data wrapper tests', () => {
     //given:
     const searchTerm = 'trigger search';
     const helper = render(getTestBody());
+    const test_data = { ...triggerResponse };
 
     //when: the user types and hits enter
     const foundSearchInput = await helper.findByTestId(SEARCH_INPUT_ID);
     await userEvent.type(foundSearchInput, `${searchTerm}${USER_EVENT_ENTER}`);
     await helper.findByTestId(SEARCH_INPUT_ID);
-
-    await helper.findByTestId(NEW_TRIGGER_BTN_ID);
 
     //then: the api is invoked
     expect(dataAPIMock.getTriggers).toHaveBeenCalledTimes(2);
@@ -163,7 +178,7 @@ describe('Trigger table data wrapper tests', () => {
     });
   });
 
-  test('The trigger detail renders OK', async () => {
+  test('The trigger detail renders OK with resources', async () => {
     //given:
     const helper = render(getTestBody());
     const test_data = { ...triggerResponse };
@@ -188,5 +203,36 @@ describe('Trigger table data wrapper tests', () => {
     expect(foundOwner.nodeName).toBe(P_NODE);
     expect(disabledDelete.textContent).toBe('Delete Trigger');
     expect(disabledDelete).toBeDisabled();
+  });
+
+  test('The trigger detail renders OK without resources', async () => {
+    //given:
+    const helper = render(getTestBody());
+    const test_data = { ...triggerDetail };
+    test_data.resources = [];
+    dataAPIMock.getTriggerDetails = jest.fn().mockResolvedValue(test_data);
+
+    //and: details is invoked
+    const foundRecord1 = await helper.findByText(test_data.trigger.name);
+    fireEvent.click(foundRecord1);
+
+    //when: the details load, and delete is disabled
+    const foundType = await helper.findByTestId(DETAIL_TYPE_ID);
+    const foundSchedule = await helper.findByTestId(DETAIL_SCHEDULE_ID);
+    const foundOwner = await helper.findByTestId(DETAIL_OWNER_ID);
+    const deleteBtn = helper.getByTestId(DELETE_TRIGGER_BTN_ID);
+
+    //expect:
+    expect(dataAPIMock.getTriggers).toHaveBeenCalledTimes(1);
+    expect(dataAPIMock.getTriggers).toHaveBeenCalledWith('');
+    expect(dataAPIMock.getTriggerDetails).toHaveBeenCalledTimes(1);
+    expect(dataAPIMock.getTriggerDetails).toHaveBeenCalledWith(
+      test_data.trigger.id
+    );
+    expect(foundType.nodeName).toBe(P_NODE);
+    expect(foundSchedule.nodeName).toBe(P_NODE);
+    expect(foundOwner.nodeName).toBe(P_NODE);
+    expect(deleteBtn.textContent).toBe('Delete Trigger');
+    expect(deleteBtn).toBeEnabled();
   });
 });

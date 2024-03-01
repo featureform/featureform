@@ -32,8 +32,8 @@ export default function TableDataWrapper() {
       } else {
         setTriggerList([]);
       }
+      setLoading(false);
     }
-    setLoading(false);
   }, [loading]);
 
   const handleSearch = (searchArg = '') => {

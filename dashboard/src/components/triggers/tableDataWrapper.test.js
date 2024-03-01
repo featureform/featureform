@@ -6,12 +6,18 @@ import React from 'react';
 import TEST_THEME from '../../styles/theme';
 import TableDataWrapper from './tableDataWrapper';
 import { triggerDetail, triggerResponse } from './test_data';
-import { CONFIRM_DELETE, DELETE_FINAL, DELETE_WARNING } from './triggerDetail';
+import {
+  CONFIRM_DELETE,
+  DELETE_FINAL,
+  DELETE_WARNING,
+  PRE_DELETE,
+} from './triggerDetail';
 
 const dataAPIMock = {
   getTriggers: jest.fn().mockResolvedValue(triggerResponse),
   postTrigger: jest.fn(),
   getTriggerDetails: jest.fn().mockResolvedValue(triggerDetail),
+  deleteTrigger: jest.fn().mockResolvedValue(true),
 };
 
 jest.mock('../../hooks/dataAPI', () => ({
@@ -212,8 +218,7 @@ describe('Trigger table data wrapper tests', () => {
   test('The trigger detail renders OK without resources', async () => {
     //given:
     const helper = render(getTestBody());
-    const test_data = { ...triggerDetail };
-    test_data.resources = [];
+    const test_data = { ...triggerDetail, resources: [] };
     dataAPIMock.getTriggerDetails = jest.fn().mockResolvedValue(test_data);
 
     //and: details is invoked
@@ -294,5 +299,37 @@ describe('Trigger table data wrapper tests', () => {
     expect(deleteBtn.textContent).toBe(CONFIRM_DELETE);
     expect(foundWarning.textContent).toBe(DELETE_FINAL);
     expect(deleteBtn).toBeEnabled();
+  });
+
+  test('Confirming delete twice, sends the trigger delete request', async () => {
+    //given:
+    const helper = render(getTestBody());
+    const test_data = { ...triggerDetail, resources: [] }; //remove resources
+    dataAPIMock.getTriggerDetails = jest.fn().mockResolvedValue(test_data);
+    await helper.findByText(test_data.trigger.name);
+
+    //and: we open the details window
+    const foundRecord1 = await helper.findByText(test_data.trigger.name);
+    fireEvent.click(foundRecord1);
+
+    //and: we click delete once
+    const deleteBtn = await helper.findByTestId(DELETE_TRIGGER_BTN_ID);
+    expect(deleteBtn.textContent).toBe(PRE_DELETE);
+    fireEvent.click(deleteBtn);
+
+    //when: a final warning displays, we confirm the delete by clicking again
+    expect(deleteBtn.textContent).toBe(CONFIRM_DELETE);
+    await helper.findByTestId(DELETE_FINAL_ID);
+    fireEvent.click(deleteBtn);
+
+    //expect: the delete goes through
+    expect(dataAPIMock.getTriggerDetails).toHaveBeenCalledTimes(1);
+    expect(dataAPIMock.getTriggerDetails).toHaveBeenCalledWith(
+      test_data.trigger.id
+    );
+    expect(dataAPIMock.deleteTrigger).toHaveBeenCalledTimes(1);
+    expect(dataAPIMock.deleteTrigger).toHaveBeenCalledWith(
+      test_data.trigger.id
+    );
   });
 });

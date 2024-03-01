@@ -97,7 +97,6 @@ describe('Trigger table data wrapper tests', () => {
     //given:
     const searchTerm = 'trigger search';
     const helper = render(getTestBody());
-    const test_data = { ...triggerResponse };
 
     //when: the user types and hits enter
     const foundSearchInput = await helper.findByTestId(SEARCH_INPUT_ID);

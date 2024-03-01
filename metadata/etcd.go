@@ -155,6 +155,21 @@ func createKey(id ResourceID) string {
 	return fmt.Sprintf("%s__%s__%s", id.Type, id.Name, id.Variant)
 }
 
+// Deletes a key from ETCD
+func (s EtcdStorage) Delete(key string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	defer cancel()
+	numDeleted, err := s.Client.Delete(ctx, key)
+	if err != nil {
+		return err
+	}
+	if numDeleted.Deleted == 0 {
+		return KeyNotFoundError{key}
+	}
+
+	return nil
+}
+
 // Puts K/V into ETCD
 func (s EtcdStorage) Put(key string, value string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
@@ -504,6 +519,15 @@ func (lookup EtcdResourceLookup) SetStatus(id ResourceID, status pb.ResourceStat
 	}
 	if err := lookup.Set(id, res); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("could not set ID: %v", id))
+	}
+	return nil
+}
+
+func (lookup EtcdResourceLookup) Delete(id ResourceID) error {
+	key := createKey(id)
+	err := lookup.Connection.Delete(key)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("could not delete ID: %v", id))
 	}
 	return nil
 }

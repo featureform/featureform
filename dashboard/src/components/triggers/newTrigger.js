@@ -45,9 +45,11 @@ export default function NewTrigger({ handleClose }) {
 
     //check cron validation
     if (formValues['schedule']) {
-      const isCronValid = cron.isValidCron(formValues['schedule']);
+      const isCronValid = cron.isValidCron(formValues['schedule'], {
+        alias: true,
+      });
       if (!isCronValid) {
-        errorObj['schedule'] = 'Cron string is invalid.';
+        errorObj['schedule'] = 'Cron expression is invalid.';
       }
     }
 

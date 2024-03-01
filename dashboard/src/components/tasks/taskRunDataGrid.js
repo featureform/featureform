@@ -9,7 +9,8 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
   const [content, setContent] = useState({});
 
   const handleRowSelect = (selectedRow) => {
-    let foundTaskRun = taskRunList?.find((q) => q.id === selectedRow.row.id);
+    let foundTaskRun = taskRunList?.find((q) => q.rowId === selectedRow.row.rowId && q.taskId === selectedRow.row.taskId);
+    console.log(foundTaskRun)
     setContent(foundTaskRun ?? {});
     setOpen((prev) => content !== selectedRow.row.name || !prev);
   };
@@ -21,7 +22,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
   const columns = [
     {
       field: 'id',
-      headerName: 'Run Id',
+      headerName: 'UUID',
       width: 100,
       editable: false,
       sortable: false,
@@ -29,17 +30,43 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
       hide: true,
     },
     {
-      field: 'name',
-      headerName: 'Job Name',
+      field: 'taskId',
+      headerName: 'Task ID',
+      width: 100,
+      editable: false,
+      sortable: false,
+      filterable: false,
+      hide: false,
+    },
+    {
+      field: 'runId',
+      headerName: 'Run ID',
+      width: 100,
+      editable: false,
+      sortable: false,
+      filterable: false,
+      hide: false,
+    },
+    {
+      field: 'type',
+      headerName: 'Task Type',
+      width: 150,
+      editable: false,
+      sortable: false,
+      filterable: false,
+    },
+    {
+      field: 'resourceName',
+      headerName: 'Resource Name',
       width: 200,
       editable: false,
       sortable: false,
       filterable: false,
     },
     {
-      field: 'type',
-      headerName: 'Job Type',
-      width: 150,
+      field: 'resourceVariant',
+      headerName: 'Resource Variant',
+      width: 200,
       editable: false,
       sortable: false,
       filterable: false,
@@ -47,14 +74,6 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
     {
       field: 'provider',
       headerName: 'Provider',
-      width: 200,
-      editable: false,
-      sortable: false,
-      filterable: false,
-    },
-    {
-      field: 'resource',
-      headerName: 'Resource',
       width: 200,
       editable: false,
       sortable: false,
@@ -106,8 +125,9 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
           horizontal: 'right',
         }}
       >
-        <TaskRunCard handleClose={handleClose} searchId={content?.id ?? ''} />
+        <TaskRunCard handleClose={handleClose} taskId={content.taskId} taskRunId={content.runId} />
       </Popover>
+      {console.log(taskRunList)}
       <DataGrid
         sx={{ minWidth: 300, height: 650 }}
         onRowClick={handleRowSelect}

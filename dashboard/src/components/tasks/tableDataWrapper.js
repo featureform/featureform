@@ -259,7 +259,7 @@ export default function TableDataWrapper() {
           </IconButton>
         </Box>
       </Box>
-      <TaskRunDataGrid taskRunList={taskRunList} />
+      <TaskRunDataGrid taskID={'1'} taskRunList={taskRunList} />
     </>
   );
 }

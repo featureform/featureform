@@ -10,8 +10,8 @@ type TaskID int32 // need to determine how we want to create IDs
 type TaskType string
 
 const (
-	ResourceCreation TaskType = "ResourceCreation"
-	HealthCheck      TaskType = "HealthCheck"
+	ResourceCreation TaskType = "Resource Creation"
+	HealthCheck      TaskType = "Health Check"
 	Monitoring       TaskType = "Monitoring"
 )
 

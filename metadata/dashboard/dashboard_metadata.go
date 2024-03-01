@@ -2,12 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package main
+package dashboard_metadata
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/featureform/scheduling"
+	sp "github.com/featureform/scheduling/storage_providers"
 	"net/http"
 	"reflect"
 	"slices"
@@ -74,20 +76,19 @@ type MetadataServer struct {
 	lookup          metadata.ResourceLookup
 	client          *metadata.Client
 	logger          *zap.SugaredLogger
-	StorageProvider StorageProvider
+	StorageProvider sp.StorageProvider
+	TaskManager     scheduling.TaskManager
 }
 
-func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client, storageProvider *metadata.EtcdStorageProvider) (*MetadataServer, error) {
+func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client, storageProvider sp.StorageProvider) (*MetadataServer, error) {
 	logger.Debug("Creating new metadata server")
-	lookup, err := storageProvider.GetResourceLookup()
-	if err != nil {
-		return nil, fmt.Errorf("could not configure storage provider: %v", err)
-	}
+
 	return &MetadataServer{
 		client:          client,
 		logger:          logger,
 		StorageProvider: storageProvider,
-		lookup:          lookup,
+		lookup:          metadata.MemoryResourceLookup{Connection: storageProvider},
+		TaskManager:     scheduling.NewTaskManager(storageProvider),
 	}, nil
 }
 
@@ -277,7 +278,12 @@ func trainingSetShallowMap(variant *metadata.TrainingSetVariant) metadata.Traini
 	}
 }
 
-func sourceShallowMap(variant *metadata.SourceVariant) metadata.SourceVariantResource {
+func (m *MetadataServer) sourceShallowMap(variant *metadata.SourceVariant) (metadata.SourceVariantResource, error) {
+	taskRun, err := m.TaskManager.GetLatestRun(variant.TaskID())
+	if err != nil {
+		return metadata.SourceVariantResource{}, err
+	}
+
 	return metadata.SourceVariantResource{
 		Name:           variant.Name(),
 		Variant:        variant.Variant(),
@@ -286,16 +292,16 @@ func sourceShallowMap(variant *metadata.SourceVariant) metadata.SourceVariantRes
 		Description:    variant.Description(),
 		Provider:       variant.Provider(),
 		Created:        variant.Created(),
-		Status:         variant.Status().String(),
+		Status:         taskRun.Status.String(),
 		LastUpdated:    variant.LastUpdated(),
 		Schedule:       variant.Schedule(),
 		Tags:           variant.Tags(),
 		SourceType:     getSourceType(variant),
 		Properties:     variant.Properties(),
-		Error:          variant.Error(),
+		Error:          taskRun.Error,
 		Specifications: getSourceArgs(variant),
 		Inputs:         getInputs(variant),
-	}
+	}, nil
 }
 
 func getInputs(variant *metadata.SourceVariant) []metadata.NameVariant {
@@ -390,7 +396,11 @@ func (m *MetadataServer) getSources(nameVariants []metadata.NameVariant) (map[st
 		if _, has := sourceMap[variant.Name()]; !has {
 			sourceMap[variant.Name()] = []metadata.SourceVariantResource{}
 		}
-		sourceMap[variant.Name()] = append(sourceMap[variant.Name()], sourceShallowMap(variant))
+		smap, err := m.sourceShallowMap(variant)
+		if err != nil {
+			return nil, err
+		}
+		sourceMap[variant.Name()] = append(sourceMap[variant.Name()], smap)
 	}
 	return sourceMap, nil
 }
@@ -455,7 +465,12 @@ func (m *MetadataServer) readFromSource(source *metadata.Source, deepCopy bool) 
 	}
 	for _, variant := range variants {
 
-		sourceResource := sourceShallowMap(variant)
+		sourceResource, err := m.sourceShallowMap(variant)
+		if err != nil {
+			fetchError := &FetchError{StatusCode: 500, Type: "source variants"}
+			m.logger.Errorw(fetchError.Error(), "Internal Error", err)
+			return nil, fetchError
+		}
 		if deepCopy {
 			fetchGroup := new(errgroup.Group)
 			fetchGroup.Go(func() error {
@@ -1557,16 +1572,16 @@ func createTaskRun(id int, status string, lastRunTime time.Time) TaskRunResponse
 	foundTaskDef := taskDefinitionStaticList[rand.Intn(len(taskDefinitionStaticList))]
 
 	return TaskRunResponse{
-		ID:          strconv.Itoa(id),
-		TaskID:      foundTaskDef.ID,
-		Name:        foundTaskDef.Name,
-		Type:        foundTaskDef.Type,
-		Provider:    foundTaskDef.Provider,
-		Resource:    foundTaskDef.Resource,
-		Variant:     foundTaskDef.Variant,
-		Status:      status,
-		LastRunTime: lastRunTime,
-		TriggeredBy: "On Apply",
+		ID:              id,
+		TaskID:          foundTaskDef.ID,
+		Name:            foundTaskDef.Name,
+		Type:            foundTaskDef.Type,
+		Provider:        foundTaskDef.Provider,
+		ResourceName:    foundTaskDef.Resource,
+		ResourceVariant: foundTaskDef.Variant,
+		Status:          status,
+		LastRunTime:     lastRunTime,
+		TriggeredBy:     "On Apply",
 	}
 }
 
@@ -1579,8 +1594,8 @@ func filter[T any](ss []T, test func(T) bool) (ret []T) {
 	return ret
 }
 
-func mockTaskRunFind(taskId string) TaskRunResponse {
-	result := TaskRunResponse{ID: "-1"}
+func mockTaskRunFind(taskId int) TaskRunResponse {
+	result := TaskRunResponse{ID: -1}
 	for _, n := range taskRunStaticList {
 		if n.ID == taskId {
 			result = n
@@ -1599,16 +1614,17 @@ type TaskDefinition struct {
 }
 
 type TaskRunResponse struct {
-	ID          string    `json:"id"`
-	TaskID      int       `json:"taskId"`
-	Name        string    `json:"name"`
-	Type        string    `json:"type"`
-	Provider    string    `json:"provider"`
-	Resource    string    `json:"resource"`
-	Variant     string    `json:"variant"`
-	Status      string    `json:"status"`
-	LastRunTime time.Time `json:"lastRunTime"`
-	TriggeredBy string    `json:"triggeredBy"`
+	UniqueID        string    `json:"id"`
+	ID              int       `json:"runId"`
+	TaskID          int       `json:"taskId"`
+	Name            string    `json:"name"`
+	Type            string    `json:"type"`
+	Provider        string    `json:"provider"`
+	ResourceName    string    `json:"resourceName"`
+	ResourceVariant string    `json:"resourceVariant"`
+	Status          string    `json:"status"`
+	LastRunTime     time.Time `json:"lastRunTime"`
+	TriggeredBy     string    `json:"triggeredBy"`
 }
 
 type TaskRunsPostBody struct {
@@ -1625,8 +1641,85 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 		return
 	}
 
-	taskListResponse := make([]TaskRunResponse, len(taskRunStaticList))
-	_ = copy(taskListResponse, taskRunStaticList)
+	runs, err := m.TaskManager.GetAllTaskRuns()
+	if err != nil {
+		fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Failed to fetch task runs")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	taskListResponse := make([]TaskRunResponse, 0)
+	for _, run := range runs {
+		task, err := m.TaskManager.GetTaskByID(run.TaskId)
+		if err != nil {
+			fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Failed to fetch task")
+			c.JSON(fetchError.StatusCode, fetchError.Error())
+			return
+		}
+
+		var name, variant, provider string
+		switch task.TargetType {
+		case scheduling.NameVariantTarget:
+			target := task.Target.(scheduling.NameVariant)
+			name = target.Name
+			variant = target.Variant
+
+			switch target.ResourceType {
+			case metadata.SOURCE_VARIANT.String():
+				res, err := m.client.GetSourceVariant(c, metadata.NameVariant{Name: target.Name, Variant: target.Variant})
+				if err != nil {
+					fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Failed to fetch task")
+					c.JSON(fetchError.StatusCode, fetchError.Error())
+					return
+				}
+				provider = res.Provider()
+			case metadata.FEATURE_VARIANT.String():
+				res, err := m.client.GetFeatureVariant(c, metadata.NameVariant{Name: target.Name, Variant: target.Variant})
+				if err != nil {
+					fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Failed to fetch task")
+					c.JSON(fetchError.StatusCode, fetchError.Error())
+					return
+				}
+				provider = res.Provider()
+			case metadata.LABEL_VARIANT.String():
+				res, err := m.client.GetLabelVariant(c, metadata.NameVariant{Name: target.Name, Variant: target.Variant})
+				if err != nil {
+					fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Failed to fetch task")
+					c.JSON(fetchError.StatusCode, fetchError.Error())
+					return
+				}
+				provider = res.Provider()
+			case metadata.TRAINING_SET_VARIANT.String():
+				res, err := m.client.GetTrainingSetVariant(c, metadata.NameVariant{Name: target.Name, Variant: target.Variant})
+				if err != nil {
+					fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Failed to fetch task")
+					c.JSON(fetchError.StatusCode, fetchError.Error())
+					return
+				}
+				provider = res.Provider()
+			default:
+				if err != nil {
+					fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Failed to fetch task")
+					c.JSON(fetchError.StatusCode, fetchError.Error())
+					return
+				}
+			}
+		}
+
+		taskListResponse = append(taskListResponse, TaskRunResponse{
+			UniqueID:        fmt.Sprintf("%d-%d", run.ID, run.TaskId),
+			ID:              int(run.ID),
+			TaskID:          int(run.TaskId),
+			Name:            run.Name,
+			Type:            string(task.TaskType),
+			Provider:        provider,
+			ResourceName:    name,
+			ResourceVariant: variant,
+			Status:          run.Status.String(),
+			LastRunTime:     run.StartTime,
+			TriggeredBy:     string(run.Trigger.Type()),
+		})
+	}
 
 	// status filter, break out
 	taskListResponse = filter(taskListResponse, func(t TaskRunResponse) bool {
@@ -1692,38 +1785,65 @@ type TaskRunDetailResponse struct {
 }
 
 func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
-	taskRunId := c.Param("taskRunId")
+	strTaskID := c.Param("taskId")
+	strTaskRunId := c.Param("taskRunId")
 
-	if taskRunId == "" {
+	if strTaskRunId == "" {
 		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 
-	//todox: replace mock find with lib call
-	taskRunResult := mockTaskRunFind(taskRunId)
-
-	//todox: create mock collect
-	otherRuns := []OtherRunResponse{}
-	if taskRunResult.ID != "-1" {
-		for _, loopRunItem := range taskRunStaticList {
-			if loopRunItem.TaskID == taskRunResult.TaskID && loopRunItem.ID != taskRunResult.ID {
-				otherRuns = append(otherRuns, OtherRunResponse{
-					ID:          loopRunItem.ID,
-					LastRunTime: loopRunItem.LastRunTime,
-					Status:      loopRunItem.Status,
-					Link:        "Future Link"})
-			}
-		}
+	if strTaskID == "" {
+		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
 	}
 
+	taskID, err := strconv.Atoi(strTaskID)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	taskRunID, err := strconv.Atoi(strTaskRunId)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	runs, err := m.TaskManager.GetTaskRuns(scheduling.TaskID(taskID))
+	if err != nil {
+		fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Failed to fetch task")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	var otherRuns []OtherRunResponse
+	var selectedRun scheduling.TaskRunMetadata
+	for _, run := range runs {
+		if run.ID != scheduling.TaskRunID(taskRunID) {
+			otherRuns = append(otherRuns, OtherRunResponse{
+				ID:          string(run.ID),
+				LastRunTime: run.StartTime,
+				Status:      run.Status.String(),
+				Link:        "Future Link"})
+		} else {
+			selectedRun = run
+		}
+	}
 	resp := TaskRunDetailResponse{
-		ID:        taskRunResult.ID,
-		Name:      taskRunResult.Name,
-		Status:    taskRunResult.Status,
-		Logs:      "some log values",
-		Details:   "some task details",
+		ID:        string(selectedRun.ID),
+		Name:      selectedRun.Name,
+		Status:    selectedRun.Status.String(),
+		Logs:      strings.Join(selectedRun.Logs, "\n"),
+		Details:   "Details go here",
 		OtherRuns: otherRuns,
 	}
 
@@ -1732,7 +1852,13 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 
 func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
-	router.Use(cors.Default())
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowCredentials: true,
+		AllowMethods:     []string{"PUT", "PATCH", "GET"},
+		AllowHeaders:     []string{"Content-Type,access-control-allow-origin, access-control-allow-headers"},
+	}))
+	//router.Use(CORSMiddleware())
 	router.GET("/data/:type", m.GetMetadataList)
 	router.GET("/data/:type/:resource", m.GetMetadata)
 	router.GET("/data/search", m.GetSearch)
@@ -1742,52 +1868,6 @@ func (m *MetadataServer) Start(port string) {
 	router.POST("/data/:type/:resource/gettags", m.GetTags)
 	router.POST("/data/:type/:resource/tags", m.PostTags)
 	router.POST("/data/taskruns", m.GetTaskRuns)
-	router.GET("/data/taskruns/taskrundetail/:taskRunId", m.GetTaskRunDetails)
+	router.GET("/data/taskruns/taskrundetail/:taskId/:taskRunId", m.GetTaskRunDetails)
 	router.Run(port)
-}
-
-func main() {
-	logger := zap.NewExample().Sugar()
-	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
-	metadataPort := help.GetEnv("METADATA_PORT", "8080")
-	searchHost := help.GetEnv("MEILISEARCH_HOST", "localhost")
-	searchPort := help.GetEnv("MEILISEARCH_PORT", "7700")
-	searchEndpoint := fmt.Sprintf("http://%s:%s", searchHost, searchPort)
-	searchApiKey := help.GetEnv("MEILISEARCH_APIKEY", "xyz")
-	logger.Infof("Connecting to typesense at: %s\n", searchEndpoint)
-	sc, err := search.NewMeilisearch(&search.MeilisearchParams{
-		Host:   searchHost,
-		Port:   searchPort,
-		ApiKey: searchApiKey,
-	})
-	if err != nil {
-		logger.Panicw("Failed to create new meil search", err)
-	}
-	CreateDummyTaskRuns(360)
-	SearchClient = sc
-	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
-	logger.Infof("Looking for metadata at: %s\n", metadataAddress)
-	client, err := metadata.NewClient(metadataAddress, logger)
-	if err != nil {
-		logger.Panicw("Failed to connect", "error", err)
-	}
-
-	etcdHost := help.GetEnv("ETCD_HOST", "localhost")
-	etcdPort := help.GetEnv("ETCD_PORT", "2379")
-	storageProvider := metadata.EtcdStorageProvider{
-		Config: metadata.EtcdConfig{
-			Nodes: []metadata.EtcdNode{
-				{Host: etcdHost, Port: etcdPort},
-			},
-		},
-	}
-
-	metadataServer, err := NewMetadataServer(logger, client, &storageProvider)
-	if err != nil {
-		logger.Panicw("Failed to create server", "error", err)
-	}
-	metadataHTTPPort := help.GetEnv("METADATA_HTTP_PORT", "3001")
-	metadataServingPort := fmt.Sprintf(":%s", metadataHTTPPort)
-	logger.Infof("Serving HTTP Metadata on port: %s\n", metadataServingPort)
-	metadataServer.Start(metadataServingPort)
 }

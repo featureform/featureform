@@ -201,6 +201,7 @@ message FeatureVariant {
     bool is_embedding = 19;
     int32 dimension = 20;
     FeatureParameters additional_parameters = 21;
+    int32 task_id = 22;
 }
 
 message FeatureParameters {
@@ -248,6 +249,7 @@ message LabelVariant {
     }
     Tags tags = 13;
     Properties properties = 14;
+    int32 task_id = 15;
 }
 
 message Provider {
@@ -288,6 +290,7 @@ message TrainingSetVariant {
     repeated FeatureLag feature_lags = 15;
     Tags tags = 16;
     Properties properties = 17;
+    int32 task_id = 18;
 }
 
 message Entity {
@@ -349,6 +352,7 @@ message SourceVariant {
     string schedule = 16;
     Tags tags = 17;
     Properties properties = 18;
+    int32 task_id = 19;
 }
 
 message Transformation {

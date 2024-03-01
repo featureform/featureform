@@ -14,7 +14,7 @@ import { useDataAPI } from '../../hooks/dataAPI';
 import StatusChip from './statusChip';
 import { useStyles } from './styles';
 
-export default function TaskRunCard({ handleClose, searchId }) {
+export default function TaskRunCard({ handleClose, taskId, taskRunId }) {
   const classes = useStyles();
   const dataAPI = useDataAPI();
   const [taskRunRecord, setTaskRecord] = useState({});
@@ -62,8 +62,8 @@ export default function TaskRunCard({ handleClose, searchId }) {
 
   useEffect(async () => {
     let timeout = null;
-    if (searchId && loading) {
-      let data = await dataAPI.getTaskRunDetails(searchId);
+    if (taskId && taskRunId && loading) {
+      let data = await dataAPI.getTaskRunDetails(taskId, taskRunId);
       setTaskRecord(data);
       timeout = setTimeout(() => {
         setLoading(false);
@@ -74,7 +74,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
         clearTimeout(timeout);
       }
     };
-  }, [searchId, loading]);
+  }, [taskId, taskRunId, loading]);
 
   const handleReloadRequest = () => {
     if (!loading) {

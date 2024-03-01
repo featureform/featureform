@@ -27,7 +27,6 @@ import (
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
 	sp "github.com/featureform/scheduling/storage_providers"
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -1441,26 +1440,22 @@ type MetadataServer struct {
 
 func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	config.Logger.Debug("Creating new metadata server", "Address:", config.Address)
-	lookup, err := config.StorageProvider.GetResourceLookup()
+	lookup := MemoryResourceLookup{config.StorageProvider}
 
-	if err != nil {
-		return nil, fmt.Errorf("could not configure storage provider: %v", err)
-	}
-	if config.SearchParams != nil {
-		searcher, errInitializeSearch := search.NewMeilisearch(config.SearchParams)
-		if errInitializeSearch != nil {
-			return nil, errInitializeSearch
-		}
-		lookup = &SearchWrapper{
-			Searcher:       searcher,
-			ResourceLookup: lookup,
-		}
-	}
+	//if config.SearchParams != nil {
+	//	searcher, errInitializeSearch := search.NewMeilisearch(config.SearchParams)
+	//	if errInitializeSearch != nil {
+	//		return nil, errInitializeSearch
+	//	}
+	//	lookup = &SearchWrapper{
+	//		Searcher:       searcher,
+	//		ResourceLookup: lookup,
+	//	}
+	//}
 
 	// Create the task manager for the server
 	// TODO: need to modify it so it can be any provider
-	storage := sp.NewMemoryStorageProvider()
-	taskManager := scheduling.NewTaskManager(storage)
+	taskManager := scheduling.NewTaskManager(config.StorageProvider)
 
 	return &MetadataServer{
 		lookup:      lookup,
@@ -1543,7 +1538,7 @@ func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 type Config struct {
 	Logger          *zap.SugaredLogger
 	SearchParams    *search.MeilisearchParams
-	StorageProvider StorageProvider
+	StorageProvider sp.StorageProvider
 	Address         string
 }
 
@@ -1572,6 +1567,12 @@ func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFea
 
 func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *pb.FeatureVariant) (*pb.Empty, error) {
 	variant.Created = tspb.New(time.Now())
+	taskTarget := scheduling.NameVariant{Name: variant.Name, Variant: variant.Variant, ResourceType: FEATURE_VARIANT.String()}
+	task, err := serv.taskManager.CreateTask("mytask", scheduling.ResourceCreation, taskTarget)
+	if err != nil {
+		return nil, err
+	}
+	variant.TaskId = int32(task.ID)
 	return serv.genericCreate(ctx, &featureVariantResource{variant}, func(name, variant string) Resource {
 		return &featureResource{
 			&pb.Feature{
@@ -1604,6 +1605,12 @@ func (serv *MetadataServer) ListLabels(_ *pb.Empty, stream pb.Metadata_ListLabel
 
 func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variant *pb.LabelVariant) (*pb.Empty, error) {
 	variant.Created = tspb.New(time.Now())
+	taskTarget := scheduling.NameVariant{Name: variant.Name, Variant: variant.Variant, ResourceType: LABEL_VARIANT.String()}
+	task, err := serv.taskManager.CreateTask("mytask", scheduling.ResourceCreation, taskTarget)
+	if err != nil {
+		return nil, err
+	}
+	variant.TaskId = int32(task.ID)
 	return serv.genericCreate(ctx, &labelVariantResource{variant}, func(name, variant string) Resource {
 		return &labelResource{
 			&pb.Label{
@@ -1636,6 +1643,12 @@ func (serv *MetadataServer) ListTrainingSets(_ *pb.Empty, stream pb.Metadata_Lis
 
 func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, variant *pb.TrainingSetVariant) (*pb.Empty, error) {
 	variant.Created = tspb.New(time.Now())
+	taskTarget := scheduling.NameVariant{Name: variant.Name, Variant: variant.Variant, ResourceType: TRAINING_SET_VARIANT.String()}
+	task, err := serv.taskManager.CreateTask("mytask", scheduling.ResourceCreation, taskTarget)
+	if err != nil {
+		return nil, err
+	}
+	variant.TaskId = int32(task.ID)
 	return serv.genericCreate(ctx, &trainingSetVariantResource{variant}, func(name, variant string) Resource {
 		return &trainingSetResource{
 			&pb.TrainingSet{
@@ -1668,6 +1681,12 @@ func (serv *MetadataServer) ListSources(_ *pb.Empty, stream pb.Metadata_ListSour
 
 func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variant *pb.SourceVariant) (*pb.Empty, error) {
 	variant.Created = tspb.New(time.Now())
+	taskTarget := scheduling.NameVariant{Name: variant.Name, Variant: variant.Variant, ResourceType: SOURCE_VARIANT.String()}
+	task, err := serv.taskManager.CreateTask("mytask", scheduling.ResourceCreation, taskTarget)
+	if err != nil {
+		return nil, err
+	}
+	variant.TaskId = int32(task.ID)
 	return serv.genericCreate(ctx, &sourceVariantResource{variant}, func(name, variant string) Resource {
 		return &SourceResource{
 			&pb.Source{
@@ -1863,25 +1882,25 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 
-	var taskId scheduling.TaskID
+	//var taskId scheduling.TaskID
 	if existing == nil {
 		// TODO: create task with ID
 		// update res with task id
 		// name string, tType TaskType, target TaskTarget
-		name := fmt.Sprintf("%s__%s__%s", res.ID().Type, res.ID().Name, res.ID().Variant)
-		taskTarget := scheduling.NameVariant{Name: res.ID().Name, Variant: res.ID().Variant, ResourceType: res.ID().Type.String()}
-		taskMetadata, err := serv.taskManager.CreateTask(name, scheduling.ResourceCreation, taskTarget)
-		if err != nil {
-			return nil, err
-		}
+		//name := fmt.Sprintf("%s__%s__%s", res.ID().Type, res.ID().Name, res.ID().Variant)
+		//taskTarget := scheduling.NameVariant{Name: res.ID().Name, Variant: res.ID().Variant, ResourceType: res.ID().Type.String()}
+		//taskMetadata, err := serv.taskManager.CreateTask(name, scheduling.ResourceCreation, taskTarget)
+		//if err != nil {
+		//	return nil, err
+		//}
 
 		// TODO: update with task id
-		taskId = taskMetadata.ID
+		//taskId = taskMetadata.ID
 		fmt.Println("need to update protos to have the task ids")
 	} else {
 		// TODO: create a method to get the task id from the name and variant and type
 		// taskId = res.Proto().GetTaskId()
-		taskId = 1
+		//taskId = 1
 	}
 
 	if existing != nil {
@@ -1899,12 +1918,23 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	}
 
 	if serv.needsJob(res) && existing == nil {
+		var taskID scheduling.TaskID
+		if source, ok := res.(*sourceVariantResource); ok {
+			taskID = scheduling.TaskID(source.serialized.TaskId)
+		}
+		if feature, ok := res.(*featureVariantResource); ok {
+			taskID = scheduling.TaskID(feature.serialized.TaskId)
+		}
+		if trainingSet, ok := res.(*trainingSetVariantResource); ok {
+			taskID = scheduling.TaskID(trainingSet.serialized.TaskId)
+		}
+		if label, ok := res.(*labelVariantResource); ok {
+			taskID = scheduling.TaskID(label.serialized.TaskId)
+		}
 		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
-		// TODO: add task run id name string, taskID TaskID, trigger Trigger
-		name := fmt.Sprintf("%s__%s__%s", res.ID().Type, res.ID().Name, res.ID().Variant)
-		triggerName := fmt.Sprintf("%s__%s", name, uuid.New().String())
-		trigger := scheduling.OneOffTrigger{TriggerName: triggerName}
-		taskRun, err := serv.taskManager.CreateTaskRun(name, taskId, trigger)
+		name := "Initial Registration"
+		trigger := scheduling.OnApplyTrigger{TriggerName: name}
+		taskRun, err := serv.taskManager.CreateTaskRun(name, taskID, trigger)
 		if err != nil {
 			return nil, err
 		}
@@ -2065,7 +2095,6 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 			return nil
 		}
 		if recvErr != nil {
-			serv.Logger.Errorw("Generic Get receive error", "error", recvErr)
 			return recvErr
 		}
 		serv.Logger.Infow("Looking up Resource", "id", id)

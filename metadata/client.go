@@ -7,6 +7,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"github.com/featureform/scheduling"
 	"io"
 	"reflect"
 	"time"
@@ -2031,6 +2032,10 @@ func (variant *SourceVariant) DFTransformationQuerySource() string {
 		return ""
 	}
 	return variant.serialized.GetTransformation().GetDFTransformation().GetSourceText()
+}
+
+func (variant *SourceVariant) TaskID() scheduling.TaskID {
+	return scheduling.TaskID(variant.serialized.TaskId)
 }
 
 func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {

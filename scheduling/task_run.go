@@ -7,7 +7,12 @@ import (
 )
 
 type TaskRunID int32
+
 type Status string
+
+func (s Status) String() string {
+	return string(s)
+}
 
 const (
 	Success Status = "SUCCESS"
@@ -19,8 +24,8 @@ const (
 type TriggerType string
 
 const (
-	OneOffTriggerType TriggerType = "OneOffTrigger"
-	DummyTriggerType  TriggerType = "DummyTrigger"
+	OnApplyTriggerType TriggerType = "On Apply"
+	DummyTriggerType   TriggerType = "DummyTrigger"
 )
 
 type Trigger interface {
@@ -28,15 +33,15 @@ type Trigger interface {
 	Name() string
 }
 
-type OneOffTrigger struct {
+type OnApplyTrigger struct {
 	TriggerName string `json:"triggerName"`
 }
 
-func (t OneOffTrigger) Type() TriggerType {
-	return OneOffTriggerType
+func (t OnApplyTrigger) Type() TriggerType {
+	return OnApplyTriggerType
 }
 
-func (t OneOffTrigger) Name() string {
+func (t OnApplyTrigger) Name() string {
 	return t.TriggerName
 }
 
@@ -123,8 +128,8 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 	}
 
 	switch temp.TriggerType {
-	case OneOffTriggerType:
-		var oneOffTrigger OneOffTrigger
+	case OnApplyTriggerType:
+		var oneOffTrigger OnApplyTrigger
 		if err := json.Unmarshal(temp.Trigger, &oneOffTrigger); err != nil {
 			return fmt.Errorf("failed to deserialize One Off Trigger data: %w", err)
 		}

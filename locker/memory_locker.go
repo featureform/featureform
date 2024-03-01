@@ -55,7 +55,7 @@ func (m *MemoryLocker) Lock(key string) (Key, error) {
 	}
 
 	lockChannel := make(chan error)
-	lockKey := MemoryKey{id: id, Channel: &lockChannel}
+	lockKey := MemoryKey{id: id, key: key, Channel: &lockChannel}
 
 	lock := LockInformation{
 		ID:   id,

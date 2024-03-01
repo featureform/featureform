@@ -70,6 +70,7 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
       renderCell: function (params) {
         return (
           <IconButton
+            data-testid={`triggerDelete-${params?.id}`}
             onClick={() => {
               setRowDelete(true);
               handleRowSelect(params);
@@ -116,6 +117,7 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
   return (
     <>
       <DataGrid
+        disableVirtualization
         onRowClick={handleRowSelect}
         autoHeight
         density='compact'

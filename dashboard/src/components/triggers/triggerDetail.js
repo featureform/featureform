@@ -10,6 +10,14 @@ import {
 import { DataGrid } from '@mui/x-data-grid';
 import React, { useState } from 'react';
 
+export const PRE_DELETE = 'Delete Trigger';
+export const CONFIRM_DELETE = 'Confirm, Delete!';
+
+export const DELETE_WARNING =
+  'To remove the Trigger, please delete all associated Resources first.';
+export const DELETE_FINAL =
+  'You are about to delete this trigger. Are you sure you want to proceed?';
+
 export default function TriggerDetail({
   details = {},
   handleClose,
@@ -79,8 +87,6 @@ export default function TriggerDetail({
     },
   ];
 
-  const PRE_DELETE = 'Delete Trigger';
-  const CONFIRM_DELETE = 'Confirm, Delete!';
   const [userConfirm, setUserConfirm] = useState(rowDelete);
 
   // todox: 100% needs to be state. hard to deal with otherwise.
@@ -100,14 +106,14 @@ export default function TriggerDetail({
   let alertBody = null;
   if (userConfirm && isDeleteDisabled()) {
     alertBody = (
-      <Alert severity='warning'>
-        To remove the Trigger, please delete all associated Resources first.
+      <Alert data-testid='deleteWarning' severity='warning'>
+        {DELETE_WARNING}
       </Alert>
     );
   } else if (userConfirm && !isDeleteDisabled()) {
     alertBody = (
-      <Alert severity='error'>
-        You are about to delete this trigger. Are you sure you want to proceed?
+      <Alert data-testid='deleteFinal' severity='error'>
+        {DELETE_FINAL}
       </Alert>
     );
   }

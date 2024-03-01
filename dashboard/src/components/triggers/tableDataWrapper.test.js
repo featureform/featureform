@@ -6,6 +6,7 @@ import React from 'react';
 import TEST_THEME from '../../styles/theme';
 import TableDataWrapper from './tableDataWrapper';
 import { triggerDetail, triggerResponse } from './test_data';
+import { CONFIRM_DELETE, DELETE_FINAL, DELETE_WARNING } from './triggerDetail';
 
 const dataAPIMock = {
   getTriggers: jest.fn().mockResolvedValue(triggerResponse),
@@ -35,6 +36,9 @@ describe('Trigger table data wrapper tests', () => {
   const DETAIL_SCHEDULE_ID = 'detailScheduleId';
   const DETAIL_OWNER_ID = 'detailOwnerId';
   const DELETE_TRIGGER_BTN_ID = 'deleteTriggerBtnId';
+  const ROW_DELETE_BTN_ = 'triggerDelete-';
+  const DELETE_WARNING_ID = 'deleteWarning';
+  const DELETE_FINAL_ID = 'deleteFinal';
 
   // this is just a little hack to silence a warning that we'll get until we
   // upgrade to 16.9. See also: https://github.com/facebook/react/pull/14853
@@ -233,6 +237,62 @@ describe('Trigger table data wrapper tests', () => {
     expect(foundSchedule.nodeName).toBe(P_NODE);
     expect(foundOwner.nodeName).toBe(P_NODE);
     expect(deleteBtn.textContent).toBe('Delete Trigger');
+    expect(deleteBtn).toBeEnabled();
+  });
+
+  test('Clicking delete on a trigger row (that has resources), displays a warning message', async () => {
+    //given:
+    const helper = render(getTestBody());
+    const test_data = { ...triggerDetail };
+    dataAPIMock.getTriggerDetails = jest
+      .fn()
+      .mockResolvedValue({ ...triggerDetail }); //reset to original dasta
+    await helper.findByText(test_data.trigger.name);
+
+    // and: the delete row is invoked, but the trigger has resources
+    const foundRowDelete = await helper.findByTestId(
+      ROW_DELETE_BTN_ + test_data.trigger.id
+    );
+    fireEvent.click(foundRowDelete);
+
+    //when:
+    const deleteBtn = await helper.findByTestId(DELETE_TRIGGER_BTN_ID);
+    const foundWarning = await helper.findByTestId(DELETE_WARNING_ID);
+
+    //expect: the delete is pre_cofirmed (but disabled) and a warning displays
+    expect(dataAPIMock.getTriggerDetails).toHaveBeenCalledTimes(1);
+    expect(dataAPIMock.getTriggerDetails).toHaveBeenCalledWith(
+      test_data.trigger.id
+    );
+    expect(deleteBtn.textContent).toBe(CONFIRM_DELETE);
+    expect(foundWarning.textContent).toBe(DELETE_WARNING);
+    expect(deleteBtn).toBeDisabled();
+  });
+
+  test('Clicking delete on a trigger row (that has  NO resources), displays a final warning message', async () => {
+    //given:
+    const helper = render(getTestBody());
+    const test_data = { ...triggerDetail, resources: [] }; //remove resources
+    dataAPIMock.getTriggerDetails = jest.fn().mockResolvedValue(test_data);
+    await helper.findByText(test_data.trigger.name);
+
+    // and: the delete row is invoked, but the trigger has NO resources
+    const foundRowDelete = await helper.findByTestId(
+      ROW_DELETE_BTN_ + test_data.trigger.id
+    );
+    fireEvent.click(foundRowDelete);
+
+    //when:
+    const deleteBtn = await helper.findByTestId(DELETE_TRIGGER_BTN_ID);
+    const foundWarning = await helper.findByTestId(DELETE_FINAL_ID);
+
+    //expect: the delete is pre_cofirmed (but this time enabled) and a final warning displays
+    expect(dataAPIMock.getTriggerDetails).toHaveBeenCalledTimes(1);
+    expect(dataAPIMock.getTriggerDetails).toHaveBeenCalledWith(
+      test_data.trigger.id
+    );
+    expect(deleteBtn.textContent).toBe(CONFIRM_DELETE);
+    expect(foundWarning.textContent).toBe(DELETE_FINAL);
     expect(deleteBtn).toBeEnabled();
   });
 });

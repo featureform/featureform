@@ -2,6 +2,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { Box, Button, IconButton, TextField } from '@mui/material';
 import React, { useState } from 'react';
 import { useDataAPI } from '../../hooks/dataAPI';
+const cron = require('cron-validator');
 
 export default function NewTrigger({ handleClose }) {
   const initialState = Object.freeze({
@@ -41,6 +42,14 @@ export default function NewTrigger({ handleClose }) {
         errorObj[inputName] = 'Enter a value.';
       }
     });
+
+    //check cron validation
+    if (formValues['schedule']) {
+      const isCronValid = cron.isValidCron(formValues['schedule']);
+      if (!isCronValid) {
+        errorObj['schedule'] = 'Cron string is invalid.';
+      }
+    }
 
     setErrorBag(errorObj);
     return !Object.keys(errorObj).length;

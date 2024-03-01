@@ -15,7 +15,7 @@ export const CONFIRM_DELETE = 'Confirm, Delete!';
 
 export const DELETE_WARNING =
   'To remove the Trigger, please delete all associated Resources first.';
-export const DELETE_FINAL =
+export const DELETE_FINAL_WARNING =
   'You are about to delete this trigger. Are you sure you want to proceed?';
 
 export default function TriggerDetail({
@@ -113,7 +113,7 @@ export default function TriggerDetail({
   } else if (userConfirm && !isDeleteDisabled()) {
     alertBody = (
       <Alert data-testid='deleteFinal' severity='error'>
-        {DELETE_FINAL}
+        {DELETE_FINAL_WARNING}
       </Alert>
     );
   }

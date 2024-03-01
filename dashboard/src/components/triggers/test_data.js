@@ -1,4 +1,4 @@
-export const triggerResponse = [
+export const triggerListResponse = [
   {
     id: '3fea3e98-80b7-4b16-8613-944640e0e869',
     name: 'trigger 1',

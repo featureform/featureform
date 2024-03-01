@@ -5,20 +5,21 @@ import 'jest-canvas-mock';
 import React from 'react';
 import TEST_THEME from '../../styles/theme';
 import TableDataWrapper from './tableDataWrapper';
-import { triggerDetail, triggerResponse } from './test_data';
+import { triggerDetail, triggerListResponse } from './test_data';
 import {
   CONFIRM_DELETE,
-  DELETE_FINAL,
+  DELETE_FINAL_WARNING,
   DELETE_WARNING,
   PRE_DELETE,
 } from './triggerDetail';
 
-const dataAPIMock = {
-  getTriggers: jest.fn().mockResolvedValue(triggerResponse),
+const defaultMock = Object.freeze({
+  getTriggers: jest.fn().mockResolvedValue(triggerListResponse),
   postTrigger: jest.fn(),
   getTriggerDetails: jest.fn().mockResolvedValue(triggerDetail),
   deleteTrigger: jest.fn().mockResolvedValue(true),
-};
+});
+let dataAPIMock = {};
 
 jest.mock('../../hooks/dataAPI', () => ({
   useDataAPI: () => {
@@ -62,7 +63,8 @@ describe('Trigger table data wrapper tests', () => {
     console.error = originalError;
   });
 
-  const getTestBody = () => {
+  const getTestBody = (mockOverride = { ...defaultMock }) => {
+    dataAPIMock = mockOverride;
     return (
       <>
         <ThemeProvider theme={TEST_THEME}>
@@ -80,7 +82,7 @@ describe('Trigger table data wrapper tests', () => {
   test('Main trigger table renders 2 test records', async () => {
     //given:
     const helper = render(getTestBody());
-    const test_data = { ...triggerResponse };
+    const test_data = { ...triggerListResponse };
 
     //when:
     const foundRecord1 = await helper.findByText(test_data[0].name);
@@ -93,9 +95,9 @@ describe('Trigger table data wrapper tests', () => {
     expect(dataAPIMock.getTriggers).toHaveBeenCalledWith('');
   });
 
-  test('Typing into the search box and hitting enter fires off a request', async () => {
+  test('Typing into the search box and hitting enter fires off a search request', async () => {
     //given:
-    const searchTerm = 'trigger search';
+    const searchTerm = 'custom search';
     const helper = render(getTestBody());
 
     //when: the user types and hits enter
@@ -113,12 +115,12 @@ describe('Trigger table data wrapper tests', () => {
     const helper = render(getTestBody());
     const searchTerm = 'trigger search';
 
-    // and:
+    //and:
     const foundSearchInput = await helper.findByTestId(SEARCH_INPUT_ID);
     await userEvent.type(foundSearchInput, searchTerm);
     expect(foundSearchInput.value).toBe(searchTerm);
 
-    // when: incrementally delete
+    //when: incrementally delete
     await userEvent.type(
       foundSearchInput,
       USER_EVENT_DELETE.repeat(searchTerm.length)
@@ -154,24 +156,26 @@ describe('Trigger table data wrapper tests', () => {
     expect(dataAPIMock.getTriggers).toHaveBeenCalledWith('');
   });
 
-  test('New trigger with valid inputs will post values', async () => {
+  test('New trigger form with valid inputs will post values', async () => {
     //given:
     const helper = render(getTestBody());
-    const inputValue = 'text input';
+    const inputValue = 'input value';
 
     //and: the user opens the new trigger modal and enters values
     const newTriggerBtn = await helper.findByTestId(NEW_TRIGGER_BTN_ID);
     fireEvent.click(newTriggerBtn);
 
+    //field 1
     const foundNameInput = helper.getByTestId(TRIGGER_NAME_INPUT_ID);
     await userEvent.type(foundNameInput, inputValue);
     expect(foundNameInput.value).toBe(inputValue);
 
+    //field 2
     const foundScheduleInput = helper.getByTestId(TRIGGER_SCHEDULE_INPUT_ID);
     await userEvent.type(foundScheduleInput, inputValue);
     expect(foundScheduleInput.value).toBe(inputValue);
 
-    // when: they click save
+    //when: they click save
     const newTriggerSaveBtn = helper.getByTestId(NEW_TRIGGER_SAVE_ID);
     fireEvent.click(newTriggerSaveBtn);
 
@@ -190,10 +194,10 @@ describe('Trigger table data wrapper tests', () => {
   test('The trigger detail renders OK with resources', async () => {
     //given:
     const helper = render(getTestBody());
-    const test_data = { ...triggerResponse };
+    const test_data = { ...triggerDetail };
 
     //and: details is invoked
-    const foundRecord1 = await helper.findByText(test_data[0].name);
+    const foundRecord1 = await helper.findByText(test_data.trigger.name);
     fireEvent.click(foundRecord1);
 
     //when: the details load, and delete is disabled
@@ -206,7 +210,9 @@ describe('Trigger table data wrapper tests', () => {
     expect(dataAPIMock.getTriggers).toHaveBeenCalledTimes(1);
     expect(dataAPIMock.getTriggers).toHaveBeenCalledWith('');
     expect(dataAPIMock.getTriggerDetails).toHaveBeenCalledTimes(1);
-    expect(dataAPIMock.getTriggerDetails).toHaveBeenCalledWith(test_data[0].id);
+    expect(dataAPIMock.getTriggerDetails).toHaveBeenCalledWith(
+      test_data.trigger.id
+    );
     expect(foundType.nodeName).toBe(P_NODE);
     expect(foundSchedule.nodeName).toBe(P_NODE);
     expect(foundOwner.nodeName).toBe(P_NODE);
@@ -216,9 +222,12 @@ describe('Trigger table data wrapper tests', () => {
 
   test('The trigger detail renders OK without resources', async () => {
     //given:
-    const helper = render(getTestBody());
     const test_data = { ...triggerDetail, resources: [] };
-    dataAPIMock.getTriggerDetails = jest.fn().mockResolvedValue(test_data);
+    const apiOverride = {
+      ...defaultMock,
+      getTriggerDetails: jest.fn().mockResolvedValue(test_data),
+    };
+    const helper = render(getTestBody(apiOverride));
 
     //and: details is invoked
     const foundRecord1 = await helper.findByText(test_data.trigger.name);
@@ -246,11 +255,8 @@ describe('Trigger table data wrapper tests', () => {
 
   test('Clicking delete on a trigger row (that has resources), displays a warning message', async () => {
     //given:
-    const helper = render(getTestBody());
     const test_data = { ...triggerDetail };
-    dataAPIMock.getTriggerDetails = jest
-      .fn()
-      .mockResolvedValue({ ...triggerDetail }); //reset to original dasta
+    const helper = render(getTestBody());
     await helper.findByText(test_data.trigger.name);
 
     // and: the delete row is invoked, but the trigger has resources
@@ -273,11 +279,14 @@ describe('Trigger table data wrapper tests', () => {
     expect(deleteBtn).toBeDisabled();
   });
 
-  test('Clicking delete on a trigger row (that has  NO resources), displays a final warning message', async () => {
+  test('Clicking delete on a trigger row (that has zero resources), displays a final warning message', async () => {
     //given:
-    const helper = render(getTestBody());
     const test_data = { ...triggerDetail, resources: [] }; //remove resources
-    dataAPIMock.getTriggerDetails = jest.fn().mockResolvedValue(test_data);
+    const apiOverride = {
+      ...defaultMock,
+      getTriggerDetails: jest.fn().mockResolvedValue(test_data),
+    };
+    const helper = render(getTestBody(apiOverride));
     await helper.findByText(test_data.trigger.name);
 
     // and: the delete row is invoked, but the trigger has NO resources
@@ -296,15 +305,18 @@ describe('Trigger table data wrapper tests', () => {
       test_data.trigger.id
     );
     expect(deleteBtn.textContent).toBe(CONFIRM_DELETE);
-    expect(foundWarning.textContent).toBe(DELETE_FINAL);
+    expect(foundWarning.textContent).toBe(DELETE_FINAL_WARNING);
     expect(deleteBtn).toBeEnabled();
   });
 
   test('Confirming delete twice, sends the trigger delete request', async () => {
     //given:
-    const helper = render(getTestBody());
     const test_data = { ...triggerDetail, resources: [] }; //remove resources
-    dataAPIMock.getTriggerDetails = jest.fn().mockResolvedValue(test_data);
+    const apiOverride = {
+      ...defaultMock,
+      getTriggerDetails: jest.fn().mockResolvedValue(test_data),
+    };
+    const helper = render(getTestBody(apiOverride));
     await helper.findByText(test_data.trigger.name);
 
     //and: we open the details window

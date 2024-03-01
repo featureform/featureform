@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/proto"
 )
@@ -19,7 +20,7 @@ type value struct {
 func newValue(val interface{}) (*value, error) {
 	serial, err := wrapValue(val)
 	if err != nil {
-		return nil, fmt.Errorf("new value: %w", err)
+		return nil, err
 	}
 	return &value{serial}, nil
 }
@@ -115,7 +116,7 @@ func (row *row) Serialized() *pb.TrainingDataRow {
 func (row *row) SetLabel(label interface{}) error {
 	value, err := wrapValue(label)
 	if err != nil {
-		return fmt.Errorf("set label: %w", err)
+		return err
 	}
 	row.serialized.Label = value
 	return nil
@@ -124,7 +125,7 @@ func (row *row) SetLabel(label interface{}) error {
 func (row *row) AddFeature(feature interface{}) error {
 	value, err := wrapValue(feature)
 	if err != nil {
-		return fmt.Errorf("add feature: %w", err)
+		return err
 	}
 	row.serialized.Features = append(row.serialized.Features, value)
 	return nil
@@ -147,7 +148,7 @@ func (row *sourceRow) Serialized() *pb.SourceDataRow {
 func (r *sourceRow) AddValue(row interface{}) error {
 	value, err := wrapValue(row)
 	if err != nil {
-		return fmt.Errorf("add row: %w", err)
+		return err
 	}
 	r.serialized.Rows = append(r.serialized.Rows, value)
 	return nil
@@ -160,7 +161,7 @@ func (row *batchRow) Serialized() *pb.BatchFeatureRow {
 func (row *batchRow) SetEntity(entity interface{}) error {
 	value, err := wrapValue(entity)
 	if err != nil {
-		return fmt.Errorf("set entity: %w", err)
+		return err
 	}
 	row.serialized.Entity = value
 	return nil
@@ -169,18 +170,10 @@ func (row *batchRow) SetEntity(entity interface{}) error {
 func (row *batchRow) AddFeature(feature interface{}) error {
 	value, err := wrapValue(feature)
 	if err != nil {
-		return fmt.Errorf("add feature: %w", err)
+		return err
 	}
 	row.serialized.Features = append(row.serialized.Features, value)
 	return nil
-}
-
-type InvalidValue struct {
-	Value interface{}
-}
-
-func (err InvalidValue) Error() string {
-	return fmt.Sprintf("Invalid Value Type: %T", err.Value)
 }
 
 func wrapValue(value interface{}) (proto *pb.Value, err error) {
@@ -226,74 +219,74 @@ func wrapValue(value interface{}) (proto *pb.Value, err error) {
 	case []float32:
 		proto = wrapVec32(typed)
 	default:
-		err = InvalidValue{value}
+		err = fferr.NewDataTypeNotFoundError(fmt.Sprintf("%T", value), fmt.Errorf("no type found for value: %v", value))
 	}
 	return
 }
 
 func wrapFloat(val float32) *pb.Value {
 	return &pb.Value{
-		Value: &pb.Value_FloatValue{val},
+		Value: &pb.Value_FloatValue{FloatValue: val},
 	}
 }
 
 func wrapDouble(val float64) *pb.Value {
 	return &pb.Value{
-		Value: &pb.Value_DoubleValue{val},
+		Value: &pb.Value_DoubleValue{DoubleValue: val},
 	}
 }
 
 func wrapStr(val string) *pb.Value {
 	return &pb.Value{
-		Value: &pb.Value_StrValue{val},
+		Value: &pb.Value_StrValue{StrValue: val},
 	}
 }
 
 func wrapInt(val int) *pb.Value {
 	return &pb.Value{
-		Value: &pb.Value_IntValue{int32(val)},
+		Value: &pb.Value_IntValue{IntValue: int32(val)},
 	}
 }
 
 func wrapInt32(val int32) *pb.Value {
 	return &pb.Value{
-		Value: &pb.Value_Int32Value{val},
+		Value: &pb.Value_Int32Value{Int32Value: val},
 	}
 }
 
 func wrapInt64(val int64) *pb.Value {
 	return &pb.Value{
-		Value: &pb.Value_Int64Value{val},
+		Value: &pb.Value_Int64Value{Int64Value: val},
 	}
 }
 
 func wrapUInt32(val uint32) *pb.Value {
 	return &pb.Value{
-		Value: &pb.Value_Uint32Value{val},
+		Value: &pb.Value_Uint32Value{Uint32Value: val},
 	}
 }
 
 func wrapUInt64(val uint64) *pb.Value {
 	return &pb.Value{
-		Value: &pb.Value_Uint64Value{val},
+		Value: &pb.Value_Uint64Value{Uint64Value: val},
 	}
 }
 
 func wrapBool(val bool) *pb.Value {
 	return &pb.Value{
-		Value: &pb.Value_BoolValue{val},
+		Value: &pb.Value_BoolValue{BoolValue: val},
 	}
 }
 
 func wrapNil(val interface{}) *pb.Value {
 	return &pb.Value{
-		Value: &pb.Value_StrValue{""},
+		Value: &pb.Value_StrValue{StrValue: ""},
 	}
 }
 
 func wrapBytes(val []byte) *pb.Value {
 	return &pb.Value{
-		Value: &pb.Value_OnDemandFunction{val},
+		Value: &pb.Value_OnDemandFunction{OnDemandFunction: val},
 	}
 }
 

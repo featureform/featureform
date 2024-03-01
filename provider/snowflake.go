@@ -3,6 +3,7 @@ package provider
 import (
 	"fmt"
 
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	_ "github.com/snowflakedb/gosnowflake"
@@ -27,13 +28,13 @@ type snowflakeSQLQueries struct {
 func snowflakeOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.SnowflakeConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, NewProviderError(Runtime, pt.SnowflakeOffline, ConfigDeserialize, err.Error())
+		return nil, err
 	}
 	queries := snowflakeSQLQueries{}
 	queries.setVariableBinding(MySQLBindingStyle)
 	connectionString, err := sc.ConnectionString()
 	if err != nil {
-		return nil, fmt.Errorf("could not get snowflake connection string: %v", err)
+		return nil, fferr.NewInternalError(fmt.Errorf("could not get snowflake connection string: %v", err))
 	}
 	sgConfig := SQLOfflineStoreConfig{
 		Config:        config,

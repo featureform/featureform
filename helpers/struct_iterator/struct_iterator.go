@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"unicode"
+
+	"github.com/featureform/fferr"
 )
 
 type StructIterator struct {
@@ -60,7 +62,7 @@ func (si *StructIterator) isPublic() bool {
 func NewStructIterator(s interface{}) (*StructIterator, error) {
 	t := reflect.TypeOf(s).Kind()
 	if t != reflect.Struct {
-		return nil, fmt.Errorf("cannot create iterator from type %T", s)
+		return nil, fferr.NewInternalError(fmt.Errorf("cannot create iterator from type %T", s))
 	}
 
 	v := reflect.ValueOf(s)

@@ -81,8 +81,17 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 	return nil
 }
 
-func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainingTestSplitServer) error {
+type splitContext struct {
+	stream          pb.Feature_TrainingTestSplitServer
+	req             *pb.TrainingTestSplitRequest
+	trainIterator   *provider.TrainingSetIterator
+	testIterator    *provider.TrainingSetIterator
+	isTestFinished  *bool
+	isTrainFinished *bool
+	logger          *zap.SugaredLogger
+}
 
+func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainingTestSplitServer) error {
 	var (
 		trainIter, testIter provider.TrainingSetIterator
 		isTrainFinished     bool
@@ -90,7 +99,7 @@ func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainingTestSplit
 	)
 
 	for {
-		if isTestFinished && isTrainFinished {
+		if isTrainFinished && isTestFinished {
 			// If both iterators are finished, we can close the stream
 			serv.Logger.Infow("Both iterators are finished, closing stream")
 			return nil
@@ -104,20 +113,29 @@ func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainingTestSplit
 		id := req.GetId()
 		name, variant := id.GetName(), id.GetVersion()
 		logger := serv.Logger.With("Name", name, "Variant", variant, "RequestType", req.GetRequestType().String())
-
 		logger.Infow("Getting training test split", "Request", req.String())
 
 		featureObserver := serv.Metrics.BeginObservingTrainingServe(name, variant)
 		defer featureObserver.Finish()
 
+		ctx := splitContext{
+			stream:          stream,
+			req:             req,
+			trainIterator:   &trainIter,
+			testIterator:    &testIter,
+			isTestFinished:  &isTestFinished,
+			isTrainFinished: &isTrainFinished,
+			logger:          logger,
+		}
+
 		switch req.GetRequestType() {
 		case pb.RequestType_INITIALIZE:
-			if err := serv.handleSplitInitializeRequest(stream, req, &trainIter, &testIter, logger); err != nil {
+			if err := serv.handleSplitInitializeRequest(&ctx); err != nil {
 				featureObserver.SetError()
 				return err
 			}
 		default:
-			if err := serv.handleSplitDataRequest(stream, req, &trainIter, &testIter, &isTestFinished, &isTrainFinished, logger); err != nil {
+			if err := serv.handleSplitDataRequest(&ctx); err != nil {
 				featureObserver.SetError()
 				return err
 			}
@@ -125,31 +143,24 @@ func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainingTestSplit
 	}
 }
 
-func (serv *FeatureServer) handleSplitInitializeRequest(
-	stream pb.Feature_TrainingTestSplitServer,
-	req *pb.TrainingTestSplitRequest,
-	trainIterator *provider.TrainingSetIterator,
-	testIterator *provider.TrainingSetIterator,
-	logger *zap.SugaredLogger,
-) error {
-	logger.Infow("Initializing dataset", "id", req.Id, "shuffle", req.Shuffle, "testSize", req.TestSize)
+func (serv *FeatureServer) handleSplitInitializeRequest(ctx *splitContext) error {
+	ctx.logger.Infow("Initializing dataset", "id", ctx.req.Id, "shuffle", ctx.req.Shuffle, "testSize", ctx.req.TestSize)
 
 	train, test, dropViews, err := serv.getTrainingSetTestSplitIterator(
-		req.Id.GetName(),
-		req.Id.GetVersion(),
-		req.TestSize,
-		req.Shuffle,
-		int(req.RandomState),
+		ctx.req.Id.GetName(),
+		ctx.req.Id.GetVersion(),
+		ctx.req.TestSize,
+		ctx.req.Shuffle,
+		int(ctx.req.RandomState),
 	)
-
 	if err != nil {
-		logger.Errorw("Failed to get training set iterator", "Error", err)
+		ctx.logger.Errorw("Failed to get training set iterator", "Error", err)
 		return err
 	}
 	defer dropViews()
 
-	*trainIterator = train
-	*testIterator = test
+	*ctx.trainIterator = train
+	*ctx.testIterator = test
 
 	initResponse := &pb.TrainingTestSplitResponse{
 		RequestType: pb.RequestType_INITIALIZE,
@@ -158,30 +169,20 @@ func (serv *FeatureServer) handleSplitInitializeRequest(
 		},
 	}
 
-	if err := stream.Send(initResponse); err != nil {
-		logger.Errorw("Failed to send init response", "error", err)
+	if err := ctx.stream.Send(initResponse); err != nil {
+		ctx.logger.Errorw("Failed to send init response", "error", err)
 		return err
 	}
 
 	return nil
 }
-
-func (serv *FeatureServer) handleSplitDataRequest(
-	stream pb.Feature_TrainingTestSplitServer,
-	req *pb.TrainingTestSplitRequest,
-	trainIterator *provider.TrainingSetIterator,
-	testIterator *provider.TrainingSetIterator,
-	isTestFinished *bool,
-	isTrainFinished *bool,
-	logger *zap.SugaredLogger,
-) error {
-
+func (serv *FeatureServer) handleSplitDataRequest(ctx *splitContext) error {
 	var thisIter provider.TrainingSetIterator
-	switch req.GetRequestType() {
+	switch ctx.req.GetRequestType() {
 	case pb.RequestType_TRAINING:
-		thisIter = *trainIterator
+		thisIter = *ctx.trainIterator
 	case pb.RequestType_TEST:
-		thisIter = *testIterator
+		thisIter = *ctx.testIterator
 	default:
 		return fmt.Errorf("invalid request type")
 	}
@@ -193,47 +194,38 @@ func (serv *FeatureServer) handleSplitDataRequest(
 		}
 
 		response := &pb.TrainingTestSplitResponse{
-			RequestType:       req.GetRequestType(),
+			RequestType:       ctx.req.GetRequestType(),
 			TrainingTestSplit: &pb.TrainingTestSplitResponse_Row{Row: sRow},
 		}
 
-		if err := stream.Send(response); err != nil {
-			logger.Errorw("Failed to write to stream", "Error", err)
+		if err := ctx.stream.Send(response); err != nil {
+			ctx.logger.Errorw("Failed to write to stream", "Error", err)
 			return err
 		}
 	} else {
-		// Once an iterator is finished we need to let the client know to stop iteration
-		// We do this so that the stream stays open so the client can still operate on the other iterator
-		serv.handleFinishedIterator(stream, req.GetRequestType(), isTestFinished, isTrainFinished, logger)
+		serv.handleFinishedIterator(ctx)
 	}
 
-	if err := thisIter.Err(); err != nil {
-		logger.Errorw("Dataset error", "Error", err)
-		return err
+	if thisIter.Err() != nil {
+		ctx.logger.Errorw("Dataset error", "Error", thisIter.Err())
+		return thisIter.Err()
 	}
 
 	return nil
 }
 
-func (serv *FeatureServer) handleFinishedIterator(
-	stream pb.Feature_TrainingTestSplitServer,
-	reqType pb.RequestType,
-	isTestFinished *bool,
-	isTrainFinished *bool,
-	logger *zap.SugaredLogger,
-) {
-	if reqType == pb.RequestType_TEST {
-		*isTestFinished = true
-	} else {
-		*isTrainFinished = true
+func (serv *FeatureServer) handleFinishedIterator(ctx *splitContext) {
+	if ctx.req.GetRequestType() == pb.RequestType_TEST {
+		*ctx.isTestFinished = true
+	} else if ctx.req.GetRequestType() == pb.RequestType_TRAINING {
+		*ctx.isTrainFinished = true
 	}
 
-	if *isTestFinished && *isTrainFinished {
-		// return so that we can close the stream
-		return
+	if *ctx.isTestFinished && *ctx.isTrainFinished {
+		return // return so that we can close the stream
 	} else {
-		if err := stream.Send(&pb.TrainingTestSplitResponse{IteratorDone: true}); err != nil {
-			logger.Errorw("Failed to write to stream", "Error", err)
+		if err := ctx.stream.Send(&pb.TrainingTestSplitResponse{IteratorDone: true}); err != nil {
+			ctx.logger.Errorw("Failed to write to stream", "Error", err)
 		}
 	}
 }

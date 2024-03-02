@@ -33,8 +33,8 @@ func (k *MemoryKey) SetExpirationTime(t time.Time) error {
 }
 
 type MemoryLocker struct {
-	lockedItems sync.Map
-	mutex       *sync.Mutex
+	LockedItems sync.Map
+	Mutex       *sync.Mutex
 }
 
 func (m *MemoryLocker) Lock(key string) (Key, error) {
@@ -44,10 +44,10 @@ func (m *MemoryLocker) Lock(key string) (Key, error) {
 
 	id := uuid.New().String()
 
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	m.Mutex.Lock()
+	defer m.Mutex.Unlock()
 
-	if lockInfo, ok := m.lockedItems.Load(key); ok {
+	if lockInfo, ok := m.LockedItems.Load(key); ok {
 		keyLock := lockInfo.(LockInformation)
 		if time.Since(keyLock.Date) < ValidTimePeriod {
 			return &MemoryKey{}, fmt.Errorf("key '%s' is already locked by: %s", key, keyLock.ID)
@@ -62,7 +62,7 @@ func (m *MemoryLocker) Lock(key string) (Key, error) {
 		Key:  key,
 		Date: time.Now().UTC(),
 	}
-	m.lockedItems.Store(key, lock)
+	m.LockedItems.Store(key, lock)
 
 	go m.updateLockTime(id, key, lockChannel)
 
@@ -79,9 +79,9 @@ func (m *MemoryLocker) updateLockTime(id string, key string, lockChannel chan er
 			// Received signal to stop
 			return
 		case <-ticker.C:
-			m.mutex.Lock()
+			m.Mutex.Lock()
 			// Continue updating lock time
-			lockInfo, ok := m.lockedItems.Load(key)
+			lockInfo, ok := m.LockedItems.Load(key)
 			if !ok {
 				// Key no longer exists, stop updating
 				return
@@ -89,13 +89,13 @@ func (m *MemoryLocker) updateLockTime(id string, key string, lockChannel chan er
 			lock := lockInfo.(LockInformation)
 			if lock.ID == id {
 				// Update lock time
-				m.lockedItems.Store(key, LockInformation{
+				m.LockedItems.Store(key, LockInformation{
 					ID:   id,
 					Key:  key,
 					Date: time.Now().UTC(),
 				})
 			}
-			m.mutex.Unlock()
+			m.Mutex.Unlock()
 		}
 	}
 }
@@ -105,10 +105,10 @@ func (m *MemoryLocker) Unlock(key Key) error {
 		return fmt.Errorf("key is empty")
 	}
 
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	m.Mutex.Lock()
+	defer m.Mutex.Unlock()
 
-	lockInfo, ok := m.lockedItems.Load(key.Key())
+	lockInfo, ok := m.LockedItems.Load(key.Key())
 	if !ok {
 		return fmt.Errorf("key '%s' is not locked", key.Key())
 	}
@@ -117,7 +117,7 @@ func (m *MemoryLocker) Unlock(key Key) error {
 	if keyLock.ID != key.ID() {
 		return fmt.Errorf("key '%s' is locked by another id: locked by: %s, unlock  by: %s", key.Key(), keyLock.ID, key.ID())
 	}
-	m.lockedItems.Delete(key.Key())
+	m.LockedItems.Delete(key.Key())
 	memoryKey := key.(*MemoryKey)
 	closeOnce(*memoryKey.Channel)
 

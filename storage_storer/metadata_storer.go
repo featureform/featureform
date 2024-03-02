@@ -1,7 +1,11 @@
 package storage_storer
 
+import (
+	"github.com/featureform/locker"
+)
+
 type MetadataStorer struct {
-	Locker MultiLock
+	Locker locker.MultiLock
 	Storer metadataStorerImplementation
 }
 
@@ -40,6 +44,16 @@ func (s *MetadataStorer) List(prefix string) (map[string]string, error) {
 	return s.Storer.List(prefix)
 }
 
+func (s *MetadataStorer) Get(key string) (string, error) {
+	lock, err := s.Locker.Lock(key)
+	if err != nil {
+		return "", err
+	}
+	defer s.Locker.Unlock(lock)
+
+	return s.Storer.Get(key)
+}
+
 func (s *MetadataStorer) Delete(key string) (string, error) {
 	lock, err := s.Locker.Lock(key)
 	if err != nil {
@@ -47,12 +61,7 @@ func (s *MetadataStorer) Delete(key string) (string, error) {
 	}
 	defer s.Locker.Unlock(lock)
 
-	value, err := s.Storer.Get(key)
-	if err != nil {
-		return "", err
-	}
-
-	err = s.Storer.Delete(key)
+	value, err := s.Storer.Delete(key)
 	if err != nil {
 		return "", err
 	}
@@ -63,5 +72,5 @@ type metadataStorerImplementation interface {
 	Set(key string, value string) error            // Set stores the value for the key and updates it if it already exists
 	Get(key string) (string, error)                // Get returns the value for the key
 	List(prefix string) (map[string]string, error) // List returns all the keys and values with the given prefix
-	Delete(key string) error                       // Delete removes the key and its value from the store
+	Delete(key string) (string, error)             // Delete removes the key and its value from the store
 }

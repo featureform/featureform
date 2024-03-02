@@ -51,7 +51,7 @@ func (m *MemoryStorerImplementation) Delete(key string) (string, error) {
 
 	value, ok := m.storage[key]
 	if !ok {
-		return "", fmt.Errorf("key not found")
+		return "", fmt.Errorf("key '%s' not found", key)
 	}
 
 	delete(m.storage, key)

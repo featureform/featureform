@@ -1,28 +1,27 @@
-from featureform.serving import Dataset
 import os
-from featureform.proto import serving_pb2
+
 import numpy as np
 import pytest
+
+from featureform.proto import serving_pb2
+from featureform.serving import Dataset
 
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
 
 
 def response(req_type, iterator_done):
-    if req_type == 0:
-        request_type = serving_pb2.RequestType.INITIALIZE
+    if req_type == serving_pb2.RequestType.INITIALIZE:
         return serving_pb2.TrainingTestSplitResponse(
-            request_type=request_type, initialized=True
+            request_type=req_type, initialized=True
         )
-    elif req_type == 1:
-        request_type = serving_pb2.RequestType.TRAINING
+    elif req_type == serving_pb2.RequestType.TRAINING:
         label_value = "train"
-    elif req_type == 2:
-        request_type = serving_pb2.RequestType.TEST
+    elif req_type == serving_pb2.RequestType.TEST:
         label_value = "test"
 
     req = serving_pb2.TrainingTestSplitResponse(
-        request_type=request_type,
+        request_type=req_type,
         row=serving_pb2.TrainingDataRow(
             features=[
                 serving_pb2.Value(str_value="f1"),
@@ -45,12 +44,12 @@ class MockGrpcStub:
     def TrainingTestSplit(self, iterator):
         for value in iterator:
             iterator_done = False
-            if value.request_type == 1:
+            if value.request_type == serving_pb2.RequestType.TRAINING:
                 self.train_rows += 1
 
                 if self.train_rows > self.num_rows:
                     iterator_done = True
-            elif value.request_type == 2:
+            elif value.request_type == serving_pb2.RequestType.TEST:
                 self.test_rows += 1
 
                 if self.test_rows > self.num_rows:
@@ -152,7 +151,7 @@ def test_train_test_batch():
     i = 0
     for features, label in train:
         if i > 1:
-            break
+            break  # Ensures we only check the first two batches
 
         assert np.array_equal(
             features,
@@ -202,7 +201,7 @@ def test_train_test_partial_batch():
     i = 0
     for features, label in train:
         if i > 1:
-            break
+            break  # Ensures we only check the first two batches
 
         assert np.array_equal(
             features,

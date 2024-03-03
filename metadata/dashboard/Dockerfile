@@ -29,11 +29,11 @@ COPY ./provider/provider_config/ ./provider/provider_config/
 COPY ./provider/provider_type/ ./provider/provider_type/
 COPY ./config/ ./config/
 
-RUN go build ./metadata/dashboard/dashboard_metadata.go
+RUN go build ./metadata/dashboard/main/main.go
 
 FROM alpine
 
-COPY --from=0 ./app/dashboard_metadata ./dashboard_metadata
+COPY --from=0 ./app/main ./main
 
 ARG SPARK_FILEPATH=/app/provider/scripts/spark/offline_store_spark_runner.py
 ARG SPARK_PYTHON_PACKAGES=/app/provider/scripts/spark/python_packages.sh
@@ -60,4 +60,4 @@ ENV MATERIALIZE_NO_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_no_ts
 ENV MATERIALIZE_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_ts.sql"
 
 EXPOSE 8080
-ENTRYPOINT ["./dashboard_metadata"]
+ENTRYPOINT ["./main"]

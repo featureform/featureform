@@ -32,8 +32,7 @@ COPY ./provider/ ./provider/
 COPY runner/worker/main/main.go ./runner/worker/main/main.go
 
 
-# CGD_ENABLED=0 is used to avoid the libc differences in alpine and ubuntu
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=1
 RUN go install github.com/go-delve/delve/cmd/dlv@latest
 RUN go build -gcflags="all=-N -l" -o worker ./runner/worker/main
 

@@ -34,8 +34,7 @@ COPY ./types ./types
 COPY ./coordinator/main/main.go ./coordinator/main/main.go
 
 # Building Go app
-# CGD_ENABLED=0 is used to avoid the libc differences in alpine and ubuntu
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=1
 RUN go build ./coordinator/main/main.go
 
 FROM ubuntu:22.04

@@ -7,8 +7,8 @@ import (
 
 func TestMemoryLocker(t *testing.T) {
 	locker := MemoryLocker{
-		lockedItems: sync.Map{},
-		mutex:       &sync.Mutex{},
+		LockedItems: sync.Map{},
+		Mutex:       &sync.Mutex{},
 	}
 
 	test := LockerTest{

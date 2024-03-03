@@ -148,6 +148,20 @@ func TestHealth_Check(t *testing.T) {
 		)
 	}
 
+	if *providerType == "ikv" || *providerType == "" {
+		config := initProvider(t, pt.IKVOnline, "", "")
+		providers = append(providers,
+			metadata.ProviderDef{
+				Name:             "ikv",
+				Type:             string(pt.IKVOnline),
+				SerializedConfig: config,
+				Software:         "ikv",
+				Tags:             metadata.Tags{},
+				Properties:       metadata.Properties{},
+			},
+		)
+	}
+
 	server, addr := initMetadataServer(t)
 
 	client := initClient(t, addr)
@@ -378,6 +392,22 @@ func initProvider(t *testing.T, providerType pt.Type, executorType pc.SparkExecu
 		}
 
 		return snowflakeConfig.Serialize()
+	case pt.IKVOnline:
+		storeName := checkEnv("IKV_STORE_NAME")
+		id := checkEnv("IKV_ACCOUNT_ID")
+		passkey := checkEnv("IKV_ACCOUNT_PASSKEY")
+		mountDirectory := checkEnv("IKV_MOUNT_DIRECTORY")
+		logLevel := helpers.GetEnv("IKV_LOG_LEVEL", "info")
+		logFilePath := helpers.GetEnv("IKV_LOG_FILE_PATH", "")
+		ikvConfig := pc.IKVConfig{
+			StoreName:      storeName,
+			AccountId:      id,
+			AccountPasskey: passkey,
+			MountDirectory: mountDirectory,
+			LogLevel:       logLevel,
+			LogFilePath:    logFilePath,
+		}
+		return ikvConfig.Serialized()
 	default:
 		panic(fmt.Sprintf("Unsupported provider type: %s", providerType))
 	}
@@ -495,6 +525,14 @@ func testUnsuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *
 		failureConfig.Account = "invalid"
 		def.SerializedConfig = failureConfig.Serialize()
 		def.Name = "snowflake-failure"
+	case pt.IKVOnline:
+		failureConfig := pc.IKVConfig{}
+		if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {
+			t.Fatalf("Failed to deserialize config: %s", err)
+		}
+		failureConfig.AccountId = "invalid-id"
+		def.SerializedConfig = failureConfig.Serialized()
+		def.Name = "ikv-failure"
 	default:
 		t.Skip("Skipping unsupported provider type")
 	}

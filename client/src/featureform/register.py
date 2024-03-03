@@ -48,6 +48,7 @@ from .resources import (
     OndemandFeatureParameters,
     OnlineBlobConfig,
     PineconeConfig,
+    IKVConfig,
     PostgresConfig,
     PrimaryData,
     Provider,

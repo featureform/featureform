@@ -103,4 +103,3 @@ RUN curl https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connecto
 EXPOSE 40005
 
 CMD ["/go/bin/dlv", "--listen=:40005", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "./worker"]
-

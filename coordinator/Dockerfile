@@ -103,4 +103,3 @@ RUN cat $SPARK_SCRIPT_PATH | md5sum \
 
 EXPOSE 8080
 ENTRYPOINT ["/app/main"]
-

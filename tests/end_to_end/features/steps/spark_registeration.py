@@ -132,6 +132,15 @@ def step_impl(context):
     context.client.apply(asynchronous=False, verbose=True)
 
 
+@when("I register transactions_short.csv")
+def step_impl(context):
+    context.transactions = context.spark.register_file(
+        name="transactions",
+        file_path="s3://featureform-spark-testing/data/transactions_short.csv",
+    )
+    context.client.apply(asynchronous=False, verbose=True)
+
+
 @then("I should be able to pull the file as a dataframe")
 def step_impl(context):
     try:

@@ -2,7 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
-	"fmt"
+	"github.com/featureform/fferr"
 
 	ss "github.com/featureform/helpers/string_set"
 )
@@ -29,7 +29,7 @@ func (store *AzureFileStoreConfig) Serialize() ([]byte, error) {
 func (store *AzureFileStoreConfig) Deserialize(data SerializedConfig) error {
 	err := json.Unmarshal(data, store)
 	if err != nil {
-		return fmt.Errorf("deserialize file blob store config: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }

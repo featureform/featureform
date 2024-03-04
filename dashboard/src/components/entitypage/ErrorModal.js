@@ -53,7 +53,7 @@ export default function ErrorModal({ errorTxt = '', buttonTxt = '' }) {
           <Typography>Copied to clipboard!</Typography>
         </Alert>
       </Snackbar>
-      <Typography data-testid='errorMessageId' variant='body1'>
+      <Typography style={{whiteSpace: 'pre-line'}} data-testid='errorMessageId' variant='body1'>
         {`${truncated + (isShowMore ? '...' : '')}`}
       </Typography>
       {isShowMore && (

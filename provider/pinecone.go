@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"time"
 
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
@@ -87,7 +87,7 @@ func (store *pineconeOnlineStore) DeleteTable(feature, variant string) error {
 }
 
 func (store *pineconeOnlineStore) CheckHealth() (bool, error) {
-	return false, fmt.Errorf("provider health check not implemented")
+	return false, fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (store *pineconeOnlineStore) CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error) {
@@ -154,7 +154,10 @@ func (store *pineconeOnlineStore) GetTable(feature, variant string) (OnlineStore
 		return nil, err
 	}
 	if state != Ready {
-		return nil, fmt.Errorf("pinecone index %s not ready; current state is %s", indexName, state)
+		wrapped := fferr.NewConnectionError(pt.PineconeOnline.String(), fmt.Errorf("pinecone index not ready"))
+		wrapped.AddDetail("index_name", indexName)
+		wrapped.AddDetail("current_state", string(state))
+		return nil, wrapped
 	}
 	return pineconeOnlineTable{
 		api:       store.client,
@@ -183,7 +186,11 @@ type pineconeOnlineTable struct {
 func (table pineconeOnlineTable) Set(entity string, value interface{}) error {
 	vector, isVector := value.([]float32)
 	if !isVector {
-		return fmt.Errorf("expected value to be of type []float32, got %T", value)
+		wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("expected value to be of type []float32, got %T", value))
+		wrapped.AddDetail("provider", pt.PineconeOnline.String())
+		wrapped.AddDetail("entity", entity)
+		wrapped.AddDetail("index_name", table.indexName)
+		return wrapped
 	}
 	err := table.api.upsert(table.indexName, table.namespace, entity, vector)
 	if err != nil {
@@ -247,6 +254,7 @@ func (api pineconeAPI) describeIndex(name string) (dimension int32, state Pineco
 	var response describeIndexResponse
 	err = json.Unmarshal(body, &response)
 	if err != nil {
+		err = fferr.NewInternalError(err)
 		return
 	}
 	dimension = int32(response.Database.Dimension)
@@ -283,10 +291,11 @@ func (api pineconeAPI) upsert(indexName, namespace, id string, vector []float32)
 	var response upsertResponse
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	if response.UpsertedCount != 1 {
-		return fmt.Errorf("expected 1 upserted count, got %d", response.UpsertedCount)
+		wrapped := fferr.NewExecutionError(pt.PineconeOnline.String(), fmt.Errorf("expected 1 upserted count, got %d", response.UpsertedCount))
+		return wrapped
 	}
 	return nil
 }
@@ -295,7 +304,7 @@ func (api pineconeAPI) upsert(indexName, namespace, id string, vector []float32)
 func (api pineconeAPI) fetch(indexName, namespace, id string) ([]float32, error) {
 	base, err := url.Parse(api.getVectorOperationURL(indexName, "vectors/fetch"))
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	vectorID := api.generateDeterministicID(id)
 	params := url.Values{}
@@ -309,11 +318,15 @@ func (api pineconeAPI) fetch(indexName, namespace, id string) ([]float32, error)
 	var response fetchResponse
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	vector, ok := response.Vectors[vectorID]
 	if !ok {
-		return nil, fmt.Errorf("vector not found")
+		wrapped := fferr.NewDatasetNotFoundError(vectorID, "", fmt.Errorf("vector not found"))
+		wrapped.AddDetail("id", id)
+		wrapped.AddDetail("index_name", indexName)
+		wrapped.AddDetail("namespace", namespace)
+		return nil, wrapped
 	}
 	return vector.Values, nil
 }
@@ -337,7 +350,7 @@ func (api pineconeAPI) query(indexName, namespace string, vector []float32, k in
 	var response queryResponse
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	results := make([]string, k)
 	for i, result := range response.Matches {
@@ -362,31 +375,33 @@ func (api pineconeAPI) request(method, url string, payload interface{}, expected
 	case http.MethodPost:
 		jsonPayload, err := json.Marshal(payload)
 		if err != nil {
-			return nil, err
+			return nil, fferr.NewInternalError(err)
 		}
 		reader = bytes.NewBuffer(jsonPayload)
 	case http.MethodGet, http.MethodDelete:
 		reader = nil
 	default:
-		return nil, fmt.Errorf("unsupported method %s", method)
+		return nil, fferr.NewInternalError(fmt.Errorf("unsupported method %s", method))
 	}
 	req, err := http.NewRequest(method, url, reader)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewConnectionError(pt.PineconeOnline.String(), err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Api-Key", api.config.ApiKey)
 	resp, err := api.client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewConnectionError(pt.PineconeOnline.String(), err)
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	if resp.StatusCode != expectedStatus {
-		return nil, fmt.Errorf("request failed with status code %d: %s", resp.StatusCode, string(body))
+		wrapped := fferr.NewConnectionError(pt.PineconeOnline.String(), err)
+		wrapped.AddDetail("status_code", fmt.Sprintf("%d", resp.StatusCode))
+		return nil, wrapped
 	}
 	return body, nil
 }

@@ -9,9 +9,11 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
   const [content, setContent] = useState({});
 
   const handleRowSelect = (selectedRow) => {
-    let foundTaskRun = taskRunList?.find((q) => q.id === selectedRow.row.id);
-    setContent(foundTaskRun ?? {});
-    setOpen((prev) => content !== selectedRow.row.name || !prev);
+    let foundTaskItem = taskRunList?.find(
+      (q) => q.taskRun.runId === selectedRow.row.taskRun.runId
+    );
+    setContent(foundTaskItem.taskRun ?? {});
+    setOpen((prev) => content !== selectedRow.row.taskRun.name || !prev);
   };
 
   function handleClose() {
@@ -20,8 +22,9 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
 
   const columns = [
     {
-      field: 'id',
+      field: 'runId',
       headerName: 'Run Id',
+      flex: 1,
       width: 100,
       editable: false,
       sortable: false,
@@ -30,65 +33,102 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
     },
     {
       field: 'name',
-      headerName: 'Job Name',
+      headerName: 'Job Run Name',
+      flex: 1,
       width: 200,
       editable: false,
       sortable: false,
       filterable: false,
-    },
-    {
-      field: 'type',
-      headerName: 'Job Type',
-      width: 150,
-      editable: false,
-      sortable: false,
-      filterable: false,
-    },
-    {
-      field: 'provider',
-      headerName: 'Provider',
-      width: 200,
-      editable: false,
-      sortable: false,
-      filterable: false,
+      valueGetter: (params) => {
+        return params?.row?.taskRun?.name;
+      },
     },
     {
       field: 'resource',
       headerName: 'Resource',
-      width: 200,
+      flex: 1,
+      width: 175,
       editable: false,
       sortable: false,
       filterable: false,
+      valueGetter: (params) => {
+        return params?.row?.task?.target?.name;
+      },
+    },
+    {
+      field: 'variant',
+      headerName: 'Variant',
+      flex: 1,
+      width: 175,
+      editable: false,
+      sortable: false,
+      filterable: false,
+      valueGetter: (params) => {
+        return params?.row?.task?.target?.variant;
+      },
+    },
+    {
+      field: 'jobType',
+      headerName: 'Job Type',
+      flex: 1,
+      width: 175,
+      editable: false,
+      sortable: false,
+      filterable: false,
+      valueGetter: (params) => {
+        return params?.row?.task?.type;
+      },
     },
     {
       field: 'status',
       headerName: 'Status',
-      width: 150,
+      flex: 1,
+      width: 125,
       editable: false,
       sortable: false,
       filterable: false,
+      valueGetter: (params) => {
+        return params?.row?.taskRun?.status;
+      },
       renderCell: function (params) {
-        return <StatusChip status={params?.row?.status} />;
+        return <StatusChip status={params?.row?.taskRun?.status} />;
       },
     },
     {
-      field: 'lastRunTime',
-      headerName: 'Last Run',
-      description: 'This column has a value getter and is not sortable.',
+      field: 'startTime',
+      headerName: 'Start Time',
+      flex: 1,
       sortable: false,
       filterable: false,
       width: 200,
       valueGetter: (params) => {
-        return new Date(params?.row?.lastRunTime)?.toLocaleString();
+        return new Date(params?.row?.taskRun?.startTime)?.toLocaleString();
+      },
+    },
+    {
+      field: 'endTime',
+      headerName: 'End Time',
+      flex: 1,
+      sortable: false,
+      filterable: false,
+      width: 200,
+      valueGetter: (params) => {
+        return new Date(params?.row?.taskRun?.endTime)?.toLocaleString();
       },
     },
     {
       field: 'triggeredBy',
       headerName: 'Triggered By',
-      width: 150,
+      flex: 1,
+      width: 125,
       editable: false,
+      valueGetter: (params) => {
+        return params?.row?.taskRun?.trigger?.triggerName;
+      },
     },
   ];
+
+  const mainPageSize = getPageSizeProp(taskRunList?.length);
 
   return (
     <>
@@ -106,21 +146,48 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
           horizontal: 'right',
         }}
       >
-        <TaskRunCard handleClose={handleClose} searchId={content?.id ?? ''} />
+        <TaskRunCard
+          handleClose={handleClose}
+          searchId={content?.runId ?? ''}
+        />
       </Popover>
       <DataGrid
-        sx={{ minWidth: 300, height: 650 }}
+        autoHeight
+        sx={{
+          minWidth: 300,
+          '& .MuiDataGrid-cell:focus': {
+            outline: 'none',
+          },
+          '& .MuiDataGrid-row:hover': {
+            cursor: 'pointer',
+          },
+        }}
         onRowClick={handleRowSelect}
+        rowsPerPageOptions={[5, 10, 15]}
         density='compact'
         aria-label='Task Runs'
         rows={taskRunList ?? []}
-        rowsPerPageOptions={[15]}
         columns={columns}
         initialState={{
-          pagination: { paginationModel: { page: 1, pageSize: 15 } },
+          pagination: { paginationModel: { page: 1, pageSize: mainPageSize } },
         }}
-        pageSize={15}
+        pageSize={mainPageSize}
+        getRowId={(row) => {
+          return row.taskRun.runId;
+        }}
       />
     </>
   );
+}
+
+export function getPageSizeProp(listLength = 0) {
+  let pageSize = 5;
+  if (listLength > 10) {
+    pageSize = 15;
+  } else if (listLength > 5) {
+    pageSize = 10;
+  } else {
+    pageSize = 5;
+  }
+  return pageSize;
 }

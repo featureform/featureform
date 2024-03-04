@@ -782,7 +782,7 @@ func (serv *OnlineServer) BatchFeatureServe(req *srv.BatchFeatureServeRequest, s
 	serv.Logger.Infow("Serving Batch Features", "request", req.String())
 	client, err := serv.client.BatchFeatureServe(context.Background(), req)
 	if err != nil {
-		return fmt.Errorf("could not serve batch features: %w", err)
+		return err
 	}
 	for {
 		row, err := client.Recv()
@@ -825,7 +825,7 @@ func (serv *OnlineServer) TrainingTestSplit(stream srv.Feature_TrainingTestSplit
 	serv.Logger.Infow("Starting Training Test Split Stream")
 	clientStream, err := serv.client.TrainingTestSplit(context.Background())
 	if err != nil {
-		return fmt.Errorf("could not serve training test split: %w", err)
+		return err
 	}
 
 	// Use a channel to communicate errors from goroutines
@@ -841,13 +841,13 @@ func (serv *OnlineServer) TrainingTestSplit(stream srv.Feature_TrainingTestSplit
 			// Client has closed the stream, close the downstream stream
 			serv.Logger.Infow("Client has closed the stream")
 			if err := clientStream.CloseSend(); err != nil {
-				return fmt.Errorf("failed to close send direction to downstream service: %w", err)
+				return fferr.NewInternalError(err)
 			}
 			return nil
 		}
 		if err != nil {
 			serv.Logger.Errorw("Error receiving from client stream", "error", err)
-			return err
+			return fferr.NewInternalError(err)
 		}
 
 		// Forward the request to the downstream service
@@ -865,13 +865,13 @@ func (serv *OnlineServer) TrainingTestSplit(stream srv.Feature_TrainingTestSplit
 		}
 		if err != nil {
 			serv.Logger.Errorw("Error receiving from downstream service", "error", err)
-			return err
+			return fferr.NewInternalError(err)
 		}
 
 		// Send the response back to the client
 		if err := stream.Send(resp); err != nil {
 			serv.Logger.Errorw("Failed to send response to client", "error", err)
-			return err
+			return fferr.NewInternalError(err)
 		}
 	}
 	//}()

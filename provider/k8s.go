@@ -1407,11 +1407,11 @@ func fileStoreDeleteMaterialization(id MaterializationID, store FileStore, logge
 	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
 	materializationPath, err := store.CreateFilePath(fileStoreResourcePath(materializationID))
 	if err != nil {
-		return fmt.Errorf("could not create file path for materialization %v: %w", id, err)
+		return err
 	}
 	exits, err := store.Exists(materializationPath)
 	if err != nil {
-		return fmt.Errorf("could not check if materialization %v exists: %v", materializationID, err)
+		return err
 	}
 	if !exits {
 		return fferr.NewDatasetNotFoundError(string(id), "", nil)

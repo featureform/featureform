@@ -177,7 +177,7 @@ func (serv *FeatureServer) handleSplitDataRequest(
 	case pb.RequestType_TEST:
 		thisIter = *testIterator
 	default:
-		return fmt.Errorf("invalid request type")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("invalid request type: %s", req.GetRequestType().String()))
 	}
 
 	if thisIter.Next() {

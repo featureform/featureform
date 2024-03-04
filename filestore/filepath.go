@@ -233,7 +233,7 @@ func (fp *FilePath) ParseFilePath(fullPath string) error {
 func (fp *FilePath) ParseDirPath(fullPath string) error {
 	err := fp.parsePath(fullPath)
 	if err != nil {
-		return fmt.Errorf("dir: %v", err)
+		return err
 	}
 	// To ensure consistency, we check to see if the last element has an extension, and if so,
 	// we remove it to ensure we're always dealing with a directory path.

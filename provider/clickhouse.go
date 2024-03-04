@@ -1122,7 +1122,9 @@ func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
 		dropQuery := fmt.Sprintf("DROP VIEW if exists %s", sanitizeCH(trainingTestSplitName))
 		_, err := store.db.Exec(dropQuery)
 		if err != nil {
-			return fmt.Errorf("could not drop test split: %v", err)
+			wrapped := fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+			wrapped.AddDetail("table_name", trainingTestSplitName)
+			return wrapped
 
 		}
 		return nil

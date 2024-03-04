@@ -983,7 +983,7 @@ func (store *genericFileStore) Write(path filestore.Filepath, data []byte) error
 			if errRetr != nil {
 				return re.Unrecoverable(errRetr)
 			} else if !bytes.Equal(blob, data) {
-				return fmt.Errorf("blob read from bucket does not match blob written to bucket")
+				return fferr.NewInternalError(fmt.Errorf("blob read from bucket does not match blob written to bucket"))
 			}
 			return nil
 		},

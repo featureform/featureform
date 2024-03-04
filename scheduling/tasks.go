@@ -26,13 +26,14 @@ type Provider struct {
 	Name string `json:"name"`
 }
 
-type NameVariant struct {
-	Name    string `json:"name"`
-	Variant string `json:"variant"`
-}
-
 func (p Provider) Type() TargetType {
 	return ProviderTarget
+}
+
+type NameVariant struct {
+	Name         string `json:"name"`
+	Variant      string `json:"variant"`
+	ResourceType string `json:"type"`
 }
 
 func (nv NameVariant) Type() TargetType {

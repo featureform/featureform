@@ -1186,7 +1186,7 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 		return
 	}
 
-	filepath, err := FindFileWithPrefix(statsFiles, "part-00003")
+	filepath, err := FindFileWithPrefix(statsFiles, "part-00000")
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "Could not find the stats file"}
 		m.logger.Errorw(fetchError.Error(), "error", err.Error())

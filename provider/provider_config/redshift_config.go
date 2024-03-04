@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"github.com/featureform/fferr"
 
 	ss "github.com/featureform/helpers/string_set"
 )
@@ -18,7 +19,7 @@ type RedshiftConfig struct {
 func (rs *RedshiftConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, rs)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }

@@ -8,12 +8,17 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"math"
+	"os"
+	"strings"
+
+	"github.com/featureform/fferr"
 	"github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	"github.com/featureform/types"
 	"github.com/google/uuid"
 	"github.com/gorhill/cronexpr"
-	"io"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -22,9 +27,6 @@ import (
 	watch "k8s.io/apimachinery/pkg/watch"
 	kubernetes "k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
-	"math"
-	"os"
-	"strings"
 )
 
 type CronSchedule string
@@ -56,7 +58,9 @@ func CreateJobName(id metadata.ResourceID, prefixes ...string) string {
 
 func makeCronSchedule(schedule string) (*CronSchedule, error) {
 	if _, err := cronexpr.Parse(schedule); err != nil {
-		return nil, fmt.Errorf("invalid cron expression: %v", err)
+		err := fferr.NewInvalidArgumentError(fmt.Errorf("invalid cron expression: %v", err))
+		err.AddDetail("schedule", schedule)
+		return nil, err
 	}
 	cronSchedule := CronSchedule(schedule)
 	return &cronSchedule, nil
@@ -120,21 +124,41 @@ func validateJobLimits(specs metadata.KubernetesResourceSpecs) (v1.ResourceRequi
 		qty, err := resource.ParseQuantity(specs.CPURequest)
 		rsrcReq.Requests[v1.ResourceCPU] = qty
 		parseErr = err
+		if err != nil {
+			wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("invalid cpu request: %v", err))
+			wrapped.AddDetail("cpu_request", specs.CPURequest)
+			parseErr = wrapped
+		}
 	}
 	if specs.CPULimit != "" {
 		qty, err := resource.ParseQuantity(specs.CPULimit)
 		rsrcReq.Limits[v1.ResourceCPU] = qty
 		parseErr = err
+		if err != nil {
+			wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("invalid cpu limit: %v", err))
+			wrapped.AddDetail("cpu_limit", specs.CPULimit)
+			parseErr = wrapped
+		}
 	}
 	if specs.MemoryRequest != "" {
 		qty, err := resource.ParseQuantity(specs.MemoryRequest)
 		rsrcReq.Requests[v1.ResourceMemory] = qty
 		parseErr = err
+		if err != nil {
+			wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("invalid memory request: %v", err))
+			wrapped.AddDetail("memory_request", specs.MemoryRequest)
+			parseErr = wrapped
+		}
 	}
 	if specs.MemoryLimit != "" {
 		qty, err := resource.ParseQuantity(specs.MemoryLimit)
 		rsrcReq.Limits[v1.ResourceMemory] = qty
 		parseErr = err
+		if err != nil {
+			wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("invalid memory limit: %v", err))
+			wrapped.AddDetail("memory_limit", specs.MemoryLimit)
+			parseErr = wrapped
+		}
 	}
 	if parseErr != nil {
 		return rsrcReq, parseErr
@@ -280,7 +304,6 @@ func getPodLogs(namespace string, name string) string {
 func (k KubernetesCompletionWatcher) Wait() error {
 	watcher, err := k.jobClient.Watch()
 	if err != nil {
-		fmt.Println("error fetching watcher for job:", k.jobClient.GetJobName())
 		return err
 	}
 	watchChannel := watcher.ResultChan()
@@ -292,8 +315,10 @@ func (k KubernetesCompletionWatcher) Wait() error {
 				return nil
 			}
 			if failed := job.Status.Failed; failed > 0 {
-				return fmt.Errorf("job failed while running: container: %s: error: %s",
-					job.Name, getPodLogs(job.Namespace, job.GetName()))
+				err := fferr.NewInternalError(fmt.Errorf("job failed"))
+				err.AddDetail("job_name", k.jobClient.GetJobName())
+				err.AddDetail("job_logs", getPodLogs(job.Namespace, job.GetName()))
+				return err
 			}
 		}
 
@@ -307,7 +332,9 @@ func (k KubernetesCompletionWatcher) Err() error {
 		return err
 	}
 	if job.Status.Failed > 0 {
-		return fmt.Errorf("job failed while running: container: %s: %w", job.Name, err)
+		err := fferr.NewInternalError(fmt.Errorf("job failed"))
+		err.AddDetail("job_name", k.jobClient.GetJobName())
+		return err
 	}
 	return nil
 }
@@ -337,7 +364,7 @@ func (k KubernetesRunner) ScheduleJob(schedule CronSchedule) error {
 func GetCurrentNamespace() (string, error) {
 	contents, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
-		return "", err
+		return "", fferr.NewInternalError(err)
 	}
 	return string(contents), nil
 }
@@ -389,25 +416,45 @@ func (k KubernetesJobClient) getCronJobName() string {
 }
 
 func (k KubernetesJobClient) Get() (*batchv1.Job, error) {
-	return k.Clientset.BatchV1().Jobs(k.Namespace).Get(context.TODO(), k.JobName, metav1.GetOptions{})
+	job, err := k.Clientset.BatchV1().Jobs(k.Namespace).Get(context.TODO(), k.JobName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fferr.NewInternalError(err)
+	}
+	return job, nil
 }
 
 func (k KubernetesJobClient) GetCronJob() (*batchv1.CronJob, error) {
-	return k.Clientset.BatchV1().CronJobs(k.Namespace).Get(context.TODO(), k.getCronJobName(), metav1.GetOptions{})
+	cronJob, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Get(context.TODO(), k.getCronJobName(), metav1.GetOptions{})
+	if err != nil {
+		return nil, fferr.NewInternalError(err)
+	}
+	return cronJob, nil
 }
 
 func (k KubernetesJobClient) UpdateCronJob(cronJob *batchv1.CronJob) (*batchv1.CronJob, error) {
-	return k.Clientset.BatchV1().CronJobs(k.Namespace).Update(context.TODO(), cronJob, metav1.UpdateOptions{})
+	cronJob, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Update(context.TODO(), cronJob, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, fferr.NewInternalError(err)
+	}
+	return cronJob, nil
 }
 
 func (k KubernetesJobClient) Watch() (watch.Interface, error) {
-	return k.Clientset.BatchV1().Jobs(k.Namespace).Watch(context.TODO(), metav1.ListOptions{FieldSelector: fmt.Sprintf("metadata.name=%s", k.JobName)})
+	watch, err := k.Clientset.BatchV1().Jobs(k.Namespace).Watch(context.TODO(), metav1.ListOptions{FieldSelector: fmt.Sprintf("metadata.name=%s", k.JobName)})
+	if err != nil {
+		return nil, fferr.NewInternalError(err)
+	}
+	return watch, nil
 }
 
 func (k KubernetesJobClient) Create(jobSpec *batchv1.JobSpec) (*batchv1.Job, error) {
 	fmt.Println("Creating kubernetes job with name:", k.JobName)
 	job := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: k.JobName, Namespace: k.Namespace}, Spec: *jobSpec}
-	return k.Clientset.BatchV1().Jobs(k.Namespace).Create(context.TODO(), job, metav1.CreateOptions{})
+	created, err := k.Clientset.BatchV1().Jobs(k.Namespace).Create(context.TODO(), job, metav1.CreateOptions{})
+	if err != nil {
+		return nil, fferr.NewInternalError(err)
+	}
+	return created, nil
 }
 
 func (k KubernetesJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batchv1.JobSpec) error {
@@ -430,7 +477,7 @@ func (k KubernetesJobClient) SetJobSchedule(schedule CronSchedule, jobSpec *batc
 		},
 	}
 	if _, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Create(context.TODO(), cronJob, metav1.CreateOptions{}); err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -449,7 +496,7 @@ func (k KubernetesJobClient) UpdateJobSchedule(schedule CronSchedule, jobSpec *b
 		},
 	}
 	if _, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Update(context.TODO(), cronJob, metav1.UpdateOptions{}); err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -457,7 +504,7 @@ func (k KubernetesJobClient) UpdateJobSchedule(schedule CronSchedule, jobSpec *b
 func (k KubernetesJobClient) GetJobSchedule(jobName string) (CronSchedule, error) {
 	job, err := k.Clientset.BatchV1().CronJobs(k.Namespace).Get(context.TODO(), jobName, metav1.GetOptions{})
 	if err != nil {
-		return "", err
+		return "", fferr.NewInternalError(err)
 	}
 	return CronSchedule(job.Spec.Schedule), nil
 }
@@ -465,11 +512,11 @@ func (k KubernetesJobClient) GetJobSchedule(jobName string) (CronSchedule, error
 func NewKubernetesJobClient(name string, namespace string) (*KubernetesJobClient, error) {
 	kubeConfig, err := rest.InClusterConfig()
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	clientset, err := kubernetes.NewForConfig(kubeConfig)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	return &KubernetesJobClient{Clientset: clientset, JobName: name, Namespace: namespace}, nil
 }

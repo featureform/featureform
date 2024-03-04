@@ -10,7 +10,7 @@ export default function StatusChip({ status }) {
   };
   return (
     <Chip
-      sx={{ backgroundColor: chipMap[status] ?? 'white' }}
+      sx={{ backgroundColor: chipMap[status] ?? '#FFFFFF' }}
       size='small'
       label={status}
     />

@@ -1,4 +1,4 @@
-import DoubleArrowIcon from '@mui/icons-material/DoubleArrow';
+import CloseIcon from '@mui/icons-material/Close';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import {
   Box,
@@ -6,6 +6,7 @@ import {
   Grid,
   IconButton,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
@@ -86,18 +87,18 @@ export default function TaskRunCard({ handleClose, searchId }) {
 
   return (
     <Box className={classes.taskCardBox}>
-      <Box style={{ float: 'left' }}>
-        <IconButton variant='' size='large' onClick={() => handleClose()}>
-          <DoubleArrowIcon />
-        </IconButton>
-      </Box>
       <Box style={{ float: 'right' }}>
-        <IconButton variant='' size='large' onClick={handleReloadRequest}>
-          {loading ? (
-            <CircularProgress size={'.75em'} />
-          ) : (
-            <RefreshIcon data-testid='taskRunRefreshIcon' />
-          )}
+        <Tooltip title='Refresh card' placement='bottom'>
+          <IconButton variant='' size='large' onClick={handleReloadRequest}>
+            {loading ? (
+              <CircularProgress size={'.75em'} />
+            ) : (
+              <RefreshIcon data-testid='taskRunRefreshIcon' />
+            )}
+          </IconButton>
+        </Tooltip>
+        <IconButton variant='' size='large' onClick={() => handleClose()}>
+          <CloseIcon />
         </IconButton>
       </Box>
       <Grid style={{ padding: 12 }} container>
@@ -154,6 +155,11 @@ export default function TaskRunCard({ handleClose, searchId }) {
             density='compact'
             autoHeight
             aria-label='Other Runs'
+            sx={{
+              '& .MuiDataGrid-cell:focus': {
+                outline: 'none',
+              },
+            }}
             rows={taskRunRecord?.otherRuns ?? []}
             rowsPerPageOptions={[5]}
             columns={columns}

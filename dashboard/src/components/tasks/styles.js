@@ -1,30 +1,30 @@
 import { makeStyles } from '@mui/styles';
 
 const useStyles = makeStyles(() => ({
-  intputRow: {
-    paddingBottom: 30,
+  inputRow: {
+    paddingBottom: 20,
     '& button': {
       height: 56,
     },
   },
   activeButton: {
-    color: 'white',
+    color: '#FFFFFF',
     backgroundColor: '#7A14E5',
     '&:hover': {
       backgroundColor: '#7A14E5',
     },
   },
   activeChip: {
-    color: 'black',
-    background: 'white',
+    color: '#000000',
+    background: '#FFFFFF',
   },
   inactiveChip: {
-    color: 'white',
+    color: '#FFFFFF',
     background: '#7A14E5',
   },
   inactiveButton: {
-    color: 'black',
-    background: 'white',
+    color: '#000000',
+    background: '#FFFFFF',
   },
   buttonText: {
     textTransform: 'none',

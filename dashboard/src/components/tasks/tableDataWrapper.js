@@ -1,4 +1,4 @@
-import ClearAllIcon from '@mui/icons-material/ClearAll';
+import FilterAltOffIcon from '@mui/icons-material/FilterAltOff';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
 import {
@@ -13,6 +13,7 @@ import {
   MenuItem,
   Select,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import React, { useEffect, useState } from 'react';
@@ -122,7 +123,7 @@ export default function TableDataWrapper() {
 
   return (
     <>
-      <Box className={classes.intputRow}>
+      <Box className={classes.inputRow}>
         <Button
           variant='outlined'
           className={
@@ -248,19 +249,23 @@ export default function TableDataWrapper() {
               }}
             />
           </FormControl>
-          <IconButton size='large' onClick={handleReloadRequest}>
-            {loading ? (
-              <CircularProgress
-                size={'.85em'}
-                data-testid='circularProgressId'
-              />
-            ) : (
-              <RefreshIcon data-testid='refreshIcon' />
-            )}
-          </IconButton>
-          <IconButton size='large' onClick={clearInputs}>
-            <ClearAllIcon data-testid='clearIcon' />
-          </IconButton>
+          <Tooltip title='Refresh table' placement='top'>
+            <IconButton size='large' onClick={handleReloadRequest}>
+              {loading ? (
+                <CircularProgress
+                  size={'.85em'}
+                  data-testid='circularProgressId'
+                />
+              ) : (
+                <RefreshIcon data-testid='refreshIcon' />
+              )}
+            </IconButton>
+          </Tooltip>
+          <Tooltip title='Clear filter inputs' placement='top'>
+            <IconButton size='large' onClick={clearInputs}>
+              <FilterAltOffIcon data-testid='clearIcon' />
+            </IconButton>
+          </Tooltip>
         </Box>
       </Box>
       <TaskRunDataGrid taskRunList={taskRunList} />

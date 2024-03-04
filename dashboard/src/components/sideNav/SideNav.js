@@ -74,7 +74,7 @@ function SideNav({ sections, children }) {
               onClick={(event) => handleMenuClick(event, '/tasks')}
               sx={{ padding: '0 0 0 6em' }}
             >
-              <ListItemText primary='Jobs' />
+              <ListItemText primary='Tasks' />
             </ListItemButton>
             <ListItemButton
               onClick={(event) => handleMenuClick(event, '/triggers')}

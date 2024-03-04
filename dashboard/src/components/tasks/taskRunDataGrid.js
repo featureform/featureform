@@ -24,6 +24,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
     {
       field: 'runId',
       headerName: 'Run Id',
+      flex: 1,
       width: 100,
       editable: false,
       sortable: false,
@@ -33,6 +34,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
     {
       field: 'name',
       headerName: 'Job Run Name',
+      flex: 1,
       width: 200,
       editable: false,
       sortable: false,
@@ -44,6 +46,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
     {
       field: 'resource',
       headerName: 'Resource',
+      flex: 1,
       width: 175,
       editable: false,
       sortable: false,
@@ -55,6 +58,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
     {
       field: 'variant',
       headerName: 'Variant',
+      flex: 1,
       width: 175,
       editable: false,
       sortable: false,
@@ -66,6 +70,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
     {
       field: 'jobType',
       headerName: 'Job Type',
+      flex: 1,
       width: 175,
       editable: false,
       sortable: false,
@@ -77,6 +82,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
     {
       field: 'status',
       headerName: 'Status',
+      flex: 1,
       width: 125,
       editable: false,
       sortable: false,
@@ -91,6 +97,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
     {
       field: 'startTime',
       headerName: 'Start Time',
+      flex: 1,
       sortable: false,
       filterable: false,
       width: 200,
@@ -101,6 +108,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
     {
       field: 'endTime',
       headerName: 'End Time',
+      flex: 1,
       sortable: false,
       filterable: false,
       width: 200,
@@ -111,6 +119,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
     {
       field: 'triggeredBy',
       headerName: 'Triggered By',
+      flex: 1,
       width: 125,
       editable: false,
       valueGetter: (params) => {
@@ -118,6 +127,8 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
       },
     },
   ];
+
+  const mainPageSize = getPageSizeProp(taskRunList?.length);
 
   return (
     <>
@@ -141,17 +152,26 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
         />
       </Popover>
       <DataGrid
-        sx={{ minWidth: 300, height: 650 }}
+        autoHeight
+        sx={{
+          minWidth: 300,
+          '& .MuiDataGrid-cell:focus': {
+            outline: 'none',
+          },
+          '& .MuiDataGrid-row:hover': {
+            cursor: 'pointer',
+          },
+        }}
         onRowClick={handleRowSelect}
+        rowsPerPageOptions={[5, 10, 15]}
         density='compact'
         aria-label='Task Runs'
         rows={taskRunList ?? []}
-        rowsPerPageOptions={[15]}
         columns={columns}
         initialState={{
-          pagination: { paginationModel: { page: 1, pageSize: 15 } },
+          pagination: { paginationModel: { page: 1, pageSize: mainPageSize } },
         }}
-        pageSize={15}
+        pageSize={mainPageSize}
         getRowId={(row) => {
           return row.taskRun.runId;
         }}

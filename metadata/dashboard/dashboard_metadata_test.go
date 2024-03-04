@@ -42,19 +42,7 @@ func MockJsonGet(c *gin.Context, params gin.Params) {
 	c.Request.Body = io.NopCloser(bytes.NewBuffer(jsonValue))
 }
 
-func MockJsonTagPost(c *gin.Context, params gin.Params, tagList []string) {
-	c.Request.Method = "POST"
-	c.Request.Header.Set("Content-Type", "application/json")
-	postBody := TagPostBody{
-		Tags:    tagList,
-		Variant: "default",
-	}
-	jsonValue, _ := json.Marshal(postBody)
-	c.Request.Body = io.NopCloser(bytes.NewBuffer(jsonValue))
-	c.Params = params
-}
-
-func MockJsonTaskPost(c *gin.Context, params gin.Params, body TaskRunsPostBody) {
+func MockJsonPost(c *gin.Context, params gin.Params, body map[string]interface{}) {
 	c.Request.Method = "POST"
 	c.Request.Header.Set("Content-Type", "application/json")
 	jsonValue, _ := json.Marshal(body)
@@ -84,7 +72,10 @@ func TestPostTags(t *testing.T) {
 	variant := "default"
 	resourceType := "sources"
 	tagList := []string{"test tag 40", "test tag 66"}
-
+	postBody := map[string]interface{}{
+		"tags":    tagList,
+		"variant": "default",
+	}
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
 	params := []gin.Param{
@@ -98,7 +89,7 @@ func TestPostTags(t *testing.T) {
 		},
 	}
 
-	MockJsonTagPost(ctx, params, tagList)
+	MockJsonPost(ctx, params, postBody)
 
 	res := metadata.ResourceID{
 		Name:    name,
@@ -286,12 +277,11 @@ func TestGetSourceFaultyOrNilGrpcClientPanic(t *testing.T) {
 func TestGetTaskRuns(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
-	body := TaskRunsPostBody{
-		Status:     "ALL",
-		SearchText: "",
-		SortBy:     "",
+	body := map[string]interface{}{"Status": "ALL",
+		"SearchText": "",
+		"SortBy":     "",
 	}
-	MockJsonTaskPost(ctx, nil, body)
+	MockJsonPost(ctx, nil, body)
 
 	logger := zap.NewExample().Sugar()
 	client := &metadata.Client{}
@@ -312,12 +302,11 @@ func TestGetTaskRuns(t *testing.T) {
 func TestGetTaskRunsZeroResults(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
-	body := TaskRunsPostBody{
-		Status:     "DOES NOT EXIST",
-		SearchText: "hahaha",
-		SortBy:     "Nope",
+	body := map[string]interface{}{"Status": "DOES NOT EXIST",
+		"SearchText": "hahaha",
+		"SortBy":     "Nope",
 	}
-	MockJsonTaskPost(ctx, nil, body)
+	MockJsonPost(ctx, nil, body)
 
 	logger := zap.NewExample().Sugar()
 	client := &metadata.Client{}

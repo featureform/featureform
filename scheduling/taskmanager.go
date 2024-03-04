@@ -308,7 +308,7 @@ func (tm *TaskManager) CreateTaskRun(name string, taskID TaskID, trigger Trigger
 		Name:        name,
 		Trigger:     trigger,
 		TriggerType: trigger.Type(),
-		Status:      Pending,
+		Status:      PENDING,
 		StartTime:   startTime,
 	}
 
@@ -481,7 +481,7 @@ func (t *TaskManager) SetRunStatus(runID TaskRunID, taskID TaskID, status Status
 	if e != nil {
 		return fmt.Errorf("failed to fetch run: %v", e)
 	}
-	if status == Failed && err == nil {
+	if status == FAILED && err == nil {
 		return fmt.Errorf("error is required for failed status")
 	}
 	metadata.Status = status

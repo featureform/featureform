@@ -106,7 +106,6 @@ func main() {
 
 	/**************************************** Dashboard Backend *******************************************************/
 	dbLogger := zap.NewExample().Sugar()
-	dm.CreateDummyTaskRuns(360)
 
 	dbLogger.Infof("Looking for metadata at: %s\n", metadataUrl)
 

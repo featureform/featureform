@@ -66,24 +66,6 @@ func (r ResourceType) Serialized() pb.ResourceType {
 	return pb.ResourceType(r)
 }
 
-type ResourceStatus int32
-
-const (
-	NO_STATUS ResourceStatus = ResourceStatus(pb.ResourceStatus_NO_STATUS)
-	CREATED                  = ResourceStatus(pb.ResourceStatus_CREATED)
-	PENDING                  = ResourceStatus(pb.ResourceStatus_PENDING)
-	READY                    = ResourceStatus(pb.ResourceStatus_READY)
-	FAILED                   = ResourceStatus(pb.ResourceStatus_FAILED)
-)
-
-func (r ResourceStatus) String() string {
-	return pb.ResourceStatus_Status_name[int32(r)]
-}
-
-func (r ResourceStatus) Serialized() pb.ResourceStatus_Status {
-	return pb.ResourceStatus_Status(r)
-}
-
 type ComputationMode int32
 
 const (
@@ -2068,6 +2050,53 @@ func (serv *MetadataServer) propagateChange(newRes Resource) error {
 	return propagateChange(newRes)
 }
 
+func (serv *MetadataServer) fetchStatus(taskId scheduling.TaskID) (*scheduling.Status, string, error) {
+	run, err := serv.taskManager.GetLatestRun(taskId)
+	if err != nil {
+		return nil, "", err
+	}
+	return &run.Status, run.Error, nil
+}
+
+func (serv *MetadataServer) setStatus(res Resource) (Resource, error) {
+	switch r := res.(type) {
+	case *sourceVariantResource:
+		status, runErr, err := serv.fetchStatus(scheduling.TaskID(r.serialized.TaskId))
+		if err != nil {
+			return nil, err
+		}
+		r.serialized.Status.Status = status.Serialized()
+		r.serialized.Status.ErrorMessage = runErr
+		return r, nil
+	case *featureVariantResource:
+		status, runErr, err := serv.fetchStatus(scheduling.TaskID(r.serialized.TaskId))
+		if err != nil {
+			return nil, err
+		}
+		r.serialized.Status.Status = status.Serialized()
+		r.serialized.Status.ErrorMessage = runErr
+		return r, nil
+	case *labelVariantResource:
+		status, runErr, err := serv.fetchStatus(scheduling.TaskID(r.serialized.TaskId))
+		if err != nil {
+			return nil, err
+		}
+		r.serialized.Status.Status = status.Serialized()
+		r.serialized.Status.ErrorMessage = runErr
+		return r, nil
+	case *trainingSetVariantResource:
+		status, runErr, err := serv.fetchStatus(scheduling.TaskID(r.serialized.TaskId))
+		if err != nil {
+			return nil, err
+		}
+		r.serialized.Status.Status = status.Serialized()
+		r.serialized.Status.ErrorMessage = runErr
+		return r, nil
+	default:
+		return r, nil
+	}
+}
+
 func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send sendFn) error {
 	for {
 		var recvErr error
@@ -2103,6 +2132,12 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 			serv.Logger.Errorw("Generic Get lookup error", "error", err)
 			return err
 		}
+		resource, err = serv.setStatus(resource)
+		if err != nil {
+			serv.Logger.Errorw("Failed to set status", "error", err)
+			return err
+		}
+
 		serv.Logger.Infow("Sending Resource", "id", id)
 		serialized := resource.Proto()
 		if err := send(serialized); err != nil {

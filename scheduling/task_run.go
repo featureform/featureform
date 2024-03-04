@@ -3,23 +3,43 @@ package scheduling
 import (
 	"encoding/json"
 	"fmt"
+	pb "github.com/featureform/metadata/proto"
+	"strconv"
 	"time"
 )
 
 type TaskRunID int32
 
-type Status string
-
-func (s Status) String() string {
-	return string(s)
+func (tid *TaskRunID) FromString(id string) error {
+	if id == "" {
+		return fmt.Errorf("cannot convert an empty string")
+	}
+	intID, err := strconv.Atoi(id)
+	if err != nil {
+		return err
+	}
+	*tid = TaskRunID(intID)
+	return nil
 }
 
+type Status int32
+
 const (
-	Success Status = "SUCCESS"
-	Failed  Status = "FAILED"
-	Pending Status = "PENDING"
-	Running Status = "RUNNING"
+	NO_STATUS Status = Status(pb.ResourceStatus_NO_STATUS)
+	CREATED   Status = Status(pb.ResourceStatus_CREATED)
+	PENDING   Status = Status(pb.ResourceStatus_PENDING)
+	READY     Status = Status(pb.ResourceStatus_READY)
+	FAILED    Status = Status(pb.ResourceStatus_FAILED)
+	RUNNING   Status = Status(pb.ResourceStatus_RUNNING)
 )
+
+func (s Status) String() string {
+	return pb.ResourceStatus_Status_name[int32(s)]
+}
+
+func (s Status) Serialized() pb.ResourceStatus_Status {
+	return pb.ResourceStatus_Status(s)
+}
 
 type TriggerType string
 

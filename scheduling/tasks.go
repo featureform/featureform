@@ -3,10 +3,23 @@ package scheduling
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 )
 
 type TaskID int32 // need to determine how we want to create IDs
+func (tid *TaskID) FromString(id string) error {
+	if id == "" {
+		return fmt.Errorf("cannot convert an empty string")
+	}
+	intID, err := strconv.Atoi(id)
+	if err != nil {
+		return err
+	}
+	*tid = TaskID(intID)
+	return nil
+}
+
 type TaskType string
 
 const (

@@ -104,6 +104,7 @@ message ResourceStatus {
         PENDING = 2;
         READY = 3;
         FAILED = 4;
+        RUNNING = 5;
       }
     Status status = 1;
     string error_message = 2;

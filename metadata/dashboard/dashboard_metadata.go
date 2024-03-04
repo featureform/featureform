@@ -14,11 +14,8 @@ import (
 	"reflect"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
-
-	rand "math/rand"
 
 	filestore "github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
@@ -1548,43 +1545,6 @@ func replaceTags(resourceTypeParam string, currentResource metadata.Resource, ne
 	return nil
 }
 
-// todox: eventually remove
-func CreateDummyTaskRuns(count int) {
-	taskDefinitionStaticList = []TaskDefinition{
-		{ID: 0, Name: "Test_job", Type: "Source", Provider: "Spark", Resource: "per_balance"},
-		{ID: 1, Name: "Nicole_Puppers", Type: "Source", Provider: "Postgres", Resource: "per_balance2"},
-		{ID: 2, Name: "Sandbox_Test", Type: "Source", Provider: "Spark", Resource: "avg_transactions"},
-		{ID: 3, Name: "Production_flow", Type: "Source", Provider: "Databricks", Resource: "speed_dating"},
-		{ID: 4, Name: "MySQL Task", Type: "Source", Provider: "MySql", Resource: "mysql_test_resource"},
-	}
-	taskRunStaticList = []TaskRunResponse{}
-	dummyStates := []string{"SUCCESS", "FAILED", "PENDING", "RUNNING"}
-	for i := 0; i < count; i++ {
-		status := dummyStates[rand.Intn(len(dummyStates))]
-		runTime := time.Now()
-		taskRunStaticList = append(taskRunStaticList, (createTaskRun(i, status, runTime)))
-	}
-}
-
-func createTaskRun(id int, status string, lastRunTime time.Time) TaskRunResponse {
-
-	//todox: check against existing task definitions list
-	foundTaskDef := taskDefinitionStaticList[rand.Intn(len(taskDefinitionStaticList))]
-
-	return TaskRunResponse{
-		ID:              id,
-		TaskID:          foundTaskDef.ID,
-		Name:            foundTaskDef.Name,
-		Type:            foundTaskDef.Type,
-		Provider:        foundTaskDef.Provider,
-		ResourceName:    foundTaskDef.Resource,
-		ResourceVariant: foundTaskDef.Variant,
-		Status:          status,
-		LastRunTime:     lastRunTime,
-		TriggeredBy:     "On Apply",
-	}
-}
-
 func filter[T any](ss []T, test func(T) bool) (ret []T) {
 	for _, s := range ss {
 		if test(s) {
@@ -1592,16 +1552,6 @@ func filter[T any](ss []T, test func(T) bool) (ret []T) {
 		}
 	}
 	return ret
-}
-
-func mockTaskRunFind(taskId int) TaskRunResponse {
-	result := TaskRunResponse{ID: -1}
-	for _, n := range taskRunStaticList {
-		if n.ID == taskId {
-			result = n
-		}
-	}
-	return result
 }
 
 type TaskDefinition struct {
@@ -1613,13 +1563,13 @@ type TaskDefinition struct {
 	Variant  string `json:"variant"`
 }
 
+// This will be updated in the Triggers PR
 type TaskRunResponse struct {
 	UniqueID        string    `json:"id"`
 	ID              int       `json:"runId"`
 	TaskID          int       `json:"taskId"`
 	Name            string    `json:"name"`
 	Type            string    `json:"type"`
-	Provider        string    `json:"provider"`
 	ResourceName    string    `json:"resourceName"`
 	ResourceVariant string    `json:"resourceVariant"`
 	Status          string    `json:"status"`
@@ -1631,6 +1581,30 @@ type TaskRunsPostBody struct {
 	Status     string `json:"status"`
 	SearchText string `json:"searchtext"`
 	SortBy     string `json:"sortBy"`
+}
+
+// This function will be replaced when the new format is introduced in the Triggers PR
+func makeRunResponse(task scheduling.TaskMetadata, run scheduling.TaskRunMetadata) TaskRunResponse {
+	var name, variant string
+	switch task.TargetType {
+	case scheduling.NameVariantTarget:
+		target := task.Target.(scheduling.NameVariant)
+		name = target.Name
+		variant = target.Variant
+	}
+
+	return TaskRunResponse{
+		UniqueID:        fmt.Sprintf("%d-%d", run.ID, run.TaskId),
+		ID:              int(run.ID),
+		TaskID:          int(run.TaskId),
+		Name:            run.Name,
+		Type:            string(task.TaskType),
+		ResourceName:    name,
+		ResourceVariant: variant,
+		Status:          run.Status.String(),
+		LastRunTime:     run.StartTime,
+		TriggeredBy:     string(run.Trigger.Type()),
+	}
 }
 
 func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
@@ -1657,68 +1631,7 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 			return
 		}
 
-		var name, variant, provider string
-		switch task.TargetType {
-		case scheduling.NameVariantTarget:
-			target := task.Target.(scheduling.NameVariant)
-			name = target.Name
-			variant = target.Variant
-
-			switch target.ResourceType {
-			case metadata.SOURCE_VARIANT.String():
-				res, err := m.client.GetSourceVariant(c, metadata.NameVariant{Name: target.Name, Variant: target.Variant})
-				if err != nil {
-					fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Failed to fetch task")
-					c.JSON(fetchError.StatusCode, fetchError.Error())
-					return
-				}
-				provider = res.Provider()
-			case metadata.FEATURE_VARIANT.String():
-				res, err := m.client.GetFeatureVariant(c, metadata.NameVariant{Name: target.Name, Variant: target.Variant})
-				if err != nil {
-					fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Failed to fetch task")
-					c.JSON(fetchError.StatusCode, fetchError.Error())
-					return
-				}
-				provider = res.Provider()
-			case metadata.LABEL_VARIANT.String():
-				res, err := m.client.GetLabelVariant(c, metadata.NameVariant{Name: target.Name, Variant: target.Variant})
-				if err != nil {
-					fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Failed to fetch task")
-					c.JSON(fetchError.StatusCode, fetchError.Error())
-					return
-				}
-				provider = res.Provider()
-			case metadata.TRAINING_SET_VARIANT.String():
-				res, err := m.client.GetTrainingSetVariant(c, metadata.NameVariant{Name: target.Name, Variant: target.Variant})
-				if err != nil {
-					fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Failed to fetch task")
-					c.JSON(fetchError.StatusCode, fetchError.Error())
-					return
-				}
-				provider = res.Provider()
-			default:
-				if err != nil {
-					fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Failed to fetch task")
-					c.JSON(fetchError.StatusCode, fetchError.Error())
-					return
-				}
-			}
-		}
-
-		taskListResponse = append(taskListResponse, TaskRunResponse{
-			UniqueID:        fmt.Sprintf("%d-%d", run.ID, run.TaskId),
-			ID:              int(run.ID),
-			TaskID:          int(run.TaskId),
-			Name:            run.Name,
-			Type:            string(task.TaskType),
-			Provider:        provider,
-			ResourceName:    name,
-			ResourceVariant: variant,
-			Status:          run.Status.String(),
-			LastRunTime:     run.StartTime,
-			TriggeredBy:     string(run.Trigger.Type()),
-		})
+		taskListResponse = append(taskListResponse, makeRunResponse(task, run))
 	}
 
 	// status filter, break out
@@ -1784,41 +1697,39 @@ type TaskRunDetailResponse struct {
 	OtherRuns []OtherRunResponse `json:"otherRuns"`
 }
 
+func makeOtherRuns(run scheduling.TaskRunMetadata) OtherRunResponse {
+	return OtherRunResponse{
+		ID:          string(run.ID),
+		LastRunTime: run.StartTime,
+		Status:      run.Status.String(),
+		Link:        "Future Link",
+	}
+}
+
 func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	strTaskID := c.Param("taskId")
 	strTaskRunId := c.Param("taskRunId")
 
-	if strTaskRunId == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
-		m.logger.Errorw(fetchError.Error(), "Metadata error")
-		c.JSON(fetchError.StatusCode, fetchError.Error())
-		return
-	}
+	var taskID scheduling.TaskID
+	var taskRunID scheduling.TaskRunID
 
-	if strTaskID == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
-		m.logger.Errorw(fetchError.Error(), "Metadata error")
-		c.JSON(fetchError.StatusCode, fetchError.Error())
-		return
-	}
-
-	taskID, err := strconv.Atoi(strTaskID)
+	err := taskID.FromString(strTaskID)
 	if err != nil {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
+		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not convert the given taskId"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 
-	taskRunID, err := strconv.Atoi(strTaskRunId)
+	err = taskRunID.FromString(strTaskRunId)
 	if err != nil {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
+		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not convert the given taskRunId"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 
-	runs, err := m.TaskManager.GetTaskRuns(scheduling.TaskID(taskID))
+	runs, err := m.TaskManager.GetTaskRuns(taskID)
 	if err != nil {
 		fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Failed to fetch task")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -1829,20 +1740,18 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	var selectedRun scheduling.TaskRunMetadata
 	for _, run := range runs {
 		if run.ID != scheduling.TaskRunID(taskRunID) {
-			otherRuns = append(otherRuns, OtherRunResponse{
-				ID:          string(run.ID),
-				LastRunTime: run.StartTime,
-				Status:      run.Status.String(),
-				Link:        "Future Link"})
+			otherRuns = append(otherRuns, makeOtherRuns(run))
 		} else {
 			selectedRun = run
 		}
 	}
+	logs := strings.Join(selectedRun.Logs, "\n")
+	logsWithError := fmt.Sprintf("%s\n%s", logs, selectedRun.Error)
 	resp := TaskRunDetailResponse{
 		ID:        string(selectedRun.ID),
 		Name:      selectedRun.Name,
 		Status:    selectedRun.Status.String(),
-		Logs:      strings.Join(selectedRun.Logs, "\n"),
+		Logs:      logsWithError,
 		Details:   "Details go here",
 		OtherRuns: otherRuns,
 	}

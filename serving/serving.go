@@ -7,6 +7,7 @@ package serving
 import (
 	"context"
 	"fmt"
+	"github.com/featureform/scheduling"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -423,7 +424,7 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 		return nil, errors.Wrap(err, "could not get source variant")
 	}
 	// TODO: Determine if we want to add a backoff here to wait for the source
-	if sv.Status() != metadata.READY {
+	if sv.Status() != scheduling.READY {
 		return nil, fmt.Errorf("source variant is not ready; current status is %v", sv.Status())
 	}
 	providerEntry, err := sv.FetchProvider(serv.Metadata, ctx)

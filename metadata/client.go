@@ -105,15 +105,6 @@ func (client *Client) RequestScheduleChange(ctx context.Context, resID ResourceI
 	return err
 }
 
-func (client *Client) SetStatus(ctx context.Context, resID ResourceID, status ResourceStatus, errorMessage string) error {
-	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
-	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
-	resourceStatus := pb.ResourceStatus{Status: pb.ResourceStatus_Status(status), ErrorMessage: errorMessage}
-	statusRequest := pb.SetStatusRequest{ResourceId: &resourceID, Status: &resourceStatus}
-	_, err := client.GrpcConn.SetResourceStatus(ctx, &statusRequest)
-	return err
-}
-
 func (client *Client) CreateAll(ctx context.Context, defs []ResourceDef) error {
 	for _, def := range defs {
 		if err := client.Create(ctx, def); err != nil {
@@ -1478,11 +1469,11 @@ func (variant *FeatureVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
-func (variant *FeatureVariant) Status() ResourceStatus {
+func (variant *FeatureVariant) Status() scheduling.Status {
 	if variant.serialized.GetStatus() != nil {
-		return ResourceStatus(variant.serialized.GetStatus().Status)
+		return scheduling.Status(variant.serialized.GetStatus().Status)
 	}
-	return ResourceStatus(0)
+	return scheduling.Status(0)
 }
 
 func (variant *FeatureVariant) Error() string {
@@ -1596,11 +1587,11 @@ func (user *User) Name() string {
 	return user.serialized.GetName()
 }
 
-func (user *User) Status() ResourceStatus {
+func (user *User) Status() scheduling.Status {
 	if user.serialized.GetStatus() != nil {
-		return ResourceStatus(user.serialized.GetStatus().Status)
+		return scheduling.Status(user.serialized.GetStatus().Status)
 	}
-	return ResourceStatus(0)
+	return scheduling.CREATED
 }
 
 func (user *User) Error() string {
@@ -1670,11 +1661,11 @@ func (provider *Provider) SerializedConfig() []byte {
 	return provider.serialized.GetSerializedConfig()
 }
 
-func (provider *Provider) Status() ResourceStatus {
+func (provider *Provider) Status() scheduling.Status {
 	if provider.serialized.GetStatus() != nil {
-		return ResourceStatus(provider.serialized.GetStatus().Status)
+		return scheduling.Status(provider.serialized.GetStatus().Status)
 	}
-	return ResourceStatus(0)
+	return scheduling.CREATED
 }
 
 func (provider *Provider) Error() string {
@@ -1726,8 +1717,8 @@ func (model *Model) Description() string {
 	return model.serialized.GetDescription()
 }
 
-func (model *Model) Status() ResourceStatus {
-	return ResourceStatus(0)
+func (model *Model) Status() scheduling.Status {
+	return scheduling.CREATED
 }
 
 func (model *Model) Error() string {
@@ -1808,11 +1799,11 @@ func (variant *LabelVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
-func (variant *LabelVariant) Status() ResourceStatus {
+func (variant *LabelVariant) Status() scheduling.Status {
 	if variant.serialized.GetStatus() != nil {
-		return ResourceStatus(variant.serialized.GetStatus().Status)
+		return scheduling.Status(variant.serialized.GetStatus().Status)
 	}
-	return ResourceStatus(0)
+	return scheduling.Status(0)
 }
 
 func (variant *LabelVariant) Error() string {
@@ -1906,11 +1897,11 @@ func (variant *TrainingSetVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
-func (variant *TrainingSetVariant) Status() ResourceStatus {
+func (variant *TrainingSetVariant) Status() scheduling.Status {
 	if variant.serialized.GetStatus() != nil {
-		return ResourceStatus(variant.serialized.GetStatus().Status)
+		return scheduling.Status(variant.serialized.GetStatus().Status)
 	}
-	return ResourceStatus(0)
+	return scheduling.CREATED
 }
 
 func (variant *TrainingSetVariant) Error() string {
@@ -2077,11 +2068,11 @@ func (variant *SourceVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
-func (variant *SourceVariant) Status() ResourceStatus {
+func (variant *SourceVariant) Status() scheduling.Status {
 	if variant.serialized.GetStatus() != nil {
-		return ResourceStatus(variant.serialized.GetStatus().Status)
+		return scheduling.Status(variant.serialized.GetStatus().Status)
 	}
-	return ResourceStatus(0)
+	return scheduling.CREATED
 }
 
 func (variant *SourceVariant) Error() string {
@@ -2223,11 +2214,11 @@ func (entity *Entity) Description() string {
 	return entity.serialized.GetDescription()
 }
 
-func (entity *Entity) Status() ResourceStatus {
+func (entity *Entity) Status() scheduling.Status {
 	if entity.serialized.GetStatus() != nil {
-		return ResourceStatus(entity.serialized.GetStatus().Status)
+		return scheduling.Status(entity.serialized.GetStatus().Status)
 	}
-	return ResourceStatus(0)
+	return scheduling.CREATED
 }
 
 func (entity *Entity) Error() string {

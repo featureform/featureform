@@ -1009,7 +1009,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 
 	default:
 		m.logger.Errorw("Not a valid data type", "Error", c.Param("type"))
-		fetchError := &FetchError{StatusCode: 400, Type: c.Param("type")}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: c.Param("type")}
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1060,7 +1060,7 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	var limit int64 = 150
 	response := SourceDataResponse{}
 	if name == "" || variant == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetSourceData - Could not find the name or variant query parameters"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetSourceData - Could not find the name or variant query parameters"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1118,7 +1118,7 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 	name := c.Query("name")
 	variant := c.Query("variant")
 	if name == "" || variant == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetFeatureFileStats - Could not find the name or variant query parameters"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetFeatureFileStats - Could not find the name or variant query parameters"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1184,7 +1184,7 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 		return
 	}
 
-	filepath, err := FindFileWithPrefix(statsFiles, "part-00000")
+	filepath, err := FindFileWithPrefix(statsFiles, "part-00003")
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "Could not find the stats file"}
 		m.logger.Errorw(fetchError.Error(), "error", err.Error())
@@ -1342,7 +1342,7 @@ func GetTagResult(param VariantResult) TagResult {
 	}
 }
 
-func (m *MetadataServer) GetTagError(code int, err error, c *gin.Context, resourceType string) *FetchError {
+func (m *MetadataServer) GetRequestError(code int, err error, c *gin.Context, resourceType string) *FetchError {
 	fetchError := &FetchError{StatusCode: code, Type: resourceType}
 	m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 	return fetchError
@@ -1350,7 +1350,7 @@ func (m *MetadataServer) GetTagError(code int, err error, c *gin.Context, resour
 
 func (m *MetadataServer) SetFoundVariantJSON(foundVariant VariantResult, err error, c *gin.Context, resourceType string) {
 	if err != nil {
-		fetchError := m.GetTagError(500, err, c, resourceType)
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, resourceType)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 	}
 	c.JSON(http.StatusOK, GetTagResult(foundVariant))
@@ -1365,7 +1365,7 @@ func (m *MetadataServer) GetTags(c *gin.Context) {
 	resourceType := c.Param("type")
 	var requestBody TagGetBody
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "GetTags - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "GetTags - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1430,7 +1430,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	var requestBody TagPostBody
 	resourceTypeParam := c.Param("type")
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "PostTags - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "PostTags - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1446,7 +1446,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	foundResource, err := m.lookup.Lookup(objID)
 
 	if err != nil {
-		fetchError := m.GetTagError(400, err, c, "PostTags - Error finding the resource with resourceID")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "PostTags - Error finding the resource with resourceID")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1633,7 +1633,7 @@ type TaskRunsPostBody struct {
 func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 	var requestBody TaskRunsPostBody
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "GetTaskRuns - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1704,7 +1704,7 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	taskRunId := c.Param("taskRunId")
 
 	if taskRunId == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1712,7 +1712,7 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 
 	searchId, err := strconv.Atoi(taskRunId)
 	if err != nil {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - taskRunId is not a number!"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetTaskRunDetails - taskRunId is not a number!"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1754,6 +1754,7 @@ func (m *MetadataServer) Start(port string) {
 	router.POST("/data/:type/:resource/tags", m.PostTags)
 	router.POST("/data/taskruns", m.GetTaskRuns)
 	router.GET("/data/taskruns/taskrundetail/:taskRunId", m.GetTaskRunDetails)
+
 	router.Run(port)
 }
 
@@ -1775,6 +1776,7 @@ func main() {
 		logger.Panicw("Failed to create new meil search", err)
 	}
 	CreateDummyTaskRuns(360)
+
 	SearchClient = sc
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	logger.Infof("Looking for metadata at: %s\n", metadataAddress)

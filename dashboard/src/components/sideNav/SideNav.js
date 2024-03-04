@@ -1,9 +1,9 @@
-import { Icon } from '@mui/material';
+import { ExpandLess, ExpandMore } from '@mui/icons-material';
+import { Collapse, Icon } from '@mui/material';
 import Box from '@mui/material/Box';
 import CssBaseline from '@mui/material/CssBaseline';
 import Drawer from '@mui/material/Drawer';
 import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
@@ -16,6 +16,11 @@ const drawerWidth = 250;
 const drawerTop = 70;
 
 function SideNav({ sections, children }) {
+  const [open, setOpen] = React.useState(true);
+
+  const handleCollapseClick = () => {
+    setOpen(!open);
+  };
   let router = useRouter();
   function handleMenuClick(event, urlPath) {
     event.preventDefault();
@@ -42,40 +47,50 @@ function SideNav({ sections, children }) {
           {sections?.['features'].map((currentSection, index) => {
             let resourceType = Resource[currentSection.type];
             return (
-              <ListItem key={index}>
-                <ListItemButton
-                  onClick={(event) =>
-                    handleMenuClick(event, resourceType.urlPath)
-                  }
-                >
-                  <ListItemIcon style={{ padding: '0 0 0 1.5em !important' }}>
-                    <Icon>{resourceType.materialIcon}</Icon>
-                  </ListItemIcon>
-                  <ListItemText primary={resourceType.typePlural} />
-                </ListItemButton>
-              </ListItem>
+              <ListItemButton
+                key={index}
+                onClick={(event) =>
+                  handleMenuClick(event, resourceType.urlPath)
+                }
+              >
+                <ListItemIcon>
+                  <Icon>{resourceType.materialIcon}</Icon>
+                </ListItemIcon>
+                <ListItemText primary={resourceType.typePlural} />
+              </ListItemButton>
             );
           })}
-          <ListItem key={20}>
+          <ListItemButton key={20} onClick={handleCollapseClick}>
+            <ListItemIcon>
+              <Icon>{'all_inbox'}</Icon>
+            </ListItemIcon>
+            <ListItemText primary={'Scheduling'} />
+            {open ? <ExpandLess /> : <ExpandMore />}
+          </ListItemButton>
+        </List>
+        <Collapse in={open} timeout='auto' unmountOnExit>
+          <List component='div' disablePadding>
             <ListItemButton
               onClick={(event) => handleMenuClick(event, '/tasks')}
+              sx={{ padding: '0 0 0 6em' }}
             >
-              <ListItemIcon style={{ padding: '0 0 0 1.5em !important' }}>
-                <Icon>{'all_inbox'}</Icon>
-              </ListItemIcon>
-              <ListItemText primary={'Tasks'} />
+              <ListItemText primary='Jobs' />
             </ListItemButton>
-          </ListItem>
-        </List>
+            <ListItemButton
+              onClick={(event) => handleMenuClick(event, '/triggers')}
+              sx={{ padding: '0 0 0 6em' }}
+            >
+              <ListItemText primary='Triggers' />
+            </ListItemButton>
+          </List>
+        </Collapse>
       </Drawer>
       <Box
         component='main'
         sx={{
-          top: '100px',
-          left: '500px',
           flexGrow: 1,
           bgcolor: 'background.default',
-          p: 3,
+          p: 2,
         }}
       >
         {children}

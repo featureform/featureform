@@ -159,3 +159,15 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
     </>
   );
 }
+
+export function getPageSizeProp(listLength = 0) {
+  let pageSize = 5;
+  if (listLength > 10) {
+    pageSize = 15;
+  } else if (listLength > 5) {
+    pageSize = 10;
+  } else {
+    pageSize = 5;
+  }
+  return pageSize;
+}

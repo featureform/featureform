@@ -143,7 +143,10 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-require google.golang.org/genproto/googleapis/rpc v0.0.0-20240125205218-1f4bbc51befe
+require (
+	github.com/inlinedio/ikv-store v0.0.15
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240125205218-1f4bbc51befe
+)
 
 require (
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
@@ -186,7 +189,6 @@ require (
 	github.com/google/wire v0.5.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
 	github.com/hashicorp/go-uuid v1.0.2 // indirect
-	github.com/inlinedio/ikv-store v0.0.14 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
 	github.com/jcmturner/gofork v1.0.0 // indirect

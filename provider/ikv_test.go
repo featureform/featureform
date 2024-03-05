@@ -9,8 +9,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// TODO!
-
 func TestOnlineStoreIKV(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")

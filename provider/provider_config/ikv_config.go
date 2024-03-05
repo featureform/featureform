@@ -53,7 +53,7 @@ func (ic IKVConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{}
 }
 
-func (a IKVConfig) DifferingFields(b RedisConfig) (ss.StringSet, error) {
+func (a IKVConfig) DifferingFields(b IKVConfig) (ss.StringSet, error) {
 	return differingFields(a, b)
 }
 

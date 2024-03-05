@@ -8,7 +8,7 @@ func TestMemoryMetadataStorer(t *testing.T) {
 	}
 
 	storage := &MemoryStorerImplementation{
-		storage: make(map[string]string),
+		Storage: make(map[string]string),
 	}
 
 	test := MetadataStorerTest{

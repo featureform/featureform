@@ -809,7 +809,7 @@ Config = Union[
     PostgresConfig,
     ClickHouseConfig,
     RedshiftConfig,
-    PineconeConfig,
+    IKVConfig,
     BigQueryConfig,
     FirestoreConfig,
     SparkConfig,

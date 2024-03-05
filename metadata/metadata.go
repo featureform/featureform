@@ -7,11 +7,12 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"github.com/featureform/helpers"
 	"io"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/featureform/helpers"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/lib"
@@ -1364,6 +1365,8 @@ func (resource *providerResource) isValidConfigUpdate(configUpdate pc.Serialized
 		return isValidClickHouseConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.RedisOnline:
 		return isValidRedisConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
+	case pt.IKVOnline:
+		return isValidIKVConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.SnowflakeOffline:
 		return isValidSnowflakeConfigUpdate(resource.serialized.SerializedConfig, configUpdate)
 	case pt.RedshiftOffline:

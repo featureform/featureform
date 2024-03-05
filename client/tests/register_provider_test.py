@@ -48,6 +48,21 @@ def test_register_pinecone():
     )
     assert isinstance(result, OnlineProvider)
 
+@pytest.mark.local
+def test_register_ikv():
+    reg = Registrar()
+    result = reg.register_ikv(
+        name="quickstart",
+        store_name="ikv-store-name",
+        account_id="ikv-account-id",
+        account_passkey="ikv-account-passkey",
+        mount_dir="/path/to/mountdir",
+        description="desc",
+        team="team",
+        tags=[],
+        properties={},
+    )
+    assert isinstance(result, OnlineProvider)
 
 @pytest.mark.local
 def test_register_weaviate():

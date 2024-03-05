@@ -10,6 +10,7 @@ from featureform.resources import (
     FirestoreConfig,
     RedisConfig,
     PineconeConfig,
+    IKVConfig,
     WeaviateConfig,
     GCSFileStoreConfig,
     GCPCredentials,
@@ -69,6 +70,12 @@ def test_pinecone():
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config
 
+@pytest.mark.local
+def test_ikv():
+    expected_config = connection_configs["IKVConfig"]
+    conf = IKVConfig(store_name="ikv-store-name", account_id="ikv-account-id", account_passkey="ikv-account-passkey", mount_directory="/path/to/mount/dir")
+    serialized_config = conf.serialize()
+    assert json.loads(serialized_config) == expected_config
 
 @pytest.mark.local
 def test_weaviate():

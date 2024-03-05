@@ -26,7 +26,7 @@ type ikvOnlineStore struct {
 }
 
 // Create a Provider instance backed by IKV.
-func inlinedOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
+func ikvOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
 	ikvConfig := &pc.IKVConfig{}
 	if err := ikvConfig.Deserialize(serialized); err != nil {
 		return nil, err

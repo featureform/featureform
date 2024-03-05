@@ -26,7 +26,7 @@ func (m *MemoryStorerImplementation) Get(key string) (string, error) {
 
 	value, ok := m.Storage[key]
 	if !ok {
-		return "", fmt.Errorf("key not found")
+		return "", fmt.Errorf("key '%s' not found", key)
 	}
 
 	return value, nil

@@ -8,28 +8,19 @@ import (
 	"github.com/google/uuid"
 )
 
-type MemoryKey struct {
+type memoryKey struct {
 	id             string
 	key            string
-	expirationTime time.Time
+	ExpirationTime time.Time
 	Channel        *chan error
 }
 
-func (k *MemoryKey) ID() string {
+func (k *memoryKey) ID() string {
 	return k.id
 }
 
-func (k *MemoryKey) Key() string {
+func (k *memoryKey) Key() string {
 	return k.key
-}
-
-func (k *MemoryKey) ExpirationTime() time.Time {
-	return k.expirationTime
-}
-
-func (k *MemoryKey) SetExpirationTime(t time.Time) error {
-	k.expirationTime = t
-	return nil
 }
 
 type MemoryLocker struct {
@@ -39,7 +30,7 @@ type MemoryLocker struct {
 
 func (m *MemoryLocker) Lock(key string) (Key, error) {
 	if key == "" {
-		return &MemoryKey{}, fmt.Errorf("key is empty")
+		return &memoryKey{}, fmt.Errorf("key is empty")
 	}
 
 	id := uuid.New().String()
@@ -50,12 +41,12 @@ func (m *MemoryLocker) Lock(key string) (Key, error) {
 	if lockInfo, ok := m.LockedItems.Load(key); ok {
 		keyLock := lockInfo.(LockInformation)
 		if time.Since(keyLock.Date) < ValidTimePeriod {
-			return &MemoryKey{}, fmt.Errorf("key '%s' is already locked by: %s", key, keyLock.ID)
+			return &memoryKey{}, fmt.Errorf("key '%s' is already locked by: %s", key, keyLock.ID)
 		}
 	}
 
-	lockChannel := make(chan error)
-	lockKey := MemoryKey{id: id, key: key, Channel: &lockChannel}
+	doneChannel := make(chan error)
+	lockKey := memoryKey{id: id, key: key, Channel: &doneChannel}
 
 	lock := LockInformation{
 		ID:   id,
@@ -64,22 +55,24 @@ func (m *MemoryLocker) Lock(key string) (Key, error) {
 	}
 	m.LockedItems.Store(key, lock)
 
-	go m.updateLockTime(id, key, lockChannel)
+	go m.updateLockTime(id, key, doneChannel)
 
 	return &lockKey, nil
 }
 
-func (m *MemoryLocker) updateLockTime(id string, key string, lockChannel chan error) {
+func (m *MemoryLocker) updateLockTime(id string, key string, doneChannel <-chan error) {
 	ticker := time.NewTicker(UpdateSleepTime)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-lockChannel:
+		case <-doneChannel:
 			// Received signal to stop
 			return
 		case <-ticker.C:
 			m.Mutex.Lock()
+			defer m.Mutex.Unlock()
+
 			// Continue updating lock time
 			lockInfo, ok := m.LockedItems.Load(key)
 			if !ok {
@@ -95,7 +88,6 @@ func (m *MemoryLocker) updateLockTime(id string, key string, lockChannel chan er
 					Date: time.Now().UTC(),
 				})
 			}
-			m.Mutex.Unlock()
 		}
 	}
 }
@@ -118,8 +110,8 @@ func (m *MemoryLocker) Unlock(key Key) error {
 		return fmt.Errorf("key '%s' is locked by another id: locked by: %s, unlock  by: %s", key.Key(), keyLock.ID, key.ID())
 	}
 	m.LockedItems.Delete(key.Key())
-	memoryKey := key.(*MemoryKey)
-	closeOnce(*memoryKey.Channel)
+	mKey := key.(*memoryKey)
+	close(*mKey.Channel)
 
 	return nil
 }

@@ -3,7 +3,6 @@ package locker
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
 	"time"
 )
 
@@ -60,14 +59,4 @@ type MultiLock interface {
 type Key interface {
 	ID() string
 	Key() string
-	ExpirationTime() time.Time
-	SetExpirationTime(time.Time) error // CHECK: should this be here?
-}
-
-// A method used to close a channel only once
-func closeOnce(ch chan error) {
-	var once sync.Once
-	once.Do(func() {
-		close(ch)
-	})
 }

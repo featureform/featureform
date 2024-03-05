@@ -11,22 +11,6 @@ import (
 	ss "github.com/featureform/storage_storer"
 )
 
-// type TaskMetadataManager interface {
-// 	// Task Methods
-// 	CreateTask(name string, tType TaskType, target TaskTarget) (TaskMetadata, error)
-// 	GetTask(id TaskID) (TaskMetadata, error)
-// 	UpdateTask(id TaskID, metadata TaskMetadata) error
-
-// 	// Task Run Methods
-// 	CreateTaskRun(run TaskRunMetadata) error
-// 	GetTaskRun(taskId TaskID, runId TaskRunID) (TaskRunMetadata, error)
-// 	UpdateTaskRun(taskId TaskID, runId TaskRunID, metadata TaskRunMetadata) error
-// 	GetTaskRunLog(taskId TaskID, runId TaskRunID) (string, error)
-// 	GetTaskRunError(taskId TaskID, runId TaskRunID) (error, error)
-
-// 	GetAllRunsForTask(taskId TaskID) ([]TaskRunMetadata, error)
-// }
-
 type TaskMetadataList []TaskMetadata
 
 func (tml *TaskMetadataList) ToJSON() string {

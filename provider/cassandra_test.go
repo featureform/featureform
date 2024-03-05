@@ -1,11 +1,12 @@
 package provider
 
 import (
+	"os"
+	"testing"
+
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/joho/godotenv"
-	"os"
-	"testing"
 )
 
 func TestOnlineStoreCassandra(t *testing.T) {

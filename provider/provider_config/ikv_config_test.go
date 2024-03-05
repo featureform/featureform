@@ -7,7 +7,21 @@ import (
 	ss "github.com/featureform/helpers/string_set"
 )
 
-// TODO!
+func TestIKVConfigMutableFields(t *testing.T) {
+	expected := ss.StringSet{}
+
+	config := IKVConfig{
+		StoreName:      "foo",
+		AccountId:      "foo-account-id",
+		AccountPasskey: "foo-account-passkey",
+		MountDirectory: "/foo",
+	}
+	actual := config.MutableFields()
+
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("Expected %v but received %v", expected, actual)
+	}
+}
 
 func TestIKVConfigDifferingFields(t *testing.T) {
 	type args struct {

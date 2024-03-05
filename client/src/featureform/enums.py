@@ -67,6 +67,10 @@ class ResourceStatus(str, Enum):
     READY = "READY"
     FAILED = "FAILED"
 
+    @staticmethod
+    def from_proto(proto):
+        return proto.Status._enum_type.values[proto.status].name
+
 
 class ComputationMode(Enum):
     PRECOMPUTED = "PRECOMPUTED"

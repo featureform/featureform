@@ -1,6 +1,6 @@
 import sys
 import time
-from typing import Type, Tuple, List
+from typing import List, Tuple, Type
 
 from dataclasses import dataclass
 from rich.console import Console
@@ -8,15 +8,16 @@ from rich.live import Live
 from rich.table import Table
 from rich.text import Text
 
-from featureform.proto.metadata_pb2_grpc import ApiStub
+from featureform.grpc_client import GrpcClient
 from featureform.resources import (
-    Resource,
-    Provider,
+    ErrorInfo,
     FeatureVariant,
-    OnDemandFeatureVariant,
-    TrainingSetVariant,
     LabelVariant,
+    OnDemandFeatureVariant,
+    Provider,
+    Resource,
     SourceVariant,
+    TrainingSetVariant,
 )
 
 # maximum number of dots printing when featureform apply for Running...
@@ -24,8 +25,8 @@ MAX_NUM_RUNNING_DOTS = 10
 SECONDS_BETWEEN_STATUS_CHECKS = 2
 
 
-def display_statuses(stub: ApiStub, resources: List[Resource], verbose=False):
-    StatusDisplayer(stub, resources, verbose=verbose).display()
+def display_statuses(grpc_client: GrpcClient, resources: List[Resource], verbose=False):
+    StatusDisplayer(grpc_client, resources, verbose=verbose).display()
 
 
 @dataclass
@@ -80,7 +81,9 @@ class StatusDisplayer:
         "FAILED": "red",
     }
 
-    def __init__(self, stub: ApiStub, resources: List[Resource], verbose=False):
+    def __init__(
+        self, grpc_client: GrpcClient, resources: List[Resource], verbose=False
+    ):
         self.verbose = verbose
         filtered_resources = filter(
             lambda r: any(
@@ -89,7 +92,7 @@ class StatusDisplayer:
             ),
             resources,
         )
-        self.stub = stub
+        self.grpc_client = grpc_client
 
         # A more intuitive way to is to store OrderedDict[Resource, DisplayStatus] but you can't hash Resource easily
         self.resource_to_status_list: List[Tuple[Resource, DisplayStatus]] = []
@@ -102,11 +105,27 @@ class StatusDisplayer:
             if resource.name == "local-mode":
                 continue
             if not display_status.is_finished():
-                r = resource.get(self.stub)
-                display_status.status = r.status
-                display_status.error = r.error
-                if r.status == "FAILED":
-                    self.did_error = True
+                r = resource.get(self.grpc_client)
+                server_status = r.server_status
+                display_status.status = server_status.status
+                if server_status.error_info is not None:
+                    display_status.error = self._format_error_info(
+                        server_status.error_info
+                    )
+                else:
+                    display_status.error = r.error
+
+    @staticmethod
+    def _format_error_info(error_info: ErrorInfo):
+        message = error_info.message
+        reason = error_info.reason
+        metadata = error_info.metadata
+
+        formatted_metadata = "\n".join(
+            [f"{key}: {value}" for key, value in metadata.items()]
+        )
+
+        return f"{reason}: {message}\n{formatted_metadata}"
 
     def all_statuses_finished(self) -> bool:
         return all(status.is_finished() for _, status in self.resource_to_status_list)

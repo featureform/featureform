@@ -18,7 +18,7 @@ jest.mock('../../hooks/dataAPI', () => ({
 }));
 
 describe('Task run card detail tests', () => {
-  const REFRESH_ICON_ID = 'taskRunRrefreshIcon';
+  const REFRESH_ICON_ID = 'taskRunRefreshIcon';
   const getTestBody = (taskRunId) => {
     return (
       <>
@@ -40,7 +40,7 @@ describe('Task run card detail tests', () => {
   test('Basic task card detail render with refresh', async () => {
     //given:
     jest.useFakeTimers();
-    const taskRunId = taskCardDetailsResponse.id;
+    const taskRunId = taskCardDetailsResponse.taskRun.runId;
     const helper = render(getTestBody(taskRunId));
 
     const foundRefreshBtn = await helper.findByTestId(REFRESH_ICON_ID);
@@ -50,8 +50,6 @@ describe('Task run card detail tests', () => {
 
     //expect:
     expect(dataAPIMock.getTaskRunDetails).toHaveBeenCalledTimes(2);
-    expect(dataAPIMock.getTaskRunDetails).toHaveBeenCalledWith(
-      taskCardDetailsResponse.id
-    );
+    expect(dataAPIMock.getTaskRunDetails).toHaveBeenCalledWith(taskRunId);
   });
 });

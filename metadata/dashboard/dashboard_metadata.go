@@ -8,15 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/featureform/scheduling"
-	sp "github.com/featureform/scheduling/storage_providers"
-	"net/http"
-	"reflect"
-	"slices"
-	"sort"
-	"strings"
-	"time"
-
 	filestore "github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
@@ -25,19 +16,27 @@ import (
 	"github.com/featureform/proto"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/scheduling"
+	sc "github.com/featureform/scheduling"
+	sp "github.com/featureform/scheduling/storage_providers"
 	"github.com/featureform/serving"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+	"net/http"
+	"reflect"
+	"slices"
+	"sort"
+	"strings"
 )
 
 var SearchClient search.Searcher
 
 // todox: remove later
-var taskRunStaticList []TaskRunResponse
-var taskDefinitionStaticList []TaskDefinition
+var taskRunStaticList []sc.TaskRunMetadata
+var taskMetadataStaticList []sc.TaskMetadata
 
 type StorageProvider interface {
 	GetResourceLookup() (metadata.ResourceLookup, error)
@@ -1020,7 +1019,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 
 	default:
 		m.logger.Errorw("Not a valid data type", "Error", c.Param("type"))
-		fetchError := &FetchError{StatusCode: 400, Type: c.Param("type")}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: c.Param("type")}
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1071,7 +1070,7 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	var limit int64 = 150
 	response := SourceDataResponse{}
 	if name == "" || variant == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetSourceData - Could not find the name or variant query parameters"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetSourceData - Could not find the name or variant query parameters"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1129,7 +1128,7 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 	name := c.Query("name")
 	variant := c.Query("variant")
 	if name == "" || variant == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetFeatureFileStats - Could not find the name or variant query parameters"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetFeatureFileStats - Could not find the name or variant query parameters"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1353,7 +1352,7 @@ func GetTagResult(param VariantResult) TagResult {
 	}
 }
 
-func (m *MetadataServer) GetTagError(code int, err error, c *gin.Context, resourceType string) *FetchError {
+func (m *MetadataServer) GetRequestError(code int, err error, c *gin.Context, resourceType string) *FetchError {
 	fetchError := &FetchError{StatusCode: code, Type: resourceType}
 	m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 	return fetchError
@@ -1361,7 +1360,7 @@ func (m *MetadataServer) GetTagError(code int, err error, c *gin.Context, resour
 
 func (m *MetadataServer) SetFoundVariantJSON(foundVariant VariantResult, err error, c *gin.Context, resourceType string) {
 	if err != nil {
-		fetchError := m.GetTagError(500, err, c, resourceType)
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, resourceType)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 	}
 	c.JSON(http.StatusOK, GetTagResult(foundVariant))
@@ -1376,7 +1375,7 @@ func (m *MetadataServer) GetTags(c *gin.Context) {
 	resourceType := c.Param("type")
 	var requestBody TagGetBody
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "GetTags - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "GetTags - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1441,7 +1440,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	var requestBody TagPostBody
 	resourceTypeParam := c.Param("type")
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "PostTags - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "PostTags - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1457,7 +1456,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	foundResource, err := m.lookup.Lookup(objID)
 
 	if err != nil {
-		fetchError := m.GetTagError(400, err, c, "PostTags - Error finding the resource with resourceID")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "PostTags - Error finding the resource with resourceID")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1565,16 +1564,8 @@ type TaskDefinition struct {
 
 // This will be updated in the Triggers PR
 type TaskRunResponse struct {
-	UniqueID        string    `json:"id"`
-	ID              int       `json:"runId"`
-	TaskID          int       `json:"taskId"`
-	Name            string    `json:"name"`
-	Type            string    `json:"type"`
-	ResourceName    string    `json:"resourceName"`
-	ResourceVariant string    `json:"resourceVariant"`
-	Status          string    `json:"status"`
-	LastRunTime     time.Time `json:"lastRunTime"`
-	TriggeredBy     string    `json:"triggeredBy"`
+	Task    sc.TaskMetadata    `json:"task"`
+	TaskRun sc.TaskRunMetadata `json:"taskRun"`
 }
 
 type TaskRunsPostBody struct {
@@ -1610,7 +1601,7 @@ func makeRunResponse(task scheduling.TaskMetadata, run scheduling.TaskRunMetadat
 func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 	var requestBody TaskRunsPostBody
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "GetTaskRuns - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1635,22 +1626,22 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 	}
 
 	// status filter, break out
-	taskListResponse = filter(taskListResponse, func(t TaskRunResponse) bool {
+	taskListCopy = filter(taskListCopy, func(t sc.TaskRunMetadata) bool {
 		result := false
 		if requestBody.Status == "ALL" {
 			result = true
 		} else if requestBody.Status == "ACTIVE" {
-			activeStates := []string{"PENDING", "RUNNING"}
+			activeStates := []sc.Status{sc.Pending, sc.Running}
 			result = slices.Contains(activeStates, t.Status)
 		} else if requestBody.Status == "COMPLETE" {
-			activeStates := []string{"FAILED", "SUCCESS"}
-			result = slices.Contains(activeStates, t.Status)
+			completeStates := []sc.Status{sc.Failed, sc.Success}
+			result = slices.Contains(completeStates, t.Status)
 		}
 		return result
 	})
 
 	// name filter
-	taskListResponse = filter(taskListResponse, func(t TaskRunResponse) bool {
+	taskListCopy = filter(taskListCopy, func(t sc.TaskRunMetadata) bool {
 		result := false
 		if requestBody.SearchText == "" {
 			result = true
@@ -1662,39 +1653,34 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 
 	// date sort
 	if requestBody.SortBy == "STATUS_DATE" {
-		sort.Slice(taskListResponse, func(i, j int) bool {
-			return taskListResponse[i].LastRunTime.UnixMilli() > taskListResponse[j].LastRunTime.UnixMilli()
+		sort.Slice(taskListCopy, func(i, j int) bool {
+			return taskListCopy[i].StartTime.UnixMilli() > taskListCopy[j].StartTime.UnixMilli()
 		})
 	}
 
 	// status sort
 	if requestBody.SortBy == "STATUS" {
-		sort.Slice(taskListResponse, func(i, j int) bool {
-			l1, l2 := len(taskListResponse[i].Status), len(taskListResponse[j].Status)
+		sort.Slice(taskListCopy, func(i, j int) bool {
+			l1, l2 := len(taskListCopy[i].Status), len(taskListCopy[j].Status)
 			if l1 != l2 {
 				return l1 < l2
 			}
-			return taskListResponse[i].Status < taskListResponse[j].Status
+			return taskListCopy[i].Status < taskListCopy[j].Status
 		})
 	}
 
-	c.JSON(http.StatusOK, taskListResponse)
-}
+	taskRunResponse := []TaskRunResponse{}
+	for _, loopRunItem := range taskListCopy {
+		taskRunResult := mockTaskFind(int(loopRunItem.TaskId))
+		taskRunResponse = append(taskRunResponse, TaskRunResponse{Task: taskRunResult, TaskRun: loopRunItem})
+	}
 
-type OtherRunResponse struct {
-	ID          string    `json:"id"`
-	LastRunTime time.Time `json:"lastRunTime"`
-	Status      string    `json:"status"`
-	Link        string    `json:"link"`
+	c.JSON(http.StatusOK, taskRunResponse)
 }
 
 type TaskRunDetailResponse struct {
-	ID        string             `json:"id"`
-	Name      string             `json:"name"`
-	Status    string             `json:"status"`
-	Logs      string             `json:"logs"`
-	Details   string             `json:"details"`
-	OtherRuns []OtherRunResponse `json:"otherRuns"`
+	TaskRun   sc.TaskRunMetadata   `json:"taskRun"`
+	OtherRuns []sc.TaskRunMetadata `json:"otherRuns"`
 }
 
 func makeOtherRuns(run scheduling.TaskRunMetadata) OtherRunResponse {
@@ -1715,7 +1701,7 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 
 	err := taskID.FromString(strTaskID)
 	if err != nil {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not convert the given taskId"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1748,11 +1734,7 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	logs := strings.Join(selectedRun.Logs, "\n")
 	logsWithError := fmt.Sprintf("%s\n%s", logs, selectedRun.Error)
 	resp := TaskRunDetailResponse{
-		ID:        string(selectedRun.ID),
-		Name:      selectedRun.Name,
-		Status:    selectedRun.Status.String(),
-		Logs:      logsWithError,
-		Details:   "Details go here",
+		TaskRun:   taskRunResult,
 		OtherRuns: otherRuns,
 	}
 
@@ -1780,3 +1762,4 @@ func (m *MetadataServer) Start(port string) {
 	router.GET("/data/taskruns/taskrundetail/:taskId/:taskRunId", m.GetTaskRunDetails)
 	router.Run(port)
 }
+

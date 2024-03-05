@@ -42,7 +42,7 @@ const useStyles = makeStyles((theme) => ({
   appbar: {
     background: 'transparent',
     boxShadow: 'none',
-    color: 'black',
+    color: '#000000',
     padding: theme.spacing(0),
     paddingLeft: theme.spacing(4),
     paddingRight: theme.spacing(4),

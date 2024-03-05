@@ -2,7 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
-	"fmt"
+	"github.com/featureform/fferr"
 )
 
 type LocalFileStoreConfig struct {
@@ -20,7 +20,7 @@ func (config *LocalFileStoreConfig) Serialize() ([]byte, error) {
 func (config *LocalFileStoreConfig) Deserialize(data []byte) error {
 	err := json.Unmarshal(data, config)
 	if err != nil {
-		return fmt.Errorf("deserialize file blob store config: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }

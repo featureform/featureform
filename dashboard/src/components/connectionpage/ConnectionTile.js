@@ -13,7 +13,7 @@ const useStyles = makeStyles((theme) => ({
     padding: theme.spacing(3),
     width: '100%',
     height: '100%',
-    border: `2px solid black`,
+    border: `2px solid #000000`,
     borderRadius: 16,
     background: '#FFFFFF',
     minWidth: '12em',
@@ -21,7 +21,7 @@ const useStyles = makeStyles((theme) => ({
 
   title: {
     fontSize: '2em',
-    color: 'black',
+    color: '#000000',
   },
 }));
 

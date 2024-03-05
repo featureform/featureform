@@ -98,7 +98,7 @@ const useStyles = makeStyles((theme) => ({
   appbar: {
     background: 'transparent',
     boxShadow: 'none',
-    color: 'black',
+    color: '#000000',
   },
   metadata: {
     marginTop: theme.spacing(2),

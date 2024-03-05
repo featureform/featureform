@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/featureform/fferr"
 	"github.com/featureform/helpers"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -18,7 +19,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
-	"google.golang.org/grpc/status"
+	grpc_status "google.golang.org/grpc/status"
 
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -597,7 +598,7 @@ func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Pro
 	}
 	serv.Logger.Infow("Creating Provider", "name", provider.Name)
 	_, err = serv.meta.CreateProvider(ctx, provider)
-	if err != nil && status.Code(err) != codes.AlreadyExists {
+	if err != nil && grpc_status.Code(err) != codes.AlreadyExists {
 		serv.Logger.Errorw("Failed to create provider", "error", err)
 		return nil, err
 	}
@@ -627,7 +628,7 @@ func (serv *MetadataServer) shouldCheckProviderHealth(ctx context.Context, provi
 			return false, err
 		}
 		res, err := stream.Recv()
-		if status.Code(err) == codes.NotFound {
+		if grpc_status.Code(err) == codes.NotFound {
 			break
 		}
 		if err != nil {
@@ -653,9 +654,20 @@ func (serv *MetadataServer) checkProviderHealth(ctx context.Context, providerNam
 	isHealthy, err := serv.health.CheckProvider(providerName)
 	if err != nil || !isHealthy {
 		serv.Logger.Errorw("Provider health check failed", "error", err)
+
+		errorStatus, ok := grpc_status.FromError(err)
+		errorProto := errorStatus.Proto()
+		var errorStatusProto *pb.ErrorStatus
+		if ok {
+			errorStatusProto = &pb.ErrorStatus{Code: errorProto.Code, Message: errorProto.Message, Details: errorProto.Details}
+		} else {
+			errorStatusProto = nil
+		}
+
 		status = &pb.ResourceStatus{
 			Status:       pb.ResourceStatus_FAILED,
 			ErrorMessage: err.Error(),
+			ErrorStatus:  errorStatusProto,
 		}
 	} else {
 		serv.Logger.Infow("Provider health check passed", "name", providerName)
@@ -720,7 +732,7 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, label *pb.La
 	serv.Logger.Infow("Creating Label Variant", "name", label.Name, "variant", label.Variant)
 	protoSource := label.Source
 	serv.Logger.Debugw("Finding label source", "name", protoSource.Name, "variant", protoSource.Variant)
-	source, err := serv.client.GetSourceVariant(ctx, metadata.NameVariant{protoSource.Name, protoSource.Variant})
+	source, err := serv.client.GetSourceVariant(ctx, metadata.NameVariant{Name: protoSource.Name, Variant: protoSource.Variant})
 	if err != nil {
 		serv.Logger.Errorw("Could not create label source variant", "error", err)
 		return nil, err
@@ -737,12 +749,12 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, label *pb.La
 func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, train *pb.TrainingSetVariant) (*pb.Empty, error) {
 	serv.Logger.Infow("Creating Training Set Variant", "name", train.Name, "variant", train.Variant)
 	protoLabel := train.Label
-	label, err := serv.client.GetLabelVariant(ctx, metadata.NameVariant{protoLabel.Name, protoLabel.Variant})
+	label, err := serv.client.GetLabelVariant(ctx, metadata.NameVariant{Name: protoLabel.Name, Variant: protoLabel.Variant})
 	if err != nil {
 		return nil, err
 	}
 	for _, protoFeature := range train.Features {
-		_, err := serv.client.GetFeatureVariant(ctx, metadata.NameVariant{protoFeature.Name, protoFeature.Variant})
+		_, err := serv.client.GetFeatureVariant(ctx, metadata.NameVariant{Name: protoFeature.Name, Variant: protoFeature.Variant})
 		if err != nil {
 			return nil, err
 		}
@@ -773,11 +785,11 @@ func (serv *OnlineServer) BatchFeatureServe(req *srv.BatchFeatureServeRequest, s
 			if err == io.EOF {
 				return nil
 			}
-			return fmt.Errorf("failed to fetch batch row: %w", err)
+			return err
 		}
 		if err := stream.Send(row); err != nil {
 			serv.Logger.Errorw("Failed to write to stream", "Error", err)
-			return fmt.Errorf("failed to send batch row: %w", err)
+			return err
 		}
 	}
 
@@ -787,7 +799,7 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 	serv.Logger.Infow("Serving Training Data", "id", req.Id.String())
 	client, err := serv.client.TrainingData(context.Background(), req)
 	if err != nil {
-		return fmt.Errorf("could not serve training data: %w", err)
+		return err
 	}
 	for {
 		row, err := client.Recv()
@@ -795,11 +807,11 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 			if err == io.EOF {
 				return nil
 			}
-			return fmt.Errorf("receive error: %w", err)
+			return err
 		}
 		if err := stream.Send(row); err != nil {
 			serv.Logger.Errorw("Failed to write to stream", "Error", err)
-			return fmt.Errorf("training send row: %w", err)
+			return err
 		}
 	}
 }
@@ -893,11 +905,11 @@ func (serv *OnlineServer) TrainingDataColumns(ctx context.Context, req *srv.Trai
 func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feature_SourceDataServer) error {
 	serv.Logger.Infow("Serving Source Data", "id", req.Id.String())
 	if req.Limit == 0 {
-		return fmt.Errorf("limit must be greater than 0")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("limit must be greater than 0"))
 	}
 	client, err := serv.client.SourceData(context.Background(), req)
 	if err != nil {
-		return fmt.Errorf("could not serve source data: %w", err)
+		return err
 	}
 	for {
 		row, err := client.Recv()
@@ -905,11 +917,11 @@ func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feat
 			if err == io.EOF {
 				return nil
 			}
-			return fmt.Errorf("receive error: %w", err)
+			return err
 		}
 		if err := stream.Send(row); err != nil {
 			serv.Logger.Errorf("failed to write to source data stream: %w", err)
-			return fmt.Errorf("source send row: %w", err)
+			return err
 		}
 	}
 }
@@ -932,27 +944,29 @@ func (serv *OnlineServer) GetResourceLocation(ctx context.Context, req *srv.Reso
 func (serv *ApiServer) Serve() error {
 
 	if serv.grpcServer != nil {
-		return fmt.Errorf("server already running")
+		return fferr.NewInternalError(fmt.Errorf("server already running"))
 	}
 	lis, err := net.Listen("tcp", serv.address)
 	if err != nil {
-		return fmt.Errorf("listen: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		// grpc.WithUnaryInterceptor(fferr.UnaryClientInterceptor()),
+		// grpc.WithStreamInterceptor(fferr.StreamClientInterceptor()),
 	}
 	metaConn, err := grpc.Dial(serv.metadata.address, opts...)
 	if err != nil {
-		return fmt.Errorf("metdata connection: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	servConn, err := grpc.Dial(serv.online.address, opts...)
 	if err != nil {
-		return fmt.Errorf("serving connection: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	serv.metadata.meta = pb.NewMetadataClient(metaConn)
 	client, err := metadata.NewClient(serv.metadata.address, serv.Logger)
 	if err != nil {
-		return fmt.Errorf("metdata new client: %w", err)
+		return err
 	}
 	serv.metadata.client = client
 	serv.online.client = srv.NewFeatureClient(servConn)
@@ -979,7 +993,7 @@ func (serv *ApiServer) ServeOnListener(lis net.Listener) error {
 	minTimeStr := helpers.GetEnv("FEATUREFORM_KEEPALIVE_MINTIME", "1")
 	minTime, err := strconv.ParseInt(minTimeStr, 0, 0)
 	if err != nil {
-		return fmt.Errorf("failed to parse keep alive min time: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	kaep := keepalive.EnforcementPolicy{
 		MinTime: time.Duration(minTime) * time.Minute, // minimum amount of time a client should wait before sending a keepalive ping
@@ -987,7 +1001,7 @@ func (serv *ApiServer) ServeOnListener(lis net.Listener) error {
 	kaTimeout := helpers.GetEnv("FEATUREFORM_KEEPALIVE_TIMEOUT", "5")
 	timeout, err := strconv.ParseInt(kaTimeout, 0, 0)
 	if err != nil {
-		return fmt.Errorf("failed to parse keep alive timeout: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	kasp := keepalive.ServerParameters{
 		Timeout: time.Duration(timeout) * time.Minute, // time after which the connection is closed if no activity
@@ -1010,7 +1024,7 @@ func (serv *ApiServer) ServeOnListener(lis net.Listener) error {
 
 func (serv *ApiServer) GracefulStop() error {
 	if serv.grpcServer == nil {
-		return fmt.Errorf("Server not running")
+		return fferr.NewInternalError(fmt.Errorf("server not running"))
 	}
 	serv.grpcServer.GracefulStop()
 	serv.grpcServer = nil

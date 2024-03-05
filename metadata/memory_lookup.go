@@ -7,6 +7,7 @@ package metadata
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
 	scheduling "github.com/featureform/scheduling/storage_providers"
@@ -141,7 +142,7 @@ func (lookup MemoryResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	logger.Infow("Get", "key", key)
 	resp, err := lookup.Connection.Get(key, false)
 	if err != nil || len(resp) == 0 {
-		return nil, &ResourceNotFoundError{id, err}
+		return nil, fferr.NewKeyNotFoundError(key, err)
 	}
 	logger.Infow("Deserialize", "key", key)
 	msg, err := lookup.deserialize([]byte(resp[key]))
@@ -281,7 +282,7 @@ func (lookup MemoryResourceLookup) Submap(ids []ResourceID) (ResourceLookup, err
 		key := createKey(id)
 		resp, err := lookup.Connection.Get(key, false)
 		if err != nil {
-			return nil, &ResourceNotFoundError{id, err}
+			return nil, fferr.NewKeyNotFoundError(key, err)
 		}
 		etcdStore, err := lookup.deserialize([]byte(resp[key]))
 		if err != nil {

@@ -1553,16 +1553,6 @@ func filter[T any](ss []T, test func(T) bool) (ret []T) {
 	return ret
 }
 
-type TaskDefinition struct {
-	ID       int    `json:"id"`
-	Name     string `json:"name"`
-	Type     string `json:"type"`
-	Provider string `json:"provider"`
-	Resource string `json:"resource"`
-	Variant  string `json:"variant"`
-}
-
-// This will be updated in the Triggers PR
 type TaskRunResponse struct {
 	Task    sc.TaskMetadata    `json:"task"`
 	TaskRun sc.TaskRunMetadata `json:"taskRun"`
@@ -1572,30 +1562,6 @@ type TaskRunsPostBody struct {
 	Status     string `json:"status"`
 	SearchText string `json:"searchtext"`
 	SortBy     string `json:"sortBy"`
-}
-
-// This function will be replaced when the new format is introduced in the Triggers PR
-func makeRunResponse(task scheduling.TaskMetadata, run scheduling.TaskRunMetadata) TaskRunResponse {
-	var name, variant string
-	switch task.TargetType {
-	case scheduling.NameVariantTarget:
-		target := task.Target.(scheduling.NameVariant)
-		name = target.Name
-		variant = target.Variant
-	}
-
-	return TaskRunResponse{
-		UniqueID:        fmt.Sprintf("%d-%d", run.ID, run.TaskId),
-		ID:              int(run.ID),
-		TaskID:          int(run.TaskId),
-		Name:            run.Name,
-		Type:            string(task.TaskType),
-		ResourceName:    name,
-		ResourceVariant: variant,
-		Status:          run.Status.String(),
-		LastRunTime:     run.StartTime,
-		TriggeredBy:     string(run.Trigger.Type()),
-	}
 }
 
 func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
@@ -1608,7 +1574,7 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 
 	runs, err := m.TaskManager.GetAllTaskRuns()
 	if err != nil {
-		fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Failed to fetch task runs")
+		fetchError := m.GetRequestError(500, err, c, "GetTaskRuns - Failed to fetch task runs")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1617,35 +1583,35 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 	for _, run := range runs {
 		task, err := m.TaskManager.GetTaskByID(run.TaskId)
 		if err != nil {
-			fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Failed to fetch task")
+			fetchError := m.GetRequestError(500, err, c, "GetTaskRuns - Failed to fetch task")
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
 
-		taskListResponse = append(taskListResponse, makeRunResponse(task, run))
+		taskListResponse = append(taskListResponse, TaskRunResponse{Task: task, TaskRun: run})
 	}
 
 	// status filter, break out
-	taskListCopy = filter(taskListCopy, func(t sc.TaskRunMetadata) bool {
+	taskListResponse = filter(taskListResponse, func(t TaskRunResponse) bool {
 		result := false
 		if requestBody.Status == "ALL" {
 			result = true
 		} else if requestBody.Status == "ACTIVE" {
-			activeStates := []sc.Status{sc.Pending, sc.Running}
-			result = slices.Contains(activeStates, t.Status)
+			activeStates := []sc.Status{sc.PENDING, sc.RUNNING, sc.CREATED}
+			result = slices.Contains(activeStates, t.TaskRun.Status)
 		} else if requestBody.Status == "COMPLETE" {
-			completeStates := []sc.Status{sc.Failed, sc.Success}
-			result = slices.Contains(completeStates, t.Status)
+			completeStates := []sc.Status{sc.FAILED, sc.READY}
+			result = slices.Contains(completeStates, t.TaskRun.Status)
 		}
 		return result
 	})
 
 	// name filter
-	taskListCopy = filter(taskListCopy, func(t sc.TaskRunMetadata) bool {
+	taskListResponse = filter(taskListResponse, func(t TaskRunResponse) bool {
 		result := false
 		if requestBody.SearchText == "" {
 			result = true
-		} else if strings.Contains(strings.ToLower(t.Name), strings.ToLower(requestBody.SearchText)) {
+		} else if strings.Contains(strings.ToLower(t.TaskRun.Name), strings.ToLower(requestBody.SearchText)) {
 			result = true
 		}
 		return result
@@ -1653,43 +1619,28 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 
 	// date sort
 	if requestBody.SortBy == "STATUS_DATE" {
-		sort.Slice(taskListCopy, func(i, j int) bool {
-			return taskListCopy[i].StartTime.UnixMilli() > taskListCopy[j].StartTime.UnixMilli()
+		sort.Slice(taskListResponse, func(i, j int) bool {
+			return taskListResponse[i].TaskRun.StartTime.UnixMilli() > taskListResponse[j].TaskRun.StartTime.UnixMilli()
 		})
 	}
 
 	// status sort
 	if requestBody.SortBy == "STATUS" {
-		sort.Slice(taskListCopy, func(i, j int) bool {
-			l1, l2 := len(taskListCopy[i].Status), len(taskListCopy[j].Status)
+		sort.Slice(taskListResponse, func(i, j int) bool {
+			l1, l2 := len(taskListResponse[i].TaskRun.Status.String()), len(taskListResponse[j].TaskRun.Status.String())
 			if l1 != l2 {
 				return l1 < l2
 			}
-			return taskListCopy[i].Status < taskListCopy[j].Status
+			return taskListResponse[i].TaskRun.Status < taskListResponse[j].TaskRun.Status
 		})
 	}
 
-	taskRunResponse := []TaskRunResponse{}
-	for _, loopRunItem := range taskListCopy {
-		taskRunResult := mockTaskFind(int(loopRunItem.TaskId))
-		taskRunResponse = append(taskRunResponse, TaskRunResponse{Task: taskRunResult, TaskRun: loopRunItem})
-	}
-
-	c.JSON(http.StatusOK, taskRunResponse)
+	c.JSON(http.StatusOK, taskListResponse)
 }
 
 type TaskRunDetailResponse struct {
 	TaskRun   sc.TaskRunMetadata   `json:"taskRun"`
 	OtherRuns []sc.TaskRunMetadata `json:"otherRuns"`
-}
-
-func makeOtherRuns(run scheduling.TaskRunMetadata) OtherRunResponse {
-	return OtherRunResponse{
-		ID:          string(run.ID),
-		LastRunTime: run.StartTime,
-		Status:      run.Status.String(),
-		Link:        "Future Link",
-	}
 }
 
 func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
@@ -1717,24 +1668,24 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 
 	runs, err := m.TaskManager.GetTaskRuns(taskID)
 	if err != nil {
-		fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Failed to fetch task")
+		fetchError := m.GetRequestError(500, err, c, "GetTaskRuns - Failed to fetch task")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 
-	var otherRuns []OtherRunResponse
+	var otherRuns []sc.TaskRunMetadata
 	var selectedRun scheduling.TaskRunMetadata
 	for _, run := range runs {
-		if run.ID != scheduling.TaskRunID(taskRunID) {
-			otherRuns = append(otherRuns, makeOtherRuns(run))
+		if run.ID != taskRunID {
+			otherRuns = append(otherRuns, run)
 		} else {
 			selectedRun = run
 		}
 	}
-	logs := strings.Join(selectedRun.Logs, "\n")
-	logsWithError := fmt.Sprintf("%s\n%s", logs, selectedRun.Error)
+	//logs := strings.Join(selectedRun.Logs, "\n")
+	//logsWithError := fmt.Sprintf("%s\n%s", logs, selectedRun.Error)
 	resp := TaskRunDetailResponse{
-		TaskRun:   taskRunResult,
+		TaskRun:   selectedRun,
 		OtherRuns: otherRuns,
 	}
 
@@ -1762,4 +1713,3 @@ func (m *MetadataServer) Start(port string) {
 	router.GET("/data/taskruns/taskrundetail/:taskId/:taskRunId", m.GetTaskRunDetails)
 	router.Run(port)
 }
-

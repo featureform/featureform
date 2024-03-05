@@ -1920,6 +1920,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 
 	if serv.needsJob(res) && existing == nil {
 		var taskID scheduling.TaskID
+		// Do we want this in the interface?
 		if source, ok := res.(*sourceVariantResource); ok {
 			taskID = scheduling.TaskID(source.serialized.TaskId)
 		}
@@ -1933,14 +1934,14 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 			taskID = scheduling.TaskID(label.serialized.TaskId)
 		}
 		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
-		name := "Initial Registration"
-		trigger := scheduling.OnApplyTrigger{TriggerName: name}
-		taskRun, err := serv.taskManager.CreateTaskRun(name, taskID, trigger)
+		trigger := scheduling.OnApplyTrigger{TriggerName: "Apply"}
+		taskName := fmt.Sprintf("Create Resource %s (%s)", res.ID().Name, res.ID().Variant)
+		taskRun, err := serv.taskManager.CreateTaskRun(taskName, taskID, trigger)
 		if err != nil {
 			return nil, err
 		}
 
-		serv.Logger.Infof("Successfully Created Task %s with Run %s for Resource: ", taskRun.TaskId, taskRun.ID, res.ID().Name, res.ID().Variant)
+		serv.Logger.Infof("Successfully Created Task %s with Run %s for Resource: %s (%s)", taskRun.TaskId, taskRun.ID, res.ID().Name, res.ID().Variant)
 	}
 	parentId, hasParent := id.Parent()
 	if hasParent {

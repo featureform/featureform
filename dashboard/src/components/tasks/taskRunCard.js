@@ -20,7 +20,7 @@ export default function TaskRunCard({ handleClose, taskId, taskRunId }) {
   const dataAPI = useDataAPI();
   const [taskRunRecord, setTaskRecord] = useState({});
   const [loading, setLoading] = useState(true);
-
+  console.log("Opened tray", taskId, taskRunId)
   const columns = [
     {
       field: 'runId',
@@ -129,7 +129,7 @@ export default function TaskRunCard({ handleClose, taskId, taskRunId }) {
             style={{ width: '100%' }}
             variant='filled'
             disabled
-            value={taskRunRecord?.taskRun?.logs}
+            value={taskRunRecord?.taskRun?.logs.join('\n') + '\n' + taskRunRecord?.taskRun?.error}
             multiline
             minRows={3}
           ></TextField>

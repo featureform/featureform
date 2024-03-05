@@ -107,7 +107,7 @@ func (client *Client) RequestScheduleChange(ctx context.Context, resID ResourceI
 	return err
 }
 
-func (client *Client) SetStatusError(ctx context.Context, resID ResourceID, status ResourceStatus, jobErr error) error {
+func (client *Client) SetStatusError(ctx context.Context, resID ResourceID, status scheduling.Status, jobErr error) error {
 	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
 	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
 	errorStatus, ok := grpc_status.FromError(jobErr)

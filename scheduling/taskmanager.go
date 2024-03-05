@@ -2,6 +2,9 @@ package scheduling
 
 import (
 	"fmt"
+	"github.com/featureform/fferr"
+	pb "github.com/featureform/metadata/proto"
+	grpc_status "google.golang.org/grpc/status"
 	"strconv"
 	"strings"
 	"time"
@@ -484,11 +487,22 @@ func (t *TaskManager) SetRunStatus(runID TaskRunID, taskID TaskID, status Status
 	if status == FAILED && err == nil {
 		return fmt.Errorf("error is required for failed status")
 	}
+
+	// Clean this up
 	metadata.Status = status
 	if err == nil {
 		metadata.Error = ""
 	} else {
-		metadata.Error = err.Error()
+		errorStatus, ok := grpc_status.FromError(err)
+		errorProto := errorStatus.Proto()
+		var errorStatusProto *pb.ErrorStatus
+		if ok {
+			errorStatusProto = &pb.ErrorStatus{Code: errorProto.Code, Message: errorProto.Message, Details: errorProto.Details}
+		} else {
+			errorStatusProto = nil
+		}
+		metadata.Error = fferr.FromErr(err).Error()
+		metadata.ErrorProto = errorStatusProto
 	}
 
 	serializedMetadata, e := metadata.Marshal()

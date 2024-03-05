@@ -89,6 +89,7 @@ type TaskRunMetadata struct {
 	EndTime     time.Time   `json:"endTime"`
 	Logs        []string    `json:"logs"`
 	Error       string      `json:"error"`
+	ErrorProto  *pb.ErrorStatus
 }
 
 // Formatting
@@ -107,6 +108,7 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 		EndTime     time.Time       `json:"endTime"`
 		Logs        []string        `json:"logs"`
 		Error       string          `json:"error"`
+		ErrorProto  *pb.ErrorStatus
 	}
 
 	var temp tempConfig

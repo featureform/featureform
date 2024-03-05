@@ -353,8 +353,8 @@ func (m *TaskMetadataManager) SetRunStatus(runID TaskRunID, taskID TaskID, statu
 
 	updateStatus := func(runMetadata string) (string, error) {
 		metadata := TaskRunMetadata{}
-		err := metadata.Unmarshal([]byte(runMetadata))
-		if err != nil {
+		e := metadata.Unmarshal([]byte(runMetadata))
+		if e != nil {
 			return "", fmt.Errorf("failed to unmarshal metadata: %v", err)
 		}
 		if status == Failed && err == nil {

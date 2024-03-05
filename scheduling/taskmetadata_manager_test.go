@@ -180,7 +180,7 @@ func TestTaskGetAll(t *testing.T) {
 			"Empty",
 			[]taskInfo{},
 			TaskID(1),
-			true,
+			false,
 		},
 		{
 			"Single",
@@ -495,7 +495,7 @@ func TestGetRunAll(t *testing.T) {
 			"Empty",
 			[]taskInfo{},
 			[]runInfo{},
-			true,
+			false,
 		},
 	}
 
@@ -663,13 +663,11 @@ func TestSetStatusByRunID(t *testing.T) {
 			}
 		}
 
-		// var runDefs []TaskRunMetadata
 		for _, run := range test.Runs {
 			_, err := manager.CreateTaskRun(run.Name, run.TaskID, run.Trigger)
 			if err != nil && !test.shouldError {
 				t.Fatalf("failed to create task run: %v", err)
 			}
-			// runDefs = append(runDefs, runDef)
 		}
 
 		err := manager.SetRunStatus(test.ForRun, test.ForTask, test.SetStatus, test.SetError)

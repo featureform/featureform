@@ -273,7 +273,7 @@ func (m *TaskMetadataManager) GetRunByID(taskID TaskID, runID TaskRunID) (TaskRu
 	}
 
 	taskRun := TaskRunMetadata{}
-	err = taskRun.Unmarshal([]byte(rec]))
+	err = taskRun.Unmarshal([]byte(rec))
 	if err != nil {
 		return TaskRunMetadata{}, fmt.Errorf("failed to unmarshal run record: %v", err)
 	}
@@ -298,7 +298,7 @@ func (m *TaskMetadataManager) GetRunsByDate(start time.Time, end time.Time) (Tas
 
 func (m *TaskMetadataManager) getRunsForDay(date time.Time, start time.Time, end time.Time) ([]TaskRunMetadata, error) {
 	// TODO: question, should this return an error if we can't marshal
-	// a task run record? Or should it just skip that record and keep 
+	// a task run record? Or should it just skip that record and keep
 	// track of the error?
 	key := TaskRunMetadataKey{date: date}
 	recs, err := m.storer.List(key.String())
@@ -346,7 +346,12 @@ func (m *TaskMetadataManager) SetRunStatus(runID TaskRunID, taskID TaskID, statu
 		return fmt.Errorf("invalid run id: %d", taskID)
 	}
 
-	updateStatus := func (runMetadata string) (string, error) {
+	metadata, e := m.GetRunByID(taskID, runID)
+	if e != nil {
+		return fmt.Errorf("failed to fetch run: %v", e)
+	}
+
+	updateStatus := func(runMetadata string) (string, error) {
 		metadata := TaskRunMetadata{}
 		err := metadata.Unmarshal([]byte(runMetadata))
 		if err != nil {
@@ -383,7 +388,12 @@ func (m *TaskMetadataManager) SetRunEndTime(runID TaskRunID, taskID TaskID, time
 		return fmt.Errorf("invalid run end time: %v", time)
 	}
 
-	updateEndTime := func (runMetadata string) (string, error) {
+	metadata, e := m.GetRunByID(taskID, runID)
+	if e != nil {
+		return fmt.Errorf("failed to fetch run: %v", e)
+	}
+
+	updateEndTime := func(runMetadata string) (string, error) {
 		metadata := TaskRunMetadata{}
 		err := metadata.Unmarshal([]byte(runMetadata))
 		if err != nil {
@@ -419,7 +429,12 @@ func (m *TaskMetadataManager) AppendRunLog(runID TaskRunID, taskID TaskID, log s
 		return fmt.Errorf("log cannot be empty")
 	}
 
-	updateLog := func (runMetadata string) (string, error) {
+	metadata, e := m.GetRunByID(taskID, runID)
+	if e != nil {
+		return fmt.Errorf("failed to fetch run: %v", e)
+	}
+
+	updateLog := func(runMetadata string) (string, error) {
 		metadata := TaskRunMetadata{}
 		err := metadata.Unmarshal([]byte(runMetadata))
 		if err != nil {

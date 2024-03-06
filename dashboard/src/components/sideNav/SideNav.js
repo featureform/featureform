@@ -76,6 +76,12 @@ function SideNav({ sections, children }) {
             >
               <ListItemText primary='Tasks' />
             </ListItemButton>
+            <ListItemButton
+              onClick={(event) => handleMenuClick(event, '/triggers')}
+              sx={{ padding: '0 0 0 6em' }}
+            >
+              <ListItemText primary='Triggers' />
+            </ListItemButton>
           </List>
         </Collapse>
       </Drawer>

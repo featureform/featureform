@@ -95,10 +95,102 @@ export function useDataAPI() {
     return result;
   };
 
+  const getTriggers = async (searchText = '') => {
+    const result = await fetch(`${API_URL}/data/triggers`, {
+      cache: 'no-store',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ searchText }),
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error fetching triggers from server: ', error);
+        return [];
+      });
+
+    return result;
+  };
+
+  const postTrigger = async (triggerParams = {}) => {
+    const address = `${API_URL}/data/posttrigger`;
+    const result = await fetch(address, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(triggerParams),
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error(error);
+        return false;
+      });
+    return result;
+  };
+
+  const getTriggerDetails = async (triggerId = '') => {
+    const result = await fetch(`${API_URL}/data/triggerdetail/${triggerId}`, {
+      cache: 'no-store',
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error fetching trigger details from server: ', error);
+        return [];
+      });
+
+    return result;
+  };
+
+  const deleteTrigger = async (triggerId = '') => {
+    const result = await fetch(`${API_URL}/data/triggerdelete/${triggerId}`, {
+      cache: 'no-store',
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error deleting trigger from server: ', error);
+        return [];
+      });
+
+    return result;
+  };
+
+  const deleteTriggerResource = async (triggerId = '', resourceId = '') => {
+    const result = await fetch(`${API_URL}/data/triggerdeleteresource`, {
+      cache: 'no-store',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ triggerId, resourceId }),
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error deleting trigger resource in server: ', error);
+        return [];
+      });
+
+    return result;
+  };
+
   return {
     getTags,
     postTags,
     getTaskRuns,
     getTaskRunDetails,
+    getTriggers,
+    postTrigger,
+    getTriggerDetails,
+    deleteTrigger,
+    deleteTriggerResource,
   };
 }

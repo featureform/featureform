@@ -19,7 +19,7 @@ type LockInformation struct {
 	Date time.Time
 }
 
-func (l *LockInformation) Unmarshal(data []byte) error {
+func (l *LockInformation) Unmarshal(data []byte) fferr.GRPCError {
 	var tmp struct {
 		ID   string
 		Key  string
@@ -51,13 +51,17 @@ func (l *LockInformation) Unmarshal(data []byte) error {
 	return nil
 }
 
-func (l *LockInformation) Marshal() ([]byte, error) {
-	return json.Marshal(l)
+func (l *LockInformation) Marshal() ([]byte, fferr.GRPCError) {
+	bytes, err := json.Marshal(l)
+	if err != nil {
+		return nil, fferr.NewInternalError(err)
+	}
+	return bytes, nil
 }
 
 type MultiLock interface {
-	Lock(lock string) (Key, error)
-	Unlock(key Key) error
+	Lock(lock string) (Key, fferr.GRPCError)
+	Unlock(key Key) fferr.GRPCError
 }
 
 type Key interface {

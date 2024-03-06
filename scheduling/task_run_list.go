@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/featureform/fferr"
 )
 
 type TaskRunSimple struct {
@@ -16,18 +18,20 @@ type TaskRuns struct {
 	Runs   []TaskRunSimple `json:"runs"`
 }
 
-func (tr *TaskRuns) Marshal() ([]byte, error) {
+func (tr *TaskRuns) Marshal() ([]byte, fferr.GRPCError) {
 	b, err := json.Marshal(tr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal TaskRun: %v", err)
+		errMessage := fmt.Errorf("failed to marshal TaskRun: %v", err)
+		return nil, fferr.NewInternalError(errMessage)
 	}
 	return b, nil
 }
 
-func (tr *TaskRuns) Unmarshal(data []byte) error {
+func (tr *TaskRuns) Unmarshal(data []byte) fferr.GRPCError {
 	err := json.Unmarshal(data, tr)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal TaskRun: %v", err)
+		errMessage := fmt.Errorf("failed to deserialize NameVariant data: %w", err)
+		return fferr.NewInternalError(errMessage)
 	}
 	return nil
 }

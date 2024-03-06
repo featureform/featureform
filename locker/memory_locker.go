@@ -29,7 +29,7 @@ type MemoryLocker struct {
 	Mutex       *sync.Mutex
 }
 
-func (m *MemoryLocker) Lock(key string) (Key, error) {
+func (m *MemoryLocker) Lock(key string) (Key, fferr.GRPCError) {
 	if key == "" {
 		return &memoryKey{}, fferr.NewInternalError(fmt.Errorf("key is empty"))
 	}
@@ -93,7 +93,7 @@ func (m *MemoryLocker) updateLockTime(id string, key string, doneChannel <-chan 
 	}
 }
 
-func (m *MemoryLocker) Unlock(key Key) error {
+func (m *MemoryLocker) Unlock(key Key) fferr.GRPCError {
 	if key.Key() == "" {
 		return fferr.NewInternalError(fmt.Errorf("key is empty"))
 	}

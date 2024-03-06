@@ -16,6 +16,7 @@ import (
 	"github.com/featureform/provider"
 	sc "github.com/featureform/scheduling"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
@@ -442,4 +443,206 @@ func TestGetTaskRunDetailBadParamTypePanic(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, mockRecorder.Code)
 	assert.Equal(t, expectedMsg, actualErrorMsg)
+}
+
+func TestGetTriggers(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	body := map[string]interface{}{"searchText": "asdf"}
+	MockJsonPost(ctx, nil, body)
+
+	logger := zap.NewExample().Sugar()
+	client := &metadata.Client{}
+	serv := MetadataServer{
+		client: client,
+		logger: logger,
+	}
+	serv.GetTriggers(ctx)
+
+	var data []TriggerResponse
+	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
+
+	assert.Equal(t, http.StatusOK, mockRecorder.Code)
+	assert.Equal(t, len(data), 0)
+}
+
+func TestGetTriggerBadBind(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	body := map[string]interface{}{"searchText": 101}
+	MockJsonPost(ctx, nil, body)
+
+	logger := zap.NewExample().Sugar()
+	client := &metadata.Client{}
+	serv := MetadataServer{
+		client: client,
+		logger: logger,
+	}
+	serv.GetTriggers(ctx)
+
+	var data interface{}
+	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
+
+	assert.Equal(t, http.StatusBadRequest, mockRecorder.Code)
+	assert.Equal(t, "Error 400: Failed to fetch GetTriggers - Error binding the request body", data)
+}
+
+func TestPostTrigger(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	body := map[string]interface{}{"triggerName": "testTrigger", "schedule": "*/10 * * * *"}
+	MockJsonPost(ctx, nil, body)
+
+	logger := zap.NewExample().Sugar()
+	client := &metadata.Client{}
+	serv := MetadataServer{
+		client: client,
+		logger: logger,
+	}
+	serv.PostTrigger(ctx)
+
+	var data bool
+	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
+
+	assert.Equal(t, http.StatusCreated, mockRecorder.Code)
+	assert.Equal(t, true, data)
+}
+
+func TestPostTriggerBadBind(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	body := map[string]interface{}{"triggerName": 1, "schedule": 2}
+	MockJsonPost(ctx, nil, body)
+
+	logger := zap.NewExample().Sugar()
+	client := &metadata.Client{}
+	serv := MetadataServer{
+		client: client,
+		logger: logger,
+	}
+	serv.PostTrigger(ctx)
+
+	var data interface{}
+	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
+
+	assert.Equal(t, http.StatusBadRequest, mockRecorder.Code)
+	assert.Equal(t, "Error 400: Failed to fetch PostTrigger - Error binding the request body", data)
+}
+
+func TestGetTriggerDetail(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	var id, name, schedule string = "1", "testName", "testSchedule"
+	params := []gin.Param{
+		{
+			Key:   "triggerId",
+			Value: id,
+		},
+	}
+	MockJsonGet(ctx, params)
+
+	logger := zap.NewExample().Sugar()
+	client := &metadata.Client{}
+	serv := MetadataServer{
+		client: client,
+		logger: logger,
+	}
+
+	CreateDummyTestTrigger(id, name, schedule, true)
+	serv.GetTriggerDetails(ctx)
+
+	var data TriggerDetailResponse
+	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
+
+	assert.Equal(t, http.StatusOK, mockRecorder.Code)
+	assert.Equal(t, id, data.Trigger.ID)
+	assert.Equal(t, name, data.Trigger.Name)
+	assert.Equal(t, schedule, data.Trigger.Schedule)
+	assert.NotZero(t, data.Owner)
+	assert.NotZero(t, data.Resources)
+}
+
+func TestGetTriggerDetailBadBind(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	params := []gin.Param{
+		{
+			Key:   "bad_param",
+			Value: "1",
+		},
+	}
+	MockJsonGet(ctx, params)
+
+	logger := zap.NewExample().Sugar()
+	client := &metadata.Client{}
+	serv := MetadataServer{
+		client: client,
+		logger: logger,
+	}
+	serv.GetTriggerDetails(ctx)
+
+	var data string
+	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
+
+	assert.Equal(t, http.StatusBadRequest, mockRecorder.Code)
+	assert.Equal(t, "Error 400: Failed to fetch GetTriggerDetails - Could not find the triggerId parameter", data)
+
+}
+
+func TestDeleteTrigger(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	var id, name, schedule string = uuid.New().String(), "testName", "testSchedule"
+	params := []gin.Param{
+		{
+			Key:   "triggerId",
+			Value: id,
+		},
+	}
+	MockJsonGet(ctx, params)
+
+	logger := zap.NewExample().Sugar()
+	client := &metadata.Client{}
+	serv := MetadataServer{
+		client: client,
+		logger: logger,
+	}
+
+	CreateDummyTestTrigger(id, name, schedule, false)
+	serv.DeleteTrigger(ctx)
+
+	var data bool
+	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
+
+	assert.Equal(t, http.StatusOK, mockRecorder.Code)
+	assert.Equal(t, true, data)
+}
+
+func TestDeleteTriggerResourceValidation(t *testing.T) {
+	mockRecorder := httptest.NewRecorder()
+	ctx := GetTestGinContext(mockRecorder)
+	var id, name, schedule string = uuid.New().String(), "testName", "testSchedule"
+	params := []gin.Param{
+		{
+			Key:   "triggerId",
+			Value: id,
+		},
+	}
+	MockJsonGet(ctx, params)
+
+	logger := zap.NewExample().Sugar()
+	client := &metadata.Client{}
+	serv := MetadataServer{
+		client: client,
+		logger: logger,
+	}
+
+	CreateDummyTestTrigger(id, name, schedule, true)
+	serv.DeleteTrigger(ctx)
+
+	var data string
+	json.Unmarshal(mockRecorder.Body.Bytes(), &data)
+
+	assert.Equal(t, http.StatusBadRequest, mockRecorder.Code)
+	assert.Equal(t, "Error 400: Failed to fetch DeleteTrigger - Cannot delete trigger with resource items", data)
 }

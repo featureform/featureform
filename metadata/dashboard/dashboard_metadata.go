@@ -30,6 +30,7 @@ import (
 	"github.com/featureform/serving"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -40,6 +41,7 @@ var SearchClient search.Searcher
 // todox: remove later
 var taskRunStaticList []sc.TaskRunMetadata
 var taskMetadataStaticList []sc.TaskMetadata
+var taskTriggerList []TriggerResponse
 
 type StorageProvider interface {
 	GetResourceLookup() (metadata.ResourceLookup, error)
@@ -1567,6 +1569,20 @@ func CreateDummyTaskRuns(count int) {
 	}
 }
 
+// todox: eventually remove
+func CreateDummyTestTrigger(id, name, schedule string, addResource bool) {
+	newTrigger := TriggerResponse{
+		ID:       id,
+		Name:     name,
+		Type:     "test",
+		Schedule: schedule,
+		Detail:   "test"}
+	if addResource {
+		newTrigger.Resources = []TriggerResource{{ID: uuid.New().String(), Resource: "test", Variant: "v1", LastRun: time.Now()}}
+	}
+	taskTriggerList = append(taskTriggerList, newTrigger)
+}
+
 func createTaskRun(id int, status sc.Status, timeParam time.Time) sc.TaskRunMetadata {
 
 	//todox: check against existing task metadata list
@@ -1741,6 +1757,164 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+type TriggerResponse struct {
+	ID        string            `json:"id"`
+	Name      string            `json:"name"`
+	Type      string            `json:"type"`
+	Schedule  string            `json:"schedule"`
+	Detail    string            `json:"detail"`
+	Resources []TriggerResource `json:"resources"`
+}
+
+type TriggerGetPostBody struct {
+	SearchText string `json:"searchtext"`
+}
+
+func (m *MetadataServer) GetTriggers(c *gin.Context) {
+	var requestBody TriggerGetPostBody
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "GetTriggers - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	triggerListCopy := make([]TriggerResponse, len(taskTriggerList))
+	_ = copy(triggerListCopy, taskTriggerList)
+
+	triggerListCopy = filter(triggerListCopy, func(t TriggerResponse) bool {
+		result := false
+		if requestBody.SearchText == "" {
+			result = true
+		} else if strings.Contains(strings.ToLower(t.Name), strings.ToLower(requestBody.SearchText)) {
+			result = true
+		}
+		return result
+	})
+
+	c.JSON(http.StatusOK, triggerListCopy)
+}
+
+type TriggerPostBody struct {
+	TriggerName string `json:"triggerName"`
+	Schedule    string `json:"schedule"`
+}
+
+func (m *MetadataServer) PostTrigger(c *gin.Context) {
+	var requestBody TriggerPostBody
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "PostTrigger - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	taskTriggerList = append(taskTriggerList,
+		TriggerResponse{
+			ID:       uuid.New().String(),
+			Name:     requestBody.TriggerName,
+			Type:     "Schedule Trigger",
+			Schedule: requestBody.Schedule,
+			Detail:   "Some Details", Resources: []TriggerResource{{ID: uuid.New().String(), Resource: "avg", Variant: "v1", LastRun: time.Now()}, {ID: uuid.New().String(), Resource: "avg", Variant: "v2", LastRun: time.Now()}}})
+
+	c.JSON(http.StatusCreated, true)
+}
+
+type TriggerDetailResponse struct {
+	Trigger   TriggerResponse   `json:"trigger"`
+	Owner     string            `json:"owner"`
+	Resources []TriggerResource `json:"resources"`
+}
+
+type TriggerResource struct {
+	ID       string    `json:"resourceId"`
+	Resource string    `json:"resource"`
+	Variant  string    `json:"variant"`
+	LastRun  time.Time `json:"lastRun"`
+}
+
+func (m *MetadataServer) GetTriggerDetails(c *gin.Context) {
+	triggerId := c.Param("triggerId")
+
+	if triggerId == "" {
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetTriggerDetails - Could not find the triggerId parameter"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	result := TriggerDetailResponse{}
+
+	for _, loopItem := range taskTriggerList {
+		if loopItem.ID == triggerId {
+			result.Owner = "Current User"
+			result.Trigger = loopItem
+			result.Resources = loopItem.Resources
+		}
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+func (m *MetadataServer) DeleteTrigger(c *gin.Context) {
+	deleteId := c.Param("triggerId")
+
+	if deleteId == "" {
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "DeleteTrigger - Could not find the triggerId parameter"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	result := []TriggerResponse{}
+
+	for _, loopItem := range taskTriggerList {
+		if loopItem.ID == deleteId {
+			if len(loopItem.Resources) >= 1 {
+				fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "DeleteTrigger - Cannot delete trigger with resource items"}
+				m.logger.Errorw(fetchError.Error(), "Metadata error")
+				c.JSON(fetchError.StatusCode, fetchError.Error())
+				return
+			}
+			continue
+		}
+		result = append(result, loopItem)
+	}
+
+	taskTriggerList = result //reset the list
+	c.JSON(http.StatusOK, true)
+}
+
+type TriggerResourceDelete struct {
+	TriggerId  string `json:"triggerId"`
+	ResourceId string `json:"resourceID"`
+}
+
+func (m *MetadataServer) DeleteTriggerResource(c *gin.Context) {
+	var requestBody TriggerResourceDelete
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "DeleteTriggerResource - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	//find the trigger and delete the resource, this eventually gets replaced with a live api calls
+	for outerIndex, triggerItem := range taskTriggerList {
+		if triggerItem.ID == requestBody.TriggerId {
+			newList := []TriggerResource{}
+			for _, resourceItem := range triggerItem.Resources {
+				if resourceItem.ID == requestBody.ResourceId {
+					continue
+				}
+				newList = append(newList, resourceItem)
+			}
+			//updated item
+			triggerItem.Resources = newList
+			taskTriggerList[outerIndex] = triggerItem
+			break
+		}
+	}
+	c.JSON(http.StatusOK, true)
+}
+
 func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
@@ -1755,6 +1929,11 @@ func (m *MetadataServer) Start(port string) {
 	router.POST("/data/taskruns", m.GetTaskRuns)
 	router.GET("/data/taskruns/taskrundetail/:taskRunId", m.GetTaskRunDetails)
 
+	router.POST("/data/triggers", m.GetTriggers)
+	router.POST("/data/posttrigger", m.PostTrigger)
+	router.GET("/data/triggerdetail/:triggerId", m.GetTriggerDetails)
+	router.DELETE("/data/triggerdelete/:triggerId", m.DeleteTrigger)
+	router.POST("/data/triggerdeleteresource", m.DeleteTriggerResource)
 	router.Run(port)
 }
 
@@ -1776,6 +1955,13 @@ func main() {
 		logger.Panicw("Failed to create new meil search", err)
 	}
 	CreateDummyTaskRuns(360)
+	taskTriggerList = append(taskTriggerList,
+		TriggerResponse{
+			ID:       uuid.New().String(),
+			Name:     "Monday at Noon",
+			Type:     "Schedule Trigger",
+			Schedule: "0 12**MON",
+			Detail:   "Some details"})
 
 	SearchClient = sc
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)

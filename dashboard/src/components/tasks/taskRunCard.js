@@ -1,4 +1,4 @@
-import DoubleArrowIcon from '@mui/icons-material/DoubleArrow';
+import CloseIcon from '@mui/icons-material/Close';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import {
   Box,
@@ -6,6 +6,7 @@ import {
   Grid,
   IconButton,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
@@ -22,7 +23,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
 
   const columns = [
     {
-      field: 'id',
+      field: 'runId',
       headerName: 'runId',
       width: 1,
       editable: false,
@@ -33,13 +34,13 @@ export default function TaskRunCard({ handleClose, searchId }) {
       display: false,
     },
     {
-      field: 'lastRunTime',
-      headerName: 'Date/Time',
+      field: 'startTime',
+      headerName: 'Start Time',
       sortable: false,
       filterable: false,
       width: 200,
       valueGetter: (params) => {
-        return new Date(params?.row?.lastRunTime)?.toLocaleString();
+        return new Date(params?.row?.startTime)?.toLocaleString();
       },
     },
     {
@@ -57,23 +58,25 @@ export default function TaskRunCard({ handleClose, searchId }) {
       editable: false,
       sortable: false,
       filterable: false,
+      valueGetter: () => {
+        return 'Future Link';
+      },
     },
   ];
 
   useEffect(async () => {
-    let timeout = null;
     if (searchId && loading) {
       let data = await dataAPI.getTaskRunDetails(searchId);
       setTaskRecord(data);
-      timeout = setTimeout(() => {
+      const timeout = setTimeout(() => {
         setLoading(false);
       }, 750);
+      return () => {
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+      };
     }
-    return () => {
-      if (timeout) {
-        clearTimeout(timeout);
-      }
-    };
   }, [searchId, loading]);
 
   const handleReloadRequest = () => {
@@ -84,27 +87,27 @@ export default function TaskRunCard({ handleClose, searchId }) {
 
   return (
     <Box className={classes.taskCardBox}>
-      <Box style={{ float: 'left' }}>
-        <IconButton variant='' size='large' onClick={() => handleClose()}>
-          <DoubleArrowIcon />
-        </IconButton>
-      </Box>
       <Box style={{ float: 'right' }}>
-        <IconButton variant='' size='large' onClick={handleReloadRequest}>
-          {loading ? (
-            <CircularProgress size={'.75em'} />
-          ) : (
-            <RefreshIcon data-testid='taskRunRrefreshIcon' />
-          )}
+        <Tooltip title='Refresh card' placement='bottom'>
+          <IconButton variant='' size='large' onClick={handleReloadRequest}>
+            {loading ? (
+              <CircularProgress size={'.75em'} />
+            ) : (
+              <RefreshIcon data-testid='taskRunRefreshIcon' />
+            )}
+          </IconButton>
+        </Tooltip>
+        <IconButton variant='' size='large' onClick={() => handleClose()}>
+          <CloseIcon />
         </IconButton>
       </Box>
       <Grid style={{ padding: 12 }} container>
         <Grid item xs={6} justifyContent='flex-start'>
-          <Typography variant='h5'>{taskRunRecord.name}</Typography>
+          <Typography variant='h5'>{taskRunRecord?.taskRun?.name}</Typography>
         </Grid>
         <Grid item xs={6} justifyContent='center'>
           <Typography variant='h6'>
-            Status: <StatusChip status={taskRunRecord.status} />
+            Status: <StatusChip status={taskRunRecord?.taskRun?.status} />
           </Typography>
         </Grid>
         <Grid
@@ -120,7 +123,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
             style={{ width: '100%' }}
             variant='filled'
             disabled
-            value={taskRunRecord.logs}
+            value={taskRunRecord?.taskRun?.logs}
             multiline
             minRows={3}
           ></TextField>
@@ -133,7 +136,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
             style={{ width: '100%' }}
             variant='filled'
             disabled
-            value={taskRunRecord.details}
+            value={'Todox: Need to fill'}
             multiline
             minRows={3}
           ></TextField>
@@ -152,6 +155,11 @@ export default function TaskRunCard({ handleClose, searchId }) {
             density='compact'
             autoHeight
             aria-label='Other Runs'
+            sx={{
+              '& .MuiDataGrid-cell:focus': {
+                outline: 'none',
+              },
+            }}
             rows={taskRunRecord?.otherRuns ?? []}
             rowsPerPageOptions={[5]}
             columns={columns}
@@ -159,6 +167,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
               pagination: { paginationModel: { page: 0, pageSize: 5 } },
             }}
             pageSize={5}
+            getRowId={(row) => row.runId}
           />
         </Grid>
       </Grid>

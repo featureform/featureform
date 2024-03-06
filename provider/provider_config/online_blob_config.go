@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"github.com/featureform/fferr"
 
 	fs "github.com/featureform/filestore"
 )
@@ -22,7 +23,7 @@ func (online OnlineBlobConfig) Serialized() SerializedConfig {
 func (online *OnlineBlobConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, online)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }

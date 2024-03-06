@@ -16,6 +16,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 
+	"github.com/featureform/fferr"
 	help "github.com/featureform/helpers"
 	"github.com/google/uuid"
 
@@ -1977,7 +1978,7 @@ func TestCoordinator_checkError(t *testing.T) {
 				Timeout:    0,
 			},
 			args: args{
-				err:     JobDoesNotExistError{},
+				err:     fferr.NewJobDoesNotExistError("", fmt.Errorf("Coordinator Job No Longer Exists")),
 				jobName: "CompletedJob",
 			},
 			expectedLevel: zapcore.InfoLevel,
@@ -1994,7 +1995,7 @@ func TestCoordinator_checkError(t *testing.T) {
 				Timeout:    0,
 			},
 			args: args{
-				err:     ResourceAlreadyFailedError{},
+				err:     fferr.NewResourceAlreadyFailedError("", "", "", fmt.Errorf("resource has failed previously. Ignoring....")),
 				jobName: "CompletedJob",
 			},
 			expectedLevel: zapcore.InfoLevel,
@@ -2011,7 +2012,7 @@ func TestCoordinator_checkError(t *testing.T) {
 				Timeout:    0,
 			},
 			args: args{
-				err:     ResourceAlreadyCompleteError{},
+				err:     fferr.NewResourceAlreadyCompleteError("", "", "", fmt.Errorf("resource has already completed. Ignoring....")),
 				jobName: "CompletedJob",
 			},
 			expectedLevel: zapcore.InfoLevel,

@@ -26,6 +26,7 @@ import (
 	"github.com/featureform/proto"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
+	sc "github.com/featureform/scheduling"
 	"github.com/featureform/serving"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -37,8 +38,8 @@ import (
 var SearchClient search.Searcher
 
 // todox: remove later
-var taskRunStaticList []TaskRunResponse
-var taskDefinitionStaticList []TaskDefinition
+var taskRunStaticList []sc.TaskRunMetadata
+var taskMetadataStaticList []sc.TaskMetadata
 
 type StorageProvider interface {
 	GetResourceLookup() (metadata.ResourceLookup, error)
@@ -1008,7 +1009,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 
 	default:
 		m.logger.Errorw("Not a valid data type", "Error", c.Param("type"))
-		fetchError := &FetchError{StatusCode: 400, Type: c.Param("type")}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: c.Param("type")}
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1059,7 +1060,7 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	var limit int64 = 150
 	response := SourceDataResponse{}
 	if name == "" || variant == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetSourceData - Could not find the name or variant query parameters"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetSourceData - Could not find the name or variant query parameters"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1117,7 +1118,7 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 	name := c.Query("name")
 	variant := c.Query("variant")
 	if name == "" || variant == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetFeatureFileStats - Could not find the name or variant query parameters"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetFeatureFileStats - Could not find the name or variant query parameters"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1341,7 +1342,7 @@ func GetTagResult(param VariantResult) TagResult {
 	}
 }
 
-func (m *MetadataServer) GetTagError(code int, err error, c *gin.Context, resourceType string) *FetchError {
+func (m *MetadataServer) GetRequestError(code int, err error, c *gin.Context, resourceType string) *FetchError {
 	fetchError := &FetchError{StatusCode: code, Type: resourceType}
 	m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 	return fetchError
@@ -1349,7 +1350,7 @@ func (m *MetadataServer) GetTagError(code int, err error, c *gin.Context, resour
 
 func (m *MetadataServer) SetFoundVariantJSON(foundVariant VariantResult, err error, c *gin.Context, resourceType string) {
 	if err != nil {
-		fetchError := m.GetTagError(500, err, c, resourceType)
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, resourceType)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 	}
 	c.JSON(http.StatusOK, GetTagResult(foundVariant))
@@ -1364,7 +1365,7 @@ func (m *MetadataServer) GetTags(c *gin.Context) {
 	resourceType := c.Param("type")
 	var requestBody TagGetBody
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "GetTags - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "GetTags - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1429,7 +1430,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	var requestBody TagPostBody
 	resourceTypeParam := c.Param("type")
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "PostTags - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "PostTags - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1445,7 +1446,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	foundResource, err := m.lookup.Lookup(objID)
 
 	if err != nil {
-		fetchError := m.GetTagError(400, err, c, "PostTags - Error finding the resource with resourceID")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "PostTags - Error finding the resource with resourceID")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1535,38 +1536,53 @@ func replaceTags(resourceTypeParam string, currentResource metadata.Resource, ne
 
 // todox: eventually remove
 func CreateDummyTaskRuns(count int) {
-	taskDefinitionStaticList = []TaskDefinition{
-		{ID: 0, Name: "Test_job", Type: "Source", Provider: "Spark", Resource: "per_balance"},
-		{ID: 1, Name: "Nicole_Puppers", Type: "Source", Provider: "Postgres", Resource: "per_balance2"},
-		{ID: 2, Name: "Sandbox_Test", Type: "Source", Provider: "Spark", Resource: "avg_transactions"},
-		{ID: 3, Name: "Production_flow", Type: "Source", Provider: "Databricks", Resource: "speed_dating"},
-		{ID: 4, Name: "MySQL Task", Type: "Source", Provider: "MySql", Resource: "mysql_test_resource"},
+	taskMetadataStaticList = []sc.TaskMetadata{
+		{ID: 0, Name: "Test_job", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
+			Name:    "transaction",
+			Variant: "default",
+		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
+		{ID: 1, Name: "Nicole_Puppers", TaskType: sc.Monitoring, Target: sc.NameVariant{
+			Name:    "avg_transactions",
+			Variant: "v1",
+		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
+		{ID: 2, Name: "Sandbox_Test", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
+			Name:    "transaction",
+			Variant: "default",
+		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
+		{ID: 3, Name: "Production_Data_Set", TaskType: sc.HealthCheck, Target: sc.NameVariant{
+			Name:    "speed_dating",
+			Variant: "left_overs",
+		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
+		{ID: 4, Name: "MySQL Task", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
+			Name:    "testing_name",
+			Variant: "testing_variant",
+		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
 	}
-	taskRunStaticList = []TaskRunResponse{}
-	dummyStates := []string{"SUCCESS", "FAILED", "PENDING", "RUNNING"}
-	for i := 0; i < count; i++ {
+	taskRunStaticList = []sc.TaskRunMetadata{}
+	dummyStates := []sc.Status{sc.Failed, sc.Pending, sc.Running, sc.Success}
+	for i := 1; i <= count; i++ {
 		status := dummyStates[rand.Intn(len(dummyStates))]
 		runTime := time.Now()
 		taskRunStaticList = append(taskRunStaticList, (createTaskRun(i, status, runTime)))
 	}
 }
 
-func createTaskRun(id int, status string, lastRunTime time.Time) TaskRunResponse {
+func createTaskRun(id int, status sc.Status, timeParam time.Time) sc.TaskRunMetadata {
 
-	//todox: check against existing task definitions list
-	foundTaskDef := taskDefinitionStaticList[rand.Intn(len(taskDefinitionStaticList))]
+	//todox: check against existing task metadata list
+	foundTaskMetadata := taskMetadataStaticList[rand.Intn(len(taskMetadataStaticList))]
 
-	return TaskRunResponse{
-		ID:          strconv.Itoa(id),
-		TaskID:      foundTaskDef.ID,
-		Name:        foundTaskDef.Name,
-		Type:        foundTaskDef.Type,
-		Provider:    foundTaskDef.Provider,
-		Resource:    foundTaskDef.Resource,
-		Variant:     foundTaskDef.Variant,
+	return sc.TaskRunMetadata{
+		ID:          sc.TaskRunID(id),
+		TaskId:      foundTaskMetadata.ID,
+		Name:        foundTaskMetadata.Name,
+		Trigger:     sc.OneOffTrigger{TriggerName: "Apply"},
+		TriggerType: sc.OneOffTriggerType,
 		Status:      status,
-		LastRunTime: lastRunTime,
-		TriggeredBy: "On Apply",
+		StartTime:   timeParam.Add(-5 * time.Minute),
+		EndTime:     timeParam.Add(10 * time.Minute),
+		Logs:        []string{"log 1", "log 2"},
+		Error:       "No errors for now.",
 	}
 }
 
@@ -1579,36 +1595,33 @@ func filter[T any](ss []T, test func(T) bool) (ret []T) {
 	return ret
 }
 
-func mockTaskRunFind(taskId string) TaskRunResponse {
-	result := TaskRunResponse{ID: "-1"}
+func mockTaskRunFind(searchId int) sc.TaskRunMetadata {
+	result := sc.TaskRunMetadata{ID: sc.TaskRunID(-1)} //sentinel result
+	searchTaskId := sc.TaskRunID(searchId)
 	for _, n := range taskRunStaticList {
-		if n.ID == taskId {
+		if n.ID == searchTaskId {
 			result = n
+			break
 		}
 	}
 	return result
 }
 
-type TaskDefinition struct {
-	ID       int    `json:"id"`
-	Name     string `json:"name"`
-	Type     string `json:"type"`
-	Provider string `json:"provider"`
-	Resource string `json:"resource"`
-	Variant  string `json:"variant"`
+func mockTaskFind(searchId int) sc.TaskMetadata {
+	result := sc.TaskMetadata{ID: sc.TaskID(-1)} //sentinel result
+	searchTaskId := sc.TaskID(searchId)
+	for _, n := range taskMetadataStaticList {
+		if n.ID == searchTaskId {
+			result = n
+			break
+		}
+	}
+	return result
 }
 
 type TaskRunResponse struct {
-	ID          string    `json:"id"`
-	TaskID      int       `json:"taskId"`
-	Name        string    `json:"name"`
-	Type        string    `json:"type"`
-	Provider    string    `json:"provider"`
-	Resource    string    `json:"resource"`
-	Variant     string    `json:"variant"`
-	Status      string    `json:"status"`
-	LastRunTime time.Time `json:"lastRunTime"`
-	TriggeredBy string    `json:"triggeredBy"`
+	Task    sc.TaskMetadata    `json:"task"`
+	TaskRun sc.TaskRunMetadata `json:"taskRun"`
 }
 
 type TaskRunsPostBody struct {
@@ -1620,31 +1633,32 @@ type TaskRunsPostBody struct {
 func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 	var requestBody TaskRunsPostBody
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "GetTaskRuns - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "GetTaskRuns - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 
-	taskListResponse := make([]TaskRunResponse, len(taskRunStaticList))
-	_ = copy(taskListResponse, taskRunStaticList)
+	// todox: swap for api call
+	taskListCopy := make([]sc.TaskRunMetadata, len(taskRunStaticList))
+	_ = copy(taskListCopy, taskRunStaticList)
 
 	// status filter, break out
-	taskListResponse = filter(taskListResponse, func(t TaskRunResponse) bool {
+	taskListCopy = filter(taskListCopy, func(t sc.TaskRunMetadata) bool {
 		result := false
 		if requestBody.Status == "ALL" {
 			result = true
 		} else if requestBody.Status == "ACTIVE" {
-			activeStates := []string{"PENDING", "RUNNING"}
+			activeStates := []sc.Status{sc.Pending, sc.Running}
 			result = slices.Contains(activeStates, t.Status)
 		} else if requestBody.Status == "COMPLETE" {
-			activeStates := []string{"FAILED", "SUCCESS"}
-			result = slices.Contains(activeStates, t.Status)
+			completeStates := []sc.Status{sc.Failed, sc.Success}
+			result = slices.Contains(completeStates, t.Status)
 		}
 		return result
 	})
 
 	// name filter
-	taskListResponse = filter(taskListResponse, func(t TaskRunResponse) bool {
+	taskListCopy = filter(taskListCopy, func(t sc.TaskRunMetadata) bool {
 		result := false
 		if requestBody.SearchText == "" {
 			result = true
@@ -1656,74 +1670,71 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 
 	// date sort
 	if requestBody.SortBy == "STATUS_DATE" {
-		sort.Slice(taskListResponse, func(i, j int) bool {
-			return taskListResponse[i].LastRunTime.UnixMilli() > taskListResponse[j].LastRunTime.UnixMilli()
+		sort.Slice(taskListCopy, func(i, j int) bool {
+			return taskListCopy[i].StartTime.UnixMilli() > taskListCopy[j].StartTime.UnixMilli()
 		})
 	}
 
 	// status sort
 	if requestBody.SortBy == "STATUS" {
-		sort.Slice(taskListResponse, func(i, j int) bool {
-			l1, l2 := len(taskListResponse[i].Status), len(taskListResponse[j].Status)
+		sort.Slice(taskListCopy, func(i, j int) bool {
+			l1, l2 := len(taskListCopy[i].Status), len(taskListCopy[j].Status)
 			if l1 != l2 {
 				return l1 < l2
 			}
-			return taskListResponse[i].Status < taskListResponse[j].Status
+			return taskListCopy[i].Status < taskListCopy[j].Status
 		})
 	}
 
-	c.JSON(http.StatusOK, taskListResponse)
-}
+	taskRunResponse := []TaskRunResponse{}
+	for _, loopRunItem := range taskListCopy {
+		taskRunResult := mockTaskFind(int(loopRunItem.TaskId))
+		taskRunResponse = append(taskRunResponse, TaskRunResponse{Task: taskRunResult, TaskRun: loopRunItem})
+	}
 
-type OtherRunResponse struct {
-	ID          string    `json:"id"`
-	LastRunTime time.Time `json:"lastRunTime"`
-	Status      string    `json:"status"`
-	Link        string    `json:"link"`
+	c.JSON(http.StatusOK, taskRunResponse)
 }
 
 type TaskRunDetailResponse struct {
-	ID        string             `json:"id"`
-	Name      string             `json:"name"`
-	Status    string             `json:"status"`
-	Logs      string             `json:"logs"`
-	Details   string             `json:"details"`
-	OtherRuns []OtherRunResponse `json:"otherRuns"`
+	TaskRun   sc.TaskRunMetadata   `json:"taskRun"`
+	OtherRuns []sc.TaskRunMetadata `json:"otherRuns"`
 }
 
 func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	taskRunId := c.Param("taskRunId")
 
 	if taskRunId == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 
+	searchId, err := strconv.Atoi(taskRunId)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetTaskRunDetails - taskRunId is not a number!"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	noResultTaskId := sc.TaskRunID(-1)
+
 	//todox: replace mock find with lib call
-	taskRunResult := mockTaskRunFind(taskRunId)
+	taskRunResult := mockTaskRunFind(searchId)
 
 	//todox: create mock collect
-	otherRuns := []OtherRunResponse{}
-	if taskRunResult.ID != "-1" {
+	otherRuns := []sc.TaskRunMetadata{}
+	if taskRunResult.ID != noResultTaskId {
 		for _, loopRunItem := range taskRunStaticList {
-			if loopRunItem.TaskID == taskRunResult.TaskID && loopRunItem.ID != taskRunResult.ID {
-				otherRuns = append(otherRuns, OtherRunResponse{
-					ID:          loopRunItem.ID,
-					LastRunTime: loopRunItem.LastRunTime,
-					Status:      loopRunItem.Status,
-					Link:        "Future Link"})
+			if loopRunItem.TaskId == taskRunResult.TaskId && loopRunItem.ID != taskRunResult.ID {
+				otherRuns = append(otherRuns, loopRunItem)
 			}
 		}
 	}
 
 	resp := TaskRunDetailResponse{
-		ID:        taskRunResult.ID,
-		Name:      taskRunResult.Name,
-		Status:    taskRunResult.Status,
-		Logs:      "some log values",
-		Details:   "some task details",
+		TaskRun:   taskRunResult,
 		OtherRuns: otherRuns,
 	}
 
@@ -1743,6 +1754,7 @@ func (m *MetadataServer) Start(port string) {
 	router.POST("/data/:type/:resource/tags", m.PostTags)
 	router.POST("/data/taskruns", m.GetTaskRuns)
 	router.GET("/data/taskruns/taskrundetail/:taskRunId", m.GetTaskRunDetails)
+
 	router.Run(port)
 }
 
@@ -1764,6 +1776,7 @@ func main() {
 		logger.Panicw("Failed to create new meil search", err)
 	}
 	CreateDummyTaskRuns(360)
+
 	SearchClient = sc
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	logger.Infof("Looking for metadata at: %s\n", metadataAddress)

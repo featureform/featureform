@@ -13,6 +13,7 @@ ENV PATH /go/bin:$PATH
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
 RUN protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./proto/serving.proto
 
+COPY ./fferr ./fferr
 COPY ./lib/ ./lib/
 COPY ./filestore/ ./filestore/
 COPY ./metadata/*.go ./metadata/
@@ -27,6 +28,8 @@ COPY ./metadata/dashboard/ ./metadata/dashboard/
 COPY ./metadata/search/ ./metadata/search/
 COPY ./provider/provider_config/ ./provider/provider_config/
 COPY ./provider/provider_type/ ./provider/provider_type/
+COPY ./scheduling/*.go ./scheduling/
+COPY ./scheduling/storage_providers/ ./scheduling/storage_providers
 COPY ./config/ ./config/
 
 RUN go build ./metadata/dashboard/dashboard_metadata.go

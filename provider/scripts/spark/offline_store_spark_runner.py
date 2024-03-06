@@ -378,7 +378,7 @@ def execute_sql_query(
             try:
                 stats_directory = f"{output_uri.rstrip('/')}/stats"
                 stats_df = display_data_metrics(output_dataframe, spark)
-                stats_df.write.json(stats_directory, mode="overwrite")
+                stats_df.coalesce(1).write.json(stats_directory, mode="overwrite")
             except Exception as e:
                 print(e)
                 print("Failed to display data metrics")

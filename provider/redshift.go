@@ -2,11 +2,11 @@ package provider
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	_ "github.com/lib/pq"
@@ -26,7 +26,7 @@ const (
 func redshiftOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.RedshiftConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, errors.New("invalid redshift config")
+		return nil, err
 	}
 
 	// We are doing this to support older versions of
@@ -76,7 +76,9 @@ func (q redshiftSQLQueries) registerResources(db *sql.DB, tableName string, sche
 			sanitize(schema.Entity), sanitize(schema.Value), time.UnixMilli(0).UTC(), sanitize(schema.SourceTable))
 	}
 	if _, err := db.Exec(query); err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.RedshiftOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	return nil
 }
@@ -110,8 +112,13 @@ func (q redshiftSQLQueries) materializationUpdate(db *sql.DB, tableName string, 
 			"COMMIT;"+
 			"", tempTable, sanitize(sourceName), sanitizedTable, oldTable, tempTable, sanitizedTable, oldTable)
 
-	_, err := db.Exec(query)
-	return err
+	if _, err := db.Exec(query); err != nil {
+		wrapped := fferr.NewExecutionError(pt.RedshiftOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("source_name", sourceName)
+		return wrapped
+	}
+	return nil
 }
 
 func (q redshiftSQLQueries) materializationDrop(tableName string) string {
@@ -133,7 +140,7 @@ func (q redshiftSQLQueries) determineColumnType(valueType ValueType) (string, er
 	case NilType:
 		return "VARCHAR", nil
 	default:
-		return "", fmt.Errorf("cannot find column type for value type: %s", valueType)
+		return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", valueType), fmt.Errorf("could not determine column type"))
 	}
 }
 
@@ -163,10 +170,10 @@ func (q redshiftSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Trainin
 	query := ""
 	for i, feature := range def.Features {
 		tableName, err := store.getResourceTableName(feature)
-		santizedName := sanitize(tableName)
 		if err != nil {
 			return err
 		}
+		santizedName := sanitize(tableName)
 		tableJoinAlias := fmt.Sprintf("t%d", i+1)
 		selectColumns = append(selectColumns, fmt.Sprintf("%s_rnk", tableJoinAlias))
 		columns = append(columns, santizedName)
@@ -186,7 +193,10 @@ func (q redshiftSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Trainin
 				"SELECT t0.entity AS e, t0.value AS label, t0.ts AS time, %s, %s FROM %s AS t0 %s )",
 			sanitize(tableName), columnStr, selectColumnStr, columnStr, selectColumnStr, sanitize(labelName), query)
 		if _, err := store.db.Exec(fullQuery); err != nil {
-			return err
+			wrapped := fferr.NewResourceExecutionError(pt.RedshiftOffline.String(), def.ID.Name, def.ID.Variant, fferr.ResourceType(def.ID.Type.String()), err)
+			wrapped.AddDetail("table_name", tableName)
+			wrapped.AddDetail("label_name", labelName)
+			return wrapped
 		}
 	} else {
 		tempTable := sanitize(fmt.Sprintf("tmp_%s", tableName))
@@ -196,8 +206,9 @@ func (q redshiftSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Trainin
 				"SELECT t0.entity AS e, t0.value AS label, t0.ts AS time, %s, %s FROM %s AS t0 %s )",
 			tempTable, columnStr, selectColumnStr, columnStr, selectColumnStr, sanitize(labelName), query)
 
-		err := q.atomicUpdate(store.db, tableName, tempTable, fullQuery)
-		return err
+		if err := q.atomicUpdate(store.db, tableName, tempTable, fullQuery); err != nil {
+			return err
+		}
 	}
 	return nil
 }

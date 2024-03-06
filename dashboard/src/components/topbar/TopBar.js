@@ -22,8 +22,9 @@ const useStyles = makeStyles((theme) => ({
     width: '100%',
     height: '70px',
     left: '0px',
-    background: `#FC195C`,
+    background: 'linear-gradient(#F5F6F7,#CDD1D9)',
     borderBottom: `1px solid #E5E5E5`,
+    boxShadow: 'none',
   },
   instanceLogo: {
     height: '3em',
@@ -35,6 +36,7 @@ const useStyles = makeStyles((theme) => ({
     width: '100%',
     display: 'flex',
     justifyContent: 'space-between',
+    color: '#000000',
   },
   title: {
     justifySelf: 'flex-start',
@@ -51,7 +53,7 @@ const useStyles = makeStyles((theme) => ({
     paddingRight: theme.spacing(4),
   },
   accountButton: {
-    color: 'black',
+    color: '#000000',
     position: 'relative',
     fontSize: '3em',
     padding: '1em',
@@ -100,7 +102,7 @@ export default function TopBar({ api }) {
           <div className={classes.title}>
             <Box
               component={'img'}
-              src='/static/FeatureForm_Logo_Full_White.svg'
+              src='/static/base_logo.png'
               alt='Featureform'
               onClick={goHome}
               style={{
@@ -108,7 +110,8 @@ export default function TopBar({ api }) {
                 nowrap: true,
               }}
               sx={{
-                height: 30,
+                height: 50,
+                width: 50,
                 flexGrow: 1,
                 display: { xs: 'none', sm: 'block' },
               }}

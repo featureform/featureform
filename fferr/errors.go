@@ -3,10 +3,11 @@ package fferr
 import (
 	"errors"
 	"fmt"
+	"strings"
+
 	pb "github.com/featureform/metadata/proto"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
-	"strings"
 
 	"github.com/rotisserie/eris"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
@@ -52,6 +53,10 @@ const (
 
 	// ETCD
 	KEY_NOT_FOUND = "Key Not Found"
+
+	// LOCKING
+	KEY_ALREADY_LOCKED = "Key Already Locked"
+	KEY_NOT_LOCKED     = "Key Not Locked"
 
 	// RESOURCE TYPES:
 	PRIMARY_DATASET      ResourceType = "PRIMARY_DATASET"

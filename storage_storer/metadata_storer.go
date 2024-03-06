@@ -1,6 +1,7 @@
 package storage_storer
 
 import (
+	"github.com/featureform/fferr"
 	"github.com/featureform/locker"
 )
 
@@ -9,7 +10,7 @@ type MetadataStorer struct {
 	Storer metadataStorerImplementation
 }
 
-func (s *MetadataStorer) Create(key string, value string) error {
+func (s *MetadataStorer) Create(key string, value string) fferr.GRPCError {
 	lock, err := s.Locker.Lock(key)
 	if err != nil {
 		return err
@@ -39,7 +40,7 @@ func (s *MetadataStorer) Update(key string, updateFn func(string) (string, error
 	return s.Storer.Set(key, newValue)
 }
 
-func (s *MetadataStorer) List(prefix string) (map[string]string, error) {
+func (s *MetadataStorer) List(prefix string) (map[string]string, fferr.GRPCError) {
 	// TODO: how do we lock a prefix?
 	return s.Storer.List(prefix)
 }

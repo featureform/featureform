@@ -3,6 +3,8 @@ package storage_storer
 import (
 	"fmt"
 	"strings"
+
+	"github.com/featureform/fferr"
 )
 
 type MemoryStorerImplementation struct {
@@ -11,7 +13,7 @@ type MemoryStorerImplementation struct {
 
 func (m *MemoryStorerImplementation) Set(key string, value string) error {
 	if key == "" {
-		return fmt.Errorf("key is empty")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("key is empty"))
 	}
 
 	m.Storage[key] = value
@@ -21,12 +23,12 @@ func (m *MemoryStorerImplementation) Set(key string, value string) error {
 
 func (m *MemoryStorerImplementation) Get(key string) (string, error) {
 	if key == "" {
-		return "", fmt.Errorf("key is empty")
+		return "", fferr.NewInvalidArgumentError(fmt.Errorf("key is empty"))
 	}
 
 	value, ok := m.Storage[key]
 	if !ok {
-		return "", fmt.Errorf("key '%s' not found", key)
+		return "", fferr.NewKeyNotFoundError(key, nil)
 	}
 
 	return value, nil
@@ -46,12 +48,12 @@ func (m *MemoryStorerImplementation) List(prefix string) (map[string]string, err
 
 func (m *MemoryStorerImplementation) Delete(key string) (string, error) {
 	if key == "" {
-		return "", fmt.Errorf("key is empty")
+		return "", fferr.NewInvalidArgumentError(fmt.Errorf("key is empty"))
 	}
 
 	value, ok := m.Storage[key]
 	if !ok {
-		return "", fmt.Errorf("key '%s' not found", key)
+		return "", fferr.NewKeyNotFoundError(key, nil)
 	}
 
 	delete(m.Storage, key)

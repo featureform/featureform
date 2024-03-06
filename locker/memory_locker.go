@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/featureform/fferr"
 	"github.com/google/uuid"
 )
 
@@ -30,7 +31,7 @@ type MemoryLocker struct {
 
 func (m *MemoryLocker) Lock(key string) (Key, error) {
 	if key == "" {
-		return &memoryKey{}, fmt.Errorf("key is empty")
+		return &memoryKey{}, fferr.NewInternalError(fmt.Errorf("key is empty"))
 	}
 
 	id := uuid.New().String()
@@ -41,7 +42,7 @@ func (m *MemoryLocker) Lock(key string) (Key, error) {
 	if lockInfo, ok := m.LockedItems.Load(key); ok {
 		keyLock := lockInfo.(LockInformation)
 		if time.Since(keyLock.Date) < ValidTimePeriod {
-			return &memoryKey{}, fmt.Errorf("key '%s' is already locked by: %s", key, keyLock.ID)
+			return &memoryKey{}, fferr.NewKeyAlreadyLockedError(key, keyLock.ID, nil)
 		}
 	}
 
@@ -94,7 +95,7 @@ func (m *MemoryLocker) updateLockTime(id string, key string, doneChannel <-chan 
 
 func (m *MemoryLocker) Unlock(key Key) error {
 	if key.Key() == "" {
-		return fmt.Errorf("key is empty")
+		return fferr.NewInternalError(fmt.Errorf("key is empty"))
 	}
 
 	m.Mutex.Lock()
@@ -102,12 +103,14 @@ func (m *MemoryLocker) Unlock(key Key) error {
 
 	lockInfo, ok := m.LockedItems.Load(key.Key())
 	if !ok {
-		return fmt.Errorf("key '%s' is not locked", key.Key())
+		return fferr.NewKeyNotLockedError(key.Key(), nil)
 	}
 
 	keyLock := lockInfo.(LockInformation)
 	if keyLock.ID != key.ID() {
-		return fmt.Errorf("key '%s' is locked by another id: locked by: %s, unlock  by: %s", key.Key(), keyLock.ID, key.ID())
+		err := fferr.NewKeyAlreadyLockedError(key.Key(), keyLock.ID, nil)
+		err.AddDetail("trying to unlock key with different id", key.ID())
+		return err
 	}
 	m.LockedItems.Delete(key.Key())
 	mKey := key.(*memoryKey)

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/featureform/fferr"
 )
 
 const (
@@ -24,14 +26,16 @@ func (l *LockInformation) Unmarshal(data []byte) error {
 		Date string
 	}
 	if err := json.Unmarshal(data, &tmp); err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 
 	if tmp.ID == "" {
-		return fmt.Errorf("lock information is missing ID")
+		err := fmt.Errorf("lock information is missing ID")
+		return fferr.NewInvalidArgumentError(err)
 	}
 	if tmp.Key == "" {
-		return fmt.Errorf("lock information is missing Key")
+		err := fmt.Errorf("lock information is missing Key")
+		return fferr.NewInvalidArgumentError(err)
 	}
 
 	l.ID = tmp.ID
@@ -40,7 +44,7 @@ func (l *LockInformation) Unmarshal(data []byte) error {
 	// Parse the date string with UTC time zone
 	parsedTime, err := time.Parse(time.RFC3339, tmp.Date)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	l.Date = parsedTime.UTC()
 

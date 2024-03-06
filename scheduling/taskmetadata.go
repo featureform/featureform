@@ -60,7 +60,21 @@ func NewMemoryTaskMetadataManager() TaskMetadataManager {
 func (m *TaskMetadataManager) CreateTask(name string, tType TaskType, target TaskTarget) (TaskMetadata, error) {
 	keys, err := m.storer.List(TaskMetadataKey{}.String())
 	if err != nil {
-		return TaskMetadata{}, fmt.Errorf("failed to fetch keys: %v", err)
+		err.AddDetail
+		err.AddDetail("task name", name)
+		err.AddDetail("task type", string(tType))
+
+		switch target.Type() {
+		case Provider:
+			err.AddDetail("target name", target.(Provider).Name)
+			err.AddDetail("target type", target.Type())
+
+		case NameVariant: 
+			nvTarget := target.(NameVariant)
+			err.AddDetail("target name", nvTarget.Name)
+			err.AddDetail("target variant", nvTarget.Variant)
+			err.AddDetail("target type", target.Type())
+		return TaskMetadata{}, err
 	}
 
 	// This logic could probably be somewhere else
@@ -87,13 +101,13 @@ func (m *TaskMetadataManager) CreateTask(name string, tType TaskType, target Tas
 	// all the converting instead
 	serializedMetadata, err := metadata.Marshal()
 	if err != nil {
-		return TaskMetadata{}, fmt.Errorf("failed to marshal metadata: %v", err)
+		return TaskMetadata{}, fferr.NewInternalError("failed to marshal metadata", err)
 	}
 
 	key := TaskMetadataKey{taskID: metadata.ID}
 	err = m.storer.Create(key.String(), string(serializedMetadata))
 	if err != nil {
-		return TaskMetadata{}, fmt.Errorf("failed to create task metadata: %v", err)
+		return TaskMetadata{}, err
 	}
 
 	runs := TaskRuns{

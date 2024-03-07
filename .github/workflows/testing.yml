@@ -219,6 +219,7 @@ jobs:
           PYTHON_LOCAL_INIT_PATH: /home/runner/work/featureform/featureform/provider/scripts/spark/python_packages.sh
       
       - name: Print Docker Hadoop Logs
+        if: always()
         run: |
           docker logs $(docker ps -q --filter ancestor=hadoop)
 

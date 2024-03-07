@@ -222,6 +222,11 @@ jobs:
         if: always()
         run: |
           docker logs $(docker ps -q --filter ancestor=hadoop)
+      
+      - name: Print HDFS Report
+        if: always()
+        run: |
+          hdfs dfsadmin -report
 
       - name: Print Clean Coverage
         if: always()

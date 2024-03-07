@@ -1,8 +1,7 @@
-import queue
-from dataclasses import dataclass
-from typing import Union, Tuple
+from typing import Tuple, Union
 
 import numpy as np
+from dataclasses import dataclass
 
 from featureform import Model
 from featureform.proto import serving_pb2
@@ -16,6 +15,7 @@ class TrainingSetSplitDetails:
     test_size: float
     shuffle: bool
     random_state: int
+    batch_size: int = 1
 
     def to_proto(
         self, request_type: serving_pb2.RequestType
@@ -31,6 +31,7 @@ class TrainingSetSplitDetails:
         req.shuffle = self.shuffle
         req.random_state = self.random_state
         req.request_type = request_type
+        req.batch_size = self.batch_size
         return req
 
 
@@ -40,7 +41,7 @@ class _SplitStream:
     """
 
     def __init__(self, stub, training_set_split_details: TrainingSetSplitDetails):
-        self.request_queue: queue.Queue = queue.Queue()
+        self.request_queue = []
         self.response_stream = None
         self.stub = stub
         self.training_set_split_details = training_set_split_details
@@ -57,18 +58,19 @@ class _SplitStream:
 
         return self
 
-    def send_request(self, request_type):
+    def send_request(self, request_type) -> serving_pb2.BatchTestSplitResponse:
         req = self.training_set_split_details.to_proto(request_type)
-        self.request_queue.put(req)
-        return next(self.response_stream)
+        self.request_queue.append(req)
+        response = next(self.response_stream)
+        return response
 
     def _create_request_generator(self):
         """
         Creates a generator that yields requests from the request queue. Used to pass to the gRPC stub.
         """
         while True:
-            if not self.request_queue.empty():
-                request = self.request_queue.get()
+            if len(self.request_queue) > 0:
+                request = self.request_queue.pop()
                 yield request
 
 
@@ -106,19 +108,19 @@ class TrainingSetSplitIterator:
         batch_features_list = []
         batch_labels_list = []
 
-        for _ in range(self._batch_size):
-            next_row = self._split_stream.send_request(self.request_type)
+        next_row = self._split_stream.send_request(self.request_type)
+        rows = next_row.rows
 
-            if next_row.iterator_done:
-                self._complete = True
-                break
+        # Process and store the row data
+        from featureform.serving import Row
 
-            # Process and store the row data
-            from featureform.serving import Row
-
-            row = Row(next_row.row)
+        np_rows = [Row(r) for r in rows.rows]
+        for row in np_rows:
             batch_features_list.append(row.features()[0])
             batch_labels_list.append(row.label()[0])
+
+        if next_row.iterator_done:
+            self._complete = True
 
         if not batch_features_list:  # If no data was collected
             raise StopIteration
@@ -158,6 +160,7 @@ class TrainingSetTestSplit:
             test_size=test_size,
             shuffle=shuffle,
             random_state=random_state,
+            batch_size=batch_size,
         )
 
         self._split_stream = _SplitStream(stub, self.training_set_split_details).start()

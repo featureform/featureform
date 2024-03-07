@@ -7,14 +7,13 @@ package serving
 import (
 	"context"
 	"fmt"
-	"sync"
-
 	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
+	"sync"
 
 	"go.uber.org/zap"
 )
@@ -113,7 +112,6 @@ func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainingTestSplit
 		id := req.GetId()
 		name, variant := id.GetName(), id.GetVersion()
 		logger := serv.Logger.With("Name", name, "Variant", variant, "RequestType", req.GetRequestType().String())
-		logger.Infow("Getting training test split", "Request", req.String())
 
 		featureObserver := serv.Metrics.BeginObservingTrainingServe(name, variant)
 		defer featureObserver.Finish()
@@ -162,11 +160,9 @@ func (serv *FeatureServer) handleSplitInitializeRequest(ctx *splitContext) error
 	*ctx.trainIterator = train
 	*ctx.testIterator = test
 
-	initResponse := &pb.TrainingTestSplitResponse{
-		RequestType: pb.RequestType_INITIALIZE,
-		TrainingTestSplit: &pb.TrainingTestSplitResponse_Initialized{
-			Initialized: true,
-		},
+	initResponse := &pb.BatchTestSplitResponse{
+		RequestType:       pb.RequestType_INITIALIZE,
+		TrainingTestSplit: &pb.BatchTestSplitResponse_Initialized{Initialized: true},
 	}
 
 	if err := ctx.stream.Send(initResponse); err != nil {
@@ -176,6 +172,7 @@ func (serv *FeatureServer) handleSplitInitializeRequest(ctx *splitContext) error
 
 	return nil
 }
+
 func (serv *FeatureServer) handleSplitDataRequest(ctx *splitContext) error {
 	var thisIter provider.TrainingSetIterator
 	switch ctx.req.GetRequestType() {
@@ -187,23 +184,33 @@ func (serv *FeatureServer) handleSplitDataRequest(ctx *splitContext) error {
 		return fmt.Errorf("invalid request type")
 	}
 
-	if thisIter.Next() {
-		sRow, err := serializedRow(thisIter.Features(), thisIter.Label())
-		if err != nil {
-			return err
-		}
+	rows := 0
+	trainingDataRows := make([]*pb.TrainingDataRow, 0)
 
-		response := &pb.TrainingTestSplitResponse{
-			RequestType:       ctx.req.GetRequestType(),
-			TrainingTestSplit: &pb.TrainingTestSplitResponse_Row{Row: sRow},
+	for rows < int(ctx.req.BatchSize) {
+		if thisIter.Next() {
+			sRow, err := serializedRow(thisIter.Features(), thisIter.Label())
+			serv.Logger.Infow("Serialized Row", "Row", sRow.String())
+			if err != nil {
+				return err
+			}
+			trainingDataRows = append(trainingDataRows, sRow)
+			rows++
+		} else {
+			// if we reach the end of the iterator mid-batch, we'll send the processed rows so far and end the iteration
+			serv.handleFinishedIterator(trainingDataRows, ctx)
 		}
+	}
 
-		if err := ctx.stream.Send(response); err != nil {
-			ctx.logger.Errorw("Failed to write to stream", "Error", err)
-			return err
-		}
-	} else {
-		serv.handleFinishedIterator(ctx)
+	response := &pb.BatchTestSplitResponse{
+		TrainingTestSplit: &pb.BatchTestSplitResponse_Rows{
+			Rows: &pb.TrainingDataRows{Rows: trainingDataRows},
+		},
+	}
+
+	if err := ctx.stream.Send(response); err != nil {
+		ctx.logger.Errorw("Failed to write to stream", "Error", err)
+		return err
 	}
 
 	if thisIter.Err() != nil {
@@ -214,7 +221,7 @@ func (serv *FeatureServer) handleSplitDataRequest(ctx *splitContext) error {
 	return nil
 }
 
-func (serv *FeatureServer) handleFinishedIterator(ctx *splitContext) {
+func (serv *FeatureServer) handleFinishedIterator(trainingDataRows []*pb.TrainingDataRow, ctx *splitContext) {
 	if ctx.req.GetRequestType() == pb.RequestType_TEST {
 		*ctx.isTestFinished = true
 	} else if ctx.req.GetRequestType() == pb.RequestType_TRAINING {
@@ -224,7 +231,14 @@ func (serv *FeatureServer) handleFinishedIterator(ctx *splitContext) {
 	if *ctx.isTestFinished && *ctx.isTrainFinished {
 		return // return so that we can close the stream
 	} else {
-		if err := ctx.stream.Send(&pb.TrainingTestSplitResponse{IteratorDone: true}); err != nil {
+		response := &pb.BatchTestSplitResponse{
+			TrainingTestSplit: &pb.BatchTestSplitResponse_Rows{
+				Rows: &pb.TrainingDataRows{Rows: trainingDataRows},
+			},
+			IteratorDone: true,
+		}
+
+		if err := ctx.stream.Send(response); err != nil {
 			ctx.logger.Errorw("Failed to write to stream", "Error", err)
 		}
 	}

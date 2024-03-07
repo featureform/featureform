@@ -972,7 +972,7 @@ func (store *clickHouseOfflineStore) CreateTrainingTestSplit(
 			randomState = rand.Int() // Ensure a random state if 0 is provided
 		}
 		// Use ClickHouse's cityHash64 for deterministic shuffling, rowNumberInAllBlocks is a unique identifier for each row
-		orderByClause = fmt.Sprintf("ORDER BY cityHash64(concat(toString(rowNumberInAllBlocks()), toString(%d)))", randomState)
+		orderByClause = fmt.Sprintf("ORDER BY cityHash64(concat(toString(_row), toString(%d)))", randomState)
 	}
 
 	// Calculate the number of test rows based on the testSize parameter
@@ -982,7 +982,6 @@ func (store *clickHouseOfflineStore) CreateTrainingTestSplit(
 		return "", fmt.Errorf("failed to get table size: %v", err)
 	}
 	testRows := int(float32(totalRows) * testSize)
-	fmt.Println("Number of test rows: ", testRows)
 
 	// Create the final view with an 'is_test' column
 	createViewQuery := fmt.Sprintf(`
@@ -995,8 +994,6 @@ func (store *clickHouseOfflineStore) CreateTrainingTestSplit(
 		testRows,
 		sanitizeCH(trainingSetTable),
 	)
-
-	fmt.Println("This is the create view query:", createViewQuery)
 
 	if _, err := store.db.Exec(createViewQuery); err != nil {
 		return "", fmt.Errorf("failed to create final view: %v", err)

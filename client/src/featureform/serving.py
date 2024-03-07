@@ -773,7 +773,7 @@ class Dataset:
 
 class Row:
     def __init__(self, proto_row):
-        self._types = [parse_proto_type(feature) for feature in proto_row.features]
+        self._types = [proto_type_to_np_type(feature) for feature in proto_row.features]
         self._features = np.array(
             [parse_proto_value(feature) for feature in proto_row.features],
             dtype=get_numpy_array_type(self._types),
@@ -856,7 +856,7 @@ def parse_proto_value(value):
     return getattr(value, value.WhichOneof("value"))
 
 
-def parse_proto_type(value):
+def proto_type_to_np_type(value):
     type_mapping = {
         "str_value": str,
         "int_value": np.int32,

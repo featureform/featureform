@@ -18,6 +18,7 @@ const defaultMock = Object.freeze({
   postTrigger: jest.fn(),
   getTriggerDetails: jest.fn().mockResolvedValue(triggerDetail),
   deleteTrigger: jest.fn().mockResolvedValue(true),
+  searchResources: jest.fn().mockResolvedValue([]),
 });
 let dataAPIMock = {};
 

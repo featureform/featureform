@@ -187,7 +187,6 @@ export function useDataAPI() {
     name = '',
     variant = ''
   ) => {
-    console.log('calling this shit with', triggerId, name, variant);
     const result = await fetch(`${API_URL}/data/triggeraddresource`, {
       cache: 'no-store',
       method: 'POST',

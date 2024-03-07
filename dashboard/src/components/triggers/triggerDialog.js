@@ -14,6 +14,7 @@ export default function TriggerDialog({
   handleClose,
   handleDelete,
   handleDeleteResource,
+  handleAddResource,
   rowDelete = false,
 }) {
   const [error] = useState('');
@@ -48,7 +49,7 @@ export default function TriggerDialog({
           </IconButton>
         </DialogTitle>
         <Divider />
-        <DialogContent>
+        <DialogContent style={{ height: 600 }}>
           {error === '' ? (
             <TriggerDetail
               handleClose={handleClose}
@@ -56,6 +57,12 @@ export default function TriggerDialog({
               handleDeleteResource={async (e, triggerId, resourceId) => {
                 if (handleDeleteResource) {
                   await handleDeleteResource?.(e, triggerId, resourceId);
+                  await refresh();
+                }
+              }}
+              handleAddResource={async (e, triggerId, name, variant) => {
+                if (handleAddResource) {
+                  await handleAddResource?.(e, triggerId, name, variant);
                   await refresh();
                 }
               }}

@@ -1,14 +1,18 @@
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
+  createFilterOptions,
   IconButton,
+  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useDataAPI } from '../../hooks/dataAPI';
 
 export const PRE_DELETE = 'Delete Trigger';
 export const CONFIRM_DELETE = 'Confirm, Delete!';
@@ -23,6 +27,7 @@ export default function TriggerDetail({
   handleClose,
   handleDelete,
   handleDeleteResource,
+  handleAddResource,
   rowDelete = false,
 }) {
   const columns = [
@@ -88,6 +93,30 @@ export default function TriggerDetail({
   ];
 
   const [userConfirm, setUserConfirm] = useState(rowDelete);
+  const [resourceList, setResourceList] = useState([]);
+  const dataAPI = useDataAPI();
+  const OPTIONS_LIMIT = 10;
+  const filterOptions = createFilterOptions({ limit: OPTIONS_LIMIT });
+
+  // fetch the list of resources
+  useEffect(async () => {
+    const results = await dataAPI.searchResources('');
+    if (Array.isArray(results)) {
+      const variantResults = results.filter((v) => v.Type.includes('_VARIANT'));
+      const nameVariantList = variantResults?.map((q) => {
+        let name = `${q.Name?.toLowerCase()}`;
+        let variant = `${q.Variant?.toLowerCase()}`;
+        return {
+          label: `${name} - ${variant}`,
+          name: name,
+          variant: variant,
+        };
+      });
+      setResourceList(nameVariantList);
+    } else {
+      console.warn('Search results did not populate ok. Result:', results);
+    }
+  }, [details]);
 
   // todox: 100% needs to be state. hard to deal with otherwise.
   const isDeleteDisabled = () => {
@@ -118,6 +147,12 @@ export default function TriggerDetail({
     );
   }
 
+  const handleUserSelect = (e, value) => {
+    console.log(value);
+    console.log('\n');
+    handleAddResource?.(e, details?.trigger?.id, value?.name, value?.variant);
+  };
+
   return (
     <>
       <Box sx={{ marginBottom: '2em' }}>
@@ -130,6 +165,20 @@ export default function TriggerDetail({
         <Typography data-testid='detailOwnerId'>
           Owner: {details?.owner}
         </Typography>
+      </Box>
+      <Box sx={{ marginBottom: '2em' }}>
+        <Autocomplete
+          filterOptions={filterOptions}
+          disablePortal
+          clearOnEscape
+          clearOnBlur
+          options={resourceList}
+          fullWidth
+          renderInput={(params) => (
+            <TextField {...params} label='Add Resource' />
+          )}
+          onChange={handleUserSelect}
+        />
       </Box>
       <DataGrid
         density='compact'
@@ -150,7 +199,14 @@ export default function TriggerDetail({
         getRowId={(row) => row.resourceId}
       />
       <Box sx={{ marginTop: '1em' }}>{alertBody}</Box>
-      <Box sx={{ marginTop: '1em' }} display={'flex'} justifyContent={'end'}>
+      <Box
+        sx={{
+          marginTop: '1em',
+          bottom: '1em',
+          right: '1em',
+          position: 'absolute',
+        }}
+      >
         <Button
           variant='contained'
           onClick={handleClose}

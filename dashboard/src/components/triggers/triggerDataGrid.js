@@ -102,6 +102,15 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
     }
   };
 
+  const handleAddResource = async (e, triggerId, name, variant) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (triggerId && name && variant) {
+      await dataAPI.addTriggerResource(triggerId, name, variant);
+      refresh?.();
+    }
+  };
+
   const handleRowSelect = (selectedRow) => {
     setOpenDialog(true);
     setDialogTriggerId(selectedRow?.row?.id);
@@ -145,6 +154,7 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
         handleClose={handleCloseDialog}
         handleDelete={handleDelete}
         handleDeleteResource={handleDeleteResource}
+        handleAddResource={handleAddResource}
         rowDelete={rowDelete}
       />
     </>

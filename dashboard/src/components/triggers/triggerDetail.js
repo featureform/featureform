@@ -148,8 +148,6 @@ export default function TriggerDetail({
   }
 
   const handleUserSelect = (e, value) => {
-    console.log(value);
-    console.log('\n');
     handleAddResource?.(e, details?.trigger?.id, value?.name, value?.variant);
   };
 
@@ -178,6 +176,14 @@ export default function TriggerDetail({
             <TextField {...params} label='Add Resource' />
           )}
           onChange={handleUserSelect}
+          isOptionEqualToValue={(option, value) => {
+            if (
+              option.name === value.name &&
+              option.variant === value.variant
+            ) {
+              return true;
+            }
+          }}
         />
       </Box>
       <DataGrid

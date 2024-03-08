@@ -10,7 +10,7 @@
     "ApiKey": "api_key"
   },
   "IKVConfig": {
-    "ProjectID": "1",
+    "StoreName": "store",
     "AccountId": "account-id",
     "AccountPasskey": "account-passkey",
     "MountDirectory": "path"

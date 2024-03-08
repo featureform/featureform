@@ -20,6 +20,8 @@ spec:
         chart: featureform
         run: featureform-metadata-server
         app: featureform-metadata-server
+      annotations:
+        timestamp: {{ now | quote }}  
     spec:
       containers:
         - image: "{{ .Values.global.repo | default .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.global.version | default .Chart.AppVersion }}"

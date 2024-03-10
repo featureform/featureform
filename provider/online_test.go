@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
@@ -104,6 +105,9 @@ func testSetGetEntity(t *testing.T, store OnlineStore) {
 	if err := tab.Set(entity, val); err != nil {
 		t.Fatalf("Failed to set entity: %s", err)
 	}
+
+	time.Sleep(20 * time.Second)
+
 	gotVal, err := tab.Get(entity)
 	if err != nil {
 		t.Fatalf("Failed to get entity: %s", err)
@@ -152,6 +156,9 @@ func testMassTableWrite(t *testing.T, store OnlineStore) {
 			}
 		}
 	}
+
+	time.Sleep(20 * time.Second)
+
 	for i := range tableList {
 		tab, err := store.GetTable(tableList[i].Name, tableList[i].Variant)
 		if err != nil {

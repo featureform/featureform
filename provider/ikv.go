@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	ikv "github.com/inlinedio/ikv-store/ikv-go-client"
@@ -14,7 +15,7 @@ import (
 // Integrates IKV: https://docs.inlined.io
 // as an Online Store in Featureform.
 
-var pkey_field_name string = "pkey_entity"
+var pkey_field_name string = "userid"
 
 // Wraps a single IKV store instance.
 // Inner fields act as individual OnlineTableStore instances.
@@ -57,11 +58,11 @@ func NewInlinedOnlineStore(config *pc.IKVConfig) (*ikvOnlineStore, error) {
 	// Startup writer and reader. Blocking operation.
 	err = writer.Startup()
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewConnectionError(pt.IKVOnline.String(), err)
 	}
 	err = reader.Startup()
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewConnectionError(pt.IKVOnline.String(), err)
 	}
 
 	return &ikvOnlineStore{
@@ -101,7 +102,7 @@ func (i *ikvOnlineStore) GetTable(feature string, variant string) (OnlineStoreTa
 		return table, nil
 	}
 
-	return nil, fmt.Errorf("table for feature: %s variant: %s has not been created.", feature, variant)
+	return nil, fferr.NewDatasetNotFoundError(feature, variant, nil)
 }
 
 // CreateTable implements OnlineStore.
@@ -110,19 +111,22 @@ func (i *ikvOnlineStore) CreateTable(feature string, variant string, valueType V
 
 	// already exists?
 	if table, exists := i.tables[fieldName]; exists {
-		return table, nil
+		return table, fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
 	}
 
 	table := ikvOnlineStoreTable{
-		fieldName: fieldName,
-		valueType: valueType,
-		reader:    i.reader,
-		writer:    i.writer,
+		featureName: feature,
+		variant:     variant,
+		fieldName:   fieldName,
+		valueType:   valueType,
+		reader:      i.reader,
+		writer:      i.writer,
 	}
 	i.tables[fieldName] = &table
 	return &table, nil
 }
 
+// TODO: Implement table deletion
 func (*ikvOnlineStore) DeleteTable(feature string, variant string) error {
 	// Not supported. Field cannot be deleted from all entities.
 	// Deletes keyed on particular entity are ok.
@@ -150,10 +154,12 @@ func constructFieldName(feature, variant string) string {
 // Wraps one field/attribute/column of an IKV store,
 // and provides set/get functionality for an entity.
 type ikvOnlineStoreTable struct {
-	fieldName string
-	valueType ValueType
-	reader    ikv.IKVReader
-	writer    ikv.IKVWriter
+	featureName string
+	variant     string
+	fieldName   string
+	valueType   ValueType
+	reader      ikv.IKVReader
+	writer      ikv.IKVWriter
 }
 
 func (i *ikvOnlineStoreTable) Set(entity string, value interface{}) error {
@@ -190,23 +196,36 @@ func (i *ikvOnlineStoreTable) Set(entity string, value interface{}) error {
 	case []float32:
 		valueAsString = rueidis.VectorString32(v)
 	default:
-		return fmt.Errorf("type %T of value %v is unsupported", value, value)
+		return fferr.NewDataTypeNotFoundError(fmt.Sprintf("%T", value), fmt.Errorf("unsupported data type"))
 	}
 
 	// create IKVDocument
 	document, err := ikv.NewIKVDocumentBuilder().PutStringField(pkey_field_name, entity).PutStringField(i.fieldName, valueAsString).Build()
 	if err != nil {
-		return err
+		wrapped := fferr.NewResourceExecutionError(pt.RedisOnline.String(), i.featureName, i.variant, fferr.ENTITY, err)
+		wrapped.AddDetail("entity", entity)
+		return wrapped
 	}
 
 	// upsert operation
-	return i.writer.UpsertFields(&document)
+	if err := i.writer.UpsertFields(&document); err != nil {
+		wrapped := fferr.NewResourceExecutionError(pt.RedisOnline.String(), i.featureName, i.variant, fferr.ENTITY, err)
+		wrapped.AddDetail("entity", entity)
+		return wrapped
+	}
+
+	// time.Sleep(10 * time.Second)
+
+	return nil
 }
 
 func (i *ikvOnlineStoreTable) Get(entity string) (interface{}, error) {
-	valueAsString, err := i.reader.GetStringValue(entity, i.fieldName)
+	exists, valueAsString, err := i.reader.GetStringValue(entity, i.fieldName)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewResourceExecutionError(pt.RedisOnline.String(), i.featureName, i.variant, fferr.ENTITY, err)
+	}
+	if !exists {
+		return nil, fferr.NewEntityNotFoundError(i.featureName, i.variant, entity, nil)
 	}
 
 	// convert back to type
@@ -245,7 +264,9 @@ func (i *ikvOnlineStoreTable) Get(entity string) (interface{}, error) {
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("could not cast value: %s to %s: %w", valueAsString, i.valueType, err)
+		wrapped := fferr.NewInternalError(fmt.Errorf("could not cast value: %v to %s: %w", valueAsString, i.valueType, err))
+		wrapped.AddDetail("entity", entity)
+		return nil, wrapped
 	}
 
 	return value, nil

@@ -81,6 +81,7 @@ export default function TriggerDetail({
       renderCell: function (params) {
         return (
           <IconButton
+            data-testid={`deleteResource-${params?.id}`}
             onClick={(e) =>
               handleDeleteResource?.(e, details?.trigger?.id, params?.id)
             }
@@ -187,6 +188,7 @@ export default function TriggerDetail({
         />
       </Box>
       <DataGrid
+        disableVirtualization
         density='compact'
         autoHeight
         sx={{

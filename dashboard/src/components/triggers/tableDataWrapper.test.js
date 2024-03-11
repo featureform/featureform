@@ -20,6 +20,7 @@ const defaultMock = Object.freeze({
   deleteTrigger: jest.fn().mockResolvedValue(true),
   searchResources: jest.fn().mockResolvedValue(resourceList),
   addTriggerResource: jest.fn(),
+  deleteTriggerResource: jest.fn(),
 });
 let dataAPIMock = {};
 
@@ -49,6 +50,7 @@ describe('Trigger table data wrapper tests', () => {
   const DELETE_WARNING_ID = 'deleteWarning';
   const DELETE_FINAL_ID = 'deleteFinal';
   const AUTOCOMPLETE_ID = 'addResourceId';
+  const DELETE_RESOURCE_ID_ = 'deleteResource-';
 
   // this is just a little hack to silence a warning that we'll get until we
   // upgrade to 16.9. See also: https://github.com/facebook/react/pull/14853
@@ -383,6 +385,38 @@ describe('Trigger table data wrapper tests', () => {
       triggerId,
       nameVariant.name,
       nameVariant.variant
+    );
+  });
+
+  test('The trigger detail can remove trigger resources', async () => {
+    const helper = render(getTestBody());
+    const test_data = { ...triggerDetail };
+    const resourceId = triggerDetail.trigger.resources[0].resourceId;
+
+    //and: details is invoked
+    const foundRecord1 = await helper.findByText(test_data.trigger.name);
+    fireEvent.click(foundRecord1);
+
+    //when: the details load, and the user clicks the delete resource btn
+    const resourceDeleteBtn = await helper.findByTestId(
+      DELETE_RESOURCE_ID_ + resourceId
+    );
+    fireEvent.click(resourceDeleteBtn);
+
+    //pause
+    await helper.findByTestId(DELETE_TRIGGER_BTN_ID);
+
+    //expect:
+    expect(dataAPIMock.deleteTriggerResource).toHaveBeenCalledTimes(1);
+    expect(dataAPIMock.deleteTriggerResource).toHaveBeenCalledWith(
+      triggerDetail.trigger.id,
+      resourceId
+    );
+    expect(dataAPIMock.getTriggers).toHaveBeenCalledTimes(2);
+    expect(dataAPIMock.getTriggers).toHaveBeenCalledWith('');
+    expect(dataAPIMock.getTriggerDetails).toHaveBeenCalledTimes(2);
+    expect(dataAPIMock.getTriggerDetails).toHaveBeenCalledWith(
+      test_data.trigger.id
     );
   });
 });

@@ -13,13 +13,15 @@ import (
 
 	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
+	"github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
 )
 
 type OnlineResource struct {
-	Entity string
-	Value  interface{}
-	Type   ValueType
+	FeatureName string
+	Entity      string
+	Value       interface{}
+	Type        ValueType
 }
 
 type OnlineStoreTest struct {
@@ -106,7 +108,10 @@ func testSetGetEntity(t *testing.T, store OnlineStore) {
 		t.Fatalf("Failed to set entity: %s", err)
 	}
 
-	time.Sleep(20 * time.Second)
+	// wait before reading values from eventually consistent stores
+	if _, exists := provider_type.EventuallyConsistentProviders[store.Type()]; exists {
+		time.Sleep(10 * time.Second)
+	}
 
 	gotVal, err := tab.Get(entity)
 	if err != nil {
@@ -157,7 +162,10 @@ func testMassTableWrite(t *testing.T, store OnlineStore) {
 		}
 	}
 
-	time.Sleep(20 * time.Second)
+	// wait before reading values from eventually consistent stores
+	if _, exists := provider_type.EventuallyConsistentProviders[store.Type()]; exists {
+		time.Sleep(10 * time.Second)
+	}
 
 	for i := range tableList {
 		tab, err := store.GetTable(tableList[i].Name, tableList[i].Variant)
@@ -179,45 +187,65 @@ func testMassTableWrite(t *testing.T, store OnlineStore) {
 func testTypeCasting(t *testing.T, store OnlineStore) {
 	onlineResources := []OnlineResource{
 		{
-			Entity: "a",
-			Value:  int(1),
-			Type:   Int,
+			FeatureName: uuid.New().String(),
+			Entity:      "a",
+			Value:       int(1),
+			Type:        Int,
 		},
 		{
-			Entity: "b",
-			Value:  int64(1),
-			Type:   Int64,
+			FeatureName: uuid.New().String(),
+			Entity:      "b",
+			Value:       int64(1),
+			Type:        Int64,
 		},
 		{
-			Entity: "c",
-			Value:  float32(1.0),
-			Type:   Float32,
+			FeatureName: uuid.New().String(),
+			Entity:      "c",
+			Value:       float32(1.0),
+			Type:        Float32,
 		},
 		{
-			Entity: "d",
-			Value:  float64(1.0),
-			Type:   Float64,
+			FeatureName: uuid.New().String(),
+			Entity:      "d",
+			Value:       float64(1.0),
+			Type:        Float64,
 		},
 		{
-			Entity: "e",
-			Value:  "1.0",
-			Type:   String,
+			FeatureName: uuid.New().String(),
+			Entity:      "e",
+			Value:       "1.0",
+			Type:        String,
 		},
 		{
-			Entity: "f",
-			Value:  false,
-			Type:   Bool,
+			FeatureName: uuid.New().String(),
+			Entity:      "f",
+			Value:       false,
+			Type:        Bool,
 		},
 	}
+
 	for _, resource := range onlineResources {
-		featureName := uuid.New().String()
-		tab, err := store.CreateTable(featureName, "", resource.Type)
+		tab, err := store.CreateTable(resource.FeatureName, "", resource.Type)
 		if err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
+
 		if err := tab.Set(resource.Entity, resource.Value); err != nil {
 			t.Fatalf("Failed to set entity: %s", err)
 		}
+	}
+
+	// wait before reading values from eventually consistent stores
+	if _, exists := provider_type.EventuallyConsistentProviders[store.Type()]; exists {
+		time.Sleep(10 * time.Second)
+	}
+
+	for _, resource := range onlineResources {
+		tab, err := store.GetTable(resource.FeatureName, "")
+		if err != nil {
+			t.Fatalf("Failed to get created table: %s", err)
+		}
+
 		gotVal, err := tab.Get(resource.Entity)
 		if err != nil {
 			t.Fatalf("Failed to get entity: %s", err)
@@ -225,7 +253,7 @@ func testTypeCasting(t *testing.T, store OnlineStore) {
 		if !reflect.DeepEqual(resource.Value, gotVal) {
 			t.Fatalf("Values are not the same %v, type %T. %v, type %T", resource.Value, resource.Value, gotVal, gotVal)
 		}
-		store.DeleteTable(featureName, "")
+		store.DeleteTable(resource.FeatureName, "")
 	}
 }
 

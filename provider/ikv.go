@@ -214,8 +214,6 @@ func (i *ikvOnlineStoreTable) Set(entity string, value interface{}) error {
 		return wrapped
 	}
 
-	// time.Sleep(10 * time.Second)
-
 	return nil
 }
 

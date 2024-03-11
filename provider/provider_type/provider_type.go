@@ -62,3 +62,9 @@ var AllProviderTypes = []Type{
 	AZURE,
 	UNIT_TEST,
 }
+
+// Providers which do not provide strong read after
+// write consistency.
+var EventuallyConsistentProviders = map[Type]interface{}{
+	IKVOnline: true,
+}

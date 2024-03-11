@@ -14,6 +14,7 @@ import (
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
 	"sync"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -108,6 +109,7 @@ func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainingTestSplit
 		if err != nil {
 			return err
 		}
+		start := time.Now()
 
 		id := req.GetId()
 		name, variant := id.GetName(), id.GetVersion()
@@ -133,10 +135,15 @@ func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainingTestSplit
 				return err
 			}
 		default:
+			startTime := time.Now()
 			if err := serv.handleSplitDataRequest(&ctx); err != nil {
 				featureObserver.SetError()
 				return err
 			}
+			endTime := time.Now()
+			serv.Logger.Infow("Time to Query", "time", endTime.Sub(startTime).Seconds())
+			end := time.Now()
+			serv.Logger.Infow("Feature Server Latency", "time", end.Sub(start).Seconds())
 		}
 	}
 }
@@ -189,13 +196,16 @@ func (serv *FeatureServer) handleSplitDataRequest(ctx *splitContext) error {
 
 	for rows < int(ctx.req.BatchSize) {
 		if thisIter.Next() {
+			//startTime := time.Now()
 			sRow, err := serializedRow(thisIter.Features(), thisIter.Label())
-			serv.Logger.Infow("Serialized Row", "Row", sRow.String())
+			//serv.Logger.Infow("Serialized Row", "Row", sRow.String())
 			if err != nil {
 				return err
 			}
 			trainingDataRows = append(trainingDataRows, sRow)
 			rows++
+			//endTime := time.Now()
+			//serv.Logger.Infow("Time for single row", "time", endTime.Sub(startTime).Seconds())
 		} else {
 			// if we reach the end of the iterator mid-batch, we'll send the processed rows so far and end the iteration
 			serv.handleFinishedIterator(trainingDataRows, ctx)
@@ -562,7 +572,7 @@ func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceColu
 		return nil, err
 	}
 	if it == nil {
-		serv.Logger.Errorf("source data iterator is nil", "Name", name, "Variant", variant, "Error", err.Error())
+		serv.Logger.Errorf("source data iterator is nil", "Name", name, "Variant", variant)
 		return nil, fferr.NewDatasetNotFoundError(name, variant, fmt.Errorf("source data iterator is nil"))
 	}
 	defer it.Close()

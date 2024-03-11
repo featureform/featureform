@@ -1,3 +1,6 @@
+import datetime
+
+from google.auth.transport import grpc
 from typing import Tuple, Union
 
 import numpy as np
@@ -61,8 +64,24 @@ class _SplitStream:
     def send_request(self, request_type) -> serving_pb2.BatchTestSplitResponse:
         req = self.training_set_split_details.to_proto(request_type)
         self.request_queue.append(req)
-        response = next(self.response_stream)
-        return response
+        # TODO: Attempting to add a better error here if the message size is too large rather than throwing the GRPC stack
+        try:
+            response = next(self.response_stream)
+        except grpc.RpcError as e:
+            # Check if the exception is due to resource exhaustion
+            if e.code() == grpc.StatusCode.RESOURCE_EXHAUSTED:
+                print("Caught RESOURCE_EXHAUSTED error")
+                # Optionally, extract additional details from the error
+                # This part is useful especially for handling rich error details following Google's best practices
+                status = rpc_status.from_call(e)
+                if status:
+                    proto_status = status_pb2.Status()
+                    status.details[0].Unpack(proto_status)
+                    print("Additional details:", proto_status)
+            else:
+                # Handle other types of exceptions
+                print(f"Caught RPC error of type: {e.code()} - {e.details()}")
+                return response
 
     def _create_request_generator(self):
         """
@@ -102,22 +121,38 @@ class TrainingSetSplitIterator:
         return self
 
     def __next__(self) -> Tuple[np.ndarray, np.ndarray]:
+        global types
         if self._complete:
             raise StopIteration
 
         batch_features_list = []
         batch_labels_list = []
 
+        start = datetime.datetime.now()
         next_row = self._split_stream.send_request(self.request_type)
+        end = datetime.datetime.now()
+        print("Request time: ", end-start)
         rows = next_row.rows
 
         # Process and store the row data
-        from featureform.serving import Row
+        from featureform.serving import Row, parse_proto_value, get_numpy_array_type, proto_type_to_np_type
 
-        np_rows = [Row(r) for r in rows.rows]
-        for row in np_rows:
-            batch_features_list.append(row.features()[0])
-            batch_labels_list.append(row.label()[0])
+        start = datetime.datetime.now()
+        for i, row in enumerate(rows.rows):
+            if i == 0 :
+                types = [proto_type_to_np_type(feature) for feature in row.features]
+                nptype = get_numpy_array_type(types)
+            features = [parse_proto_value(feature) for feature in row.features],
+
+            label = parse_proto_value(row.label)
+
+
+
+        # for row in np_rows:
+            batch_features_list.append(features)
+            batch_labels_list.append(label)
+        end = datetime.datetime.now()
+        print("Parse time: ", end-start)
 
         if next_row.iterator_done:
             self._complete = True
@@ -125,9 +160,10 @@ class TrainingSetSplitIterator:
         if not batch_features_list:  # If no data was collected
             raise StopIteration
 
-        # Convert lists to NumPy arrays
-        batch_features = np.array(batch_features_list)
+
+        batch_features = np.array(batch_features_list, dtype=nptype)
         batch_labels = np.array(batch_labels_list)
+
 
         return batch_features, batch_labels
 

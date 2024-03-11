@@ -4,7 +4,7 @@
 # docker build -f ./runner/Dockerfile . -t worker in /serving
 # docker tag worker:latest featureformcom/worker:latest
 # docker push featureformcom/worker:latest
-FROM golang:1.21-alpine
+FROM golang:1.21
 
 WORKDIR /app
 
@@ -34,8 +34,7 @@ COPY metadata/search/* ./metadata/search/
 COPY ./provider/ ./provider/
 COPY runner/worker/main/main.go ./runner/worker/main/main.go
 
-# CGD_ENABLED=0 is used to avoid the libc differences in alpine and ubuntu
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=1
 RUN go build -o worker ./runner/worker/main
 
 FROM ubuntu:22.04

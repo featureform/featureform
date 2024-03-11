@@ -1,7 +1,7 @@
 # RUN docker build -f ./coordinator/Dockerfile . -t coordinator from /serving
 # docker tag coordinator:latest featureformcom/coordinator:latest
 # docker push featureformcom/coordinator:latest
-FROM golang:1.21-alpine as builder
+FROM golang:1.21 as builder
 
 WORKDIR /app
 
@@ -34,8 +34,7 @@ COPY ./types ./types
 COPY ./coordinator/main/main.go ./coordinator/main/main.go
 
 # Building Go app
-# CGD_ENABLED=0 is used to avoid the libc differences in alpine and ubuntu
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=1
 RUN go build ./coordinator/main/main.go
 
 FROM ubuntu:22.04

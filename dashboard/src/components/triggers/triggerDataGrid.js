@@ -138,6 +138,9 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
           '& .MuiDataGrid-row:hover': {
             cursor: 'pointer',
           },
+          '& .MuiDataGrid-columnHeaderTitle': {
+            fontWeight: 'bold',
+          },
         }}
         aria-label='Triggers'
         rows={triggerList ?? []}

@@ -199,6 +199,9 @@ export default function TriggerDetail({
           '& .MuiDataGrid-cell:focus': {
             outline: 'none',
           },
+          '& .MuiDataGrid-columnHeaderTitle': {
+            fontWeight: 'bold',
+          },
         }}
         aria-label='Other Runs'
         rows={details?.resources ?? []}

@@ -197,8 +197,9 @@ func TestBlobInterfaces(t *testing.T) {
 			t.Run(fmt.Sprintf("%s: %s", testName, blobName), func(t *testing.T) {
 				fileTest(t, blobProvider)
 			})
-			time.Sleep(2 * time.Second)
 		}
+
+		time.Sleep(2 * time.Second)
 	}
 	for _, blobProvider := range blobProviders {
 		blobProvider.Close()

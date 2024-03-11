@@ -192,15 +192,16 @@ export default function TableDataWrapper() {
         </Button>
 
         <Box style={{ float: 'right' }}>
-          <FormControl
-            className={classes.filterInput}
-            style={{ paddingRight: '15px' }}
-          >
-            <InputLabel id='sortId'>Sort By</InputLabel>
+          <FormControl style={{ paddingRight: '15px' }}>
+            <InputLabel shrink={true} id='sortId'>
+              Sort By
+            </InputLabel>
             <Select
               value={searchParams.sortBy}
+              InputLabelProps={{ shrink: true }}
               onChange={handleSortBy}
               label='Sort By'
+              notched={true}
               className={classes.filterInput}
             >
               <MenuItem value={SORT_STATUS}>Status</MenuItem>
@@ -209,7 +210,9 @@ export default function TableDataWrapper() {
           </FormControl>
           <FormControl>
             <TextField
-              placeholder='Search Tasks...'
+              size='small'
+              InputLabelProps={{ shrink: true }}
+              label='Search'
               onChange={(event) => {
                 const rawText = event.target.value;
                 if (rawText === '') {
@@ -242,7 +245,6 @@ export default function TableDataWrapper() {
                   </InputAdornment>
                 ),
               }}
-              className={classes.filterInput}
               inputProps={{
                 'aria-label': 'search',
                 'data-testid': 'searcInputId',

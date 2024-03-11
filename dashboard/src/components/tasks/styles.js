@@ -4,7 +4,7 @@ const useStyles = makeStyles(() => ({
   inputRow: {
     paddingBottom: 20,
     '& button': {
-      height: 56,
+      height: 40,
     },
   },
   activeButton: {
@@ -17,10 +17,16 @@ const useStyles = makeStyles(() => ({
   activeChip: {
     color: '#000000',
     background: '#FFFFFF',
+    height: 20,
+    width: 45,
+    fontSize: 11,
   },
   inactiveChip: {
     color: '#FFFFFF',
     background: '#7A14E5',
+    height: 20,
+    width: 45,
+    fontSize: 11,
   },
   inactiveButton: {
     color: '#000000',
@@ -31,7 +37,8 @@ const useStyles = makeStyles(() => ({
     paddingRight: 10,
   },
   filterInput: {
-    minWidth: 250,
+    minWidth: 225,
+    height: 40,
   },
   taskCardBox: {
     height: 750,

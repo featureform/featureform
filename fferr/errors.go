@@ -1,15 +1,12 @@
 package fferr
 
 import (
-	"errors"
 	"fmt"
-	"strings"
 
 	pb "github.com/featureform/metadata/proto"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/rotisserie/eris"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -106,64 +103,6 @@ func ToDashboardError(status *pb.ResourceStatus) string {
 		err = fmt.Sprintf("%s\n>>> %s: %s", err, k, v)
 	}
 	return err
-}
-
-func FromErr(err error) Error {
-	// If the error is nil, then simply pass it through to
-	// avoid having to check for nil errors at the call site
-	if err == nil {
-		return nil
-	}
-	var error Error
-	if errors.As(err, &error) {
-		return error
-	}
-	st, ok := status.FromError(err)
-	if !ok {
-		return NewInternalError(err)
-	}
-	// If the error is a valid status error but doesn't have any details, it stems from a
-	// location in the codebase we haven't covered yet. In this case, we'll just return an
-	// InternalError
-	if len(st.Details()) == 0 {
-		fmt.Println("No Details")
-		return NewInternalError(fmt.Errorf(st.Message()))
-	}
-	// All fferr errors should have an ErrorInfo detail, so we'll iterate through the details
-	// and cast them to ErrorInfo. If we find one, we'll create the appropriate error type
-	// and return it
-	for _, detail := range st.Details() {
-		if errorInfo, ok := detail.(*errdetails.ErrorInfo); ok {
-			errorMsg := err.Error()
-			// This addresses the edge case where we receive a status error from another service and persist the
-			// error message to ETCD, which currently only occurs in the coordinator service. If the error message
-			// contains "rpc error:", we'll just return an empty string and let the Error implementation of Error()
-			// handle the error message
-			if strings.Contains(err.Error(), "rpc error:") {
-				errorMsg = ""
-			}
-			var detailKeys []string
-			for k := range errorInfo.Metadata {
-				detailKeys = append(detailKeys, k)
-			}
-			error = &baseError{
-				code:      st.Code(),
-				errorType: errorInfo.Reason,
-				GenericError: GenericError{
-					msg:        errorMsg,
-					err:        eris.New(err.Error()),
-					details:    errorInfo.Metadata,
-					detailKeys: detailKeys,
-				},
-			}
-			// If there's a need to return a public implementation of Error (e.g. InvalidArgumentError)
-			// we can add a switch statement that checks the error type and returns the appropriate
-			// error type, which will simply wrap the baseError (e.g. &InvalidArgumentError{baseError})
-		} else {
-			error = NewInternalError(err)
-		}
-	}
-	return error
 }
 
 func newBaseError(err error, errorType string, code codes.Code) baseError {

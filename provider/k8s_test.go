@@ -187,9 +187,7 @@ func TestBlobInterfaces(t *testing.T) {
 			if testing.Short() && blobName == "Azure" {
 				t.Skip()
 			}
-			if blobName != "HDFS" {
-				continue
-			}
+
 			t.Run(fmt.Sprintf("%s: %s", testName, blobName), func(t *testing.T) {
 				fileTest(t, blobProvider)
 			})

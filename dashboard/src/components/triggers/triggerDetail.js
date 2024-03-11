@@ -168,6 +168,7 @@ export default function TriggerDetail({
           filterOptions={filterOptions}
           disablePortal
           clearOnEscape
+          data-testid='addResourceId'
           clearOnBlur
           options={resourceList}
           fullWidth

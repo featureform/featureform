@@ -71,7 +71,9 @@ export default function TableDataWrapper() {
         </Button>
         <Box style={{ float: 'right' }}>
           <TextField
-            placeholder='Search Triggers'
+            label='Search'
+            InputLabelProps={{ shrink: true }}
+            size='small'
             onChange={(event) => {
               const rawText = event.target.value;
               if (rawText === '') {

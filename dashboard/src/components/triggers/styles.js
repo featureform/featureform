@@ -4,7 +4,7 @@ const useStyles = makeStyles(() => ({
   inputRow: {
     paddingBottom: 20,
     '& button': {
-      height: 45,
+      height: 40,
     },
   },
   triggerBox: {

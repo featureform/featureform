@@ -94,6 +94,7 @@ export default function TriggerDetail({
 
   const [userConfirm, setUserConfirm] = useState(rowDelete);
   const [resourceList, setResourceList] = useState([]);
+  const [isDisabled, setIsDisabled] = useState(true);
   const dataAPI = useDataAPI();
   const OPTIONS_LIMIT = 10;
   const filterOptions = createFilterOptions({ limit: OPTIONS_LIMIT });
@@ -113,33 +114,25 @@ export default function TriggerDetail({
         };
       });
       setResourceList(nameVariantList);
+
+      let shouldDisable = !(
+        details?.resources?.length === undefined ||
+        details?.resources?.length === 0
+      );
+      setIsDisabled(shouldDisable);
     } else {
       console.warn('Search results did not populate ok. Result:', results);
     }
   }, [details]);
 
-  // todox: 100% needs to be state. hard to deal with otherwise.
-  const isDeleteDisabled = () => {
-    let result = true;
-    if (
-      details?.resources?.length === undefined ||
-      details?.resources?.length === 0
-    ) {
-      result = false;
-    } else {
-      result = true;
-    }
-    return result;
-  };
-
   let alertBody = null;
-  if (userConfirm && isDeleteDisabled()) {
+  if (userConfirm && isDisabled) {
     alertBody = (
       <Alert data-testid='deleteWarning' severity='warning'>
         {DELETE_WARNING}
       </Alert>
     );
-  } else if (userConfirm && !isDeleteDisabled()) {
+  } else if (userConfirm && !isDisabled) {
     alertBody = (
       <Alert data-testid='deleteFinal' severity='error'>
         {DELETE_FINAL_WARNING}
@@ -233,9 +226,9 @@ export default function TriggerDetail({
           <Button
             variant='contained'
             data-testid='deleteTriggerBtnId'
-            disabled={isDeleteDisabled()}
+            disabled={isDisabled}
             onClick={() => {
-              if (!isDeleteDisabled()) {
+              if (!isDisabled) {
                 if (userConfirm) {
                   handleDelete?.(details?.trigger?.id);
                 } else {

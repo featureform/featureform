@@ -76,7 +76,7 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
               handleRowSelect(params);
             }}
           >
-            <RemoveCircleOutlineIcon fontSize='large' />
+            <RemoveCircleOutlineIcon fontSize='medium' />
           </IconButton>
         );
       },

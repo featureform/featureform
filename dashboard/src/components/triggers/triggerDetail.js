@@ -7,7 +7,6 @@ import {
   createFilterOptions,
   IconButton,
   TextField,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
@@ -21,6 +20,7 @@ export const DELETE_WARNING =
   'To remove the Trigger, please delete all associated Resources first.';
 export const DELETE_FINAL_WARNING =
   'You are about to delete this trigger. Are you sure you want to proceed?';
+export const DELETE_INFO = 'To delete the trigger, remove all resources first.';
 
 export default function TriggerDetail({
   details = {},
@@ -85,7 +85,7 @@ export default function TriggerDetail({
               handleDeleteResource?.(e, details?.trigger?.id, params?.id)
             }
           >
-            <RemoveCircleOutlineIcon fontSize='large' />
+            <RemoveCircleOutlineIcon fontSize='medium' />
           </IconButton>
         );
       },
@@ -143,6 +143,12 @@ export default function TriggerDetail({
     alertBody = (
       <Alert data-testid='deleteFinal' severity='error'>
         {DELETE_FINAL_WARNING}
+      </Alert>
+    );
+  } else {
+    alertBody = (
+      <Alert data-testid='deleteInfo' severity='info'>
+        {DELETE_INFO}
       </Alert>
     );
   }
@@ -220,38 +226,28 @@ export default function TriggerDetail({
         >
           Cancel
         </Button>
-        <Tooltip
-          placement='top'
-          title={
-            isDeleteDisabled()
-              ? 'To delete the trigger, remove all resources first.'
-              : ''
-          }
-          disabled
-        >
-          <span>
-            <Button
-              variant='contained'
-              data-testid='deleteTriggerBtnId'
-              disabled={isDeleteDisabled()}
-              onClick={() => {
-                if (!isDeleteDisabled()) {
-                  if (userConfirm) {
-                    handleDelete?.(details?.trigger?.id);
-                  } else {
-                    setUserConfirm(true);
-                  }
+        <span>
+          <Button
+            variant='contained'
+            data-testid='deleteTriggerBtnId'
+            disabled={isDeleteDisabled()}
+            onClick={() => {
+              if (!isDeleteDisabled()) {
+                if (userConfirm) {
+                  handleDelete?.(details?.trigger?.id);
+                } else {
+                  setUserConfirm(true);
                 }
-              }}
-              sx={{
-                margin: '0.5em',
-                background: '#DA1E28',
-              }}
-            >
-              {userConfirm ? CONFIRM_DELETE : PRE_DELETE}
-            </Button>
-          </span>
-        </Tooltip>
+              }
+            }}
+            sx={{
+              margin: '0.5em',
+              background: '#DA1E28',
+            }}
+          >
+            {userConfirm ? CONFIRM_DELETE : PRE_DELETE}
+          </Button>
+        </span>
       </Box>
     </>
   );

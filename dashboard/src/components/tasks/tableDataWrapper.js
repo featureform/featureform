@@ -1,4 +1,3 @@
-import FilterAltOffIcon from '@mui/icons-material/FilterAltOff';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
 import {
@@ -265,7 +264,11 @@ export default function TableDataWrapper() {
           </Tooltip>
           <Tooltip title='Clear filter inputs' placement='top'>
             <IconButton size='large' onClick={clearInputs}>
-              <FilterAltOffIcon data-testid='clearIcon' />
+              <img
+                alt={'CLEAR'}
+                data-testid='clearIcon'
+                src={'/static/clearIcon.svg'}
+              />
             </IconButton>
           </Tooltip>
         </Box>

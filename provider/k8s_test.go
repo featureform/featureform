@@ -197,6 +197,7 @@ func TestBlobInterfaces(t *testing.T) {
 			t.Run(fmt.Sprintf("%s: %s", testName, blobName), func(t *testing.T) {
 				fileTest(t, blobProvider)
 			})
+			time.Sleep(2 * time.Second)
 		}
 	}
 	for _, blobProvider := range blobProviders {
@@ -635,6 +636,7 @@ func testDeleteAll(t *testing.T, store FileStore) {
 		if err != nil {
 			t.Fatalf("Could not create random file path: %v", err)
 		}
+		fmt.Println("-----", randomFilePath.ToURI())
 		if err := store.Write(randomFilePath, randomData); err != nil {
 			t.Fatalf("Could not write key to filestore: %v", err)
 		}

@@ -3,7 +3,6 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"github.com/featureform/fferr"
 	"net"
 	"reflect"
 	"testing"
@@ -13,6 +12,7 @@ import (
 
 	pb "github.com/featureform/metadata/proto"
 	"golang.org/x/exp/slices"
+	grpc_status "google.golang.org/grpc/status"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 
 	pc "github.com/featureform/provider/provider_config"
@@ -2050,14 +2050,20 @@ func Test_MetadataErrorInterceptors(t *testing.T) {
 	resourceDefs := []ResourceDef{userDef, sourceDef}
 
 	err := client.CreateAll(context, resourceDefs)
-	grpcErr := fferr.FromErr(err)
+	grpcErr, ok := grpc_status.FromError(err)
+	if !ok {
+		t.Fatalf("Expected error to be a grpc error")
+	}
 	if grpcErr == nil {
 		t.Fatalf("Expected error to be non-nil")
 	}
 
 	// Test Streaming
 	_, err = client.GetTrainingSet(context, "DNE")
-	grpcErr = fferr.FromErr(err)
+	grpcErr, ok = grpc_status.FromError(err)
+	if !ok {
+		t.Fatalf("Expected error to be a grpc error")
+	}
 	if grpcErr == nil {
 		t.Fatalf("Expected error to be non-nil")
 	}

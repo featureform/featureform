@@ -183,8 +183,6 @@ func TestBlobInterfaces(t *testing.T) {
 		"HDFS":  hdfsFileStore,
 	}
 	for testName, fileTest := range fileStoreTests {
-		fileTest = fileTest
-		testName = testName
 		for blobName, blobProvider := range blobProviders {
 			if testing.Short() && blobName == "Azure" {
 				t.Skip()
@@ -192,14 +190,10 @@ func TestBlobInterfaces(t *testing.T) {
 			if blobName != "HDFS" {
 				continue
 			}
-			blobName = blobName
-			blobProvider = blobProvider
 			t.Run(fmt.Sprintf("%s: %s", testName, blobName), func(t *testing.T) {
 				fileTest(t, blobProvider)
 			})
 		}
-
-		time.Sleep(2 * time.Second)
 	}
 	for _, blobProvider := range blobProviders {
 		blobProvider.Close()

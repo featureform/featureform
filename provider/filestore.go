@@ -580,6 +580,7 @@ func (fs *HDFSFileStore) createFile(path filestore.Filepath) (*hdfs.FileWriter, 
 	if err != nil {
 		wrapped := fferr.NewInternalError(err)
 		wrapped.AddDetail("uri", path.ToURI())
+		wrapped.AddDetail("location", "createFile")
 		return nil, wrapped
 	}
 	return fs.getFileWriter(path)
@@ -594,16 +595,19 @@ func (fs *HDFSFileStore) Write(path filestore.Filepath, data []byte) error {
 	if err != nil {
 		wrapped := fferr.NewInternalError(err)
 		wrapped.AddDetail("uri", path.ToURI())
+		wrapped.AddDetail("location", "Write - Line 598")
 		return wrapped
 	}
 	if err := file.Flush(); err != nil {
 		wrapped := fferr.NewInternalError(err)
 		wrapped.AddDetail("uri", path.ToURI())
+		wrapped.AddDetail("location", "Flush - Line 604")
 		return wrapped
 	}
 	if err := file.Close(); err != nil {
 		wrapped := fferr.NewInternalError(err)
 		wrapped.AddDetail("uri", path.ToURI())
+		wrapped.AddDetail("location", "Close - Line 610")
 		return wrapped
 	}
 	return nil

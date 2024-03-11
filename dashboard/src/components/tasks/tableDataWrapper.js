@@ -124,7 +124,7 @@ export default function TableDataWrapper() {
     <>
       <Box className={classes.inputRow}>
         <Button
-          variant='outlined'
+          variant='text'
           className={
             searchParams.status === FILTER_STATUS_ALL
               ? classes.activeButton
@@ -146,7 +146,7 @@ export default function TableDataWrapper() {
           />
         </Button>
         <Button
-          variant='outlined'
+          variant='text'
           className={
             searchParams.status === FILTER_STATUS_ACTIVE
               ? classes.activeButton
@@ -168,7 +168,7 @@ export default function TableDataWrapper() {
           />
         </Button>
         <Button
-          variant='outlined'
+          variant='text'
           className={
             searchParams.status === FILTER_STATUS_COMPLETE
               ? classes.activeButton

@@ -8,22 +8,19 @@ const useStyles = makeStyles(() => ({
     },
   },
   activeButton: {
-    color: '#FFFFFF',
-    backgroundColor: '#7A14E5',
-    '&:hover': {
-      backgroundColor: '#7A14E5',
-    },
+    color: '#000000',
+    fontWeight: 'bold',
   },
   activeChip: {
-    color: '#000000',
-    background: '#FFFFFF',
+    color: '#FFFFFF',
+    background: '#7A14E5',
     height: 20,
     width: 45,
     fontSize: 11,
   },
   inactiveChip: {
     color: '#FFFFFF',
-    background: '#7A14E5',
+    background: '#BFBFBF',
     height: 20,
     width: 45,
     fontSize: 11,

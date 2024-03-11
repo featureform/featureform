@@ -15,7 +15,7 @@ import (
 // Integrates IKV: https://docs.inlined.io
 // as an Online Store in Featureform.
 
-var pkey_field_name string = "userid"
+var pkey_field_name string = "ff_primary_key"
 
 // Wraps a single IKV store instance.
 // Inner fields act as individual OnlineTableStore instances.

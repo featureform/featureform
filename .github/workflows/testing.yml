@@ -203,6 +203,7 @@ jobs:
           BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
           BIGQUERY_DATASET_ID: ${{ secrets.BIGQUERY_DATASET_ID }}
           BIGQUERY_CREDENTIALS: "/home/runner/work/featureform/featureform/provider/bigquery_credentials.json"
+          GCP_CREDENTIALS_FILE: "/home/runner/work/featureform/featureform/provider/bigquery_credentials.json"
           MYSQL_USER: "root"
           MYSQL_PASSWORD: "password"
           MYSQL_DB: "mysql"

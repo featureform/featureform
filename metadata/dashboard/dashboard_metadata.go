@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"reflect"
 	"strings"
 
 	filestore "github.com/featureform/filestore"
@@ -39,24 +38,6 @@ type LocalStorageProvider struct {
 
 func (sp LocalStorageProvider) GetResourceLookup() (metadata.ResourceLookup, error) {
 	lookup := make(metadata.LocalResourceLookup)
-	return lookup, nil
-}
-
-type EtcdStorageProvider struct {
-	Config metadata.EtcdConfig
-}
-
-func (sp EtcdStorageProvider) GetResourceLookup() (metadata.ResourceLookup, error) {
-
-	client, err := sp.Config.InitClient()
-	if err != nil {
-		return nil, fmt.Errorf("could not init etcd client: %v", err)
-	}
-	lookup := metadata.EtcdResourceLookup{
-		Connection: metadata.EtcdStorage{
-			Client: client,
-		},
-	}
 	return lookup, nil
 }
 
@@ -175,156 +156,6 @@ func (m *FetchError) Error() string {
 	return fmt.Sprintf("Error %d: Failed to fetch %s", m.StatusCode, m.Type)
 }
 
-func columnsToMap(columns metadata.ResourceVariantColumns) map[string]string {
-	columnNameValues := reflect.ValueOf(columns)
-	featureColumns := make(map[string]string)
-	for i := 0; i < columnNameValues.NumField(); i++ {
-		featureColumns[columnNameValues.Type().Field(i).Name] = fmt.Sprintf("%v", columnNameValues.Field(i).Interface())
-	}
-	return featureColumns
-}
-
-func featureShallowMap(variant *metadata.FeatureVariant) metadata.FeatureVariantResource {
-	fv := metadata.FeatureVariantResource{}
-	switch variant.Mode() {
-	case metadata.PRECOMPUTED:
-		fv = metadata.FeatureVariantResource{
-			Created:     variant.Created(),
-			Description: variant.Description(),
-			Entity:      variant.Entity(),
-			Name:        variant.Name(),
-			DataType:    variant.Type(),
-			Variant:     variant.Variant(),
-			Owner:       variant.Owner(),
-			Provider:    variant.Provider(),
-			Source:      variant.Source(),
-			Location:    columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns)),
-			Status:      variant.Status().String(),
-			Error:       variant.Error(),
-			Tags:        variant.Tags(),
-			Properties:  variant.Properties(),
-			Mode:        variant.Mode().String(),
-			IsOnDemand:  variant.IsOnDemand(),
-		}
-	case metadata.CLIENT_COMPUTED:
-		location := make(map[string]string)
-		if pyFunc, ok := variant.LocationFunction().(metadata.PythonFunction); ok {
-			location["query"] = string(pyFunc.Query)
-		}
-		fv = metadata.FeatureVariantResource{
-			Created:     variant.Created(),
-			Description: variant.Description(),
-			Name:        variant.Name(),
-			Variant:     variant.Variant(),
-			Owner:       variant.Owner(),
-			Location:    location,
-			Status:      variant.Status().String(),
-			Error:       variant.Error(),
-			Tags:        variant.Tags(),
-			Properties:  variant.Properties(),
-			Mode:        variant.Mode().String(),
-			IsOnDemand:  variant.IsOnDemand(),
-			Definition:  variant.Definition(),
-		}
-	default:
-		fmt.Printf("Unknown computation mode %v\n", variant.Mode())
-	}
-	return fv
-}
-
-func labelShallowMap(variant *metadata.LabelVariant) metadata.LabelVariantResource {
-	return metadata.LabelVariantResource{
-		Created:     variant.Created(),
-		Description: variant.Description(),
-		Entity:      variant.Entity(),
-		Name:        variant.Name(),
-		DataType:    variant.Type(),
-		Variant:     variant.Variant(),
-		Owner:       variant.Owner(),
-		Provider:    variant.Provider(),
-		Source:      variant.Source(),
-		Location:    columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns)),
-		Status:      variant.Status().String(),
-		Error:       variant.Error(),
-		Tags:        variant.Tags(),
-		Properties:  variant.Properties(),
-	}
-}
-
-func trainingSetShallowMap(variant *metadata.TrainingSetVariant) metadata.TrainingSetVariantResource {
-	return metadata.TrainingSetVariantResource{
-		Created:     variant.Created(),
-		Description: variant.Description(),
-		Name:        variant.Name(),
-		Variant:     variant.Variant(),
-		Owner:       variant.Owner(),
-		Provider:    variant.Provider(),
-		Label:       variant.Label(),
-		Status:      variant.Status().String(),
-		Error:       variant.Error(),
-		Tags:        variant.Tags(),
-		Properties:  variant.Properties(),
-	}
-}
-
-func sourceShallowMap(variant *metadata.SourceVariant) metadata.SourceVariantResource {
-	return metadata.SourceVariantResource{
-		Name:           variant.Name(),
-		Variant:        variant.Variant(),
-		Definition:     getSourceString(variant),
-		Owner:          variant.Owner(),
-		Description:    variant.Description(),
-		Provider:       variant.Provider(),
-		Created:        variant.Created(),
-		Status:         variant.Status().String(),
-		LastUpdated:    variant.LastUpdated(),
-		Schedule:       variant.Schedule(),
-		Tags:           variant.Tags(),
-		SourceType:     getSourceType(variant),
-		Properties:     variant.Properties(),
-		Error:          variant.Error(),
-		Specifications: getSourceArgs(variant),
-		Inputs:         getInputs(variant),
-	}
-}
-
-func getInputs(variant *metadata.SourceVariant) []metadata.NameVariant {
-	if variant.IsSQLTransformation() {
-		return variant.SQLTransformationSources()
-	} else if variant.IsDFTransformation() {
-		return variant.DFTransformationSources()
-	} else {
-		return []metadata.NameVariant{}
-	}
-}
-
-func getSourceString(variant *metadata.SourceVariant) string {
-	if variant.IsSQLTransformation() {
-		return variant.SQLTransformationQuery()
-	} else if variant.IsDFTransformation() {
-		return variant.DFTransformationQuerySource()
-	} else {
-		return variant.PrimaryDataSQLTableName()
-	}
-}
-
-func getSourceType(variant *metadata.SourceVariant) string {
-	if variant.IsSQLTransformation() {
-		return "SQL Transformation"
-	} else if variant.IsDFTransformation() {
-		return "Dataframe Transformation"
-	} else {
-		return "Primary Table"
-	}
-}
-
-func getSourceArgs(variant *metadata.SourceVariant) map[string]string {
-	if variant.HasKubernetesArgs() {
-		return variant.TransformationArgs().Format()
-	}
-	return map[string]string{}
-}
-
 func (m *MetadataServer) getTrainingSets(nameVariants []metadata.NameVariant) (map[string][]metadata.TrainingSetVariantResource, error) {
 	trainingSetMap := make(map[string][]metadata.TrainingSetVariantResource)
 	trainingSetVariants, err := m.client.GetTrainingSetVariants(context.Background(), nameVariants)
@@ -335,7 +166,7 @@ func (m *MetadataServer) getTrainingSets(nameVariants []metadata.NameVariant) (m
 		if _, has := trainingSetMap[variant.Name()]; !has {
 			trainingSetMap[variant.Name()] = []metadata.TrainingSetVariantResource{}
 		}
-		trainingSetMap[variant.Name()] = append(trainingSetMap[variant.Name()], trainingSetShallowMap(variant))
+		trainingSetMap[variant.Name()] = append(trainingSetMap[variant.Name()], variant.ToShallowMap())
 	}
 	return trainingSetMap, nil
 }
@@ -350,7 +181,7 @@ func (m *MetadataServer) getFeatures(nameVariants []metadata.NameVariant) (map[s
 		if _, has := featureMap[variant.Name()]; !has {
 			featureMap[variant.Name()] = []metadata.FeatureVariantResource{}
 		}
-		featureMap[variant.Name()] = append(featureMap[variant.Name()], featureShallowMap(variant))
+		featureMap[variant.Name()] = append(featureMap[variant.Name()], variant.ToShallowMap())
 	}
 	return featureMap, nil
 }
@@ -365,7 +196,7 @@ func (m *MetadataServer) getLabels(nameVariants []metadata.NameVariant) (map[str
 		if _, has := labelMap[variant.Name()]; !has {
 			labelMap[variant.Name()] = []metadata.LabelVariantResource{}
 		}
-		labelMap[variant.Name()] = append(labelMap[variant.Name()], labelShallowMap(variant))
+		labelMap[variant.Name()] = append(labelMap[variant.Name()], variant.ToShallowMap())
 	}
 	return labelMap, nil
 }
@@ -380,7 +211,7 @@ func (m *MetadataServer) getSources(nameVariants []metadata.NameVariant) (map[st
 		if _, has := sourceMap[variant.Name()]; !has {
 			sourceMap[variant.Name()] = []metadata.SourceVariantResource{}
 		}
-		sourceMap[variant.Name()] = append(sourceMap[variant.Name()], sourceShallowMap(variant))
+		sourceMap[variant.Name()] = append(sourceMap[variant.Name()], variant.ToShallowMap())
 	}
 	return sourceMap, nil
 }
@@ -395,7 +226,7 @@ func (m *MetadataServer) readFromFeature(feature *metadata.Feature, deepCopy boo
 	}
 	for _, variant := range variants {
 
-		featResource := featureShallowMap(variant)
+		featResource := variant.ToShallowMap()
 		if deepCopy {
 			ts, err := m.getTrainingSets(variant.TrainingSets())
 			if err != nil {
@@ -420,7 +251,7 @@ func (m *MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet, 
 	}
 	for _, variant := range variants {
 
-		trainingResource := trainingSetShallowMap(variant)
+		trainingResource := variant.ToShallowMap()
 		if deepCopy {
 			f, err := m.getFeatures(variant.Features())
 			if err != nil {
@@ -445,7 +276,7 @@ func (m *MetadataServer) readFromSource(source *metadata.Source, deepCopy bool) 
 	}
 	for _, variant := range variants {
 
-		sourceResource := sourceShallowMap(variant)
+		sourceResource := variant.ToShallowMap()
 		if deepCopy {
 			fetchGroup := new(errgroup.Group)
 			fetchGroup.Go(func() error {
@@ -494,7 +325,7 @@ func (m *MetadataServer) readFromLabel(label *metadata.Label, deepCopy bool) (ma
 		return nil, fetchError
 	}
 	for _, variant := range variants {
-		labelResource := labelShallowMap(variant)
+		labelResource := variant.ToShallowMap()
 		if deepCopy {
 			ts, err := m.getTrainingSets(variant.TrainingSets())
 			if err != nil {

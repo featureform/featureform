@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"errors"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	"go.uber.org/zap"
@@ -25,7 +26,7 @@ func UnaryServerErrorInterceptor(ctx context.Context, req interface{}, info *grp
 	h, err := handler(ctx, req)
 	// Check for GRPCError and convert it
 	if err != nil {
-		var grpcErr fferr.GRPCError
+		var grpcErr fferr.Error
 		if errors.As(err, &grpcErr) {
 			logger.Errorw("GRPCError", "error", grpcErr, "method", info.FullMethod, "request", req, "response", h, "stack_trace", grpcErr.Stack())
 			return h, grpcErr.ToErr()
@@ -40,7 +41,7 @@ func StreamServerErrorInterceptor(srv interface{}, ss grpc.ServerStream, info *g
 	err := handler(srv, ss)
 	// Check for GRPCError and convert it
 	if err != nil {
-		var grpcErr fferr.GRPCError
+		var grpcErr fferr.Error
 		if errors.As(err, &grpcErr) {
 			logger.Errorw("GRPCError", "error", grpcErr, "method", info.FullMethod, "stackTrace", grpcErr.Stack())
 			return grpcErr.ToErr()

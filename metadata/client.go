@@ -1480,6 +1480,63 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 	}
 }
 
+func columnsToMap(columns ResourceVariantColumns) map[string]string {
+	columnNameValues := reflect.ValueOf(columns)
+	featureColumns := make(map[string]string)
+	for i := 0; i < columnNameValues.NumField(); i++ {
+		featureColumns[columnNameValues.Type().Field(i).Name] = fmt.Sprintf("%v", columnNameValues.Field(i).Interface())
+	}
+	return featureColumns
+}
+
+func (variant *FeatureVariant) ToShallowMap() FeatureVariantResource {
+	fv := FeatureVariantResource{}
+	switch variant.Mode() {
+	case PRECOMPUTED:
+		fv = FeatureVariantResource{
+			Created:     variant.Created(),
+			Description: variant.Description(),
+			Entity:      variant.Entity(),
+			Name:        variant.Name(),
+			DataType:    variant.Type(),
+			Variant:     variant.Variant(),
+			Owner:       variant.Owner(),
+			Provider:    variant.Provider(),
+			Source:      variant.Source(),
+			Location:    columnsToMap(variant.LocationColumns().(ResourceVariantColumns)),
+			Status:      variant.Status().String(),
+			Error:       variant.Error(),
+			Tags:        variant.Tags(),
+			Properties:  variant.Properties(),
+			Mode:        variant.Mode().String(),
+			IsOnDemand:  variant.IsOnDemand(),
+		}
+	case CLIENT_COMPUTED:
+		location := make(map[string]string)
+		if pyFunc, ok := variant.LocationFunction().(PythonFunction); ok {
+			location["query"] = string(pyFunc.Query)
+		}
+		fv = FeatureVariantResource{
+			Created:     variant.Created(),
+			Description: variant.Description(),
+			Name:        variant.Name(),
+			Variant:     variant.Variant(),
+			Owner:       variant.Owner(),
+			Location:    location,
+			Status:      variant.Status().String(),
+			Error:       variant.Error(),
+			Tags:        variant.Tags(),
+			Properties:  variant.Properties(),
+			Mode:        variant.Mode().String(),
+			IsOnDemand:  variant.IsOnDemand(),
+			Definition:  variant.Definition(),
+		}
+	default:
+		fmt.Printf("Unknown computation mode %v\n", variant.Mode())
+	}
+	return fv
+}
+
 func (variant *FeatureVariant) Name() string {
 	return variant.serialized.GetName()
 }
@@ -1810,6 +1867,25 @@ func wrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
 	}
 }
 
+func (variant *LabelVariant) ToShallowMap() LabelVariantResource {
+	return LabelVariantResource{
+		Created:     variant.Created(),
+		Description: variant.Description(),
+		Entity:      variant.Entity(),
+		Name:        variant.Name(),
+		DataType:    variant.Type(),
+		Variant:     variant.Variant(),
+		Owner:       variant.Owner(),
+		Provider:    variant.Provider(),
+		Source:      variant.Source(),
+		Location:    columnsToMap(variant.LocationColumns().(ResourceVariantColumns)),
+		Status:      variant.Status().String(),
+		Error:       variant.Error(),
+		Tags:        variant.Tags(),
+		Properties:  variant.Properties(),
+	}
+}
+
 func (variant *LabelVariant) Name() string {
 	return variant.serialized.GetName()
 }
@@ -1913,6 +1989,22 @@ func wrapProtoTrainingSetVariant(serialized *pb.TrainingSetVariant) *TrainingSet
 		protoStringer:     protoStringer{serialized},
 		fetchTagsFn:       fetchTagsFn{serialized},
 		fetchPropertiesFn: fetchPropertiesFn{serialized},
+	}
+}
+
+func (variant *TrainingSetVariant) ToShallowMap() TrainingSetVariantResource {
+	return TrainingSetVariantResource{
+		Created:     variant.Created(),
+		Description: variant.Description(),
+		Name:        variant.Name(),
+		Variant:     variant.Variant(),
+		Owner:       variant.Owner(),
+		Provider:    variant.Provider(),
+		Label:       variant.Label(),
+		Status:      variant.Status().String(),
+		Error:       variant.Error(),
+		Tags:        variant.Tags(),
+		Properties:  variant.Properties(),
 	}
 }
 
@@ -2073,6 +2165,38 @@ func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
 		fetchTagsFn:          fetchTagsFn{serialized},
 		fetchPropertiesFn:    fetchPropertiesFn{serialized},
 	}
+}
+
+func (variant *SourceVariant) getInputs() []NameVariant {
+	if variant.IsSQLTransformation() {
+		return variant.SQLTransformationSources()
+	} else if variant.IsDFTransformation() {
+		return variant.DFTransformationSources()
+	} else {
+		return []NameVariant{}
+	}
+}
+
+func (variant *SourceVariant) ToShallowMap() SourceVariantResource {
+	return SourceVariantResource{
+		Name:           variant.Name(),
+		Variant:        variant.Variant(),
+		Definition:     getSourceString(variant),
+		Owner:          variant.Owner(),
+		Description:    variant.Description(),
+		Provider:       variant.Provider(),
+		Created:        variant.Created(),
+		Status:         variant.Status().String(),
+		LastUpdated:    variant.LastUpdated(),
+		Schedule:       variant.Schedule(),
+		Tags:           variant.Tags(),
+		SourceType:     getSourceType(variant),
+		Properties:     variant.Properties(),
+		Error:          variant.Error(),
+		Specifications: getSourceArgs(variant),
+		Inputs:         variant.getInputs(),
+	}
+
 }
 
 func (variant *SourceVariant) Name() string {

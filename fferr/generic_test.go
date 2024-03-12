@@ -1,19 +1,18 @@
 package fferr
 
 import (
-	"errors"
 	"fmt"
+	"reflect"
+	"testing"
+
 	pb "github.com/featureform/metadata/proto"
-	"github.com/rotisserie/eris"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
-	"reflect"
-	"testing"
 )
 
-func setErrorType(err baseGRPCError, errorType string) error {
+func setErrorType(err baseError, errorType string) error {
 	switch errorType {
 	case EXECUTION_ERROR:
 		return &ExecutionError{err}
@@ -106,7 +105,7 @@ func TestNewError(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			baseError := newBaseGRPCError(tt.innerError, tt.errorType, tt.errorCode)
+			baseError := newBaseError(tt.innerError, tt.errorType, tt.errorCode)
 			for _, detail := range tt.details {
 				for k, v := range detail {
 					baseError.AddDetail(k, v)
@@ -158,7 +157,7 @@ func TestNewErrorEmptyInner(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			baseError := newBaseGRPCError(tt.innerError, tt.errorType, tt.errorCode)
+			baseError := newBaseError(tt.innerError, tt.errorType, tt.errorCode)
 			for _, detail := range tt.details {
 				for k, v := range detail {
 					baseError.AddDetail(k, v)
@@ -167,65 +166,6 @@ func TestNewErrorEmptyInner(t *testing.T) {
 			err := setErrorType(baseError, tt.errorType)
 			if !reflect.DeepEqual(tt.err.Error(), err.Error()) {
 				t.Errorf("Error() = %v, want %v", tt.err.Error(), err.Error())
-			}
-		})
-	}
-}
-
-func TestFromErr(t *testing.T) {
-	tests := []struct {
-		name     string
-		err      error
-		expected string
-	}{
-		{
-			name:     "nil error",
-			err:      nil,
-			expected: "",
-		},
-		{
-			name: "already a GRPCError",
-			err: &baseGRPCError{
-				code:      codes.Internal,
-				errorType: "Reason",
-				GenericError: GenericError{
-					msg: "Message",
-					err: eris.New("mock grpc error"),
-				},
-			},
-			expected: "Reason: Message\n",
-		},
-		{
-			name:     "regular error",
-			err:      errors.New("regular error"),
-			expected: "Internal Error: regular error\n", // Assuming NewInternalError wraps any non-GRPC, non-status errors into a MockGRPCError
-		},
-		{
-			name:     "status error without details",
-			err:      status.Error(codes.Internal, "status error without details"),
-			expected: "Internal Error: status error without details\n", // Assuming NewInternalError is used for errors without details
-		},
-		{
-			name: "status error with ErrorInfo detail",
-			err: func() error {
-				st := status.New(codes.Internal, "invalid argument")
-				detail, _ := st.WithDetails(&errdetails.ErrorInfo{
-					Reason:   "Reason",
-					Metadata: map[string]string{"detail": "more info"},
-				})
-				return detail.Err()
-			}(),
-			expected: "Reason: \nDetails:\n*detail: more info\n", // Assuming the error message is handled differently for detailed status errors
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			grpcError := FromErr(tt.err)
-			if grpcError == nil && tt.expected != "" {
-				t.Errorf("Expected non-nil GRPCError for %v", tt.name)
-			} else if grpcError != nil && grpcError.Error() != tt.expected {
-				t.Errorf("FromErr(%v) = %v, want %v", tt.name, grpcError.Error(), tt.expected)
 			}
 		})
 	}
@@ -452,7 +392,7 @@ func TestToDashboardError(t *testing.T) {
 	}
 }
 
-func Test_baseGRPCError_AddDetail(t *testing.T) {
+func Test_baseError_AddDetail(t *testing.T) {
 	type fields struct {
 		code    codes.Code
 		errType string
@@ -471,7 +411,7 @@ func Test_baseGRPCError_AddDetail(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := &baseGRPCError{
+			e := &baseError{
 				code:      tt.fields.code,
 				errorType: tt.fields.errType,
 				GenericError: GenericError{
@@ -483,7 +423,7 @@ func Test_baseGRPCError_AddDetail(t *testing.T) {
 	}
 }
 
-func Test_baseGRPCError_Error(t *testing.T) {
+func Test_baseError_Error(t *testing.T) {
 	type fields struct {
 		code         codes.Code
 		errorType    string
@@ -498,7 +438,7 @@ func Test_baseGRPCError_Error(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := &baseGRPCError{
+			e := &baseError{
 				code:         tt.fields.code,
 				errorType:    tt.fields.errorType,
 				GenericError: tt.fields.GenericError,
@@ -510,7 +450,7 @@ func Test_baseGRPCError_Error(t *testing.T) {
 	}
 }
 
-func Test_baseGRPCError_GRPCStatus(t *testing.T) {
+func Test_baseError_GRPCStatus(t *testing.T) {
 	type fields struct {
 		code         codes.Code
 		errorType    string
@@ -523,7 +463,7 @@ func Test_baseGRPCError_GRPCStatus(t *testing.T) {
 	}{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := &baseGRPCError{
+			e := &baseError{
 				code:         tt.fields.code,
 				errorType:    tt.fields.errorType,
 				GenericError: tt.fields.GenericError,
@@ -535,7 +475,7 @@ func Test_baseGRPCError_GRPCStatus(t *testing.T) {
 	}
 }
 
-func Test_baseGRPCError_GetCode(t *testing.T) {
+func Test_baseError_GetCode(t *testing.T) {
 	type fields struct {
 		code         codes.Code
 		errorType    string
@@ -550,7 +490,7 @@ func Test_baseGRPCError_GetCode(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := &baseGRPCError{
+			e := &baseError{
 				code:         tt.fields.code,
 				errorType:    tt.fields.errorType,
 				GenericError: tt.fields.GenericError,
@@ -562,7 +502,7 @@ func Test_baseGRPCError_GetCode(t *testing.T) {
 	}
 }
 
-func Test_baseGRPCError_GetType(t *testing.T) {
+func Test_baseError_GetType(t *testing.T) {
 	type fields struct {
 		code         codes.Code
 		errorType    string
@@ -577,7 +517,7 @@ func Test_baseGRPCError_GetType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := &baseGRPCError{
+			e := &baseError{
 				code:         tt.fields.code,
 				errorType:    tt.fields.errorType,
 				GenericError: tt.fields.GenericError,
@@ -589,7 +529,7 @@ func Test_baseGRPCError_GetType(t *testing.T) {
 	}
 }
 
-func Test_baseGRPCError_Stack(t *testing.T) {
+func Test_baseError_Stack(t *testing.T) {
 	type fields struct {
 		code         codes.Code
 		errorType    string
@@ -604,7 +544,7 @@ func Test_baseGRPCError_Stack(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := &baseGRPCError{
+			e := &baseError{
 				code:         tt.fields.code,
 				errorType:    tt.fields.errorType,
 				GenericError: tt.fields.GenericError,
@@ -616,7 +556,7 @@ func Test_baseGRPCError_Stack(t *testing.T) {
 	}
 }
 
-func Test_baseGRPCError_ToErr(t *testing.T) {
+func Test_baseError_ToErr(t *testing.T) {
 	type fields struct {
 		code         codes.Code
 		errorType    string
@@ -631,7 +571,7 @@ func Test_baseGRPCError_ToErr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := &baseGRPCError{
+			e := &baseError{
 				code:         tt.fields.code,
 				errorType:    tt.fields.errorType,
 				GenericError: tt.fields.GenericError,
@@ -643,7 +583,7 @@ func Test_baseGRPCError_ToErr(t *testing.T) {
 	}
 }
 
-func Test_newBaseGRPCError(t *testing.T) {
+func Test_newBaseError(t *testing.T) {
 	type args struct {
 		err       error
 		errorType string
@@ -652,14 +592,59 @@ func Test_newBaseGRPCError(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want baseGRPCError
+		want baseError
 	}{
 		// TODO: Add test cases.
+		{
+			name: "Simple",
+			args: args{
+				err:       fmt.Errorf("test error"),
+				errorType: INVALID_ARGUMENT,
+				code:      codes.InvalidArgument,
+			},
+			want: baseError{
+				code:      codes.InvalidArgument,
+				errorType: INVALID_ARGUMENT,
+				GenericError: GenericError{
+					err:     fmt.Errorf("test error"),
+					details: map[string]string{},
+				},
+			},
+		},
+		{
+			name: "Nil Error",
+			args: args{
+				err:       nil,
+				errorType: INVALID_ARGUMENT,
+				code:      codes.InvalidArgument,
+			},
+			want: baseError{
+				code:      codes.InvalidArgument,
+				errorType: "Invalid Argument",
+				GenericError: GenericError{
+					err:     fmt.Errorf("initial error"),
+					details: map[string]string{},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := newBaseGRPCError(tt.args.err, tt.args.errorType, tt.args.code); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("newBaseGRPCError() = %v, want %v", got, tt.want)
+			got := newBaseError(tt.args.err, tt.args.errorType, tt.args.code)
+
+			if got.code != tt.want.code {
+				t.Errorf("newBaseError() = %v, want %v", got.code, tt.want.code)
+			}
+			if got.errorType != tt.want.errorType {
+				t.Errorf("newBaseError() = %v, want %v", got.errorType, tt.want.errorType)
+			}
+
+			if got.err.Error() != tt.want.err.Error() {
+				t.Errorf("newBaseError() = %v, want %v", got.Error(), tt.want.Error())
+			}
+
+			if got.GRPCStatus().Code() != tt.want.GRPCStatus().Code() {
+				t.Errorf("newBaseError() = %v, want %v", got.GRPCStatus().Code(), tt.want.GRPCStatus().Code())
 			}
 		})
 	}

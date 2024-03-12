@@ -125,7 +125,7 @@ class TrainingSetSplitIterator:
         start = datetime.datetime.now()
         next_row = self._split_stream.send_request(self.request_type)
         end = datetime.datetime.now()
-        print("Request time: ", end - start)
+        # print("Request time: ", end - start)
         rows = next_row.rows
 
         # Process and store the row data
@@ -153,7 +153,7 @@ class TrainingSetSplitIterator:
             batch_features_list.append(features)
             batch_labels_list.append(label)
         end = datetime.datetime.now()
-        print("Parse time: ", end - start)
+        # print("Parse time: ", end - start)
 
         if next_row.iterator_done:
             self._complete = True

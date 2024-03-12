@@ -13,10 +13,8 @@ import (
 	pb "github.com/featureform/proto"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
-	"sync"
-	"time"
-
 	"go.uber.org/zap"
+	"sync"
 )
 
 type FeatureServer struct {
@@ -109,7 +107,7 @@ func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainingTestSplit
 		if err != nil {
 			return err
 		}
-		start := time.Now()
+		//start := time.Now()
 
 		id := req.GetId()
 		name, variant := id.GetName(), id.GetVersion()
@@ -135,15 +133,15 @@ func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainingTestSplit
 				return err
 			}
 		default:
-			startTime := time.Now()
+			//startTime := time.Now()
 			if err := serv.handleSplitDataRequest(&ctx); err != nil {
 				featureObserver.SetError()
 				return err
 			}
-			endTime := time.Now()
-			serv.Logger.Infow("Time to Query", "time", endTime.Sub(startTime).Seconds())
-			end := time.Now()
-			serv.Logger.Infow("Feature Server Latency", "time", end.Sub(start).Seconds())
+			//endTime := time.Now()
+			//serv.Logger.Infow("Time to Query", "time", endTime.Sub(startTime).Seconds())
+			//end := time.Now()
+			//serv.Logger.Infow("Feature Server Latency", "time", end.Sub(start).Seconds())
 		}
 	}
 }

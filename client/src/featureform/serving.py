@@ -854,9 +854,7 @@ class BatchRow:
 
 def parse_proto_value(value):
     """parse_proto_value is used to parse the one of Value message"""
-    # return getattr(value, value.WhichOneof("value"))
-    # TODO: Cache this instead of hard coding it
-    return getattr(value, "float_value")
+    return getattr(value, value.WhichOneof("value"))
 
 
 def proto_type_to_np_type(value):

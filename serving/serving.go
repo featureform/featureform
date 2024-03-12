@@ -167,9 +167,9 @@ func (serv *FeatureServer) handleSplitInitializeRequest(ctx *splitContext) error
 	*ctx.trainIterator = train
 	*ctx.testIterator = test
 
-	initResponse := &pb.BatchTestSplitResponse{
+	initResponse := &pb.BatchTrainTestSplitResponse{
 		RequestType:       pb.RequestType_INITIALIZE,
-		TrainingTestSplit: &pb.BatchTestSplitResponse_Initialized{Initialized: true},
+		TrainingTestSplit: &pb.BatchTrainTestSplitResponse_Initialized{Initialized: true},
 	}
 
 	if err := ctx.stream.Send(initResponse); err != nil {
@@ -212,8 +212,8 @@ func (serv *FeatureServer) handleSplitDataRequest(ctx *splitContext) error {
 		}
 	}
 
-	response := &pb.BatchTestSplitResponse{
-		TrainingTestSplit: &pb.BatchTestSplitResponse_Rows{
+	response := &pb.BatchTrainTestSplitResponse{
+		TrainingTestSplit: &pb.BatchTrainTestSplitResponse_Rows{
 			Rows: &pb.TrainingDataRows{Rows: trainingDataRows},
 		},
 	}
@@ -241,8 +241,8 @@ func (serv *FeatureServer) handleFinishedIterator(trainingDataRows []*pb.Trainin
 	if *ctx.isTestFinished && *ctx.isTrainFinished {
 		return // return so that we can close the stream
 	} else {
-		response := &pb.BatchTestSplitResponse{
-			TrainingTestSplit: &pb.BatchTestSplitResponse_Rows{
+		response := &pb.BatchTrainTestSplitResponse{
+			TrainingTestSplit: &pb.BatchTrainTestSplitResponse_Rows{
 				Rows: &pb.TrainingDataRows{Rows: trainingDataRows},
 			},
 			IteratorDone: true,

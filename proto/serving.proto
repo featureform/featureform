@@ -10,7 +10,7 @@ package featureform.serving.proto;
 
 service Feature {
   rpc TrainingData(TrainingDataRequest) returns (stream TrainingDataRow) {}
-  rpc TrainingTestSplit(stream TrainingTestSplitRequest) returns (stream BatchTestSplitResponse) {}
+  rpc TrainingTestSplit(stream TrainingTestSplitRequest) returns (stream BatchTrainTestSplitResponse) {}
   rpc TrainingDataColumns(TrainingDataColumnsRequest) returns (TrainingColumns) {}
   rpc FeatureServe(FeatureServeRequest) returns (FeatureRow) {}
   rpc SourceData(SourceDataRequest) returns (stream SourceDataRow) {}
@@ -176,7 +176,7 @@ message TrainingTestSplitResponse {
   }
 }
 
-message BatchTestSplitResponse {
+message BatchTrainTestSplitResponse {
   RequestType request_type = 1;
   bool iterator_done = 2;
   oneof training_test_split {

@@ -10,9 +10,9 @@ real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
 
 
-def response(req_type, iterator_done):
+def response(req_type, iterator_done) -> serving_pb2.BatchTrainTestSplitResponse:
     if req_type == serving_pb2.RequestType.INITIALIZE:
-        return serving_pb2.TrainingTestSplitResponse(
+        return serving_pb2.BatchTrainTestSplitResponse(
             request_type=req_type, initialized=True
         )
     elif req_type == serving_pb2.RequestType.TRAINING:
@@ -20,28 +20,32 @@ def response(req_type, iterator_done):
     elif req_type == serving_pb2.RequestType.TEST:
         label_value = "test"
 
-    req = serving_pb2.TrainingTestSplitResponse(
+    return serving_pb2.BatchTrainTestSplitResponse(
         request_type=req_type,
-        row=serving_pb2.TrainingDataRow(
-            features=[
-                serving_pb2.Value(str_value="f1"),
-                serving_pb2.Value(int_value=1),
-                serving_pb2.Value(bool_value=False),
-            ],
-            label=serving_pb2.Value(str_value=label_value),
+        rows=serving_pb2.TrainingDataRows(
+            rows=[
+                serving_pb2.TrainingDataRow(
+                    features=[
+                        serving_pb2.Value(str_value="f1"),
+                        serving_pb2.Value(int_value=1),
+                        serving_pb2.Value(bool_value=False),
+                    ],
+                    label=serving_pb2.Value(str_value=label_value),
+                )
+            ]
         ),
         iterator_done=iterator_done,
     )
-    return req
 
 
 class MockGrpcStub:
-    def __init__(self, num_rows):
+    def __init__(self, num_rows, batch_size=1):
         self.num_rows = num_rows
         self.train_rows = 0
         self.test_rows = 0
+        self.batch_size = batch_size
 
-    def TrainingTestSplit(self, iterator):
+    def TrainingTestSplit(self, iterator) -> serving_pb2.BatchTrainTestSplitResponse:
         for value in iterator:
             iterator_done = False
             if value.request_type == serving_pb2.RequestType.TRAINING:
@@ -63,11 +67,11 @@ class MockStream:
     model = None
     _stub = None
 
-    def __init__(self, name, version, num_rows):
+    def __init__(self, name, version, num_rows, batch_size=1):
         self.name = name
         self.version = version
         self.num_rows = num_rows
-        self._stub = MockGrpcStub(self.num_rows)
+        self._stub = MockGrpcStub(self.num_rows, batch_size)
 
 
 @pytest.mark.parametrize(
@@ -143,7 +147,7 @@ def test_train_test_split():
 
 
 def test_train_test_batch():
-    train_test_stream = MockStream("name", "variant", 10)
+    train_test_stream = MockStream("name", "variant", 10, batch_size=5)
     dataset = Dataset(train_test_stream)
     train, test = dataset.train_test_split(
         test_size=0.5, train_size=0.5, shuffle=True, random_state=None, batch_size=5

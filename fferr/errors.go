@@ -1,14 +1,12 @@
 package fferr
 
 import (
-	"errors"
 	"fmt"
+
 	pb "github.com/featureform/metadata/proto"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
-	"strings"
 
-	"github.com/rotisserie/eris"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -72,7 +70,7 @@ const (
 
 type JSONStackTrace map[string]interface{}
 
-type GRPCError interface {
+type Error interface {
 	GetCode() codes.Code
 	GetType() string
 	GRPCStatus() *status.Status
@@ -107,99 +105,41 @@ func ToDashboardError(status *pb.ResourceStatus) string {
 	return err
 }
 
-func FromErr(err error) GRPCError {
-	// If the error is nil, then simply pass it through to
-	// avoid having to check for nil errors at the call site
-	if err == nil {
-		return nil
-	}
-	var grpcError GRPCError
-	if errors.As(err, &grpcError) {
-		return grpcError
-	}
-	st, ok := status.FromError(err)
-	if !ok {
-		return NewInternalError(err)
-	}
-	// If the error is a valid status error but doesn't have any details, it stems from a
-	// location in the codebase we haven't covered yet. In this case, we'll just return an
-	// InternalError
-	if len(st.Details()) == 0 {
-		fmt.Println("No Details")
-		return NewInternalError(fmt.Errorf(st.Message()))
-	}
-	// All fferr errors should have an ErrorInfo detail, so we'll iterate through the details
-	// and cast them to ErrorInfo. If we find one, we'll create the appropriate error type
-	// and return it
-	for _, detail := range st.Details() {
-		if errorInfo, ok := detail.(*errdetails.ErrorInfo); ok {
-			errorMsg := err.Error()
-			// This addresses the edge case where we receive a status error from another service and persist the
-			// error message to ETCD, which currently only occurs in the coordinator service. If the error message
-			// contains "rpc error:", we'll just return an empty string and let the GRPCError implementation of Error()
-			// handle the error message
-			if strings.Contains(err.Error(), "rpc error:") {
-				errorMsg = ""
-			}
-			var detailKeys []string
-			for k := range errorInfo.Metadata {
-				detailKeys = append(detailKeys, k)
-			}
-			grpcError = &baseGRPCError{
-				code:      st.Code(),
-				errorType: errorInfo.Reason,
-				GenericError: GenericError{
-					msg:        errorMsg,
-					err:        eris.New(err.Error()),
-					details:    errorInfo.Metadata,
-					detailKeys: detailKeys,
-				},
-			}
-			// If there's a need to return a public implementation of GRPCError (e.g. InvalidArgumentError)
-			// we can add a switch statement that checks the error type and returns the appropriate
-			// error type, which will simply wrap the baseGRPCError (e.g. &InvalidArgumentError{baseGRPCError})
-		} else {
-			grpcError = NewInternalError(err)
-		}
-	}
-	return grpcError
-}
-
-func newBaseGRPCError(err error, errorType string, code codes.Code) baseGRPCError {
+func newBaseError(err error, errorType string, code codes.Code) baseError {
 	if err == nil {
 		err = fmt.Errorf("initial error")
 	}
 	genericError := NewGenericError(err)
 
-	return baseGRPCError{
+	return baseError{
 		code:         code,
 		errorType:    errorType,
 		GenericError: genericError,
 	}
 }
 
-type baseGRPCError struct {
+type baseError struct {
 	code      codes.Code
 	errorType string
 	GenericError
 }
 
-func (e *baseGRPCError) GetCode() codes.Code {
+func (e *baseError) GetCode() codes.Code {
 	return e.code
 }
 
-func (e *baseGRPCError) GetType() string {
+func (e *baseError) GetType() string {
 	return e.errorType
 }
 
-func (e *baseGRPCError) GRPCStatus() *status.Status {
+func (e *baseError) GRPCStatus() *status.Status {
 	// Assumes ToErr() returns an error compatible with gRPC status errors.
 	// If not, you might need to adjust this to directly create and return
-	// a new status.Status from the baseGRPCError fields.
+	// a new status.Status from the baseError fields.
 	return status.Convert(e.ToErr())
 }
 
-func (e *baseGRPCError) ToErr() error {
+func (e *baseError) ToErr() error {
 	st := status.New(e.code, e.msg)
 	ef := &errdetails.ErrorInfo{
 		Reason:   e.errorType,
@@ -212,11 +152,11 @@ func (e *baseGRPCError) ToErr() error {
 	return st.Err()
 }
 
-func (e *baseGRPCError) AddDetail(key, value string) {
+func (e *baseError) AddDetail(key, value string) {
 	e.GenericError.AddDetail(key, value)
 }
 
-func (e *baseGRPCError) Error() string {
+func (e *baseError) Error() string {
 	msg := fmt.Sprintf("%s: %s\n", e.errorType, e.msg)
 	if len(e.details) == 0 {
 		return msg
@@ -228,6 +168,6 @@ func (e *baseGRPCError) Error() string {
 	return msg
 }
 
-func (e *baseGRPCError) Stack() JSONStackTrace {
+func (e *baseError) Stack() JSONStackTrace {
 	return e.GenericError.Stack()
 }

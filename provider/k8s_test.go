@@ -183,17 +183,11 @@ func TestBlobInterfaces(t *testing.T) {
 		"HDFS":  hdfsFileStore,
 	}
 	for testName, fileTest := range fileStoreTests {
-		fileTest = fileTest
-		testName = testName
 		for blobName, blobProvider := range blobProviders {
 			if testing.Short() && blobName == "Azure" {
 				t.Skip()
 			}
-			if blobName != "HDFS" {
-				continue
-			}
-			blobName = blobName
-			blobProvider = blobProvider
+
 			t.Run(fmt.Sprintf("%s: %s", testName, blobName), func(t *testing.T) {
 				fileTest(t, blobProvider)
 			})
@@ -635,6 +629,7 @@ func testDeleteAll(t *testing.T, store FileStore) {
 		if err != nil {
 			t.Fatalf("Could not create random file path: %v", err)
 		}
+		fmt.Println("-----", randomFilePath.ToURI())
 		if err := store.Write(randomFilePath, randomData); err != nil {
 			t.Fatalf("Could not write key to filestore: %v", err)
 		}

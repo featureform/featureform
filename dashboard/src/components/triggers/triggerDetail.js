@@ -115,15 +115,14 @@ export default function TriggerDetail({
         };
       });
       setResourceList(nameVariantList);
-
-      let shouldDisable = !(
-        details?.resources?.length === undefined ||
-        details?.resources?.length === 0
-      );
-      setIsDisabled(shouldDisable);
     } else {
       console.warn('Search results did not populate ok. Result:', results);
     }
+    let shouldDisable = !(
+      details?.resources?.length === undefined ||
+      details?.resources?.length === 0
+    );
+    setIsDisabled(shouldDisable);
   }, [details]);
 
   let alertBody = null;

@@ -1,4 +1,4 @@
-import datetime
+from collections import deque
 from typing import Tuple, Union
 
 import grpc
@@ -21,8 +21,8 @@ class TrainingSetSplitDetails:
 
     def to_proto(
         self, request_type: serving_pb2.RequestType
-    ) -> serving_pb2.TrainingTestSplitRequest:
-        req = serving_pb2.TrainingTestSplitRequest()
+    ) -> serving_pb2.TrainTestSplitRequest:
+        req = serving_pb2.TrainTestSplitRequest()
         req.id.name = self.name
         req.id.version = self.version
         if self.model is not None:
@@ -43,48 +43,62 @@ class _SplitStream:
     """
 
     def __init__(self, stub, training_set_split_details: TrainingSetSplitDetails):
-        self.request_queue = []
+        self.request_queue = deque()
         self.response_stream = None
         self.stub = stub
         self.training_set_split_details = training_set_split_details
 
     def start(self):
+        """Initializes the gRPC stream."""
         self.response_stream = self.stub.TrainingTestSplit(
             self._create_request_generator()
         )
-
-        # verify initialization response
         init_response = self.send_request(serving_pb2.RequestType.INITIALIZE)
         if not init_response.initialized:
             raise ValueError("Failed to initialize training test split")
-
         return self
 
     def send_request(self, request_type) -> serving_pb2.BatchTrainTestSplitResponse:
+        """Sends a request through the stream and returns the response."""
         req = self.training_set_split_details.to_proto(request_type)
         self.request_queue.append(req)
-        # TODO: Attempting to add a better error here if the message size is too large rather than throwing the GRPC stack
         try:
             response = next(self.response_stream)
             return response
         except grpc.RpcError as e:
-            # Check if the exception is due to resource exhaustion
+            print(f"Caught RPC error of type: {e.code()} - {e.details()}")
             if e.code() == grpc.StatusCode.RESOURCE_EXHAUSTED:
-                print("Caught RESOURCE_EXHAUSTED error")
-                return response
-            else:
-                # Handle other types of exceptions
-                print(f"Caught RPC error of type: {e.code()} - {e.details()}")
-                return response
+                print("Resource exhausted")
+            raise
 
     def _create_request_generator(self):
-        """
-        Creates a generator that yields requests from the request queue. Used to pass to the gRPC stub.
-        """
+        """Yields requests from the queue for the gRPC stream."""
         while True:
-            if len(self.request_queue) > 0:
-                request = self.request_queue.pop()
-                yield request
+            if self.request_queue:
+                yield self.request_queue.popleft()
+
+
+@dataclass
+class _IteratorTypes:
+    types: list
+    nptype: np.dtype
+    value_types: list
+
+    @staticmethod
+    def from_proto(row):
+        from featureform.serving import (
+            get_numpy_array_type,
+            proto_type_to_np_type,
+        )
+
+        feature_numpy_types = [
+            proto_type_to_np_type(feature) for feature in row.features
+        ]
+        numpy_array_type = get_numpy_array_type(feature_numpy_types)
+        feature_proto_types = [feature.WhichOneof("value") for feature in row.features]
+        return _IteratorTypes(
+            feature_numpy_types, numpy_array_type, feature_proto_types
+        )
 
 
 class TrainingSetSplitIterator:
@@ -98,6 +112,7 @@ class TrainingSetSplitIterator:
         self._split_stream = split_stream
         self._batch_size = batch_size
         self._complete = False
+        self._iterator_types = None
 
     @staticmethod
     def train_iter(split_stream, batch_size):
@@ -115,53 +130,40 @@ class TrainingSetSplitIterator:
         return self
 
     def __next__(self) -> Tuple[np.ndarray, np.ndarray]:
-        global types
         if self._complete:
             raise StopIteration
 
         batch_features_list = []
         batch_labels_list = []
 
-        start = datetime.datetime.now()
-        next_row = self._split_stream.send_request(self.request_type)
-        end = datetime.datetime.now()
-        # print("Request time: ", end - start)
-        rows = next_row.rows
+        result = self._split_stream.send_request(self.request_type)
+        data = result.data
 
-        # Process and store the row data
-        from featureform.serving import (
-            parse_proto_value,
-            get_numpy_array_type,
-            proto_type_to_np_type,
-        )
+        from featureform.serving import parse_proto_value
 
-        start = datetime.datetime.now()
-        for i, row in enumerate(rows.rows):
-            if i == 0:
-                types = [proto_type_to_np_type(feature) for feature in row.features]
-                nptype = get_numpy_array_type(types)
-                value_types = [feature.WhichOneof("value") for feature in row.features]
+        for i, row in enumerate(data.rows):
+            if self._iterator_types is None:
+                self._iterator_types = _IteratorTypes.from_proto(row)
 
             features = [
-                getattr(feature, value_types[j])
+                getattr(feature, self._iterator_types.value_types[j])
                 for j, feature in enumerate(row.features)
             ]
 
             label = parse_proto_value(row.label)
 
-            # for row in np_rows:
             batch_features_list.append(features)
             batch_labels_list.append(label)
-        end = datetime.datetime.now()
-        # print("Parse time: ", end - start)
 
-        if next_row.iterator_done:
+        if result.iterator_done:
             self._complete = True
 
         if not batch_features_list:  # If no data was collected
             raise StopIteration
 
-        batch_features = np.array(batch_features_list, dtype=nptype)
+        batch_features = np.array(
+            batch_features_list, dtype=self._iterator_types.nptype
+        )
         batch_labels = np.array(batch_labels_list)
 
         return batch_features, batch_labels

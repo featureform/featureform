@@ -595,11 +595,56 @@ func Test_newBaseError(t *testing.T) {
 		want baseError
 	}{
 		// TODO: Add test cases.
+		{
+			name: "Simple",
+			args: args{
+				err:       fmt.Errorf("test error"),
+				errorType: INVALID_ARGUMENT,
+				code:      codes.InvalidArgument,
+			},
+			want: baseError{
+				code:      codes.InvalidArgument,
+				errorType: INVALID_ARGUMENT,
+				GenericError: GenericError{
+					err:     fmt.Errorf("test error"),
+					details: map[string]string{},
+				},
+			},
+		},
+		{
+			name: "Nil Error",
+			args: args{
+				err:       nil,
+				errorType: INVALID_ARGUMENT,
+				code:      codes.InvalidArgument,
+			},
+			want: baseError{
+				code:      codes.InvalidArgument,
+				errorType: "Invalid Argument",
+				GenericError: GenericError{
+					err:     fmt.Errorf("initial error"),
+					details: map[string]string{},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := newBaseError(tt.args.err, tt.args.errorType, tt.args.code); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("newBaseError() = %v, want %v", got, tt.want)
+			got := newBaseError(tt.args.err, tt.args.errorType, tt.args.code)
+
+			if got.code != tt.want.code {
+				t.Errorf("newBaseError() = %v, want %v", got.code, tt.want.code)
+			}
+			if got.errorType != tt.want.errorType {
+				t.Errorf("newBaseError() = %v, want %v", got.errorType, tt.want.errorType)
+			}
+
+			if got.err.Error() != tt.want.err.Error() {
+				t.Errorf("newBaseError() = %v, want %v", got.Error(), tt.want.Error())
+			}
+
+			if got.GRPCStatus().Code() != tt.want.GRPCStatus().Code() {
+				t.Errorf("newBaseError() = %v, want %v", got.GRPCStatus().Code(), tt.want.GRPCStatus().Code())
 			}
 		})
 	}

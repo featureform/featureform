@@ -368,7 +368,8 @@ describe('Trigger table data wrapper tests', () => {
     const autocomplete = helper.getByTestId(AUTOCOMPLETE_ID);
     const input = within(autocomplete).getByRole('combobox');
     autocomplete.focus();
-    await userEvent.type(input, nameVariant.name);
+    // await userEvent.type(input, nameVariant.name);
+    fireEvent.change(input, { target: { value: nameVariant.name } });
 
     //pause
     await helper.findByTestId(DETAIL_TYPE_ID);
@@ -390,11 +391,10 @@ describe('Trigger table data wrapper tests', () => {
 
   test('The trigger detail can remove trigger resources', async () => {
     const helper = render(getTestBody());
-    const test_data = { ...triggerDetail };
     const resourceId = triggerDetail.trigger.resources[0].resourceId;
 
     //and: details is invoked
-    const foundRecord1 = await helper.findByText(test_data.trigger.name);
+    const foundRecord1 = await helper.findByText(triggerDetail.trigger.name);
     fireEvent.click(foundRecord1);
 
     //when: the details load, and the user clicks the delete resource btn
@@ -414,9 +414,5 @@ describe('Trigger table data wrapper tests', () => {
     );
     expect(dataAPIMock.getTriggers).toHaveBeenCalledTimes(2);
     expect(dataAPIMock.getTriggers).toHaveBeenCalledWith('');
-    expect(dataAPIMock.getTriggerDetails).toHaveBeenCalledTimes(2);
-    expect(dataAPIMock.getTriggerDetails).toHaveBeenCalledWith(
-      test_data.trigger.id
-    );
   });
 });

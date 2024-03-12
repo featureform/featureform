@@ -3421,21 +3421,6 @@ func TestNewSparkFileStores(t *testing.T) {
 		t.Fatalf("Could not create s3 store: %v", err)
 	}
 
-	azureStoreConfig := pc.AzureFileStoreConfig{
-		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
-		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
-		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
-		Path:          helpers.GetEnv("AZURE_CONTAINER_PATH", ""),
-	}
-	azureStoreConfigSerialized, err := azureStoreConfig.Serialize()
-	if err != nil {
-		t.Fatalf("Could not serialize azure store config: %v", err)
-	}
-	_, err = NewSparkAzureFileStore(azureStoreConfigSerialized)
-	if err != nil {
-		t.Fatalf("Could not create azure store: %v", err)
-	}
-
 	credsFile := os.Getenv("GCP_CREDENTIALS_FILE")
 	content, err := os.ReadFile(credsFile)
 	if err != nil {

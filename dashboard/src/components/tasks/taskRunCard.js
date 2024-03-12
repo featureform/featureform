@@ -159,6 +159,9 @@ export default function TaskRunCard({ handleClose, searchId }) {
               '& .MuiDataGrid-cell:focus': {
                 outline: 'none',
               },
+              '& .MuiDataGrid-columnHeaderTitle': {
+                fontWeight: 'bold',
+              },
             }}
             rows={taskRunRecord?.otherRuns ?? []}
             rowsPerPageOptions={[5]}

@@ -182,6 +182,44 @@ export function useDataAPI() {
     return result;
   };
 
+  const addTriggerResource = async (
+    triggerId = '',
+    name = '',
+    variant = ''
+  ) => {
+    const result = await fetch(`${API_URL}/data/triggeraddresource`, {
+      cache: 'no-store',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ triggerId, name, variant }),
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error adding trigger resource in server: ', error);
+        return [];
+      });
+
+    return result;
+  };
+
+  const searchResources = async () => {
+    const result = await fetch(`${API_URL}/data/search?q=""`, {
+      cache: 'no-store',
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error searching variants in server: ', error);
+        return [];
+      });
+    return result;
+  };
+
   return {
     getTags,
     postTags,
@@ -192,5 +230,7 @@ export function useDataAPI() {
     getTriggerDetails,
     deleteTrigger,
     deleteTriggerResource,
+    addTriggerResource,
+    searchResources,
   };
 }

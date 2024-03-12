@@ -1,11 +1,11 @@
 import { ThemeProvider } from '@mui/material/styles';
-import { cleanup, fireEvent, render } from '@testing-library/react';
+import { cleanup, fireEvent, render, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import 'jest-canvas-mock';
 import React from 'react';
 import TEST_THEME from '../../styles/theme';
 import TableDataWrapper from './tableDataWrapper';
-import { triggerDetail, triggerListResponse } from './test_data';
+import { resourceList, triggerDetail, triggerListResponse } from './test_data';
 import {
   CONFIRM_DELETE,
   DELETE_FINAL_WARNING,
@@ -18,6 +18,9 @@ const defaultMock = Object.freeze({
   postTrigger: jest.fn(),
   getTriggerDetails: jest.fn().mockResolvedValue(triggerDetail),
   deleteTrigger: jest.fn().mockResolvedValue(true),
+  searchResources: jest.fn().mockResolvedValue(resourceList),
+  addTriggerResource: jest.fn(),
+  deleteTriggerResource: jest.fn(),
 });
 let dataAPIMock = {};
 
@@ -46,6 +49,8 @@ describe('Trigger table data wrapper tests', () => {
   const ROW_DELETE_BTN_ = 'triggerDelete-';
   const DELETE_WARNING_ID = 'deleteWarning';
   const DELETE_FINAL_ID = 'deleteFinal';
+  const AUTOCOMPLETE_ID = 'addResourceId';
+  const DELETE_RESOURCE_ID_ = 'deleteResource-';
 
   // this is just a little hack to silence a warning that we'll get until we
   // upgrade to 16.9. See also: https://github.com/facebook/react/pull/14853
@@ -343,5 +348,71 @@ describe('Trigger table data wrapper tests', () => {
     expect(dataAPIMock.deleteTrigger).toHaveBeenCalledWith(
       test_data.trigger.id
     );
+  });
+
+  test('The trigger detail adds resources when the user clicks', async () => {
+    //given:
+    const helper = render(getTestBody());
+    const test_data = { ...triggerDetail };
+    const triggerId = test_data.trigger.id;
+    const nameVariant = {
+      name: 'ondemand_add_integers',
+      variant: '1709838479',
+    };
+
+    //and: details is invoked
+    const foundRecord1 = await helper.findByText(test_data.trigger.name);
+    fireEvent.click(foundRecord1);
+
+    //and: the autocomplete is used
+    const autocomplete = helper.getByTestId(AUTOCOMPLETE_ID);
+    const input = within(autocomplete).getByRole('combobox');
+    autocomplete.focus();
+    // await userEvent.type(input, nameVariant.name);
+    fireEvent.change(input, { target: { value: nameVariant.name } });
+
+    //pause
+    await helper.findByTestId(DETAIL_TYPE_ID);
+
+    // when: the first option is clicked
+    const option = helper.getAllByRole('option')[0];
+    fireEvent.click(option);
+    await helper.findByTestId(DETAIL_TYPE_ID);
+
+    //expect: add resources is invoked
+    expect(input.value).toContain(nameVariant.name);
+    expect(dataAPIMock.addTriggerResource).toHaveBeenCalledTimes(1);
+    expect(dataAPIMock.addTriggerResource).toHaveBeenCalledWith(
+      triggerId,
+      nameVariant.name,
+      nameVariant.variant
+    );
+  });
+
+  test('The trigger detail can remove trigger resources', async () => {
+    const helper = render(getTestBody());
+    const resourceId = triggerDetail.trigger.resources[0].resourceId;
+
+    //and: details is invoked
+    const foundRecord1 = await helper.findByText(triggerDetail.trigger.name);
+    fireEvent.click(foundRecord1);
+
+    //when: the details load, and the user clicks the delete resource btn
+    const resourceDeleteBtn = await helper.findByTestId(
+      DELETE_RESOURCE_ID_ + resourceId
+    );
+    fireEvent.click(resourceDeleteBtn);
+
+    //pause
+    await helper.findByTestId(DELETE_TRIGGER_BTN_ID);
+
+    //expect:
+    expect(dataAPIMock.deleteTriggerResource).toHaveBeenCalledTimes(1);
+    expect(dataAPIMock.deleteTriggerResource).toHaveBeenCalledWith(
+      triggerDetail.trigger.id,
+      resourceId
+    );
+    expect(dataAPIMock.getTriggers).toHaveBeenCalledTimes(2);
+    expect(dataAPIMock.getTriggers).toHaveBeenCalledWith('');
   });
 });

@@ -1915,6 +1915,39 @@ func (m *MetadataServer) DeleteTriggerResource(c *gin.Context) {
 	c.JSON(http.StatusOK, true)
 }
 
+type TriggerResourceAdd struct {
+	TriggerId string `json:"triggerId"`
+	Name      string `json:"name"`
+	Variant   string `json:"variant"`
+}
+
+func (m *MetadataServer) AddTriggerResource(c *gin.Context) {
+	var requestBody TriggerResourceAdd
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "AddTriggerResource - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	//find the trigger and add the resource, will eventually remove
+	for outerIndex, triggerItem := range taskTriggerList {
+		if triggerItem.ID == requestBody.TriggerId {
+			//create the new trigger resource
+			newResource := TriggerResource{
+				ID:       uuid.New().String(),
+				Resource: requestBody.Name,
+				Variant:  requestBody.Variant,
+				LastRun:  time.Now(),
+			}
+			//add the new item
+			triggerItem.Resources = append(triggerItem.Resources, newResource)
+			taskTriggerList[outerIndex] = triggerItem
+			break
+		}
+	}
+	c.JSON(http.StatusOK, true)
+}
+
 func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
@@ -1934,6 +1967,7 @@ func (m *MetadataServer) Start(port string) {
 	router.GET("/data/triggerdetail/:triggerId", m.GetTriggerDetails)
 	router.DELETE("/data/triggerdelete/:triggerId", m.DeleteTrigger)
 	router.POST("/data/triggerdeleteresource", m.DeleteTriggerResource)
+	router.POST("/data/triggeraddresource", m.AddTriggerResource)
 	router.Run(port)
 }
 

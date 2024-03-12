@@ -76,7 +76,7 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
               handleRowSelect(params);
             }}
           >
-            <RemoveCircleOutlineIcon fontSize='large' />
+            <RemoveCircleOutlineIcon fontSize='medium' />
           </IconButton>
         );
       },
@@ -98,6 +98,15 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
     e.preventDefault();
     if (resourceId && triggerId) {
       await dataAPI.deleteTriggerResource(triggerId, resourceId);
+      refresh?.();
+    }
+  };
+
+  const handleAddResource = async (e, triggerId, name, variant) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (triggerId && name && variant) {
+      await dataAPI.addTriggerResource(triggerId, name, variant);
       refresh?.();
     }
   };
@@ -129,6 +138,9 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
           '& .MuiDataGrid-row:hover': {
             cursor: 'pointer',
           },
+          '& .MuiDataGrid-columnHeaderTitle': {
+            fontWeight: 'bold',
+          },
         }}
         aria-label='Triggers'
         rows={triggerList ?? []}
@@ -145,6 +157,7 @@ export default function TriggerDataGrid({ triggerList = [], refresh }) {
         handleClose={handleCloseDialog}
         handleDelete={handleDelete}
         handleDeleteResource={handleDeleteResource}
+        handleAddResource={handleAddResource}
         rowDelete={rowDelete}
       />
     </>

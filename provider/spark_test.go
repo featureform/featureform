@@ -3380,6 +3380,10 @@ func TestDatabricksSubmitParams(t *testing.T) {
 }
 
 func TestNewSparkFileStores(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+
 	err := godotenv.Load("../.env")
 	if err != nil {
 		fmt.Println(err)

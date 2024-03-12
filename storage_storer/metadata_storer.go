@@ -41,7 +41,12 @@ func (s *MetadataStorer) Update(key string, updateFn func(string) (string, fferr
 }
 
 func (s *MetadataStorer) List(prefix string) (map[string]string, fferr.GRPCError) {
-	// TODO: how do we lock a prefix?
+	lock, err := s.Locker.Lock(prefix)
+	if err != nil {
+		return nil, err
+	}
+	defer s.Locker.Unlock(lock)
+
 	return s.Storer.List(prefix)
 }
 

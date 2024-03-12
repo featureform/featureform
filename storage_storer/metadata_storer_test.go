@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/featureform/fferr"
 	"github.com/featureform/locker"
 )
 
@@ -38,7 +39,7 @@ func StorerSet(t *testing.T, storage metadataStorerImplementation) {
 	}
 	tests := map[string]TestCase{
 		"Simple":   {"setTest/key1", "value1", nil},
-		"EmptyKey": {"", "value1", fmt.Errorf("key is empty")},
+		"EmptyKey": {"", "value1", fferr.NewInvalidArgumentError(fmt.Errorf("key is empty"))},
 	}
 
 	for name, test := range tests {
@@ -305,7 +306,7 @@ func testCreate(t *testing.T, ms MetadataStorer) {
 	}
 }
 
-func updateFn(currentValue string) (string, error) {
+func updateFn(currentValue string) (string, fferr.GRPCError) {
 	return fmt.Sprintf("%s_updated", currentValue), nil
 }
 

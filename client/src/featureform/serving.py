@@ -24,7 +24,7 @@ from .enums import FileFormat, ResourceType
 from .register import FeatureColumnResource
 from .resources import Model
 from .tls import insecure_channel, secure_channel
-from .training_test_split import TrainingSetTestSplit
+from .train_test_split import TrainingSetTestSplit
 
 from .version import check_up_to_date
 

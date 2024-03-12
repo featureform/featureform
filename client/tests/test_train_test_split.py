@@ -45,7 +45,7 @@ class MockGrpcStub:
         self.test_rows = 0
         self.batch_size = batch_size
 
-    def TrainingTestSplit(self, iterator) -> serving_pb2.BatchTrainTestSplitResponse:
+    def TrainTestSplit(self, iterator) -> serving_pb2.BatchTrainTestSplitResponse:
         rows_to_return = self.batch_size
         for value in iterator:
             iterator_done = False

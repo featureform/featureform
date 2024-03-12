@@ -10,7 +10,7 @@ from featureform.proto import serving_pb2
 
 
 @dataclass
-class TrainingSetSplitDetails:
+class TrainTestSplitDetails:
     name: str
     version: str
     model: Union[str, Model]
@@ -39,28 +39,28 @@ class TrainingSetSplitDetails:
 
 class _SplitStream:
     """
-    Handles the gRPC stream for the training test split
+    Handles the gRPC stream for the train test split
     """
 
-    def __init__(self, stub, training_set_split_details: TrainingSetSplitDetails):
+    def __init__(self, stub, train_set_split_details: TrainTestSplitDetails):
         self.request_queue = deque()
         self.response_stream = None
         self.stub = stub
-        self.training_set_split_details = training_set_split_details
+        self.train_test_split_details = train_set_split_details
 
     def start(self):
         """Initializes the gRPC stream."""
-        self.response_stream = self.stub.TrainingTestSplit(
+        self.response_stream = self.stub.TrainTestSplit(
             self._create_request_generator()
         )
         init_response = self.send_request(serving_pb2.RequestType.INITIALIZE)
         if not init_response.initialized:
-            raise ValueError("Failed to initialize training test split")
+            raise ValueError("Failed to initialize train test split")
         return self
 
     def send_request(self, request_type) -> serving_pb2.BatchTrainTestSplitResponse:
         """Sends a request through the stream and returns the response."""
-        req = self.training_set_split_details.to_proto(request_type)
+        req = self.train_test_split_details.to_proto(request_type)
         self.request_queue.append(req)
         try:
             response = next(self.response_stream)
@@ -101,7 +101,7 @@ class _IteratorTypes:
         )
 
 
-class TrainingSetSplitIterator:
+class TrainTestSplitIterator:
     def __init__(
         self,
         split_stream: _SplitStream,
@@ -116,13 +116,13 @@ class TrainingSetSplitIterator:
 
     @staticmethod
     def train_iter(split_stream, batch_size):
-        return TrainingSetSplitIterator(
+        return TrainTestSplitIterator(
             split_stream, batch_size, serving_pb2.RequestType.TRAINING
         )
 
     @staticmethod
     def test_iter(split_stream, batch_size):
-        return TrainingSetSplitIterator(
+        return TrainTestSplitIterator(
             split_stream, batch_size, serving_pb2.RequestType.TEST
         )
 
@@ -190,7 +190,7 @@ class TrainingSetTestSplit:
         self.train_iter = None
         self.test_iter = None
 
-        self.training_set_split_details = TrainingSetSplitDetails(
+        self.train_test_split_details = TrainTestSplitDetails(
             name=name,
             version=version,
             model=model,
@@ -200,10 +200,10 @@ class TrainingSetTestSplit:
             batch_size=batch_size,
         )
 
-        self._split_stream = _SplitStream(stub, self.training_set_split_details).start()
+        self._split_stream = _SplitStream(stub, self.train_test_split_details).start()
 
     def split(self):
         return (
-            TrainingSetSplitIterator.train_iter(self._split_stream, self.batch_size),
-            TrainingSetSplitIterator.test_iter(self._split_stream, self.batch_size),
+            TrainTestSplitIterator.train_iter(self._split_stream, self.batch_size),
+            TrainTestSplitIterator.test_iter(self._split_stream, self.batch_size),
         )

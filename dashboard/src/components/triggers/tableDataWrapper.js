@@ -1,4 +1,3 @@
-import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import {
   Box,
@@ -9,7 +8,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useDataAPI } from '../../hooks/dataAPI';
 import NewTrigger from './newTrigger';
 import { useStyles } from './styles';
@@ -23,6 +22,7 @@ export default function TableDataWrapper() {
   const [triggerList, setTriggerList] = useState([]);
   const [openNew, setOpenNew] = useState(false);
   const [loading, setLoading] = useState(true);
+  const ref = useRef();
 
   useEffect(async () => {
     if (loading) {
@@ -60,68 +60,68 @@ export default function TableDataWrapper() {
       <Box className={classes.inputRow}>
         <Button
           variant='contained'
-          style={{ background: '#7A14E5' }}
+          style={{ background: '#7A14E5', marginRight: '1em' }}
           onClick={handleNewTrigger}
           data-testid='newTriggerId'
+          ref={ref}
         >
           <>
-            <AddIcon />
-            <Typography variant='button'>New Trigger</Typography>
+            <Typography
+              variant='button'
+              textTransform={'none'}
+              fontWeight={'bold'}
+            >
+              New Trigger
+            </Typography>
           </>
         </Button>
-        <Box style={{ float: 'right' }}>
-          <TextField
-            label='Search'
-            InputLabelProps={{ shrink: true }}
-            size='small'
-            onChange={(event) => {
-              const rawText = event.target.value;
-              if (rawText === '') {
-                // user is deleting the text field. allow this and clear out state
-                setSearchQuery(rawText);
-                handleSearch('');
-                return;
-              }
-              const searchText = event.target.value ?? '';
-              if (searchText.trim()) {
-                setSearchQuery(searchText);
-              }
-            }}
-            value={searchQuery}
-            onKeyDown={(event) => {
-              if (event.key === ENTER_KEY && searchQuery) {
-                handleSearch(searchQuery);
-              }
-            }}
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position='end'>
-                  <IconButton>
-                    <SearchIcon />
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-            className={classes.filterInput}
-            inputProps={{
-              'aria-label': 'search triggers',
-              'data-testid': 'searcInputId',
-            }}
-          />
-        </Box>
+        <TextField
+          label='Search'
+          InputLabelProps={{ shrink: true }}
+          size='small'
+          onChange={(event) => {
+            const rawText = event.target.value;
+            if (rawText === '') {
+              // user is deleting the text field. allow this and clear out state
+              setSearchQuery(rawText);
+              handleSearch('');
+              return;
+            }
+            const searchText = event.target.value ?? '';
+            if (searchText.trim()) {
+              setSearchQuery(searchText);
+            }
+          }}
+          value={searchQuery}
+          onKeyDown={(event) => {
+            if (event.key === ENTER_KEY && searchQuery) {
+              handleSearch(searchQuery);
+            }
+          }}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position='end'>
+                <IconButton>
+                  <SearchIcon />
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+          className={classes.filterInput}
+          inputProps={{
+            'aria-label': 'search triggers',
+            'data-testid': 'searcInputId',
+          }}
+        />
       </Box>
       <TriggerDataGrid triggerList={triggerList} refresh={refresh} />
       <Popover
         open={openNew}
-        anchorReference='anchorPosition'
-        anchorPosition={{ top: 210, left: 275 }}
+        anchorReference='anchorEl'
         onClose={handleClose}
+        anchorEl={ref?.current}
         anchorOrigin={{
-          vertical: 'top',
-          horizontal: 'left',
-        }}
-        transformOrigin={{
-          vertical: 'top',
+          vertical: 'bottom',
           horizontal: 'left',
         }}
       >

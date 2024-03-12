@@ -10,7 +10,7 @@ func NewJobDoesNotExistError(key string, err error) *JobDoesNotExistError {
 	if err == nil {
 		err = fmt.Errorf("job does not exist")
 	}
-	baseError := newBaseGRPCError(err, JOB_DOES_NOT_EXIST, codes.NotFound)
+	baseError := newBaseError(err, JOB_DOES_NOT_EXIST, codes.NotFound)
 	baseError.AddDetail("key", key)
 
 	return &JobDoesNotExistError{
@@ -19,14 +19,14 @@ func NewJobDoesNotExistError(key string, err error) *JobDoesNotExistError {
 }
 
 type JobDoesNotExistError struct {
-	baseGRPCError
+	baseError
 }
 
 func NewResourceAlreadyCompleteError(resourceName, resourceVariant string, resourceType ResourceType, err error) *ResourceAlreadyCompleteError {
 	if err == nil {
 		err = fmt.Errorf("resource already complete")
 	}
-	baseError := newBaseGRPCError(err, RESOURCE_ALREADY_COMPLETE, codes.Internal)
+	baseError := newBaseError(err, RESOURCE_ALREADY_COMPLETE, codes.Internal)
 	baseError.AddDetail("resource_name", resourceName)
 	baseError.AddDetail("resource_variant", resourceVariant)
 	baseError.AddDetail("resource_type", string(resourceType))
@@ -37,14 +37,14 @@ func NewResourceAlreadyCompleteError(resourceName, resourceVariant string, resou
 }
 
 type ResourceAlreadyCompleteError struct {
-	baseGRPCError
+	baseError
 }
 
 func NewResourceAlreadyFailedError(resourceName, resourceVariant string, resourceType ResourceType, err error) *ResourceAlreadyFailedError {
 	if err == nil {
 		err = fmt.Errorf("resource already failed")
 	}
-	baseError := newBaseGRPCError(err, RESOURCE_ALREADY_FAILED, codes.Internal)
+	baseError := newBaseError(err, RESOURCE_ALREADY_FAILED, codes.Internal)
 	baseError.AddDetail("resource_name", resourceName)
 	baseError.AddDetail("resource_variant", resourceVariant)
 	baseError.AddDetail("resource_type", string(resourceType))
@@ -55,14 +55,14 @@ func NewResourceAlreadyFailedError(resourceName, resourceVariant string, resourc
 }
 
 type ResourceAlreadyFailedError struct {
-	baseGRPCError
+	baseError
 }
 
 func NewResourceNotReadyError(resourceName, resourceVariant string, resourceType ResourceType, err error) *ResourceNotReadyError {
 	if err == nil {
 		err = fmt.Errorf("resource not ready")
 	}
-	baseError := newBaseGRPCError(err, RESOURCE_NOT_READY, codes.Internal)
+	baseError := newBaseError(err, RESOURCE_NOT_READY, codes.Internal)
 	baseError.AddDetail("resource_name", resourceName)
 	baseError.AddDetail("resource_variant", resourceVariant)
 	baseError.AddDetail("resource_type", string(resourceType))
@@ -73,14 +73,14 @@ func NewResourceNotReadyError(resourceName, resourceVariant string, resourceType
 }
 
 type ResourceNotReadyError struct {
-	baseGRPCError
+	baseError
 }
 
 func NewResourceFailedError(resourceName, resourceVariant string, resourceType ResourceType, err error) *ResourceFailedError {
 	if err == nil {
 		err = fmt.Errorf("resource failed")
 	}
-	baseError := newBaseGRPCError(err, RESOURCE_FAILED, codes.Internal)
+	baseError := newBaseError(err, RESOURCE_FAILED, codes.Internal)
 	baseError.AddDetail("resource_name", resourceName)
 	baseError.AddDetail("resource_variant", resourceVariant)
 	baseError.AddDetail("resource_type", string(resourceType))
@@ -91,14 +91,14 @@ func NewResourceFailedError(resourceName, resourceVariant string, resourceType R
 }
 
 type ResourceFailedError struct {
-	baseGRPCError
+	baseError
 }
 
 func NewJobAlreadyExistsError(key string, err error) *JobAlreadyExistsError {
 	if err == nil {
 		err = fmt.Errorf("job already exists")
 	}
-	baseError := newBaseGRPCError(err, JOB_ALREADY_EXISTS, codes.AlreadyExists)
+	baseError := newBaseError(err, JOB_ALREADY_EXISTS, codes.AlreadyExists)
 	baseError.AddDetail("key", key)
 
 	return &JobAlreadyExistsError{
@@ -107,5 +107,5 @@ func NewJobAlreadyExistsError(key string, err error) *JobAlreadyExistsError {
 }
 
 type JobAlreadyExistsError struct {
-	baseGRPCError
+	baseError
 }

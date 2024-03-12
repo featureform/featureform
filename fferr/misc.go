@@ -10,7 +10,7 @@ func NewInternalError(err error) *InternalError {
 	if err == nil {
 		err = fmt.Errorf("internal")
 	}
-	baseError := newBaseGRPCError(err, INTERNAL_ERROR, codes.Internal)
+	baseError := newBaseError(err, INTERNAL_ERROR, codes.Internal)
 
 	return &InternalError{
 		baseError,
@@ -18,14 +18,14 @@ func NewInternalError(err error) *InternalError {
 }
 
 type InternalError struct {
-	baseGRPCError
+	baseError
 }
 
 func NewInvalidArgumentError(err error) *InvalidArgumentError {
 	if err == nil {
 		err = fmt.Errorf("invalid argument")
 	}
-	baseError := newBaseGRPCError(err, INVALID_ARGUMENT, codes.InvalidArgument)
+	baseError := newBaseError(err, INVALID_ARGUMENT, codes.InvalidArgument)
 
 	return &InvalidArgumentError{
 		baseError,
@@ -33,7 +33,7 @@ func NewInvalidArgumentError(err error) *InvalidArgumentError {
 }
 
 type InvalidArgumentError struct {
-	baseGRPCError
+	baseError
 }
 
 // TODO: Consider moving to etcd.go
@@ -41,7 +41,7 @@ func NewKeyNotFoundError(key string, err error) *KeyNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("key not found")
 	}
-	baseError := newBaseGRPCError(err, KEY_NOT_FOUND, codes.NotFound)
+	baseError := newBaseError(err, KEY_NOT_FOUND, codes.NotFound)
 	baseError.AddDetail("key", key)
 
 	return &KeyNotFoundError{
@@ -50,5 +50,5 @@ func NewKeyNotFoundError(key string, err error) *KeyNotFoundError {
 }
 
 type KeyNotFoundError struct {
-	baseGRPCError
+	baseError
 }

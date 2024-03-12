@@ -10,7 +10,7 @@ package featureform.serving.proto;
 
 service Feature {
   rpc TrainingData(TrainingDataRequest) returns (stream TrainingDataRow) {}
-  rpc TrainingTestSplit(stream TrainingTestSplitRequest) returns (stream BatchTrainTestSplitResponse) {}
+  rpc TrainTestSplit(stream TrainTestSplitRequest) returns (stream BatchTrainTestSplitResponse) {}
   rpc TrainingDataColumns(TrainingDataColumnsRequest) returns (TrainingColumns) {}
   rpc FeatureServe(FeatureServeRequest) returns (FeatureRow) {}
   rpc SourceData(SourceDataRequest) returns (stream SourceDataRow) {}
@@ -150,15 +150,15 @@ message ResourceLocation {
   string location = 1;
 }
 
-message TrainingTestSplitRequest {
+message TrainTestSplitRequest {
   TrainingDataID id = 1;
   Model model = 2;
   float test_size = 3;
   float train_size = 4;
   bool shuffle = 5;
   int32 random_state = 6;  // Seed for shuffling, if shuffle is true
-  RequestType request_type = 7;  // NEW: Specify the type of data being requested
-  int32 batch_size = 8;  // NEW: Specify the batch size for the response
+  RequestType request_type = 7;  // Specify the type of data being requested
+  int32 batch_size = 8;  // batch size for the response
 }
 
 enum RequestType {
@@ -167,21 +167,12 @@ enum RequestType {
   TEST = 2;      // Client is requesting test data
 }
 
-message TrainingTestSplitResponse {
-  RequestType request_type = 1;
-  bool iterator_done = 2;
-  oneof training_test_split {
-    bool initialized = 3;
-    TrainingDataRow row = 4;
-  }
-}
-
 message BatchTrainTestSplitResponse {
   RequestType request_type = 1;
   bool iterator_done = 2;
-  oneof training_test_split {
+  oneof result {
     bool initialized = 3;
-    TrainingDataRows rows = 4;
+    TrainingDataRows data = 4;
   }
 }
 

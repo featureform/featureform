@@ -80,8 +80,8 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 }
 
 type splitContext struct {
-	stream          pb.Feature_TrainingTestSplitServer
-	req             *pb.TrainingTestSplitRequest
+	stream          pb.Feature_TrainTestSplitServer
+	req             *pb.TrainTestSplitRequest
 	trainIterator   *provider.TrainingSetIterator
 	testIterator    *provider.TrainingSetIterator
 	isTestFinished  *bool
@@ -89,7 +89,7 @@ type splitContext struct {
 	logger          *zap.SugaredLogger
 }
 
-func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainingTestSplitServer) error {
+func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainTestSplitServer) error {
 	var (
 		trainIter, testIter provider.TrainingSetIterator
 		isTrainFinished     bool
@@ -107,7 +107,6 @@ func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainingTestSplit
 		if err != nil {
 			return err
 		}
-		//start := time.Now()
 
 		id := req.GetId()
 		name, variant := id.GetName(), id.GetVersion()
@@ -133,15 +132,10 @@ func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainingTestSplit
 				return err
 			}
 		default:
-			//startTime := time.Now()
 			if err := serv.handleSplitDataRequest(&ctx); err != nil {
 				featureObserver.SetError()
 				return err
 			}
-			//endTime := time.Now()
-			//serv.Logger.Infow("Time to Query", "time", endTime.Sub(startTime).Seconds())
-			//end := time.Now()
-			//serv.Logger.Infow("Feature Server Latency", "time", end.Sub(start).Seconds())
 		}
 	}
 }
@@ -166,8 +160,8 @@ func (serv *FeatureServer) handleSplitInitializeRequest(ctx *splitContext) error
 	*ctx.testIterator = test
 
 	initResponse := &pb.BatchTrainTestSplitResponse{
-		RequestType:       pb.RequestType_INITIALIZE,
-		TrainingTestSplit: &pb.BatchTrainTestSplitResponse_Initialized{Initialized: true},
+		RequestType: pb.RequestType_INITIALIZE,
+		Result:      &pb.BatchTrainTestSplitResponse_Initialized{Initialized: true},
 	}
 
 	if err := ctx.stream.Send(initResponse); err != nil {
@@ -194,16 +188,12 @@ func (serv *FeatureServer) handleSplitDataRequest(ctx *splitContext) error {
 
 	for rows < int(ctx.req.BatchSize) {
 		if thisIter.Next() {
-			//startTime := time.Now()
 			sRow, err := serializedRow(thisIter.Features(), thisIter.Label())
-			//serv.Logger.Infow("Serialized Row", "Row", sRow.String())
 			if err != nil {
 				return err
 			}
 			trainingDataRows = append(trainingDataRows, sRow)
 			rows++
-			//endTime := time.Now()
-			//serv.Logger.Infow("Time for single row", "time", endTime.Sub(startTime).Seconds())
 		} else {
 			// if we reach the end of the iterator mid-batch, we'll send the processed rows so far and end the iteration
 			serv.handleFinishedIterator(trainingDataRows, ctx)
@@ -211,8 +201,8 @@ func (serv *FeatureServer) handleSplitDataRequest(ctx *splitContext) error {
 	}
 
 	response := &pb.BatchTrainTestSplitResponse{
-		TrainingTestSplit: &pb.BatchTrainTestSplitResponse_Rows{
-			Rows: &pb.TrainingDataRows{Rows: trainingDataRows},
+		Result: &pb.BatchTrainTestSplitResponse_Data{
+			Data: &pb.TrainingDataRows{Rows: trainingDataRows},
 		},
 	}
 
@@ -240,8 +230,8 @@ func (serv *FeatureServer) handleFinishedIterator(trainingDataRows []*pb.Trainin
 		return // return so that we can close the stream
 	} else {
 		response := &pb.BatchTrainTestSplitResponse{
-			TrainingTestSplit: &pb.BatchTrainTestSplitResponse_Rows{
-				Rows: &pb.TrainingDataRows{Rows: trainingDataRows},
+			Result: &pb.BatchTrainTestSplitResponse_Data{
+				Data: &pb.TrainingDataRows{Rows: trainingDataRows},
 			},
 			IteratorDone: true,
 		}

@@ -821,15 +821,14 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 	}
 }
 
-func (serv *OnlineServer) TrainingTestSplit(stream srv.Feature_TrainingTestSplitServer) error {
+func (serv *OnlineServer) TrainingTestSplit(stream srv.Feature_TrainTestSplitServer) error {
 	serv.Logger.Infow("Starting Training Test Split Stream")
-	clientStream, err := serv.client.TrainingTestSplit(context.Background())
+	clientStream, err := serv.client.TrainTestSplit(context.Background())
 	if err != nil {
 		return fmt.Errorf("could not serve training test split: %w", err)
 	}
 
 	for {
-		//start := time.Now()
 		req, err := stream.Recv()
 		if err == io.EOF {
 			// Client has closed the stream, close the downstream stream
@@ -843,18 +842,13 @@ func (serv *OnlineServer) TrainingTestSplit(stream srv.Feature_TrainingTestSplit
 			serv.Logger.Errorw("Error receiving from client stream", "error", err)
 			return err
 		}
-		//end := time.Now()
-		//serv.Logger.Infow("Backend Latency (Client->API)", "time", end.Sub(start).Seconds())
-		//start = time.Now()
 
 		// Forward the request to the downstream service
 		if err := clientStream.Send(req); err != nil {
 			serv.Logger.Errorw("Failed to send request to downstream service", "error", err)
 			return err
 		}
-		//end = time.Now()
-		//serv.Logger.Infow("Backend Latency (API->FEATURE)", "time", end.Sub(start).Seconds())
-		//start = time.Now()
+
 		resp, err := clientStream.Recv()
 		if err == io.EOF {
 			// End of stream from downstream service
@@ -865,17 +859,12 @@ func (serv *OnlineServer) TrainingTestSplit(stream srv.Feature_TrainingTestSplit
 			serv.Logger.Errorw("Error receiving from downstream service", "error", err)
 			return err
 		}
-		//end = time.Now()
-		//serv.Logger.Infow("Backend Latency (FEATURE->API)", "time", end.Sub(start).Seconds())
-		//start = time.Now()
 
 		// Send the response back to the client
 		if err := stream.Send(resp); err != nil {
 			serv.Logger.Errorw("Failed to send response to client", "error", err)
 			return err
 		}
-		//end = time.Now()
-		//serv.Logger.Infow("Backend Latency (API->Client)", "time", end.Sub(start).Seconds())
 
 	}
 }

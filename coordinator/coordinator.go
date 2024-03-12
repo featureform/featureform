@@ -1191,7 +1191,6 @@ func (c *Coordinator) ExecuteJob(jobKey string) error {
 		case *fferr.ResourceAlreadyFailedError:
 			return err
 		default:
-			//return c.Metadata.SetStatus(context.Background(), job.Resource, metadata.FAILED, fferr.FromErr(err).Error())
 			return c.Metadata.SetStatusError(context.Background(), job.Resource, metadata.FAILED, err)
 		}
 	}

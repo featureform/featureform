@@ -3379,6 +3379,95 @@ func TestDatabricksSubmitParams(t *testing.T) {
 	}
 }
 
+func TestNewSparkFileStores(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping NewSparkFileStores tests")
+	}
+
+	err := godotenv.Load("../.env")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	mydir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("could not get working directory")
+	}
+
+	directoryPath := fmt.Sprintf("%s/scripts/k8s/tests/test_files/output/go_tests", mydir)
+	_ = os.MkdirAll(directoryPath, os.ModePerm)
+
+	localStoreConfig := pc.LocalFileStoreConfig{DirPath: fmt.Sprintf(`file:///%s`, directoryPath)}
+	localStoreConfigSerialized, err := localStoreConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Could not serialize local store config: %v", err)
+	}
+	_, err = NewSparkLocalFileStore(localStoreConfigSerialized)
+	if err != nil {
+		t.Fatalf("Could not create local store: %v", err)
+	}
+
+	s3StoreConfig := pc.S3FileStoreConfig{
+		Credentials: pc.AWSCredentials{
+			AWSSecretKey:   "",
+			AWSAccessKeyId: "",
+		},
+		BucketRegion: "abc",
+		BucketPath:   "abc",
+		Path:         "abc",
+	}
+	s3StoreConfigSerialized, err := s3StoreConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Could not serialize s3 store config: %v", err)
+	}
+	_, err = NewSparkS3FileStore(s3StoreConfigSerialized)
+	if err != nil {
+		t.Fatalf("Could not create s3 store: %v", err)
+	}
+
+	credsFile := os.Getenv("GCP_CREDENTIALS_FILE")
+	content, err := os.ReadFile(credsFile)
+	if err != nil {
+		t.Errorf("Error when opening file: %v", err)
+	}
+	var creds map[string]interface{}
+	err = json.Unmarshal(content, &creds)
+	if err != nil {
+		t.Errorf("Error during Unmarshal() creds: %v", err)
+	}
+
+	gcsStoreConfig := pc.GCSFileStoreConfig{
+		BucketName: os.Getenv("GCS_BUCKET_NAME"),
+		BucketPath: "",
+		Credentials: pc.GCPCredentials{
+			ProjectId: os.Getenv("GCP_PROJECT_ID"),
+			JSON:      creds,
+		},
+	}
+	gcsStoreConfigSerialized, err := gcsStoreConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Could not serialize gcs store config: %v", err)
+	}
+	_, err = NewSparkGCSFileStore(gcsStoreConfigSerialized)
+	if err != nil {
+		t.Fatalf("Could not create gcs store: %v", err)
+	}
+
+	hdfsStoreConfig := pc.HDFSFileStoreConfig{
+		Host:     "localhost",
+		Port:     "9000",
+		Username: "hduser",
+	}
+	hdfsStoreConfigSerialized, err := hdfsStoreConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Could not serialize hdfs store config: %v", err)
+	}
+	_, err = NewSparkHDFSFileStore(hdfsStoreConfigSerialized)
+	if err != nil {
+		t.Fatalf("Could not create hdfs store: %v", err)
+	}
+}
+
 func randomStringNBytes(size int, t *testing.T) string {
 	randomBytes := make([]byte, size)
 	_, err := rand.Read(randomBytes)

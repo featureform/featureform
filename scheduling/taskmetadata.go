@@ -127,7 +127,7 @@ func (m *TaskMetadataManager) GetTaskByID(id TaskID) (TaskMetadata, fferr.GRPCEr
 
 	// Should enum 0 as EmptyList or something
 	if len(metadata) == 0 {
-		return TaskMetadata{}, fmt.InternalError(fmt.Errorf("task not found for id: %s", string(id)))
+		return TaskMetadata{}, fferr.NewInternalError(fmt.Errorf("task not found for id: %s", string(id)))
 	}
 
 	taskMetadata := TaskMetadata{}
@@ -178,6 +178,8 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 	// This function could be a method of TaskRuns
 	latestID, err := getHighestRunID(runs)
 	if err != nil {
+		err.AddDetail("task name", name)
+		err.AddDetail("task_id", string(taskID))
 		return TaskRunMetadata{}, err
 	}
 
@@ -197,22 +199,39 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 
 	serializedRuns, err := runs.Marshal()
 	if err != nil {
+		err.AddDetail("task name", name)
+		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("run_id", string(metadata.ID))
 		return TaskRunMetadata{}, err
 	}
 
 	serializedMetadata, err := metadata.Marshal()
 	if err != nil {
+		err.AddDetail("task name", name)
+		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("run_id", string(metadata.ID))
 		return TaskRunMetadata{}, err
 	}
 	err = m.storer.Create(taskRunKey.String(), string(serializedRuns))
+	if err != nil {
+		err.AddDetail("task name", name)
+		err.AddDetail("task_id", string(taskID))
+		return TaskRunMetadata{}, err
+	}
 
 	taskRunMetaKey := TaskRunMetadataKey{taskID: taskID, runID: metadata.ID, date: startTime}
 	err = m.storer.Create(taskRunMetaKey.String(), string(serializedMetadata))
+	if err != nil {
+		err.AddDetail("task name", name)
+		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("run_id", string(metadata.ID))
+		return TaskRunMetadata{}, err
+	}
 
 	return metadata, nil
 }
 
-func getHighestRunID(taskRuns TaskRuns) (TaskRunID, error) {
+func getHighestRunID(taskRuns TaskRuns) (TaskRunID, fferr.GRPCError) {
 	if len(taskRuns.Runs) == 0 {
 		return 0, nil
 	}

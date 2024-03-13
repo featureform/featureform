@@ -89,7 +89,7 @@ type splitContext struct {
 	logger          *zap.SugaredLogger
 }
 
-func (serv *FeatureServer) TrainingTestSplit(stream pb.Feature_TrainTestSplitServer) error {
+func (serv *FeatureServer) TrainTestSplit(stream pb.Feature_TrainTestSplitServer) error {
 	var (
 		trainIter, testIter provider.TrainingSetIterator
 		isTrainFinished     bool

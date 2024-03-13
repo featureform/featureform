@@ -821,7 +821,7 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 	}
 }
 
-func (serv *OnlineServer) TrainingTestSplit(stream srv.Feature_TrainTestSplitServer) error {
+func (serv *OnlineServer) TrainTestSplit(stream srv.Feature_TrainTestSplitServer) error {
 	serv.Logger.Infow("Starting Training Test Split Stream")
 	clientStream, err := serv.client.TrainTestSplit(context.Background())
 	if err != nil {

@@ -52,7 +52,7 @@ export default function TriggerDetail({
     },
     {
       field: 'variant',
-      headerName: 'variant',
+      headerName: 'Variant',
       flex: 1,
       width: 125,
       editable: false,

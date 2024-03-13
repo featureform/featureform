@@ -388,10 +388,6 @@ func (b BrokenNumRowsOfflineStore) GetTrainingSet(id provider.ResourceID) (provi
 	return nil, nil
 }
 
-func (b BrokenNumRowsOfflineStore) GetTrainingSetTestSplit(id provider.ResourceID, testSize float32, shuffle bool, randomState int) (provider.TrainingSetIterator, provider.TrainingSetIterator, func() error, error) {
-	return nil, nil, nil, nil
-}
-
 func (b BrokenNumRowsOfflineStore) GetBatchFeatures(tables []provider.ResourceID) (provider.BatchFeatureIterator, error) {
 	return nil, nil
 }
@@ -729,10 +725,6 @@ func (m MockOfflineStore) Close() error {
 
 func (m MockOfflineStore) ResourceLocation(id provider.ResourceID) (string, error) {
 	return "", nil
-}
-
-func (m MockOfflineStore) GetTrainingSetTestSplit(id provider.ResourceID, testSize float32, shuffle bool, randomState int) (provider.TrainingSetIterator, provider.TrainingSetIterator, func() error, error) {
-	return nil, nil, nil, nil
 }
 
 type MockOnlineStoreTable struct{}

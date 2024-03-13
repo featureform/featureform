@@ -60,6 +60,7 @@ func TestOfflineStoreClickhouse(t *testing.T) {
 		Database: clickHouseDb,
 		SSL:      ssl,
 	}
+	t.Logf("clickHouseConfig: %v", clickHouseConfig)
 
 	if err := createClickHouseDatabase(clickHouseConfig); err != nil {
 		t.Fatalf("%v", err)
@@ -83,6 +84,10 @@ func createClickHouseDatabase(c pc.ClickHouseConfig) error {
 	if err != nil {
 		return err
 	}
+	return createDatabases(c, conn)
+}
+
+func createDatabases(c pc.ClickHouseConfig, conn *sql.DB) error {
 	if _, err := conn.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", sanitizeCH(c.Database))); err != nil {
 		return err
 	}
@@ -90,4 +95,107 @@ func createClickHouseDatabase(c pc.ClickHouseConfig) error {
 		return err
 	}
 	return nil
+}
+
+func TestTrainingSet(t *testing.T) {
+	t.Skip()
+	var clickHouseConfig = pc.ClickHouseConfig{
+		Host:     "127.0.0.1",
+		Port:     uint16(9000),
+		Username: "default",
+		Password: "",
+		Database: "ff",
+		SSL:      false,
+	}
+
+	store, err := NewClickHouseOfflineStore(clickHouseConfig.Serialize())
+	if err != nil {
+		t.Fatalf("could not initialize store: %s\n", err)
+	}
+
+	tsDef := TrainingSetDef{
+		ID: ResourceID{
+			Name:    "ts_alice",
+			Variant: "v5",
+			Type:    TrainingSet,
+		},
+		Label: ResourceID{
+			Name:    "fraudulent",
+			Variant: "2024-02-16t11-11-50",
+			Type:    Label,
+		},
+		Features: []ResourceID{
+			{
+				Name:    "avg_transactions",
+				Variant: "2024-02-16t11-11-50",
+				Type:    Feature,
+			},
+		},
+		LagFeatures: nil,
+	}
+	err = store.CreateTrainingSet(tsDef)
+	if err != nil {
+		t.Fatalf("could not create training set: %s\n", err)
+	}
+	set, err := store.GetTrainingSet(tsDef.ID)
+	if err != nil {
+		return
+	}
+	for set.Next() {
+		t.Logf("features %v and labels %v\n", set.Features(), set.Label())
+	}
+}
+
+func TestSplit(t *testing.T) {
+	t.Skip()
+	var clickHouseConfig = pc.ClickHouseConfig{
+		Host:     "127.0.0.1",
+		Port:     uint16(9000),
+		Username: "default",
+		Password: "",
+		Database: "ff",
+		SSL:      false,
+	}
+
+	store, err := NewClickHouseOfflineStore(clickHouseConfig.Serialize())
+	if err != nil {
+		fmt.Printf("could not initialize store: %s\n", err)
+	}
+
+	resourceId := ResourceID{
+		Name:    "ts_alice",
+		Variant: "v5",
+		Type:    TrainingSet,
+	}
+	train, test, closeFunc, err := store.GetTrainingSetTestSplit(resourceId, .5, true, 1)
+	defer closeFunc()
+
+	if err != nil {
+		t.Fatalf("could not get split: %s\n", err)
+	}
+	// loop through train
+	var trainCount int
+	for train.Next() {
+		// print features and labels
+		t.Logf("features %v and labels %v\n", train.Features(), train.Label())
+		trainCount++
+	}
+	t.Logf("train count: %d", trainCount)
+
+	// loop through test
+	var testCount int
+	for test.Next() {
+		// print features and labels
+		t.Logf("features %v and labels %v\n", test.Features(), test.Label())
+		testCount++
+	}
+	t.Logf("test count: %d", testCount)
+
+	health, err := store.CheckHealth()
+	if err != nil {
+		t.Fatalf("health check failed: %s", err)
+	}
+	if !health {
+		t.Fatalf("health check failed")
+	}
 }

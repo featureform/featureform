@@ -149,7 +149,11 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
   return (
     <>
       {type in queryFormats ? (
-        <Box className={classes.root} style={{ height: totalChartHeight }}>
+        <Box
+          className={classes.root}
+          style={{ height: totalChartHeight }}
+          data-testid='viewPortId'
+        >
           <Typography variant='body1' className={classes.linkPromChip}>
             Source:
           </Typography>

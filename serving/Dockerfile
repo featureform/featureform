@@ -1,7 +1,7 @@
 # docker build -f ./serving/Dockerfile . -t serving in /serving
 # docker tag serving:latest featureformcom/serving:latest
 # docker push featureformcom/serving:latest
-FROM golang:1.21-alpine
+FROM golang:1.21
 
 WORKDIR /app
 
@@ -10,8 +10,11 @@ COPY go.sum ./
 
 COPY ./metadata/proto/metadata.proto ./metadata/proto/metadata.proto
 COPY ./proto/ ./proto/
-RUN apk update && apk add protobuf-dev && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest && go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 ENV PATH /go/bin:$PATH
+RUN apt update && \
+    apt install -y protobuf-compiler
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto && \
     protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./proto/serving.proto
 
@@ -31,7 +34,7 @@ COPY serving/main/main.go ./serving/main/main.go
 
 RUN go build ./serving/main/main.go
 
-FROM alpine
+FROM ubuntu:22.04
 
 COPY --from=0 ./app/main ./main
 COPY --from=0 ./app/provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py

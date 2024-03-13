@@ -1,17 +1,17 @@
 # RUN docker build -f ./coordinator/Dockerfile . -t coordinator from /serving
 # docker tag coordinator:latest featureformcom/coordinator:latest
 # docker push featureformcom/coordinator:latest
-FROM golang:1.21-alpine as builder
+FROM golang:1.21 as builder
 
 WORKDIR /app
 
 COPY go.mod go.sum ./
 
 # Installing protobuf and compiling metadata
-RUN apk update && apk add protobuf-dev && \
-  go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest && \
-  go install google.golang.org/protobuf/cmd/protoc-gen-go@latest && \
-  rm -rf /var/cache/apk/*
+RUN apt update && \
+    apt install -y protobuf-compiler
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
 COPY ./metadata/proto/metadata.proto ./metadata/proto/
 
@@ -34,8 +34,7 @@ COPY ./types ./types
 COPY ./coordinator/main/main.go ./coordinator/main/main.go
 
 # Building Go app
-# CGD_ENABLED=0 is used to avoid the libc differences in alpine and ubuntu
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=1
 RUN go build ./coordinator/main/main.go
 
 FROM ubuntu:22.04

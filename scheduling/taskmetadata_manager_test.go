@@ -12,8 +12,6 @@ import (
 func TestTaskMetadataManager(t *testing.T) {
 	testFns := map[string]func(*testing.T, TaskMetadataManager){
 		"CreateTask": testCreateTask,
-		// "GetTaskMetadata":  TaskMetadataGet,
-		// "ListTaskMetadata": TaskMetadataList,
 	}
 
 	memoryTaskMetadataManager := NewMemoryTaskMetadataManager()

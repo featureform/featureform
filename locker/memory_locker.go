@@ -31,7 +31,7 @@ type MemoryLocker struct {
 
 func (m *MemoryLocker) Lock(key string) (Key, fferr.GRPCError) {
 	if key == "" {
-		return &memoryKey{}, fferr.NewInternalError(fmt.Errorf("key is empty"))
+		return &memoryKey{}, fferr.NewInternalError(fmt.Errorf("cannot lock an empty key"))
 	}
 
 	id := uuid.New().String()
@@ -80,7 +80,11 @@ func (m *MemoryLocker) updateLockTime(id string, key string, doneChannel <-chan 
 				// Key no longer exists, stop updating
 				return
 			}
-			lock := lockInfo.(LockInformation)
+			lock, ok := lockInfo.(LockInformation)
+			if !ok {
+				return
+			}
+
 			if lock.ID == id {
 				// Update lock time
 				m.LockedItems.Store(key, LockInformation{
@@ -95,7 +99,7 @@ func (m *MemoryLocker) updateLockTime(id string, key string, doneChannel <-chan 
 
 func (m *MemoryLocker) Unlock(key Key) fferr.GRPCError {
 	if key.Key() == "" {
-		return fferr.NewInternalError(fmt.Errorf("key is empty"))
+		return fferr.NewInternalError(fmt.Errorf("cannot unlock an empty key"))
 	}
 
 	m.Mutex.Lock()
@@ -106,14 +110,21 @@ func (m *MemoryLocker) Unlock(key Key) fferr.GRPCError {
 		return fferr.NewKeyNotLockedError(key.Key(), nil)
 	}
 
-	keyLock := lockInfo.(LockInformation)
+	keyLock, ok := lockInfo.(LockInformation)
+	if !ok {
+		return fferr.NewInternalError(fmt.Errorf("could not cast lock information"))
+	}
 	if keyLock.ID != key.ID() {
-		err := fferr.NewKeyAlreadyLockedError(key.Key(), keyLock.ID, nil)
-		err.AddDetail("trying to unlock key with different id", key.ID())
+		err := fferr.NewKeyAlreadyLockedError(key.Key(), keyLock.ID, fmt.Errorf("attempting to unlock with incorrect key"))
+		err.AddDetail("expected key", keyLock.ID)
+		err.AddDetail("recieved key", key.ID())
 		return err
 	}
 	m.LockedItems.Delete(key.Key())
-	mKey := key.(*memoryKey)
+	mKey, ok := key.(*memoryKey)
+	if !ok {
+		return fferr.NewInternalError(fmt.Errorf("could not cast key to memory key"))
+	}
 	close(*mKey.Channel)
 
 	return nil

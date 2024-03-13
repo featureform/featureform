@@ -2,27 +2,19 @@ package scheduling
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/locker"
-	ss "github.com/featureform/storage_storer"
+	ss "github.com/featureform/storage"
 )
 
 type TaskMetadataList []TaskMetadata
 
-func (tml *TaskMetadataList) ToJSON() string {
-	return ""
-}
-
 type TaskRunList []TaskRunMetadata
-
-func (trl *TaskRunList) ToJSON() string {
-	return ""
-}
 
 func (trl *TaskRunList) FilterByStatus(status Status) {
 	var newList TaskRunList
@@ -144,11 +136,18 @@ func (m *TaskMetadataManager) GetAllTasks() (TaskMetadataList, fferr.GRPCError) 
 		return TaskMetadataList{}, err
 	}
 
-	// Want to move this logic out of this func
+	tml, err := m.getAllTasksAsMetadataList(metadata)
+	if err != nil {
+		return TaskMetadataList{}, err
+	}
+	return tml, nil
+}
+
+func (m *TaskMetadataManager) getAllTasksAsMetadataList(metadata map[string]string) (TaskMetadataList, fferr.GRPCError) {
 	tml := TaskMetadataList{}
-	for _, m := range metadata {
+	for _, meta := range metadata {
 		taskMetadata := TaskMetadata{}
-		err = taskMetadata.Unmarshal([]byte(m))
+		err := taskMetadata.Unmarshal([]byte(meta))
 		if err != nil {
 			return TaskMetadataList{}, err
 		}
@@ -175,8 +174,7 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 		return TaskRunMetadata{}, err
 	}
 
-	// This function could be a method of TaskRuns
-	latestID, err := getHighestRunID(runs)
+	latestID, err := runs.GetLatestRunId()
 	if err != nil {
 		err.AddDetail("task name", name)
 		err.AddDetail("task_id", string(taskID))
@@ -231,23 +229,6 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 	return metadata, nil
 }
 
-func getHighestRunID(taskRuns TaskRuns) (TaskRunID, fferr.GRPCError) {
-	if len(taskRuns.Runs) == 0 {
-		return 0, nil
-	}
-
-	// Move this logic out
-	highestRunID := taskRuns.Runs[0].RunID
-
-	for _, run := range taskRuns.Runs[1:] {
-		if run.RunID > highestRunID {
-			highestRunID = run.RunID
-		}
-	}
-
-	return highestRunID, nil
-}
-
 func (m *TaskMetadataManager) GetRunByID(taskID TaskID, runID TaskRunID) (TaskRunMetadata, fferr.GRPCError) {
 	taskRunKey := TaskRunKey{taskID: taskID}
 	taskRunMetadata, err := m.storer.Get(taskRunKey.String())
@@ -266,15 +247,7 @@ func (m *TaskMetadataManager) GetRunByID(taskID TaskID, runID TaskRunID) (TaskRu
 	}
 
 	// Want to move this logic out
-	found := false
-	var runRecord TaskRunSimple
-	for _, run := range runs.Runs {
-		if run.RunID == runID {
-			runRecord = run
-			found = true
-			break
-		}
-	}
+	found, runRecord := runs.ContainsRun(runID)
 	if !found {
 		err := fferr.NewKeyNotFoundError(taskRunKey.String(), fmt.Errorf("run not found"))
 		err.AddDetail("task_id", string(taskID))
@@ -318,9 +291,6 @@ func (m *TaskMetadataManager) GetRunsByDate(start time.Time, end time.Time) (Tas
 }
 
 func (m *TaskMetadataManager) getRunsForDay(date time.Time, start time.Time, end time.Time) ([]TaskRunMetadata, fferr.GRPCError) {
-	// TODO: question, should this return an error if we can't marshal
-	// a task run record? Or should it just skip that record and keep
-	// track of the error?
 	key := TaskRunMetadataKey{date: date}
 	recs, err := m.storer.List(key.String())
 	if err != nil {
@@ -519,32 +489,45 @@ func (m *TaskMetadataManager) AppendRunLog(runID TaskRunID, taskID TaskID, log s
 
 // Finds the highest increment in a list of strings formatted like "/tasks/metadata/task_id=0"
 func getLatestId(taskMetadata map[string]string) (int, fferr.GRPCError) {
-	highestIncrement := -1
+	highestTaskId := -1
+
+	// Regular expression pattern to match "task_id=<number>"
+	pattern := regexp.MustCompile(`/tasks/metadata/task_id=(\d+)`)
+
 	for path, _ := range taskMetadata {
-		parts := strings.Split(path, "task_id=")
-		if len(parts) < 2 {
-			errMessage := fmt.Errorf("invalid format for path: %s", path)
-			err := fferr.NewInvalidArgumentError(errMessage)
-			err.AddDetail("path", path)
-			err.AddDetail("expected format", "/tasks/metadata/task_id=0")
-			return -1, err
-		}
-		increment, err := strconv.Atoi(parts[1])
+		increment, err := getTaskIdFromPath(pattern, path)
 		if err != nil {
-			errMessage := fmt.Errorf("failed to convert task_id to integer: %s", err)
-			err := fferr.NewInternalError(errMessage)
-			err.AddDetail("task_id", parts[1])
 			return -1, err
 		}
-		if increment > highestIncrement {
-			highestIncrement = increment
+
+		if increment > highestTaskId {
+			highestTaskId = increment
 		}
 	}
-	if highestIncrement == -1 {
-		// TODO: why should this error?
+	if highestTaskId == -1 {
 		errMessage := fmt.Errorf("no task metadata found")
 		err := fferr.NewInternalError(errMessage)
 		return -1, err
 	}
-	return highestIncrement, nil
+	return highestTaskId, nil
+}
+
+func getTaskIdFromPath(pattern *regexp.Regexp, path string) (int, fferr.GRPCError) {
+	matches := pattern.FindStringSubmatch(path)
+	if len(matches) < 2 {
+		errMessage := fmt.Errorf("invalid format for path: %s", path)
+		err := fferr.NewInvalidArgumentError(errMessage)
+		err.AddDetail("path", path)
+		err.AddDetail("expected format", "/tasks/metadata/task_id=0")
+		return -1, err
+	}
+	taskId, err := strconv.Atoi(matches[1])
+	if err != nil {
+		errMessage := fmt.Errorf("failed to convert task_id to integer: %s", err)
+		err := fferr.NewInternalError(errMessage)
+		err.AddDetail("task_id", matches[1])
+		return -1, err
+	}
+
+	return taskId, nil
 }

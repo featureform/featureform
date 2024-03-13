@@ -35,3 +35,27 @@ func (tr *TaskRuns) Unmarshal(data []byte) fferr.GRPCError {
 	}
 	return nil
 }
+
+func (tr *TaskRuns) GetLatestRunId() (TaskRunID, fferr.GRPCError) {
+	if len(tr.Runs) == 0 {
+		return 0, nil
+	}
+
+	latestRunId := tr.Runs[0].RunID
+	for _, run := range tr.Runs[1:] {
+		if run.RunID > latestRunId {
+			latestRunId = run.RunID
+		}
+	}
+
+	return latestRunId, nil
+}
+
+func (tr *TaskRuns) ContainsRun(runID TaskRunID) (bool, TaskRunSimple) {
+	for _, run := range tr.Runs {
+		if run.RunID == runID {
+			return true, run
+		}
+	}
+	return false, TaskRunSimple{}
+}

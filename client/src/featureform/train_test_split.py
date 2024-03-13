@@ -1,5 +1,5 @@
 from collections import deque
-from typing import Tuple, Union
+from typing import Any, List, Tuple, Union
 
 import grpc
 import numpy as np
@@ -79,26 +79,36 @@ class _SplitStream:
 
 
 @dataclass
-class _IteratorTypes:
-    types: list
+class _NpProtoTypeParser:
+    """Parses the proto types to numpy types"""
+
     nptype: np.dtype
-    value_types: list
+    feature_proto_types: List[Tuple[str, np.dtype]]
+    label_proto_type: str
 
     @staticmethod
-    def from_proto(row):
+    def init_types(row: serving_pb2.TrainingDataRow):
         from featureform.serving import (
             get_numpy_array_type,
             proto_type_to_np_type,
         )
 
-        feature_numpy_types = [
-            proto_type_to_np_type(feature) for feature in row.features
+        types = [
+            (feature.WhichOneof("value"), proto_type_to_np_type(feature))
+            for feature in row.features
         ]
-        numpy_array_type = get_numpy_array_type(feature_numpy_types)
-        feature_proto_types = [feature.WhichOneof("value") for feature in row.features]
-        return _IteratorTypes(
-            feature_numpy_types, numpy_array_type, feature_proto_types
-        )
+        numpy_array_type = get_numpy_array_type(list(map(lambda x: x[1], types)))
+        label_proto_type = row.label.WhichOneof("value")
+        return _NpProtoTypeParser(numpy_array_type, types, label_proto_type)
+
+    def parse_features(self, rows: List[serving_pb2.Value]) -> List[Any]:
+        return [
+            getattr(feature, self.feature_proto_types[i][0])
+            for i, feature in enumerate(rows)
+        ]
+
+    def parse_label(self, row: serving_pb2.Value) -> Any:
+        return getattr(row, self.label_proto_type)
 
 
 class TrainTestSplitIterator:
@@ -112,7 +122,7 @@ class TrainTestSplitIterator:
         self._split_stream = split_stream
         self._batch_size = batch_size
         self._complete = False
-        self._iterator_types = None
+        self._np_type_parser = None
 
     @staticmethod
     def train_iter(split_stream, batch_size):
@@ -139,21 +149,14 @@ class TrainTestSplitIterator:
         result = self._split_stream.send_request(self.request_type)
         data = result.data
 
-        from featureform.serving import parse_proto_value
+        if self._np_type_parser is None and data.rows:
+            self._np_type_parser = _NpProtoTypeParser.init_types(data.rows[0])
 
         for i, row in enumerate(data.rows):
-            if self._iterator_types is None:
-                self._iterator_types = _IteratorTypes.from_proto(row)
-
-            features = [
-                getattr(feature, self._iterator_types.value_types[j])
-                for j, feature in enumerate(row.features)
-            ]
-
-            label = parse_proto_value(row.label)
-
-            batch_features_list.append(features)
-            batch_labels_list.append(label)
+            batch_features_list.append(
+                self._np_type_parser.parse_features(row.features)
+            )
+            batch_labels_list.append(self._np_type_parser.parse_label(row.label))
 
         if result.iterator_done:
             self._complete = True
@@ -162,7 +165,7 @@ class TrainTestSplitIterator:
             raise StopIteration
 
         batch_features = np.array(
-            batch_features_list, dtype=self._iterator_types.nptype
+            batch_features_list, dtype=self._np_type_parser.nptype
         )
         batch_labels = np.array(batch_labels_list)
 

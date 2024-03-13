@@ -955,7 +955,7 @@ func (store *clickHouseOfflineStore) CreateTrainingSet(def TrainingSetDef) error
 	return nil
 }
 
-func (store *clickHouseOfflineStore) CreateTrainingTestSplit(
+func (store *clickHouseOfflineStore) CreateTrainTestSplit(
 	trainingSetTable string,
 	testSize float32,
 	shuffle bool,
@@ -1084,7 +1084,7 @@ func (store *clickHouseOfflineStore) GetTrainingSetTestSplit(
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	trainingTestSplitName, err := store.CreateTrainingTestSplit(
+	trainingTestSplitName, err := store.CreateTrainTestSplit(
 		prep.TrainingSetName,
 		testSize,
 		shuffle,

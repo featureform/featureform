@@ -1,4 +1,4 @@
-package storage_storer
+package storage
 
 import (
 	"fmt"
@@ -9,19 +9,19 @@ import (
 	"github.com/featureform/locker"
 )
 
-type MetadataStorerTest struct {
+type MetadataStorageTest struct {
 	t       *testing.T
-	storage metadataStorerImplementation
+	storage metadataStorageImplementation
 }
 
-func (test *MetadataStorerTest) Run() {
+func (test *MetadataStorageTest) Run() {
 	t := test.t
 	storage := test.storage
 
-	testFns := map[string]func(*testing.T, metadataStorerImplementation){
-		"SetStorageProvider":  StorerSet,
-		"GetStorageProvider":  StorerGet,
-		"ListStorageProvider": StorerList,
+	testFns := map[string]func(*testing.T, metadataStorageImplementation){
+		"SetStorageProvider":  StorageSet,
+		"GetStorageProvider":  StorageGet,
+		"ListStorageProvider": StorageList,
 	}
 
 	for name, fn := range testFns {
@@ -31,7 +31,7 @@ func (test *MetadataStorerTest) Run() {
 	}
 }
 
-func StorerSet(t *testing.T, storage metadataStorerImplementation) {
+func StorageSet(t *testing.T, storage metadataStorageImplementation) {
 	type TestCase struct {
 		key   string
 		value string
@@ -65,7 +65,7 @@ func StorerSet(t *testing.T, storage metadataStorerImplementation) {
 	}
 }
 
-func StorerGet(t *testing.T, storage metadataStorerImplementation) {
+func StorageGet(t *testing.T, storage metadataStorageImplementation) {
 	type TestCase struct {
 		key   string
 		value string
@@ -100,7 +100,7 @@ func StorerGet(t *testing.T, storage metadataStorerImplementation) {
 	}
 }
 
-func StorerList(t *testing.T, storage metadataStorerImplementation) {
+func StorageList(t *testing.T, storage metadataStorageImplementation) {
 	type TestCase struct {
 		keys          map[string]string
 		prefix        string
@@ -189,7 +189,7 @@ func StorerList(t *testing.T, storage metadataStorerImplementation) {
 	}
 }
 
-func StorerDelete(t *testing.T, storage metadataStorerImplementation) {
+func StorageDelete(t *testing.T, storage metadataStorageImplementation) {
 	type TestCase struct {
 		setKey        string
 		setValue      string
@@ -241,22 +241,22 @@ func StorerDelete(t *testing.T, storage metadataStorerImplementation) {
 	}
 }
 
-func TestMetadataStorer(t *testing.T) {
+func TestMetadataStorage(t *testing.T) {
 	locker := &locker.MemoryLocker{
 		LockedItems: sync.Map{},
 		Mutex:       &sync.Mutex{},
 	}
 
-	storage := &MemoryStorerImplementation{
+	storage := &MemoryStorageImplementation{
 		Storage: make(map[string]string),
 	}
 
-	metadataStorer := MetadataStorer{
-		Locker: locker,
-		Storer: storage,
+	metadataStorage := MetadataStorage{
+		Locker:  locker,
+		Storage: storage,
 	}
 
-	tests := map[string]func(*testing.T, MetadataStorer){
+	tests := map[string]func(*testing.T, MetadataStorage){
 		"TestCreate": testCreate,
 		"TestUpdate": testUpdate,
 		"TestList":   testList,
@@ -266,12 +266,12 @@ func TestMetadataStorer(t *testing.T) {
 
 	for name, fn := range tests {
 		t.Run(name, func(t *testing.T) {
-			fn(t, metadataStorer)
+			fn(t, metadataStorage)
 		})
 	}
 }
 
-func testCreate(t *testing.T, ms MetadataStorer) {
+func testCreate(t *testing.T, ms MetadataStorage) {
 	type TestCase struct {
 		key   string
 		value string
@@ -310,7 +310,7 @@ func updateFn(currentValue string) (string, fferr.GRPCError) {
 	return fmt.Sprintf("%s_updated", currentValue), nil
 }
 
-func testUpdate(t *testing.T, ms MetadataStorer) {
+func testUpdate(t *testing.T, ms MetadataStorage) {
 	type TestCase struct {
 		key          string
 		value        string
@@ -351,7 +351,7 @@ func testUpdate(t *testing.T, ms MetadataStorer) {
 	}
 }
 
-func testList(t *testing.T, ms MetadataStorer) {
+func testList(t *testing.T, ms MetadataStorage) {
 	type TestCase struct {
 		keys          map[string]string
 		prefix        string
@@ -440,7 +440,7 @@ func testList(t *testing.T, ms MetadataStorer) {
 	}
 }
 
-func testGet(t *testing.T, ms MetadataStorer) {
+func testGet(t *testing.T, ms MetadataStorage) {
 	type TestCase struct {
 		key   string
 		value string
@@ -475,7 +475,7 @@ func testGet(t *testing.T, ms MetadataStorer) {
 	}
 }
 
-func testDelete(t *testing.T, ms MetadataStorer) {
+func testDelete(t *testing.T, ms MetadataStorage) {
 	type TestCase struct {
 		key   string
 		value string

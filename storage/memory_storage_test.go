@@ -1,17 +1,17 @@
-package storage_storer
+package storage
 
 import "testing"
 
-func TestMemoryMetadataStorer(t *testing.T) {
+func TestMemoryMetadataStorage(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
 	}
 
-	storage := &MemoryStorerImplementation{
+	storage := &MemoryStorageImplementation{
 		Storage: make(map[string]string),
 	}
 
-	test := MetadataStorerTest{
+	test := MetadataStorageTest{
 		t:       t,
 		storage: storage,
 	}

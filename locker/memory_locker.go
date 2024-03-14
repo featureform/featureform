@@ -2,6 +2,7 @@ package locker
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -10,10 +11,9 @@ import (
 )
 
 type memoryKey struct {
-	id             string
-	key            string
-	ExpirationTime time.Time
-	Channel        *chan error
+	id      string
+	key     string
+	Channel *chan error
 }
 
 func (k *memoryKey) ID() string {
@@ -34,10 +34,14 @@ func (m *MemoryLocker) Lock(key string) (Key, fferr.GRPCError) {
 		return &memoryKey{}, fferr.NewInternalError(fmt.Errorf("cannot lock an empty key"))
 	}
 
-	id := uuid.New().String()
-
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
+
+	if m.isPrefixOfExistingKey(key) || m.hasPrefixLocked(key) {
+		return &memoryKey{}, fferr.NewKeyAlreadyLockedError(key, "", nil)
+	}
+
+	id := uuid.New().String()
 
 	if lockInfo, ok := m.LockedItems.Load(key); ok {
 		keyLock := lockInfo.(LockInformation)
@@ -47,7 +51,7 @@ func (m *MemoryLocker) Lock(key string) (Key, fferr.GRPCError) {
 	}
 
 	doneChannel := make(chan error)
-	lockKey := memoryKey{id: id, key: key, Channel: &doneChannel}
+	lockKey := &memoryKey{id: id, key: key, Channel: &doneChannel}
 
 	lock := LockInformation{
 		ID:   id,
@@ -56,26 +60,47 @@ func (m *MemoryLocker) Lock(key string) (Key, fferr.GRPCError) {
 	}
 	m.LockedItems.Store(key, lock)
 
-	go m.updateLockTime(id, key, doneChannel)
+	go m.updateLockTime(lockKey)
 
-	return &lockKey, nil
+	return lockKey, nil
 }
 
-func (m *MemoryLocker) updateLockTime(id string, key string, doneChannel <-chan error) {
+func (m *MemoryLocker) isPrefixOfExistingKey(key string) bool {
+	isPrefix := false
+	m.LockedItems.Range(func(k, v interface{}) bool {
+		if strings.HasPrefix(k.(string), key) {
+			isPrefix = true
+			return false
+		}
+		return true
+	})
+	return isPrefix
+}
+
+func (m *MemoryLocker) hasPrefixLocked(key string) bool {
+	hasPrefix := false
+	m.LockedItems.Range(func(k, v interface{}) bool {
+		if strings.HasPrefix(key, k.(string)) {
+			hasPrefix = true
+			return false
+		}
+		return true
+	})
+	return hasPrefix
+}
+
+func (m *MemoryLocker) updateLockTime(key *memoryKey) {
 	ticker := time.NewTicker(UpdateSleepTime)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-doneChannel:
+		case <-*key.Channel:
 			// Received signal to stop
 			return
 		case <-ticker.C:
-			m.Mutex.Lock()
-			defer m.Mutex.Unlock()
-
 			// Continue updating lock time
-			lockInfo, ok := m.LockedItems.Load(key)
+			lockInfo, ok := m.LockedItems.Load(key.key)
 			if !ok {
 				// Key no longer exists, stop updating
 				return
@@ -85,13 +110,10 @@ func (m *MemoryLocker) updateLockTime(id string, key string, doneChannel <-chan 
 				return
 			}
 
-			if lock.ID == id {
+			if lock.ID == key.id {
+				lock.Date = time.Now().UTC()
 				// Update lock time
-				m.LockedItems.Store(key, LockInformation{
-					ID:   id,
-					Key:  key,
-					Date: time.Now().UTC(),
-				})
+				m.LockedItems.Store(key.key, lock)
 			}
 		}
 	}

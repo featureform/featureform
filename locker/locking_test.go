@@ -21,6 +21,7 @@ func (test *LockerTest) Run() {
 		"LockAndUnlockWithGoRoutines": LockAndUnlockWithGoRoutines,
 		"LockTimeUpdates":             LockTimeUpdates,
 		"StressTestLockAndUnlock":     StressTestLockAndUnlock,
+		"LockAndUnlockPrefixes":       LockAndUnlockPrefixes,
 	}
 
 	for name, fn := range testFns {
@@ -140,7 +141,7 @@ func StressTestLockAndUnlock(t *testing.T, locker MultiLock) {
 				return
 			}
 
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 
 			err = locker.Unlock(lock)
 			if err != nil {
@@ -153,6 +154,46 @@ func StressTestLockAndUnlock(t *testing.T, locker MultiLock) {
 
 	if errorCount > 0 {
 		t.Fatalf("race condition detected! %d threads failed to unlock the key", errorCount)
+	}
+}
+
+func LockAndUnlockPrefixes(t *testing.T, locker MultiLock) {
+	prefix := "/tasks/metadata"
+	taskId := "task_id=5"
+	key := fmt.Sprintf("%s/%s", prefix, taskId)
+	keyLock, err := locker.Lock(key)
+	if err != nil {
+		t.Fatalf("Lock failed: %v", err)
+	}
+
+	// Lock a prefix
+	_, err = locker.Lock(prefix)
+	if err == nil {
+		t.Fatalf("Locking using a prefix should have failed because of key already locked")
+	}
+
+	// Test Unlock with original lock
+	err = locker.Unlock(keyLock)
+	if err != nil {
+		t.Fatalf("Unlock failed: %v", err)
+	}
+
+	// Lock a prefix
+	prefixLock, err := locker.Lock(prefix)
+	if err != nil {
+		t.Fatalf("Lock failed: %v", err)
+	}
+
+	// Lock a key with the same prefix
+	_, err = locker.Lock(key)
+	if err == nil {
+		t.Fatalf("Locking key should fail because prefix is locked")
+	}
+
+	// Unlock the prefix lock
+	err = locker.Unlock(prefixLock)
+	if err != nil {
+		t.Fatalf("Unlock failed: %v", err)
 	}
 }
 

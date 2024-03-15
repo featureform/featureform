@@ -26,6 +26,9 @@ COPY ./metadata/server/server.go ./metadata/main/server.go
 COPY ./provider/provider_config/ ./provider/provider_config/
 COPY ./provider/provider_type/ ./provider/provider_type/
 COPY ./config/ ./config/
+COPY ./storage/ ./storage/
+COPY ./locker/ ./locker/
+COPY ./scheduling/ ./scheduling/
 
 RUN go build ./metadata/main/server.go
 

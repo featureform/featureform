@@ -1,0 +1,31 @@
+{{ if .Values.backup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: featureform-backup
+spec:
+  schedule: "{{ .Values.backup.schedule }}"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - image: "{{ .Values.global.repo | default .Values.image.repository }}/backup:{{ .Values.global.version | default .Chart.AppVersion }}"
+              imagePullPolicy: {{ .Values.global.pullPolicy }}
+              name: featureform-backup
+              env:
+                - name: ETCD_HOSTNAME
+                  value: "featureform-etcd"
+                - name: ETCD_PORT
+                  value: "2379"
+                - name: ETCD_USERNAME
+                  value: "root"
+                - name: ETCD_PASSWORD
+                  value: "secretpassword"
+              envFrom:
+                - secretRef:
+                    name: featureform-backup
+          restartPolicy: Never
+{{ end }}

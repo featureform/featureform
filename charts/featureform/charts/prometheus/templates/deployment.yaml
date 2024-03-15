@@ -13,6 +13,8 @@ spec:
     metadata:
       labels:
         app: featureform-prometheus-server
+      annotations:
+        timestamp: {{ now | quote }}  
     spec:
       containers:
         - name: featureform-prometheus

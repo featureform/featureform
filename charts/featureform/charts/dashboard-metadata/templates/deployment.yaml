@@ -19,6 +19,8 @@ spec:
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      annotations:
+        timestamp: {{ now | quote }}  
       labels:
         app: featureform-dashboard-metadata
         {{- include "dashboard-metadata.selectorLabels" . | nindent 8 }}

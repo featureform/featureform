@@ -1,4 +1,4 @@
-import { Chip, Container, Grid, Typography } from '@mui/material';
+import { Box, Chip, Grid, Typography } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import React, { useEffect } from 'react';
 import { connect } from 'react-redux';
@@ -140,10 +140,20 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
       window.location.href = createPromUrl();
     }
   };
+  let totalChartHeight = 0;
+  const queryObj = queryFormats[type];
+  if (queryObj) {
+    const totalProps = Object.keys(queryObj)?.length;
+    totalChartHeight = totalProps ? totalProps * 500 : 0;
+  }
   return (
     <>
       {type in queryFormats ? (
-        <div className={classes.root}>
+        <Box
+          className={classes.root}
+          style={{ height: totalChartHeight }}
+          data-testid='viewPortId'
+        >
           <Typography variant='body1' className={classes.linkPromChip}>
             Source:
           </Typography>
@@ -159,7 +169,7 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
           <Grid container spacing={0}>
             <Grid item xs={12} height='10em'>
               <div className={classes.graph}>
-                <Container minheight={'1300px'}>
+                <Box>
                   {Object.entries(queryFormats[type]).map(
                     ([query_name, query_data], i) => {
                       return (
@@ -185,11 +195,11 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
                       );
                     }
                   )}
-                </Container>
+                </Box>
               </div>
             </Grid>
           </Grid>
-        </div>
+        </Box>
       ) : null}
     </>
   );

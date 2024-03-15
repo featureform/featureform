@@ -19,6 +19,8 @@ spec:
         chart: featureform
         run: featureform-feature-server
         app: featureform-feature-server
+      annotations:
+        timestamp: {{ now | quote }}  
     spec:
       containers:
         - image: "{{ .Values.global.repo | default .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.global.version | default .Chart.AppVersion }}"

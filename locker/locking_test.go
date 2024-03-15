@@ -5,6 +5,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/featureform/fferr"
 )
 
 type LockerTest struct {
@@ -231,7 +233,7 @@ func TestLockInformation(t *testing.T) {
 				Key:  "key",
 				Date: time.Now().UTC(),
 			},
-			expectedError: fmt.Errorf("lock information is missing ID"),
+			expectedError: fferr.NewInvalidArgumentError(fmt.Errorf("lock information is missing ID")),
 		},
 		{
 			name: "Missing Key",
@@ -239,7 +241,7 @@ func TestLockInformation(t *testing.T) {
 				ID:   "id",
 				Date: time.Now().UTC(),
 			},
-			expectedError: fmt.Errorf("lock information is missing Key"),
+			expectedError: fferr.NewInvalidArgumentError(fmt.Errorf("lock information is missing Key")),
 		},
 	}
 

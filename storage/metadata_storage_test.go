@@ -279,7 +279,7 @@ func testCreate(t *testing.T, ms MetadataStorage) {
 	}
 	tests := map[string]TestCase{
 		"Simple":   {"createTest/key1", "value1", nil},
-		"EmptyKey": {"", "value1", fmt.Errorf("key is empty")},
+		"EmptyKey": {"", "value1", fferr.NewInternalError(fmt.Errorf("key is empty"))},
 	}
 
 	for name, test := range tests {
@@ -423,8 +423,10 @@ func testList(t *testing.T, ms MetadataStorage) {
 			}()
 
 			keys, err := ms.List(test.prefix)
-			if err != nil {
+			if err != nil && err.Error() != test.expectedError.Error() {
 				t.Errorf("List(%s): expected no error, got %v", test.prefix, err)
+			} else if err != nil && err.Error() == test.expectedError.Error() {
+				return
 			}
 
 			if len(keys) != len(test.expectedKeys) {

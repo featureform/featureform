@@ -12,6 +12,8 @@ spec:
       labels:
         chart: featureform
         app: featureform-dashboard
+      annotations:
+        timestamp: {{ now | quote }}  
     spec:
       terminationGracePeriodSeconds: 30
       containers:

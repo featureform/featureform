@@ -49,8 +49,7 @@ export default function NewTrigger({ handleClose }) {
         alias: true,
       });
       if (!isCronValid) {
-        // errorObj['schedule'] = 'Cron expression is invalid.';
-        console.warn('Cron is invalid. May change this soon.');
+        errorObj['schedule'] = 'Cron expression is invalid.';
       }
     }
 

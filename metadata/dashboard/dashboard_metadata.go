@@ -887,7 +887,7 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	}
 	iter, err := m.getSourceDataIterator(name, variant, limit)
 	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData - getSourceDataIterator() threw an exception"}
+		fetchError := &FetchError{StatusCode: 500, Type: fmt.Sprintf("GetSourceData - %s", err.Error())}
 		m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1137,7 +1137,7 @@ func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64
 		primary, providerErr = store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary})
 	}
 	if providerErr != nil {
-		return nil, errors.Wrap(err, "could not get primary table")
+		return nil, errors.Wrap(providerErr, "could not get primary table")
 	}
 	return primary.IterateSegment(limit)
 }

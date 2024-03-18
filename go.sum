@@ -448,6 +448,8 @@ github.com/inlinedio/ikv-store v0.0.18 h1:bvsOYcIz0UaVJ2RLZ0Nnm9BgGqyUDcW+XhwpUc
 github.com/inlinedio/ikv-store v0.0.18/go.mod h1:QIQkKxSqgJpyaw3ky/K5mU28Z80+BfSf/o5B7x/cMqs=
 github.com/inlinedio/ikv-store v0.0.19 h1:VJZcbLXSA1e+pyNxHTATJYX1iATvHcgtqfAoBfT+PvI=
 github.com/inlinedio/ikv-store v0.0.19/go.mod h1:QIQkKxSqgJpyaw3ky/K5mU28Z80+BfSf/o5B7x/cMqs=
+github.com/inlinedio/ikv-store v0.0.20 h1:7U9t2TDlhUo+cei7S89XnbA0vl+TWESTFK8BJtQ+5DY=
+github.com/inlinedio/ikv-store v0.0.20/go.mod h1:QIQkKxSqgJpyaw3ky/K5mU28Z80+BfSf/o5B7x/cMqs=
 github.com/jackc/chunkreader v1.0.0/go.mod h1:RT6O25fNZIuasFJRyZ4R/Y2BbhasbmZXF9QQ7T3kePo=
 github.com/jackc/chunkreader/v2 v2.0.0/go.mod h1:odVSm741yZoC3dpHEUXIqA9tQRhFrgOHwnPIn9lDKlk=
 github.com/jackc/chunkreader/v2 v2.0.1 h1:i+RDz65UE+mmpjTfyz0MoVTnzeYxroil2G82ki7MGG8=

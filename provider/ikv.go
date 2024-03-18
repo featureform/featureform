@@ -12,14 +12,17 @@ import (
 	"github.com/redis/rueidis"
 )
 
-// Integrates IKV: https://docs.inlined.io
-// as an Online Store in Featureform.
-
+// IKV primary-key for storing entity key values
 var pkey_field_name string = "ff_primary_key"
 
+// primary-key of the row storing table metadata
+var metadata_pkey string = "ff_table_metadata"
+
+// Integrates IKV: https://docs.inlined.io as an Online Store in Featureform.
 // Wraps a single IKV store instance.
 // Inner fields act as individual OnlineTableStore instances.
 type ikvOnlineStore struct {
+	// write through cache over ikv field columns
 	tables map[string]*ikvOnlineStoreTable
 	reader ikv.IKVReader
 	writer ikv.IKVWriter
@@ -102,16 +105,44 @@ func (i *ikvOnlineStore) GetTable(feature string, variant string) (OnlineStoreTa
 		return table, nil
 	}
 
-	return nil, fferr.NewDatasetNotFoundError(feature, variant, nil)
+	// fetch metadata row from ikv
+	exists, valueTypeString, err := i.reader.GetStringValue(metadata_pkey, fieldName)
+	if err != nil {
+		return nil, fferr.NewResourceInternalError(feature, variant, fferr.INTERNAL_ERROR, err)
+	}
+
+	// feature + variant pair not created
+	if !exists {
+		return nil, fferr.NewDatasetNotFoundError(feature, variant, nil)
+	}
+
+	// populate cache
+	table := ikvOnlineStoreTable{
+		featureName: feature,
+		variant:     variant,
+		fieldName:   fieldName,
+		valueType:   ScalarType(valueTypeString),
+		reader:      i.reader,
+		writer:      i.writer,
+	}
+	i.tables[fieldName] = &table
+	return &table, nil
 }
 
 // CreateTable implements OnlineStore.
 func (i *ikvOnlineStore) CreateTable(feature string, variant string, valueType ValueType) (OnlineStoreTable, error) {
-	fieldName := constructFieldName(feature, variant)
+	// check if already exists
+	if maybe_table, _ := i.GetTable(feature, variant); maybe_table != nil {
+		return nil, fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
+	}
 
-	// already exists?
-	if table, exists := i.tables[fieldName]; exists {
-		return table, fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
+	// Still possible that the field column already exists
+	// since GetTable has eventual consistency.
+	// Ok to re-create.
+	fieldName := constructFieldName(feature, variant)
+	document, _ := ikv.NewIKVDocumentBuilder().PutStringField(pkey_field_name, metadata_pkey).PutStringField(fieldName, string(valueType.Scalar().Scalar())).Build()
+	if err := i.writer.UpsertFields(&document); err != nil {
+		return nil, fferr.NewResourceInternalError(feature, variant, fferr.INTERNAL_ERROR, err)
 	}
 
 	table := ikvOnlineStoreTable{
@@ -126,16 +157,17 @@ func (i *ikvOnlineStore) CreateTable(feature string, variant string, valueType V
 	return &table, nil
 }
 
-// TODO: Implement table deletion
-func (*ikvOnlineStore) DeleteTable(feature string, variant string) error {
-	// Not supported. Field cannot be deleted from all entities.
-	// Deletes keyed on particular entity are ok.
-	return nil
+// DeleteTable implements OnlineStore.
+func (i *ikvOnlineStore) DeleteTable(feature string, variant string) error {
+	fieldName := constructFieldName(feature, variant)
+
+	delete(i.tables, fieldName)
+
+	// drop for all documents (including metadata row)
+	return i.writer.DropFieldsByName([]string{fieldName})
 }
 
 func (i *ikvOnlineStore) Close() error {
-	// Shutdown clients.
-
 	if err := i.reader.Shutdown(); err != nil {
 		return err
 	}
@@ -145,10 +177,6 @@ func (i *ikvOnlineStore) Close() error {
 	}
 
 	return nil
-}
-
-func constructFieldName(feature, variant string) string {
-	return fmt.Sprintf("%s_%s", feature, variant)
 }
 
 // Wraps one field/attribute/column of an IKV store,
@@ -268,4 +296,8 @@ func (i *ikvOnlineStoreTable) Get(entity string) (interface{}, error) {
 	}
 
 	return value, nil
+}
+
+func constructFieldName(feature string, variant string) string {
+	return fmt.Sprintf("%s$_$%s", feature, variant)
 }

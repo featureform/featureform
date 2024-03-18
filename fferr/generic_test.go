@@ -202,12 +202,12 @@ func TestGenericError_AddDetail(t *testing.T) {
 
 func TestGenericError_AddDetails(t *testing.T) {
 	type args struct {
-		keysAndValues []interface{} // This should be []interface{} to match your AddDetails signature
+		keysAndValues []interface{}
 	}
 	tests := []struct {
 		name string
 		args args
-		want map[string]string // This is what you expect to see in details after AddDetails is called
+		want map[string]string
 	}{
 		{
 			name: "Simple",
@@ -230,9 +230,9 @@ func TestGenericError_AddDetails(t *testing.T) {
 			want: map[string]string{"key": "value", "key2": "value2"},
 		},
 		{
-			name: "Non-string value",
-			args: args{[]interface{}{"key", 1, "key2", "value2"}},
-			want: map[string]string{"key2": "value2"},
+			name: "Non-string values",
+			args: args{[]interface{}{"key", 1, "key2", 2}},
+			want: map[string]string{"key": "1", "key2": "2"},
 		},
 		{
 			name: "Empty",

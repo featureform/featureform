@@ -46,6 +46,7 @@ func (e *GenericError) AddDetail(key, value string) {
 
 func (e *GenericError) AddDetails(keysAndValues ...interface{}) {
 	// Modeled after a simple version of the logging.infow method
+	// keys and values are expected to be in pairs, with the key first and the value second and both as strings.
 
 	if len(keysAndValues)%2 != 0 {
 		// We're just going to print an error if the number of arguments is odd and omit the last one.

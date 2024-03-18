@@ -45,6 +45,8 @@ func (e *GenericError) AddDetail(key, value string) {
 }
 
 func (e *GenericError) AddDetails(keysAndValues ...interface{}) {
+	// Modeled after the logging.infow method
+
 	if len(keysAndValues)%2 != 0 {
 		// We're just going to print an error if the number of arguments is odd and omit the last one.
 		fmt.Println("AddDetails called with odd number of arguments, expected key-value pairs")

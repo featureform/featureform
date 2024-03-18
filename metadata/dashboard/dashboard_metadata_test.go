@@ -167,8 +167,9 @@ func TestParseStatFile(t *testing.T) {
 		name     string
 		filepath string
 	}{
-		{"example file 1", "./testdata/mock_stats.json"},
-		{"example file 2", "./testdata/generated_stats.json"},
+		{"full stats", "./testdata/mock_stats.json"},
+		{"entity_value_stats file", "./testdata/entity_value_stats.json"},
+		{"calendar_stats file", "./testdata/calendar_stats.json"},
 	}
 	for _, currTest := range testCases {
 		t.Run(currTest.name, func(t *testing.T) {

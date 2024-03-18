@@ -230,6 +230,11 @@ func TestGenericError_AddDetails(t *testing.T) {
 			want: map[string]string{"key": "value", "key2": "value2"},
 		},
 		{
+			name: "Non-string value",
+			args: args{[]interface{}{"key", 1, "key2", "value2"}},
+			want: map[string]string{"key2": "value2"},
+		},
+		{
 			name: "Empty",
 			args: args{[]interface{}{}},
 			want: map[string]string{}, // No changes expected for an empty input

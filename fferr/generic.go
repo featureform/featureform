@@ -45,7 +45,7 @@ func (e *GenericError) AddDetail(key, value string) {
 }
 
 func (e *GenericError) AddDetails(keysAndValues ...interface{}) {
-	// Modeled after the logging.infow method
+	// Modeled after a simple version of the logging.infow method
 
 	if len(keysAndValues)%2 != 0 {
 		// We're just going to print an error if the number of arguments is odd and omit the last one.
@@ -64,8 +64,12 @@ func (e *GenericError) AddDetails(keysAndValues ...interface{}) {
 			fmt.Printf("Key at index %d is not a string\n", i)
 			continue
 		}
-		// Convert the value to a string, this assumes that the value has a meaningful string representation
-		value := fmt.Sprintf("%v", keysAndValues[i+1])
+		value, ok := keysAndValues[i+1].(string)
+		if !ok {
+			// Handle or log the error if the value is not a string.
+			fmt.Printf("Value at index %d is not a string\n", i+1)
+			continue
+		}
 		e.AddDetail(key, value)
 	}
 }

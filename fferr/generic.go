@@ -44,6 +44,30 @@ func (e *GenericError) AddDetail(key, value string) {
 	e.detailKeys = append(e.detailKeys, key)
 }
 
+func (e *GenericError) AddDetails(keysAndValues ...interface{}) {
+	if len(keysAndValues)%2 != 0 {
+		// We're just going to print an error if the number of arguments is odd and omit the last one.
+		fmt.Println("AddDetails called with odd number of arguments, expected key-value pairs")
+	}
+
+	n := len(keysAndValues)
+	if n%2 != 0 {
+		n = n - 1 // Skip the last one if odd
+	}
+
+	for i := 0; i < n; i += 2 {
+		key, ok := keysAndValues[i].(string)
+		if !ok {
+			// Handle or log the error if the key is not a string.
+			fmt.Printf("Key at index %d is not a string\n", i)
+			continue
+		}
+		// Convert the value to a string, this assumes that the value has a meaningful string representation
+		value := fmt.Sprintf("%v", keysAndValues[i+1])
+		e.AddDetail(key, value)
+	}
+}
+
 func (e *GenericError) SetMessage(msg string) {
 	e.msg = fmt.Sprintf("%s: %s", msg, e.msg)
 }

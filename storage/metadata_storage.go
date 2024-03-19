@@ -20,6 +20,22 @@ func (s *MetadataStorage) Create(key string, value string) fferr.GRPCError {
 	return s.Storage.Set(key, value)
 }
 
+func (s *MetadataStorage) MultiCreate(data map[string]string) fferr.GRPCError {
+	for key, value := range data {
+		lock, err := s.Locker.Lock(key)
+		if err != nil {
+			return err
+		}
+		defer s.Locker.Unlock(lock)
+
+		err = s.Storage.Set(key, value)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *MetadataStorage) Update(key string, updateFn func(string) (string, fferr.GRPCError)) fferr.GRPCError {
 	lock, err := s.Locker.Lock(key)
 	if err != nil {

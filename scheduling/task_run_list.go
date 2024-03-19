@@ -52,6 +52,7 @@ func (tr *TaskRuns) GetLatestRunId() (TaskRunID, fferr.GRPCError) {
 }
 
 func (tr *TaskRuns) ContainsRun(runID TaskRunID) (bool, TaskRunSimple) {
+	// TODO: need to convert this into binary search
 	for _, run := range tr.Runs {
 		if run.RunID == runID {
 			return true, run

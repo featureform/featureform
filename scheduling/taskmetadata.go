@@ -217,6 +217,7 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 		return TaskRunMetadata{}, err
 	}
 
+	// TODO: potential needs to be a transactional operation
 	return metadata, nil
 }
 
@@ -266,6 +267,11 @@ func (m *TaskMetadataManager) GetRunByID(taskID TaskID, runID TaskRunID) (TaskRu
 }
 
 func (m *TaskMetadataManager) GetRunsByDate(start time.Time, end time.Time) (TaskRunList, fferr.GRPCError) {
+	// TODO: add a comment about the key path
+	// TODO: fix the key to include the 0-23 hours and 0-59 minutes, but loop through for each hour
+	// keyPath := key.TruncateToDay() -> // 2024/03/01 (keep it as this for now)
+	// keyPath := key.TruncateToHour() -> // 2024/03/01/00
+	// keyPath := key.TruncateToMinute() -> // 2024/03/01/00/00
 	// the date range is inclusive
 	var runs []TaskRunMetadata
 
@@ -365,7 +371,7 @@ func (m *TaskMetadataManager) SetRunStatus(runID TaskRunID, taskID TaskID, statu
 		if marshalErr != nil {
 			marshalErr.AddDetail("task_id", string(taskID))
 			marshalErr.AddDetail("run_id", string(runID))
-			return "", e
+			return "", marshalErr
 		}
 
 		return string(serializedMetadata), nil
@@ -392,11 +398,11 @@ func (m *TaskMetadataManager) SetRunEndTime(runID TaskRunID, taskID TaskID, time
 		return err
 	}
 
-	metadata, e := m.GetRunByID(taskID, runID)
-	if e != nil {
-		e.AddDetail("task_id", string(taskID))
-		e.AddDetail("run_id", string(runID))
-		return e
+	metadata, err := m.GetRunByID(taskID, runID)
+	if err != nil {
+		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("run_id", string(runID))
+		return err
 	}
 
 	updateEndTime := func(runMetadata string) (string, fferr.GRPCError) {
@@ -418,17 +424,17 @@ func (m *TaskMetadataManager) SetRunEndTime(runID TaskRunID, taskID TaskID, time
 		}
 
 		metadata.EndTime = time
-		serializedMetadata, e := metadata.Marshal()
-		if e != nil {
-			return "", e
+		serializedMetadata, err := metadata.Marshal()
+		if err != nil {
+			return "", err
 		}
 
 		return string(serializedMetadata), nil
 	}
 
 	taskRunMetadataKey := TaskRunMetadataKey{taskID: taskID, runID: metadata.ID, date: metadata.StartTime}
-	e = m.storage.Update(taskRunMetadataKey.String(), updateEndTime)
-	return e
+	err = m.storage.Update(taskRunMetadataKey.String(), updateEndTime)
+	return err
 }
 
 func (m *TaskMetadataManager) AppendRunLog(runID TaskRunID, taskID TaskID, log string) fferr.GRPCError {
@@ -451,9 +457,9 @@ func (m *TaskMetadataManager) AppendRunLog(runID TaskRunID, taskID TaskID, log s
 		return err
 	}
 
-	metadata, e := m.GetRunByID(taskID, runID)
-	if e != nil {
-		return e
+	metadata, err := m.GetRunByID(taskID, runID)
+	if err != nil {
+		return err
 	}
 
 	updateLog := func(runMetadata string) (string, fferr.GRPCError) {
@@ -465,8 +471,8 @@ func (m *TaskMetadataManager) AppendRunLog(runID TaskRunID, taskID TaskID, log s
 
 		metadata.Logs = append(metadata.Logs, log)
 
-		serializedMetadata, e := metadata.Marshal()
-		if e != nil {
+		serializedMetadata, err := metadata.Marshal()
+		if err != nil {
 			return "", err
 		}
 
@@ -474,8 +480,8 @@ func (m *TaskMetadataManager) AppendRunLog(runID TaskRunID, taskID TaskID, log s
 	}
 
 	taskRunMetadataKey := TaskRunMetadataKey{taskID: taskID, runID: metadata.ID, date: metadata.StartTime}
-	e = m.storage.Update(taskRunMetadataKey.String(), updateLog)
-	return e
+	err = m.storage.Update(taskRunMetadataKey.String(), updateLog)
+	return err
 }
 
 // Finds the highest increment in a list of strings formatted like "/tasks/metadata/task_id=0"
@@ -485,7 +491,7 @@ func getLatestId(taskMetadata map[string]string) (int, fferr.GRPCError) {
 	// Regular expression pattern to match "task_id=<number>"
 	pattern := regexp.MustCompile(`/tasks/metadata/task_id=(\d+)`)
 
-	for path, _ := range taskMetadata {
+	for path := range taskMetadata {
 		increment, err := getTaskIdFromPath(pattern, path)
 		if err != nil {
 			return -1, err
@@ -494,11 +500,6 @@ func getLatestId(taskMetadata map[string]string) (int, fferr.GRPCError) {
 		if increment > highestTaskId {
 			highestTaskId = increment
 		}
-	}
-	if highestTaskId == -1 {
-		errMessage := fmt.Errorf("no task metadata found")
-		err := fferr.NewInternalError(errMessage)
-		return -1, err
 	}
 	return highestTaskId, nil
 }

@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"sync"
 	"testing"
 
 	"github.com/featureform/fferr"
@@ -242,26 +241,22 @@ func StorageDelete(t *testing.T, storage metadataStorageImplementation) {
 }
 
 func TestMetadataStorage(t *testing.T) {
-	locker := &locker.MemoryLocker{
-		LockedItems: sync.Map{},
-		Mutex:       &sync.Mutex{},
-	}
+	locker := locker.NewMemoryLocker()
 
-	storage := &MemoryStorageImplementation{
-		Storage: make(map[string]string),
-	}
+	storage := NewMemoryStorageImplementation()
 
 	metadataStorage := MetadataStorage{
-		Locker:  locker,
-		Storage: storage,
+		Locker:  &locker,
+		Storage: &storage,
 	}
 
 	tests := map[string]func(*testing.T, MetadataStorage){
-		"TestCreate": testCreate,
-		"TestUpdate": testUpdate,
-		"TestList":   testList,
-		"TestGet":    testGet,
-		"TestDelete": testDelete,
+		"TestCreate":      testCreate,
+		"TestMultiCreate": testMultiCreate,
+		"TestUpdate":      testUpdate,
+		"TestList":        testList,
+		"TestGet":         testGet,
+		"TestDelete":      testDelete,
 	}
 
 	for name, fn := range tests {
@@ -301,6 +296,48 @@ func testCreate(t *testing.T, ms MetadataStorage) {
 
 			if value != test.value {
 				t.Fatalf("Delete(%s): expected value %s, got %s", test.key, test.value, value)
+			}
+		})
+	}
+}
+
+func testMultiCreate(t *testing.T, ms MetadataStorage) {
+	type TestCase struct {
+		data map[string]string
+		err  error
+	}
+	tests := map[string]TestCase{
+		"Simple": {
+			data: map[string]string{
+				"multiCreateTest/key1": "value1",
+				"multiCreateTest/key2": "value2",
+				"multiCreateTest/key3": "value3",
+			},
+			err: nil,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := ms.MultiCreate(test.data)
+			if err != nil && err.Error() != test.err.Error() {
+				t.Errorf("MultiCreate(%v): expected error %v, got %v", test.data, test.err, err)
+			}
+
+			// continue to next test case
+			if len(test.data) == 0 {
+				return
+			}
+
+			for key, value := range test.data {
+				v, err := ms.Delete(key)
+				if err != nil {
+					t.Fatalf("Delete(%s) failed: %v", key, err)
+				}
+
+				if v != value {
+					t.Fatalf("Delete(%s): expected value %s, got %s", key, value, v)
+				}
 			}
 		})
 	}

@@ -1,15 +1,11 @@
 package locker
 
 import (
-	"sync"
 	"testing"
 )
 
 func TestMemoryLocker(t *testing.T) {
-	locker := MemoryLocker{
-		LockedItems: sync.Map{},
-		Mutex:       &sync.Mutex{},
-	}
+	locker := NewMemoryLocker()
 
 	test := LockerTest{
 		t:      t,

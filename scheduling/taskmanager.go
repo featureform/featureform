@@ -215,7 +215,6 @@ func (tm *TaskManager) CreateTaskRun(name string, taskID TaskID, trigger Trigger
 		return TaskRunMetadata{}, err
 	}
 
-	// This function could be a method of TaskRuns
 	latestID, err := runs.GetLatestRunId()
 	if err != nil {
 		return TaskRunMetadata{}, err

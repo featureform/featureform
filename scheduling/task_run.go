@@ -68,7 +68,6 @@ type TaskRunMetadata struct {
 	Error       string      `json:"error"`
 }
 
-// Formatting
 func (t *TaskRunMetadata) Marshal() ([]byte, fferr.GRPCError) {
 	bytes, err := json.Marshal(t)
 	if err != nil {

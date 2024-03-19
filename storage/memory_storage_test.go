@@ -7,13 +7,11 @@ func TestMemoryMetadataStorage(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
-	storage := &MemoryStorageImplementation{
-		Storage: make(map[string]string),
-	}
+	storage := NewMemoryStorageImplementation()
 
 	test := MetadataStorageTest{
 		t:       t,
-		storage: storage,
+		storage: &storage,
 	}
 	test.Run()
 }

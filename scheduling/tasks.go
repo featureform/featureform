@@ -3,6 +3,7 @@ package scheduling
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/featureform/fferr"
@@ -65,7 +66,6 @@ func (t *TaskMetadata) Marshal() ([]byte, fferr.GRPCError) {
 }
 
 func (t *TaskMetadata) Unmarshal(data []byte) fferr.GRPCError {
-
 	type tempConfig struct {
 		ID          TaskID          `json:"id"`
 		Name        string          `json:"name"`
@@ -93,7 +93,9 @@ func (t *TaskMetadata) Unmarshal(data []byte) fferr.GRPCError {
 	if temp.TaskType == "" {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("task metadata is missing TaskType"))
 	}
-	if temp.TaskType != ResourceCreation || temp.TaskType != HealthCheck || temp.TaskType != Monitoring {
+
+	validTypes := []TaskType{ResourceCreation, HealthCheck, Monitoring}
+	if !slices.Contains(validTypes, temp.TaskType) {
 		err := fferr.NewInvalidArgumentError(fmt.Errorf("task metadata has invalid TaskType"))
 		err.AddDetail("TaskType", string(temp.TaskType))
 		return err
@@ -107,6 +109,7 @@ func (t *TaskMetadata) Unmarshal(data []byte) fferr.GRPCError {
 
 	t.TargetType = temp.TargetType
 
+	// TODO: ask Riddhi if there was purpose for this
 	targetMap := make(map[string]interface{})
 	if err := json.Unmarshal(temp.Target, &targetMap); err != nil {
 		errMessage := fmt.Errorf("failed to deserialize target data: %w", err)

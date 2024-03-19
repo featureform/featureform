@@ -24,12 +24,19 @@ func (k *memoryKey) Key() string {
 	return k.key
 }
 
-type MemoryLocker struct {
+func NewMemoryLocker() memoryLocker {
+	return memoryLocker{
+		lockedItems: sync.Map{},
+		mutex:       &sync.Mutex{},
+	}
+}
+
+type memoryLocker struct {
 	lockedItems sync.Map
 	mutex       *sync.Mutex
 }
 
-func (m *MemoryLocker) Lock(key string) (Key, fferr.GRPCError) {
+func (m *memoryLocker) Lock(key string) (Key, fferr.GRPCError) {
 	if key == "" {
 		return nil, fferr.NewInternalError(fmt.Errorf("cannot lock an empty key"))
 	}
@@ -71,7 +78,7 @@ func (m *MemoryLocker) Lock(key string) (Key, fferr.GRPCError) {
 	return lockKey, nil
 }
 
-func (m *MemoryLocker) isPrefixOfExistingKey(key string) (string, bool) {
+func (m *memoryLocker) isPrefixOfExistingKey(key string) (string, bool) {
 	existingKey := ""
 	isPrefix := false
 	m.lockedItems.Range(func(k, v interface{}) bool {
@@ -85,7 +92,7 @@ func (m *MemoryLocker) isPrefixOfExistingKey(key string) (string, bool) {
 	return existingKey, isPrefix
 }
 
-func (m *MemoryLocker) hasPrefixLocked(key string) (string, bool) {
+func (m *memoryLocker) hasPrefixLocked(key string) (string, bool) {
 	prefix := ""
 	hasPrefix := false
 	m.lockedItems.Range(func(k, v interface{}) bool {
@@ -99,7 +106,7 @@ func (m *MemoryLocker) hasPrefixLocked(key string) (string, bool) {
 	return prefix, hasPrefix
 }
 
-func (m *MemoryLocker) updateLockTime(key *memoryKey) {
+func (m *memoryLocker) updateLockTime(key *memoryKey) {
 	ticker := time.NewTicker(UpdateSleepTime)
 	defer ticker.Stop()
 
@@ -110,6 +117,7 @@ func (m *MemoryLocker) updateLockTime(key *memoryKey) {
 			return
 		case <-ticker.C:
 			// Continue updating lock time
+			// We need to check if the key still exists because it could have been deleted
 			lockInfo, ok := m.lockedItems.Load(key.key)
 			if !ok {
 				// Key no longer exists, stop updating
@@ -129,7 +137,7 @@ func (m *MemoryLocker) updateLockTime(key *memoryKey) {
 	}
 }
 
-func (m *MemoryLocker) Unlock(key Key) fferr.GRPCError {
+func (m *memoryLocker) Unlock(key Key) fferr.GRPCError {
 	if key.Key() == "" {
 		return fferr.NewInternalError(fmt.Errorf("cannot unlock an empty key"))
 	}

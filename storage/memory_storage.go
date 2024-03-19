@@ -7,26 +7,32 @@ import (
 	"github.com/featureform/fferr"
 )
 
-type MemoryStorageImplementation struct {
-	Storage map[string]string
+func NewMemoryStorageImplementation() memoryStorageImplementation {
+	return memoryStorageImplementation{
+		storage: make(map[string]string),
+	}
 }
 
-func (m *MemoryStorageImplementation) Set(key string, value string) fferr.GRPCError {
+type memoryStorageImplementation struct {
+	storage map[string]string
+}
+
+func (m *memoryStorageImplementation) Set(key string, value string) fferr.GRPCError {
 	if key == "" {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("key is empty"))
 	}
 
-	m.Storage[key] = value
+	m.storage[key] = value
 
 	return nil
 }
 
-func (m *MemoryStorageImplementation) Get(key string) (string, fferr.GRPCError) {
+func (m *memoryStorageImplementation) Get(key string) (string, fferr.GRPCError) {
 	if key == "" {
 		return "", fferr.NewInvalidArgumentError(fmt.Errorf("key is empty"))
 	}
 
-	value, ok := m.Storage[key]
+	value, ok := m.storage[key]
 	if !ok {
 		return "", fferr.NewKeyNotFoundError(key, nil)
 	}
@@ -34,10 +40,10 @@ func (m *MemoryStorageImplementation) Get(key string) (string, fferr.GRPCError) 
 	return value, nil
 }
 
-func (m *MemoryStorageImplementation) List(prefix string) (map[string]string, fferr.GRPCError) {
+func (m *memoryStorageImplementation) List(prefix string) (map[string]string, fferr.GRPCError) {
 	result := make(map[string]string)
 
-	for key, value := range m.Storage {
+	for key, value := range m.storage {
 		if strings.HasPrefix(key, prefix) {
 			result[key] = value
 		}
@@ -46,17 +52,17 @@ func (m *MemoryStorageImplementation) List(prefix string) (map[string]string, ff
 	return result, nil
 }
 
-func (m *MemoryStorageImplementation) Delete(key string) (string, fferr.GRPCError) {
+func (m *memoryStorageImplementation) Delete(key string) (string, fferr.GRPCError) {
 	if key == "" {
 		return "", fferr.NewInvalidArgumentError(fmt.Errorf("key is empty"))
 	}
 
-	value, ok := m.Storage[key]
+	value, ok := m.storage[key]
 	if !ok {
 		return "", fferr.NewKeyNotFoundError(key, nil)
 	}
 
-	delete(m.Storage, key)
+	delete(m.storage, key)
 
 	return value, nil
 }

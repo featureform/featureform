@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/featureform/fferr"
@@ -31,14 +30,8 @@ type TaskMetadataManager struct {
 }
 
 func NewMemoryTaskMetadataManager() TaskMetadataManager {
-	memoryLocker := locker.MemoryLocker{
-		lockedItems: sync.Map{},
-		mutex:       &sync.Mutex{},
-	}
-
-	memoryStorage := ss.MemoryStorageImplementation{
-		Storage: make(map[string]string),
-	}
+	memoryLocker := locker.NewMemoryLocker()
+	memoryStorage := ss.NewMemoryStorageImplementation()
 
 	memoryMetadataStorage := ss.MetadataStorage{
 		Locker:  &memoryLocker,
@@ -88,6 +81,8 @@ func (m *TaskMetadataManager) CreateTask(name string, tType TaskType, target Tas
 	key := TaskMetadataKey{taskID: metadata.ID}
 	err = m.storage.Create(key.String(), string(serializedMetadata))
 	if err != nil {
+		err.AddDetail("task_id", string(metadata.ID))
+		err.AddDetail("key", key.String())
 		return TaskMetadata{}, err
 	}
 
@@ -136,14 +131,10 @@ func (m *TaskMetadataManager) GetAllTasks() (TaskMetadataList, fferr.GRPCError) 
 		return TaskMetadataList{}, err
 	}
 
-	tml, err := m.getAllTasksAsMetadataList(metadata)
-	if err != nil {
-		return TaskMetadataList{}, err
-	}
-	return tml, nil
+	return m.convertToTaskMetadataList(metadata)
 }
 
-func (m *TaskMetadataManager) getAllTasksAsMetadataList(metadata map[string]string) (TaskMetadataList, fferr.GRPCError) {
+func (m *TaskMetadataManager) convertToTaskMetadataList(metadata map[string]string) (TaskMetadataList, fferr.GRPCError) {
 	tml := TaskMetadataList{}
 	for _, meta := range metadata {
 		taskMetadata := TaskMetadata{}

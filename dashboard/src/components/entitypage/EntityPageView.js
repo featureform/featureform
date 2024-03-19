@@ -526,7 +526,10 @@ const EntityPageView = ({
                           </>
                         ) : (
                           <>
-                            <Typography variant='body1'>
+                            <Typography
+                              variant='body1'
+                              style={{ whiteSpace: 'pre-line' }}
+                            >
                               {metadata['error']}
                             </Typography>
                           </>

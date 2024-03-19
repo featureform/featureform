@@ -401,7 +401,7 @@ jobs:
         uses: WyriHaximus/github-action-helm3@v3
         with:
           exec: |
-            helm install featureform ./charts/featureform -n rc${{ inputs.version-postfix }} --create-namespace --set global.hostname=rc${{ inputs.version-postfix }}.pr.featureform.com --set global.version=0.0.0-rc${{ inputs.version-postfix }} --set nginx.enabled=false --set global.localCert=false --set global.publicCert=true
+            helm install featureform ./charts/featureform -n rc${{ inputs.version-postfix }} --create-namespace --set hostname=rc${{ inputs.version-postfix }}.pr.featureform.com --set versionOverride=0.0.0-rc${{ inputs.version-postfix }} --set nginx.enabled=false --set selfSignedCert=false --set publicCert=true
             helm install quickstart ./charts/quickstart -n rc${{ inputs.version-postfix }}
           kubeconfig: "${{ secrets.KUBECONFIG }}"
           overrule_existing_kubeconfig: "true"

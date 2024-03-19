@@ -32,6 +32,8 @@ nginx:
   # on the cluster
   enabled: true
 
+# If true, will restart pods on update even if no changes have been made
+restartOnUpdate: false
 
 logging:
   # When enabled, will use the loki stack for logging
@@ -189,7 +191,7 @@ metadata:
     maxReplicas: 100
     targetCPUUtilizationPercentage: 80
 
-# Configuration for the backup service 
+# Configuration for the backup service
 backup:
   enabled: false
   schedule: "0 * * * *"

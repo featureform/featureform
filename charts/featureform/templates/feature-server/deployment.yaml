@@ -19,8 +19,10 @@ spec:
         chart: featureform
         run: featureform-feature-server
         app: featureform-feature-server
+      {{ if .Values.restartOnUpdate }}
       annotations:
-        timestamp: {{ now | quote }}  
+        timestamp: {{ now | quote }}
+      {{ end }}
     spec:
       containers:
         - image: "{{ .Values.repository }}/{{ .Values.serving.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"

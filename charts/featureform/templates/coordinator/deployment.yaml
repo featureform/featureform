@@ -17,6 +17,10 @@ spec:
       labels:
         chart: featureform
         app: featureform-coordinator
+      {{ if .Values.restartOnUpdate }}
+      annotations:
+        timestamp: {{ now | quote }}
+      {{ end }}
     spec:
       serviceAccountName: ff-coordinator-sa
 

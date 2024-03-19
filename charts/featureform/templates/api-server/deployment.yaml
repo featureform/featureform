@@ -15,8 +15,10 @@ spec:
     metadata:
       labels:
         app: featureform-api-server
+      {{ if .Values.restartOnUpdate }}
       annotations:
-        timestamp: {{ now | quote }}  
+        timestamp: {{ now | quote }}
+      {{ end }}
     spec:
       containers:
         - image: "{{ .Values.repository }}/{{ .Values.api.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"

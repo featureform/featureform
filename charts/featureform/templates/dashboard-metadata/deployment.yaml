@@ -15,6 +15,10 @@ spec:
     metadata:
       labels:
         app: featureform-dashboard-metadata
+      {{ if .Values.restartOnUpdate }}
+      annotations:
+        timestamp: {{ now | quote }}
+      {{ end }}
     spec:
       serviceAccountName: ff-dashboard-metadata-sa
       containers:

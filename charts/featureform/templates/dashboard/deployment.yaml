@@ -12,8 +12,10 @@ spec:
       labels:
         chart: featureform
         app: featureform-dashboard
+      {{ if .Values.restartOnUpdate }}
       annotations:
-        timestamp: {{ now | quote }}  
+        timestamp: {{ now | quote }}
+      {{ end }}
     spec:
       terminationGracePeriodSeconds: 30
       containers:

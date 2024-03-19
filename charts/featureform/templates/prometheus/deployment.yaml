@@ -13,8 +13,10 @@ spec:
     metadata:
       labels:
         app: featureform-prometheus-server
+      {{ if .Values.restartOnUpdate }}
       annotations:
-        timestamp: {{ now | quote }}  
+        timestamp: {{ now | quote }}
+      {{ end }}
     spec:
       containers:
         - name: featureform-prometheus

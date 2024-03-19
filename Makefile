@@ -361,7 +361,7 @@ install_featureform: start_minikube containers		## Configures Featureform on Min
         --version v1.8.0 \
         --namespace cert-manager \
         --create-namespace
-	helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable
+	helm install featureform ./charts/featureform --set repository=local --set pullPolicy=Never --set versionOverride=stable
 	kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
 	export FEATUREFORM_HOST=localhost:443
     export FEATUREFORM_CERT=tls.crt

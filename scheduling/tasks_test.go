@@ -80,7 +80,7 @@ func TestIncorrectTaskMetadata(t *testing.T) {
 					Name:    "transaction",
 					Variant: "default",
 				},
-				DateCreated: time.Now(),
+				DateCreated: time.Now().UTC(),
 			},
 		},
 
@@ -91,7 +91,7 @@ func TestIncorrectTaskMetadata(t *testing.T) {
 				Name:        "nv_task",
 				TaskType:    ResourceCreation,
 				Target:      nil,
-				DateCreated: time.Now(),
+				DateCreated: time.Now().UTC(),
 			},
 		},
 	}

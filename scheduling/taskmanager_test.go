@@ -10,7 +10,10 @@ import (
 )
 
 func TestInitialization(t *testing.T) {
-	storage := sp.NewMemoryStorageProvider()
+	storage, err := sp.NewMemoryStorageProvider()
+	if err != nil {
+		t.Fatalf("failed to create memory storage provider: %v", err)
+	}
 	NewTaskManager(storage)
 }
 
@@ -45,7 +48,10 @@ func TestCreateTask(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, tasks []taskInfo, shouldError bool) {
-		storage := sp.NewMemoryStorageProvider()
+		storage, err := sp.NewMemoryStorageProvider()
+		if err != nil {
+			t.Fatalf("failed to create memory storage provider: %v", err)
+		}
 		manager := NewTaskManager(storage)
 		for _, task := range tasks {
 			taskDef, err := manager.CreateTask(task.Name, task.Type, task.Target)
@@ -120,7 +126,10 @@ func TestTaskGetByID(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := sp.NewMemoryStorageProvider()
+		storage, err := sp.NewMemoryStorageProvider()
+		if err != nil {
+			t.Fatalf("failed to create memory storage provider: %v", err)
+		}
 		manager := NewTaskManager(storage)
 		var definitions []TaskMetadata
 		for _, task := range test.Tasks {
@@ -193,7 +202,10 @@ func TestTaskGetAll(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := sp.NewMemoryStorageProvider()
+		storage, err := sp.NewMemoryStorageProvider()
+		if err != nil {
+			t.Fatalf("failed to create memory storage provider: %v", err)
+		}
 		manager := NewTaskManager(storage)
 		var definitions []TaskMetadata
 		for _, task := range test.Tasks {
@@ -297,7 +309,10 @@ func TestCreateTaskRun(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := sp.NewMemoryStorageProvider()
+		storage, err := sp.NewMemoryStorageProvider()
+		if err != nil {
+			t.Fatalf("failed to create memory storage provider: %v", err)
+		}
 		manager := NewTaskManager(storage)
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
@@ -394,7 +409,10 @@ func TestGetRunByID(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := sp.NewMemoryStorageProvider()
+		storage, err := sp.NewMemoryStorageProvider()
+		if err != nil {
+			t.Fatalf("failed to create memory storage provider: %v", err)
+		}
 		manager := NewTaskManager(storage)
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
@@ -492,7 +510,10 @@ func TestGetRunAll(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := sp.NewMemoryStorageProvider()
+		storage, err := sp.NewMemoryStorageProvider()
+		if err != nil {
+			t.Fatalf("failed to create memory storage provider: %v", err)
+		}
 		manager := NewTaskManager(storage)
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
@@ -667,7 +688,10 @@ func TestSetStatusByRunID(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := sp.NewMemoryStorageProvider()
+		storage, err := sp.NewMemoryStorageProvider()
+		if err != nil {
+			t.Fatalf("failed to create memory storage provider: %v", err)
+		}
 		manager := NewTaskManager(storage)
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
@@ -676,13 +700,11 @@ func TestSetStatusByRunID(t *testing.T) {
 			}
 		}
 
-		// var runDefs []TaskRunMetadata
 		for _, run := range test.Runs {
 			_, err := manager.CreateTaskRun(run.Name, run.TaskID, run.Trigger)
 			if err != nil && !test.shouldError {
 				t.Fatalf("failed to create task run: %v", err)
 			}
-			// runDefs = append(runDefs, runDef)
 		}
 
 		lock, err := manager.LockTaskRun(test.ForTask, test.ForRun)
@@ -815,7 +837,11 @@ func TestSetEndTimeByRunID(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := sp.NewMemoryStorageProvider()
+		storage, err := sp.NewMemoryStorageProvider()
+		if err != nil {
+			t.Fatalf("failed to create memory storage provider: %v", err)
+		}
+
 		manager := NewTaskManager(storage)
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)

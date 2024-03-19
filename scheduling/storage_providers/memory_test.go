@@ -9,11 +9,14 @@ func TestStorageProviderMemory(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
-	// storage := NewMemoryStorageProvider()
+	storage, err := NewStorageProvider(MemoryStorageProviderType)
+	if err != nil {
+		t.Fatalf("failed to create memory storage provider: %v", err)
+	}
 
-	// test := StorageProviderTest{
-	// 	t:       t,
-	// 	storage: storage,
-	// }
-	// test.Run()
+	test := StorageProviderTest{
+		t:       t,
+		storage: storage,
+	}
+	test.Run()
 }

@@ -158,7 +158,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 			numChunks += 1
 		}
 	}
-	m.Logger.Infow("Creating chunks", "name", m.ID.Name, "variant", m.ID.Variant, "count", numChunks)
+	m.Logger.Infow("Creating chunks", "name", m.ID.Name, "variant", m.ID.Variant, "count", numChunks, "chunkSize", chunkSize)
 	config := &MaterializedChunkRunnerConfig{
 		OnlineType:     m.Online.Type(),
 		OfflineType:    m.Offline.Type(),
@@ -197,7 +197,13 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		m.Logger.Infow("Making Local Runner", "name", m.ID.Name, "variant", m.ID.Variant)
 		completionList := make([]types.CompletionWatcher, int(numChunks))
 		for i := 0; i < int(numChunks); i++ {
-			localRunner, err := Create(COPY_TO_ONLINE, serializedConfig)
+			m.Logger.Infow("Creating materialization chunk", "name", m.ID.Name, "variant", m.ID.Variant, "chunkIndex", i, "chunkSize", chunkSize)
+			config.ChunkIdx = int64(i)
+			serializedChunkConfig, err := config.Serialize()
+			if err != nil {
+				return nil, err
+			}
+			localRunner, err := Create(COPY_TO_ONLINE, serializedChunkConfig)
 			if err != nil {
 				return nil, err
 			}

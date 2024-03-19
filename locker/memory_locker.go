@@ -11,9 +11,9 @@ import (
 )
 
 type memoryKey struct {
-	id      string
-	key     string
-	Channel *chan error
+	id   string
+	key  string
+	Done *chan error
 }
 
 func (k *memoryKey) ID() string {
@@ -25,68 +25,78 @@ func (k *memoryKey) Key() string {
 }
 
 type MemoryLocker struct {
-	LockedItems sync.Map
-	Mutex       *sync.Mutex
+	lockedItems sync.Map
+	mutex       *sync.Mutex
 }
 
 func (m *MemoryLocker) Lock(key string) (Key, fferr.GRPCError) {
 	if key == "" {
-		return &memoryKey{}, fferr.NewInternalError(fmt.Errorf("cannot lock an empty key"))
+		return nil, fferr.NewInternalError(fmt.Errorf("cannot lock an empty key"))
 	}
 
-	m.Mutex.Lock()
-	defer m.Mutex.Unlock()
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 
-	if m.isPrefixOfExistingKey(key) || m.hasPrefixLocked(key) {
-		return &memoryKey{}, fferr.NewKeyAlreadyLockedError(key, "", nil)
+	existingKey, isPrefix := m.isPrefixOfExistingKey(key)
+	if isPrefix {
+		return nil, fferr.NewKeyAlreadyLockedError(key, existingKey, nil)
+	}
+
+	prefix, hasPrefix := m.hasPrefixLocked(key)
+	if hasPrefix {
+		return nil, fferr.NewKeyAlreadyLockedError(key, prefix, nil)
 	}
 
 	id := uuid.New().String()
 
-	if lockInfo, ok := m.LockedItems.Load(key); ok {
+	if lockInfo, ok := m.lockedItems.Load(key); ok {
 		keyLock := lockInfo.(LockInformation)
 		if time.Since(keyLock.Date) < ValidTimePeriod {
-			return &memoryKey{}, fferr.NewKeyAlreadyLockedError(key, keyLock.ID, nil)
+			return nil, fferr.NewKeyAlreadyLockedError(key, keyLock.ID, nil)
 		}
 	}
 
 	doneChannel := make(chan error)
-	lockKey := &memoryKey{id: id, key: key, Channel: &doneChannel}
+	lockKey := &memoryKey{id: id, key: key, Done: &doneChannel}
 
 	lock := LockInformation{
 		ID:   id,
 		Key:  key,
 		Date: time.Now().UTC(),
 	}
-	m.LockedItems.Store(key, lock)
+	m.lockedItems.Store(key, lock)
 
 	go m.updateLockTime(lockKey)
 
 	return lockKey, nil
 }
 
-func (m *MemoryLocker) isPrefixOfExistingKey(key string) bool {
+func (m *MemoryLocker) isPrefixOfExistingKey(key string) (string, bool) {
+	existingKey := ""
 	isPrefix := false
-	m.LockedItems.Range(func(k, v interface{}) bool {
+	m.lockedItems.Range(func(k, v interface{}) bool {
 		if strings.HasPrefix(k.(string), key) {
 			isPrefix = true
+			existingKey = k.(string)
 			return false
 		}
 		return true
 	})
-	return isPrefix
+	return existingKey, isPrefix
 }
 
-func (m *MemoryLocker) hasPrefixLocked(key string) bool {
+func (m *MemoryLocker) hasPrefixLocked(key string) (string, bool) {
+	prefix := ""
 	hasPrefix := false
-	m.LockedItems.Range(func(k, v interface{}) bool {
+	m.lockedItems.Range(func(k, v interface{}) bool {
 		if strings.HasPrefix(key, k.(string)) {
+			prefix = k.(string)
 			hasPrefix = true
 			return false
 		}
 		return true
 	})
-	return hasPrefix
+	return prefix, hasPrefix
 }
 
 func (m *MemoryLocker) updateLockTime(key *memoryKey) {
@@ -95,12 +105,12 @@ func (m *MemoryLocker) updateLockTime(key *memoryKey) {
 
 	for {
 		select {
-		case <-*key.Channel:
+		case <-*key.Done:
 			// Received signal to stop
 			return
 		case <-ticker.C:
 			// Continue updating lock time
-			lockInfo, ok := m.LockedItems.Load(key.key)
+			lockInfo, ok := m.lockedItems.Load(key.key)
 			if !ok {
 				// Key no longer exists, stop updating
 				return
@@ -113,7 +123,7 @@ func (m *MemoryLocker) updateLockTime(key *memoryKey) {
 			if lock.ID == key.id {
 				lock.Date = time.Now().UTC()
 				// Update lock time
-				m.LockedItems.Store(key.key, lock)
+				m.lockedItems.Store(key.key, lock)
 			}
 		}
 	}
@@ -124,10 +134,10 @@ func (m *MemoryLocker) Unlock(key Key) fferr.GRPCError {
 		return fferr.NewInternalError(fmt.Errorf("cannot unlock an empty key"))
 	}
 
-	m.Mutex.Lock()
-	defer m.Mutex.Unlock()
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 
-	lockInfo, ok := m.LockedItems.Load(key.Key())
+	lockInfo, ok := m.lockedItems.Load(key.Key())
 	if !ok {
 		return fferr.NewKeyNotLockedError(key.Key(), nil)
 	}
@@ -139,15 +149,15 @@ func (m *MemoryLocker) Unlock(key Key) fferr.GRPCError {
 	if keyLock.ID != key.ID() {
 		err := fferr.NewKeyAlreadyLockedError(key.Key(), keyLock.ID, fmt.Errorf("attempting to unlock with incorrect key"))
 		err.AddDetail("expected key", keyLock.ID)
-		err.AddDetail("recieved key", key.ID())
+		err.AddDetail("received key", key.ID())
 		return err
 	}
-	m.LockedItems.Delete(key.Key())
+	m.lockedItems.Delete(key.Key())
 	mKey, ok := key.(*memoryKey)
 	if !ok {
 		return fferr.NewInternalError(fmt.Errorf("could not cast key to memory key"))
 	}
-	close(*mKey.Channel)
+	close(*mKey.Done)
 
 	return nil
 }

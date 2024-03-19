@@ -32,8 +32,8 @@ type TaskMetadataManager struct {
 
 func NewMemoryTaskMetadataManager() TaskMetadataManager {
 	memoryLocker := locker.MemoryLocker{
-		LockedItems: sync.Map{},
-		Mutex:       &sync.Mutex{},
+		lockedItems: sync.Map{},
+		mutex:       &sync.Mutex{},
 	}
 
 	memoryStorage := ss.MemoryStorageImplementation{

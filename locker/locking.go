@@ -44,7 +44,8 @@ func (l *LockInformation) Unmarshal(data []byte) fferr.GRPCError {
 	// Parse the date string with UTC time zone
 	parsedTime, err := time.Parse(time.RFC3339, tmp.Date)
 	if err != nil {
-		return fferr.NewInternalError(err)
+		parsingErr := fmt.Errorf("failed to parse date, '%s': %v", tmp.Date, err)
+		return fferr.NewParsingError(parsingErr)
 	}
 	l.Date = parsedTime.UTC()
 

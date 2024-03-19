@@ -42,6 +42,7 @@ const (
 	// MISCELLANEOUS:
 	INTERNAL_ERROR   = "Internal Error"
 	INVALID_ARGUMENT = "Invalid Argument"
+	PARSING_ERROR    = "Parsing Error"
 
 	// JOBS:
 	JOB_DOES_NOT_EXIST        = "Job Does Not Exist"

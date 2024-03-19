@@ -75,7 +75,7 @@ def display_data_metrics(df, spark):
         for index in range(len(row_values)):
             curr_value = row_values[index]
             if isinstance(curr_value, datetime.datetime):
-                row_values[index] = curr_value.strftime("%m/%d/%Y")
+                row_values[index] = curr_value.strftime("%m/%d/%Y, %H:%M:%S")
         rows.append(row_values)
 
     for column_name in data_type_dict:

@@ -31,34 +31,68 @@ func (test *MetadataStorageTest) Run() {
 }
 
 func StorageSet(t *testing.T, storage metadataStorageImplementation) {
-	type TestCase struct {
+	type keyValue struct {
 		key   string
 		value string
-		err   error
+	}
+	type TestCase struct {
+		keys []keyValue
+		err  error
 	}
 	tests := map[string]TestCase{
-		"Simple":   {"setTest/key1", "value1", nil},
-		"EmptyKey": {"", "value1", fferr.NewInvalidArgumentError(fmt.Errorf("key is empty"))},
+		"Simple": {
+			[]keyValue{
+				{
+					"setTest/key1",
+					"value1",
+				},
+			},
+			nil,
+		},
+		"EmptyKey": {
+			[]keyValue{
+				{
+					"",
+					"value1",
+				},
+			},
+			fferr.NewInvalidArgumentError(fmt.Errorf("key is empty")),
+		},
+		"SetExistingKey": {
+			[]keyValue{
+				{
+					"key1",
+					"value1",
+				},
+				{
+					"key1",
+					"value2",
+				},
+			},
+			fferr.NewInternalError(fmt.Errorf("key '%s' already exists", "key1")),
+		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			err := storage.Set(test.key, test.value)
-			if err != nil && err.Error() != test.err.Error() {
-				t.Errorf("Set(%s, %s): expected error %v, got %v", test.key, test.value, test.err, err)
-			}
+			for _, kv := range test.keys {
+				err := storage.Set(kv.key, kv.value)
+				if err != nil && err.Error() != test.err.Error() {
+					t.Errorf("Set(%s, %s): expected error %v, got %v", kv.key, kv.value, test.err, err)
+				}
 
-			// continue to next test case
-			if test.key == "" {
-				return
-			}
+				// continue to next test case
+				if kv.key == "" {
+					return
+				}
 
-			value, err := storage.Delete(test.key)
-			if err != nil {
-				t.Fatalf("Delete(%s) failed: %v", test.key, err)
-			}
-			if value != test.value {
-				t.Fatalf("Delete(%s): expected value %s, got %s", test.key, test.value, value)
+				value, err := storage.Delete(kv.key)
+				if err != nil {
+					t.Fatalf("Delete(%s) failed: %v", kv.key, err)
+				}
+				if value != kv.value {
+					t.Fatalf("Delete(%s): expected value %s, got %s", kv.key, kv.value, value)
+				}
 			}
 		})
 	}

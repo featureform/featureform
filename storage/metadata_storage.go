@@ -6,7 +6,7 @@ import (
 )
 
 type MetadataStorage struct {
-	Locker  locker.MultiLock
+	Locker  locker.Locker
 	Storage metadataStorageImplementation
 }
 

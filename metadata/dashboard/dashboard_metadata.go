@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/featureform/fferr"
 	filestore "github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
@@ -1109,20 +1108,20 @@ func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64
 	m.logger.Infow("Getting Source Variant Iterator", "name", name, "variant", variant)
 	sv, err := m.client.GetSourceVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("could not get source variant: %w", err))
+		return nil, err
 	}
 	providerEntry, err := sv.FetchProvider(m.client, ctx)
 	m.logger.Debugw("Fetched Source Variant Provider", "name", providerEntry.Name(), "type", providerEntry.Type())
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("could not get fetch provider: %w", err))
+		return nil, err
 	}
 	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("could not get provider: %w", err))
+		return nil, err
 	}
 	store, err := p.AsOfflineStore()
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("could not open as offline store: %w", err))
+		return nil, err
 	}
 	var primary provider.PrimaryTable
 	var providerErr error
@@ -1138,7 +1137,7 @@ func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64
 		primary, providerErr = store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary})
 	}
 	if providerErr != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("could not get primary table: %w", err))
+		return nil, providerErr
 	}
 	return primary.IterateSegment(limit)
 }

@@ -189,7 +189,7 @@ metadata:
     maxReplicas: 100
     targetCPUUtilizationPercentage: 80
 
-# Configuration for the backup service (Experimental)
+# Configuration for the backup service 
 backup:
   enabled: false
   schedule: "0 * * * *"

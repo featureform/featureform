@@ -24,6 +24,7 @@ describe('Error modal tests', () => {
   const ERROR_MSG_ID = 'errorMessageId';
   const TITLE_ID = 'errorModalTitleId';
   const FULL_TXT_ID = 'fullTextContent';
+  const COPY_BTN_ID = 'copyBtn';
 
   const getTestBody = (errorTxt = '', buttonTxt = 'Show More') => {
     const testBody = (
@@ -79,6 +80,8 @@ describe('Error modal tests', () => {
 
     //when:
     const foundFullError = helper.getByTestId(FULL_TXT_ID);
+    const foundCopyBtn = helper.getByTestId(COPY_BTN_ID);
+    fireEvent.click(foundCopyBtn);
 
     //then: the full error is found
     expect(foundFullError.textContent).toBe(errorMsg);

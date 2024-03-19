@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: featureform-api-server
   labels:
-    run: featureform-api-server
+    app: featureform-api-server
 spec:
   ports:
     - port: {{ .Values.api.port }}

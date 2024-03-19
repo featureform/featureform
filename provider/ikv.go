@@ -13,10 +13,10 @@ import (
 )
 
 // IKV primary-key for storing entity key values
-var pkey_field_name string = "ff_primary_key"
+const pkey_field_name string = "ff_primary_key"
 
 // primary-key of the row storing table metadata
-var metadata_pkey string = "ff_table_metadata"
+const metadata_pkey string = "ff_table_metadata"
 
 // Integrates IKV: https://docs.inlined.io as an Online Store in Featureform.
 // Wraps a single IKV store instance.

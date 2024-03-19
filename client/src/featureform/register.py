@@ -2241,8 +2241,8 @@ class Registrar:
         log_file_path: str = "",
         description: str = "",
         team: str = "",
-        tags: List[str] = [],
-        properties: dict = {},
+        tags: Optional[List[str]] = None,
+        properties: Optional[dict] = None,
     ):
         """Register an IKV provider.
 

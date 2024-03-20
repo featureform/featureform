@@ -2,11 +2,11 @@ package storage
 
 import (
 	"github.com/featureform/fferr"
-	"github.com/featureform/locker"
+	"github.com/featureform/ffsync"
 )
 
 type MetadataStorage struct {
-	Locker  locker.Locker
+	Locker  ffsync.Locker
 	Storage metadataStorageImplementation
 }
 

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/locker"
+	"github.com/featureform/ffsync"
 )
 
 type MetadataStorageTest struct {
@@ -275,7 +275,7 @@ func StorageDelete(t *testing.T, storage metadataStorageImplementation) {
 }
 
 func TestMetadataStorage(t *testing.T) {
-	locker := locker.NewMemoryLocker()
+	locker := ffsync.NewMemoryLocker()
 
 	storage := NewMemoryStorageImplementation()
 

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/locker"
+	"github.com/featureform/ffsync"
 	ss "github.com/featureform/storage"
 )
 
@@ -30,7 +30,7 @@ type TaskMetadataManager struct {
 }
 
 func NewMemoryTaskMetadataManager() TaskMetadataManager {
-	memoryLocker := locker.NewMemoryLocker()
+	memoryLocker := ffsync.NewMemoryLocker()
 	memoryStorage := ss.NewMemoryStorageImplementation()
 
 	memoryMetadataStorage := ss.MetadataStorage{

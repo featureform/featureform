@@ -9,6 +9,38 @@ import (
 	"github.com/featureform/ffsync"
 )
 
+type TaskRunKey struct {
+	taskID TaskID
+}
+
+func (trk TaskRunKey) String() string {
+	if trk.taskID.Value() == 0 {
+		return "/tasks/runs/task_id="
+	}
+	return fmt.Sprintf("/tasks/runs/task_id=%d", trk.taskID)
+}
+
+type TaskRunMetadataKey struct {
+	taskID TaskID
+	runID  TaskRunID
+	date   time.Time
+}
+
+func (trmk TaskRunMetadataKey) String() string {
+	key := "/tasks/runs/metadata"
+
+	// adds the date to the key if it's not the default value
+	if trmk.date != (time.Time{}) {
+		key += fmt.Sprintf("/%s", trmk.date.Format("2006/01/02"))
+
+		// adds the task_id and run_id to the key if they're not the default value
+		if trmk.taskID.Value() != 0 && trmk.runID.Value() != 0 {
+			key += fmt.Sprintf("/task_id=%d/run_id=%d", trmk.taskID, trmk.runID)
+		}
+	}
+	return key
+}
+
 type TaskRunID ffsync.OrderedId
 type Status string
 

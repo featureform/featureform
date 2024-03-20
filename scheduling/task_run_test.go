@@ -44,8 +44,8 @@ func TestEmptyVariables(t *testing.T) {
 		{
 			name: "NoName",
 			task: TaskRunMetadata{
-				ID:     1,
-				TaskId: 12,
+				ID:     TaskRunID(&MockOrderedID{1}),
+				TaskId: TaskID(&MockOrderedID{12}),
 				Name:   "",
 				Trigger: OneOffTrigger{
 					TriggerName: "name1",
@@ -62,8 +62,8 @@ func TestEmptyVariables(t *testing.T) {
 		{
 			name: "NoStartTime",
 			task: TaskRunMetadata{
-				ID:     1,
-				TaskId: 12,
+				ID:     TaskRunID(&MockOrderedID{1}),
+				TaskId: TaskID(&MockOrderedID{12}),
 				Name:   "name2",
 				Trigger: OneOffTrigger{
 					TriggerName: "name3",
@@ -107,8 +107,8 @@ func TestSerializeTaskRunMetadata(t *testing.T) {
 		{
 			name: "WithOneOffTrigger",
 			task: TaskRunMetadata{
-				ID:     1,
-				TaskId: 12,
+				ID:     TaskRunID(&MockOrderedID{1}),
+				TaskId: TaskID(&MockOrderedID{12}),
 				Name:   "oneoff_taskrun",
 				Trigger: OneOffTrigger{
 					TriggerName: "name1",
@@ -125,8 +125,8 @@ func TestSerializeTaskRunMetadata(t *testing.T) {
 		{
 			name: "WithDummyTrigger",
 			task: TaskRunMetadata{
-				ID:     1,
-				TaskId: 12,
+				ID:     TaskRunID(&MockOrderedID{1}),
+				TaskId: TaskID(&MockOrderedID{12}),
 				Name:   "dummy_taskrun",
 				Trigger: DummyTrigger{
 					TriggerName: "name2",
@@ -173,8 +173,8 @@ func TestIncorrectTaskRunMetadata(t *testing.T) {
 		{
 			name: "OneOffDummyTrigger",
 			task: TaskRunMetadata{
-				ID:     1,
-				TaskId: 12,
+				ID:     TaskRunID(&MockOrderedID{1}),
+				TaskId: TaskID(&MockOrderedID{12}),
 				Name:   "dummy_and_oneoff",
 				Trigger: DummyTrigger{
 					TriggerName: "name3",
@@ -192,8 +192,8 @@ func TestIncorrectTaskRunMetadata(t *testing.T) {
 		{
 			name: "NoTrigger",
 			task: TaskRunMetadata{
-				ID:        1,
-				TaskId:    12,
+				ID:        TaskRunID(&MockOrderedID{1}),
+				TaskId:    TaskID(&MockOrderedID{12}),
 				Name:      "no_trigger",
 				Trigger:   nil,
 				Status:    Pending,

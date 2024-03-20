@@ -10,6 +10,21 @@ import (
 	"github.com/featureform/ffsync"
 )
 
+type Key interface {
+	String() string
+}
+
+type TaskMetadataKey struct {
+	taskID TaskID
+}
+
+func (tmk TaskMetadataKey) String() string {
+	if tmk.taskID.Value() == 0 {
+		return "/tasks/metadata/task_id="
+	}
+	return fmt.Sprintf("/tasks/metadata/task_id=%d", tmk.taskID)
+}
+
 type TaskID ffsync.OrderedId
 
 type TaskType string
@@ -69,7 +84,7 @@ func (t *TaskMetadata) Marshal() ([]byte, fferr.GRPCError) {
 
 func (t *TaskMetadata) Unmarshal(data []byte) fferr.GRPCError {
 	type tempConfig struct {
-		ID          TaskID          `json:"id"`
+		ID          uint64          `json:"id"`
 		Name        string          `json:"name"`
 		TaskType    TaskType        `json:"type"`
 		Target      json.RawMessage `json:"target"`
@@ -82,7 +97,9 @@ func (t *TaskMetadata) Unmarshal(data []byte) fferr.GRPCError {
 		errMessage := fmt.Errorf("failed to deserialize task metadata: %w", err)
 		return fferr.NewInternalError(errMessage)
 	}
-	t.ID = temp.ID
+
+	id := ffsync.Uint64OrderedId(temp.ID)
+	t.ID = TaskID(&id)
 
 	if temp.Name == "" {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("task metadata is missing name"))

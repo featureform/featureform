@@ -1,29 +1,55 @@
 package scheduling
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/featureform/ffsync"
-	sp "github.com/featureform/scheduling/storage_providers"
 )
 
 type MockOrderedID struct {
 	Id uint64
 }
 
-func (id MockOrderedID) Equals(other ffsync.OrderedId) bool {
-	return id.Id == other.(MockOrderedID).Id
+func (id *MockOrderedID) Equals(other ffsync.OrderedId) bool {
+	otherID, ok := other.(*MockOrderedID)
+	if !ok {
+		return false
+	}
+	return id.Id == otherID.Id
 }
 
-func (id MockOrderedID) Less(other ffsync.OrderedId) bool {
-	return id.Id < other.(MockOrderedID).Id
+func (id *MockOrderedID) Less(other ffsync.OrderedId) bool {
+	otherID, ok := other.(*MockOrderedID)
+	if !ok {
+		return false
+	}
+	return id.Id < otherID.Id
 }
 
-func (id MockOrderedID) String() string {
+func (id *MockOrderedID) String() string {
 	return fmt.Sprint(id.Id)
+}
+
+func (id *MockOrderedID) Value() interface{} {
+	return id.Id
+}
+
+func (id *MockOrderedID) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprint(id.Id)), nil
+}
+
+func (id *MockOrderedID) UnmarshalJSON(data []byte) error {
+	var tmp uint64
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return fmt.Errorf("failed to unmarshal MockOrderedID: %v", err)
+	}
+
+	id.Id = tmp
+	return nil
 }
 
 func TestTaskMetadataManager(t *testing.T) {
@@ -55,16 +81,16 @@ func testCreateTask(t *testing.T, manager TaskMetadataManager) {
 		{
 			"Single",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(MockOrderedID{Id: 1})},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 1})},
 			},
 			false,
 		},
 		{
 			"Multiple",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(MockOrderedID{Id: 1})},
-				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(MockOrderedID{Id: 2})},
-				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(MockOrderedID{Id: 3})},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 1})},
+				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 2})},
+				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 3})},
 			},
 			false,
 		},
@@ -111,35 +137,35 @@ func TestTaskGetByID(t *testing.T) {
 		{
 			"Empty",
 			[]taskInfo{},
-			TaskID(MockOrderedID{Id: 1}),
+			TaskID(&MockOrderedID{Id: 1}),
 			true,
 		},
 		{
 			"Single",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(MockOrderedID{Id: 1})},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 1})},
 			},
-			TaskID(MockOrderedID{Id: 1}),
+			TaskID(&MockOrderedID{Id: 1}),
 			false,
 		},
 		{
 			"Multiple",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(MockOrderedID{Id: 1})},
-				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(MockOrderedID{Id: 2})},
-				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(MockOrderedID{Id: 3})},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 1})},
+				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 2})},
+				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 3})},
 			},
-			TaskID(MockOrderedID{Id: 2}),
+			TaskID(&MockOrderedID{Id: 2}),
 			false,
 		},
 		{
 			"MultipleInsertInvalidLookup",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, MockOrderedID{Id: 1}},
-				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, MockOrderedID{Id: 2}},
-				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, MockOrderedID{Id: 3}},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, &MockOrderedID{Id: 1}},
+				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, &MockOrderedID{Id: 2}},
+				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, &MockOrderedID{Id: 3}},
 			},
-			TaskID(MockOrderedID{Id: 4}),
+			TaskID(&MockOrderedID{Id: 4}),
 			true,
 		},
 	}
@@ -164,7 +190,7 @@ func TestTaskGetByID(t *testing.T) {
 			return
 		}
 
-		idx := test.ID.(MockOrderedID).Id
+		idx := test.ID.(*MockOrderedID).Id
 		if reflect.DeepEqual(recievedDef, test.Tasks[idx]) {
 			t.Fatalf("Expected: %v got: %v", test.Tasks[idx], recievedDef)
 		}
@@ -195,25 +221,25 @@ func TestTaskGetAll(t *testing.T) {
 		{
 			"Empty",
 			[]taskInfo{},
-			TaskID(MockOrderedID{Id: 1}),
+			TaskID(&MockOrderedID{Id: 1}),
 			false,
 		},
 		{
 			"Single",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(MockOrderedID{Id: 1})},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 1})},
 			},
-			TaskID(MockOrderedID{Id: 1}),
+			TaskID(&MockOrderedID{Id: 1}),
 			false,
 		},
 		{
 			"Multiple",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(MockOrderedID{Id: 1})},
-				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(MockOrderedID{Id: 2})},
-				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(MockOrderedID{Id: 3})},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 1})},
+				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 2})},
+				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 3})},
 			},
-			TaskID(MockOrderedID{Id: 2}),
+			TaskID(&MockOrderedID{Id: 2}),
 			false,
 		},
 	}
@@ -286,23 +312,23 @@ func TestCreateTaskRun(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
-			[]runInfo{{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(MockOrderedID{Id: 1})}},
+			[]runInfo{{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 1})}},
 			false,
 		},
 		{
 			"Multiple",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(MockOrderedID{Id: 1})},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(MockOrderedID{Id: 2})},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(MockOrderedID{Id: 3})},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 1})},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 2})},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 3})},
 			},
 			false,
 		},
 		{
 			"InvalidTask",
 			[]taskInfo{},
-			[]runInfo{{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(MockOrderedID{Id: 1})}},
+			[]runInfo{{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 1})}},
 			true,
 		},
 		{
@@ -312,10 +338,10 @@ func TestCreateTaskRun(t *testing.T) {
 				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(MockOrderedID{Id: 1})},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(MockOrderedID{Id: 2})},
-				{"name", TaskID(MockOrderedID{Id: 2}), OneOffTrigger{"name"}, TaskRunID(MockOrderedID{Id: 1})},
-				{"name", TaskID(MockOrderedID{Id: 2}), OneOffTrigger{"name"}, TaskRunID(MockOrderedID{Id: 2})},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 1})},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 2})},
+				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 1})},
+				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 2})},
 			},
 			false,
 		},
@@ -374,21 +400,21 @@ func TestGetRunByID(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
-			[]runInfo{{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}}},
-			TaskID(MockOrderedID{Id: 1}),
-			TaskRunID(MockOrderedID{Id: 1}),
+			[]runInfo{{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}}},
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 1}),
 			false,
 		},
 		{
 			"Multiple",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
 			},
-			TaskID(MockOrderedID{Id: 1}),
-			TaskRunID(MockOrderedID{Id: 2}),
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 2}),
 			false,
 		},
 		{
@@ -398,28 +424,27 @@ func TestGetRunByID(t *testing.T) {
 				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
 			},
-			TaskID(MockOrderedID{Id: 2}),
-			TaskRunID(MockOrderedID{Id: 1}),
+			TaskID(&MockOrderedID{Id: 2}),
+			TaskRunID(&MockOrderedID{Id: 1}),
 			false,
 		},
 		{
 			"Fetch NonExistent",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
-			[]runInfo{{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}}},
-			TaskID(MockOrderedID{Id: 1}),
-			TaskRunID(MockOrderedID{Id: 2}),
+			[]runInfo{{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}}},
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 2}),
 			true,
 		},
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := sp.NewMemoryStorageProvider()
-		manager := NewTaskManager(storage)
+		manager := NewMemoryTaskMetadataManager()
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -480,16 +505,16 @@ func TestGetRunAll(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
-			[]runInfo{{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}}},
+			[]runInfo{{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}}},
 			false,
 		},
 		{
 			"Multiple",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
 			},
 			false,
 		},
@@ -500,10 +525,10 @@ func TestGetRunAll(t *testing.T) {
 				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
 			},
 			false,
 		},
@@ -589,9 +614,9 @@ func TestSetStatusByRunID(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
-			[]runInfo{{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}}},
-			TaskID(MockOrderedID{Id: 1}),
-			TaskRunID(MockOrderedID{Id: 1}),
+			[]runInfo{{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}}},
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 1}),
 			Success,
 			nil,
 			false,
@@ -600,12 +625,12 @@ func TestSetStatusByRunID(t *testing.T) {
 			"Multiple",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
 			},
-			TaskID(MockOrderedID{Id: 1}),
-			TaskRunID(MockOrderedID{Id: 2}),
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 2}),
 			Pending,
 			nil,
 			false,
@@ -614,10 +639,10 @@ func TestSetStatusByRunID(t *testing.T) {
 			"WrongID",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
 			},
-			TaskID(MockOrderedID{Id: 3}),
-			TaskRunID(MockOrderedID{Id: 2}),
+			TaskID(&MockOrderedID{Id: 3}),
+			TaskRunID(&MockOrderedID{Id: 2}),
 			Pending,
 			nil,
 			true,
@@ -626,10 +651,10 @@ func TestSetStatusByRunID(t *testing.T) {
 			"WrongRunID",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
 			},
-			TaskID(MockOrderedID{Id: 1}),
-			TaskRunID(MockOrderedID{Id: 2}),
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 2}),
 			Running,
 			nil,
 			true,
@@ -641,13 +666,13 @@ func TestSetStatusByRunID(t *testing.T) {
 				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
 			},
-			TaskID(MockOrderedID{Id: 2}),
-			TaskRunID(MockOrderedID{Id: 1}),
+			TaskID(&MockOrderedID{Id: 2}),
+			TaskRunID(&MockOrderedID{Id: 1}),
 			Failed,
 			fmt.Errorf("Failed to create task"),
 			false,
@@ -659,11 +684,11 @@ func TestSetStatusByRunID(t *testing.T) {
 				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
 			},
-			TaskID(MockOrderedID{Id: 2}),
-			TaskRunID(MockOrderedID{Id: 1}),
+			TaskID(&MockOrderedID{Id: 2}),
+			TaskRunID(&MockOrderedID{Id: 1}),
 			Failed,
 			nil,
 			true,
@@ -738,9 +763,9 @@ func TestSetEndTimeByRunID(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
-			[]runInfo{{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}}},
-			TaskID(MockOrderedID{Id: 1}),
-			TaskRunID(MockOrderedID{Id: 1}),
+			[]runInfo{{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}}},
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 1}),
 			time.Now().Add(3 * time.Minute).Truncate(0).UTC(),
 			false,
 		},
@@ -748,12 +773,12 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			"Multiple",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
 			},
-			TaskID(MockOrderedID{Id: 1}),
-			TaskID(MockOrderedID{Id: 2}),
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskID(&MockOrderedID{Id: 2}),
 			time.Now().Add(3 * time.Minute).Truncate(0).UTC(),
 			false,
 		},
@@ -761,12 +786,12 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			"EmptyTime",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
 			},
-			TaskID(MockOrderedID{Id: 1}),
-			TaskRunID(MockOrderedID{Id: 2}),
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 2}),
 			time.Time{},
 			true,
 		},
@@ -774,12 +799,12 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			"WrongEndTime",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
 			},
-			TaskID(MockOrderedID{Id: 1}),
-			TaskRunID(MockOrderedID{Id: 2}),
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 2}),
 			time.Unix(1, 0).Truncate(0).UTC(),
 			true,
 		},
@@ -790,13 +815,13 @@ func TestSetEndTimeByRunID(t *testing.T) {
 				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
-				{"name", TaskID(MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
 			},
-			TaskID(MockOrderedID{Id: 2}),
-			TaskRunID(MockOrderedID{Id: 1}),
+			TaskID(&MockOrderedID{Id: 2}),
+			TaskRunID(&MockOrderedID{Id: 1}),
 			time.Now().UTC().Add(3 * time.Minute).Truncate(0),
 			false,
 		},
@@ -861,7 +886,7 @@ func TestKeyPaths(t *testing.T) {
 		},
 		{
 			Name:        "TaskMetadataKeyIndividual",
-			Key:         TaskMetadataKey{taskID: TaskID(MockOrderedID{Id: 1})},
+			Key:         TaskMetadataKey{taskID: TaskID(&MockOrderedID{Id: 1})},
 			ExpectedKey: "/tasks/metadata/task_id=1",
 		},
 		{
@@ -871,7 +896,7 @@ func TestKeyPaths(t *testing.T) {
 		},
 		{
 			Name:        "TaskRunKeyIndividual",
-			Key:         TaskRunKey{taskID: TaskID(MockOrderedID{Id: 1})},
+			Key:         TaskRunKey{taskID: TaskID(&MockOrderedID{Id: 1})},
 			ExpectedKey: "/tasks/runs/task_id=1"},
 		{
 			Name:        "TaskRunMetadataKeyAll",
@@ -881,8 +906,8 @@ func TestKeyPaths(t *testing.T) {
 		{
 			Name: "TaskRunMetadataKeyIndividual",
 			Key: TaskRunMetadataKey{
-				taskID: TaskID(MockOrderedID{Id: 1}),
-				runID:  TaskRunID(MockOrderedID{Id: 1}),
+				taskID: TaskID(&MockOrderedID{Id: 1}),
+				runID:  TaskRunID(&MockOrderedID{Id: 1}),
 				date:   time.Date(2023, time.January, 20, 23, 0, 0, 0, time.UTC),
 			},
 			ExpectedKey: "/tasks/runs/metadata/2023/01/20/task_id=1/run_id=1",

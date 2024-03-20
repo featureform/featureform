@@ -3,23 +3,23 @@ package ffsync
 import "testing"
 
 func TestUint64OrderedId(t *testing.T) {
-	id1 := uint64OrderedId(1)
-	id2 := uint64OrderedId(2)
-	id3 := uint64OrderedId(1)
+	id1 := Uint64OrderedId(1)
+	id2 := Uint64OrderedId(2)
+	id3 := Uint64OrderedId(1)
 
-	if !id1.Equals(id3) {
+	if !id1.Equals(&id3) {
 		t.Errorf("Expected id1 to equal id3")
 	}
 
-	if id1.Equals(id2) {
+	if id1.Equals(&id2) {
 		t.Errorf("Expected id1 to not equal id2")
 	}
 
-	if !id1.Less(id2) {
+	if !id1.Less(&id2) {
 		t.Errorf("Expected id1 to be less than id2")
 	}
 
-	if id2.Less(id1) {
+	if id2.Less(&id1) {
 		t.Errorf("Expected id2 to not be less than id1")
 	}
 

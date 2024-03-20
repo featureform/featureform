@@ -5,13 +5,13 @@ provider "helm" {
 }
 
 resource "helm_release" "certmgr" {
-  name = "cert-mgr"
+  name      = "cert-mgr"
   namespace = "default"
-  version = var.cert_manager_version
+  version   = var.cert_manager_version
 
   repository = "https://charts.jetstack.io"
-  chart = "cert-manager"
-  
+  chart      = "cert-manager"
+
   set {
     name  = "installCRDs"
     value = "true"
@@ -19,29 +19,29 @@ resource "helm_release" "certmgr" {
 }
 
 resource "helm_release" "featureform" {
-  name = "featureform"
+  name      = "featureform"
   namespace = "default"
 
   repository = "https://storage.googleapis.com/featureform-helm/"
-  chart = "featureform"
-  
+  chart      = "featureform"
+
   set {
-    name  = "global.hostname"
+    name  = "hostname"
     value = var.featureform_hostname
   }
-  
+
   set {
-    name  = "global.publicCert"
+    name  = "publicCert"
     value = var.featureform_public_cert
   }
 
   set {
-    name = "global.publicCert"
+    name  = "publicCert"
     value = "false"
   }
 
   set {
-    name = "global.localCert"
+    name  = "selfSignedCert"
     value = "true"
   }
 

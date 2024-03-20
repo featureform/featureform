@@ -152,7 +152,7 @@ class TrainTestSplitIterator:
         if self._np_type_parser is None and data.rows:
             self._np_type_parser = _NpProtoTypeParser.init_types(data.rows[0])
 
-        for i, row in enumerate(data.rows):
+        for row in data.rows:
             batch_features_list.append(
                 self._np_type_parser.parse_features(row.features)
             )
